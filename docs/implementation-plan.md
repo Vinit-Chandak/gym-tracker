@@ -107,6 +107,16 @@ All questions from the first review were answered:
 - Units: kg everywhere. Time zone: Asia/Kolkata.
 - App name: Overload.
 
+## Phase 4 decisions received (2026-09-08)
+
+- Today shows the planned day first, with a Start button; the check-in comes after Start.
+- Set entry offers both large plus/minus steppers and a numeric keypad field. Rows come
+  faintly prefilled from the previous comparable session and can be overridden or stepped.
+- Rest timer: optional feature behind a Settings toggle, off by default.
+- Missed days: sessions must shift rather than disappear. The proposed rule lives in
+  `src/domain/schedule.ts` (sequence-based, rest slots soft, out-of-order sessions return to
+  the earliest pending slot) and waits for confirmation before it drives the Today screen.
+
 ## Remaining open points
 
 - Equipment at Samsung Gym and Society Gym is unknown and gets added through the Phase 2 screens.
