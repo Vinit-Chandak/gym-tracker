@@ -1,218 +1,448 @@
 "use client";
 
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useMemo, useState, useTransition } from "react";
+import type { Route } from "next";
+
 import { Card } from "@/components/ui/card";
-import { Select } from "@/components/ui/select";
+import { Chart, SERIES_COLORS, type ChartSeries } from "@/components/ui/chart";
 import { Field } from "@/components/ui/input";
-import { TrendChart } from "@/components/ui/trend-chart";
-import type { liftingAdherence, trainingAnalytics } from "@/domain/analytics";
+import { SegmentedControl } from "@/components/ui/segmented-control";
+import { Select } from "@/components/ui/select";
+import type { PerformanceSeries, Point } from "@/domain/analytics";
 import type { MuscleGroup } from "@/domain/types";
+import { formatMinutes } from "@/lib/format";
 import { LOAD_UNIT_LABELS, MUSCLE_LABELS } from "@/lib/labels";
 
-type Analytics = ReturnType<typeof trainingAnalytics>;
-export function ProgressView({
-  data,
-  adherence,
+export type SeriesOption = {
+  id: string;
+  name: string;
+  machine: string;
+  unit: keyof typeof LOAD_UNIT_LABELS;
+};
+
+export type Week = {
+  date: string;
+  workouts: number;
+  runs: number;
+  runKm: number;
+  runMinutes: number;
+  muscles: Record<string, number>;
+};
+
+export type Adherence = {
+  name: string;
+  total: number;
+  completed: number;
+  skipped: number;
+  remaining: number;
+  completionRate: number | null;
+};
+
+type Props = {
+  summary: { workouts: number; runs: number; trainingDays: number; truncated: boolean };
+  adherence: Adherence | null;
+  weeks: Week[];
+  recovery: {
+    date: string;
+    sleep: number | null;
+    back: number | null;
+    leftShin: number | null;
+    rightShin: number | null;
+  }[];
+  pace: { date: string; value: number | null; mode: string }[];
+  options: SeriesOption[];
+  /** Only the chosen exercise's numbers cross the wire; the rest stay on the server. */
+  selected: PerformanceSeries | null;
+};
+
+const TABS = [
+  { value: "overview", label: "Overview" },
+  { value: "strength", label: "Strength" },
+  { value: "running", label: "Running" },
+  { value: "recovery", label: "Recovery" },
+] as const;
+type Tab = (typeof TABS)[number]["value"];
+
+const STRENGTH_METRICS = [
+  { value: "load", label: "Load" },
+  { value: "reps", label: "Reps" },
+  { value: "volume", label: "Volume" },
+  { value: "rir", label: "RIR" },
+  { value: "estimated1RM", label: "e1RM" },
+] as const;
+type StrengthMetric = (typeof STRENGTH_METRICS)[number]["value"];
+
+const RUN_METRICS = [
+  { value: "distance", label: "Distance" },
+  { value: "duration", label: "Duration" },
+  { value: "pace", label: "Pace" },
+] as const;
+type RunMetric = (typeof RUN_METRICS)[number]["value"];
+
+const RECOVERY_METRICS = [
+  { value: "sleep", label: "Sleep" },
+  { value: "back", label: "Back" },
+  { value: "leftShin", label: "L shin" },
+  { value: "rightShin", label: "R shin" },
+] as const;
+type RecoveryMetric = (typeof RECOVERY_METRICS)[number]["value"];
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <Card className="gap-0.5 p-3 text-center">
+      <p className="text-2xl font-semibold tabular-nums">{value}</p>
+      <p className="text-xs text-ink-muted">{label}</p>
+    </Card>
+  );
+}
+
+/** Latest reading plus its change from the first, so a chart has a headline. */
+function Headline({
+  points,
+  unit,
+  lowerIsBetter,
 }: {
-  data: Analytics;
-  adherence: ReturnType<typeof liftingAdherence>;
+  points: readonly Point[];
+  unit: string;
+  lowerIsBetter?: boolean;
 }) {
-  const [selected, setSelected] = useState(data.series[0]?.id ?? "");
-  const series = data.series.find((s) => s.id === selected) ?? data.series[0];
-  const muscles = [
-    ...new Set(data.weeks.flatMap((w) => Object.keys(w.muscles))),
-  ].sort() as MuscleGroup[];
-  const [muscle, setMuscle] = useState<string>(muscles[0] ?? "chest");
-  const [recovery, setRecovery] = useState<"sleep" | "back" | "leftShin" | "rightShin">("sleep");
+  const known = points.filter((p): p is Point & { value: number } => p.value !== null);
+  if (known.length === 0) return null;
+  const first = known[0]!.value;
+  const last = known[known.length - 1]!.value;
+  const delta = Math.round((last - first) * 10) / 10;
+  const better = lowerIsBetter ? delta < 0 : delta > 0;
+  return (
+    <p className="flex items-baseline gap-2">
+      <span className="text-2xl font-semibold tabular-nums">
+        {Math.round(last * 10) / 10}
+        <span className="ml-1 text-sm font-normal text-ink-muted">{unit}</span>
+      </span>
+      {known.length > 1 && delta !== 0 && (
+        <span className={better ? "text-sm text-success" : "text-sm text-ink-muted"}>
+          {delta > 0 ? "+" : ""}
+          {delta} since {known[0]!.date.slice(5).split("-").reverse().join("/")}
+        </span>
+      )}
+    </p>
+  );
+}
+
+export function ProgressView({
+  summary,
+  adherence,
+  weeks,
+  recovery,
+  pace,
+  options,
+  selected,
+}: Props) {
+  const router = useRouter();
+  const params = useSearchParams();
+  const [pending, startTransition] = useTransition();
+
+  const [tab, setTab] = useState<Tab>("overview");
+  const [metric, setMetric] = useState<StrengthMetric>("load");
+  const [runMetric, setRunMetric] = useState<RunMetric>("distance");
   const [paceMode, setPaceMode] = useState("outdoor");
+  const [recoveryMetric, setRecoveryMetric] = useState<RecoveryMetric>("sleep");
+
+  const muscles = useMemo(
+    () => [...new Set(weeks.flatMap((w) => Object.keys(w.muscles)))].sort() as MuscleGroup[],
+    [weeks],
+  );
+  const [muscle, setMuscle] = useState<string>("");
+  const shownMuscle = muscle || muscles[0] || "";
+
+  // The picked exercise lives in the URL so the server sends one series, not all of them.
+  const chooseSeries = (id: string) => {
+    const next = new URLSearchParams(params.toString());
+    next.set("series", id);
+    startTransition(() => router.replace(`/progress?${next}` as Route, { scroll: false }));
+  };
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, SeriesOption[]>();
+    for (const option of options) {
+      const group = map.get(option.name) ?? [];
+      group.push(option);
+      map.set(option.name, group);
+    }
+    return [...map.entries()];
+  }, [options]);
+
+  const weekDates = weeks.map((w) => w.date);
+  const asPoints = (pick: (w: Week) => number): Point[] =>
+    weeks.map((w) => ({ date: w.date, value: pick(w) }));
+
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-3 gap-2">
-        {[
-          ["Workouts", data.workouts],
-          ["Runs", data.runs],
-          ["Active days", data.trainingDays],
-        ].map(([label, value]) => (
-          <Card key={label} className="gap-1 p-3 text-center">
-            <p className="text-2xl font-semibold tabular-nums">{value}</p>
-            <p className="text-xs text-ink-muted">{label}</p>
-          </Card>
-        ))}
+        <Stat label="Workouts" value={String(summary.workouts)} />
+        <Stat label="Runs" value={String(summary.runs)} />
+        <Stat label="Active days" value={String(summary.trainingDays)} />
       </div>
-      {data.truncated && (
+
+      {summary.truncated && (
         <p role="status" className="text-sm text-warning">
-          This range exceeds 500 workouts or runs. Narrow the dates for complete totals and charts.
+          This range exceeds 500 workouts or runs. Narrow the dates for complete totals.
         </p>
       )}
-      {adherence && (
+
+      <SegmentedControl
+        name="progress-tab"
+        aria-label="Progress section"
+        options={TABS}
+        value={tab}
+        onChange={setTab}
+        columns={4}
+      />
+
+      {tab === "overview" && (
+        <>
+          {adherence && (
+            <Card>
+              <h2 className="font-semibold">Programme adherence</h2>
+              <p className="text-sm text-ink-muted">{adherence.name}</p>
+              <p className="text-lg font-semibold tabular-nums">
+                {adherence.completed} / {adherence.total} lifting sessions
+              </p>
+              <div
+                className="h-2 w-full overflow-hidden rounded-full bg-surface-raised"
+                role="img"
+                aria-label={`${adherence.completed} of ${adherence.total} sessions complete`}
+              >
+                <div
+                  className="h-full rounded-full bg-accent"
+                  style={{
+                    width: `${Math.round((adherence.completed / Math.max(1, adherence.total)) * 100)}%`,
+                  }}
+                />
+              </div>
+              <p className="text-sm text-ink-muted">
+                {adherence.skipped} skipped · {adherence.remaining} pending
+                {adherence.completionRate !== null
+                  ? ` · ${adherence.completionRate}% of resolved sessions completed`
+                  : ""}
+              </p>
+            </Card>
+          )}
+
+          <Card>
+            <Chart
+              title="Weekly activity"
+              unit="sessions"
+              series={[
+                {
+                  name: "Lifting",
+                  color: SERIES_COLORS.lifting,
+                  points: asPoints((w) => w.workouts),
+                },
+                { name: "Runs", color: SERIES_COLORS.running, points: asPoints((w) => w.runs) },
+              ]}
+              format={(v) => String(Math.round(v))}
+              note="Tuesday–Monday in your time zone. Range-edge weeks may be partial."
+            />
+          </Card>
+        </>
+      )}
+
+      {tab === "strength" && (
+        <>
+          <Card>
+            <Field label="Exercise">
+              <Select
+                value={selected?.id ?? ""}
+                onChange={(e) => chooseSeries(e.target.value)}
+                disabled={options.length === 0 || pending}
+              >
+                {options.length === 0 && <option value="">No logged exercises yet</option>}
+                {/* Grouping by exercise keeps each option short enough to read. */}
+                {grouped.map(([name, entries]) => (
+                  <optgroup key={name} label={name}>
+                    {entries.map((entry) => (
+                      <option key={entry.id} value={entry.id}>
+                        {entry.machine}
+                        {entry.unit === "kg" ? "" : ` · ${LOAD_UNIT_LABELS[entry.unit]}`}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </Select>
+            </Field>
+
+            {selected ? (
+              <>
+                <SegmentedControl
+                  name="strength-metric"
+                  aria-label="Strength measurement"
+                  options={STRENGTH_METRICS}
+                  value={metric}
+                  onChange={setMetric}
+                  columns={3}
+                />
+                <div className={pending ? "opacity-50 transition-opacity" : undefined}>
+                  <Headline
+                    points={selected[metric]}
+                    unit={
+                      metric === "reps"
+                        ? "reps"
+                        : metric === "rir"
+                          ? "RIR"
+                          : LOAD_UNIT_LABELS[selected.unit]
+                    }
+                  />
+                  <Chart
+                    title={STRENGTH_METRICS.find((m) => m.value === metric)!.label}
+                    unit={
+                      metric === "reps"
+                        ? "reps"
+                        : metric === "rir"
+                          ? "RIR"
+                          : metric === "volume"
+                            ? `${LOAD_UNIT_LABELS[selected.unit]} × reps`
+                            : LOAD_UNIT_LABELS[selected.unit]
+                    }
+                    series={[
+                      {
+                        name: selected.name,
+                        color: SERIES_COLORS.lifting,
+                        points: selected[metric],
+                      },
+                    ]}
+                    note={`${selected.machine}. Warm-ups excluded; each point is one session.`}
+                  />
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-ink-muted">
+                Finish a workout with logged sets to see performance trends. Machines and units are
+                kept separate.
+              </p>
+            )}
+          </Card>
+
+          {muscles.length > 0 && (
+            <Card>
+              <h2 className="font-semibold">Working sets by muscle</h2>
+              <Field label="Primary muscle">
+                <Select value={shownMuscle} onChange={(e) => setMuscle(e.target.value)}>
+                  {muscles.map((m) => (
+                    <option key={m} value={m}>
+                      {MUSCLE_LABELS[m]}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <Chart
+                title="Working sets"
+                unit="sets"
+                kind="bar"
+                series={[
+                  {
+                    name: "Sets",
+                    color: SERIES_COLORS.lifting,
+                    points: asPoints((w) => w.muscles[shownMuscle] ?? 0),
+                  },
+                ]}
+                format={(v) => String(Math.round(v))}
+                note="Every non-warm-up set counts once for each primary muscle; secondary muscles are excluded."
+              />
+            </Card>
+          )}
+        </>
+      )}
+
+      {tab === "running" && (
         <Card>
-          <h2 className="font-semibold">Programme adherence</h2>
-          <p className="text-sm text-ink-muted">{adherence.name} · whole programme</p>
-          <p className="text-lg font-semibold">
-            {adherence.completed} / {adherence.total} lifting sessions complete
-          </p>
-          <progress
-            value={adherence.completed}
-            max={Math.max(1, adherence.total)}
-            className="h-2 w-full accent-accent"
-            aria-label="Programme completion"
+          <SegmentedControl
+            name="run-metric"
+            aria-label="Running measurement"
+            options={RUN_METRICS}
+            value={runMetric}
+            onChange={setRunMetric}
+            columns={3}
           />
-          <p className="text-sm text-ink-muted">
-            {adherence.skipped} skipped · {adherence.remaining} pending
-            {adherence.completionRate !== null
-              ? ` · ${adherence.completionRate}% of resolved sessions completed`
-              : ""}
-          </p>
-          <p className="text-xs text-ink-subtle">
-            Rest days are excluded. Pending sessions shift with your sequence.
-          </p>
+          {runMetric === "pace" ? (
+            <>
+              <SegmentedControl
+                name="pace-mode"
+                aria-label="Pace context"
+                options={[
+                  { value: "outdoor", label: "Outdoor" },
+                  { value: "treadmill", label: "Treadmill" },
+                ]}
+                value={paceMode}
+                onChange={setPaceMode}
+                columns={2}
+              />
+              <Chart
+                title="Pace"
+                unit="min/km"
+                series={[
+                  {
+                    name: "Pace",
+                    color: SERIES_COLORS.running,
+                    points: pace.filter((p) => p.mode === paceMode),
+                  },
+                ]}
+                format={(v) => {
+                  const mins = Math.floor(v);
+                  return `${mins}:${String(Math.round((v - mins) * 60)).padStart(2, "0")}`;
+                }}
+                note="Lower is faster."
+              />
+            </>
+          ) : (
+            <Chart
+              title={runMetric === "distance" ? "Weekly distance" : "Weekly duration"}
+              unit={runMetric === "distance" ? "km" : "min"}
+              series={[
+                {
+                  name: "Runs",
+                  color: SERIES_COLORS.running,
+                  points: asPoints((w) => (runMetric === "distance" ? w.runKm : w.runMinutes)),
+                } satisfies ChartSeries,
+              ]}
+              format={
+                runMetric === "duration"
+                  ? (v) => (v >= 60 ? formatMinutes(v) : String(Math.round(v)))
+                  : undefined
+              }
+            />
+          )}
         </Card>
       )}
-      <Card>
-        <h2 className="font-semibold">Exercise performance</h2>
-        {series ? (
-          <>
-            <Field label="Exercise and machine">
-              <Select value={series.id} onChange={(e) => setSelected(e.target.value)}>
-                {data.series.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name} · {s.machine} · {LOAD_UNIT_LABELS[s.unit]}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            <p className="text-xs text-ink-muted">
-              {series.machine}. Warm-ups excluded; each point is one exercise performance.
-            </p>
-            <TrendChart
-              title="Highest load"
-              points={series.load}
-              unit={LOAD_UNIT_LABELS[series.unit]}
-            />
-            <TrendChart title="Most reps in a set" points={series.reps} unit="reps" />
-            <TrendChart
-              title="Load × reps volume"
-              points={series.volume}
-              unit={`${LOAD_UNIT_LABELS[series.unit]} × reps`}
-            />
-            <TrendChart title="Average RIR" points={series.rir} unit="RIR" />
-            {series.estimated1RM.some((p) => p.value !== null) && (
-              <>
-                <TrendChart
-                  title="Estimated 1RM"
-                  points={series.estimated1RM}
-                  unit={LOAD_UNIT_LABELS[series.unit]}
-                />
-                <p className="text-xs text-ink-subtle">
-                  Epley estimate from loaded barbell sets of 1–10 reps. This is an estimate, not a
-                  tested maximum.
-                </p>
-              </>
-            )}
-          </>
-        ) : (
-          <p className="text-sm text-ink-muted">
-            Finish a workout with logged sets to see performance trends. Machines and units are kept
-            separate.
-          </p>
-        )}
-      </Card>
-      <Card>
-        <h2 className="font-semibold">Weekly training</h2>
-        <TrendChart
-          title="Lifting sessions"
-          unit="sessions"
-          points={data.weeks.map((w) => ({ date: w.date, value: w.workouts }))}
-        />
-        {muscles.length > 0 && (
-          <>
-            <Field label="Primary muscle">
-              <Select value={muscle} onChange={(e) => setMuscle(e.target.value)}>
-                {muscles.map((m) => (
-                  <option key={m} value={m}>
-                    {MUSCLE_LABELS[m]}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            <TrendChart
-              title="Working sets"
-              unit="sets"
-              points={data.weeks.map((w) => ({ date: w.date, value: w.muscles[muscle] ?? 0 }))}
-            />
-          </>
-        )}
-        <p className="text-xs text-ink-subtle">
-          Tuesday–Monday in your time zone. Range-edge weeks may be partial. Every non-warm-up set
-          counts once for each primary muscle; secondary muscles are excluded.
-        </p>
-      </Card>
-      <Card>
-        <h2 className="font-semibold">Running</h2>
-        <TrendChart
-          title="Weekly distance"
-          unit="km"
-          points={data.weeks.map((w) => ({ date: w.date, value: w.runKm }))}
-        />
-        <TrendChart
-          title="Weekly duration"
-          unit="min"
-          points={data.weeks.map((w) => ({ date: w.date, value: w.runMinutes }))}
-        />
-        <Field label="Pace context">
-          <Select value={paceMode} onChange={(e) => setPaceMode(e.target.value)}>
-            <option value="outdoor">Outdoor</option>
-            <option value="treadmill">Treadmill</option>
-          </Select>
-        </Field>
-        <TrendChart
-          title="Pace"
-          unit="min/km"
-          points={data.pace.filter((p) => p.mode === paceMode)}
-        />
-        <p className="text-xs text-ink-subtle">
-          Lower pace values mean faster runs. Decimal minutes: 6.5 = 6:30/km.
-        </p>
-      </Card>
-      <Card>
-        <h2 className="font-semibold">Recovery and symptoms</h2>
-        <Field label="Measurement">
-          <Select value={recovery} onChange={(e) => setRecovery(e.target.value as typeof recovery)}>
-            <option value="sleep">Sleep</option>
-            <option value="back">Lower back</option>
-            <option value="leftShin">Left shin</option>
-            <option value="rightShin">Right shin</option>
-          </Select>
-        </Field>
-        <TrendChart
-          title={
-            recovery === "sleep"
-              ? "Sleep"
-              : recovery === "back"
-                ? "Lower back"
-                : recovery === "leftShin"
-                  ? "Left shin"
-                  : "Right shin"
-          }
-          unit={recovery === "sleep" ? "hours" : "0–10"}
-          points={data.recovery.map((r) => ({ date: r.date, value: r[recovery] }))}
-        />
-        <p className="text-xs text-ink-subtle">
-          Workout check-ins, daily recovery and after-run shin scores. Missing readings stay blank.
-        </p>
-        {data.recovery.length > 0 && (
-          <details className="text-xs text-ink-muted">
-            <summary className="cursor-pointer py-2">Reading sources</summary>
-            <ul>
-              {data.recovery.map((r, i) => (
-                <li key={i} className="py-1">
-                  {r.date} · {r.source}: {r[recovery] ?? "—"}
-                </li>
-              ))}
-            </ul>
-          </details>
-        )}
-      </Card>
+
+      {tab === "recovery" && (
+        <Card>
+          <SegmentedControl
+            name="recovery-metric"
+            aria-label="Recovery measurement"
+            options={RECOVERY_METRICS}
+            value={recoveryMetric}
+            onChange={setRecoveryMetric}
+            columns={4}
+          />
+          <Chart
+            title={RECOVERY_METRICS.find((m) => m.value === recoveryMetric)!.label}
+            unit={recoveryMetric === "sleep" ? "hours" : "0–10"}
+            series={[
+              {
+                name: "Reading",
+                color: SERIES_COLORS.lifting,
+                points: recovery.map((r) => ({ date: r.date, value: r[recoveryMetric] })),
+              },
+            ]}
+            note="Workout check-ins, daily recovery and after-run shin scores. Missing readings stay blank."
+          />
+        </Card>
+      )}
+
+      {weekDates.length === 0 && (
+        <p className="text-sm text-ink-muted">No weeks fall inside this range.</p>
+      )}
     </div>
   );
 }
