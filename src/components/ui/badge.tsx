@@ -7,13 +7,15 @@ export function Badge({
   tone = "neutral",
 }: {
   children: ReactNode;
-  tone?: "neutral" | "accent" | "danger";
+  tone?: "neutral" | "accent" | "success" | "warning" | "danger";
 }) {
   return (
     <span
       className={cn(
         "inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-xs font-medium",
         tone === "accent" && "border-accent/40 bg-accent/10 text-accent",
+        tone === "success" && "border-success/40 bg-success/10 text-success",
+        tone === "warning" && "border-warning/40 bg-warning/10 text-warning",
         tone === "danger" && "border-danger/40 bg-danger/10 text-danger",
         tone === "neutral" && "border-line-strong text-ink-muted",
       )}

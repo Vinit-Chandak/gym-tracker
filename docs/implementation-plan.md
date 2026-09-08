@@ -81,7 +81,7 @@ docs/decisions/                   architecture decision records
 0. Foundation and PWA shell: done.
 1. Schema, auth, migrations, seeds, domain tests for comparable history: done.
 2. Gym and equipment management: done (ADR 0003).
-3. Exercise library, equipment compatibility, per-gym availability.
+3. Exercise library, equipment compatibility, per-gym availability: done (ADR 0004).
 4. Today: gym pick, planned or ad hoc session, recovery check-in, set logging, rest timer.
 5. Deterministic progression engine and recovery-aware warnings.
 6. Running log and weekly run volume.

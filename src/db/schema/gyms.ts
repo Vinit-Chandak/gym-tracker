@@ -94,3 +94,29 @@ export const equipmentInstances = pgTable(
     ownerPolicy("equipment_instances"),
   ],
 ).enableRLS();
+
+/**
+ * Equipment types the user knows a gym does not have. Without such a row a missing machine
+ * is merely "unknown"; with it the planner can call an exercise unavailable at that gym.
+ */
+export const gymAbsentEquipmentTypes = pgTable(
+  "gym_absent_equipment_types",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    gymId: uuid("gym_id")
+      .notNull()
+      .references(() => gyms.id, { onDelete: "cascade" }),
+    equipmentTypeId: uuid("equipment_type_id")
+      .notNull()
+      .references(() => equipmentTypes.id, { onDelete: "restrict" }),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("gym_absent_equipment_types_gym_type_uq").on(t.gymId, t.equipmentTypeId),
+    ownerPolicy("gym_absent_equipment_types"),
+  ],
+).enableRLS();

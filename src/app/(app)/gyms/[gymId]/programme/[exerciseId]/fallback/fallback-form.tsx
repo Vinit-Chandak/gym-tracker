@@ -1,0 +1,50 @@
+"use client";
+
+import { useActionState } from "react";
+
+import { ExercisePicker } from "@/components/exercise-picker";
+import { FormError, SubmitButton } from "@/components/ui/form";
+import { Field } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import type { ExerciseListItem } from "@/server/repositories/exercises";
+import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
+
+type FallbackFormProps = {
+  action: (previous: FormState, formData: FormData) => Promise<FormState>;
+  exercises: ExerciseListItem[];
+  machines: { id: string; name: string }[];
+};
+
+export function FallbackForm({ action, exercises, machines }: FallbackFormProps) {
+  const [state, formAction] = useActionState(action, INITIAL_FORM_STATE);
+
+  return (
+    <form action={formAction} className="space-y-5">
+      <ExercisePicker
+        name="fallbackExerciseId"
+        exercises={exercises}
+        defaultValue={state.values?.fallbackExerciseId}
+        error={state.fieldErrors?.fallbackExerciseId}
+      />
+      <Field
+        label="On which machine?"
+        hint="Optional. Leave on “Any” for free weights or when the machine is obvious."
+        error={state.fieldErrors?.fallbackEquipmentInstanceId}
+      >
+        <Select
+          name="fallbackEquipmentInstanceId"
+          defaultValue={state.values?.fallbackEquipmentInstanceId ?? ""}
+        >
+          <option value="">Any</option>
+          {machines.map((machine) => (
+            <option key={machine.id} value={machine.id}>
+              {machine.name}
+            </option>
+          ))}
+        </Select>
+      </Field>
+      <FormError message={state.formError} />
+      <SubmitButton>Save fallback</SubmitButton>
+    </form>
+  );
+}

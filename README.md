@@ -22,7 +22,7 @@ Progressive overload, one set at a time.
 | 0     | Repository foundation, PWA shell, bottom nav | done    |
 | 1     | Database schema, auth, migrations, seed data | done    |
 | 2     | Gym and equipment management                 | done    |
-| 3     | Exercise library and gym compatibility       | pending |
+| 3     | Exercise library and gym compatibility       | done    |
 | 4     | Today's workout and set logging              | pending |
 | 5     | Deterministic progression engine             | pending |
 | 6     | Running                                      | pending |
@@ -77,6 +77,8 @@ src/
     (app)/                      the five tabs behind the shared shell
       today/ history/ progress/ settings/
       gyms/, gyms/new, gyms/[gymId], .../edit, .../equipment/new, .../equipment/[equipmentId]
+      gyms/[gymId]/programme, .../programme/[exerciseId]/fallback
+      exercises/, exercises/[exerciseId]
   proxy.ts                      refreshes the Supabase session; sends visitors to /login
   db/
     schema/                     Drizzle tables, enums and RLS policies (source of truth)

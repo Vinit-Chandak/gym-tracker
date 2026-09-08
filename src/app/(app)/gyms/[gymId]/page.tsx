@@ -12,11 +12,29 @@ import { LinkRow, List } from "@/components/ui/link-row";
 import { SectionHeading } from "@/components/ui/section";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
-import { GYM_KIND_LABELS, LOAD_UNIT_LABELS, RESISTANCE_MODE_LABELS } from "@/lib/labels";
+import { Select } from "@/components/ui/select";
+import {
+  AVAILABILITY_LABELS,
+  EQUIPMENT_CATEGORY_LABELS,
+  GYM_KIND_LABELS,
+  LOAD_UNIT_LABELS,
+  RESISTANCE_MODE_LABELS,
+} from "@/lib/labels";
+import {
+  markEquipmentAbsentFromFormAction,
+  unmarkEquipmentAbsentAction,
+} from "@/server/actions/availability";
 import { setDefaultGymAction, setGymActiveAction } from "@/server/actions/gyms";
 import { requireUser } from "@/server/auth";
-import { listEquipmentForGym, type EquipmentListItem } from "@/server/repositories/equipment";
+import { listAbsentEquipment } from "@/server/repositories/absent-equipment";
+import { gymAvailability } from "@/server/repositories/availability";
+import {
+  listEquipmentForGym,
+  listEquipmentTypes,
+  type EquipmentListItem,
+} from "@/server/repositories/equipment";
 import { getGym } from "@/server/repositories/gyms";
+import { EQUIPMENT_CATEGORIES } from "@/domain/types";
 
 export const metadata: Metadata = { title: "Gym" };
 
@@ -47,12 +65,36 @@ export default async function GymPage(props: PageProps<"/gyms/[gymId]">) {
   const data = await withUser(getDb(), user.id, async (tx) => {
     const gym = await getGym(tx, user.id, gymId);
     if (!gym) return null;
-    return { gym, equipment: await listEquipmentForGym(tx, user.id, gymId) };
+    const [equipment, absent, types, availability] = await Promise.all([
+      listEquipmentForGym(tx, user.id, gymId),
+      listAbsentEquipment(tx, user.id, gymId),
+      listEquipmentTypes(tx),
+      gymAvailability(tx, user.id, gymId),
+    ]);
+    return { gym, equipment, absent, types, availability };
   });
   if (!data) notFound();
-  const { gym, equipment } = data;
+  const { gym, equipment, absent, types, availability } = data;
   const activeEquipment = equipment.filter((item) => item.isActive);
   const archivedEquipment = equipment.filter((item) => !item.isActive);
+  const summary = availability?.summary;
+  const fitLabel = summary
+    ? (["direct", "fallback", "unknown", "unavailable"] as const)
+        .filter((status) => summary[status] > 0)
+        .map((status) => `${summary[status]} ${AVAILABILITY_LABELS[status].toLowerCase()}`)
+        .join(" · ")
+    : "No active programme";
+  const registeredTypeIds = new Set(activeEquipment.map((item) => item.typeId));
+  const absentTypeIds = new Set(absent.map((item) => item.equipmentTypeId));
+  const absentCandidates = EQUIPMENT_CATEGORIES.map((category) => ({
+    category,
+    items: types.filter(
+      (type) =>
+        type.category === category &&
+        !registeredTypeIds.has(type.id) &&
+        !absentTypeIds.has(type.id),
+    ),
+  })).filter((group) => group.items.length > 0);
 
   return (
     <>
@@ -90,6 +132,12 @@ export default async function GymPage(props: PageProps<"/gyms/[gymId]">) {
           )}
         </Card>
 
+        <List>
+          <li>
+            <LinkRow href={`/gyms/${gym.id}/programme`} title="Programme fit" subtitle={fitLabel} />
+          </li>
+        </List>
+
         <SectionHeading
           title="Equipment"
           action={
@@ -118,6 +166,63 @@ export default async function GymPage(props: PageProps<"/gyms/[gymId]">) {
               <EquipmentRows gymId={gym.id} items={archivedEquipment} />
             </div>
           </details>
+        )}
+
+        {gym.kind === "gym" && (
+          <Card>
+            <h2 className="text-base font-semibold">Not available here</h2>
+            <p className="text-sm text-ink-muted">
+              Equipment this gym does not have. Exercises that need it show as unavailable instead
+              of unknown.
+            </p>
+            {absent.length > 0 && (
+              <ul className="divide-y divide-line">
+                {absent.map((item) => (
+                  <li
+                    key={item.equipmentTypeId}
+                    className="flex items-center justify-between gap-3 py-2"
+                  >
+                    <span className="text-sm">{item.typeName}</span>
+                    <form
+                      action={unmarkEquipmentAbsentAction.bind(null, gym.id, item.equipmentTypeId)}
+                    >
+                      <Button type="submit" variant="ghost" size="sm">
+                        Remove
+                      </Button>
+                    </form>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {gym.isActive && absentCandidates.length > 0 && (
+              <form
+                action={markEquipmentAbsentFromFormAction.bind(null, gym.id)}
+                className="flex items-end gap-2"
+              >
+                <label className="block flex-1 space-y-1.5">
+                  <span className="text-sm font-medium text-ink-muted">Mark equipment</span>
+                  <Select name="equipmentTypeId" required defaultValue="">
+                    <option value="">Choose equipment…</option>
+                    {absentCandidates.map((group) => (
+                      <optgroup
+                        key={group.category}
+                        label={EQUIPMENT_CATEGORY_LABELS[group.category]}
+                      >
+                        {group.items.map((type) => (
+                          <option key={type.id} value={type.id}>
+                            {type.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </Select>
+                </label>
+                <Button type="submit" variant="secondary">
+                  Add
+                </Button>
+              </form>
+            )}
+          </Card>
         )}
 
         {gym.isActive && (

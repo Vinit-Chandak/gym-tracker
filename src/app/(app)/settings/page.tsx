@@ -4,6 +4,7 @@ import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { LinkRow, List } from "@/components/ui/link-row";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { signOutAction } from "@/server/actions/auth";
@@ -47,6 +48,16 @@ export default async function SettingsPage() {
             </Button>
           </form>
         </Card>
+
+        <List>
+          <li>
+            <LinkRow
+              href="/exercises"
+              title="Exercise library"
+              subtitle="Search by name or muscle; see defaults and where each exercise fits"
+            />
+          </li>
+        </List>
 
         <Card>
           <h2 className="text-base font-semibold">Programme and gyms</h2>

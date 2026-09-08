@@ -39,6 +39,7 @@ export type EquipmentListItem = {
   loadIncrement: number | null;
   manufacturer: string | null;
   model: string | null;
+  typeId: string;
   typeName: string;
   typeCategory: typeof equipmentTypes.$inferSelect.category;
 };
@@ -59,6 +60,7 @@ export async function listEquipmentForGym(
       loadIncrement: equipmentInstances.loadIncrement,
       manufacturer: equipmentInstances.manufacturer,
       model: equipmentInstances.model,
+      typeId: equipmentTypes.id,
       typeName: equipmentTypes.name,
       typeCategory: equipmentTypes.category,
     })

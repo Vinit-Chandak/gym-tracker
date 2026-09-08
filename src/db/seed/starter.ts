@@ -5,6 +5,7 @@ import {
   equipmentInstances,
   equipmentTypes,
   exercises,
+  gymAbsentEquipmentTypes,
   gyms,
   profiles,
   programDays,
@@ -15,7 +16,11 @@ import {
   warmupProtocols,
 } from "../schema";
 import type { DbOrTx } from "../types";
-import { ANYTIME_FITNESS_EQUIPMENT, STARTER_GYMS } from "./data/gyms";
+import {
+  ANYTIME_FITNESS_ABSENT_EQUIPMENT,
+  ANYTIME_FITNESS_EQUIPMENT,
+  STARTER_GYMS,
+} from "./data/gyms";
 import { PROGRAM, type ProgramSeed } from "./data/program";
 
 export type StarterUser = { id: string; email?: string | null };
@@ -108,6 +113,18 @@ export async function seedUserStarterData(
       await db.insert(equipmentInstances).values(rows);
       equipmentCreated = rows.length;
     }
+    await db
+      .insert(gymAbsentEquipmentTypes)
+      .values(
+        ANYTIME_FITNESS_ABSENT_EQUIPMENT.map((slug) => ({
+          userId: user.id,
+          gymId: anytimeFitnessId,
+          equipmentTypeId: requireId(typeIdBySlug, slug, "equipment type"),
+        })),
+      )
+      .onConflictDoNothing({
+        target: [gymAbsentEquipmentTypes.gymId, gymAbsentEquipmentTypes.equipmentTypeId],
+      });
   }
 
   const existingProgram = await db

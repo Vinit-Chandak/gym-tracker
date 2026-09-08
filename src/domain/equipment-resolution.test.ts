@@ -18,6 +18,7 @@ const barbellBench = {
   requiresEquipment: true,
 } as const;
 const sidePlank = { id: "side-plank", modality: "bodyweight", requiresEquipment: false } as const;
+const pecDeckFly = { id: "pec-deck-fly", modality: "machine", requiresEquipment: true } as const;
 
 const options = [
   {
@@ -44,6 +45,12 @@ const options = [
     equipmentInstanceId: null,
     preferenceRank: 1,
   },
+  {
+    exerciseId: "pec-deck-fly",
+    equipmentTypeId: "pec_deck",
+    equipmentInstanceId: null,
+    preferenceRank: 1,
+  },
 ];
 
 const fallbacks = [
@@ -65,6 +72,7 @@ const fallbacks = [
 
 const gymA = { id: "gym-a", kind: "gym" } as const;
 const gymB = { id: "gym-b", kind: "gym" } as const;
+const gymC = { id: "gym-c", kind: "gym" } as const; // nothing registered yet
 const outdoor = { id: "outdoor", kind: "outdoor" } as const;
 
 const equipment: EquipmentInstanceRef[] = [
@@ -83,6 +91,20 @@ const equipment: EquipmentInstanceRef[] = [
     isActive: true,
   },
   {
+    id: "a-pec-deck-1",
+    gymId: "gym-a",
+    equipmentTypeId: "pec_deck",
+    name: "Pec deck (window)",
+    isActive: true,
+  },
+  {
+    id: "a-pec-deck-2",
+    gymId: "gym-a",
+    equipmentTypeId: "pec_deck",
+    name: "Pec deck (back)",
+    isActive: true,
+  },
+  {
     id: "b-leg-press-h",
     gymId: "gym-b",
     equipmentTypeId: "leg_press_horizontal",
@@ -98,29 +120,16 @@ const equipment: EquipmentInstanceRef[] = [
   },
 ];
 
+const base = { preferredEquipmentInstanceId: null, options, fallbacks, gymEquipment: equipment };
+
 describe("equipment resolution", () => {
   it("uses the Smith machine directly where one exists", () => {
-    const result = resolveExerciseAtGym({
-      exercise: smithCalfRaise,
-      gym: gymA,
-      preferredEquipmentInstanceId: null,
-      options,
-      fallbacks,
-      gymEquipment: equipment,
-    });
-    expect(result.status).toBe("direct");
-    if (result.status === "direct") expect(result.equipmentInstance?.id).toBe("a-smith");
+    const result = resolveExerciseAtGym({ ...base, exercise: smithCalfRaise, gym: gymA });
+    expect(result).toMatchObject({ status: "direct", equipmentInstance: { id: "a-smith" } });
   });
 
   it("falls back to the leg-press calf press on Gym B's horizontal leg press when no Smith is active", () => {
-    const result = resolveExerciseAtGym({
-      exercise: smithCalfRaise,
-      gym: gymB,
-      preferredEquipmentInstanceId: null,
-      options,
-      fallbacks,
-      gymEquipment: equipment,
-    });
+    const result = resolveExerciseAtGym({ ...base, exercise: smithCalfRaise, gym: gymB });
     expect(result.status).toBe("fallback");
     if (result.status === "fallback") {
       expect(result.exercise.id).toBe("leg-press-calf-press");
@@ -138,59 +147,96 @@ describe("equipment resolution", () => {
       rank: 9,
     };
     const result = resolveExerciseAtGym({
+      ...base,
       exercise: smithCalfRaise,
       gym: gymB,
-      preferredEquipmentInstanceId: null,
-      options,
       fallbacks: [...fallbacks, gymSpecific],
-      gymEquipment: equipment,
     });
-    expect(result.status).toBe("fallback");
-    if (result.status === "fallback") expect(result.exercise.id).toBe("side-plank");
+    expect(result).toMatchObject({ status: "fallback", exercise: { id: "side-plank" } });
   });
 
-  it("honours a preferred equipment instance when it is at this gym", () => {
-    const result = resolveExerciseAtGym({
-      exercise: smithCalfRaise,
+  it("honours a preferred machine at this gym over the alphabetical first match", () => {
+    const auto = resolveExerciseAtGym({ ...base, exercise: pecDeckFly, gym: gymA });
+    expect(auto).toMatchObject({ status: "direct", equipmentInstance: { id: "a-pec-deck-2" } });
+    const preferred = resolveExerciseAtGym({
+      ...base,
+      exercise: pecDeckFly,
       gym: gymA,
-      preferredEquipmentInstanceId: "a-smith",
-      options,
-      fallbacks,
-      gymEquipment: equipment,
+      preferredEquipmentInstanceId: "a-pec-deck-1",
     });
-    expect(result).toMatchObject({ status: "direct", equipmentInstance: { id: "a-smith" } });
+    expect(preferred).toMatchObject({
+      status: "direct",
+      equipmentInstance: { id: "a-pec-deck-1" },
+    });
+  });
+
+  it("uses a user's machine-level option before type matching", () => {
+    const userOption = {
+      exerciseId: "pec-deck-fly",
+      equipmentTypeId: null,
+      equipmentInstanceId: "a-pec-deck-1",
+      preferenceRank: 0,
+    };
+    const result = resolveExerciseAtGym({
+      ...base,
+      exercise: pecDeckFly,
+      gym: gymA,
+      options: [...options, userOption],
+    });
+    expect(result).toMatchObject({ status: "direct", equipmentInstance: { id: "a-pec-deck-1" } });
   });
 
   it("treats free weights as available at any real gym but not outdoors", () => {
-    const atGym = resolveExerciseAtGym({
+    expect(
+      resolveExerciseAtGym({ ...base, exercise: barbellBench, gym: gymC, fallbacks: [] }),
+    ).toEqual({
+      status: "direct",
       exercise: barbellBench,
-      gym: gymB,
-      preferredEquipmentInstanceId: null,
-      options,
-      fallbacks: [],
-      gymEquipment: equipment,
+      equipmentInstance: null,
     });
-    expect(atGym).toEqual({ status: "direct", exercise: barbellBench, equipmentInstance: null });
-    const outside = resolveExerciseAtGym({
-      exercise: barbellBench,
-      gym: outdoor,
-      preferredEquipmentInstanceId: null,
-      options,
-      fallbacks: [],
-      gymEquipment: equipment,
-    });
-    expect(outside.status).toBe("unavailable");
+    expect(
+      resolveExerciseAtGym({ ...base, exercise: barbellBench, gym: outdoor, fallbacks: [] }).status,
+    ).toBe("unavailable");
   });
 
-  it("reports unavailable when neither the exercise nor any fallback fits", () => {
-    const result = resolveExerciseAtGym({
+  it("reports unknown, listing the machines that would help, when a gym's inventory is silent", () => {
+    const result = resolveExerciseAtGym({ ...base, exercise: smithCalfRaise, gym: gymC });
+    expect(result.status).toBe("unknown");
+    if (result.status === "unknown") {
+      expect(result.missingEquipmentTypeIds).toEqual([
+        "smith_machine",
+        "leg_press_45",
+        "leg_press_horizontal",
+      ]);
+    }
+  });
+
+  it("turns unknown into unavailable once every option is marked absent", () => {
+    const partly = resolveExerciseAtGym({
+      ...base,
       exercise: smithCalfRaise,
-      gym: outdoor,
-      preferredEquipmentInstanceId: null,
-      options,
-      fallbacks,
-      gymEquipment: equipment,
+      gym: gymC,
+      absentEquipmentTypeIds: new Set(["smith_machine"]),
     });
-    expect(result.status).toBe("unavailable");
+    expect(partly).toMatchObject({
+      status: "unknown",
+      missingEquipmentTypeIds: ["leg_press_45", "leg_press_horizontal"],
+    });
+    const fully = resolveExerciseAtGym({
+      ...base,
+      exercise: smithCalfRaise,
+      gym: gymC,
+      absentEquipmentTypeIds: new Set(["smith_machine", "leg_press_45", "leg_press_horizontal"]),
+    });
+    expect(fully.status).toBe("unavailable");
+  });
+
+  it("never reports unknown for virtual locations", () => {
+    expect(resolveExerciseAtGym({ ...base, exercise: smithCalfRaise, gym: outdoor }).status).toBe(
+      "unavailable",
+    );
+    expect(
+      resolveExerciseAtGym({ ...base, exercise: sidePlank, gym: outdoor, fallbacks: [] }).status,
+    ).toBe("direct");
   });
 });

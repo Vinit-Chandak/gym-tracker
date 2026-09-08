@@ -66,3 +66,9 @@ export const ANYTIME_FITNESS_EQUIPMENT: readonly EquipmentInstanceSeed[] = [
     notes: "Plate-loaded sled.",
   },
 ];
+
+/** Equipment the planning notes say Anytime Fitness does not have. */
+export const ANYTIME_FITNESS_ABSENT_EQUIPMENT: readonly string[] = [
+  "hip_thrust_machine",
+  "calf_raise_machine",
+];
