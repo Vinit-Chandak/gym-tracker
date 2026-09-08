@@ -1,27 +1,68 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { PhaseNotice } from "@/components/ui/phase-notice";
 import { getDb } from "@/db/client";
+import { warmupProtocols } from "@/db/schema";
 import { withUser } from "@/db/with-user";
+import { formatDateTime, formatIsoDate } from "@/lib/format";
+import { rangeLabel } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
+import { ensureProfile } from "@/server/queries/profile";
 import { listGyms } from "@/server/repositories/gyms";
+import { getTodayPlan, type PlannedExercisePreview } from "@/server/repositories/schedule";
+import { getInProgressSession } from "@/server/repositories/sessions";
+import { eq } from "drizzle-orm";
 
 import { GymSwitcher } from "./gym-switcher";
+import {
+  CompleteRestButton,
+  DiscardSessionButton,
+  SkipSlotButton,
+  StartAdHocButton,
+  StartPlannedButton,
+} from "./plan-actions";
 
 export const metadata: Metadata = { title: "Today" };
 
-const PREVIEW_SETS = [1, 2, 3, 4];
+function prescription(e: PlannedExercisePreview): string {
+  const volume =
+    e.prescriptionType === "duration"
+      ? `${e.sets} × ${rangeLabel(e.durationMinSeconds, e.durationMaxSeconds, " s")}`
+      : `${e.sets} × ${rangeLabel(e.repMin, e.repMax)}`;
+  return `${volume}${e.perSide ? " per side" : ""} @ ${rangeLabel(e.rirMin, e.rirMax)} RIR`;
+}
 
 export default async function TodayPage() {
   const user = await requireUser();
-  const gyms = await withUser(getDb(), user.id, (tx) => listGyms(tx, user.id));
+  const data = await withUser(getDb(), user.id, async (tx) => {
+    const profile = await ensureProfile(tx, user);
+    const [gyms, inProgress, plan] = await Promise.all([
+      listGyms(tx, user.id),
+      getInProgressSession(tx, user.id),
+      getTodayPlan(tx, user.id, profile.timeZone),
+    ]);
+    const restProtocol =
+      plan?.suggestedDay && !plan.suggestedDay.includesLifting && plan.suggestedDay.warmupProtocolId
+        ? ((
+            await tx
+              .select({ name: warmupProtocols.name, drills: warmupProtocols.drills })
+              .from(warmupProtocols)
+              .where(eq(warmupProtocols.id, plan.suggestedDay.warmupProtocolId))
+              .limit(1)
+          )[0] ?? null)
+        : null;
+    return { profile, gyms, inProgress, plan, restProtocol };
+  });
+  const { profile, gyms, inProgress, plan, restProtocol } = data;
   const activeGyms = gyms
     .filter((gym) => gym.isActive)
     .map((gym) => ({ id: gym.id, name: gym.name, kind: gym.kind, isDefault: gym.isDefault }));
+  const defaultGym = activeGyms.find((gym) => gym.isDefault) ?? null;
 
   return (
     <>
@@ -29,82 +70,185 @@ export default async function TodayPage() {
       <PageContent>
         <GymSwitcher gyms={activeGyms} />
 
-        {/* Static preview of the exercise-card layout. Real data arrives in Phase 4. */}
-        <Card aria-label="Exercise card design preview">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h2 className="text-lg leading-tight font-semibold">Barbell bench press</h2>
-              <p className="mt-0.5 text-sm text-ink-muted">Barbell · comparable across gyms</p>
+        {inProgress && (
+          <Card>
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold">{inProgress.dayName ?? "Ad hoc session"}</h2>
+              <Badge tone="accent">In progress</Badge>
             </div>
-            <span className="shrink-0 rounded-full border border-line-strong px-2 py-0.5 text-xs font-medium text-ink-muted">
-              Preview
-            </span>
-          </div>
+            <p className="text-sm text-ink-muted">
+              {inProgress.gymName} · started{" "}
+              {formatDateTime(inProgress.startedAt, profile.timeZone)} · {inProgress.setCount}{" "}
+              {inProgress.setCount === 1 ? "set" : "sets"} logged
+            </p>
+            <LinkButton href={`/workouts/${inProgress.id}`} size="lg" className="w-full">
+              Resume session
+            </LinkButton>
+            {inProgress.setCount === 0 && <DiscardSessionButton sessionId={inProgress.id} />}
+          </Card>
+        )}
 
-          <dl className="grid grid-cols-3 gap-2 text-center">
-            <div className="rounded-control bg-surface-raised px-2 py-2">
-              <dt className="text-xs text-ink-subtle">Sets × reps</dt>
-              <dd className="text-lg font-semibold tabular-nums">4 × 3–5</dd>
+        {!inProgress && !plan && (
+          <Card>
+            <h2 className="text-lg font-semibold">No active programme</h2>
+            <p className="text-sm text-ink-muted">
+              Load the 8-week plan from Settings, or start an ad hoc session at your gym.
+            </p>
+            <StartAdHocButton gymId={defaultGym?.id ?? null} />
+          </Card>
+        )}
+
+        {!inProgress && plan && !plan.suggestion && (
+          <Card>
+            <h2 className="text-lg font-semibold">Programme complete</h2>
+            <p className="text-sm text-ink-muted">
+              All {plan.progress.total} sessions of {plan.program.name} are done. The next block can
+              be planned as a new programme version.
+            </p>
+            <StartAdHocButton gymId={defaultGym?.id ?? null} />
+          </Card>
+        )}
+
+        {!inProgress && plan && plan.suggestion && plan.suggestedDay && (
+          <Card>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-medium tracking-wide text-ink-subtle uppercase">
+                  Cycle {plan.suggestion.slot.cycleIndex} of {plan.program.weeks} · day{" "}
+                  {plan.suggestedDay.dayIndex}
+                </p>
+                <h2 className="text-xl font-semibold">{plan.suggestedDay.name}</h2>
+                {plan.suggestedDay.focus && (
+                  <p className="text-sm text-ink-muted">{plan.suggestedDay.focus}</p>
+                )}
+              </div>
+              {plan.behind > 0 ? (
+                <Badge tone="warning">{plan.behind} behind</Badge>
+              ) : (
+                <Badge tone="success">On track</Badge>
+              )}
             </div>
-            <div className="rounded-control bg-surface-raised px-2 py-2">
-              <dt className="text-xs text-ink-subtle">RIR</dt>
-              <dd className="text-lg font-semibold tabular-nums">2</dd>
+
+            {(plan.suggestedDay.timeNote || plan.suggestedDay.effortNote) && (
+              <p className="text-sm text-ink-muted">
+                {[plan.suggestedDay.timeNote, plan.suggestedDay.effortNote, plan.suggestedDay.notes]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+            )}
+
+            {plan.runTarget && (
+              <div className="rounded-control border border-line px-3 py-2 text-sm">
+                <p className="font-medium">
+                  Easy run:{" "}
+                  {rangeLabel(
+                    plan.runTarget.durationMinMinutes,
+                    plan.runTarget.durationMaxMinutes,
+                    " min",
+                  )}
+                  {plan.runTarget.rpeMin !== null
+                    ? ` · RPE ${rangeLabel(plan.runTarget.rpeMin, plan.runTarget.rpeMax)}`
+                    : ""}
+                </p>
+                <p className="text-ink-muted">
+                  {[
+                    plan.runTarget.paceNote,
+                    plan.runTarget.progressionNote,
+                    plan.runTarget.shinRule,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+                <p className="text-xs text-ink-subtle">
+                  Runs are logged separately from the lifting session.
+                </p>
+              </div>
+            )}
+
+            {plan.suggestedExercises.length > 0 && (
+              <ul className="divide-y divide-line">
+                {plan.suggestedExercises.map((exercise) => (
+                  <li
+                    key={exercise.programExerciseId}
+                    className="flex items-center justify-between gap-3 py-2"
+                  >
+                    <span className="min-w-0 truncate text-sm">
+                      {exercise.name}
+                      {exercise.supersetGroup && (
+                        <span className="text-ink-subtle"> · superset</span>
+                      )}
+                    </span>
+                    <span className="shrink-0 text-xs text-ink-muted tabular-nums">
+                      {prescription(exercise)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {restProtocol && (
+              <div className="space-y-1">
+                <p className="text-sm font-medium">{restProtocol.name}</p>
+                <ul className="space-y-1 text-sm text-ink-muted">
+                  {restProtocol.drills.map((drill) => (
+                    <li key={drill.order}>
+                      {drill.name} · {drill.dose}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {plan.suggestedDay.includesLifting ? (
+              <StartPlannedButton
+                gymId={defaultGym?.id ?? null}
+                programDayId={plan.suggestedDay.id}
+                dayIndex={plan.suggestedDay.dayIndex}
+                label={`Start ${plan.suggestedDay.name}`}
+              />
+            ) : plan.nextTrainingDay ? (
+              <StartPlannedButton
+                gymId={defaultGym?.id ?? null}
+                programDayId={plan.nextTrainingDay.id}
+                dayIndex={plan.nextTrainingDay.dayIndex}
+                label={`Start next: ${plan.nextTrainingDay.name}`}
+              />
+            ) : null}
+            {!plan.suggestedDay.includesLifting && (
+              <CompleteRestButton dayIndex={plan.suggestedDay.dayIndex} />
+            )}
+            {defaultGym === null && (
+              <p className="text-sm text-ink-muted">
+                Choose a default gym above to start a session.
+              </p>
+            )}
+
+            <div className="grid grid-cols-2 gap-2">
+              <LinkButton href="/today/choose" variant="secondary" className="w-full">
+                Another day
+              </LinkButton>
+              <StartAdHocButton gymId={defaultGym?.id ?? null} />
             </div>
-            <div className="rounded-control bg-surface-raised px-2 py-2">
-              <dt className="text-xs text-ink-subtle">Rest</dt>
-              <dd className="text-lg font-semibold tabular-nums">3–4 min</dd>
-            </div>
-          </dl>
+            {plan.suggestedDay.includesLifting && (
+              <SkipSlotButton
+                dayIndex={plan.suggestedDay.dayIndex}
+                dayName={plan.suggestedDay.name}
+              />
+            )}
 
-          <div className="flex items-center justify-between rounded-control border border-line px-3 py-2 text-sm">
-            <span className="text-ink-muted">Previous comparable</span>
-            <span className="font-medium tabular-nums">—</span>
-          </div>
-          <div className="flex items-center justify-between rounded-control border border-line px-3 py-2 text-sm">
-            <span className="text-ink-muted">Suggested start</span>
-            <span className="font-medium tabular-nums">—</span>
-          </div>
+            <p className="text-center text-xs text-ink-subtle">
+              {plan.progress.completed} done · {plan.progress.skipped} skipped ·{" "}
+              {plan.progress.remaining} to go
+              {plan.projectedEnd ? ` · projected end ${formatIsoDate(plan.projectedEnd)}` : ""}
+            </p>
+          </Card>
+        )}
 
-          <ol className="divide-y divide-line" aria-label="Sets">
-            <li className="grid grid-cols-[2rem_1fr_1fr_1fr] gap-2 px-1 pb-1 text-xs text-ink-subtle">
-              <span>#</span>
-              <span className="text-center">kg</span>
-              <span className="text-center">Reps</span>
-              <span className="text-center">RIR</span>
-            </li>
-            {PREVIEW_SETS.map((n) => (
-              <li
-                key={n}
-                className="grid grid-cols-[2rem_1fr_1fr_1fr] items-center gap-2 px-1 py-2"
-              >
-                <span className="text-sm font-medium text-ink-muted tabular-nums">{n}</span>
-                <span className="flex h-12 items-center justify-center rounded-control bg-surface-raised text-xl font-semibold tabular-nums">
-                  —
-                </span>
-                <span className="flex h-12 items-center justify-center rounded-control bg-surface-raised text-xl font-semibold tabular-nums">
-                  —
-                </span>
-                <span className="flex h-12 items-center justify-center rounded-control bg-surface-raised text-xl font-semibold tabular-nums">
-                  —
-                </span>
-              </li>
-            ))}
-          </ol>
-
-          <div className="grid grid-cols-2 gap-2">
-            <Button variant="secondary" size="lg" disabled>
-              Add set
-            </Button>
-            <Button size="lg" disabled>
-              Complete
-            </Button>
-          </div>
-        </Card>
-
-        <PhaseNotice phase={4}>
-          Gym selection, planned-day pick, pre-session recovery check-in, set logging and the rest
-          timer arrive in Phase 4.
-        </PhaseNotice>
+        <p className="text-center text-xs text-ink-subtle">
+          <Link href="/history" className="underline-offset-2 hover:underline">
+            Past sessions
+          </Link>
+        </p>
       </PageContent>
     </>
   );

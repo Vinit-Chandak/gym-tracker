@@ -22,6 +22,7 @@ import {
   programStatusEnum,
   proposalSourceEnum,
   proposalStatusEnum,
+  slotEventStatusEnum,
 } from "./enums";
 import { exercises, warmupProtocols } from "./exercises";
 import { equipmentInstances, equipmentTypes, gyms } from "./gyms";
@@ -46,6 +47,8 @@ export const programs = pgTable(
     startDate: date("start_date"),
     endDate: date("end_date"),
     weeks: integer("weeks"),
+    /** Day slot the programme began on (1 = first day of the cycle). Earlier slots of cycle 1 never existed. */
+    startDayIndex: integer("start_day_index").notNull().default(1),
     notes: text("notes"),
     ...timestamps,
   },
@@ -237,5 +240,35 @@ export const programChangeProposals = pgTable(
   (t) => [
     index("program_change_proposals_program_idx").on(t.programId),
     ownerPolicy("program_change_proposals"),
+  ],
+).enableRLS();
+
+/**
+ * What happened to each slot of the programme sequence (cycle × day): completed by a session
+ * or skipped on purpose. The next thing to do is always the earliest slot without an event.
+ */
+export const programSlotEvents = pgTable(
+  "program_slot_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    programId: uuid("program_id")
+      .notNull()
+      .references(() => programs.id, { onDelete: "cascade" }),
+    cycleIndex: integer("cycle_index").notNull(),
+    dayIndex: integer("day_index").notNull(),
+    status: slotEventStatusEnum("status").notNull(),
+    /** Set when the slot was completed by a logged session. */
+    workoutSessionId: uuid("workout_session_id"),
+    occurredOn: date("occurred_on").notNull(),
+    note: text("note"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("program_slot_events_slot_uq").on(t.programId, t.cycleIndex, t.dayIndex),
+    check("program_slot_events_indexes_chk", sql`cycle_index >= 1 and day_index >= 1`),
+    ownerPolicy("program_slot_events"),
   ],
 ).enableRLS();

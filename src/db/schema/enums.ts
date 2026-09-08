@@ -14,6 +14,7 @@ import {
   RESISTANCE_MODES,
   RUN_MODES,
   SET_TYPES,
+  SLOT_EVENT_STATUSES,
 } from "../../domain/types";
 
 export const gymKindEnum = pgEnum("gym_kind", GYM_KINDS);
@@ -29,3 +30,4 @@ export const setTypeEnum = pgEnum("set_type", SET_TYPES);
 export const runModeEnum = pgEnum("run_mode", RUN_MODES);
 export const proposalSourceEnum = pgEnum("proposal_source", PROPOSAL_SOURCES);
 export const proposalStatusEnum = pgEnum("proposal_status", PROPOSAL_STATUSES);
+export const slotEventStatusEnum = pgEnum("slot_event_status", SLOT_EVENT_STATUSES);

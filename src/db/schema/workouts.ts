@@ -35,6 +35,8 @@ export const workoutSessions = pgTable(
     gymId: uuid("gym_id")
       .notNull()
       .references(() => gyms.id, { onDelete: "restrict" }),
+    /** Programme cycle this planned session belongs to; null for ad hoc sessions. */
+    cycleIndex: integer("cycle_index"),
     startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
     completedAt: timestamp("completed_at", { withTimezone: true }),
     bodyWeightKg: numeric("body_weight_kg", { precision: 5, scale: 2, mode: "number" }),
@@ -92,6 +94,8 @@ export const workoutExercises = pgTable(
     substitutionReason: text("substitution_reason"),
     notes: text("notes"),
     completedAt: timestamp("completed_at", { withTimezone: true }),
+    /** Set when the user chose not to do this exercise in the session. */
+    skippedAt: timestamp("skipped_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [

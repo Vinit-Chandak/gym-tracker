@@ -149,3 +149,19 @@ export function restLabel(minSeconds: number | null, maxSeconds: number | null):
   }
   return lo === hi ? `${lo} s` : `${lo}–${hi} s`;
 }
+
+export const SET_TYPE_LABELS: Record<import("@/domain/types").SetType, string> = {
+  warmup: "Warm-up",
+  working: "Working",
+  backoff: "Back-off",
+  drop: "Drop",
+  amrap: "AMRAP",
+  failure: "To failure",
+};
+
+export const SLOT_STATUS_LABELS = {
+  pending: "Pending",
+  completed: "Done",
+  skipped: "Skipped",
+  not_in_programme: "Not this cycle",
+} as const;

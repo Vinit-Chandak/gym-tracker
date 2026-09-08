@@ -8,6 +8,7 @@ import { LinkRow, List } from "@/components/ui/link-row";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { signOutAction } from "@/server/actions/auth";
+import { setRestTimerEnabledAction } from "@/server/actions/sessions";
 import { requireUser } from "@/server/auth";
 import { ensureProfile, getStarterStatus } from "@/server/queries/profile";
 
@@ -76,6 +77,21 @@ export default async function SettingsPage() {
           ) : (
             <StarterDataForm />
           )}
+        </Card>
+
+        <Card>
+          <h2 className="text-base font-semibold">Rest timer</h2>
+          <p className="text-sm text-ink-muted">
+            Optional countdown between sets, using each exercise&apos;s rest target. Off by default.
+          </p>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm">{profile.restTimerEnabled ? "On" : "Off"}</span>
+            <form action={setRestTimerEnabledAction.bind(null, !profile.restTimerEnabled)}>
+              <Button type="submit" variant="secondary" size="sm">
+                Turn {profile.restTimerEnabled ? "off" : "on"}
+              </Button>
+            </form>
+          </div>
         </Card>
 
         <Card>

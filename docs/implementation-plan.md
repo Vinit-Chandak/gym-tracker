@@ -82,7 +82,7 @@ docs/decisions/                   architecture decision records
 1. Schema, auth, migrations, seeds, domain tests for comparable history: done.
 2. Gym and equipment management: done (ADR 0003).
 3. Exercise library, equipment compatibility, per-gym availability: done (ADR 0004).
-4. Today: gym pick, planned or ad hoc session, recovery check-in, set logging, rest timer.
+4. Today, sessions, set logging, check-in, sequence scheduling: done (ADR 0005).
 5. Deterministic progression engine and recovery-aware warnings.
 6. Running log and weekly run volume.
 7. History and analytics.
@@ -113,9 +113,15 @@ All questions from the first review were answered:
 - Set entry offers both large plus/minus steppers and a numeric keypad field. Rows come
   faintly prefilled from the previous comparable session and can be overridden or stepped.
 - Rest timer: optional feature behind a Settings toggle, off by default.
-- Missed days: sessions must shift rather than disappear. The proposed rule lives in
-  `src/domain/schedule.ts` (sequence-based, rest slots soft, out-of-order sessions return to
-  the earliest pending slot) and waits for confirmation before it drives the Today screen.
+- Missed days: sessions must shift rather than disappear. The sequence rule in
+  `src/domain/schedule.ts` (rest slots soft, out-of-order sessions return to the earliest
+  pending slot) was confirmed and now drives the Today screen.
+- On run days the lifting session and the run are logged separately.
+- Exercises that are unknown or unavailable at the gym offer the configured fallback or a
+  manual pick, which can be remembered as the gym's fallback.
+- Set rows with no history stay blank; nothing is invented. Finish takes optional notes and
+  body weight.
+- The check-in is described in `docs/check-in.md` for review after the build.
 
 ## Remaining open points
 

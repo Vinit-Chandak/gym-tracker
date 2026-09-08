@@ -65,6 +65,9 @@ export type ProposalSource = (typeof PROPOSAL_SOURCES)[number];
 export const PROPOSAL_STATUSES = ["proposed", "approved", "rejected", "applied"] as const;
 export type ProposalStatus = (typeof PROPOSAL_STATUSES)[number];
 
+export const SLOT_EVENT_STATUSES = ["completed", "skipped"] as const;
+export type SlotEventStatus = (typeof SLOT_EVENT_STATUSES)[number];
+
 export const MUSCLE_GROUPS = [
   "chest",
   "front_delts",

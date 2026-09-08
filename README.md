@@ -23,7 +23,7 @@ Progressive overload, one set at a time.
 | 1     | Database schema, auth, migrations, seed data | done    |
 | 2     | Gym and equipment management                 | done    |
 | 3     | Exercise library and gym compatibility       | done    |
-| 4     | Today's workout and set logging              | pending |
+| 4     | Today's workout and set logging              | done    |
 | 5     | Deterministic progression engine             | pending |
 | 6     | Running                                      | pending |
 | 7     | History and analytics                        | pending |

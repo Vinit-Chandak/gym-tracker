@@ -68,6 +68,10 @@ npm run db:setup   # creates all tables + security policies, seeds exercises, eq
 npm run dev        # open http://localhost:3000 and sign in
 ```
 
+After pulling later commits, run `npm run db:migrate` again: it applies only the migrations in
+`src/db/migrations/` that the database has not seen yet. `npm run db:setup` is also safe to
+re-run, because the seed is idempotent.
+
 `npm run db:seed` is safe to run again: it only adds what is missing.
 
 ## 6. Deploy to Vercel (free Hobby plan)

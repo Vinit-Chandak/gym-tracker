@@ -1,6 +1,6 @@
 import { and, eq, inArray } from "drizzle-orm";
 
-import { programEndDate } from "../../domain/program-calendar";
+import { isoWeekday, programEndDate } from "../../domain/program-calendar";
 import {
   equipmentInstances,
   equipmentTypes,
@@ -182,6 +182,8 @@ async function createProgramFromSeed(
   const warmupIdBySlug = new Map(warmupRows.map((r) => [r.slug, r.id]));
 
   const familyId = crypto.randomUUID();
+  const startWeekday = isoWeekday(seed.startDate);
+  const startDayIndex = seed.days.find((d) => d.dayOfWeek === startWeekday)?.dayIndex ?? 1;
   const [program] = await db
     .insert(programs)
     .values({
@@ -195,6 +197,7 @@ async function createProgramFromSeed(
       startDate: seed.startDate,
       endDate: programEndDate(seed.startDate, seed.weeks),
       weeks: seed.weeks,
+      startDayIndex,
       notes: seed.notes,
     })
     .returning({ id: programs.id });
