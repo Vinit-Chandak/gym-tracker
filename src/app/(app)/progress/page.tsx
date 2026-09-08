@@ -29,6 +29,20 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
     training: await readTrainingData(tx, user.id, range),
     schedule: await getSchedule(tx, user.id),
   }));
+  const analytics = trainingAnalytics(training, profile.timeZone, range.from, range.to);
+
+  // Eight weeks of training builds dozens of exercise/machine series, each carrying five
+  // metric arrays. Sending them all was most of this page's payload, so only the chosen
+  // one crosses the wire; picking another is a URL change the server answers.
+  const options = analytics.series.map(({ id, name, machine, unit }) => ({
+    id,
+    name,
+    machine,
+    unit,
+  }));
+  const wanted = typeof params.series === "string" ? params.series : undefined;
+  const selected = analytics.series.find((s) => s.id === wanted) ?? analytics.series[0] ?? null;
+
   return (
     <>
       <PageHeader title="Progress" />
@@ -43,8 +57,24 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
         </Card>
         <ProgressView
           key={`${range.from}:${range.to}`}
-          data={trainingAnalytics(training, profile.timeZone, range.from, range.to)}
+          summary={{
+            workouts: analytics.workouts,
+            runs: analytics.runs,
+            trainingDays: analytics.trainingDays,
+            truncated: analytics.truncated,
+          }}
           adherence={liftingAdherence(schedule)}
+          weeks={analytics.weeks}
+          recovery={analytics.recovery.map(({ date, sleep, back, leftShin, rightShin }) => ({
+            date,
+            sleep,
+            back,
+            leftShin,
+            rightShin,
+          }))}
+          pace={analytics.pace}
+          options={options}
+          selected={selected}
         />
       </PageContent>
     </>

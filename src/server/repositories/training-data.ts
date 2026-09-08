@@ -114,19 +114,29 @@ export async function readWorkouts(
     group.push(set);
     setsBySlot.set(set.workoutExerciseId, group);
   }
-  const enriched = slots.map((row) => ({
-    ...row.slot,
-    exercise: row.exercise,
-    equipment: row.equipment,
-    sets: setsBySlot.get(row.slot.id) ?? [],
-  }));
+  // Grouped rather than filtered per session: at the 500-record limit a scan per
+  // session is millions of comparisons, and the slots already arrive in order.
+  const slotsBySession = new Map<string, ReturnType<typeof enrich>[]>();
+  function enrich(row: (typeof slots)[number]) {
+    return {
+      ...row.slot,
+      exercise: row.exercise,
+      equipment: row.equipment,
+      sets: setsBySlot.get(row.slot.id) ?? [],
+    };
+  }
+  for (const row of slots) {
+    const group = slotsBySession.get(row.slot.workoutSessionId) ?? [];
+    group.push(enrich(row));
+    slotsBySession.set(row.slot.workoutSessionId, group);
+  }
   return {
     hasMore,
     workouts: selected.map((row) => ({
       ...row.session,
       gym: row.gym,
       day: row.day,
-      exercises: enriched.filter((slot) => slot.workoutSessionId === row.session.id),
+      exercises: slotsBySession.get(row.session.id) ?? [],
     })),
   };
 }
