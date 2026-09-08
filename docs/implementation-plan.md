@@ -95,8 +95,8 @@ All questions from the first review were answered:
 
 - Supabase Postgres + Supabase Auth on the free tier; email + password sign-in.
 - Planning documents committed under `docs/planning/`.
-- Programme starts on 2026-09-08 and its weeks are counted from that date, not from Monday.
-  Sessions are still suggested by weekday (Monday = Lower A, and so on).
+- Programme starts on Tuesday 2026-09-08 with Lower A and full Tuesday–Monday weeks (ADR 0009).
+  The next session follows the pending sequence, so missed sessions still shift rather than disappear.
 - Warm-ups are shown as a checklist; a session records one "warm-up done" flag.
 - Gyms: Anytime Fitness (default, with the documented machines), Samsung Gym, Society Gym, plus
   the virtual Outdoor and Home locations.

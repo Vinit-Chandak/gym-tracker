@@ -1,6 +1,6 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 
-import { isoWeekday, programEndDate } from "../../domain/program-calendar";
+import { programEndDate } from "../../domain/program-calendar";
 import {
   equipmentInstances,
   equipmentTypes,
@@ -131,6 +131,7 @@ export async function seedUserStarterData(
     .select({ id: programs.id })
     .from(programs)
     .where(and(eq(programs.userId, user.id), eq(programs.slug, PROGRAM.slug)))
+    .orderBy(desc(programs.version))
     .limit(1);
   if (existingProgram[0]) {
     return {
@@ -182,8 +183,8 @@ async function createProgramFromSeed(
   const warmupIdBySlug = new Map(warmupRows.map((r) => [r.slug, r.id]));
 
   const familyId = crypto.randomUUID();
-  const startWeekday = isoWeekday(seed.startDate);
-  const startDayIndex = seed.days.find((d) => d.dayOfWeek === startWeekday)?.dayIndex ?? 1;
+  // Start the full sequence at Lower A; the start date does not skip earlier day slots.
+  const startDayIndex = Math.min(...seed.days.map((d) => d.dayIndex));
   const [program] = await db
     .insert(programs)
     .values({

@@ -36,6 +36,13 @@
       "when": 1788878494885,
       "tag": "0004_misty_robin_chapel",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788881119000,
+      "tag": "0005_tuesday_cycle",
+      "breakpoints": true
     }
   ]
 }

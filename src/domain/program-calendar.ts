@@ -4,6 +4,9 @@
  */
 const DAY_MS = 86_400_000;
 
+/** The training week runs Tuesday–Monday (ISO weekday 2 starts the cycle). */
+export const TRAINING_WEEK_START = 2;
+
 function toUtcMs(isoDate: string): number {
   const [y, m, d] = isoDate.split("-").map(Number);
   if (y === undefined || m === undefined || d === undefined || Number.isNaN(y + m + d)) {

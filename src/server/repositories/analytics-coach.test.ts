@@ -160,15 +160,17 @@ describe("history and analytics", () => {
     expect(bench[0]!.load.map((p) => p.value)).toEqual([60, 65]);
     expect(bench[0]!.estimated1RM[0]!.value).toBe(70);
     expect(result.series.filter((s) => s.exerciseId === latId)).toHaveLength(2);
-    expect(result.weeks.find((w) => w.date === "2026-09-07")?.muscles.chest).toBe(1);
-    expect(result.weeks.find((w) => w.date === "2026-09-07")?.runKm).toBe(5);
+    expect(result.weeks.find((w) => w.date === "2026-09-01")?.muscles.chest).toBe(1);
+    expect(result.weeks.find((w) => w.date === "2026-09-08")?.muscles.chest).toBe(1);
+    expect(result.weeks.find((w) => w.date === "2026-09-08")?.runKm).toBe(5);
+    expect(result.weeks.find((w) => w.date === "2026-09-15")?.workouts).toBe(0);
     expect(result.recovery.some((r) => r.sleep === null)).toBe(true);
     expect(result.recovery.find((r) => r.source === "Run (after)")?.leftShin).toBe(0);
   });
   it("excludes rest slots from programme adherence", async () => {
     const schedule = await withUser(t.db, alice.id, (tx) => getSchedule(tx, alice.id));
     const result = liftingAdherence(schedule)!;
-    expect(result.total).toBeLessThan(55);
+    expect(result.total).toBe(48);
     expect(result.completed).toBe(0);
     expect(result.completionRate).toBeNull();
   });

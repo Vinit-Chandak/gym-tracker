@@ -143,7 +143,7 @@ export function ProgressView({
           </>
         )}
         <p className="text-xs text-ink-subtle">
-          Monday–Sunday in your time zone. Range-edge weeks may be partial. Every non-warm-up set
+          Tuesday–Monday in your time zone. Range-edge weeks may be partial. Every non-warm-up set
           counts once for each primary muscle; secondary muscles are excluded.
         </p>
       </Card>

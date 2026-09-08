@@ -67,20 +67,20 @@ describe("run logging", () => {
     expect(
       cycle.planned.map((p) => [p.dayOfWeek, p.durationMinMinutes, p.durationMaxMinutes]),
     ).toEqual([
-      [3, 20, 25],
-      [6, 25, 30],
+      [4, 20, 25],
+      [7, 25, 30],
     ]);
-    const wednesday = cycle.planned[0];
-    if (!wednesday) throw new Error("no planned run");
+    const thursday = cycle.planned[0];
+    if (!thursday) throw new Error("no planned run");
     const created = await withUser(t.db, user.id, (tx) =>
-      createRun(tx, user.id, run({ programRunId: wednesday.id })),
+      createRun(tx, user.id, run({ programRunId: thursday.id })),
     );
     firstId = created.id;
     const stored = await withUser(t.db, user.id, (tx) => getRun(tx, user.id, firstId));
     expect(stored?.averagePaceSecondsPerKm).toBe(375);
-    expect(stored?.planned?.dayOfWeek).toBe(3);
+    expect(stored?.planned?.dayOfWeek).toBe(4);
     const after = await withUser(t.db, user.id, (tx) =>
-      plannedRunsForCurrentCycle(tx, user.id, [{ id: firstId, programRunId: wednesday.id }]),
+      plannedRunsForCurrentCycle(tx, user.id, [{ id: firstId, programRunId: thursday.id }]),
     );
     expect(after?.planned.map((p) => p.loggedRunId)).toEqual([firstId, null]);
   });

@@ -20,7 +20,7 @@ const SLOTS = [
   { dayIndex: 7, name: "Rest + Mobility", isRest: true },
 ];
 
-// Started on Tuesday 8 September 2026 with Upper A, so cycle 1 has six slots.
+// Keep coverage for historical programme versions that began partway through a cycle.
 function state(events: SlotEvent[] = []): ScheduleState {
   return { slots: SLOTS, cycles: 8, startDayIndex: 2, events };
 }
@@ -37,6 +37,20 @@ const skip = (cycleIndex: number, dayIndex: number): SlotEvent => ({
 });
 
 describe("shift scheduling", () => {
+  it("starts a full Tuesday cycle with Lower A and finishes eight weeks on Monday", () => {
+    const full = { ...state(), startDayIndex: 1 };
+    expect(nextPendingSlot(full)).toEqual({ cycleIndex: 1, dayIndex: 1 });
+    expect(progress(full).total).toBe(56);
+    expect(projectedEndDate(full, "2026-09-08")).toBe("2026-11-02");
+    expect(nextPendingSlot({ ...full, events: [done(1, 1)] })).toEqual({
+      cycleIndex: 1,
+      dayIndex: 2,
+    });
+    expect(nextPendingSlot({ ...full, events: SLOTS.map((s) => done(1, s.dayIndex)) })).toEqual({
+      cycleIndex: 2,
+      dayIndex: 1,
+    });
+  });
   it("starts with Upper A and has 55 slots in total", () => {
     expect(nextPendingSlot(state())).toEqual({ cycleIndex: 1, dayIndex: 2 });
     expect(progress(state())).toEqual({

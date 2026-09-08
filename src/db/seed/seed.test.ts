@@ -45,9 +45,9 @@ describe("seed data integrity", () => {
       "Easy Run + Light Upper",
       "Rest + Mobility",
     ]);
-    expect(PROGRAM.days.map((d) => d.dayOfWeek)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(PROGRAM.days.map((d) => d.dayOfWeek)).toEqual([2, 3, 4, 5, 6, 7, 1]);
     // Per-exercise LIFTING sheet totals (the WEEK summary under-counted three days).
-    // Wednesday counts 2 sets of wrist curls plus 2 sets of reverse wrist curls.
+    // Day 3 counts 2 sets of wrist curls plus 2 sets of reverse wrist curls.
     const setsPerDay = PROGRAM.days.map((d) => d.exercises.reduce((sum, e) => sum + e.sets, 0));
     expect(setsPerDay).toEqual([16, 19, 14, 13, 18, 10, 0]);
     expect(PROGRAM.days.flatMap((d) => d.exercises)).toHaveLength(37);
@@ -79,8 +79,8 @@ describe("seed data integrity", () => {
       "leg-press-calf-press",
       "leg-press-calf-press",
     ]);
-    const wednesday = PROGRAM.days[2];
-    const forearms = wednesday?.exercises.filter((e) => e.supersetGroup === "forearms");
+    const dayThree = PROGRAM.days[2];
+    const forearms = dayThree?.exercises.filter((e) => e.supersetGroup === "forearms");
     expect(forearms?.map((e) => e.exerciseSlug)).toEqual(["wrist-curl", "reverse-wrist-curl"]);
   });
 
@@ -90,7 +90,7 @@ describe("seed data integrity", () => {
     expect(PROGRAM.runs).toHaveLength(16);
     for (let week = 1; week <= 8; week++) {
       const days = PROGRAM.runs.filter((r) => r.weekIndex === week).map((r) => r.dayOfWeek);
-      expect(days.sort()).toEqual([3, 6]);
+      expect(days.sort()).toEqual([4, 7]);
     }
     for (const run of PROGRAM.runs) {
       expect(run.duration[0]).toBeLessThanOrEqual(run.duration[1]);

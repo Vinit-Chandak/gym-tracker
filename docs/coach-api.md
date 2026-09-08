@@ -60,7 +60,7 @@ from the denominator.
   and different units remain separate. Missing machine IDs are not comparable.
 - Warm-up sets are excluded from performance series and weekly working sets. Each other set
   counts once for each primary muscle. Secondary muscles are excluded.
-- Weeks run Monday–Sunday in the account time zone; range-edge weeks may be partial.
+- Weeks run Tuesday–Monday in the account time zone; range-edge weeks may be partial.
 - Estimated 1RM uses Epley only for loaded barbell sets with 1–10 reps and kg/lb units. One rep
   uses the actual load. This is an estimate, not a tested maximum.
 - Pace series distinguish outdoor and treadmill. Recovery source labels distinguish workout

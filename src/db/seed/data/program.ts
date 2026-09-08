@@ -78,7 +78,8 @@ const SHIN_RULE = "Pain rising each km → stop";
 /**
  * The 8-week strength + aesthetics hybrid, transcribed from the LIFTING and RUNNING sheets.
  * Set counts follow the per-exercise sheet, not the WEEK summary: 16 / 19 / 14 / 13 / 18 / 10 per
- * day, where Wednesday's forearm pair counts as 2 sets of each movement.
+ * day. Day 3's forearm pair counts as 2 sets of each movement. The original weekday labels
+ * are shifted one day so Lower A starts Tuesday and Rest + Mobility falls on Monday.
  */
 export const PROGRAM: ProgramSeed = {
   slug: "strength-aesthetics-hybrid-8wk",
@@ -90,7 +91,7 @@ export const PROGRAM: ProgramSeed = {
   days: [
     {
       dayIndex: 1,
-      dayOfWeek: 1,
+      dayOfWeek: 2,
       name: "Lower A",
       focus: "Squat + quads",
       timeNote: "70–90 min",
@@ -179,7 +180,7 @@ export const PROGRAM: ProgramSeed = {
     },
     {
       dayIndex: 2,
-      dayOfWeek: 2,
+      dayOfWeek: 3,
       name: "Upper A",
       focus: "Bench + back",
       timeNote: "70–90 min",
@@ -266,7 +267,7 @@ export const PROGRAM: ProgramSeed = {
     },
     {
       dayIndex: 3,
-      dayOfWeek: 3,
+      dayOfWeek: 4,
       name: "Easy Run + Arms",
       focus: "Aerobic + arms/forearms",
       timeNote: "70–100 min",
@@ -344,7 +345,7 @@ export const PROGRAM: ProgramSeed = {
     },
     {
       dayIndex: 4,
-      dayOfWeek: 4,
+      dayOfWeek: 5,
       name: "Lower B",
       focus: "Deadlift + posterior chain",
       timeNote: "70–90 min",
@@ -420,7 +421,7 @@ export const PROGRAM: ProgramSeed = {
     },
     {
       dayIndex: 5,
-      dayOfWeek: 5,
+      dayOfWeek: 6,
       name: "Upper B",
       focus: "Pull-up + incline + shoulders",
       timeNote: "70–90 min",
@@ -506,7 +507,7 @@ export const PROGRAM: ProgramSeed = {
     },
     {
       dayIndex: 6,
-      dayOfWeek: 6,
+      dayOfWeek: 7,
       name: "Easy Run + Light Upper",
       focus: "Aerobic + delts/core",
       timeNote: "60–90 min",
@@ -571,7 +572,7 @@ export const PROGRAM: ProgramSeed = {
     },
     {
       dayIndex: 7,
-      dayOfWeek: 7,
+      dayOfWeek: 1,
       name: "Rest + Mobility",
       focus: "Recovery",
       timeNote: "10–15 min",
@@ -586,7 +587,7 @@ export const PROGRAM: ProgramSeed = {
   runs: [
     {
       weekIndex: 1,
-      dayOfWeek: 3,
+      dayOfWeek: 4,
       duration: [20, 25],
       rpe: [3, 4],
       paceNote: "Talk-test; slower than push pace",
@@ -596,7 +597,7 @@ export const PROGRAM: ProgramSeed = {
     },
     {
       weekIndex: 1,
-      dayOfWeek: 6,
+      dayOfWeek: 7,
       duration: [25, 30],
       rpe: [3, 4],
       paceNote: "Talk-test; slower than push pace",
@@ -606,7 +607,7 @@ export const PROGRAM: ProgramSeed = {
     },
     {
       weekIndex: 2,
-      dayOfWeek: 3,
+      dayOfWeek: 4,
       duration: [25, 25],
       rpe: [3, 4],
       paceNote: "Conversational",
@@ -615,7 +616,7 @@ export const PROGRAM: ProgramSeed = {
     },
     {
       weekIndex: 2,
-      dayOfWeek: 6,
+      dayOfWeek: 7,
       duration: [30, 30],
       rpe: [3, 4],
       paceNote: "Conversational",
@@ -624,7 +625,7 @@ export const PROGRAM: ProgramSeed = {
     },
     {
       weekIndex: 3,
-      dayOfWeek: 3,
+      dayOfWeek: 4,
       duration: [25, 30],
       rpe: [3, 4],
       paceNote: "Conversational",
@@ -633,7 +634,7 @@ export const PROGRAM: ProgramSeed = {
     },
     {
       weekIndex: 3,
-      dayOfWeek: 6,
+      dayOfWeek: 7,
       duration: [30, 35],
       rpe: [3, 4],
       paceNote: "Conversational",
@@ -642,7 +643,7 @@ export const PROGRAM: ProgramSeed = {
     },
     {
       weekIndex: 4,
-      dayOfWeek: 3,
+      dayOfWeek: 4,
       duration: [30, 30],
       rpe: [3, 4],
       paceNote: "Conversational",
@@ -651,7 +652,7 @@ export const PROGRAM: ProgramSeed = {
     },
     {
       weekIndex: 4,
-      dayOfWeek: 6,
+      dayOfWeek: 7,
       duration: [35, 35],
       rpe: [3, 4],
       paceNote: "Conversational",
@@ -660,7 +661,7 @@ export const PROGRAM: ProgramSeed = {
     },
     {
       weekIndex: 5,
-      dayOfWeek: 3,
+      dayOfWeek: 4,
       duration: [25, 25],
       rpe: [3, 3],
       paceNote: "Easy",
@@ -670,7 +671,7 @@ export const PROGRAM: ProgramSeed = {
     },
     {
       weekIndex: 5,
-      dayOfWeek: 6,
+      dayOfWeek: 7,
       duration: [30, 30],
       rpe: [3, 3],
       paceNote: "Easy",
@@ -680,7 +681,7 @@ export const PROGRAM: ProgramSeed = {
     },
     {
       weekIndex: 6,
-      dayOfWeek: 3,
+      dayOfWeek: 4,
       duration: [30, 30],
       rpe: [3, 4],
       paceNote: "Conversational",
@@ -689,7 +690,7 @@ export const PROGRAM: ProgramSeed = {
     },
     {
       weekIndex: 6,
-      dayOfWeek: 6,
+      dayOfWeek: 7,
       duration: [35, 40],
       rpe: [3, 4],
       paceNote: "Conversational",
@@ -698,7 +699,7 @@ export const PROGRAM: ProgramSeed = {
     },
     {
       weekIndex: 7,
-      dayOfWeek: 3,
+      dayOfWeek: 4,
       duration: [30, 35],
       rpe: [3, 4],
       paceNote: "Conversational",
@@ -707,7 +708,7 @@ export const PROGRAM: ProgramSeed = {
     },
     {
       weekIndex: 7,
-      dayOfWeek: 6,
+      dayOfWeek: 7,
       duration: [40, 40],
       rpe: [3, 4],
       paceNote: "Conversational",
@@ -716,7 +717,7 @@ export const PROGRAM: ProgramSeed = {
     },
     {
       weekIndex: 8,
-      dayOfWeek: 3,
+      dayOfWeek: 4,
       duration: [35, 35],
       rpe: [3, 4],
       paceNote: "Conversational",
@@ -726,7 +727,7 @@ export const PROGRAM: ProgramSeed = {
     },
     {
       weekIndex: 8,
-      dayOfWeek: 6,
+      dayOfWeek: 7,
       duration: [40, 45],
       rpe: [3, 4],
       paceNote: "Conversational",

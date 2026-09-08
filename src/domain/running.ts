@@ -1,4 +1,4 @@
-import { addDays, isoWeekday } from "./program-calendar";
+import { addDays, isoWeekday, TRAINING_WEEK_START } from "./program-calendar";
 
 /**
  * Running rules (Phase 6): weekly volume, the week-over-week spike warning and the shin
@@ -18,16 +18,16 @@ export type RunVolumeInput = {
 };
 
 export type WeekVolume = {
-  /** Monday of the week, "YYYY-MM-DD". */
+  /** Tuesday of the training week, "YYYY-MM-DD". */
   weekStart: string;
   runs: number;
   minutes: number;
   km: number;
 };
 
-/** Monday of the calendar week containing the date. */
+/** Tuesday of the training week containing the date. */
 export function weekStart(isoDate: string): string {
-  return addDays(isoDate, 1 - isoWeekday(isoDate));
+  return addDays(isoDate, -((isoWeekday(isoDate) - TRAINING_WEEK_START + 7) % 7));
 }
 
 /** Volumes for the last `weeks` calendar weeks ending with the week of `today`, newest first. */

@@ -78,15 +78,29 @@ afterAll(async () => {
 });
 
 describe("today plan", () => {
-  it("starts the seeded programme at Upper A on cycle 1", async () => {
+  it("starts the complete Tuesday cycle at Lower A", async () => {
     const plan = await withUser(t.db, user.id, (tx) => getTodayPlan(tx, user.id, TZ));
     if (!plan) throw new Error("no plan");
-    expect(plan.program.startDayIndex).toBe(2);
-    expect(plan.suggestion?.slot).toEqual({ cycleIndex: 1, dayIndex: 2 });
-    expect(plan.suggestedDay?.name).toBe("Upper A");
-    expect(plan.suggestedExercises.map((e) => e.name)[0]).toBe("Barbell bench press");
-    expect(plan.progress.total).toBe(55);
-    expect(plan.cycleDays.find((d) => d.day.name === "Lower A")?.status).toBe("not_in_programme");
+    expect(plan.program.startDayIndex).toBe(1);
+    expect(plan.suggestion?.slot).toEqual({ cycleIndex: 1, dayIndex: 1 });
+    expect(plan.suggestedDay?.name).toBe("Lower A");
+    expect(plan.suggestedDay?.dayOfWeek).toBe(2);
+    expect(plan.suggestedExercises.map((e) => e.name)[0]).toBe("High-bar barbell squat");
+    expect(plan.progress.total).toBe(56);
+    expect(plan.cycleDays.map((d) => d.day.dayOfWeek)).toEqual([2, 3, 4, 5, 6, 7, 1]);
+    expect(plan.cycleDays.find((d) => d.day.name === "Lower A")?.status).toBe("pending");
+  });
+
+  it("suggests Upper A only after Lower A is completed", async () => {
+    const s = await schedule();
+    await withUser(t.db, user.id, (tx) =>
+      recordSlotEvent(tx, user.id, s.program.id, { cycleIndex: 1, dayIndex: 1 }, "completed", {
+        occurredOn: "2026-09-08",
+      }),
+    );
+    const plan = await withUser(t.db, user.id, (tx) => getTodayPlan(tx, user.id, TZ));
+    expect(plan?.suggestedDay?.name).toBe("Upper A");
+    expect(plan?.suggestedDay?.dayOfWeek).toBe(3);
   });
 });
 
