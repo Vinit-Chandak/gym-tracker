@@ -1,5 +1,6 @@
 "use server";
 
+import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import type { Route } from "next";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -7,6 +8,10 @@ import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type SignInState = { error?: string };
+
+const SIGN_IN_TIMEOUT_MS = 15_000;
+const UNREACHABLE_MESSAGE =
+  "Could not reach the sign-in service. Check your connection and try again.";
 
 const signInSchema = z.object({
   email: z.email(),
@@ -23,6 +28,12 @@ function safeNextPath(next: string | undefined): Route {
   return next as Route;
 }
 
+function timeout(ms: number): Promise<never> {
+  return new Promise((_, reject) => {
+    setTimeout(() => reject(new Error("Sign-in timed out")), ms);
+  });
+}
+
 export async function signInAction(
   _previous: SignInState,
   formData: FormData,
@@ -35,11 +46,24 @@ export async function signInAction(
   if (!parsed.success) return { error: "Enter your email and password." };
 
   const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.auth.signInWithPassword({
-    email: parsed.data.email,
-    password: parsed.data.password,
-  });
-  if (error) return { error: "That email and password combination did not work." };
+  let failure: string | undefined;
+  try {
+    const { error } = await Promise.race([
+      supabase.auth.signInWithPassword({
+        email: parsed.data.email,
+        password: parsed.data.password,
+      }),
+      timeout(SIGN_IN_TIMEOUT_MS),
+    ]);
+    if (error) {
+      failure = isAuthRetryableFetchError(error)
+        ? UNREACHABLE_MESSAGE
+        : "That email and password combination did not work.";
+    }
+  } catch {
+    failure = UNREACHABLE_MESSAGE;
+  }
+  if (failure) return { error: failure };
 
   redirect(safeNextPath(parsed.data.next));
 }
