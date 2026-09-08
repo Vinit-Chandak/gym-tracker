@@ -21,23 +21,24 @@ fill with a thumb. All values are stored on the session itself.
 
 ## What it is used for
 
-Nothing yet, apart from being shown on the finished session. Phase 5 (the progression engine)
-is where the scores start to matter. The proposed uses, for your review:
+Since Phase 5 the scores produce **advice only**, shown in a "Recovery check" card at the top of
+the session. Nothing changes the prefilled targets unless you tap **Hold loads today**, which
+swaps them for last session's sets; every set can still be edited.
 
-- **Hold instead of progress.** When sleep is under about 6 hours, or sleep quality, energy or
-  fatigue are at their worst level, the engine suggests repeating last session's loads rather
-  than adding weight, and says why.
-- **Back-pain guard.** A lower-back score above a threshold (proposed: 3 or more) warns before
-  loaded hinges and squats (Romanian deadlift, hip thrust, leg press, split squats) and
-  suggests lighter loads or the listed alternatives.
-- **Shin guard.** A shin score above a threshold (proposed: 3 or more) on a run day suggests
-  replacing the run with the plan's shin rule (walk or bike) and flags the run target.
-- **Trend view.** Phase 7 charts the scores over the programme next to body weight and
-  volume, so a bad week is visible rather than remembered.
+| Warning       | Fires when                                                               | Advice shown                                                   |
+| ------------- | ------------------------------------------------------------------------ | -------------------------------------------------------------- |
+| Short sleep   | Sleep under 6 h                                                          | Hold loads rather than adding; keep RIR honest                 |
+| Low readiness | Sleep quality or energy at 1, or fatigue or soreness at 5                | Maintenance day: repeat last loads, stop at the planned RIR    |
+| Lower back    | Two or more points above the previous check-in, or 5 or more             | Go lighter on hinges and squats; stop if it worsens            |
+| Shin          | Either shin two or more points above the previous check-in, or 5 or more | Shorten or skip the run; walk or bike instead; lifting is fine |
+
+The previous check-in is the last session that recorded one. The thresholds live in
+`src/domain/recovery.ts` so they are easy to change. Phase 7 will chart the scores over the
+programme next to body weight and volume.
 
 ## Open questions for you
 
 1. Are the thresholds above right for you, or would you rather set them yourself in Settings?
-2. Should the warnings block anything, or only advise? The current intent is advise only.
+2. Answered: advice only.
 3. Is a separate day-level recovery log wanted for rest days (the schema has room for it), or
    is the per-session check-in enough?

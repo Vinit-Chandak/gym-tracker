@@ -1,5 +1,6 @@
 import type { AvailabilityStatus } from "@/domain/equipment-resolution";
 import type { BodyRegion } from "@/domain/muscles";
+import type { SuggestionKind } from "@/domain/progression";
 import type {
   EquipmentCategory,
   ExerciseCategory,
@@ -165,3 +166,13 @@ export const SLOT_STATUS_LABELS = {
   skipped: "Skipped",
   not_in_programme: "Not this cycle",
 } as const;
+
+export const SUGGESTION_KIND_LABELS: Record<SuggestionKind, string> = {
+  increase: "Add load",
+  hold: "Hold",
+  repeat: "Repeat",
+  reduce: "Reduce",
+  extend: "Add time",
+  transfer: "Starting guess",
+  start: "No history",
+};

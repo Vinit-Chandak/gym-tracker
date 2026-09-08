@@ -83,7 +83,7 @@ docs/decisions/                   architecture decision records
 2. Gym and equipment management: done (ADR 0003).
 3. Exercise library, equipment compatibility, per-gym availability: done (ADR 0004).
 4. Today, sessions, set logging, check-in, sequence scheduling: done (ADR 0005).
-5. Deterministic progression engine and recovery-aware warnings.
+5. Deterministic progression engine and recovery-aware warnings: done (ADR 0006).
 6. Running log and weekly run volume.
 7. History and analytics.
 8. Coach read API with revocable read-only tokens.
@@ -122,6 +122,13 @@ All questions from the first review were answered:
 - Set rows with no history stay blank; nothing is invented. Finish takes optional notes and
   body weight.
 - The check-in is described in `docs/check-in.md` for review after the build.
+
+## Phase 5 decisions received (2026-09-08)
+
+- Suggested targets are prefilled faintly; untouched rows log them as they are.
+- A bad check-in produces advice only; nothing is held silently.
+- A machine with no history borrows the exercise's latest performance elsewhere as a
+  starting guess, clearly labelled and never treated as comparable history.
 
 ## Remaining open points
 

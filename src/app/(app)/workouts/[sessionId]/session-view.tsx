@@ -8,10 +8,22 @@ import { Button, LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { NumberField } from "@/components/ui/number-field";
 import { Sheet } from "@/components/ui/sheet";
+import {
+  CHANGING_KINDS,
+  REGRESSION_WARNING_STREAK,
+  WORKING_SET_TYPES,
+  type SuggestionKind,
+} from "@/domain/progression";
 import { formatSets, workingVolume } from "@/domain/sets";
 import type { SetType } from "@/domain/types";
 import { formatDateTime, formatDay } from "@/lib/format";
-import { LOAD_UNIT_LABELS, rangeLabel, restLabel, SET_TYPE_LABELS } from "@/lib/labels";
+import {
+  LOAD_UNIT_LABELS,
+  rangeLabel,
+  restLabel,
+  SET_TYPE_LABELS,
+  SUGGESTION_KIND_LABELS,
+} from "@/lib/labels";
 import { cn } from "@/lib/utils";
 import {
   deleteSetAction,
@@ -80,26 +92,129 @@ function initialRows(exercise: ExerciseVM): RowState[] {
   return rows;
 }
 
-/** Faint prefill: the previous comparable set with the same index, else the last set logged here. */
-function ghostFor(exercise: ExerciseVM, rows: RowState[], index: number): Ghost {
-  const previous = exercise.previous?.sets.find((s) => s.setIndex === index);
-  if (previous) {
-    return {
-      weight: str(previous.weight),
-      reps: str(previous.reps),
-      rir: str(previous.rir),
-      duration: str(previous.durationSeconds),
-    };
+type GhostSource = {
+  setIndex: number;
+  weight: number | null;
+  reps: number | null;
+  rir: number | null;
+  durationSeconds: number | null;
+};
+
+function toGhost(set: GhostSource): Ghost {
+  return {
+    weight: str(set.weight),
+    reps: str(set.reps),
+    rir: str(set.rir),
+    duration: str(set.durationSeconds),
+  };
+}
+
+/** The prefill source: the engine's targets, or last session's sets when holding loads today. */
+function prefillTargets(exercise: ExerciseVM, holdAll: boolean): readonly GhostSource[] {
+  const suggestion = exercise.suggestion;
+  if (
+    suggestion &&
+    suggestion.sets.length > 0 &&
+    !(holdAll && CHANGING_KINDS.has(suggestion.kind))
+  ) {
+    return suggestion.sets;
   }
+  return exercise.previous?.sets ?? exercise.basis?.sets ?? [];
+}
+
+/** Faint prefill: the target for this set index, else the last set logged here, else the last target. */
+function ghostFor(exercise: ExerciseVM, rows: RowState[], index: number, holdAll: boolean): Ghost {
+  const targets = prefillTargets(exercise, holdAll);
+  const target = targets.find((s) => s.setIndex === index);
+  if (target) return toGhost(target);
   const last = [...rows].filter((r) => r.setIndex < index && r.logged).pop()?.logged;
-  if (last)
-    return {
-      weight: str(last.weight),
-      reps: str(last.reps),
-      rir: str(last.rir),
-      duration: str(last.durationSeconds),
-    };
-  return {};
+  if (last) return toGhost(last);
+  const tail = targets[targets.length - 1];
+  return tail ? toGhost(tail) : {};
+}
+
+function suggestionTone(kind: SuggestionKind): "neutral" | "accent" | "success" | "warning" {
+  switch (kind) {
+    case "increase":
+      return "success";
+    case "reduce":
+    case "repeat":
+      return "warning";
+    case "hold":
+    case "extend":
+      return "accent";
+    default:
+      return "neutral";
+  }
+}
+
+function SuggestionLine({
+  exercise,
+  unit,
+  holdAll,
+  timeZone,
+}: {
+  exercise: ExerciseVM;
+  unit: string;
+  holdAll: boolean;
+  timeZone: string;
+}) {
+  const suggestion = exercise.suggestion;
+  if (!suggestion) return null;
+  const holding = holdAll && CHANGING_KINDS.has(suggestion.kind);
+  const kind: SuggestionKind = holding ? "hold" : suggestion.kind;
+  const first = suggestion.sets.find((s) => WORKING_SET_TYPES.has(s.setType)) ?? suggestion.sets[0];
+  const load = (weight: number | null | undefined) =>
+    weight === null || weight === undefined ? "the same load" : `${weight} ${unit}`;
+
+  let headline: string;
+  if (holding) {
+    const previousFirst = exercise.previous?.sets.find((s) => WORKING_SET_TYPES.has(s.setType));
+    headline = `Holding ${load(previousFirst?.weight)} today (rule said ${SUGGESTION_KIND_LABELS[suggestion.kind].toLowerCase()})`;
+  } else {
+    switch (kind) {
+      case "increase":
+        headline = `Next: ${load(first?.weight)}${first?.reps !== null && first?.reps !== undefined ? ` × ${first.reps}+` : ""}`;
+        break;
+      case "reduce":
+        headline = `Drop to ${load(first?.weight)}`;
+        break;
+      case "extend":
+        headline = first?.durationSeconds ? `Next: ${first.durationSeconds} s per set` : "Add time";
+        break;
+      case "transfer":
+        headline = `Start near ${load(first?.weight)}`;
+        break;
+      case "start":
+        headline = "No history yet; go by the target note and RIR";
+        break;
+      default:
+        headline = `Keep ${load(first?.weight)}`;
+    }
+  }
+
+  const basis = exercise.basis;
+  const source =
+    suggestion.basis === "other_equipment" && basis
+      ? ` · from ${basis.equipmentName ?? "another machine"} at ${basis.gymName}, ${formatDay(basis.performedAt, timeZone)}`
+      : basis && exercise.previous && basis.performedAt !== exercise.previous.performedAt
+        ? ` · based on ${formatDay(basis.performedAt, timeZone)}`
+        : "";
+
+  return (
+    <div className="flex items-start gap-2">
+      <Badge tone={suggestionTone(kind)}>{SUGGESTION_KIND_LABELS[kind]}</Badge>
+      <p className="min-w-0 text-sm">
+        <span className="font-medium">{headline}</span>
+        <span className="text-ink-muted">
+          {" "}
+          · {suggestion.reason}
+          {suggestion.advice ? ` · ${suggestion.advice}` : ""}
+          {source}
+        </span>
+      </p>
+    </div>
+  );
 }
 
 function effective(value: string, ghost: string | undefined): number | null {
@@ -137,10 +252,12 @@ type ExerciseCardProps = {
   exercise: ExerciseVM;
   session: SessionVM;
   readOnly: boolean;
+  /** Prefill last session's loads instead of the engine's targets. */
+  holdAll: boolean;
   onLogged: (restSeconds: number) => void;
 };
 
-function ExerciseCard({ exercise, session, readOnly, onLogged }: ExerciseCardProps) {
+function ExerciseCard({ exercise, session, readOnly, holdAll, onLogged }: ExerciseCardProps) {
   const router = useRouter();
   const [rows, setRows] = useState<RowState[]>(() => initialRows(exercise));
   const [completed, setCompleted] = useState(exercise.completedAt !== null);
@@ -160,7 +277,7 @@ function ExerciseCard({ exercise, session, readOnly, onLogged }: ExerciseCardPro
     );
 
   const logRow = (row: RowState) => {
-    const ghost = ghostFor(exercise, rows, row.setIndex);
+    const ghost = ghostFor(exercise, rows, row.setIndex, holdAll);
     const weight = effective(row.weight, ghost.weight);
     const reps = isDuration ? null : effective(row.reps, ghost.reps);
     const duration = isDuration ? effective(row.duration, ghost.duration) : null;
@@ -296,6 +413,21 @@ function ExerciseCard({ exercise, session, readOnly, onLogged }: ExerciseCardPro
           : "No previous comparable session"}
       </p>
 
+      {!readOnly && !skipped && !completed && (
+        <SuggestionLine
+          exercise={exercise}
+          unit={unit}
+          holdAll={holdAll}
+          timeZone={session.timeZone}
+        />
+      )}
+      {!readOnly && !skipped && exercise.regressionStreak >= REGRESSION_WARNING_STREAK && (
+        <p className="text-sm text-warning">
+          Down {exercise.regressionStreak} sessions in a row here. Advice: repeat the load and look
+          at sleep and recovery before adding.
+        </p>
+      )}
+
       {needsDecision && exercise.decision && (
         <div className="space-y-2 rounded-control border border-warning/40 bg-warning/10 p-3">
           <p className="text-sm font-medium">
@@ -345,7 +477,7 @@ function ExerciseCard({ exercise, session, readOnly, onLogged }: ExerciseCardPro
       ) : (
         <ol className="space-y-3">
           {rows.map((row) => {
-            const ghost = ghostFor(exercise, rows, row.setIndex);
+            const ghost = ghostFor(exercise, rows, row.setIndex, holdAll);
             return (
               <li
                 key={row.setIndex}
@@ -542,6 +674,7 @@ export function SessionView({ session }: { session: SessionVM }) {
   const readOnly = session.completedAt !== null;
   const [warmupDone, setWarmupDone] = useState(session.warmupCompleted);
   const [warmupOpen, setWarmupOpen] = useState(false);
+  const [holdAll, setHoldAll] = useState(false);
   const [pending, startTransition] = useTransition();
   const totalSets = session.exercises.reduce((sum, e) => sum + e.sets.length, 0);
   const volume = session.exercises.reduce((sum, e) => sum + workingVolume(e.sets), 0);
@@ -571,6 +704,35 @@ export function SessionView({ session }: { session: SessionVM }) {
           </p>
           <CheckInSummary session={session} />
           {session.notes && <p className="text-sm whitespace-pre-line">{session.notes}</p>}
+        </Card>
+      )}
+
+      {!readOnly && session.warnings.length > 0 && (
+        <Card>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="font-semibold">Recovery check</h2>
+            <Badge tone="warning">Advice</Badge>
+          </div>
+          <ul className="space-y-2 text-sm">
+            {session.warnings.map((warning) => (
+              <li key={warning.code}>
+                <span className="font-medium">{warning.title}.</span>{" "}
+                <span className="text-ink-muted">{warning.advice}</span>
+              </li>
+            ))}
+          </ul>
+          <Button
+            variant={holdAll ? "primary" : "secondary"}
+            size="sm"
+            aria-pressed={holdAll}
+            onClick={() => setHoldAll((value) => !value)}
+          >
+            {holdAll ? "Holding loads today ✓" : "Hold loads today"}
+          </Button>
+          <p className="text-xs text-ink-subtle">
+            Advice only. Holding prefills last session&apos;s loads instead of the rule&apos;s targets; any
+            set can still be changed.
+          </p>
         </Card>
       )}
 
@@ -622,6 +784,7 @@ export function SessionView({ session }: { session: SessionVM }) {
           exercise={exercise}
           session={session}
           readOnly={readOnly}
+          holdAll={holdAll}
           onLogged={(seconds) => {
             if (session.restTimerEnabled) startRestTimer(session.id, seconds);
           }}

@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, isNotNull, isNull, max, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, isNotNull, isNull, lt, max, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
 import {
@@ -14,10 +14,26 @@ import {
   workoutSessions,
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
+import { comparisonScope } from "@/domain/comparable-history";
+import {
+  regressionStreak,
+  suggestNext,
+  workingSets,
+  type Prescription,
+  type ProgressionSuggestion,
+  type SuggestionBasis,
+} from "@/domain/progression";
+import {
+  hasCheckIn,
+  recoveryWarnings,
+  type CheckIn,
+  type RecoveryWarning,
+} from "@/domain/recovery";
 import { weightStepFor } from "@/domain/sets";
 import type { LoadUnit, SetType, WarmupDrill } from "@/domain/types";
 import {
-  previousComparablePerformance,
+  comparableHistory,
+  latestPerformanceAnywhere,
   type ComparablePerformance,
 } from "@/server/queries/comparable";
 
@@ -240,6 +256,12 @@ export type SessionExercise = {
   weightStep: number;
   sets: SessionSet[];
   previous: ComparablePerformance | null;
+  /** The performance the suggestion was computed from (same slot first; a different machine only as a starting guess). */
+  basis: ComparablePerformance | null;
+  /** What the progression rule says to do next; null when nothing can be prescribed. */
+  suggestion: ProgressionSuggestion | null;
+  /** Sessions in a row below the one before, on the basis history. */
+  regressionStreak: number;
   /** Present when the exercise still needs a machine choice at this gym. */
   decision: ExerciseDecision | null;
 };
@@ -264,6 +286,8 @@ export type SessionDetail = {
   notes: string | null;
   warmup: { name: string; drills: WarmupDrill[] } | null;
   restTimerEnabled: boolean;
+  /** Recovery advice derived from the check-in; never changes a suggestion. */
+  warnings: RecoveryWarning[];
   exercises: SessionExercise[];
 };
 
@@ -305,6 +329,9 @@ export async function getSessionDetail(
         loadPortability: exercises.loadPortability,
         requiresEquipment: exercises.requiresEquipment,
         defaultLoadIncrement: exercises.defaultLoadIncrement,
+        defaultRepMin: exercises.defaultRepMin,
+        defaultRepMax: exercises.defaultRepMax,
+        defaultRir: exercises.defaultRir,
       },
       equipment: {
         id: equipmentInstances.id,
@@ -361,7 +388,12 @@ export async function getSessionDetail(
 
   const exerciseDetails: SessionExercise[] = [];
   for (const row of rows) {
-    const previous = await previousComparablePerformance(db, {
+    const weightStep = weightStepFor({
+      equipmentLoadIncrement: row.equipment?.loadIncrement ?? null,
+      exerciseDefaultIncrement: row.exercise.defaultLoadIncrement,
+    });
+    const scope = comparisonScope(row.exercise.loadPortability);
+    const history = await comparableHistory(db, {
       userId,
       exerciseId: row.exercise.id,
       loadPortability: row.exercise.loadPortability,
@@ -369,6 +401,40 @@ export async function getSessionDetail(
       before: session.session.startedAt,
       excludeWorkoutExerciseId: row.we.id,
     });
+    const previous = history[0] ?? null;
+    // Prefer performances of the same programme slot so the rule compares like with like.
+    const sameSlot = row.we.plannedProgramExerciseId
+      ? history.filter((h) => h.plannedProgramExerciseId === row.we.plannedProgramExerciseId)
+      : [];
+    const basisHistory = sameSlot.length > 0 ? sameSlot : history;
+    let basisPerformance = basisHistory[0] ?? null;
+    let basis: SuggestionBasis = basisPerformance
+      ? scope === "equipment_instance"
+        ? "same_equipment"
+        : "exercise"
+      : "none";
+    if (!basisPerformance && scope === "equipment_instance" && row.equipment) {
+      const elsewhere = await latestPerformanceAnywhere(db, {
+        userId,
+        exerciseId: row.exercise.id,
+        before: session.session.startedAt,
+        excludeWorkoutExerciseId: row.we.id,
+      });
+      if (elsewhere) {
+        basisPerformance = elsewhere;
+        basis = "other_equipment";
+      }
+    }
+    const prescription = prescriptionFor(
+      row.planned,
+      row.exercise,
+      basisPerformance,
+      weightStep,
+      row.equipment?.unit ?? "kg",
+    );
+    const suggestion = prescription
+      ? suggestNext(prescription, basisPerformance?.sets ?? null, basis)
+      : null;
     const needsMachine =
       row.exercise.requiresEquipment &&
       !row.equipment &&
@@ -422,17 +488,34 @@ export async function getSessionDetail(
       notes: row.we.notes,
       completedAt: row.we.completedAt,
       skippedAt: row.we.skippedAt,
-      weightStep: weightStepFor({
-        equipmentLoadIncrement: row.equipment?.loadIncrement ?? null,
-        exerciseDefaultIncrement: row.exercise.defaultLoadIncrement,
-      }),
+      weightStep,
       sets: setRows
         .filter((s) => s.workoutExerciseId === row.we.id)
         .map(({ workoutExerciseId: _ignored, ...set }) => set),
       previous,
+      basis: basisPerformance,
+      suggestion,
+      regressionStreak: regressionStreak(basisHistory.map((h) => h.sets)),
       decision,
     });
   }
+
+  const checkIn: CheckIn = {
+    sleepHours: session.session.sleepHours,
+    sleepQuality: session.session.sleepQuality,
+    energy: session.session.energy,
+    fatigue: session.session.fatigue,
+    soreness: session.session.soreness,
+    backPainPre: session.session.backPainPre,
+    shinLeftPre: session.session.shinLeftPre,
+    shinRightPre: session.session.shinRightPre,
+  };
+  const warnings = hasCheckIn(checkIn)
+    ? recoveryWarnings(
+        checkIn,
+        await previousCheckIn(db, userId, session.session.startedAt, session.session.id),
+      )
+    : [];
 
   return {
     id: session.session.id,
@@ -461,8 +544,91 @@ export async function getSessionDetail(
     notes: session.session.notes,
     warmup,
     restTimerEnabled: profile?.restTimerEnabled ?? false,
+    warnings,
     exercises: exerciseDetails,
   };
+}
+
+/** Today's prescription for the rule: the programme slot, else the exercise's own defaults. */
+function prescriptionFor(
+  planned: typeof programExercises.$inferSelect | null,
+  exercise: {
+    defaultRepMin: number | null;
+    defaultRepMax: number | null;
+    defaultRir: number | null;
+  },
+  basis: ComparablePerformance | null,
+  weightStep: number,
+  unit: LoadUnit,
+): Prescription | null {
+  if (planned) {
+    const rule = planned.progressionRule ?? null;
+    const ruleIncrement = rule && "loadIncrement" in rule ? rule.loadIncrement : null;
+    return {
+      sets: planned.sets,
+      prescriptionType: planned.prescriptionType,
+      repMin: planned.repMin,
+      repMax: planned.repMax,
+      durationMinSeconds: planned.durationMinSeconds,
+      durationMaxSeconds: planned.durationMaxSeconds,
+      rirMin: planned.rirMin,
+      rirMax: planned.rirMax,
+      rule,
+      loadIncrement: ruleIncrement ?? planned.loadIncrement ?? weightStep,
+      unit,
+    };
+  }
+  if (exercise.defaultRepMin === null || exercise.defaultRepMax === null) return null;
+  return {
+    sets: basis ? Math.max(1, workingSets(basis.sets).length) : 1,
+    prescriptionType: "reps",
+    repMin: exercise.defaultRepMin,
+    repMax: exercise.defaultRepMax,
+    durationMinSeconds: null,
+    durationMaxSeconds: null,
+    rirMin: exercise.defaultRir,
+    rirMax: exercise.defaultRir,
+    rule: { kind: "double_progression", loadIncrement: null },
+    loadIncrement: weightStep,
+    unit,
+  };
+}
+
+/** The last session before this one that recorded any check-in value. */
+async function previousCheckIn(
+  db: DbOrTx,
+  userId: string,
+  before: Date,
+  excludeSessionId: string,
+): Promise<CheckIn | null> {
+  const [row] = await db
+    .select({
+      sleepHours: workoutSessions.sleepHours,
+      sleepQuality: workoutSessions.sleepQuality,
+      energy: workoutSessions.energy,
+      fatigue: workoutSessions.fatigue,
+      soreness: workoutSessions.soreness,
+      backPainPre: workoutSessions.backPainPre,
+      shinLeftPre: workoutSessions.shinLeftPre,
+      shinRightPre: workoutSessions.shinRightPre,
+    })
+    .from(workoutSessions)
+    .where(
+      and(
+        eq(workoutSessions.userId, userId),
+        lt(workoutSessions.startedAt, before),
+        ne(workoutSessions.id, excludeSessionId),
+        or(
+          isNotNull(workoutSessions.sleepHours),
+          isNotNull(workoutSessions.backPainPre),
+          isNotNull(workoutSessions.shinLeftPre),
+          isNotNull(workoutSessions.shinRightPre),
+        ),
+      ),
+    )
+    .orderBy(desc(workoutSessions.startedAt))
+    .limit(1);
+  return row ?? null;
 }
 
 async function requireOpenSession(db: DbOrTx, userId: string, sessionId: string) {

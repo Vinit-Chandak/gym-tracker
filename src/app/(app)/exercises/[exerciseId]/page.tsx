@@ -1,5 +1,6 @@
 import { ExternalLink } from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { AvailabilityBadge } from "@/components/availability-badge";
@@ -13,6 +14,8 @@ import { Select } from "@/components/ui/select";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import type { Resolution } from "@/domain/equipment-resolution";
+import { formatSets } from "@/domain/sets";
+import { formatDay } from "@/lib/format";
 import {
   EXERCISE_CATEGORY_LABELS,
   EXERCISE_MODALITY_LABELS,
@@ -24,6 +27,8 @@ import {
 } from "@/lib/labels";
 import { setPreferredMachineAction } from "@/server/actions/availability";
 import { requireUser } from "@/server/auth";
+import { ensureProfile } from "@/server/queries/profile";
+import { recentPerformances } from "@/server/queries/comparable";
 import {
   exerciseAvailability,
   type ExerciseGymAvailability,
@@ -70,10 +75,15 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
   const data = await withUser(getDb(), user.id, async (tx) => {
     const exercise = await getExercise(tx, user.id, exerciseId);
     if (!exercise) return null;
-    return { exercise, availability: await exerciseAvailability(tx, user.id, exerciseId) };
+    const [availability, performances, profile] = await Promise.all([
+      exerciseAvailability(tx, user.id, exerciseId),
+      recentPerformances(tx, user.id, exerciseId),
+      ensureProfile(tx, user),
+    ]);
+    return { exercise, availability, performances, timeZone: profile.timeZone };
   });
   if (!data) notFound();
-  const { exercise, availability } = data;
+  const { exercise, availability, performances, timeZone } = data;
 
   return (
     <>
@@ -179,6 +189,45 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
             </ul>
           </Card>
         )}
+
+        <Card>
+          <h2 className="text-base font-semibold">Recent sessions</h2>
+          {performances.length === 0 ? (
+            <p className="text-sm text-ink-muted">Not logged yet.</p>
+          ) : (
+            <ul className="divide-y divide-line">
+              {performances.map((performance) => (
+                <li key={performance.workoutExerciseId}>
+                  <Link
+                    href={`/workouts/${performance.workoutSessionId}`}
+                    className="block space-y-0.5 py-2"
+                  >
+                    <div className="flex justify-between gap-3 text-sm">
+                      <span className="font-medium">
+                        {formatDay(performance.performedAt, timeZone)}
+                      </span>
+                      <span className="min-w-0 truncate text-ink-muted">
+                        {performance.gymName}
+                        {performance.equipmentInstanceName
+                          ? ` · ${performance.equipmentInstanceName}`
+                          : ""}
+                      </span>
+                    </div>
+                    <p className="text-sm text-ink-muted tabular-nums">
+                      {formatSets(performance.sets)}
+                    </p>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+          {exercise.loadPortability !== "global" && performances.length > 0 && (
+            <p className="text-xs text-ink-subtle">
+              Progression only compares sets on the same machine; other machines are listed for
+              reference.
+            </p>
+          )}
+        </Card>
 
         <SectionHeading title="Availability by gym" />
         {availability.length === 0 && (

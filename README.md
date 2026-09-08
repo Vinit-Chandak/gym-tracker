@@ -24,7 +24,7 @@ Progressive overload, one set at a time.
 | 2     | Gym and equipment management                 | done    |
 | 3     | Exercise library and gym compatibility       | done    |
 | 4     | Today's workout and set logging              | done    |
-| 5     | Deterministic progression engine             | pending |
+| 5     | Deterministic progression engine             | done    |
 | 6     | Running                                      | pending |
 | 7     | History and analytics                        | pending |
 | 8     | Coach read API                               | pending |

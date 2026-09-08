@@ -1,13 +1,14 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { exercises } from "@/db/schema";
+import { equipmentTypes, exercises } from "@/db/schema";
 import { seedReferenceData } from "@/db/seed/reference";
 import { seedUserStarterData } from "@/db/seed/starter";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
 import { nextPendingSlot, suggestion } from "@/domain/schedule";
 
+import { createEquipment } from "./equipment";
 import { listGyms } from "./gyms";
 import {
   completeRestSlotsBefore,
@@ -26,6 +27,7 @@ import {
   getSessionDetail,
   listSessions,
   logSet,
+  saveCheckIn,
   SessionHasSetsError,
   setExerciseCompleted,
   skipExercise,
@@ -367,5 +369,169 @@ describe("decisions, substitutions and ad hoc sessions", () => {
         }),
       ),
     ).rejects.toThrow(/already finished/);
+  });
+});
+
+describe("progression suggestions", () => {
+  let pUser: { id: string; email: string };
+  let gymId: string;
+  let samsung: string;
+  let upperA: string;
+
+  const log = (
+    workoutExerciseId: string,
+    setIndex: number,
+    weight: number,
+    reps: number,
+    rir: number,
+  ) =>
+    withUser(t.db, pUser.id, (tx) =>
+      logSet(tx, pUser.id, {
+        workoutExerciseId,
+        setIndex,
+        setType: "working",
+        weight,
+        reps,
+        rir,
+        durationSeconds: null,
+      }),
+    );
+
+  async function startUpperA(cycleIndex: number, gym = gymId) {
+    const started = await withUser(t.db, pUser.id, (tx) =>
+      startPlannedSession(tx, pUser.id, { gymId: gym, programDayId: upperA, cycleIndex }),
+    );
+    const detail = await withUser(t.db, pUser.id, (tx) =>
+      getSessionDetail(tx, pUser.id, started.sessionId),
+    );
+    if (!detail) throw new Error("no detail");
+    return { sessionId: started.sessionId, detail };
+  }
+
+  const finish = (sessionId: string) =>
+    withUser(t.db, pUser.id, (tx) =>
+      finishSession(tx, pUser.id, sessionId, { notes: null, bodyWeightKg: null }),
+    );
+  const discard = (sessionId: string) =>
+    withUser(t.db, pUser.id, (tx) => discardSession(tx, pUser.id, sessionId));
+
+  beforeAll(async () => {
+    pUser = await t.createAuthUser("progression@example.com");
+    await withUser(t.db, pUser.id, (tx) => seedUserStarterData(tx, pUser));
+    const gyms = await withUser(t.db, pUser.id, (tx) => listGyms(tx, pUser.id));
+    gymId = gyms.find((g) => g.slug === "anytime-fitness")?.id ?? "";
+    samsung = gyms.find((g) => g.slug === "samsung-gym")?.id ?? "";
+    const s = await withUser(t.db, pUser.id, (tx) => getSchedule(tx, pUser.id));
+    upperA = s?.days.find((d) => d.name === "Upper A")?.id ?? "";
+  });
+
+  it("has nothing to prefill without history", async () => {
+    const { sessionId, detail } = await startUpperA(1);
+    const bench = exerciseRow(detail, "barbell-bench-press");
+    expect(bench.suggestion).toMatchObject({ kind: "start", basis: "none", sets: [] });
+    expect(bench.regressionStreak).toBe(0);
+    expect(detail.warnings).toEqual([]);
+    for (let i = 1; i <= 4; i++) await log(bench.id, i, 60, 5, 2);
+    const row = exerciseRow(detail, "seated-cable-row");
+    for (let i = 1; i <= 3; i++) await log(row.id, i, 40, 10, 1);
+    await finish(sessionId);
+  });
+
+  it("suggests a load increase only after every set met the plan, prefilled per set", async () => {
+    const { sessionId, detail } = await startUpperA(2);
+    const bench = exerciseRow(detail, "barbell-bench-press");
+    expect(bench.suggestion).toMatchObject({ kind: "increase", basis: "exercise" });
+    expect(bench.suggestion?.sets.map((s) => [s.weight, s.reps, s.rir])).toEqual([
+      [62.5, 3, 2],
+      [62.5, 3, 2],
+      [62.5, 3, 2],
+      [62.5, 3, 2],
+    ]);
+    const row = exerciseRow(detail, "seated-cable-row");
+    expect(row.suggestion).toMatchObject({ kind: "increase", basis: "same_equipment" });
+    expect(row.suggestion?.sets[0]?.weight).toBe(40 + row.weightStep);
+    for (let i = 1; i <= 4; i++) await log(bench.id, i, 62.5, i === 1 ? 2 : 3, 1);
+    for (let i = 1; i <= 3; i++) await log(row.id, i, 45, 8, 1);
+    await finish(sessionId);
+  });
+
+  it("reduces after a miss and counts sessions below the last", async () => {
+    const { sessionId, detail } = await startUpperA(3);
+    const bench = exerciseRow(detail, "barbell-bench-press");
+    expect(bench.suggestion?.kind).toBe("reduce");
+    expect(bench.suggestion?.sets[0]).toMatchObject({ weight: 60, reps: 3, rir: 2 });
+    expect(bench.regressionStreak).toBe(1);
+    expect(exerciseRow(detail, "seated-cable-row").suggestion?.kind).toBe("hold");
+    for (let i = 1; i <= 4; i++) await log(bench.id, i, 60, 4, 2);
+    await finish(sessionId);
+    const next = await startUpperA(4);
+    expect(exerciseRow(next.detail, "barbell-bench-press").regressionStreak).toBe(2);
+    await discard(next.sessionId);
+  });
+
+  it("uses another machine's history only as a starting guess", async () => {
+    const [cableType] = await t.db
+      .select({ id: equipmentTypes.id })
+      .from(equipmentTypes)
+      .where(eq(equipmentTypes.slug, "cable_station"));
+    await withUser(t.db, pUser.id, (tx) =>
+      createEquipment(tx, pUser.id, samsung, {
+        name: "Cable station",
+        equipmentTypeId: cableType?.id ?? "",
+        manufacturer: null,
+        model: null,
+        resistanceMode: "selectorized",
+        unit: "kg",
+        loadIncrement: null,
+        pulleyRatio: null,
+        angleDegrees: null,
+        notes: null,
+      }),
+    );
+    const { sessionId, detail } = await startUpperA(4, samsung);
+    const row = exerciseRow(detail, "seated-cable-row");
+    expect(row.equipment?.name).toBe("Cable station");
+    expect(row.previous).toBeNull();
+    expect(row.suggestion).toMatchObject({ kind: "transfer", basis: "other_equipment" });
+    expect(row.basis?.gymName).toBe("Anytime Fitness");
+    expect(row.suggestion?.sets.map((s) => s.weight)).toEqual([45, 45, 45]);
+    await discard(sessionId);
+  });
+
+  it("turns the check-in into advice against the previous check-in", async () => {
+    const first = await startUpperA(4);
+    await withUser(t.db, pUser.id, (tx) =>
+      saveCheckIn(tx, pUser.id, first.sessionId, {
+        sleepHours: 7,
+        sleepQuality: 4,
+        energy: 4,
+        fatigue: 2,
+        soreness: 2,
+        backPainPre: 1,
+        shinLeftPre: 1,
+        shinRightPre: 1,
+      }),
+    );
+    await finish(first.sessionId);
+    const second = await startUpperA(5);
+    await withUser(t.db, pUser.id, (tx) =>
+      saveCheckIn(tx, pUser.id, second.sessionId, {
+        sleepHours: 5,
+        sleepQuality: 3,
+        energy: 3,
+        fatigue: 3,
+        soreness: 2,
+        backPainPre: 3,
+        shinLeftPre: 1,
+        shinRightPre: 5,
+      }),
+    );
+    const detail = await withUser(t.db, pUser.id, (tx) =>
+      getSessionDetail(tx, pUser.id, second.sessionId),
+    );
+    expect(detail?.warnings.map((w) => w.code)).toEqual(["short_sleep", "back_pain", "shin_pain"]);
+    expect(detail?.warnings[1]?.title).toBe("Lower back 3/10, up from 1");
+    expect(detail?.warnings[2]?.title).toBe("Right shin 5/10, up from 1");
+    await discard(second.sessionId);
   });
 });
