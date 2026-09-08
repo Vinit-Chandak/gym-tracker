@@ -96,8 +96,6 @@ chat), then ask for `npm run db:setup` to be run from a session.
 - Settings shows your email and the default gym (Anytime Fitness).
 - Gyms: Anytime Fitness has the seven machines from the planning notes; Samsung Gym and
   Society Gym are empty until you add their equipment (Phase 2 screens).
-- The horizontal leg press is seeded as a weight-stack machine. If yours is plate-loaded,
-  change it in the app.
 
 ## Free-tier notes
 

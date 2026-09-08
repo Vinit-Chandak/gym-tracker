@@ -62,7 +62,7 @@ export const ANYTIME_FITNESS_EQUIPMENT: readonly EquipmentInstanceSeed[] = [
   {
     name: "Horizontal leg press",
     equipmentTypeSlug: "leg_press_horizontal",
-    resistanceMode: "selectorized",
-    notes: "Seeded as a weight-stack machine; change if it is plate-loaded.",
+    resistanceMode: "plate_loaded",
+    notes: "Plate-loaded sled.",
   },
 ];

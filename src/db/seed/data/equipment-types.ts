@@ -44,6 +44,12 @@ export const EQUIPMENT_TYPES: readonly EquipmentTypeSeed[] = [
   type("calf_raise_machine", "Calf raise machine", "machine", "selectorized", 67),
   type("hip_thrust_machine", "Hip thrust / glute drive machine", "machine", "plate_loaded", 68),
   type("back_extension_bench", "Back extension bench", "accessory", "bodyweight", 70),
+  type("hack_squat", "Hack squat", "machine", "plate_loaded", 69),
+  type("t_bar_row", "T-bar row", "machine", "plate_loaded", 45),
+  type("dip_station", "Dip station", "bodyweight", "bodyweight", 22),
+  type("kettlebells", "Kettlebells", "free_weight", "free_weight", 13),
   type("treadmill", "Treadmill", "cardio", "cardio", 80, "none"),
   type("bike", "Stationary bike", "cardio", "cardio", 81, "none"),
+  type("rowing_machine", "Rowing machine", "cardio", "cardio", 82, "none"),
+  type("elliptical", "Elliptical", "cardio", "cardio", 83, "none"),
 ];

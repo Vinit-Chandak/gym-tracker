@@ -79,8 +79,8 @@ docs/decisions/                   architecture decision records
 ## Phases
 
 0. Foundation and PWA shell: done.
-1. Schema, auth, migrations, seeds, domain tests for comparable history.
-2. Gym and equipment management.
+1. Schema, auth, migrations, seeds, domain tests for comparable history: done.
+2. Gym and equipment management: done (ADR 0003).
 3. Exercise library, equipment compatibility, per-gym availability.
 4. Today: gym pick, planned or ad hoc session, recovery check-in, set logging, rest timer.
 5. Deterministic progression engine and recovery-aware warnings.
@@ -109,6 +109,4 @@ All questions from the first review were answered:
 
 ## Remaining open points
 
-- Whether the horizontal leg press at Anytime Fitness is a weight stack or plate-loaded (seeded
-  as a stack; editable in the app).
 - Equipment at Samsung Gym and Society Gym is unknown and gets added through the Phase 2 screens.

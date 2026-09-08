@@ -21,7 +21,7 @@ Progressive overload, one set at a time.
 | ----- | -------------------------------------------- | ------- |
 | 0     | Repository foundation, PWA shell, bottom nav | done    |
 | 1     | Database schema, auth, migrations, seed data | done    |
-| 2     | Gym and equipment management                 | pending |
+| 2     | Gym and equipment management                 | done    |
 | 3     | Exercise library and gym compatibility       | pending |
 | 4     | Today's workout and set logging              | pending |
 | 5     | Deterministic progression engine             | pending |
@@ -75,7 +75,8 @@ src/
     layout.tsx, manifest.ts     metadata, viewport, PWA manifest
     (auth)/login/               sign-in screen (no bottom navigation)
     (app)/                      the five tabs behind the shared shell
-      today/ history/ progress/ gyms/ settings/
+      today/ history/ progress/ settings/
+      gyms/, gyms/new, gyms/[gymId], .../edit, .../equipment/new, .../equipment/[equipmentId]
   proxy.ts                      refreshes the Supabase session; sends visitors to /login
   db/
     schema/                     Drizzle tables, enums and RLS policies (source of truth)
@@ -84,7 +85,7 @@ src/
     client.ts, with-user.ts     postgres.js client; RLS-enforcing transaction wrapper
     test/pglite.ts              in-process Postgres for tests
   domain/                       pure rules: comparable history, equipment resolution, pace, calendar
-  server/                       auth helpers, server actions, queries
+  server/                       auth helpers, server actions, repositories, validation, queries
   components/                   shell, ui primitives
   lib/                          env access, app identity, helpers
 docs/                           plan, ADRs, planning documents

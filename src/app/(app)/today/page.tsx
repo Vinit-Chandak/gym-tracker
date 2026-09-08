@@ -5,28 +5,29 @@ import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { PhaseNotice } from "@/components/ui/phase-notice";
+import { getDb } from "@/db/client";
+import { withUser } from "@/db/with-user";
+import { requireUser } from "@/server/auth";
+import { listGyms } from "@/server/repositories/gyms";
+
+import { GymSwitcher } from "./gym-switcher";
 
 export const metadata: Metadata = { title: "Today" };
 
 const PREVIEW_SETS = [1, 2, 3, 4];
 
-export default function TodayPage() {
+export default async function TodayPage() {
+  const user = await requireUser();
+  const gyms = await withUser(getDb(), user.id, (tx) => listGyms(tx, user.id));
+  const activeGyms = gyms
+    .filter((gym) => gym.isActive)
+    .map((gym) => ({ id: gym.id, name: gym.name, kind: gym.kind, isDefault: gym.isDefault }));
+
   return (
     <>
       <PageHeader title="Today" />
       <PageContent>
-        <section
-          aria-label="Current gym"
-          className="flex items-center justify-between gap-3 rounded-card border border-line bg-surface px-4 py-3"
-        >
-          <div className="min-w-0">
-            <p className="text-xs font-medium tracking-wide text-ink-subtle uppercase">Gym</p>
-            <p className="truncate text-base font-medium">No gym selected</p>
-          </div>
-          <Button variant="secondary" size="sm" disabled>
-            Change
-          </Button>
-        </section>
+        <GymSwitcher gyms={activeGyms} />
 
         {/* Static preview of the exercise-card layout. Real data arrives in Phase 4. */}
         <Card aria-label="Exercise card design preview">
