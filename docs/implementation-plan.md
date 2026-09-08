@@ -89,28 +89,26 @@ docs/decisions/                   architecture decision records
 8. Coach read API with revocable read-only tokens.
 9. PWA polish: loading/error states, optimistic saves, offline handling, install guidance.
 
-## Open questions
+## Decisions taken (2026-09-08)
 
-Blocking for Phase 1:
+All questions from the first review were answered:
 
-1. Postgres and auth provider: Supabase (as the planning docs specify) or Neon via the Vercel
-   Marketplace with Auth.js.
-2. Sign-in method: email + password, or magic link.
+- Supabase Postgres + Supabase Auth on the free tier; email + password sign-in.
+- Planning documents committed under `docs/planning/`.
+- Programme starts on 2026-09-08 and its weeks are counted from that date, not from Monday.
+  Sessions are still suggested by weekday (Monday = Lower A, and so on).
+- Warm-ups are shown as a checklist; a session records one "warm-up done" flag.
+- Gyms: Anytime Fitness (default, with the documented machines), Samsung Gym, Society Gym, plus
+  the virtual Outdoor and Home locations.
+- Set counts follow the per-exercise LIFTING sheet (16 / 19 / 14 / 13 / 18 / 10).
+- Paired slots: Smith calf raise with leg-press calf press as fallback; wrist curl and reverse
+  wrist curl as a superset pair.
+- Bodyweight movements log added load only (0 = bodyweight; weighted gloves, belt or vest go on top).
+- Units: kg everywhere. Time zone: Asia/Kolkata.
+- App name: Overload.
 
-Non-blocking (defaults in brackets, all changeable later):
+## Remaining open points
 
-3. Commit the planning documents into `docs/planning/` [not until confirmed; they contain
-   personal health details].
-4. Programme start date and week anchoring [set in Settings when activating; week 1 starts on
-   that Monday].
-5. Warm-up checklists from the workbook inside the app [seed them and show a collapsible
-   checklist per session type].
-6. Seeded gym set [one gym "Anytime Fitness (Company)", plus virtual "Outdoor" and "Home"].
-7. Set-count mismatch between the WEEK and LIFTING sheets [the per-exercise LIFTING sheet is
-   authoritative].
-8. Paired slots: calf raise [Smith primary, leg-press calf press fallback]; wrist curl +
-   reverse wrist curl [two exercises in one superset group].
-9. Bodyweight movements [log added load in kg, 0 for bodyweight; assisted pull-up is its own
-   exercise on the assisted machine].
-10. Units and time zone [kg; time zone from the browser on first sign-in, editable].
-11. Home-screen name [short name "Training", full name "Training Tracker"].
+- Whether the horizontal leg press at Anytime Fitness is a weight stack or plate-loaded (seeded
+  as a stack; editable in the app).
+- Equipment at Samsung Gym and Society Gym is unknown and gets added through the Phase 2 screens.

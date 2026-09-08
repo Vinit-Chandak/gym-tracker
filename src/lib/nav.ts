@@ -1,5 +1,12 @@
 import type { Route } from "next";
-import { CalendarDays, Dumbbell, type LucideIcon, MapPin, Settings, TrendingUp } from "lucide-react";
+import {
+  CalendarDays,
+  Dumbbell,
+  type LucideIcon,
+  MapPin,
+  Settings,
+  TrendingUp,
+} from "lucide-react";
 
 export type NavItem = {
   href: Route;

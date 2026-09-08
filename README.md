@@ -1,21 +1,18 @@
-# Training Tracker
+# Overload
 
 Private, iPhone-first workout tracker for one lifter who trains at several gyms.
-It logs strength and hypertrophy sessions, easy runs, recovery and symptoms, and keeps
-machine history **per gym and per machine** so that stack numbers from different
-equipment are never mixed up.
+It logs strength and hypertrophy sessions, easy runs, recovery and symptoms, and keeps machine
+history **per gym and per machine**, so stack numbers from different equipment are never mixed.
 
-The product requirements, training context and data model that drive this build live in
-the planning documents supplied with the project (`PRODUCT_REQUIREMENTS.md`,
-`TRAINING_CONTEXT.md`, `DATA_MODEL_AND_ARCHITECTURE.md`, `CLAUDE_CODE_IMPLEMENTATION_PROMPT.md`
-and the 8-week programme workbook).
+Progressive overload, one set at a time.
 
 ## Stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, Turbopack) on Vercel
-- TypeScript (strict) and React 19
-- Tailwind CSS v4 with a small set of design tokens (`src/app/globals.css`)
-- Postgres for data (provider and auth wiring are set up in Phase 1)
+- TypeScript (strict), React 19, Tailwind CSS v4
+- Supabase Postgres + Supabase Auth (email and password), Row Level Security on every table
+- Drizzle ORM for the schema, SQL migrations and queries; Zod for input validation
+- Vitest, with PGlite running the real migrations in-process for database tests
 - PWA manifest so the app installs from iPhone Safari
 
 ## Status
@@ -23,7 +20,7 @@ and the 8-week programme workbook).
 | Phase | Scope                                        | Status  |
 | ----- | -------------------------------------------- | ------- |
 | 0     | Repository foundation, PWA shell, bottom nav | done    |
-| 1     | Database schema, auth, migrations, seed data | pending |
+| 1     | Database schema, auth, migrations, seed data | done    |
 | 2     | Gym and equipment management                 | pending |
 | 3     | Exercise library and gym compatibility       | pending |
 | 4     | Today's workout and set logging              | pending |
@@ -33,7 +30,10 @@ and the 8-week programme workbook).
 | 8     | Coach read API                               | pending |
 | 9     | PWA polish                                   | pending |
 
-Architectural decisions are recorded in [`docs/decisions/`](docs/decisions/).
+- [`SETUP.md`](SETUP.md): the one-time steps to create the Supabase and Vercel projects.
+- [`docs/implementation-plan.md`](docs/implementation-plan.md): structure, phases and decisions.
+- [`docs/decisions/`](docs/decisions/): architecture decision records.
+- [`docs/planning/`](docs/planning/): the original requirements, training context and workbook.
 
 ## Local setup
 
@@ -41,57 +41,65 @@ Requires Node.js 20.9 or newer (Node 22 recommended) and npm.
 
 ```bash
 npm install
-cp .env.example .env.local   # not needed for Phase 0; the shell renders without a database
-npm run dev
+cp .env.example .env.local   # fill in the values described in SETUP.md
+npm run db:setup             # apply migrations, seed reference data and your starter data
+npm run dev                  # http://localhost:3000
 ```
 
-Open <http://localhost:3000>. To preview the iPhone layout in a desktop browser, use the
-device toolbar (for example iPhone 15, 393 × 852) in the browser dev tools.
+The app shell renders without any environment variables, but signing in and every data screen
+need the Supabase values from `SETUP.md`.
 
 ## Scripts
 
-| Command                | What it does                                              |
-| ---------------------- | --------------------------------------------------------- |
-| `npm run dev`          | Start the development server                              |
-| `npm run build`        | Production build                                          |
-| `npm run start`        | Serve the production build                                |
-| `npm run lint`         | ESLint (Next.js core-web-vitals + TypeScript rules)       |
-| `npm run lint:fix`     | ESLint with auto-fix                                      |
-| `npm run format`       | Prettier, writes changes                                  |
-| `npm run format:check` | Prettier, check only                                      |
-| `npm run typecheck`    | Generate Next.js route types, then `tsc --noEmit`         |
-| `npm run check`        | lint + format check + typecheck (run before every commit) |
+| Command               | What it does                                                           |
+| --------------------- | ---------------------------------------------------------------------- |
+| `npm run dev`         | Start the development server                                           |
+| `npm run build`       | Production build                                                       |
+| `npm run start`       | Serve the production build                                             |
+| `npm run lint`        | ESLint (Next.js core-web-vitals + TypeScript rules)                    |
+| `npm run format`      | Prettier, writes changes (`format:check` only checks)                  |
+| `npm run typecheck`   | Generate Next.js route types, then `tsc --noEmit`                      |
+| `npm test`            | Vitest: domain rules, seed integrity, migrations + RLS on PGlite       |
+| `npm run check`       | lint + format check + typecheck + tests                                |
+| `npm run db:generate` | Generate a SQL migration from the Drizzle schema                       |
+| `npm run db:migrate`  | Apply migrations to `DIRECT_DATABASE_URL`                              |
+| `npm run db:seed`     | Seed reference data, and your starter data if `SEED_USER_EMAIL` is set |
+| `npm run db:setup`    | `db:migrate` followed by `db:seed`                                     |
+| `npm run db:studio`   | Drizzle Studio against the configured database                         |
 
 ## Project structure
 
 ```
 src/
   app/
-    layout.tsx          root layout: metadata, viewport (safe areas, dark theme)
-    manifest.ts         PWA manifest (served at /manifest.webmanifest)
-    icon.svg            favicon; apple-icon.png is the iPhone home-screen icon
-    page.tsx            redirects "/" to /today
-    (app)/              the five tabs share one shell with the bottom navigation
-      layout.tsx
-      today/  history/  progress/  gyms/  settings/
-  components/
-    shell/              bottom navigation, page header, page content container
-    ui/                 small reusable primitives (button, card, empty state)
-  lib/                  helpers and shared config (class merging, nav items)
-public/icons/           PNG icons referenced by the manifest
-docs/decisions/         architecture decision records
+    layout.tsx, manifest.ts     metadata, viewport, PWA manifest
+    (auth)/login/               sign-in screen (no bottom navigation)
+    (app)/                      the five tabs behind the shared shell
+      today/ history/ progress/ gyms/ settings/
+  proxy.ts                      refreshes the Supabase session; sends visitors to /login
+  db/
+    schema/                     Drizzle tables, enums and RLS policies (source of truth)
+    migrations/                 generated SQL + the hand-written auth bridge
+    seed/                       reference data, starter data, seed CLI
+    client.ts, with-user.ts     postgres.js client; RLS-enforcing transaction wrapper
+    test/pglite.ts              in-process Postgres for tests
+  domain/                       pure rules: comparable history, equipment resolution, pace, calendar
+  server/                       auth helpers, server actions, queries
+  components/                   shell, ui primitives
+  lib/                          env access, app identity, helpers
+docs/                           plan, ADRs, planning documents
 ```
+
+## How data access works
+
+Every user-owned table has a `user_id` column and a Row Level Security policy on `auth.uid()`.
+Application code reads and writes inside `withUser(db, userId, fn)`, a transaction that sets the
+Supabase JWT claims and switches to the `authenticated` role, so the policies apply to Drizzle
+queries exactly as they do to Supabase's own API. Migrations and the seed CLI use the direct
+connection instead.
 
 ## Install on iPhone
 
-1. Deploy the app (Vercel) so it is served over HTTPS.
-2. Open the URL in Safari on the iPhone.
-3. Tap **Share**, then **Add to Home Screen**.
-
-The app then launches in standalone mode with the dark theme colour and safe-area padding
-for the notch and home indicator.
-
-## Environment variables
-
-See [`.env.example`](.env.example). Phase 0 needs none. Secrets are never committed;
-Vercel project settings hold the production values.
+Deploy to Vercel (see `SETUP.md`), open the URL in Safari, tap **Share**, then
+**Add to Home Screen**. The app launches standalone with safe-area padding for the notch and
+home indicator.

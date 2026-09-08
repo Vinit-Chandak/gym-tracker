@@ -1,17 +1,17 @@
 import type { Metadata, Viewport } from "next";
-import "./globals.css";
 
-const APP_NAME = "Training Tracker";
+import { APP_DESCRIPTION, APP_NAME, THEME_COLOR } from "@/lib/app";
+
+import "./globals.css";
 
 export const metadata: Metadata = {
   applicationName: APP_NAME,
   title: { default: APP_NAME, template: `%s · ${APP_NAME}` },
-  description:
-    "Private, iPhone-first training log for strength, hypertrophy, running and recovery.",
+  description: APP_DESCRIPTION,
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Training",
+    title: APP_NAME,
   },
   formatDetection: { telephone: false, email: false, address: false },
   // Private single-user app: keep it out of search engines.
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0e1013",
+  themeColor: THEME_COLOR,
   colorScheme: "dark",
   width: "device-width",
   initialScale: 1,
