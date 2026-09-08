@@ -11,6 +11,7 @@ import { saveRunAction } from "@/server/actions/runs";
 import { requireUser } from "@/server/auth";
 import { ensureProfile } from "@/server/queries/profile";
 import { getRun, listRuns, plannedRunsForCurrentCycle } from "@/server/repositories/runs";
+import { requireUuid } from "@/server/validation/params";
 
 import { RunForm } from "../../run-form";
 
@@ -20,6 +21,7 @@ const str = (value: number | null): string => (value === null ? "" : String(valu
 
 export default async function EditRunPage(props: PageProps<"/runs/[runId]/edit">) {
   const { runId } = await props.params;
+  requireUuid(runId);
   const user = await requireUser();
   const data = await withUser(getDb(), user.id, async (tx) => {
     const run = await getRun(tx, user.id, runId);

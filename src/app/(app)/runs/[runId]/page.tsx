@@ -14,6 +14,7 @@ import { rangeLabel, RUN_MODE_LABELS, WEEKDAY_SHORT } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
 import { ensureProfile } from "@/server/queries/profile";
 import { getRun } from "@/server/repositories/runs";
+import { requireUuid } from "@/server/validation/params";
 
 import { DeleteRunButton } from "./delete-button";
 
@@ -32,6 +33,7 @@ const score = (value: number | null) => (value === null ? "—" : String(value))
 
 export default async function RunPage(props: PageProps<"/runs/[runId]">) {
   const { runId } = await props.params;
+  requireUuid(runId);
   const user = await requireUser();
   const data = await withUser(getDb(), user.id, async (tx) => {
     const profile = await ensureProfile(tx, user);

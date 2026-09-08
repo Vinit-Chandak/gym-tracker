@@ -11,6 +11,7 @@ import { requireUser } from "@/server/auth";
 import { listEquipmentForGym } from "@/server/repositories/equipment";
 import { getExercise, listExercises } from "@/server/repositories/exercises";
 import { getGym } from "@/server/repositories/gyms";
+import { requireUuid } from "@/server/validation/params";
 
 import { FallbackForm } from "./fallback-form";
 
@@ -20,6 +21,8 @@ export default async function GymFallbackPage(
   props: PageProps<"/gyms/[gymId]/programme/[exerciseId]/fallback">,
 ) {
   const { gymId, exerciseId } = await props.params;
+  requireUuid(gymId);
+  requireUuid(exerciseId);
   const user = await requireUser();
   const data = await withUser(getDb(), user.id, async (tx) => {
     const [gym, exercise] = await Promise.all([

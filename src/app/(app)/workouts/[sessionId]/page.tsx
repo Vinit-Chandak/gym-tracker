@@ -8,6 +8,7 @@ import { withUser } from "@/db/with-user";
 import { requireUser } from "@/server/auth";
 import { ensureProfile } from "@/server/queries/profile";
 import { getSessionDetail } from "@/server/repositories/sessions";
+import { requireUuid } from "@/server/validation/params";
 
 import { SessionView } from "./session-view";
 import { toSessionVM } from "./view-model";
@@ -16,6 +17,7 @@ export const metadata: Metadata = { title: "Session" };
 
 export default async function SessionPage(props: PageProps<"/workouts/[sessionId]">) {
   const { sessionId } = await props.params;
+  requireUuid(sessionId);
   const user = await requireUser();
   const data = await withUser(getDb(), user.id, async (tx) => {
     const profile = await ensureProfile(tx, user);

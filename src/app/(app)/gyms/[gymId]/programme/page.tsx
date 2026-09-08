@@ -13,6 +13,7 @@ import { withUser } from "@/db/with-user";
 import { AVAILABILITY_LABELS } from "@/lib/labels";
 import { markEquipmentAbsentAction, removeGymFallbackAction } from "@/server/actions/availability";
 import { requireUser } from "@/server/auth";
+import { requireUuid } from "@/server/validation/params";
 import {
   gymAvailability,
   type PlannedExerciseAvailability,
@@ -36,6 +37,7 @@ function detail(row: PlannedExerciseAvailability): string {
 
 export default async function GymProgrammePage(props: PageProps<"/gyms/[gymId]/programme">) {
   const { gymId } = await props.params;
+  requireUuid(gymId);
   const user = await requireUser();
   const data = await withUser(getDb(), user.id, (tx) => gymAvailability(tx, user.id, gymId));
   if (!data) notFound();

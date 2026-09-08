@@ -9,6 +9,7 @@ import { withUser } from "@/db/with-user";
 import { updateGymAction } from "@/server/actions/gyms";
 import { requireUser } from "@/server/auth";
 import { getGym } from "@/server/repositories/gyms";
+import { requireUuid } from "@/server/validation/params";
 
 import { GymForm } from "../../gym-form";
 
@@ -16,6 +17,7 @@ export const metadata: Metadata = { title: "Edit gym" };
 
 export default async function EditGymPage(props: PageProps<"/gyms/[gymId]/edit">) {
   const { gymId } = await props.params;
+  requireUuid(gymId);
   const user = await requireUser();
   const gym = await withUser(getDb(), user.id, (tx) => getGym(tx, user.id, gymId));
   if (!gym) notFound();

@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
+import { InstallCard } from "@/components/shell/install-card";
 import { SubmitButton } from "@/components/ui/form";
 import { Card } from "@/components/ui/card";
 import { LinkRow, List } from "@/components/ui/link-row";
 import { getDb } from "@/db/client";
+import { formatIsoDate } from "@/lib/format";
 import { withUser } from "@/db/with-user";
 import { signOutAction } from "@/server/actions/auth";
 import { setRestTimerEnabledAction } from "@/server/actions/sessions";
@@ -15,6 +17,11 @@ import { ensureProfile, getStarterStatus } from "@/server/queries/profile";
 import { StarterDataForm } from "./starter-data-form";
 
 export const metadata: Metadata = { title: "Settings" };
+
+/** Programme dates in the same friendly form the rest of the app uses. */
+function isoOrDash(date: string | null | undefined): string {
+  return date ? formatIsoDate(date) : "—";
+}
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
@@ -62,7 +69,7 @@ export default async function SettingsPage() {
             <LinkRow
               href="/exercises"
               title="Exercise library"
-              subtitle="Search by name or muscle; see defaults and where each exercise fits"
+              subtitle="Search by name or muscle; see defaults and fit"
             />
           </li>
         </List>
@@ -72,9 +79,10 @@ export default async function SettingsPage() {
           {status.activeProgram ? (
             <div className="divide-y divide-line">
               <Row label="Programme" value={status.activeProgram.name} />
+              {/* "Runs" read as the Runs tab; these are the programme's own dates. */}
               <Row
-                label="Runs"
-                value={`${status.activeProgram.startDate ?? "?"} → ${status.activeProgram.endDate ?? "?"}`}
+                label="Dates"
+                value={`${isoOrDash(status.activeProgram.startDate)} → ${isoOrDash(status.activeProgram.endDate)}`}
               />
               <Row label="Weeks" value={String(status.activeProgram.weeks ?? "—")} />
               <Row label="Gyms" value={String(status.gymCount)} />
@@ -101,13 +109,7 @@ export default async function SettingsPage() {
           </div>
         </Card>
 
-        <Card>
-          <h2 className="text-base font-semibold">Install on iPhone</h2>
-          <p className="text-sm text-ink-muted">
-            Open this site in Safari, tap Share, then “Add to Home Screen”. It launches full-screen
-            like a native app.
-          </p>
-        </Card>
+        <InstallCard />
       </PageContent>
     </>
   );

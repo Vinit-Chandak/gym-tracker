@@ -247,11 +247,12 @@ export default async function TodayPage() {
           </Card>
         )}
 
-        <p className="text-center text-xs text-ink-subtle">
-          <Link href="/history" className="underline-offset-2 hover:underline">
-            Past sessions
-          </Link>
-        </p>
+        <Link
+          href="/history"
+          className="mx-auto flex min-h-11 items-center justify-center px-4 text-sm text-ink-subtle underline-offset-2 hover:underline"
+        >
+          Past sessions
+        </Link>
       </PageContent>
     </>
   );

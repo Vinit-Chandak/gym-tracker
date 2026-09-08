@@ -11,6 +11,7 @@ import { requireUser } from "@/server/auth";
 import { listEquipmentForGym } from "@/server/repositories/equipment";
 import { listExercises } from "@/server/repositories/exercises";
 import { getSessionDetail } from "@/server/repositories/sessions";
+import { requireUuid } from "@/server/validation/params";
 
 import { PickExerciseForm } from "../../../add-exercise/add-exercise-form";
 
@@ -20,6 +21,8 @@ export default async function SubstitutePage(
   props: PageProps<"/workouts/[sessionId]/exercises/[workoutExerciseId]/substitute">,
 ) {
   const { sessionId, workoutExerciseId } = await props.params;
+  requireUuid(sessionId);
+  requireUuid(workoutExerciseId);
   const user = await requireUser();
   const data = await withUser(getDb(), user.id, async (tx) => {
     const session = await getSessionDetail(tx, user.id, sessionId, { includeGuidance: false });

@@ -22,3 +22,25 @@ export function parseDateRange(
   if (!start || !end) throw new Error("Invalid date range.");
   return { from, to, start, end };
 }
+
+/**
+ * Always yields a usable range: an unusable one falls back to the default window and
+ * reports why, so the page keeps its filters and content instead of blanking out.
+ */
+export function parseDateRangeOrDefault(
+  input: { from?: string; to?: string },
+  timeZone: string,
+  now = new Date(),
+): { range: DateRange; error: string | null } {
+  try {
+    return { range: parseDateRange(input, timeZone, now), error: null };
+  } catch (error) {
+    return {
+      range: parseDateRange({}, timeZone, now),
+      error:
+        error instanceof Error
+          ? error.message
+          : "Choose a date range of up to one year, with From before To.",
+    };
+  }
+}

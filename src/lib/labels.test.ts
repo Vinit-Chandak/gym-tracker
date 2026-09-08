@@ -13,6 +13,8 @@ describe("labels", () => {
   it("formats rest targets", () => {
     expect(restLabel(180, 240)).toBe("3–4 min");
     expect(restLabel(120, 120)).toBe("2 min");
+    expect(restLabel(210, 210)).toBe("3.5 min");
+    expect(restLabel(150, 210)).toBe("2.5–3.5 min");
     expect(restLabel(90, 90)).toBe("90 s");
     expect(restLabel(60, 90)).toBe("60–90 s");
     expect(restLabel(null, null)).toBe("—");

@@ -44,8 +44,8 @@ export default async function CoachSettingsPage() {
             ))}
           </ul>
           <p className="text-xs text-ink-muted">
-            Optional from/to dates (YYYY-MM-DD); the default is the last 12 weeks. Full request and
-            response details are in docs/coach-api.md in the repository.
+            Optional from/to dates (YYYY-MM-DD); the default is the last 12 weeks. Every endpoint
+            returns JSON and only ever reads your data.
           </p>
         </Card>
       </PageContent>

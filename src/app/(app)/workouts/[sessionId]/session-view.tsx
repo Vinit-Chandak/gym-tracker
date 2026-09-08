@@ -14,7 +14,7 @@ import {
   WORKING_SET_TYPES,
   type SuggestionKind,
 } from "@/domain/progression";
-import { formatSets } from "@/domain/sets";
+import { formatSets, SET_LIMITS } from "@/domain/sets";
 import type { SetType } from "@/domain/types";
 import { formatDateTime, formatDay } from "@/lib/format";
 import {
@@ -199,7 +199,7 @@ function SuggestionLine({
         headline = `Start near ${load(first?.weight)}`;
         break;
       case "start":
-        headline = "No history yet; go by the target note and RIR";
+        headline = "Go by the target note and RIR";
         break;
       default:
         headline = `Keep ${load(first?.weight)}`;
@@ -220,8 +220,8 @@ function SuggestionLine({
       <p className="min-w-0 text-sm">
         <span className="font-medium">{headline}</span>
         <span className="text-ink-muted">
-          {" "}
-          · {suggestion.reason}
+          {/* On a first session the reason only restates the "No history" badge. */}
+          {kind === "start" ? "" : ` · ${suggestion.reason}`}
           {suggestion.advice ? ` · ${suggestion.advice}` : ""}
           {source}
         </span>
@@ -562,11 +562,15 @@ function ExerciseCard({
         </p>
       )}
 
-      <p className="text-sm text-ink-muted">
-        {exercise.previous
-          ? `${exercise.previous.sameMachine ? "Previous on this machine" : "Previous"}: ${formatSets(exercise.previous.sets)} · ${formatDay(exercise.previous.performedAt, session.timeZone)}${exercise.previous.sameMachine ? "" : ` · ${exercise.previous.gymName}`}`
-          : "No previous comparable session"}
-      </p>
+      {/* With no history the suggestion line below already says so, and says what to do
+          about it; without it (a finished or skipped exercise) this line has to carry it. */}
+      {(exercise.previous || readOnly || skipped || completed) && (
+        <p className="text-sm text-ink-muted">
+          {exercise.previous
+            ? `${exercise.previous.sameMachine ? "Previous on this machine" : "Previous"}: ${formatSets(exercise.previous.sets)} · ${formatDay(exercise.previous.performedAt, session.timeZone)}${exercise.previous.sameMachine ? "" : ` · ${exercise.previous.gymName}`}`
+            : "No previous comparable session"}
+        </p>
+      )}
 
       {!readOnly && !skipped && !completed && (
         <SuggestionLine
@@ -656,7 +660,7 @@ function ExerciseCard({
                     value={row.setType}
                     onChange={(event) => editRow(row, { setType: event.target.value as SetType })}
                     aria-label={`Set ${row.setIndex} type`}
-                    className="h-9 rounded-control border border-line bg-surface-raised px-2 text-xs text-ink-muted"
+                    className="h-11 rounded-control border border-line bg-surface-raised px-2 text-xs text-ink-muted"
                   >
                     {(Object.keys(SET_TYPE_LABELS) as SetType[]).map((type) => (
                       <option key={type} value={type}>
@@ -672,6 +676,7 @@ function ExerciseCard({
                     ghost={ghost.weight}
                     onChange={(value) => editRow(row, { weight: value })}
                     step={exercise.weightStep}
+                    max={SET_LIMITS.weight}
                     disabled={row.saving}
                   />
                   {isDuration ? (
@@ -681,6 +686,7 @@ function ExerciseCard({
                       ghost={ghost.duration}
                       onChange={(value) => editRow(row, { duration: value })}
                       step={5}
+                      max={SET_LIMITS.durationSeconds}
                       inputMode="numeric"
                       disabled={row.saving}
                     />
@@ -691,6 +697,7 @@ function ExerciseCard({
                       ghost={ghost.reps}
                       onChange={(value) => editRow(row, { reps: value })}
                       step={1}
+                      max={SET_LIMITS.reps}
                       inputMode="numeric"
                       disabled={row.saving}
                     />
@@ -701,7 +708,7 @@ function ExerciseCard({
                     ghost={ghost.rir}
                     onChange={(value) => editRow(row, { rir: value })}
                     step={1}
-                    max={10}
+                    max={SET_LIMITS.rir}
                     disabled={row.saving}
                   />
                 </div>
@@ -738,9 +745,11 @@ function ExerciseCard({
                 </div>
                 <p role="status" className="text-xs text-ink-muted">
                   {row.saving
-                    ? "Saving to your account…"
+                    ? "Saving…"
                     : row.dirty
-                      ? "Draft on this device · not saved to your account"
+                      ? // Mid-entry is the normal state; say what is left to do, not that
+                        // something has gone wrong.
+                        "Not logged yet — tap Log set"
                       : row.logged
                         ? "Saved ✓"
                         : ""}
@@ -983,7 +992,7 @@ export function SessionView({ session, userId }: { session: SessionVM; userId: s
           )}
           <button
             type="button"
-            className="text-sm text-ink-muted underline-offset-2 hover:underline"
+            className="flex min-h-11 items-center self-start text-sm text-ink-muted underline-offset-2 hover:underline"
             onClick={() => setWarmupOpen((v) => !v)}
           >
             {warmupOpen ? "Hide drills" : "Show drills"}

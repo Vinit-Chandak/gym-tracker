@@ -11,7 +11,7 @@ import { requireUser } from "@/server/auth";
 import { ensureProfile } from "@/server/queries/profile";
 import { listGyms } from "@/server/repositories/gyms";
 import { readTrainingData } from "@/server/repositories/training-data";
-import { parseDateRange } from "@/server/validation/date-range";
+import { parseDateRangeOrDefault } from "@/server/validation/date-range";
 import { HistoryView, type HistoryItem } from "./history-view";
 
 export const metadata: Metadata = { title: "History" };
@@ -25,28 +25,13 @@ export default async function HistoryPage(props: PageProps<"/history">) {
   const user = await requireUser(),
     params = await props.searchParams;
   const profile = await withUser(getDb(), user.id, (tx) => ensureProfile(tx, user));
-  let range;
-  try {
-    range = parseDateRange(
-      {
-        from: typeof params.from === "string" ? params.from : undefined,
-        to: typeof params.to === "string" ? params.to : undefined,
-      },
-      profile.timeZone,
-    );
-  } catch {
-    return (
-      <>
-        <PageHeader title="History" />
-        <PageContent>
-          <Card>
-            <p role="alert">Choose valid dates, From before To, up to one year apart.</p>
-            <DateRangeForm {...parseDateRange({}, profile.timeZone)} />
-          </Card>
-        </PageContent>
-      </>
-    );
-  }
+  const { range, error: rangeError } = parseDateRangeOrDefault(
+    {
+      from: typeof params.from === "string" ? params.from : undefined,
+      to: typeof params.to === "string" ? params.to : undefined,
+    },
+    profile.timeZone,
+  );
   const data = await withUser(getDb(), user.id, async (tx) => ({
     training: await readTrainingData(tx, user.id, range),
     gyms: await listGyms(tx, user.id),
@@ -116,6 +101,11 @@ export default async function HistoryPage(props: PageProps<"/history">) {
       <PageHeader title="History" />
       <PageContent>
         <Card>
+          {rangeError && (
+            <p role="alert" className="text-sm text-danger">
+              {rangeError}
+            </p>
+          )}
           <DateRangeForm from={range.from} to={range.to} />
         </Card>
         {data.training.truncated && (

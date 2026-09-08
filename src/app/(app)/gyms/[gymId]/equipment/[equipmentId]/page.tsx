@@ -11,6 +11,7 @@ import { withUser } from "@/db/with-user";
 import { setEquipmentActiveAction, updateEquipmentAction } from "@/server/actions/equipment";
 import { requireUser } from "@/server/auth";
 import { getEquipment, listEquipmentTypes } from "@/server/repositories/equipment";
+import { requireUuid } from "@/server/validation/params";
 
 import { EquipmentForm } from "../../../equipment-form";
 
@@ -20,6 +21,8 @@ export default async function EquipmentPage(
   props: PageProps<"/gyms/[gymId]/equipment/[equipmentId]">,
 ) {
   const { gymId, equipmentId } = await props.params;
+  requireUuid(gymId);
+  requireUuid(equipmentId);
   const user = await requireUser();
   const data = await withUser(getDb(), user.id, async (tx) => {
     const equipment = await getEquipment(tx, user.id, equipmentId);
