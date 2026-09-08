@@ -730,8 +730,8 @@ export function SessionView({ session }: { session: SessionVM }) {
             {holdAll ? "Holding loads today ✓" : "Hold loads today"}
           </Button>
           <p className="text-xs text-ink-subtle">
-            Advice only. Holding prefills last session&apos;s loads instead of the rule&apos;s targets; any
-            set can still be changed.
+            Advice only. Holding prefills last session&apos;s loads instead of the rule&apos;s
+            targets; any set can still be changed.
           </p>
         </Card>
       )}

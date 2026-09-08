@@ -84,7 +84,7 @@ docs/decisions/                   architecture decision records
 3. Exercise library, equipment compatibility, per-gym availability: done (ADR 0004).
 4. Today, sessions, set logging, check-in, sequence scheduling: done (ADR 0005).
 5. Deterministic progression engine and recovery-aware warnings: done (ADR 0006).
-6. Running log and weekly run volume.
+6. Running log, weekly run volume, spike and shin flags: done (ADR 0007).
 7. History and analytics.
 8. Coach read API with revocable read-only tokens.
 9. PWA polish: loading/error states, optimistic saves, offline handling, install guidance.
@@ -129,6 +129,13 @@ All questions from the first review were answered:
 - A bad check-in produces advice only; nothing is held silently.
 - A machine with no history borrows the exercise's latest performance elsewhere as a
   starting guess, clearly labelled and never treated as comparable history.
+
+## Phase 6 decisions received (2026-09-08)
+
+- Runs have their own tab; they are not started from Today.
+- A run records distance and duration (pace derived); shin scores are entered after the run
+  and are optional.
+- Treadmill is a flag on a run, not a separate run type.
 
 ## Remaining open points
 

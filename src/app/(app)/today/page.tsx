@@ -159,9 +159,12 @@ export default async function TodayPage() {
                     .filter(Boolean)
                     .join(" · ")}
                 </p>
-                <p className="text-xs text-ink-subtle">
-                  Runs are logged separately from the lifting session.
-                </p>
+                <div className="flex items-center justify-between gap-3 pt-1">
+                  <p className="text-xs text-ink-subtle">Logged from the Runs tab, not here.</p>
+                  <LinkButton href="/runs/new" variant="secondary" size="sm">
+                    Log the run
+                  </LinkButton>
+                </div>
               </div>
             )}
 

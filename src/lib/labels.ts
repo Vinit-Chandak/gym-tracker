@@ -10,6 +10,7 @@ import type {
   LoadUnit,
   MuscleGroup,
   PrescriptionType,
+  RunMode,
   ResistanceMode,
 } from "@/domain/types";
 
@@ -176,3 +177,20 @@ export const SUGGESTION_KIND_LABELS: Record<SuggestionKind, string> = {
   transfer: "Starting guess",
   start: "No history",
 };
+
+export const RUN_MODE_LABELS: Record<RunMode, string> = {
+  outdoor: "Outdoor",
+  treadmill: "Treadmill",
+};
+
+/** ISO weekday (1 = Monday) to a short name. */
+export const WEEKDAY_SHORT: readonly string[] = [
+  "",
+  "Mon",
+  "Tue",
+  "Wed",
+  "Thu",
+  "Fri",
+  "Sat",
+  "Sun",
+];
