@@ -29,6 +29,7 @@ import {
   logSet,
   saveCheckIn,
   SessionFinishedError,
+  SetConflictError,
   SessionHasSetsError,
   SessionNotFoundError,
   setExerciseCompleted,
@@ -47,6 +48,7 @@ export type ActionResult = { ok: true } | { ok: false; error: string };
 function revalidateSession(sessionId?: string): void {
   revalidatePath("/today");
   revalidatePath("/history");
+  revalidatePath("/progress");
   revalidatePath("/settings");
   if (sessionId) revalidatePath(`/workouts/${sessionId}`);
 }
@@ -55,6 +57,7 @@ function describe(error: unknown): string {
   if (error instanceof SessionFinishedError || error instanceof SessionHasSetsError)
     return error.message;
   if (error instanceof ExerciseHasSetsError) return error.message;
+  if (error instanceof SetConflictError) return error.message;
   if (error instanceof SessionNotFoundError) return "That session no longer exists.";
   return "Something went wrong. Please try again.";
 }
@@ -180,12 +183,14 @@ export async function setWarmupCompletedAction(
   } catch (error) {
     return { ok: false, error: describe(error) };
   }
-  revalidateSession(sessionId);
   return { ok: true };
 }
 
 const logSetSchema = z
   .object({
+    expectedCompletedAt: z.iso.datetime().nullable().optional(),
+    expectedExerciseId: z.uuid().optional(),
+    expectedEquipmentInstanceId: z.uuid().nullable().optional(),
     workoutExerciseId: z.uuid(),
     setIndex: z.number().int().min(1).max(50),
     setType: z.enum(SET_TYPES),

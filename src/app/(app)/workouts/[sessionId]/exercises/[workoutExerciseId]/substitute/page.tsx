@@ -22,7 +22,7 @@ export default async function SubstitutePage(
   const { sessionId, workoutExerciseId } = await props.params;
   const user = await requireUser();
   const data = await withUser(getDb(), user.id, async (tx) => {
-    const session = await getSessionDetail(tx, user.id, sessionId);
+    const session = await getSessionDetail(tx, user.id, sessionId, { includeGuidance: false });
     const slot = session?.exercises.find((e) => e.id === workoutExerciseId);
     if (!session || !slot) return null;
     const [exercises, machines] = await Promise.all([

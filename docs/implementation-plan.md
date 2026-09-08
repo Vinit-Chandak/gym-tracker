@@ -13,7 +13,7 @@ src/
     (auth)/login/                 sign-in screen, rendered without the bottom navigation
     (app)/today/                  gym pick, planned day or ad hoc, recovery check-in, live session
     (app)/history/                sessions, runs, recovery log, machine-specific filters
-    (app)/progress/               charts (Recharts): e1RM, weekly sets, run volume, symptoms
+    (app)/progress/               charts (SVG with accessible value tables): e1RM, weekly sets, run volume, symptoms
     (app)/gyms/[gymId]/           gym detail and equipment inventory
     (app)/exercises/[exerciseId]/ exercise library detail and per-gym availability
     (app)/workouts/[sessionId]/   session logging screen (Phase 4)
@@ -85,9 +85,9 @@ docs/decisions/                   architecture decision records
 4. Today, sessions, set logging, check-in, sequence scheduling: done (ADR 0005).
 5. Deterministic progression engine and recovery-aware warnings: done (ADR 0006).
 6. Running log, weekly run volume, spike and shin flags: done (ADR 0007).
-7. History and analytics.
-8. Coach read API with revocable read-only tokens.
-9. PWA polish: loading/error states, optimistic saves, offline handling, install guidance.
+7. History and analytics: done (ADR 0008).
+8. Coach read API with revocable read-only tokens: done (ADR 0008).
+9. PWA polish: loading/error states, pending saves, manual offline drafts, install guidance: done (ADR 0008).
 
 ## Decisions taken (2026-09-08)
 

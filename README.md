@@ -17,18 +17,18 @@ Progressive overload, one set at a time.
 
 ## Status
 
-| Phase | Scope                                        | Status  |
-| ----- | -------------------------------------------- | ------- |
-| 0     | Repository foundation, PWA shell, bottom nav | done    |
-| 1     | Database schema, auth, migrations, seed data | done    |
-| 2     | Gym and equipment management                 | done    |
-| 3     | Exercise library and gym compatibility       | done    |
-| 4     | Today's workout and set logging              | done    |
-| 5     | Deterministic progression engine             | done    |
-| 6     | Running                                      | done    |
-| 7     | History and analytics                        | pending |
-| 8     | Coach read API                               | pending |
-| 9     | PWA polish                                   | pending |
+| Phase | Scope                                        | Status |
+| ----- | -------------------------------------------- | ------ |
+| 0     | Repository foundation, PWA shell, bottom nav | done   |
+| 1     | Database schema, auth, migrations, seed data | done   |
+| 2     | Gym and equipment management                 | done   |
+| 3     | Exercise library and gym compatibility       | done   |
+| 4     | Today's workout and set logging              | done   |
+| 5     | Deterministic progression engine             | done   |
+| 6     | Running                                      | done   |
+| 7     | History and analytics                        | done   |
+| 8     | Coach read API                               | done   |
+| 9     | PWA polish                                   | done   |
 
 - [`SETUP.md`](SETUP.md): the one-time steps to create the Supabase and Vercel projects.
 - [`docs/implementation-plan.md`](docs/implementation-plan.md): structure, phases and decisions.
@@ -106,3 +106,7 @@ connection instead.
 Deploy to Vercel (see `SETUP.md`), open the URL in Safari, tap **Share**, then
 **Add to Home Screen**. The app launches standalone with safe-area padding for the notch and
 home indicator.
+
+See [Coach API](docs/coach-api.md) for token setup and endpoint details. Unsaved workout set rows
+are retained on the device for manual retry and removed after a confirmed save. Other forms
+require a connection. The offline screen explains how to reconnect; private pages are not cached.

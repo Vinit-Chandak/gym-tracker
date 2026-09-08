@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/form";
 import { Card } from "@/components/ui/card";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
@@ -38,9 +38,9 @@ export default async function EquipmentPage(
             <div className="flex items-center justify-between gap-3">
               <Badge tone="danger">Archived</Badge>
               <form action={setEquipmentActiveAction.bind(null, gymId, equipment.id, true)}>
-                <Button type="submit" variant="secondary" size="sm">
+                <SubmitButton variant="secondary" size="sm">
                   Restore
-                </Button>
+                </SubmitButton>
               </form>
             </div>
           </Card>
@@ -73,9 +73,9 @@ export default async function EquipmentPage(
               your history.
             </p>
             <form action={setEquipmentActiveAction.bind(null, gymId, equipment.id, false)}>
-              <Button type="submit" variant="danger" className="w-full">
+              <SubmitButton variant="danger" className="w-full">
                 Archive machine
-              </Button>
+              </SubmitButton>
             </form>
           </Card>
         )}

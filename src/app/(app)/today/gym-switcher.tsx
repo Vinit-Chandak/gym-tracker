@@ -1,7 +1,7 @@
 "use client";
 
 import { Check } from "lucide-react";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { useState, useTransition } from "react";
 
 import { Button, LinkButton } from "@/components/ui/button";
@@ -17,12 +17,18 @@ export type SwitcherGym = { id: string; name: string; kind: GymKind; isDefault: 
 export function GymSwitcher({ gyms }: { gyms: SwitcherGym[] }) {
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
   const current = gyms.find((gym) => gym.isDefault);
 
   function choose(gymId: string): void {
     startTransition(async () => {
-      await setDefaultGymAction(gymId);
-      setOpen(false);
+      setError(null);
+      try {
+        await setDefaultGymAction(gymId);
+        setOpen(false);
+      } catch {
+        setError("Could not change gym. Check your connection and try again.");
+      }
     });
   }
 
@@ -50,6 +56,16 @@ export function GymSwitcher({ gyms }: { gyms: SwitcherGym[] }) {
       </section>
 
       <Sheet open={open} onClose={() => setOpen(false)} title="Choose gym">
+        {pending && (
+          <p role="status" className="text-sm text-ink-muted">
+            Changing gym…
+          </p>
+        )}
+        {error && (
+          <p role="alert" className="text-sm text-danger">
+            {error}
+          </p>
+        )}
         <ul className="space-y-2">
           {gyms.map((gym) => (
             <li key={gym.id}>

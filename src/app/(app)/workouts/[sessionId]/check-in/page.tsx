@@ -9,7 +9,7 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { saveCheckInAction } from "@/server/actions/sessions";
 import { requireUser } from "@/server/auth";
-import { getSessionDetail } from "@/server/repositories/sessions";
+import { getSessionRecord } from "@/server/repositories/sessions";
 
 import { CheckInForm } from "./check-in-form";
 
@@ -21,7 +21,7 @@ export default async function CheckInPage(props: PageProps<"/workouts/[sessionId
   const { sessionId } = await props.params;
   const user = await requireUser();
   const session = await withUser(getDb(), user.id, (tx) =>
-    getSessionDetail(tx, user.id, sessionId),
+    getSessionRecord(tx, user.id, sessionId),
   );
   if (!session) notFound();
   if (session.completedAt) redirect(`/workouts/${sessionId}`);

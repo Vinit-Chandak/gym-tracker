@@ -10,7 +10,7 @@ import { addExerciseAction } from "@/server/actions/sessions";
 import { requireUser } from "@/server/auth";
 import { listEquipmentForGym } from "@/server/repositories/equipment";
 import { listExercises } from "@/server/repositories/exercises";
-import { getSessionDetail } from "@/server/repositories/sessions";
+import { getSessionRecord } from "@/server/repositories/sessions";
 
 import { PickExerciseForm } from "./add-exercise-form";
 
@@ -22,11 +22,11 @@ export default async function AddExercisePage(
   const { sessionId } = await props.params;
   const user = await requireUser();
   const data = await withUser(getDb(), user.id, async (tx) => {
-    const session = await getSessionDetail(tx, user.id, sessionId);
+    const session = await getSessionRecord(tx, user.id, sessionId);
     if (!session) return null;
     const [exercises, machines] = await Promise.all([
       listExercises(tx),
-      listEquipmentForGym(tx, user.id, session.gym.id),
+      listEquipmentForGym(tx, user.id, session.gymId),
     ]);
     return {
       session,

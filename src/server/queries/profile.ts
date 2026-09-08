@@ -10,6 +10,8 @@ export async function ensureProfile(
   db: DbOrTx,
   user: { id: string; email: string | null },
 ): Promise<Profile> {
+  const [existing] = await db.select().from(profiles).where(eq(profiles.id, user.id)).limit(1);
+  if (existing) return existing;
   await db
     .insert(profiles)
     .values({ id: user.id, email: user.email })

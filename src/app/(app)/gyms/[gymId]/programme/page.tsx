@@ -1,11 +1,12 @@
+import { SubmitButton } from "@/components/ui/form";
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { notFound } from "next/navigation";
 
 import { AvailabilityBadge } from "@/components/availability-badge";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
-import { Button, LinkButton } from "@/components/ui/button";
+import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
@@ -88,9 +89,9 @@ export default async function GymProgrammePage(props: PageProps<"/gyms/[gymId]/p
                     key={type.id}
                     action={markEquipmentAbsentAction.bind(null, gym.id, type.id)}
                   >
-                    <Button type="submit" variant="secondary" size="sm">
+                    <SubmitButton variant="secondary" size="sm">
                       No {type.name.toLowerCase()} here
-                    </Button>
+                    </SubmitButton>
                   </form>
                 ))}
               </div>
@@ -106,9 +107,9 @@ export default async function GymProgrammePage(props: PageProps<"/gyms/[gymId]/p
                   {fallback.fallbackInstanceName ? ` on ${fallback.fallbackInstanceName}` : ""}
                 </span>
                 <form action={removeGymFallbackAction.bind(null, gym.id, fallback.id)}>
-                  <Button type="submit" variant="ghost" size="sm">
+                  <SubmitButton variant="ghost" size="sm">
                     Remove
-                  </Button>
+                  </SubmitButton>
                 </form>
               </div>
             ))}

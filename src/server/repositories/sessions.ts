@@ -31,13 +31,9 @@ import {
 } from "@/domain/recovery";
 import { weightStepFor } from "@/domain/sets";
 import type { LoadUnit, SetType, WarmupDrill } from "@/domain/types";
-import {
-  comparableHistory,
-  latestPerformanceAnywhere,
-  type ComparablePerformance,
-} from "@/server/queries/comparable";
+import { sessionHistories, type ComparablePerformance } from "@/server/queries/comparable";
 
-import { decideExerciseAtGym, resolvePlannedDay, type ExerciseDecision } from "./availability";
+import { decideExercisesAtGym, resolvePlannedDay, type ExerciseDecision } from "./availability";
 import { getGym } from "./gyms";
 
 export class SessionNotFoundError extends Error {
@@ -51,6 +47,15 @@ export class SessionFinishedError extends Error {
   constructor() {
     super("This session is already finished.");
     this.name = "SessionFinishedError";
+  }
+}
+
+export class SetConflictError extends Error {
+  constructor() {
+    super(
+      "This set changed on another device. Reopen the session, review the saved values, then retry.",
+    );
+    this.name = "SetConflictError";
   }
 }
 
@@ -293,10 +298,21 @@ export type SessionDetail = {
 
 const UBIQUITOUS = new Set(["barbell", "dumbbell", "bodyweight", "mobility"]);
 
+/** Small read for check-in and pickers; never loads progression or previous workouts. */
+export async function getSessionRecord(db: DbOrTx, userId: string, sessionId: string) {
+  const [row] = await db
+    .select()
+    .from(workoutSessions)
+    .where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.userId, userId)))
+    .limit(1);
+  return row ?? null;
+}
+
 export async function getSessionDetail(
   db: DbOrTx,
   userId: string,
   sessionId: string,
+  options: { includeGuidance?: boolean } = {},
 ): Promise<SessionDetail | null> {
   const [session] = await db
     .select({
@@ -386,21 +402,47 @@ export async function getSessionDetail(
       )[0] ?? null)
     : null;
 
+  const includeGuidance = options.includeGuidance !== false;
+  const histories = includeGuidance
+    ? await sessionHistories(
+        db,
+        rows.map((row) => ({
+          userId,
+          exerciseId: row.exercise.id,
+          loadPortability: row.exercise.loadPortability,
+          equipmentInstanceId: row.equipment?.id ?? null,
+          before: session.session.startedAt,
+          excludeWorkoutExerciseId: row.we.id,
+        })),
+      )
+    : [];
+  const unresolved = includeGuidance
+    ? rows.filter(
+        (row) =>
+          row.exercise.requiresEquipment &&
+          !row.equipment &&
+          !row.we.skippedAt &&
+          !(session.gym.kind === "gym" && UBIQUITOUS.has(row.exercise.modality)),
+      )
+    : [];
+  const decisions = await decideExercisesAtGym(
+    db,
+    userId,
+    session.gym.id,
+    unresolved.map((row) => ({
+      id: row.we.id,
+      exercise: row.exercise,
+      programExerciseId: row.we.plannedProgramExerciseId,
+    })),
+  );
   const exerciseDetails: SessionExercise[] = [];
-  for (const row of rows) {
+  for (const [index, row] of rows.entries()) {
     const weightStep = weightStepFor({
       equipmentLoadIncrement: row.equipment?.loadIncrement ?? null,
       exerciseDefaultIncrement: row.exercise.defaultLoadIncrement,
     });
     const scope = comparisonScope(row.exercise.loadPortability);
-    const history = await comparableHistory(db, {
-      userId,
-      exerciseId: row.exercise.id,
-      loadPortability: row.exercise.loadPortability,
-      equipmentInstanceId: row.equipment?.id ?? null,
-      before: session.session.startedAt,
-      excludeWorkoutExerciseId: row.we.id,
-    });
+    const history = histories[index]?.history ?? [];
     const previous = history[0] ?? null;
     // Prefer performances of the same programme slot so the rule compares like with like.
     const sameSlot = row.we.plannedProgramExerciseId
@@ -414,12 +456,7 @@ export async function getSessionDetail(
         : "exercise"
       : "none";
     if (!basisPerformance && scope === "equipment_instance" && row.equipment) {
-      const elsewhere = await latestPerformanceAnywhere(db, {
-        userId,
-        exerciseId: row.exercise.id,
-        before: session.session.startedAt,
-        excludeWorkoutExerciseId: row.we.id,
-      });
+      const elsewhere = histories[index]?.elsewhere;
       if (elsewhere) {
         basisPerformance = elsewhere;
         basis = "other_equipment";
@@ -435,20 +472,7 @@ export async function getSessionDetail(
     const suggestion = prescription
       ? suggestNext(prescription, basisPerformance?.sets ?? null, basis)
       : null;
-    const needsMachine =
-      row.exercise.requiresEquipment &&
-      !row.equipment &&
-      !(session.gym.kind === "gym" && UBIQUITOUS.has(row.exercise.modality));
-    const decision =
-      needsMachine && !row.we.skippedAt
-        ? await decideExerciseAtGym(
-            db,
-            userId,
-            session.gym.id,
-            row.exercise.id,
-            row.we.plannedProgramExerciseId,
-          )
-        : null;
+    const decision = decisions.get(row.we.id) ?? null;
     exerciseDetails.push({
       id: row.we.id,
       orderIndex: row.we.orderIndex,
@@ -510,12 +534,13 @@ export async function getSessionDetail(
     shinLeftPre: session.session.shinLeftPre,
     shinRightPre: session.session.shinRightPre,
   };
-  const warnings = hasCheckIn(checkIn)
-    ? recoveryWarnings(
-        checkIn,
-        await previousCheckIn(db, userId, session.session.startedAt, session.session.id),
-      )
-    : [];
+  const warnings =
+    includeGuidance && hasCheckIn(checkIn)
+      ? recoveryWarnings(
+          checkIn,
+          await previousCheckIn(db, userId, session.session.startedAt, session.session.id),
+        )
+      : [];
 
   return {
     id: session.session.id,
@@ -636,7 +661,8 @@ async function requireOpenSession(db: DbOrTx, userId: string, sessionId: string)
     .select({ id: workoutSessions.id, completedAt: workoutSessions.completedAt })
     .from(workoutSessions)
     .where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.userId, userId)))
-    .limit(1);
+    .limit(1)
+    .for("update");
   if (!row) throw new SessionNotFoundError();
   if (row.completedAt) throw new SessionFinishedError();
   return row;
@@ -694,6 +720,9 @@ export async function setWarmupCompleted(
 }
 
 export type LogSetInput = {
+  expectedCompletedAt?: string | null;
+  expectedExerciseId?: string;
+  expectedEquipmentInstanceId?: string | null;
   workoutExerciseId: string;
   setIndex: number;
   setType: SetType;
@@ -705,16 +734,64 @@ export type LogSetInput = {
 
 /** Creates or replaces one set. Raw values are stored exactly as entered. */
 export async function logSet(db: DbOrTx, userId: string, input: LogSetInput): Promise<SessionSet> {
-  const sessionId = await sessionIdOfExercise(db, userId, input.workoutExerciseId);
-  await requireOpenSession(db, userId, sessionId);
+  const [sessionRow] = await db
+    .select({ completedAt: workoutSessions.completedAt })
+    .from(workoutExercises)
+    .innerJoin(workoutSessions, eq(workoutSessions.id, workoutExercises.workoutSessionId))
+    .where(
+      and(
+        eq(workoutExercises.id, input.workoutExerciseId),
+        eq(workoutExercises.userId, userId),
+        eq(workoutSessions.userId, userId),
+      ),
+    )
+    .limit(1)
+    .for("update", { of: workoutSessions });
+  if (!sessionRow) throw new SessionNotFoundError();
+  if (sessionRow.completedAt) throw new SessionFinishedError();
+  // Read identity and set values after the lock, including changes committed while we waited.
   const [unitRow] = await db
-    .select({ unit: equipmentInstances.unit })
+    .select({
+      unit: equipmentInstances.unit,
+      exerciseId: workoutExercises.exerciseId,
+      equipmentInstanceId: workoutExercises.equipmentInstanceId,
+      existing: setLogs,
+    })
     .from(workoutExercises)
     .leftJoin(equipmentInstances, eq(equipmentInstances.id, workoutExercises.equipmentInstanceId))
-    .where(eq(workoutExercises.id, input.workoutExerciseId))
+    .leftJoin(
+      setLogs,
+      and(eq(setLogs.workoutExerciseId, workoutExercises.id), eq(setLogs.setIndex, input.setIndex)),
+    )
+    .where(
+      and(eq(workoutExercises.id, input.workoutExerciseId), eq(workoutExercises.userId, userId)),
+    )
     .limit(1);
-  const unit: LoadUnit = unitRow?.unit ?? "kg";
-  const now = new Date();
+  if (!unitRow) throw new SessionNotFoundError();
+  if (
+    (input.expectedExerciseId !== undefined && input.expectedExerciseId !== unitRow.exerciseId) ||
+    (input.expectedEquipmentInstanceId !== undefined &&
+      input.expectedEquipmentInstanceId !== unitRow.equipmentInstanceId)
+  )
+    throw new SetConflictError();
+  const previous = unitRow.existing;
+  if (
+    input.expectedCompletedAt !== undefined &&
+    (previous?.completedAt.toISOString() ?? null) !== input.expectedCompletedAt
+  ) {
+    if (
+      previous &&
+      previous.setType === input.setType &&
+      previous.weight === input.weight &&
+      previous.reps === input.reps &&
+      previous.rir === input.rir &&
+      previous.durationSeconds === input.durationSeconds
+    )
+      return previous;
+    throw new SetConflictError();
+  }
+  const unit: LoadUnit = unitRow.unit ?? "kg";
+  const now = new Date(Math.max(Date.now(), (previous?.completedAt.getTime() ?? 0) + 1));
   const [row] = await db
     .insert(setLogs)
     .values({

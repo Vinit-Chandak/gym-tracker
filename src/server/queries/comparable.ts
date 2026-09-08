@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, exists, inArray, lt, ne, sql } from "drizzle-orm";
+import { unionAll } from "drizzle-orm/pg-core";
 
 import { equipmentInstances, gyms, setLogs, workoutExercises, workoutSessions } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
@@ -39,10 +40,7 @@ type PerformanceFilter = {
 };
 
 /** Performances of an exercise with at least one logged set, newest first. */
-async function performances(
-  db: DbOrTx,
-  filter: PerformanceFilter,
-): Promise<ComparablePerformance[]> {
+function performanceQuery(db: DbOrTx, filter: PerformanceFilter, requestIndex: number) {
   const conditions = [
     eq(workoutExercises.userId, filter.userId),
     eq(workoutExercises.exerciseId, filter.exerciseId),
@@ -61,8 +59,9 @@ async function performances(
     conditions.push(ne(workoutExercises.id, filter.excludeWorkoutExerciseId));
   }
 
-  const rows = await db
+  return db
     .select({
+      requestIndex: sql<number>`${requestIndex}::int`,
       workoutExerciseId: workoutExercises.id,
       workoutSessionId: workoutSessions.id,
       plannedProgramExerciseId: workoutExercises.plannedProgramExerciseId,
@@ -79,7 +78,20 @@ async function performances(
     .where(and(...conditions))
     .orderBy(desc(workoutSessions.startedAt), desc(workoutExercises.orderIndex))
     .limit(filter.limit);
-  if (rows.length === 0) return [];
+}
+
+/** All exercise lookups in two round trips, with a separate limit for each comparison scope. */
+async function batchPerformances(
+  db: DbOrTx,
+  filters: PerformanceFilter[],
+): Promise<ComparablePerformance[][]> {
+  if (filters.length === 0) return [];
+  const queries = filters.map((filter, i) => performanceQuery(db, filter, i));
+  const first = queries[0]!;
+  const rows = await (queries.length === 1
+    ? first
+    : unionAll(first, queries[1]!, ...queries.slice(2)));
+  if (rows.length === 0) return filters.map(() => []);
 
   const sets = await db
     .select({
@@ -101,12 +113,27 @@ async function performances(
     )
     .orderBy(asc(setLogs.setIndex));
 
-  return rows.map((row) => ({
-    ...row,
-    sets: sets
-      .filter((set) => set.workoutExerciseId === row.workoutExerciseId)
-      .map(({ workoutExerciseId: _ignored, ...set }) => set),
-  }));
+  const setsByExercise = new Map<string, ComparableSet[]>();
+  for (const { workoutExerciseId, ...set } of sets) {
+    const group = setsByExercise.get(workoutExerciseId) ?? [];
+    group.push(set);
+    setsByExercise.set(workoutExerciseId, group);
+  }
+  return filters.map((_, i) =>
+    rows
+      .filter((row) => row.requestIndex === i)
+      .map(({ requestIndex: _ignored, ...row }) => ({
+        ...row,
+        sets: setsByExercise.get(row.workoutExerciseId) ?? [],
+      })),
+  );
+}
+
+async function performances(
+  db: DbOrTx,
+  filter: PerformanceFilter,
+): Promise<ComparablePerformance[]> {
+  return (await batchPerformances(db, [filter]))[0] ?? [];
 }
 
 export type ComparableQuery = {
@@ -122,6 +149,34 @@ export type ComparableQuery = {
   /** How many performances to return (default 6). */
   limit?: number;
 };
+
+export async function sessionHistories(db: DbOrTx, queries: ComparableQuery[]) {
+  const filters: PerformanceFilter[] = [];
+  const indices = queries.map((query) => {
+    const machine = comparisonScope(query.loadPortability) === "equipment_instance";
+    const base = {
+      userId: query.userId,
+      exerciseId: query.exerciseId,
+      before: query.before,
+      excludeWorkoutExerciseId: query.excludeWorkoutExerciseId,
+    };
+    const comparable = !machine || query.equipmentInstanceId !== null ? filters.length : null;
+    if (comparable !== null)
+      filters.push({
+        ...base,
+        equipmentInstanceId: machine ? query.equipmentInstanceId! : undefined,
+        limit: query.limit ?? 6,
+      });
+    const elsewhere = machine && query.equipmentInstanceId !== null ? filters.length : null;
+    if (elsewhere !== null) filters.push({ ...base, limit: 1 });
+    return { comparable, elsewhere };
+  });
+  const results = await batchPerformances(db, filters);
+  return indices.map(({ comparable, elsewhere }) => ({
+    history: comparable === null ? [] : (results[comparable] ?? []),
+    elsewhere: elsewhere === null ? null : (results[elsewhere]?.[0] ?? null),
+  }));
+}
 
 /**
  * Comparable performances, newest first. Free-weight exercises compare across gyms; machine

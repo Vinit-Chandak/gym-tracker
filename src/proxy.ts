@@ -20,6 +20,8 @@ function withCookies(from: NextResponse, to: NextResponse): NextResponse {
  */
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  // Coach routes verify their own revocable Bearer token and never use the browser session.
+  if (pathname.startsWith("/api/coach/")) return NextResponse.next();
   const env = getSupabasePublicEnv();
 
   if (!env) {
@@ -61,6 +63,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|icons/|icon\\.svg|apple-icon\\.png|manifest\\.webmanifest|favicon\\.ico).*)",
+    "/((?!_next/static|_next/image|icons/|sw\\.js|offline\\.html|icon\\.svg|apple-icon\\.png|manifest\\.webmanifest|favicon\\.ico).*)",
   ],
 };

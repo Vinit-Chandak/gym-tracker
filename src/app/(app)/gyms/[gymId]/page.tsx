@@ -1,3 +1,4 @@
+import { SubmitButton } from "@/components/ui/form";
 import { Dumbbell } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -5,7 +6,7 @@ import { notFound } from "next/navigation";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
-import { Button, LinkButton } from "@/components/ui/button";
+import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LinkRow, List } from "@/components/ui/link-row";
@@ -118,16 +119,16 @@ export default async function GymPage(props: PageProps<"/gyms/[gymId]">) {
           {gym.notes && <p className="text-sm whitespace-pre-line">{gym.notes}</p>}
           {gym.isActive && !gym.isDefault && (
             <form action={setDefaultGymAction.bind(null, gym.id)}>
-              <Button type="submit" variant="secondary" className="w-full">
+              <SubmitButton variant="secondary" className="w-full">
                 Make default gym
-              </Button>
+              </SubmitButton>
             </form>
           )}
           {!gym.isActive && (
             <form action={setGymActiveAction.bind(null, gym.id, true)}>
-              <Button type="submit" variant="secondary" className="w-full">
+              <SubmitButton variant="secondary" className="w-full">
                 Restore gym
-              </Button>
+              </SubmitButton>
             </form>
           )}
         </Card>
@@ -186,9 +187,9 @@ export default async function GymPage(props: PageProps<"/gyms/[gymId]">) {
                     <form
                       action={unmarkEquipmentAbsentAction.bind(null, gym.id, item.equipmentTypeId)}
                     >
-                      <Button type="submit" variant="ghost" size="sm">
+                      <SubmitButton variant="ghost" size="sm">
                         Remove
-                      </Button>
+                      </SubmitButton>
                     </form>
                   </li>
                 ))}
@@ -217,9 +218,7 @@ export default async function GymPage(props: PageProps<"/gyms/[gymId]">) {
                     ))}
                   </Select>
                 </label>
-                <Button type="submit" variant="secondary">
-                  Add
-                </Button>
+                <SubmitButton variant="secondary">Add</SubmitButton>
               </form>
             )}
           </Card>
@@ -233,9 +232,9 @@ export default async function GymPage(props: PageProps<"/gyms/[gymId]">) {
               any time.
             </p>
             <form action={setGymActiveAction.bind(null, gym.id, false)}>
-              <Button type="submit" variant="danger" className="w-full">
+              <SubmitButton variant="danger" className="w-full">
                 Archive gym
-              </Button>
+              </SubmitButton>
             </form>
           </Card>
         )}

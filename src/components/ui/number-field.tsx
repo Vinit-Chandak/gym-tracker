@@ -40,32 +40,33 @@ export function NumberField({
   return (
     <div className={cn("min-w-0 space-y-1", className)}>
       <span className="block truncate text-xs text-ink-subtle">{label}</span>
-      <div className="flex h-12 items-stretch overflow-hidden rounded-control border border-line bg-surface-raised">
+      <div className="grid grid-cols-2 overflow-hidden rounded-control border border-line bg-surface-raised">
         <button
           type="button"
           onClick={() => bump(-step)}
           disabled={disabled}
           aria-label={`Decrease ${label}`}
-          className="w-10 shrink-0 text-xl text-ink-muted select-none active:bg-line disabled:opacity-40"
+          className="order-2 h-11 border-t border-r border-line text-xl text-ink-muted select-none active:bg-line disabled:opacity-40"
         >
           −
         </button>
         <input
           type="text"
+          maxLength={24}
           inputMode={inputMode}
           value={value}
           placeholder={ghost ?? ""}
           onChange={(event) => onChange(event.target.value)}
           disabled={disabled}
           aria-label={label}
-          className="min-w-0 flex-1 bg-transparent text-center text-lg font-semibold tabular-nums placeholder:font-medium placeholder:text-ink-subtle/80 focus:outline-none"
+          className="order-1 col-span-2 h-11 w-full min-w-0 bg-transparent text-center text-lg font-semibold tabular-nums placeholder:font-medium placeholder:text-ink-subtle/80 focus:outline-none"
         />
         <button
           type="button"
           onClick={() => bump(step)}
           disabled={disabled}
           aria-label={`Increase ${label}`}
-          className="w-10 shrink-0 text-xl text-ink-muted select-none active:bg-line disabled:opacity-40"
+          className="order-3 h-11 border-t border-line text-xl text-ink-muted select-none active:bg-line disabled:opacity-40"
         >
           +
         </button>

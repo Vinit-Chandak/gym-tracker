@@ -1,6 +1,6 @@
 import { ChevronLeft } from "lucide-react";
 import type { Route } from "next";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import type { ReactNode } from "react";
 
 type PageHeaderProps<T extends string> = {

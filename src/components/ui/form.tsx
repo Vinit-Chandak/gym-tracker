@@ -20,11 +20,19 @@ export function FormError({ message }: { message?: string }) {
 export function SubmitButton({
   children,
   pendingLabel = "Saving…",
+  disabled,
   ...props
 }: ButtonProps & { pendingLabel?: string }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" size="lg" className="w-full" disabled={pending} {...props}>
+    <Button
+      type="submit"
+      size="lg"
+      className="w-full"
+      {...props}
+      disabled={pending || disabled}
+      aria-busy={pending}
+    >
       {pending ? pendingLabel : children}
     </Button>
   );

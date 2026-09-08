@@ -19,7 +19,7 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
   const { sessionId } = await props.params;
   const user = await requireUser();
   const session = await withUser(getDb(), user.id, (tx) =>
-    getSessionDetail(tx, user.id, sessionId),
+    getSessionDetail(tx, user.id, sessionId, { includeGuidance: false }),
   );
   if (!session) notFound();
   if (session.completedAt) redirect(`/workouts/${sessionId}`);
@@ -58,6 +58,8 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
         </Card>
         <Card>
           <FinishForm
+            userId={user.id}
+            sessionId={sessionId}
             action={finishSessionAction.bind(null, sessionId)}
             initialBodyWeight={session.bodyWeightKg === null ? "" : String(session.bodyWeightKg)}
           />

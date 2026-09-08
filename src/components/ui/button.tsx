@@ -1,5 +1,5 @@
 import type { Route } from "next";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import type { ComponentProps, ReactNode } from "react";
 
 import { cn } from "@/lib/utils";

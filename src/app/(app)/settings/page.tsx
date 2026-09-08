@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/form";
 import { Card } from "@/components/ui/card";
 import { LinkRow, List } from "@/components/ui/link-row";
 import { getDb } from "@/db/client";
@@ -44,13 +44,20 @@ export default async function SettingsPage() {
             <Row label="Units" value={profile.preferredUnit} />
           </div>
           <form action={signOutAction}>
-            <Button type="submit" variant="secondary" className="w-full">
+            <SubmitButton variant="secondary" className="w-full">
               Sign out
-            </Button>
+            </SubmitButton>
           </form>
         </Card>
 
         <List>
+          <li>
+            <LinkRow
+              href="/settings/coach"
+              title="Coach access"
+              subtitle="Create and revoke read-only API tokens"
+            />
+          </li>
           <li>
             <LinkRow
               href="/exercises"
@@ -87,9 +94,9 @@ export default async function SettingsPage() {
           <div className="flex items-center justify-between gap-3">
             <span className="text-sm">{profile.restTimerEnabled ? "On" : "Off"}</span>
             <form action={setRestTimerEnabledAction.bind(null, !profile.restTimerEnabled)}>
-              <Button type="submit" variant="secondary" size="sm">
+              <SubmitButton variant="secondary" size="sm">
                 Turn {profile.restTimerEnabled ? "off" : "on"}
-              </Button>
+              </SubmitButton>
             </form>
           </div>
         </Card>

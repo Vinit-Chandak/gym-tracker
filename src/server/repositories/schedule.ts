@@ -55,6 +55,7 @@ export async function getActiveProgram(db: DbOrTx, userId: string): Promise<Acti
 
 export type ScheduleDay = {
   id: string;
+  dayOfWeek: number | null;
   dayIndex: number;
   name: string;
   focus: string | null;
@@ -78,6 +79,7 @@ export async function getSchedule(db: DbOrTx, userId: string): Promise<Schedule 
   const days = await db
     .select({
       id: programDays.id,
+      dayOfWeek: programDays.dayOfWeek,
       dayIndex: programDays.dayIndex,
       name: programDays.name,
       focus: programDays.focus,
@@ -321,7 +323,7 @@ export async function getTodayPlan(
           db,
           schedule.program.id,
           next.slot.cycleIndex,
-          await dayOfWeekFor(db, suggestedDay.id),
+          suggestedDay.dayOfWeek ?? 0,
         )
       : null;
   const cycleDays: DayStatus[] = schedule.days.map((day) => {
@@ -352,13 +354,4 @@ export async function getTodayPlan(
     runTarget,
     cycleDays,
   };
-}
-
-async function dayOfWeekFor(db: DbOrTx, programDayId: string): Promise<number> {
-  const [row] = await db
-    .select({ dayOfWeek: programDays.dayOfWeek })
-    .from(programDays)
-    .where(eq(programDays.id, programDayId))
-    .limit(1);
-  return row?.dayOfWeek ?? 0;
 }

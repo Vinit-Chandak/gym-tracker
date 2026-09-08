@@ -40,7 +40,11 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
             {data.cycleIndex ? ` · cycle ${data.cycleIndex}` : ""}
           </p>
         )}
-        <SessionView key={viewKey} session={data} />
+        <SessionView
+          key={`${viewKey}:${data.completedAt ?? "open"}`}
+          session={data}
+          userId={user.id}
+        />
       </PageContent>
     </>
   );

@@ -137,7 +137,7 @@ type FallbackRow = {
 async function fallbackRows(
   db: DbOrTx,
   programExerciseIds: string[],
-  gymId: string,
+  gymId: string | string[],
 ): Promise<FallbackRow[]> {
   if (programExerciseIds.length === 0) return [];
   const rows = await db
@@ -163,7 +163,12 @@ async function fallbackRows(
     .where(
       and(
         inArray(programExerciseFallbacks.programExerciseId, programExerciseIds),
-        or(isNull(programExerciseFallbacks.gymId), eq(programExerciseFallbacks.gymId, gymId)),
+        or(
+          isNull(programExerciseFallbacks.gymId),
+          Array.isArray(gymId)
+            ? inArray(programExerciseFallbacks.gymId, gymId)
+            : eq(programExerciseFallbacks.gymId, gymId),
+        ),
       ),
     )
     .orderBy(asc(programExerciseFallbacks.rank));
@@ -366,14 +371,32 @@ export async function exerciseAvailability(
   const slotIds = slotRows.map((row) => row.id);
   const names = await typeNames(db);
 
+  if (gymRows.length === 0) return [];
+  const gymIds = gymRows.map((gym) => gym.id);
+  const allFallbacks = await fallbackRows(db, slotIds, gymIds);
+  const [options, allEquipment, allAbsent] = await Promise.all([
+    optionRefs(db, [...new Set([exercise.id, ...allFallbacks.map((f) => f.exercise.id)])]),
+    db
+      .select({
+        id: equipmentInstances.id,
+        gymId: equipmentInstances.gymId,
+        equipmentTypeId: equipmentInstances.equipmentTypeId,
+        name: equipmentInstances.name,
+        isActive: equipmentInstances.isActive,
+      })
+      .from(equipmentInstances)
+      .where(inArray(equipmentInstances.gymId, gymIds)),
+    db
+      .select({ gymId: gymAbsentEquipmentTypes.gymId, id: gymAbsentEquipmentTypes.equipmentTypeId })
+      .from(gymAbsentEquipmentTypes)
+      .where(inArray(gymAbsentEquipmentTypes.gymId, gymIds)),
+  ]);
+
   const results: ExerciseGymAvailability[] = [];
   for (const gym of gymRows) {
-    const fallbacks = await fallbackRows(db, slotIds, gym.id);
-    const [options, equipment, absent] = await Promise.all([
-      optionRefs(db, [...new Set([exercise.id, ...fallbacks.map((f) => f.exercise.id)])]),
-      gymEquipmentRefs(db, gym.id),
-      absentTypeIds(db, gym.id),
-    ]);
+    const fallbacks = allFallbacks.filter((f) => f.gymId === null || f.gymId === gym.id);
+    const equipment = allEquipment.filter((e) => e.gymId === gym.id);
+    const absent = new Set(allAbsent.filter((e) => e.gymId === gym.id).map((e) => e.id));
     const resolution = resolveExerciseAtGym({
       exercise,
       gym: { id: gym.id, kind: gym.kind },
@@ -606,4 +629,38 @@ export async function decideExerciseAtGym(
   ]);
   if (!ctx) return null;
   return decide(ctx, exercise, fallbacks, null);
+}
+
+/** Reuse one gym context for every unresolved slot in a workout. */
+export async function decideExercisesAtGym(
+  db: DbOrTx,
+  userId: string,
+  gymId: string,
+  slots: {
+    id: string;
+    exercise: ExerciseRef & { name: string };
+    programExerciseId: string | null;
+  }[],
+): Promise<Map<string, ExerciseDecision>> {
+  if (slots.length === 0) return new Map();
+  const fallbacks = await fallbackRows(
+    db,
+    slots.flatMap((s) => (s.programExerciseId ? [s.programExerciseId] : [])),
+    gymId,
+  );
+  const ctx = await decisionContext(db, userId, gymId, [
+    ...new Set([...slots.map((s) => s.exercise.id), ...fallbacks.map((f) => f.exercise.id)]),
+  ]);
+  if (!ctx) return new Map();
+  return new Map(
+    slots.map((slot) => [
+      slot.id,
+      decide(
+        ctx,
+        slot.exercise,
+        fallbacks.filter((f) => f.programExerciseId === slot.programExerciseId),
+        null,
+      ),
+    ]),
+  );
 }

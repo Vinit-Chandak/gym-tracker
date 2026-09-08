@@ -1,0 +1,182 @@
+import { and, asc, desc, eq, exists, gte, inArray, lt, lte, sql } from "drizzle-orm";
+
+import {
+  dailyRecovery,
+  equipmentInstances,
+  exercises,
+  gyms,
+  programDays,
+  runs,
+  setLogs,
+  workoutExercises,
+  workoutSessions,
+} from "@/db/schema";
+import type { DbOrTx } from "@/db/types";
+import type { DateRange } from "@/server/validation/date-range";
+
+export const TRAINING_RECORD_LIMIT = 500;
+const inRange = (range: DateRange) =>
+  and(gte(workoutSessions.startedAt, range.start), lt(workoutSessions.startedAt, range.end));
+
+/** Bounded, batched raw data shared by history, analytics and the read-only coach API. Caller enforces RLS. */
+export async function readWorkouts(
+  db: DbOrTx,
+  userId: string,
+  range: DateRange,
+  page = 0,
+  limit = TRAINING_RECORD_LIMIT,
+  filter: { exerciseId?: string; equipmentInstanceId?: string } = {},
+) {
+  const matchingExercise = filter.exerciseId
+    ? exists(
+        db
+          .select({ one: sql`1` })
+          .from(workoutExercises)
+          .where(
+            and(
+              eq(workoutExercises.workoutSessionId, workoutSessions.id),
+              eq(workoutExercises.exerciseId, filter.exerciseId),
+              filter.equipmentInstanceId
+                ? eq(workoutExercises.equipmentInstanceId, filter.equipmentInstanceId)
+                : undefined,
+            ),
+          ),
+      )
+    : undefined;
+  const records = await db
+    .select({
+      session: workoutSessions,
+      gym: { id: gyms.id, name: gyms.name },
+      day: { id: programDays.id, name: programDays.name },
+    })
+    .from(workoutSessions)
+    .innerJoin(gyms, eq(gyms.id, workoutSessions.gymId))
+    .leftJoin(programDays, eq(programDays.id, workoutSessions.programDayId))
+    .where(and(eq(workoutSessions.userId, userId), inRange(range), matchingExercise))
+    .orderBy(desc(workoutSessions.startedAt), desc(workoutSessions.id))
+    .limit(limit + 1)
+    .offset(page * limit);
+  const hasMore = records.length > limit;
+  const selected = records.slice(0, limit);
+  const slots = selected.length
+    ? await db
+        .select({
+          slot: workoutExercises,
+          exercise: {
+            id: exercises.id,
+            name: exercises.name,
+            slug: exercises.slug,
+            modality: exercises.modality,
+            loadPortability: exercises.loadPortability,
+            primaryMuscles: exercises.primaryMuscles,
+          },
+          equipment: {
+            id: equipmentInstances.id,
+            name: equipmentInstances.name,
+            gymId: equipmentInstances.gymId,
+          },
+        })
+        .from(workoutExercises)
+        .innerJoin(exercises, eq(exercises.id, workoutExercises.exerciseId))
+        .leftJoin(
+          equipmentInstances,
+          eq(equipmentInstances.id, workoutExercises.equipmentInstanceId),
+        )
+        .where(
+          and(
+            eq(workoutExercises.userId, userId),
+            inArray(
+              workoutExercises.workoutSessionId,
+              selected.map((r) => r.session.id),
+            ),
+          ),
+        )
+        .orderBy(asc(workoutExercises.orderIndex))
+    : [];
+  const sets = slots.length
+    ? await db
+        .select()
+        .from(setLogs)
+        .where(
+          and(
+            eq(setLogs.userId, userId),
+            inArray(
+              setLogs.workoutExerciseId,
+              slots.map((r) => r.slot.id),
+            ),
+          ),
+        )
+        .orderBy(asc(setLogs.setIndex))
+    : [];
+  const setsBySlot = new Map<string, typeof sets>();
+  for (const set of sets) {
+    const group = setsBySlot.get(set.workoutExerciseId) ?? [];
+    group.push(set);
+    setsBySlot.set(set.workoutExerciseId, group);
+  }
+  const enriched = slots.map((row) => ({
+    ...row.slot,
+    exercise: row.exercise,
+    equipment: row.equipment,
+    sets: setsBySlot.get(row.slot.id) ?? [],
+  }));
+  return {
+    hasMore,
+    workouts: selected.map((row) => ({
+      ...row.session,
+      gym: row.gym,
+      day: row.day,
+      exercises: enriched.filter((slot) => slot.workoutSessionId === row.session.id),
+    })),
+  };
+}
+
+export async function readRuns(
+  db: DbOrTx,
+  userId: string,
+  range: DateRange,
+  page = 0,
+  limit = TRAINING_RECORD_LIMIT,
+) {
+  const records = await db
+    .select()
+    .from(runs)
+    .where(
+      and(eq(runs.userId, userId), gte(runs.startedAt, range.start), lt(runs.startedAt, range.end)),
+    )
+    .orderBy(desc(runs.startedAt), desc(runs.id))
+    .limit(limit + 1)
+    .offset(page * limit);
+  return { hasMore: records.length > limit, runs: records.slice(0, limit) };
+}
+
+export async function readRecovery(db: DbOrTx, userId: string, range: DateRange) {
+  return db
+    .select()
+    .from(dailyRecovery)
+    .where(
+      and(
+        eq(dailyRecovery.userId, userId),
+        gte(dailyRecovery.date, range.from),
+        lte(dailyRecovery.date, range.to),
+      ),
+    )
+    .orderBy(desc(dailyRecovery.date));
+}
+
+export async function readTrainingData(db: DbOrTx, userId: string, range: DateRange) {
+  const [workouts, runData, recovery] = await Promise.all([
+    readWorkouts(db, userId, range),
+    readRuns(db, userId, range),
+    readRecovery(db, userId, range),
+  ]);
+  return {
+    workouts: workouts.workouts,
+    runs: runData.runs,
+    recovery,
+    truncated: workouts.hasMore || runData.hasMore,
+  };
+}
+
+export type TrainingData = Awaited<ReturnType<typeof readTrainingData>>;
+export type TrainingWorkout = TrainingData["workouts"][number];

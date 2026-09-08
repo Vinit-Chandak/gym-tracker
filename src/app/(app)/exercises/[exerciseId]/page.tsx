@@ -1,13 +1,14 @@
+import { SubmitButton } from "@/components/ui/form";
 import { ExternalLink } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/ui/app-link";
 import { notFound } from "next/navigation";
 
 import { AvailabilityBadge } from "@/components/availability-badge";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonClassName, LinkButton } from "@/components/ui/button";
+import { buttonClassName, LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { SectionHeading } from "@/components/ui/section";
 import { Select } from "@/components/ui/select";
@@ -256,9 +257,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
                     ))}
                   </Select>
                 </label>
-                <Button type="submit" variant="secondary">
-                  Save
-                </Button>
+                <SubmitButton variant="secondary">Save</SubmitButton>
               </form>
             )}
             <LinkButton href={`/gyms/${entry.gym.id}/programme`} variant="ghost" size="sm">

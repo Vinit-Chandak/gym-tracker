@@ -78,6 +78,8 @@ const runSchema = z
 function revalidateRuns(runId?: string): void {
   revalidatePath("/runs");
   revalidatePath("/today");
+  revalidatePath("/history");
+  revalidatePath("/progress");
   if (runId) revalidatePath(`/runs/${runId}`);
 }
 
