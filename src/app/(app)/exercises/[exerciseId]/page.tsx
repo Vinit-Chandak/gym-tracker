@@ -35,6 +35,7 @@ import {
   type ExerciseGymAvailability,
 } from "@/server/repositories/availability";
 import { getExercise, type ExerciseProgramUsage } from "@/server/repositories/exercises";
+import { requireUuid } from "@/server/validation/params";
 
 export const metadata: Metadata = { title: "Exercise" };
 
@@ -72,6 +73,7 @@ function availabilityDetail(entry: ExerciseGymAvailability): string {
 
 export default async function ExercisePage(props: PageProps<"/exercises/[exerciseId]">) {
   const { exerciseId } = await props.params;
+  requireUuid(exerciseId);
   const user = await requireUser();
   const data = await withUser(getDb(), user.id, async (tx) => {
     const exercise = await getExercise(tx, user.id, exerciseId);
@@ -244,11 +246,22 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
             {exercise.requiresEquipment && entry.machines.length > 0 && (
               <form
                 action={setPreferredMachineAction.bind(null, exercise.id, entry.gym.id)}
-                className="flex items-end gap-2"
+                className="space-y-1.5"
               >
-                <label className="block flex-1 space-y-1.5">
-                  <span className="text-sm font-medium text-ink-muted">Preferred machine here</span>
-                  <Select name="equipmentInstanceId" defaultValue={entry.preferredInstanceId ?? ""}>
+                <label
+                  htmlFor={`preferred-machine-${entry.gym.id}`}
+                  className="block text-sm font-medium text-ink-muted"
+                >
+                  Preferred machine here
+                </label>
+                {/* The select carries the long machine names, so it takes the row. */}
+                <div className="flex items-center gap-2">
+                  <Select
+                    id={`preferred-machine-${entry.gym.id}`}
+                    name="equipmentInstanceId"
+                    className="min-w-0 flex-1"
+                    defaultValue={entry.preferredInstanceId ?? ""}
+                  >
                     <option value="">Automatic</option>
                     {entry.machines.map((machine) => (
                       <option key={machine.id} value={machine.id}>
@@ -256,8 +269,10 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
                       </option>
                     ))}
                   </Select>
-                </label>
-                <SubmitButton variant="secondary">Save</SubmitButton>
+                  <SubmitButton variant="secondary" size="md" className="w-auto shrink-0">
+                    Save
+                  </SubmitButton>
+                </div>
               </form>
             )}
             <LinkButton href={`/gyms/${entry.gym.id}/programme`} variant="ghost" size="sm">

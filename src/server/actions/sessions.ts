@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import { SET_LIMITS } from "@/domain/sets";
+
 import { getDb } from "@/db/client";
 import { profiles } from "@/db/schema";
 import { withUser } from "@/db/with-user";
@@ -194,10 +196,10 @@ const logSetSchema = z
     workoutExerciseId: z.uuid(),
     setIndex: z.number().int().min(1).max(50),
     setType: z.enum(SET_TYPES),
-    weight: z.number().min(0).max(2000).nullable(),
-    reps: z.number().int().min(0).max(1000).nullable(),
-    rir: z.number().min(0).max(10).nullable(),
-    durationSeconds: z.number().int().min(0).max(36_000).nullable(),
+    weight: z.number().min(0).max(SET_LIMITS.weight).nullable(),
+    reps: z.number().int().min(0).max(SET_LIMITS.reps).nullable(),
+    rir: z.number().min(0).max(SET_LIMITS.rir).nullable(),
+    durationSeconds: z.number().int().min(0).max(SET_LIMITS.durationSeconds).nullable(),
   })
   .refine((value) => value.reps !== null || value.durationSeconds !== null, {
     message: "Enter reps or a duration.",

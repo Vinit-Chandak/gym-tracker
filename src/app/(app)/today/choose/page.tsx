@@ -48,25 +48,27 @@ export default async function ChooseDayPage() {
                     <h2 className="font-semibold">{day.name}</h2>
                     {day.focus && <p className="text-sm text-ink-muted">{day.focus}</p>}
                   </div>
-                  <Badge
-                    tone={
-                      status === "completed"
-                        ? "success"
-                        : status === "skipped"
-                          ? "warning"
-                          : "neutral"
-                    }
-                  >
-                    {SLOT_STATUS_LABELS[status]}
-                  </Badge>
+                  {/* Every day starts out pending, so only a changed status is worth a badge. */}
+                  {status !== "pending" && (
+                    <Badge tone={status === "completed" ? "success" : "warning"}>
+                      {SLOT_STATUS_LABELS[status]}
+                    </Badge>
+                  )}
                 </div>
-                {day.includesLifting && (
+                {day.includesLifting ? (
                   <StartPlannedButton
                     gymId={defaultGymId}
                     programDayId={day.id}
                     dayIndex={day.dayIndex}
-                    label={`Start ${day.name}`}
+                    label="Start"
+                    ariaLabel={`Start ${day.name}`}
+                    // One calm button per card: seven primary buttons make none of them primary.
+                    variant="secondary"
                   />
+                ) : (
+                  <p className="text-sm text-ink-subtle">
+                    Rest day — nothing to start. Log a run or recovery instead.
+                  </p>
                 )}
               </Card>
             ))}

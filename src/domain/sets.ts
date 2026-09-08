@@ -8,6 +8,17 @@ export function weightStepFor(input: {
   return input.equipmentLoadIncrement ?? input.exerciseDefaultIncrement ?? 2.5;
 }
 
+/**
+ * Bounds the log-set action enforces. Shared with the entry fields so typing stops at the
+ * same place the server does, instead of failing only once you try to save.
+ */
+export const SET_LIMITS = {
+  weight: 2000,
+  reps: 1000,
+  rir: 10,
+  durationSeconds: 36_000,
+} as const;
+
 export type SetLike = {
   setIndex: number;
   setType: SetType;
@@ -40,6 +51,24 @@ export function workingVolume(sets: readonly SetLike[]): number {
   return sets
     .filter((s) => s.setType !== "warmup" && s.weight !== null && s.reps !== null)
     .reduce((sum, s) => sum + (s.weight ?? 0) * (s.reps ?? 0), 0);
+}
+
+/**
+ * Keeps typed entry to a number the server will accept: digits, at most one decimal point,
+ * no sign, never above `max`. A trailing "." survives so a decimal can still be typed one
+ * key at a time. Without this, "abc" or "-20" reach the action and come back as a failed save.
+ */
+export function sanitizeNumberEntry(
+  raw: string,
+  inputMode: "decimal" | "numeric" = "decimal",
+  max?: number,
+): string {
+  const cleaned = raw.replace(",", ".").replace(inputMode === "numeric" ? /[^\d]/g : /[^\d.]/g, "");
+  const [head, ...rest] = cleaned.split(".");
+  const value = rest.length > 0 ? `${head}.${rest.join("")}` : cleaned;
+  if (max === undefined || value === "") return value;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > max ? String(max) : value;
 }
 
 /** Adds a step to a numeric string (two-decimal precision); an empty value starts from `from`. */

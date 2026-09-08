@@ -89,12 +89,12 @@ export function RunForm({ action, initial, planned, cycleIndex, runId, submitLab
         <Input name="startedAt" type="datetime-local" defaultValue={value("startedAt")} required />
       </Field>
 
-      <label className="flex items-center gap-3 text-sm">
+      <label className="flex min-h-11 items-center gap-3 text-sm">
         <input
           type="checkbox"
           name="treadmill"
           defaultChecked={treadmillChecked}
-          className="size-5 accent-accent"
+          className="size-6 accent-accent"
         />
         Treadmill run
       </label>

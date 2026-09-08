@@ -10,7 +10,7 @@ import { requireUser } from "@/server/auth";
 import { ensureProfile } from "@/server/queries/profile";
 import { getSchedule } from "@/server/repositories/schedule";
 import { readTrainingData } from "@/server/repositories/training-data";
-import { parseDateRange } from "@/server/validation/date-range";
+import { parseDateRangeOrDefault } from "@/server/validation/date-range";
 import { ProgressView } from "./progress-view";
 
 export const metadata: Metadata = { title: "Progress" };
@@ -18,28 +18,13 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
   const user = await requireUser(),
     params = await props.searchParams;
   const profile = await withUser(getDb(), user.id, (tx) => ensureProfile(tx, user));
-  let range;
-  try {
-    range = parseDateRange(
-      {
-        from: typeof params.from === "string" ? params.from : undefined,
-        to: typeof params.to === "string" ? params.to : undefined,
-      },
-      profile.timeZone,
-    );
-  } catch {
-    return (
-      <>
-        <PageHeader title="Progress" />
-        <PageContent>
-          <Card>
-            <p role="alert">Choose valid dates, From before To, up to one year apart.</p>
-            <DateRangeForm {...parseDateRange({}, profile.timeZone)} />
-          </Card>
-        </PageContent>
-      </>
-    );
-  }
+  const { range, error: rangeError } = parseDateRangeOrDefault(
+    {
+      from: typeof params.from === "string" ? params.from : undefined,
+      to: typeof params.to === "string" ? params.to : undefined,
+    },
+    profile.timeZone,
+  );
   const { training, schedule } = await withUser(getDb(), user.id, async (tx) => ({
     training: await readTrainingData(tx, user.id, range),
     schedule: await getSchedule(tx, user.id),
@@ -49,6 +34,11 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
       <PageHeader title="Progress" />
       <PageContent>
         <Card>
+          {rangeError && (
+            <p role="alert" className="text-sm text-danger">
+              {rangeError}
+            </p>
+          )}
           <DateRangeForm from={range.from} to={range.to} />
         </Card>
         <ProgressView

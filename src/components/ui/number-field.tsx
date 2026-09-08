@@ -1,6 +1,6 @@
 "use client";
 
-import { stepValue } from "@/domain/sets";
+import { sanitizeNumberEntry, stepValue } from "@/domain/sets";
 import { cn } from "@/lib/utils";
 
 type NumberFieldProps = {
@@ -56,7 +56,7 @@ export function NumberField({
           inputMode={inputMode}
           value={value}
           placeholder={ghost ?? ""}
-          onChange={(event) => onChange(event.target.value)}
+          onChange={(event) => onChange(sanitizeNumberEntry(event.target.value, inputMode, max))}
           disabled={disabled}
           aria-label={label}
           className="order-1 col-span-2 h-11 w-full min-w-0 bg-transparent text-center text-lg font-semibold tabular-nums placeholder:font-medium placeholder:text-ink-subtle/80 focus:outline-none"

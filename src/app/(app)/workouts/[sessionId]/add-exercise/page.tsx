@@ -11,6 +11,7 @@ import { requireUser } from "@/server/auth";
 import { listEquipmentForGym } from "@/server/repositories/equipment";
 import { listExercises } from "@/server/repositories/exercises";
 import { getSessionRecord } from "@/server/repositories/sessions";
+import { requireUuid } from "@/server/validation/params";
 
 import { PickExerciseForm } from "./add-exercise-form";
 
@@ -20,6 +21,7 @@ export default async function AddExercisePage(
   props: PageProps<"/workouts/[sessionId]/add-exercise">,
 ) {
   const { sessionId } = await props.params;
+  requireUuid(sessionId);
   const user = await requireUser();
   const data = await withUser(getDb(), user.id, async (tx) => {
     const session = await getSessionRecord(tx, user.id, sessionId);

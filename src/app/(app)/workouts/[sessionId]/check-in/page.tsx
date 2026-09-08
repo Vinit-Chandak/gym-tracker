@@ -10,6 +10,7 @@ import { withUser } from "@/db/with-user";
 import { saveCheckInAction } from "@/server/actions/sessions";
 import { requireUser } from "@/server/auth";
 import { getSessionRecord } from "@/server/repositories/sessions";
+import { requireUuid } from "@/server/validation/params";
 
 import { CheckInForm } from "./check-in-form";
 
@@ -19,6 +20,7 @@ const str = (value: number | null): string => (value === null ? "" : String(valu
 
 export default async function CheckInPage(props: PageProps<"/workouts/[sessionId]/check-in">) {
   const { sessionId } = await props.params;
+  requireUuid(sessionId);
   const user = await requireUser();
   const session = await withUser(getDb(), user.id, (tx) =>
     getSessionRecord(tx, user.id, sessionId),

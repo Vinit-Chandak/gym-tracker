@@ -10,6 +10,7 @@ import { formatSets } from "@/domain/sets";
 import { finishSessionAction } from "@/server/actions/sessions";
 import { requireUser } from "@/server/auth";
 import { getSessionDetail } from "@/server/repositories/sessions";
+import { requireUuid } from "@/server/validation/params";
 
 import { FinishForm } from "./finish-form";
 
@@ -17,6 +18,7 @@ export const metadata: Metadata = { title: "Finish session" };
 
 export default async function FinishPage(props: PageProps<"/workouts/[sessionId]/finish">) {
   const { sessionId } = await props.params;
+  requireUuid(sessionId);
   const user = await requireUser();
   const session = await withUser(getDb(), user.id, (tx) =>
     getSessionDetail(tx, user.id, sessionId, { includeGuidance: false }),

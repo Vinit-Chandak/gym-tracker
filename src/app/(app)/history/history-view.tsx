@@ -69,7 +69,9 @@ export function HistoryView({
   return (
     <div className="space-y-4">
       <Card>
-        <div className="grid grid-cols-2 gap-3">
+        {/* One filter per row: gym, exercise and machine names are long enough that a
+            half-width native select clips them mid-word, with no ellipsis to warn you. */}
+        <div className="space-y-3">
           <Field label="Activity">
             <Select value={kind} onChange={(e) => setKind(e.target.value)}>
               <option value="all">All activity</option>

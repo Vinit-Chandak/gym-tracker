@@ -145,9 +145,11 @@ export function restLabel(minSeconds: number | null, maxSeconds: number | null):
   if (minSeconds === null && maxSeconds === null) return "—";
   const lo = minSeconds ?? maxSeconds ?? 0;
   const hi = maxSeconds ?? minSeconds ?? 0;
-  const wholeMinutes = (s: number) => s >= 120 && s % 60 === 0;
-  if (wholeMinutes(lo) && wholeMinutes(hi)) {
-    return lo === hi ? `${lo / 60} min` : `${lo / 60}–${hi / 60} min`;
+  // Two minutes and over reads in minutes, halves included, so a single exercise's rest
+  // target matches how the programme states it: 210 s is "3.5 min", not "210 s".
+  const inMinutes = (s: number) => String(Math.round((s / 60) * 10) / 10);
+  if (lo >= 120 && hi >= 120) {
+    return lo === hi ? `${inMinutes(lo)} min` : `${inMinutes(lo)}–${inMinutes(hi)} min`;
   }
   return lo === hi ? `${lo} s` : `${lo}–${hi} s`;
 }

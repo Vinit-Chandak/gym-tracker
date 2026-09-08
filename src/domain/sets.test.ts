@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatSets, stepValue, weightStepFor, workingVolume } from "./sets";
+import { formatSets, sanitizeNumberEntry, stepValue, weightStepFor, workingVolume } from "./sets";
 
 describe("set helpers", () => {
   it("picks the load step from the machine, then the exercise, then 2.5", () => {
@@ -64,5 +64,23 @@ describe("set helpers", () => {
         },
       ]),
     ).toBe("40 s");
+  });
+
+  it("keeps typed entry to something the log-set action accepts", () => {
+    // Letters and signs never reach the server as a failed save.
+    expect(sanitizeNumberEntry("abc")).toBe("");
+    expect(sanitizeNumberEntry("6a0")).toBe("60");
+    expect(sanitizeNumberEntry("-20")).toBe("20");
+    // Decimals are typeable one key at a time, and only one point survives.
+    expect(sanitizeNumberEntry("60.")).toBe("60.");
+    expect(sanitizeNumberEntry("60.5")).toBe("60.5");
+    expect(sanitizeNumberEntry("1.2.3")).toBe("1.23");
+    expect(sanitizeNumberEntry("60,5")).toBe("60.5");
+    // Whole-number fields take no decimal point at all.
+    expect(sanitizeNumberEntry("8.5", "numeric")).toBe("85");
+    // Nothing above the schema's ceiling.
+    expect(sanitizeNumberEntry("99999", "decimal", 2000)).toBe("2000");
+    expect(sanitizeNumberEntry("50", "decimal", 10)).toBe("10");
+    expect(sanitizeNumberEntry("", "decimal", 10)).toBe("");
   });
 });

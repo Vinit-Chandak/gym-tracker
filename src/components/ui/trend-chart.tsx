@@ -11,9 +11,13 @@ export function TrendChart({
   unit: string;
 }) {
   const known = points.filter((p): p is Point & { value: number } => p.value !== null);
-  if (!known.length)
+  // An all-zero series charts as a flat line of dots along the axis, which reads as a
+  // rendering fault rather than as "nothing happened". Say so in words instead.
+  if (!known.length || known.every((p) => p.value === 0))
     return (
-      <p className="text-sm text-ink-muted">No {title.toLowerCase()} measurements in this range.</p>
+      <p className="text-sm text-ink-muted">
+        Nothing recorded for {title.toLowerCase()} in this range.
+      </p>
     );
   const max = Math.max(1, ...known.map((p) => p.value));
   const minDate = Date.parse(points[0]!.date),
@@ -62,9 +66,9 @@ export function TrendChart({
             r="3.5"
             fill="var(--color-accent)"
           >
-            <title>
-              {p.date}: {p.value} {unit}
-            </title>
+            {/* One interpolation, not several: adjacent text nodes inside an SVG
+                <title> do not survive hydration and regenerate the whole tree. */}
+            <title>{`${p.date}: ${p.value} ${unit}`}</title>
           </circle>
         ))}
         <text x="38" y="146" fontSize="10" fill="var(--color-ink-muted)">
@@ -75,7 +79,9 @@ export function TrendChart({
         </text>
       </svg>
       <details className="text-xs text-ink-muted">
-        <summary className="cursor-pointer py-2">View values</summary>
+        <summary className="flex min-h-11 cursor-pointer items-center select-none">
+          View values
+        </summary>
         <table className="w-full text-left tabular-nums">
           <thead>
             <tr>

@@ -2,7 +2,7 @@
 
 import { useActionState, useState, useTransition } from "react";
 
-import { Button } from "@/components/ui/button";
+import { Button, type ButtonVariant } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
 import { Sheet } from "@/components/ui/sheet";
 import {
@@ -22,16 +22,23 @@ export function StartPlannedButton({
   programDayId,
   dayIndex,
   label,
+  variant = "primary",
+  ariaLabel,
 }: {
   gymId: string | null;
   programDayId: string;
   dayIndex: number;
   label: string;
+  variant?: ButtonVariant;
+  /** Names the day when the visible label is shared by several buttons on one screen. */
+  ariaLabel?: string;
 }) {
   const [pending, startTransition] = useTransition();
   return (
     <Button
       size="lg"
+      variant={variant}
+      aria-label={ariaLabel}
       className="w-full"
       disabled={gymId === null || pending}
       onClick={() => {

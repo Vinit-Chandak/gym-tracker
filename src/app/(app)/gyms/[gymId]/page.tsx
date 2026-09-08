@@ -35,6 +35,7 @@ import {
   type EquipmentListItem,
 } from "@/server/repositories/equipment";
 import { getGym } from "@/server/repositories/gyms";
+import { requireUuid } from "@/server/validation/params";
 import { EQUIPMENT_CATEGORIES } from "@/domain/types";
 
 export const metadata: Metadata = { title: "Gym" };
@@ -47,11 +48,17 @@ function EquipmentRows({ gymId, items }: { gymId: string; items: EquipmentListIt
           <LinkRow
             href={`/gyms/${gymId}/equipment/${item.id}`}
             title={item.name}
-            subtitle={`${item.typeName} · ${RESISTANCE_MODE_LABELS[item.resistanceMode]}`}
+            // Machines are usually named after their type, so only add it when it differs.
+            subtitle={
+              item.typeName === item.name
+                ? RESISTANCE_MODE_LABELS[item.resistanceMode]
+                : `${item.typeName} · ${RESISTANCE_MODE_LABELS[item.resistanceMode]}`
+            }
+            // A bare unit on every row is noise; the step is the part worth showing.
             meta={
               item.loadIncrement !== null
                 ? `+${item.loadIncrement} ${LOAD_UNIT_LABELS[item.unit]}`
-                : LOAD_UNIT_LABELS[item.unit]
+                : undefined
             }
           />
         </li>
@@ -62,6 +69,7 @@ function EquipmentRows({ gymId, items }: { gymId: string; items: EquipmentListIt
 
 export default async function GymPage(props: PageProps<"/gyms/[gymId]">) {
   const { gymId } = await props.params;
+  requireUuid(gymId);
   const user = await requireUser();
   const data = await withUser(getDb(), user.id, async (tx) => {
     const gym = await getGym(tx, user.id, gymId);
@@ -198,11 +206,23 @@ export default async function GymPage(props: PageProps<"/gyms/[gymId]">) {
             {gym.isActive && absentCandidates.length > 0 && (
               <form
                 action={markEquipmentAbsentFromFormAction.bind(null, gym.id)}
-                className="flex items-end gap-2"
+                className="space-y-1.5"
               >
-                <label className="block flex-1 space-y-1.5">
-                  <span className="text-sm font-medium text-ink-muted">Mark equipment</span>
-                  <Select name="equipmentTypeId" required defaultValue="">
+                <label
+                  htmlFor="absent-equipment"
+                  className="block text-sm font-medium text-ink-muted"
+                >
+                  Mark equipment unavailable
+                </label>
+                {/* The select carries the long equipment names, so it takes the row. */}
+                <div className="flex items-center gap-2">
+                  <Select
+                    id="absent-equipment"
+                    name="equipmentTypeId"
+                    required
+                    defaultValue=""
+                    className="min-w-0 flex-1"
+                  >
                     <option value="">Choose equipment…</option>
                     {absentCandidates.map((group) => (
                       <optgroup
@@ -217,8 +237,10 @@ export default async function GymPage(props: PageProps<"/gyms/[gymId]">) {
                       </optgroup>
                     ))}
                   </Select>
-                </label>
-                <SubmitButton variant="secondary">Add</SubmitButton>
+                  <SubmitButton variant="secondary" size="md" className="w-auto shrink-0">
+                    Add
+                  </SubmitButton>
+                </div>
               </form>
             )}
           </Card>

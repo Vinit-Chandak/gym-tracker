@@ -10,6 +10,7 @@ import { createEquipmentAction } from "@/server/actions/equipment";
 import { requireUser } from "@/server/auth";
 import { listEquipmentTypes } from "@/server/repositories/equipment";
 import { getGym } from "@/server/repositories/gyms";
+import { requireUuid } from "@/server/validation/params";
 
 import { EquipmentForm } from "../../../equipment-form";
 
@@ -17,6 +18,7 @@ export const metadata: Metadata = { title: "Add machine" };
 
 export default async function NewEquipmentPage(props: PageProps<"/gyms/[gymId]/equipment/new">) {
   const { gymId } = await props.params;
+  requireUuid(gymId);
   const user = await requireUser();
   const data = await withUser(getDb(), user.id, async (tx) => {
     const gym = await getGym(tx, user.id, gymId);
