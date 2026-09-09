@@ -4,6 +4,7 @@ import { useEffect, useSyncExternalStore } from "react";
 
 import { Button } from "@/components/ui/button";
 import { formatDuration } from "@/domain/pace";
+import { cn } from "@/lib/utils";
 
 /** How long the finished timer keeps showing "Go" before it clears itself. */
 const LINGER_MS = 60_000;
@@ -58,7 +59,12 @@ export function startRestTimer(sessionId: string, seconds: number): void {
   writeEndsAt(sessionId, Date.now() + seconds * 1000);
 }
 
-/** Countdown bar that survives navigation within the session. */
+/**
+ * Countdown row. It reads a deadline rather than counting down a stored number, so it stays
+ * correct across a route change, a backgrounded tab or a reload — only the displayed seconds
+ * tick. `SessionChrome` positions it above the navigation; it draws no bar of its own, so it
+ * cannot become a second resume strip.
+ */
 export function RestTimer({ sessionId }: { sessionId: string }) {
   const remaining = useSyncExternalStore(
     subscribe,
@@ -81,23 +87,13 @@ export function RestTimer({ sessionId }: { sessionId: string }) {
   };
 
   return (
-    <div
-      role="timer"
-      className="fixed inset-x-0 z-30 border-t border-line bg-surface lg:left-48"
-      style={{ bottom: "calc(var(--nav-height) + env(safe-area-inset-bottom))" }}
-    >
-      <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-[var(--page-gutter)] py-2">
-        <span className="text-sm text-ink-muted">Rest</span>
-        <span
-          className={
-            remaining === 0
-              ? "text-xl font-semibold text-accent tabular-nums"
-              : "text-xl font-semibold tabular-nums"
-          }
-        >
+    <div role="timer" className="border-t border-line bg-surface">
+      <div className="page-width flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-1.5">
+        <span className="text-xs text-ink-muted">Rest</span>
+        <span className={cn("text-lg font-medium tabular-nums", remaining === 0 && "text-accent")}>
           {remaining === 0 ? "Go" : formatDuration(remaining)}
         </span>
-        <div className="flex gap-2">
+        <div className="flex gap-1">
           <Button variant="secondary" size="sm" onClick={extend}>
             +30 s
           </Button>

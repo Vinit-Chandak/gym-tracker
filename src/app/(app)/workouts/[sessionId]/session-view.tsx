@@ -42,7 +42,7 @@ import {
   applyFallbackAction,
 } from "@/server/actions/sessions";
 
-import { RestTimer, startRestTimer } from "./rest-timer";
+import { startRestTimer } from "@/components/shell/rest-timer";
 import type { ExerciseVM, SessionVM, SetVM } from "./view-model";
 
 type RowState = {
@@ -1057,7 +1057,6 @@ export function SessionView({ session, userId }: { session: SessionVM; userId: s
           Unsaved set drafts on this device. Save or remove them before finishing.
         </p>
       )}
-      {!readOnly && session.restTimerEnabled && <RestTimer sessionId={session.id} />}
     </div>
   );
 }

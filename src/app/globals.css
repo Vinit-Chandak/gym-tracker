@@ -160,10 +160,17 @@
   }
 }
 
+/*
+ * --session-chrome-height is measured and set by the resume strip when there is an active
+ * workout, and removed when there is not, so the page reserves the strip's actual height
+ * including anything that wrapped at a larger text size.
+ */
 .app-content {
   min-width: 0;
   flex: 1;
-  padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom) + 1rem);
+  padding-bottom: calc(
+    var(--nav-height) + var(--session-chrome-height, 0px) + env(safe-area-inset-bottom) + 1rem
+  );
 }
 
 .primary-nav {
@@ -242,7 +249,7 @@
   }
   .app-content {
     margin-left: 12rem;
-    padding-bottom: 2rem;
+    padding-bottom: calc(2rem + var(--session-chrome-height, 0px));
   }
   .primary-nav {
     inset: 0 auto 0 0;

@@ -1,21 +1,22 @@
 import type { Metadata } from "next";
-import Link from "@/components/ui/app-link";
 
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
 import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Disclosure } from "@/components/ui/disclosure";
+import { Section } from "@/components/ui/section";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { formatDateTime, formatIsoDate } from "@/lib/format";
 import { rangeLabel } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
+import { getActiveSession } from "@/server/queries/active-session";
 import { getWarmupProtocol } from "@/server/queries/reference";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { listGyms } from "@/server/repositories/gyms";
 import { getTodayPlan, type PlannedExercisePreview } from "@/server/repositories/schedule";
-import { getInProgressSession } from "@/server/repositories/sessions";
 
 import { GymSwitcher } from "./gym-switcher";
 import {
@@ -39,32 +40,38 @@ function prescription(e: PlannedExercisePreview): string {
 export default async function TodayPage() {
   const user = await requireUser();
   const requestProfile = await getRequestProfile(user.id, user.email);
+  // The active session comes from the shared per-request read the resume strip also uses,
+  // so Today and the shell agree on one session without asking the database twice.
+  const inProgress = await getActiveSession(user.id);
   const data = await withUser(getDb(), user.id, async (tx) => {
     const profile = requestProfile;
-    const [gyms, inProgress, plan] = await Promise.all([
+    const [gyms, plan] = await Promise.all([
       listGyms(tx, user.id),
-      getInProgressSession(tx, user.id),
       getTodayPlan(tx, user.id, profile.timeZone),
     ]);
     const restProtocol =
       plan?.suggestedDay && !plan.suggestedDay.includesLifting && plan.suggestedDay.warmupProtocolId
         ? await getWarmupProtocol(tx, plan.suggestedDay.warmupProtocolId)
         : null;
-    return { profile, gyms, inProgress, plan, restProtocol };
+    return { profile, gyms, plan, restProtocol };
   });
-  const { profile, gyms, inProgress, plan, restProtocol } = data;
+  const { profile, gyms, plan, restProtocol } = data;
   const activeGyms = gyms
     .filter((gym) => gym.isActive)
     .map((gym) => ({ id: gym.id, name: gym.name, kind: gym.kind, isDefault: gym.isDefault }));
   const defaultGym = activeGyms.find((gym) => gym.isDefault) ?? null;
+  const day = plan?.suggestedDay ?? null;
+  const restDay = day !== null && !day.includesLifting;
 
   return (
     <>
       <PageHeader title="Today" />
-      <PageContent className="max-w-3xl">
+      <PageContent>
+        {/* Where you are training. Once a session starts the gym is fixed, and its own
+            screens carry it, so this row is about the next session, not the current one. */}
         {activeGyms.length === 0 ? (
           <Card>
-            <h2 className="text-lg font-semibold">Add a gym to start training</h2>
+            <h2 className="text-lg font-medium">Add a gym to start training</h2>
             <p className="text-sm text-ink-muted">
               Sessions belong to a place, so machine history is never mixed between gyms. Add where
               you train and Today comes to life.
@@ -77,10 +84,12 @@ export default async function TodayPage() {
           <GymSwitcher gyms={activeGyms} />
         )}
 
-        {inProgress && (
+        {inProgress ? (
           <Card>
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold">{inProgress.dayName ?? "Ad hoc session"}</h2>
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="min-w-0 text-lg font-medium [overflow-wrap:anywhere]">
+                {inProgress.dayName ?? "Ad hoc session"}
+              </h2>
               <Badge tone="accent">In progress</Badge>
             </div>
             <p className="text-sm text-ink-muted">
@@ -91,13 +100,12 @@ export default async function TodayPage() {
             <LinkButton href={`/workouts/${inProgress.id}`} size="lg" className="w-full">
               Resume session
             </LinkButton>
+            {/* A session that has recorded something is finished, never discarded. */}
             {inProgress.setCount === 0 && <DiscardSessionButton sessionId={inProgress.id} />}
           </Card>
-        )}
-
-        {!inProgress && !plan && (
+        ) : !plan ? (
           <Card>
-            <h2 className="text-lg font-semibold">No active programme</h2>
+            <h2 className="text-lg font-medium">No active programme</h2>
             <p className="text-sm text-ink-muted">
               Pick a programme and Today will tell you what to train next. You can also just start a
               session and choose exercises as you go.
@@ -107,31 +115,24 @@ export default async function TodayPage() {
             </LinkButton>
             <StartAdHocButton gymId={defaultGym?.id ?? null} />
           </Card>
-        )}
-
-        {!inProgress && plan && !plan.suggestion && (
+        ) : !plan.suggestion || !day ? (
           <Card>
-            <h2 className="text-lg font-semibold">Programme complete</h2>
+            <h2 className="text-lg font-medium">Programme complete</h2>
             <p className="text-sm text-ink-muted">
               All {plan.progress.total} sessions of {plan.program.name} are done. The next block can
               be planned as a new programme version.
             </p>
+            <LinkButton href="/settings/programme" size="lg" className="w-full">
+              Plan the next block
+            </LinkButton>
             <StartAdHocButton gymId={defaultGym?.id ?? null} />
           </Card>
-        )}
-
-        {!inProgress && plan && plan.suggestion && plan.suggestedDay && (
+        ) : (
           <Card>
             <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs font-medium tracking-wide text-ink-subtle uppercase">
-                  Cycle {plan.suggestion.slot.cycleIndex} of {plan.program.weeks} · day{" "}
-                  {plan.suggestedDay.dayIndex}
-                </p>
-                <h2 className="text-xl font-semibold">{plan.suggestedDay.name}</h2>
-                {plan.suggestedDay.focus && (
-                  <p className="text-sm text-ink-muted">{plan.suggestedDay.focus}</p>
-                )}
+              <div className="min-w-0">
+                <h2 className="text-lg font-medium [overflow-wrap:anywhere]">{day.name}</h2>
+                {day.focus && <p className="text-sm text-ink-muted">{day.focus}</p>}
               </div>
               {plan.behind > 0 ? (
                 <Badge tone="warning">{plan.behind} behind</Badge>
@@ -140,16 +141,14 @@ export default async function TodayPage() {
               )}
             </div>
 
-            {(plan.suggestedDay.timeNote || plan.suggestedDay.effortNote) && (
+            {(day.timeNote || day.effortNote || day.notes) && (
               <p className="text-sm text-ink-muted">
-                {[plan.suggestedDay.timeNote, plan.suggestedDay.effortNote, plan.suggestedDay.notes]
-                  .filter(Boolean)
-                  .join(" · ")}
+                {[day.timeNote, day.effortNote, day.notes].filter(Boolean).join(" · ")}
               </p>
             )}
 
             {plan.runTarget && (
-              <div className="border-l-2 border-accent/50 py-1 pl-3 text-sm">
+              <div className="border-l-2 border-accent py-1 pl-3 text-sm">
                 <p className="font-medium">
                   Easy run:{" "}
                   {rangeLabel(
@@ -179,27 +178,8 @@ export default async function TodayPage() {
               </div>
             )}
 
-            {plan.suggestedExercises.length > 0 && (
-              <ul className="divide-y divide-line">
-                {plan.suggestedExercises.map((exercise) => (
-                  <li
-                    key={exercise.programExerciseId}
-                    className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2.5"
-                  >
-                    <span className="min-w-0 text-sm">
-                      {exercise.name}
-                      {exercise.supersetGroup && (
-                        <span className="text-ink-subtle"> · superset</span>
-                      )}
-                    </span>
-                    <span className="shrink-0 text-xs text-ink-muted tabular-nums">
-                      {prescription(exercise)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-
+            {/* A rest day's instructions are the content, so they are not behind a
+                disclosure: there is nothing else on the screen to compete with them. */}
             {restProtocol && (
               <div className="space-y-1">
                 <p className="text-sm font-medium">{restProtocol.name}</p>
@@ -213,57 +193,114 @@ export default async function TodayPage() {
               </div>
             )}
 
-            {plan.suggestedDay.includesLifting ? (
+            {day.includesLifting ? (
               <StartPlannedButton
                 gymId={defaultGym?.id ?? null}
-                programDayId={plan.suggestedDay.id}
-                dayIndex={plan.suggestedDay.dayIndex}
-                label={`Start ${plan.suggestedDay.name}`}
+                programDayId={day.id}
+                dayIndex={day.dayIndex}
+                label={`Start ${day.name}`}
               />
-            ) : plan.nextTrainingDay ? (
-              <StartPlannedButton
-                gymId={defaultGym?.id ?? null}
-                programDayId={plan.nextTrainingDay.id}
-                dayIndex={plan.nextTrainingDay.dayIndex}
-                label={`Start next: ${plan.nextTrainingDay.name}`}
-              />
-            ) : null}
-            {!plan.suggestedDay.includesLifting && (
-              <CompleteRestButton dayIndex={plan.suggestedDay.dayIndex} />
+            ) : (
+              <>
+                <CompleteRestButton dayIndex={day.dayIndex} />
+                {/* Resting is the suggestion, not a rule: the next lifting day stays one
+                    tap away rather than only through "Another day". */}
+                {plan.nextTrainingDay && (
+                  <StartPlannedButton
+                    gymId={defaultGym?.id ?? null}
+                    programDayId={plan.nextTrainingDay.id}
+                    dayIndex={plan.nextTrainingDay.dayIndex}
+                    variant="secondary"
+                    label={`Start next: ${plan.nextTrainingDay.name}`}
+                  />
+                )}
+              </>
             )}
             {defaultGym === null && (
               <p className="text-sm text-ink-muted">
                 Choose a default gym above to start a session.
               </p>
             )}
+          </Card>
+        )}
 
+        {/* The full planned list, in document flow rather than behind the start button. */}
+        {!inProgress && plan && day && plan.suggestedExercises.length > 0 && (
+          <Section
+            title="Planned exercises"
+            action={
+              <span className="text-xs text-ink-muted">{plan.suggestedExercises.length}</span>
+            }
+          >
+            <ul className="border-y border-line ruled-list">
+              {plan.suggestedExercises.map((exercise) => (
+                <li
+                  key={exercise.programExerciseId}
+                  className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2.5"
+                >
+                  <span className="min-w-0 text-sm [overflow-wrap:anywhere]">
+                    {exercise.name}
+                    {exercise.supersetGroup && <span className="text-ink-subtle"> · superset</span>}
+                  </span>
+                  <span className="shrink-0 text-xs text-ink-muted tabular-nums">
+                    {prescription(exercise)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </Section>
+        )}
+
+        {/* Alternate ways in, after the day's own decision rather than beside it. */}
+        {!inProgress && plan && day && (
+          <div className="space-y-2">
             <div className="grid grid-cols-2 gap-2">
               <LinkButton href="/today/choose" variant="secondary" className="w-full">
                 Another day
               </LinkButton>
               <StartAdHocButton gymId={defaultGym?.id ?? null} />
             </div>
-            {plan.suggestedDay.includesLifting && (
-              <SkipSlotButton
-                dayIndex={plan.suggestedDay.dayIndex}
-                dayName={plan.suggestedDay.name}
-              />
-            )}
-
-            <p className="text-center text-xs text-ink-subtle">
-              {plan.progress.completed} done · {plan.progress.skipped} skipped ·{" "}
-              {plan.progress.remaining} to go
-              {plan.projectedEnd ? ` · projected end ${formatIsoDate(plan.projectedEnd)}` : ""}
-            </p>
-          </Card>
+            {/* A rest day is completed, not skipped; only a lifting day can be skipped. */}
+            {!restDay && <SkipSlotButton dayIndex={day.dayIndex} dayName={day.name} />}
+          </div>
         )}
 
-        <Link
-          href="/history"
-          className="mx-auto flex min-h-11 items-center justify-center px-4 text-sm text-ink-subtle underline-offset-2 hover:underline"
-        >
-          Past sessions
-        </Link>
+        {plan && (
+          <Disclosure
+            summary="Programme"
+            meta={`${plan.progress.remaining} to go`}
+            className="border-b-0"
+          >
+            <dl className="space-y-1 text-sm">
+              <div className="flex justify-between gap-3">
+                <dt className="text-ink-muted">Programme</dt>
+                <dd className="text-right">{plan.program.name}</dd>
+              </div>
+              {plan.suggestion && day && (
+                <div className="flex justify-between gap-3">
+                  <dt className="text-ink-muted">Position</dt>
+                  <dd className="text-right tabular-nums">
+                    Cycle {plan.suggestion.slot.cycleIndex} of {plan.program.weeks} · day{" "}
+                    {day.dayIndex}
+                  </dd>
+                </div>
+              )}
+              <div className="flex justify-between gap-3">
+                <dt className="text-ink-muted">Sessions</dt>
+                <dd className="text-right tabular-nums">
+                  {plan.progress.completed} done · {plan.progress.skipped} skipped ·{" "}
+                  {plan.progress.remaining} to go
+                </dd>
+              </div>
+              {plan.projectedEnd && (
+                <div className="flex justify-between gap-3">
+                  <dt className="text-ink-muted">Projected end</dt>
+                  <dd className="text-right tabular-nums">{formatIsoDate(plan.projectedEnd)}</dd>
+                </div>
+              )}
+            </dl>
+          </Disclosure>
+        )}
       </PageContent>
     </>
   );
