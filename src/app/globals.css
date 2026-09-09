@@ -96,6 +96,15 @@
 @utility h-nav {
   height: var(--nav-height);
 }
+/*
+ * A bottom-bar tap target that reaches the physical bottom edge. Pair with pb-safe so
+ * the label still sits above the home indicator: the padding keeps the content box at
+ * --nav-height while the element itself covers the inset too. Without this the bar
+ * looks tappable all the way down but the last ~34px belong to the nav, not the link.
+ */
+@utility h-nav-safe {
+  height: calc(var(--nav-height) + env(safe-area-inset-bottom));
+}
 @utility h-header {
   height: var(--header-height);
 }
