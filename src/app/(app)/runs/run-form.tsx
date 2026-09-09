@@ -2,9 +2,11 @@
 
 import { useActionState, useState } from "react";
 
+import { Disclosure } from "@/components/ui/disclosure";
 import { FormError, SubmitButton } from "@/components/ui/form";
 import { Field, Input, Textarea } from "@/components/ui/input";
 import { NumberField } from "@/components/ui/number-field";
+import { Section } from "@/components/ui/section";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select } from "@/components/ui/select";
 import { formatPace, paceSecondsPerKm } from "@/domain/pace";
@@ -13,6 +15,13 @@ import type { PlannedRunStatus } from "@/server/repositories/runs";
 import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
 
 const RPE = Array.from({ length: 10 }, (_, i) => ({ value: String(i + 1), label: String(i + 1) }));
+
+// "" is outdoor and "on" is treadmill: the same two values the checkbox submitted, so the
+// action's parsing is unchanged while the control now names both modes.
+const MODES: { value: string; label: string }[] = [
+  { value: "", label: "Outdoor" },
+  { value: "on", label: "Treadmill" },
+];
 
 export type RunFormValues = {
   startedAt: string;
@@ -38,6 +47,15 @@ type ShinKey =
   | "shinRightDuring"
   | "shinLeftPost"
   | "shinRightPost";
+
+const SHIN_KEYS: ShinKey[] = [
+  "shinLeftPre",
+  "shinRightPre",
+  "shinLeftDuring",
+  "shinRightDuring",
+  "shinLeftPost",
+  "shinRightPost",
+];
 
 type Props = {
   action: (previous: FormState, formData: FormData) => Promise<FormState>;
@@ -81,137 +99,163 @@ export function RunForm({ action, initial, planned, cycleIndex, runId, submitLab
 
   const totalSeconds = Number(minutes || 0) * 60 + Number(seconds || 0);
   const pace = paceSecondsPerKm(Number(distance.replace(",", ".")) * 1000, totalSeconds);
-  const treadmillChecked = state.values ? state.values.treadmill === "on" : initial.treadmill;
+  const shinError = SHIN_KEYS.some((key) => state.fieldErrors?.[key]);
+  const hasShinReading = SHIN_KEYS.some((key) => shin[key].trim() !== "");
 
   return (
-    <form action={formAction} className="space-y-5">
-      <Field label="When" error={state.fieldErrors?.startedAt}>
-        <Input name="startedAt" type="datetime-local" defaultValue={value("startedAt")} required />
-      </Field>
-
-      <label className="flex min-h-11 items-center gap-3 text-sm">
-        <input
-          type="checkbox"
-          name="treadmill"
-          defaultChecked={treadmillChecked}
-          className="size-6 accent-accent"
-        />
-        Treadmill run
-      </label>
-
-      <div className="grid grid-cols-3 gap-2">
-        <Field label="Distance km" error={state.fieldErrors?.distanceKm}>
+    <form action={formAction} className="space-y-[var(--section-gap)]">
+      <Section title="The run">
+        <Field label="When" error={state.fieldErrors?.startedAt}>
           <Input
-            name="distanceKm"
-            inputMode="decimal"
-            value={distance}
-            onChange={(event) => setDistance(event.target.value)}
-            placeholder="4.2"
+            name="startedAt"
+            type="datetime-local"
+            defaultValue={value("startedAt")}
+            required
           />
         </Field>
-        <Field label="Minutes" error={state.fieldErrors?.durationMinutes}>
-          <Input
-            name="durationMinutes"
-            inputMode="numeric"
-            value={minutes}
-            onChange={(event) => setMinutes(event.target.value)}
-            placeholder="25"
-          />
-        </Field>
-        <Field label="Seconds" error={state.fieldErrors?.durationSeconds}>
-          <Input
-            name="durationSeconds"
-            inputMode="numeric"
-            value={seconds}
-            onChange={(event) => setSeconds(event.target.value)}
-            placeholder="0"
-          />
-        </Field>
-      </div>
-      <p className="text-sm text-ink-muted tabular-nums">
-        Pace {formatPace(pace)} /km{pace === null ? " (fill distance and time)" : ""}
-      </p>
 
-      <Field
-        label="Planned run"
-        hint="Links the run to the programme week"
-        error={state.fieldErrors?.programRunId}
+        <Field label="Where">
+          <SegmentedControl
+            name="treadmill"
+            aria-label="Run mode"
+            options={MODES}
+            defaultValue={value("treadmill")}
+            columns={2}
+          />
+        </Field>
+
+        {/* Units are on the labels, once; the fields themselves are only numbers. */}
+        <div className="grid grid-cols-3 gap-2">
+          <Field label="Distance km" error={state.fieldErrors?.distanceKm}>
+            <Input
+              name="distanceKm"
+              inputMode="decimal"
+              value={distance}
+              onChange={(event) => setDistance(event.target.value)}
+              placeholder="4.2"
+            />
+          </Field>
+          <Field label="Minutes" error={state.fieldErrors?.durationMinutes}>
+            <Input
+              name="durationMinutes"
+              inputMode="numeric"
+              value={minutes}
+              onChange={(event) => setMinutes(event.target.value)}
+              placeholder="25"
+            />
+          </Field>
+          <Field label="Seconds" error={state.fieldErrors?.durationSeconds}>
+            <Input
+              name="durationSeconds"
+              inputMode="numeric"
+              value={seconds}
+              onChange={(event) => setSeconds(event.target.value)}
+              placeholder="0"
+            />
+          </Field>
+        </div>
+        <p role="status" className="text-sm text-ink-muted tabular-nums">
+          Pace {formatPace(pace)} /km{pace === null ? " (fill distance and time)" : ""}
+        </p>
+      </Section>
+
+      <Section title="Effort and plan">
+        <Field label="RPE" hint="Optional; the plan asks for 3–4" error={state.fieldErrors?.rpe}>
+          <SegmentedControl name="rpe" options={RPE} defaultValue={value("rpe")} columns={5} />
+        </Field>
+
+        <Field
+          label="Planned run"
+          hint="Links the run to the programme week"
+          error={state.fieldErrors?.programRunId}
+        >
+          <Select name="programRunId" defaultValue={value("programRunId")}>
+            <option value="">Unplanned run</option>
+            {planned.map((run) => (
+              <option key={run.id} value={run.id}>
+                {plannedRunLabel(run)}
+                {/* The run being edited keeps its own link; it is not "already taken". */}
+                {run.loggedRunId && run.loggedRunId !== runId ? " (already logged)" : ""}
+              </option>
+            ))}
+          </Select>
+          {cycleIndex === null && (
+            <p className="text-xs text-ink-subtle">No active programme; runs stay unplanned.</p>
+          )}
+        </Field>
+      </Section>
+
+      {/*
+        Six optional readings, folded away by default. It opens on its own when one of them
+        is invalid or already filled in, so a rejected value is never hidden behind a summary
+        the user has no reason to open.
+      */}
+      <Disclosure
+        summary="Shin readings"
+        meta="0–10, optional"
+        defaultOpen={shinError || hasShinReading}
       >
-        <Select name="programRunId" defaultValue={value("programRunId")}>
-          <option value="">Unplanned run</option>
-          {planned.map((run) => (
-            <option key={run.id} value={run.id}>
-              {plannedRunLabel(run)}
-              {run.loggedRunId && run.loggedRunId !== runId ? " (already logged)" : ""}
-            </option>
+        <div className="space-y-2">
+          {(
+            [
+              ["Left", "shinLeftPre", "shinLeftDuring", "shinLeftPost"],
+              ["Right", "shinRightPre", "shinRightDuring", "shinRightPost"],
+            ] as const
+          ).map(([side, before, during, after]) => (
+            <div key={side} className="grid grid-cols-[2.5rem_1fr_1fr_1fr] items-end gap-2">
+              <span className="pb-3.5 text-sm">{side}</span>
+              <NumberField
+                label="Before"
+                value={shin[before]}
+                onChange={(next) => setShin((current) => ({ ...current, [before]: next }))}
+                step={1}
+                max={10}
+                inputMode="numeric"
+              />
+              <NumberField
+                label="During"
+                value={shin[during]}
+                onChange={(next) => setShin((current) => ({ ...current, [during]: next }))}
+                step={1}
+                max={10}
+                inputMode="numeric"
+              />
+              <NumberField
+                label="After"
+                value={shin[after]}
+                onChange={(next) => setShin((current) => ({ ...current, [after]: next }))}
+                step={1}
+                max={10}
+                inputMode="numeric"
+              />
+            </div>
           ))}
-        </Select>
-        {cycleIndex === null && (
-          <p className="text-xs text-ink-subtle">No active programme; runs stay unplanned.</p>
-        )}
-      </Field>
+          {SHIN_KEYS.map((key) => (
+            <input key={key} type="hidden" name={key} value={shin[key]} />
+          ))}
+          {shinError && (
+            <p role="alert" className="text-sm text-danger">
+              Shin scores are whole numbers from 0 to 10.
+            </p>
+          )}
+        </div>
+      </Disclosure>
 
-      <Field label="RPE" hint="Optional; the plan asks for 3–4" error={state.fieldErrors?.rpe}>
-        <SegmentedControl name="rpe" options={RPE} defaultValue={value("rpe")} columns={5} />
-      </Field>
+      <Section title="Notes">
+        <Field label="Notes" hint="Optional" error={state.fieldErrors?.notes}>
+          <Textarea
+            name="notes"
+            defaultValue={value("notes")}
+            maxLength={1000}
+            placeholder="Route, surface, how it felt…"
+          />
+        </Field>
+      </Section>
 
       <div className="space-y-2">
-        <p className="text-sm font-medium text-ink-muted">Shins 0–10, optional</p>
-        {(
-          [
-            ["Left", "shinLeftPre", "shinLeftDuring", "shinLeftPost"],
-            ["Right", "shinRightPre", "shinRightDuring", "shinRightPost"],
-          ] as const
-        ).map(([side, before, during, after]) => (
-          <div key={side} className="grid grid-cols-[2.75rem_1fr_1fr_1fr] items-end gap-2">
-            <span className="pb-3.5 text-sm">{side}</span>
-            <NumberField
-              label="Before"
-              value={shin[before]}
-              onChange={(next) => setShin((current) => ({ ...current, [before]: next }))}
-              step={1}
-              max={10}
-              inputMode="numeric"
-            />
-            <NumberField
-              label="During"
-              value={shin[during]}
-              onChange={(next) => setShin((current) => ({ ...current, [during]: next }))}
-              step={1}
-              max={10}
-              inputMode="numeric"
-            />
-            <NumberField
-              label="After"
-              value={shin[after]}
-              onChange={(next) => setShin((current) => ({ ...current, [after]: next }))}
-              step={1}
-              max={10}
-              inputMode="numeric"
-            />
-          </div>
-        ))}
-        {(Object.keys(shin) as ShinKey[]).map((key) => (
-          <input key={key} type="hidden" name={key} value={shin[key]} />
-        ))}
-        {(Object.keys(shin) as ShinKey[]).some((key) => state.fieldErrors?.[key]) && (
-          <p role="alert" className="text-sm text-danger">
-            Shin scores are whole numbers from 0 to 10.
-          </p>
-        )}
+        <FormError message={state.formError} />
+        <SubmitButton pendingLabel="Saving…">{submitLabel}</SubmitButton>
       </div>
-
-      <Field label="Notes" hint="Optional" error={state.fieldErrors?.notes}>
-        <Textarea
-          name="notes"
-          defaultValue={value("notes")}
-          maxLength={1000}
-          placeholder="Route, surface, how it felt…"
-        />
-      </Field>
-
-      <FormError message={state.formError} />
-      <SubmitButton pendingLabel="Saving…">{submitLabel}</SubmitButton>
     </form>
   );
 }

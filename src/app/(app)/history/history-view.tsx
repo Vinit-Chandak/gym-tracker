@@ -2,13 +2,15 @@
 
 import { useMemo, useState } from "react";
 import type { Route } from "next";
+
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Disclosure } from "@/components/ui/disclosure";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Field } from "@/components/ui/input";
 import { LinkRow, List } from "@/components/ui/link-row";
 import { Select } from "@/components/ui/select";
-import { Field } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { ChevronDown, SlidersHorizontal } from "lucide-react";
+import { CalendarDays } from "lucide-react";
 
 export type HistoryItem = {
   id: string;
@@ -23,6 +25,28 @@ export type HistoryItem = {
   recovery?: string;
 };
 
+type Filters = { kind: string; gym: string; exercise: string; machine: string };
+
+const EMPTY: Filters = { kind: "all", gym: "", exercise: "", machine: "" };
+
+const FILTER_PARAMS: Record<keyof Filters, string> = {
+  kind: "kind",
+  gym: "gym",
+  exercise: "exercise",
+  machine: "machine",
+};
+
+function fromSearch(): Filters {
+  if (typeof window === "undefined") return EMPTY;
+  const params = new URLSearchParams(window.location.search);
+  return {
+    kind: params.get(FILTER_PARAMS.kind) ?? EMPTY.kind,
+    gym: params.get(FILTER_PARAMS.gym) ?? EMPTY.gym,
+    exercise: params.get(FILTER_PARAMS.exercise) ?? EMPTY.exercise,
+    machine: params.get(FILTER_PARAMS.machine) ?? EMPTY.machine,
+  };
+}
+
 export function HistoryView({
   items,
   gyms,
@@ -30,10 +54,22 @@ export function HistoryView({
   items: HistoryItem[];
   gyms: { id: string; name: string }[];
 }) {
-  const [kind, setKind] = useState("all"),
-    [gym, setGym] = useState(""),
-    [exercise, setExercise] = useState(""),
-    [machine, setMachine] = useState("");
+  // Filtering happens on data the page already has, so it stays local and immediate. The
+  // URL is updated through the History API purely so that coming back from an entry
+  // restores the same view, without that costing a fetch on every change.
+  const [filters, setFilters] = useState<Filters>(fromSearch);
+
+  const apply = (next: Filters) => {
+    setFilters(next);
+    const params = new URLSearchParams(window.location.search);
+    for (const [key, param] of Object.entries(FILTER_PARAMS) as [keyof Filters, string][]) {
+      if (next[key] && next[key] !== EMPTY[key]) params.set(param, next[key]);
+      else params.delete(param);
+    }
+    const query = params.toString();
+    window.history.replaceState(null, "", query ? `?${query}` : window.location.pathname);
+  };
+
   const choices = useMemo(
     () =>
       [
@@ -49,49 +85,42 @@ export function HistoryView({
     () => [
       ...new Map(
         items
-          .filter((item) => !gym || item.gymId === gym)
+          .filter((item) => !filters.gym || item.gymId === filters.gym)
           .flatMap((item) =>
             item.exercises
-              .filter((e) => (!exercise || e.id === exercise) && e.machineId)
+              .filter((e) => (!filters.exercise || e.id === filters.exercise) && e.machineId)
               .map((e) => [e.machineId!, { id: e.machineId!, name: e.machineName! }] as const),
           ),
       ).values(),
     ],
-    [items, gym, exercise],
+    [items, filters.gym, filters.exercise],
   );
+
   const shown = items.filter(
     (item) =>
-      (kind === "all" || item.kind === kind) &&
-      (!gym || item.gymId === gym) &&
-      ((!exercise && !machine) ||
+      (filters.kind === "all" || item.kind === filters.kind) &&
+      (!filters.gym || item.gymId === filters.gym) &&
+      ((!filters.exercise && !filters.machine) ||
         item.exercises.some(
-          (e) => (!exercise || e.id === exercise) && (!machine || e.machineId === machine),
+          (e) =>
+            (!filters.exercise || e.id === filters.exercise) &&
+            (!filters.machine || e.machineId === filters.machine),
         )),
   );
+  const active = (Object.keys(EMPTY) as (keyof Filters)[]).filter(
+    (key) => filters[key] !== EMPTY[key],
+  ).length;
+
   return (
     <div className="space-y-4">
-      <details className="group border-b border-line/60 pb-2">
-        <summary className="flex min-h-11 items-center gap-2 text-sm font-medium">
-          <SlidersHorizontal className="size-4 text-ink-muted" aria-hidden />
-          Filters
-          {[kind !== "all", Boolean(gym), Boolean(exercise), Boolean(machine)].filter(Boolean)
-            .length > 0 && (
-            <Badge tone="accent">
-              {
-                [kind !== "all", Boolean(gym), Boolean(exercise), Boolean(machine)].filter(Boolean)
-                  .length
-              }{" "}
-              active
-            </Badge>
-          )}
-          <ChevronDown
-            className="ml-auto size-4 text-ink-muted transition-transform group-open:rotate-180"
-            aria-hidden
-          />
-        </summary>
-        <div className="grid gap-3 py-3 sm:grid-cols-2">
+      {/* One place for the filters, collapsed. The chips are not repeated above the list. */}
+      <Disclosure summary="Filters" meta={active > 0 ? `${active} active` : undefined}>
+        <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Activity">
-            <Select value={kind} onChange={(e) => setKind(e.target.value)}>
+            <Select
+              value={filters.kind}
+              onChange={(e) => apply({ ...filters, kind: e.target.value })}
+            >
               <option value="all">All activity</option>
               <option value="workout">Workouts</option>
               <option value="run">Runs</option>
@@ -100,11 +129,8 @@ export function HistoryView({
           </Field>
           <Field label="Gym">
             <Select
-              value={gym}
-              onChange={(e) => {
-                setGym(e.target.value);
-                setMachine("");
-              }}
+              value={filters.gym}
+              onChange={(e) => apply({ ...filters, gym: e.target.value, machine: "" })}
             >
               <option value="">All gyms</option>
               {gyms.map((g) => (
@@ -116,11 +142,8 @@ export function HistoryView({
           </Field>
           <Field label="Exercise">
             <Select
-              value={exercise}
-              onChange={(e) => {
-                setExercise(e.target.value);
-                setMachine("");
-              }}
+              value={filters.exercise}
+              onChange={(e) => apply({ ...filters, exercise: e.target.value, machine: "" })}
             >
               <option value="">All exercises</option>
               {choices.map((e) => (
@@ -130,8 +153,12 @@ export function HistoryView({
               ))}
             </Select>
           </Field>
+          {/* The machine list depends on the gym and exercise above it. */}
           <Field label="Machine">
-            <Select value={machine} onChange={(e) => setMachine(e.target.value)}>
+            <Select
+              value={filters.machine}
+              onChange={(e) => apply({ ...filters, machine: e.target.value })}
+            >
               <option value="">All machines</option>
               {machines.map((m) => (
                 <option key={m.id} value={m.id}>
@@ -141,22 +168,17 @@ export function HistoryView({
             </Select>
           </Field>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => {
-            setKind("all");
-            setGym("");
-            setExercise("");
-            setMachine("");
-          }}
-        >
-          Clear filters
-        </Button>
-      </details>
-      <p role="status" className="px-1 text-xs text-ink-muted">
+        {active > 0 && (
+          <Button variant="ghost" size="sm" className="mt-2" onClick={() => apply(EMPTY)}>
+            Clear filters
+          </Button>
+        )}
+      </Disclosure>
+
+      <p role="status" className="text-xs text-ink-muted">
         {shown.length} {shown.length === 1 ? "entry" : "entries"}
       </p>
+
       {shown.length ? (
         <List>
           {shown.map((item) => (
@@ -170,25 +192,30 @@ export function HistoryView({
                   badge={<Badge>{item.kind === "run" ? "Run" : "Workout"}</Badge>}
                 />
               ) : (
-                <div className="space-y-1 px-4 py-3">
-                  <p className="font-medium">
+                <div className="space-y-1 py-3">
+                  <p className="flex flex-wrap items-center gap-2 font-medium">
                     {item.title} <Badge>Recovery</Badge>
                   </p>
                   <p className="text-sm text-ink-muted">{item.subtitle}</p>
                 </div>
               )}
-              {item.recovery && <p className="px-4 pb-3 text-xs text-ink-muted">{item.recovery}</p>}
+              {item.recovery && <p className="pb-3 text-xs text-ink-muted">{item.recovery}</p>}
             </li>
           ))}
         </List>
       ) : (
-        <Card>
-          <p className="font-medium">No matching activity</p>
-          <p className="text-sm text-ink-muted">
-            Finished workouts, runs and recovery readings appear here. Try a wider date range or
-            clear the filters.
-          </p>
-        </Card>
+        <EmptyState
+          icon={CalendarDays}
+          title="No matching activity"
+          description="Finished workouts, runs and recovery readings appear here. Try a wider date range or clear the filters."
+          action={
+            active > 0 ? (
+              <Button variant="secondary" size="sm" onClick={() => apply(EMPTY)}>
+                Clear filters
+              </Button>
+            ) : undefined
+          }
+        />
       )}
     </div>
   );

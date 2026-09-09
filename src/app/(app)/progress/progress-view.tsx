@@ -1,15 +1,16 @@
 "use client";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import type { Route } from "next";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { BodyMap } from "@/components/ui/body-map";
 import { Chart, SERIES_COLORS, type ChartSeries } from "@/components/ui/chart";
 import { Field } from "@/components/ui/input";
+import { Section } from "@/components/ui/section";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select } from "@/components/ui/select";
 import { Tabs } from "@/components/ui/tabs";
@@ -18,6 +19,19 @@ import type { MuscleVolume } from "@/domain/muscle-volume";
 import type { MuscleGroup } from "@/domain/types";
 import { formatDateRange, formatMinutes } from "@/lib/format";
 import { LOAD_UNIT_LABELS, MUSCLE_LABELS } from "@/lib/labels";
+
+/**
+ * The body map carries an anatomical outline and every muscle region as path data, and only
+ * one of five sections ever shows it. Loading it on demand keeps that weight out of the
+ * bundle for the four sections that do not.
+ */
+const BodyMap = dynamic(() => import("@/components/ui/body-map").then((m) => m.BodyMap), {
+  loading: () => (
+    <p role="status" className="py-8 text-center text-sm text-ink-muted">
+      Loading the body map…
+    </p>
+  ),
+});
 
 export type SeriesOption = {
   id: string;
@@ -99,9 +113,7 @@ function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0 py-1 text-center">
       <dt className="text-xs text-ink-muted">{label}</dt>
-      <dd className="mt-1 text-xl leading-tight font-semibold tracking-tight tabular-nums">
-        {value}
-      </dd>
+      <dd className="mt-1 text-xl tabular-nums">{value}</dd>
     </div>
   );
 }
@@ -124,7 +136,7 @@ function Headline({
   const better = lowerIsBetter ? delta < 0 : delta > 0;
   return (
     <p className="flex items-baseline gap-2">
-      <span className="text-xl font-semibold tabular-nums">
+      <span className="text-lg font-medium tabular-nums">
         {Math.round(last * 10) / 10}
         <span className="ml-1 text-sm font-normal text-ink-muted">{unit}</span>
       </span>
@@ -185,15 +197,22 @@ export function ProgressView({
     startTransition(() => router.replace(`/progress?${next}` as Route, { scroll: false }));
   };
 
-  const grouped = useMemo(() => {
+  /**
+   * One exercise can have been done on several machines, and each is its own series
+   * because the loads are not comparable. Two controls rather than one nested list: pick
+   * the exercise, then the machine, but the value that travels is still the series id.
+   */
+  const byExercise = useMemo(() => {
     const map = new Map<string, SeriesOption[]>();
     for (const option of options) {
       const group = map.get(option.name) ?? [];
       group.push(option);
       map.set(option.name, group);
     }
-    return [...map.entries()];
+    return map;
   }, [options]);
+  const exerciseNames = [...byExercise.keys()];
+  const machinesForExercise = selected ? (byExercise.get(selected.name) ?? []) : [];
 
   const weekDates = weeks.map((w) => w.date);
   const asPoints = (pick: (w: Week) => number): Point[] =>
@@ -201,18 +220,6 @@ export function ProgressView({
 
   return (
     <div className="page-stack">
-      <dl className="grid grid-cols-3 divide-x divide-line/70 py-1">
-        <Stat label="Workouts" value={String(summary.workouts)} />
-        <Stat label="Runs" value={String(summary.runs)} />
-        <Stat label="Active days" value={String(summary.trainingDays)} />
-      </dl>
-
-      {summary.truncated && (
-        <p role="status" className="text-sm text-warning">
-          This range exceeds 500 workouts or runs. Narrow the dates for complete totals.
-        </p>
-      )}
-
       <Tabs
         name="progress-tab"
         label="Progress section"
@@ -221,6 +228,7 @@ export function ProgressView({
         onChange={setTab}
       />
 
+      {/* Only the chosen section is mounted; the controls above it keep their state. */}
       <div
         role="tabpanel"
         id="progress-tab-panel"
@@ -229,17 +237,29 @@ export function ProgressView({
         className="page-stack min-w-0"
       >
         {tab === "overview" && (
-          <div className="grid items-start gap-[var(--section-gap)] md:grid-cols-2">
+          <>
+            <dl className="grid grid-cols-3 divide-x divide-line border-y border-line py-1">
+              <Stat label="Workouts" value={String(summary.workouts)} />
+              <Stat label="Runs" value={String(summary.runs)} />
+              <Stat label="Active days" value={String(summary.trainingDays)} />
+            </dl>
+
+            {summary.truncated && (
+              <p role="status" className="text-sm text-warning">
+                This range exceeds 500 workouts or runs. Narrow the dates for complete totals.
+              </p>
+            )}
+
             {adherence && (
               <Card>
                 <div>
-                  <h2 className="font-semibold">Programme adherence</h2>
+                  <h2 className="text-base font-medium">Programme adherence</h2>
                   <p className="mt-1 text-sm text-ink-muted">{adherence.name}</p>
                 </div>
                 <p className="flex flex-wrap items-baseline gap-x-2 tabular-nums">
-                  <span className="text-xl font-semibold tracking-tight">
+                  <span className="text-lg font-medium">
                     {adherence.completed}
-                    <span className="text-lg font-normal text-ink-muted"> / {adherence.total}</span>
+                    <span className="font-normal text-ink-muted"> / {adherence.total}</span>
                   </span>
                   <span className="text-sm text-ink-muted">sessions complete</span>
                 </p>
@@ -261,9 +281,9 @@ export function ProgressView({
               </Card>
             )}
 
-            <Card>
+            <Section title="Weekly activity">
               <Chart
-                title="Weekly activity"
+                title="Sessions"
                 unit="sessions"
                 series={[
                   {
@@ -276,33 +296,53 @@ export function ProgressView({
                 format={(v) => String(Math.round(v))}
                 note="Tuesday–Monday in your time zone. Range-edge weeks may be partial."
               />
-            </Card>
-          </div>
+            </Section>
+          </>
         )}
 
         {tab === "strength" && (
           <>
-            <Card>
+            <Section title="Exercise">
               <Field label="Exercise">
                 <Select
-                  value={selected?.id ?? ""}
-                  onChange={(e) => chooseSeries(e.target.value)}
+                  value={selected?.name ?? ""}
+                  onChange={(e) => {
+                    const first = byExercise.get(e.target.value)?.[0];
+                    if (first) chooseSeries(first.id);
+                  }}
                   disabled={options.length === 0 || pending}
                 >
                   {options.length === 0 && <option value="">No logged exercises yet</option>}
-                  {/* Grouping by exercise keeps each option short enough to read. */}
-                  {grouped.map(([name, entries]) => (
-                    <optgroup key={name} label={name}>
-                      {entries.map((entry) => (
-                        <option key={entry.id} value={entry.id}>
-                          {entry.machine}
-                          {entry.unit === "kg" ? "" : ` · ${LOAD_UNIT_LABELS[entry.unit]}`}
-                        </option>
-                      ))}
-                    </optgroup>
+                  {exerciseNames.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
                   ))}
                 </Select>
               </Field>
+
+              {/* A second control only when the same exercise has more than one series. */}
+              {machinesForExercise.length > 1 ? (
+                <Field
+                  label="Machine"
+                  hint="Each machine is its own series: loads are not comparable between them."
+                >
+                  <Select
+                    value={selected?.id ?? ""}
+                    onChange={(e) => chooseSeries(e.target.value)}
+                    disabled={pending}
+                  >
+                    {machinesForExercise.map((entry) => (
+                      <option key={entry.id} value={entry.id}>
+                        {entry.machine}
+                        {entry.unit === "kg" ? "" : ` · ${LOAD_UNIT_LABELS[entry.unit]}`}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+              ) : selected ? (
+                <p className="text-sm text-ink-muted">{selected.machine}</p>
+              ) : null}
 
               {selected ? (
                 <>
@@ -353,11 +393,10 @@ export function ProgressView({
                   are kept separate.
                 </p>
               )}
-            </Card>
+            </Section>
 
             {muscles.length > 0 && (
-              <Card>
-                <h2 className="font-semibold">Working sets by muscle</h2>
+              <Section title="Working sets by muscle">
                 <Field label="Primary muscle">
                   <Select
                     value={shownMuscle ?? ""}
@@ -384,13 +423,13 @@ export function ProgressView({
                   format={(v) => String(Math.round(v))}
                   note="Every non-warm-up set counts once for each primary muscle and half for each secondary one."
                 />
-              </Card>
+              </Section>
             )}
           </>
         )}
 
         {tab === "running" && (
-          <Card>
+          <Section title="Running">
             <SegmentedControl
               name="run-metric"
               aria-label="Running measurement"
@@ -426,7 +465,7 @@ export function ProgressView({
                     const mins = Math.floor(v);
                     return `${mins}:${String(Math.round((v - mins) * 60)).padStart(2, "0")}`;
                   }}
-                  note="Lower is faster."
+                  note="Lower is faster. Outdoor and treadmill are shown separately."
                 />
               </>
             ) : (
@@ -447,11 +486,11 @@ export function ProgressView({
                 }
               />
             )}
-          </Card>
+          </Section>
         )}
 
         {tab === "recovery" && (
-          <Card>
+          <Section title="Recovery">
             <SegmentedControl
               name="recovery-metric"
               aria-label="Recovery measurement"
@@ -472,11 +511,12 @@ export function ProgressView({
               ]}
               note="Workout check-ins, daily recovery and after-run shin scores. Missing readings stay blank."
             />
-          </Card>
+          </Section>
         )}
 
         {tab === "body" && (
-          <Card>
+          <Section title="Muscles this week">
+            {/* Body keeps its own week navigation: it is a snapshot, not a trend. */}
             <div className="flex items-center justify-between gap-2">
               <Button
                 variant="ghost"
@@ -503,7 +543,7 @@ export function ProgressView({
             <div className={pending ? "opacity-50 transition-opacity" : undefined}>
               <BodyMap volume={body.volume} totalSets={body.totalSets} />
             </div>
-          </Card>
+          </Section>
         )}
 
         {weekDates.length === 0 && (

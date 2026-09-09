@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
-import { Card } from "@/components/ui/card";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { toDateTimeLocal } from "@/lib/time";
@@ -58,31 +57,29 @@ export default async function EditRunPage(props: PageProps<"/runs/[runId]/edit">
     <>
       <PageHeader title="Edit run" backHref={`/runs/${run.id}`} />
       <PageContent>
-        <Card>
-          <RunForm
-            action={saveRunAction.bind(null, run.id)}
-            initial={{
-              startedAt: toDateTimeLocal(run.startedAt, timeZone),
-              treadmill: run.mode === "treadmill",
-              distanceKm: String(Math.round(run.distanceMeters / 10) / 100),
-              durationMinutes: String(Math.floor(run.durationSeconds / 60)),
-              durationSeconds: String(run.durationSeconds % 60),
-              rpe: str(run.rpe),
-              shinLeftPre: str(run.shinLeftPre),
-              shinRightPre: str(run.shinRightPre),
-              shinLeftDuring: str(run.shinLeftDuring),
-              shinRightDuring: str(run.shinRightDuring),
-              shinLeftPost: str(run.shinLeftPost),
-              shinRightPost: str(run.shinRightPost),
-              programRunId: run.programRunId ?? "",
-              notes: run.notes ?? "",
-            }}
-            planned={planned}
-            cycleIndex={cycle?.cycleIndex ?? null}
-            runId={run.id}
-            submitLabel="Save changes"
-          />
-        </Card>
+        <RunForm
+          action={saveRunAction.bind(null, run.id)}
+          initial={{
+            startedAt: toDateTimeLocal(run.startedAt, timeZone),
+            treadmill: run.mode === "treadmill",
+            distanceKm: String(Math.round(run.distanceMeters / 10) / 100),
+            durationMinutes: String(Math.floor(run.durationSeconds / 60)),
+            durationSeconds: String(run.durationSeconds % 60),
+            rpe: str(run.rpe),
+            shinLeftPre: str(run.shinLeftPre),
+            shinRightPre: str(run.shinRightPre),
+            shinLeftDuring: str(run.shinLeftDuring),
+            shinRightDuring: str(run.shinRightDuring),
+            shinLeftPost: str(run.shinLeftPost),
+            shinRightPost: str(run.shinRightPost),
+            programRunId: run.programRunId ?? "",
+            notes: run.notes ?? "",
+          }}
+          planned={planned}
+          cycleIndex={cycle?.cycleIndex ?? null}
+          runId={run.id}
+          submitLabel="Save changes"
+        />
       </PageContent>
     </>
   );

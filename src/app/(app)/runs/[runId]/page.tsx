@@ -22,9 +22,9 @@ export const metadata: Metadata = { title: "Run" };
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-control bg-surface-raised px-2 py-2 text-center">
+    <div className="min-w-0 border-l border-line px-2 text-center first:border-l-0">
       <dt className="text-xs text-ink-subtle">{label}</dt>
-      <dd className="text-base font-semibold tabular-nums">{value}</dd>
+      <dd className="text-base font-medium tabular-nums">{value}</dd>
     </div>
   );
 }
@@ -54,16 +54,16 @@ export default async function RunPage(props: PageProps<"/runs/[runId]">) {
 
   return (
     <>
-      <PageHeader title="Run" backHref="/runs" />
+      <PageHeader title="Run" context={formatDateTime(run.startedAt, timeZone)} backHref="/runs" />
       <PageContent>
         <Card>
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold">{formatDateTime(run.startedAt, timeZone)}</h2>
+            <h2 className="text-base font-medium">Summary</h2>
             <Badge tone={run.mode === "treadmill" ? "accent" : "neutral"}>
               {RUN_MODE_LABELS[run.mode]}
             </Badge>
           </div>
-          <dl className="grid grid-cols-4 gap-2">
+          <dl className="grid grid-cols-4">
             <Stat label="km" value={String(Math.round(run.distanceMeters / 100) / 10)} />
             <Stat label="Time" value={formatDuration(run.durationSeconds)} />
             <Stat label="/km" value={formatPace(run.averagePaceSecondsPerKm)} />
@@ -83,8 +83,8 @@ export default async function RunPage(props: PageProps<"/runs/[runId]">) {
           )}
           {hasShin && (
             <table className="w-full text-sm tabular-nums">
-              <thead className="text-xs text-ink-subtle">
-                <tr>
+              <thead className="text-xs text-ink-muted">
+                <tr className="border-b border-line">
                   <th className="text-left font-medium">Shins</th>
                   <th className="font-medium">Before</th>
                   <th className="font-medium">During</th>
@@ -92,14 +92,14 @@ export default async function RunPage(props: PageProps<"/runs/[runId]">) {
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  <td>Left</td>
+                <tr className="border-b border-line">
+                  <td className="py-1">Left</td>
                   <td className="text-center">{score(run.shinLeftPre)}</td>
                   <td className="text-center">{score(run.shinLeftDuring)}</td>
                   <td className="text-center">{score(run.shinLeftPost)}</td>
                 </tr>
                 <tr>
-                  <td>Right</td>
+                  <td className="py-1">Right</td>
                   <td className="text-center">{score(run.shinRightPre)}</td>
                   <td className="text-center">{score(run.shinRightDuring)}</td>
                   <td className="text-center">{score(run.shinRightPost)}</td>

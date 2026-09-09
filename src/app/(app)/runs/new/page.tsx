@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
-import { Card } from "@/components/ui/card";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { toDateTimeLocal } from "@/lib/time";
@@ -37,31 +36,29 @@ export default async function NewRunPage() {
     <>
       <PageHeader title="Log a run" backHref="/runs" />
       <PageContent>
-        <Card>
-          <RunForm
-            action={saveRunAction.bind(null, null)}
-            initial={{
-              startedAt: toDateTimeLocal(new Date(), data.timeZone),
-              treadmill: false,
-              distanceKm: "",
-              durationMinutes: "",
-              durationSeconds: "",
-              rpe: "",
-              shinLeftPre: "",
-              shinRightPre: "",
-              shinLeftDuring: "",
-              shinRightDuring: "",
-              shinLeftPost: "",
-              shinRightPost: "",
-              programRunId: nextPlanned?.id ?? "",
-              notes: "",
-            }}
-            planned={planned}
-            cycleIndex={data.cycle?.cycleIndex ?? null}
-            runId={null}
-            submitLabel="Save run"
-          />
-        </Card>
+        <RunForm
+          action={saveRunAction.bind(null, null)}
+          initial={{
+            startedAt: toDateTimeLocal(new Date(), data.timeZone),
+            treadmill: false,
+            distanceKm: "",
+            durationMinutes: "",
+            durationSeconds: "",
+            rpe: "",
+            shinLeftPre: "",
+            shinRightPre: "",
+            shinLeftDuring: "",
+            shinRightDuring: "",
+            shinLeftPost: "",
+            shinRightPost: "",
+            programRunId: nextPlanned?.id ?? "",
+            notes: "",
+          }}
+          planned={planned}
+          cycleIndex={data.cycle?.cycleIndex ?? null}
+          runId={null}
+          submitLabel="Save run"
+        />
       </PageContent>
     </>
   );
