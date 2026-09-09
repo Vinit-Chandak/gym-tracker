@@ -16,7 +16,7 @@ import { RUN_VOLUME_SPIKE_RATIO, SHIN_ESCALATION_RUNS } from "@/domain/running";
 import { formatDay, formatIsoDate } from "@/lib/format";
 import { rangeLabel, RUN_MODE_LABELS, WEEKDAY_SHORT } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
-import { ensureProfile } from "@/server/queries/profile";
+import { getRequestProfile } from "@/server/queries/request-profile";
 import { getRunsOverview } from "@/server/repositories/runs";
 
 export const metadata: Metadata = { title: "Runs" };
@@ -28,8 +28,9 @@ function volumeLine(week: { runs: number; minutes: number; km: number }): string
 
 export default async function RunsPage() {
   const user = await requireUser();
+  const requestProfile = await getRequestProfile(user.id, user.email);
   const { overview, timeZone } = await withUser(getDb(), user.id, async (tx) => {
-    const profile = await ensureProfile(tx, user);
+    const profile = requestProfile;
     return {
       overview: await getRunsOverview(tx, user.id, profile.timeZone),
       timeZone: profile.timeZone,

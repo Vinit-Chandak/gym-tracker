@@ -12,10 +12,11 @@ import { Chart, SERIES_COLORS, type ChartSeries } from "@/components/ui/chart";
 import { Field } from "@/components/ui/input";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select } from "@/components/ui/select";
+import { Tabs } from "@/components/ui/tabs";
 import type { PerformanceSeries, Point } from "@/domain/analytics";
 import type { MuscleVolume } from "@/domain/muscle-volume";
 import type { MuscleGroup } from "@/domain/types";
-import { formatIsoDate, formatMinutes } from "@/lib/format";
+import { formatDateRange, formatMinutes } from "@/lib/format";
 import { LOAD_UNIT_LABELS, MUSCLE_LABELS } from "@/lib/labels";
 
 export type SeriesOption = {
@@ -96,10 +97,12 @@ type RecoveryMetric = (typeof RECOVERY_METRICS)[number]["value"];
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <Card className="gap-0.5 p-3 text-center">
-      <p className="text-2xl font-semibold tabular-nums">{value}</p>
-      <p className="text-xs text-ink-muted">{label}</p>
-    </Card>
+    <div className="min-w-0 py-1 text-center">
+      <dt className="text-xs text-ink-muted">{label}</dt>
+      <dd className="mt-1 text-2xl leading-tight font-semibold tracking-tight tabular-nums">
+        {value}
+      </dd>
+    </div>
   );
 }
 
@@ -197,12 +200,12 @@ export function ProgressView({
     weeks.map((w) => ({ date: w.date, value: pick(w) }));
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-2">
+    <div className="page-stack">
+      <dl className="grid grid-cols-3 divide-x divide-line/70 py-1">
         <Stat label="Workouts" value={String(summary.workouts)} />
         <Stat label="Runs" value={String(summary.runs)} />
         <Stat label="Active days" value={String(summary.trainingDays)} />
-      </div>
+      </dl>
 
       {summary.truncated && (
         <p role="status" className="text-sm text-warning">
@@ -210,295 +213,303 @@ export function ProgressView({
         </p>
       )}
 
-      <SegmentedControl
+      <Tabs
         name="progress-tab"
-        aria-label="Progress section"
+        label="Progress section"
         options={TABS}
         value={tab}
         onChange={setTab}
-        // No column count: five across a phone would cram "Recovery" into 50px of a 66px
-        // label, so the control packs in as many as fit and wraps the rest. A phone gets
-        // three and two; a tablet gets all five on one line.
       />
 
-      {tab === "overview" && (
-        <>
-          {adherence && (
-            <Card>
-              <h2 className="font-semibold">Programme adherence</h2>
-              <p className="text-sm text-ink-muted">{adherence.name}</p>
-              <p className="text-lg font-semibold tabular-nums">
-                {adherence.completed} / {adherence.total} lifting sessions
-              </p>
-              <div
-                className="h-2 w-full overflow-hidden rounded-full bg-surface-raised"
-                role="img"
-                aria-label={`${adherence.completed} of ${adherence.total} sessions complete`}
-              >
+      <div
+        role="tabpanel"
+        id="progress-tab-panel"
+        aria-labelledby={`progress-tab-${tab}-tab`}
+        tabIndex={0}
+        className="page-stack min-w-0"
+      >
+        {tab === "overview" && (
+          <div className="grid items-start gap-[var(--section-gap)] md:grid-cols-2">
+            {adherence && (
+              <Card>
+                <div>
+                  <h2 className="font-semibold">Programme adherence</h2>
+                  <p className="mt-1 text-sm text-ink-muted">{adherence.name}</p>
+                </div>
+                <p className="flex flex-wrap items-baseline gap-x-2 tabular-nums">
+                  <span className="text-2xl font-semibold tracking-tight">
+                    {adherence.completed}
+                    <span className="text-lg font-normal text-ink-muted"> / {adherence.total}</span>
+                  </span>
+                  <span className="text-sm text-ink-muted">sessions complete</span>
+                </p>
                 <div
-                  className="h-full rounded-full bg-accent"
-                  style={{
-                    width: `${Math.round((adherence.completed / Math.max(1, adherence.total)) * 100)}%`,
-                  }}
-                />
-              </div>
-              <p className="text-sm text-ink-muted">
-                {adherence.skipped} skipped · {adherence.remaining} pending
-                {adherence.completionRate !== null
-                  ? ` · ${adherence.completionRate}% of resolved sessions completed`
-                  : ""}
-              </p>
-            </Card>
-          )}
-
-          <Card>
-            <Chart
-              title="Weekly activity"
-              unit="sessions"
-              series={[
-                {
-                  name: "Lifting",
-                  color: SERIES_COLORS.lifting,
-                  points: asPoints((w) => w.workouts),
-                },
-                { name: "Runs", color: SERIES_COLORS.running, points: asPoints((w) => w.runs) },
-              ]}
-              format={(v) => String(Math.round(v))}
-              note="Tuesday–Monday in your time zone. Range-edge weeks may be partial."
-            />
-          </Card>
-        </>
-      )}
-
-      {tab === "strength" && (
-        <>
-          <Card>
-            <Field label="Exercise">
-              <Select
-                value={selected?.id ?? ""}
-                onChange={(e) => chooseSeries(e.target.value)}
-                disabled={options.length === 0 || pending}
-              >
-                {options.length === 0 && <option value="">No logged exercises yet</option>}
-                {/* Grouping by exercise keeps each option short enough to read. */}
-                {grouped.map(([name, entries]) => (
-                  <optgroup key={name} label={name}>
-                    {entries.map((entry) => (
-                      <option key={entry.id} value={entry.id}>
-                        {entry.machine}
-                        {entry.unit === "kg" ? "" : ` · ${LOAD_UNIT_LABELS[entry.unit]}`}
-                      </option>
-                    ))}
-                  </optgroup>
-                ))}
-              </Select>
-            </Field>
-
-            {selected ? (
-              <>
-                <SegmentedControl
-                  name="strength-metric"
-                  aria-label="Strength measurement"
-                  options={STRENGTH_METRICS}
-                  value={metric}
-                  onChange={setMetric}
-                  columns={3}
-                />
-                <div className={pending ? "opacity-50 transition-opacity" : undefined}>
-                  <Headline
-                    points={selected[metric]}
-                    unit={
-                      metric === "reps"
-                        ? "reps"
-                        : metric === "rir"
-                          ? "RIR"
-                          : LOAD_UNIT_LABELS[selected.unit]
-                    }
-                  />
-                  <Chart
-                    title={STRENGTH_METRICS.find((m) => m.value === metric)!.label}
-                    unit={
-                      metric === "reps"
-                        ? "reps"
-                        : metric === "rir"
-                          ? "RIR"
-                          : metric === "volume"
-                            ? `${LOAD_UNIT_LABELS[selected.unit]} × reps`
-                            : LOAD_UNIT_LABELS[selected.unit]
-                    }
-                    series={[
-                      {
-                        name: selected.name,
-                        color: SERIES_COLORS.lifting,
-                        points: selected[metric],
-                      },
-                    ]}
-                    note={`${selected.machine}. Warm-ups excluded; each point is one session.`}
+                  className="h-1.5 w-full overflow-hidden rounded-full bg-surface-raised"
+                  role="img"
+                  aria-label={`${adherence.completed} of ${adherence.total} sessions complete`}
+                >
+                  <div
+                    className="h-full rounded-full bg-accent"
+                    style={{
+                      width: `${Math.round((adherence.completed / Math.max(1, adherence.total)) * 100)}%`,
+                    }}
                   />
                 </div>
-              </>
-            ) : (
-              <p className="text-sm text-ink-muted">
-                Finish a workout with logged sets to see performance trends. Machines and units are
-                kept separate.
-              </p>
+                <p className="text-xs text-ink-muted">
+                  {adherence.remaining} remaining · {adherence.skipped} skipped
+                </p>
+              </Card>
             )}
-          </Card>
 
-          {muscles.length > 0 && (
             <Card>
-              <h2 className="font-semibold">Working sets by muscle</h2>
-              <Field label="Primary muscle">
+              <Chart
+                title="Weekly activity"
+                unit="sessions"
+                series={[
+                  {
+                    name: "Lifting",
+                    color: SERIES_COLORS.lifting,
+                    points: asPoints((w) => w.workouts),
+                  },
+                  { name: "Runs", color: SERIES_COLORS.running, points: asPoints((w) => w.runs) },
+                ]}
+                format={(v) => String(Math.round(v))}
+                note="Tuesday–Monday in your time zone. Range-edge weeks may be partial."
+              />
+            </Card>
+          </div>
+        )}
+
+        {tab === "strength" && (
+          <>
+            <Card>
+              <Field label="Exercise">
                 <Select
-                  value={shownMuscle ?? ""}
-                  onChange={(e) => setMuscle(e.target.value as MuscleGroup)}
+                  value={selected?.id ?? ""}
+                  onChange={(e) => chooseSeries(e.target.value)}
+                  disabled={options.length === 0 || pending}
                 >
-                  {muscles.map((m) => (
-                    <option key={m} value={m}>
-                      {MUSCLE_LABELS[m]}
-                    </option>
+                  {options.length === 0 && <option value="">No logged exercises yet</option>}
+                  {/* Grouping by exercise keeps each option short enough to read. */}
+                  {grouped.map(([name, entries]) => (
+                    <optgroup key={name} label={name}>
+                      {entries.map((entry) => (
+                        <option key={entry.id} value={entry.id}>
+                          {entry.machine}
+                          {entry.unit === "kg" ? "" : ` · ${LOAD_UNIT_LABELS[entry.unit]}`}
+                        </option>
+                      ))}
+                    </optgroup>
                   ))}
                 </Select>
               </Field>
-              <Chart
-                title="Working sets"
-                unit="sets"
-                kind="bar"
-                series={[
-                  {
-                    name: "Sets",
-                    color: SERIES_COLORS.lifting,
-                    points: asPoints((w) => (shownMuscle ? (w.muscles[shownMuscle] ?? 0) : 0)),
-                  },
-                ]}
-                format={(v) => String(Math.round(v))}
-                note="Every non-warm-up set counts once for each primary muscle and half for each secondary one."
-              />
-            </Card>
-          )}
-        </>
-      )}
 
-      {tab === "running" && (
-        <Card>
-          <SegmentedControl
-            name="run-metric"
-            aria-label="Running measurement"
-            options={RUN_METRICS}
-            value={runMetric}
-            onChange={setRunMetric}
-            columns={3}
-          />
-          {runMetric === "pace" ? (
-            <>
-              <SegmentedControl
-                name="pace-mode"
-                aria-label="Pace context"
-                options={[
-                  { value: "outdoor", label: "Outdoor" },
-                  { value: "treadmill", label: "Treadmill" },
-                ]}
-                value={paceMode}
-                onChange={setPaceMode}
-                columns={2}
-              />
+              {selected ? (
+                <>
+                  <SegmentedControl
+                    name="strength-metric"
+                    aria-label="Strength measurement"
+                    options={STRENGTH_METRICS}
+                    value={metric}
+                    onChange={setMetric}
+                    columns={5}
+                  />
+                  <div className={pending ? "opacity-50 transition-opacity" : undefined}>
+                    <Headline
+                      points={selected[metric]}
+                      unit={
+                        metric === "reps"
+                          ? "reps"
+                          : metric === "rir"
+                            ? "RIR"
+                            : LOAD_UNIT_LABELS[selected.unit]
+                      }
+                    />
+                    <Chart
+                      title={STRENGTH_METRICS.find((m) => m.value === metric)!.label}
+                      unit={
+                        metric === "reps"
+                          ? "reps"
+                          : metric === "rir"
+                            ? "RIR"
+                            : metric === "volume"
+                              ? `${LOAD_UNIT_LABELS[selected.unit]} × reps`
+                              : LOAD_UNIT_LABELS[selected.unit]
+                      }
+                      series={[
+                        {
+                          name: selected.name,
+                          color: SERIES_COLORS.lifting,
+                          points: selected[metric],
+                        },
+                      ]}
+                      note={`${selected.machine}. Warm-ups excluded; each point is one session.`}
+                    />
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-ink-muted">
+                  Finish a workout with logged sets to see performance trends. Machines and units
+                  are kept separate.
+                </p>
+              )}
+            </Card>
+
+            {muscles.length > 0 && (
+              <Card>
+                <h2 className="font-semibold">Working sets by muscle</h2>
+                <Field label="Primary muscle">
+                  <Select
+                    value={shownMuscle ?? ""}
+                    onChange={(e) => setMuscle(e.target.value as MuscleGroup)}
+                  >
+                    {muscles.map((m) => (
+                      <option key={m} value={m}>
+                        {MUSCLE_LABELS[m]}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <Chart
+                  title="Working sets"
+                  unit="sets"
+                  kind="bar"
+                  series={[
+                    {
+                      name: "Sets",
+                      color: SERIES_COLORS.lifting,
+                      points: asPoints((w) => (shownMuscle ? (w.muscles[shownMuscle] ?? 0) : 0)),
+                    },
+                  ]}
+                  format={(v) => String(Math.round(v))}
+                  note="Every non-warm-up set counts once for each primary muscle and half for each secondary one."
+                />
+              </Card>
+            )}
+          </>
+        )}
+
+        {tab === "running" && (
+          <Card>
+            <SegmentedControl
+              name="run-metric"
+              aria-label="Running measurement"
+              options={RUN_METRICS}
+              value={runMetric}
+              onChange={setRunMetric}
+              columns={3}
+            />
+            {runMetric === "pace" ? (
+              <>
+                <SegmentedControl
+                  name="pace-mode"
+                  aria-label="Pace context"
+                  options={[
+                    { value: "outdoor", label: "Outdoor" },
+                    { value: "treadmill", label: "Treadmill" },
+                  ]}
+                  value={paceMode}
+                  onChange={setPaceMode}
+                  columns={2}
+                />
+                <Chart
+                  title="Pace"
+                  unit="min/km"
+                  series={[
+                    {
+                      name: "Pace",
+                      color: SERIES_COLORS.running,
+                      points: pace.filter((p) => p.mode === paceMode),
+                    },
+                  ]}
+                  format={(v) => {
+                    const mins = Math.floor(v);
+                    return `${mins}:${String(Math.round((v - mins) * 60)).padStart(2, "0")}`;
+                  }}
+                  note="Lower is faster."
+                />
+              </>
+            ) : (
               <Chart
-                title="Pace"
-                unit="min/km"
+                title={runMetric === "distance" ? "Weekly distance" : "Weekly duration"}
+                unit={runMetric === "distance" ? "km" : "min"}
                 series={[
                   {
-                    name: "Pace",
+                    name: "Runs",
                     color: SERIES_COLORS.running,
-                    points: pace.filter((p) => p.mode === paceMode),
-                  },
+                    points: asPoints((w) => (runMetric === "distance" ? w.runKm : w.runMinutes)),
+                  } satisfies ChartSeries,
                 ]}
-                format={(v) => {
-                  const mins = Math.floor(v);
-                  return `${mins}:${String(Math.round((v - mins) * 60)).padStart(2, "0")}`;
-                }}
-                note="Lower is faster."
+                format={
+                  runMetric === "duration"
+                    ? (v) => (v >= 60 ? formatMinutes(v) : String(Math.round(v)))
+                    : undefined
+                }
               />
-            </>
-          ) : (
+            )}
+          </Card>
+        )}
+
+        {tab === "recovery" && (
+          <Card>
+            <SegmentedControl
+              name="recovery-metric"
+              aria-label="Recovery measurement"
+              options={RECOVERY_METRICS}
+              value={recoveryMetric}
+              onChange={setRecoveryMetric}
+              columns={4}
+            />
             <Chart
-              title={runMetric === "distance" ? "Weekly distance" : "Weekly duration"}
-              unit={runMetric === "distance" ? "km" : "min"}
+              title={RECOVERY_METRICS.find((m) => m.value === recoveryMetric)!.label}
+              unit={recoveryMetric === "sleep" ? "hours" : "0–10"}
               series={[
                 {
-                  name: "Runs",
-                  color: SERIES_COLORS.running,
-                  points: asPoints((w) => (runMetric === "distance" ? w.runKm : w.runMinutes)),
-                } satisfies ChartSeries,
+                  name: "Reading",
+                  color: SERIES_COLORS.lifting,
+                  points: recovery.map((r) => ({ date: r.date, value: r[recoveryMetric] })),
+                },
               ]}
-              format={
-                runMetric === "duration"
-                  ? (v) => (v >= 60 ? formatMinutes(v) : String(Math.round(v)))
-                  : undefined
-              }
+              note="Workout check-ins, daily recovery and after-run shin scores. Missing readings stay blank."
             />
-          )}
-        </Card>
-      )}
+          </Card>
+        )}
 
-      {tab === "recovery" && (
-        <Card>
-          <SegmentedControl
-            name="recovery-metric"
-            aria-label="Recovery measurement"
-            options={RECOVERY_METRICS}
-            value={recoveryMetric}
-            onChange={setRecoveryMetric}
-            columns={4}
-          />
-          <Chart
-            title={RECOVERY_METRICS.find((m) => m.value === recoveryMetric)!.label}
-            unit={recoveryMetric === "sleep" ? "hours" : "0–10"}
-            series={[
-              {
-                name: "Reading",
-                color: SERIES_COLORS.lifting,
-                points: recovery.map((r) => ({ date: r.date, value: r[recoveryMetric] })),
-              },
-            ]}
-            note="Workout check-ins, daily recovery and after-run shin scores. Missing readings stay blank."
-          />
-        </Card>
-      )}
+        {tab === "body" && (
+          <Card>
+            <div className="flex items-center justify-between gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label="Previous week"
+                disabled={pending}
+                onClick={() => stepWeek(-7)}
+              >
+                <ChevronLeft className="size-5" aria-hidden />
+              </Button>
+              <p className="min-w-0 text-center text-sm font-medium">
+                {formatDateRange(body.from, body.to)}
+              </p>
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label="Next week"
+                disabled={pending}
+                onClick={() => stepWeek(7)}
+              >
+                <ChevronRight className="size-5" aria-hidden />
+              </Button>
+            </div>
+            <div className={pending ? "opacity-50 transition-opacity" : undefined}>
+              <BodyMap volume={body.volume} totalSets={body.totalSets} />
+            </div>
+          </Card>
+        )}
 
-      {tab === "body" && (
-        <Card>
-          <div className="flex items-center justify-between gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              aria-label="Previous week"
-              disabled={pending}
-              onClick={() => stepWeek(-7)}
-            >
-              <ChevronLeft className="size-5" aria-hidden />
-            </Button>
-            <p className="min-w-0 text-center text-sm font-medium">
-              {formatIsoDate(body.from)} – {formatIsoDate(body.to)}
-            </p>
-            <Button
-              variant="ghost"
-              size="sm"
-              aria-label="Next week"
-              disabled={pending}
-              onClick={() => stepWeek(7)}
-            >
-              <ChevronRight className="size-5" aria-hidden />
-            </Button>
-          </div>
-          <div className={pending ? "opacity-50 transition-opacity" : undefined}>
-            <BodyMap volume={body.volume} totalSets={body.totalSets} />
-          </div>
-        </Card>
-      )}
-
-      {weekDates.length === 0 && (
-        <p className="text-sm text-ink-muted">No weeks fall inside this range.</p>
-      )}
+        {weekDates.length === 0 && (
+          <p className="text-sm text-ink-muted">No weeks fall inside this range.</p>
+        )}
+      </div>
     </div>
   );
 }

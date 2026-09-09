@@ -16,16 +16,22 @@ export function LinkRow<T extends string>({ href, title, subtitle, badge, meta }
   return (
     <Link
       href={href}
-      className="flex min-h-14 items-center gap-3 px-4 py-3 active:bg-surface-raised"
+      className="flex min-h-14 items-center gap-3 px-[var(--panel-padding)] py-3 transition-colors hover:bg-surface-raised/60 active:bg-surface-raised"
     >
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <p className="truncate font-medium">{title}</p>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <p className="font-medium [overflow-wrap:anywhere]">{title}</p>
           {badge}
         </div>
-        {subtitle && <p className="truncate text-sm text-ink-muted">{subtitle}</p>}
+        {subtitle && (
+          <p className="mt-0.5 text-sm [overflow-wrap:anywhere] text-ink-muted">{subtitle}</p>
+        )}
       </div>
-      {meta && <span className="shrink-0 text-sm text-ink-muted tabular-nums">{meta}</span>}
+      {meta && (
+        <span className="max-w-[32%] shrink-0 text-right text-xs text-ink-muted tabular-nums">
+          {meta}
+        </span>
+      )}
       <ChevronRight className="size-5 shrink-0 text-ink-subtle" aria-hidden />
     </Link>
   );
@@ -33,7 +39,7 @@ export function LinkRow<T extends string>({ href, title, subtitle, badge, meta }
 
 export function List({ children }: { children: ReactNode }) {
   return (
-    <ul className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface">
+    <ul className="min-w-0 divide-y divide-line/60 overflow-hidden rounded-card bg-surface ring-1 ring-line/50 ring-inset">
       {children}
     </ul>
   );

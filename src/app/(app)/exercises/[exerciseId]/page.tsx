@@ -29,7 +29,7 @@ import {
 } from "@/lib/labels";
 import { setPreferredMachineAction } from "@/server/actions/availability";
 import { requireUser } from "@/server/auth";
-import { ensureProfile } from "@/server/queries/profile";
+import { getRequestProfile } from "@/server/queries/request-profile";
 import { recentPerformances } from "@/server/queries/comparable";
 import {
   exerciseAvailability,
@@ -67,13 +67,14 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
   const { exerciseId } = await props.params;
   requireUuid(exerciseId);
   const user = await requireUser();
+  const requestProfile = await getRequestProfile(user.id, user.email);
   const data = await withUser(getDb(), user.id, async (tx) => {
     const exercise = await getExercise(tx, user.id, exerciseId);
     if (!exercise) return null;
     const [availability, performances, profile] = await Promise.all([
       exerciseAvailability(tx, user.id, exerciseId),
       recentPerformances(tx, user.id, exerciseId),
-      ensureProfile(tx, user),
+      requestProfile,
     ]);
     return {
       exercise,

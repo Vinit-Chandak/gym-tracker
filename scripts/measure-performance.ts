@@ -10,6 +10,11 @@ import { listGyms } from "../src/server/repositories/gyms";
 import { getTodayPlan } from "../src/server/repositories/schedule";
 import { getInProgressSession, getSessionDetail } from "../src/server/repositories/sessions";
 import { exerciseAvailability, gymAvailability } from "../src/server/repositories/availability";
+import { readMuscleVolume } from "../src/server/repositories/muscle-volume";
+import { readWorkouts } from "../src/server/repositories/training-data";
+import { parseDateRange } from "../src/server/validation/date-range";
+import { addDays, todayInTimeZone } from "../src/domain/program-calendar";
+import { weekStart } from "../src/domain/running";
 
 async function main() {
   config({ path: ".env.local", quiet: true });
@@ -33,6 +38,8 @@ async function main() {
       .where(eq(schema.profiles.email, process.env.SEED_USER_EMAIL))
       .limit(1);
     if (!user) throw new Error("Account not found.");
+    const from = weekStart(todayInTimeZone(user.timeZone));
+    const week = parseDateRange({ from, to: addDays(from, 6) }, user.timeZone);
     const gyms = await withUser(db, user.id, (tx) => listGyms(tx, user.id));
     const open = await withUser(db, user.id, (tx) => getInProgressSession(tx, user.id));
     const [exercise] = await db
@@ -42,6 +49,15 @@ async function main() {
     const measurements: [string, () => Promise<unknown>][] = [
       ["Today plan", () => withUser(db, user.id, (tx) => getTodayPlan(tx, user.id, user.timeZone))],
       ["Gym list", () => withUser(db, user.id, (tx) => listGyms(tx, user.id))],
+      [
+        "Body map: previous full-record read",
+        () => withUser(db, user.id, (tx) => readWorkouts(tx, user.id, week), { readOnly: true }),
+      ],
+      [
+        "Body map: aggregate",
+        () =>
+          withUser(db, user.id, (tx) => readMuscleVolume(tx, user.id, week), { readOnly: true }),
+      ],
     ];
     const gym = gyms.find((g) => g.isDefault) ?? gyms[0];
     if (gym)
@@ -60,11 +76,24 @@ async function main() {
         () => withUser(db, user.id, (tx) => getSessionDetail(tx, user.id, open.id)),
       ]);
     for (const [name, run] of measurements) {
-      queries = 0;
-      const start = performance.now();
-      await run();
+      const samples: number[] = [];
+      const queryCounts: number[] = [];
+      for (let sample = 0; sample < 3; sample++) {
+        queries = 0;
+        const start = performance.now();
+        await run();
+        samples.push(Math.round(performance.now() - start));
+        queryCounts.push(queries);
+      }
+      samples.sort((a, b) => a - b);
       console.log(
-        JSON.stringify({ name, milliseconds: Math.round(performance.now() - start), queries }),
+        JSON.stringify({
+          name,
+          medianMs: samples[1],
+          minMs: samples[0],
+          maxMs: samples[2],
+          queries: queryCounts,
+        }),
       );
     }
   } finally {

@@ -12,7 +12,7 @@ import { withUser } from "@/db/with-user";
 import { formatDateTime, formatIsoDate } from "@/lib/format";
 import { rangeLabel } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
-import { ensureProfile } from "@/server/queries/profile";
+import { getRequestProfile } from "@/server/queries/request-profile";
 import { listGyms } from "@/server/repositories/gyms";
 import { getTodayPlan, type PlannedExercisePreview } from "@/server/repositories/schedule";
 import { getInProgressSession } from "@/server/repositories/sessions";
@@ -39,8 +39,9 @@ function prescription(e: PlannedExercisePreview): string {
 
 export default async function TodayPage() {
   const user = await requireUser();
+  const requestProfile = await getRequestProfile(user.id, user.email);
   const data = await withUser(getDb(), user.id, async (tx) => {
-    const profile = await ensureProfile(tx, user);
+    const profile = requestProfile;
     const [gyms, inProgress, plan] = await Promise.all([
       listGyms(tx, user.id),
       getInProgressSession(tx, user.id),
@@ -67,7 +68,7 @@ export default async function TodayPage() {
   return (
     <>
       <PageHeader title="Today" />
-      <PageContent>
+      <PageContent className="max-w-3xl">
         {activeGyms.length === 0 ? (
           <Card>
             <h2 className="text-lg font-semibold">Add a gym to start training</h2>
@@ -155,7 +156,7 @@ export default async function TodayPage() {
             )}
 
             {plan.runTarget && (
-              <div className="rounded-control border border-line px-3 py-2 text-sm">
+              <div className="border-l-2 border-accent/50 py-1 pl-3 text-sm">
                 <p className="font-medium">
                   Easy run:{" "}
                   {rangeLabel(
@@ -190,9 +191,9 @@ export default async function TodayPage() {
                 {plan.suggestedExercises.map((exercise) => (
                   <li
                     key={exercise.programExerciseId}
-                    className="flex items-center justify-between gap-3 py-2"
+                    className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2.5"
                   >
-                    <span className="min-w-0 truncate text-sm">
+                    <span className="min-w-0 text-sm">
                       {exercise.name}
                       {exercise.supersetGroup && (
                         <span className="text-ink-subtle"> · superset</span>

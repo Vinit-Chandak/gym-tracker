@@ -36,16 +36,16 @@ export function GymSwitcher({ gyms }: { gyms: SwitcherGym[] }) {
     <>
       <section
         aria-label="Current gym"
-        className="flex items-center justify-between gap-3 rounded-card border border-line bg-surface px-4 py-3"
+        className="flex items-center justify-between gap-3 border-b border-line/60 pb-3"
       >
         <div className="min-w-0">
-          <p className="text-xs font-medium tracking-wide text-ink-subtle uppercase">Gym</p>
+          <p className="text-xs text-ink-muted">Training at</p>
           <p className="truncate text-base font-medium">
             {current ? current.name : gyms.length > 0 ? "No default gym" : "No gyms yet"}
           </p>
         </div>
         {gyms.length > 0 ? (
-          <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
+          <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
             Change
           </Button>
         ) : (

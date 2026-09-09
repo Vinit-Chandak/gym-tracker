@@ -33,6 +33,20 @@ export function formatIsoDate(isoDate: string): string {
   }).format(new Date(Date.UTC(y, m - 1, d)));
 }
 
+/** Compact date range, retaining both years when it crosses a year boundary. */
+export function formatDateRange(from: string, to: string): string {
+  const format = (date: string, year: boolean) =>
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: "UTC",
+      day: "numeric",
+      month: "short",
+      ...(year ? { year: "numeric" as const } : {}),
+    }).format(new Date(`${date}T00:00:00Z`));
+  return from === to
+    ? format(to, true)
+    : `${format(from, from.slice(0, 4) !== to.slice(0, 4))} – ${format(to, true)}`;
+}
+
 /** "1 h 12 min" / "48 min". */
 export function formatMinutes(totalMinutes: number): string {
   const hours = Math.floor(totalMinutes / 60);

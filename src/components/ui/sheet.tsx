@@ -31,7 +31,7 @@ export function Sheet({ open, onClose, title, children }: SheetProps) {
         if (event.target === ref.current) onClose();
       }}
     >
-      <div className="rounded-t-card border border-line bg-surface p-4 pb-safe">
+      <div className="rounded-t-card border border-line bg-surface panel-padding pb-[max(var(--panel-padding),env(safe-area-inset-bottom))]">
         <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-line-strong" aria-hidden />
         <h2 className="mb-3 text-lg font-semibold">{title}</h2>
         <div className="max-h-[70dvh] overflow-y-auto">{children}</div>

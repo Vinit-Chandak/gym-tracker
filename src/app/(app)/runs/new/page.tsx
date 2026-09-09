@@ -8,7 +8,7 @@ import { withUser } from "@/db/with-user";
 import { toDateTimeLocal } from "@/lib/time";
 import { saveRunAction } from "@/server/actions/runs";
 import { requireUser } from "@/server/auth";
-import { ensureProfile } from "@/server/queries/profile";
+import { getRequestProfile } from "@/server/queries/request-profile";
 import { listRuns, plannedRunsForCurrentCycle } from "@/server/repositories/runs";
 
 import { RunForm } from "../run-form";
@@ -17,8 +17,9 @@ export const metadata: Metadata = { title: "Log a run" };
 
 export default async function NewRunPage() {
   const user = await requireUser();
+  const requestProfile = await getRequestProfile(user.id, user.email);
   const data = await withUser(getDb(), user.id, async (tx) => {
-    const profile = await ensureProfile(tx, user);
+    const profile = requestProfile;
     const logged = await listRuns(tx, user.id, 200);
     return {
       timeZone: profile.timeZone,

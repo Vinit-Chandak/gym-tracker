@@ -2,13 +2,12 @@ import type { Metadata } from "next";
 import { DateRangeForm } from "@/components/date-range-form";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
-import { Card } from "@/components/ui/card";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { formatDuration, formatPace } from "@/domain/pace";
 import { formatDateTime } from "@/lib/format";
 import { requireUser } from "@/server/auth";
-import { ensureProfile } from "@/server/queries/profile";
+import { getRequestProfile } from "@/server/queries/request-profile";
 import { listGyms } from "@/server/repositories/gyms";
 import { readTrainingData } from "@/server/repositories/training-data";
 import { parseDateRangeOrDefault } from "@/server/validation/date-range";
@@ -24,7 +23,7 @@ function readings(values: [string, number | null][]) {
 export default async function HistoryPage(props: PageProps<"/history">) {
   const user = await requireUser(),
     params = await props.searchParams;
-  const profile = await withUser(getDb(), user.id, (tx) => ensureProfile(tx, user));
+  const profile = await getRequestProfile(user.id, user.email);
   const { range, error: rangeError } = parseDateRangeOrDefault(
     {
       from: typeof params.from === "string" ? params.from : undefined,
@@ -100,14 +99,12 @@ export default async function HistoryPage(props: PageProps<"/history">) {
     <>
       <PageHeader title="History" />
       <PageContent>
-        <Card>
-          {rangeError && (
-            <p role="alert" className="text-sm text-danger">
-              {rangeError}
-            </p>
-          )}
-          <DateRangeForm from={range.from} to={range.to} />
-        </Card>
+        {rangeError && (
+          <p role="alert" className="text-sm text-danger">
+            {rangeError}
+          </p>
+        )}
+        <DateRangeForm from={range.from} to={range.to} />
         {data.training.truncated && (
           <p role="status" className="text-sm text-warning">
             Showing the newest 500 workouts and runs. Narrow the dates to see every entry.

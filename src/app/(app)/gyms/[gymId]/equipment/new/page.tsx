@@ -9,7 +9,7 @@ import { withUser } from "@/db/with-user";
 import { createEquipmentAction } from "@/server/actions/equipment";
 import { requireUser } from "@/server/auth";
 import { listEquipmentTypes } from "@/server/repositories/equipment";
-import { ensureProfile } from "@/server/queries/profile";
+import { getRequestProfile } from "@/server/queries/request-profile";
 import { getGym } from "@/server/repositories/gyms";
 import { requireUuid } from "@/server/validation/params";
 
@@ -21,10 +21,11 @@ export default async function NewEquipmentPage(props: PageProps<"/gyms/[gymId]/e
   const { gymId } = await props.params;
   requireUuid(gymId);
   const user = await requireUser();
+  const requestProfile = await getRequestProfile(user.id, user.email);
   const data = await withUser(getDb(), user.id, async (tx) => {
     const gym = await getGym(tx, user.id, gymId);
     if (!gym) return null;
-    const profile = await ensureProfile(tx, user);
+    const profile = requestProfile;
     return {
       gym,
       types: await listEquipmentTypes(tx),

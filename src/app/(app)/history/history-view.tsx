@@ -7,6 +7,8 @@ import { LinkRow, List } from "@/components/ui/link-row";
 import { Select } from "@/components/ui/select";
 import { Field } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ChevronDown, SlidersHorizontal } from "lucide-react";
 
 export type HistoryItem = {
   id: string;
@@ -68,10 +70,26 @@ export function HistoryView({
   );
   return (
     <div className="space-y-4">
-      <Card>
-        {/* One filter per row: gym, exercise and machine names are long enough that a
-            half-width native select clips them mid-word, with no ellipsis to warn you. */}
-        <div className="space-y-3">
+      <details className="group border-b border-line/60 pb-2">
+        <summary className="flex min-h-11 items-center gap-2 text-sm font-medium">
+          <SlidersHorizontal className="size-4 text-ink-muted" aria-hidden />
+          Filters
+          {[kind !== "all", Boolean(gym), Boolean(exercise), Boolean(machine)].filter(Boolean)
+            .length > 0 && (
+            <Badge tone="accent">
+              {
+                [kind !== "all", Boolean(gym), Boolean(exercise), Boolean(machine)].filter(Boolean)
+                  .length
+              }{" "}
+              active
+            </Badge>
+          )}
+          <ChevronDown
+            className="ml-auto size-4 text-ink-muted transition-transform group-open:rotate-180"
+            aria-hidden
+          />
+        </summary>
+        <div className="grid gap-3 py-3 sm:grid-cols-2">
           <Field label="Activity">
             <Select value={kind} onChange={(e) => setKind(e.target.value)}>
               <option value="all">All activity</option>
@@ -123,7 +141,19 @@ export function HistoryView({
             </Select>
           </Field>
         </div>
-      </Card>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            setKind("all");
+            setGym("");
+            setExercise("");
+            setMachine("");
+          }}
+        >
+          Clear filters
+        </Button>
+      </details>
       <p role="status" className="px-1 text-xs text-ink-muted">
         {shown.length} {shown.length === 1 ? "entry" : "entries"}
       </p>

@@ -16,7 +16,7 @@ export function PasswordCard() {
   const [state, formAction] = useActionState(updatePasswordAction, INITIAL);
 
   return (
-    <Card>
+    <Card variant="plain">
       <h2 className="text-base font-semibold">Password</h2>
       {state.done ? (
         <p className="flex items-center gap-2 text-sm text-success">

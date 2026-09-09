@@ -8,7 +8,7 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { SLOT_STATUS_LABELS } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
-import { ensureProfile } from "@/server/queries/profile";
+import { getRequestProfile } from "@/server/queries/request-profile";
 import { listGyms } from "@/server/repositories/gyms";
 import { getTodayPlan } from "@/server/repositories/schedule";
 
@@ -18,8 +18,9 @@ export const metadata: Metadata = { title: "Choose a day" };
 
 export default async function ChooseDayPage() {
   const user = await requireUser();
+  const requestProfile = await getRequestProfile(user.id, user.email);
   const { plan, defaultGymId } = await withUser(getDb(), user.id, async (tx) => {
-    const profile = await ensureProfile(tx, user);
+    const profile = requestProfile;
     const [plan, gyms] = await Promise.all([
       getTodayPlan(tx, user.id, profile.timeZone),
       listGyms(tx, user.id),

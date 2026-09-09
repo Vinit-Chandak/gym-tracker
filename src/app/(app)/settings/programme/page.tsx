@@ -10,16 +10,15 @@ import { withUser } from "@/db/with-user";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { formatIsoDate } from "@/lib/format";
 import { requireUser } from "@/server/auth";
-import { ensureProfile, getStarterStatus } from "@/server/queries/profile";
+import { getStarterStatus } from "@/server/queries/profile";
+import { getRequestProfile } from "@/server/queries/request-profile";
 
 export const metadata: Metadata = { title: "Programme" };
 
 export default async function ProgrammeSettingsPage() {
   const user = await requireUser();
-  const { profile, status } = await withUser(getDb(), user.id, async (tx) => ({
-    profile: await ensureProfile(tx, user),
-    status: await getStarterStatus(tx, user.id),
-  }));
+  const profile = await getRequestProfile(user.id, user.email);
+  const status = await withUser(getDb(), user.id, (tx) => getStarterStatus(tx, user.id));
   const active = status.activeProgram;
 
   return (

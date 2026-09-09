@@ -24,3 +24,13 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/gyms", label: "Gyms", icon: MapPin },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
+
+/** Detail screens belong to the same primary section as their entry point. */
+export function isNavItemActive(pathname: string, href: string): boolean {
+  const sectionPath = pathname.startsWith("/workouts/")
+    ? "/today"
+    : pathname === "/exercises" || pathname.startsWith("/exercises/")
+      ? "/settings"
+      : pathname;
+  return sectionPath === href || sectionPath.startsWith(`${href}/`);
+}

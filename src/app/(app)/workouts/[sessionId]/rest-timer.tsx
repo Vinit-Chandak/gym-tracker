@@ -83,10 +83,10 @@ export function RestTimer({ sessionId }: { sessionId: string }) {
   return (
     <div
       role="timer"
-      className="fixed inset-x-0 z-30 border-t border-line bg-surface/95 backdrop-blur-md"
+      className="fixed inset-x-0 z-30 border-t border-line bg-surface lg:left-48"
       style={{ bottom: "calc(var(--nav-height) + env(safe-area-inset-bottom))" }}
     >
-      <div className="mx-auto flex max-w-lg items-center justify-between gap-3 px-4 py-2">
+      <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-[var(--page-gutter)] py-2">
         <span className="text-sm text-ink-muted">Rest</span>
         <span
           className={

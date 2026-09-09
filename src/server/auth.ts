@@ -2,11 +2,9 @@ import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { cache } from "react";
 
-import { getDb } from "@/db/client";
-import { withUser } from "@/db/with-user";
 import { isSupabaseConfigured } from "@/lib/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { ensureProfile } from "@/server/queries/profile";
+import { getRequestProfile } from "@/server/queries/request-profile";
 
 export type SessionUser = { id: string; email: string | null };
 
@@ -36,7 +34,7 @@ export async function requireUser(): Promise<SessionUser> {
  */
 export async function requireOnboardedUser(): Promise<SessionUser> {
   const user = await requireUser();
-  const profile = await withUser(getDb(), user.id, (tx) => ensureProfile(tx, user));
+  const profile = await getRequestProfile(user.id, user.email);
   if (profile.onboardedAt === null) redirect("/welcome");
   return user;
 }

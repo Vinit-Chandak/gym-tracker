@@ -139,6 +139,31 @@ describe("migrations and seeds", () => {
 });
 
 describe("row level security", () => {
+  it("sets the role and claims together and restores the connection after a transaction", async () => {
+    await withUser(
+      t.db,
+      alice.id,
+      async (tx) => {
+        const result = await tx
+          .select({
+            role: sql<string>`current_user`,
+            subject: sql<string>`nullif(current_setting('request.jwt.claim.sub', true), '')`,
+          })
+          .from(sql`(select 1) as probe`);
+        expect(result[0]).toEqual({ role: "authenticated", subject: alice.id });
+      },
+      { readOnly: true },
+    );
+    const result = await t.db
+      .select({
+        role: sql<string>`current_user`,
+        subject: sql<string | null>`nullif(current_setting('request.jwt.claim.sub', true), '')`,
+      })
+      .from(sql`(select 1) as probe`);
+    expect(result[0]?.role).not.toBe("authenticated");
+    expect(result[0]?.subject).toBeNull();
+  });
+
   it("hides one user's rows from another", async () => {
     const bobSees = await withUser(t.db, bob.id, (tx) => tx.select({ id: gyms.id }).from(gyms));
     expect(bobSees).toHaveLength(0);

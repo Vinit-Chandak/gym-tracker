@@ -10,7 +10,7 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { setEquipmentActiveAction, updateEquipmentAction } from "@/server/actions/equipment";
 import { requireUser } from "@/server/auth";
-import { ensureProfile } from "@/server/queries/profile";
+import { getRequestProfile } from "@/server/queries/request-profile";
 import { getEquipment, listEquipmentTypes } from "@/server/repositories/equipment";
 import { requireUuid } from "@/server/validation/params";
 
@@ -25,10 +25,11 @@ export default async function EquipmentPage(
   requireUuid(gymId);
   requireUuid(equipmentId);
   const user = await requireUser();
+  const requestProfile = await getRequestProfile(user.id, user.email);
   const data = await withUser(getDb(), user.id, async (tx) => {
     const equipment = await getEquipment(tx, user.id, equipmentId);
     if (!equipment || equipment.gymId !== gymId) return null;
-    const profile = await ensureProfile(tx, user);
+    const profile = requestProfile;
     return {
       equipment,
       types: await listEquipmentTypes(tx),

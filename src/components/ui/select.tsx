@@ -6,9 +6,14 @@ import { cn } from "@/lib/utils";
 import { INPUT_CLASS } from "./input";
 
 /** Native select: iOS opens its own picker, which is the fastest control for long lists. */
-export function Select({ className, children, ...props }: ComponentProps<"select">) {
+export function Select({
+  className,
+  wrapperClassName,
+  children,
+  ...props
+}: ComponentProps<"select"> & { wrapperClassName?: string }) {
   return (
-    <span className="relative block">
+    <span className={cn("relative block min-w-0", wrapperClassName)}>
       <select className={cn(INPUT_CLASS, "appearance-none pr-11", className)} {...props}>
         {children}
       </select>

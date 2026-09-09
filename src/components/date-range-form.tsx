@@ -2,10 +2,11 @@
 
 import { useRouter, usePathname } from "next/navigation";
 import { useTransition } from "react";
+import { CalendarRange, ChevronDown } from "lucide-react";
 import type { Route } from "next";
 import { Button } from "./ui/button";
 import { Input, Field } from "./ui/input";
-import { formatIsoDate } from "@/lib/format";
+import { formatDateRange } from "@/lib/format";
 
 /**
  * Collapsed to a one-line summary by default: the range is worth seeing on every visit,
@@ -17,29 +18,30 @@ export function DateRangeForm({ from, to }: { from: string; to: string }) {
     pathname = usePathname();
   const [pending, startTransition] = useTransition();
   return (
-    <details className="group">
+    <details className="group border-b border-line/60 pb-2">
       <summary className="flex min-h-11 cursor-pointer items-center justify-between gap-3 select-none">
-        <span className="text-sm">
-          <span className="text-ink-muted">Range </span>
-          <span className="font-medium">
-            {formatIsoDate(from)} – {formatIsoDate(to)}
-          </span>
+        <span className="flex min-w-0 items-center gap-2 text-sm">
+          <CalendarRange className="size-4 shrink-0 text-ink-muted" aria-hidden />
+          <span className="sr-only">Date range: </span>
+          <span className="font-medium">{formatDateRange(from, to)}</span>
         </span>
-        <span className="text-sm text-accent group-open:hidden">Change</span>
+        <ChevronDown
+          className="size-4 shrink-0 text-ink-muted transition-transform group-open:rotate-180"
+          aria-hidden
+        />
       </summary>
       <form
         onSubmit={(event) => {
           event.preventDefault();
           const data = new FormData(event.currentTarget);
-          const params = new URLSearchParams({
-            from: String(data.get("from")),
-            to: String(data.get("to")),
-          });
+          const params = new URLSearchParams(window.location.search);
+          params.set("from", String(data.get("from")));
+          params.set("to", String(data.get("to")));
           startTransition(() => router.push(`${pathname}?${params}` as Route));
         }}
         className="mt-3 space-y-3"
       >
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3 min-[360px]:grid-cols-2">
           <Field label="From">
             <Input name="from" type="date" defaultValue={from} required />
           </Field>

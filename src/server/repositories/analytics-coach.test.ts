@@ -26,6 +26,8 @@ import {
 import { listGyms } from "./gyms";
 import { getSchedule } from "./schedule";
 import { readTrainingData } from "./training-data";
+import { readMuscleVolume } from "./muscle-volume";
+import { addExerciseVolume, emptyMuscleVolume } from "@/domain/muscle-volume";
 import {
   addExerciseToSession,
   finishSession,
@@ -131,6 +133,27 @@ afterAll(async () => {
 });
 
 describe("history and analytics", () => {
+  it("aggregates body volume without warmups, other accounts or out-of-range sessions", async () => {
+    const week = parseDateRange({ from: "2026-09-01", to: "2026-09-07" }, "Asia/Kolkata");
+    const result = await withUser(t.db, alice.id, (tx) => readMuscleVolume(tx, alice.id, week));
+    const data = await withUser(t.db, alice.id, (tx) => readTrainingData(tx, alice.id, week));
+    const expected = emptyMuscleVolume();
+    for (const workout of data.workouts) {
+      for (const slot of workout.exercises) {
+        addExerciseVolume(expected, { ...slot.exercise, workingSets: 1 });
+      }
+    }
+    expect(result).toEqual({ volume: expected, totalSets: 2 });
+    expect(await withUser(t.db, bob.id, (tx) => readMuscleVolume(tx, alice.id, range))).toEqual({
+      volume: emptyMuscleVolume(),
+      totalSets: 0,
+    });
+    const empty = parseDateRange({ from: "2026-09-08", to: "2026-09-13" }, "Asia/Kolkata");
+    expect(
+      (await withUser(t.db, alice.id, (tx) => readMuscleVolume(tx, alice.id, empty))).totalSets,
+    ).toBe(0);
+  });
+
   it("batches histories without changing equipment scope or chronology", async () => {
     await withUser(t.db, alice.id, async (tx) => {
       const queries = [

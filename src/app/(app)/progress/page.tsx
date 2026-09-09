@@ -2,17 +2,16 @@ import type { Metadata } from "next";
 import { DateRangeForm } from "@/components/date-range-form";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
-import { Card } from "@/components/ui/card";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { liftingAdherence, trainingAnalytics } from "@/domain/analytics";
-import { addExerciseVolume, emptyMuscleVolume } from "@/domain/muscle-volume";
 import { addDays, todayInTimeZone } from "@/domain/program-calendar";
 import { weekStart } from "@/domain/running";
 import { requireUser } from "@/server/auth";
-import { ensureProfile } from "@/server/queries/profile";
+import { getRequestProfile } from "@/server/queries/request-profile";
 import { getSchedule } from "@/server/repositories/schedule";
-import { readTrainingData, readWorkouts } from "@/server/repositories/training-data";
+import { readTrainingData } from "@/server/repositories/training-data";
+import { readMuscleVolume } from "@/server/repositories/muscle-volume";
 import { parseDateRange, parseDateRangeOrDefault } from "@/server/validation/date-range";
 import { ProgressView } from "./progress-view";
 
@@ -20,7 +19,7 @@ export const metadata: Metadata = { title: "Progress" };
 export default async function ProgressPage(props: PageProps<"/progress">) {
   const user = await requireUser(),
     params = await props.searchParams;
-  const profile = await withUser(getDb(), user.id, (tx) => ensureProfile(tx, user));
+  const profile = await getRequestProfile(user.id, user.email);
   const { range, error: rangeError } = parseDateRangeOrDefault(
     {
       from: typeof params.from === "string" ? params.from : undefined,
@@ -38,27 +37,13 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
   const bodyTo = addDays(bodyFrom, 6);
   const bodyRange = parseDateRange({ from: bodyFrom, to: bodyTo }, profile.timeZone);
 
-  const { training, schedule, bodyWorkouts } = await withUser(getDb(), user.id, async (tx) => ({
-    training: await readTrainingData(tx, user.id, range),
-    schedule: await getSchedule(tx, user.id),
-    bodyWorkouts: await readWorkouts(tx, user.id, bodyRange),
-  }));
-
-  // Only 20 numbers cross the wire, never the week's sets.
-  const bodyVolume = emptyMuscleVolume();
-  let bodySets = 0;
-  for (const workout of bodyWorkouts.workouts) {
-    if (!workout.completedAt) continue;
-    for (const slot of workout.exercises) {
-      const working = slot.sets.filter((set) => set.setType !== "warmup").length;
-      bodySets += working;
-      addExerciseVolume(bodyVolume, {
-        primaryMuscles: slot.exercise.primaryMuscles,
-        secondaryMuscles: slot.exercise.secondaryMuscles ?? [],
-        workingSets: working,
-      });
-    }
-  }
+  const [training, schedule, body] = await withUser(getDb(), user.id, (tx) =>
+    Promise.all([
+      readTrainingData(tx, user.id, range),
+      getSchedule(tx, user.id),
+      readMuscleVolume(tx, user.id, bodyRange),
+    ]),
+  );
   const analytics = trainingAnalytics(training, profile.timeZone, range.from, range.to);
 
   // Eight weeks of training builds dozens of exercise/machine series, each carrying five
@@ -77,14 +62,12 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
     <>
       <PageHeader title="Progress" />
       <PageContent>
-        <Card>
-          {rangeError && (
-            <p role="alert" className="text-sm text-danger">
-              {rangeError}
-            </p>
-          )}
-          <DateRangeForm from={range.from} to={range.to} />
-        </Card>
+        {rangeError && (
+          <p role="alert" className="text-sm text-danger">
+            {rangeError}
+          </p>
+        )}
+        <DateRangeForm from={range.from} to={range.to} />
         <ProgressView
           key={`${range.from}:${range.to}`}
           summary={{
@@ -105,7 +88,7 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
           pace={analytics.pace}
           options={options}
           selected={selected}
-          body={{ from: bodyFrom, to: bodyTo, volume: bodyVolume, totalSets: bodySets }}
+          body={{ from: bodyFrom, to: bodyTo, ...body }}
         />
       </PageContent>
     </>

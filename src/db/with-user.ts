@@ -20,9 +20,9 @@ export async function withUser<T>(
       await tx.execute(
         sql`select set_config('request.jwt.claims', ${claims}, true),
                  set_config('request.jwt.claim.sub', ${userId}, true),
-                 set_config('request.jwt.claim.role', 'authenticated', true)`,
+                 set_config('request.jwt.claim.role', 'authenticated', true),
+                 set_config('role', 'authenticated', true)`,
       );
-      await tx.execute(sql`set local role authenticated`);
       return fn(tx);
     },
     options.readOnly ? { accessMode: "read only" } : undefined,

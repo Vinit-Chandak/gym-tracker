@@ -43,10 +43,10 @@ export function SegmentedControl<V extends string>({
     <div
       role="radiogroup"
       aria-label={ariaLabel}
-      className="grid gap-2"
+      className="grid gap-1 overflow-x-auto rounded-control bg-canvas/60 p-1"
       style={{
         gridTemplateColumns: columns
-          ? `repeat(${columns}, minmax(0, 1fr))`
+          ? `repeat(${columns}, minmax(3.25rem, 1fr))`
           : `repeat(auto-fit, minmax(${MIN_PILL}, 1fr))`,
       }}
     >
@@ -63,8 +63,8 @@ export function SegmentedControl<V extends string>({
           />
           <span
             className={cn(
-              "flex min-h-11 items-center justify-center overflow-hidden rounded-control border border-line bg-surface-raised px-1.5 py-1 text-sm leading-tight font-medium text-ink-muted select-none",
-              "peer-checked:border-accent peer-checked:bg-accent/15 peer-checked:text-accent",
+              "flex min-h-11 items-center justify-center rounded-control border border-transparent px-1.5 py-1 text-sm leading-tight font-medium text-ink-muted select-none",
+              "peer-checked:border-line peer-checked:bg-surface-raised peer-checked:text-ink",
               "peer-focus-visible:ring-2 peer-focus-visible:ring-accent/60",
             )}
           >

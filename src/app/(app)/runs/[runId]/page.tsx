@@ -12,7 +12,7 @@ import { formatDuration, formatPace } from "@/domain/pace";
 import { formatDateTime } from "@/lib/format";
 import { rangeLabel, RUN_MODE_LABELS, WEEKDAY_SHORT } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
-import { ensureProfile } from "@/server/queries/profile";
+import { getRequestProfile } from "@/server/queries/request-profile";
 import { getRun } from "@/server/repositories/runs";
 import { requireUuid } from "@/server/validation/params";
 
@@ -35,8 +35,9 @@ export default async function RunPage(props: PageProps<"/runs/[runId]">) {
   const { runId } = await props.params;
   requireUuid(runId);
   const user = await requireUser();
+  const requestProfile = await getRequestProfile(user.id, user.email);
   const data = await withUser(getDb(), user.id, async (tx) => {
-    const profile = await ensureProfile(tx, user);
+    const profile = requestProfile;
     const run = await getRun(tx, user.id, runId);
     return run ? { run, timeZone: profile.timeZone } : null;
   });

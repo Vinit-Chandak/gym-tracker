@@ -15,7 +15,7 @@ export function DeleteAccountCard({ removesSignIn }: { removesSignIn: boolean })
   const [state, formAction] = useActionState(deleteAccountAction, INITIAL);
 
   return (
-    <Card className="border-danger/30">
+    <Card variant="plain">
       <h2 className="text-base font-semibold text-danger">Delete account</h2>
       <p className="text-sm text-ink-muted">
         Permanently removes your gyms, machines, programmes, sessions, sets, runs and tokens. This

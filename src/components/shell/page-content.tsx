@@ -7,9 +7,9 @@ type PageContentProps = {
   className?: string;
 };
 
-/** Single-column, phone-width content area used by every tab. */
+/** Fluid content gutters shared by phone, tablet and desktop layouts. */
 export function PageContent({ children, className }: PageContentProps) {
   return (
-    <div className={cn("mx-auto w-full max-w-lg space-y-4 px-4 py-4", className)}>{children}</div>
+    <div className={cn("page-width page-stack py-[var(--section-gap)]", className)}>{children}</div>
   );
 }

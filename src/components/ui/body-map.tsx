@@ -78,7 +78,7 @@ export function BodyMap({ volume, totalSets }: { volume: MuscleVolume; totalSets
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-2">
+      <div className="mx-auto grid w-full max-w-lg grid-cols-2 gap-2">
         <Figure view="front" volume={volume} active={active} onPick={setActive} />
         <Figure view="back" volume={volume} active={active} onPick={setActive} />
       </div>
@@ -103,7 +103,7 @@ export function BodyMap({ volume, totalSets }: { volume: MuscleVolume; totalSets
         </p>
       )}
 
-      <div className="overflow-hidden rounded-card border border-line">
+      <div className="overflow-hidden border-y border-line">
         <table className="w-full text-left text-sm tabular-nums">
           <thead>
             <tr className="border-b border-line bg-surface-raised text-xs text-ink-muted">

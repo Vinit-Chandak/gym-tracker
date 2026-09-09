@@ -13,7 +13,8 @@ import { canDeleteSignIn } from "@/server/actions/account";
 import { signOutAction } from "@/server/actions/auth";
 import { setRestTimerEnabledAction } from "@/server/actions/sessions";
 import { requireUser } from "@/server/auth";
-import { ensureProfile, getStarterStatus } from "@/server/queries/profile";
+import { getStarterStatus } from "@/server/queries/profile";
+import { getRequestProfile } from "@/server/queries/request-profile";
 
 import { DeleteAccountCard } from "./delete-account-card";
 import { PasswordCard } from "./password-card";
@@ -28,16 +29,14 @@ function isoOrDash(date: string | null | undefined): string {
 
 export default async function SettingsPage() {
   const user = await requireUser();
-  const { profile, status } = await withUser(getDb(), user.id, async (tx) => ({
-    profile: await ensureProfile(tx, user),
-    status: await getStarterStatus(tx, user.id),
-  }));
+  const profile = await getRequestProfile(user.id, user.email);
+  const status = await withUser(getDb(), user.id, (tx) => getStarterStatus(tx, user.id));
   const removesSignIn = await canDeleteSignIn();
 
   return (
     <>
       <PageHeader title="Settings" />
-      <PageContent>
+      <PageContent className="max-w-3xl">
         <ProfileCard
           email={profile.email ?? user.email ?? "—"}
           values={{
@@ -83,7 +82,7 @@ export default async function SettingsPage() {
           </li>
         </List>
 
-        <Card>
+        <Card variant="plain">
           <h2 className="text-base font-semibold">Rest timer</h2>
           <p className="text-sm text-ink-muted">
             Optional countdown between sets, using each exercise&apos;s rest target. Off by default.
@@ -100,7 +99,7 @@ export default async function SettingsPage() {
 
         <PasswordCard />
 
-        <Card>
+        <Card variant="plain">
           <h2 className="text-base font-semibold">Session</h2>
           <p className="text-sm text-ink-muted">
             Signed in as {profile.email ?? user.email ?? "this account"}.

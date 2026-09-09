@@ -3,7 +3,7 @@ import type { ComponentProps, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 export const INPUT_CLASS =
-  "h-12 w-full rounded-control border border-line bg-surface-raised px-4 text-base text-ink placeholder:text-ink-subtle focus:border-accent focus:outline-none disabled:opacity-50";
+  "h-12 min-w-0 w-full rounded-control border border-line bg-surface-raised/60 px-3 text-[16px] text-ink placeholder:text-ink-subtle focus:border-accent focus:outline-none disabled:opacity-50";
 
 /** Text input sized for thumbs; 16px text keeps iOS from zooming in on focus. */
 export function Input({ className, ...props }: ComponentProps<"input">) {

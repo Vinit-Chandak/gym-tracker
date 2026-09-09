@@ -9,7 +9,7 @@ import { withUser } from "@/db/with-user";
 import { toDateTimeLocal } from "@/lib/time";
 import { saveRunAction } from "@/server/actions/runs";
 import { requireUser } from "@/server/auth";
-import { ensureProfile } from "@/server/queries/profile";
+import { getRequestProfile } from "@/server/queries/request-profile";
 import { getRun, listRuns, plannedRunsForCurrentCycle } from "@/server/repositories/runs";
 import { requireUuid } from "@/server/validation/params";
 
@@ -23,10 +23,11 @@ export default async function EditRunPage(props: PageProps<"/runs/[runId]/edit">
   const { runId } = await props.params;
   requireUuid(runId);
   const user = await requireUser();
+  const requestProfile = await getRequestProfile(user.id, user.email);
   const data = await withUser(getDb(), user.id, async (tx) => {
     const run = await getRun(tx, user.id, runId);
     if (!run) return null;
-    const profile = await ensureProfile(tx, user);
+    const profile = requestProfile;
     const logged = await listRuns(tx, user.id, 200);
     return {
       run,

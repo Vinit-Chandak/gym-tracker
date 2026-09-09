@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/shell/page-header";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { requireUser } from "@/server/auth";
-import { ensureProfile } from "@/server/queries/profile";
+import { getRequestProfile } from "@/server/queries/request-profile";
 import { getSessionDetail } from "@/server/repositories/sessions";
 import { requireUuid } from "@/server/validation/params";
 
@@ -19,8 +19,9 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
   const { sessionId } = await props.params;
   requireUuid(sessionId);
   const user = await requireUser();
+  const requestProfile = await getRequestProfile(user.id, user.email);
   const data = await withUser(getDb(), user.id, async (tx) => {
-    const profile = await ensureProfile(tx, user);
+    const profile = requestProfile;
     const detail = await getSessionDetail(tx, user.id, sessionId);
     return detail
       ? toSessionVM(detail, profile.timeZone, profile.preferredUnit === "lb" ? "lb" : "kg")
