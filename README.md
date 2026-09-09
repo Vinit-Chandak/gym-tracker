@@ -63,6 +63,7 @@ need the Supabase values from `SETUP.md`.
 | `npm run db:migrate`  | Apply migrations to `DIRECT_DATABASE_URL`                        |
 | `npm run db:seed`     | Seed the shared library (no gyms, machines or programmes)        |
 | `npm run db:setup`    | `db:migrate` followed by `db:seed`                               |
+| `npm run db:deploy`   | What a production deploy runs: migrate, then seed the library    |
 | `npm run db:studio`   | Drizzle Studio against the configured database                   |
 
 ## Project structure
