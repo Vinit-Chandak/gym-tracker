@@ -27,12 +27,13 @@ Component styles consume `--ov-*` semantic values. The `--ov-light-*` and `--ov-
 | Semantic role | Tokens / usage                                                                                                               |
 | ------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | Surfaces      | `--ov-canvas`, `--ov-surface`, `--ov-surface-raised`, `--ov-accent-soft`                                                     |
-| Text          | `--ov-ink`, `--ov-ink-muted`, `--ov-ink-subtle`, `--ov-on-accent`                                                            |
+| Text          | `--ov-ink`, `--ov-ink-muted`, `--ov-ink-subtle`, `--ov-ink-ghost` (unconfirmed suggestions only), `--ov-on-accent`           |
 | Edges         | `--ov-line` for separators; `--ov-line-strong` for essential control boundaries                                              |
 | Actions       | `--ov-accent`, `--ov-accent-strong`, `--ov-on-accent`                                                                        |
 | Feedback      | `--ov-success`, `--ov-warning`, `--ov-danger`, `--ov-focus`                                                                  |
 | Charts        | `--ov-series-1` through `--ov-series-4`; retain consistent labelled series assignments                                       |
 | Body map      | `--ov-volume-0` through `--ov-volume-4`; pair the scale with volume labels/table                                             |
+| Supersets     | `--ov-group-1` through `--ov-group-8`, assigned in order of first appearance; drawn by the `superset-row` utility            |
 | Typography    | `--ov-font-body`, `--ov-font-heading`, `--ov-font-mono`, `--ov-text-*`, line heights and heading weight                      |
 | Layout        | `--ov-page-gutter`, `--ov-section-gap`, `--ov-row-gap`, `--ov-control-height`, `--ov-set-columns`, `--ov-content-max`, radii |
 | Motion/layers | `--ov-duration-*`, `--ov-ease-standard`, `--ov-z-*`, `--ov-backdrop`                                                         |

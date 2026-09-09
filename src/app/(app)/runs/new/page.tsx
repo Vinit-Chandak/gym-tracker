@@ -55,7 +55,6 @@ export default async function NewRunPage() {
             notes: "",
           }}
           planned={planned}
-          cycleIndex={data.cycle?.cycleIndex ?? null}
           runId={null}
           submitLabel="Save run"
         />

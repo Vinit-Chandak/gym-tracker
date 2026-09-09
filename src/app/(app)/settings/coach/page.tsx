@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { Card } from "@/components/ui/card";
+import { InfoTip } from "@/components/ui/info-tip";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { requireUser } from "@/server/auth";
@@ -26,11 +27,14 @@ export default async function CoachSettingsPage() {
           }))}
         />
         <Card>
-          <h2 className="text-base font-medium">Connect your coach</h2>
-          <p className="text-sm text-ink-muted">
-            Use this app&apos;s URL with the endpoints below. Send the token in the Authorization
-            header as Bearer followed by the token.
-          </p>
+          <h2 className="flex items-center gap-1 text-base font-medium">
+            Endpoints
+            <InfoTip label="About the endpoints">
+              Relative to this app&apos;s URL. Send the token as{" "}
+              <code className="font-mono">Authorization: Bearer …</code>. Optional from/to dates
+              (YYYY-MM-DD) default to the last 12 weeks. Everything is read-only JSON.
+            </InfoTip>
+          </h2>
           <ul className="space-y-2 font-mono text-xs break-all">
             {[
               "/api/coach/summary",
@@ -43,10 +47,6 @@ export default async function CoachSettingsPage() {
               <li key={path}>GET {path}</li>
             ))}
           </ul>
-          <p className="text-xs text-ink-muted">
-            Optional from/to dates (YYYY-MM-DD); the default is the last 12 weeks. Every endpoint
-            returns JSON and only ever reads your data.
-          </p>
         </Card>
       </PageContent>
     </>

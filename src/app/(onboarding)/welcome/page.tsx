@@ -24,7 +24,7 @@ export default async function WelcomePage() {
         <div>
           <h1 className="text-xl font-medium">Welcome to {APP_NAME}</h1>
           <p className="text-sm text-ink-muted">
-            Four short steps and you can train. Everything here is editable later in Settings.
+            Four short steps. Everything can be changed later.
           </p>
         </div>
         <ProfileStepForm

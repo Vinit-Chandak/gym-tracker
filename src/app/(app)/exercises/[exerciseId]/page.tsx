@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
 import { buttonClassName, LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { InfoTip } from "@/components/ui/info-tip";
 import { Section } from "@/components/ui/section";
 import { Select } from "@/components/ui/select";
 import { StatTile, StatTileRow } from "@/components/ui/stat-tile";
@@ -98,11 +99,11 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
             <Badge tone={exercise.loadPortability === "global" ? "success" : "accent"}>
               {LOAD_PORTABILITY_LABELS[exercise.loadPortability]}
             </Badge>
+            <InfoTip label="About load comparability">
+              {LOAD_PORTABILITY_HELP[exercise.loadPortability]}
+            </InfoTip>
             {!exercise.isActive && <Badge tone="danger">Excluded</Badge>}
           </div>
-          <p className="text-sm text-ink-muted">
-            {LOAD_PORTABILITY_HELP[exercise.loadPortability]}
-          </p>
 
           <div className="space-y-1">
             <p className="text-sm">
@@ -171,9 +172,6 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
           ) : (
             <p className="text-sm text-ink-muted">No equipment needed.</p>
           )}
-          {exercise.modality === "barbell" || exercise.modality === "dumbbell" ? (
-            <p className="text-xs text-ink-subtle">Free weights count as available at every gym.</p>
-          ) : null}
         </Card>
 
         {exercise.programUsage.length > 0 && (
@@ -196,7 +194,15 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
         )}
 
         <Card>
-          <h2 className="text-base font-medium">Recent sessions</h2>
+          <h2 className="flex items-center gap-1 text-base font-medium">
+            Recent sessions
+            {exercise.loadPortability !== "global" && (
+              <InfoTip label="About recent sessions">
+                Progression compares sets on the same machine only; other machines are listed for
+                reference.
+              </InfoTip>
+            )}
+          </h2>
           {performances.length === 0 ? (
             <p className="text-sm text-ink-muted">Not logged yet.</p>
           ) : (
@@ -225,12 +231,6 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
                 </li>
               ))}
             </ul>
-          )}
-          {exercise.loadPortability !== "global" && performances.length > 0 && (
-            <p className="text-xs text-ink-subtle">
-              Progression only compares sets on the same machine; other machines are listed for
-              reference.
-            </p>
           )}
         </Card>
 
@@ -278,7 +278,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
                 </form>
               )}
               <LinkButton href={`/gyms/${entry.gym.id}/programme`} variant="ghost" size="sm">
-                Programme fit at {entry.gym.name}
+                Programme fit
               </LinkButton>
             </Card>
           ))}

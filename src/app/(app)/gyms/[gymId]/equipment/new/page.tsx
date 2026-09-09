@@ -47,11 +47,6 @@ export default async function NewEquipmentPage(props: PageProps<"/gyms/[gymId]/e
         backLabel={returnTo ? "Back to the workout" : "Back to the gym"}
       />
       <PageContent>
-        {returnTo && (
-          <p className="text-sm text-ink-muted">
-            Registering this machine returns you to the exercise that needs it.
-          </p>
-        )}
         <EquipmentForm
           action={createEquipmentAction.bind(null, data.gym.id, returnTo)}
           types={data.types}

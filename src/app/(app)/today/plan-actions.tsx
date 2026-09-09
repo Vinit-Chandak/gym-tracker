@@ -86,9 +86,6 @@ export function SkipSlotButton({ dayIndex, dayName }: { dayIndex: number; dayNam
       </Button>
       <Sheet open={open} onClose={() => setOpen(false)} title={`Skip ${dayName}?`}>
         <form action={formAction} className="space-y-4">
-          <p className="text-sm text-ink-muted">
-            The day is marked as skipped and the programme moves on. Nothing later is dropped.
-          </p>
           <Field label="Reason" hint="Optional">
             <Input name="reason" maxLength={200} placeholder="Travelling, unwell, …" />
           </Field>
@@ -106,7 +103,13 @@ export function SkipSlotButton({ dayIndex, dayName }: { dayIndex: number; dayNam
   );
 }
 
-export function CompleteRestButton({ dayIndex }: { dayIndex: number }) {
+export function CompleteRestButton({
+  dayIndex,
+  label = "Mark rest day done",
+}: {
+  dayIndex: number;
+  label?: string;
+}) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   return (
@@ -122,7 +125,7 @@ export function CompleteRestButton({ dayIndex }: { dayIndex: number }) {
           })
         }
       >
-        {pending ? "Saving…" : "Mark rest day done"}
+        {pending ? "Saving…" : label}
       </Button>
       {error && (
         <p role="alert" className="text-sm text-danger">

@@ -17,13 +17,7 @@ export default async function WelcomeGymPage() {
     <PageContent>
       <Steps current="gym" />
       <Card>
-        <div>
-          <h1 className="text-xl font-medium">Where do you train?</h1>
-          <p className="text-sm text-ink-muted">
-            Each gym keeps its own machine list, so a stack number from one place is never compared
-            with another. Add more later.
-          </p>
-        </div>
+        <h1 className="text-xl font-medium">Where do you train?</h1>
         <FirstGymForm />
       </Card>
       <SkipLink />

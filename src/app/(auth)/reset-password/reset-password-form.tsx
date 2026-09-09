@@ -28,7 +28,7 @@ export function ResetPasswordForm() {
 
   return (
     <form action={formAction} className="space-y-4">
-      <Field label="New password" hint="At least 8 characters.">
+      <Field label="New password" hint="At least 8 characters">
         <Input type="password" name="password" autoComplete="new-password" minLength={8} required />
       </Field>
       <Field label="Confirm new password">

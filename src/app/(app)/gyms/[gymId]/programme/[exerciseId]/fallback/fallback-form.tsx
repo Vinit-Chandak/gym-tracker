@@ -28,11 +28,7 @@ export function FallbackForm({ action, exercises, machines }: FallbackFormProps)
         onChange={setExerciseId}
         error={state.fieldErrors?.fallbackExerciseId}
       />
-      <Field
-        label="On which machine?"
-        hint="Optional. Leave on “Any” for free weights or when the machine is obvious."
-        error={state.fieldErrors?.fallbackEquipmentInstanceId}
-      >
+      <Field label="Machine" error={state.fieldErrors?.fallbackEquipmentInstanceId}>
         <Select
           name="fallbackEquipmentInstanceId"
           defaultValue={state.values?.fallbackEquipmentInstanceId ?? ""}

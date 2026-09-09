@@ -62,7 +62,6 @@ type Props = {
   initial: RunFormValues;
   /** The current cycle's planned runs, for linking the run to the programme. */
   planned: PlannedRunStatus[];
-  cycleIndex: number | null;
   /** The run being edited, so its own planned link is not shown as taken. */
   runId: string | null;
   submitLabel: string;
@@ -77,7 +76,7 @@ export function plannedRunLabel(run: {
   return `Week ${run.weekIndex} · ${WEEKDAY_SHORT[run.dayOfWeek] ?? "Run"} · ${rangeLabel(run.durationMinMinutes, run.durationMaxMinutes, " min")}`;
 }
 
-export function RunForm({ action, initial, planned, cycleIndex, runId, submitLabel }: Props) {
+export function RunForm({ action, initial, planned, runId, submitLabel }: Props) {
   const [state, formAction] = useActionState(action, INITIAL_FORM_STATE);
   const value = (key: keyof RunFormValues): string => {
     const submitted = state.values?.[key];
@@ -154,21 +153,19 @@ export function RunForm({ action, initial, planned, cycleIndex, runId, submitLab
             />
           </Field>
         </div>
-        <p role="status" className="text-sm text-ink-muted tabular-nums">
-          Pace {formatPace(pace)} /km{pace === null ? " (fill distance and time)" : ""}
-        </p>
+        {pace !== null && (
+          <p role="status" className="text-sm text-ink-muted tabular-nums">
+            Pace {formatPace(pace)} /km
+          </p>
+        )}
       </Section>
 
       <Section title="Effort and plan">
-        <Field label="RPE" hint="Optional; the plan asks for 3–4" error={state.fieldErrors?.rpe}>
+        <Field label="RPE" hint="Optional" error={state.fieldErrors?.rpe}>
           <SegmentedControl name="rpe" options={RPE} defaultValue={value("rpe")} columns={5} />
         </Field>
 
-        <Field
-          label="Planned run"
-          hint="Links the run to the programme week"
-          error={state.fieldErrors?.programRunId}
-        >
+        <Field label="Planned run" error={state.fieldErrors?.programRunId}>
           <Select name="programRunId" defaultValue={value("programRunId")}>
             <option value="">Unplanned run</option>
             {planned.map((run) => (
@@ -179,9 +176,6 @@ export function RunForm({ action, initial, planned, cycleIndex, runId, submitLab
               </option>
             ))}
           </Select>
-          {cycleIndex === null && (
-            <p className="text-xs text-ink-subtle">No active programme; runs stay unplanned.</p>
-          )}
         </Field>
       </Section>
 

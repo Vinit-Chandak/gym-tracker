@@ -128,11 +128,7 @@ export function EquipmentForm({
           </Select>
         </Field>
 
-        <Field
-          label="Name"
-          hint="How you will recognise it, for example “Precor lat pulldown #1”."
-          error={state.fieldErrors?.name}
-        >
+        <Field label="Name" error={state.fieldErrors?.name}>
           <Input
             name="name"
             value={name}
@@ -174,10 +170,12 @@ export function EquipmentForm({
 
         <Field
           label="Smallest load jump"
-          hint="In the unit above, e.g. 2.5 for a pair of 1.25 kg plates or one stack step. Used for progression suggestions."
+          info="In the unit above: 2.5 for a pair of 1.25 kg plates, or one stack step. Progression suggestions move by this amount."
+          htmlFor="load-increment"
           error={state.fieldErrors?.loadIncrement}
         >
           <Input
+            id="load-increment"
             name="loadIncrement"
             inputMode="decimal"
             defaultValue={value("loadIncrement")}

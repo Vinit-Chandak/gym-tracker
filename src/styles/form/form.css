@@ -13,6 +13,8 @@
   --ov-light-ink: #222b28;
   --ov-light-ink-muted: #4d5b54;
   --ov-light-ink-subtle: #56635b;
+  /* Unconfirmed suggestions in a field: visibly fainter than anything the user typed. */
+  --ov-light-ink-ghost: #8a948e;
   --ov-light-line: #cfd5ce;
   --ov-light-line-strong: #747f76;
   --ov-light-accent: #8b4c2f;
@@ -33,6 +35,18 @@
   --ov-light-volume-3: #5c8a67;
   --ov-light-volume-4: #315f40;
   --ov-light-backdrop: rgb(15 23 20 / 0.48);
+  /*
+   * Superset hues. Eight, clear of the copper accent, each at least 4.5:1 on the light
+   * surfaces, so a coloured rule and set number read on their own without a label.
+   */
+  --ov-light-group-1: #1b6f66;
+  --ov-light-group-2: #2d5aa0;
+  --ov-light-group-3: #6a4ba6;
+  --ov-light-group-4: #9a3873;
+  --ov-light-group-5: #2f7a45;
+  --ov-light-group-6: #8a6d05;
+  --ov-light-group-7: #b4333d;
+  --ov-light-group-8: #1a6f8f;
 
   --ov-dark-canvas: #171c1c;
   --ov-dark-surface: #202626;
@@ -40,6 +54,7 @@
   --ov-dark-ink: #f0eee8;
   --ov-dark-ink-muted: #a8b5b0;
   --ov-dark-ink-subtle: #a1aca6;
+  --ov-dark-ink-ghost: #77857f;
   --ov-dark-line: #3c4946;
   --ov-dark-line-strong: #7c8d85;
   --ov-dark-accent: #e1a483;
@@ -60,4 +75,13 @@
   --ov-dark-volume-3: #8eb494;
   --ov-dark-volume-4: #b9d8bb;
   --ov-dark-backdrop: rgb(0 0 0 / 0.64);
+  /* The same eight hues, lifted for the dark surfaces; at least 4.5:1 on each. */
+  --ov-dark-group-1: #6fd0c2;
+  --ov-dark-group-2: #92bcf0;
+  --ov-dark-group-3: #c0aaf0;
+  --ov-dark-group-4: #f0a0cc;
+  --ov-dark-group-5: #93d69f;
+  --ov-dark-group-6: #e8d070;
+  --ov-dark-group-7: #f29393;
+  --ov-dark-group-8: #82d0ee;
 }

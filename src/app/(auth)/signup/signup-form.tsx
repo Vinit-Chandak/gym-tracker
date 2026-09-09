@@ -29,13 +29,13 @@ export function SignUpForm() {
 
   return (
     <form action={formAction} className="space-y-4">
-      <Field label="Name" hint="Shown in the app. You can change it later.">
+      <Field label="Name">
         <Input type="text" name="displayName" autoComplete="name" maxLength={80} />
       </Field>
       <Field label="Email">
         <Input type="email" name="email" autoComplete="email" inputMode="email" required />
       </Field>
-      <Field label="Password" hint="At least 8 characters.">
+      <Field label="Password" hint="At least 8 characters">
         <Input type="password" name="password" autoComplete="new-password" minLength={8} required />
       </Field>
       <Field label="Confirm password">

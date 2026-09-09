@@ -68,10 +68,6 @@ export default async function ChooseDayPage() {
           />
         ) : (
           <>
-            <p className="text-sm text-ink-muted">
-              Any day can be started, in any order. Starting a day that is already done starts its
-              next occurrence.
-            </p>
             <ul className="border-y border-line ruled-list">
               {plan.cycleDays.map(({ day, status }) => {
                 const exercises = exercisesByDay.get(day.id) ?? [];
@@ -126,9 +122,7 @@ export default async function ChooseDayPage() {
                         />
                       </>
                     ) : (
-                      <p className="text-sm text-ink-subtle">
-                        Rest day — nothing to start. Log a run or recovery instead.
-                      </p>
+                      <p className="text-sm text-ink-subtle">Rest day</p>
                     )}
                   </li>
                 );

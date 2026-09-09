@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { LinkButton } from "@/components/ui/button";
 import { Disclosure } from "@/components/ui/disclosure";
 import { EmptyState } from "@/components/ui/empty-state";
+import { InfoTip } from "@/components/ui/info-tip";
 import { LinkRow, List } from "@/components/ui/link-row";
 import { Section } from "@/components/ui/section";
 import { Select } from "@/components/ui/select";
@@ -133,6 +134,7 @@ export function GymDetails({ data }: { data: GymDetailData }) {
 
         <Section
           title="Equipment"
+          info="Barbells, dumbbells and bodyweight count as available at every gym; only machines and cable stations need registering."
           action={
             gym.isActive ? (
               <LinkButton href={`/gyms/${gym.id}/equipment/new`} size="sm">
@@ -145,7 +147,7 @@ export function GymDetails({ data }: { data: GymDetailData }) {
             <EmptyState
               icon={Dumbbell}
               title="No machines yet"
-              description="Add each machine or cable station you use here. Barbells, dumbbells and bodyweight moves count as available at every gym."
+              description="Add each machine or cable station you use here."
             />
           ) : (
             <EquipmentRows gymId={gym.id} items={activeEquipment} />
@@ -161,7 +163,7 @@ export function GymDetails({ data }: { data: GymDetailData }) {
         {gym.kind === "gym" && (
           <Section
             title="Unavailable equipment"
-            description="Mark what’s missing so your programme can suggest the right alternatives."
+            info="Mark what this gym lacks so the programme suggests alternatives instead of asking."
           >
             {absent.length > 0 && (
               <ul className="divide-y divide-line">
@@ -229,13 +231,15 @@ export function GymDetails({ data }: { data: GymDetailData }) {
         {gym.isActive && (
           <Disclosure summary="Gym options">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="max-w-md text-sm text-ink-muted">
-                Archive this gym to hide it from pickers. Your history stays, and you can restore it
-                anytime.
+              <p className="flex items-center gap-1 text-sm">
+                Archive gym
+                <InfoTip label="About archiving">
+                  Hides it from pickers. History stays, and it can be restored any time.
+                </InfoTip>
               </p>
               <form action={setGymActiveAction.bind(null, gym.id, false)}>
                 <SubmitButton variant="danger" size="sm" className="w-auto">
-                  Archive gym
+                  Archive
                 </SubmitButton>
               </form>
             </div>

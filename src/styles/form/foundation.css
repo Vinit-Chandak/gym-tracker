@@ -52,6 +52,7 @@
   --ov-ink: var(--ov-light-ink);
   --ov-ink-muted: var(--ov-light-ink-muted);
   --ov-ink-subtle: var(--ov-light-ink-subtle);
+  --ov-ink-ghost: var(--ov-light-ink-ghost);
   --ov-line: var(--ov-light-line);
   --ov-line-strong: var(--ov-light-line-strong);
   --ov-accent: var(--ov-light-accent);
@@ -72,6 +73,14 @@
   --ov-volume-3: var(--ov-light-volume-3);
   --ov-volume-4: var(--ov-light-volume-4);
   --ov-backdrop: var(--ov-light-backdrop);
+  --ov-group-1: var(--ov-light-group-1);
+  --ov-group-2: var(--ov-light-group-2);
+  --ov-group-3: var(--ov-light-group-3);
+  --ov-group-4: var(--ov-light-group-4);
+  --ov-group-5: var(--ov-light-group-5);
+  --ov-group-6: var(--ov-light-group-6);
+  --ov-group-7: var(--ov-light-group-7);
+  --ov-group-8: var(--ov-light-group-8);
 }
 
 /* System, including absent/invalid preference; explicit Light/Dark are excluded. */
@@ -86,6 +95,7 @@
     --ov-ink: var(--ov-dark-ink);
     --ov-ink-muted: var(--ov-dark-ink-muted);
     --ov-ink-subtle: var(--ov-dark-ink-subtle);
+    --ov-ink-ghost: var(--ov-dark-ink-ghost);
     --ov-line: var(--ov-dark-line);
     --ov-line-strong: var(--ov-dark-line-strong);
     --ov-accent: var(--ov-dark-accent);
@@ -106,6 +116,14 @@
     --ov-volume-3: var(--ov-dark-volume-3);
     --ov-volume-4: var(--ov-dark-volume-4);
     --ov-backdrop: var(--ov-dark-backdrop);
+    --ov-group-1: var(--ov-dark-group-1);
+    --ov-group-2: var(--ov-dark-group-2);
+    --ov-group-3: var(--ov-dark-group-3);
+    --ov-group-4: var(--ov-dark-group-4);
+    --ov-group-5: var(--ov-dark-group-5);
+    --ov-group-6: var(--ov-dark-group-6);
+    --ov-group-7: var(--ov-dark-group-7);
+    --ov-group-8: var(--ov-dark-group-8);
   }
 }
 
@@ -117,6 +135,7 @@
   --ov-ink: var(--ov-dark-ink);
   --ov-ink-muted: var(--ov-dark-ink-muted);
   --ov-ink-subtle: var(--ov-dark-ink-subtle);
+  --ov-ink-ghost: var(--ov-dark-ink-ghost);
   --ov-line: var(--ov-dark-line);
   --ov-line-strong: var(--ov-dark-line-strong);
   --ov-accent: var(--ov-dark-accent);
@@ -137,6 +156,14 @@
   --ov-volume-3: var(--ov-dark-volume-3);
   --ov-volume-4: var(--ov-dark-volume-4);
   --ov-backdrop: var(--ov-dark-backdrop);
+  --ov-group-1: var(--ov-dark-group-1);
+  --ov-group-2: var(--ov-dark-group-2);
+  --ov-group-3: var(--ov-dark-group-3);
+  --ov-group-4: var(--ov-dark-group-4);
+  --ov-group-5: var(--ov-dark-group-5);
+  --ov-group-6: var(--ov-dark-group-6);
+  --ov-group-7: var(--ov-dark-group-7);
+  --ov-group-8: var(--ov-dark-group-8);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -155,6 +182,7 @@
     --ov-ink: CanvasText;
     --ov-ink-muted: CanvasText;
     --ov-ink-subtle: CanvasText;
+    --ov-ink-ghost: GrayText;
     --ov-line: GrayText;
     --ov-line-strong: ButtonText;
     --ov-accent: Highlight;
@@ -174,5 +202,13 @@
     --ov-volume-2: CanvasText;
     --ov-volume-3: Highlight;
     --ov-volume-4: Highlight;
+    --ov-group-1: Highlight;
+    --ov-group-2: Highlight;
+    --ov-group-3: Highlight;
+    --ov-group-4: Highlight;
+    --ov-group-5: Highlight;
+    --ov-group-6: Highlight;
+    --ov-group-7: Highlight;
+    --ov-group-8: Highlight;
   }
 }

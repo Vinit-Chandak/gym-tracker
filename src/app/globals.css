@@ -22,6 +22,7 @@
   --color-ink: var(--ov-ink);
   --color-ink-muted: var(--ov-ink-muted);
   --color-ink-subtle: var(--ov-ink-subtle);
+  --color-ink-ghost: var(--ov-ink-ghost);
 
   --color-accent: var(--ov-accent);
   --color-accent-strong: var(--ov-accent-strong);
@@ -43,6 +44,15 @@
   --color-volume-2: var(--ov-volume-2);
   --color-volume-3: var(--ov-volume-3);
   --color-volume-4: var(--ov-volume-4);
+  /* Superset hues, in the order a workout's groups first appear. */
+  --color-group-1: var(--ov-group-1);
+  --color-group-2: var(--ov-group-2);
+  --color-group-3: var(--ov-group-3);
+  --color-group-4: var(--ov-group-4);
+  --color-group-5: var(--ov-group-5);
+  --color-group-6: var(--ov-group-6);
+  --color-group-7: var(--ov-group-7);
+  --color-group-8: var(--ov-group-8);
 
   --font-sans: var(--ov-font-body);
   --font-mono: var(--ov-font-mono);
@@ -299,6 +309,18 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
   gap: var(--ov-space-3);
+}
+
+/*
+ * A superset member. The group's hue arrives as --superset-color from the row itself, so
+ * one rule serves all eight colours: a rule on the left and a faint wash of the same hue
+ * behind the row, which is how two rows say they belong together without a caption.
+ * Browsers without color-mix drop the wash and keep the rule.
+ */
+@utility superset-row {
+  border-left: 3px solid var(--superset-color, var(--ov-accent));
+  padding-left: var(--ov-space-3);
+  background: color-mix(in srgb, var(--superset-color, var(--ov-accent)) 10%, transparent);
 }
 
 /*

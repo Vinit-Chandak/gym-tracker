@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { FormError, SubmitButton } from "@/components/ui/form";
+import { InfoTip } from "@/components/ui/info-tip";
 import { Field, Input } from "@/components/ui/input";
 import { deleteAccountAction, type DeleteAccountState } from "@/server/actions/account";
 
@@ -15,18 +16,23 @@ export function DeleteAccountSettings({ removesSignIn }: { removesSignIn: boolea
 
   return (
     <div className="min-w-0 space-y-3">
-      <p className="text-sm text-ink-muted">
-        Permanently removes your gyms, machines, programmes, sessions, sets, runs and tokens. This
-        cannot be undone and nothing is exported first.
-      </p>
-      {!removesSignIn && (
-        <p className="text-sm text-ink-muted">
-          Your email and password stay registered with the authentication provider, because this app
-          deliberately holds no key that could delete them. Ask whoever runs the Supabase project to
-          remove the login itself.
+      <div className="flex items-center justify-between gap-3">
+        <p className="flex items-center gap-1 font-medium">
+          Delete account
+          <InfoTip label="About deleting the account">
+            Permanently removes your gyms, machines, programmes, sessions, sets, runs and tokens.
+            Nothing is exported first.
+            {!removesSignIn &&
+              " Your email and password stay with the sign-in provider; ask whoever runs it to remove the login itself."}
+          </InfoTip>
         </p>
-      )}
-      {open ? (
+        {!open && (
+          <Button variant="danger" size="sm" onClick={() => setOpen(true)}>
+            Delete…
+          </Button>
+        )}
+      </div>
+      {open && (
         <form action={formAction} className="space-y-4">
           <Field label="Type DELETE to confirm">
             <Input
@@ -38,17 +44,15 @@ export function DeleteAccountSettings({ removesSignIn }: { removesSignIn: boolea
             />
           </Field>
           <FormError message={state.error} />
-          <SubmitButton variant="danger" pendingLabel="Deleting…">
-            Delete everything
-          </SubmitButton>
-          <Button variant="ghost" className="w-full" onClick={() => setOpen(false)}>
-            Cancel
-          </Button>
+          <div className="action-row">
+            <Button variant="ghost" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <SubmitButton variant="danger" size="md" pendingLabel="Deleting…">
+              Delete everything
+            </SubmitButton>
+          </div>
         </form>
-      ) : (
-        <Button variant="danger" className="w-full" onClick={() => setOpen(true)}>
-          Delete my account
-        </Button>
       )}
     </div>
   );

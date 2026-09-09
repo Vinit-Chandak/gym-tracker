@@ -1,13 +1,14 @@
 "use client";
 
-import { ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { useTransition, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button, LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Disclosure } from "@/components/ui/disclosure";
+import { InfoTip } from "@/components/ui/info-tip";
 import { formatSets } from "@/domain/sets";
+import { supersetHues, supersetStyle } from "@/lib/superset-colors";
 import { cn } from "@/lib/utils";
 import { setWarmupCompletedAction } from "@/server/actions/sessions";
 
@@ -35,6 +36,91 @@ function progressLine(exercise: ExerciseVM): string {
   return [count, machine, values].filter(Boolean).join(" · ");
 }
 
+/**
+ * One row, closed by default: the drills are there when wanted, and marking the warm-up
+ * done needs no opening. A native <details> cannot hold a second button in its summary,
+ * so the toggle and the action are siblings on the same line.
+ */
+function WarmupRow({
+  session,
+  done,
+  onDone,
+}: {
+  session: SessionVM & { warmup: NonNullable<SessionVM["warmup"]> };
+  done: boolean;
+  onDone: (done: boolean) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  const toggleDone = () =>
+    startTransition(async () => {
+      try {
+        const result = await setWarmupCompletedAction(session.id, !done);
+        if (!result.ok) {
+          setError(result.error);
+          return;
+        }
+      } catch {
+        setError("Connection lost. Try again when connected.");
+        return;
+      }
+      onDone(!done);
+      setError(null);
+    });
+
+  return (
+    <div className="border-y border-line">
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={() => setOpen((current) => !current)}
+          className="flex min-h-11 min-w-0 flex-1 items-center gap-2 py-2 text-left text-sm font-medium"
+        >
+          <ChevronDown
+            className={cn(
+              "size-4 shrink-0 text-ink-subtle transition-transform duration-[var(--ov-duration-feedback)]",
+              open && "rotate-180",
+            )}
+            aria-hidden
+          />
+          <span className="min-w-0 flex-1">Warm-up</span>
+          <span className="shrink-0 text-xs font-normal text-ink-muted tabular-nums">
+            {session.warmup.drills.length} drills
+          </span>
+        </button>
+        <Button
+          variant={done ? "secondary" : "primary"}
+          size="sm"
+          className="shrink-0"
+          onClick={toggleDone}
+          disabled={pending}
+          aria-pressed={done}
+        >
+          {pending ? "Saving…" : done ? "Done ✓" : "Mark done"}
+        </Button>
+      </div>
+      {open && (
+        <ol className="pb-2 text-sm ruled-list">
+          {session.warmup.drills.map((drill) => (
+            <li key={drill.order} className="flex justify-between gap-3 py-1.5">
+              <span className="min-w-0">{drill.name}</span>
+              <span className="shrink-0 text-right text-ink-muted">{drill.dose}</span>
+            </li>
+          ))}
+        </ol>
+      )}
+      {error && (
+        <p role="alert" className="pb-2 text-sm text-danger">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
 type OverviewProps = {
   session: SessionVM;
   readOnly: boolean;
@@ -57,32 +143,7 @@ export function WorkoutOverview({
   onEditSuperset,
 }: OverviewProps) {
   const [warmupDone, setWarmupDone] = useState(session.warmupCompleted);
-  const [warmupError, setWarmupError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
-
-  const toggleWarmup = () =>
-    startTransition(async () => {
-      try {
-        const result = await setWarmupCompletedAction(session.id, !warmupDone);
-        if (!result.ok) {
-          setWarmupError(result.error);
-          return;
-        }
-      } catch {
-        setWarmupError("Connection lost. Try again when connected.");
-        return;
-      }
-      setWarmupDone(!warmupDone);
-      setWarmupError(null);
-    });
-
-  const groups = [
-    ...new Set(
-      session.exercises
-        .map((exercise) => exercise.supersetGroup)
-        .filter((group): group is string => group !== null),
-    ),
-  ];
+  const hues = supersetHues(session.exercises);
 
   return (
     <div className="space-y-[var(--section-gap)]">
@@ -111,7 +172,13 @@ export function WorkoutOverview({
       {!readOnly && session.warnings.length > 0 && (
         <Card>
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-base font-medium">Recovery check</h2>
+            <h2 className="flex items-center gap-1 text-base font-medium">
+              Recovery check
+              <InfoTip label="About holding loads">
+                Advice only. Holding prefills last session&apos;s loads instead of the rule&apos;s
+                targets; any set can still be changed.
+              </InfoTip>
+            </h2>
             <Badge tone="warning">Advice</Badge>
           </div>
           <ul className="space-y-2 text-sm">
@@ -130,80 +197,40 @@ export function WorkoutOverview({
           >
             {holdAll ? "Holding loads today ✓" : "Hold loads today"}
           </Button>
-          <p className="text-xs text-ink-subtle">
-            Advice only. Holding prefills last session&apos;s loads instead of the rule&apos;s
-            targets; any set can still be changed.
-          </p>
         </Card>
       )}
 
       {!readOnly && session.warmup && (
-        <Disclosure
-          summary={`Warm-up · ${session.warmup.name}`}
-          meta={warmupDone ? "Done" : undefined}
-        >
-          <ol className="space-y-1 text-sm">
-            {session.warmup.drills.map((drill) => (
-              <li key={drill.order} className="flex justify-between gap-3">
-                <span className="min-w-0">{drill.name}</span>
-                <span className="shrink-0 text-ink-muted">{drill.dose}</span>
-              </li>
-            ))}
-          </ol>
-          {warmupError && (
-            <p role="alert" className="mt-2 text-sm text-danger">
-              {warmupError}
-            </p>
-          )}
-          <Button
-            variant={warmupDone ? "secondary" : "primary"}
-            size="sm"
-            className="mt-2"
-            onClick={toggleWarmup}
-            disabled={pending}
-          >
-            {pending ? "Saving…" : warmupDone ? "Done ✓" : "Mark done"}
-          </Button>
-        </Disclosure>
+        <WarmupRow
+          session={{ ...session, warmup: session.warmup }}
+          done={warmupDone}
+          onDone={setWarmupDone}
+        />
       )}
 
       {session.exercises.length === 0 ? (
-        <p className="text-sm text-ink-muted">No exercises yet. Add one to start logging.</p>
+        <p className="text-sm text-ink-muted">No exercises yet.</p>
       ) : (
-        <ul className="border-y border-line">
-          {session.exercises.map((exercise, index) => {
+        <ul className="border-y border-line ruled-list">
+          {session.exercises.map((exercise) => {
             const action = rowAction(exercise);
-            const group = exercise.supersetGroup;
-            // A group's label is drawn once, at the first of its rows.
-            const startsGroup =
-              group !== null && session.exercises[index - 1]?.supersetGroup !== group;
+            const hue = exercise.supersetGroup ? hues.get(exercise.supersetGroup) : undefined;
             return (
-              <li
-                key={exercise.id}
-                className={cn(index > 0 && !startsGroup && "border-t border-line")}
-              >
-                {startsGroup && (
-                  <div className="flex items-center justify-between gap-2 border-t border-line pt-2 pb-1">
-                    <span className="text-xs font-medium tracking-wide text-accent uppercase">
-                      {group}
-                    </span>
-                    {!readOnly && (
-                      <Button variant="ghost" size="sm" onClick={() => onEditSuperset(group)}>
-                        Edit
-                      </Button>
-                    )}
-                  </div>
-                )}
+              <li key={exercise.id}>
                 <button
                   type="button"
                   onClick={() => onOpenExercise(exercise.id)}
                   className={cn(
                     "flex min-h-14 w-full items-center gap-3 py-3 text-left active:bg-surface-raised",
-                    // A modest rule, not a second panel: the row itself is unchanged.
-                    group !== null && "border-l-2 border-accent pl-3",
+                    // Rows in a superset share one colour; nothing else marks the group.
+                    hue && "superset-row",
                   )}
+                  style={hue ? supersetStyle(hue) : undefined}
                 >
-                  <span className="w-5 shrink-0 text-sm text-ink-subtle tabular-nums">
+                  <span
+                    className="w-5 shrink-0 text-sm text-ink-subtle tabular-nums"
+                    style={hue ? { color: "var(--superset-color)" } : undefined}
+                  >
                     {exercise.orderIndex}
                   </span>
                   <span className="min-w-0 flex-1">
@@ -245,15 +272,9 @@ export function WorkoutOverview({
             disabled={session.exercises.length < 2}
             onClick={() => onEditSuperset(null)}
           >
-            Superset
+            {hues.size > 0 ? "Supersets" : "Superset"}
           </Button>
         </div>
-      )}
-      {!readOnly && groups.length > 0 && (
-        <p className="text-xs text-ink-subtle">
-          {groups.length === 1 ? "One superset" : `${groups.length} supersets`} in this workout
-          only. Your programme is unchanged.
-        </p>
       )}
     </div>
   );

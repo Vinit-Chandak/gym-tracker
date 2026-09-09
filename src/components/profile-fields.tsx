@@ -63,7 +63,7 @@ export function ProfileFields({
 
   return (
     <>
-      <Field label="Name" error={errors?.displayName} hint="Only you see this.">
+      <Field label="Name" error={errors?.displayName}>
         <Input
           type="text"
           name="displayName"
@@ -76,11 +76,7 @@ export function ProfileFields({
       <Field
         label="Time zone"
         error={errors?.timeZone}
-        hint={
-          detected && detected !== timeZone
-            ? `This device says ${detected}.`
-            : "Dates, weeks and “today” are worked out in this zone."
-        }
+        hint={detected && detected !== timeZone ? `This device says ${detected}` : undefined}
       >
         <Input
           type="text"
@@ -117,11 +113,7 @@ export function ProfileFields({
         )}
       </div>
 
-      <Field
-        label="Body weight"
-        error={errors?.bodyWeightKg}
-        hint="Optional, in kilograms. Used for bodyweight exercises."
-      >
+      <Field label="Body weight (kg)" error={errors?.bodyWeightKg} hint="Optional">
         <Input
           type="text"
           name="bodyWeightKg"

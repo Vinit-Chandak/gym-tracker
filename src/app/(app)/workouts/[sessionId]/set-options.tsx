@@ -105,10 +105,6 @@ export function SetOptions({
             />
           </div>
 
-          <p className="text-xs text-ink-subtle">
-            Changes apply to this set only. Close and use Save in the row to record them.
-          </p>
-
           <Button
             variant="danger"
             className="w-full"

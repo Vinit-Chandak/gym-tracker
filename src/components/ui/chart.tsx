@@ -6,6 +6,8 @@ import type { Point } from "@/domain/analytics";
 import { formatIsoDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
+import { InfoTip } from "./info-tip";
+
 /**
  * Series marks come from the theme, so the same chart is legible on either canvas: the
  * tokens carry a separately validated colour per mode rather than one hex that was only
@@ -36,8 +38,13 @@ type ChartProps = {
   baseline?: "zero" | "auto";
   format?: (value: number) => string;
   height?: number;
-  /** Says which way is better, for measurements where lower wins. */
+  /** Anything the reader needs to read the chart correctly; behind a tip, not under it. */
   note?: string;
+  /**
+   * Whether the chart names itself. Off when a heading, headline or control just above
+   * already says what it is, so the same words are not printed twice.
+   */
+  caption?: boolean;
 };
 
 const PAD = { top: 10, right: 12, bottom: 22, left: 40 };
@@ -74,6 +81,7 @@ export function Chart({
   format = (v) => String(Math.round(v * 10) / 10),
   height = 200,
   note,
+  caption = true,
 }: ChartProps) {
   const holder = useRef<HTMLDivElement>(null);
   // Width is measured after mount: the server cannot know it, and guessing would
@@ -154,25 +162,30 @@ export function Chart({
 
   return (
     <figure className="space-y-2">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <figcaption className="text-sm font-medium">
-          {title} <span className="text-ink-muted">({unit})</span>
-        </figcaption>
-        {multi && (
-          <ul className="flex gap-3">
-            {series.map((s) => (
-              <li key={s.name} className="flex items-center gap-1.5 text-xs text-ink-muted">
-                <span
-                  className="size-2.5 rounded-full"
-                  style={{ background: s.color }}
-                  aria-hidden
-                />
-                {s.name}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      {(caption || note || multi) && (
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+          <span className="flex min-w-0 items-center gap-1">
+            <figcaption className={cn("text-sm font-medium", !caption && "sr-only")}>
+              {title} <span className="text-ink-muted">({unit})</span>
+            </figcaption>
+            {note && <InfoTip label={`About ${title.toLowerCase()}`}>{note}</InfoTip>}
+          </span>
+          {multi && (
+            <ul className="flex gap-3">
+              {series.map((s) => (
+                <li key={s.name} className="flex items-center gap-1.5 text-xs text-ink-muted">
+                  <span
+                    className="size-2.5 rounded-full"
+                    style={{ background: s.color }}
+                    aria-hidden
+                  />
+                  {s.name}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       <div ref={holder} className="relative" style={{ height }}>
         {width > 0 && (
@@ -315,8 +328,6 @@ export function Chart({
           </div>
         )}
       </div>
-
-      {note && <p className="text-xs text-ink-subtle">{note}</p>}
 
       <details className="text-xs text-ink-muted">
         <summary className="flex min-h-11 cursor-pointer items-center select-none">
