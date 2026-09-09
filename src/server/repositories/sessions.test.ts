@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { equipmentTypes, exercises } from "@/db/schema";
+import { equipmentTypes, exercises, programExercises } from "@/db/schema";
 import { seedReferenceData } from "@/db/seed/reference";
 import { seedTestUserData } from "@/db/test/fixtures";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
@@ -27,13 +27,16 @@ import {
   getSessionDetail,
   listSessions,
   logSet,
+  removeSupersetGroup,
   saveCheckIn,
+  saveSupersetGroup,
   SessionHasSetsError,
   setExerciseCompleted,
   skipExercise,
   startAdHocSession,
   startPlannedSession,
   substituteExercise,
+  SupersetGroupError,
   type SessionDetail,
 } from "./sessions";
 
@@ -547,5 +550,150 @@ describe("progression suggestions", () => {
     expect(detail?.warnings[1]?.title).toBe("Lower back 3/10, up from 1");
     expect(detail?.warnings[2]?.title).toBe("Right shin 5/10, up from 1");
     await discard(second.sessionId);
+  });
+});
+
+describe("session-only supersets", () => {
+  let sessionId: string;
+
+  async function groups(): Promise<Record<string, string | null>> {
+    const detail = await withUser(t.db, user.id, (tx) => getSessionDetail(tx, user.id, sessionId));
+    if (!detail) throw new Error("no detail");
+    return Object.fromEntries(detail.exercises.map((e) => [e.exercise.slug, e.supersetGroup]));
+  }
+
+  it("copies the programme's grouping onto the session's own rows", async () => {
+    const day = await dayId("Easy Run + Arms");
+    const started = await withUser(t.db, user.id, (tx) =>
+      startPlannedSession(tx, user.id, { gymId: anytimeId, programDayId: day, cycleIndex: 1 }),
+    );
+    sessionId = started.sessionId;
+    const byExercise = await groups();
+    expect(byExercise["wrist-curl"]).toBe("forearms");
+    expect(byExercise["reverse-wrist-curl"]).toBe("forearms");
+  });
+
+  it("groups two exercises for this workout without touching the programme", async () => {
+    const detail = await withUser(t.db, user.id, (tx) => getSessionDetail(tx, user.id, sessionId));
+    const members = (detail as SessionDetail).exercises
+      .filter((e) => e.supersetGroup === null)
+      .slice(0, 2);
+    const { group } = await withUser(t.db, user.id, (tx) =>
+      saveSupersetGroup(tx, user.id, {
+        sessionId,
+        group: null,
+        workoutExerciseIds: members.map((e) => e.id),
+      }),
+    );
+    expect(group).toBe("Superset A");
+    const byExercise = await groups();
+    for (const member of members) expect(byExercise[member.exercise.slug]).toBe("Superset A");
+
+    // The programme template is untouched: only this workout's rows carry the new group.
+    const planned = await t.db
+      .select({ group: programExercises.supersetGroup })
+      .from(programExercises)
+      .where(eq(programExercises.id, members[0]!.planned!.programExerciseId));
+    expect(planned[0]?.group).toBeNull();
+  });
+
+  it("replaces membership rather than creating a second group for the same request", async () => {
+    const detail = await withUser(t.db, user.id, (tx) => getSessionDetail(tx, user.id, sessionId));
+    const members = (detail as SessionDetail).exercises
+      .filter((e) => e.supersetGroup === "Superset A")
+      .map((e) => e.id);
+    await withUser(t.db, user.id, (tx) =>
+      saveSupersetGroup(tx, user.id, {
+        sessionId,
+        group: "Superset A",
+        workoutExerciseIds: members,
+      }),
+    );
+    const byExercise = await groups();
+    const distinct = new Set(Object.values(byExercise).filter((g) => g !== null));
+    expect(distinct).toEqual(new Set(["forearms", "Superset A"]));
+  });
+
+  it("refuses a group of fewer than two exercises", async () => {
+    const detail = await withUser(t.db, user.id, (tx) => getSessionDetail(tx, user.id, sessionId));
+    const one = (detail as SessionDetail).exercises[0]!.id;
+    await expect(
+      withUser(t.db, user.id, (tx) =>
+        saveSupersetGroup(tx, user.id, { sessionId, group: null, workoutExerciseIds: [one] }),
+      ),
+    ).rejects.toBeInstanceOf(SupersetGroupError);
+  });
+
+  it("drops a group left with a single member", async () => {
+    const detail = await withUser(t.db, user.id, (tx) => getSessionDetail(tx, user.id, sessionId));
+    const forearms = (detail as SessionDetail).exercises.filter(
+      (e) => e.supersetGroup === "forearms",
+    );
+    const supersetA = (detail as SessionDetail).exercises.filter(
+      (e) => e.supersetGroup === "Superset A",
+    );
+    // Moving one of the pair into the other group leaves "forearms" with one member.
+    await withUser(t.db, user.id, (tx) =>
+      saveSupersetGroup(tx, user.id, {
+        sessionId,
+        group: "Superset A",
+        workoutExerciseIds: [...supersetA.map((e) => e.id), forearms[0]!.id],
+      }),
+    );
+    const byExercise = await groups();
+    expect(byExercise[forearms[1]!.exercise.slug]).toBeNull();
+    expect(byExercise[forearms[0]!.exercise.slug]).toBe("Superset A");
+  });
+
+  it("ungroups without losing an exercise or a set", async () => {
+    const before = await withUser(t.db, user.id, (tx) => getSessionDetail(tx, user.id, sessionId));
+    const member = (before as SessionDetail).exercises.find(
+      (e) => e.supersetGroup === "Superset A",
+    )!;
+    await withUser(t.db, user.id, (tx) =>
+      logSet(tx, user.id, {
+        workoutExerciseId: member.id,
+        setIndex: 1,
+        setType: "working",
+        weight: 20,
+        reps: 12,
+        rir: 2,
+        durationSeconds: null,
+      }),
+    );
+    await withUser(t.db, user.id, (tx) =>
+      removeSupersetGroup(tx, user.id, sessionId, "Superset A"),
+    );
+    const after = await withUser(t.db, user.id, (tx) => getSessionDetail(tx, user.id, sessionId));
+    expect((after as SessionDetail).exercises).toHaveLength(
+      (before as SessionDetail).exercises.length,
+    );
+    const kept = (after as SessionDetail).exercises.find((e) => e.id === member.id);
+    expect(kept?.supersetGroup).toBeNull();
+    expect(kept?.sets).toHaveLength(1);
+  });
+
+  it("keeps a finished workout's grouping in its history", async () => {
+    const detail = await withUser(t.db, user.id, (tx) => getSessionDetail(tx, user.id, sessionId));
+    const pair = (detail as SessionDetail).exercises.slice(0, 2).map((e) => e.id);
+    await withUser(t.db, user.id, (tx) =>
+      saveSupersetGroup(tx, user.id, { sessionId, group: null, workoutExerciseIds: pair }),
+    );
+    await withUser(t.db, user.id, (tx) =>
+      finishSession(tx, user.id, sessionId, { notes: null, bodyWeightKg: null }),
+    );
+    const byExercise = await groups();
+    const stored = Object.values(byExercise).filter((g) => g !== null);
+    expect(stored.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("refuses to change the grouping of a finished workout", async () => {
+    const detail = await withUser(t.db, user.id, (tx) => getSessionDetail(tx, user.id, sessionId));
+    const pair = (detail as SessionDetail).exercises.slice(2, 4).map((e) => e.id);
+    await expect(
+      withUser(t.db, user.id, (tx) =>
+        saveSupersetGroup(tx, user.id, { sessionId, group: null, workoutExerciseIds: pair }),
+      ),
+    ).rejects.toThrow();
   });
 });

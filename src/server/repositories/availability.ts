@@ -628,6 +628,8 @@ export type PlannedDayResolution = {
   programExerciseId: string;
   exercise: ExerciseRef & { name: string };
   preferredEquipmentInstanceId: string | null;
+  /** The programme's grouping, which a new session copies and then owns. */
+  supersetGroup: string | null;
   decision: ExerciseDecision;
 };
 
@@ -645,6 +647,7 @@ export async function resolvePlannedDay(
       .select({
         programExerciseId: programExercises.id,
         preferredEquipmentInstanceId: programExercises.preferredEquipmentInstanceId,
+        supersetGroup: programExercises.supersetGroup,
         exerciseId: exercises.id,
         exerciseName: exercises.name,
         modality: exercises.modality,
@@ -677,6 +680,7 @@ export async function resolvePlannedDay(
       programExerciseId: p.programExerciseId,
       exercise,
       preferredEquipmentInstanceId: p.preferredEquipmentInstanceId,
+      supersetGroup: p.supersetGroup,
       decision: decide(
         ctx,
         exercise,

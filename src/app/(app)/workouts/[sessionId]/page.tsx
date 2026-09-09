@@ -10,8 +10,8 @@ import { getRequestProfile } from "@/server/queries/request-profile";
 import { getSessionDetail } from "@/server/repositories/sessions";
 import { requireUuid } from "@/server/validation/params";
 
-import { SessionView } from "./session-view";
 import { toSessionVM } from "./view-model";
+import { WorkoutView } from "./workout-view";
 
 export const metadata: Metadata = { title: "Session" };
 
@@ -37,15 +37,14 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
 
   return (
     <>
-      <PageHeader title={title} backHref={data.completedAt ? "/history" : "/today"} />
+      {/* The gym and the cycle are said once, here. The logger below never repeats them. */}
+      <PageHeader
+        title={title}
+        context={`${data.gym.name}${data.cycleIndex ? ` · cycle ${data.cycleIndex}` : ""}`}
+        backHref={data.completedAt ? "/history" : "/today"}
+      />
       <PageContent>
-        {!data.completedAt && (
-          <p className="px-1 text-sm text-ink-muted">
-            {data.gym.name}
-            {data.cycleIndex ? ` · cycle ${data.cycleIndex}` : ""}
-          </p>
-        )}
-        <SessionView
+        <WorkoutView
           key={`${viewKey}:${data.completedAt ?? "open"}`}
           session={data}
           userId={user.id}
