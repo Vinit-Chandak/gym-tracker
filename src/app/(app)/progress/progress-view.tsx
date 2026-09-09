@@ -216,9 +216,9 @@ export function ProgressView({
         options={TABS}
         value={tab}
         onChange={setTab}
-        // Five across a phone crams "Recovery" into 50px of a 66px label; three wraps to
-        // two rows and every tab stays readable.
-        columns={3}
+        // No column count: five across a phone would cram "Recovery" into 50px of a 66px
+        // label, so the control packs in as many as fit and wraps the rest. A phone gets
+        // three and two; a tablet gets all five on one line.
       />
 
       {tab === "overview" && (
