@@ -3,12 +3,11 @@ import { notFound, redirect } from "next/navigation";
 
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
-import { Card } from "@/components/ui/card";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { substituteExerciseAction } from "@/server/actions/sessions";
 import { requireUser } from "@/server/auth";
-import { listEquipmentForGym } from "@/server/repositories/equipment";
+import { listEquipmentForGym, machinesByExerciseAtGym } from "@/server/repositories/equipment";
 import { listExercises } from "@/server/repositories/exercises";
 import { getSessionDetail } from "@/server/repositories/sessions";
 import { requireUuid } from "@/server/validation/params";
@@ -28,15 +27,17 @@ export default async function SubstitutePage(
     const session = await getSessionDetail(tx, user.id, sessionId, { includeGuidance: false });
     const slot = session?.exercises.find((e) => e.id === workoutExerciseId);
     if (!session || !slot) return null;
-    const [exercises, machines] = await Promise.all([
+    const [exercises, machines, machinesByExercise] = await Promise.all([
       listExercises(tx),
       listEquipmentForGym(tx, user.id, session.gym.id),
+      machinesByExerciseAtGym(tx, user.id, session.gym.id),
     ]);
     return {
       session,
       slot,
       exercises: exercises.filter((e) => e.isActive && e.id !== slot.exercise.id),
       machines: machines.filter((m) => m.isActive),
+      machinesByExercise,
     };
   });
   if (!data) notFound();
@@ -45,27 +46,28 @@ export default async function SubstitutePage(
 
   return (
     <>
-      <PageHeader title="Choose a fallback" backHref={`/workouts/${sessionId}`} />
+      {/* Returning lands back on the workout, which is where the request came from. */}
+      <PageHeader
+        title="Choose a fallback"
+        context={`Instead of ${data.slot.exercise.name} at ${data.session.gym.name}`}
+        backHref={`/workouts/${sessionId}?exercise=${workoutExerciseId}`}
+        backLabel="Back to the exercise"
+      />
       <PageContent>
-        <Card>
-          <p className="text-sm text-ink-muted">
-            Instead of <span className="font-medium text-ink">{data.slot.exercise.name}</span> at{" "}
-            {data.session.gym.name}, do:
-          </p>
-          <PickExerciseForm
-            action={substituteExerciseAction.bind(
-              null,
-              sessionId,
-              workoutExerciseId,
-              data.session.gym.id,
-              plannedExerciseId,
-            )}
-            exercises={data.exercises}
-            machines={data.machines.map((m) => ({ id: m.id, name: m.name }))}
-            submitLabel="Use this instead"
-            remember={plannedExerciseId !== null}
-          />
-        </Card>
+        <PickExerciseForm
+          action={substituteExerciseAction.bind(
+            null,
+            sessionId,
+            workoutExerciseId,
+            data.session.gym.id,
+            plannedExerciseId,
+          )}
+          exercises={data.exercises}
+          machines={data.machines.map((m) => ({ id: m.id, name: m.name }))}
+          machinesByExercise={data.machinesByExercise}
+          submitLabel="Use this instead"
+          remember={plannedExerciseId !== null}
+        />
       </PageContent>
     </>
   );

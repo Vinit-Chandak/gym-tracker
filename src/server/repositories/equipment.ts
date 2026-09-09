@@ -1,7 +1,7 @@
-import { and, asc, desc, eq, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, ne, or, sql } from "drizzle-orm";
 
 import { isUniqueViolation } from "@/db/errors";
-import { equipmentInstances, equipmentTypes, gyms } from "@/db/schema";
+import { equipmentInstances, equipmentTypes, exerciseEquipmentOptions, gyms } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import { sharedEquipmentTypes } from "@/server/queries/reference";
 import type { EquipmentInput } from "@/server/validation/gyms";
@@ -67,6 +67,50 @@ export async function listEquipmentForGym(
     .innerJoin(equipmentTypes, eq(equipmentTypes.id, equipmentInstances.equipmentTypeId))
     .where(and(eq(equipmentInstances.gymId, gymId), eq(equipmentInstances.userId, userId)))
     .orderBy(desc(equipmentInstances.isActive), asc(equipmentInstances.name));
+}
+
+/**
+ * Which of a gym's active machines each exercise can actually be done on.
+ *
+ * One statement for the whole catalogue rather than a lookup per exercise: the pickers use
+ * it to decide whether a machine question is worth asking at all. An exercise with exactly
+ * one option does not need a picker, and one with none should not be offered a list of
+ * machines it cannot use.
+ */
+export async function machinesByExerciseAtGym(
+  db: DbOrTx,
+  userId: string,
+  gymId: string,
+): Promise<Record<string, string[]>> {
+  const rows = await db
+    .selectDistinct({
+      exerciseId: exerciseEquipmentOptions.exerciseId,
+      equipmentInstanceId: equipmentInstances.id,
+    })
+    .from(exerciseEquipmentOptions)
+    .innerJoin(
+      equipmentInstances,
+      or(
+        eq(exerciseEquipmentOptions.equipmentInstanceId, equipmentInstances.id),
+        eq(exerciseEquipmentOptions.equipmentTypeId, equipmentInstances.equipmentTypeId),
+      ),
+    )
+    .where(
+      and(
+        eq(equipmentInstances.gymId, gymId),
+        eq(equipmentInstances.userId, userId),
+        eq(equipmentInstances.isActive, true),
+        // Shared catalogue options plus this account's own; never another account's.
+        or(isNull(exerciseEquipmentOptions.userId), eq(exerciseEquipmentOptions.userId, userId)),
+      ),
+    );
+  const byExercise: Record<string, string[]> = {};
+  for (const row of rows) {
+    const list = byExercise[row.exerciseId];
+    if (list) list.push(row.equipmentInstanceId);
+    else byExercise[row.exerciseId] = [row.equipmentInstanceId];
+  }
+  return byExercise;
 }
 
 export type EquipmentDetail = typeof equipmentInstances.$inferSelect & {

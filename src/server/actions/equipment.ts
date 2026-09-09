@@ -15,6 +15,7 @@ import {
 } from "@/server/repositories/equipment";
 import { formValues, parseForm, type FormState } from "@/server/validation/form";
 import { equipmentInputSchema } from "@/server/validation/gyms";
+import { workoutReturnPath, type WorkoutReturn } from "@/server/validation/params";
 
 function revalidateGym(gymId: string): void {
   revalidatePath("/gyms");
@@ -22,8 +23,14 @@ function revalidateGym(gymId: string): void {
   revalidatePath("/today");
 }
 
+/**
+ * Adds a machine. `returnTo` carries the workout that sent the user here, so registering a
+ * missing machine mid-session hands them back to the exercise that needed it rather than
+ * leaving them on the gym screen with their workout somewhere behind them.
+ */
 export async function createEquipmentAction(
   gymId: string,
+  returnTo: WorkoutReturn | null,
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
@@ -42,6 +49,10 @@ export async function createEquipmentAction(
     throw error;
   }
   revalidateGym(gymId);
+  if (returnTo) {
+    revalidatePath(`/workouts/${returnTo.sessionId}`);
+    redirect(workoutReturnPath(returnTo));
+  }
   redirect(`/gyms/${gymId}`);
 }
 

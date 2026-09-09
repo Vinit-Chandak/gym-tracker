@@ -322,8 +322,9 @@ export function ExerciseLogger({
                       Add a fallback
                     </LinkButton>
                   )}
+                  {/* Carries the workout along, so registering it lands back here. */}
                   <LinkButton
-                    href={`/gyms/${session.gym.id}/equipment/new`}
+                    href={`/gyms/${session.gym.id}/equipment/new?session=${session.id}&exercise=${exercise.id}`}
                     variant="ghost"
                     size="sm"
                   >
