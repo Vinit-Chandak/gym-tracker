@@ -1,17 +1,21 @@
 "use client";
 
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import type { Route } from "next";
 
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { BodyMap } from "@/components/ui/body-map";
 import { Chart, SERIES_COLORS, type ChartSeries } from "@/components/ui/chart";
 import { Field } from "@/components/ui/input";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select } from "@/components/ui/select";
 import type { PerformanceSeries, Point } from "@/domain/analytics";
+import type { MuscleVolume } from "@/domain/muscle-volume";
 import type { MuscleGroup } from "@/domain/types";
-import { formatMinutes } from "@/lib/format";
+import { formatIsoDate, formatMinutes } from "@/lib/format";
 import { LOAD_UNIT_LABELS, MUSCLE_LABELS } from "@/lib/labels";
 
 export type SeriesOption = {
@@ -27,7 +31,7 @@ export type Week = {
   runs: number;
   runKm: number;
   runMinutes: number;
-  muscles: Record<string, number>;
+  muscles: Record<MuscleGroup, number>;
 };
 
 export type Adherence = {
@@ -52,6 +56,7 @@ type Props = {
   }[];
   pace: { date: string; value: number | null; mode: string }[];
   options: SeriesOption[];
+  body: { from: string; to: string; volume: MuscleVolume; totalSets: number };
   /** Only the chosen exercise's numbers cross the wire; the rest stay on the server. */
   selected: PerformanceSeries | null;
 };
@@ -61,6 +66,7 @@ const TABS = [
   { value: "strength", label: "Strength" },
   { value: "running", label: "Running" },
   { value: "recovery", label: "Recovery" },
+  { value: "body", label: "Body" },
 ] as const;
 type Tab = (typeof TABS)[number]["value"];
 
@@ -137,6 +143,7 @@ export function ProgressView({
   pace,
   options,
   selected,
+  body,
 }: Props) {
   const router = useRouter();
   const params = useSearchParams();
@@ -148,14 +155,27 @@ export function ProgressView({
   const [paceMode, setPaceMode] = useState("outdoor");
   const [recoveryMetric, setRecoveryMetric] = useState<RecoveryMetric>("sleep");
 
+  // Every group is present now that volume is a full record, so offer only trained ones.
   const muscles = useMemo(
-    () => [...new Set(weeks.flatMap((w) => Object.keys(w.muscles)))].sort() as MuscleGroup[],
+    () =>
+      [...new Set(weeks.flatMap((w) => Object.entries(w.muscles).filter(([, n]) => n > 0)))]
+        .map(([m]) => m)
+        .filter((m, i, all) => all.indexOf(m) === i)
+        .sort() as MuscleGroup[],
     [weeks],
   );
-  const [muscle, setMuscle] = useState<string>("");
-  const shownMuscle = muscle || muscles[0] || "";
+  const [muscle, setMuscle] = useState<MuscleGroup | "">("");
+  const shownMuscle: MuscleGroup | undefined = muscle || muscles[0];
 
   // The picked exercise lives in the URL so the server sends one series, not all of them.
+  const stepWeek = (days: number) => {
+    const next = new URLSearchParams(params.toString());
+    const d = new Date(`${body.from}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + days);
+    next.set("week", d.toISOString().slice(0, 10));
+    startTransition(() => router.replace(`/progress?${next}` as Route, { scroll: false }));
+  };
+
   const chooseSeries = (id: string) => {
     const next = new URLSearchParams(params.toString());
     next.set("series", id);
@@ -196,7 +216,9 @@ export function ProgressView({
         options={TABS}
         value={tab}
         onChange={setTab}
-        columns={4}
+        // Five across a phone crams "Recovery" into 50px of a 66px label; three wraps to
+        // two rows and every tab stays readable.
+        columns={3}
       />
 
       {tab === "overview" && (
@@ -327,7 +349,10 @@ export function ProgressView({
             <Card>
               <h2 className="font-semibold">Working sets by muscle</h2>
               <Field label="Primary muscle">
-                <Select value={shownMuscle} onChange={(e) => setMuscle(e.target.value)}>
+                <Select
+                  value={shownMuscle ?? ""}
+                  onChange={(e) => setMuscle(e.target.value as MuscleGroup)}
+                >
                   {muscles.map((m) => (
                     <option key={m} value={m}>
                       {MUSCLE_LABELS[m]}
@@ -343,11 +368,11 @@ export function ProgressView({
                   {
                     name: "Sets",
                     color: SERIES_COLORS.lifting,
-                    points: asPoints((w) => w.muscles[shownMuscle] ?? 0),
+                    points: asPoints((w) => (shownMuscle ? (w.muscles[shownMuscle] ?? 0) : 0)),
                   },
                 ]}
                 format={(v) => String(Math.round(v))}
-                note="Every non-warm-up set counts once for each primary muscle; secondary muscles are excluded."
+                note="Every non-warm-up set counts once for each primary muscle and half for each secondary one."
               />
             </Card>
           )}
@@ -437,6 +462,37 @@ export function ProgressView({
             ]}
             note="Workout check-ins, daily recovery and after-run shin scores. Missing readings stay blank."
           />
+        </Card>
+      )}
+
+      {tab === "body" && (
+        <Card>
+          <div className="flex items-center justify-between gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label="Previous week"
+              disabled={pending}
+              onClick={() => stepWeek(-7)}
+            >
+              <ChevronLeft className="size-5" aria-hidden />
+            </Button>
+            <p className="min-w-0 text-center text-sm font-medium">
+              {formatIsoDate(body.from)} – {formatIsoDate(body.to)}
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label="Next week"
+              disabled={pending}
+              onClick={() => stepWeek(7)}
+            >
+              <ChevronRight className="size-5" aria-hidden />
+            </Button>
+          </div>
+          <div className={pending ? "opacity-50 transition-opacity" : undefined}>
+            <BodyMap volume={body.volume} totalSets={body.totalSets} />
+          </div>
         </Card>
       )}
 
