@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams, type ReadonlyURLSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import type { Route } from "next";
 
@@ -36,9 +37,14 @@ const FILTER_PARAMS: Record<keyof Filters, string> = {
   machine: "machine",
 };
 
-function fromSearch(): Filters {
-  if (typeof window === "undefined") return EMPTY;
-  const params = new URLSearchParams(window.location.search);
+/**
+ * The starting filters, from the URL.
+ *
+ * Read through `useSearchParams` rather than `window.location`: this component is rendered
+ * on the server too, where there is no window, and a filtered link would then arrive as an
+ * unfiltered list in the HTML and rearrange itself the moment it hydrated.
+ */
+function fromSearch(params: URLSearchParams | ReadonlyURLSearchParams): Filters {
   return {
     kind: params.get(FILTER_PARAMS.kind) ?? EMPTY.kind,
     gym: params.get(FILTER_PARAMS.gym) ?? EMPTY.gym,
@@ -57,7 +63,8 @@ export function HistoryView({
   // Filtering happens on data the page already has, so it stays local and immediate. The
   // URL is updated through the History API purely so that coming back from an entry
   // restores the same view, without that costing a fetch on every change.
-  const [filters, setFilters] = useState<Filters>(fromSearch);
+  const searchParams = useSearchParams();
+  const [filters, setFilters] = useState<Filters>(() => fromSearch(searchParams));
 
   const apply = (next: Filters) => {
     setFilters(next);
