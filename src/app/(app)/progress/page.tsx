@@ -6,11 +6,14 @@ import { Card } from "@/components/ui/card";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { liftingAdherence, trainingAnalytics } from "@/domain/analytics";
+import { addExerciseVolume, emptyMuscleVolume } from "@/domain/muscle-volume";
+import { addDays, todayInTimeZone } from "@/domain/program-calendar";
+import { weekStart } from "@/domain/running";
 import { requireUser } from "@/server/auth";
 import { ensureProfile } from "@/server/queries/profile";
 import { getSchedule } from "@/server/repositories/schedule";
-import { readTrainingData } from "@/server/repositories/training-data";
-import { parseDateRangeOrDefault } from "@/server/validation/date-range";
+import { readTrainingData, readWorkouts } from "@/server/repositories/training-data";
+import { parseDateRange, parseDateRangeOrDefault } from "@/server/validation/date-range";
 import { ProgressView } from "./progress-view";
 
 export const metadata: Metadata = { title: "Progress" };
@@ -25,10 +28,37 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
     },
     profile.timeZone,
   );
-  const { training, schedule } = await withUser(getDb(), user.id, async (tx) => ({
+  // The body map steps a week at a time, independent of the trend range above, so it
+  // reads its own Tuesday-Monday window: the same week boundary the programme uses.
+  const asked =
+    typeof params.week === "string" && /^\d{4}-\d{2}-\d{2}$/.test(params.week)
+      ? params.week
+      : todayInTimeZone(profile.timeZone);
+  const bodyFrom = weekStart(asked);
+  const bodyTo = addDays(bodyFrom, 6);
+  const bodyRange = parseDateRange({ from: bodyFrom, to: bodyTo }, profile.timeZone);
+
+  const { training, schedule, bodyWorkouts } = await withUser(getDb(), user.id, async (tx) => ({
     training: await readTrainingData(tx, user.id, range),
     schedule: await getSchedule(tx, user.id),
+    bodyWorkouts: await readWorkouts(tx, user.id, bodyRange),
   }));
+
+  // Only 20 numbers cross the wire, never the week's sets.
+  const bodyVolume = emptyMuscleVolume();
+  let bodySets = 0;
+  for (const workout of bodyWorkouts.workouts) {
+    if (!workout.completedAt) continue;
+    for (const slot of workout.exercises) {
+      const working = slot.sets.filter((set) => set.setType !== "warmup").length;
+      bodySets += working;
+      addExerciseVolume(bodyVolume, {
+        primaryMuscles: slot.exercise.primaryMuscles,
+        secondaryMuscles: slot.exercise.secondaryMuscles ?? [],
+        workingSets: working,
+      });
+    }
+  }
   const analytics = trainingAnalytics(training, profile.timeZone, range.from, range.to);
 
   // Eight weeks of training builds dozens of exercise/machine series, each carrying five
@@ -75,6 +105,7 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
           pace={analytics.pace}
           options={options}
           selected={selected}
+          body={{ from: bodyFrom, to: bodyTo, volume: bodyVolume, totalSets: bodySets }}
         />
       </PageContent>
     </>
