@@ -3,6 +3,8 @@ import type { Route } from "next";
 import Link from "@/components/ui/app-link";
 import type { ReactNode } from "react";
 
+import { cn } from "@/lib/utils";
+
 type LinkRowProps<T extends string> = {
   href: Route<T>;
   title: string;
@@ -16,7 +18,7 @@ export function LinkRow<T extends string>({ href, title, subtitle, badge, meta }
   return (
     <Link
       href={href}
-      className="flex min-h-14 items-center gap-3 px-[var(--panel-padding)] py-3 transition-colors hover:bg-surface-raised/60 active:bg-surface-raised"
+      className="flex min-h-14 items-center gap-3 py-3 transition-colors duration-[var(--ov-duration-feedback)] active:bg-surface-raised"
     >
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -27,6 +29,7 @@ export function LinkRow<T extends string>({ href, title, subtitle, badge, meta }
           <p className="mt-0.5 text-sm [overflow-wrap:anywhere] text-ink-muted">{subtitle}</p>
         )}
       </div>
+      {/* Trailing actions keep a reserved column so a long name wraps instead of pushing them out. */}
       {meta && (
         <span className="max-w-[32%] shrink-0 text-right text-xs text-ink-muted tabular-nums">
           {meta}
@@ -37,10 +40,10 @@ export function LinkRow<T extends string>({ href, title, subtitle, badge, meta }
   );
 }
 
-export function List({ children }: { children: ReactNode }) {
-  return (
-    <ul className="min-w-0 divide-y divide-line/60 overflow-hidden rounded-card bg-surface ring-1 ring-line/50 ring-inset">
-      {children}
-    </ul>
-  );
+/**
+ * Ruled list. Rows are separated by a line and share the page gutters rather than sitting
+ * in a panel, so a list of destinations reads as part of the page.
+ */
+export function List({ children, className }: { children: ReactNode; className?: string }) {
+  return <ul className={cn("min-w-0 border-y border-line ruled-list", className)}>{children}</ul>;
 }

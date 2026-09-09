@@ -2,8 +2,10 @@
 
 import { useActionState, useRef, useState } from "react";
 
+import { Disclosure } from "@/components/ui/disclosure";
 import { FormError, SubmitButton } from "@/components/ui/form";
 import { Field, Input, Textarea } from "@/components/ui/input";
+import { Section } from "@/components/ui/section";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select } from "@/components/ui/select";
 import {
@@ -96,114 +98,129 @@ export function EquipmentForm({
     items: types.filter((t) => t.category === category),
   })).filter((group) => group.items.length > 0);
 
+  // Manufacturer, model, angle and pulley ratio are worth recording and rarely edited;
+  // folding them away keeps the four fields that decide progression in view. They open on
+  // their own when one already holds a value or has just been rejected.
+  const detailKeys = ["manufacturer", "model", "angleDegrees", "pulleyRatio"] as const;
+  const detailError = detailKeys.some((key) => state.fieldErrors?.[key]);
+  const hasDetail = detailKeys.some((key) => value(key).trim() !== "");
+
   return (
-    <form action={formAction} className="space-y-5">
-      <Field label="Equipment type" error={state.fieldErrors?.equipmentTypeId}>
-        <Select
-          name="equipmentTypeId"
-          value={typeId}
-          onChange={(event) => handleTypeChange(event.target.value)}
-          required
+    <form action={formAction} className="space-y-[var(--section-gap)]">
+      <Section title="What it is">
+        <Field label="Equipment type" error={state.fieldErrors?.equipmentTypeId}>
+          <Select
+            name="equipmentTypeId"
+            value={typeId}
+            onChange={(event) => handleTypeChange(event.target.value)}
+            required
+          >
+            <option value="">Choose a type…</option>
+            {grouped.map((group) => (
+              <optgroup key={group.category} label={EQUIPMENT_CATEGORY_LABELS[group.category]}>
+                {group.items.map((type) => (
+                  <option key={type.id} value={type.id}>
+                    {type.name}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </Select>
+        </Field>
+
+        <Field
+          label="Name"
+          hint="How you will recognise it, for example “Precor lat pulldown #1”."
+          error={state.fieldErrors?.name}
         >
-          <option value="">Choose a type…</option>
-          {grouped.map((group) => (
-            <optgroup key={group.category} label={EQUIPMENT_CATEGORY_LABELS[group.category]}>
-              {group.items.map((type) => (
-                <option key={type.id} value={type.id}>
-                  {type.name}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </Select>
-      </Field>
-
-      <Field
-        label="Name"
-        hint="How you will recognise it, for example “Precor lat pulldown #1”."
-        error={state.fieldErrors?.name}
-      >
-        <Input
-          name="name"
-          value={name}
-          onChange={(event) => {
-            touched.current.name = true;
-            setName(event.target.value);
-          }}
-          maxLength={80}
-          autoComplete="off"
-          required
-        />
-      </Field>
-
-      <Field label="Load" error={state.fieldErrors?.resistanceMode}>
-        <SegmentedControl
-          name="resistanceMode"
-          options={MODE_OPTIONS}
-          value={mode}
-          onChange={(next) => {
-            touched.current.mode = true;
-            setMode(next);
-          }}
-          columns={3}
-        />
-      </Field>
-
-      <Field label="Unit" error={state.fieldErrors?.unit}>
-        <SegmentedControl
-          name="unit"
-          options={UNIT_OPTIONS}
-          value={unit}
-          onChange={(next) => {
-            touched.current.unit = true;
-            setUnit(next);
-          }}
-          columns={5}
-        />
-      </Field>
-
-      <Field
-        label="Smallest load jump"
-        hint="In the unit above, e.g. 2.5 for a pair of 1.25 kg plates or one stack step. Used for progression suggestions."
-        error={state.fieldErrors?.loadIncrement}
-      >
-        <Input
-          name="loadIncrement"
-          inputMode="decimal"
-          defaultValue={value("loadIncrement")}
-          placeholder="2.5"
-        />
-      </Field>
-
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Manufacturer" hint="Optional" error={state.fieldErrors?.manufacturer}>
-          <Input name="manufacturer" defaultValue={value("manufacturer")} maxLength={80} />
-        </Field>
-        <Field label="Model" hint="Optional" error={state.fieldErrors?.model}>
-          <Input name="model" defaultValue={value("model")} maxLength={80} />
-        </Field>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Angle (°)" hint="Optional" error={state.fieldErrors?.angleDegrees}>
-          <Input name="angleDegrees" inputMode="decimal" defaultValue={value("angleDegrees")} />
-        </Field>
-        <Field label="Pulley ratio" hint="Optional" error={state.fieldErrors?.pulleyRatio}>
           <Input
-            name="pulleyRatio"
-            defaultValue={value("pulleyRatio")}
-            placeholder="1:2"
-            maxLength={40}
+            name="name"
+            value={name}
+            onChange={(event) => {
+              touched.current.name = true;
+              setName(event.target.value);
+            }}
+            maxLength={80}
+            autoComplete="off"
+            required
           />
         </Field>
+
+        <Field label="Load" error={state.fieldErrors?.resistanceMode}>
+          <SegmentedControl
+            name="resistanceMode"
+            options={MODE_OPTIONS}
+            value={mode}
+            onChange={(next) => {
+              touched.current.mode = true;
+              setMode(next);
+            }}
+            columns={3}
+          />
+        </Field>
+
+        <Field label="Unit" error={state.fieldErrors?.unit}>
+          <SegmentedControl
+            name="unit"
+            options={UNIT_OPTIONS}
+            value={unit}
+            onChange={(next) => {
+              touched.current.unit = true;
+              setUnit(next);
+            }}
+            columns={5}
+          />
+        </Field>
+
+        <Field
+          label="Smallest load jump"
+          hint="In the unit above, e.g. 2.5 for a pair of 1.25 kg plates or one stack step. Used for progression suggestions."
+          error={state.fieldErrors?.loadIncrement}
+        >
+          <Input
+            name="loadIncrement"
+            inputMode="decimal"
+            defaultValue={value("loadIncrement")}
+            placeholder="2.5"
+          />
+        </Field>
+      </Section>
+
+      <Disclosure summary="Additional details" defaultOpen={detailError || hasDetail}>
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Manufacturer" hint="Optional" error={state.fieldErrors?.manufacturer}>
+              <Input name="manufacturer" defaultValue={value("manufacturer")} maxLength={80} />
+            </Field>
+            <Field label="Model" hint="Optional" error={state.fieldErrors?.model}>
+              <Input name="model" defaultValue={value("model")} maxLength={80} />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Angle (°)" hint="Optional" error={state.fieldErrors?.angleDegrees}>
+              <Input name="angleDegrees" inputMode="decimal" defaultValue={value("angleDegrees")} />
+            </Field>
+            <Field label="Pulley ratio" hint="Optional" error={state.fieldErrors?.pulleyRatio}>
+              <Input
+                name="pulleyRatio"
+                defaultValue={value("pulleyRatio")}
+                placeholder="1:2"
+                maxLength={40}
+              />
+            </Field>
+          </div>
+
+          <Field label="Notes" hint="Optional" error={state.fieldErrors?.notes}>
+            <Textarea name="notes" defaultValue={value("notes")} maxLength={1000} />
+          </Field>
+        </div>
+      </Disclosure>
+
+      <div className="space-y-2">
+        <FormError message={state.formError} />
+        <SubmitButton>{submitLabel}</SubmitButton>
       </div>
-
-      <Field label="Notes" hint="Optional" error={state.fieldErrors?.notes}>
-        <Textarea name="notes" defaultValue={value("notes")} maxLength={1000} />
-      </Field>
-
-      <FormError message={state.formError} />
-      <SubmitButton>{submitLabel}</SubmitButton>
     </form>
   );
 }

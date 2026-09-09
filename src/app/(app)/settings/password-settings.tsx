@@ -4,20 +4,18 @@ import { CheckCircle2 } from "lucide-react";
 import { useActionState, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { FormError, SubmitButton } from "@/components/ui/form";
 import { Field, Input } from "@/components/ui/input";
 import { updatePasswordAction, type PasswordChangeState } from "@/server/actions/auth";
 
 const INITIAL: PasswordChangeState = {};
 
-export function PasswordCard() {
+export function PasswordSettings() {
   const [open, setOpen] = useState(false);
   const [state, formAction] = useActionState(updatePasswordAction, INITIAL);
 
   return (
-    <Card variant="plain">
-      <h2 className="text-base font-semibold">Password</h2>
+    <div className="min-w-0 space-y-3">
       {state.done ? (
         <p className="flex items-center gap-2 text-sm text-success">
           <CheckCircle2 className="size-5 shrink-0" aria-hidden />
@@ -58,6 +56,6 @@ export function PasswordCard() {
           </Button>
         </>
       )}
-    </Card>
+    </div>
   );
 }

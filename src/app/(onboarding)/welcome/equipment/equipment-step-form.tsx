@@ -73,14 +73,14 @@ export function EquipmentStepForm({
       ) : (
         groups.map((group) => (
           <fieldset key={group.category} className="space-y-2">
-            <legend className="pb-1 text-sm font-semibold tracking-wide text-ink-muted uppercase">
+            <legend className="pb-1 text-xs font-medium tracking-wide text-ink-muted uppercase">
               {EQUIPMENT_CATEGORY_LABELS[group.category]}
             </legend>
             <div className="grid gap-2 sm:grid-cols-2">
               {group.items.map((type) => (
                 <label
                   key={type.id}
-                  className="flex min-h-12 cursor-pointer items-center gap-3 rounded-control border border-line bg-surface-raised px-3 py-2 has-checked:border-accent has-checked:bg-accent/10"
+                  className="flex min-h-12 cursor-pointer items-center gap-3 rounded-control border border-line bg-surface-raised px-3 py-2 has-checked:border-accent has-checked:bg-accent-soft"
                 >
                   <input
                     type="checkbox"
@@ -88,7 +88,7 @@ export function EquipmentStepForm({
                     value={type.id}
                     checked={selected.has(type.id)}
                     onChange={() => toggle(type.id)}
-                    className="size-5 shrink-0 accent-accent"
+                    className="size-5 shrink-0 accent-[var(--ov-accent)]"
                   />
                   <span className="min-w-0 text-sm">{type.name}</span>
                 </label>

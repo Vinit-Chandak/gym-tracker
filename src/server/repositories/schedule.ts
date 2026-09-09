@@ -1,4 +1,4 @@
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 
 import { exercises, programExercises, programRuns, programSlotEvents, programs } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
@@ -238,30 +238,59 @@ export type PlannedExercisePreview = {
   supersetGroup: string | null;
 };
 
+function plannedExerciseSelection() {
+  return {
+    programExerciseId: programExercises.id,
+    exerciseId: exercises.id,
+    name: exercises.name,
+    sets: programExercises.sets,
+    prescriptionType: programExercises.prescriptionType,
+    repMin: programExercises.repMin,
+    repMax: programExercises.repMax,
+    durationMinSeconds: programExercises.durationMinSeconds,
+    durationMaxSeconds: programExercises.durationMaxSeconds,
+    perSide: programExercises.perSide,
+    rirMin: programExercises.rirMin,
+    rirMax: programExercises.rirMax,
+    supersetGroup: programExercises.supersetGroup,
+  };
+}
+
 export async function listDayExercises(
   db: DbOrTx,
   programDayId: string,
 ): Promise<PlannedExercisePreview[]> {
   return db
-    .select({
-      programExerciseId: programExercises.id,
-      exerciseId: exercises.id,
-      name: exercises.name,
-      sets: programExercises.sets,
-      prescriptionType: programExercises.prescriptionType,
-      repMin: programExercises.repMin,
-      repMax: programExercises.repMax,
-      durationMinSeconds: programExercises.durationMinSeconds,
-      durationMaxSeconds: programExercises.durationMaxSeconds,
-      perSide: programExercises.perSide,
-      rirMin: programExercises.rirMin,
-      rirMax: programExercises.rirMax,
-      supersetGroup: programExercises.supersetGroup,
-    })
+    .select(plannedExerciseSelection())
     .from(programExercises)
     .innerJoin(exercises, eq(exercises.id, programExercises.exerciseId))
     .where(eq(programExercises.programDayId, programDayId))
     .orderBy(asc(programExercises.orderIndex));
+}
+
+/**
+ * The planned exercises for several days at once, grouped by day. One statement rather
+ * than one per day: choosing a day means comparing them, and a seven-day cycle would
+ * otherwise cost seven round trips to draw one screen.
+ */
+export async function listExercisesByDay(
+  db: DbOrTx,
+  programDayIds: readonly string[],
+): Promise<Map<string, PlannedExercisePreview[]>> {
+  const byDay = new Map<string, PlannedExercisePreview[]>();
+  if (programDayIds.length === 0) return byDay;
+  const rows = await db
+    .select({ programDayId: programExercises.programDayId, ...plannedExerciseSelection() })
+    .from(programExercises)
+    .innerJoin(exercises, eq(exercises.id, programExercises.exerciseId))
+    .where(inArray(programExercises.programDayId, [...programDayIds]))
+    .orderBy(asc(programExercises.orderIndex));
+  for (const { programDayId, ...exercise } of rows) {
+    const list = byDay.get(programDayId);
+    if (list) list.push(exercise);
+    else byDay.set(programDayId, [exercise]);
+  }
+  return byDay;
 }
 
 export type RunTarget = {

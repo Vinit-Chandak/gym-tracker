@@ -1,6 +1,11 @@
 import type { SetType } from "@/domain/types";
 import { SET_TYPES } from "@/domain/types";
 
+/** The four numbers a set row can carry, in the order they appear in the grid. */
+export const DRAFT_VALUE_FIELDS = ["weight", "reps", "rir", "duration"] as const;
+
+export type DraftValueField = (typeof DRAFT_VALUE_FIELDS)[number];
+
 export type DraftFields = {
   setIndex: number;
   setType: SetType;
@@ -8,6 +13,13 @@ export type DraftFields = {
   reps: string;
   rir: string;
   duration: string;
+  /**
+   * Which values the user actually set. An empty field that was never touched still takes
+   * its row's suggestion when the set is saved; one the user deliberately cleared stays
+   * unknown. Without this the two are the same empty string, and clearing an optional RIR
+   * would silently restore the target it was cleared to reject.
+   */
+  touched?: DraftValueField[];
 };
 export type Draft = DraftFields & { baseCompletedAt: string | null };
 export type DraftContext = {
@@ -42,6 +54,11 @@ export function readDrafts(storage: StorageLike, ctx: DraftContext): Draft[] {
           [row.weight, row.reps, row.rir, row.duration].every(
             (v) => typeof v === "string" && v.length <= 24,
           ) &&
+          (row.touched === undefined ||
+            (Array.isArray(row.touched) &&
+              row.touched.every((field: unknown) =>
+                DRAFT_VALUE_FIELDS.includes(field as DraftValueField),
+              ))) &&
           (row.baseCompletedAt === null || typeof row.baseCompletedAt === "string"),
       )
       .slice(0, 50);
@@ -90,6 +107,16 @@ export function removeDraft(
   } catch {
     return false;
   }
+}
+
+/**
+ * The fields a stored draft counts as set by the user. Drafts written before this was
+ * recorded have no list, and are read the way they were written: whatever they hold is
+ * what the user typed, and an empty field still falls back to its suggestion.
+ */
+export function touchedFields(draft: DraftFields): Set<DraftValueField> {
+  if (draft.touched) return new Set(draft.touched);
+  return new Set(DRAFT_VALUE_FIELDS.filter((field) => draft[field].trim() !== ""));
 }
 
 /** A lost response may have committed successfully. Clear that draft only after matching server values. */

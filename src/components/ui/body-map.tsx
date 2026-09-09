@@ -15,15 +15,17 @@ import { cn } from "@/lib/utils";
 import { BODY_OUTLINE, BODY_REGIONS, BODY_VIEWBOX, type BodyView } from "./body-regions";
 
 /**
- * One hue, five steps light to dark-to-bright, the sequential ramp a magnitude scale wants.
- * Step 0 is the untrained body itself, a hair above the card so the figure still reads.
+ * One hue in five ordered steps, the sequential ramp a magnitude scale wants. The values
+ * come from the theme so the ramp keeps its ordering on either canvas — it runs pale to
+ * deep in light mode and deep to bright in dark mode. Step 0 is the untrained body.
+ * The bands are labelled and repeated in the table, so the colour is never the only cue.
  */
 const STEP_FILL: Record<VolumeStep, string> = {
-  0: "var(--color-surface-raised)",
-  1: "#5c4310",
-  2: "#8a6415",
-  3: "#c08a1e",
-  4: "#f2b544",
+  0: "var(--ov-volume-0)",
+  1: "var(--ov-volume-1)",
+  2: "var(--ov-volume-2)",
+  3: "var(--ov-volume-3)",
+  4: "var(--ov-volume-4)",
 };
 
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
@@ -48,7 +50,7 @@ function Figure({
       aria-label={`${view === "front" ? "Front" : "Back"} view. Values are in the table below.`}
     >
       {BODY_OUTLINE[view].map((points, i) => (
-        <polygon key={`o${i}`} points={points} fill="var(--color-surface-raised)" opacity={0.55} />
+        <polygon key={`o${i}`} points={points} fill="var(--ov-surface-raised)" />
       ))}
       {(Object.entries(regions) as [MuscleGroup, readonly string[]][]).map(([muscle, polys]) =>
         polys.map((points, i) => (
@@ -57,7 +59,7 @@ function Figure({
             data-muscle={muscle}
             points={points}
             fill={STEP_FILL[volumeStep(volume[muscle] ?? 0)]}
-            stroke={active === muscle ? "var(--color-ink)" : "var(--color-canvas)"}
+            stroke={active === muscle ? "var(--ov-ink)" : "var(--ov-canvas)"}
             strokeWidth={active === muscle ? 1.6 : 0.6}
             className="cursor-pointer"
             onClick={() => onPick(active === muscle ? null : muscle)}

@@ -2,8 +2,12 @@ import type { ComponentProps, ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * `line-strong` rather than `line`: this is an essential control boundary, which needs 3:1
+ * against the surface behind it, while a separator between rows does not.
+ */
 export const INPUT_CLASS =
-  "h-12 min-w-0 w-full rounded-control border border-line bg-surface-raised/60 px-3 text-[16px] text-ink placeholder:text-ink-subtle focus:border-accent focus:outline-none disabled:opacity-50";
+  "h-11 min-w-0 w-full rounded-control border border-line-strong bg-surface px-3 text-[length:var(--ov-text-input)] text-ink placeholder:text-ink-subtle focus:border-accent focus:outline-none disabled:opacity-50";
 
 /** Text input sized for thumbs; 16px text keeps iOS from zooming in on focus. */
 export function Input({ className, ...props }: ComponentProps<"input">) {

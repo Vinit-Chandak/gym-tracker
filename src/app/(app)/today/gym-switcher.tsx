@@ -36,7 +36,7 @@ export function GymSwitcher({ gyms }: { gyms: SwitcherGym[] }) {
     <>
       <section
         aria-label="Current gym"
-        className="flex items-center justify-between gap-3 border-b border-line/60 pb-3"
+        className="flex items-center justify-between gap-3 border-b border-line pb-3"
       >
         <div className="min-w-0">
           <p className="text-xs text-ink-muted">Training at</p>
@@ -75,10 +75,10 @@ export function GymSwitcher({ gyms }: { gyms: SwitcherGym[] }) {
                 disabled={pending}
                 aria-pressed={gym.isDefault}
                 className={cn(
-                  "flex h-14 w-full items-center justify-between gap-3 rounded-control border px-4 text-left text-base font-medium",
+                  "flex min-h-14 w-full items-center justify-between gap-3 rounded-control border px-4 text-left text-base font-medium",
                   gym.isDefault
-                    ? "border-accent bg-accent/10 text-accent"
-                    : "border-line bg-surface-raised text-ink active:bg-line",
+                    ? "border-accent bg-accent-soft text-ink"
+                    : "border-line-strong bg-surface text-ink active:bg-surface-raised",
                   pending && "opacity-60",
                 )}
               >
@@ -88,7 +88,7 @@ export function GymSwitcher({ gyms }: { gyms: SwitcherGym[] }) {
                     {GYM_KIND_LABELS[gym.kind]}
                   </span>
                 </span>
-                {gym.isDefault && <Check className="size-5 shrink-0" aria-hidden />}
+                {gym.isDefault && <Check className="size-5 shrink-0 text-accent" aria-hidden />}
               </button>
             </li>
           ))}

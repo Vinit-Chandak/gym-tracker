@@ -19,7 +19,7 @@ export default async function ForgotPasswordPage(props: PageProps<"/forgot-passw
   return (
     <>
       <Card>
-        <h2 className="text-lg font-semibold">Reset your password</h2>
+        <h2 className="text-lg font-medium">Reset your password</h2>
         {error === "link" && (
           <p role="alert" className="text-sm text-danger">
             That reset link has expired or has already been used. Here is a fresh start.

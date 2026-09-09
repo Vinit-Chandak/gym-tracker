@@ -3,14 +3,50 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-    <meta name="theme-color" content="#0e1013" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f4f3ee" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#171c1c" />
     <title>Offline · Overload</title>
+    <!--
+      Served from the cache with no network and no account, so this page carries its own
+      copy of the Form canvases rather than importing the app's theme. It reads the same
+      device-local appearance key so an explicit Light or Dark choice still holds here.
+    -->
     <style>
+      :root {
+        color-scheme: light;
+        --canvas: #f4f3ee;
+        --ink: #222b28;
+        --ink-muted: #4d5b54;
+        --accent: #8b4c2f;
+        --on-accent: #fffdf8;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-overload-mode="light"]) {
+          color-scheme: dark;
+          --canvas: #171c1c;
+          --ink: #f0eee8;
+          --ink-muted: #a8b5b0;
+          --accent: #e1a483;
+          --on-accent: #191e1d;
+        }
+      }
+      :root[data-overload-mode="dark"] {
+        color-scheme: dark;
+        --canvas: #171c1c;
+        --ink: #f0eee8;
+        --ink-muted: #a8b5b0;
+        --accent: #e1a483;
+        --on-accent: #191e1d;
+      }
       body {
         margin: 0;
-        background: #0e1013;
-        color: #f3f5f7;
-        font: 16px system-ui;
+        background: var(--canvas);
+        color: var(--ink);
+        font:
+          16px/1.45 ui-sans-serif,
+          system-ui,
+          -apple-system,
+          sans-serif;
         display: grid;
         min-height: 100dvh;
         place-items: center;
@@ -19,21 +55,36 @@
         max-width: 28rem;
         padding: 2rem;
       }
+      h1 {
+        font-size: 1.5rem;
+        letter-spacing: -0.025em;
+      }
       p {
-        color: #9aa4b2;
+        color: var(--ink-muted);
         line-height: 1.6;
       }
       a {
         display: block;
-        background: #f2b544;
-        color: #1a1300;
-        padding: 1rem;
-        border-radius: 14px;
+        min-height: 2.75rem;
+        box-sizing: border-box;
+        background: var(--accent);
+        color: var(--on-accent);
+        padding: 0.75rem 1rem;
+        border-radius: 0.25rem;
         text-align: center;
         text-decoration: none;
         font-weight: 600;
       }
     </style>
+    <script>
+      try {
+        var m = localStorage.getItem("overload:appearance");
+        if (m === "light" || m === "dark")
+          document.documentElement.setAttribute("data-overload-mode", m);
+      } catch (e) {
+        /* No storage: the media query decides, which is the System default anyway. */
+      }
+    </script>
   </head>
   <body>
     <main>

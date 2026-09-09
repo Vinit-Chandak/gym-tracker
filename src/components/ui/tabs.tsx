@@ -4,7 +4,17 @@ import { useRef } from "react";
 import { cn } from "@/lib/utils";
 import type { SegmentOption } from "./segmented-control";
 
-/** One continuous tab strip; narrow screens scroll instead of creating an orphan row. */
+/** Narrowest a tab can be and still hold a word like "Recovery" at 14px, plus its padding. */
+const MIN_TAB = "4.75rem";
+
+/**
+ * Tabs that wrap into equal-width rows rather than scrolling.
+ *
+ * A horizontal scroller hides destinations behind a gesture with no affordance, and at
+ * 320px with five tabs there is always something off-screen. `auto-fit` packs in as many
+ * as fit at their minimum and puts the rest on the next row, in the same order every time,
+ * so nothing is clipped and no label has to shrink.
+ */
 export function Tabs<V extends string>({
   name,
   options,
@@ -23,7 +33,8 @@ export function Tabs<V extends string>({
     <div
       role="tablist"
       aria-label={label}
-      className="flex min-w-0 [scrollbar-width:thin] overflow-x-auto border-b border-line"
+      className="grid min-w-0 border-b border-line"
+      style={{ gridTemplateColumns: `repeat(auto-fit, minmax(${MIN_TAB}, 1fr))` }}
     >
       {options.map((option, index) => (
         <button
@@ -55,13 +66,13 @@ export function Tabs<V extends string>({
             refs.current[next]?.focus();
           }}
           className={cn(
-            "min-h-11 flex-1 shrink-0 border-b-2 px-[clamp(0.5rem,2vw,1.25rem)] py-2 text-sm font-medium whitespace-nowrap transition-colors focus-visible:-outline-offset-4",
+            "min-h-11 min-w-0 border-b-2 px-2 py-2 text-sm font-medium transition-colors duration-[var(--ov-duration-feedback)] focus-visible:-outline-offset-4",
             value === option.value
               ? "border-accent text-accent"
               : "border-transparent text-ink-muted hover:text-ink",
           )}
         >
-          {option.label}
+          <span className="block hyphens-auto">{option.label}</span>
         </button>
       ))}
     </div>

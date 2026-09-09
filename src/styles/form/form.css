@@ -1,0 +1,63 @@
+/* Form: one design, complementary light and dark palettes. Import after foundation.css. */
+:where([data-overload-design="form"]) {
+  --ov-font-heading: var(--ov-font-body);
+  --ov-weight-heading: 600;
+  --ov-heading-tracking: -0.025em;
+  --ov-radius-card: 0.375rem;
+  --ov-radius-control: 0.25rem;
+  --ov-radius-sheet: 0.75rem;
+
+  --ov-light-canvas: #f4f3ee;
+  --ov-light-surface: #fffdf8;
+  --ov-light-surface-raised: #ebece6;
+  --ov-light-ink: #222b28;
+  --ov-light-ink-muted: #4d5b54;
+  --ov-light-ink-subtle: #56635b;
+  --ov-light-line: #cfd5ce;
+  --ov-light-line-strong: #747f76;
+  --ov-light-accent: #8b4c2f;
+  --ov-light-accent-strong: #733b24;
+  --ov-light-on-accent: #fffdf8;
+  --ov-light-accent-soft: #eadcd2;
+  --ov-light-success: #285d40;
+  --ov-light-warning: #7b510d;
+  --ov-light-danger: #9b382e;
+  --ov-light-focus: #1d6b80;
+  --ov-light-series-1: #8b4c2f;
+  --ov-light-series-2: #235f9b;
+  --ov-light-series-3: #36714c;
+  --ov-light-series-4: #714b86;
+  --ov-light-volume-0: #e1e5df;
+  --ov-light-volume-1: #c4d3c6;
+  --ov-light-volume-2: #92b29a;
+  --ov-light-volume-3: #5c8a67;
+  --ov-light-volume-4: #315f40;
+  --ov-light-backdrop: rgb(15 23 20 / 0.48);
+
+  --ov-dark-canvas: #171c1c;
+  --ov-dark-surface: #202626;
+  --ov-dark-surface-raised: #2b3330;
+  --ov-dark-ink: #f0eee8;
+  --ov-dark-ink-muted: #a8b5b0;
+  --ov-dark-ink-subtle: #a1aca6;
+  --ov-dark-line: #3c4946;
+  --ov-dark-line-strong: #7c8d85;
+  --ov-dark-accent: #e1a483;
+  --ov-dark-accent-strong: #efb898;
+  --ov-dark-on-accent: #191e1d;
+  --ov-dark-accent-soft: #3c3029;
+  --ov-dark-success: #99c7a7;
+  --ov-dark-warning: #e8c181;
+  --ov-dark-danger: #f0a18d;
+  --ov-dark-focus: #98cbd8;
+  --ov-dark-series-1: #e1a483;
+  --ov-dark-series-2: #8db9e6;
+  --ov-dark-series-3: #b1c796;
+  --ov-dark-series-4: #d0b0dd;
+  --ov-dark-volume-0: #35423c;
+  --ov-dark-volume-1: #486553;
+  --ov-dark-volume-2: #658f70;
+  --ov-dark-volume-3: #8eb494;
+  --ov-dark-volume-4: #b9d8bb;
+  --ov-dark-backdrop: rgb(0 0 0 / 0.64);
+}

@@ -81,7 +81,7 @@ export default async function EquipmentPage(
         </Card>
         {equipment.isActive && (
           <Card>
-            <h2 className="text-base font-semibold">Archive this machine</h2>
+            <h2 className="text-base font-medium">Archive this machine</h2>
             <p className="text-sm text-ink-muted">
               Hides it when you plan a session at {equipment.gymName}. Sets you logged on it stay in
               your history.

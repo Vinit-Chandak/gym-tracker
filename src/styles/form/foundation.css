@@ -1,0 +1,178 @@
+/*
+ * Shared scale, responsive dimensions, motion and the light/dark selection.
+ * Imported before form.css from src/app/globals.css. Components consume the semantic
+ * --ov-* names only; the per-mode palette inputs in form.css are private to this pair.
+ */
+:where([data-overload-design="form"]) {
+  --ov-font-body:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --ov-font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+
+  --ov-text-label: 0.75rem;
+  --ov-text-small: clamp(0.8125rem, 0.78rem + 0.15vw, 0.875rem);
+  --ov-text-body: clamp(0.875rem, 0.8rem + 0.3vw, 1rem);
+  --ov-text-input: max(1rem, 16px);
+  --ov-text-title: clamp(1.5rem, 1.2rem + 1.25vw, 2rem);
+  --ov-text-section: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+  --ov-leading-body: 1.45;
+  --ov-leading-heading: 1.15;
+
+  --ov-space-1: 0.25rem;
+  --ov-space-2: 0.375rem;
+  --ov-space-3: 0.5rem;
+  --ov-space-4: 0.75rem;
+  --ov-space-5: 1rem;
+  --ov-space-6: 1.25rem;
+  --ov-space-7: 1.5rem;
+  --ov-page-gutter: clamp(0.75rem, 3.8vw, 1.25rem);
+  --ov-panel-padding: clamp(0.75rem, 3.5vw, 1.125rem);
+  --ov-section-gap: clamp(1rem, 4.5vw, 1.5rem);
+  --ov-row-gap: 0.375rem;
+  --ov-control-height: 2.75rem;
+  --ov-target-min: 2.75rem;
+  --ov-content-max: 32rem;
+  --ov-nav-height: 3.75rem;
+  --ov-set-columns: 2.75rem minmax(4rem, 1.25fr) minmax(3.25rem, 1fr) minmax(2.75rem, 0.85fr)
+    2.75rem;
+
+  --ov-duration-instant: 0ms;
+  --ov-duration-feedback: 120ms;
+  --ov-duration-sheet: 180ms;
+  --ov-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ov-z-content: 0;
+  --ov-z-nav: 40;
+  --ov-z-timer: 45;
+  --ov-z-notice: 50;
+  --ov-z-dialog: 100;
+
+  color-scheme: light;
+  --ov-canvas: var(--ov-light-canvas);
+  --ov-surface: var(--ov-light-surface);
+  --ov-surface-raised: var(--ov-light-surface-raised);
+  --ov-ink: var(--ov-light-ink);
+  --ov-ink-muted: var(--ov-light-ink-muted);
+  --ov-ink-subtle: var(--ov-light-ink-subtle);
+  --ov-line: var(--ov-light-line);
+  --ov-line-strong: var(--ov-light-line-strong);
+  --ov-accent: var(--ov-light-accent);
+  --ov-accent-strong: var(--ov-light-accent-strong);
+  --ov-on-accent: var(--ov-light-on-accent);
+  --ov-accent-soft: var(--ov-light-accent-soft);
+  --ov-success: var(--ov-light-success);
+  --ov-warning: var(--ov-light-warning);
+  --ov-danger: var(--ov-light-danger);
+  --ov-focus: var(--ov-light-focus);
+  --ov-series-1: var(--ov-light-series-1);
+  --ov-series-2: var(--ov-light-series-2);
+  --ov-series-3: var(--ov-light-series-3);
+  --ov-series-4: var(--ov-light-series-4);
+  --ov-volume-0: var(--ov-light-volume-0);
+  --ov-volume-1: var(--ov-light-volume-1);
+  --ov-volume-2: var(--ov-light-volume-2);
+  --ov-volume-3: var(--ov-light-volume-3);
+  --ov-volume-4: var(--ov-light-volume-4);
+  --ov-backdrop: var(--ov-light-backdrop);
+}
+
+/* System, including absent/invalid preference; explicit Light/Dark are excluded. */
+@media (prefers-color-scheme: dark) {
+  :where(
+    [data-overload-design="form"]:not([data-overload-mode="light"]):not([data-overload-mode="dark"])
+  ) {
+    color-scheme: dark;
+    --ov-canvas: var(--ov-dark-canvas);
+    --ov-surface: var(--ov-dark-surface);
+    --ov-surface-raised: var(--ov-dark-surface-raised);
+    --ov-ink: var(--ov-dark-ink);
+    --ov-ink-muted: var(--ov-dark-ink-muted);
+    --ov-ink-subtle: var(--ov-dark-ink-subtle);
+    --ov-line: var(--ov-dark-line);
+    --ov-line-strong: var(--ov-dark-line-strong);
+    --ov-accent: var(--ov-dark-accent);
+    --ov-accent-strong: var(--ov-dark-accent-strong);
+    --ov-on-accent: var(--ov-dark-on-accent);
+    --ov-accent-soft: var(--ov-dark-accent-soft);
+    --ov-success: var(--ov-dark-success);
+    --ov-warning: var(--ov-dark-warning);
+    --ov-danger: var(--ov-dark-danger);
+    --ov-focus: var(--ov-dark-focus);
+    --ov-series-1: var(--ov-dark-series-1);
+    --ov-series-2: var(--ov-dark-series-2);
+    --ov-series-3: var(--ov-dark-series-3);
+    --ov-series-4: var(--ov-dark-series-4);
+    --ov-volume-0: var(--ov-dark-volume-0);
+    --ov-volume-1: var(--ov-dark-volume-1);
+    --ov-volume-2: var(--ov-dark-volume-2);
+    --ov-volume-3: var(--ov-dark-volume-3);
+    --ov-volume-4: var(--ov-dark-volume-4);
+    --ov-backdrop: var(--ov-dark-backdrop);
+  }
+}
+
+:where([data-overload-design="form"][data-overload-mode="dark"]) {
+  color-scheme: dark;
+  --ov-canvas: var(--ov-dark-canvas);
+  --ov-surface: var(--ov-dark-surface);
+  --ov-surface-raised: var(--ov-dark-surface-raised);
+  --ov-ink: var(--ov-dark-ink);
+  --ov-ink-muted: var(--ov-dark-ink-muted);
+  --ov-ink-subtle: var(--ov-dark-ink-subtle);
+  --ov-line: var(--ov-dark-line);
+  --ov-line-strong: var(--ov-dark-line-strong);
+  --ov-accent: var(--ov-dark-accent);
+  --ov-accent-strong: var(--ov-dark-accent-strong);
+  --ov-on-accent: var(--ov-dark-on-accent);
+  --ov-accent-soft: var(--ov-dark-accent-soft);
+  --ov-success: var(--ov-dark-success);
+  --ov-warning: var(--ov-dark-warning);
+  --ov-danger: var(--ov-dark-danger);
+  --ov-focus: var(--ov-dark-focus);
+  --ov-series-1: var(--ov-dark-series-1);
+  --ov-series-2: var(--ov-dark-series-2);
+  --ov-series-3: var(--ov-dark-series-3);
+  --ov-series-4: var(--ov-dark-series-4);
+  --ov-volume-0: var(--ov-dark-volume-0);
+  --ov-volume-1: var(--ov-dark-volume-1);
+  --ov-volume-2: var(--ov-dark-volume-2);
+  --ov-volume-3: var(--ov-dark-volume-3);
+  --ov-volume-4: var(--ov-dark-volume-4);
+  --ov-backdrop: var(--ov-dark-backdrop);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where([data-overload-design="form"]) {
+    --ov-duration-feedback: 0ms;
+    --ov-duration-sheet: 0ms;
+  }
+}
+
+/* Equal, low selector specificity: these critical system colours win in every mode. */
+@media (forced-colors: active) {
+  :where([data-overload-design="form"]) {
+    --ov-canvas: Canvas;
+    --ov-surface: Canvas;
+    --ov-surface-raised: Canvas;
+    --ov-ink: CanvasText;
+    --ov-ink-muted: CanvasText;
+    --ov-ink-subtle: CanvasText;
+    --ov-line: GrayText;
+    --ov-line-strong: ButtonText;
+    --ov-accent: Highlight;
+    --ov-accent-strong: Highlight;
+    --ov-on-accent: HighlightText;
+    --ov-accent-soft: Canvas;
+    --ov-success: CanvasText;
+    --ov-warning: CanvasText;
+    --ov-danger: CanvasText;
+    --ov-focus: Highlight;
+    --ov-series-1: CanvasText;
+    --ov-series-2: LinkText;
+    --ov-series-3: CanvasText;
+    --ov-series-4: LinkText;
+    --ov-volume-0: Canvas;
+    --ov-volume-1: GrayText;
+    --ov-volume-2: CanvasText;
+    --ov-volume-3: Highlight;
+    --ov-volume-4: Highlight;
+  }
+}

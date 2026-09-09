@@ -59,7 +59,7 @@ export function TokenManager({
   return (
     <div className="space-y-4">
       <Card>
-        <h2 className="font-semibold">Create read-only token</h2>
+        <h2 className="text-base font-medium">Create read-only token</h2>
         <p className="text-sm text-ink-muted">
           Access to your workouts, runs, recovery and current programme. Tokens cannot change your
           training data.
@@ -85,7 +85,7 @@ export function TokenManager({
           </p>
         )}
         {state.token && hidden !== state.token && (
-          <div className="space-y-3 rounded-control border border-accent/40 p-3">
+          <div className="space-y-3 rounded-control border border-accent p-3">
             <p className="text-sm font-medium">Copy now. This token is shown only here.</p>
             <textarea
               readOnly
@@ -123,7 +123,7 @@ export function TokenManager({
         )}
       </Card>
       <Card>
-        <h2 className="font-semibold">Your tokens</h2>
+        <h2 className="text-base font-medium">Your tokens</h2>
         {tokens.length ? (
           <ul className="divide-y divide-line">
             {tokens.map((t) => (

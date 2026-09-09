@@ -91,6 +91,13 @@ export const workoutExercises = pgTable(
       { onDelete: "set null" },
     ),
     orderIndex: integer("order_index").notNull(),
+    /**
+     * Superset membership for this workout only. Seeded from the programme's grouping when
+     * the session starts, then owned by the session: editing it never writes back to
+     * `program_exercises.superset_group`, and a finished workout keeps whatever grouping
+     * applied on the day.
+     */
+    supersetGroup: text("superset_group"),
     substitutionReason: text("substitution_reason"),
     notes: text("notes"),
     completedAt: timestamp("completed_at", { withTimezone: true }),
@@ -101,6 +108,10 @@ export const workoutExercises = pgTable(
   (t) => [
     uniqueIndex("workout_exercises_session_order_uq").on(t.workoutSessionId, t.orderIndex),
     index("workout_exercises_history_idx").on(t.userId, t.exerciseId, t.equipmentInstanceId),
+    check(
+      "workout_exercises_superset_group_chk",
+      sql`superset_group is null or (length(superset_group) between 1 and 60)`,
+    ),
     ownerPolicy("workout_exercises"),
   ],
 ).enableRLS();

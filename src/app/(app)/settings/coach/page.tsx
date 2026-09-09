@@ -26,7 +26,7 @@ export default async function CoachSettingsPage() {
           }))}
         />
         <Card>
-          <h2 className="font-semibold">Connect your coach</h2>
+          <h2 className="text-base font-medium">Connect your coach</h2>
           <p className="text-sm text-ink-muted">
             Use this app&apos;s URL with the endpoints below. Send the token in the Authorization
             header as Bearer followed by the token.

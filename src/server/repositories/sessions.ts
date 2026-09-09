@@ -1,4 +1,18 @@
-import { and, asc, count, desc, eq, isNotNull, isNull, lt, max, ne, or, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  max,
+  ne,
+  or,
+  sql,
+} from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
 import {
@@ -195,6 +209,9 @@ export async function startPlannedSession(
               : null,
           plannedProgramExerciseId: item.programExerciseId,
           orderIndex: index + 1,
+          // The session takes its own copy of the plan's grouping. From here it is the
+          // session's to change, and the programme template is never written back.
+          supersetGroup: item.supersetGroup,
           substitutionReason: substituted
             ? `Fallback at ${gym.name}: ${item.exercise.name} → ${item.decision.resolvedExerciseName}`
             : null,
@@ -261,8 +278,9 @@ export type SessionExercise = {
     targetLoadNote: string | null;
     progressionNotes: string | null;
     keyCue: string | null;
-    supersetGroup: string | null;
   } | null;
+  /** This workout's superset grouping. Seeded from the plan, then owned by the session. */
+  supersetGroup: string | null;
   substitutionReason: string | null;
   notes: string | null;
   completedAt: Date | null;
@@ -529,9 +547,9 @@ export async function getSessionDetail(
             targetLoadNote: row.planned.targetLoadNote,
             progressionNotes: row.planned.progressionNotes,
             keyCue: row.planned.keyCue,
-            supersetGroup: row.planned.supersetGroup,
           }
         : null,
+      supersetGroup: row.we.supersetGroup,
       substitutionReason: row.we.substitutionReason,
       notes: row.we.notes,
       completedAt: row.we.completedAt,
@@ -926,6 +944,140 @@ export async function substituteExercise(
     })
     .where(
       and(eq(workoutExercises.id, input.workoutExerciseId), eq(workoutExercises.userId, userId)),
+    );
+}
+
+export class SupersetGroupError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SupersetGroupError";
+  }
+}
+
+const SUPERSET_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+/** This workout's exercises with their grouping, in the order they are performed. */
+async function sessionGroupRows(db: DbOrTx, userId: string, sessionId: string) {
+  return db
+    .select({ id: workoutExercises.id, supersetGroup: workoutExercises.supersetGroup })
+    .from(workoutExercises)
+    .where(
+      and(eq(workoutExercises.workoutSessionId, sessionId), eq(workoutExercises.userId, userId)),
+    )
+    .orderBy(asc(workoutExercises.orderIndex));
+}
+
+/**
+ * A superset needs at least two exercises, so a group left with one member is no longer a
+ * group. This runs after every change rather than being checked at each call site, which
+ * keeps "at most one group per exercise, at least two exercises per group" true by
+ * construction — including after a member is skipped, substituted or removed.
+ */
+async function pruneLoneSupersets(db: DbOrTx, userId: string, sessionId: string): Promise<void> {
+  const rows = await sessionGroupRows(db, userId, sessionId);
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    if (row.supersetGroup) counts.set(row.supersetGroup, (counts.get(row.supersetGroup) ?? 0) + 1);
+  }
+  const lonely = [...counts].filter(([, n]) => n < 2).map(([group]) => group);
+  if (lonely.length === 0) return;
+  await db
+    .update(workoutExercises)
+    .set({ supersetGroup: null })
+    .where(
+      and(
+        eq(workoutExercises.workoutSessionId, sessionId),
+        eq(workoutExercises.userId, userId),
+        inArray(workoutExercises.supersetGroup, lonely),
+      ),
+    );
+}
+
+export type SupersetInput = {
+  sessionId: string;
+  /** An existing group to edit, or null to create one. */
+  group: string | null;
+  workoutExerciseIds: string[];
+};
+
+/**
+ * Creates or edits one superset for this workout only.
+ *
+ * The exercises and their sets are untouched: this writes a label on the workout's own
+ * rows and never on `program_exercises`, so a grouping change here cannot alter the
+ * programme or any other session. Membership is replaced wholesale, so sending the same
+ * request twice leaves exactly one group rather than two.
+ */
+export async function saveSupersetGroup(
+  db: DbOrTx,
+  userId: string,
+  input: SupersetInput,
+): Promise<{ group: string }> {
+  // Locks the session, so two requests arriving together cannot each mint a new label.
+  await requireOpenSession(db, userId, input.sessionId);
+  const rows = await sessionGroupRows(db, userId, input.sessionId);
+  const inWorkout = new Set(rows.map((row) => row.id));
+  const members = [...new Set(input.workoutExerciseIds)];
+  if (members.length < 2) throw new SupersetGroupError("A superset needs at least two exercises.");
+  if (members.some((id) => !inWorkout.has(id)))
+    throw new SupersetGroupError("Those exercises are not all in this workout.");
+
+  const existing = new Set(
+    rows.map((row) => row.supersetGroup).filter((group): group is string => group !== null),
+  );
+  let group = input.group;
+  if (group === null) {
+    const letter = [...SUPERSET_LETTERS].find((l) => !existing.has(`Superset ${l}`));
+    if (!letter)
+      throw new SupersetGroupError("This workout already has as many supersets as it can hold.");
+    group = `Superset ${letter}`;
+  } else if (!existing.has(group)) {
+    throw new SupersetGroupError("That superset is no longer part of this workout.");
+  }
+
+  // Everyone currently in the group leaves it, then the chosen members join. An exercise
+  // named here also leaves whichever other group it was in: a row holds one label.
+  await db
+    .update(workoutExercises)
+    .set({ supersetGroup: null })
+    .where(
+      and(
+        eq(workoutExercises.workoutSessionId, input.sessionId),
+        eq(workoutExercises.userId, userId),
+        eq(workoutExercises.supersetGroup, group),
+      ),
+    );
+  await db
+    .update(workoutExercises)
+    .set({ supersetGroup: group })
+    .where(
+      and(
+        eq(workoutExercises.workoutSessionId, input.sessionId),
+        eq(workoutExercises.userId, userId),
+        inArray(workoutExercises.id, members),
+      ),
+    );
+  await pruneLoneSupersets(db, userId, input.sessionId);
+  return { group };
+}
+
+/** Drops a superset. Membership goes; the exercises and every logged set stay. */
+export async function removeSupersetGroup(
+  db: DbOrTx,
+  userId: string,
+  sessionId: string,
+  group: string,
+): Promise<void> {
+  await requireOpenSession(db, userId, sessionId);
+  await db
+    .update(workoutExercises)
+    .set({ supersetGroup: null })
+    .where(
+      and(
+        eq(workoutExercises.workoutSessionId, sessionId),
+        eq(workoutExercises.userId, userId),
+        eq(workoutExercises.supersetGroup, group),
+      ),
     );
 }
 

@@ -22,8 +22,8 @@ function NavContent({
     <>
       <span
         className={cn(
-          "flex h-8 w-11 shrink-0 items-center justify-center rounded-control transition-colors lg:size-8",
-          (active || pending) && "bg-accent/10 text-accent",
+          "flex h-8 w-11 shrink-0 items-center justify-center rounded-control transition-colors duration-[var(--ov-duration-feedback)] lg:size-8",
+          (active || pending) && "bg-accent-soft text-accent",
         )}
       >
         {pending ? (
@@ -43,7 +43,7 @@ export function BottomNav() {
   return (
     <nav aria-label="Primary" className="primary-nav">
       <div className="hidden px-6 pt-7 pb-3 lg:block">
-        <p className="text-lg font-semibold tracking-tight">
+        <p className="text-lg font-medium">
           Overload<span className="text-accent">.</span>
         </p>
         <p className="mt-0.5 text-xs text-ink-muted">Your training, in focus.</p>
@@ -59,7 +59,7 @@ export function BottomNav() {
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "nav-link active:bg-surface-raised",
-                  active ? "text-accent lg:bg-accent/5" : "text-ink-muted hover:text-ink",
+                  active ? "text-accent lg:bg-accent-soft" : "text-ink-muted hover:text-ink",
                 )}
               >
                 <NavContent label={label} icon={icon} active={active} />

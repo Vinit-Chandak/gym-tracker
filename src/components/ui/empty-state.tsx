@@ -1,26 +1,23 @@
 import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 
 type EmptyStateProps = {
   icon: LucideIcon;
   title: string;
   description: string;
-  /** Implementation phase in which this screen gets its real content. */
-  phase?: number;
+  /** The way out of the empty state, when there is one. */
+  action?: ReactNode;
 };
 
-export function EmptyState({ icon: Icon, title, description, phase }: EmptyStateProps) {
+export function EmptyState({ icon: Icon, title, description, action }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center px-[var(--panel-padding)] py-[clamp(2rem,6vw,4rem)] text-center">
-      <div className="flex size-14 items-center justify-center rounded-full bg-surface-raised text-accent">
-        <Icon className="size-7" aria-hidden />
+    <div className="flex flex-col items-center px-[var(--ov-panel-padding)] py-[clamp(2rem,6vw,3.5rem)] text-center">
+      <div className="flex size-12 items-center justify-center rounded-card border border-line text-accent">
+        <Icon className="size-6" aria-hidden />
       </div>
-      <h2 className="mt-4 text-lg font-semibold">{title}</h2>
+      <h2 className="mt-4 text-lg font-medium">{title}</h2>
       <p className="mt-2 max-w-xs text-sm text-ink-muted">{description}</p>
-      {phase !== undefined && (
-        <p className="mt-4 text-xs font-medium tracking-wide text-ink-subtle uppercase">
-          Coming in Phase {phase}
-        </p>
-      )}
+      {action && <div className="mt-4">{action}</div>}
     </div>
   );
 }

@@ -50,6 +50,13 @@
       "when": 1788955771255,
       "tag": "0006_profile_onboarding",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788983120136,
+      "tag": "0007_workout_supersets",
+      "breakpoints": true
     }
   ]
 }

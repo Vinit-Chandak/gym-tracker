@@ -27,7 +27,7 @@ export default async function ProgrammeSettingsPage() {
       <PageContent>
         {active && (
           <Card>
-            <h2 className="text-base font-semibold">{active.name}</h2>
+            <h2 className="text-base font-medium">{active.name}</h2>
             <p className="text-sm text-ink-muted">
               {active.startDate ? formatIsoDate(active.startDate) : "—"} →{" "}
               {active.endDate ? formatIsoDate(active.endDate) : "—"}
@@ -40,7 +40,7 @@ export default async function ProgrammeSettingsPage() {
           </Card>
         )}
         <Card>
-          <h2 className="text-base font-semibold">
+          <h2 className="text-base font-medium">
             {active ? "Start a new programme" : "Choose a programme"}
           </h2>
           <p className="text-sm text-ink-muted">

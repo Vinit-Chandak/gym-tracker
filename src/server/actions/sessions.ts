@@ -31,11 +31,14 @@ import {
   getInProgressSession,
   logSet,
   saveCheckIn,
+  removeSupersetGroup,
+  saveSupersetGroup,
   SessionFinishedError,
   SetConflictError,
   SessionHasSetsError,
   SessionNotFoundError,
   setExerciseCompleted,
+  SupersetGroupError,
   setWarmupCompleted,
   skipExercise,
   startAdHocSession,
@@ -59,6 +62,7 @@ function revalidateSession(sessionId?: string): void {
 function describe(error: unknown): string {
   if (error instanceof SessionFinishedError || error instanceof SessionHasSetsError)
     return error.message;
+  if (error instanceof SupersetGroupError) return error.message;
   if (error instanceof ExerciseHasSetsError) return error.message;
   if (error instanceof SetConflictError) return error.message;
   if (error instanceof SessionNotFoundError) return "That session no longer exists.";
@@ -410,6 +414,49 @@ export async function finishSessionAction(
   }
   revalidateSession(sessionId);
   redirect(`/workouts/${sessionId}`);
+}
+
+const supersetSchema = z.object({
+  group: z.string().min(1).max(60).nullable(),
+  workoutExerciseIds: z.array(z.uuid()).min(2).max(20),
+});
+
+/**
+ * Creates or edits a superset for this workout. The programme template is never written:
+ * grouping lives on the workout's own rows, so a change here applies to today only.
+ */
+export async function saveSupersetAction(sessionId: string, input: unknown): Promise<ActionResult> {
+  const user = await requireUser();
+  const parsed = supersetSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Choose at least two exercises to group." };
+  try {
+    await withUser(getDb(), user.id, (tx) =>
+      saveSupersetGroup(tx, user.id, {
+        sessionId,
+        group: parsed.data.group,
+        workoutExerciseIds: parsed.data.workoutExerciseIds,
+      }),
+    );
+  } catch (error) {
+    return { ok: false, error: describe(error) };
+  }
+  revalidatePath(`/workouts/${sessionId}`);
+  return { ok: true };
+}
+
+/** Ungroups a superset. The exercises and their logged sets are untouched. */
+export async function removeSupersetAction(
+  sessionId: string,
+  group: string,
+): Promise<ActionResult> {
+  const user = await requireUser();
+  try {
+    await withUser(getDb(), user.id, (tx) => removeSupersetGroup(tx, user.id, sessionId, group));
+  } catch (error) {
+    return { ok: false, error: describe(error) };
+  }
+  revalidatePath(`/workouts/${sessionId}`);
+  return { ok: true };
 }
 
 export async function discardSessionAction(sessionId: string): Promise<ActionResult> {

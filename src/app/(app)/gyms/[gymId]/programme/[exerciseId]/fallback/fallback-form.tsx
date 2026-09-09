@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
 import { ExercisePicker } from "@/components/exercise-picker";
 import { FormError, SubmitButton } from "@/components/ui/form";
@@ -17,13 +17,15 @@ type FallbackFormProps = {
 
 export function FallbackForm({ action, exercises, machines }: FallbackFormProps) {
   const [state, formAction] = useActionState(action, INITIAL_FORM_STATE);
+  const [exerciseId, setExerciseId] = useState(state.values?.fallbackExerciseId ?? "");
 
   return (
-    <form action={formAction} className="space-y-5">
+    <form action={formAction} className="space-y-[var(--section-gap)]">
       <ExercisePicker
         name="fallbackExerciseId"
         exercises={exercises}
-        defaultValue={state.values?.fallbackExerciseId}
+        value={exerciseId}
+        onChange={setExerciseId}
         error={state.fieldErrors?.fallbackExerciseId}
       />
       <Field
@@ -43,8 +45,10 @@ export function FallbackForm({ action, exercises, machines }: FallbackFormProps)
           ))}
         </Select>
       </Field>
-      <FormError message={state.formError} />
-      <SubmitButton>Save fallback</SubmitButton>
+      <div className="space-y-2">
+        <FormError message={state.formError} />
+        <SubmitButton disabled={!exerciseId}>Save fallback</SubmitButton>
+      </div>
     </form>
   );
 }

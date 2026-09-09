@@ -4,7 +4,6 @@ import { notFound, redirect } from "next/navigation";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { LinkButton } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { saveCheckInAction } from "@/server/actions/sessions";
@@ -30,29 +29,31 @@ export default async function CheckInPage(props: PageProps<"/workouts/[sessionId
 
   return (
     <>
-      <PageHeader title="How are you today?" backHref="/today" />
+      {/* The session already exists by the time this screen appears, so back goes to it
+          rather than to Today, which would leave the workout behind. */}
+      <PageHeader
+        title="How are you today?"
+        context="Optional — these scores feed the recovery advice"
+        backHref={`/workouts/${sessionId}`}
+        backLabel="Back to the workout"
+      />
       <PageContent>
-        <Card>
-          <p className="text-sm text-ink-muted">
-            Optional. These scores feed the recovery warnings later; skip whenever you like.
-          </p>
-          <CheckInForm
-            action={saveCheckInAction.bind(null, sessionId)}
-            initial={{
-              sleepHours: str(session.sleepHours),
-              sleepQuality: str(session.sleepQuality),
-              energy: str(session.energy),
-              fatigue: str(session.fatigue),
-              soreness: str(session.soreness),
-              backPainPre: str(session.backPainPre),
-              shinLeftPre: str(session.shinLeftPre),
-              shinRightPre: str(session.shinRightPre),
-            }}
-          />
-          <LinkButton href={`/workouts/${sessionId}`} variant="ghost" className="w-full">
-            Skip check-in
-          </LinkButton>
-        </Card>
+        <CheckInForm
+          action={saveCheckInAction.bind(null, sessionId)}
+          initial={{
+            sleepHours: str(session.sleepHours),
+            sleepQuality: str(session.sleepQuality),
+            energy: str(session.energy),
+            fatigue: str(session.fatigue),
+            soreness: str(session.soreness),
+            backPainPre: str(session.backPainPre),
+            shinLeftPre: str(session.shinLeftPre),
+            shinRightPre: str(session.shinRightPre),
+          }}
+        />
+        <LinkButton href={`/workouts/${sessionId}`} variant="ghost" className="w-full">
+          Skip check-in
+        </LinkButton>
       </PageContent>
     </>
   );
