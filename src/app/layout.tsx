@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 
-import { APP_DESCRIPTION, APP_NAME, THEME_COLOR } from "@/lib/app";
+import { APP_DESCRIPTION, APP_NAME } from "@/lib/app";
+import { APPEARANCE_INIT_SCRIPT, CANVAS_DARK, CANVAS_LIGHT } from "@/lib/appearance";
 
 import "./globals.css";
 
@@ -22,8 +23,12 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: THEME_COLOR,
-  colorScheme: "dark",
+  // One colour per scheme covers System without any script. An explicit Light/Dark choice
+  // is the OS preference's exception, so the client overrides these; see lib/appearance.
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: CANVAS_LIGHT },
+    { media: "(prefers-color-scheme: dark)", color: CANVAS_DARK },
+  ],
   width: "device-width",
   initialScale: 1,
   // Zoom stays available: blocking it fails WCAG 1.4.4, and the 16px input text already
@@ -34,8 +39,21 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className="h-full">
-      <body className="flex min-h-full flex-col">{children}</body>
+    // The initializer writes data-overload-mode before React hydrates. Suppression is
+    // scoped to this element so a real mismatch anywhere else still surfaces.
+    <html
+      lang="en"
+      className="h-full"
+      data-overload-design="form"
+      suppressHydrationWarning
+      // color-scheme now comes from the theme files, per mode, so native controls follow.
+    >
+      <body className="flex min-h-full flex-col">
+        {/* First thing in the body: it runs while the rest is still being parsed, so an
+            explicit Light or Dark choice is in place before anything is painted. */}
+        <script dangerouslySetInnerHTML={{ __html: APPEARANCE_INIT_SCRIPT }} />
+        {children}
+      </body>
     </html>
   );
 }

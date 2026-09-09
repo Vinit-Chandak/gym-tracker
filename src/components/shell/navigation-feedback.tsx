@@ -25,7 +25,7 @@ export function NavigationFeedback({ href }: { href: string }) {
       <div className="navigation-progress" aria-hidden />
       <span className="sr-only">Loading page…</span>
       {(!online || slow) && (
-        <div className="fixed inset-x-3 top-[calc(env(safe-area-inset-top)+4rem)] z-[100] mx-auto flex max-w-md items-center justify-between gap-3 rounded-control border border-line bg-surface px-4 py-2 text-sm shadow-lg">
+        <div className="fixed inset-x-3 top-[calc(env(safe-area-inset-top)+4rem)] z-[var(--ov-z-notice)] mx-auto flex max-w-md items-center justify-between gap-3 rounded-control border border-line-strong bg-surface px-4 py-2 text-sm">
           <span>
             {online ? "Taking longer than usual…" : "You’re offline. Reconnect to load this page."}
           </span>

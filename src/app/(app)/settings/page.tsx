@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { AppearanceControl } from "@/components/shell/appearance-control";
 import { InstallCard } from "@/components/shell/install-card";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
@@ -83,7 +84,16 @@ export default async function SettingsPage() {
         </List>
 
         <Card variant="plain">
-          <h2 className="text-base font-semibold">Rest timer</h2>
+          <h2 className="text-base font-medium">Appearance</h2>
+          <p className="text-sm text-ink-muted">
+            System follows your device. The choice is kept on this device only, and applies the
+            moment you make it.
+          </p>
+          <AppearanceControl />
+        </Card>
+
+        <Card variant="plain">
+          <h2 className="text-base font-medium">Rest timer</h2>
           <p className="text-sm text-ink-muted">
             Optional countdown between sets, using each exercise&apos;s rest target. Off by default.
           </p>
@@ -100,7 +110,7 @@ export default async function SettingsPage() {
         <PasswordCard />
 
         <Card variant="plain">
-          <h2 className="text-base font-semibold">Session</h2>
+          <h2 className="text-base font-medium">Session</h2>
           <p className="text-sm text-ink-muted">
             Signed in as {profile.email ?? user.email ?? "this account"}.
           </p>

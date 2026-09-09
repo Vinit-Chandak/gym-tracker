@@ -91,8 +91,8 @@ export function RestTimer({ sessionId }: { sessionId: string }) {
         <span
           className={
             remaining === 0
-              ? "text-2xl font-semibold text-accent tabular-nums"
-              : "text-2xl font-semibold tabular-nums"
+              ? "text-xl font-semibold text-accent tabular-nums"
+              : "text-xl font-semibold tabular-nums"
           }
         >
           {remaining === 0 ? "Go" : formatDuration(remaining)}

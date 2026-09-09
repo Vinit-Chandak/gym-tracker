@@ -7,11 +7,15 @@ import { formatIsoDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /**
- * Mark colours, validated against the dark chart surface (#161a1f) for the OKLCH
- * lightness band, chroma floor, protan/deutan separation and WCAG contrast. The app's
- * bright accent sits above the band, so charts use a deeper step of the same hue.
+ * Series marks come from the theme, so the same chart is legible on either canvas: the
+ * tokens carry a separately validated colour per mode rather than one hex that was only
+ * ever checked against the dark surface. Assignments stay fixed — lifting is always
+ * series 1 — and every series is labelled, so colour never carries the meaning alone.
  */
-export const SERIES_COLORS = { lifting: "#c08a1e", running: "#4a90d8" } as const;
+export const SERIES_COLORS = {
+  lifting: "var(--ov-series-1)",
+  running: "var(--ov-series-2)",
+} as const;
 
 export type ChartSeries = {
   name: string;
@@ -284,7 +288,7 @@ export function Chart({
         {active !== null && dates[active] && (
           <div
             role="status"
-            className="pointer-events-none absolute top-0 rounded-control border border-line bg-canvas/95 px-2 py-1 text-xs shadow-lg backdrop-blur-sm"
+            className="pointer-events-none absolute top-0 rounded-control border border-line-strong bg-canvas px-2 py-1 text-xs"
             style={{
               left: Math.max(0, Math.min(width - 132, x(active) - 66)),
               minWidth: 108,

@@ -1,4 +1,8 @@
-/* Planning asset: not imported by the app. Pair with form.css at integration. */
+/*
+ * Shared scale, responsive dimensions, motion and the light/dark selection.
+ * Imported before form.css from src/app/globals.css. Components consume the semantic
+ * --ov-* names only; the per-mode palette inputs in form.css are private to this pair.
+ */
 :where([data-overload-design="form"]) {
   --ov-font-body:
     ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;

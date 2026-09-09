@@ -9,17 +9,17 @@ export type ButtonSize = "sm" | "md" | "lg";
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   primary: "bg-accent text-on-accent active:bg-accent-strong",
-  secondary:
-    "bg-surface-raised/70 text-ink border border-line hover:border-line-strong active:bg-line",
-  ghost: "bg-transparent text-ink-muted active:bg-surface-raised",
-  danger: "bg-danger/15 text-danger border border-danger/30 active:bg-danger/25",
+  secondary: "bg-surface text-ink border border-line-strong hover:bg-surface-raised",
+  ghost: "bg-transparent text-ink-muted hover:text-ink active:bg-surface-raised",
+  // Border rather than a tinted fill: at 3:1 the outline carries the meaning on its own.
+  danger: "bg-transparent text-danger border border-danger active:bg-danger/10",
 };
 
-// Every size is at least 44px tall: the minimum comfortable iPhone tap target.
+// Every size clears the 44px minimum target; only the padding and label size change.
 const SIZE_CLASSES: Record<ButtonSize, string> = {
   sm: "min-h-11 px-3 py-2 text-sm",
-  md: "min-h-12 px-4 py-2.5 text-base",
-  lg: "min-h-12 px-4 py-3 text-base sm:min-h-13",
+  md: "min-h-11 px-4 py-2 text-base",
+  lg: "min-h-12 px-4 py-3 text-base",
 };
 
 export function buttonClassName(
@@ -28,7 +28,7 @@ export function buttonClassName(
   className?: string,
 ): string {
   return cn(
-    "inline-flex max-w-full items-center justify-center gap-2 rounded-control text-center leading-snug font-semibold transition-colors select-none disabled:pointer-events-none disabled:opacity-40",
+    "inline-flex max-w-full items-center justify-center gap-2 rounded-control text-center leading-snug font-medium transition-colors duration-[var(--ov-duration-feedback)] ease-[var(--ov-ease-standard)] select-none disabled:pointer-events-none disabled:opacity-45",
     VARIANT_CLASSES[variant],
     SIZE_CLASSES[size],
     className,

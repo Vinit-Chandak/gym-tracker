@@ -1,74 +1,106 @@
 @import "tailwindcss" source(none);
+/* Foundation first: it declares the semantic --ov-* names form.css fills in. */
+@import "../styles/form/foundation.css";
+@import "../styles/form/form.css";
 @source "../";
 
 /*
- * Design tokens. Dark charcoal utility app, high contrast, one restrained accent.
- * Tailwind v4 turns every @theme variable into utilities (bg-canvas, text-ink, ...).
+ * Form design tokens, exposed under the Tailwind names the app already uses.
+ *
+ * `inline` matters: it makes `bg-canvas` compile to `var(--ov-canvas)` rather than to a
+ * frozen copy of whatever `--ov-canvas` happened to be at build time. The light/dark
+ * choice then happens where the utility is used, so one component tree serves both modes.
+ * Runtime values stay in the imported files; never nest a @theme block under a mode.
  */
-@theme {
-  --color-canvas: #0e1013;
-  --color-surface: #161a1f;
-  --color-surface-raised: #1e232a;
-  --color-line: #282e36;
-  --color-line-strong: #3a4350;
+@theme inline {
+  --color-canvas: var(--ov-canvas);
+  --color-surface: var(--ov-surface);
+  --color-surface-raised: var(--ov-surface-raised);
+  --color-line: var(--ov-line);
+  --color-line-strong: var(--ov-line-strong);
 
-  --color-ink: #f3f5f7;
-  --color-ink-muted: #9aa4b2;
-  --color-ink-subtle: #87919e;
+  --color-ink: var(--ov-ink);
+  --color-ink-muted: var(--ov-ink-muted);
+  --color-ink-subtle: var(--ov-ink-subtle);
 
-  --color-accent: #f2b544;
-  --color-accent-strong: #ffc85c;
-  --color-on-accent: #1a1300;
+  --color-accent: var(--ov-accent);
+  --color-accent-strong: var(--ov-accent-strong);
+  --color-accent-soft: var(--ov-accent-soft);
+  --color-on-accent: var(--ov-on-accent);
 
-  --color-success: #4ade80;
-  --color-warning: #fbbf24;
-  --color-danger: #f87171;
+  --color-success: var(--ov-success);
+  --color-warning: var(--ov-warning);
+  --color-danger: var(--ov-danger);
+  --color-focus: var(--ov-focus);
 
-  /* System font stack: renders as SF Pro on iPhone, no web-font download. */
-  --font-sans:
-    ui-sans-serif, system-ui, -apple-system, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue",
-    Arial, sans-serif;
-  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  /* Charts and the body map read these instead of hard-coding a mode's hex values. */
+  --color-series-1: var(--ov-series-1);
+  --color-series-2: var(--ov-series-2);
+  --color-series-3: var(--ov-series-3);
+  --color-series-4: var(--ov-series-4);
+  --color-volume-0: var(--ov-volume-0);
+  --color-volume-1: var(--ov-volume-1);
+  --color-volume-2: var(--ov-volume-2);
+  --color-volume-3: var(--ov-volume-3);
+  --color-volume-4: var(--ov-volume-4);
 
-  --radius-card: 0.875rem;
-  --radius-control: 0.625rem;
+  --font-sans: var(--ov-font-body);
+  --font-mono: var(--ov-font-mono);
 
-  --text-xs: clamp(0.75rem, 0.71rem + 0.16vw, 0.8125rem);
-  --text-sm: clamp(0.8125rem, 0.77rem + 0.18vw, 0.9375rem);
-  --text-base: clamp(0.9375rem, 0.89rem + 0.2vw, 1rem);
-  --text-lg: clamp(1.0625rem, 1rem + 0.25vw, 1.25rem);
-  --text-xl: clamp(1.25rem, 1.12rem + 0.5vw, 1.625rem);
-  --text-2xl: clamp(1.625rem, 1.4rem + 0.9vw, 2.25rem);
+  --radius-card: var(--ov-radius-card);
+  --radius-control: var(--ov-radius-control);
+  --radius-sheet: var(--ov-radius-sheet);
+
+  --text-xs: var(--ov-text-label);
+  --text-sm: var(--ov-text-small);
+  --text-base: var(--ov-text-body);
+  --text-lg: var(--ov-text-section);
+  --text-lg--line-height: var(--ov-leading-heading);
+  --text-xl: var(--ov-text-title);
+  --text-xl--line-height: var(--ov-leading-heading);
 }
 
+/*
+ * Layout names the app's utilities already reference, resolved from the Form scale so
+ * spacing comes from tokens rather than a margin chosen per screen.
+ */
 :root {
-  --nav-height: 3.75rem;
-  --header-height: 3.5rem;
-  --page-gutter: clamp(0.75rem, 3vw, 2rem);
-  --panel-padding: clamp(0.875rem, 2.2vw, 1.5rem);
-  --section-gap: clamp(1rem, 2.5vw, 1.75rem);
-  --content-width: 64rem;
-  color-scheme: dark;
+  --nav-height: var(--ov-nav-height);
+  --header-height: calc(var(--ov-control-height) + var(--ov-space-4));
+  --page-gutter: var(--ov-page-gutter);
+  --panel-padding: var(--ov-panel-padding);
+  --section-gap: var(--ov-section-gap);
+  --row-gap: var(--ov-row-gap);
+  --content-width: var(--ov-content-max);
 }
 
 @layer base {
   html {
-    background: var(--color-canvas);
+    background: var(--ov-canvas);
     -webkit-text-size-adjust: 100%;
     scroll-padding-top: calc(var(--header-height) + env(safe-area-inset-top) + 1rem);
   }
 
   body {
-    background: var(--color-canvas);
-    color: var(--color-ink);
-    font-family: var(--font-sans);
-    font-size: var(--text-base);
-    line-height: 1.5;
+    background: var(--ov-canvas);
+    color: var(--ov-ink);
+    font-family: var(--ov-font-body);
+    font-size: var(--ov-text-body);
+    line-height: var(--ov-leading-body);
     /* Stop the rubber-band bounce in standalone (installed) mode. */
     overscroll-behavior-y: none;
     -webkit-tap-highlight-color: transparent;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--ov-font-heading);
+    font-weight: var(--ov-weight-heading);
+    letter-spacing: var(--ov-heading-tracking);
+    line-height: var(--ov-leading-heading);
   }
 
   a,
@@ -79,7 +111,7 @@
   }
 
   :focus-visible {
-    outline: 2px solid var(--color-accent);
+    outline: 2px solid var(--ov-focus);
     outline-offset: 3px;
   }
 
@@ -87,7 +119,7 @@
   select,
   textarea {
     /* iOS Safari zooms into inputs smaller than 16px. Keep them at 16px+. */
-    font-size: 16px;
+    font-size: var(--ov-text-input);
   }
 
   summary {
@@ -118,6 +150,16 @@
   padding: var(--panel-padding);
 }
 
+/*
+ * Ruled list: the default grouping for ordinary rows. A filled panel is reserved for a
+ * distinct decision, summary or form section, so most lists get a rule, not a card.
+ */
+@utility ruled-list {
+  :where(& > * + *) {
+    border-top: 1px solid var(--ov-line);
+  }
+}
+
 .app-content {
   min-width: 0;
   flex: 1;
@@ -127,9 +169,9 @@
 .primary-nav {
   position: fixed;
   inset: auto 0 0;
-  z-index: 40;
-  border-top: 1px solid var(--color-line);
-  background: var(--color-canvas);
+  z-index: var(--ov-z-nav);
+  border-top: 1px solid var(--ov-line);
+  background: var(--ov-canvas);
 }
 
 .nav-items {
@@ -150,17 +192,17 @@
   font-weight: 500;
   user-select: none;
   transition:
-    background-color 120ms,
-    color 120ms;
+    background-color var(--ov-duration-feedback) var(--ov-ease-standard),
+    color var(--ov-duration-feedback) var(--ov-ease-standard);
 }
 
 .navigation-progress {
   position: fixed;
-  z-index: 100;
+  z-index: var(--ov-z-dialog);
   inset: env(safe-area-inset-top) 0 auto;
   height: 2px;
   overflow: hidden;
-  background: var(--color-line);
+  background: var(--ov-line);
   pointer-events: none;
 }
 
@@ -169,7 +211,7 @@
   display: block;
   height: 100%;
   width: 40%;
-  background: var(--color-accent);
+  background: var(--ov-accent);
   animation: navigation-progress 1.2s ease-in-out infinite;
 }
 
@@ -206,7 +248,7 @@
     inset: 0 auto 0 0;
     width: 12rem;
     border-top: 0;
-    border-right: 1px solid var(--color-line);
+    border-right: 1px solid var(--ov-line);
   }
   .nav-items {
     flex-direction: column;
@@ -220,8 +262,8 @@
     justify-content: flex-start;
     gap: 0.75rem;
     padding: 0.5rem 0.75rem;
-    border-radius: var(--radius-control);
-    font-size: 0.875rem;
+    border-radius: var(--ov-radius-control);
+    font-size: var(--ov-text-small);
   }
   .navigation-progress {
     left: 12rem;
@@ -268,6 +310,35 @@
   height: var(--header-height);
 }
 
+/*
+ * Set grid. One row per set: identity/options, load, reps (or seconds), RIR, save.
+ * The header row uses the same class so the labels sit over their own columns.
+ *
+ * The reflow is a container query in `rem`, not a viewport breakpoint: at 200% text the
+ * container's pixel width is unchanged but `26rem` doubles, so the query fires exactly
+ * when the columns can no longer hold their minimum widths. Values stay visible and the
+ * save action takes its own line rather than the numbers being clipped or shrunk.
+ */
+.set-grid {
+  container-type: inline-size;
+}
+
+.set-row {
+  display: grid;
+  grid-template-columns: var(--ov-set-columns);
+  gap: var(--ov-space-2);
+  align-items: center;
+}
+
+@container (max-width: 26rem) {
+  .set-row {
+    grid-template-columns: var(--ov-target-min) 1fr 1fr 1fr;
+  }
+  .set-row > .set-save {
+    grid-column: 1 / -1;
+  }
+}
+
 /* Bottom sheet on top of the native <dialog>. */
 dialog.sheet {
   position: fixed;
@@ -279,8 +350,28 @@ dialog.sheet {
   border: 0;
   padding: 0;
   background: transparent;
-  color: var(--color-ink);
+  color: var(--ov-ink);
 }
+/*
+ * ::backdrop inherits from its originating element in current browsers; the literal is
+ * the fallback for the ones where it still inherits from nothing.
+ */
 dialog.sheet::backdrop {
-  background: rgb(0 0 0 / 0.6);
+  background: var(--ov-backdrop, rgb(0 0 0 / 0.64));
+}
+
+/*
+ * A short rise that explains where the sheet came from. A keyframe rather than a
+ * transition because <dialog> goes from display:none to open in one step; reduced motion
+ * zeroes --ov-duration-sheet, so the panel simply appears.
+ */
+dialog.sheet[open] .sheet-panel {
+  animation: sheet-in var(--ov-duration-sheet) var(--ov-ease-standard);
+}
+
+@keyframes sheet-in {
+  from {
+    transform: translateY(0.75rem);
+    opacity: 0.6;
+  }
 }

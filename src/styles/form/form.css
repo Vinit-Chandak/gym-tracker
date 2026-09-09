@@ -1,4 +1,4 @@
-/* Form: one design, complementary light and dark palettes. */
+/* Form: one design, complementary light and dark palettes. Import after foundation.css. */
 :where([data-overload-design="form"]) {
   --ov-font-heading: var(--ov-font-body);
   --ov-weight-heading: 600;

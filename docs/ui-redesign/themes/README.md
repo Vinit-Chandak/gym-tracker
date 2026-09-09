@@ -1,19 +1,24 @@
 # Form theme tokens
 
-These CSS files are implementation assets for the plan. They are **not imported by the current app** and do not change its appearance in this branch. There is one design, Form, with light and dark palettes; no Fieldnotes asset or runtime style picker is included.
+These files are now part of the application. There is one design, Form, with light and dark palettes; no Fieldnotes asset or runtime style picker is included.
 
 ## Files and activation
 
 | File                             | Purpose                                                                       |
 | -------------------------------- | ----------------------------------------------------------------------------- |
-| [foundation.css](foundation.css) | Shared scale, responsive dimensions, motion and semantic light/dark selection |
-| [form.css](form.css)             | Form typography/radii and complete light/dark colour primitives               |
+| `src/styles/form/foundation.css` | Shared scale, responsive dimensions, motion and semantic light/dark selection |
+| `src/styles/form/form.css`       | Form typography/radii and complete light/dark colour primitives               |
 
-During implementation, import foundation then Form once from the root CSS entry. Set `data-overload-design="form"` on the document root. Set `data-overload-mode` to `system`, `light` or `dark`; an absent or invalid mode falls back to System. Mode persistence and first-paint handling are specified in [Themes and performance](../03-themes-and-performance.md), not implemented here.
+`src/app/globals.css` imports foundation then Form, in that order, and aliases the Tailwind
+names onto the semantic tokens. `src/app/layout.tsx` sets `data-overload-design="form"` on the
+document root. `data-overload-mode` is set to `light` or `dark` only for an explicit choice;
+System leaves it absent, so the media query in foundation.css decides. An invalid stored value
+falls back to System. Persistence and first-paint handling live in `src/lib/appearance.ts` and
+follow [Themes and performance](../03-themes-and-performance.md).
 
 The palette is selected entirely through CSS. System follows `prefers-color-scheme`; an explicit mode wins regardless of OS preference. Each mode sets `color-scheme` for native controls. `prefers-reduced-motion` zeros the motion durations. Forced colours maps critical semantic colours to system colours; do not disable forced-colour adjustment on controls.
 
-The files define tokens and `color-scheme` only. They do not apply a body background, font, grid, transition or component style by themselves. The planned integration maps existing utilities and components to those tokens. This deliberate boundary keeps the planning commit free of screen implementation.
+The files define tokens and `color-scheme` only. They apply no body background, font, grid, transition or component style by themselves; `globals.css` does that, and the components read the Tailwind aliases. Keeping the boundary means a palette change never edits a component.
 
 ## Semantic contract
 
@@ -36,7 +41,7 @@ The set grid token reserves a 44 px set-options cell, flexible load/reps/RIR cel
 
 ## Mapping existing Tailwind names
 
-At integration, map the current Tailwind v4 names to semantic tokens using the appropriate top-level `@theme inline` aliases. This preserves utilities already used across the app while resolving variables at their point of use. Keep runtime values outside `@theme`; do not put a nested theme block under a mode selector. [Tailwind theme variables](https://tailwindcss.com/docs/theme) documents this aliasing distinction.
+The current Tailwind v4 names are mapped to semantic tokens through top-level `@theme inline` aliases. This preserves utilities already used across the app while resolving variables at their point of use. Keep runtime values outside `@theme`; do not put a nested theme block under a mode selector. [Tailwind theme variables](https://tailwindcss.com/docs/theme) documents this aliasing distinction.
 
 | Current token                                | Planned value                             |
 | -------------------------------------------- | ----------------------------------------- |
@@ -50,7 +55,7 @@ At integration, map the current Tailwind v4 names to semantic tokens using the a
 | `--radius-card` / control                    | Corresponding Form radius values          |
 | Existing page/panel spacing                  | Corresponding bounded Form spacing tokens |
 
-Also consume the focus, chart, body-volume and backdrop roles; a utility alias alone does not fix hard-coded SVG or metadata colours. Import order, production CSS output and route transitions must be verified after integration. Do not leave the current `:root { color-scheme: dark; }` rule active against the new mode contract.
+The focus, chart, body-volume and backdrop roles are consumed as well: a utility alias alone does not fix hard-coded SVG or metadata colours, so `chart.tsx`, `body-map.tsx`, the viewport metadata and the offline page read the tokens directly. The old `:root { color-scheme: dark; }` rule is gone; `color-scheme` now comes from the mode blocks.
 
 ## Palette review
 
@@ -62,4 +67,6 @@ Before adoption, inspect the final components under real lighting, native contro
 
 Validated on 10 September 2026: both files parse as CSS; all 119 declared tokens/reference dependencies resolve; 108 designated text/control/chart contrast pairs pass. Across the checked neutral and accent-soft surfaces, the minimum normal-text ratios are 4.70:1 in light mode and 5.44:1 in dark mode; the checked control/chart ratios are at least 3.10:1 and 3.64:1 respectively. Decorative dividers and body-volume bands are not treated as text or control outlines.
 
-Forty static selector/media combinations cover system/manual/absent/invalid preference, both OS modes, reduced motion and forced colours. These checks validate the token cascade, not real-browser rendering or first-paint persistence. The two source CSS files total 2,067 bytes when gzipped together, below the proposed 5 KiB theme budget. Actual application performance remains unmeasured until integration.
+Forty static selector/media combinations cover system/manual/absent/invalid preference, both OS modes, reduced motion and forced colours. These checks validate the token cascade, not real-browser rendering or first-paint persistence. The two source CSS files total 2,067 bytes when gzipped together, below the proposed 5 KiB theme budget.
+
+After integration, a production build was checked to confirm both palettes survive minification: the compiled stylesheet contains each mode's canvas, accent and volume values, one `color-scheme: light` and the explicit/system dark blocks, plus the reduced-motion and forced-colours overrides. Field performance on real devices remains unmeasured.

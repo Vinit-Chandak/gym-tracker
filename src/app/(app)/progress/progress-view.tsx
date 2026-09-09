@@ -99,7 +99,7 @@ function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0 py-1 text-center">
       <dt className="text-xs text-ink-muted">{label}</dt>
-      <dd className="mt-1 text-2xl leading-tight font-semibold tracking-tight tabular-nums">
+      <dd className="mt-1 text-xl leading-tight font-semibold tracking-tight tabular-nums">
         {value}
       </dd>
     </div>
@@ -124,7 +124,7 @@ function Headline({
   const better = lowerIsBetter ? delta < 0 : delta > 0;
   return (
     <p className="flex items-baseline gap-2">
-      <span className="text-2xl font-semibold tabular-nums">
+      <span className="text-xl font-semibold tabular-nums">
         {Math.round(last * 10) / 10}
         <span className="ml-1 text-sm font-normal text-ink-muted">{unit}</span>
       </span>
@@ -237,7 +237,7 @@ export function ProgressView({
                   <p className="mt-1 text-sm text-ink-muted">{adherence.name}</p>
                 </div>
                 <p className="flex flex-wrap items-baseline gap-x-2 tabular-nums">
-                  <span className="text-2xl font-semibold tracking-tight">
+                  <span className="text-xl font-semibold tracking-tight">
                     {adherence.completed}
                     <span className="text-lg font-normal text-ink-muted"> / {adherence.total}</span>
                   </span>
