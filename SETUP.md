@@ -94,14 +94,17 @@ npm run dev        # open http://localhost:3000 and create an account
 `npm run db:seed` creates **no** gyms, machines or programmes. Those belong to a person, and
 each account creates its own in the app.
 
-After pulling later commits, run `npm run db:migrate` again: it applies only the migrations in
-`src/db/migrations/` that the database has not seen yet. `npm run db:seed` is safe to re-run:
-it upserts the shared rows by slug and touches nothing a user owns.
+After pulling later commits, run `npm run db:setup` again for your **local** database: it
+applies only the migrations the database has not seen yet, then re-seeds the shared library.
+Both are safe to repeat — the seed upserts by slug and touches nothing a user owns.
+
+Your **deployed** database looks after itself; see step 7.
 
 ## 7. Deploy to Vercel (free Hobby plan)
 
 1. <https://vercel.com/new> → **Import** the GitHub repository `Vinit-Chandak/gym-tracker`.
-2. Framework preset: Next.js (detected automatically). Leave build settings as they are.
+2. Framework preset: Next.js (detected automatically). Leave build settings as they are —
+   `vercel.json` sets the build command, so the database is brought up to date first.
 3. **Environment Variables**: add the four values from `.env.local`
    (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `DATABASE_URL`,
    `DIRECT_DATABASE_URL`). Tick Production and Preview.
@@ -110,6 +113,26 @@ it upserts the shared rows by slug and touches nothing a user owns.
 4. **Deploy**, then open the URL and create your account.
 5. Optional but recommended: Project **Settings → Functions → Function Region** → the region
    nearest your Supabase project, so the app and the database sit together.
+
+### What a production deploy does to the database
+
+`vercel.json` runs `npm run db:deploy` before the build. It applies any migration the database
+has not seen, then re-seeds the shared library, so the schema and the exercise catalogue can
+never lag behind the code that is about to be served. Neither step touches a row a user owns.
+
+If it cannot do that — the database is unreachable, a migration fails — **the build stops and
+nothing is deployed**. The previous deployment keeps serving, which is the right outcome:
+shipping code the database cannot answer is what produces "This page couldn't load" on every
+screen.
+
+**Preview deployments skip it.** Step 3 ticks the database variables for Preview as well, so
+previews share the production database — and a preview is built from a branch nobody has
+merged. Migrating from there would apply an unreviewed migration to everybody's data. If you
+later give previews a database of their own, set `MIGRATE_ON_PREVIEW=1` on that environment.
+
+A preview built from a branch that adds a migration therefore runs against a database without
+it, and its pages will error until the branch is merged and deployed to production. That is
+the trade: previews cannot break production data.
 
 ## 8. Install it on a phone
 
