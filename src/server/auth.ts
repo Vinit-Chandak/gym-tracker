@@ -2,8 +2,11 @@ import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { cache } from "react";
 
+import { getDb } from "@/db/client";
+import { withUser } from "@/db/with-user";
 import { isSupabaseConfigured } from "@/lib/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { ensureProfile } from "@/server/queries/profile";
 
 export type SessionUser = { id: string; email: string | null };
 
@@ -23,5 +26,17 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
 export async function requireUser(): Promise<SessionUser> {
   const user = await getSessionUser();
   if (!user) redirect("/login");
+  return user;
+}
+
+/**
+ * Like `requireUser`, but also sends accounts that have not finished the first-run flow to
+ * `/welcome`. Used by the tab shell, so every screen behind the bottom navigation can assume
+ * the profile has been set up.
+ */
+export async function requireOnboardedUser(): Promise<SessionUser> {
+  const user = await requireUser();
+  const profile = await withUser(getDb(), user.id, (tx) => ensureProfile(tx, user));
+  if (profile.onboardedAt === null) redirect("/welcome");
   return user;
 }

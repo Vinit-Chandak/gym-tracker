@@ -43,6 +43,13 @@
       "when": 1788881119000,
       "tag": "0005_tuesday_cycle",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788955771255,
+      "tag": "0006_profile_onboarding",
+      "breakpoints": true
     }
   ]
 }

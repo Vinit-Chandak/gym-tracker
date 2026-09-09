@@ -68,7 +68,20 @@ export default async function TodayPage() {
     <>
       <PageHeader title="Today" />
       <PageContent>
-        <GymSwitcher gyms={activeGyms} />
+        {activeGyms.length === 0 ? (
+          <Card>
+            <h2 className="text-lg font-semibold">Add a gym to start training</h2>
+            <p className="text-sm text-ink-muted">
+              Sessions belong to a place, so machine history is never mixed between gyms. Add where
+              you train and Today comes to life.
+            </p>
+            <LinkButton href="/gyms/new" size="lg" className="w-full">
+              Add your first gym
+            </LinkButton>
+          </Card>
+        ) : (
+          <GymSwitcher gyms={activeGyms} />
+        )}
 
         {inProgress && (
           <Card>
@@ -92,8 +105,12 @@ export default async function TodayPage() {
           <Card>
             <h2 className="text-lg font-semibold">No active programme</h2>
             <p className="text-sm text-ink-muted">
-              Load the 8-week plan from Settings, or start an ad hoc session at your gym.
+              Pick a programme and Today will tell you what to train next. You can also just start a
+              session and choose exercises as you go.
             </p>
+            <LinkButton href="/settings/programme" size="lg" className="w-full">
+              Choose a programme
+            </LinkButton>
             <StartAdHocButton gymId={defaultGym?.id ?? null} />
           </Card>
         )}

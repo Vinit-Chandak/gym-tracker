@@ -1,8 +1,11 @@
 # Setup guide — the steps only you can do
 
-Everything below happens outside the code: creating the Supabase project, your login user,
-the Vercel project, and filling in environment variables. Do the steps in order; the whole
-thing takes about 20 minutes. Nothing here needs the secret/service-role key.
+Everything below happens outside the code: creating the Supabase project, the Vercel project,
+and filling in environment variables. Do the steps in order; the whole thing takes about
+20 minutes. Nothing here needs the secret/service-role key.
+
+Once it is deployed, anyone you share the URL with signs up for themselves. Each account has
+its own gyms, machines, programme and history, and Row Level Security keeps them apart.
 
 ## 1. Create the Supabase project (free plan)
 
@@ -12,7 +15,7 @@ thing takes about 20 minutes. Nothing here needs the secret/service-role key.
    - Name: `overload` (any name works).
    - Database password: click **Generate a password** and save it in your password manager.
      You need it in step 3.
-   - Region: **Mumbai (ap-south-1)**, the closest region to India.
+   - Region: whichever is closest to the people who will use it.
 3. Wait until the project shows **Active** (one to two minutes).
 
 ## 2. Copy the two browser-safe keys
@@ -24,7 +27,8 @@ Left sidebar → **Project Settings** (gear) → **API Keys**.
 | Project URL (looks like `https://abcd1234.supabase.co`)   | `NEXT_PUBLIC_SUPABASE_URL`      |
 | Publishable key (`sb_publishable_...`) or legacy anon key | `NEXT_PUBLIC_SUPABASE_ANON_KEY` |
 
-Do **not** copy the secret or service-role key anywhere in this project.
+Do **not** copy the secret or service-role key anywhere in this project, unless you decide to
+enable full account deletion (step 5).
 
 ## 3. Copy the two database connection strings
 
@@ -39,70 +43,92 @@ Replace `[YOUR-PASSWORD]` in both strings with the database password from step 1
 If the password contains `@`, `:`, `/`, `#` or `?`, URL-encode those characters
 (for example `@` becomes `%40`), or generate a new password without them.
 
-## 4. Create your login user and switch off public sign-ups
+## 4. Turn sign-ups on and point the email links at the app
 
-1. Sidebar → **Authentication** → **Users** → **Add user** → **Create new user**.
-   Enter your email and a password, tick **Auto Confirm User**, then **Create user**.
-   This is the only account the app will have; there is no sign-up screen.
-2. Sidebar → **Authentication** → **Sign In / Providers** → **Email**: keep Email enabled but
-   turn **off** "Allow new users to sign up". Save. (Users you add from the dashboard still work.)
+1. Sidebar → **Authentication** → **Sign In / Providers** → **Email**: keep Email enabled and
+   leave **"Allow new users to sign up"** switched **on**. That is what lets your friends
+   create their own accounts.
+   - **Confirm email** on (the default) means a new account has to click a link in an email
+     before it can sign in. The app handles both settings: with it on, sign-up says "check
+     your inbox"; with it off, sign-up goes straight into the app.
+   - The free tier's built-in email sender is rate-limited to a few messages an hour. If you
+     invite more than a handful of people at once, either switch **Confirm email** off or add
+     your own SMTP provider under **Authentication → Emails**.
+2. Sidebar → **Authentication** → **URL Configuration**:
+   - **Site URL**: your deployed URL, e.g. `https://overload.vercel.app`.
+   - **Redirect URLs**: add `https://overload.vercel.app/auth/confirm` and, if you develop
+     locally, `http://localhost:3000/auth/confirm`.
 
-## 5. Apply the database schema and seed your data (on your computer)
+   Every link the app asks Supabase to email (confirmation and password reset) lands on
+   `/auth/confirm`, which creates the session and forwards the user on.
+
+## 5. Optional: let people delete their sign-in as well as their data
+
+**Settings → Delete account** always erases every row a user owns — gyms, machines,
+programmes, sessions, sets, runs and API tokens. Removing the _sign-in record_ itself needs
+Supabase's service-role key, which this project deliberately does not require.
+
+If you want deletion to remove the login too, add `SUPABASE_SERVICE_ROLE_KEY` (Project
+Settings → API Keys → secret key) to the server-side environment variables. Leave it out and
+the app says plainly that the login remains, which you can then remove from the dashboard.
+
+## 6. Apply the database schema and shared data (on your computer)
 
 Needs Node.js 20.9 or newer and git.
 
 ```bash
 git clone https://github.com/Vinit-Chandak/gym-tracker.git
 cd gym-tracker
-git checkout claude/zip-review-vercel-postgres-rq1iyx   # or main, once merged
 npm install
 cp .env.example .env.local
 ```
 
-Open `.env.local` and paste the four values from steps 2 and 3. Set `SEED_USER_EMAIL` to the
-email you used in step 4. Then:
+Open `.env.local` and paste the four values from steps 2 and 3. Then:
 
 ```bash
-npm run db:setup   # creates all tables + security policies, seeds exercises, equipment types,
-                   # warm-ups, your three gyms, Anytime Fitness equipment and the 8-week programme
-npm run dev        # open http://localhost:3000 and sign in
+npm run db:setup   # creates all tables + security policies, then seeds the shared library:
+                   # equipment types, exercises and warm-up protocols
+npm run dev        # open http://localhost:3000 and create an account
 ```
 
+`npm run db:seed` creates **no** gyms, machines or programmes. Those belong to a person, and
+each account creates its own in the app.
+
 After pulling later commits, run `npm run db:migrate` again: it applies only the migrations in
-`src/db/migrations/` that the database has not seen yet. `npm run db:setup` is also safe to
-re-run, because the seed is idempotent.
+`src/db/migrations/` that the database has not seen yet. `npm run db:seed` is safe to re-run:
+it upserts the shared rows by slug and touches nothing a user owns.
 
-`npm run db:seed` is safe to run again: it only adds what is missing.
-
-## 6. Deploy to Vercel (free Hobby plan)
+## 7. Deploy to Vercel (free Hobby plan)
 
 1. <https://vercel.com/new> → **Import** the GitHub repository `Vinit-Chandak/gym-tracker`.
 2. Framework preset: Next.js (detected automatically). Leave build settings as they are.
-3. **Environment Variables**: add the same four values as in `.env.local`:
-   `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `DATABASE_URL`,
-   `DIRECT_DATABASE_URL`. Tick Production and Preview. `SEED_USER_EMAIL` is not needed on Vercel.
-4. **Deploy**, then open the URL and sign in.
-5. Optional but recommended: Project **Settings → Functions → Function Region** → **Mumbai
-   (bom1)** so the app and the database sit in the same region.
+3. **Environment Variables**: add the four values from `.env.local`
+   (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `DATABASE_URL`,
+   `DIRECT_DATABASE_URL`). Tick Production and Preview.
+   Also set `NEXT_PUBLIC_SITE_URL` to the production URL, so emailed links always point at
+   production rather than at whichever preview deployment sent them.
+4. **Deploy**, then open the URL and create your account.
+5. Optional but recommended: Project **Settings → Functions → Function Region** → the region
+   nearest your Supabase project, so the app and the database sit together.
 
-## 7. Install on the iPhone
+## 8. Install it on a phone
 
-Open the Vercel URL in Safari → **Share** → **Add to Home Screen**. It launches full-screen.
+- **Android (Chrome)**: open the URL, then either tap **Install** on the card in Settings, or
+  use the ⋮ menu → **Add to Home screen**.
+- **iPhone (Safari)**: open the URL → **Share** → **Add to Home Screen**.
 
-## 8. Optional: let Claude Code run the database steps for you
+Either way it launches full-screen with the correct padding for notches and gesture bars.
 
-If you would rather not run step 5 locally: add `DIRECT_DATABASE_URL` and `SEED_USER_EMAIL` as
-environment variables in the Claude Code environment settings (never paste secrets into the
-chat), then ask for `npm run db:setup` to be run from a session.
+## What a new account sees
 
-## What to check in the app after seeding
-
-- Settings shows your email and the default gym (Anytime Fitness).
-- Gyms: Anytime Fitness has the seven machines from the planning notes; Samsung Gym and
-  Society Gym are empty until you add their equipment (Phase 2 screens).
+1. **Sign up** with an email and password.
+2. **Welcome**, four short steps: name, time zone (proposed by the device) and units → the
+   first gym → tick which machines that gym has → pick a programme, or skip it.
+3. **Today** suggests the next session; everything set up in onboarding is editable in
+   Settings afterwards.
 
 ## Free-tier notes
 
 - Supabase pauses free projects after seven days without any request; the dashboard shows a
   **Restore** button, and data is kept.
-- Vercel Hobby is plenty for a single user.
+- Vercel Hobby is plenty for a small group of friends.

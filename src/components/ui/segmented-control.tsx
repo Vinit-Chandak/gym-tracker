@@ -12,13 +12,22 @@ type SegmentedControlProps<V extends string> = {
   /** Controlled value; pair with `onChange`. */
   value?: V;
   onChange?: (value: V) => void;
+  /** Force an exact number of columns. Omit and the row fits as many as the labels allow. */
   columns?: number;
   "aria-label"?: string;
 };
 
+/** Narrowest a pill can be and still hold a word like "Recovery" at 14px, plus its padding. */
+const MIN_PILL = "4.75rem";
+
 /**
  * Radio group rendered as large pills. Works without JavaScript because it is a real
  * radio input; the label is the tap target.
+ *
+ * The row wraps by measurement rather than at a guessed breakpoint: `auto-fit` packs in as
+ * many pills as fit at `MIN_PILL` and puts the rest on the next line. A screen-width
+ * breakpoint would have to be re-guessed every time a tab is added or renamed — which is
+ * exactly what happened when Progress grew a fifth tab.
  */
 export function SegmentedControl<V extends string>({
   name,
@@ -30,13 +39,16 @@ export function SegmentedControl<V extends string>({
   "aria-label": ariaLabel,
 }: SegmentedControlProps<V>) {
   const controlled = value !== undefined;
-  const cols = columns ?? Math.min(options.length, 3);
   return (
     <div
       role="radiogroup"
       aria-label={ariaLabel}
       className="grid gap-2"
-      style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+      style={{
+        gridTemplateColumns: columns
+          ? `repeat(${columns}, minmax(0, 1fr))`
+          : `repeat(auto-fit, minmax(${MIN_PILL}, 1fr))`,
+      }}
     >
       {options.map((option) => (
         <label key={option.value} className="relative">
@@ -51,12 +63,12 @@ export function SegmentedControl<V extends string>({
           />
           <span
             className={cn(
-              "flex h-11 items-center justify-center rounded-control border border-line bg-surface-raised px-2 text-center text-sm font-medium text-ink-muted select-none",
+              "flex min-h-11 items-center justify-center overflow-hidden rounded-control border border-line bg-surface-raised px-1.5 py-1 text-sm leading-tight font-medium text-ink-muted select-none",
               "peer-checked:border-accent peer-checked:bg-accent/15 peer-checked:text-accent",
               "peer-focus-visible:ring-2 peer-focus-visible:ring-accent/60",
             )}
           >
-            {option.label}
+            <span className="min-w-0 text-center break-words hyphens-auto">{option.label}</span>
           </span>
         </label>
       ))}

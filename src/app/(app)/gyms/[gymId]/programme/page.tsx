@@ -8,6 +8,7 @@ import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { StatTile, StatTileRow } from "@/components/ui/stat-tile";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { AVAILABILITY_LABELS } from "@/lib/labels";
@@ -53,20 +54,19 @@ export default async function GymProgrammePage(props: PageProps<"/gyms/[gymId]/p
             {program ? ` · ${program.name}` : ""}
           </p>
           {program ? (
-            <dl className="grid grid-cols-4 gap-2">
+            <StatTileRow>
               {(["direct", "fallback", "unknown", "unavailable"] as const).map((status) => (
-                <div
+                <StatTile
                   key={status}
-                  className="rounded-control bg-surface-raised px-2 py-2 text-center"
-                >
-                  <dt className="text-xs text-ink-subtle">{AVAILABILITY_LABELS[status]}</dt>
-                  <dd className="text-lg font-semibold tabular-nums">{summary[status]}</dd>
-                </div>
+                  label={AVAILABILITY_LABELS[status]}
+                  value={summary[status]}
+                />
               ))}
-            </dl>
+            </StatTileRow>
           ) : (
             <p className="text-sm text-ink-muted">
-              No active programme. Set up starter data in Settings to load the 8-week plan.
+              No active programme yet. Choose one in Settings and this screen will show how well it
+              fits this gym.
             </p>
           )}
         </Card>
@@ -75,20 +75,24 @@ export default async function GymProgrammePage(props: PageProps<"/gyms/[gymId]/p
           <Card key={row.exercise.id} className="space-y-3">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <Link href={`/exercises/${row.exercise.id}`} className="font-semibold">
-                  {row.exercise.name}
+                <Link
+                  href={`/exercises/${row.exercise.id}`}
+                  className="flex min-h-11 flex-col justify-center"
+                >
+                  <span className="font-semibold">{row.exercise.name}</span>
+                  <span className="text-xs text-ink-muted">{row.days.join(" · ")}</span>
                 </Link>
-                <p className="text-xs text-ink-muted">{row.days.join(" · ")}</p>
               </div>
               <AvailabilityBadge status={row.resolution.status} />
             </div>
             <p className="text-sm text-ink-muted">{detail(row)}</p>
 
             {row.resolution.status === "unknown" && (
-              <div className="flex flex-wrap gap-2">
+              <div className="grid gap-2">
                 {row.missingTypes.map((type) => (
                   <form
                     key={type.id}
+                    className="min-w-0"
                     action={markEquipmentAbsentAction.bind(null, gym.id, type.id)}
                   >
                     <SubmitButton variant="secondary" size="sm">

@@ -1,66 +1,16 @@
+import type {
+  BlueprintDay,
+  BlueprintExercise,
+  BlueprintRun,
+  ProgramBlueprint,
+} from "../../../domain/program-blueprint";
+import { BLUEPRINT_VERSION } from "../../../domain/program-blueprint";
 import type { ProgressionRule } from "../../../domain/types";
 
-export type ProgramFallbackSeed = {
-  exerciseSlug: string;
-  equipmentTypeSlug?: string;
-  rank: number;
-  notes?: string;
-};
-
-export type ProgramExerciseSeed = {
-  exerciseSlug: string;
-  sets: number;
-  /** [min, max] reps, or omitted for timed work. */
-  reps?: [number, number];
-  /** [min, max] seconds for timed work. */
-  duration?: [number, number];
-  perSide?: boolean;
-  rir: [number, number];
-  /** [min, max] seconds. */
-  rest: [number, number];
-  targetLoadNote?: string;
-  progressionNotes?: string;
-  progressionRule?: ProgressionRule;
-  keyCue?: string;
-  supersetGroup?: string;
-  notes?: string;
-  fallbacks?: ProgramFallbackSeed[];
-};
-
-export type ProgramDaySeed = {
-  dayIndex: number;
-  dayOfWeek: number;
-  name: string;
-  focus: string;
-  timeNote: string;
-  effortNote: string;
-  notes: string;
-  includesLifting: boolean;
-  includesRun: boolean;
-  warmupSlug: string;
-  exercises: ProgramExerciseSeed[];
-};
-
-export type ProgramRunSeed = {
-  weekIndex: number;
-  dayOfWeek: number;
-  duration: [number, number];
-  rpe: [number, number];
-  paceNote: string;
-  progressionNote: string;
-  shinRule: string;
-  comment?: string;
-};
-
-export type ProgramSeed = {
-  slug: string;
-  name: string;
-  startDate: string;
-  weeks: number;
-  notes: string;
-  days: ProgramDaySeed[];
-  runs: ProgramRunSeed[];
-};
+export type ProgramFallbackSeed = NonNullable<BlueprintExercise["fallbacks"]>[number];
+export type ProgramExerciseSeed = BlueprintExercise;
+export type ProgramDaySeed = BlueprintDay;
+export type ProgramRunSeed = BlueprintRun;
 
 const strength = (increment: number, repsRequired: number): ProgressionRule => ({
   kind: "conservative_strength",
@@ -76,18 +26,20 @@ const timeFirst: ProgressionRule = { kind: "time_first" };
 const SHIN_RULE = "Pain rising each km → stop";
 
 /**
- * The 8-week strength + aesthetics hybrid, transcribed from the LIFTING and RUNNING sheets.
- * Set counts follow the per-exercise sheet, not the WEEK summary: 16 / 19 / 14 / 13 / 18 / 10 per
- * day. Day 3's forearm pair counts as 2 sets of each movement. The original weekday labels
- * are shifted one day so Lower A starts Tuesday and Rest + Mobility falls on Monday.
+ * A six-day upper/lower split with two easy runs and a mobility day, offered to every account as
+ * a starting point. It prescribes effort (reps in reserve), never absolute loads, so it suits any
+ * starting strength; the progression engine finds the numbers from the first cycle onwards.
+ *
+ * The day slots are a sequence, not a calendar: `dayOfWeek` only suggests when each usually
+ * falls. Whoever adopts it picks the start date.
  */
-export const PROGRAM: ProgramSeed = {
+export const STRENGTH_AESTHETICS_HYBRID_8WK: ProgramBlueprint = {
+  blueprintVersion: BLUEPRINT_VERSION,
   slug: "strength-aesthetics-hybrid-8wk",
   name: "8-Week Strength + Aesthetics Hybrid",
-  startDate: "2026-09-08",
   weeks: 8,
   notes:
-    "Priorities: strength → aesthetics/muscle → staying lean → running base. Anchors: bench 70×2, high-bar squat 70×5, conventional deadlift 110×3. Two easy runs are included. Weighted hyperextensions are excluded because they reliably provoke transient low-back pain.",
+    "Priorities in order: strength, then muscle, then staying lean, then a running base. Six training days plus a mobility day per cycle, with two easy runs. Loads are prescribed by reps in reserve, so the first cycle is where you find your numbers.",
   days: [
     {
       dayIndex: 1,
@@ -107,7 +59,7 @@ export const PROGRAM: ProgramSeed = {
           reps: [4, 6],
           rir: [2, 3],
           rest: [180, 240],
-          targetLoadNote: "~55–60 kg by RIR",
+          targetLoadNote: "Pick the load by RIR, not by a number",
           progressionNotes: "+2.5 kg after 3×6",
           progressionRule: strength(2.5, 6),
           keyCue: "Brace; whole foot; controlled depth",
@@ -118,7 +70,7 @@ export const PROGRAM: ProgramSeed = {
           reps: [6, 10],
           rir: [1, 2],
           rest: [120, 180],
-          targetLoadNote: "Below 180 kg max-effort",
+          targetLoadNote: "Stay well below a max-effort load",
           progressionNotes: "3×10 then add plates",
           progressionRule: double(),
           keyCue: "Pelvis/back on pad; no bounce",
@@ -172,7 +124,7 @@ export const PROGRAM: ProgramSeed = {
           reps: [8, 15],
           rir: [1, 2],
           rest: [90, 90],
-          targetLoadNote: "54–59 kg only with clean trunk flexion",
+          targetLoadNote: "Only as heavy as clean trunk flexion allows",
           progressionRule: double(),
           keyCue: "Don't hip-hinge",
         },
@@ -196,7 +148,7 @@ export const PROGRAM: ProgramSeed = {
           reps: [3, 5],
           rir: [2, 2],
           rest: [180, 240],
-          targetLoadNote: "~57.5–62.5 kg",
+          targetLoadNote: "Pick the load by RIR, not by a number",
           progressionNotes: "+2.5 kg after 4×5",
           progressionRule: strength(2.5, 5),
           keyCue: "Stable upper back; controlled touch",
@@ -207,7 +159,7 @@ export const PROGRAM: ProgramSeed = {
           reps: [6, 10],
           rir: [1, 2],
           rest: [120, 180],
-          targetLoadNote: "Bodyweight",
+          targetLoadNote: "Bodyweight; log added load only",
           progressionNotes: "After clean 3×10 add 2.5–5 kg",
           progressionRule: double(2.5),
           keyCue: "No kicking; controlled hang",
@@ -228,7 +180,7 @@ export const PROGRAM: ProgramSeed = {
           reps: [8, 12],
           rir: [1, 2],
           rest: [120, 120],
-          targetLoadNote: "Below 25 kg × 12 max",
+          targetLoadNote: "Stay a clear margin below your 12-rep max",
           progressionNotes: "Both sets at 12 then add",
           progressionRule: double(2.5),
           keyCue: "15–30° bench",
@@ -283,7 +235,7 @@ export const PROGRAM: ProgramSeed = {
           reps: [8, 12],
           rir: [1, 1],
           rest: [90, 90],
-          targetLoadNote: "Below ~30 kg max effort",
+          targetLoadNote: "Stay a clear margin below max effort",
           progressionNotes: "Earn 12s",
           progressionRule: double(2.5),
           keyCue: "Upper arm on pad",
@@ -304,7 +256,7 @@ export const PROGRAM: ProgramSeed = {
           reps: [10, 15],
           rir: [1, 1],
           rest: [75, 90],
-          targetLoadNote: "Below 15 kg if form loosens",
+          targetLoadNote: "Drop the load as soon as form loosens",
           progressionRule: double(2.5),
           keyCue: "No hip swing",
         },
@@ -361,7 +313,7 @@ export const PROGRAM: ProgramSeed = {
           reps: [3, 5],
           rir: [2, 3],
           rest: [180, 240],
-          targetLoadNote: "~85–95 kg by RIR",
+          targetLoadNote: "Pick the load by RIR, not by a number",
           progressionNotes: "+2.5–5 kg after clean 3×5",
           progressionRule: strength(2.5, 5),
           keyCue: "Brace; bar close; no lean-back lockout",
@@ -372,7 +324,7 @@ export const PROGRAM: ProgramSeed = {
           reps: [6, 10],
           rir: [2, 2],
           rest: [120, 180],
-          targetLoadNote: "Conservative; DB history 17.5–22.5 kg each",
+          targetLoadNote: "Conservative; per dumbbell",
           progressionRule: double(2.5),
           keyCue: "Hips back; stop at hamstring limit",
         },
@@ -437,7 +389,7 @@ export const PROGRAM: ProgramSeed = {
           reps: [4, 6],
           rir: [2, 2],
           rest: [180, 180],
-          targetLoadNote: "~50–55 kg",
+          targetLoadNote: "Pick the load by RIR, not by a number",
           progressionNotes: "+2.5 kg after 3×6",
           progressionRule: strength(2.5, 6),
           keyCue: "Low incline",
@@ -448,7 +400,7 @@ export const PROGRAM: ProgramSeed = {
           reps: [4, 6],
           rir: [2, 2],
           rest: [120, 180],
-          targetLoadNote: "Bodyweight; if >6 easily add 2.5–5 kg",
+          targetLoadNote: "Bodyweight; add load once 6 reps feel easy",
           progressionRule: strength(2.5, 6),
           keyCue: "Full ROM",
           notes: "Pull-up — strength",
@@ -479,7 +431,7 @@ export const PROGRAM: ProgramSeed = {
           reps: [6, 10],
           rir: [1, 2],
           rest: [120, 120],
-          targetLoadNote: "17.5–20 kg by RIR",
+          targetLoadNote: "Pick the load by RIR, not by a number",
           progressionRule: double(2.5),
           keyCue: "Back supported",
         },
@@ -499,7 +451,7 @@ export const PROGRAM: ProgramSeed = {
           reps: [12, 20],
           rir: [1, 1],
           rest: [60, 90],
-          targetLoadNote: "Reduce below 10 kg if swinging",
+          targetLoadNote: "Reduce the load if the weight swings",
           progressionRule: double(1),
           keyCue: "Control down",
         },

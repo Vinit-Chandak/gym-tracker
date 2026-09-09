@@ -40,3 +40,15 @@ export function formatMinutes(totalMinutes: number): string {
   if (hours === 0) return `${minutes} min`;
   return minutes === 0 ? `${hours} h` : `${hours} h ${minutes} min`;
 }
+
+/** Kilograms per pound, for turning the library's kg defaults into the reader's unit. */
+const LB_PER_KG = 2.2046226218;
+
+/**
+ * A load stored in kilograms, written in the unit the reader prefers: "2.5 kg" or "5.5 lb".
+ * Only for the shared library's own defaults — logged sets keep the unit they were logged in.
+ */
+export function formatKilograms(kilograms: number, unit: "kg" | "lb"): string {
+  if (unit === "kg") return `${kilograms} kg`;
+  return `${Math.round(kilograms * LB_PER_KG * 10) / 10} lb`;
+}

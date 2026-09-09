@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import Link from "@/components/ui/app-link";
 
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
@@ -28,6 +29,12 @@ export function LoginForm({ next }: { next?: string }) {
       <Button type="submit" size="lg" className="w-full" disabled={pending}>
         {pending ? "Signing in…" : "Sign in"}
       </Button>
+      <Link
+        href="/forgot-password"
+        className="flex min-h-11 items-center justify-center text-sm text-ink-muted underline-offset-4 hover:underline"
+      >
+        Forgot your password?
+      </Link>
     </form>
   );
 }

@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { equipmentInstances, equipmentTypes, exercises } from "@/db/schema";
 import { seedReferenceData } from "@/db/seed/reference";
-import { seedUserStarterData } from "@/db/seed/starter";
+import { seedTestUserData } from "@/db/test/fixtures";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
 
@@ -51,7 +51,7 @@ beforeAll(async () => {
   t = await createTestDatabase();
   await seedReferenceData(t.db);
   user = await t.createAuthUser("avail@example.com");
-  await withUser(t.db, user.id, (tx) => seedUserStarterData(tx, user));
+  await withUser(t.db, user.id, (tx) => seedTestUserData(tx, user));
   const gyms = await withUser(t.db, user.id, (tx) => listGyms(tx, user.id));
   const bySlug = new Map(gyms.map((g) => [g.slug, g.id]));
   anytimeId = bySlug.get("anytime-fitness") ?? "";
@@ -227,6 +227,7 @@ describe("planned-exercise availability", () => {
     const list = await withUser(t.db, user.id, (tx) => listExercises(tx));
     expect(list.length).toBeGreaterThan(40);
     expect(list.every((e) => !e.isCustom)).toBe(true);
-    expect(list.find((e) => e.slug === "weighted-hyperextension")?.isActive).toBe(false);
+    // Nothing in the shared library is switched off: it is everybody's library, not one plan's.
+    expect(list.every((e) => e.isActive)).toBe(true);
   });
 });

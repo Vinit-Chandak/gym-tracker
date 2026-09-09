@@ -351,7 +351,7 @@ function ExerciseCard({
     }
   }, [draftContext, readOnly, exercise.sets]);
   const isDuration = exercise.planned?.prescriptionType === "duration";
-  const unit = LOAD_UNIT_LABELS[exercise.equipment?.unit ?? "kg"];
+  const unit = LOAD_UNIT_LABELS[exercise.equipment?.unit ?? session.preferredUnit];
   const loggedSets = rows.filter((r) => r.logged).map((r) => r.logged as SetVM);
   const needsDecision = exercise.decision !== null && !skipped && !readOnly;
 
