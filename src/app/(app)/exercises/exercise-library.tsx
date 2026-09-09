@@ -6,7 +6,7 @@ import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { LinkRow, List } from "@/components/ui/link-row";
-import { SectionHeading } from "@/components/ui/section";
+import { Section } from "@/components/ui/section";
 import { groupByRegion } from "@/domain/muscles";
 import { matchesExerciseQuery } from "@/lib/exercise-search";
 import { BODY_REGION_LABELS, EXERCISE_MODALITY_LABELS, MUSCLE_LABELS } from "@/lib/labels";
@@ -66,21 +66,20 @@ export function ExerciseLibrary({ exercises }: { exercises: ExerciseListItem[] }
       </div>
 
       {groups.length === 0 && excluded.length === 0 && (
-        <p className="px-1 text-sm text-ink-muted">No exercises match “{query}”.</p>
+        <p className="text-sm text-ink-muted">No exercises match “{query}”.</p>
       )}
 
       {groups.map((group) => (
-        <section key={group.region} className="space-y-2">
-          <SectionHeading title={BODY_REGION_LABELS[group.region]} />
+        <Section key={group.region} title={BODY_REGION_LABELS[group.region]}>
           <Rows items={group.items} />
-        </section>
+        </Section>
       ))}
 
+      {/* Excluded exercises stay visible here; they are only kept out of new logging. */}
       {excluded.length > 0 && (
-        <section className="space-y-2">
-          <SectionHeading title="Excluded for now" />
+        <Section title="Excluded for now">
           <Rows items={excluded} />
-        </section>
+        </Section>
       )}
     </div>
   );

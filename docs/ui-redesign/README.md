@@ -2,7 +2,9 @@
 
 Planning baseline: 10 September 2026. Based on `origin/main` at `c61024b` (database round-trip and cache improvements), Next.js 16.3.4, React 19.2.8 and Tailwind CSS 4.
 
-This package specifies how to implement **Form**, the user's selected design, across the existing phone-first app with **light and dark mode**. It contains design decisions, a feature-preserving implementation plan, acceptance criteria and CSS theme tokens. It does not implement screens, change database structures or connect the themes to the running app.
+This package specifies how to implement **Form**, the user's selected design, across the existing phone-first app with **light and dark mode**. It contains design decisions, a feature-preserving implementation plan, acceptance criteria and CSS theme tokens.
+
+**Status: implemented.** The specification below is the contract and stays as written; what was decided while building it, and what was measured afterwards, is recorded in [decision 0013](../decisions/0013-form-interface.md). The theme files now live in `src/styles/form/`. Field performance on real devices remains unmeasured.
 
 ## Read in this order
 
@@ -46,14 +48,14 @@ Fieldnotes is no longer an implementation candidate in this package. There is no
 
 ## Scope of this commit
 
-Only this documentation package and its theme CSS belong in the planning commit. Existing local mockup output stays outside it. Production routes, components, backend logic, dependencies, migrations and PWA behaviour stay as the reviewed baseline until the implementation phases are undertaken.
+Only this documentation package and its theme CSS belonged in the planning commit; the implementation followed in the commits after it, phase by phase.
 
 ## Open decisions before the relevant phase
 
-| Decision                                                      | Why it matters                                      | Safe planning position                                                                                           |
+| Decision                                                      | Why it matters                                      | Outcome                                                                                                          |
 | ------------------------------------------------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| Oldest supported iOS/Android browser and weakest target phone | Concrete first-paint, memory and frame-time budgets | Test small iPhone Safari/installed PWA and a midrange Android; identify exact devices at baseline measurement    |
-| Persistence of session-only supersets across devices          | Requires an additive workout-level storage contract | Durable per-workout groups are proposed; never write to programme exercise groups                                |
-| Appearance across devices                                     | Profile setting versus device/browser preference    | Device-local appearance is proposed to avoid a backend dependency; account synchronisation can follow separately |
+| Oldest supported iOS/Android browser and weakest target phone | Concrete first-paint, memory and frame-time budgets | **Still open.** Layout was verified in headless Chromium at 320–480 px and 200% text; field devices are untested |
+| Persistence of session-only supersets across devices          | Requires an additive workout-level storage contract | **Settled.** `workout_exercises.superset_group`, migration 0007, seeded from the plan and backfilled for history |
+| Appearance across devices                                     | Profile setting versus device/browser preference    | **Settled.** Device-local, with a pre-paint initializer rather than a cookie; see decision 0013                  |
 
 No open decision licenses dropping an existing feature. If implementation discovers a mismatch with current source, update the mapping and resolve that specific conflict before shipping the affected workflow.

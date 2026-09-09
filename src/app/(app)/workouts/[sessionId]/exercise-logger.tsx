@@ -308,7 +308,7 @@ export function ExerciseLogger({
                     {option.equipmentInstanceName ? ` on ${option.equipmentInstanceName}` : ""}
                   </Button>
                 ))}
-                <div className="grid grid-cols-2 gap-2">
+                <div className="action-row">
                   {sets.dirty ? (
                     <Button disabled variant="secondary" size="sm">
                       Save or remove drafts first
@@ -396,7 +396,7 @@ export function ExerciseLogger({
             )}
 
             {!readOnly && !skipped && (
-              <div className="grid grid-cols-2 gap-2">
+              <div className="action-row">
                 {completed ? (
                   <Button
                     variant="secondary"

@@ -28,7 +28,7 @@ export function buttonClassName(
   className?: string,
 ): string {
   return cn(
-    "inline-flex max-w-full items-center justify-center gap-2 rounded-control text-center leading-snug font-medium transition-colors duration-[var(--ov-duration-feedback)] ease-[var(--ov-ease-standard)] select-none disabled:pointer-events-none disabled:opacity-45",
+    "inline-flex max-w-full items-center justify-center gap-2 rounded-control text-center leading-snug font-medium [overflow-wrap:anywhere] transition-colors duration-[var(--ov-duration-feedback)] ease-[var(--ov-ease-standard)] select-none disabled:pointer-events-none disabled:opacity-45",
     VARIANT_CLASSES[variant],
     SIZE_CLASSES[size],
     className,

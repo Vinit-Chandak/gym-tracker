@@ -10,7 +10,7 @@ import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
 import { buttonClassName, LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { SectionHeading } from "@/components/ui/section";
+import { Section } from "@/components/ui/section";
 import { Select } from "@/components/ui/select";
 import { StatTile, StatTileRow } from "@/components/ui/stat-tile";
 import { getDb } from "@/db/client";
@@ -234,54 +234,55 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
           )}
         </Card>
 
-        <SectionHeading title="Availability by gym" />
-        {availability.length === 0 && (
-          <p className="px-1 text-sm text-ink-muted">Add a gym to see where this exercise fits.</p>
-        )}
-        {availability.map((entry) => (
-          <Card key={entry.gym.id}>
-            <div className="flex items-center justify-between gap-3">
-              <h3 className="font-medium">{entry.gym.name}</h3>
-              <AvailabilityBadge status={entry.resolution.status} />
-            </div>
-            <p className="text-sm text-ink-muted">{availabilityDetail(entry)}</p>
-            {exercise.requiresEquipment && entry.machines.length > 0 && (
-              <form
-                action={setPreferredMachineAction.bind(null, exercise.id, entry.gym.id)}
-                className="space-y-1.5"
-              >
-                <label
-                  htmlFor={`preferred-machine-${entry.gym.id}`}
-                  className="block text-sm font-medium text-ink-muted"
+        <Section title="Availability by gym">
+          {availability.length === 0 && (
+            <p className="text-sm text-ink-muted">Add a gym to see where this exercise fits.</p>
+          )}
+          {availability.map((entry) => (
+            <Card key={entry.gym.id}>
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="font-medium">{entry.gym.name}</h3>
+                <AvailabilityBadge status={entry.resolution.status} />
+              </div>
+              <p className="text-sm text-ink-muted">{availabilityDetail(entry)}</p>
+              {exercise.requiresEquipment && entry.machines.length > 0 && (
+                <form
+                  action={setPreferredMachineAction.bind(null, exercise.id, entry.gym.id)}
+                  className="space-y-1.5"
                 >
-                  Preferred machine here
-                </label>
-                {/* The select carries the long machine names, so it takes the row. */}
-                <div className="flex items-center gap-2">
-                  <Select
-                    id={`preferred-machine-${entry.gym.id}`}
-                    name="equipmentInstanceId"
-                    className="min-w-0 flex-1"
-                    defaultValue={entry.preferredInstanceId ?? ""}
+                  <label
+                    htmlFor={`preferred-machine-${entry.gym.id}`}
+                    className="block text-sm font-medium text-ink-muted"
                   >
-                    <option value="">Automatic</option>
-                    {entry.machines.map((machine) => (
-                      <option key={machine.id} value={machine.id}>
-                        {machine.name}
-                      </option>
-                    ))}
-                  </Select>
-                  <SubmitButton variant="secondary" size="md" className="w-auto shrink-0">
-                    Save
-                  </SubmitButton>
-                </div>
-              </form>
-            )}
-            <LinkButton href={`/gyms/${entry.gym.id}/programme`} variant="ghost" size="sm">
-              Programme fit at {entry.gym.name}
-            </LinkButton>
-          </Card>
-        ))}
+                    Preferred machine here
+                  </label>
+                  {/* The select carries the long machine names, so it takes the row. */}
+                  <div className="flex items-center gap-2">
+                    <Select
+                      id={`preferred-machine-${entry.gym.id}`}
+                      name="equipmentInstanceId"
+                      className="min-w-0 flex-1"
+                      defaultValue={entry.preferredInstanceId ?? ""}
+                    >
+                      <option value="">Automatic</option>
+                      {entry.machines.map((machine) => (
+                        <option key={machine.id} value={machine.id}>
+                          {machine.name}
+                        </option>
+                      ))}
+                    </Select>
+                    <SubmitButton variant="secondary" size="md" className="w-auto shrink-0">
+                      Save
+                    </SubmitButton>
+                  </div>
+                </form>
+              )}
+              <LinkButton href={`/gyms/${entry.gym.id}/programme`} variant="ghost" size="sm">
+                Programme fit at {entry.gym.name}
+              </LinkButton>
+            </Card>
+          ))}
+        </Section>
       </PageContent>
     </>
   );

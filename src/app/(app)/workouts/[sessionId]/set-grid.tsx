@@ -25,27 +25,36 @@ type CellProps = {
   field: DraftValueField;
   /** Spoken name for the control, e.g. "Set 2 load, kilograms". */
   label: string;
+  /** The column heading, repeated beside the field once the row has stacked. */
+  short: string;
   ghost: string | undefined;
   inputMode: "decimal" | "numeric";
   max: number;
   onChange: (value: string) => void;
 };
 
-function NumericCell({ row, field, label, ghost, inputMode, max, onChange }: CellProps) {
+function NumericCell({ row, field, label, short, ghost, inputMode, max, onChange }: CellProps) {
   return (
-    <input
-      type="text"
-      maxLength={24}
-      inputMode={inputMode}
-      value={row[field]}
-      // The ghost is the row's own suggestion, shown unconfirmed until it is saved.
-      placeholder={ghost ?? ""}
-      disabled={row.saving}
-      aria-label={label}
-      aria-invalid={row.error ? true : undefined}
-      onChange={(event) => onChange(sanitizeNumberEntry(event.target.value, inputMode, max))}
-      className="h-11 w-full min-w-0 rounded-control border border-line-strong bg-surface px-1 text-center text-[length:var(--ov-text-input)] font-medium tabular-nums placeholder:font-normal placeholder:text-ink-subtle focus:border-accent focus:outline-none disabled:opacity-50"
-    />
+    <span className="set-cell">
+      {/* Shown only when the row has stacked: the column header is gone by then. The
+          input keeps the full spoken name, so this text is decoration. */}
+      <span className="set-cell-label" aria-hidden>
+        {short}
+      </span>
+      <input
+        type="text"
+        maxLength={24}
+        inputMode={inputMode}
+        value={row[field]}
+        // The ghost is the row's own suggestion, shown unconfirmed until it is saved.
+        placeholder={ghost ?? ""}
+        disabled={row.saving}
+        aria-label={label}
+        aria-invalid={row.error ? true : undefined}
+        onChange={(event) => onChange(sanitizeNumberEntry(event.target.value, inputMode, max))}
+        className="h-11 w-full min-w-0 rounded-control border border-line-strong bg-surface px-1 text-center text-[length:var(--ov-text-input)] font-medium tabular-nums placeholder:font-normal placeholder:text-ink-subtle focus:border-accent focus:outline-none disabled:opacity-50"
+      />
+    </span>
   );
 }
 
@@ -82,7 +91,7 @@ export function SetGrid({
 
   return (
     <div className="set-grid">
-      <div className="set-row border-b border-line pb-1 text-xs text-ink-muted">
+      <div className="set-header set-row border-b border-line pb-1 text-xs text-ink-muted">
         <span className="text-center">Set</span>
         <span className="text-center">{unitLabel}</span>
         <span className="text-center">{middle.label}</span>
@@ -102,7 +111,7 @@ export function SetGrid({
                   type="button"
                   onClick={() => onOptions(row)}
                   aria-label={`Set ${row.setIndex} options${mark ? `, ${SET_TYPE_LABELS[row.setType].toLowerCase()}` : ""}`}
-                  className="flex h-11 min-w-0 flex-col items-center justify-center rounded-control border border-line text-ink-muted active:bg-surface-raised"
+                  className="set-identity flex h-11 min-w-0 flex-col items-center justify-center rounded-control border border-line px-3 text-ink-muted active:bg-surface-raised"
                 >
                   <span className="text-sm font-medium tabular-nums">{row.setIndex}</span>
                   {mark ? (
@@ -120,6 +129,7 @@ export function SetGrid({
                   row={row}
                   field="weight"
                   label={`Set ${row.setIndex} load, ${unitLabel}`}
+                  short={unitLabel}
                   ghost={g.weight}
                   inputMode="decimal"
                   max={SET_LIMITS.weight}
@@ -129,6 +139,7 @@ export function SetGrid({
                   row={row}
                   field={middle.field}
                   label={`Set ${row.setIndex} ${middle.label.toLowerCase()}`}
+                  short={middle.label}
                   ghost={g[middle.field]}
                   inputMode="numeric"
                   max={middle.max}
@@ -138,6 +149,7 @@ export function SetGrid({
                   row={row}
                   field="rir"
                   label={`Set ${row.setIndex} RIR`}
+                  short="RIR"
                   ghost={g.rir}
                   inputMode="decimal"
                   max={SET_LIMITS.rir}

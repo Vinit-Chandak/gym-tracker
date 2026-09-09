@@ -70,7 +70,6 @@
   --page-gutter: var(--ov-page-gutter);
   --panel-padding: var(--ov-panel-padding);
   --section-gap: var(--ov-section-gap);
-  --row-gap: var(--ov-row-gap);
   --content-width: var(--ov-content-max);
 }
 
@@ -291,40 +290,32 @@
 @utility pb-safe {
   padding-bottom: env(safe-area-inset-bottom);
 }
-@utility pl-safe {
-  padding-left: env(safe-area-inset-left);
-}
-@utility pr-safe {
-  padding-right: env(safe-area-inset-right);
-}
-/* Space for the fixed bottom navigation so content never hides behind it. */
-@utility pb-nav {
-  padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom));
-}
-@utility h-nav {
-  height: var(--nav-height);
-}
 /*
- * A bottom-bar tap target that reaches the physical bottom edge. Pair with pb-safe so
- * the label still sits above the home indicator: the padding keeps the content box at
- * --nav-height while the element itself covers the inset too. Without this the bar
- * looks tappable all the way down but the last ~34px belong to the nav, not the link.
+ * Two actions side by side while they both fit, one per line when they do not. `auto-fit`
+ * with a rem minimum makes that decision follow the text size rather than the viewport, so
+ * a long label at 200% takes its own row instead of overflowing a half-width button.
  */
-@utility h-nav-safe {
-  height: calc(var(--nav-height) + env(safe-area-inset-bottom));
-}
-@utility h-header {
-  height: var(--header-height);
+@utility action-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+  gap: var(--ov-space-3);
 }
 
 /*
  * Set grid. One row per set: identity/options, load, reps (or seconds), RIR, save.
  * The header row uses the same class so the labels sit over their own columns.
  *
- * The reflow is a container query in `rem`, not a viewport breakpoint: at 200% text the
- * container's pixel width is unchanged but `26rem` doubles, so the query fires exactly
- * when the columns can no longer hold their minimum widths. Values stay visible and the
- * save action takes its own line rather than the numbers being clipped or shrunk.
+ * Three tiers, chosen by container queries in `rem` rather than viewport breakpoints. A
+ * `rem` query compares the available width against the width the text actually needs, so
+ * it reacts to an enlarged root font, which is the case that breaks this layout — the
+ * viewport is unchanged while every number gets twice as wide.
+ *
+ * The thresholds are the tiers' own minimums, not guesses:
+ *   17rem     = 2.75 (identity) + 4 + 3.25 + 2.75 (fields) + 2.75 (save) + 4 × 0.375 (gaps)
+ *   13.625rem = the same without the save cell, which has moved to its own line
+ * At normal text a 320px phone leaves 18.5rem of container, so the one-line grid holds
+ * everywhere; at 200% the same phone leaves 9.25rem and lands in the labelled tier. No
+ * value is ever clipped or shrunk to keep a row on one line.
  */
 .set-grid {
   container-type: inline-size;
@@ -337,12 +328,45 @@
   align-items: center;
 }
 
-@container (max-width: 26rem) {
+/* The cell is a pass-through so its input stays a direct grid item in every tier. */
+.set-cell {
+  display: contents;
+}
+
+.set-cell-label {
+  display: none;
+}
+
+/* Tier 2: the numbers keep their row; saving takes the next one. */
+@container (max-width: 17rem) {
   .set-row {
     grid-template-columns: var(--ov-target-min) 1fr 1fr 1fr;
   }
   .set-row > .set-save {
     grid-column: 1 / -1;
+  }
+}
+
+/*
+ * Tier 3: one value per line, each beside its own label. Three numeric fields cannot share
+ * a 320px row at 200% text — a four-digit load alone wants most of it — so the row grows
+ * downwards instead, and the column header gives way to per-field labels.
+ */
+@container (max-width: 13.625rem) {
+  .set-row {
+    grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+  }
+  .set-row > .set-identity,
+  .set-row > .set-save {
+    grid-column: 1 / -1;
+  }
+  .set-cell-label {
+    display: block;
+    font-size: var(--ov-text-small);
+    color: var(--ov-ink-muted);
+  }
+  .set-header {
+    display: none;
   }
 }
 

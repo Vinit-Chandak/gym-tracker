@@ -8,7 +8,7 @@ import { LinkButton } from "@/components/ui/button";
 import { Disclosure } from "@/components/ui/disclosure";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LinkRow, List } from "@/components/ui/link-row";
-import { Section, SectionHeading } from "@/components/ui/section";
+import { Section } from "@/components/ui/section";
 import { Select } from "@/components/ui/select";
 import {
   AVAILABILITY_LABELS,
@@ -131,7 +131,7 @@ export function GymDetails({ data }: { data: GymDetailData }) {
           </li>
         </List>
 
-        <SectionHeading
+        <Section
           title="Equipment"
           action={
             gym.isActive ? (
@@ -140,22 +140,23 @@ export function GymDetails({ data }: { data: GymDetailData }) {
               </LinkButton>
             ) : undefined
           }
-        />
-        {activeEquipment.length === 0 ? (
-          <EmptyState
-            icon={Dumbbell}
-            title="No machines yet"
-            description="Add each machine or cable station you use here. Barbells, dumbbells and bodyweight moves count as available at every gym."
-          />
-        ) : (
-          <EquipmentRows gymId={gym.id} items={activeEquipment} />
-        )}
-        {/* Archived machines stay out of new logging but remain in the record. */}
-        {archivedEquipment.length > 0 && (
-          <Disclosure summary="Archived machines" meta={String(archivedEquipment.length)}>
-            <EquipmentRows gymId={gym.id} items={archivedEquipment} />
-          </Disclosure>
-        )}
+        >
+          {activeEquipment.length === 0 ? (
+            <EmptyState
+              icon={Dumbbell}
+              title="No machines yet"
+              description="Add each machine or cable station you use here. Barbells, dumbbells and bodyweight moves count as available at every gym."
+            />
+          ) : (
+            <EquipmentRows gymId={gym.id} items={activeEquipment} />
+          )}
+          {/* Archived machines stay out of new logging but remain in the record. */}
+          {archivedEquipment.length > 0 && (
+            <Disclosure summary="Archived machines" meta={String(archivedEquipment.length)}>
+              <EquipmentRows gymId={gym.id} items={archivedEquipment} />
+            </Disclosure>
+          )}
+        </Section>
 
         {gym.kind === "gym" && (
           <Section

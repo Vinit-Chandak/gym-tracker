@@ -254,7 +254,7 @@ export default async function TodayPage() {
         {/* Alternate ways in, after the day's own decision rather than beside it. */}
         {!inProgress && plan && day && (
           <div className="space-y-2">
-            <div className="grid grid-cols-2 gap-2">
+            <div className="action-row">
               <LinkButton href="/today/choose" variant="secondary" className="w-full">
                 Another day
               </LinkButton>

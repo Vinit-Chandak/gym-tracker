@@ -18,7 +18,7 @@ import { deleteSetAction, logSetAction } from "@/server/actions/sessions";
 
 import type { ExerciseVM, SetVM } from "./view-model";
 
-export const MAX_SETS = 50;
+const MAX_SETS = 50;
 
 export type RowState = {
   setIndex: number;
@@ -118,7 +118,7 @@ function prefillTargets(exercise: ExerciseVM, holdAll: boolean): readonly GhostS
 }
 
 /** Faint prefill: the target for this set index, else the last set logged here, else the last target. */
-export function ghostFor(
+function ghostFor(
   exercise: ExerciseVM,
   rows: readonly RowState[],
   index: number,

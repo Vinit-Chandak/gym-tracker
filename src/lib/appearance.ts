@@ -30,7 +30,7 @@ export const CANVAS_DARK = "#171c1c";
 /** Id of the meta element that overrides the media-qualified pair Next renders. */
 const THEME_COLOR_ID = "overload-theme-color";
 
-export function parseAppearance(value: unknown): Appearance {
+function parseAppearance(value: unknown): Appearance {
   return APPEARANCE_MODES.includes(value as Appearance) ? (value as Appearance) : "system";
 }
 

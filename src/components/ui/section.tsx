@@ -2,15 +2,6 @@ import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
-export function SectionHeading({ title, action }: { title: string; action?: ReactNode }) {
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-2">
-      <h2 className="text-lg font-medium">{title}</h2>
-      {action}
-    </div>
-  );
-}
-
 /**
  * The default grouping: a heading, a rule and the rows beneath it. No fill, so several of
  * these on one screen read as one page rather than a stack of competing panels.

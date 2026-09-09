@@ -231,7 +231,7 @@ export function WorkoutOverview({
       )}
 
       {!readOnly && (
-        <div className="grid grid-cols-2 gap-2">
+        <div className="action-row">
           <LinkButton
             href={`/workouts/${session.id}/add-exercise`}
             variant="secondary"

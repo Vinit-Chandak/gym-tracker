@@ -31,7 +31,7 @@ function subscribe(listener: () => void): () => void {
  * Only the selected pill needs the stored value, so the server snapshot is the neutral
  * default rather than a placeholder that would replace the control until hydration.
  */
-export function useAppearance(): Appearance {
+function useAppearance(): Appearance {
   return useSyncExternalStore(subscribe, readStoredAppearance, () => "system" as const);
 }
 
