@@ -98,6 +98,18 @@ After pulling later commits, run `npm run db:migrate` again: it applies only the
 `src/db/migrations/` that the database has not seen yet. `npm run db:seed` is safe to re-run:
 it upserts the shared rows by slug and touches nothing a user owns.
 
+> **Every deploy that adds a migration needs this run against the live database.** Vercel
+> deploys the code; nothing migrates Supabase for you. If the code goes out first, the app
+> answers **"This page couldn't load — a server error occurred"** on every screen, because it
+> is asking for a column the database does not have yet. The fix is always the same:
+>
+> ```bash
+> npm run db:migrate   # with DIRECT_DATABASE_URL pointing at the Supabase project
+> ```
+>
+> Nothing is lost while it is broken, and no data needs repairing afterwards — the pages come
+> back as soon as the migration lands.
+
 ## 7. Deploy to Vercel (free Hobby plan)
 
 1. <https://vercel.com/new> → **Import** the GitHub repository `Vinit-Chandak/gym-tracker`.
@@ -107,7 +119,9 @@ it upserts the shared rows by slug and touches nothing a user owns.
    `DIRECT_DATABASE_URL`). Tick Production and Preview.
    Also set `NEXT_PUBLIC_SITE_URL` to the production URL, so emailed links always point at
    production rather than at whichever preview deployment sent them.
-4. **Deploy**, then open the URL and create your account.
+4. **Deploy**, then open the URL and create your account. Whenever a later deploy includes a
+   new file in `src/db/migrations/`, run `npm run db:migrate` against the same database
+   (step 6) — the deploy does not do it for you.
 5. Optional but recommended: Project **Settings → Functions → Function Region** → the region
    nearest your Supabase project, so the app and the database sit together.
 
