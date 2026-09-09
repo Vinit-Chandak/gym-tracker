@@ -69,6 +69,7 @@ export async function readWorkouts(
             modality: exercises.modality,
             loadPortability: exercises.loadPortability,
             primaryMuscles: exercises.primaryMuscles,
+            secondaryMuscles: exercises.secondaryMuscles,
           },
           equipment: {
             id: equipmentInstances.id,

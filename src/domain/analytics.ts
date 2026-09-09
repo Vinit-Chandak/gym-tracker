@@ -2,6 +2,7 @@ import type { TrainingData } from "@/server/repositories/training-data";
 import type { Schedule } from "@/server/repositories/schedule";
 import { addDays, todayInTimeZone } from "./program-calendar";
 import { weekStart } from "./running";
+import { addExerciseVolume, emptyMuscleVolume, type MuscleVolume } from "./muscle-volume";
 import { allSlots, slotStatus } from "./schedule";
 import type { LoadUnit } from "./types";
 
@@ -54,11 +55,18 @@ export function trainingAnalytics(data: TrainingData, timeZone: string, from: st
       runs: number;
       runKm: number;
       runMinutes: number;
-      muscles: Record<string, number>;
+      muscles: MuscleVolume;
     }
   >();
   for (let date = weekStart(from); date <= to; date = addDays(date, 7))
-    weeks.set(date, { date, workouts: 0, runs: 0, runKm: 0, runMinutes: 0, muscles: {} });
+    weeks.set(date, {
+      date,
+      workouts: 0,
+      runs: 0,
+      runKm: 0,
+      runMinutes: 0,
+      muscles: emptyMuscleVolume(),
+    });
   const series = new Map<string, PerformanceSeries>();
   const finished = data.workouts.filter((w) => w.completedAt !== null);
   for (const workout of [...finished].sort(
@@ -69,8 +77,13 @@ export function trainingAnalytics(data: TrainingData, timeZone: string, from: st
     if (week) week.workouts++;
     for (const slot of workout.exercises) {
       const working = slot.sets.filter((s) => s.setType !== "warmup");
-      for (const muscle of new Set(slot.exercise.primaryMuscles)) {
-        if (week) week.muscles[muscle] = (week.muscles[muscle] ?? 0) + working.length;
+      // Same weighting the body map uses, so the two views never disagree.
+      if (week) {
+        addExerciseVolume(week.muscles, {
+          primaryMuscles: slot.exercise.primaryMuscles,
+          secondaryMuscles: slot.exercise.secondaryMuscles ?? [],
+          workingSets: working.length,
+        });
       }
       for (const unit of new Set(working.map((s) => s.unit))) {
         const machineKey =
