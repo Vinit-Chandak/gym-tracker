@@ -9,6 +9,7 @@ import { withUser } from "@/db/with-user";
 import { createEquipmentAction } from "@/server/actions/equipment";
 import { requireUser } from "@/server/auth";
 import { listEquipmentTypes } from "@/server/repositories/equipment";
+import { ensureProfile } from "@/server/queries/profile";
 import { getGym } from "@/server/repositories/gyms";
 import { requireUuid } from "@/server/validation/params";
 
@@ -23,7 +24,12 @@ export default async function NewEquipmentPage(props: PageProps<"/gyms/[gymId]/e
   const data = await withUser(getDb(), user.id, async (tx) => {
     const gym = await getGym(tx, user.id, gymId);
     if (!gym) return null;
-    return { gym, types: await listEquipmentTypes(tx) };
+    const profile = await ensureProfile(tx, user);
+    return {
+      gym,
+      types: await listEquipmentTypes(tx),
+      preferredUnit: profile.preferredUnit === "lb" ? ("lb" as const) : ("kg" as const),
+    };
   });
   if (!data) notFound();
 
@@ -35,6 +41,7 @@ export default async function NewEquipmentPage(props: PageProps<"/gyms/[gymId]/e
           <EquipmentForm
             action={createEquipmentAction.bind(null, data.gym.id)}
             types={data.types}
+            preferredUnit={data.preferredUnit}
             submitLabel="Add machine"
           />
         </Card>

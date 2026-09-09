@@ -5,11 +5,12 @@ import {
   dailyRecovery,
   equipmentInstances,
   exercises,
+  profiles,
   runs,
   workoutSessions,
 } from "@/db/schema";
 import { seedReferenceData } from "@/db/seed/reference";
-import { seedUserStarterData } from "@/db/seed/starter";
+import { seedTestUserData } from "@/db/test/fixtures";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
 import { estimated1RM, liftingAdherence, trainingAnalytics } from "@/domain/analytics";
@@ -41,7 +42,11 @@ beforeAll(async () => {
   await seedReferenceData(t.db);
   alice = await t.createAuthUser("analytics@example.com");
   bob = await t.createAuthUser("other@example.com");
-  await withUser(t.db, alice.id, (tx) => seedUserStarterData(tx, alice));
+  await withUser(t.db, alice.id, (tx) => seedTestUserData(tx, alice));
+  // The coach API reports the account's own zone, so pin one that is not the default.
+  await withUser(t.db, alice.id, (tx) =>
+    tx.update(profiles).set({ timeZone: "Asia/Kolkata" }).where(eq(profiles.id, alice.id)),
+  );
   const allExercises = await t.db.select().from(exercises);
   benchId = allExercises.find((e) => e.slug === "barbell-bench-press")!.id;
   latId = allExercises.find((e) => e.slug === "lat-pulldown")!.id;
@@ -160,10 +165,11 @@ describe("history and analytics", () => {
     expect(bench[0]!.load.map((p) => p.value)).toEqual([60, 65]);
     expect(bench[0]!.estimated1RM[0]!.value).toBe(70);
     expect(result.series.filter((s) => s.exerciseId === latId)).toHaveLength(2);
-    expect(result.weeks.find((w) => w.date === "2026-09-01")?.muscles.chest).toBe(1);
-    expect(result.weeks.find((w) => w.date === "2026-09-08")?.muscles.chest).toBe(1);
-    expect(result.weeks.find((w) => w.date === "2026-09-08")?.runKm).toBe(5);
-    expect(result.weeks.find((w) => w.date === "2026-09-15")?.workouts).toBe(0);
+    // Monday-anchored weeks: the 7 Sep session and the 8 Sep run share one, the 14 Sep the next.
+    expect(result.weeks.find((w) => w.date === "2026-09-07")?.muscles.chest).toBe(1);
+    expect(result.weeks.find((w) => w.date === "2026-09-14")?.muscles.chest).toBe(1);
+    expect(result.weeks.find((w) => w.date === "2026-09-07")?.runKm).toBe(5);
+    expect(result.weeks.find((w) => w.date === "2026-08-31")?.workouts).toBe(0);
     expect(result.recovery.some((r) => r.sleep === null)).toBe(true);
     expect(result.recovery.find((r) => r.source === "Run (after)")?.leftShin).toBe(0);
   });

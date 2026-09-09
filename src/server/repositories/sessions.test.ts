@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { equipmentTypes, exercises } from "@/db/schema";
 import { seedReferenceData } from "@/db/seed/reference";
-import { seedUserStarterData } from "@/db/seed/starter";
+import { seedTestUserData } from "@/db/test/fixtures";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
 import { nextPendingSlot, suggestion } from "@/domain/schedule";
@@ -67,7 +67,7 @@ beforeAll(async () => {
   t = await createTestDatabase();
   await seedReferenceData(t.db);
   user = await t.createAuthUser("sessions@example.com");
-  await withUser(t.db, user.id, (tx) => seedUserStarterData(tx, user));
+  await withUser(t.db, user.id, (tx) => seedTestUserData(tx, user));
   const gyms = await withUser(t.db, user.id, (tx) => listGyms(tx, user.id));
   anytimeId = gyms.find((g) => g.slug === "anytime-fitness")?.id ?? "";
   samsungId = gyms.find((g) => g.slug === "samsung-gym")?.id ?? "";
@@ -431,7 +431,7 @@ describe("progression suggestions", () => {
 
   beforeAll(async () => {
     pUser = await t.createAuthUser("progression@example.com");
-    await withUser(t.db, pUser.id, (tx) => seedUserStarterData(tx, pUser));
+    await withUser(t.db, pUser.id, (tx) => seedTestUserData(tx, pUser));
     const gyms = await withUser(t.db, pUser.id, (tx) => listGyms(tx, pUser.id));
     gymId = gyms.find((g) => g.slug === "anytime-fitness")?.id ?? "";
     samsung = gyms.find((g) => g.slug === "samsung-gym")?.id ?? "";

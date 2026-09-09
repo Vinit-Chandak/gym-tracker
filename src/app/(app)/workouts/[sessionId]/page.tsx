@@ -22,7 +22,9 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
   const data = await withUser(getDb(), user.id, async (tx) => {
     const profile = await ensureProfile(tx, user);
     const detail = await getSessionDetail(tx, user.id, sessionId);
-    return detail ? toSessionVM(detail, profile.timeZone) : null;
+    return detail
+      ? toSessionVM(detail, profile.timeZone, profile.preferredUnit === "lb" ? "lb" : "kg")
+      : null;
   });
   if (!data) notFound();
 

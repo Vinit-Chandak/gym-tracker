@@ -18,6 +18,10 @@ export type ResistanceMode = (typeof RESISTANCE_MODES)[number];
 export const LOAD_UNITS = ["kg", "lb", "plate_count", "stack_index", "none"] as const;
 export type LoadUnit = (typeof LOAD_UNITS)[number];
 
+/** The units a person weighs a barbell in. Machines may also count plates or stack steps. */
+export const BODY_LOAD_UNITS = ["kg", "lb"] as const;
+export type BodyLoadUnit = (typeof BODY_LOAD_UNITS)[number];
+
 export const EXERCISE_CATEGORIES = ["strength", "hypertrophy", "cardio", "mobility"] as const;
 export type ExerciseCategory = (typeof EXERCISE_CATEGORIES)[number];
 

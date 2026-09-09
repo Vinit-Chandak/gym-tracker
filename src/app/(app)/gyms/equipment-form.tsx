@@ -10,6 +10,7 @@ import {
   EQUIPMENT_CATEGORIES,
   LOAD_UNITS,
   RESISTANCE_MODES,
+  type BodyLoadUnit,
   type LoadUnit,
   type ResistanceMode,
 } from "@/domain/types";
@@ -35,6 +36,8 @@ type EquipmentFormProps = {
   types: EquipmentTypeOption[];
   initial?: EquipmentFormValues;
   submitLabel: string;
+  /** The account's unit, used wherever the catalogue would otherwise say kilograms. */
+  preferredUnit: BodyLoadUnit;
 };
 
 const MODE_OPTIONS = RESISTANCE_MODES.map((mode) => ({
@@ -53,7 +56,13 @@ function asUnit(value: string | undefined): LoadUnit | undefined {
   return (LOAD_UNITS as readonly string[]).includes(value ?? "") ? (value as LoadUnit) : undefined;
 }
 
-export function EquipmentForm({ action, types, initial, submitLabel }: EquipmentFormProps) {
+export function EquipmentForm({
+  action,
+  types,
+  initial,
+  submitLabel,
+  preferredUnit,
+}: EquipmentFormProps) {
   const [state, formAction] = useActionState(action, INITIAL_FORM_STATE);
   const value = (key: keyof EquipmentFormValues): string =>
     state.values?.[key] ?? initial?.[key] ?? "";
@@ -64,7 +73,7 @@ export function EquipmentForm({ action, types, initial, submitLabel }: Equipment
   const [mode, setMode] = useState<ResistanceMode>(
     () => asMode(value("resistanceMode")) ?? "selectorized",
   );
-  const [unit, setUnit] = useState<LoadUnit>(() => asUnit(value("unit")) ?? "kg");
+  const [unit, setUnit] = useState<LoadUnit>(() => asUnit(value("unit")) ?? preferredUnit);
   const touched = useRef({
     name: Boolean(initial),
     mode: Boolean(initial),
@@ -76,7 +85,9 @@ export function EquipmentForm({ action, types, initial, submitLabel }: Equipment
     const type = types.find((t) => t.id === nextTypeId);
     if (!type) return;
     if (!touched.current.mode) setMode(type.defaultResistanceMode);
-    if (!touched.current.unit) setUnit(type.defaultUnit);
+    // The catalogue is written in kilograms; a pounds account gets pounds by default.
+    if (!touched.current.unit)
+      setUnit(type.defaultUnit === "kg" ? preferredUnit : type.defaultUnit);
     if (!touched.current.name || name.trim() === "") setName(type.name);
   }
 

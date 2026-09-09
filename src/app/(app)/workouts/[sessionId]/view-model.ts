@@ -1,3 +1,4 @@
+import type { BodyLoadUnit } from "@/domain/types";
 import type { ComparablePerformance } from "@/server/queries/comparable";
 import type { SessionDetail, SessionExercise, SessionSet } from "@/server/repositories/sessions";
 
@@ -46,12 +47,19 @@ export type SessionVM = Omit<SessionDetail, "exercises" | "startedAt" | "complet
   startedAt: string;
   completedAt: string | null;
   timeZone: string;
+  /** Unit for loads no machine decides — free weights and added bodyweight load. */
+  preferredUnit: BodyLoadUnit;
 };
 
-export function toSessionVM(detail: SessionDetail, timeZone: string): SessionVM {
+export function toSessionVM(
+  detail: SessionDetail,
+  timeZone: string,
+  preferredUnit: BodyLoadUnit,
+): SessionVM {
   return {
     ...detail,
     timeZone,
+    preferredUnit,
     startedAt: detail.startedAt.toISOString(),
     completedAt: detail.completedAt?.toISOString() ?? null,
     exercises: detail.exercises.map((exercise) => ({

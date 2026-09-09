@@ -55,7 +55,7 @@ export default async function RunsPage() {
               </span>
             </div>
             <p className="text-lg font-semibold tabular-nums">{volumeLine(thisWeek)}</p>
-            <p className="text-xs text-ink-muted">Tuesday–Monday in your time zone</p>
+            <p className="text-xs text-ink-muted">Monday–Sunday in your time zone</p>
             {lastWeek && (
               <p className="text-sm text-ink-muted tabular-nums">
                 Last week: {volumeLine(lastWeek)}

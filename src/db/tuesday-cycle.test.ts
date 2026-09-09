@@ -13,7 +13,7 @@ import {
   workoutSessions,
 } from "./schema";
 import { seedReferenceData } from "./seed/reference";
-import { seedUserStarterData } from "./seed/starter";
+import { seedTestUserData } from "./test/fixtures";
 import { createTestDatabase, type TestDatabase } from "./test/pglite";
 import { withUser } from "./with-user";
 
@@ -29,7 +29,7 @@ afterAll(async () => {
 
 async function legacyProgram(email: string) {
   const user = await t.createAuthUser(email);
-  const { programId } = await withUser(t.db, user.id, (tx) => seedUserStarterData(tx, user));
+  const { programId } = await withUser(t.db, user.id, (tx) => seedTestUserData(tx, user));
   await t.db.update(programs).set({ startDayIndex: 2 }).where(eq(programs.id, programId));
   await t.db
     .update(programDays)
@@ -107,8 +107,8 @@ it("versions the unused starter plan, preserves prescriptions and activates Lowe
 
   await t.client.exec(migration);
   expect(await t.db.select().from(programs).where(eq(programs.userId, user.id))).toHaveLength(2);
-  const reseeded = await withUser(t.db, user.id, (tx) => seedUserStarterData(tx, user));
-  expect(reseeded).toMatchObject({ programCreated: false, programId: versions[1]!.id });
+  const reseeded = await withUser(t.db, user.id, (tx) => seedTestUserData(tx, user));
+  expect(reseeded).toMatchObject({ created: false, programId: versions[1]!.id });
 });
 
 it("does not replace a programme that already has a workout", async () => {

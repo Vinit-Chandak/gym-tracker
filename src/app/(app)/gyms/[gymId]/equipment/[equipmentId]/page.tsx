@@ -10,6 +10,7 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { setEquipmentActiveAction, updateEquipmentAction } from "@/server/actions/equipment";
 import { requireUser } from "@/server/auth";
+import { ensureProfile } from "@/server/queries/profile";
 import { getEquipment, listEquipmentTypes } from "@/server/repositories/equipment";
 import { requireUuid } from "@/server/validation/params";
 
@@ -27,10 +28,15 @@ export default async function EquipmentPage(
   const data = await withUser(getDb(), user.id, async (tx) => {
     const equipment = await getEquipment(tx, user.id, equipmentId);
     if (!equipment || equipment.gymId !== gymId) return null;
-    return { equipment, types: await listEquipmentTypes(tx) };
+    const profile = await ensureProfile(tx, user);
+    return {
+      equipment,
+      types: await listEquipmentTypes(tx),
+      preferredUnit: profile.preferredUnit === "lb" ? ("lb" as const) : ("kg" as const),
+    };
   });
   if (!data) notFound();
-  const { equipment, types } = data;
+  const { equipment, types, preferredUnit } = data;
 
   return (
     <>
@@ -52,6 +58,7 @@ export default async function EquipmentPage(
           <EquipmentForm
             action={updateEquipmentAction.bind(null, equipment.id)}
             types={types}
+            preferredUnit={preferredUnit}
             initial={{
               name: equipment.name,
               equipmentTypeId: equipment.equipmentTypeId,

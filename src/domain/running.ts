@@ -18,14 +18,14 @@ export type RunVolumeInput = {
 };
 
 export type WeekVolume = {
-  /** Tuesday of the training week, "YYYY-MM-DD". */
+  /** Monday of the training week, "YYYY-MM-DD". */
   weekStart: string;
   runs: number;
   minutes: number;
   km: number;
 };
 
-/** Tuesday of the training week containing the date. */
+/** Monday of the training week containing the date. */
 export function weekStart(isoDate: string): string {
   return addDays(isoDate, -((isoWeekday(isoDate) - TRAINING_WEEK_START + 7) % 7));
 }

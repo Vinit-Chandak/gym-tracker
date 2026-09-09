@@ -12,11 +12,12 @@ import { buttonClassName, LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { SectionHeading } from "@/components/ui/section";
 import { Select } from "@/components/ui/select";
+import { StatTile, StatTileRow } from "@/components/ui/stat-tile";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import type { Resolution } from "@/domain/equipment-resolution";
 import { formatSets } from "@/domain/sets";
-import { formatDay } from "@/lib/format";
+import { formatDay, formatKilograms } from "@/lib/format";
 import {
   EXERCISE_CATEGORY_LABELS,
   EXERCISE_MODALITY_LABELS,
@@ -38,15 +39,6 @@ import { getExercise, type ExerciseProgramUsage } from "@/server/repositories/ex
 import { requireUuid } from "@/server/validation/params";
 
 export const metadata: Metadata = { title: "Exercise" };
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-control bg-surface-raised px-2 py-2 text-center">
-      <dt className="text-xs text-ink-subtle">{label}</dt>
-      <dd className="text-base font-semibold tabular-nums">{value}</dd>
-    </div>
-  );
-}
 
 function prescription(usage: ExerciseProgramUsage): string {
   const volume =
@@ -83,10 +75,16 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
       recentPerformances(tx, user.id, exerciseId),
       ensureProfile(tx, user),
     ]);
-    return { exercise, availability, performances, timeZone: profile.timeZone };
+    return {
+      exercise,
+      availability,
+      performances,
+      timeZone: profile.timeZone,
+      unit: profile.preferredUnit === "lb" ? ("lb" as const) : ("kg" as const),
+    };
   });
   if (!data) notFound();
-  const { exercise, availability, performances, timeZone } = data;
+  const { exercise, availability, performances, timeZone, unit } = data;
 
   return (
     <>
@@ -122,25 +120,28 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
             </p>
           </div>
 
-          <dl className="grid grid-cols-4 gap-2">
-            <Stat label="Reps" value={rangeLabel(exercise.defaultRepMin, exercise.defaultRepMax)} />
-            <Stat
+          <StatTileRow>
+            <StatTile
+              label="Reps"
+              value={rangeLabel(exercise.defaultRepMin, exercise.defaultRepMax)}
+            />
+            <StatTile
               label="RIR"
               value={exercise.defaultRir === null ? "—" : String(exercise.defaultRir)}
             />
-            <Stat
+            <StatTile
               label="Rest"
               value={restLabel(exercise.defaultRestSeconds, exercise.defaultRestSeconds)}
             />
-            <Stat
+            <StatTile
               label="Load jump"
               value={
                 exercise.defaultLoadIncrement === null
                   ? "Machine"
-                  : `${exercise.defaultLoadIncrement} kg`
+                  : formatKilograms(exercise.defaultLoadIncrement, unit)
               }
             />
-          </dl>
+          </StatTileRow>
 
           {exercise.formNotes && (
             <p className="text-sm whitespace-pre-line">{exercise.formNotes}</p>

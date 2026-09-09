@@ -18,7 +18,7 @@ export function BottomNav() {
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(`${href}/`);
           return (
-            <li key={href} className="flex-1">
+            <li key={href} className="min-w-0 flex-1">
               {/*
                * The safe-area padding belongs on the link, not the bar: on a phone with a
                * home indicator it is 34px of the bar you can see and press but that no
@@ -29,14 +29,16 @@ export function BottomNav() {
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "flex h-nav-safe flex-col items-center justify-center gap-1 pb-safe text-[11px] font-medium transition-colors select-none",
+                  // Narrow phones: the label may shrink, but it must never widen the bar.
+                  "px-0.5",
                   // Acknowledge the press straight away: a server round trip can outlast
                   // the moment where a tap still feels like it registered.
                   "active:bg-surface-raised",
                   active ? "text-accent" : "text-ink-muted active:text-ink",
                 )}
               >
-                <Icon className="size-6" strokeWidth={active ? 2.25 : 1.75} aria-hidden />
-                {label}
+                <Icon className="size-6 shrink-0" strokeWidth={active ? 2.25 : 1.75} aria-hidden />
+                <span className="w-full truncate text-center">{label}</span>
               </Link>
             </li>
           );

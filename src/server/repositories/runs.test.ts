@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { seedReferenceData } from "@/db/seed/reference";
-import { seedUserStarterData } from "@/db/seed/starter";
+import { seedTestUserData } from "@/db/test/fixtures";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
 
@@ -48,7 +48,7 @@ beforeAll(async () => {
   await seedReferenceData(t.db);
   user = await t.createAuthUser("runs@example.com");
   other = await t.createAuthUser("runs-other@example.com");
-  await withUser(t.db, user.id, (tx) => seedUserStarterData(tx, user));
+  await withUser(t.db, user.id, (tx) => seedTestUserData(tx, user));
 });
 
 afterAll(async () => {

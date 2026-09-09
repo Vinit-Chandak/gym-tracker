@@ -31,12 +31,19 @@ export function SegmentedControl<V extends string>({
 }: SegmentedControlProps<V>) {
   const controlled = value !== undefined;
   const cols = columns ?? Math.min(options.length, 3);
+  // Below 400px more than three pills cannot hold a word like "Recovery"; halve the row there.
+  const narrowCols = cols > 3 ? Math.ceil(cols / 2) : cols;
   return (
     <div
       role="radiogroup"
       aria-label={ariaLabel}
-      className="grid gap-2"
-      style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+      className="grid grid-cols-[repeat(var(--seg-narrow),minmax(0,1fr))] gap-2 min-[400px]:grid-cols-[repeat(var(--seg-cols),minmax(0,1fr))]"
+      style={
+        { "--seg-cols": cols, "--seg-narrow": narrowCols } as React.CSSProperties & {
+          "--seg-cols": number;
+          "--seg-narrow": number;
+        }
+      }
     >
       {options.map((option) => (
         <label key={option.value} className="relative">
@@ -51,12 +58,12 @@ export function SegmentedControl<V extends string>({
           />
           <span
             className={cn(
-              "flex h-11 items-center justify-center rounded-control border border-line bg-surface-raised px-2 text-center text-sm font-medium text-ink-muted select-none",
+              "flex min-h-11 items-center justify-center overflow-hidden rounded-control border border-line bg-surface-raised px-1.5 py-1 text-sm leading-tight font-medium text-ink-muted select-none",
               "peer-checked:border-accent peer-checked:bg-accent/15 peer-checked:text-accent",
               "peer-focus-visible:ring-2 peer-focus-visible:ring-accent/60",
             )}
           >
-            {option.label}
+            <span className="min-w-0 text-center break-words hyphens-auto">{option.label}</span>
           </span>
         </label>
       ))}

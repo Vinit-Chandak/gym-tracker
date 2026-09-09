@@ -27,7 +27,7 @@ export function buttonClassName(
   className?: string,
 ): string {
   return cn(
-    "inline-flex items-center justify-center gap-2 rounded-control font-semibold whitespace-nowrap transition-colors select-none disabled:pointer-events-none disabled:opacity-40",
+    "inline-flex max-w-full items-center justify-center gap-2 truncate rounded-control font-semibold transition-colors select-none disabled:pointer-events-none disabled:opacity-40",
     VARIANT_CLASSES[variant],
     SIZE_CLASSES[size],
     className,

@@ -60,6 +60,7 @@ const session: SessionVM = {
   restTimerEnabled: false,
   warnings: [],
   timeZone: "Asia/Kolkata",
+  preferredUnit: "kg" as const,
   exercises: [
     {
       id: "slot",

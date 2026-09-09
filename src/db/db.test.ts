@@ -18,7 +18,7 @@ import {
   workoutSessions,
 } from "./schema";
 import { seedReferenceData } from "./seed/reference";
-import { seedUserStarterData } from "./seed/starter";
+import { seedTestUserData } from "./test/fixtures";
 import { createTestDatabase, type TestDatabase } from "./test/pglite";
 import { withUser } from "./with-user";
 
@@ -54,7 +54,7 @@ beforeAll(async () => {
   alice = await t.createAuthUser("alice@example.com");
   bob = await t.createAuthUser("bob@example.com");
   // Seeding through withUser proves the RLS insert paths work for a signed-in user.
-  await withUser(t.db, alice.id, (tx) => seedUserStarterData(tx, alice));
+  await withUser(t.db, alice.id, (tx) => seedTestUserData(tx, alice));
 });
 
 afterAll(async () => {
@@ -84,10 +84,11 @@ describe("migrations and seeds", () => {
       .select({ email: profiles.email, timeZone: profiles.timeZone })
       .from(profiles)
       .where(eq(profiles.id, bob.id));
-    expect(row).toEqual({ email: "bob@example.com", timeZone: "Asia/Kolkata" });
+    // UTC until onboarding asks; the browser proposes the real zone on the welcome screen.
+    expect(row).toEqual({ email: "bob@example.com", timeZone: "UTC" });
   });
 
-  it("seeds the complete 8-week programme for the user", async () => {
+  it("materialises the complete 8-week template for the user", async () => {
     await withUser(t.db, alice.id, async (tx) => {
       const days = await tx
         .select({
@@ -117,14 +118,23 @@ describe("migrations and seeds", () => {
     });
   });
 
-  it("does nothing on a second run", async () => {
-    const again = await withUser(t.db, alice.id, (tx) => seedUserStarterData(tx, alice));
-    expect(again).toMatchObject({
-      profileCreated: false,
-      gymsCreated: 0,
-      equipmentCreated: 0,
-      programCreated: false,
+  it("adds nothing on a second run", async () => {
+    const again = await withUser(t.db, alice.id, (tx) => seedTestUserData(tx, alice));
+    expect(again.created).toBe(false);
+    await withUser(t.db, alice.id, async (tx) => {
+      expect(await tx.select({ id: gyms.id }).from(gyms)).toHaveLength(5);
+      expect(await tx.select({ id: equipmentInstances.id }).from(equipmentInstances)).toHaveLength(
+        7,
+      );
+      expect(await tx.select({ id: programRuns.id }).from(programRuns)).toHaveLength(16);
     });
+  });
+
+  it("re-seeding shared reference data changes nothing", async () => {
+    const before = await t.db.select({ id: exercises.id }).from(exercises);
+    await seedReferenceData(t.db);
+    const after = await t.db.select({ id: exercises.id }).from(exercises);
+    expect(after).toHaveLength(before.length);
   });
 });
 
