@@ -35,27 +35,27 @@ export type StarterStatus = {
 };
 
 export async function getStarterStatus(db: DbOrTx, userId: string): Promise<StarterStatus> {
-  const [gymRow] = await db.select({ n: count() }).from(gyms).where(eq(gyms.userId, userId));
-  const [equipmentRow] = await db
-    .select({ n: count() })
-    .from(equipmentInstances)
-    .where(eq(equipmentInstances.userId, userId));
-  const [defaultGym] = await db
-    .select({ name: gyms.name })
-    .from(gyms)
-    .where(and(eq(gyms.userId, userId), eq(gyms.isDefault, true)))
-    .limit(1);
-  const [program] = await db
-    .select({
-      id: programs.id,
-      name: programs.name,
-      startDate: programs.startDate,
-      endDate: programs.endDate,
-      weeks: programs.weeks,
-    })
-    .from(programs)
-    .where(and(eq(programs.userId, userId), eq(programs.status, "active")))
-    .limit(1);
+  // Four independent counts and lookups, sent together.
+  const [[gymRow], [equipmentRow], [defaultGym], [program]] = await Promise.all([
+    db.select({ n: count() }).from(gyms).where(eq(gyms.userId, userId)),
+    db.select({ n: count() }).from(equipmentInstances).where(eq(equipmentInstances.userId, userId)),
+    db
+      .select({ name: gyms.name })
+      .from(gyms)
+      .where(and(eq(gyms.userId, userId), eq(gyms.isDefault, true)))
+      .limit(1),
+    db
+      .select({
+        id: programs.id,
+        name: programs.name,
+        startDate: programs.startDate,
+        endDate: programs.endDate,
+        weeks: programs.weeks,
+      })
+      .from(programs)
+      .where(and(eq(programs.userId, userId), eq(programs.status, "active")))
+      .limit(1),
+  ]);
 
   return {
     gymCount: gymRow?.n ?? 0,

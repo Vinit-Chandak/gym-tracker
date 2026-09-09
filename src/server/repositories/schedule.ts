@@ -1,13 +1,6 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 
-import {
-  exercises,
-  programDays,
-  programExercises,
-  programRuns,
-  programSlotEvents,
-  programs,
-} from "@/db/schema";
+import { exercises, programExercises, programRuns, programSlotEvents, programs } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import {
@@ -21,6 +14,7 @@ import {
   suggestion,
   type Progress,
   type ScheduleState,
+  type SlotEvent,
   type SlotRef,
   type SlotStatus,
   type Suggestion,
@@ -73,46 +67,70 @@ export type Schedule = {
   state: ScheduleState;
 };
 
+/**
+ * The active programme with its days and slot events, in one statement. The days and events
+ * come back as JSON built by Postgres, so nothing waits for the programme id to come back before
+ * asking for them. Row Level Security applies inside the subqueries exactly as it would outside.
+ */
 export async function getSchedule(db: DbOrTx, userId: string): Promise<Schedule | null> {
-  const program = await getActiveProgram(db, userId);
-  if (!program) return null;
-  const days = await db
+  const [row] = await db
     .select({
-      id: programDays.id,
-      dayOfWeek: programDays.dayOfWeek,
-      dayIndex: programDays.dayIndex,
-      name: programDays.name,
-      focus: programDays.focus,
-      includesLifting: programDays.includesLifting,
-      includesRun: programDays.includesRun,
-      timeNote: programDays.timeNote,
-      effortNote: programDays.effortNote,
-      notes: programDays.notes,
-      warmupProtocolId: programDays.warmupProtocolId,
+      id: programs.id,
+      name: programs.name,
+      slug: programs.slug,
+      startDate: programs.startDate,
+      weeks: programs.weeks,
+      startDayIndex: programs.startDayIndex,
+      // Plain SQL on purpose: inside a select list Drizzle drops table qualifiers (see listGyms).
+      days: sql<ScheduleDay[]>`coalesce((
+        select json_agg(json_build_object(
+          'id', d.id,
+          'dayOfWeek', d.day_of_week,
+          'dayIndex', d.day_index,
+          'name', d.name,
+          'focus', d.focus,
+          'includesLifting', d.includes_lifting,
+          'includesRun', d.includes_run,
+          'timeNote', d.time_note,
+          'effortNote', d.effort_note,
+          'notes', d.notes,
+          'warmupProtocolId', d.warmup_protocol_id
+        ) order by d.day_index)
+        from program_days d where d.program_id = programs.id
+      ), '[]'::json)`,
+      events: sql<SlotEvent[]>`coalesce((
+        select json_agg(json_build_object(
+          'cycleIndex', e.cycle_index,
+          'dayIndex', e.day_index,
+          'status', e.status
+        ))
+        from program_slot_events e where e.program_id = programs.id
+      ), '[]'::json)`,
     })
-    .from(programDays)
-    .where(eq(programDays.programId, program.id))
-    .orderBy(asc(programDays.dayIndex));
-  const events = await db
-    .select({
-      cycleIndex: programSlotEvents.cycleIndex,
-      dayIndex: programSlotEvents.dayIndex,
-      status: programSlotEvents.status,
-    })
-    .from(programSlotEvents)
-    .where(eq(programSlotEvents.programId, program.id));
+    .from(programs)
+    .where(and(eq(programs.userId, userId), eq(programs.status, "active")))
+    .limit(1);
+  if (!row) return null;
+  const program: ActiveProgram = {
+    id: row.id,
+    name: row.name,
+    slug: row.slug,
+    startDate: row.startDate,
+    weeks: row.weeks ?? 8,
+    startDayIndex: row.startDayIndex,
+  };
   return {
     program,
-    days,
+    days: row.days,
     state: {
-      slots: days.map((d) => ({
+      slots: row.days.map((d) => ({
         dayIndex: d.dayIndex,
         name: d.name,
         isRest: !d.includesLifting && !d.includesRun,
       })),
       cycles: program.weeks,
       startDayIndex: program.startDayIndex,
-      events,
+      events: row.events,
     },
   };
 }
@@ -149,7 +167,7 @@ export async function recordSlotEvent(
   return inserted.length > 0;
 }
 
-/** Completes every pending rest slot that comes before `ref` in the sequence. */
+/** Completes every pending rest slot that comes before `ref` in the sequence, in one statement. */
 export async function completeRestSlotsBefore(
   db: DbOrTx,
   userId: string,
@@ -157,7 +175,7 @@ export async function completeRestSlotsBefore(
   ref: SlotRef,
   occurredOn: string,
 ): Promise<number> {
-  let count = 0;
+  const pendingRest: SlotRef[] = [];
   for (const candidate of allSlots(schedule.state)) {
     if (candidate.cycleIndex === ref.cycleIndex && candidate.dayIndex === ref.dayIndex) break;
     if (
@@ -168,20 +186,32 @@ export async function completeRestSlotsBefore(
     }
     const slot = slotFor(schedule.state, candidate);
     if (!slot?.isRest || slotStatus(schedule.state, candidate) !== "pending") continue;
-    const inserted = await recordSlotEvent(
-      db,
-      userId,
-      schedule.program.id,
-      candidate,
-      "completed",
-      {
+    pendingRest.push(candidate);
+  }
+  if (pendingRest.length === 0) return 0;
+  const inserted = await db
+    .insert(programSlotEvents)
+    .values(
+      pendingRest.map((slot) => ({
+        userId,
+        programId: schedule.program.id,
+        cycleIndex: slot.cycleIndex,
+        dayIndex: slot.dayIndex,
+        status: "completed" as const,
+        workoutSessionId: null,
         occurredOn,
         note: "Rest day passed",
-      },
-    );
-    if (inserted) count += 1;
-  }
-  return count;
+      })),
+    )
+    .onConflictDoNothing({
+      target: [
+        programSlotEvents.programId,
+        programSlotEvents.cycleIndex,
+        programSlotEvents.dayIndex,
+      ],
+    })
+    .returning({ id: programSlotEvents.id });
+  return inserted.length;
 }
 
 /** The earliest cycle in which `dayIndex` is still pending, or null when none is. */
@@ -311,21 +341,18 @@ export async function getTodayPlan(
   const suggestedDay = next
     ? (schedule.days.find((d) => d.dayIndex === next.slot.dayIndex) ?? null)
     : null;
-  const suggestedExercises = suggestedDay ? await listDayExercises(db, suggestedDay.id) : [];
+  // The day's exercises and its run target only need the schedule, so they are read together.
+  const [suggestedExercises, runTarget] = await Promise.all([
+    suggestedDay ? listDayExercises(db, suggestedDay.id) : Promise.resolve([]),
+    next && suggestedDay?.includesRun
+      ? getRunTarget(db, schedule.program.id, next.slot.cycleIndex, suggestedDay.dayOfWeek ?? 0)
+      : Promise.resolve(null),
+  ]);
   const nextTrainingRef = next?.nextTrainingSlot ?? null;
   const nextTrainingDay = nextTrainingRef
     ? (schedule.days.find((d) => d.dayIndex === nextTrainingRef.dayIndex) ?? null)
     : null;
   const currentCycle = next?.slot.cycleIndex ?? nextPendingSlot(state)?.cycleIndex ?? state.cycles;
-  const runTarget =
-    next && suggestedDay?.includesRun
-      ? await getRunTarget(
-          db,
-          schedule.program.id,
-          next.slot.cycleIndex,
-          suggestedDay.dayOfWeek ?? 0,
-        )
-      : null;
   const cycleDays: DayStatus[] = schedule.days.map((day) => {
     const ref = { cycleIndex: currentCycle, dayIndex: day.dayIndex };
     const exists = allSlots(state).some(

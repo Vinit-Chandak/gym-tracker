@@ -7,16 +7,15 @@ import { Badge } from "@/components/ui/badge";
 import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getDb } from "@/db/client";
-import { warmupProtocols } from "@/db/schema";
 import { withUser } from "@/db/with-user";
 import { formatDateTime, formatIsoDate } from "@/lib/format";
 import { rangeLabel } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
+import { getWarmupProtocol } from "@/server/queries/reference";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { listGyms } from "@/server/repositories/gyms";
 import { getTodayPlan, type PlannedExercisePreview } from "@/server/repositories/schedule";
 import { getInProgressSession } from "@/server/repositories/sessions";
-import { eq } from "drizzle-orm";
 
 import { GymSwitcher } from "./gym-switcher";
 import {
@@ -49,13 +48,7 @@ export default async function TodayPage() {
     ]);
     const restProtocol =
       plan?.suggestedDay && !plan.suggestedDay.includesLifting && plan.suggestedDay.warmupProtocolId
-        ? ((
-            await tx
-              .select({ name: warmupProtocols.name, drills: warmupProtocols.drills })
-              .from(warmupProtocols)
-              .where(eq(warmupProtocols.id, plan.suggestedDay.warmupProtocolId))
-              .limit(1)
-          )[0] ?? null)
+        ? await getWarmupProtocol(tx, plan.suggestedDay.warmupProtocolId)
         : null;
     return { profile, gyms, inProgress, plan, restProtocol };
   });

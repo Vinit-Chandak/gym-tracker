@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { cache } from "react";
 
 import { isSupabaseConfigured } from "@/lib/env";
+import { getClaimsOptions } from "@/lib/supabase/jwks";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getRequestProfile } from "@/server/queries/request-profile";
 
@@ -14,7 +15,7 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   await connection();
   if (!isSupabaseConfigured()) return null;
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.auth.getClaims();
+  const { data, error } = await supabase.auth.getClaims(undefined, getClaimsOptions());
   const claims = data?.claims;
   if (error || !claims?.sub) return null;
   return { id: claims.sub, email: typeof claims.email === "string" ? claims.email : null };

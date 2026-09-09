@@ -9,7 +9,6 @@ import {
   programDays,
   programExercises,
   setLogs,
-  warmupProtocols,
   workoutExercises,
   workoutSessions,
 } from "@/db/schema";
@@ -32,6 +31,7 @@ import {
 import { weightStepFor } from "@/domain/sets";
 import type { LoadUnit, SetType, WarmupDrill } from "@/domain/types";
 import { sessionHistories, type ComparablePerformance } from "@/server/queries/comparable";
+import { getWarmupProtocol } from "@/server/queries/reference";
 
 import { decideExercisesAtGym, resolvePlannedDay, type ExerciseDecision } from "./availability";
 import { getGym } from "./gyms";
@@ -147,28 +147,37 @@ export async function startPlannedSession(
   userId: string,
   input: StartPlannedInput,
 ): Promise<{ sessionId: string }> {
-  const gym = await getGym(db, userId, input.gymId);
+  const [gym, [day]] = await Promise.all([
+    getGym(db, userId, input.gymId),
+    db
+      .select({ id: programDays.id, programId: programDays.programId })
+      .from(programDays)
+      .where(and(eq(programDays.id, input.programDayId), eq(programDays.userId, userId)))
+      .limit(1),
+  ]);
   if (!gym || !gym.isActive) throw new SessionNotFoundError();
-  const [day] = await db
-    .select({ id: programDays.id, programId: programDays.programId })
-    .from(programDays)
-    .where(and(eq(programDays.id, input.programDayId), eq(programDays.userId, userId)))
-    .limit(1);
   if (!day) throw new SessionNotFoundError();
 
-  const resolved = await resolvePlannedDay(db, userId, input.gymId, input.programDayId);
+  // Resolving the day's machines and creating the session row need only what is known by now,
+  // so they go out together; a resolution failure rolls the row back with the transaction.
+  const [resolved, [session]] = await Promise.all([
+    resolvePlannedDay(db, userId, input.gymId, input.programDayId, {
+      id: gym.id,
+      kind: gym.kind,
+      name: gym.name,
+    }),
+    db
+      .insert(workoutSessions)
+      .values({
+        userId,
+        programId: day.programId,
+        programDayId: day.id,
+        gymId: input.gymId,
+        cycleIndex: input.cycleIndex,
+      })
+      .returning({ id: workoutSessions.id }),
+  ]);
   if (!resolved) throw new SessionNotFoundError();
-
-  const [session] = await db
-    .insert(workoutSessions)
-    .values({
-      userId,
-      programId: day.programId,
-      programDayId: day.id,
-      gymId: input.gymId,
-      cycleIndex: input.cycleIndex,
-    })
-    .returning({ id: workoutSessions.id });
   if (!session) throw new Error("Session insert returned no row");
 
   if (resolved.length > 0) {
@@ -333,89 +342,87 @@ export async function getSessionDetail(
     .limit(1);
   if (!session) return null;
 
-  const plannedExercise = alias(exercises, "planned_exercise");
-  const rows = await db
-    .select({
-      we: workoutExercises,
-      exercise: {
-        id: exercises.id,
-        name: exercises.name,
-        slug: exercises.slug,
-        modality: exercises.modality,
-        loadPortability: exercises.loadPortability,
-        requiresEquipment: exercises.requiresEquipment,
-        defaultLoadIncrement: exercises.defaultLoadIncrement,
-        defaultRepMin: exercises.defaultRepMin,
-        defaultRepMax: exercises.defaultRepMax,
-        defaultRir: exercises.defaultRir,
-      },
-      equipment: {
-        id: equipmentInstances.id,
-        name: equipmentInstances.name,
-        unit: equipmentInstances.unit,
-        loadIncrement: equipmentInstances.loadIncrement,
-      },
-      planned: programExercises,
-      plannedExerciseName: plannedExercise.name,
-    })
-    .from(workoutExercises)
-    .innerJoin(exercises, eq(exercises.id, workoutExercises.exerciseId))
-    .leftJoin(equipmentInstances, eq(equipmentInstances.id, workoutExercises.equipmentInstanceId))
-    .leftJoin(programExercises, eq(programExercises.id, workoutExercises.plannedProgramExerciseId))
-    .leftJoin(plannedExercise, eq(plannedExercise.id, programExercises.exerciseId))
-    .where(eq(workoutExercises.workoutSessionId, sessionId))
-    .orderBy(asc(workoutExercises.orderIndex));
-
-  const setRows = rows.length
-    ? await db
-        .select({
-          id: setLogs.id,
-          workoutExerciseId: setLogs.workoutExerciseId,
-          setIndex: setLogs.setIndex,
-          setType: setLogs.setType,
-          weight: setLogs.weight,
-          unit: setLogs.unit,
-          reps: setLogs.reps,
-          rir: setLogs.rir,
-          durationSeconds: setLogs.durationSeconds,
-          completedAt: setLogs.completedAt,
-        })
-        .from(setLogs)
-        .innerJoin(workoutExercises, eq(workoutExercises.id, setLogs.workoutExerciseId))
-        .where(eq(workoutExercises.workoutSessionId, sessionId))
-        .orderBy(asc(setLogs.setIndex))
-    : [];
-
-  const [profile] = await db
-    .select({ restTimerEnabled: profiles.restTimerEnabled })
-    .from(profiles)
-    .where(eq(profiles.id, userId))
-    .limit(1);
-
-  const warmup = session.day?.warmupProtocolId
-    ? ((
-        await db
-          .select({ name: warmupProtocols.name, drills: warmupProtocols.drills })
-          .from(warmupProtocols)
-          .where(eq(warmupProtocols.id, session.day.warmupProtocolId))
-          .limit(1)
-      )[0] ?? null)
-    : null;
-
   const includeGuidance = options.includeGuidance !== false;
-  const histories = includeGuidance
-    ? await sessionHistories(
-        db,
-        rows.map((row) => ({
-          userId,
-          exerciseId: row.exercise.id,
-          loadPortability: row.exercise.loadPortability,
-          equipmentInstanceId: row.equipment?.id ?? null,
-          before: session.session.startedAt,
-          excludeWorkoutExerciseId: row.we.id,
-        })),
+  const checkIn: CheckIn = {
+    sleepHours: session.session.sleepHours,
+    sleepQuality: session.session.sleepQuality,
+    energy: session.session.energy,
+    fatigue: session.session.fatigue,
+    soreness: session.session.soreness,
+    backPainPre: session.session.backPainPre,
+    shinLeftPre: session.session.shinLeftPre,
+    shinRightPre: session.session.shinRightPre,
+  };
+  const wantsWarnings = includeGuidance && hasCheckIn(checkIn);
+
+  // Everything keyed by the session alone, in one round trip: the slots, their sets, the
+  // rest-timer preference, the warm-up (from memory) and the previous check-in.
+  const plannedExercise = alias(exercises, "planned_exercise");
+  const [rows, setRows, [profile], warmup, previousCheck] = await Promise.all([
+    db
+      .select({
+        we: workoutExercises,
+        exercise: {
+          id: exercises.id,
+          name: exercises.name,
+          slug: exercises.slug,
+          modality: exercises.modality,
+          loadPortability: exercises.loadPortability,
+          requiresEquipment: exercises.requiresEquipment,
+          defaultLoadIncrement: exercises.defaultLoadIncrement,
+          defaultRepMin: exercises.defaultRepMin,
+          defaultRepMax: exercises.defaultRepMax,
+          defaultRir: exercises.defaultRir,
+        },
+        equipment: {
+          id: equipmentInstances.id,
+          name: equipmentInstances.name,
+          unit: equipmentInstances.unit,
+          loadIncrement: equipmentInstances.loadIncrement,
+        },
+        planned: programExercises,
+        plannedExerciseName: plannedExercise.name,
+      })
+      .from(workoutExercises)
+      .innerJoin(exercises, eq(exercises.id, workoutExercises.exerciseId))
+      .leftJoin(equipmentInstances, eq(equipmentInstances.id, workoutExercises.equipmentInstanceId))
+      .leftJoin(
+        programExercises,
+        eq(programExercises.id, workoutExercises.plannedProgramExerciseId),
       )
-    : [];
+      .leftJoin(plannedExercise, eq(plannedExercise.id, programExercises.exerciseId))
+      .where(eq(workoutExercises.workoutSessionId, sessionId))
+      .orderBy(asc(workoutExercises.orderIndex)),
+    db
+      .select({
+        id: setLogs.id,
+        workoutExerciseId: setLogs.workoutExerciseId,
+        setIndex: setLogs.setIndex,
+        setType: setLogs.setType,
+        weight: setLogs.weight,
+        unit: setLogs.unit,
+        reps: setLogs.reps,
+        rir: setLogs.rir,
+        durationSeconds: setLogs.durationSeconds,
+        completedAt: setLogs.completedAt,
+      })
+      .from(setLogs)
+      .innerJoin(workoutExercises, eq(workoutExercises.id, setLogs.workoutExerciseId))
+      .where(eq(workoutExercises.workoutSessionId, sessionId))
+      .orderBy(asc(setLogs.setIndex)),
+    db
+      .select({ restTimerEnabled: profiles.restTimerEnabled })
+      .from(profiles)
+      .where(eq(profiles.id, userId))
+      .limit(1),
+    session.day?.warmupProtocolId
+      ? getWarmupProtocol(db, session.day.warmupProtocolId)
+      : Promise.resolve(null),
+    wantsWarnings
+      ? previousCheckIn(db, userId, session.session.startedAt, session.session.id)
+      : Promise.resolve(null),
+  ]);
+
   const unresolved = includeGuidance
     ? rows.filter(
         (row) =>
@@ -425,16 +432,33 @@ export async function getSessionDetail(
           !(session.gym.kind === "gym" && UBIQUITOUS.has(row.exercise.modality)),
       )
     : [];
-  const decisions = await decideExercisesAtGym(
-    db,
-    userId,
-    session.gym.id,
-    unresolved.map((row) => ({
-      id: row.we.id,
-      exercise: row.exercise,
-      programExerciseId: row.we.plannedProgramExerciseId,
-    })),
-  );
+  // History and machine decisions depend on the slots but not on each other.
+  const [histories, decisions] = await Promise.all([
+    includeGuidance
+      ? sessionHistories(
+          db,
+          rows.map((row) => ({
+            userId,
+            exerciseId: row.exercise.id,
+            loadPortability: row.exercise.loadPortability,
+            equipmentInstanceId: row.equipment?.id ?? null,
+            before: session.session.startedAt,
+            excludeWorkoutExerciseId: row.we.id,
+          })),
+        )
+      : Promise.resolve([]),
+    decideExercisesAtGym(
+      db,
+      userId,
+      session.gym.id,
+      unresolved.map((row) => ({
+        id: row.we.id,
+        exercise: row.exercise,
+        programExerciseId: row.we.plannedProgramExerciseId,
+      })),
+      session.gym,
+    ),
+  ]);
   const exerciseDetails: SessionExercise[] = [];
   for (const [index, row] of rows.entries()) {
     const weightStep = weightStepFor({
@@ -524,23 +548,7 @@ export async function getSessionDetail(
     });
   }
 
-  const checkIn: CheckIn = {
-    sleepHours: session.session.sleepHours,
-    sleepQuality: session.session.sleepQuality,
-    energy: session.session.energy,
-    fatigue: session.session.fatigue,
-    soreness: session.session.soreness,
-    backPainPre: session.session.backPainPre,
-    shinLeftPre: session.session.shinLeftPre,
-    shinRightPre: session.session.shinRightPre,
-  };
-  const warnings =
-    includeGuidance && hasCheckIn(checkIn)
-      ? recoveryWarnings(
-          checkIn,
-          await previousCheckIn(db, userId, session.session.startedAt, session.session.id),
-        )
-      : [];
+  const warnings = wantsWarnings ? recoveryWarnings(checkIn, previousCheck) : [];
 
   return {
     id: session.session.id,
@@ -972,18 +980,14 @@ export async function finishSession(
       programId: workoutSessions.programId,
       programDayId: workoutSessions.programDayId,
       cycleIndex: workoutSessions.cycleIndex,
+      // The day's position in the cycle, fetched with the update rather than after it.
+      // Plain SQL on purpose: the updated row is addressed by its table name here.
+      dayIndex: sql<number | null>`(
+        select d.day_index from program_days d where d.id = workout_sessions.program_day_id
+      )`,
     });
   if (!row) throw new SessionNotFoundError();
-  let dayIndex: number | null = null;
-  if (row.programDayId) {
-    const [day] = await db
-      .select({ dayIndex: programDays.dayIndex })
-      .from(programDays)
-      .where(eq(programDays.id, row.programDayId))
-      .limit(1);
-    dayIndex = day?.dayIndex ?? null;
-  }
-  return { ...row, dayIndex };
+  return { ...row, dayIndex: row.dayIndex ?? null };
 }
 
 /** Deletes a session that has no sets. */

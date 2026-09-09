@@ -58,57 +58,53 @@ export async function readWorkouts(
     .offset(page * limit);
   const hasMore = records.length > limit;
   const selected = records.slice(0, limit);
-  const slots = selected.length
-    ? await db
-        .select({
-          slot: workoutExercises,
-          exercise: {
-            id: exercises.id,
-            name: exercises.name,
-            slug: exercises.slug,
-            modality: exercises.modality,
-            loadPortability: exercises.loadPortability,
-            primaryMuscles: exercises.primaryMuscles,
-            secondaryMuscles: exercises.secondaryMuscles,
-          },
-          equipment: {
-            id: equipmentInstances.id,
-            name: equipmentInstances.name,
-            gymId: equipmentInstances.gymId,
-          },
-        })
-        .from(workoutExercises)
-        .innerJoin(exercises, eq(exercises.id, workoutExercises.exerciseId))
-        .leftJoin(
-          equipmentInstances,
-          eq(equipmentInstances.id, workoutExercises.equipmentInstanceId),
-        )
-        .where(
-          and(
-            eq(workoutExercises.userId, userId),
-            inArray(
-              workoutExercises.workoutSessionId,
-              selected.map((r) => r.session.id),
+  const sessionIds = selected.map((r) => r.session.id);
+  // Slots and sets both hang off the chosen sessions, so they are read side by side rather
+  // than sets waiting for the slot ids to come back.
+  const [slots, sets] = selected.length
+    ? await Promise.all([
+        db
+          .select({
+            slot: workoutExercises,
+            exercise: {
+              id: exercises.id,
+              name: exercises.name,
+              slug: exercises.slug,
+              modality: exercises.modality,
+              loadPortability: exercises.loadPortability,
+              primaryMuscles: exercises.primaryMuscles,
+              secondaryMuscles: exercises.secondaryMuscles,
+            },
+            equipment: {
+              id: equipmentInstances.id,
+              name: equipmentInstances.name,
+              gymId: equipmentInstances.gymId,
+            },
+          })
+          .from(workoutExercises)
+          .innerJoin(exercises, eq(exercises.id, workoutExercises.exerciseId))
+          .leftJoin(
+            equipmentInstances,
+            eq(equipmentInstances.id, workoutExercises.equipmentInstanceId),
+          )
+          .where(
+            and(
+              eq(workoutExercises.userId, userId),
+              inArray(workoutExercises.workoutSessionId, sessionIds),
             ),
-          ),
-        )
-        .orderBy(asc(workoutExercises.orderIndex))
-    : [];
-  const sets = slots.length
-    ? await db
-        .select()
-        .from(setLogs)
-        .where(
-          and(
-            eq(setLogs.userId, userId),
-            inArray(
-              setLogs.workoutExerciseId,
-              slots.map((r) => r.slot.id),
-            ),
-          ),
-        )
-        .orderBy(asc(setLogs.setIndex))
-    : [];
+          )
+          .orderBy(asc(workoutExercises.orderIndex)),
+        db
+          .select({ set: setLogs })
+          .from(setLogs)
+          .innerJoin(workoutExercises, eq(workoutExercises.id, setLogs.workoutExerciseId))
+          .where(
+            and(eq(setLogs.userId, userId), inArray(workoutExercises.workoutSessionId, sessionIds)),
+          )
+          .orderBy(asc(setLogs.setIndex))
+          .then((rows) => rows.map((row) => row.set)),
+      ])
+    : [[], []];
   const setsBySlot = new Map<string, typeof sets>();
   for (const set of sets) {
     const group = setsBySlot.get(set.workoutExerciseId) ?? [];

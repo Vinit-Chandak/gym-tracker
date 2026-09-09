@@ -27,12 +27,15 @@ export default async function EquipmentPage(
   const user = await requireUser();
   const requestProfile = await getRequestProfile(user.id, user.email);
   const data = await withUser(getDb(), user.id, async (tx) => {
-    const equipment = await getEquipment(tx, user.id, equipmentId);
+    const [equipment, types] = await Promise.all([
+      getEquipment(tx, user.id, equipmentId),
+      listEquipmentTypes(tx),
+    ]);
     if (!equipment || equipment.gymId !== gymId) return null;
     const profile = requestProfile;
     return {
       equipment,
-      types: await listEquipmentTypes(tx),
+      types,
       preferredUnit: profile.preferredUnit === "lb" ? ("lb" as const) : ("kg" as const),
     };
   });

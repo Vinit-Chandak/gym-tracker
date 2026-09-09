@@ -14,7 +14,7 @@ import {
 import { nextPendingSlot, suggestion } from "@/domain/schedule";
 import type { RunMode } from "@/domain/types";
 
-import { getSchedule } from "./schedule";
+import { getSchedule, type Schedule } from "./schedule";
 
 export class RunNotFoundError extends Error {
   constructor() {
@@ -156,6 +156,15 @@ export async function plannedRunsForCurrentCycle(
 ): Promise<PlannedRunsForCycle | null> {
   const schedule = await getSchedule(db, userId);
   if (!schedule) return null;
+  return plannedRunsForCycle(db, schedule, logged);
+}
+
+/** As above, for a schedule the caller already holds, so it can be read alongside other data. */
+export async function plannedRunsForCycle(
+  db: DbOrTx,
+  schedule: Schedule,
+  logged: readonly Pick<RunRecord, "id" | "programRunId">[],
+): Promise<PlannedRunsForCycle> {
   const { state } = schedule;
   const cycleIndex =
     suggestion(state)?.slot.cycleIndex ?? nextPendingSlot(state)?.cycleIndex ?? state.cycles;
@@ -198,7 +207,8 @@ export async function getRunsOverview(
   timeZone: string,
 ): Promise<RunsOverview> {
   const today = todayInTimeZone(timeZone);
-  const all = await listRuns(db, userId, 200);
+  // The runs and the programme are independent, so they are read in one round trip.
+  const [all, schedule] = await Promise.all([listRuns(db, userId, 200), getSchedule(db, userId)]);
   const weeks = weeklyVolumes(
     all.map((run) => ({
       startedOn: todayInTimeZone(timeZone, run.startedAt),
@@ -213,7 +223,7 @@ export async function getRunsOverview(
     today,
     weeks,
     spike: thisWeek && lastWeek ? volumeSpike(thisWeek, lastWeek) : null,
-    cycle: await plannedRunsForCurrentCycle(db, userId, all),
+    cycle: schedule ? await plannedRunsForCycle(db, schedule, all) : null,
     shin: shinEscalations(all),
     recent: all.slice(0, 20),
   };

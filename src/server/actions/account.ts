@@ -10,6 +10,7 @@ import { withUser } from "@/db/with-user";
 import { getSupabasePublicEnv } from "@/lib/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireUser } from "@/server/auth";
+import { forgetProfile } from "@/server/queries/request-profile";
 
 export type DeleteAccountState = { error?: string };
 
@@ -37,6 +38,7 @@ export async function deleteAccountAction(
 
   // Deleting the profile cascades through every user-owned table (see the schema's foreign keys).
   await withUser(getDb(), user.id, (tx) => tx.delete(profiles).where(eq(profiles.id, user.id)));
+  forgetProfile(user.id);
 
   const env = getSupabasePublicEnv();
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

@@ -23,12 +23,12 @@ export default async function NewEquipmentPage(props: PageProps<"/gyms/[gymId]/e
   const user = await requireUser();
   const requestProfile = await getRequestProfile(user.id, user.email);
   const data = await withUser(getDb(), user.id, async (tx) => {
-    const gym = await getGym(tx, user.id, gymId);
+    const [gym, types] = await Promise.all([getGym(tx, user.id, gymId), listEquipmentTypes(tx)]);
     if (!gym) return null;
     const profile = requestProfile;
     return {
       gym,
-      types: await listEquipmentTypes(tx),
+      types,
       preferredUnit: profile.preferredUnit === "lb" ? ("lb" as const) : ("kg" as const),
     };
   });

@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, exists, inArray, lt, ne, sql } from "drizzle-orm";
+import { and, desc, eq, exists, lt, ne, sql } from "drizzle-orm";
 import { unionAll } from "drizzle-orm/pg-core";
 
 import { equipmentInstances, gyms, setLogs, workoutExercises, workoutSessions } from "@/db/schema";
@@ -70,6 +70,20 @@ function performanceQuery(db: DbOrTx, filter: PerformanceFilter, requestIndex: n
       equipmentInstanceId: workoutExercises.equipmentInstanceId,
       equipmentInstanceName: equipmentInstances.name,
       performedAt: workoutSessions.startedAt,
+      // Each performance carries its sets, so a batch of histories is a single statement.
+      // Plain SQL on purpose: inside a select list Drizzle drops table qualifiers (see listGyms).
+      sets: sql<ComparableSet[]>`coalesce((
+        select json_agg(json_build_object(
+          'setIndex', s.set_index,
+          'setType', s.set_type,
+          'weight', s.weight,
+          'unit', s.unit,
+          'reps', s.reps,
+          'rir', s.rir,
+          'durationSeconds', s.duration_seconds
+        ) order by s.set_index)
+        from set_logs s where s.workout_exercise_id = workout_exercises.id
+      ), '[]'::json)`,
     })
     .from(workoutExercises)
     .innerJoin(workoutSessions, eq(workoutSessions.id, workoutExercises.workoutSessionId))
@@ -80,7 +94,7 @@ function performanceQuery(db: DbOrTx, filter: PerformanceFilter, requestIndex: n
     .limit(filter.limit);
 }
 
-/** All exercise lookups in two round trips, with a separate limit for each comparison scope. */
+/** All exercise lookups in one round trip, with a separate limit for each comparison scope. */
 async function batchPerformances(
   db: DbOrTx,
   filters: PerformanceFilter[],
@@ -91,41 +105,8 @@ async function batchPerformances(
   const rows = await (queries.length === 1
     ? first
     : unionAll(first, queries[1]!, ...queries.slice(2)));
-  if (rows.length === 0) return filters.map(() => []);
-
-  const sets = await db
-    .select({
-      workoutExerciseId: setLogs.workoutExerciseId,
-      setIndex: setLogs.setIndex,
-      setType: setLogs.setType,
-      weight: setLogs.weight,
-      unit: setLogs.unit,
-      reps: setLogs.reps,
-      rir: setLogs.rir,
-      durationSeconds: setLogs.durationSeconds,
-    })
-    .from(setLogs)
-    .where(
-      inArray(
-        setLogs.workoutExerciseId,
-        rows.map((row) => row.workoutExerciseId),
-      ),
-    )
-    .orderBy(asc(setLogs.setIndex));
-
-  const setsByExercise = new Map<string, ComparableSet[]>();
-  for (const { workoutExerciseId, ...set } of sets) {
-    const group = setsByExercise.get(workoutExerciseId) ?? [];
-    group.push(set);
-    setsByExercise.set(workoutExerciseId, group);
-  }
   return filters.map((_, i) =>
-    rows
-      .filter((row) => row.requestIndex === i)
-      .map(({ requestIndex: _ignored, ...row }) => ({
-        ...row,
-        sets: setsByExercise.get(row.workoutExerciseId) ?? [],
-      })),
+    rows.filter((row) => row.requestIndex === i).map(({ requestIndex: _ignored, ...row }) => row),
   );
 }
 

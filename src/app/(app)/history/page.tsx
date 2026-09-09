@@ -31,10 +31,13 @@ export default async function HistoryPage(props: PageProps<"/history">) {
     },
     profile.timeZone,
   );
-  const data = await withUser(getDb(), user.id, async (tx) => ({
-    training: await readTrainingData(tx, user.id, range),
-    gyms: await listGyms(tx, user.id),
-  }));
+  const data = await withUser(getDb(), user.id, async (tx) => {
+    const [training, gyms] = await Promise.all([
+      readTrainingData(tx, user.id, range),
+      listGyms(tx, user.id),
+    ]);
+    return { training, gyms };
+  });
   const items: HistoryItem[] = [
     ...data.training.workouts
       .filter((w) => w.completedAt)

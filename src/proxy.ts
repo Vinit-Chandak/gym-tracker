@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 import { getSupabasePublicEnv } from "@/lib/env";
+import { getClaimsOptions } from "@/lib/supabase/jwks";
 
 /** Reachable without a session. */
 const PUBLIC_PATHS = ["/login", "/signup", "/forgot-password"];
@@ -55,7 +56,9 @@ export async function proxy(request: NextRequest) {
     },
   });
 
-  const { data } = await supabase.auth.getClaims();
+  // Verified locally against the project's signing keys; embedded keys spare cold instances a
+  // fetch of the key set. Only a session about to expire costs a round trip, to refresh it.
+  const { data } = await supabase.auth.getClaims(undefined, getClaimsOptions());
   const signedIn = Boolean(data?.claims?.sub);
 
   if (isNeutral) return response;

@@ -14,6 +14,7 @@ import { nextPendingSlot } from "@/domain/schedule";
 import { SET_TYPES } from "@/domain/types";
 import { requireUser } from "@/server/auth";
 import { ensureProfile } from "@/server/queries/profile";
+import { profileChanged } from "@/server/queries/request-profile";
 import { addGymFallback } from "@/server/repositories/fallbacks";
 import {
   completeRestSlotsBefore,
@@ -72,22 +73,24 @@ export async function startPlannedSessionAction(
 ): Promise<void> {
   const user = await requireUser();
   const sessionId = await withUser(getDb(), user.id, async (tx) => {
-    const open = await getInProgressSession(tx, user.id);
+    // Three independent reads in one round trip; an open session simply wins.
+    const [open, profile, schedule] = await Promise.all([
+      getInProgressSession(tx, user.id),
+      ensureProfile(tx, user),
+      getSchedule(tx, user.id),
+    ]);
     if (open) return open.id;
-    const profile = await ensureProfile(tx, user);
     const today = todayInTimeZone(profile.timeZone);
-    const schedule = await getSchedule(tx, user.id);
     if (!schedule) throw new SessionNotFoundError();
     const cycleIndex =
       pendingCycleForDay(schedule.state, dayIndex) ??
       nextPendingSlot(schedule.state)?.cycleIndex ??
       schedule.state.cycles;
-    await completeRestSlotsBefore(tx, user.id, schedule, { cycleIndex, dayIndex }, today);
-    const { sessionId } = await startPlannedSession(tx, user.id, {
-      gymId,
-      programDayId,
-      cycleIndex,
-    });
+    // Passing rest days and starting the session write different rows; both land or neither.
+    const [, { sessionId }] = await Promise.all([
+      completeRestSlotsBefore(tx, user.id, schedule, { cycleIndex, dayIndex }, today),
+      startPlannedSession(tx, user.id, { gymId, programDayId, cycleIndex }),
+    ]);
     return sessionId;
   });
   revalidateSession(sessionId);
@@ -126,8 +129,10 @@ export async function skipSlotAction(
   const parsed = skipSlotSchema.safeParse(formValues(formData));
   if (!parsed.success) return { ok: false, error: "Keep the reason under 200 characters." };
   const result = await withUser(getDb(), user.id, async (tx): Promise<ActionResult> => {
-    const profile = await ensureProfile(tx, user);
-    const schedule = await getSchedule(tx, user.id);
+    const [profile, schedule] = await Promise.all([
+      ensureProfile(tx, user),
+      getSchedule(tx, user.id),
+    ]);
     if (!schedule) return { ok: false, error: "No active programme." };
     const cycleIndex = pendingCycleForDay(schedule.state, dayIndex);
     if (cycleIndex === null) return { ok: false, error: "That day has nothing left to skip." };
@@ -385,8 +390,10 @@ export async function finishSessionAction(
   if (!parsed.success) return parsed.state;
   try {
     await withUser(getDb(), user.id, async (tx) => {
-      const profile = await ensureProfile(tx, user);
-      const finished = await finishSession(tx, user.id, sessionId, parsed.data);
+      const [profile, finished] = await Promise.all([
+        ensureProfile(tx, user),
+        finishSession(tx, user.id, sessionId, parsed.data),
+      ]);
       if (finished.programId && finished.dayIndex !== null && finished.cycleIndex !== null) {
         await recordSlotEvent(
           tx,
@@ -421,6 +428,7 @@ export async function setRestTimerEnabledAction(enabled: boolean): Promise<void>
   await withUser(getDb(), user.id, (tx) =>
     tx.update(profiles).set({ restTimerEnabled: enabled }).where(eq(profiles.id, user.id)),
   );
+  await profileChanged(user.id);
   revalidatePath("/settings");
 }
 
@@ -428,8 +436,10 @@ export async function setRestTimerEnabledAction(enabled: boolean): Promise<void>
 export async function completeRestSlotAction(dayIndex: number): Promise<ActionResult> {
   const user = await requireUser();
   const result = await withUser(getDb(), user.id, async (tx): Promise<ActionResult> => {
-    const profile = await ensureProfile(tx, user);
-    const schedule = await getSchedule(tx, user.id);
+    const [profile, schedule] = await Promise.all([
+      ensureProfile(tx, user),
+      getSchedule(tx, user.id),
+    ]);
     if (!schedule) return { ok: false, error: "No active programme." };
     const cycleIndex = pendingCycleForDay(schedule.state, dayIndex);
     if (cycleIndex === null) return { ok: false, error: "Nothing left to mark for that day." };

@@ -10,7 +10,8 @@ import { toDateTimeLocal } from "@/lib/time";
 import { saveRunAction } from "@/server/actions/runs";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
-import { getRun, listRuns, plannedRunsForCurrentCycle } from "@/server/repositories/runs";
+import { getRun, listRuns, plannedRunsForCycle } from "@/server/repositories/runs";
+import { getSchedule } from "@/server/repositories/schedule";
 import { requireUuid } from "@/server/validation/params";
 
 import { RunForm } from "../../run-form";
@@ -25,14 +26,17 @@ export default async function EditRunPage(props: PageProps<"/runs/[runId]/edit">
   const user = await requireUser();
   const requestProfile = await getRequestProfile(user.id, user.email);
   const data = await withUser(getDb(), user.id, async (tx) => {
-    const run = await getRun(tx, user.id, runId);
+    const [run, logged, schedule] = await Promise.all([
+      getRun(tx, user.id, runId),
+      listRuns(tx, user.id, 200),
+      getSchedule(tx, user.id),
+    ]);
     if (!run) return null;
     const profile = requestProfile;
-    const logged = await listRuns(tx, user.id, 200);
     return {
       run,
       timeZone: profile.timeZone,
-      cycle: await plannedRunsForCurrentCycle(tx, user.id, logged),
+      cycle: schedule ? await plannedRunsForCycle(tx, schedule, logged) : null,
     };
   });
   if (!data) notFound();

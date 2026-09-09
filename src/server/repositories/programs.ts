@@ -1,14 +1,11 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 
 import {
-  equipmentTypes,
-  exercises,
   programDays,
   programExerciseFallbacks,
   programExercises,
   programRuns,
   programs,
-  warmupProtocols,
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import { programEndDate } from "@/domain/program-calendar";
@@ -17,6 +14,12 @@ import {
   prescriptionTypeOf,
   type ProgramBlueprint,
 } from "@/domain/program-blueprint";
+import {
+  resetReferenceCache,
+  sharedEquipmentTypes,
+  sharedExercises,
+  sharedWarmupProtocols,
+} from "@/server/queries/reference";
 
 /** Thrown when a blueprint names shared data this database does not have. */
 export class MissingReferenceDataError extends Error {
@@ -30,6 +33,48 @@ function requireId(map: Map<string, string>, slug: string, what: string): string
   const id = map.get(slug);
   if (!id) throw new MissingReferenceDataError(`${what} "${slug}"`);
   return id;
+}
+
+type ReferenceIds = {
+  exerciseIdBySlug: Map<string, string>;
+  typeIdBySlug: Map<string, string>;
+  warmupIdBySlug: Map<string, string>;
+};
+
+/**
+ * Ids of everything the blueprint names, from the in-memory library. A slug the memory does not
+ * know is re-read from the database once before it counts as missing, so a library seeded after
+ * this instance started still works.
+ */
+async function referenceIds(db: DbOrTx, blueprint: ProgramBlueprint): Promise<ReferenceIds> {
+  const read = async (): Promise<ReferenceIds> => {
+    const [exerciseRows, typeRows, warmupRows] = await Promise.all([
+      sharedExercises(db),
+      sharedEquipmentTypes(db),
+      sharedWarmupProtocols(db),
+    ]);
+    return {
+      exerciseIdBySlug: new Map(exerciseRows.map((r) => [r.slug, r.id])),
+      typeIdBySlug: new Map(typeRows.map((r) => [r.slug, r.id])),
+      warmupIdBySlug: new Map(warmupRows.map((r) => [r.slug, r.id])),
+    };
+  };
+  const ids = await read();
+  const complete =
+    blueprintExerciseSlugs(blueprint).every((slug) => ids.exerciseIdBySlug.has(slug)) &&
+    blueprint.days.every(
+      (day) =>
+        ids.warmupIdBySlug.has(day.warmupSlug) &&
+        day.exercises.every((exercise) =>
+          (exercise.fallbacks ?? []).every(
+            (fallback) =>
+              !fallback.equipmentTypeSlug || ids.typeIdBySlug.has(fallback.equipmentTypeSlug),
+          ),
+        ),
+    );
+  if (complete) return ids;
+  resetReferenceCache();
+  return read();
 }
 
 export type CreateProgramOptions = {
@@ -52,6 +97,10 @@ export type CreatedProgram = { id: string; familyId: string; version: number };
  * Everything the blueprint names by slug is looked up in the shared library, so the same
  * function serves a built-in template, an import and a plan generated from training history.
  * Runs inside `withUser`, so RLS decides what it may touch.
+ *
+ * Every slug is resolved before the first row is written, and each table gets one insert for
+ * the whole plan: a missing slug fails before anything exists, and adopting a programme costs a
+ * handful of statements rather than one per exercise.
  */
 export async function createProgramFromBlueprint(
   db: DbOrTx,
@@ -59,29 +108,36 @@ export async function createProgramFromBlueprint(
   blueprint: ProgramBlueprint,
   options: CreateProgramOptions,
 ): Promise<CreatedProgram> {
-  const exerciseRows = await db
-    .select({ id: exercises.id, slug: exercises.slug })
-    .from(exercises)
-    .where(inArray(exercises.slug, blueprintExerciseSlugs(blueprint)));
-  const exerciseIdBySlug = new Map(exerciseRows.map((r) => [r.slug, r.id]));
-  const typeRows = await db
-    .select({ id: equipmentTypes.id, slug: equipmentTypes.slug })
-    .from(equipmentTypes);
-  const typeIdBySlug = new Map(typeRows.map((r) => [r.slug, r.id]));
-  const warmupRows = await db
-    .select({ id: warmupProtocols.id, slug: warmupProtocols.slug })
-    .from(warmupProtocols);
-  const warmupIdBySlug = new Map(warmupRows.map((r) => [r.slug, r.id]));
-
   const familyId = options.familyId ?? crypto.randomUUID();
-  const [previous] = await db
-    .select({ id: programs.id, version: programs.version })
-    .from(programs)
-    .where(and(eq(programs.userId, userId), eq(programs.slug, blueprint.slug)))
-    .orderBy(desc(programs.version))
-    .limit(1);
+  const [{ exerciseIdBySlug, typeIdBySlug, warmupIdBySlug }, [previous]] = await Promise.all([
+    referenceIds(db, blueprint),
+    db
+      .select({ id: programs.id, version: programs.version })
+      .from(programs)
+      .where(and(eq(programs.userId, userId), eq(programs.slug, blueprint.slug)))
+      .orderBy(desc(programs.version))
+      .limit(1),
+  ]);
   const version = (previous?.version ?? 0) + 1;
   const status = options.status ?? "active";
+
+  // Resolve every reference first, so a blueprint naming something unknown writes nothing.
+  const dayValues = blueprint.days.map((day) => ({
+    day,
+    warmupProtocolId: requireId(warmupIdBySlug, day.warmupSlug, "warm-up protocol"),
+    exercises: day.exercises.map((exercise, index) => ({
+      exercise,
+      orderIndex: index + 1,
+      exerciseId: requireId(exerciseIdBySlug, exercise.exerciseSlug, "exercise"),
+      fallbacks: (exercise.fallbacks ?? []).map((fallback) => ({
+        fallback,
+        fallbackExerciseId: requireId(exerciseIdBySlug, fallback.exerciseSlug, "exercise"),
+        fallbackEquipmentTypeId: fallback.equipmentTypeSlug
+          ? requireId(typeIdBySlug, fallback.equipmentTypeSlug, "equipment type")
+          : null,
+      })),
+    })),
+  }));
 
   if (status === "active") {
     // One active programme at a time: Today, Progress and the coach API all read "the" plan.
@@ -110,10 +166,11 @@ export async function createProgramFromBlueprint(
     .returning({ id: programs.id });
   if (!program) throw new Error("Programme insert returned no row");
 
-  for (const day of blueprint.days) {
-    const [dayRow] = await db
-      .insert(programDays)
-      .values({
+  // Rows come back in no guaranteed order, so each is matched by its natural key, not position.
+  const dayRows = await db
+    .insert(programDays)
+    .values(
+      dayValues.map(({ day, warmupProtocolId }) => ({
         userId,
         programId: program.id,
         dayIndex: day.dayIndex,
@@ -125,57 +182,74 @@ export async function createProgramFromBlueprint(
         timeNote: day.timeNote,
         effortNote: day.effortNote,
         notes: day.notes,
-        warmupProtocolId: requireId(warmupIdBySlug, day.warmupSlug, "warm-up protocol"),
-      })
-      .returning({ id: programDays.id });
-    if (!dayRow) throw new Error(`Programme day insert returned no row (${day.name})`);
+        warmupProtocolId,
+      })),
+    )
+    .returning({ id: programDays.id, dayIndex: programDays.dayIndex });
+  const dayIdByIndex = new Map(dayRows.map((row) => [row.dayIndex, row.id]));
+  const dayId = (dayIndex: number): string => {
+    const id = dayIdByIndex.get(dayIndex);
+    if (!id) throw new Error(`Programme day insert returned no row (day ${dayIndex})`);
+    return id;
+  };
 
-    for (const [index, exercise] of day.exercises.entries()) {
-      const [exerciseRow] = await db
-        .insert(programExercises)
-        .values({
-          userId,
-          programDayId: dayRow.id,
-          exerciseId: requireId(exerciseIdBySlug, exercise.exerciseSlug, "exercise"),
-          orderIndex: index + 1,
-          sets: exercise.sets,
-          prescriptionType: prescriptionTypeOf(exercise),
-          repMin: exercise.reps?.[0] ?? null,
-          repMax: exercise.reps?.[1] ?? null,
-          durationMinSeconds: exercise.duration?.[0] ?? null,
-          durationMaxSeconds: exercise.duration?.[1] ?? null,
-          perSide: exercise.perSide ?? false,
-          rirMin: exercise.rir[0],
-          rirMax: exercise.rir[1],
-          restMinSeconds: exercise.rest[0],
-          restMaxSeconds: exercise.rest[1],
-          targetLoadNote: exercise.targetLoadNote ?? null,
-          progressionNotes: exercise.progressionNotes ?? null,
-          progressionRule: exercise.progressionRule ?? null,
-          keyCue: exercise.keyCue ?? null,
-          supersetGroup: exercise.supersetGroup ?? null,
-          notes: exercise.notes ?? null,
+  const exerciseValues = dayValues.flatMap(({ day, exercises }) =>
+    exercises.map(({ exercise, orderIndex, exerciseId }) => ({
+      userId,
+      programDayId: dayId(day.dayIndex),
+      exerciseId,
+      orderIndex,
+      sets: exercise.sets,
+      prescriptionType: prescriptionTypeOf(exercise),
+      repMin: exercise.reps?.[0] ?? null,
+      repMax: exercise.reps?.[1] ?? null,
+      durationMinSeconds: exercise.duration?.[0] ?? null,
+      durationMaxSeconds: exercise.duration?.[1] ?? null,
+      perSide: exercise.perSide ?? false,
+      rirMin: exercise.rir[0],
+      rirMax: exercise.rir[1],
+      restMinSeconds: exercise.rest[0],
+      restMaxSeconds: exercise.rest[1],
+      targetLoadNote: exercise.targetLoadNote ?? null,
+      progressionNotes: exercise.progressionNotes ?? null,
+      progressionRule: exercise.progressionRule ?? null,
+      keyCue: exercise.keyCue ?? null,
+      supersetGroup: exercise.supersetGroup ?? null,
+      notes: exercise.notes ?? null,
+    })),
+  );
+  const exerciseRows =
+    exerciseValues.length > 0
+      ? await db.insert(programExercises).values(exerciseValues).returning({
+          id: programExercises.id,
+          programDayId: programExercises.programDayId,
+          orderIndex: programExercises.orderIndex,
         })
-        .returning({ id: programExercises.id });
-      if (!exerciseRow) {
-        throw new Error(`Programme exercise insert returned no row (${exercise.exerciseSlug})`);
-      }
+      : [];
+  const slotIdByPosition = new Map(
+    exerciseRows.map((row) => [`${row.programDayId}:${row.orderIndex}`, row.id]),
+  );
 
-      if (exercise.fallbacks && exercise.fallbacks.length > 0) {
-        await db.insert(programExerciseFallbacks).values(
-          exercise.fallbacks.map((fallback) => ({
-            userId,
-            programExerciseId: exerciseRow.id,
-            fallbackExerciseId: requireId(exerciseIdBySlug, fallback.exerciseSlug, "exercise"),
-            fallbackEquipmentTypeId: fallback.equipmentTypeSlug
-              ? requireId(typeIdBySlug, fallback.equipmentTypeSlug, "equipment type")
-              : null,
-            rank: fallback.rank,
-            notes: fallback.notes ?? null,
-          })),
-        );
-      }
-    }
+  const fallbackValues = dayValues.flatMap(({ day, exercises }) =>
+    exercises.flatMap(({ exercise, orderIndex, fallbacks }) =>
+      fallbacks.map(({ fallback, fallbackExerciseId, fallbackEquipmentTypeId }) => {
+        const programExerciseId = slotIdByPosition.get(`${dayId(day.dayIndex)}:${orderIndex}`);
+        if (!programExerciseId) {
+          throw new Error(`Programme exercise insert returned no row (${exercise.exerciseSlug})`);
+        }
+        return {
+          userId,
+          programExerciseId,
+          fallbackExerciseId,
+          fallbackEquipmentTypeId,
+          rank: fallback.rank,
+          notes: fallback.notes ?? null,
+        };
+      }),
+    ),
+  );
+  if (fallbackValues.length > 0) {
+    await db.insert(programExerciseFallbacks).values(fallbackValues);
   }
 
   if (blueprint.runs.length > 0) {

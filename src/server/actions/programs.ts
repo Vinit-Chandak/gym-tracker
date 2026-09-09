@@ -12,6 +12,7 @@ import { withUser } from "@/db/with-user";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { requireUser } from "@/server/auth";
 import { ensureProfile } from "@/server/queries/profile";
+import { profileChanged } from "@/server/queries/request-profile";
 import {
   createProgramFromBlueprint,
   MissingReferenceDataError,
@@ -43,6 +44,7 @@ export async function adoptProgramTemplateAction(
   const template = findProgramTemplate(parsed.data.templateSlug);
   if (!template) return { error: "That programme is no longer available." };
 
+  let finishedOnboarding = false;
   try {
     await withUser(getDb(), user.id, async (tx) => {
       const profile = await ensureProfile(tx, user);
@@ -50,12 +52,14 @@ export async function adoptProgramTemplateAction(
       await createProgramFromBlueprint(tx, user.id, template.blueprint, { startDate });
       if (parsed.data.finishOnboarding && profile.onboardedAt === null) {
         await tx.update(profiles).set({ onboardedAt: new Date() }).where(eq(profiles.id, user.id));
+        finishedOnboarding = true;
       }
     });
   } catch (error) {
     if (error instanceof MissingReferenceDataError) return { error: error.message };
     throw error;
   }
+  if (finishedOnboarding) await profileChanged(user.id);
   revalidatePath("/settings");
   revalidatePath("/today");
   if (parsed.data.finishOnboarding) redirect("/today");

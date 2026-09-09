@@ -9,7 +9,8 @@ import { toDateTimeLocal } from "@/lib/time";
 import { saveRunAction } from "@/server/actions/runs";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
-import { listRuns, plannedRunsForCurrentCycle } from "@/server/repositories/runs";
+import { listRuns, plannedRunsForCycle } from "@/server/repositories/runs";
+import { getSchedule } from "@/server/repositories/schedule";
 
 import { RunForm } from "../run-form";
 
@@ -20,10 +21,13 @@ export default async function NewRunPage() {
   const requestProfile = await getRequestProfile(user.id, user.email);
   const data = await withUser(getDb(), user.id, async (tx) => {
     const profile = requestProfile;
-    const logged = await listRuns(tx, user.id, 200);
+    const [logged, schedule] = await Promise.all([
+      listRuns(tx, user.id, 200),
+      getSchedule(tx, user.id),
+    ]);
     return {
       timeZone: profile.timeZone,
-      cycle: await plannedRunsForCurrentCycle(tx, user.id, logged),
+      cycle: schedule ? await plannedRunsForCycle(tx, schedule, logged) : null,
     };
   });
   const planned = data.cycle?.planned ?? [];

@@ -110,9 +110,19 @@ Your **deployed** database looks after itself; see step 7.
    `DIRECT_DATABASE_URL`). Tick Production and Preview.
    Also set `NEXT_PUBLIC_SITE_URL` to the production URL, so emailed links always point at
    production rather than at whichever preview deployment sent them.
-4. **Deploy**, then open the URL and create your account.
-5. Optional but recommended: Project **Settings → Functions → Function Region** → the region
-   nearest your Supabase project, so the app and the database sit together.
+4. Recommended: add `SUPABASE_JWKS` as well. Open
+   `https://<project-ref>.supabase.co/auth/v1/.well-known/jwks.json` in a browser (the project
+   ref is the first part of `NEXT_PUBLIC_SUPABASE_URL`), copy the whole JSON document and paste
+   it as the value, on one line. These are the project's _public_ signing keys, so they are safe
+   to store. With them embedded, a freshly started server instance verifies a session without
+   first fetching the keys from Supabase, which is otherwise the first thing every cold start
+   waits for. If you rotate the signing key in the Supabase dashboard, paste the new document.
+5. **Deploy**, then open the URL and create your account.
+6. Optional but recommended: Project **Settings → Functions → Function Region** → the region
+   nearest your Supabase project, so the app and the database sit together. Check that
+   **Fluid Compute** is enabled for the project too: it keeps an instance alive between requests
+   instead of starting a new one for each, which is the difference between a tap answering in a
+   fraction of a second and in one to two seconds.
 
 ### What a production deploy does to the database
 
@@ -155,3 +165,7 @@ Either way it launches full-screen with the correct padding for notches and gest
 - Supabase pauses free projects after seven days without any request; the dashboard shows a
   **Restore** button, and data is kept.
 - Vercel Hobby is plenty for a small group of friends.
+- The first tap after a quiet spell can still take a second or two: that is a new server instance
+  starting, not the database. Everything after it, while the instance stays warm, is fast. A
+  monitoring service pinging the sign-in page every few minutes keeps an instance warm for the
+  price of a few requests an hour.

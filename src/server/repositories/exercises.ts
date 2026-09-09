@@ -10,6 +10,7 @@ import {
   programs,
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
+import { sharedExercises } from "@/server/queries/reference";
 
 type ExerciseRow = typeof exercises.$inferSelect;
 
@@ -32,30 +33,43 @@ export type ExerciseListItem = Pick<
   | "defaultRestSeconds"
 > & { isCustom: boolean };
 
-/** Every exercise the user can see: the shared library plus their own, by name. */
+function toListItem(row: ExerciseRow): ExerciseListItem {
+  return {
+    id: row.id,
+    slug: row.slug,
+    name: row.name,
+    category: row.category,
+    modality: row.modality,
+    movementPattern: row.movementPattern,
+    primaryMuscles: row.primaryMuscles,
+    secondaryMuscles: row.secondaryMuscles,
+    loadPortability: row.loadPortability,
+    requiresEquipment: row.requiresEquipment,
+    isActive: row.isActive,
+    defaultRepMin: row.defaultRepMin,
+    defaultRepMax: row.defaultRepMax,
+    defaultRir: row.defaultRir,
+    defaultRestSeconds: row.defaultRestSeconds,
+    isCustom: row.userId !== null,
+  };
+}
+
+/**
+ * Every exercise the user can see, by name: the shared library (served from memory) plus their
+ * own, which Row Level Security limits to the signed-in account.
+ */
 export async function listExercises(db: DbOrTx): Promise<ExerciseListItem[]> {
-  const rows = await db
-    .select({
-      id: exercises.id,
-      slug: exercises.slug,
-      name: exercises.name,
-      category: exercises.category,
-      modality: exercises.modality,
-      movementPattern: exercises.movementPattern,
-      primaryMuscles: exercises.primaryMuscles,
-      secondaryMuscles: exercises.secondaryMuscles,
-      loadPortability: exercises.loadPortability,
-      requiresEquipment: exercises.requiresEquipment,
-      isActive: exercises.isActive,
-      defaultRepMin: exercises.defaultRepMin,
-      defaultRepMax: exercises.defaultRepMax,
-      defaultRir: exercises.defaultRir,
-      defaultRestSeconds: exercises.defaultRestSeconds,
-      userId: exercises.userId,
-    })
-    .from(exercises)
-    .orderBy(asc(exercises.name));
-  return rows.map(({ userId, ...rest }) => ({ ...rest, isCustom: userId !== null }));
+  const [shared, own] = await Promise.all([
+    sharedExercises(db),
+    db.select().from(exercises).where(isNotNull(exercises.userId)).orderBy(asc(exercises.name)),
+  ]);
+  const items = shared.map(toListItem);
+  for (const row of own) {
+    const item = toListItem(row);
+    const at = items.findIndex((other) => other.name.localeCompare(item.name) > 0);
+    items.splice(at === -1 ? items.length : at, 0, item);
+  }
+  return items;
 }
 
 export type ExerciseEquipmentOption = {
@@ -96,57 +110,58 @@ export async function getExercise(
   userId: string,
   exerciseId: string,
 ): Promise<ExerciseDetail | null> {
-  const [row] = await db.select().from(exercises).where(eq(exercises.id, exerciseId)).limit(1);
+  // Three independent reads, keyed by the exercise alone, in one round trip.
+  const [[row], equipmentOptions, programUsage] = await Promise.all([
+    db.select().from(exercises).where(eq(exercises.id, exerciseId)).limit(1),
+    db
+      .select({
+        equipmentTypeId: equipmentTypes.id,
+        typeName: equipmentTypes.name,
+        typeSlug: equipmentTypes.slug,
+        preferenceRank: exerciseEquipmentOptions.preferenceRank,
+      })
+      .from(exerciseEquipmentOptions)
+      .innerJoin(equipmentTypes, eq(equipmentTypes.id, exerciseEquipmentOptions.equipmentTypeId))
+      .where(
+        and(
+          eq(exerciseEquipmentOptions.exerciseId, exerciseId),
+          isNull(exerciseEquipmentOptions.userId),
+        ),
+      )
+      .orderBy(asc(exerciseEquipmentOptions.preferenceRank)),
+    db
+      .select({
+        programExerciseId: programExercises.id,
+        dayIndex: programDays.dayIndex,
+        dayName: programDays.name,
+        sets: programExercises.sets,
+        prescriptionType: programExercises.prescriptionType,
+        repMin: programExercises.repMin,
+        repMax: programExercises.repMax,
+        durationMinSeconds: programExercises.durationMinSeconds,
+        durationMaxSeconds: programExercises.durationMaxSeconds,
+        perSide: programExercises.perSide,
+        rirMin: programExercises.rirMin,
+        rirMax: programExercises.rirMax,
+        restMinSeconds: programExercises.restMinSeconds,
+        restMaxSeconds: programExercises.restMaxSeconds,
+        targetLoadNote: programExercises.targetLoadNote,
+        progressionNotes: programExercises.progressionNotes,
+        keyCue: programExercises.keyCue,
+      })
+      .from(programExercises)
+      .innerJoin(programDays, eq(programDays.id, programExercises.programDayId))
+      .innerJoin(programs, eq(programs.id, programDays.programId))
+      .where(
+        and(
+          eq(programExercises.exerciseId, exerciseId),
+          eq(programs.userId, userId),
+          eq(programs.status, "active"),
+        ),
+      )
+      .orderBy(asc(programDays.dayIndex), asc(programExercises.orderIndex)),
+  ]);
   if (!row) return null;
-
-  const equipmentOptions = await db
-    .select({
-      equipmentTypeId: equipmentTypes.id,
-      typeName: equipmentTypes.name,
-      typeSlug: equipmentTypes.slug,
-      preferenceRank: exerciseEquipmentOptions.preferenceRank,
-    })
-    .from(exerciseEquipmentOptions)
-    .innerJoin(equipmentTypes, eq(equipmentTypes.id, exerciseEquipmentOptions.equipmentTypeId))
-    .where(
-      and(
-        eq(exerciseEquipmentOptions.exerciseId, exerciseId),
-        isNull(exerciseEquipmentOptions.userId),
-      ),
-    )
-    .orderBy(asc(exerciseEquipmentOptions.preferenceRank));
-
-  const programUsage = await db
-    .select({
-      programExerciseId: programExercises.id,
-      dayIndex: programDays.dayIndex,
-      dayName: programDays.name,
-      sets: programExercises.sets,
-      prescriptionType: programExercises.prescriptionType,
-      repMin: programExercises.repMin,
-      repMax: programExercises.repMax,
-      durationMinSeconds: programExercises.durationMinSeconds,
-      durationMaxSeconds: programExercises.durationMaxSeconds,
-      perSide: programExercises.perSide,
-      rirMin: programExercises.rirMin,
-      rirMax: programExercises.rirMax,
-      restMinSeconds: programExercises.restMinSeconds,
-      restMaxSeconds: programExercises.restMaxSeconds,
-      targetLoadNote: programExercises.targetLoadNote,
-      progressionNotes: programExercises.progressionNotes,
-      keyCue: programExercises.keyCue,
-    })
-    .from(programExercises)
-    .innerJoin(programDays, eq(programDays.id, programExercises.programDayId))
-    .innerJoin(programs, eq(programs.id, programDays.programId))
-    .where(
-      and(
-        eq(programExercises.exerciseId, exerciseId),
-        eq(programs.userId, userId),
-        eq(programs.status, "active"),
-      ),
-    )
-    .orderBy(asc(programDays.dayIndex), asc(programExercises.orderIndex));
 
   return { ...row, isCustom: row.userId !== null, equipmentOptions, programUsage };
 }

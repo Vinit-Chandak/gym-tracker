@@ -16,14 +16,16 @@ export default async function GymPage(props: PageProps<"/gyms/[gymId]">) {
   requireUuid(gymId);
   const user = await requireUser();
   const data = await withUser(getDb(), user.id, async (tx) => {
-    const gym = await getGym(tx, user.id, gymId);
-    if (!gym) return null;
-    const [equipment, absent, types, availability] = await Promise.all([
+    // Everything keys off the gym id, so nothing waits for the gym row itself; a gym that is
+    // not the user's yields empty lists under Row Level Security and a not-found page.
+    const [gym, equipment, absent, types, availability] = await Promise.all([
+      getGym(tx, user.id, gymId),
       listEquipmentForGym(tx, user.id, gymId),
       listAbsentEquipment(tx, user.id, gymId),
       listEquipmentTypes(tx),
       gymAvailability(tx, user.id, gymId),
     ]);
+    if (!gym) return null;
     return { gym, equipment, absent, types, availability };
   });
   if (!data) notFound();

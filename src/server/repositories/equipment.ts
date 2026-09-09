@@ -3,6 +3,7 @@ import { and, asc, desc, eq, ne, sql } from "drizzle-orm";
 import { isUniqueViolation } from "@/db/errors";
 import { equipmentInstances, equipmentTypes, gyms } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
+import { sharedEquipmentTypes } from "@/server/queries/reference";
 import type { EquipmentInput } from "@/server/validation/gyms";
 
 import { getGym } from "./gyms";
@@ -16,18 +17,16 @@ export type EquipmentTypeOption = {
   defaultUnit: typeof equipmentTypes.$inferSelect.defaultUnit;
 };
 
+/** The shared catalogue, in its display order. Served from memory after the first read. */
 export async function listEquipmentTypes(db: DbOrTx): Promise<EquipmentTypeOption[]> {
-  return db
-    .select({
-      id: equipmentTypes.id,
-      slug: equipmentTypes.slug,
-      name: equipmentTypes.name,
-      category: equipmentTypes.category,
-      defaultResistanceMode: equipmentTypes.defaultResistanceMode,
-      defaultUnit: equipmentTypes.defaultUnit,
-    })
-    .from(equipmentTypes)
-    .orderBy(asc(equipmentTypes.sortOrder), asc(equipmentTypes.name));
+  return (await sharedEquipmentTypes(db)).map((type) => ({
+    id: type.id,
+    slug: type.slug,
+    name: type.name,
+    category: type.category,
+    defaultResistanceMode: type.defaultResistanceMode,
+    defaultUnit: type.defaultUnit,
+  }));
 }
 
 export type EquipmentListItem = {

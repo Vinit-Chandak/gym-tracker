@@ -8,6 +8,7 @@ import { getDb } from "@/db/client";
 import { profiles } from "@/db/schema";
 import { withUser } from "@/db/with-user";
 import { requireUser } from "@/server/auth";
+import { profileChanged } from "@/server/queries/request-profile";
 import { parseForm, type FormState } from "@/server/validation/form";
 import { profileInputSchema } from "@/server/validation/profile";
 
@@ -22,6 +23,7 @@ export async function saveProfileAction(
   await withUser(getDb(), user.id, (tx) =>
     tx.update(profiles).set(parsed.data).where(eq(profiles.id, user.id)),
   );
+  await profileChanged(user.id);
   revalidatePath("/settings");
   revalidatePath("/today");
   return {};
@@ -39,6 +41,7 @@ export async function saveOnboardingProfileAction(
   await withUser(getDb(), user.id, (tx) =>
     tx.update(profiles).set(parsed.data).where(eq(profiles.id, user.id)),
   );
+  await profileChanged(user.id);
   redirect("/welcome/gym");
 }
 
@@ -48,6 +51,7 @@ export async function completeOnboardingAction(): Promise<void> {
   await withUser(getDb(), user.id, (tx) =>
     tx.update(profiles).set({ onboardedAt: new Date() }).where(eq(profiles.id, user.id)),
   );
+  await profileChanged(user.id);
   revalidatePath("/today");
   redirect("/today");
 }
