@@ -161,7 +161,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
         </Card>
 
         <Card>
-          <h2 className="text-base font-semibold">Equipment</h2>
+          <h2 className="text-base font-medium">Equipment</h2>
           {exercise.requiresEquipment ? (
             <ol className="list-inside list-decimal space-y-1 text-sm">
               {exercise.equipmentOptions.map((option) => (
@@ -178,7 +178,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
 
         {exercise.programUsage.length > 0 && (
           <Card>
-            <h2 className="text-base font-semibold">In your programme</h2>
+            <h2 className="text-base font-medium">In your programme</h2>
             <ul className="divide-y divide-line">
               {exercise.programUsage.map((usage) => (
                 <li key={usage.programExerciseId} className="space-y-0.5 py-2">
@@ -196,7 +196,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
         )}
 
         <Card>
-          <h2 className="text-base font-semibold">Recent sessions</h2>
+          <h2 className="text-base font-medium">Recent sessions</h2>
           {performances.length === 0 ? (
             <p className="text-sm text-ink-muted">Not logged yet.</p>
           ) : (
@@ -241,7 +241,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
         {availability.map((entry) => (
           <Card key={entry.gym.id}>
             <div className="flex items-center justify-between gap-3">
-              <h3 className="font-semibold">{entry.gym.name}</h3>
+              <h3 className="font-medium">{entry.gym.name}</h3>
               <AvailabilityBadge status={entry.resolution.status} />
             </div>
             <p className="text-sm text-ink-muted">{availabilityDetail(entry)}</p>

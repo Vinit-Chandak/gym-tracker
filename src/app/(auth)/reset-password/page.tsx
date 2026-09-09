@@ -19,7 +19,7 @@ export default async function ResetPasswordPage() {
   return (
     <>
       <Card>
-        <h2 className="text-lg font-semibold">Choose a new password</h2>
+        <h2 className="text-lg font-medium">Choose a new password</h2>
         {user ? (
           <>
             <p className="text-sm text-ink-muted">Setting a new password for {user.email}.</p>

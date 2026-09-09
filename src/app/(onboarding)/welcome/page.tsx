@@ -22,7 +22,7 @@ export default async function WelcomePage() {
       <Steps current="profile" />
       <Card>
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Welcome to {APP_NAME}</h1>
+          <h1 className="text-xl font-medium">Welcome to {APP_NAME}</h1>
           <p className="text-sm text-ink-muted">
             Four short steps and you can train. Everything here is editable later in Settings.
           </p>

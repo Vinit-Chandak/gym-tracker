@@ -35,7 +35,7 @@ export default async function WelcomeEquipmentPage(props: PageProps<"/welcome/eq
       <Steps current="equipment" />
       <Card>
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">What does {gym.name} have?</h1>
+          <h1 className="text-xl font-medium">What does {gym.name} have?</h1>
           <p className="text-sm text-ink-muted">
             Tick what you can see. Barbells, dumbbells and bodyweight work are assumed at every gym,
             so only machines need ticking — and you can change this any time.

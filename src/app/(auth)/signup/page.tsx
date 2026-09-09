@@ -18,7 +18,7 @@ export default async function SignUpPage() {
   return (
     <>
       <Card>
-        <h2 className="text-lg font-semibold">Create an account</h2>
+        <h2 className="text-lg font-medium">Create an account</h2>
         <p className="text-sm text-ink-muted">
           Your gyms, machines and training history are yours alone — nobody else can see them.
         </p>

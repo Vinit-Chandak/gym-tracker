@@ -49,7 +49,7 @@ export function ExerciseLibrary({ exercises }: { exercises: ExerciseListItem[] }
     <div className="space-y-5">
       <div className="relative">
         <Search
-          className="absolute top-1/2 left-4 size-5 -translate-y-1/2 text-ink-subtle"
+          className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-subtle"
           aria-hidden
         />
         <Input
@@ -58,7 +58,7 @@ export function ExerciseLibrary({ exercises }: { exercises: ExerciseListItem[] }
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search by name, muscle or equipment"
           aria-label="Search exercises"
-          className="pl-12"
+          className="pl-9"
           autoCapitalize="none"
           autoCorrect="off"
           enterKeyHint="search"

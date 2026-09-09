@@ -22,7 +22,7 @@ export default async function LoginPage(props: PageProps<"/login">) {
   return (
     <>
       <Card>
-        <h2 className="text-lg font-semibold">Sign in</h2>
+        <h2 className="text-lg font-medium">Sign in</h2>
         {deleted === "1" && (
           <p role="status" className="text-sm text-success">
             Your account and all of its training data have been deleted.

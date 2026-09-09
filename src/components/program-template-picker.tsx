@@ -49,14 +49,14 @@ export function ProgramTemplatePicker({
           const active = template.slug === chosen;
           return (
             <li key={template.slug}>
-              <label className="flex cursor-pointer gap-3 rounded-control border border-line bg-surface-raised p-3 has-checked:border-accent has-checked:bg-accent/10">
+              <label className="flex cursor-pointer gap-3 rounded-control border border-line bg-surface-raised p-3 has-checked:border-accent has-checked:bg-accent-soft">
                 <input
                   type="radio"
                   name="templateSlug"
                   value={template.slug}
                   checked={active}
                   onChange={() => setChosen(template.slug)}
-                  className="mt-1 size-5 shrink-0 accent-accent"
+                  className="mt-1 size-5 shrink-0 accent-[var(--ov-accent)]"
                 />
                 <span className="min-w-0 space-y-1">
                   <span className="block font-medium">{template.name}</span>

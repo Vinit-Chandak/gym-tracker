@@ -174,7 +174,7 @@ export function SetGrid({
                       className={cn(
                         "h-11 w-full rounded-control text-xs font-medium",
                         row.error
-                          ? "border border-danger text-danger active:bg-danger/10"
+                          ? "border border-danger text-danger active:bg-surface-raised"
                           : "bg-accent text-on-accent active:bg-accent-strong",
                       )}
                     >

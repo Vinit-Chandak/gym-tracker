@@ -3,20 +3,18 @@
 import { useActionState, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { FormError, SubmitButton } from "@/components/ui/form";
 import { Field, Input } from "@/components/ui/input";
 import { deleteAccountAction, type DeleteAccountState } from "@/server/actions/account";
 
 const INITIAL: DeleteAccountState = {};
 
-export function DeleteAccountCard({ removesSignIn }: { removesSignIn: boolean }) {
+export function DeleteAccountSettings({ removesSignIn }: { removesSignIn: boolean }) {
   const [open, setOpen] = useState(false);
   const [state, formAction] = useActionState(deleteAccountAction, INITIAL);
 
   return (
-    <Card variant="plain">
-      <h2 className="text-base font-semibold text-danger">Delete account</h2>
+    <div className="min-w-0 space-y-3">
       <p className="text-sm text-ink-muted">
         Permanently removes your gyms, machines, programmes, sessions, sets, runs and tokens. This
         cannot be undone and nothing is exported first.
@@ -52,6 +50,6 @@ export function DeleteAccountCard({ removesSignIn }: { removesSignIn: boolean })
           Delete my account
         </Button>
       )}
-    </Card>
+    </div>
   );
 }

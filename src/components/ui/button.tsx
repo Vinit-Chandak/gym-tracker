@@ -12,7 +12,7 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   secondary: "bg-surface text-ink border border-line-strong hover:bg-surface-raised",
   ghost: "bg-transparent text-ink-muted hover:text-ink active:bg-surface-raised",
   // Border rather than a tinted fill: at 3:1 the outline carries the meaning on its own.
-  danger: "bg-transparent text-danger border border-danger active:bg-danger/10",
+  danger: "bg-transparent text-danger border border-danger active:bg-surface-raised",
 };
 
 // Every size clears the 44px minimum target; only the padding and label size change.

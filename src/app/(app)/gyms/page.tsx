@@ -5,6 +5,7 @@ import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
 import { LinkButton } from "@/components/ui/button";
+import { Disclosure } from "@/components/ui/disclosure";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LinkRow, List } from "@/components/ui/link-row";
 import { getDb } from "@/db/client";
@@ -54,24 +55,25 @@ export default async function GymsPage() {
             icon={MapPin}
             title="No gyms yet"
             description="Add the gyms you train at. Each gym keeps its own machine list, so history never mixes stack numbers between locations."
+            action={
+              <LinkButton href="/gyms/new" variant="secondary" size="sm">
+                Add your first gym
+              </LinkButton>
+            }
           />
         ) : (
           <GymRows gyms={active} />
         )}
         {active.length > 0 && !active.some((gym) => gym.isDefault) && (
-          <p className="px-1 text-sm text-ink-muted">
+          <p className="text-sm text-ink-muted">
             No default gym yet. Open a gym and tap “Make default gym”.
           </p>
         )}
+        {/* Archived gyms are kept, not deleted: history refers to them. */}
         {archived.length > 0 && (
-          <details className="group">
-            <summary className="cursor-pointer px-1 py-2 text-sm font-medium text-ink-muted select-none">
-              Archived ({archived.length})
-            </summary>
-            <div className="mt-2">
-              <GymRows gyms={archived} />
-            </div>
-          </details>
+          <Disclosure summary="Archived" meta={String(archived.length)}>
+            <GymRows gyms={archived} />
+          </Disclosure>
         )}
       </PageContent>
     </>

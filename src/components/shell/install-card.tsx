@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { APP_NAME } from "@/lib/app";
 
 type IosNavigator = Navigator & { standalone?: boolean };
@@ -68,8 +67,8 @@ export function InstallCard() {
   if (standalone !== false) return null;
 
   return (
-    <Card>
-      <h2 className="text-base font-semibold">Install {APP_NAME}</h2>
+    <div className="min-w-0 space-y-3">
+      <p className="font-medium">Install {APP_NAME}</p>
       {available ? (
         <>
           <p className="text-sm text-ink-muted">
@@ -91,6 +90,6 @@ export function InstallCard() {
           </p>
         </>
       )}
-    </Card>
+    </div>
   );
 }

@@ -5,10 +5,10 @@ import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
 import { LinkButton } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Disclosure } from "@/components/ui/disclosure";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LinkRow, List } from "@/components/ui/link-row";
-import { SectionHeading } from "@/components/ui/section";
+import { Section, SectionHeading } from "@/components/ui/section";
 import { Select } from "@/components/ui/select";
 import {
   AVAILABILITY_LABELS,
@@ -101,7 +101,7 @@ export function GymDetails({ data }: { data: GymDetailData }) {
         }
       />
       <PageContent>
-        <Card variant="plain" className="border-t-0 pt-0 pb-0">
+        <div className="min-w-0 space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <Badge>{GYM_KIND_LABELS[gym.kind]}</Badge>
             {gym.isDefault && <Badge tone="accent">Default gym</Badge>}
@@ -123,7 +123,7 @@ export function GymDetails({ data }: { data: GymDetailData }) {
               </SubmitButton>
             </form>
           )}
-        </Card>
+        </div>
 
         <List>
           <li>
@@ -150,23 +150,18 @@ export function GymDetails({ data }: { data: GymDetailData }) {
         ) : (
           <EquipmentRows gymId={gym.id} items={activeEquipment} />
         )}
+        {/* Archived machines stay out of new logging but remain in the record. */}
         {archivedEquipment.length > 0 && (
-          <details className="group">
-            <summary className="cursor-pointer px-1 py-2 text-sm font-medium text-ink-muted select-none">
-              Archived machines ({archivedEquipment.length})
-            </summary>
-            <div className="mt-2">
-              <EquipmentRows gymId={gym.id} items={archivedEquipment} />
-            </div>
-          </details>
+          <Disclosure summary="Archived machines" meta={String(archivedEquipment.length)}>
+            <EquipmentRows gymId={gym.id} items={archivedEquipment} />
+          </Disclosure>
         )}
 
         {gym.kind === "gym" && (
-          <Card variant="plain">
-            <h2 className="text-base font-semibold">Unavailable equipment</h2>
-            <p className="text-sm text-ink-muted">
-              Mark what’s missing so your programme can suggest the right alternatives.
-            </p>
+          <Section
+            title="Unavailable equipment"
+            description="Mark what’s missing so your programme can suggest the right alternatives."
+          >
             {absent.length > 0 && (
               <ul className="divide-y divide-line">
                 {absent.map((item) => (
@@ -227,15 +222,12 @@ export function GymDetails({ data }: { data: GymDetailData }) {
                 </div>
               </form>
             )}
-          </Card>
+          </Section>
         )}
 
         {gym.isActive && (
-          <details className="group border-t border-line/70">
-            <summary className="flex min-h-12 items-center justify-between gap-3 py-2 text-sm text-ink-muted">
-              Gym options <span className="text-xs group-open:hidden">Show</span>
-            </summary>
-            <div className="flex flex-wrap items-center justify-between gap-3 py-3">
+          <Disclosure summary="Gym options">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="max-w-md text-sm text-ink-muted">
                 Archive this gym to hide it from pickers. Your history stays, and you can restore it
                 anytime.
@@ -246,7 +238,7 @@ export function GymDetails({ data }: { data: GymDetailData }) {
                 </SubmitButton>
               </form>
             </div>
-          </details>
+          </Disclosure>
         )}
       </PageContent>
     </>
