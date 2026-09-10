@@ -20,8 +20,15 @@ import {
   type SuggestionKind,
 } from "@/domain/progression";
 import { formatSets } from "@/domain/sets";
+import type { PrescriptionType } from "@/domain/types";
 import { formatDay } from "@/lib/format";
-import { LOAD_UNIT_LABELS, rangeLabel, restLabel, SUGGESTION_KIND_LABELS } from "@/lib/labels";
+import {
+  LOAD_UNIT_LABELS,
+  MEASURE_UNIT_SUFFIX,
+  rangeLabel,
+  restLabel,
+  SUGGESTION_KIND_LABELS,
+} from "@/lib/labels";
 import type { DraftValueField } from "@/lib/workout-drafts";
 import {
   applyFallbackAction,
@@ -42,13 +49,34 @@ const TABS = [
 
 type LoggerTab = (typeof TABS)[number]["value"];
 
+/**
+ * What one exercise is counted in. The programme slot decides; an exercise added on the spot
+ * falls back to what the library says the movement is measured in, so a carry asks for metres
+ * rather than for reps it does not have.
+ */
+function measureOf(exercise: ExerciseVM): PrescriptionType {
+  return exercise.planned?.prescriptionType ?? exercise.exercise.defaultPrescriptionType;
+}
+
+/** The plan's range in the exercise's own measure: "3 × 8–12", "2 × 20–45 s", "3 × 20–30 m". */
+function volumeRange(exercise: ExerciseVM): string | null {
+  const p = exercise.planned;
+  if (!p) return null;
+  const suffix = MEASURE_UNIT_SUFFIX[p.prescriptionType];
+  switch (p.prescriptionType) {
+    case "duration":
+      return rangeLabel(p.durationMinSeconds, p.durationMaxSeconds, suffix);
+    case "distance":
+      return rangeLabel(p.distanceMinMeters, p.distanceMaxMeters, suffix);
+    default:
+      return rangeLabel(p.repMin, p.repMax);
+  }
+}
+
 function prescriptionLine(exercise: ExerciseVM): string | null {
   const p = exercise.planned;
   if (!p) return null;
-  const volume =
-    p.prescriptionType === "duration"
-      ? `${p.sets} × ${rangeLabel(p.durationMinSeconds, p.durationMaxSeconds, " s")}`
-      : `${p.sets} × ${rangeLabel(p.repMin, p.repMax)}`;
+  const volume = `${p.sets} × ${volumeRange(exercise)}`;
   return `${volume}${p.perSide ? " per side" : ""} @ ${rangeLabel(p.rirMin, p.rirMax)} RIR · rest ${restLabel(p.restMinSeconds, p.restMaxSeconds)}`;
 }
 
@@ -74,6 +102,7 @@ function suggestionTone(kind: SuggestionKind): "neutral" | "accent" | "success" 
       return "warning";
     case "hold":
     case "extend":
+    case "lengthen":
     case "coach":
       return "accent";
     default:
@@ -112,9 +141,11 @@ function suggestionHeadline(exercise: ExerciseVM, unit: string, holdAll: boolean
     case "coach": {
       const target = !first
         ? null
-        : first.durationSeconds && first.reps === null
-          ? `${first.durationSeconds} s`
-          : `${load(first.weight)}${first.reps !== null && first.reps !== undefined ? ` × ${first.reps}` : ""}`;
+        : first.reps === null && first.distanceMeters
+          ? `${load(first.weight)} × ${first.distanceMeters} m`
+          : first.durationSeconds && first.reps === null
+            ? `${first.durationSeconds} s`
+            : `${load(first.weight)}${first.reps !== null && first.reps !== undefined ? ` × ${first.reps}` : ""}`;
       const note = exercise.coachNote;
       return {
         kind,
@@ -138,6 +169,11 @@ function suggestionHeadline(exercise: ExerciseVM, unit: string, holdAll: boolean
       return {
         kind,
         text: first?.durationSeconds ? `Next: ${first.durationSeconds} s per set` : "Add time",
+      };
+    case "lengthen":
+      return {
+        kind,
+        text: first?.distanceMeters ? `Next: ${first.distanceMeters} m per set` : "Add distance",
       };
     case "transfer":
       return { kind, text: `Start near ${load(first?.weight)}` };
@@ -183,7 +219,7 @@ export function ExerciseLogger({
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const isDuration = exercise.planned?.prescriptionType === "duration";
+  const measure = measureOf(exercise);
   const unit = LOAD_UNIT_LABELS[exercise.equipment?.unit ?? session.preferredUnit];
   const unitLabel = exercise.exercise.modality === "bodyweight" ? `+${unit}` : unit;
 
@@ -192,7 +228,7 @@ export function ExerciseLogger({
     userId,
     sessionId: session.id,
     holdAll,
-    isDuration,
+    measure,
     onLogged,
   });
 
@@ -383,7 +419,14 @@ export function ExerciseLogger({
                 rows={sets.rows}
                 ghost={sets.ghost}
                 unitLabel={unitLabel}
-                isDuration={isDuration}
+                measure={measure}
+                rirNote={exercise.exercise.rirNote}
+                rirTarget={
+                  exercise.planned &&
+                  (exercise.planned.rirMin !== null || exercise.planned.rirMax !== null)
+                    ? rangeLabel(exercise.planned.rirMin, exercise.planned.rirMax)
+                    : null
+                }
                 onEdit={sets.editRow}
                 onSave={sets.logRow}
                 onOptions={(row) => setOptionsFor(row.setIndex)}
@@ -410,8 +453,13 @@ export function ExerciseLogger({
                   .map((row) => (
                     <div key={row.setIndex} className="text-sm">
                       <p>
-                        Set {row.setIndex}: {row.weight || "—"} {unit} · {row.reps || "—"} reps ·
-                        RIR {row.rir || "—"} · {row.duration || "—"} s
+                        Set {row.setIndex}: {row.weight || "—"} {unit} ·{" "}
+                        {measure === "duration"
+                          ? `${row.duration || "—"} s`
+                          : measure === "distance"
+                            ? `${row.distance || "—"} m`
+                            : `${row.reps || "—"} reps`}{" "}
+                        · RIR {row.rir || "—"}
                       </p>
                       <Button variant="ghost" size="sm" onClick={() => sets.restore(row)}>
                         Discard this local draft
@@ -548,7 +596,7 @@ export function ExerciseLogger({
         ghost={optionsRow ? sets.ghost(optionsRow.setIndex) : {}}
         unitLabel={unitLabel}
         weightStep={exercise.weightStep}
-        isDuration={isDuration}
+        measure={measure}
         onEdit={
           sets.editRow as (row: RowState, patch: Partial<RowState>, touch?: DraftValueField) => void
         }

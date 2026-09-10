@@ -1,14 +1,24 @@
-import { rangeLabel } from "@/lib/labels";
+import { MEASURE_UNIT_SUFFIX, rangeLabel } from "@/lib/labels";
 import { supersetHues, supersetStyle, type SupersetHue } from "@/lib/superset-colors";
 import { cn } from "@/lib/utils";
 import type { PlannedExercisePreview } from "@/server/repositories/schedule";
 
-/** "3 × 8–12 @ 1 RIR", or "2 × 20–45 s per side @ 1–2 RIR" for timed work. */
+/** The range in the exercise's own measure: "8–12", "20–45 s", "20–30 m". */
+export function volumeRange(exercise: PlannedExercisePreview): string {
+  const suffix = MEASURE_UNIT_SUFFIX[exercise.prescriptionType];
+  switch (exercise.prescriptionType) {
+    case "duration":
+      return rangeLabel(exercise.durationMinSeconds, exercise.durationMaxSeconds, suffix);
+    case "distance":
+      return rangeLabel(exercise.distanceMinMeters, exercise.distanceMaxMeters, suffix);
+    default:
+      return rangeLabel(exercise.repMin, exercise.repMax);
+  }
+}
+
+/** "3 × 8–12 @ 1 RIR", "2 × 20–45 s per side @ 1–2 RIR", "3 × 20 m @ 2 RIR". */
 export function prescription(exercise: PlannedExercisePreview): string {
-  const volume =
-    exercise.prescriptionType === "duration"
-      ? `${exercise.sets} × ${rangeLabel(exercise.durationMinSeconds, exercise.durationMaxSeconds, " s")}`
-      : `${exercise.sets} × ${rangeLabel(exercise.repMin, exercise.repMax)}`;
+  const volume = `${exercise.sets} × ${volumeRange(exercise)}`;
   return `${volume}${exercise.perSide ? " per side" : ""} @ ${rangeLabel(exercise.rirMin, exercise.rirMax)} RIR`;
 }
 

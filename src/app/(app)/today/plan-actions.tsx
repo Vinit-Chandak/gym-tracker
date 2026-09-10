@@ -8,6 +8,7 @@ import { Button, type ButtonVariant } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
 import { PRESSABLE_ROW_CLASS } from "@/components/ui/link-row";
 import { Sheet } from "@/components/ui/sheet";
+import type { SlotPart } from "@/domain/types";
 import { cn } from "@/lib/utils";
 import {
   completeRestSlotAction,
@@ -103,8 +104,9 @@ export function MoreOptions({
   const [open, setOpen] = useState(false);
   const [asking, setAsking] = useState<"skip" | "coach" | null>(null);
   const [pending, startTransition] = useTransition();
+  // The workout half only: a day that also runs keeps its run, which is skipped on its own.
   const [state, formAction, skipping] = useActionState(
-    skipSlotAction.bind(null, skip?.dayIndex ?? 0),
+    skipSlotAction.bind(null, skip?.dayIndex ?? 0, "session"),
     INITIAL,
   );
   const close = () => {
@@ -216,6 +218,57 @@ export function MoreOptions({
             )}
           </ul>
         )}
+      </Sheet>
+    </>
+  );
+}
+
+/**
+ * Skips one half of a day on its own, with its reason. The run and the workout are separate
+ * tasks, so each has its own way out: skipping the run leaves the workout owed, and vice versa.
+ */
+export function SkipPartButton({
+  dayIndex,
+  part,
+  title,
+  label,
+}: {
+  dayIndex: number;
+  part: SlotPart;
+  /** What the sheet asks, e.g. "Skip today's run?". */
+  title: string;
+  label: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [state, formAction, skipping] = useActionState(
+    skipSlotAction.bind(null, dayIndex, part),
+    INITIAL,
+  );
+  const [handled, setHandled] = useState<ActionResult>(INITIAL);
+  if (state !== handled) {
+    setHandled(state);
+    if (state.ok) setOpen(false);
+  }
+
+  return (
+    <>
+      <Button variant="ghost" size="sm" className="w-full" onClick={() => setOpen(true)}>
+        {label}
+      </Button>
+      <Sheet open={open} onClose={() => setOpen(false)} title={title}>
+        <form action={formAction} className="space-y-4">
+          <Field label="Reason" hint="Optional">
+            <Input name="reason" maxLength={200} placeholder="Travelling, unwell, …" />
+          </Field>
+          {!state.ok && (
+            <p role="alert" className="text-sm text-danger">
+              {state.error}
+            </p>
+          )}
+          <Button type="submit" variant="danger" size="lg" className="w-full" disabled={skipping}>
+            {skipping ? "Skipping…" : label}
+          </Button>
+        </form>
       </Sheet>
     </>
   );

@@ -218,6 +218,8 @@ export async function createProgramFromBlueprint(
       repMax: exercise.reps?.[1] ?? null,
       durationMinSeconds: exercise.duration?.[0] ?? null,
       durationMaxSeconds: exercise.duration?.[1] ?? null,
+      distanceMinMeters: exercise.distance?.[0] ?? null,
+      distanceMaxMeters: exercise.distance?.[1] ?? null,
       perSide: exercise.perSide ?? false,
       rirMin: exercise.rir[0],
       rirMax: exercise.rir[1],
@@ -378,6 +380,12 @@ export async function readProgramBlueprint(
             slot.durationMinSeconds !== null &&
             slot.durationMaxSeconds !== null
               ? [slot.durationMinSeconds, slot.durationMaxSeconds]
+              : undefined,
+          distance:
+            slot.prescriptionType === "distance" &&
+            slot.distanceMinMeters !== null &&
+            slot.distanceMaxMeters !== null
+              ? [slot.distanceMinMeters, slot.distanceMaxMeters]
               : undefined,
           perSide: slot.perSide,
           rir: [slot.rirMin ?? 0, slot.rirMax ?? slot.rirMin ?? 0],

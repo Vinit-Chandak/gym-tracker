@@ -75,11 +75,20 @@
  * spacing comes from tokens rather than a margin chosen per screen.
  */
 :root {
+  /* The row of tabs. The island is this plus whatever the home indicator needs. */
   --nav-height: var(--ov-nav-height);
   /* The gap the navigation island keeps from every edge of the screen. */
-  --nav-inset: var(--ov-space-4);
+  --nav-inset: var(--ov-space-3);
+  /*
+   * The home indicator's strip, carried *inside* the island instead of under it. Padding it
+   * out below the tabs keeps thumbs clear of the system's home gesture while the island's own
+   * bottom edge stays one --nav-inset from the bottom of the screen, on a phone with a home
+   * indicator exactly as on one without. Sitting the island on top of the inset instead is
+   * what left it floating ~46px clear of the screen on an iPhone.
+   */
+  --nav-safe-pad: max(0px, calc(env(safe-area-inset-bottom) - var(--nav-inset)));
   /* Everything the navigation takes off the bottom of the viewport, island and gap. */
-  --nav-reserve: calc(var(--nav-height) + var(--nav-inset) + env(safe-area-inset-bottom));
+  --nav-reserve: calc(var(--nav-height) + var(--nav-safe-pad) + var(--nav-inset));
   --header-height: calc(var(--ov-control-height) + var(--ov-space-6));
   --page-gutter: var(--ov-page-gutter);
   --panel-padding: var(--ov-panel-padding);
@@ -247,18 +256,20 @@
  */
 .primary-nav {
   position: fixed;
-  inset: auto max(var(--nav-inset), env(safe-area-inset-right))
-    calc(var(--nav-inset) + env(safe-area-inset-bottom))
+  inset: auto max(var(--nav-inset), env(safe-area-inset-right)) var(--nav-inset)
     max(var(--nav-inset), env(safe-area-inset-left));
   z-index: var(--ov-z-nav);
   /* Border-box, so the island measures exactly the height the page reserved for it. */
-  height: var(--nav-height);
+  height: calc(var(--nav-height) + var(--nav-safe-pad));
+  padding-bottom: var(--nav-safe-pad);
   border: 1px solid var(--ov-line);
   border-radius: var(--ov-radius-island);
   background: var(--ov-nav-island);
   box-shadow: var(--ov-nav-shadow);
-  -webkit-backdrop-filter: blur(1.25rem) saturate(180%);
-  backdrop-filter: blur(1.25rem) saturate(180%);
+  /* A wider blur than the tint alone would need: the island is half see-through, and the
+     blur is what keeps a label readable over whatever scrolls beneath it. */
+  -webkit-backdrop-filter: blur(1.5rem) saturate(180%);
+  backdrop-filter: blur(1.5rem) saturate(180%);
 }
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
@@ -274,22 +285,46 @@
   padding: 0.25rem;
 }
 
+/* The tap target: the whole cell, so nothing between two tabs is dead space. */
 .nav-link {
+  display: block;
+  height: 100%;
+  /* Inside the island's own rounding, so a pressed tab never squares off its corner. */
+  border-radius: calc(var(--ov-radius-island) - 0.25rem);
+  user-select: none;
+}
+
+/*
+ * The tab itself, and the thing that gets filled when it is selected: one pill around the
+ * icon *and* its label. Highlighting the icon alone reads as a stray box floating over a
+ * caption that belongs to it.
+ */
+.nav-tab {
   display: flex;
   height: 100%;
+  width: 100%;
+  min-width: 0;
   padding-inline: 0.125rem;
   align-items: center;
   justify-content: center;
   flex-direction: column;
   gap: 0.125rem;
-  /* Inside the island's own rounding, so a pressed tab never squares off its corner. */
-  border-radius: calc(var(--ov-radius-island) - 0.25rem);
+  border-radius: inherit;
   font-size: clamp(0.625rem, 2.7vw, 0.75rem);
   font-weight: 500;
-  user-select: none;
   transition:
     background-color var(--ov-duration-feedback) var(--ov-ease-standard),
     color var(--ov-duration-feedback) var(--ov-ease-standard);
+}
+
+.nav-tab-active {
+  background: var(--ov-accent-soft);
+  color: var(--ov-accent);
+}
+
+/* Pressing an unselected tab tints it; pressing the selected one leaves its fill alone. */
+.nav-link:active .nav-tab:not(.nav-tab-active) {
+  background: var(--ov-surface-raised);
 }
 
 .navigation-progress {
@@ -336,6 +371,7 @@
   :root {
     --nav-height: 0rem;
     --nav-inset: 0rem;
+    --nav-safe-pad: 0px;
   }
   .app-content {
     margin-left: 12rem;
@@ -346,6 +382,7 @@
     inset: 0 auto 0 0;
     width: 12rem;
     height: auto;
+    padding-bottom: 0;
     border: 0;
     border-right: 1px solid var(--ov-line);
     border-radius: 0;
@@ -362,8 +399,11 @@
   }
   .nav-link {
     height: auto;
-    min-height: 3rem;
     border-radius: var(--ov-radius-control);
+  }
+  .nav-tab {
+    height: auto;
+    min-height: 3rem;
     flex-direction: row;
     justify-content: flex-start;
     gap: 0.75rem;

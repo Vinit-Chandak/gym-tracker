@@ -12,11 +12,21 @@ import { ensureProfile } from "@/server/queries/profile";
 import {
   createRun,
   deleteRun,
+  getPlannedRunPlace,
   PlannedRunNotFoundError,
   RunNotFoundError,
   updateRun,
-  type RunInput,
+  type PlannedRunPlace,
 } from "@/server/repositories/runs";
+import type { RunInput } from "@/server/repositories/runs";
+import type { DbOrTx } from "@/db/types";
+import {
+  clearRunSlotEvent,
+  getSchedule,
+  recordSlotEvent,
+  slotForPlannedRun,
+} from "@/server/repositories/schedule";
+import { todayInTimeZone } from "@/domain/program-calendar";
 import { formValues, parseForm, type FormState } from "@/server/validation/form";
 
 const optionalNumber = (min: number, max: number, integer: boolean, message: string) =>
@@ -75,9 +85,37 @@ const runSchema = z
     }
   });
 
+/**
+ * Ties a logged run to the day of the programme it answers for.
+ *
+ * A day that lifts and runs asks for two separate things, and this is what says the run half
+ * has been done: without it, finishing the workout was taken to mean the whole day was over
+ * and the run simply vanished from Today. The link is by the run's own id, so re-pointing or
+ * deleting the run gives the day back.
+ */
+async function linkRunToProgramme(
+  tx: DbOrTx,
+  userId: string,
+  runId: string,
+  planned: PlannedRunPlace | null,
+  occurredOn: string,
+): Promise<void> {
+  await clearRunSlotEvent(tx, userId, runId);
+  if (!planned) return;
+  const schedule = await getSchedule(tx, userId);
+  if (!schedule || schedule.program.id !== planned.programId) return;
+  const ref = slotForPlannedRun(schedule, planned);
+  if (!ref) return;
+  await recordSlotEvent(tx, userId, schedule.program.id, ref, "run", "completed", {
+    occurredOn,
+    runId,
+  });
+}
+
 function revalidateRuns(runId?: string): void {
   revalidatePath("/runs");
   revalidatePath("/today");
+  revalidatePath("/settings/programme");
   revalidatePath("/history");
   revalidatePath("/progress");
   if (runId) revalidatePath(`/runs/${runId}`);
@@ -114,6 +152,12 @@ export async function saveRunAction(
           },
         };
       }
+      // Read the plan's place before writing, so an id that is not in this programme is
+      // rejected by the same check that decides which day the run answers for.
+      const planned = value.programRunId
+        ? await getPlannedRunPlace(tx, user.id, value.programRunId)
+        : null;
+      if (value.programRunId && !planned) throw new PlannedRunNotFoundError();
       const input: RunInput = {
         mode: value.treadmill ? "treadmill" : "outdoor",
         startedAt,
@@ -129,11 +173,14 @@ export async function saveRunAction(
         programRunId: value.programRunId,
         notes: value.notes,
       };
+      const occurredOn = todayInTimeZone(profile.timeZone, startedAt);
       if (runId) {
         await updateRun(tx, user.id, runId, input);
+        await linkRunToProgramme(tx, user.id, runId, planned, occurredOn);
         return { ok: true as const, id: runId };
       }
       const created = await createRun(tx, user.id, input);
+      await linkRunToProgramme(tx, user.id, created.id, planned, occurredOn);
       return { ok: true as const, id: created.id };
     });
   } catch (error) {
@@ -149,7 +196,11 @@ export type DeleteResult = { ok: true } | { ok: false; error: string };
 export async function deleteRunAction(runId: string): Promise<DeleteResult> {
   const user = await requireUser();
   try {
-    await withUser(getDb(), user.id, (tx) => deleteRun(tx, user.id, runId));
+    await withUser(getDb(), user.id, async (tx) => {
+      // The day gets its run back: the programme must never count a run that is gone.
+      await clearRunSlotEvent(tx, user.id, runId);
+      await deleteRun(tx, user.id, runId);
+    });
   } catch (error) {
     return { ok: false, error: describe(error) };
   }

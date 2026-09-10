@@ -363,6 +363,7 @@ describe("a session that starts from a plan", () => {
         alice.id,
         ctx.programme.id,
         { cycleIndex: 1, dayIndex: 1 },
+        "session",
         "completed",
         {
           occurredOn: "2026-09-08",
@@ -597,9 +598,17 @@ describe("a day that lifts and runs", () => {
     programId = schedule!.program.id;
     await withUser(t.db, alice.id, async (tx) => {
       // Upper A out of the way, so the next slot is the one that runs.
-      await recordSlotEvent(tx, alice.id, programId, { cycleIndex: 1, dayIndex: 2 }, "completed", {
-        occurredOn: "2026-09-09",
-      });
+      await recordSlotEvent(
+        tx,
+        alice.id,
+        programId,
+        { cycleIndex: 1, dayIndex: 2 },
+        "session",
+        "completed",
+        {
+          occurredOn: "2026-09-09",
+        },
+      );
       for (const [days, minutes] of [
         [9, 22],
         [5, 24],

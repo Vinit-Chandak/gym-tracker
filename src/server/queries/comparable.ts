@@ -21,6 +21,7 @@ export type ComparableSet = {
   reps: number | null;
   rir: number | null;
   durationSeconds: number | null;
+  distanceMeters: number | null;
 };
 
 export type ComparablePerformance = {
@@ -93,7 +94,8 @@ function performanceQuery(db: DbOrTx, filter: PerformanceFilter, requestIndex: n
           'unit', s.unit,
           'reps', s.reps,
           'rir', s.rir,
-          'durationSeconds', s.duration_seconds
+          'durationSeconds', s.duration_seconds,
+          'distanceMeters', s.distance_meters
         ) order by s.set_index)
         from set_logs s where s.workout_exercise_id = workout_exercises.id
       ), '[]'::json)`,

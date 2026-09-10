@@ -38,6 +38,8 @@ export const planSetSchema = z.object({
   weight: z.number().min(0).max(SET_LIMITS.weight).nullable().default(null),
   reps: z.number().int().min(0).max(SET_LIMITS.reps).nullable().default(null),
   durationSeconds: z.number().int().min(0).max(SET_LIMITS.durationSeconds).nullable().default(null),
+  /** Metres, for carries and sled work: what those sets count instead of reps. */
+  distanceMeters: z.number().min(0).max(SET_LIMITS.distanceMeters).nullable().default(null),
   rir: z.number().min(0).max(SET_LIMITS.rir).nullable().default(null),
 });
 
@@ -135,6 +137,7 @@ export function planTargets(exercise: Pick<PlanExercise, "sets">): TargetSet[] {
     reps: set.reps,
     rir: set.rir,
     durationSeconds: set.durationSeconds,
+    distanceMeters: set.distanceMeters ?? null,
   }));
 }
 
@@ -147,13 +150,17 @@ export function planLine(exercise: Pick<PlanExercise, "sets">, unit: string): st
   const same = (pick: (s: PlanSet) => number | null) => shown.every((s) => pick(s) === pick(first));
   const count = `${shown.length} ×`;
   const volume =
-    first.durationSeconds !== null && first.reps === null
-      ? same((s) => s.durationSeconds)
-        ? `${first.durationSeconds} s`
-        : shown.map((s) => `${s.durationSeconds ?? "—"} s`).join(", ")
-      : same((s) => s.reps)
-        ? `${first.reps ?? "—"}`
-        : shown.map((s) => s.reps ?? "—").join("/");
+    first.reps === null && first.distanceMeters !== null
+      ? same((s) => s.distanceMeters)
+        ? `${first.distanceMeters} m`
+        : shown.map((s) => `${s.distanceMeters ?? "—"} m`).join(", ")
+      : first.durationSeconds !== null && first.reps === null
+        ? same((s) => s.durationSeconds)
+          ? `${first.durationSeconds} s`
+          : shown.map((s) => `${s.durationSeconds ?? "—"} s`).join(", ")
+        : same((s) => s.reps)
+          ? `${first.reps ?? "—"}`
+          : shown.map((s) => s.reps ?? "—").join("/");
   const load =
     first.weight === null
       ? ""

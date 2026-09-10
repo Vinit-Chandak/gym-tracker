@@ -5,7 +5,10 @@ import type { DbOrTx } from "@/db/types";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import {
   allSlots,
+  isRestSlot,
   nextPendingSlot,
+  partStatus,
+  pendingParts,
   progress,
   projectedEndDate,
   sessionsBehind,
@@ -19,7 +22,7 @@ import {
   type SlotStatus,
   type Suggestion,
 } from "@/domain/schedule";
-import type { PrescriptionType } from "@/domain/types";
+import type { PrescriptionType, SlotPart } from "@/domain/types";
 import { sharedWarmupProtocols } from "@/server/queries/reference";
 
 export type ActiveProgram = {
@@ -109,6 +112,7 @@ export async function getSchedule(db: DbOrTx, userId: string): Promise<Schedule 
         select json_agg(json_build_object(
           'cycleIndex', e.cycle_index,
           'dayIndex', e.day_index,
+          'part', e.part,
           'status', e.status
         ))
         from program_slot_events e where e.program_id = programs.id
@@ -135,7 +139,8 @@ export async function getSchedule(db: DbOrTx, userId: string): Promise<Schedule 
       slots: row.days.map((d) => ({
         dayIndex: d.dayIndex,
         name: d.name,
-        isRest: !d.includesLifting && !d.includesRun,
+        includesLifting: d.includesLifting,
+        includesRun: d.includesRun,
       })),
       cycles: program.weeks,
       startDayIndex: program.startDayIndex,
@@ -144,14 +149,24 @@ export async function getSchedule(db: DbOrTx, userId: string): Promise<Schedule 
   };
 }
 
-/** Records what happened to a slot. Returns false when the slot already had an event. */
+/**
+ * Records what happened to one part of a slot: the workout, or the run. Returns false when
+ * that part already had an event, so finishing a session twice, or logging a second run
+ * against one planned run, changes nothing.
+ */
 export async function recordSlotEvent(
   db: DbOrTx,
   userId: string,
   programId: string,
   ref: SlotRef,
+  part: SlotPart,
   status: SlotStatus,
-  details: { occurredOn: string; workoutSessionId?: string | null; note?: string | null },
+  details: {
+    occurredOn: string;
+    workoutSessionId?: string | null;
+    runId?: string | null;
+    note?: string | null;
+  },
 ): Promise<boolean> {
   const inserted = await db
     .insert(programSlotEvents)
@@ -160,8 +175,10 @@ export async function recordSlotEvent(
       programId,
       cycleIndex: ref.cycleIndex,
       dayIndex: ref.dayIndex,
+      part,
       status,
       workoutSessionId: details.workoutSessionId ?? null,
+      runId: details.runId ?? null,
       occurredOn: details.occurredOn,
       note: details.note ?? null,
     })
@@ -170,10 +187,27 @@ export async function recordSlotEvent(
         programSlotEvents.programId,
         programSlotEvents.cycleIndex,
         programSlotEvents.dayIndex,
+        programSlotEvents.part,
       ],
     })
     .returning({ id: programSlotEvents.id });
   return inserted.length > 0;
+}
+
+/**
+ * Undoes the run part a given run completed. Deleting or re-linking a run has to give the day
+ * back, or the programme would count a run that no longer exists.
+ */
+export async function clearRunSlotEvent(db: DbOrTx, userId: string, runId: string): Promise<void> {
+  await db
+    .delete(programSlotEvents)
+    .where(
+      and(
+        eq(programSlotEvents.userId, userId),
+        eq(programSlotEvents.part, "run"),
+        eq(programSlotEvents.runId, runId),
+      ),
+    );
 }
 
 /** Completes every pending rest slot that comes before `ref` in the sequence, in one statement. */
@@ -194,7 +228,7 @@ export async function completeRestSlotsBefore(
       break;
     }
     const slot = slotFor(schedule.state, candidate);
-    if (!slot?.isRest || slotStatus(schedule.state, candidate) !== "pending") continue;
+    if (!slot || !isRestSlot(slot) || slotStatus(schedule.state, candidate) !== "pending") continue;
     pendingRest.push(candidate);
   }
   if (pendingRest.length === 0) return 0;
@@ -206,6 +240,7 @@ export async function completeRestSlotsBefore(
         programId: schedule.program.id,
         cycleIndex: slot.cycleIndex,
         dayIndex: slot.dayIndex,
+        part: "session" as const,
         status: "completed" as const,
         workoutSessionId: null,
         occurredOn,
@@ -217,16 +252,31 @@ export async function completeRestSlotsBefore(
         programSlotEvents.programId,
         programSlotEvents.cycleIndex,
         programSlotEvents.dayIndex,
+        programSlotEvents.part,
       ],
     })
     .returning({ id: programSlotEvents.id });
   return inserted.length;
 }
 
-/** The earliest cycle in which `dayIndex` is still pending, or null when none is. */
-export function pendingCycleForDay(state: ScheduleState, dayIndex: number): number | null {
+/**
+ * The earliest cycle in which `dayIndex` still has something to do, or null when none has.
+ * Narrow it to one part to answer for that half of the day alone — skipping the run of a day
+ * whose workout is already logged has to find that same day, not the next cycle's.
+ */
+export function pendingCycleForDay(
+  state: ScheduleState,
+  dayIndex: number,
+  part?: SlotPart,
+): number | null {
   for (const ref of allSlots(state)) {
-    if (ref.dayIndex === dayIndex && slotStatus(state, ref) === "pending") return ref.cycleIndex;
+    if (ref.dayIndex !== dayIndex) continue;
+    const pending =
+      part === undefined
+        ? pendingParts(state, ref).length > 0
+        : partStatus(state, ref, part) === "pending" &&
+          (slotFor(state, ref)?.includesRun || part === "session");
+    if (pending) return ref.cycleIndex;
   }
   return null;
 }
@@ -241,6 +291,8 @@ export type PlannedExercisePreview = {
   repMax: number | null;
   durationMinSeconds: number | null;
   durationMaxSeconds: number | null;
+  distanceMinMeters: number | null;
+  distanceMaxMeters: number | null;
   perSide: boolean;
   rirMin: number | null;
   rirMax: number | null;
@@ -258,6 +310,8 @@ function plannedExerciseSelection() {
     repMax: programExercises.repMax,
     durationMinSeconds: programExercises.durationMinSeconds,
     durationMaxSeconds: programExercises.durationMaxSeconds,
+    distanceMinMeters: programExercises.distanceMinMeters,
+    distanceMaxMeters: programExercises.distanceMaxMeters,
     perSide: programExercises.perSide,
     rirMin: programExercises.rirMin,
     rirMax: programExercises.rirMax,
@@ -303,6 +357,7 @@ export async function listExercisesByDay(
 }
 
 export type RunTarget = {
+  id: string;
   durationMinMinutes: number;
   durationMaxMinutes: number;
   rpeMin: number | null;
@@ -315,6 +370,7 @@ export type RunTarget = {
 
 function runTargetSelection() {
   return {
+    id: programRuns.id,
     durationMinMinutes: programRuns.durationMinMinutes,
     durationMaxMinutes: programRuns.durationMaxMinutes,
     rpeMin: programRuns.rpeMin,
@@ -378,6 +434,15 @@ export type TodayPlan = {
   /** The training day offered when the suggested slot is a rest day. */
   nextTrainingDay: (ScheduleDay & { cycleIndex: number }) | null;
   runTarget: RunTarget | null;
+  /**
+   * The two halves of the offered day, answered separately. The lifting session and the run
+   * are different tasks that happen to share a date, so Today shows one card per part and the
+   * day only moves on once both have been answered.
+   */
+  sessionStatus: SlotStatus | "pending";
+  runStatus: SlotStatus | "pending";
+  /** The run that completed this day's run, when one did. */
+  loggedRunId: string | null;
   /** Every day of the current cycle with its status, for "choose another day". */
   cycleDays: DayStatus[];
 };
@@ -403,6 +468,10 @@ export async function getTodayPlan(
       ? getRunTarget(db, schedule.program.id, next.slot.cycleIndex, suggestedDay.dayOfWeek ?? 0)
       : Promise.resolve(null),
   ]);
+  const loggedRunId =
+    next && suggestedDay?.includesRun
+      ? await completedRunIdFor(db, schedule.program.id, next.slot)
+      : null;
   const nextTrainingRef = next?.nextTrainingSlot ?? null;
   const nextTrainingDay = nextTrainingRef
     ? (schedule.days.find((d) => d.dayIndex === nextTrainingRef.dayIndex) ?? null)
@@ -434,8 +503,47 @@ export async function getTodayPlan(
         ? { ...nextTrainingDay, cycleIndex: nextTrainingRef.cycleIndex }
         : null,
     runTarget,
+    sessionStatus: next ? partStatus(state, next.slot, "session") : "pending",
+    runStatus: next ? partStatus(state, next.slot, "run") : "pending",
+    loggedRunId,
     cycleDays,
   };
+}
+
+/** The run that answered a slot's run part, if one did. */
+async function completedRunIdFor(
+  db: DbOrTx,
+  programId: string,
+  ref: SlotRef,
+): Promise<string | null> {
+  const [row] = await db
+    .select({ runId: programSlotEvents.runId })
+    .from(programSlotEvents)
+    .where(
+      and(
+        eq(programSlotEvents.programId, programId),
+        eq(programSlotEvents.cycleIndex, ref.cycleIndex),
+        eq(programSlotEvents.dayIndex, ref.dayIndex),
+        eq(programSlotEvents.part, "run"),
+      ),
+    )
+    .limit(1);
+  return row?.runId ?? null;
+}
+
+/**
+ * The slot a planned run belongs to: its week is the cycle, and the day of the cycle that
+ * runs on its weekday is the day. Null when the programme has no running day on that weekday,
+ * which is how a run logged against a stale plan simply records nothing.
+ */
+export function slotForPlannedRun(
+  schedule: Schedule,
+  planned: { weekIndex: number; dayOfWeek: number },
+): SlotRef | null {
+  const day = schedule.days.find(
+    (candidate) => candidate.includesRun && candidate.dayOfWeek === planned.dayOfWeek,
+  );
+  return day ? { cycleIndex: planned.weekIndex, dayIndex: day.dayIndex } : null;
 }
 
 export type ProgramDayPlan = {

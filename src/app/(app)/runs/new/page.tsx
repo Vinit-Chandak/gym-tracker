@@ -17,7 +17,11 @@ import { RunForm } from "../run-form";
 
 export const metadata: Metadata = { title: "Log a run" };
 
-export default async function NewRunPage() {
+export default async function NewRunPage(props: PageProps<"/runs/new">) {
+  // Today links straight at the run its offered day asks for, so the form opens on that plan
+  // rather than on whichever planned run of the cycle happens to be unlogged.
+  const { planned: plannedParam } = await props.searchParams;
+  const requestedPlanId = typeof plannedParam === "string" ? plannedParam : null;
   const user = await requireUser();
   const requestProfile = await getRequestProfile(user.id, user.email);
   const data = await withUser(getDb(), user.id, async (tx) => {
@@ -34,7 +38,9 @@ export default async function NewRunPage() {
     };
   });
   const planned = data.cycle?.planned ?? [];
-  const nextPlanned = planned.find((run) => run.loggedRunId === null);
+  const nextPlanned =
+    planned.find((run) => run.id === requestedPlanId) ??
+    planned.find((run) => run.loggedRunId === null);
   // The coach's run fills the form in, so logging it is a check rather than a transcription.
   const coachRun = data.coach?.run ?? null;
   const duration = coachRun?.durationMinutes ?? null;

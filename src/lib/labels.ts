@@ -48,7 +48,40 @@ export const EQUIPMENT_CATEGORY_LABELS: Record<EquipmentCategory, string> = {
 export const PRESCRIPTION_TYPE_LABELS: Record<PrescriptionType, string> = {
   reps: "Reps",
   duration: "Time",
+  distance: "Distance",
 };
+
+/** The set grid's third column: what one set of this exercise is actually counted in. */
+export const MEASURE_COLUMN_LABELS: Record<PrescriptionType, string> = {
+  reps: "Reps",
+  duration: "Seconds",
+  distance: "Metres",
+};
+
+/** The unit that follows a number of this measure, e.g. "25 m". */
+export const MEASURE_UNIT_SUFFIX: Record<PrescriptionType, string> = {
+  reps: "",
+  duration: " s",
+  distance: " m",
+};
+
+/**
+ * What one exercise's RIR target means, in the words of that exercise.
+ *
+ * Reps in reserve is a rep count everywhere the movement has reps; on timed and
+ * distance-measured work there are no reps to leave, so the same number has to be said as time
+ * or ground left instead. The exercise's own note, when the library has one, replaces this.
+ */
+export function rirMeaning(measure: PrescriptionType): string {
+  switch (measure) {
+    case "duration":
+      return "Reps in reserve, read as time: 2 RIR means you could have held it roughly two more repetitions' worth — a few more seconds — not that you held to failure.";
+    case "distance":
+      return "Reps in reserve, read as ground: 2 RIR means you could have carried it a fair way further at the same quality. Put it down before the grip or the posture goes, not after.";
+    default:
+      return "Reps in reserve: how many more good reps you could have done. 2 RIR means you stopped two reps short of failure; 0 RIR means the next rep would not have moved.";
+  }
+}
 
 /** "1 machine", "3 machines", "No equipment yet". */
 export function equipmentCountLabel(count: number): string {
@@ -176,6 +209,7 @@ export const SUGGESTION_KIND_LABELS: Record<SuggestionKind, string> = {
   repeat: "Repeat",
   reduce: "Reduce",
   extend: "Add time",
+  lengthen: "Add distance",
   transfer: "Starting guess",
   start: "No history",
   coach: "Coach plan",

@@ -8,6 +8,14 @@ import Link from "@/components/ui/app-link";
 import { isNavItemActive, NAV_ITEMS } from "@/lib/nav";
 import { cn } from "@/lib/utils";
 
+/**
+ * One tab's contents, and the pill that says it is selected.
+ *
+ * The fill goes around the icon *and* its label, never the icon alone: the caption names
+ * the icon above it, so highlighting one without the other reads as a stray box. It has to
+ * live in here rather than on the `<Link>` because `useLinkStatus` only reports from inside
+ * the link it belongs to, and a tab being navigated to is filled in the same way.
+ */
 function NavContent({
   label,
   icon: Icon,
@@ -19,22 +27,17 @@ function NavContent({
 }) {
   const { pending } = useLinkStatus();
   return (
-    <>
-      <span
-        className={cn(
-          "flex h-8 w-11 shrink-0 items-center justify-center rounded-control transition-colors duration-[var(--ov-duration-feedback)] lg:size-8",
-          (active || pending) && "bg-accent-soft text-accent",
-        )}
-      >
+    <span className={cn("nav-tab", (active || pending) && "nav-tab-active")}>
+      <span className="flex h-8 w-11 shrink-0 items-center justify-center lg:size-8">
         {pending ? (
           <LoaderCircle className="size-5 motion-safe:animate-spin" aria-hidden />
         ) : (
           <Icon className="size-5" strokeWidth={active ? 2.1 : 1.7} aria-hidden />
         )}
       </span>
-      <span className={cn("max-w-full truncate", pending && "text-accent")}>{label}</span>
+      <span className="max-w-full truncate">{label}</span>
       {pending && <span className="sr-only">Loading {label}…</span>}
-    </>
+    </span>
   );
 }
 
@@ -57,10 +60,7 @@ export function BottomNav() {
               <Link
                 href={href}
                 aria-current={active ? "page" : undefined}
-                className={cn(
-                  "nav-link active:bg-surface-raised",
-                  active ? "text-accent lg:bg-accent-soft" : "text-ink-muted hover:text-ink",
-                )}
+                className={cn("nav-link", active ? "text-accent" : "text-ink-muted hover:text-ink")}
               >
                 <NavContent label={label} icon={icon} active={active} />
               </Link>

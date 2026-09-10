@@ -6,8 +6,8 @@ import { NumberField } from "@/components/ui/number-field";
 import { Select } from "@/components/ui/select";
 import { Sheet } from "@/components/ui/sheet";
 import { SET_LIMITS } from "@/domain/sets";
-import type { SetType } from "@/domain/types";
-import { SET_TYPE_LABELS } from "@/lib/labels";
+import type { PrescriptionType, SetType } from "@/domain/types";
+import { MEASURE_COLUMN_LABELS, SET_TYPE_LABELS } from "@/lib/labels";
 import type { DraftValueField } from "@/lib/workout-drafts";
 
 import type { Ghost, RowState } from "./use-set-rows";
@@ -17,7 +17,7 @@ type SetOptionsProps = {
   ghost: Ghost;
   unitLabel: string;
   weightStep: number;
-  isDuration: boolean;
+  measure: PrescriptionType;
   onEdit: (row: RowState, patch: Partial<RowState>, touch?: DraftValueField) => void;
   onDelete: (row: RowState) => void;
   onClose: () => void;
@@ -35,11 +35,18 @@ export function SetOptions({
   ghost,
   unitLabel,
   weightStep,
-  isDuration,
+  measure,
   onEdit,
   onDelete,
   onClose,
 }: SetOptionsProps) {
+  // One field, whichever the exercise is counted in. The step matches the measure: a rep at
+  // a time, five seconds, five metres.
+  const counted = {
+    reps: { field: "reps", step: 1, max: SET_LIMITS.reps },
+    duration: { field: "duration", step: 5, max: SET_LIMITS.durationSeconds },
+    distance: { field: "distance", step: 5, max: SET_LIMITS.distanceMeters },
+  }[measure] as { field: "reps" | "duration" | "distance"; step: number; max: number };
   return (
     <Sheet open={row !== null} onClose={onClose} title={row ? `Set ${row.setIndex}` : "Set"}>
       {row && (
@@ -71,29 +78,16 @@ export function SetOptions({
               max={SET_LIMITS.weight}
               disabled={row.saving}
             />
-            {isDuration ? (
-              <NumberField
-                label="Seconds"
-                value={row.duration}
-                ghost={ghost.duration}
-                onChange={(value) => onEdit(row, { duration: value }, "duration")}
-                step={5}
-                max={SET_LIMITS.durationSeconds}
-                inputMode="numeric"
-                disabled={row.saving}
-              />
-            ) : (
-              <NumberField
-                label="Reps"
-                value={row.reps}
-                ghost={ghost.reps}
-                onChange={(value) => onEdit(row, { reps: value }, "reps")}
-                step={1}
-                max={SET_LIMITS.reps}
-                inputMode="numeric"
-                disabled={row.saving}
-              />
-            )}
+            <NumberField
+              label={MEASURE_COLUMN_LABELS[measure]}
+              value={row[counted.field]}
+              ghost={ghost[counted.field]}
+              onChange={(value) => onEdit(row, { [counted.field]: value }, counted.field)}
+              step={counted.step}
+              max={counted.max}
+              inputMode="numeric"
+              disabled={row.saving}
+            />
             <NumberField
               label="RIR"
               value={row.rir}

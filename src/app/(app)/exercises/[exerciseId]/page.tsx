@@ -42,10 +42,13 @@ import { requireUuid } from "@/server/validation/params";
 export const metadata: Metadata = { title: "Exercise" };
 
 function prescription(usage: ExerciseProgramUsage): string {
-  const volume =
+  const range =
     usage.prescriptionType === "duration"
-      ? `${usage.sets} × ${rangeLabel(usage.durationMinSeconds, usage.durationMaxSeconds, " s")}`
-      : `${usage.sets} × ${rangeLabel(usage.repMin, usage.repMax)}`;
+      ? rangeLabel(usage.durationMinSeconds, usage.durationMaxSeconds, " s")
+      : usage.prescriptionType === "distance"
+        ? rangeLabel(usage.distanceMinMeters, usage.distanceMaxMeters, " m")
+        : rangeLabel(usage.repMin, usage.repMax);
+  const volume = `${usage.sets} × ${range}`;
   const side = usage.perSide ? " per side" : "";
   return `${volume}${side} @ ${rangeLabel(usage.rirMin, usage.rirMax)} RIR · rest ${restLabel(usage.restMinSeconds, usage.restMaxSeconds)}`;
 }

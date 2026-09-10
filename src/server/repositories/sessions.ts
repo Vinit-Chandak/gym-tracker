@@ -290,6 +290,7 @@ export type SessionSet = {
   reps: number | null;
   rir: number | null;
   durationSeconds: number | null;
+  distanceMeters: number | null;
   completedAt: Date;
 };
 
@@ -303,6 +304,10 @@ export type SessionExercise = {
     modality: typeof exercises.$inferSelect.modality;
     loadPortability: typeof exercises.$inferSelect.loadPortability;
     requiresEquipment: boolean;
+    /** How the movement is measured when no programme slot says otherwise. */
+    defaultPrescriptionType: typeof exercises.$inferSelect.defaultPrescriptionType;
+    /** What RIR means for this movement, in its own words; null falls back to the general one. */
+    rirNote: string | null;
   };
   equipment: { id: string; name: string; unit: LoadUnit } | null;
   planned: {
@@ -314,6 +319,8 @@ export type SessionExercise = {
     repMax: number | null;
     durationMinSeconds: number | null;
     durationMaxSeconds: number | null;
+    distanceMinMeters: number | null;
+    distanceMaxMeters: number | null;
     perSide: boolean;
     rirMin: number | null;
     rirMax: number | null;
@@ -438,9 +445,15 @@ export async function getSessionDetail(
           loadPortability: exercises.loadPortability,
           requiresEquipment: exercises.requiresEquipment,
           defaultLoadIncrement: exercises.defaultLoadIncrement,
+          defaultPrescriptionType: exercises.defaultPrescriptionType,
           defaultRepMin: exercises.defaultRepMin,
           defaultRepMax: exercises.defaultRepMax,
+          defaultDurationMinSeconds: exercises.defaultDurationMinSeconds,
+          defaultDurationMaxSeconds: exercises.defaultDurationMaxSeconds,
+          defaultDistanceMinMeters: exercises.defaultDistanceMinMeters,
+          defaultDistanceMaxMeters: exercises.defaultDistanceMaxMeters,
           defaultRir: exercises.defaultRir,
+          rirNote: exercises.rirNote,
         },
         equipment: {
           id: equipmentInstances.id,
@@ -472,6 +485,7 @@ export async function getSessionDetail(
         reps: setLogs.reps,
         rir: setLogs.rir,
         durationSeconds: setLogs.durationSeconds,
+        distanceMeters: setLogs.distanceMeters,
         completedAt: setLogs.completedAt,
       })
       .from(setLogs)
@@ -577,6 +591,8 @@ export async function getSessionDetail(
         modality: row.exercise.modality,
         loadPortability: row.exercise.loadPortability,
         requiresEquipment: row.exercise.requiresEquipment,
+        defaultPrescriptionType: row.exercise.defaultPrescriptionType,
+        rirNote: row.exercise.rirNote,
       },
       equipment: row.equipment?.id
         ? { id: row.equipment.id, name: row.equipment.name, unit: row.equipment.unit }
@@ -591,6 +607,8 @@ export async function getSessionDetail(
             repMax: row.planned.repMax,
             durationMinSeconds: row.planned.durationMinSeconds,
             durationMaxSeconds: row.planned.durationMaxSeconds,
+            distanceMinMeters: row.planned.distanceMinMeters,
+            distanceMaxMeters: row.planned.distanceMaxMeters,
             perSide: row.planned.perSide,
             rirMin: row.planned.rirMin,
             rirMax: row.planned.rirMax,
@@ -772,6 +790,8 @@ export type LogSetInput = {
   reps: number | null;
   rir: number | null;
   durationSeconds: number | null;
+  /** Metres, for carries and sled work. Left out on everything measured in reps or seconds. */
+  distanceMeters?: number | null;
 };
 
 /** Creates or replaces one set. Raw values are stored exactly as entered. */
@@ -827,7 +847,8 @@ export async function logSet(db: DbOrTx, userId: string, input: LogSetInput): Pr
       previous.weight === input.weight &&
       previous.reps === input.reps &&
       previous.rir === input.rir &&
-      previous.durationSeconds === input.durationSeconds
+      previous.durationSeconds === input.durationSeconds &&
+      previous.distanceMeters === (input.distanceMeters ?? null)
     )
       return previous;
     throw new SetConflictError();
@@ -846,6 +867,7 @@ export async function logSet(db: DbOrTx, userId: string, input: LogSetInput): Pr
       reps: input.reps,
       rir: input.rir,
       durationSeconds: input.durationSeconds,
+      distanceMeters: input.distanceMeters ?? null,
       completedAt: now,
     })
     .onConflictDoUpdate({
@@ -857,6 +879,7 @@ export async function logSet(db: DbOrTx, userId: string, input: LogSetInput): Pr
         reps: input.reps,
         rir: input.rir,
         durationSeconds: input.durationSeconds,
+        distanceMeters: input.distanceMeters ?? null,
         completedAt: now,
       },
     })
@@ -869,6 +892,7 @@ export async function logSet(db: DbOrTx, userId: string, input: LogSetInput): Pr
       reps: setLogs.reps,
       rir: setLogs.rir,
       durationSeconds: setLogs.durationSeconds,
+      distanceMeters: setLogs.distanceMeters,
       completedAt: setLogs.completedAt,
     });
   if (!row) throw new Error("Set insert returned no row");

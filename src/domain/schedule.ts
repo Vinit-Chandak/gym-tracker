@@ -1,4 +1,5 @@
 import { addDays, daysBetween } from "./program-calendar";
+import type { SlotPart } from "./types";
 
 /**
  * Sequence-based scheduling ("shift" policy).
@@ -8,14 +9,18 @@ import { addDays, daysBetween } from "./program-calendar";
  * or skipped. Missing a day therefore moves every later session back by one day instead of
  * dropping it. Rest slots are "soft": starting the next training session completes any rest
  * slots that come before it.
+ *
+ * A slot is not one task. A day that lifts *and* runs asks for two, and each is answered on
+ * its own: finishing the workout says nothing about the run, and logging the run says nothing
+ * about the workout. The slot is behind the sequence until both have an answer.
  */
 
 export type ProgramSlot = {
   /** 1-based position in the cycle. */
   dayIndex: number;
   name: string;
-  /** Rest/mobility slots need no session and never block the sequence. */
-  isRest: boolean;
+  includesLifting: boolean;
+  includesRun: boolean;
 };
 
 export type SlotStatus = "completed" | "skipped";
@@ -23,6 +28,7 @@ export type SlotStatus = "completed" | "skipped";
 export type SlotEvent = {
   cycleIndex: number;
   dayIndex: number;
+  part: SlotPart;
   status: SlotStatus;
 };
 
@@ -37,12 +43,29 @@ export type ScheduleState = {
   events: readonly SlotEvent[];
 };
 
-function key(ref: SlotRef): string {
-  return `${ref.cycleIndex}:${ref.dayIndex}`;
+/** Rest/mobility slots need no session and never block the sequence. */
+export function isRestSlot(slot: ProgramSlot): boolean {
+  return !slot.includesLifting && !slot.includesRun;
+}
+
+/**
+ * The tasks a day asks for, in the order they are offered.
+ *
+ * A day that only rests still asks for `session` — that is the "mark rest day done" tick, and
+ * keeping it means every slot has at least one part to answer, whatever the programme says.
+ */
+export function slotParts(slot: ProgramSlot): readonly SlotPart[] {
+  if (slot.includesLifting && slot.includesRun) return ["session", "run"];
+  if (slot.includesRun) return ["run"];
+  return ["session"];
+}
+
+function key(ref: SlotRef, part: SlotPart): string {
+  return `${ref.cycleIndex}:${ref.dayIndex}:${part}`;
 }
 
 function eventMap(state: ScheduleState): Map<string, SlotStatus> {
-  return new Map(state.events.map((e) => [key(e), e.status]));
+  return new Map(state.events.map((e) => [key(e, e.part), e.status]));
 }
 
 function existsInProgramme(state: ScheduleState, ref: SlotRef): boolean {
@@ -68,15 +91,41 @@ export function slotFor(state: ScheduleState, ref: SlotRef): ProgramSlot | undef
   return state.slots.find((s) => s.dayIndex === ref.dayIndex);
 }
 
-export function slotStatus(state: ScheduleState, ref: SlotRef): SlotStatus | "pending" {
-  return eventMap(state).get(key(ref)) ?? "pending";
+/** What happened to one half of a slot: its own workout, or its own run. */
+export function partStatus(
+  state: ScheduleState,
+  ref: SlotRef,
+  part: SlotPart,
+): SlotStatus | "pending" {
+  return eventMap(state).get(key(ref, part)) ?? "pending";
 }
 
-/** The earliest slot with nothing logged against it, or null when the programme is finished. */
-export function nextPendingSlot(state: ScheduleState): SlotRef | null {
+/** The parts of a slot that still have no answer. */
+export function pendingParts(state: ScheduleState, ref: SlotRef): readonly SlotPart[] {
+  const slot = slotFor(state, ref);
+  if (!slot) return [];
   const events = eventMap(state);
+  return slotParts(slot).filter((part) => !events.has(key(ref, part)));
+}
+
+/**
+ * The day as a whole: done once every part it asks for has been answered, and counted as
+ * skipped when any of those answers was a skip. Anything less is still pending, which is what
+ * keeps a day with an unlogged run from being left behind by the sequence.
+ */
+export function slotStatus(state: ScheduleState, ref: SlotRef): SlotStatus | "pending" {
+  const slot = slotFor(state, ref);
+  if (!slot) return "pending";
+  const events = eventMap(state);
+  const statuses = slotParts(slot).map((part) => events.get(key(ref, part)));
+  if (statuses.some((status) => status === undefined)) return "pending";
+  return statuses.some((status) => status === "skipped") ? "skipped" : "completed";
+}
+
+/** The earliest slot with anything left to do, or null when the programme is finished. */
+export function nextPendingSlot(state: ScheduleState): SlotRef | null {
   for (const ref of allSlots(state)) {
-    if (!events.has(key(ref))) return ref;
+    if (pendingParts(state, ref).length > 0) return ref;
   }
   return null;
 }
@@ -91,26 +140,27 @@ export type Suggestion = {
 };
 
 /**
- * What to show on Today: the next pending slot. When that is a rest day, the caller can offer
- * to start the next training slot instead, which auto-completes the rest slots in between.
+ * What to show on Today: the next slot with anything left to do. When that is a rest day, the
+ * caller can offer to start the next training slot instead, which auto-completes the rest
+ * slots in between.
  */
 export function suggestion(state: ScheduleState): Suggestion | null {
   const next = nextPendingSlot(state);
   if (!next) return null;
-  const events = eventMap(state);
   const restSlotsBefore: SlotRef[] = [];
   let nextTraining: SlotRef | null = null;
   for (const ref of allSlots(state)) {
-    if (events.has(key(ref))) continue;
+    if (pendingParts(state, ref).length === 0) continue;
     const slot = slotFor(state, ref);
-    if (slot?.isRest) {
+    if (slot && isRestSlot(slot)) {
       restSlotsBefore.push(ref);
       continue;
     }
     nextTraining = ref;
     break;
   }
-  const suggestedIsRest = slotFor(state, next)?.isRest ?? false;
+  const suggested = slotFor(state, next);
+  const suggestedIsRest = suggested ? isRestSlot(suggested) : false;
   return {
     slot: next,
     restSlotsBefore: suggestedIsRest ? restSlotsBefore : [],
@@ -126,13 +176,13 @@ export type Progress = {
   currentCycle: number;
 };
 
+/** Counted in days, not in tasks: a day that lifts and runs is still one of the 56. */
 export function progress(state: ScheduleState): Progress {
   const refs = allSlots(state);
-  const events = eventMap(state);
   let completed = 0;
   let skipped = 0;
   for (const ref of refs) {
-    const status = events.get(key(ref));
+    const status = slotStatus(state, ref);
     if (status === "completed") completed += 1;
     else if (status === "skipped") skipped += 1;
   }

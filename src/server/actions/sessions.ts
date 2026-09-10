@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { refresh, revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
@@ -10,8 +10,8 @@ import { getDb } from "@/db/client";
 import { profiles } from "@/db/schema";
 import { withUser } from "@/db/with-user";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import { nextPendingSlot } from "@/domain/schedule";
-import { SET_TYPES } from "@/domain/types";
+import { nextPendingSlot, pendingParts } from "@/domain/schedule";
+import { SET_TYPES, type SlotPart } from "@/domain/types";
 import { requireUser } from "@/server/auth";
 import { ensureProfile } from "@/server/queries/profile";
 import { profileChanged } from "@/server/queries/request-profile";
@@ -58,6 +58,22 @@ function revalidateSession(sessionId?: string): void {
   revalidatePath("/progress");
   revalidatePath("/settings");
   if (sessionId) revalidatePath(`/workouts/${sessionId}`);
+}
+
+/**
+ * Re-renders the screen the action was called from and sends the new payload back with the
+ * action's own reply.
+ *
+ * The workout screen moves between its list and one exercise with `history.pushState`, not a
+ * navigation, so nothing else ever refetches it: without this, sets logged and exercises
+ * completed were written to the database but the list went on showing the render the page
+ * arrived with — "Start" against an exercise that was done, and an empty grid on reopening it —
+ * until the whole route was left and come back to. `refresh` is the right tool rather than
+ * `revalidatePath`: this data is read per request behind Row Level Security, so there is no
+ * cache entry to invalidate, only a stale render to replace.
+ */
+function refreshSession(): void {
+  refresh();
 }
 
 function describe(error: unknown): string {
@@ -124,9 +140,13 @@ const skipSlotSchema = z.object({
   ),
 });
 
-/** Marks the pending occurrence of a day as skipped on purpose. */
+/**
+ * Marks one half of the pending occurrence of a day as skipped on purpose: the workout, or
+ * the run. A day that does both keeps the other half, which is still owed.
+ */
 export async function skipSlotAction(
   dayIndex: number,
+  part: SlotPart,
   _previous: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
@@ -139,14 +159,21 @@ export async function skipSlotAction(
       getSchedule(tx, user.id),
     ]);
     if (!schedule) return { ok: false, error: "No active programme." };
-    const cycleIndex = pendingCycleForDay(schedule.state, dayIndex);
+    const cycleIndex = pendingCycleForDay(schedule.state, dayIndex, part);
     if (cycleIndex === null) return { ok: false, error: "That day has nothing left to skip." };
-    await recordSlotEvent(tx, user.id, schedule.program.id, { cycleIndex, dayIndex }, "skipped", {
-      occurredOn: todayInTimeZone(profile.timeZone),
-      note: parsed.data.reason,
-    });
-    // Nobody will train this slot, so the coach's plan for it goes with it.
-    await voidPlanForSlot(tx, user.id, schedule.program.id, { cycleIndex, dayIndex });
+    await recordSlotEvent(
+      tx,
+      user.id,
+      schedule.program.id,
+      { cycleIndex, dayIndex },
+      part,
+      "skipped",
+      { occurredOn: todayInTimeZone(profile.timeZone), note: parsed.data.reason },
+    );
+    // Nobody will train what is left of this slot, so the coach's plan for it goes with it.
+    if (pendingParts(schedule.state, { cycleIndex, dayIndex }).every((p) => p === part)) {
+      await voidPlanForSlot(tx, user.id, schedule.program.id, { cycleIndex, dayIndex });
+    }
     return { ok: true };
   });
   if (result.ok) revalidateSession();
@@ -197,6 +224,7 @@ export async function setWarmupCompletedAction(
   } catch (error) {
     return { ok: false, error: describe(error) };
   }
+  refreshSession();
   return { ok: true };
 }
 
@@ -212,10 +240,13 @@ const logSetSchema = z
     reps: z.number().int().min(0).max(SET_LIMITS.reps).nullable(),
     rir: z.number().min(0).max(SET_LIMITS.rir).nullable(),
     durationSeconds: z.number().int().min(0).max(SET_LIMITS.durationSeconds).nullable(),
+    distanceMeters: z.number().min(0).max(SET_LIMITS.distanceMeters).nullable().default(null),
   })
-  .refine((value) => value.reps !== null || value.durationSeconds !== null, {
-    message: "Enter reps or a duration.",
-  });
+  .refine(
+    (value) =>
+      value.reps !== null || value.durationSeconds !== null || value.distanceMeters !== null,
+    { message: "Enter reps, a duration or a distance." },
+  );
 
 /** Logged set with a JSON-safe timestamp (matches the client view model). */
 export type LoggedSet = Omit<SessionSet, "completedAt"> & { completedAt: string };
@@ -229,6 +260,9 @@ export async function logSetAction(input: unknown): Promise<LogSetResult> {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid set." };
   try {
     const set = await withUser(getDb(), user.id, (tx) => logSet(tx, user.id, parsed.data));
+    // The set count on Today, History and Progress comes from this row too.
+    revalidateSession();
+    refreshSession();
     return { ok: true, set: { ...set, completedAt: set.completedAt.toISOString() } };
   } catch (error) {
     return { ok: false, error: describe(error) };
@@ -242,6 +276,8 @@ export async function deleteSetAction(
   const user = await requireUser();
   try {
     await withUser(getDb(), user.id, (tx) => deleteSet(tx, user.id, workoutExerciseId, setIndex));
+    revalidateSession();
+    refreshSession();
     return { ok: true };
   } catch (error) {
     return { ok: false, error: describe(error) };
@@ -257,6 +293,7 @@ export async function setExerciseCompletedAction(
     await withUser(getDb(), user.id, (tx) =>
       setExerciseCompleted(tx, user.id, workoutExerciseId, completed),
     );
+    refreshSession();
     return { ok: true };
   } catch (error) {
     return { ok: false, error: describe(error) };
@@ -270,6 +307,7 @@ export async function skipExerciseAction(
   const user = await requireUser();
   try {
     await withUser(getDb(), user.id, (tx) => skipExercise(tx, user.id, workoutExerciseId, reason));
+    refreshSession();
     return { ok: true };
   } catch (error) {
     return { ok: false, error: describe(error) };
@@ -293,6 +331,7 @@ export async function applyFallbackAction(
         reason,
       }),
     );
+    refreshSession();
     return { ok: true };
   } catch (error) {
     return { ok: false, error: describe(error) };
@@ -401,12 +440,15 @@ export async function finishSessionAction(
         ensureProfile(tx, user),
         finishSession(tx, user.id, sessionId, parsed.data),
       ]);
+      // Only the lifting half of the day. A day that also runs still owes its run, and the
+      // sequence stays on it until that is logged or skipped in its own right.
       if (finished.programId && finished.dayIndex !== null && finished.cycleIndex !== null) {
         await recordSlotEvent(
           tx,
           user.id,
           finished.programId,
           { cycleIndex: finished.cycleIndex, dayIndex: finished.dayIndex },
+          "session",
           "completed",
           { occurredOn: todayInTimeZone(profile.timeZone), workoutSessionId: sessionId },
         );
@@ -491,14 +533,20 @@ export async function completeRestSlotAction(dayIndex: number): Promise<ActionRe
       getSchedule(tx, user.id),
     ]);
     if (!schedule) return { ok: false, error: "No active programme." };
-    const cycleIndex = pendingCycleForDay(schedule.state, dayIndex);
+    const cycleIndex = pendingCycleForDay(schedule.state, dayIndex, "session");
     if (cycleIndex === null) return { ok: false, error: "Nothing left to mark for that day." };
-    await recordSlotEvent(tx, user.id, schedule.program.id, { cycleIndex, dayIndex }, "completed", {
-      occurredOn: todayInTimeZone(profile.timeZone),
-      note: "Rest day done",
-    });
-    // A run-only day is finished this way too, so its plan is done with rather than left active.
-    await voidPlanForSlot(tx, user.id, schedule.program.id, { cycleIndex, dayIndex });
+    await recordSlotEvent(
+      tx,
+      user.id,
+      schedule.program.id,
+      { cycleIndex, dayIndex },
+      "session",
+      "completed",
+      { occurredOn: todayInTimeZone(profile.timeZone), note: "Rest day done" },
+    );
+    if (pendingParts(schedule.state, { cycleIndex, dayIndex }).every((p) => p === "session")) {
+      await voidPlanForSlot(tx, user.id, schedule.program.id, { cycleIndex, dayIndex });
+    }
     return { ok: true };
   });
   if (result.ok) revalidateSession();

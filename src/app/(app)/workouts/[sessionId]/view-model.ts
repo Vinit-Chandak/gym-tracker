@@ -18,6 +18,7 @@ export type PreviousVM = {
     reps: number | null;
     rir: number | null;
     durationSeconds: number | null;
+    distanceMeters: number | null;
   }[];
 };
 
