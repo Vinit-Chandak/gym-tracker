@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import type { ZodIssue } from "zod";
 
 import {
@@ -12,23 +12,44 @@ import {
   gyms,
   profiles,
   programExercises,
+  programRuns,
+  runs as runLogs,
   sessionPlans,
+  setLogs,
+  workoutExercises,
   workoutSessions,
 } from "@/db/schema";
 import type { Db, DbOrTx } from "@/db/types";
 import { withUser } from "@/db/with-user";
 import { liftingAdherence } from "@/domain/analytics";
+import {
+  reviewPlan,
+  STRENGTH_COMPOUND_SLUGS,
+  type PlanWarning,
+  type ReviewExercise,
+} from "@/domain/coach-review";
 import { resolveExerciseAtGym } from "@/domain/equipment-resolution";
+import { addExerciseVolume, emptyMuscleVolume, type MuscleVolume } from "@/domain/muscle-volume";
+import { performanceScore } from "@/domain/progression";
 import { addDays, todayInTimeZone } from "@/domain/program-calendar";
+import {
+  shinEscalations,
+  volumeSpike,
+  weeklyVolumes,
+  weekStart,
+  type WeekVolume,
+} from "@/domain/running";
 import { allSlots, progress, slotStatus, type SlotRef } from "@/domain/schedule";
 import {
   coachPlanSchema,
   PLAN_LIMITS,
+  runPlanLine,
   type CoachPlan,
+  type PlanRun,
   type StoredPlanExercise,
 } from "@/domain/session-plan";
-import { formatSet } from "@/domain/sets";
-import type { PlanTrigger } from "@/domain/types";
+import { formatSet, formatSets, weightStepFor } from "@/domain/sets";
+import type { MuscleGroup, PlanTrigger } from "@/domain/types";
 import { fromDateTimeLocal } from "@/lib/time";
 import { sessionHistories, type ComparablePerformance } from "@/server/queries/comparable";
 import { getWarmupProtocol, sharedExercises } from "@/server/queries/reference";
@@ -38,7 +59,7 @@ import { resolvePlannedDay } from "./availability";
 import { getGym, listGyms } from "./gyms";
 import { getRunTarget, getSchedule, type Schedule, type ScheduleDay } from "./schedule";
 import { applyRule } from "./progression-rule";
-import { readRecovery, readRuns, readWorkouts } from "./training-data";
+import { readRecovery, readWorkouts, type TrainingWorkout } from "./training-data";
 
 /*
  * The house coach's side of the app.
@@ -56,8 +77,13 @@ export const REPLAN_DAILY_LIMIT = 3;
 export const REQUEST_TIMEOUT_MINUTES = 15;
 /** How far back the coach looks for recent training. */
 const RECENT_DAYS = 14;
-/** How many comparable performances each slot carries. */
-const HISTORY_DEPTH = 3;
+/**
+ * How many comparable performances each slot carries. Enough to see a block's trend rather
+ * than only the last session, which is what a decision to hold or deload rests on.
+ */
+const HISTORY_DEPTH = 8;
+/** How many of the coach's own last plans it is shown, with what was actually done against them. */
+const PLAN_REVIEW_DEPTH = 3;
 
 export class PlanValidationError extends Error {
   constructor(
@@ -82,22 +108,32 @@ export type NextTrainingSlot = {
   day: ScheduleDay;
 };
 
-/** The earliest pending lifting slot, which is what the coach plans. Rest and run-only days are skipped. */
+/**
+ * The earliest pending slot the coach plans: one that lifts, runs, or both. Only a rest day
+ * is skipped, since there is nothing there to prescribe.
+ */
 export function nextTrainingSlot(schedule: Schedule): NextTrainingSlot | null {
-  const lifting = new Map(
-    schedule.days.filter((d) => d.includesLifting).map((d) => [d.dayIndex, d]),
+  const training = new Map(
+    schedule.days.filter((d) => d.includesLifting || d.includesRun).map((d) => [d.dayIndex, d]),
   );
   for (const ref of allSlots(schedule.state)) {
-    const day = lifting.get(ref.dayIndex);
+    const day = training.get(ref.dayIndex);
     if (day && slotStatus(schedule.state, ref) === "pending") return { ...ref, day };
   }
   return null;
 }
 
-/** The gym a plan is made for when the athlete names none: the default real gym, else the first. */
+/**
+ * The gym a plan is made for when the athlete names none: their default real gym, then any
+ * real gym, and finally any active location at all, which is what a running day needs when
+ * the only place on the account is Outdoor.
+ */
 export async function planningGym(db: DbOrTx, userId: string) {
-  const real = (await listGyms(db, userId)).filter((g) => g.isActive && g.kind === "gym");
-  return real.find((g) => g.isDefault) ?? real[0] ?? null;
+  const active = (await listGyms(db, userId)).filter((g) => g.isActive);
+  const real = active.filter((g) => g.kind === "gym");
+  return (
+    real.find((g) => g.isDefault) ?? real[0] ?? active.find((g) => g.isDefault) ?? active[0] ?? null
+  );
 }
 
 export type DueUser = {
@@ -105,7 +141,14 @@ export type DueUser = {
   timeZone: string;
   gymId: string;
   gymName: string;
-  slot: { cycleIndex: number; dayIndex: number; dayName: string };
+  slot: {
+    cycleIndex: number;
+    dayIndex: number;
+    dayName: string;
+    /** What the day asks for, so a run-only day is obvious in the routine's log. */
+    lifts: boolean;
+    runs: boolean;
+  };
 };
 
 /**
@@ -138,7 +181,13 @@ export async function listDueUsers(db: Db): Promise<DueUser[]> {
           timeZone: account.timeZone,
           gymId: gym.id,
           gymName: gym.name,
-          slot: { cycleIndex: slot.cycleIndex, dayIndex: slot.dayIndex, dayName: slot.day.name },
+          slot: {
+            cycleIndex: slot.cycleIndex,
+            dayIndex: slot.dayIndex,
+            dayName: slot.day.name,
+            lifts: slot.day.includesLifting,
+            runs: slot.day.includesRun,
+          },
         } satisfies DueUser;
       },
       { readOnly: true },
@@ -194,6 +243,190 @@ async function saveCoachOverview(db: DbOrTx, userId: string, overview: string): 
     });
 }
 
+export type PlanOutcome = {
+  generatedAt: string;
+  trigger: PlanTrigger;
+  slot: { cycleIndex: number; dayIndex: number };
+  gymName: string;
+  status: string;
+  summary: string;
+  warnings: PlanWarning[];
+  prescribed: {
+    name: string;
+    machine: string | null;
+    action: string;
+    targets: string;
+    note: string;
+  }[];
+  run: string | null;
+  /** What was actually done in the session that used the plan; null when it was never used. */
+  performed: {
+    startedAt: string;
+    exercises: { name: string; machine: string | null; skipped: boolean; sets: string }[];
+  } | null;
+};
+
+/**
+ * The coach's own last plans, each with what the athlete actually did against it.
+ *
+ * Without this the coach cannot tell whether its last call worked: it would prescribe into
+ * the dark every night, repeat a substitution nobody wanted, and never learn that four sets
+ * became three. It is the difference between a coach and a generator.
+ */
+async function recentPlanOutcomes(
+  db: DbOrTx,
+  userId: string,
+  limit: number,
+): Promise<PlanOutcome[]> {
+  const plans = await db
+    .select({ plan: sessionPlans, gymName: gyms.name })
+    .from(sessionPlans)
+    .innerJoin(gyms, eq(gyms.id, sessionPlans.gymId))
+    .where(eq(sessionPlans.userId, userId))
+    .orderBy(desc(sessionPlans.generatedAt))
+    .limit(limit);
+  if (plans.length === 0) return [];
+  const sessionIds = plans
+    .map((row) => row.plan.workoutSessionId)
+    .filter((id): id is string => id !== null);
+  // The slots of those sessions and their sets: two statements, grouped here, as elsewhere.
+  const [slots, sets, sessions] = sessionIds.length
+    ? await Promise.all([
+        db
+          .select({
+            sessionId: workoutExercises.workoutSessionId,
+            id: workoutExercises.id,
+            name: exercises.name,
+            machine: equipmentInstances.name,
+            skippedAt: workoutExercises.skippedAt,
+            orderIndex: workoutExercises.orderIndex,
+          })
+          .from(workoutExercises)
+          .innerJoin(exercises, eq(exercises.id, workoutExercises.exerciseId))
+          .leftJoin(
+            equipmentInstances,
+            eq(equipmentInstances.id, workoutExercises.equipmentInstanceId),
+          )
+          .where(
+            and(
+              eq(workoutExercises.userId, userId),
+              inArray(workoutExercises.workoutSessionId, sessionIds),
+            ),
+          )
+          .orderBy(asc(workoutExercises.orderIndex)),
+        db
+          .select({
+            workoutExerciseId: setLogs.workoutExerciseId,
+            setIndex: setLogs.setIndex,
+            setType: setLogs.setType,
+            weight: setLogs.weight,
+            unit: setLogs.unit,
+            reps: setLogs.reps,
+            rir: setLogs.rir,
+            durationSeconds: setLogs.durationSeconds,
+          })
+          .from(setLogs)
+          .innerJoin(workoutExercises, eq(workoutExercises.id, setLogs.workoutExerciseId))
+          .where(
+            and(eq(setLogs.userId, userId), inArray(workoutExercises.workoutSessionId, sessionIds)),
+          )
+          .orderBy(asc(setLogs.setIndex)),
+        db
+          .select({ id: workoutSessions.id, startedAt: workoutSessions.startedAt })
+          .from(workoutSessions)
+          .where(inArray(workoutSessions.id, sessionIds)),
+      ])
+    : [[], [], []];
+
+  return plans.map(({ plan, gymName }) => {
+    const sessionId = plan.workoutSessionId;
+    const session = sessions.find((row) => row.id === sessionId);
+    return {
+      generatedAt: plan.generatedAt.toISOString(),
+      trigger: plan.trigger,
+      slot: { cycleIndex: plan.cycleIndex, dayIndex: plan.dayIndex },
+      gymName,
+      status: plan.status,
+      summary: plan.summary,
+      warnings: plan.warnings,
+      prescribed: plan.exercises.map((entry) => ({
+        name: entry.exerciseName,
+        machine: entry.equipmentInstanceName,
+        action: entry.action,
+        targets:
+          entry.action === "drop"
+            ? "left out"
+            : entry.sets.length === 0
+              ? "by the rule"
+              : entry.sets
+                  .map(
+                    (set) =>
+                      `${set.weight ?? "—"}×${set.reps ?? `${set.durationSeconds ?? "—"}s`}@${set.rir ?? "—"}`,
+                  )
+                  .join(", "),
+        note: entry.note,
+      })),
+      run: plan.run ? runPlanLine(plan.run) : null,
+      performed:
+        sessionId && session
+          ? {
+              startedAt: session.startedAt.toISOString(),
+              exercises: slots
+                .filter((slot) => slot.sessionId === sessionId)
+                .map((slot) => ({
+                  name: slot.name,
+                  machine: slot.machine,
+                  skipped: slot.skippedAt !== null,
+                  sets: formatSets(
+                    sets
+                      .filter((set) => set.workoutExerciseId === slot.id)
+                      .map((set) => ({ ...set })),
+                  ),
+                })),
+            }
+          : null,
+    };
+  });
+}
+
+/** Working sets by muscle for one week, from workouts the context already holds. */
+type WeekMuscleVolume = { weekStart: string; totalSets: number; byMuscle: Partial<MuscleVolume> };
+
+function weeklyMuscleVolume(
+  workouts: readonly TrainingWorkout[],
+  timeZone: string,
+  today: string,
+  weeks: number,
+): WeekMuscleVolume[] {
+  const out: WeekMuscleVolume[] = [];
+  const current = weekStart(today);
+  for (let i = 0; i < weeks; i++) {
+    const start = addDays(current, -7 * i);
+    const volume = emptyMuscleVolume();
+    let totalSets = 0;
+    for (const workout of workouts) {
+      if (weekStart(todayInTimeZone(timeZone, workout.startedAt)) !== start) continue;
+      for (const slot of workout.exercises) {
+        const working = slot.sets.filter((set) => set.setType !== "warmup").length;
+        if (working === 0) continue;
+        totalSets += working;
+        addExerciseVolume(volume, {
+          primaryMuscles: slot.exercise.primaryMuscles,
+          secondaryMuscles: slot.exercise.secondaryMuscles ?? [],
+          workingSets: working,
+        });
+      }
+    }
+    // Only the muscles that were trained, so the coach reads a short list rather than twenty zeros.
+    const byMuscle: Partial<MuscleVolume> = {};
+    for (const [muscle, sets] of Object.entries(volume) as [MuscleGroup, number][]) {
+      if (sets > 0) byMuscle[muscle] = Math.round(sets * 10) / 10;
+    }
+    out.push({ weekStart: start, totalSets, byMuscle });
+  }
+  return out;
+}
+
 /**
  * Everything the coach needs to plan one athlete's next session at one gym, and nothing
  * about anyone else. Assembled from the same reads the app's own screens use, so the coach
@@ -223,54 +456,95 @@ export async function planningContext(
   if (!schedule) return { reason: "no_programme" as const };
   const slot = nextTrainingSlot(schedule);
   if (!slot) return { reason: "programme_complete" as const };
+  const day = slot.day;
   const gym = options.gymId
     ? await getGym(db, userId, options.gymId)
     : await planningGym(db, userId);
-  if (!gym || !gym.isActive || gym.kind !== "gym") return { reason: "no_gym" as const };
-  const day = slot.day;
+  // A day that lifts needs a real gym with machines; a running day can be anywhere active.
+  if (!gym || !gym.isActive || (day.includesLifting && gym.kind !== "gym"))
+    return { reason: "no_gym" as const };
   const today = todayInTimeZone(profile.timeZone);
   const recentRange = parseDateRange(
     { from: addDays(today, -RECENT_DAYS), to: today },
     profile.timeZone,
   );
 
-  const [resolved, planned, machines, absent, warmup, runTarget, recent, runs, recovery, library] =
-    await Promise.all([
-      resolvePlannedDay(db, userId, gym.id, day.id, { id: gym.id, kind: gym.kind, name: gym.name }),
-      db
-        .select({ prescription: programExercises, exercise: exercises })
-        .from(programExercises)
-        .innerJoin(exercises, eq(exercises.id, programExercises.exerciseId))
-        .where(eq(programExercises.programDayId, day.id))
-        .orderBy(asc(programExercises.orderIndex)),
-      db
-        .select({
-          id: equipmentInstances.id,
-          name: equipmentInstances.name,
-          type: equipmentTypes.name,
-          typeSlug: equipmentTypes.slug,
-          unit: equipmentInstances.unit,
-          loadIncrement: equipmentInstances.loadIncrement,
-          notes: equipmentInstances.notes,
+  const [
+    resolved,
+    planned,
+    machines,
+    absent,
+    warmup,
+    runTarget,
+    plannedRun,
+    recent,
+    runRows,
+    recovery,
+    library,
+    lastPlans,
+  ] = await Promise.all([
+    day.includesLifting
+      ? resolvePlannedDay(db, userId, gym.id, day.id, {
+          id: gym.id,
+          kind: gym.kind,
+          name: gym.name,
         })
-        .from(equipmentInstances)
-        .innerJoin(equipmentTypes, eq(equipmentTypes.id, equipmentInstances.equipmentTypeId))
-        .where(and(eq(equipmentInstances.gymId, gym.id), eq(equipmentInstances.isActive, true)))
-        .orderBy(asc(equipmentInstances.name)),
-      db
-        .select({ name: equipmentTypes.name })
-        .from(gymAbsentEquipmentTypes)
-        .innerJoin(equipmentTypes, eq(equipmentTypes.id, gymAbsentEquipmentTypes.equipmentTypeId))
-        .where(eq(gymAbsentEquipmentTypes.gymId, gym.id)),
-      day.warmupProtocolId ? getWarmupProtocol(db, day.warmupProtocolId) : Promise.resolve(null),
-      day.includesRun
-        ? getRunTarget(db, schedule.program.id, slot.cycleIndex, day.dayOfWeek ?? 0)
-        : Promise.resolve(null),
-      readWorkouts(db, userId, recentRange, 0, 40),
-      readRuns(db, userId, recentRange, 0, 40),
-      readRecovery(db, userId, recentRange),
-      libraryAtGym(db, userId, gym.id),
-    ]);
+      : Promise.resolve([]),
+    db
+      .select({ prescription: programExercises, exercise: exercises })
+      .from(programExercises)
+      .innerJoin(exercises, eq(exercises.id, programExercises.exerciseId))
+      .where(eq(programExercises.programDayId, day.id))
+      .orderBy(asc(programExercises.orderIndex)),
+    db
+      .select({
+        id: equipmentInstances.id,
+        name: equipmentInstances.name,
+        type: equipmentTypes.name,
+        typeSlug: equipmentTypes.slug,
+        unit: equipmentInstances.unit,
+        loadIncrement: equipmentInstances.loadIncrement,
+        notes: equipmentInstances.notes,
+      })
+      .from(equipmentInstances)
+      .innerJoin(equipmentTypes, eq(equipmentTypes.id, equipmentInstances.equipmentTypeId))
+      .where(and(eq(equipmentInstances.gymId, gym.id), eq(equipmentInstances.isActive, true)))
+      .orderBy(asc(equipmentInstances.name)),
+    db
+      .select({ name: equipmentTypes.name })
+      .from(gymAbsentEquipmentTypes)
+      .innerJoin(equipmentTypes, eq(equipmentTypes.id, gymAbsentEquipmentTypes.equipmentTypeId))
+      .where(eq(gymAbsentEquipmentTypes.gymId, gym.id)),
+    day.warmupProtocolId ? getWarmupProtocol(db, day.warmupProtocolId) : Promise.resolve(null),
+    day.includesRun
+      ? getRunTarget(db, schedule.program.id, slot.cycleIndex, day.dayOfWeek ?? 0)
+      : Promise.resolve(null),
+    // The programme's own run row for this slot, so a planned run can be logged against it.
+    day.includesRun
+      ? db
+          .select({ id: programRuns.id })
+          .from(programRuns)
+          .where(
+            and(
+              eq(programRuns.programId, schedule.program.id),
+              eq(programRuns.weekIndex, slot.cycleIndex),
+              eq(programRuns.dayOfWeek, day.dayOfWeek ?? 0),
+            ),
+          )
+          .limit(1)
+      : Promise.resolve([]),
+    readWorkouts(db, userId, recentRange, 0, 40),
+    // Enough runs to see four weeks of load, not just the recent window.
+    db
+      .select()
+      .from(runLogs)
+      .where(eq(runLogs.userId, userId))
+      .orderBy(desc(runLogs.startedAt))
+      .limit(40),
+    readRecovery(db, userId, recentRange),
+    libraryAtGym(db, userId, gym.id),
+    recentPlanOutcomes(db, userId, PLAN_REVIEW_DEPTH),
+  ]);
   if (!resolved) return { reason: "no_gym" as const };
 
   // Comparable history for what will actually be done: the resolved exercise on the resolved machine.
@@ -321,7 +595,7 @@ export async function planningContext(
           equipment: machine
             ? { id: machine.id, unit: machine.unit, loadIncrement: machine.loadIncrement }
             : null,
-          plannedProgramExerciseId: item.programExerciseId,
+          slotLineageId: plannedRow.prescription.lineageId,
           history,
           elsewhere: histories[index]?.elsewhere ?? null,
         })
@@ -329,6 +603,8 @@ export async function planningContext(
     const p = plannedRow?.prescription;
     return {
       slotId: item.programExerciseId,
+      /** The slot's identity across programme versions; what a proposal names. */
+      lineageId: plannedRow?.prescription.lineageId ?? null,
       order: index + 1,
       planned: { slug: plannedRow?.exercise.slug ?? null, name: item.exercise.name },
       prescription: p
@@ -369,7 +645,10 @@ export async function planningContext(
       weightStep: rule?.weightStep ?? null,
       history: history.map((h) => ({
         ...performanceSummary(h),
-        sameSlot: h.plannedProgramExerciseId === item.programExerciseId,
+        sameSlot: h.plannedSlotLineageId === plannedRow?.prescription.lineageId,
+        // One number per session, comparable within this slot: estimated 1RM where the sets
+        // allow one, else total reps, else seconds. A trend, rather than three loose sessions.
+        score: Math.round(performanceScore(h.sets) * 10) / 10,
       })),
       startingGuess: histories[index]?.elsewhere
         ? performanceSummary(histories[index]!.elsewhere!)
@@ -393,6 +672,32 @@ export async function planningContext(
   });
 
   const state = progress(schedule.state);
+  const runHistory = runRows.map((run) => ({
+    startedAt: run.startedAt.toISOString(),
+    startedOn: todayInTimeZone(profile.timeZone, run.startedAt),
+    mode: run.mode,
+    distanceKm: Math.round(run.distanceMeters / 100) / 10,
+    durationMinutes: Math.round(run.durationSeconds / 60),
+    paceSecondsPerKm: run.averagePaceSecondsPerKm,
+    rpe: run.rpe,
+    shins: {
+      pre: [run.shinLeftPre, run.shinRightPre],
+      during: [run.shinLeftDuring, run.shinRightDuring],
+      post: [run.shinLeftPost, run.shinRightPost],
+    },
+    programRunId: run.programRunId,
+    notes: run.notes,
+  }));
+  const weeks: WeekVolume[] = weeklyVolumes(
+    runRows.map((run) => ({
+      startedOn: todayInTimeZone(profile.timeZone, run.startedAt),
+      durationSeconds: run.durationSeconds,
+      distanceMeters: run.distanceMeters,
+    })),
+    today,
+    4,
+  );
+  const [thisWeek, lastWeek] = weeks;
   return {
     reason: null,
     generatedAt: new Date().toISOString(),
@@ -422,8 +727,11 @@ export async function planningContext(
       timeNote: day.timeNote,
       effortNote: day.effortNote,
       notes: day.notes,
+      includesLifting: day.includesLifting,
       includesRun: day.includesRun,
       runTarget,
+      /** Pass this back as the plan's `run.programRunId` so the logged run counts for the block. */
+      programRunId: plannedRun[0]?.id ?? null,
       warmupProtocol: warmup,
     },
     gym: {
@@ -468,20 +776,9 @@ export async function planningContext(
           sets: e.sets.map(setLine),
         })),
       })),
-      runs: runs.runs.map((r) => ({
-        startedAt: r.startedAt.toISOString(),
-        mode: r.mode,
-        distanceMeters: r.distanceMeters,
-        durationSeconds: r.durationSeconds,
-        paceSecondsPerKm: r.averagePaceSecondsPerKm,
-        rpe: r.rpe,
-        shins: {
-          pre: [r.shinLeftPre, r.shinRightPre],
-          during: [r.shinLeftDuring, r.shinRightDuring],
-          post: [r.shinLeftPost, r.shinRightPost],
-        },
-        notes: r.notes,
-      })),
+      runs: runHistory.filter(
+        (run) => run.startedOn >= recentRange.from && run.startedOn <= recentRange.to,
+      ),
       recovery: recovery.map((d) => ({
         date: d.date,
         sleepHours: d.sleepHours,
@@ -495,6 +792,21 @@ export async function planningContext(
         notes: d.notes,
       })),
     },
+    /**
+     * Running load, whatever the day is. A lifting plan is decided partly by what the legs
+     * have been doing, and the shin rule from the athlete's history depends on the trend
+     * rather than on one run.
+     */
+    running: {
+      weeks,
+      spike: thisWeek && lastWeek ? volumeSpike(thisWeek, lastWeek) : null,
+      shinEscalations: shinEscalations(runRows),
+      history: runHistory.slice(0, 8),
+    },
+    /** Working sets by muscle for the last four weeks, newest first. */
+    volume: weeklyMuscleVolume(recent.workouts, profile.timeZone, today, 4),
+    /** The coach's own last plans, and what was actually done against each. */
+    lastPlans,
     library: library.map((e) => ({
       slug: e.slug,
       name: e.name,
@@ -638,47 +950,89 @@ export async function storePlan(
     throw new PlanValidationError("The plan is not valid.", describeIssues(parsed.error.issues));
   const plan: CoachPlan = parsed.data;
 
-  const [schedule, gym] = await Promise.all([
+  const [schedule, gym, [profile]] = await Promise.all([
     getSchedule(db, userId),
     getGym(db, userId, input.gymId),
+    db
+      .select({ preferredUnit: profiles.preferredUnit })
+      .from(profiles)
+      .where(eq(profiles.id, userId))
+      .limit(1),
   ]);
   if (!schedule) throw new PlanValidationError("No active programme.");
-  if (!gym || !gym.isActive || gym.kind !== "gym")
-    throw new PlanValidationError("The gym is not one of the athlete's active gyms.");
   const ref: SlotRef = input.slot;
   const day = schedule.days.find((d) => d.dayIndex === ref.dayIndex);
   const exists = allSlots(schedule.state).some(
     (s) => s.cycleIndex === ref.cycleIndex && s.dayIndex === ref.dayIndex,
   );
-  if (!day || !exists || !day.includesLifting)
-    throw new PlanValidationError("The slot is not a lifting day of the programme.");
+  if (!day || !exists || !(day.includesLifting || day.includesRun))
+    throw new PlanValidationError("The slot is not a training day of the programme.");
+  // A lifting day needs a gym with machines; a running day only needs somewhere to be.
+  if (!gym || !gym.isActive || (day.includesLifting && gym.kind !== "gym"))
+    throw new PlanValidationError("The gym is not one of the athlete's active locations.");
   if (slotStatus(schedule.state, ref) !== "pending")
     throw new PlanValidationError("The slot is no longer pending; plan the next one.");
+  if (!day.includesLifting && plan.exercises.length > 0)
+    throw new PlanValidationError("That day has no lifting, so it takes a run and nothing else.");
+  if (!day.includesRun && plan.run)
+    throw new PlanValidationError("That day has no run in the programme.");
 
-  const [daySlots, machines, visible] = await Promise.all([
+  const [daySlots, machines, visible, programRun] = await Promise.all([
     db
-      .select({ id: programExercises.id })
+      .select({
+        id: programExercises.id,
+        lineageId: programExercises.lineageId,
+        sets: programExercises.sets,
+      })
       .from(programExercises)
       .where(eq(programExercises.programDayId, day.id)),
     db
-      .select({ id: equipmentInstances.id, name: equipmentInstances.name })
+      .select({
+        id: equipmentInstances.id,
+        name: equipmentInstances.name,
+        unit: equipmentInstances.unit,
+        loadIncrement: equipmentInstances.loadIncrement,
+      })
       .from(equipmentInstances)
       .where(and(eq(equipmentInstances.gymId, gym.id), eq(equipmentInstances.isActive, true))),
-    db
-      .select({ id: exercises.id, slug: exercises.slug, name: exercises.name })
-      .from(exercises)
-      .where(
-        and(
-          eq(exercises.isActive, true),
-          inArray(
-            exercises.slug,
-            plan.exercises.map((e) => e.exerciseSlug),
-          ),
-        ),
-      ),
+    plan.exercises.length > 0
+      ? db
+          .select({
+            id: exercises.id,
+            slug: exercises.slug,
+            name: exercises.name,
+            loadPortability: exercises.loadPortability,
+            defaultLoadIncrement: exercises.defaultLoadIncrement,
+          })
+          .from(exercises)
+          .where(
+            and(
+              eq(exercises.isActive, true),
+              inArray(
+                exercises.slug,
+                plan.exercises.map((e) => e.exerciseSlug),
+              ),
+            ),
+          )
+      : Promise.resolve([]),
+    plan.run?.programRunId
+      ? db
+          .select({ id: programRuns.id })
+          .from(programRuns)
+          .where(
+            and(
+              eq(programRuns.id, plan.run.programRunId),
+              eq(programRuns.programId, schedule.program.id),
+            ),
+          )
+          .limit(1)
+      : Promise.resolve([]),
   ]);
-  const slotIds = new Set(daySlots.map((s) => s.id));
+  const slotById = new Map(daySlots.map((slot) => [slot.id, slot]));
   const issues: { path: string; message: string }[] = [];
+  if (plan.run?.programRunId && programRun.length === 0)
+    issues.push({ path: "run.programRunId", message: "That planned run is not in the programme." });
+
   const stored: StoredPlanExercise[] = plan.exercises.map((entry, index) => {
     const exercise = visible.find((e) => e.slug === entry.exerciseSlug);
     if (!exercise)
@@ -686,7 +1040,7 @@ export async function storePlan(
         path: `exercises.${index}.exerciseSlug`,
         message: `Unknown exercise "${entry.exerciseSlug}".`,
       });
-    if (entry.slotId && !slotIds.has(entry.slotId))
+    if (entry.slotId && !slotById.has(entry.slotId))
       issues.push({
         path: `exercises.${index}.slotId`,
         message: "Not a slot of the day being planned.",
@@ -704,6 +1058,7 @@ export async function storePlan(
       exerciseId: exercise?.id ?? "",
       exerciseName: exercise?.name ?? entry.exerciseSlug,
       equipmentInstanceName: machine?.name ?? null,
+      slotLineageId: entry.slotId ? (slotById.get(entry.slotId)?.lineageId ?? null) : null,
     };
   });
   const seenSlots = new Set<string>();
@@ -715,6 +1070,15 @@ export async function storePlan(
   }
   if (issues.length > 0)
     throw new PlanValidationError("The plan names things this account does not have.", issues);
+
+  const warnings = await reviewStoredPlan(db, userId, {
+    exercises: stored,
+    run: plan.run,
+    plannedSets: daySlots.reduce((total, slot) => total + slot.sets, 0),
+    machines,
+    library: visible,
+    unit: profile?.preferredUnit ?? "kg",
+  });
 
   await db
     .update(sessionPlans)
@@ -741,6 +1105,8 @@ export async function storePlan(
       summary: plan.summary,
       warmup: plan.warmup,
       exercises: stored,
+      run: plan.run,
+      warnings,
       model: input.model ?? null,
       routineSessionUrl: input.routineSessionUrl ?? null,
     })
@@ -754,6 +1120,94 @@ export async function storePlan(
       .where(and(eq(coachRequests.id, input.requestId), eq(coachRequests.userId, userId)));
   }
   return row;
+}
+
+/**
+ * Reads a validated plan against the loads that were last managed, so anything startling
+ * travels with the plan and is shown beside it. Never blocks: the coach decides, the app
+ * only says what it noticed.
+ */
+async function reviewStoredPlan(
+  db: DbOrTx,
+  userId: string,
+  input: {
+    exercises: readonly StoredPlanExercise[];
+    run: PlanRun | null;
+    plannedSets: number;
+    machines: readonly { id: string; loadIncrement: number | null; unit: string }[];
+    library: readonly {
+      id: string;
+      slug: string;
+      loadPortability: "global" | "equipment_specific" | "context_dependent";
+      defaultLoadIncrement: number | null;
+    }[];
+    unit: string;
+  },
+): Promise<PlanWarning[]> {
+  const doing = input.exercises.filter((entry) => entry.action !== "drop" && entry.exerciseId);
+  const [histories, lastRun] = await Promise.all([
+    doing.length > 0
+      ? sessionHistories(
+          db,
+          doing.map((entry) => ({
+            userId,
+            exerciseId: entry.exerciseId,
+            loadPortability:
+              input.library.find((e) => e.id === entry.exerciseId)?.loadPortability ?? "global",
+            equipmentInstanceId: entry.equipmentInstanceId,
+            limit: 1,
+          })),
+        )
+      : Promise.resolve([]),
+    input.run
+      ? db
+          .select({ durationSeconds: runLogs.durationSeconds })
+          .from(runLogs)
+          .where(eq(runLogs.userId, userId))
+          .orderBy(desc(runLogs.startedAt))
+          .limit(1)
+      : Promise.resolve([]),
+  ]);
+  const review: ReviewExercise[] = doing.map((entry, index) => {
+    const machine = input.machines.find((m) => m.id === entry.equipmentInstanceId);
+    const library = input.library.find((e) => e.id === entry.exerciseId);
+    const previous = histories[index]?.history[0];
+    const weights = (previous?.sets ?? [])
+      .filter((set) => set.setType !== "warmup" && set.weight !== null)
+      .map((set) => set.weight as number);
+    return {
+      name: entry.exerciseName,
+      entry,
+      lastWorkingWeight: weights.length > 0 ? Math.max(...weights) : null,
+      weightStep: weightStepFor({
+        equipmentLoadIncrement: machine?.loadIncrement ?? null,
+        exerciseDefaultIncrement: library?.defaultLoadIncrement ?? null,
+      }),
+      isStrengthCompound: STRENGTH_COMPOUND_SLUGS.has(entry.exerciseSlug),
+      unit: machine?.unit ?? input.unit,
+    };
+  });
+  return reviewPlan({
+    exercises: [
+      ...review,
+      // Drops carry no targets but still count towards "how much of the day is left out".
+      ...input.exercises
+        .filter((entry) => entry.action === "drop")
+        .map((entry) => ({
+          name: entry.exerciseName,
+          entry,
+          lastWorkingWeight: null,
+          weightStep: null,
+          isStrengthCompound: false,
+          unit: input.unit,
+        })),
+    ],
+    plannedSets: input.plannedSets,
+    run: {
+      planned: input.run,
+      lastDurationMinutes: lastRun[0] ? Math.round(lastRun[0].durationSeconds / 60) : null,
+    },
+  });
 }
 
 /** The plan waiting for one slot, if any. */
@@ -853,7 +1307,11 @@ export async function countRequestsToday(
     .select({ id: coachRequests.id })
     .from(coachRequests)
     .where(
-      and(eq(coachRequests.userId, userId), gte(coachRequests.requestedAt, startOfToday(timeZone))),
+      and(
+        eq(coachRequests.userId, userId),
+        eq(coachRequests.trigger, "replan"),
+        gte(coachRequests.requestedAt, startOfToday(timeZone)),
+      ),
     );
   return rows.length;
 }
@@ -906,7 +1364,7 @@ export async function markRequestFailed(
   return rows.length > 0;
 }
 
-/** A request the coach has not answered yet, unless it is old enough to count as lost. */
+/** A re-plan the coach has not answered yet, unless it is old enough to count as lost. */
 export async function pendingRequest(db: DbOrTx, userId: string): Promise<CoachRequest | null> {
   const since = new Date(Date.now() - REQUEST_TIMEOUT_MINUTES * 60_000);
   const [row] = await db
@@ -915,6 +1373,7 @@ export async function pendingRequest(db: DbOrTx, userId: string): Promise<CoachR
     .where(
       and(
         eq(coachRequests.userId, userId),
+        eq(coachRequests.trigger, "replan"),
         eq(coachRequests.status, "requested"),
         gte(coachRequests.requestedAt, since),
       ),
@@ -922,6 +1381,98 @@ export async function pendingRequest(db: DbOrTx, userId: string): Promise<CoachR
     .orderBy(desc(coachRequests.requestedAt))
     .limit(1);
   return row ?? null;
+}
+
+/**
+ * Records what happened when the coach tried to plan for this athlete.
+ *
+ * A re-plan already leaves a row when the athlete asks for one. A nightly run left nothing at
+ * all, so a night the coach could not plan looked exactly like a night it was never asked:
+ * Today simply had no plan and said nothing. Every attempt now lands here, and the failures
+ * are what Settings and Today can point at.
+ */
+export async function recordAttempt(
+  db: DbOrTx,
+  userId: string,
+  input: {
+    trigger: PlanTrigger;
+    gymId?: string | null;
+    status: "planned" | "failed";
+    error?: string | null;
+    routineSessionId?: string | null;
+    routineSessionUrl?: string | null;
+  },
+): Promise<CoachRequest> {
+  const [row] = await db
+    .insert(coachRequests)
+    .values({
+      userId,
+      gymId: input.gymId ?? null,
+      trigger: input.trigger,
+      status: input.status,
+      error: input.error?.slice(0, 500) ?? null,
+      routineSessionId: input.routineSessionId ?? null,
+      routineSessionUrl: input.routineSessionUrl ?? null,
+      completedAt: new Date(),
+    })
+    .returning();
+  if (!row) throw new Error("Attempt insert returned no row");
+  return row;
+}
+
+/** Everything the coach has tried lately, newest first, for the AI coach screen. */
+export async function recentAttempts(
+  db: DbOrTx,
+  userId: string,
+  limit = 10,
+): Promise<(CoachRequest & { gymName: string | null })[]> {
+  const rows = await db
+    .select({ request: coachRequests, gymName: gyms.name })
+    .from(coachRequests)
+    .leftJoin(gyms, eq(gyms.id, coachRequests.gymId))
+    .where(eq(coachRequests.userId, userId))
+    .orderBy(desc(coachRequests.requestedAt))
+    .limit(limit);
+  return rows.map((row) => ({ ...row.request, gymName: row.gymName }));
+}
+
+/**
+ * The last failure, when nothing has succeeded since. This is what Today shows instead of
+ * silence when the coach could not plan.
+ */
+export async function lastFailure(db: DbOrTx, userId: string): Promise<CoachRequest | null> {
+  const [row] = await db
+    .select()
+    .from(coachRequests)
+    .where(and(eq(coachRequests.userId, userId), ne(coachRequests.status, "requested")))
+    .orderBy(desc(coachRequests.requestedAt))
+    .limit(1);
+  return row && row.status === "failed" ? row : null;
+}
+
+/**
+ * Drops the plan waiting for a slot that has just been skipped or marked done. Without this
+ * a plan for a slot nobody will train stays active forever, and the unique index would keep
+ * a later plan for the same slot out.
+ */
+export async function voidPlanForSlot(
+  db: DbOrTx,
+  userId: string,
+  programId: string,
+  ref: SlotRef,
+): Promise<void> {
+  await db
+    .update(sessionPlans)
+    .set({ status: "void" })
+    .where(
+      and(
+        eq(sessionPlans.userId, userId),
+        eq(sessionPlans.programId, programId),
+        eq(sessionPlans.cycleIndex, ref.cycleIndex),
+        eq(sessionPlans.dayIndex, ref.dayIndex),
+        eq(sessionPlans.status, "active"),
+      ),
+    );
 }
 
 export async function latestPlan(db: DbOrTx, userId: string): Promise<StoredPlan | null> {
@@ -941,6 +1492,8 @@ export type TodayCoachState = {
   /** Whether that plan was made for the gym the athlete is about to train at. */
   matchesGym: boolean;
   pending: CoachRequest | null;
+  /** The last thing the coach tried, when it failed and nothing has succeeded since. */
+  failure: CoachRequest | null;
   requestsLeft: number;
 };
 
@@ -956,10 +1509,11 @@ export async function todayCoachState(
     gymId: string | null;
   },
 ): Promise<TodayCoachState> {
-  const [plan, pending, used] = await Promise.all([
+  const [plan, pending, used, failure] = await Promise.all([
     activePlanForSlot(db, userId, input.programId, input.ref),
     pendingRequest(db, userId),
     countRequestsToday(db, userId, input.timeZone),
+    lastFailure(db, userId),
   ]);
   const planGym = plan ? await getGym(db, userId, plan.gymId) : null;
   return {
@@ -967,8 +1521,35 @@ export async function todayCoachState(
     plan: plan ? { ...plan, gymName: planGym?.name ?? "another gym" } : null,
     matchesGym: plan !== null && input.gymId !== null && plan.gymId === input.gymId,
     pending,
+    failure: plan === null && pending === null ? failure : null,
     requestsLeft: Math.max(0, REPLAN_DAILY_LIMIT - used),
   };
+}
+
+export type PlannedRunToday = {
+  planId: string;
+  run: PlanRun;
+  summary: string;
+  /** The day the run belongs to, so the log screen can say which one it is. */
+  dayName: string;
+};
+
+/**
+ * The run the coach planned for the next training slot, for the screen that logs one. The
+ * plan is not consumed by logging a run: a run day usually lifts as well, and the lifting
+ * session is what uses the plan.
+ */
+export async function plannedRunForToday(
+  db: DbOrTx,
+  userId: string,
+): Promise<PlannedRunToday | null> {
+  const schedule = await getSchedule(db, userId);
+  if (!schedule) return null;
+  const slot = nextTrainingSlot(schedule);
+  if (!slot || !slot.day.includesRun) return null;
+  const plan = await activePlanForSlot(db, userId, schedule.program.id, slot);
+  if (!plan?.run) return null;
+  return { planId: plan.id, run: plan.run, summary: plan.summary, dayName: slot.day.name };
 }
 
 /** Plans an account no longer needs, e.g. after its programme changed. Kept for history. */

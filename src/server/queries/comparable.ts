@@ -1,7 +1,14 @@
 import { and, desc, eq, exists, lt, ne, sql } from "drizzle-orm";
 import { unionAll } from "drizzle-orm/pg-core";
 
-import { equipmentInstances, gyms, setLogs, workoutExercises, workoutSessions } from "@/db/schema";
+import {
+  equipmentInstances,
+  gyms,
+  programExercises,
+  setLogs,
+  workoutExercises,
+  workoutSessions,
+} from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import { comparisonScope } from "@/domain/comparable-history";
 import type { LoadPortability, LoadUnit, SetType } from "@/domain/types";
@@ -21,6 +28,11 @@ export type ComparablePerformance = {
   workoutSessionId: string;
   /** The programme slot this was performed for, if any; lets the engine compare like with like. */
   plannedProgramExerciseId: string | null;
+  /**
+   * That slot's identity across programme versions. A revision clones every slot into new
+   * rows, so this is what still says "the squat slot of Lower A" afterwards.
+   */
+  plannedSlotLineageId: string | null;
   gymId: string;
   gymName: string;
   equipmentInstanceId: string | null;
@@ -65,6 +77,7 @@ function performanceQuery(db: DbOrTx, filter: PerformanceFilter, requestIndex: n
       workoutExerciseId: workoutExercises.id,
       workoutSessionId: workoutSessions.id,
       plannedProgramExerciseId: workoutExercises.plannedProgramExerciseId,
+      plannedSlotLineageId: programExercises.lineageId,
       gymId: workoutSessions.gymId,
       gymName: gyms.name,
       equipmentInstanceId: workoutExercises.equipmentInstanceId,
@@ -89,6 +102,7 @@ function performanceQuery(db: DbOrTx, filter: PerformanceFilter, requestIndex: n
     .innerJoin(workoutSessions, eq(workoutSessions.id, workoutExercises.workoutSessionId))
     .innerJoin(gyms, eq(gyms.id, workoutSessions.gymId))
     .leftJoin(equipmentInstances, eq(equipmentInstances.id, workoutExercises.equipmentInstanceId))
+    .leftJoin(programExercises, eq(programExercises.id, workoutExercises.plannedProgramExerciseId))
     .where(and(...conditions))
     .orderBy(desc(workoutSessions.startedAt), desc(workoutExercises.orderIndex))
     .limit(filter.limit);

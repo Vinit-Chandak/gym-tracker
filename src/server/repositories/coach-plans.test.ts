@@ -1,11 +1,18 @@
-import { eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { equipmentInstances, equipmentTypes, profiles, sessionPlans } from "@/db/schema";
+import {
+  equipmentInstances,
+  equipmentTypes,
+  gyms as gymsTable,
+  profiles,
+  sessionPlans,
+} from "@/db/schema";
 import { seedReferenceData } from "@/db/seed/reference";
 import { seedTestUserData } from "@/db/test/fixtures";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
+import { parseProgramBlueprint } from "@/domain/program-blueprint";
 import { handleCoachServiceRequest } from "@/server/coach-service";
 
 import {
@@ -13,17 +20,24 @@ import {
   CoachRequestLimitError,
   createCoachRequest,
   getCoachMemo,
+  lastFailure,
   listDueUsers,
   markRequestFailed,
   pendingRequest,
+  plannedRunForToday,
   PlanValidationError,
   planningContext,
+  recentAttempts,
+  recordAttempt,
   recordRoutineRun,
   REPLAN_DAILY_LIMIT,
   storePlan,
   todayCoachState,
+  voidPlanForSlot,
 } from "./coach-plans";
 import { listGyms } from "./gyms";
+import { createProgramFromBlueprint } from "./programs";
+import { createRun } from "./runs";
 import { getSchedule, recordSlotEvent } from "./schedule";
 import { discardSession, finishSession, getSessionDetail, startPlannedSession } from "./sessions";
 
@@ -573,3 +587,318 @@ function planFor(ctx: Context, summary: string) {
     memo: "Profile: Alice, squats twice a week.",
   };
 }
+
+describe("a day that lifts and runs", () => {
+  let ctx: Context;
+  let programId: string;
+
+  beforeAll(async () => {
+    const schedule = await withUser(t.db, alice.id, (tx) => getSchedule(tx, alice.id));
+    programId = schedule!.program.id;
+    await withUser(t.db, alice.id, async (tx) => {
+      // Upper A out of the way, so the next slot is the one that runs.
+      await recordSlotEvent(tx, alice.id, programId, { cycleIndex: 1, dayIndex: 2 }, "completed", {
+        occurredOn: "2026-09-09",
+      });
+      for (const [days, minutes] of [
+        [9, 22],
+        [5, 24],
+        [2, 25],
+      ] as const) {
+        await createRun(tx, alice.id, {
+          mode: "outdoor",
+          startedAt: new Date(Date.now() - days * 24 * 60 * 60 * 1000),
+          durationSeconds: minutes * 60,
+          distanceMeters: minutes * 150,
+          rpe: 3,
+          shinLeftPre: 1,
+          shinRightPre: 1,
+          shinLeftDuring: null,
+          shinRightDuring: null,
+          shinLeftPost: 2,
+          shinRightPost: 1,
+          programRunId: null,
+          notes: null,
+        });
+      }
+    });
+    ctx = await context();
+  });
+
+  it("plans the running day, with the programme's own run and the load behind it", async () => {
+    expect(ctx.slot).toMatchObject({
+      dayIndex: 3,
+      name: "Easy Run + Arms",
+      includesLifting: true,
+      includesRun: true,
+    });
+    expect(ctx.slot.programRunId).toBeTruthy();
+    expect(ctx.slot.runTarget).toMatchObject({ durationMinMinutes: expect.any(Number) });
+    expect(ctx.running.history).toHaveLength(3);
+    expect(ctx.running.history[0]?.durationMinutes).toBe(25);
+    expect(ctx.running.weeks).toHaveLength(4);
+    expect(ctx.running.weeks[0]?.minutes).toBeGreaterThan(0);
+    expect(ctx.volume).toHaveLength(4);
+    // The coach's own last calls, so it can tell whether they worked.
+    expect(ctx.lastPlans.length).toBeGreaterThan(0);
+    expect(ctx.lastPlans[0]).toMatchObject({
+      trigger: expect.any(String),
+      status: expect.any(String),
+    });
+  });
+
+  it("stores the run beside the lifting, against the programme's planned run", async () => {
+    const plan = await withUser(t.db, alice.id, (tx) =>
+      storePlan(tx, alice.id, {
+        slot: { cycleIndex: 1, dayIndex: 3 },
+        gymId: anytimeId,
+        trigger: "nightly",
+        plan: {
+          summary: "Easy 25 then arms.",
+          run: {
+            durationMinutes: 25,
+            rpe: 3,
+            paceNote: "Nose-breathing pace.",
+            stopRule: "Stop if either shin goes past 3.",
+            programRunId: ctx.slot.programRunId,
+          },
+          exercises: [
+            {
+              slotId: slotOf(ctx, "preacher-curl"),
+              exerciseSlug: "preacher-curl",
+              sets: [{ weight: 20, reps: 10, rir: 1 }],
+            },
+          ],
+        },
+      }),
+    );
+    expect(plan.run).toMatchObject({
+      mode: "outdoor",
+      durationMinutes: 25,
+      rpe: 3,
+      programRunId: ctx.slot.programRunId,
+      stopRule: "Stop if either shin goes past 3.",
+    });
+    expect(plan.exercises[0]?.slotLineageId).toBeTruthy();
+    const today = await withUser(t.db, alice.id, (tx) => plannedRunForToday(tx, alice.id));
+    expect(today).toMatchObject({
+      planId: plan.id,
+      dayName: "Easy Run + Arms",
+      summary: "Easy 25 then arms.",
+    });
+    expect(today?.run.durationMinutes).toBe(25);
+  });
+
+  it("refuses a run the programme does not have, and a run on a day that does not run", async () => {
+    await expect(
+      withUser(t.db, alice.id, (tx) =>
+        storePlan(tx, alice.id, {
+          slot: { cycleIndex: 1, dayIndex: 3 },
+          gymId: anytimeId,
+          trigger: "nightly",
+          plan: {
+            summary: "x",
+            run: { durationMinutes: 25, programRunId: "00000000-0000-4000-8000-000000000000" },
+          },
+        }),
+      ),
+    ).rejects.toMatchObject({ issues: [{ path: "run.programRunId" }] });
+    await expect(
+      withUser(t.db, alice.id, (tx) =>
+        storePlan(tx, alice.id, {
+          slot: { cycleIndex: 1, dayIndex: 4 },
+          gymId: anytimeId,
+          trigger: "nightly",
+          plan: { summary: "x", run: { durationMinutes: 25 } },
+        }),
+      ),
+    ).rejects.toThrow(/no run in the programme/);
+  });
+
+  it("stores what it noticed about the plan, without refusing it", async () => {
+    const plan = await withUser(t.db, alice.id, (tx) =>
+      storePlan(tx, alice.id, {
+        slot: { cycleIndex: 1, dayIndex: 3 },
+        gymId: anytimeId,
+        trigger: "nightly",
+        plan: {
+          summary: "A long way out.",
+          // 25 minutes to 50 is a jump the athlete should see before they run it.
+          run: { durationMinutes: 50, programRunId: ctx.slot.programRunId },
+          exercises: [
+            {
+              slotId: slotOf(ctx, "preacher-curl"),
+              exerciseSlug: "preacher-curl",
+              sets: [{ weight: 20, reps: 10, rir: 1 }],
+            },
+          ],
+        },
+      }),
+    );
+    expect(plan.status).toBe("active");
+    expect(plan.warnings.map((warning) => warning.code)).toEqual(
+      expect.arrayContaining(["run_jump", "volume_drift"]),
+    );
+  });
+
+  it("drops the plan when the slot is skipped instead of trained", async () => {
+    await withUser(t.db, alice.id, (tx) =>
+      voidPlanForSlot(tx, alice.id, programId, { cycleIndex: 1, dayIndex: 3 }),
+    );
+    expect(
+      await withUser(t.db, alice.id, (tx) =>
+        activePlanForSlot(tx, alice.id, programId, { cycleIndex: 1, dayIndex: 3 }),
+      ),
+    ).toBeNull();
+    expect(await withUser(t.db, alice.id, (tx) => plannedRunForToday(tx, alice.id))).toBeNull();
+  });
+});
+
+describe("a day that only runs", () => {
+  let runner: { id: string; email: string };
+  let outdoorId: string;
+
+  beforeAll(async () => {
+    runner = await t.createAuthUser("runner@example.com");
+    await withUser(t.db, runner.id, (tx) => seedTestUserData(tx, runner));
+    await t.db
+      .update(profiles)
+      .set({ aiCoachEnabled: true, timeZone: TZ, displayName: "Runner" })
+      .where(eq(profiles.id, runner.id));
+    const gyms = await withUser(t.db, runner.id, (tx) => listGyms(tx, runner.id));
+    outdoorId = gyms.find((g) => g.slug === "outdoor")!.id;
+    // Nowhere to lift: the only place left on the account is the one they run from.
+    await t.db
+      .update(gymsTable)
+      .set({ isActive: false })
+      .where(and(eq(gymsTable.userId, runner.id), ne(gymsTable.id, outdoorId)));
+    await withUser(t.db, runner.id, (tx) =>
+      createProgramFromBlueprint(tx, runner.id, RUN_ONLY_BLUEPRINT, { startDate: "2026-09-07" }),
+    );
+  });
+
+  it("is due, and plans at a place that is not a gym", async () => {
+    const due = await listDueUsers(t.db);
+    expect(due.find((entry) => entry.userId === runner.id)).toMatchObject({
+      gymName: "Outdoor",
+      slot: { dayIndex: 1, dayName: "Easy run", lifts: false, runs: true },
+    });
+    const ctx = await withUser(t.db, runner.id, (tx) => planningContext(tx, runner.id));
+    if (ctx.reason) throw new Error(ctx.reason);
+    expect(ctx.gym.name).toBe("Outdoor");
+    expect(ctx.exercises).toEqual([]);
+    expect(ctx.slot.programRunId).toBeTruthy();
+  });
+
+  it("takes a run and nothing else", async () => {
+    const ctx = await withUser(t.db, runner.id, (tx) => planningContext(tx, runner.id));
+    if (ctx.reason) throw new Error(ctx.reason);
+    const store = (plan: unknown) =>
+      withUser(t.db, runner.id, (tx) =>
+        storePlan(tx, runner.id, {
+          slot: { cycleIndex: 1, dayIndex: 1 },
+          gymId: outdoorId,
+          trigger: "nightly",
+          plan,
+        }),
+      );
+    await expect(
+      store({
+        summary: "Run and curls.",
+        run: { durationMinutes: 20 },
+        exercises: [{ exerciseSlug: "preacher-curl", sets: [] }],
+      }),
+    ).rejects.toThrow(/no lifting/);
+    const plan = await store({
+      summary: "Easy 20.",
+      run: { durationMinutes: 20, rpe: 3, programRunId: ctx.slot.programRunId },
+    });
+    expect(plan.exercises).toEqual([]);
+    expect(plan.run?.durationMinutes).toBe(20);
+    expect(
+      await withUser(t.db, runner.id, (tx) => plannedRunForToday(tx, runner.id)),
+    ).toMatchObject({ dayName: "Easy run" });
+  });
+});
+
+describe("what the coach tried", () => {
+  it("records every attempt, and Today points at the last failure until one works", async () => {
+    const state = () =>
+      withUser(t.db, alice.id, (tx) =>
+        todayCoachState(tx, alice.id, {
+          enabled: true,
+          timeZone: TZ,
+          programId: "00000000-0000-4000-8000-000000000000",
+          ref: { cycleIndex: 1, dayIndex: 3 },
+          gymId: anytimeId,
+        }),
+      );
+    await withUser(t.db, alice.id, (tx) =>
+      recordAttempt(tx, alice.id, {
+        trigger: "nightly",
+        gymId: anytimeId,
+        status: "failed",
+        error: "The gym has no machines registered.",
+        routineSessionUrl: "https://claude.ai/code/session_x",
+      }),
+    );
+    expect(await withUser(t.db, alice.id, (tx) => lastFailure(tx, alice.id))).toMatchObject({
+      trigger: "nightly",
+      status: "failed",
+      error: "The gym has no machines registered.",
+    });
+    expect((await state()).failure?.error).toBe("The gym has no machines registered.");
+
+    await withUser(t.db, alice.id, (tx) =>
+      recordAttempt(tx, alice.id, { trigger: "nightly", gymId: anytimeId, status: "planned" }),
+    );
+    // A night that worked ends the story; nothing is shown.
+    expect(await withUser(t.db, alice.id, (tx) => lastFailure(tx, alice.id))).toBeNull();
+    expect((await state()).failure).toBeNull();
+
+    const attempts = await withUser(t.db, alice.id, (tx) => recentAttempts(tx, alice.id, 5));
+    expect(attempts[0]).toMatchObject({ status: "planned", gymName: "Anytime Fitness" });
+    expect(attempts.map((attempt) => attempt.status)).toContain("failed");
+  });
+});
+
+/** A programme whose first slot only runs, for the days the coach prescribes nothing to lift. */
+const RUN_ONLY_BLUEPRINT = parseProgramBlueprint({
+  blueprintVersion: 1,
+  slug: "run-only-test",
+  name: "Run-only test plan",
+  weeks: 2,
+  days: [
+    {
+      dayIndex: 1,
+      dayOfWeek: 1,
+      name: "Easy run",
+      includesLifting: false,
+      includesRun: true,
+      warmupSlug: "run",
+      exercises: [],
+    },
+    {
+      dayIndex: 2,
+      dayOfWeek: 3,
+      name: "Full body",
+      includesLifting: true,
+      includesRun: false,
+      warmupSlug: "lower",
+      exercises: [
+        { exerciseSlug: "high-bar-squat", sets: 3, reps: [5, 8], rir: [1, 2], rest: [120, 180] },
+      ],
+    },
+  ],
+  runs: [
+    {
+      weekIndex: 1,
+      dayOfWeek: 1,
+      duration: [20, 25],
+      rpe: [3, 4],
+      paceNote: "Conversational.",
+      shinRule: "Stop if either shin goes past 3.",
+    },
+    { weekIndex: 2, dayOfWeek: 1, duration: [25, 30], rpe: [3, 4] },
+  ],
+});

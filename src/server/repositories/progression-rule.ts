@@ -24,7 +24,8 @@ export type RuleInput = {
   };
   /** The machine in use, or null for free weights, bodyweight and an undecided machine. */
   equipment: { id: string; unit: LoadUnit; loadIncrement: number | null } | null;
-  plannedProgramExerciseId: string | null;
+  /** The programme slot being performed, by its lineage, so a revision keeps its history. */
+  slotLineageId: string | null;
   /** Comparable performances, newest first (same machine for machine work). */
   history: readonly ComparablePerformance[];
   /** The latest performance on any other machine: a starting guess only. */
@@ -54,8 +55,8 @@ export function applyRule(input: RuleInput): RuleOutcome {
   const scope = comparisonScope(input.exercise.loadPortability);
   const history = input.history;
   const previous = history[0] ?? null;
-  const sameSlot = input.plannedProgramExerciseId
-    ? history.filter((h) => h.plannedProgramExerciseId === input.plannedProgramExerciseId)
+  const sameSlot = input.slotLineageId
+    ? history.filter((h) => h.plannedSlotLineageId === input.slotLineageId)
     : [];
   const basisHistory = sameSlot.length > 0 ? sameSlot : history;
   let basisPerformance = basisHistory[0] ?? null;

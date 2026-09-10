@@ -16,6 +16,7 @@ import { requireUser } from "@/server/auth";
 import { ensureProfile } from "@/server/queries/profile";
 import { profileChanged } from "@/server/queries/request-profile";
 import { addGymFallback } from "@/server/repositories/fallbacks";
+import { voidPlanForSlot } from "@/server/repositories/coach-plans";
 import {
   completeRestSlotsBefore,
   getSchedule,
@@ -144,6 +145,8 @@ export async function skipSlotAction(
       occurredOn: todayInTimeZone(profile.timeZone),
       note: parsed.data.reason,
     });
+    // Nobody will train this slot, so the coach's plan for it goes with it.
+    await voidPlanForSlot(tx, user.id, schedule.program.id, { cycleIndex, dayIndex });
     return { ok: true };
   });
   if (result.ok) revalidateSession();
@@ -494,6 +497,8 @@ export async function completeRestSlotAction(dayIndex: number): Promise<ActionRe
       occurredOn: todayInTimeZone(profile.timeZone),
       note: "Rest day done",
     });
+    // A run-only day is finished this way too, so its plan is done with rather than left active.
+    await voidPlanForSlot(tx, user.id, schedule.program.id, { cycleIndex, dayIndex });
     return { ok: true };
   });
   if (result.ok) revalidateSession();

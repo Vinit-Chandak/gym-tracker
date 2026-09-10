@@ -13,21 +13,27 @@ import { getDb } from "@/db/client";
 import { PROGRAM_TEMPLATES } from "@/db/seed/data/templates";
 import { withUser } from "@/db/with-user";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import { formatIsoDate } from "@/lib/format";
+import { formatDateTime, formatIsoDate } from "@/lib/format";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
+import { listOpenProposals } from "@/server/repositories/program-revisions";
 import { getProgramOverview } from "@/server/repositories/schedule";
 
 import { CycleDay } from "./cycle-day";
+import { Proposals } from "./proposals";
 
 export const metadata: Metadata = { title: "Programme" };
 
 export default async function ProgrammeSettingsPage() {
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
-  const overview = await withUser(getDb(), user.id, (tx) =>
-    getProgramOverview(tx, user.id, profile.timeZone),
-  );
+  const { overview, proposals } = await withUser(getDb(), user.id, async (tx) => {
+    const [overview, proposals] = await Promise.all([
+      getProgramOverview(tx, user.id, profile.timeZone),
+      listOpenProposals(tx, user.id),
+    ]);
+    return { overview, proposals };
+  });
   const templates = PROGRAM_TEMPLATES.map((template) => ({
     slug: template.slug,
     name: template.name,
@@ -89,6 +95,25 @@ export default async function ProgrammeSettingsPage() {
                 </Disclosure>
               )}
             </Card>
+
+            {/* A change waiting on you comes before the programme it would change. */}
+            {proposals.length > 0 && (
+              <Section
+                title="Suggested changes"
+                info="The coach proposes a change when a session-by-session fix keeps repeating. Applying one writes the next version of the programme, keeping your position and everything you have logged."
+              >
+                <Proposals
+                  proposals={proposals.map((proposal) => ({
+                    id: proposal.id,
+                    summary: proposal.summary,
+                    rationale: proposal.rationale,
+                    lines: proposal.lines,
+                    createdAt: formatDateTime(proposal.createdAt, profile.timeZone),
+                    fromCoach: proposal.source === "ai",
+                  }))}
+                />
+              </Section>
+            )}
 
             {/* Every session the programme asks for, in the order it asks for them. */}
             <Section

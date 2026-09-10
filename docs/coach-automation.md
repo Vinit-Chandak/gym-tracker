@@ -1,10 +1,13 @@
 # The AI house coach
 
-Every morning at four, a coach plans the next lifting session of everyone who switched it on:
+Every morning at four, a coach plans the next training day of everyone who switched it on:
 the exercises and machines for the gym they train at, the sets, reps, RIR and loads, a warm-up,
-and one line per exercise saying why. Today shows the plan, and starting the session uses it.
-From Today, anyone can also ask for a fresh plan at another gym. Nothing else in the app
-changes: without a plan, the deterministic progression rule sets the targets as it always has.
+the run when the day runs, and one line per exercise saying why. Today shows the plan, and
+starting the session uses it; the run screen opens prefilled with what the coach asked for.
+From Today, anyone can also ask for a fresh plan at another gym. When the same problem keeps
+coming back, the coach proposes a change to the programme itself, which the athlete approves or
+rejects in Settings. Nothing else in the app changes: without a plan, the deterministic
+progression rule sets the targets as it always has.
 
 The coach runs on the app owner's Claude subscription, as a
 [Claude Code routine](https://code.claude.com/docs/en/routines). No API key and no per-user
@@ -12,21 +15,28 @@ cost are involved. This page explains how the pieces fit and how to set them up 
 
 ## How it fits together
 
-| Piece                  | Where                                                 | Role                                                                                                                                          |
-| ---------------------- | ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| Coach service API      | `/api/coach/service/…`, `src/server/coach-service.ts` | What the routine reads and writes. One service token; every request names an athlete who has the coach on, and runs under that athlete's RLS. |
-| Plans, memos, requests | `session_plans`, `coach_memos`, `coach_requests`      | A plan waits for one programme slot at one gym. The memo is what the coach knows about an athlete. A request is a re-plan asked from Today.   |
-| The routine            | claude.ai/code/routines, on the owner's account       | Runs nightly, and on demand when the app fires it. Clones this repository and follows the coach skill.                                        |
-| The skill and scripts  | `.claude/skills/coach/SKILL.md`, `scripts/coach/`     | The coaching method, the output contract, and small scripts that fetch context, validate and submit a plan.                                   |
-| Today and the session  | `src/app/(app)/today`, `…/workouts/[sessionId]`       | Show the plan, ask for a re-plan, and prefill every set from the plan once the session starts.                                                |
+| Piece                  | Where                                                     | Role                                                                                                                                                                                                                                    |
+| ---------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Coach service API      | `/api/coach/service/…`, `src/server/coach-service.ts`     | What the routine reads and writes. One service token; every request names an athlete who has the coach on, and runs under that athlete's RLS.                                                                                           |
+| Plans, memos, attempts | `session_plans`, `coach_memos`, `coach_requests`          | A plan waits for one programme slot at one gym, and carries the run when the day runs. The memo is what the coach knows about an athlete. Every attempt — a re-plan asked from Today, and each night's run — lands in `coach_requests`. |
+| Programme proposals    | `program_change_proposals`, `src/domain/program-patch.ts` | A change to the programme itself, as a patch against slot lineage. Approving one writes the next programme version; nothing is edited in place.                                                                                         |
+| The routine            | claude.ai/code/routines, on the owner's account           | Runs nightly, and on demand when the app fires it. Clones this repository and follows the coach skill.                                                                                                                                  |
+| The skill and scripts  | `.claude/skills/coach/SKILL.md`, `scripts/coach/`         | The coaching method, the output contract, and small scripts that fetch context, validate and submit a plan.                                                                                                                             |
+| Today and the session  | `src/app/(app)/today`, `…/workouts/[sessionId]`           | Show the plan, ask for a re-plan, and prefill every set from the plan once the session starts.                                                                                                                                          |
 
 A nightly run lists who is due, then plans each athlete in a separate subagent with a fresh
 context, so no athlete's numbers are ever in view while another's plan is written. A re-plan
 run receives the athlete, gym and request in its fire payload and plans that one athlete.
 
 The server checks structure only: real exercises, machines that stand at the chosen gym, slot
-ids from the day being planned, numbers in range. What the plan prescribes is the coach's
-judgement, guided by the skill and by the athlete's memo and notes.
+ids from the day being planned, a run only on a day that runs, numbers in range. What the plan
+prescribes is the coach's judgement, guided by the skill and by the athlete's memo and notes.
+
+Alongside the check, the app reads the plan back against what was last managed and stores what
+it noticed — a load that jumps further than a few of its own steps, a day at half its usual
+volume, a strength lift at or past failure, a run much longer than the last one. These
+warnings never block a plan; they are shown beside it, so the athlete sees what the coach did
+before they train it.
 
 ## One-time setup
 
@@ -123,7 +133,13 @@ session list; its transcript shows every athlete it planned and why.
 ## Day to day
 
 - **Overnight**: one run plans everyone who is due. A plan is made for the athlete's default
-  gym and the next lifting slot of their programme.
+  gym and the next slot of their programme that trains — lifting, running, or both. Only rest
+  days are skipped. A day that only runs is planned at whatever location is active, so an
+  athlete whose only place is Outdoor still gets their run.
+- **Runs** are planned like everything else: the mode, how long, how hard, how it should feel,
+  and when to cut it short. Today shows it on the day's run card, and **Log a run** opens with
+  those numbers already filled in, against the programme's own planned run so the block still
+  counts. Nothing is fixed until it is logged.
 - **Today** shows the plan inside the day's card: the coach's sentence under the day's name,
   a Coach badge, and the plan as the card's last row. If the default gym has changed since,
   a line under the button says which gym the plan was made for. Starting a session at the
@@ -134,14 +150,30 @@ session list; its transcript shows every athlete it planned and why.
   athlete gets three requests a day (`REPLAN_DAILY_LIMIT`), because every one is a run on the
   owner's plan, which also has a daily run allowance shown at claude.ai/code/routines.
 - **Once a session has started it is fixed.** A later plan applies to the next session.
-- **Discarding an empty session** gives its plan back.
+- **Discarding an empty session** gives its plan back. Skipping a slot, or marking it a rest
+  day, drops the plan that was waiting for it.
+- **Suggested changes** appear in **Settings → Programme** when the coach thinks the programme
+  itself is wrong: a movement that keeps stalling, a day that is too much, a run block that
+  should grow. Each says what it would change and why. **Apply** writes the next version of the
+  programme — the same days, every slot keeping its identity, the athlete's position in the
+  sequence carried across — and archives the old one, so every session ever logged still points
+  at the prescription it was actually given. **Not now** files it away. A change cannot be
+  applied while a session is open.
+- **Recent runs** in **Settings → AI coach** lists what the coach tried and what came of it. A
+  night that could not plan says so there, and Today says so too instead of showing nothing.
 
 ## What the coach sees, and who pays
 
 The coach reads one athlete at a time: profile, memo and notes, the programme and next slot,
 the gym's machines, the day's prescriptions with comparable history and the rule's own
-suggestion, the last two weeks of workouts, check-ins, runs and recovery, and the exercise
-library resolved at that gym. It never reads another athlete.
+suggestion, the last two weeks of workouts, check-ins, runs and recovery, four weeks of running
+load with any shin trend in it, four weeks of working sets by muscle, its own last three plans
+with what was actually done against each, and the exercise library resolved at that gym. It
+never reads another athlete.
+
+That last one is what makes it a coach rather than a generator: without it, every night is the
+first night. Comparable history follows a programme slot by its lineage, not by the row it was
+written to, so a revision never loses what a slot has been doing.
 
 Runs draw down the owner's subscription usage and count against the daily routine allowance.
 Every run is a session on the owner's account, and its transcript is visible there; athletes
@@ -156,6 +188,8 @@ export COACH_APP_URL=http://localhost:3000 COACH_SERVICE_TOKEN=<the token>
 npx tsx scripts/coach/due.ts
 npx tsx scripts/coach/context.ts --user <id> --out /tmp/coach/<id>.json
 npx tsx scripts/coach/submit.ts --user <id> --file /tmp/coach/<id>.plan.json
+npx tsx scripts/coach/attempt.ts --user <id> --status planned
+npx tsx scripts/coach/propose.ts --user <id> --file /tmp/coach/<id>.proposal.json
 ```
 
 `scripts/coach/submit.ts` validates the file the way the server does before sending it, and
@@ -163,13 +197,16 @@ prints the server's issues when something named in the plan does not belong to t
 
 ## Troubleshooting
 
-| Symptom                                       | Cause and fix                                                                                            |
-| --------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| Service answers `503 not configured`          | `COACH_SERVICE_TOKEN` missing on the server, or shorter than 16 characters. Add it and redeploy.         |
-| `401` from the service                        | The environment's API credential does not match the server token, or is not sent for this host.          |
-| `403` for an athlete                          | The coach is switched off for that account, or the id is wrong.                                          |
-| `409 Nothing to plan`                         | No active programme, the programme is complete, or no real gym is active.                                |
-| `422` with issues                             | The plan named an exercise, machine or slot the athlete does not have. The issues say which.             |
-| Today keeps waiting                           | A request older than 15 minutes counts as failed; the run's transcript says what happened.               |
-| "Re-plan" says the routine rejected the token | `COACH_ROUTINE_FIRE_URL` or `COACH_ROUTINE_FIRE_TOKEN` is wrong or was regenerated. Update and redeploy. |
-| The routine cannot reach the app              | `COACH_APP_URL` unset, or the credential's allowed website does not match the app's host.                |
+| Symptom                                        | Cause and fix                                                                                             |
+| ---------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Service answers `503 not configured`           | `COACH_SERVICE_TOKEN` missing on the server, or shorter than 16 characters. Add it and redeploy.          |
+| `401` from the service                         | The environment's API credential does not match the server token, or is not sent for this host.           |
+| `403` for an athlete                           | The coach is switched off for that account, or the id is wrong.                                           |
+| `409 Nothing to plan`                          | No active programme, the programme is complete, or no real gym is active.                                 |
+| `422` with issues                              | The plan named an exercise, machine or slot the athlete does not have. The issues say which.              |
+| `422 That day has no lifting`                  | The next slot only runs, so the plan takes a run and no exercises.                                        |
+| `422 That planned run is not in the programme` | `run.programRunId` must be the `slot.programRunId` from the same context, or null.                        |
+| A proposal is refused                          | It names a slot the programme no longer has, or a session is open. Re-read the context and propose again. |
+| Today keeps waiting                            | A request older than 15 minutes counts as failed; the run's transcript says what happened.                |
+| "Re-plan" says the routine rejected the token  | `COACH_ROUTINE_FIRE_URL` or `COACH_ROUTINE_FIRE_TOKEN` is wrong or was regenerated. Update and redeploy.  |
+| The routine cannot reach the app               | `COACH_APP_URL` unset, or the credential's allowed website does not match the app's host.                 |

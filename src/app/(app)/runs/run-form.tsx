@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 
 import { Card } from "@/components/ui/card";
+import { DetailList } from "@/components/ui/detail-list";
 import { Disclosure } from "@/components/ui/disclosure";
 import { FormError, SubmitButton } from "@/components/ui/form";
 import { Field, Input, Textarea } from "@/components/ui/input";
@@ -58,9 +59,19 @@ const SHIN_KEYS: ShinKey[] = [
   "shinRightPost",
 ];
 
+export type CoachRunBrief = {
+  summary: string;
+  line: string;
+  note: string;
+  paceNote: string;
+  stopRule: string;
+};
+
 type Props = {
   action: (previous: FormState, formData: FormData) => Promise<FormState>;
   initial: RunFormValues;
+  /** What the coach asked for, when it planned this run. The fields start from it. */
+  coach?: CoachRunBrief | null;
   /** The current cycle's planned runs, for linking the run to the programme. */
   planned: PlannedRunStatus[];
   /** The run being edited, so its own planned link is not shown as taken. */
@@ -77,7 +88,7 @@ export function plannedRunLabel(run: {
   return `Week ${run.weekIndex} · ${WEEKDAY_SHORT[run.dayOfWeek] ?? "Run"} · ${rangeLabel(run.durationMinMinutes, run.durationMaxMinutes, " min")}`;
 }
 
-export function RunForm({ action, initial, planned, runId, submitLabel }: Props) {
+export function RunForm({ action, initial, planned, runId, submitLabel, coach = null }: Props) {
   const [state, formAction] = useActionState(action, INITIAL_FORM_STATE);
   const value = (key: keyof RunFormValues): string => {
     const submitted = state.values?.[key];
@@ -104,6 +115,24 @@ export function RunForm({ action, initial, planned, runId, submitLabel }: Props)
 
   return (
     <form action={formAction} className="space-y-[var(--section-gap)]">
+      {coach && (
+        <Section title="The coach asked for">
+          <Card>
+            <p className="text-sm font-medium tabular-nums">{coach.line}</p>
+            <p className="text-sm [overflow-wrap:anywhere] text-ink-muted">{coach.summary}</p>
+            {(coach.note || coach.paceNote || coach.stopRule) && (
+              <DetailList
+                entries={[
+                  ["Why", coach.note],
+                  ["Pace", coach.paceNote],
+                  ["Stop if", coach.stopRule],
+                ]}
+              />
+            )}
+          </Card>
+        </Section>
+      )}
+
       <Section title="The run">
         <Card>
           <Field label="When" error={state.fieldErrors?.startedAt}>

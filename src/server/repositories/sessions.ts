@@ -213,7 +213,7 @@ export async function startPlannedSession(
       orderIndex: values.length + 1,
       // The session takes its own copy of the plan's grouping. From here it is the
       // session's to change, and the programme template is never written back.
-      supersetGroup: item.supersetGroup,
+      supersetGroup: entry?.supersetGroup ?? item.supersetGroup,
     };
     if (entry?.action === "drop") {
       values.push({
@@ -258,6 +258,7 @@ export async function startPlannedSession(
       equipmentInstanceId: entry.equipmentInstanceId,
       plannedProgramExerciseId: null,
       orderIndex: values.length + 1,
+      supersetGroup: entry.supersetGroup,
       substitutionReason: "Added by the coach's plan",
     });
   }
@@ -539,7 +540,7 @@ export async function getSessionDetail(
       planned: row.planned,
       exercise: row.exercise,
       equipment: row.equipment?.id ? row.equipment : null,
-      plannedProgramExerciseId: row.we.plannedProgramExerciseId,
+      slotLineageId: row.planned?.lineageId ?? null,
       history: histories[index]?.history ?? [],
       elsewhere: histories[index]?.elsewhere ?? null,
     });

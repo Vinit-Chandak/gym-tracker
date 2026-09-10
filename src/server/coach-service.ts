@@ -12,8 +12,10 @@ import {
   markRequestFailed,
   PlanValidationError,
   planningContext,
+  recordAttempt,
   storePlan,
 } from "@/server/repositories/coach-plans";
+import { createProposal, ProposalError } from "@/server/repositories/program-revisions";
 
 /**
  * The house coach's API: what the routine reads and writes.
@@ -65,6 +67,20 @@ const planBodySchema = z.object({
 });
 
 const failBodySchema = z.object({ error: z.string().trim().min(1).max(500) });
+
+const attemptBodySchema = z.object({
+  trigger: z.enum(PLAN_TRIGGERS).default("nightly"),
+  status: z.enum(["planned", "failed"]),
+  error: z.string().trim().max(500).nullable().optional(),
+  gymId: z.uuid().nullable().optional(),
+  routineSessionUrl: z.url().max(300).nullable().optional(),
+});
+
+const proposalBodySchema = z.object({
+  summary: z.string().trim().min(1).max(300),
+  rationale: z.string().trim().max(2000).nullable().optional(),
+  patch: z.unknown(),
+});
 
 /** The athlete's row, only if they have switched the coach on. */
 async function coachedAthlete(db: Db, userId: string) {
@@ -159,6 +175,38 @@ export async function handleCoachServiceRequest(
         } catch (error) {
           if (error instanceof PlanValidationError)
             return json({ error: error.message, issues: error.issues }, 422);
+          throw error;
+        }
+      }
+      if (rest.length === 1 && rest[0] === "attempts" && method === "POST") {
+        const body = attemptBodySchema.safeParse(await request.json().catch(() => null));
+        if (!body.success) return json({ error: "Send { trigger, status, error?, gymId? }." }, 400);
+        const attempt = await withUser(db, athlete.id, (tx) =>
+          recordAttempt(tx, athlete.id, {
+            trigger: body.data.trigger,
+            gymId: body.data.gymId ?? null,
+            status: body.data.status,
+            error: body.data.error ?? null,
+            routineSessionUrl: body.data.routineSessionUrl ?? null,
+          }),
+        );
+        return json({ ...meta, attempt: { id: attempt.id, status: attempt.status } }, 201);
+      }
+      if (rest.length === 1 && rest[0] === "proposals" && method === "POST") {
+        const body = proposalBodySchema.safeParse(await request.json().catch(() => null));
+        if (!body.success) return json({ error: "Send { summary, rationale?, patch }." }, 400);
+        try {
+          const proposal = await withUser(db, athlete.id, (tx) =>
+            createProposal(tx, athlete.id, {
+              source: "ai",
+              summary: body.data.summary,
+              rationale: body.data.rationale ?? null,
+              patch: body.data.patch,
+            }),
+          );
+          return json({ ...meta, proposal: { id: proposal.id, status: proposal.status } }, 201);
+        } catch (error) {
+          if (error instanceof ProposalError) return json({ error: error.message }, 422);
           throw error;
         }
       }
