@@ -54,7 +54,7 @@ export default async function GymsPage() {
           <EmptyState
             icon={MapPin}
             title="No gyms yet"
-            description="Add the gyms you train at. Each gym keeps its own machine list, so history never mixes stack numbers between locations."
+            description="Add the gyms you train at."
             action={
               <LinkButton href="/gyms/new" variant="secondary" size="sm">
                 Add your first gym
@@ -66,7 +66,7 @@ export default async function GymsPage() {
         )}
         {active.length > 0 && !active.some((gym) => gym.isDefault) && (
           <p className="text-sm text-ink-muted">
-            No default gym yet. Open a gym and tap “Make default gym”.
+            No default gym. Open one and make it the default.
           </p>
         )}
         {/* Archived gyms are kept, not deleted: history refers to them. */}

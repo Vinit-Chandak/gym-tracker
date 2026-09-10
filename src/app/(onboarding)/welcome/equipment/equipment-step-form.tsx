@@ -101,8 +101,8 @@ export function EquipmentStepForm({
       <FormError message={state.formError} />
       <p className="text-sm text-ink-muted" aria-live="polite">
         {selected.size === 0
-          ? "Nothing ticked — you can add machines from the gym screen later."
-          : `${selected.size} ${selected.size === 1 ? "machine" : "machines"} will be added.`}
+          ? "Nothing ticked yet."
+          : `${selected.size} ${selected.size === 1 ? "machine" : "machines"} selected.`}
       </p>
       <SubmitButton pendingLabel="Adding…">
         {selected.size === 0 ? "Continue without machines" : "Add and continue"}

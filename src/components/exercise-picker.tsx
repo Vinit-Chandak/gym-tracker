@@ -80,13 +80,9 @@ export function ExercisePicker({ name, exercises, value, onChange, error }: Exer
 
       {/* An empty catalogue and a query that matches nothing are different problems. */}
       {exercises.length === 0 ? (
-        <p className="text-sm text-ink-muted">
-          No exercises in the library yet. Add one from the exercise library first.
-        </p>
+        <p className="text-sm text-ink-muted">No exercises in the library.</p>
       ) : groups.length === 0 ? (
-        <p className="text-sm text-ink-muted">
-          Nothing matches “{query}”. Try a muscle or a piece of equipment.
-        </p>
+        <p className="text-sm text-ink-muted">Nothing matches “{query}”.</p>
       ) : (
         groups.map((group) => (
           <section key={group.region}>

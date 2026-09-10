@@ -66,30 +66,26 @@ export function InstallCard() {
   const { install, available } = useInstallPrompt();
   if (standalone !== false) return null;
 
+  if (available) {
+    return (
+      <div className="flex items-center justify-between gap-3">
+        <p className="font-medium">Install {APP_NAME}</p>
+        <Button variant="secondary" size="sm" onClick={install}>
+          Install
+        </Button>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-w-0 space-y-3">
+    <div className="min-w-0 space-y-1">
       <p className="font-medium">Install {APP_NAME}</p>
-      {available ? (
-        <>
-          <p className="text-sm text-ink-muted">
-            Add it to your home screen and it launches full-screen, like a native app.
-          </p>
-          <Button variant="secondary" className="w-full" onClick={install}>
-            Install app
-          </Button>
-        </>
-      ) : (
-        <>
-          <p className="text-sm text-ink-muted">
-            <span className="font-medium text-ink">Android (Chrome):</span> menu ⋮ → “Add to Home
-            screen”.
-          </p>
-          <p className="text-sm text-ink-muted">
-            <span className="font-medium text-ink">iPhone (Safari):</span> Share → “Add to Home
-            Screen”.
-          </p>
-        </>
-      )}
+      <p className="text-sm text-ink-muted">
+        <span className="text-ink">Android:</span> Chrome menu ⋮ → Add to Home screen
+      </p>
+      <p className="text-sm text-ink-muted">
+        <span className="text-ink">iPhone:</span> Safari Share → Add to Home Screen
+      </p>
     </div>
   );
 }

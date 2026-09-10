@@ -214,7 +214,7 @@ export function HistoryView({
         <EmptyState
           icon={CalendarDays}
           title="No matching activity"
-          description="Finished workouts, runs and recovery readings appear here. Try a wider date range or clear the filters."
+          description="Try a wider date range or clear the filters."
           action={
             active > 0 ? (
               <Button variant="secondary" size="sm" onClick={() => apply(EMPTY)}>

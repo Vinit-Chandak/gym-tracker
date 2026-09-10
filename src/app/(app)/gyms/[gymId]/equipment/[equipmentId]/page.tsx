@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
 import { SubmitButton } from "@/components/ui/form";
 import { Card } from "@/components/ui/card";
+import { InfoTip } from "@/components/ui/info-tip";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { setEquipmentActiveAction, updateEquipmentAction } from "@/server/actions/equipment";
@@ -81,16 +82,20 @@ export default async function EquipmentPage(
         </Card>
         {equipment.isActive && (
           <Card>
-            <h2 className="text-base font-medium">Archive this machine</h2>
-            <p className="text-sm text-ink-muted">
-              Hides it when you plan a session at {equipment.gymName}. Sets you logged on it stay in
-              your history.
-            </p>
-            <form action={setEquipmentActiveAction.bind(null, gymId, equipment.id, false)}>
-              <SubmitButton variant="danger" className="w-full">
+            <div className="flex items-center justify-between gap-3">
+              <p className="flex items-center gap-1 font-medium">
                 Archive machine
-              </SubmitButton>
-            </form>
+                <InfoTip label="About archiving">
+                  Hides it from new sessions at {equipment.gymName}. Sets logged on it stay in
+                  history.
+                </InfoTip>
+              </p>
+              <form action={setEquipmentActiveAction.bind(null, gymId, equipment.id, false)}>
+                <SubmitButton variant="danger" size="sm" className="w-auto">
+                  Archive
+                </SubmitButton>
+              </form>
+            </div>
           </Card>
         )}
       </PageContent>

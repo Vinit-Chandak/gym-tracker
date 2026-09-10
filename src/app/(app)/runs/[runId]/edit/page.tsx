@@ -76,7 +76,6 @@ export default async function EditRunPage(props: PageProps<"/runs/[runId]/edit">
             notes: run.notes ?? "",
           }}
           planned={planned}
-          cycleIndex={cycle?.cycleIndex ?? null}
           runId={run.id}
           submitLabel="Save changes"
         />

@@ -65,7 +65,7 @@ export function NumberField({
           onChange={(event) => onChange(sanitizeNumberEntry(event.target.value, inputMode, max))}
           disabled={disabled}
           aria-label={label}
-          className="order-1 col-span-2 h-11 w-full min-w-0 bg-transparent text-center text-[length:var(--ov-text-input)] font-medium tabular-nums placeholder:font-normal placeholder:text-ink-subtle focus:outline-none"
+          className="order-1 col-span-2 h-11 w-full min-w-0 bg-transparent text-center text-[length:var(--ov-text-input)] font-semibold tabular-nums placeholder:font-normal placeholder:text-ink-ghost focus:outline-none"
         />
         <button
           type="button"

@@ -19,7 +19,7 @@ export function ProfileSettings({ email, values }: { email: string; values: Prof
         <p className="font-medium">{values.displayName || "Your profile"}</p>
         <p className="text-sm break-words text-ink-muted">{email}</p>
       </div>
-      <Disclosure summary="Edit profile">
+      <Disclosure summary="Edit">
         <form action={formAction} className="space-y-4">
           <ProfileFields values={values} errors={state.fieldErrors} />
           <FormError message={state.formError} />

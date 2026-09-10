@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { InfoTip } from "@/components/ui/info-tip";
 import { LinkRow, List } from "@/components/ui/link-row";
 import { Section } from "@/components/ui/section";
 import { getDb } from "@/db/client";
@@ -48,10 +49,12 @@ export default async function RunsPage() {
         {thisWeek && (
           <Card>
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-base font-medium">This week</h2>
-              <span className="text-xs text-ink-subtle">
-                from {formatIsoDate(thisWeek.weekStart)}
-              </span>
+              <h2 className="flex items-center gap-1 text-base font-medium">
+                This week
+                <InfoTip label="About the week">
+                  Monday to Sunday in your time zone, from {formatIsoDate(thisWeek.weekStart)}.
+                </InfoTip>
+              </h2>
             </div>
             <p className="text-lg font-medium tabular-nums">{volumeLine(thisWeek)}</p>
             {lastWeek && (
@@ -59,13 +62,16 @@ export default async function RunsPage() {
                 Last week: {volumeLine(lastWeek)}
               </p>
             )}
-            <p className="text-xs text-ink-subtle">Monday–Sunday in your time zone</p>
             {overview.spike && (
-              <p className="text-sm text-warning">
-                Already {Math.round((overview.spike.ratio - 1) * 100)}% above last week&apos;s{" "}
-                {overview.spike.lastWeekMinutes} min (the flag starts at{" "}
-                {Math.round((RUN_VOLUME_SPIKE_RATIO - 1) * 100)}%). Advice: keep the remaining runs
-                easy and short; build time, not pace.
+              <p className="flex items-start gap-1 text-sm text-warning">
+                <span>
+                  {Math.round((overview.spike.ratio - 1) * 100)}% above last week. Keep the
+                  remaining runs easy and short.
+                </span>
+                <InfoTip label="About the workload warning">
+                  Last week was {overview.spike.lastWeekMinutes} min; the flag starts at{" "}
+                  {Math.round((RUN_VOLUME_SPIKE_RATIO - 1) * 100)}% above it. Build time, not pace.
+                </InfoTip>
               </p>
             )}
           </Card>
@@ -78,7 +84,12 @@ export default async function RunsPage() {
         {overview.shin.length > 0 && (
           <Card>
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-base font-medium">Shin check</h2>
+              <h2 className="flex items-center gap-1 text-base font-medium">
+                Shin check
+                <InfoTip label="About the shin check">
+                  From the shin scores of the last {SHIN_ESCALATION_RUNS} runs.
+                </InfoTip>
+              </h2>
               <Badge tone="warning">Advice</Badge>
             </div>
             <ul className="space-y-1 text-sm">
@@ -92,20 +103,26 @@ export default async function RunsPage() {
                     .
                   </span>{" "}
                   <span className="text-ink-muted">
-                    Stop adding run time, keep runs easy or swap for walking or cycling, and
-                    consider getting it assessed if it is pinpoint or hurts while walking.
+                    Stop adding run time; keep runs easy or swap for walking or cycling. Get it
+                    assessed if it is pinpoint or hurts while walking.
                   </span>
                 </li>
               ))}
             </ul>
-            <p className="text-xs text-ink-subtle">
-              Based on the shin scores of the last {SHIN_ESCALATION_RUNS} runs.
-            </p>
           </Card>
         )}
 
         {overview.cycle && (
-          <Section title={`Programme · week ${overview.cycle.cycleIndex}`}>
+          <Section
+            title={`Programme · week ${overview.cycle.cycleIndex}`}
+            info={
+              notes
+                ? [notes.paceNote, notes.progressionNote, notes.shinRule, notes.comment]
+                    .filter(Boolean)
+                    .join(" · ")
+                : undefined
+            }
+          >
             {overview.cycle.planned.length === 0 ? (
               <p className="text-sm text-ink-muted">No runs planned this week.</p>
             ) : (
@@ -122,13 +139,6 @@ export default async function RunsPage() {
                 ))}
               </ul>
             )}
-            {notes && (
-              <p className="text-xs text-ink-subtle">
-                {[notes.paceNote, notes.progressionNote, notes.shinRule, notes.comment]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </p>
-            )}
           </Section>
         )}
 
@@ -137,7 +147,7 @@ export default async function RunsPage() {
             <EmptyState
               icon={Footprints}
               title="No runs yet"
-              description="Log a run after you finish it: distance, time, effort and how the shins felt."
+              description="Log a run after you finish it."
               action={
                 <LinkButton href="/runs/new" variant="secondary" size="sm">
                   Log a run

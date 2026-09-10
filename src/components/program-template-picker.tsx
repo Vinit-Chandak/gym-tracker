@@ -76,7 +76,7 @@ export function ProgramTemplatePicker({
         })}
       </ul>
 
-      <Field label="Start date" hint="The first day of the cycle. Today is fine.">
+      <Field label="Start date">
         <Input type="date" name="startDate" defaultValue={today} required />
       </Field>
 

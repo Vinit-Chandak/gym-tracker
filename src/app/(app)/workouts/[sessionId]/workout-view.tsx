@@ -105,6 +105,7 @@ export function WorkoutView({ session, userId }: { session: SessionVM; userId: s
           sessionId={session.id}
           exercises={session.exercises}
           group={supersetFor.group}
+          onEditGroup={(group) => setSupersetFor({ group })}
           onClose={() => setSupersetFor(null)}
           onChanged={() => router.refresh()}
         />

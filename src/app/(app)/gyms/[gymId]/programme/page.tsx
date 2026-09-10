@@ -30,9 +30,9 @@ function detail(row: PlannedExerciseAvailability): string {
     case "fallback":
       return `Do ${row.resolvedExerciseName}${r.equipmentInstance ? ` on ${r.equipmentInstance.name}` : ""} instead`;
     case "unknown":
-      return `Needs ${row.missingTypes.map((t) => t.name.toLowerCase()).join(" or ")}. Register the machine on this gym, or mark it as not here.`;
+      return `Needs ${row.missingTypes.map((t) => t.name.toLowerCase()).join(" or ")}: register it, or mark it as not here.`;
     case "unavailable":
-      return "Marked as not available here, and no fallback fits.";
+      return "Not available here, and no fallback fits.";
   }
 }
 
@@ -64,10 +64,7 @@ export default async function GymProgrammePage(props: PageProps<"/gyms/[gymId]/p
               ))}
             </StatTileRow>
           ) : (
-            <p className="text-sm text-ink-muted">
-              No active programme yet. Choose one in Settings and this screen will show how well it
-              fits this gym.
-            </p>
+            <p className="text-sm text-ink-muted">No active programme.</p>
           )}
         </Card>
 
@@ -127,7 +124,7 @@ export default async function GymProgrammePage(props: PageProps<"/gyms/[gymId]/p
                 size="sm"
                 className="w-full"
               >
-                Add a fallback for this gym
+                Add a fallback
               </LinkButton>
             )}
           </Card>

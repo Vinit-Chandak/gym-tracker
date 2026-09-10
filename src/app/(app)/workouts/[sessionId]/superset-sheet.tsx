@@ -1,9 +1,12 @@
 "use client";
 
+import { ChevronRight } from "lucide-react";
 import { useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
+import { InfoTip } from "@/components/ui/info-tip";
 import { Sheet } from "@/components/ui/sheet";
+import { supersetHues, supersetStyle } from "@/lib/superset-colors";
 import { cn } from "@/lib/utils";
 import { removeSupersetAction, saveSupersetAction } from "@/server/actions/sessions";
 
@@ -14,6 +17,8 @@ type SupersetSheetProps = {
   exercises: readonly ExerciseVM[];
   /** The group being edited, or null when creating a new one. */
   group: string | null;
+  /** Switches to editing an existing group; the caller remounts the sheet for it. */
+  onEditGroup: (group: string) => void;
   onClose: () => void;
   onChanged: () => void;
 };
@@ -24,11 +29,15 @@ type SupersetSheetProps = {
  * It writes a label on the workout's own exercises. The programme template is never
  * touched, so today's pairing does not become next week's plan, and no recorded set is
  * moved or reassigned by grouping or ungrouping.
+ *
+ * The list rows carry no group caption, so this is also where an existing group is found
+ * again: opening the sheet fresh lists the workout's groups by colour before the picker.
  */
 export function SupersetSheet({
   sessionId,
   exercises,
   group,
+  onEditGroup,
   onClose,
   onChanged,
 }: SupersetSheetProps) {
@@ -39,6 +48,12 @@ export function SupersetSheet({
   );
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const hues = supersetHues(exercises);
+  const existing = [...hues.keys()].map((name) => ({
+    name,
+    hue: hues.get(name)!,
+    members: exercises.filter((e) => e.supersetGroup === name).map((e) => e.exercise.name),
+  }));
 
   const toggle = (id: string) =>
     setSelected((current) =>
@@ -84,18 +99,44 @@ export function SupersetSheet({
     });
 
   return (
-    <Sheet open onClose={onClose} title={group ?? "New superset"}>
+    <Sheet open onClose={onClose} title={group ? "Edit superset" : "Superset"}>
       <div className="space-y-3">
-        <p className="text-sm text-ink-muted">
-          Groups these exercises for this workout only. Your programme is unchanged, and every set
-          you have already logged stays where it is.
+        <p className="flex items-center gap-1 text-sm text-ink-muted">
+          This workout only
+          <InfoTip label="About supersets">
+            Grouped exercises are done back to back. The grouping belongs to this workout: the
+            programme is unchanged, and logged sets stay where they are.
+          </InfoTip>
         </p>
+
+        {group === null && existing.length > 0 && (
+          <ul className="border-y border-line ruled-list">
+            {existing.map((entry) => (
+              <li key={entry.name}>
+                <button
+                  type="button"
+                  onClick={() => onEditGroup(entry.name)}
+                  className="flex min-h-12 w-full items-center gap-3 py-2 superset-row text-left text-sm active:bg-surface-raised"
+                  style={supersetStyle(entry.hue)}
+                >
+                  <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
+                    {entry.members.join(" + ")}
+                  </span>
+                  <span className="shrink-0 text-xs font-medium text-ink-muted">Edit</span>
+                  <ChevronRight className="size-4 shrink-0 text-ink-subtle" aria-hidden />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
 
         <ul className="border-y border-line ruled-list">
           {exercises.map((exercise) => {
             const checked = selected.includes(exercise.id);
             const elsewhere =
               exercise.supersetGroup !== null && exercise.supersetGroup !== group && !checked;
+            const hue =
+              elsewhere && exercise.supersetGroup ? hues.get(exercise.supersetGroup) : null;
             return (
               <li key={exercise.id}>
                 <label
@@ -111,16 +152,17 @@ export function SupersetSheet({
                     onChange={() => toggle(exercise.id)}
                     className="size-5 shrink-0 accent-[var(--ov-accent)]"
                   />
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm [overflow-wrap:anywhere]">
-                      {exercise.exercise.name}
-                    </span>
-                    {elsewhere && (
-                      <span className="block text-xs text-ink-subtle">
-                        Currently in {exercise.supersetGroup}
-                      </span>
-                    )}
+                  <span className="min-w-0 flex-1 text-sm [overflow-wrap:anywhere]">
+                    {exercise.exercise.name}
                   </span>
+                  {/* Already in another group: its colour says which, no words needed. */}
+                  {hue && (
+                    <span
+                      className="size-2.5 shrink-0 rounded-full"
+                      style={{ background: `var(--ov-group-${hue})` }}
+                      aria-label="In another superset"
+                    />
+                  )}
                 </label>
               </li>
             );

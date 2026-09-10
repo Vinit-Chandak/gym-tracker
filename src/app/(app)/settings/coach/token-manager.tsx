@@ -3,6 +3,7 @@
 import { useActionState, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { InfoTip } from "@/components/ui/info-tip";
 import { Field, Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import {
@@ -59,11 +60,13 @@ export function TokenManager({
   return (
     <div className="space-y-4">
       <Card>
-        <h2 className="text-base font-medium">Create read-only token</h2>
-        <p className="text-sm text-ink-muted">
-          Access to your workouts, runs, recovery and current programme. Tokens cannot change your
-          training data.
-        </p>
+        <h2 className="flex items-center gap-1 text-base font-medium">
+          New token
+          <InfoTip label="About coach tokens">
+            Read-only access to your workouts, runs, recovery and current programme. A token can
+            never change your training data.
+          </InfoTip>
+        </h2>
         <form action={action} className="space-y-3">
           <Field label="Name">
             <Input name="name" required maxLength={80} placeholder="My coach" />
@@ -86,7 +89,7 @@ export function TokenManager({
         )}
         {state.token && hidden !== state.token && (
           <div className="space-y-3 rounded-control border border-accent p-3">
-            <p className="text-sm font-medium">Copy now. This token is shown only here.</p>
+            <p className="text-sm font-medium">Copy it now; it is shown only once.</p>
             <textarea
               readOnly
               aria-label="New coach token"

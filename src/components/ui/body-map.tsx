@@ -150,10 +150,6 @@ export function BodyMap({ volume, totalSets }: { volume: MuscleVolume; totalSets
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-ink-subtle">
-        A working set counts once for each primary muscle and half for each secondary one. Warm-ups
-        are excluded. Only finished workouts count.
-      </p>
     </div>
   );
 }

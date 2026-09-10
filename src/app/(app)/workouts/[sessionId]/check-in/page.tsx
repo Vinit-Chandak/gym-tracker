@@ -33,7 +33,7 @@ export default async function CheckInPage(props: PageProps<"/workouts/[sessionId
           rather than to Today, which would leave the workout behind. */}
       <PageHeader
         title="How are you today?"
-        context="Optional — these scores feed the recovery advice"
+        context="Optional"
         backHref={`/workouts/${sessionId}`}
         backLabel="Back to the workout"
       />

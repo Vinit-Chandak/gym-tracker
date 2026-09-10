@@ -4,6 +4,7 @@ import { ProgramTemplatePicker } from "@/components/program-template-picker";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { Card } from "@/components/ui/card";
+import { InfoTip } from "@/components/ui/info-tip";
 import { getDb } from "@/db/client";
 import { PROGRAM_TEMPLATES } from "@/db/seed/data/templates";
 import { withUser } from "@/db/with-user";
@@ -28,24 +29,22 @@ export default async function ProgrammeSettingsPage() {
         {active && (
           <Card>
             <h2 className="text-base font-medium">{active.name}</h2>
-            <p className="text-sm text-ink-muted">
+            <p className="text-sm text-ink-muted tabular-nums">
               {active.startDate ? formatIsoDate(active.startDate) : "—"} →{" "}
               {active.endDate ? formatIsoDate(active.endDate) : "—"}
               {active.weeks ? ` · ${active.weeks} weeks` : ""}
             </p>
-            <p className="text-sm text-ink-muted">
-              Starting another programme archives this one. Sessions you have already logged keep
-              pointing at what they were prescribed.
-            </p>
           </Card>
         )}
         <Card>
-          <h2 className="text-base font-medium">
+          <h2 className="flex items-center gap-1 text-base font-medium">
             {active ? "Start a new programme" : "Choose a programme"}
+            <InfoTip label="About starting a programme">
+              You get your own copy of the template.
+              {active &&
+                " Starting another archives the current one; logged sessions keep what they were prescribed."}
+            </InfoTip>
           </h2>
-          <p className="text-sm text-ink-muted">
-            Templates are shared, read-only starting points. Adopting one gives you your own copy.
-          </p>
           <ProgramTemplatePicker
             templates={PROGRAM_TEMPLATES.map((template) => ({
               slug: template.slug,

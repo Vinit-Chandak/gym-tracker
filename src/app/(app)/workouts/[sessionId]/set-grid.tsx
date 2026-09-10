@@ -2,6 +2,7 @@
 
 import { Check, LoaderCircle } from "lucide-react";
 
+import { InfoTip } from "@/components/ui/info-tip";
 import { sanitizeNumberEntry, SET_LIMITS } from "@/domain/sets";
 import type { SetType } from "@/domain/types";
 import { SET_TYPE_LABELS } from "@/lib/labels";
@@ -46,13 +47,14 @@ function NumericCell({ row, field, label, short, ghost, inputMode, max, onChange
         maxLength={24}
         inputMode={inputMode}
         value={row[field]}
-        // The ghost is the row's own suggestion, shown unconfirmed until it is saved.
+        // The ghost is the row's own suggestion, shown unconfirmed until it is saved. It is
+        // drawn fainter and lighter than anything typed, so a glance tells the two apart.
         placeholder={ghost ?? ""}
         disabled={row.saving}
         aria-label={label}
         aria-invalid={row.error ? true : undefined}
         onChange={(event) => onChange(sanitizeNumberEntry(event.target.value, inputMode, max))}
-        className="h-11 w-full min-w-0 rounded-control border border-line-strong bg-surface px-1 text-center text-[length:var(--ov-text-input)] font-medium tabular-nums placeholder:font-normal placeholder:text-ink-subtle focus:border-accent focus:outline-none disabled:opacity-50"
+        className="h-11 w-full min-w-0 rounded-control border border-line-strong bg-surface px-1 text-center text-[length:var(--ov-text-input)] font-semibold text-ink tabular-nums placeholder:font-normal placeholder:text-ink-ghost focus:border-accent focus:outline-none disabled:opacity-50"
       />
     </span>
   );
@@ -91,12 +93,19 @@ export function SetGrid({
 
   return (
     <div className="set-grid">
-      <div className="set-header set-row border-b border-line pb-1 text-xs text-ink-muted">
+      <div className="set-header set-row border-b border-line pb-1 text-sm font-semibold">
         <span className="text-center">Set</span>
         <span className="text-center">{unitLabel}</span>
         <span className="text-center">{middle.label}</span>
         <span className="text-center">RIR</span>
-        <span className="sr-only">Save</span>
+        {/* The one explanation the grid needs, kept out of the way over the save column. */}
+        <span className="flex justify-center">
+          <span className="sr-only">Save</span>
+          <InfoTip label="How suggestions work">
+            Faint numbers are this set&apos;s suggestion. Save records them as shown; type over one
+            to use your own, or clear it to leave it unknown.
+          </InfoTip>
+        </span>
       </div>
 
       <ol>

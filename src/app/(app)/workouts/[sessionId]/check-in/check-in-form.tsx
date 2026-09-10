@@ -89,7 +89,7 @@ export function CheckInForm({ action, initial }: Props) {
         </Field>
       </Section>
 
-      <Section title="Symptoms" description="0 = nothing, 10 = worst it has been.">
+      <Section title="Symptoms" description="0 = none, 10 = worst">
         <div className="grid grid-cols-3 gap-2">
           <NumberField
             label="Lower back"

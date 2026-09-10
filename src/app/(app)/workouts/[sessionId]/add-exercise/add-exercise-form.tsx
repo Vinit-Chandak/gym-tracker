@@ -57,10 +57,12 @@ export function PickExerciseForm({
         (applicable.length > 1 ? (
           <Field
             label="Machine"
-            hint="History is kept per machine, so the load you lifted stays comparable."
+            info="History is kept per machine, so the load you lifted stays comparable."
+            htmlFor="equipment-instance"
             error={state.fieldErrors?.equipmentInstanceId}
           >
             <Select
+              id="equipment-instance"
               name="equipmentInstanceId"
               defaultValue={state.values?.equipmentInstanceId ?? ""}
             >
@@ -76,17 +78,14 @@ export function PickExerciseForm({
           <>
             <input type="hidden" name="equipmentInstanceId" value={applicable[0]!.id} />
             <p className="text-sm text-ink-muted">
-              On <span className="font-medium text-ink">{applicable[0]!.name}</span> — the only one
-              registered here for this exercise.
+              On <span className="font-medium text-ink">{applicable[0]!.name}</span>
             </p>
           </>
         ) : (
           <>
             <input type="hidden" name="equipmentInstanceId" value="" />
             <p className="text-sm text-ink-muted">
-              {chosen.requiresEquipment
-                ? "No machine registered here for this exercise, so the load is logged without one."
-                : "No machine needed."}
+              {chosen.requiresEquipment ? "No machine registered here." : "No machine needed."}
             </p>
           </>
         ))}

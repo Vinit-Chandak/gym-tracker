@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
@@ -9,6 +9,7 @@ import type { Route } from "next";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Chart, SERIES_COLORS, type ChartSeries } from "@/components/ui/chart";
+import { InfoTip } from "@/components/ui/info-tip";
 import { Field } from "@/components/ui/input";
 import { Section } from "@/components/ui/section";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -135,8 +136,8 @@ function Headline({
   const delta = Math.round((last - first) * 10) / 10;
   const better = lowerIsBetter ? delta < 0 : delta > 0;
   return (
-    <p className="flex items-baseline gap-2">
-      <span className="text-lg font-medium tabular-nums">
+    <p className="flex min-w-0 flex-wrap items-baseline gap-x-2">
+      <span className="text-xl font-medium tabular-nums">
         {Math.round(last * 10) / 10}
         <span className="ml-1 text-sm font-normal text-ink-muted">{unit}</span>
       </span>
@@ -147,6 +148,46 @@ function Headline({
         </span>
       )}
     </p>
+  );
+}
+
+/**
+ * The machine, in the corner. One exercise done on two machines is two series, because
+ * the loads are not comparable, and this is where the reader picks between them. It only
+ * appears when there is a choice to make; a single series says nothing about itself.
+ */
+function MachinePicker({
+  entries,
+  value,
+  disabled,
+  onChange,
+}: {
+  entries: SeriesOption[];
+  value: string;
+  disabled: boolean;
+  onChange: (id: string) => void;
+}) {
+  return (
+    <span className="relative inline-flex max-w-full min-w-0">
+      <select
+        aria-label="Machine"
+        value={value}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.value)}
+        className="min-h-8 w-full min-w-0 appearance-none truncate rounded-control bg-transparent py-1 pr-6 pl-2 text-xs font-medium text-ink-muted hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-50"
+      >
+        {entries.map((entry) => (
+          <option key={entry.id} value={entry.id}>
+            {entry.machine}
+            {entry.unit === "kg" ? "" : ` · ${LOAD_UNIT_LABELS[entry.unit]}`}
+          </option>
+        ))}
+      </select>
+      <ChevronDown
+        className="pointer-events-none absolute top-1/2 right-1.5 size-3.5 -translate-y-1/2 text-ink-subtle"
+        aria-hidden
+      />
+    </span>
   );
 }
 
@@ -218,6 +259,14 @@ export function ProgressView({
   const asPoints = (pick: (w: Week) => number): Point[] =>
     weeks.map((w) => ({ date: w.date, value: pick(w) }));
 
+  const strengthUnit = selected
+    ? metric === "reps"
+      ? "reps"
+      : metric === "rir"
+        ? "RIR"
+        : LOAD_UNIT_LABELS[selected.unit]
+    : "";
+
   return (
     <div className="page-stack">
       <Tabs
@@ -246,7 +295,7 @@ export function ProgressView({
 
             {summary.truncated && (
               <p role="status" className="text-sm text-warning">
-                This range exceeds 500 workouts or runs. Narrow the dates for complete totals.
+                Over 500 workouts or runs in this range; narrow the dates for complete totals.
               </p>
             )}
 
@@ -261,7 +310,7 @@ export function ProgressView({
                     {adherence.completed}
                     <span className="font-normal text-ink-muted"> / {adherence.total}</span>
                   </span>
-                  <span className="text-sm text-ink-muted">sessions complete</span>
+                  <span className="text-sm text-ink-muted">sessions</span>
                 </p>
                 <div
                   className="h-1.5 w-full overflow-hidden rounded-full bg-surface-raised"
@@ -281,10 +330,19 @@ export function ProgressView({
               </Card>
             )}
 
-            <Section title="Weekly activity">
+            <Section
+              title="Weekly sessions"
+              action={
+                <InfoTip label="About weekly sessions">
+                  Weeks run Tuesday to Monday in your time zone. The first and last weeks of the
+                  range may be partial.
+                </InfoTip>
+              }
+            >
               <Chart
                 title="Sessions"
                 unit="sessions"
+                caption={false}
                 series={[
                   {
                     name: "Lifting",
@@ -294,7 +352,6 @@ export function ProgressView({
                   { name: "Runs", color: SERIES_COLORS.running, points: asPoints((w) => w.runs) },
                 ]}
                 format={(v) => String(Math.round(v))}
-                note="Tuesday–Monday in your time zone. Range-edge weeks may be partial."
               />
             </Section>
           </>
@@ -302,7 +359,7 @@ export function ProgressView({
 
         {tab === "strength" && (
           <>
-            <Section title="Exercise">
+            <div className="min-w-0 space-y-3">
               <Field label="Exercise">
                 <Select
                   value={selected?.name ?? ""}
@@ -321,61 +378,45 @@ export function ProgressView({
                 </Select>
               </Field>
 
-              {/* A second control only when the same exercise has more than one series. */}
-              {machinesForExercise.length > 1 ? (
-                <Field
-                  label="Machine"
-                  hint="Each machine is its own series: loads are not comparable between them."
-                >
-                  <Select
-                    value={selected?.id ?? ""}
-                    onChange={(e) => chooseSeries(e.target.value)}
-                    disabled={pending}
-                  >
-                    {machinesForExercise.map((entry) => (
-                      <option key={entry.id} value={entry.id}>
-                        {entry.machine}
-                        {entry.unit === "kg" ? "" : ` · ${LOAD_UNIT_LABELS[entry.unit]}`}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-              ) : selected ? (
-                <p className="text-sm text-ink-muted">{selected.machine}</p>
-              ) : null}
-
               {selected ? (
                 <>
-                  <SegmentedControl
-                    name="strength-metric"
-                    aria-label="Strength measurement"
-                    options={STRENGTH_METRICS}
-                    value={metric}
-                    onChange={setMetric}
-                    columns={5}
-                  />
-                  <div className={pending ? "opacity-50 transition-opacity" : undefined}>
-                    <Headline
-                      points={selected[metric]}
-                      unit={
-                        metric === "reps"
-                          ? "reps"
-                          : metric === "rir"
-                            ? "RIR"
-                            : LOAD_UNIT_LABELS[selected.unit]
-                      }
+                  <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                    <SegmentedControl
+                      name="strength-metric"
+                      aria-label="Strength measurement"
+                      options={STRENGTH_METRICS}
+                      value={metric}
+                      onChange={setMetric}
+                      columns={5}
                     />
+                  </div>
+                  <div className={pending ? "opacity-50 transition-opacity" : undefined}>
+                    <div className="flex items-start justify-between gap-2">
+                      <Headline points={selected[metric]} unit={strengthUnit} />
+                      <span className="flex max-w-[60%] min-w-0 items-center gap-1">
+                        {/* The machine, in the corner, only when there is one to choose. */}
+                        {machinesForExercise.length > 1 && (
+                          <MachinePicker
+                            entries={machinesForExercise}
+                            value={selected.id}
+                            disabled={pending}
+                            onChange={chooseSeries}
+                          />
+                        )}
+                        <InfoTip label="About this chart" className="shrink-0">
+                          One point per session; warm-up sets are excluded.{" "}
+                          {machinesForExercise.length > 1
+                            ? "Each machine is its own series, because loads on different machines are not comparable."
+                            : selected.machine === "Across gyms"
+                              ? "The load means the same at every gym, so all sessions count."
+                              : `Sessions on ${selected.machine}.`}
+                        </InfoTip>
+                      </span>
+                    </div>
                     <Chart
                       title={STRENGTH_METRICS.find((m) => m.value === metric)!.label}
-                      unit={
-                        metric === "reps"
-                          ? "reps"
-                          : metric === "rir"
-                            ? "RIR"
-                            : metric === "volume"
-                              ? `${LOAD_UNIT_LABELS[selected.unit]} × reps`
-                              : LOAD_UNIT_LABELS[selected.unit]
-                      }
+                      unit={metric === "volume" ? `${strengthUnit} × reps` : strengthUnit}
+                      caption={false}
                       series={[
                         {
                           name: selected.name,
@@ -383,21 +424,27 @@ export function ProgressView({
                           points: selected[metric],
                         },
                       ]}
-                      note={`${selected.machine}. Warm-ups excluded; each point is one session.`}
                     />
                   </div>
                 </>
               ) : (
                 <p className="text-sm text-ink-muted">
-                  Finish a workout with logged sets to see performance trends. Machines and units
-                  are kept separate.
+                  Finish a workout with logged sets to see trends.
                 </p>
               )}
-            </Section>
+            </div>
 
             {muscles.length > 0 && (
-              <Section title="Working sets by muscle">
-                <Field label="Primary muscle">
+              <Section
+                title="Sets by muscle"
+                action={
+                  <InfoTip label="About sets by muscle">
+                    Working sets per week. A set counts once for each primary muscle and half for
+                    each secondary one; warm-ups are excluded.
+                  </InfoTip>
+                }
+              >
+                <Field label="Muscle">
                   <Select
                     value={shownMuscle ?? ""}
                     onChange={(e) => setMuscle(e.target.value as MuscleGroup)}
@@ -413,6 +460,7 @@ export function ProgressView({
                   title="Working sets"
                   unit="sets"
                   kind="bar"
+                  caption={false}
                   series={[
                     {
                       name: "Sets",
@@ -421,7 +469,6 @@ export function ProgressView({
                     },
                   ]}
                   format={(v) => String(Math.round(v))}
-                  note="Every non-warm-up set counts once for each primary muscle and half for each secondary one."
                 />
               </Section>
             )}
@@ -429,7 +476,7 @@ export function ProgressView({
         )}
 
         {tab === "running" && (
-          <Section title="Running">
+          <div className="min-w-0 space-y-3">
             <SegmentedControl
               name="run-metric"
               aria-label="Running measurement"
@@ -465,7 +512,7 @@ export function ProgressView({
                     const mins = Math.floor(v);
                     return `${mins}:${String(Math.round((v - mins) * 60)).padStart(2, "0")}`;
                   }}
-                  note="Lower is faster. Outdoor and treadmill are shown separately."
+                  note="Lower is faster. Outdoor and treadmill paces are kept apart."
                 />
               </>
             ) : (
@@ -486,11 +533,11 @@ export function ProgressView({
                 }
               />
             )}
-          </Section>
+          </div>
         )}
 
         {tab === "recovery" && (
-          <Section title="Recovery">
+          <div className="min-w-0 space-y-3">
             <SegmentedControl
               name="recovery-metric"
               aria-label="Recovery measurement"
@@ -509,13 +556,21 @@ export function ProgressView({
                   points: recovery.map((r) => ({ date: r.date, value: r[recoveryMetric] })),
                 },
               ]}
-              note="Workout check-ins, daily recovery and after-run shin scores. Missing readings stay blank."
+              note="From workout check-ins, daily recovery entries and after-run shin scores. A missing reading leaves a gap."
             />
-          </Section>
+          </div>
         )}
 
         {tab === "body" && (
-          <Section title="Muscles this week">
+          <Section
+            title="Muscles this week"
+            action={
+              <InfoTip label="About the body map">
+                Working sets from finished workouts. A set counts once for each primary muscle and
+                half for each secondary one; warm-ups are excluded.
+              </InfoTip>
+            }
+          >
             {/* Body keeps its own week navigation: it is a snapshot, not a trend. */}
             <div className="flex items-center justify-between gap-2">
               <Button

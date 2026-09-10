@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { PageContent } from "@/components/shell/page-content";
 import { Card } from "@/components/ui/card";
+import { InfoTip } from "@/components/ui/info-tip";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { requireUser } from "@/server/auth";
@@ -36,9 +37,12 @@ export default async function WelcomeEquipmentPage(props: PageProps<"/welcome/eq
       <Card>
         <div>
           <h1 className="text-xl font-medium">What does {gym.name} have?</h1>
-          <p className="text-sm text-ink-muted">
-            Tick what you can see. Barbells, dumbbells and bodyweight work are assumed at every gym,
-            so only machines need ticking — and you can change this any time.
+          <p className="flex items-center gap-1 text-sm text-ink-muted">
+            Tick the machines it has.
+            <InfoTip label="About machines">
+              Barbells, dumbbells and bodyweight are assumed everywhere, so only machines and cable
+              stations need ticking. This can be changed any time.
+            </InfoTip>
           </p>
         </div>
         <EquipmentStepForm gymId={gym.id} types={types} />

@@ -59,9 +59,7 @@ function equipmentLine(exercise: ExerciseVM, gymKind: string): string {
     gymKind === "gym" &&
     ["barbell", "dumbbell", "bodyweight", "mobility"].includes(exercise.exercise.modality)
   ) {
-    return exercise.exercise.modality === "bodyweight"
-      ? "Bodyweight (log added load)"
-      : "Free weights";
+    return exercise.exercise.modality === "bodyweight" ? "Bodyweight" : "Free weights";
   }
   return "Machine not chosen";
 }
@@ -87,8 +85,15 @@ function suggestionHeadline(exercise: ExerciseVM, unit: string, holdAll: boolean
   const holding = holdAll && CHANGING_KINDS.has(suggestion.kind);
   const kind: SuggestionKind = holding ? "hold" : suggestion.kind;
   const first = suggestion.sets.find((s) => WORKING_SET_TYPES.has(s.setType)) ?? suggestion.sets[0];
+  // On a bodyweight movement the load is what is added, so nothing added is "bodyweight",
+  // not "0 kg".
+  const bodyweight = exercise.exercise.modality === "bodyweight";
   const load = (weight: number | null | undefined) =>
-    weight === null || weight === undefined ? "the same load" : `${weight} ${unit}`;
+    weight === null || weight === undefined
+      ? "the same load"
+      : bodyweight && weight === 0
+        ? "bodyweight"
+        : `${weight} ${unit}`;
 
   if (holding) {
     const previousFirst = exercise.previous?.sets.find((s) => WORKING_SET_TYPES.has(s.setType));
@@ -345,22 +350,15 @@ export function ExerciseLogger({
                 Skipped{exercise.notes ? `: ${exercise.notes}` : ""}.
               </p>
             ) : editable ? (
-              <>
-                <SetGrid
-                  rows={sets.rows}
-                  ghost={sets.ghost}
-                  unitLabel={unitLabel}
-                  isDuration={isDuration}
-                  onEdit={sets.editRow}
-                  onSave={sets.logRow}
-                  onOptions={(row) => setOptionsFor(row.setIndex)}
-                />
-                {/* Said once, above the rows, rather than repeated in every cell. */}
-                <p className="text-xs text-ink-subtle">
-                  Greyed numbers are this set&apos;s suggestion. Save records them exactly as shown;
-                  type over one to use your own, or clear it to leave it unknown.
-                </p>
-              </>
+              <SetGrid
+                rows={sets.rows}
+                ghost={sets.ghost}
+                unitLabel={unitLabel}
+                isDuration={isDuration}
+                onEdit={sets.editRow}
+                onSave={sets.logRow}
+                onOptions={(row) => setOptionsFor(row.setIndex)}
+              />
             ) : (
               <SetTable sets={sets.loggedSets} unitLabel={unitLabel} />
             )}
@@ -374,10 +372,9 @@ export function ExerciseLogger({
             {(readOnly || completed || skipped) && sets.dirty && (
               <div className="space-y-2 rounded-control border border-warning p-3">
                 <p className="text-sm text-warning">
-                  Unsaved drafts remain on this device.{" "}
                   {readOnly
                     ? "This workout is finished, so these entries cannot be saved here."
-                    : "Reopen this exercise to retry saving."}
+                    : "Unsaved drafts on this device. Reopen the exercise to retry saving."}
                 </p>
                 {sets.rows
                   .filter((r) => r.dirty)
@@ -472,9 +469,7 @@ export function ExerciseLogger({
             {!exercise.planned?.keyCue &&
               !exercise.planned?.targetLoadNote &&
               !exercise.planned?.progressionNotes && (
-                <p className="text-ink-muted">
-                  No cues recorded for this exercise in the programme.
-                </p>
+                <p className="text-ink-muted">No cues in the programme.</p>
               )}
             <Link
               href={`/exercises/${exercise.exercise.id}`}
@@ -494,8 +489,7 @@ export function ExerciseLogger({
             </p>
             {exercise.regressionStreak >= REGRESSION_WARNING_STREAK && (
               <p className="text-warning">
-                Down {exercise.regressionStreak} sessions in a row here. Advice: repeat the load and
-                look at sleep and recovery before adding.
+                Down {exercise.regressionStreak} sessions in a row. Repeat the load before adding.
               </p>
             )}
             {exercise.suggestion && (

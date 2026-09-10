@@ -69,7 +69,7 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
 
         {/* Not done is a fact about the session, not an error. It is recorded as it stands. */}
         {(untouched.length > 0 || skipped.length > 0) && (
-          <Section title="Not done" description="These stay in the record as not done.">
+          <Section title="Not done">
             <ul className="border-y border-line text-sm ruled-list">
               {untouched.map((exercise) => (
                 <li key={exercise.id} className="flex justify-between gap-3 py-2">

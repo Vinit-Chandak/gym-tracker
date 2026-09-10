@@ -23,13 +23,7 @@ export default async function WelcomeProgrammePage() {
     <PageContent>
       <Steps current="programme" />
       <Card>
-        <div>
-          <h1 className="text-xl font-medium">Pick a programme</h1>
-          <p className="text-sm text-ink-muted">
-            A programme gives Today something to suggest and lets the progression engine set your
-            loads. You get your own copy, so changing it changes nothing for anyone else.
-          </p>
-        </div>
+        <h1 className="text-xl font-medium">Pick a programme</h1>
         <ProgramTemplatePicker
           templates={PROGRAM_TEMPLATES.map((template) => ({
             slug: template.slug,
