@@ -27,10 +27,16 @@ export type ExerciseListItem = Pick<
   | "loadPortability"
   | "requiresEquipment"
   | "isActive"
+  | "defaultPrescriptionType"
   | "defaultRepMin"
   | "defaultRepMax"
+  | "defaultDurationMinSeconds"
+  | "defaultDurationMaxSeconds"
+  | "defaultDistanceMinMeters"
+  | "defaultDistanceMaxMeters"
   | "defaultRir"
   | "defaultRestSeconds"
+  | "rirNote"
 > & { isCustom: boolean };
 
 function toListItem(row: ExerciseRow): ExerciseListItem {
@@ -46,10 +52,16 @@ function toListItem(row: ExerciseRow): ExerciseListItem {
     loadPortability: row.loadPortability,
     requiresEquipment: row.requiresEquipment,
     isActive: row.isActive,
+    defaultPrescriptionType: row.defaultPrescriptionType,
     defaultRepMin: row.defaultRepMin,
     defaultRepMax: row.defaultRepMax,
+    defaultDurationMinSeconds: row.defaultDurationMinSeconds,
+    defaultDurationMaxSeconds: row.defaultDurationMaxSeconds,
+    defaultDistanceMinMeters: row.defaultDistanceMinMeters,
+    defaultDistanceMaxMeters: row.defaultDistanceMaxMeters,
     defaultRir: row.defaultRir,
     defaultRestSeconds: row.defaultRestSeconds,
+    rirNote: row.rirNote,
     isCustom: row.userId !== null,
   };
 }
@@ -89,6 +101,8 @@ export type ExerciseProgramUsage = {
   repMax: number | null;
   durationMinSeconds: number | null;
   durationMaxSeconds: number | null;
+  distanceMinMeters: number | null;
+  distanceMaxMeters: number | null;
   perSide: boolean;
   rirMin: number | null;
   rirMax: number | null;
@@ -140,6 +154,8 @@ export async function getExercise(
         repMax: programExercises.repMax,
         durationMinSeconds: programExercises.durationMinSeconds,
         durationMaxSeconds: programExercises.durationMaxSeconds,
+        distanceMinMeters: programExercises.distanceMinMeters,
+        distanceMaxMeters: programExercises.distanceMaxMeters,
         perSide: programExercises.perSide,
         rirMin: programExercises.rirMin,
         rirMax: programExercises.rirMax,

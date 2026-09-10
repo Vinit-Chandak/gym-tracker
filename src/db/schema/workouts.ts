@@ -148,6 +148,8 @@ export const setLogs = pgTable(
       "set_logs_values_chk",
       sql`(reps is null or reps >= 0)
         and (rir is null or rir >= 0)
+        and (duration_seconds is null or duration_seconds >= 0)
+        and (distance_meters is null or distance_meters >= 0)
         and (technique_rating is null or technique_rating between 1 and 5)`,
     ),
     ownerPolicy("set_logs"),

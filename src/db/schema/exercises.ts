@@ -14,7 +14,12 @@ import {
 
 import type { MuscleGroup, WarmupDrill } from "../../domain/types";
 import { readAllPolicy, sharedOrOwnerPolicies, timestamps } from "./common";
-import { exerciseCategoryEnum, exerciseModalityEnum, loadPortabilityEnum } from "./enums";
+import {
+  exerciseCategoryEnum,
+  exerciseModalityEnum,
+  loadPortabilityEnum,
+  prescriptionTypeEnum,
+} from "./enums";
 import { equipmentInstances, equipmentTypes } from "./gyms";
 import { profiles } from "./profiles";
 
@@ -41,10 +46,28 @@ export const exercises = pgTable(
       .default(sql`'{}'::text[]`),
     loadPortability: loadPortabilityEnum("load_portability").notNull(),
     requiresEquipment: boolean("requires_equipment").notNull().default(true),
+    /**
+     * How the movement is measured when no programme slot says otherwise: reps, seconds held,
+     * or metres covered. A slot may still override it, but this is what an exercise added to a
+     * session on the spot is logged in.
+     */
+    defaultPrescriptionType: prescriptionTypeEnum("default_prescription_type")
+      .notNull()
+      .default("reps"),
     defaultRepMin: integer("default_rep_min"),
     defaultRepMax: integer("default_rep_max"),
+    defaultDurationMinSeconds: integer("default_duration_min_seconds"),
+    defaultDurationMaxSeconds: integer("default_duration_max_seconds"),
+    defaultDistanceMinMeters: integer("default_distance_min_meters"),
+    defaultDistanceMaxMeters: integer("default_distance_max_meters"),
     defaultRir: numeric("default_rir", { precision: 3, scale: 1, mode: "number" }),
     defaultRestSeconds: integer("default_rest_seconds"),
+    /**
+     * What reps in reserve means for this movement, in one sentence. Two RIR on a squat is a
+     * different instruction from two RIR on a plank or a carry, so the note travels with the
+     * exercise rather than being explained once, generically, next to the column.
+     */
+    rirNote: text("rir_note"),
     /** Smallest sensible load jump in kg when the equipment does not say otherwise. */
     defaultLoadIncrement: numeric("default_load_increment", {
       precision: 6,

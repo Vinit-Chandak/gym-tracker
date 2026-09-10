@@ -43,10 +43,40 @@ describe("shared reference data", () => {
       "machine",
       "smith_machine",
     ]);
-    // Every muscle group should be the primary target of something in the library.
+    // Every muscle group is the primary target of something in the library.
     const primary = new Set(EXERCISES.flatMap((e) => e.primaryMuscles));
-    const uncovered = MUSCLE_GROUPS.filter((m) => !primary.has(m));
-    expect(uncovered).toEqual(["hip_flexors"]);
+    expect(MUSCLE_GROUPS.filter((m) => !primary.has(m))).toEqual([]);
+  });
+
+  it("gives every exercise the range of whatever it is measured in", () => {
+    for (const e of EXERCISES) {
+      const measure = e.measure ?? "reps";
+      const range = {
+        reps: [e.defaultRepMin, e.defaultRepMax],
+        duration: [e.defaultDurationMin, e.defaultDurationMax],
+        distance: [e.defaultDistanceMin, e.defaultDistanceMax],
+      }[measure];
+      // Cardio is the exception: it is prescribed by the plan, not by a default set range.
+      if (e.category === "cardio") continue;
+      expect(
+        range.every((v) => typeof v === "number"),
+        `${e.slug} (${measure})`,
+      ).toBe(true);
+      expect(range[0]! <= range[1]!, e.slug).toBe(true);
+      // Nothing carries a range it is not measured in, which would be a silent contradiction.
+      const others = (["reps", "duration", "distance"] as const).filter((m) => m !== measure);
+      for (const other of others) {
+        const stray = {
+          reps: [e.defaultRepMin, e.defaultRepMax],
+          duration: [e.defaultDurationMin, e.defaultDurationMax],
+          distance: [e.defaultDistanceMin, e.defaultDistanceMax],
+        }[other];
+        expect(stray, `${e.slug} carries a ${other} range but is measured in ${measure}`).toEqual([
+          undefined,
+          undefined,
+        ]);
+      }
+    }
   });
 
   it("seeds nothing that belongs to a person", () => {

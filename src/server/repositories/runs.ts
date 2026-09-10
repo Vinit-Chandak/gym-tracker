@@ -59,14 +59,35 @@ export type PlannedRunRef = {
 
 export type RunRecord = typeof runs.$inferSelect & { planned: PlannedRunRef | null };
 
-async function assertPlannedRun(db: DbOrTx, userId: string, programRunId: string | null) {
-  if (!programRunId) return;
+/** Where a planned run sits in the programme: its programme, its week and its weekday. */
+export type PlannedRunPlace = {
+  id: string;
+  programId: string;
+  weekIndex: number;
+  dayOfWeek: number;
+};
+
+export async function getPlannedRunPlace(
+  db: DbOrTx,
+  userId: string,
+  programRunId: string,
+): Promise<PlannedRunPlace | null> {
   const [row] = await db
-    .select({ id: programRuns.id })
+    .select({
+      id: programRuns.id,
+      programId: programRuns.programId,
+      weekIndex: programRuns.weekIndex,
+      dayOfWeek: programRuns.dayOfWeek,
+    })
     .from(programRuns)
     .where(and(eq(programRuns.id, programRunId), eq(programRuns.userId, userId)))
     .limit(1);
-  if (!row) throw new PlannedRunNotFoundError();
+  return row ?? null;
+}
+
+async function assertPlannedRun(db: DbOrTx, userId: string, programRunId: string | null) {
+  if (!programRunId) return;
+  if (!(await getPlannedRunPlace(db, userId, programRunId))) throw new PlannedRunNotFoundError();
 }
 
 export async function createRun(

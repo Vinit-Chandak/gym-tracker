@@ -49,7 +49,7 @@ import {
   type StoredPlanExercise,
 } from "@/domain/session-plan";
 import { formatSet, formatSets, weightStepFor } from "@/domain/sets";
-import type { MuscleGroup, PlanTrigger } from "@/domain/types";
+import type { MuscleGroup, PlanTrigger, PrescriptionType } from "@/domain/types";
 import { fromDateTimeLocal } from "@/lib/time";
 import { ageOn } from "@/lib/units";
 import { sessionHistories, type ComparablePerformance } from "@/server/queries/comparable";
@@ -325,6 +325,7 @@ async function recentPlanOutcomes(
             reps: setLogs.reps,
             rir: setLogs.rir,
             durationSeconds: setLogs.durationSeconds,
+            distanceMeters: setLogs.distanceMeters,
           })
           .from(setLogs)
           .innerJoin(workoutExercises, eq(workoutExercises.id, setLogs.workoutExerciseId))
@@ -362,7 +363,7 @@ async function recentPlanOutcomes(
               : entry.sets
                   .map(
                     (set) =>
-                      `${set.weight ?? "—"}×${set.reps ?? `${set.durationSeconds ?? "—"}s`}@${set.rir ?? "—"}`,
+                      `${set.weight ?? "—"}×${set.reps ?? (set.distanceMeters !== null ? `${set.distanceMeters}m` : `${set.durationSeconds ?? "—"}s`)}@${set.rir ?? "—"}`,
                   )
                   .join(", "),
         note: entry.note,
@@ -381,7 +382,7 @@ async function recentPlanOutcomes(
                   sets: formatSets(
                     sets
                       .filter((set) => set.workoutExerciseId === slot.id)
-                      .map((set) => ({ ...set })),
+                      .map((set) => ({ ...set, distanceMeters: set.distanceMeters ?? null })),
                   ),
                 })),
             }
@@ -593,8 +594,13 @@ export async function planningContext(
           exercise: {
             loadPortability: plannedRow.exercise.loadPortability,
             defaultLoadIncrement: plannedRow.exercise.defaultLoadIncrement,
+            defaultPrescriptionType: plannedRow.exercise.defaultPrescriptionType,
             defaultRepMin: plannedRow.exercise.defaultRepMin,
             defaultRepMax: plannedRow.exercise.defaultRepMax,
+            defaultDurationMinSeconds: plannedRow.exercise.defaultDurationMinSeconds,
+            defaultDurationMaxSeconds: plannedRow.exercise.defaultDurationMaxSeconds,
+            defaultDistanceMinMeters: plannedRow.exercise.defaultDistanceMinMeters,
+            defaultDistanceMaxMeters: plannedRow.exercise.defaultDistanceMaxMeters,
             defaultRir: plannedRow.exercise.defaultRir,
           },
           equipment: machine
@@ -621,6 +627,9 @@ export async function planningContext(
               p.prescriptionType === "duration"
                 ? [p.durationMinSeconds, p.durationMaxSeconds]
                 : null,
+            /** Carries and sled work are prescribed in metres, not in reps. */
+            meters:
+              p.prescriptionType === "distance" ? [p.distanceMinMeters, p.distanceMaxMeters] : null,
             perSide: p.perSide,
             rir: [p.rirMin, p.rirMax],
             restSeconds: [p.restMinSeconds, p.restMaxSeconds],
@@ -825,7 +834,14 @@ export async function planningContext(
       pattern: e.movementPattern,
       muscles: e.primaryMuscles,
       portability: e.loadPortability,
-      defaults: { reps: [e.defaultRepMin, e.defaultRepMax], rir: e.defaultRir },
+      /** What one set of it counts, so the coach prescribes a carry in metres, not in reps. */
+      measure: e.defaultPrescriptionType,
+      defaults: {
+        reps: [e.defaultRepMin, e.defaultRepMax],
+        seconds: [e.defaultDurationMinSeconds, e.defaultDurationMaxSeconds],
+        meters: [e.defaultDistanceMinMeters, e.defaultDistanceMaxMeters],
+        rir: e.defaultRir,
+      },
       atThisGym: e.available ? { machine: e.machine } : null,
     })),
     limits: PLAN_LIMITS,
@@ -842,8 +858,13 @@ type LibraryEntry = {
   movementPattern: string;
   primaryMuscles: (typeof exercises.$inferSelect)["primaryMuscles"];
   loadPortability: (typeof exercises.$inferSelect)["loadPortability"];
+  defaultPrescriptionType: PrescriptionType;
   defaultRepMin: number | null;
   defaultRepMax: number | null;
+  defaultDurationMinSeconds: number | null;
+  defaultDurationMaxSeconds: number | null;
+  defaultDistanceMinMeters: number | null;
+  defaultDistanceMaxMeters: number | null;
   defaultRir: number | null;
   available: boolean;
   machine: { id: string; name: string } | null;
@@ -921,8 +942,13 @@ async function libraryAtGym(db: DbOrTx, userId: string, gymId: string): Promise<
       movementPattern: e.movementPattern,
       primaryMuscles: e.primaryMuscles,
       loadPortability: e.loadPortability,
+      defaultPrescriptionType: e.defaultPrescriptionType,
       defaultRepMin: e.defaultRepMin,
       defaultRepMax: e.defaultRepMax,
+      defaultDurationMinSeconds: e.defaultDurationMinSeconds,
+      defaultDurationMaxSeconds: e.defaultDurationMaxSeconds,
+      defaultDistanceMinMeters: e.defaultDistanceMinMeters,
+      defaultDistanceMaxMeters: e.defaultDistanceMaxMeters,
       defaultRir: e.defaultRir,
       available,
       machine,

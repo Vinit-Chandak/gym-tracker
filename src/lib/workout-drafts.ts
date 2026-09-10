@@ -1,8 +1,8 @@
 import type { SetType } from "@/domain/types";
 import { SET_TYPES } from "@/domain/types";
 
-/** The four numbers a set row can carry, in the order they appear in the grid. */
-export const DRAFT_VALUE_FIELDS = ["weight", "reps", "rir", "duration"] as const;
+/** The numbers a set row can carry. Which of them the grid shows depends on the measure. */
+export const DRAFT_VALUE_FIELDS = ["weight", "reps", "rir", "duration", "distance"] as const;
 
 export type DraftValueField = (typeof DRAFT_VALUE_FIELDS)[number];
 
@@ -13,6 +13,7 @@ export type DraftFields = {
   reps: string;
   rir: string;
   duration: string;
+  distance: string;
   /**
    * Which values the user actually set. An empty field that was never touched still takes
    * its row's suggestion when the set is saved; one the user deliberately cleared stays
@@ -51,7 +52,7 @@ export function readDrafts(storage: StorageLike, ctx: DraftContext): Draft[] {
           row.setIndex >= 1 &&
           row.setIndex <= 50 &&
           SET_TYPES.includes(row.setType) &&
-          [row.weight, row.reps, row.rir, row.duration].every(
+          [row.weight, row.reps, row.rir, row.duration, row.distance ?? ""].every(
             (v) => typeof v === "string" && v.length <= 24,
           ) &&
           (row.touched === undefined ||
@@ -93,7 +94,7 @@ export function removeDraft(
       const current = readDrafts(storage, ctx).find((d) => d.setIndex === setIndex);
       if (
         current &&
-        ["setType", "weight", "reps", "rir", "duration"].some(
+        ["setType", "weight", "reps", "rir", "duration", "distance"].some(
           (field) => current[field as keyof DraftFields] !== expected[field as keyof DraftFields],
         )
       )
@@ -116,7 +117,7 @@ export function removeDraft(
  */
 export function touchedFields(draft: DraftFields): Set<DraftValueField> {
   if (draft.touched) return new Set(draft.touched);
-  return new Set(DRAFT_VALUE_FIELDS.filter((field) => draft[field].trim() !== ""));
+  return new Set(DRAFT_VALUE_FIELDS.filter((field) => (draft[field] ?? "").trim() !== ""));
 }
 
 /** A lost response may have committed successfully. Clear that draft only after matching server values. */
@@ -128,6 +129,7 @@ export function draftMatchesSet(
     reps: number | null;
     rir: number | null;
     durationSeconds: number | null;
+    distanceMeters: number | null;
   },
 ) {
   const numeric = (value: string) => (value.trim() === "" ? null : Number(value.replace(",", ".")));
@@ -136,7 +138,8 @@ export function draftMatchesSet(
     numeric(draft.weight) === set.weight &&
     numeric(draft.reps) === set.reps &&
     numeric(draft.rir) === set.rir &&
-    numeric(draft.duration) === set.durationSeconds
+    numeric(draft.duration) === set.durationSeconds &&
+    numeric(draft.distance) === set.distanceMeters
   );
 }
 

@@ -15,6 +15,8 @@ const accessory: Prescription = {
   repMax: 10,
   durationMinSeconds: null,
   durationMaxSeconds: null,
+  distanceMinMeters: null,
+  distanceMaxMeters: null,
   rirMin: 1,
   rirMax: 2,
   rule: { kind: "double_progression", loadIncrement: null },
@@ -29,6 +31,8 @@ const squat: Prescription = {
   repMax: 6,
   durationMinSeconds: null,
   durationMaxSeconds: null,
+  distanceMinMeters: null,
+  distanceMaxMeters: null,
   rirMin: 2,
   rirMax: 3,
   rule: { kind: "conservative_strength", loadIncrement: 2.5, repsRequired: 6 },
@@ -43,6 +47,8 @@ const plank: Prescription = {
   repMax: null,
   durationMinSeconds: 20,
   durationMaxSeconds: 45,
+  distanceMinMeters: null,
+  distanceMaxMeters: null,
   rirMin: 2,
   rirMax: 2,
   rule: { kind: "time_first" },
@@ -57,7 +63,16 @@ function set(
   rir: number | null,
   extra: Partial<PerformedSet> = {},
 ): PerformedSet {
-  return { setIndex, setType: "working", weight, reps, rir, durationSeconds: null, ...extra };
+  return {
+    setIndex,
+    setType: "working",
+    weight,
+    reps,
+    rir,
+    durationSeconds: null,
+    distanceMeters: null,
+    ...extra,
+  };
 }
 
 describe("double progression", () => {

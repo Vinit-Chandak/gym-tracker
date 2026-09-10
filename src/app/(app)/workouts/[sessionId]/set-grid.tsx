@@ -4,8 +4,8 @@ import { Check, LoaderCircle } from "lucide-react";
 
 import { InfoTip } from "@/components/ui/info-tip";
 import { sanitizeNumberEntry, SET_LIMITS } from "@/domain/sets";
-import type { SetType } from "@/domain/types";
-import { SET_TYPE_LABELS } from "@/lib/labels";
+import type { PrescriptionType, SetType } from "@/domain/types";
+import { MEASURE_COLUMN_LABELS, rirMeaning, SET_TYPE_LABELS } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 import type { DraftValueField } from "@/lib/workout-drafts";
 
@@ -65,10 +65,22 @@ type SetGridProps = {
   ghost: (setIndex: number) => Ghost;
   /** Column heading for the load, e.g. "kg" or "+kg" for bodyweight movements. */
   unitLabel: string;
-  isDuration: boolean;
+  /** What one set of this exercise counts: reps, seconds held, or metres covered. */
+  measure: PrescriptionType;
+  /** What RIR means for this exercise, in its own words. */
+  rirNote?: string | null;
+  /** The RIR the plan asks for, e.g. "1–2", so the tip explains the number on the screen. */
+  rirTarget?: string | null;
   onEdit: (row: RowState, patch: Partial<RowState>, touch: DraftValueField) => void;
   onSave: (row: RowState) => void;
   onOptions: (row: RowState) => void;
+};
+
+/** The third column: the field the exercise is actually counted in, and what bounds it. */
+const MEASURE_FIELD: Record<PrescriptionType, { field: DraftValueField; max: number }> = {
+  reps: { field: "reps", max: SET_LIMITS.reps },
+  duration: { field: "duration", max: SET_LIMITS.durationSeconds },
+  distance: { field: "distance", max: SET_LIMITS.distanceMeters },
 };
 
 /**
@@ -82,14 +94,14 @@ export function SetGrid({
   rows,
   ghost,
   unitLabel,
-  isDuration,
+  measure,
+  rirNote = null,
+  rirTarget = null,
   onEdit,
   onSave,
   onOptions,
 }: SetGridProps) {
-  const middle = isDuration
-    ? { field: "duration" as const, label: "Seconds", max: SET_LIMITS.durationSeconds }
-    : { field: "reps" as const, label: "Reps", max: SET_LIMITS.reps };
+  const middle = { ...MEASURE_FIELD[measure], label: MEASURE_COLUMN_LABELS[measure] };
 
   return (
     <div className="set-grid">
@@ -97,7 +109,15 @@ export function SetGrid({
         <span className="text-center">Set</span>
         <span className="text-center">{unitLabel}</span>
         <span className="text-center">{middle.label}</span>
-        <span className="text-center">RIR</span>
+        {/* RIR is the one column whose meaning changes with the movement, so it explains
+            itself here rather than being left to a glossary nobody opens mid-set. */}
+        <span className="flex items-center justify-center gap-0.5">
+          RIR
+          <InfoTip label="What RIR means here" className="-my-2">
+            {rirNote ?? rirMeaning(measure)}
+            {rirTarget ? ` Today's target is ${rirTarget} RIR.` : ""}
+          </InfoTip>
+        </span>
         {/* The one explanation the grid needs, kept out of the way over the save column. */}
         <span className="flex justify-center">
           <span className="sr-only">Save</span>

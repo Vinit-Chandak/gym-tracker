@@ -68,7 +68,12 @@ export type EquipmentCategory = (typeof EQUIPMENT_CATEGORIES)[number];
 export const GYM_KINDS = ["gym", "outdoor", "home"] as const;
 export type GymKind = (typeof GYM_KINDS)[number];
 
-export const PRESCRIPTION_TYPES = ["reps", "duration"] as const;
+/**
+ * How a set of an exercise is measured, and therefore what the third column of the set grid
+ * asks for. A curl counts reps, a plank counts seconds, a farmer's carry counts metres —
+ * asking a carry for "reps" is asking a question the movement has no answer to.
+ */
+export const PRESCRIPTION_TYPES = ["reps", "duration", "distance"] as const;
 export type PrescriptionType = (typeof PRESCRIPTION_TYPES)[number];
 
 export const PROGRAM_STATUSES = ["draft", "active", "archived"] as const;
@@ -88,6 +93,15 @@ export type ProposalStatus = (typeof PROPOSAL_STATUSES)[number];
 
 export const SLOT_EVENT_STATUSES = ["completed", "skipped"] as const;
 export type SlotEventStatus = (typeof SLOT_EVENT_STATUSES)[number];
+
+/**
+ * The two things a day of a programme can ask for. They are separate tasks that happen to
+ * fall on the same day: the lifting session is started, logged and finished; the run is
+ * logged on the run screen. Either can be done or skipped without the other, and the day is
+ * only behind it when both have been answered.
+ */
+export const SLOT_PARTS = ["session", "run"] as const;
+export type SlotPart = (typeof SLOT_PARTS)[number];
 
 /** A coach plan's life: waiting for its session, replaced by a newer plan, used by a session, or dropped. */
 export const PLAN_STATUSES = ["active", "superseded", "consumed", "void"] as const;

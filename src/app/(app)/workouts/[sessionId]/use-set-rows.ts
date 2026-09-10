@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 
 import { CHANGING_KINDS } from "@/domain/progression";
-import type { SetType } from "@/domain/types";
+import type { PrescriptionType, SetType } from "@/domain/types";
 import {
   draftMatchesSet,
   DRAFT_VALUE_FIELDS,
@@ -20,6 +20,13 @@ import type { ExerciseVM, SetVM } from "./view-model";
 
 const MAX_SETS = 50;
 
+/** What is missing when a row is saved with nothing in the column it is counted in. */
+const MISSING_VALUE: Record<PrescriptionType, string> = {
+  reps: "Enter the reps.",
+  duration: "Enter the seconds held.",
+  distance: "Enter the distance in metres.",
+};
+
 export type RowState = {
   setIndex: number;
   setType: SetType;
@@ -27,6 +34,8 @@ export type RowState = {
   reps: string;
   rir: string;
   duration: string;
+  /** Metres, for exercises measured by ground covered rather than by reps. */
+  distance: string;
   /** Values the user has set, so a cleared field stays cleared instead of taking a ghost. */
   touched: Set<DraftValueField>;
   logged: SetVM | null;
@@ -49,6 +58,7 @@ function rowFromSet(set: SetVM): RowState {
     reps: str(set.reps) ?? "",
     rir: str(set.rir) ?? "",
     duration: str(set.durationSeconds) ?? "",
+    distance: str(set.distanceMeters) ?? "",
     // A recorded set is the truth about itself. Editing one must never let a suggestion
     // creep back into a field the record says is empty.
     touched: new Set(DRAFT_VALUE_FIELDS),
@@ -67,6 +77,7 @@ function emptyRow(setIndex: number): RowState {
     reps: "",
     rir: "",
     duration: "",
+    distance: "",
     touched: new Set(),
     logged: null,
     saving: false,
@@ -93,6 +104,7 @@ type GhostSource = {
   reps: number | null;
   rir: number | null;
   durationSeconds: number | null;
+  distanceMeters: number | null;
 };
 
 function toGhost(set: GhostSource): Ghost {
@@ -101,6 +113,7 @@ function toGhost(set: GhostSource): Ghost {
     reps: str(set.reps),
     rir: str(set.rir),
     duration: str(set.durationSeconds),
+    distance: str(set.distanceMeters),
   };
 }
 
@@ -166,7 +179,8 @@ type Options = {
   sessionId: string;
   /** Prefill last session's loads instead of the engine's targets. */
   holdAll: boolean;
-  isDuration: boolean;
+  /** What one set of this exercise counts: reps, seconds held, or metres covered. */
+  measure: PrescriptionType;
   onLogged: (restSeconds: number) => void;
 };
 
@@ -176,14 +190,7 @@ type Options = {
  * Each row keeps its own numbers. Nothing here writes across rows, so four sets that happen
  * to hold the same load are four records that happen to agree, not one shared value.
  */
-export function useSetRows({
-  exercise,
-  userId,
-  sessionId,
-  holdAll,
-  isDuration,
-  onLogged,
-}: Options) {
+export function useSetRows({ exercise, userId, sessionId, holdAll, measure, onLogged }: Options) {
   const [rows, setRows] = useState<RowState[]>(() => initialRows(exercise));
   const [pending, startTransition] = useTransition();
   const [storageError, setStorageError] = useState(false);
@@ -246,6 +253,7 @@ export function useSetRows({
           reps: row.reps,
           rir: row.rir,
           duration: row.duration,
+          distance: row.distance,
           touched: [...row.touched],
           baseCompletedAt: row.logged?.completedAt ?? null,
         })
@@ -280,11 +288,14 @@ export function useSetRows({
   const logRow = (row: RowState) => {
     const ghost = ghostFor(exercise, rows, row.setIndex, holdAll);
     const weight = resolve(row, "weight", ghost);
-    const reps = isDuration ? null : resolve(row, "reps", ghost);
-    const duration = isDuration ? resolve(row, "duration", ghost) : null;
+    // Exactly the measure this exercise is counted in. A carry has no reps to save, and
+    // saving a zero for one would be a number nobody entered.
+    const reps = measure === "reps" ? resolve(row, "reps", ghost) : null;
+    const duration = measure === "duration" ? resolve(row, "duration", ghost) : null;
+    const distance = measure === "distance" ? resolve(row, "distance", ghost) : null;
     const rir = resolve(row, "rir", ghost);
-    if (reps === null && duration === null) {
-      update(row.setIndex, { error: isDuration ? "Enter the seconds held." : "Enter the reps." });
+    if (reps === null && duration === null && distance === null) {
+      update(row.setIndex, { error: MISSING_VALUE[measure] });
       return;
     }
     // The request carries a snapshot, not a live reference: an edit made while it is in
@@ -295,6 +306,7 @@ export function useSetRows({
       reps: str(reps === null ? null : Math.round(reps)) ?? "",
       rir: str(rir) ?? "",
       duration: str(duration === null ? null : Math.round(duration)) ?? "",
+      distance: str(distance) ?? "",
       touched: new Set(DRAFT_VALUE_FIELDS),
       saving: true,
       dirty: true,
@@ -321,6 +333,7 @@ export function useSetRows({
           reps: reps === null ? null : Math.round(reps),
           rir,
           durationSeconds: duration === null ? null : Math.round(duration),
+          distanceMeters: distance,
         }),
       );
       if (!result.ok) {

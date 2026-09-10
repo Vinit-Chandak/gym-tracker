@@ -29,6 +29,7 @@ describe("set helpers", () => {
         reps: 8,
         rir: null,
         durationSeconds: null,
+        distanceMeters: null,
       },
       {
         setIndex: 2,
@@ -38,6 +39,7 @@ describe("set helpers", () => {
         reps: 10,
         rir: 2,
         durationSeconds: null,
+        distanceMeters: null,
       },
       {
         setIndex: 3,
@@ -47,6 +49,7 @@ describe("set helpers", () => {
         reps: 9,
         rir: 1,
         durationSeconds: null,
+        distanceMeters: null,
       },
     ] as const;
     expect(formatSets(sets)).toBe("80×10, 80×9");
@@ -61,6 +64,7 @@ describe("set helpers", () => {
           reps: null,
           rir: null,
           durationSeconds: 40,
+          distanceMeters: null,
         },
       ]),
     ).toBe("40 s");

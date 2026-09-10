@@ -97,9 +97,17 @@ describe("today plan", () => {
   it("suggests Upper A only after Lower A is completed", async () => {
     const s = await schedule();
     await withUser(t.db, user.id, (tx) =>
-      recordSlotEvent(tx, user.id, s.program.id, { cycleIndex: 1, dayIndex: 1 }, "completed", {
-        occurredOn: "2026-09-08",
-      }),
+      recordSlotEvent(
+        tx,
+        user.id,
+        s.program.id,
+        { cycleIndex: 1, dayIndex: 1 },
+        "session",
+        "completed",
+        {
+          occurredOn: "2026-09-08",
+        },
+      ),
     );
     const plan = await withUser(t.db, user.id, (tx) => getTodayPlan(tx, user.id, TZ));
     expect(plan?.suggestedDay?.name).toBe("Upper A");
@@ -187,16 +195,32 @@ describe("planned session lifecycle", () => {
     expect(finished).toMatchObject({ dayIndex: 2, cycleIndex: 1 });
     const s = await schedule();
     const recorded = await withUser(t.db, user.id, (tx) =>
-      recordSlotEvent(tx, user.id, s.program.id, { cycleIndex: 1, dayIndex: 2 }, "completed", {
-        occurredOn: "2026-09-08",
-        workoutSessionId: sessionId,
-      }),
+      recordSlotEvent(
+        tx,
+        user.id,
+        s.program.id,
+        { cycleIndex: 1, dayIndex: 2 },
+        "session",
+        "completed",
+        {
+          occurredOn: "2026-09-08",
+          workoutSessionId: sessionId,
+        },
+      ),
     );
     expect(recorded).toBe(true);
     const again = await withUser(t.db, user.id, (tx) =>
-      recordSlotEvent(tx, user.id, s.program.id, { cycleIndex: 1, dayIndex: 2 }, "completed", {
-        occurredOn: "2026-09-08",
-      }),
+      recordSlotEvent(
+        tx,
+        user.id,
+        s.program.id,
+        { cycleIndex: 1, dayIndex: 2 },
+        "session",
+        "completed",
+        {
+          occurredOn: "2026-09-08",
+        },
+      ),
     );
     expect(again).toBe(false);
     expect(nextPendingSlot((await schedule()).state)).toEqual({ cycleIndex: 1, dayIndex: 3 });
@@ -231,20 +255,95 @@ describe("planned session lifecycle", () => {
     expect(await withUser(t.db, user.id, (tx) => getInProgressSession(tx, user.id))).toBeNull();
   });
 
+  it("keeps a run day on Today after its workout is finished, until the run is logged too", async () => {
+    const s = await schedule();
+    // Upper A out of the way, so the day that lifts *and* runs is the one being offered.
+    await withUser(t.db, user.id, (tx) =>
+      recordSlotEvent(
+        tx,
+        user.id,
+        s.program.id,
+        { cycleIndex: 1, dayIndex: 2 },
+        "session",
+        "completed",
+        { occurredOn: "2026-09-09" },
+      ),
+    );
+    const runDay = await withUser(t.db, user.id, (tx) => getTodayPlan(tx, user.id, TZ));
+    expect(runDay?.suggestedDay?.name).toBe("Easy Run + Arms");
+    expect(runDay?.runTarget).not.toBeNull();
+
+    await withUser(t.db, user.id, (tx) =>
+      recordSlotEvent(
+        tx,
+        user.id,
+        s.program.id,
+        { cycleIndex: 1, dayIndex: 3 },
+        "session",
+        "completed",
+        { occurredOn: "2026-09-10" },
+      ),
+    );
+    // This is the bug: the run used to disappear with the day the moment the workout ended.
+    const afterWorkout = await withUser(t.db, user.id, (tx) => getTodayPlan(tx, user.id, TZ));
+    expect(afterWorkout?.suggestedDay?.name).toBe("Easy Run + Arms");
+    expect(afterWorkout?.sessionStatus).toBe("completed");
+    expect(afterWorkout?.runStatus).toBe("pending");
+    expect(afterWorkout?.runTarget).not.toBeNull();
+
+    await withUser(t.db, user.id, (tx) =>
+      recordSlotEvent(
+        tx,
+        user.id,
+        s.program.id,
+        { cycleIndex: 1, dayIndex: 3 },
+        "run",
+        "completed",
+        {
+          occurredOn: "2026-09-10",
+        },
+      ),
+    );
+    const afterRun = await withUser(t.db, user.id, (tx) => getTodayPlan(tx, user.id, TZ));
+    expect(afterRun?.suggestedDay?.name).toBe("Lower B");
+  });
+
   it("skipping a slot moves on, and rest slots complete when the next training slot starts", async () => {
     const s = await schedule();
-    await withUser(t.db, user.id, (tx) =>
-      recordSlotEvent(tx, user.id, s.program.id, { cycleIndex: 1, dayIndex: 3 }, "skipped", {
-        occurredOn: "2026-09-09",
-        note: "Travelling",
-      }),
-    );
+    // Days 3 and 6 run as well as lift, so each half is answered in its own right; the day
+    // itself is only behind the sequence once both have been.
+    await withUser(t.db, user.id, async (tx) => {
+      for (const part of ["session", "run"] as const) {
+        await recordSlotEvent(
+          tx,
+          user.id,
+          s.program.id,
+          { cycleIndex: 1, dayIndex: 3 },
+          part,
+          "skipped",
+          {
+            occurredOn: "2026-09-09",
+            note: "Travelling",
+          },
+        );
+      }
+    });
     for (const dayIndex of [4, 5, 6]) {
-      await withUser(t.db, user.id, (tx) =>
-        recordSlotEvent(tx, user.id, s.program.id, { cycleIndex: 1, dayIndex }, "completed", {
-          occurredOn: "2026-09-10",
-        }),
-      );
+      await withUser(t.db, user.id, async (tx) => {
+        for (const part of dayIndex === 6
+          ? (["session", "run"] as const)
+          : (["session"] as const)) {
+          await recordSlotEvent(
+            tx,
+            user.id,
+            s.program.id,
+            { cycleIndex: 1, dayIndex },
+            part,
+            "completed",
+            { occurredOn: "2026-09-10" },
+          );
+        }
+      });
     }
     const restPending = await schedule();
     const next = suggestion(restPending.state);

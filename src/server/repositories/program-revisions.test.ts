@@ -174,13 +174,29 @@ describe("approving a change", () => {
 
     // The athlete is two slots in: one done, one skipped on purpose.
     await as(async (tx) => {
-      await recordSlotEvent(tx, user.id, before.id, { cycleIndex: 1, dayIndex: 1 }, "completed", {
-        occurredOn: "2026-09-08",
-      });
-      await recordSlotEvent(tx, user.id, before.id, { cycleIndex: 1, dayIndex: 2 }, "skipped", {
-        occurredOn: "2026-09-09",
-        note: "Travelling.",
-      });
+      await recordSlotEvent(
+        tx,
+        user.id,
+        before.id,
+        { cycleIndex: 1, dayIndex: 1 },
+        "session",
+        "completed",
+        {
+          occurredOn: "2026-09-08",
+        },
+      );
+      await recordSlotEvent(
+        tx,
+        user.id,
+        before.id,
+        { cycleIndex: 1, dayIndex: 2 },
+        "session",
+        "skipped",
+        {
+          occurredOn: "2026-09-09",
+          note: "Travelling.",
+        },
+      );
     });
     const context = await as((tx) => planningContext(tx, user.id, { gymId }));
     if (context.reason) throw new Error(context.reason);

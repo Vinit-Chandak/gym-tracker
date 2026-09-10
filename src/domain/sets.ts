@@ -17,6 +17,8 @@ export const SET_LIMITS = {
   reps: 1000,
   rir: 10,
   durationSeconds: 36_000,
+  /** Metres. Carries and sled work; 100 km is far past anything logged as a set. */
+  distanceMeters: 100_000,
 } as const;
 
 export type SetLike = {
@@ -27,10 +29,22 @@ export type SetLike = {
   reps: number | null;
   rir: number | null;
   durationSeconds: number | null;
+  distanceMeters: number | null;
 };
 
-/** "80×10" / "0×12" / "45 s" style one-set label. */
+/** What a set actually counted, read from the set rather than from the plan that asked for it. */
+export function measureOf(set: Pick<SetLike, "reps" | "durationSeconds" | "distanceMeters">) {
+  if (set.reps !== null) return "reps" as const;
+  if (set.distanceMeters !== null) return "distance" as const;
+  if (set.durationSeconds !== null) return "duration" as const;
+  return "reps" as const;
+}
+
+/** "80×10" / "0×12" / "45 s" / "2×20 m" style one-set label. */
 export function formatSet(set: SetLike): string {
+  if (set.reps === null && set.distanceMeters !== null) {
+    return set.weight ? `${set.weight}×${set.distanceMeters} m` : `${set.distanceMeters} m`;
+  }
   if (set.durationSeconds !== null && set.reps === null) {
     return set.weight ? `${set.weight}×${set.durationSeconds} s` : `${set.durationSeconds} s`;
   }

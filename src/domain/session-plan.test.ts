@@ -23,6 +23,7 @@ describe("coach plan contract", () => {
       weight: 60,
       reps: 5,
       durationSeconds: null,
+      distanceMeters: null,
       rir: 2,
     });
   });
@@ -114,8 +115,24 @@ describe("coach plan contract", () => {
       ],
     });
     expect(planTargets(plan.exercises[0]!)).toEqual([
-      { setIndex: 1, setType: "warmup", weight: 40, reps: 8, rir: 5, durationSeconds: null },
-      { setIndex: 2, setType: "working", weight: 60, reps: 5, rir: 2, durationSeconds: null },
+      {
+        setIndex: 1,
+        setType: "warmup",
+        weight: 40,
+        reps: 8,
+        rir: 5,
+        durationSeconds: null,
+        distanceMeters: null,
+      },
+      {
+        setIndex: 2,
+        setType: "working",
+        weight: 60,
+        reps: 5,
+        rir: 2,
+        durationSeconds: null,
+        distanceMeters: null,
+      },
     ]);
   });
 

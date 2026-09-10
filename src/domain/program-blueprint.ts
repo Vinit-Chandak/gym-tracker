@@ -65,9 +65,13 @@ export const blueprintExerciseSchema = z
      */
     lineageId: z.uuid().optional(),
     sets: z.number().int().min(1).max(20),
-    /** Reps, or `duration` for timed work. Exactly one of the two is required. */
+    /**
+     * How the slot is counted: reps, seconds held, or metres covered. Exactly one, because a
+     * set answers one question — a carry has no reps and a curl has no distance.
+     */
     reps: range(z.number().int().min(1).max(100)).optional(),
     duration: range(z.number().int().min(1).max(7200)).optional(),
+    distance: range(z.number().int().min(1).max(10000)).optional(),
     perSide: z.boolean().optional(),
     rir: range(z.number().min(0).max(10)),
     rest: range(z.number().int().min(0).max(1200)),
@@ -80,10 +84,10 @@ export const blueprintExerciseSchema = z
     notes: z.string().max(500).optional(),
     fallbacks: z.array(blueprintFallbackSchema).max(10).optional(),
   })
-  .refine((e) => (e.reps === undefined) !== (e.duration === undefined), {
-    message: "Give either reps or duration, not both",
-    path: ["reps"],
-  });
+  .refine(
+    (e) => [e.reps, e.duration, e.distance].filter((value) => value !== undefined).length === 1,
+    { message: "Give exactly one of reps, duration or distance", path: ["reps"] },
+  );
 
 export const blueprintDaySchema = z.object({
   /** Position in the cycle, 1-based and contiguous. */
@@ -148,7 +152,9 @@ export type BlueprintRun = z.infer<typeof blueprintRunSchema>;
 export function prescriptionTypeOf(
   exercise: BlueprintExercise,
 ): (typeof PRESCRIPTION_TYPES)[number] {
-  return exercise.duration ? "duration" : "reps";
+  if (exercise.duration) return "duration";
+  if (exercise.distance) return "distance";
+  return "reps";
 }
 
 /** Every exercise slug a blueprint refers to, planned and fallback alike. */

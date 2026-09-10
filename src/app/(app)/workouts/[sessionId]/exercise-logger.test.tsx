@@ -35,6 +35,7 @@ const saved: SetVM = {
   reps: 5,
   rir: 2,
   durationSeconds: null,
+  distanceMeters: null,
   unit: "kg",
   completedAt: "2026-09-08T12:00:00.000Z",
 };
@@ -49,6 +50,8 @@ const exercise: ExerciseVM = {
     modality: "barbell",
     loadPortability: "global",
     requiresEquipment: true,
+    defaultPrescriptionType: "reps",
+    rirNote: null,
   },
   equipment: null,
   planned: null,
@@ -145,6 +148,7 @@ it("retains unmatched drafts for review when the workout was finished elsewhere"
     reps: "5",
     rir: "2",
     duration: "",
+    distance: "",
     touched: ["weight", "reps", "rir"],
     baseCompletedAt: null,
   });
@@ -201,6 +205,7 @@ it("recognizes an acknowledged-on-the-server draft and does not duplicate non-co
     reps: "5",
     rir: "2",
     duration: "",
+    distance: "",
     touched: ["weight", "reps", "rir"],
     baseCompletedAt: null,
   });
@@ -243,7 +248,15 @@ it("saves a cleared optional value as unknown instead of restoring its suggestio
         advice: null,
         loadIncrement: 2.5,
         sets: [
-          { setIndex: 1, setType: "working", weight: 60, reps: 5, rir: 2, durationSeconds: null },
+          {
+            setIndex: 1,
+            setType: "working",
+            weight: 60,
+            reps: 5,
+            rir: 2,
+            durationSeconds: null,
+            distanceMeters: null,
+          },
         ],
       },
     },
@@ -272,7 +285,15 @@ it("takes an untouched row's suggestion, so a blank set still records the target
         advice: null,
         loadIncrement: 2.5,
         sets: [
-          { setIndex: 1, setType: "working", weight: 60, reps: 5, rir: 2, durationSeconds: null },
+          {
+            setIndex: 1,
+            setType: "working",
+            weight: 60,
+            reps: 5,
+            rir: 2,
+            durationSeconds: null,
+            distanceMeters: null,
+          },
         ],
       },
     },

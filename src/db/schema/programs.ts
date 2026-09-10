@@ -23,6 +23,7 @@ import {
   proposalSourceEnum,
   proposalStatusEnum,
   slotEventStatusEnum,
+  slotPartEnum,
 } from "./enums";
 import { exercises, warmupProtocols } from "./exercises";
 import { equipmentInstances, equipmentTypes, gyms } from "./gyms";
@@ -120,6 +121,9 @@ export const programExercises = pgTable(
     repMax: integer("rep_max"),
     durationMinSeconds: integer("duration_min_seconds"),
     durationMaxSeconds: integer("duration_max_seconds"),
+    /** Carries, sled work and other distance-measured slots. Metres, always. */
+    distanceMinMeters: integer("distance_min_meters"),
+    distanceMaxMeters: integer("distance_max_meters"),
     perSide: boolean("per_side").notNull().default(false),
     rirMin: numeric("rir_min", { precision: 3, scale: 1, mode: "number" }),
     rirMax: numeric("rir_max", { precision: 3, scale: 1, mode: "number" }),
@@ -151,6 +155,13 @@ export const programExercises = pgTable(
     check(
       "program_exercises_reps_chk",
       sql`rep_min is null or rep_max is null or rep_min <= rep_max`,
+    ),
+    check(
+      "program_exercises_distance_chk",
+      sql`(distance_min_meters is null or distance_min_meters >= 0)
+        and (distance_max_meters is null or distance_max_meters >= 0)
+        and (distance_min_meters is null or distance_max_meters is null
+          or distance_min_meters <= distance_max_meters)`,
     ),
     ownerPolicy("program_exercises"),
   ],
@@ -251,8 +262,14 @@ export const programChangeProposals = pgTable(
 ).enableRLS();
 
 /**
- * What happened to each slot of the programme sequence (cycle × day): completed by a session
- * or skipped on purpose. The next thing to do is always the earliest slot without an event.
+ * What happened to each *part* of each slot of the programme sequence (cycle × day × part):
+ * completed by a session or a logged run, or skipped on purpose.
+ *
+ * A day can ask for two independent things — lift, run — and one row records one of them, so
+ * finishing the workout on a day that also runs no longer answers for the run. The next thing
+ * to do is the earliest slot with a part that has no event; a day is behind the sequence until
+ * every part it asks for has one. Rest days ask only for `session`, which is what "mark rest
+ * day done" writes.
  */
 export const programSlotEvents = pgTable(
   "program_slot_events",
@@ -266,15 +283,19 @@ export const programSlotEvents = pgTable(
       .references(() => programs.id, { onDelete: "cascade" }),
     cycleIndex: integer("cycle_index").notNull(),
     dayIndex: integer("day_index").notNull(),
+    /** Which half of the day this is about. Everything written before runs were separate is `session`. */
+    part: slotPartEnum("part").notNull().default("session"),
     status: slotEventStatusEnum("status").notNull(),
     /** Set when the slot was completed by a logged session. */
     workoutSessionId: uuid("workout_session_id"),
+    /** Set when the `run` part was completed by a logged run. */
+    runId: uuid("run_id"),
     occurredOn: date("occurred_on").notNull(),
     note: text("note"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    uniqueIndex("program_slot_events_slot_uq").on(t.programId, t.cycleIndex, t.dayIndex),
+    uniqueIndex("program_slot_events_slot_uq").on(t.programId, t.cycleIndex, t.dayIndex, t.part),
     check("program_slot_events_indexes_chk", sql`cycle_index >= 1 and day_index >= 1`),
     ownerPolicy("program_slot_events"),
   ],

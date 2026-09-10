@@ -18,6 +18,9 @@ export const WORKING_SET_TYPES: ReadonlySet<SetType> = new Set<SetType>([
 /** Seconds added per set when a timed hold is progressing. */
 export const TIME_STEP_SECONDS = 5;
 
+/** Metres added per set when a carry is progressing. */
+export const DISTANCE_STEP_METERS = 5;
+
 /** An achieved RIR this far below the planned minimum (or hitting failure) counts as much worse. */
 export const RIR_MUCH_WORSE_GAP = 2;
 
@@ -28,6 +31,8 @@ export type Prescription = {
   repMax: number | null;
   durationMinSeconds: number | null;
   durationMaxSeconds: number | null;
+  distanceMinMeters: number | null;
+  distanceMaxMeters: number | null;
   /** Lowest RIR the plan allows; the "target" of "at or easier than target". */
   rirMin: number | null;
   rirMax: number | null;
@@ -44,6 +49,7 @@ export type PerformedSet = {
   reps: number | null;
   rir: number | null;
   durationSeconds: number | null;
+  distanceMeters: number | null;
 };
 
 /**
@@ -61,6 +67,8 @@ export type SuggestionKind =
   | "repeat"
   | "reduce"
   | "extend"
+  /** A carry that should cover more ground before it takes more load. */
+  | "lengthen"
   | "transfer"
   | "start"
   /** Targets written by the AI coach's plan for this session, in place of the rule's. */
@@ -71,6 +79,7 @@ export const CHANGING_KINDS: ReadonlySet<SuggestionKind> = new Set<SuggestionKin
   "increase",
   "reduce",
   "extend",
+  "lengthen",
   "coach",
 ]);
 
@@ -81,6 +90,7 @@ export type TargetSet = {
   reps: number | null;
   rir: number | null;
   durationSeconds: number | null;
+  distanceMeters: number | null;
 };
 
 export type ProgressionSuggestion = {
@@ -113,6 +123,7 @@ function copy(sets: readonly PerformedSet[]): TargetSet[] {
     reps: s.reps,
     rir: s.rir,
     durationSeconds: s.durationSeconds,
+    distanceMeters: s.distanceMeters,
   }));
 }
 
@@ -298,6 +309,86 @@ function forTime(
 }
 
 /**
+ * Carries and sled work: cover the distance before you add the load.
+ *
+ * Same shape as the timed rule, in metres. A carry has no reps to leave in reserve, so RIR is
+ * read as ground left rather than repetitions left, and the rule never asks for one more step
+ * once the planned distance is being covered at the planned quality.
+ */
+function forDistance(
+  p: Prescription,
+  previous: readonly PerformedSet[],
+  working: readonly PerformedSet[],
+  basis: SuggestionBasis,
+): ProgressionSuggestion {
+  const inc = p.loadIncrement;
+  const targetRir = p.rirMin;
+  const max = p.distanceMaxMeters;
+  const min = p.distanceMinMeters;
+  const first = working[0];
+  if (!first) throw new Error("forDistance needs at least one working set");
+  const atMax = (s: PerformedSet) =>
+    max !== null &&
+    s.distanceMeters !== null &&
+    s.distanceMeters >= max &&
+    rirSatisfied(s, targetRir);
+
+  if (max !== null && working.length >= p.sets && working.every(atMax)) {
+    return base(
+      "increase",
+      basis,
+      `Every set covered ${max} m${targetRir === null ? "" : ` at ≥${targetRir} RIR`}`,
+      `Distance is maxed; add ${inc} ${p.unit} per hand and drop back to ${min ?? max} m`,
+      inc,
+      shiftLoad(previous, inc, p).map((s) => ({ ...s, distanceMeters: min ?? s.distanceMeters })),
+    );
+  }
+
+  if (min !== null && first.distanceMeters !== null && first.distanceMeters < min) {
+    return base(
+      "repeat",
+      basis,
+      `First carry stopped at ${first.distanceMeters} m, short of the ${min} m minimum`,
+      null,
+      inc,
+      copy(previous),
+    );
+  }
+
+  const worse = working.find((s) => muchWorseRir(s, targetRir));
+  if (worse) {
+    return base(
+      "repeat",
+      basis,
+      `Set ${worse.setIndex} was ${worse.rir} RIR against a ${targetRir} RIR plan`,
+      null,
+      inc,
+      copy(previous),
+    );
+  }
+
+  const sets = copy(previous).map((s) =>
+    WORKING_SET_TYPES.has(s.setType) && s.distanceMeters !== null
+      ? {
+          ...s,
+          distanceMeters:
+            max === null
+              ? s.distanceMeters + DISTANCE_STEP_METERS
+              : Math.min(max, s.distanceMeters + DISTANCE_STEP_METERS),
+        }
+      : s,
+  );
+  return base(
+    "lengthen",
+    basis,
+    `Add ${DISTANCE_STEP_METERS} m per carry${max === null ? "" : ` up to ${max} m`}`,
+    null,
+    inc,
+    sets,
+  );
+}
+
+/**
  * What to do next for one exercise. `previous` is the basis performance (same machine for
  * machine work, any gym for free weights) or a different-machine guess when `basis` says so.
  */
@@ -324,28 +415,41 @@ export function suggestNext(
       copy(previous),
     );
   }
-  return prescription.prescriptionType === "duration"
-    ? forTime(prescription, previous, working, basis)
-    : forReps(prescription, previous, working, basis);
+  switch (prescription.prescriptionType) {
+    case "duration":
+      return forTime(prescription, previous, working, basis);
+    case "distance":
+      return forDistance(prescription, previous, working, basis);
+    default:
+      return forReps(prescription, previous, working, basis);
+  }
 }
 
 /**
  * Comparison score for one performance: best-set estimated 1RM (Epley) for loaded sets,
- * else total working reps, else total seconds held. Only used to compare like with like.
+ * else total working reps, else total metres carried, else total seconds held. Only used to
+ * compare like with like.
  */
 export function performanceScore(sets: readonly PerformedSet[]): number {
   let best = 0;
   let reps = 0;
   let seconds = 0;
+  let meters = 0;
   for (const s of workingSets(sets)) {
     if (s.weight !== null && s.weight > 0 && s.reps !== null) {
       best = Math.max(best, s.weight * (1 + s.reps / 30));
     }
     reps += s.reps ?? 0;
     seconds += s.durationSeconds ?? 0;
+    meters += s.distanceMeters ?? 0;
   }
   if (best > 0) return best;
   if (reps > 0) return reps;
+  // A loaded carry is compared on the work done: metres at the load they were carried at.
+  if (meters > 0) {
+    const load = workingSets(sets).reduce((sum, s) => sum + (s.weight ?? 0), 0);
+    return load > 0 ? meters * (1 + load / 100) : meters;
+  }
   return seconds;
 }
 

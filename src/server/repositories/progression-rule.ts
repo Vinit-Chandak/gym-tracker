@@ -8,19 +8,16 @@ import {
   type SuggestionBasis,
 } from "@/domain/progression";
 import { weightStepFor } from "@/domain/sets";
-import type { LoadPortability, LoadUnit } from "@/domain/types";
+import type { LoadPortability, LoadUnit, PrescriptionType } from "@/domain/types";
 import type { ComparablePerformance } from "@/server/queries/comparable";
 
 import type { programExercises } from "@/db/schema";
 
 export type RuleInput = {
   planned: typeof programExercises.$inferSelect | null;
-  exercise: {
+  exercise: ExerciseDefaults & {
     loadPortability: LoadPortability;
     defaultLoadIncrement: number | null;
-    defaultRepMin: number | null;
-    defaultRepMax: number | null;
-    defaultRir: number | null;
   };
   /** The machine in use, or null for free weights, bodyweight and an undecided machine. */
   equipment: { id: string; unit: LoadUnit; loadIncrement: number | null } | null;
@@ -88,14 +85,40 @@ export function applyRule(input: RuleInput): RuleOutcome {
   };
 }
 
+/**
+ * What the library says about an exercise nothing is planned for: how it is measured, and the
+ * range it is normally done in. An exercise added to a session on the spot is prescribed from
+ * this, so a carry asks for metres rather than for reps it does not have.
+ */
+export type ExerciseDefaults = {
+  defaultPrescriptionType: PrescriptionType;
+  defaultRepMin: number | null;
+  defaultRepMax: number | null;
+  defaultDurationMinSeconds: number | null;
+  defaultDurationMaxSeconds: number | null;
+  defaultDistanceMinMeters: number | null;
+  defaultDistanceMaxMeters: number | null;
+  defaultRir: number | null;
+};
+
+/** The range the exercise's own measure is normally worked in, or null when it has none. */
+function defaultRange(exercise: ExerciseDefaults): [number, number] | null {
+  const pick = (min: number | null, max: number | null): [number, number] | null =>
+    min === null || max === null ? null : [min, max];
+  switch (exercise.defaultPrescriptionType) {
+    case "duration":
+      return pick(exercise.defaultDurationMinSeconds, exercise.defaultDurationMaxSeconds);
+    case "distance":
+      return pick(exercise.defaultDistanceMinMeters, exercise.defaultDistanceMaxMeters);
+    default:
+      return pick(exercise.defaultRepMin, exercise.defaultRepMax);
+  }
+}
+
 /** Today's prescription for the rule: the programme slot, else the exercise's own defaults. */
 export function prescriptionFor(
   planned: typeof programExercises.$inferSelect | null,
-  exercise: {
-    defaultRepMin: number | null;
-    defaultRepMax: number | null;
-    defaultRir: number | null;
-  },
+  exercise: ExerciseDefaults,
   basis: ComparablePerformance | null,
   weightStep: number,
   unit: LoadUnit,
@@ -110,6 +133,8 @@ export function prescriptionFor(
       repMax: planned.repMax,
       durationMinSeconds: planned.durationMinSeconds,
       durationMaxSeconds: planned.durationMaxSeconds,
+      distanceMinMeters: planned.distanceMinMeters,
+      distanceMaxMeters: planned.distanceMaxMeters,
       rirMin: planned.rirMin,
       rirMax: planned.rirMax,
       rule,
@@ -117,17 +142,24 @@ export function prescriptionFor(
       unit,
     };
   }
-  if (exercise.defaultRepMin === null || exercise.defaultRepMax === null) return null;
+  const range = defaultRange(exercise);
+  if (!range) return null;
+  const measure = exercise.defaultPrescriptionType;
   return {
     sets: basis ? Math.max(1, workingSets(basis.sets).length) : 1,
-    prescriptionType: "reps",
-    repMin: exercise.defaultRepMin,
-    repMax: exercise.defaultRepMax,
-    durationMinSeconds: null,
-    durationMaxSeconds: null,
+    prescriptionType: measure,
+    repMin: measure === "reps" ? range[0] : null,
+    repMax: measure === "reps" ? range[1] : null,
+    durationMinSeconds: measure === "duration" ? range[0] : null,
+    durationMaxSeconds: measure === "duration" ? range[1] : null,
+    distanceMinMeters: measure === "distance" ? range[0] : null,
+    distanceMaxMeters: measure === "distance" ? range[1] : null,
     rirMin: exercise.defaultRir,
     rirMax: exercise.defaultRir,
-    rule: { kind: "double_progression", loadIncrement: null },
+    rule:
+      measure === "reps"
+        ? { kind: "double_progression", loadIncrement: null }
+        : { kind: "time_first" },
     loadIncrement: weightStep,
     unit,
   };

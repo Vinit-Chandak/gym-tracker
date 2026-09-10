@@ -23,6 +23,7 @@ const draft: Draft = {
   reps: "5",
   rir: "2",
   duration: "",
+  distance: "",
   baseCompletedAt: null,
 };
 const storage = () => {
@@ -68,12 +69,20 @@ describe("unsaved set drafts", () => {
         reps: 5,
         rir: 2,
         durationSeconds: null,
+        distanceMeters: null,
       }),
     ).toBe(true);
     expect(
       draftMatchesSet(
         { ...draft, weight: "" },
-        { setType: "working", weight: 0, reps: 5, rir: 2, durationSeconds: null },
+        {
+          setType: "working",
+          weight: 0,
+          reps: 5,
+          rir: 2,
+          durationSeconds: null,
+          distanceMeters: null,
+        },
       ),
     ).toBe(false);
   });

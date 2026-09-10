@@ -101,6 +101,7 @@ beforeAll(async () => {
           reps: 5,
           rir: 2,
           durationSeconds: null,
+          distanceMeters: null,
         });
         await logSet(tx, alice.id, {
           workoutExerciseId: slot.workoutExerciseId,
@@ -110,6 +111,7 @@ beforeAll(async () => {
           reps: 10,
           rir: 5,
           durationSeconds: null,
+          distanceMeters: null,
         });
       }
       await finishSession(tx, alice.id, session.sessionId, { notes: null, bodyWeightKg: null });
@@ -331,6 +333,7 @@ it("retries a lost acknowledgement idempotently and rejects a stale conflicting 
       reps: 5,
       rir: 2,
       durationSeconds: null,
+      distanceMeters: null,
     };
     const first = await logSet(tx, alice.id, input),
       retried = await logSet(tx, alice.id, input);

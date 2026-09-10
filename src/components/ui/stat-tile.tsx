@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { InfoTip } from "@/components/ui/info-tip";
 import { cn } from "@/lib/utils";
 
 /**
@@ -16,10 +17,26 @@ export function StatTileRow({ className, children }: { className?: string; child
   );
 }
 
-export function StatTile({ label, value }: { label: string; value: ReactNode }) {
+export function StatTile({
+  label,
+  value,
+  info,
+}: {
+  label: string;
+  value: ReactNode;
+  /** What the number means, when the label alone does not say — e.g. what RIR is here. */
+  info?: ReactNode;
+}) {
   return (
     <div className="min-w-0">
-      <dt className="text-xs leading-tight text-ink-muted">{label}</dt>
+      <dt className="flex items-center gap-0.5 text-xs leading-tight text-ink-muted">
+        {label}
+        {info && (
+          <InfoTip label={`About ${label}`} className="-my-2">
+            {info}
+          </InfoTip>
+        )}
+      </dt>
       <dd className="mt-1 text-lg font-medium tabular-nums">{value}</dd>
     </div>
   );

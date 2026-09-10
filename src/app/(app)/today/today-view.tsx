@@ -14,6 +14,7 @@ import { Disclosure } from "@/components/ui/disclosure";
 import { InfoTip } from "@/components/ui/info-tip";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { runPlanLine } from "@/domain/session-plan";
+import type { SlotStatus } from "@/domain/schedule";
 import type { WarmupDrill } from "@/domain/types";
 import { formatDateTime, formatIsoDate } from "@/lib/format";
 import type { TodayCoachState } from "@/server/repositories/coach-plans";
@@ -26,6 +27,7 @@ import {
   CompleteRestButton,
   DiscardSessionButton,
   MoreOptions,
+  SkipPartButton,
   StartAdHocButton,
   StartPlannedButton,
 } from "./plan-actions";
@@ -152,6 +154,16 @@ function CoachStatus({
   return null;
 }
 
+/** How a finished half of the day says so: quietly, in the place its button was. */
+function DoneNote({ children }: { children: ReactNode }) {
+  return <p className="text-sm text-ink-muted">{children}</p>;
+}
+
+const TASK_BADGE: Record<SlotStatus, ReactNode> = {
+  completed: <Badge tone="success">Done</Badge>,
+  skipped: <Badge tone="warning">Skipped</Badge>,
+};
+
 export function TodayView({
   today,
   timeZone,
@@ -164,7 +176,6 @@ export function TodayView({
 }: TodayViewProps) {
   const defaultGym = gyms.find((gym) => gym.isDefault) ?? null;
   const day = plan?.suggestedDay ?? null;
-  const restDay = day !== null && !day.includesLifting;
   // The coach's plan stands in for the programme's only when it was made for this gym and
   // nothing newer is on its way.
   const coachPlan = coach?.plan && coach.matchesGym && !coach.pending ? coach.plan : null;
@@ -185,6 +196,21 @@ export function TodayView({
       <Badge tone="success">On track</Badge>
     );
 
+  /*
+   * The two halves of the day, each answered on its own. A workout and a run are different
+   * things that happen to fall on the same date: the workout card never mentions the run and
+   * the run card never mentions the workout, and finishing one leaves the other exactly where
+   * it was. The day is only over when both have been done or skipped.
+   */
+  const sessionStatus = plan?.sessionStatus ?? "pending";
+  const runStatus = plan?.runStatus ?? "pending";
+  const showRun = day !== null && (day.includesRun || coachRun !== null);
+  const restDay = day !== null && !day.includesLifting && !day.includesRun;
+  // The open session belongs to the day when it was started from it; anything else — an ad hoc
+  // session, or another day started early — is its own thing and gets its own card.
+  const openHere = inProgress !== null && day !== null && inProgress.programDayId === day.id;
+  const openElsewhere = inProgress !== null && !openHere;
+
   return (
     <>
       <PageHeader title="Today" context={formatIsoDate(today)} />
@@ -202,7 +228,7 @@ export function TodayView({
           <GymSwitcher gyms={gyms} />
         )}
 
-        {inProgress ? (
+        {openElsewhere && inProgress && (
           <Card>
             <CardHead
               eyebrow="In progress"
@@ -220,7 +246,9 @@ export function TodayView({
             {/* A session that has recorded something is finished, never discarded. */}
             {inProgress.setCount === 0 && <DiscardSessionButton sessionId={inProgress.id} />}
           </Card>
-        ) : !plan ? (
+        )}
+
+        {!plan ? (
           <Card>
             <h2 className="text-lg font-medium">No programme</h2>
             <LinkButton href="/settings/programme" size="lg" className="w-full">
@@ -242,11 +270,7 @@ export function TodayView({
           </Card>
         ) : (
           <>
-            {/*
-              One card per thing to do. A day with a run and a lifting session is two cards,
-              each with its own action above its own folded plan, so a closed card is the
-              decision and nothing else: name, standing, button.
-            */}
+            {/* The workout. Nothing on this card is about the run. */}
             {day.includesLifting && (
               <Card>
                 {/* With a coach plan the card's line is the coach's sentence; what the day is
@@ -261,25 +285,48 @@ export function TodayView({
                       : dayNote(day)
                   }
                   badge={
-                    coachPlan ? (
-                      <span className="flex shrink-0 flex-wrap justify-end gap-1">
-                        <Badge tone="accent">Coach</Badge>
-                        {standing}
-                      </span>
-                    ) : (
-                      standing
-                    )
+                    <span className="flex shrink-0 flex-wrap justify-end gap-1">
+                      {coachPlan && <Badge tone="accent">Coach</Badge>}
+                      {sessionStatus === "pending" ? standing : TASK_BADGE[sessionStatus]}
+                    </span>
                   }
                 />
-                <StartPlannedButton
-                  gymId={defaultGym?.id ?? null}
-                  programDayId={day.id}
-                  dayIndex={day.dayIndex}
-                  label="Start workout"
-                  ariaLabel={`Start ${day.name}`}
-                />
-                {defaultGym === null && (
-                  <p className="text-sm text-ink-muted">Choose a gym above to start.</p>
+                {openHere && inProgress ? (
+                  <>
+                    <LinkButton
+                      href={`/workouts/${inProgress.id}`}
+                      size="lg"
+                      className="w-full"
+                      aria-label={`Resume ${day.name}`}
+                    >
+                      Resume session
+                    </LinkButton>
+                    <p className="text-sm text-ink-muted tabular-nums">
+                      Started {formatDateTime(inProgress.startedAt, timeZone)} ·{" "}
+                      {inProgress.gymName} · {inProgress.setCount}{" "}
+                      {inProgress.setCount === 1 ? "set" : "sets"}
+                    </p>
+                    {inProgress.setCount === 0 && (
+                      <DiscardSessionButton sessionId={inProgress.id} />
+                    )}
+                  </>
+                ) : sessionStatus === "completed" ? (
+                  <DoneNote>Workout logged. Nothing left to do here today.</DoneNote>
+                ) : sessionStatus === "skipped" ? (
+                  <DoneNote>Workout skipped.</DoneNote>
+                ) : (
+                  <>
+                    <StartPlannedButton
+                      gymId={defaultGym?.id ?? null}
+                      programDayId={day.id}
+                      dayIndex={day.dayIndex}
+                      label="Start workout"
+                      ariaLabel={`Start ${day.name}`}
+                    />
+                    {defaultGym === null && (
+                      <p className="text-sm text-ink-muted">Choose a gym above to start.</p>
+                    )}
+                  </>
                 )}
                 {coach && (
                   <CoachStatus coach={coach} gymName={defaultGym?.name ?? null} gyms={gyms} />
@@ -311,7 +358,9 @@ export function TodayView({
               </Card>
             )}
 
-            {(plan.runTarget || coachRun) && (
+            {/* The run. Its own card, its own action, its own way out — and nothing on it is
+                about the workout, whatever the workout's own card says. */}
+            {showRun && (
               <Card>
                 <CardHead
                   eyebrow={day.includesLifting ? undefined : position}
@@ -326,22 +375,49 @@ export function TodayView({
                   badge={
                     <span className="flex shrink-0 flex-wrap justify-end gap-1">
                       {coachRun && <Badge tone="accent">Coach</Badge>}
-                      {day.includesLifting ? null : standing}
+                      {runStatus === "pending"
+                        ? day.includesLifting
+                          ? null
+                          : standing
+                        : TASK_BADGE[runStatus]}
                     </span>
                   }
                 />
-                {/* On a day that only runs, the coach's sentence is about the run. */}
-                {coachRun && !day.includesLifting && coachPlan && (
-                  <p className="text-sm">{coachPlan.summary}</p>
+                {runStatus === "completed" ? (
+                  <>
+                    <DoneNote>Run logged.</DoneNote>
+                    {plan.loggedRunId && (
+                      <LinkButton
+                        href={`/runs/${plan.loggedRunId}`}
+                        variant="secondary"
+                        className="w-full"
+                      >
+                        See the run
+                      </LinkButton>
+                    )}
+                  </>
+                ) : runStatus === "skipped" ? (
+                  <DoneNote>Run skipped.</DoneNote>
+                ) : (
+                  <>
+                    <LinkButton
+                      href={plan.runTarget ? `/runs/new?planned=${plan.runTarget.id}` : "/runs/new"}
+                      variant={day.includesLifting ? "secondary" : "primary"}
+                      size="lg"
+                      className="w-full"
+                    >
+                      Log run
+                    </LinkButton>
+                    {day.includesRun && (
+                      <SkipPartButton
+                        dayIndex={day.dayIndex}
+                        part="run"
+                        title="Skip today's run?"
+                        label="Skip run"
+                      />
+                    )}
+                  </>
                 )}
-                <LinkButton
-                  href="/runs/new"
-                  variant={day.includesLifting ? "secondary" : "primary"}
-                  size="lg"
-                  className="w-full"
-                >
-                  Log run
-                </LinkButton>
                 {!day.includesLifting && coach && (
                   <CoachStatus coach={coach} gymName={defaultGym?.name ?? null} gyms={gyms} />
                 )}
@@ -360,19 +436,19 @@ export function TodayView({
               </Card>
             )}
 
-            {!day.includesLifting && (
+            {/* A day that neither lifts nor runs: rest, mobility, and one tick. */}
+            {restDay && (
               <Card>
                 <CardHead
-                  eyebrow={plan.runTarget ? undefined : position}
+                  eyebrow={position}
                   title={day.name}
                   subtitle={daySubtitle(day)}
                   note={dayNote(day)}
-                  badge={plan.runTarget ? undefined : standing}
+                  badge={sessionStatus === "pending" ? standing : TASK_BADGE[sessionStatus]}
                 />
-                <CompleteRestButton
-                  dayIndex={day.dayIndex}
-                  label={day.includesRun ? "Mark done" : "Mark rest day done"}
-                />
+                {sessionStatus === "pending" && (
+                  <CompleteRestButton dayIndex={day.dayIndex} label="Mark rest day done" />
+                )}
                 {/* Resting is the suggestion, not a rule: the next lifting day stays one
                     tap away rather than only through "Train another day". */}
                 {plan.nextTrainingDay && (
@@ -399,7 +475,11 @@ export function TodayView({
             {/* Everything that is not the day's own decision, one tap behind one control. */}
             <MoreOptions
               gymId={defaultGym?.id ?? null}
-              skip={restDay ? null : { dayIndex: day.dayIndex, dayName: day.name }}
+              skip={
+                day.includesLifting && sessionStatus === "pending"
+                  ? { dayIndex: day.dayIndex, dayName: day.name }
+                  : null
+              }
               coach={
                 coach
                   ? {
