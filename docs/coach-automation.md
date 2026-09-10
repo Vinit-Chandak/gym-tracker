@@ -87,7 +87,9 @@ is in the COACH_APP_URL environment variable; the service token is attached by t
 environment's API credential, so no request needs a token from you.
 ```
 
-Remove connectors the routine does not need; it needs none.
+Remove connectors the routine does not need; it needs none. A routine created from a Claude
+Code session may arrive without a repository or model set: open it, **Edit**, and check both
+before enabling it.
 
 ### 4. Let the app fire the routine
 
