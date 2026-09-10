@@ -27,28 +27,22 @@ import {
   workoutSessions,
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
-import { comparisonScope } from "@/domain/comparable-history";
-import {
-  regressionStreak,
-  suggestNext,
-  workingSets,
-  type Prescription,
-  type ProgressionSuggestion,
-  type SuggestionBasis,
-} from "@/domain/progression";
+import type { ProgressionSuggestion } from "@/domain/progression";
+import { planTargets } from "@/domain/session-plan";
 import {
   hasCheckIn,
   recoveryWarnings,
   type CheckIn,
   type RecoveryWarning,
 } from "@/domain/recovery";
-import { weightStepFor } from "@/domain/sets";
 import type { LoadUnit, SetType, WarmupDrill } from "@/domain/types";
 import { sessionHistories, type ComparablePerformance } from "@/server/queries/comparable";
 import { getWarmupProtocol } from "@/server/queries/reference";
 
 import { decideExercisesAtGym, resolvePlannedDay, type ExerciseDecision } from "./availability";
 import { getGym } from "./gyms";
+import { consumePlan, planForSession, releasePlan } from "./coach-plans";
+import { applyRule } from "./progression-rule";
 
 export class SessionNotFoundError extends Error {
   constructor() {
@@ -164,7 +158,11 @@ export async function startPlannedSession(
   const [gym, [day]] = await Promise.all([
     getGym(db, userId, input.gymId),
     db
-      .select({ id: programDays.id, programId: programDays.programId })
+      .select({
+        id: programDays.id,
+        programId: programDays.programId,
+        dayIndex: programDays.dayIndex,
+      })
       .from(programDays)
       .where(and(eq(programDays.id, input.programDayId), eq(programDays.userId, userId)))
       .limit(1),
@@ -194,31 +192,76 @@ export async function startPlannedSession(
   if (!resolved) throw new SessionNotFoundError();
   if (!session) throw new Error("Session insert returned no row");
 
-  if (resolved.length > 0) {
-    await db.insert(workoutExercises).values(
-      resolved.map((item, index) => {
-        const r = item.decision.resolution;
-        const substituted = r.status === "fallback";
-        return {
-          userId,
-          workoutSessionId: session.id,
-          exerciseId: substituted ? r.exercise.id : item.exercise.id,
-          equipmentInstanceId:
-            r.status === "direct" || r.status === "fallback"
-              ? (r.equipmentInstance?.id ?? null)
-              : null,
-          plannedProgramExerciseId: item.programExerciseId,
-          orderIndex: index + 1,
-          // The session takes its own copy of the plan's grouping. From here it is the
-          // session's to change, and the programme template is never written back.
-          supersetGroup: item.supersetGroup,
-          substitutionReason: substituted
-            ? `Fallback at ${gym.name}: ${item.exercise.name} → ${item.decision.resolvedExerciseName}`
-            : null,
-        };
-      }),
-    );
+  // The coach's plan for this slot, if it was made for this gym. From here the session owns
+  // what the plan said: a substitution or a drop is written into the session's own rows.
+  const plan = await consumePlan(db, userId, {
+    programId: day.programId,
+    ref: { cycleIndex: input.cycleIndex, dayIndex: day.dayIndex },
+    gymId: input.gymId,
+    sessionId: session.id,
+  });
+  const now = new Date();
+  const values: (typeof workoutExercises.$inferInsert)[] = [];
+  for (const item of resolved) {
+    const r = item.decision.resolution;
+    const substituted = r.status === "fallback";
+    const entry = plan?.exercises.find((e) => e.slotId === item.programExerciseId) ?? null;
+    const base = {
+      userId,
+      workoutSessionId: session.id,
+      plannedProgramExerciseId: item.programExerciseId,
+      orderIndex: values.length + 1,
+      // The session takes its own copy of the plan's grouping. From here it is the
+      // session's to change, and the programme template is never written back.
+      supersetGroup: item.supersetGroup,
+    };
+    if (entry?.action === "drop") {
+      values.push({
+        ...base,
+        exerciseId: item.exercise.id,
+        equipmentInstanceId: null,
+        supersetGroup: null,
+        skippedAt: now,
+        notes: entry.note || "Left out by the coach's plan",
+      });
+      continue;
+    }
+    if (entry?.action === "substitute" && entry.exerciseId) {
+      values.push({
+        ...base,
+        exerciseId: entry.exerciseId,
+        equipmentInstanceId: entry.equipmentInstanceId,
+        substitutionReason: `Coach plan: ${item.exercise.name} → ${entry.exerciseName}`,
+      });
+      continue;
+    }
+    values.push({
+      ...base,
+      exerciseId: substituted ? r.exercise.id : item.exercise.id,
+      // A machine the plan names wins; otherwise the gym's own resolution.
+      equipmentInstanceId:
+        entry?.equipmentInstanceId ??
+        (r.status === "direct" || r.status === "fallback"
+          ? (r.equipmentInstance?.id ?? null)
+          : null),
+      substitutionReason: substituted
+        ? `Fallback at ${gym.name}: ${item.exercise.name} → ${item.decision.resolvedExerciseName}`
+        : null,
+    });
   }
+  for (const entry of plan?.exercises ?? []) {
+    if (entry.slotId !== null || entry.action === "drop" || !entry.exerciseId) continue;
+    values.push({
+      userId,
+      workoutSessionId: session.id,
+      exerciseId: entry.exerciseId,
+      equipmentInstanceId: entry.equipmentInstanceId,
+      plannedProgramExerciseId: null,
+      orderIndex: values.length + 1,
+      substitutionReason: "Added by the coach's plan",
+    });
+  }
+  if (values.length > 0) await db.insert(workoutExercises).values(values);
   return { sessionId: session.id };
 }
 
@@ -296,6 +339,10 @@ export type SessionExercise = {
   regressionStreak: number;
   /** Present when the exercise still needs a machine choice at this gym. */
   decision: ExerciseDecision | null;
+  /** The coach plan's line for this exercise, when the session started from one. */
+  coachNote: string | null;
+  /** Rest the coach asked for, in place of the programme's target. */
+  coachRestSeconds: number | null;
 };
 
 export type SessionDetail = {
@@ -320,6 +367,8 @@ export type SessionDetail = {
   restTimerEnabled: boolean;
   /** Recovery advice derived from the check-in; never changes a suggestion. */
   warnings: RecoveryWarning[];
+  /** The coach plan this session started from, if any. */
+  coachPlan: { summary: string; warmup: string[]; generatedAt: string } | null;
   exercises: SessionExercise[];
 };
 
@@ -376,7 +425,7 @@ export async function getSessionDetail(
   // Everything keyed by the session alone, in one round trip: the slots, their sets, the
   // rest-timer preference, the warm-up (from memory) and the previous check-in.
   const plannedExercise = alias(exercises, "planned_exercise");
-  const [rows, setRows, [profile], warmup, previousCheck] = await Promise.all([
+  const [rows, setRows, [profile], warmup, previousCheck, coachPlan] = await Promise.all([
     db
       .select({
         we: workoutExercises,
@@ -439,7 +488,14 @@ export async function getSessionDetail(
     wantsWarnings
       ? previousCheckIn(db, userId, session.session.startedAt, session.session.id)
       : Promise.resolve(null),
+    includeGuidance ? planForSession(db, sessionId) : Promise.resolve(null),
   ]);
+  // Plan entries by the slot they were written for; entries without a slot are the plan's
+  // additions and are matched to the session's extra rows by exercise, in order.
+  const planBySlot = new Map(
+    (coachPlan?.exercises ?? []).filter((e) => e.slotId).map((e) => [e.slotId!, e]),
+  );
+  const planAdditions = (coachPlan?.exercises ?? []).filter((e) => e.slotId === null);
 
   const unresolved = includeGuidance
     ? rows.filter(
@@ -479,42 +535,37 @@ export async function getSessionDetail(
   ]);
   const exerciseDetails: SessionExercise[] = [];
   for (const [index, row] of rows.entries()) {
-    const weightStep = weightStepFor({
-      equipmentLoadIncrement: row.equipment?.loadIncrement ?? null,
-      exerciseDefaultIncrement: row.exercise.defaultLoadIncrement,
+    const rule = applyRule({
+      planned: row.planned,
+      exercise: row.exercise,
+      equipment: row.equipment?.id ? row.equipment : null,
+      plannedProgramExerciseId: row.we.plannedProgramExerciseId,
+      history: histories[index]?.history ?? [],
+      elsewhere: histories[index]?.elsewhere ?? null,
     });
-    const scope = comparisonScope(row.exercise.loadPortability);
-    const history = histories[index]?.history ?? [];
-    const previous = history[0] ?? null;
-    // Prefer performances of the same programme slot so the rule compares like with like.
-    const sameSlot = row.we.plannedProgramExerciseId
-      ? history.filter((h) => h.plannedProgramExerciseId === row.we.plannedProgramExerciseId)
-      : [];
-    const basisHistory = sameSlot.length > 0 ? sameSlot : history;
-    let basisPerformance = basisHistory[0] ?? null;
-    let basis: SuggestionBasis = basisPerformance
-      ? scope === "equipment_instance"
-        ? "same_equipment"
-        : "exercise"
-      : "none";
-    if (!basisPerformance && scope === "equipment_instance" && row.equipment) {
-      const elsewhere = histories[index]?.elsewhere;
-      if (elsewhere) {
-        basisPerformance = elsewhere;
-        basis = "other_equipment";
-      }
-    }
-    const prescription = prescriptionFor(
-      row.planned,
-      row.exercise,
-      basisPerformance,
-      weightStep,
-      row.equipment?.unit ?? "kg",
-    );
-    const suggestion = prescription
-      ? suggestNext(prescription, basisPerformance?.sets ?? null, basis)
-      : null;
+    const { weightStep, previous, basisPerformance } = rule;
     const decision = decisions.get(row.we.id) ?? null;
+    const entryIndex = row.we.plannedProgramExerciseId
+      ? -1
+      : planAdditions.findIndex((e) => e.exerciseId === row.exercise.id);
+    const entry = row.we.plannedProgramExerciseId
+      ? (planBySlot.get(row.we.plannedProgramExerciseId) ?? null)
+      : entryIndex >= 0
+        ? planAdditions.splice(entryIndex, 1)[0]!
+        : null;
+    // The coach's targets replace the rule's prefill; the rule's basis and history stay
+    // visible, so the athlete can still see what the numbers were judged against.
+    const suggestion: ProgressionSuggestion | null =
+      entry && entry.action !== "drop" && entry.sets.length > 0
+        ? {
+            kind: "coach",
+            basis: rule.basis,
+            reason: entry.note || "Coach plan for today",
+            advice: null,
+            loadIncrement: weightStep,
+            sets: planTargets(entry),
+          }
+        : rule.suggestion;
     exerciseDetails.push({
       id: row.we.id,
       orderIndex: row.we.orderIndex,
@@ -561,8 +612,10 @@ export async function getSessionDetail(
       previous,
       basis: basisPerformance,
       suggestion,
-      regressionStreak: regressionStreak(basisHistory.map((h) => h.sets)),
+      regressionStreak: rule.regressionStreak,
       decision,
+      coachNote: entry?.note || null,
+      coachRestSeconds: entry?.restSeconds ?? null,
     });
   }
 
@@ -596,52 +649,14 @@ export async function getSessionDetail(
     warmup,
     restTimerEnabled: profile?.restTimerEnabled ?? false,
     warnings,
+    coachPlan: coachPlan
+      ? {
+          summary: coachPlan.summary,
+          warmup: coachPlan.warmup,
+          generatedAt: coachPlan.generatedAt.toISOString(),
+        }
+      : null,
     exercises: exerciseDetails,
-  };
-}
-
-/** Today's prescription for the rule: the programme slot, else the exercise's own defaults. */
-function prescriptionFor(
-  planned: typeof programExercises.$inferSelect | null,
-  exercise: {
-    defaultRepMin: number | null;
-    defaultRepMax: number | null;
-    defaultRir: number | null;
-  },
-  basis: ComparablePerformance | null,
-  weightStep: number,
-  unit: LoadUnit,
-): Prescription | null {
-  if (planned) {
-    const rule = planned.progressionRule ?? null;
-    const ruleIncrement = rule && "loadIncrement" in rule ? rule.loadIncrement : null;
-    return {
-      sets: planned.sets,
-      prescriptionType: planned.prescriptionType,
-      repMin: planned.repMin,
-      repMax: planned.repMax,
-      durationMinSeconds: planned.durationMinSeconds,
-      durationMaxSeconds: planned.durationMaxSeconds,
-      rirMin: planned.rirMin,
-      rirMax: planned.rirMax,
-      rule,
-      loadIncrement: ruleIncrement ?? planned.loadIncrement ?? weightStep,
-      unit,
-    };
-  }
-  if (exercise.defaultRepMin === null || exercise.defaultRepMax === null) return null;
-  return {
-    sets: basis ? Math.max(1, workingSets(basis.sets).length) : 1,
-    prescriptionType: "reps",
-    repMin: exercise.defaultRepMin,
-    repMax: exercise.defaultRepMax,
-    durationMinSeconds: null,
-    durationMaxSeconds: null,
-    rirMin: exercise.defaultRir,
-    rirMax: exercise.defaultRir,
-    rule: { kind: "double_progression", loadIncrement: null },
-    loadIncrement: weightStep,
-    unit,
   };
 }
 
@@ -1151,6 +1166,8 @@ export async function discardSession(db: DbOrTx, userId: string, sessionId: stri
     .innerJoin(workoutExercises, eq(workoutExercises.id, setLogs.workoutExerciseId))
     .where(eq(workoutExercises.workoutSessionId, sessionId));
   if ((sets?.n ?? 0) > 0) throw new SessionHasSetsError();
+  // An empty session gives its plan back, so starting again at the same gym still uses it.
+  await releasePlan(db, userId, sessionId);
   await db
     .delete(workoutSessions)
     .where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.userId, userId)));

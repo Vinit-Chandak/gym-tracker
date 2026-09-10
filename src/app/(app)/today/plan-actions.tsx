@@ -18,7 +18,18 @@ import {
   type ActionResult,
 } from "@/server/actions/sessions";
 
+import { CoachRequestPanel, type CoachGym } from "./coach-actions";
+
 const INITIAL: ActionResult = { ok: true };
+
+/** What More options needs to offer the coach: where it can plan, and whether it may today. */
+export type CoachOptions = {
+  gyms: CoachGym[];
+  requestsLeft: number;
+  /** A request is already under way, so another would only queue behind it. */
+  pending: boolean;
+  hasPlan: boolean;
+};
 
 /** Primary Start button for a planned day at the default gym. */
 export function StartPlannedButton({
@@ -81,13 +92,16 @@ export function StartAdHocButton({ gymId }: { gymId: string | null }) {
 export function MoreOptions({
   gymId,
   skip,
+  coach = null,
 }: {
   gymId: string | null;
   /** The session that can be skipped. Null on a rest day, which is completed instead. */
   skip: { dayIndex: number; dayName: string } | null;
+  /** The coach's options, when the athlete has switched the coach on for a lifting day. */
+  coach?: CoachOptions | null;
 }) {
   const [open, setOpen] = useState(false);
-  const [asking, setAsking] = useState(false);
+  const [asking, setAsking] = useState<"skip" | "coach" | null>(null);
   const [pending, startTransition] = useTransition();
   const [state, formAction, skipping] = useActionState(
     skipSlotAction.bind(null, skip?.dayIndex ?? 0),
@@ -95,8 +109,10 @@ export function MoreOptions({
   );
   const close = () => {
     setOpen(false);
-    setAsking(false);
+    setAsking(null);
   };
+  const coachRow = coach && !coach.pending;
+  const coachLabel = coach?.hasPlan ? "Re-plan with the coach" : "Ask the coach for a plan";
   // Close once per successful skip (each action result is a new object).
   const [handled, setHandled] = useState<ActionResult>(INITIAL);
   if (state !== handled) {
@@ -112,9 +128,22 @@ export function MoreOptions({
       <Sheet
         open={open}
         onClose={close}
-        title={asking && skip ? `Skip ${skip.dayName}?` : "More options"}
+        title={
+          asking === "skip" && skip
+            ? `Skip ${skip.dayName}?`
+            : asking === "coach"
+              ? "Plan with the coach"
+              : "More options"
+        }
       >
-        {asking && skip ? (
+        {asking === "coach" && coach ? (
+          <CoachRequestPanel
+            gyms={coach.gyms}
+            requestsLeft={coach.requestsLeft}
+            onDone={close}
+            onBack={() => setAsking(null)}
+          />
+        ) : asking === "skip" && skip ? (
           <form action={formAction} className="space-y-4">
             <Field label="Reason" hint="Optional">
               <Input name="reason" maxLength={200} placeholder="Travelling, unwell, …" />
@@ -127,7 +156,7 @@ export function MoreOptions({
             <Button type="submit" variant="danger" size="lg" className="w-full" disabled={skipping}>
               {skipping ? "Skipping…" : "Skip session"}
             </Button>
-            <Button variant="ghost" className="w-full" onClick={() => setAsking(false)}>
+            <Button variant="ghost" className="w-full" onClick={() => setAsking(null)}>
               Back
             </Button>
           </form>
@@ -154,11 +183,31 @@ export function MoreOptions({
                 </span>
               </button>
             </li>
+            {coachRow && (
+              <li>
+                <button
+                  type="button"
+                  onClick={() => setAsking("coach")}
+                  disabled={coach.requestsLeft <= 0 || coach.gyms.length === 0}
+                  className={cn(PRESSABLE_ROW_CLASS, "disabled:opacity-45")}
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-medium">{coachLabel}</span>
+                    {coach.requestsLeft <= 0 && (
+                      <span className="block text-sm text-ink-muted">
+                        No requests left today; the coach plans overnight.
+                      </span>
+                    )}
+                  </span>
+                  <ChevronRight className="size-5 shrink-0 text-ink-subtle" aria-hidden />
+                </button>
+              </li>
+            )}
             {skip && (
               <li>
                 <button
                   type="button"
-                  onClick={() => setAsking(true)}
+                  onClick={() => setAsking("skip")}
                   className={PRESSABLE_ROW_CLASS}
                 >
                   <span className="min-w-0 flex-1 font-medium text-danger">Skip this session</span>

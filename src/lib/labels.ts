@@ -178,6 +178,7 @@ export const SUGGESTION_KIND_LABELS: Record<SuggestionKind, string> = {
   extend: "Add time",
   transfer: "Starting guess",
   start: "No history",
+  coach: "Coach plan",
 };
 
 export const RUN_MODE_LABELS: Record<RunMode, string> = {

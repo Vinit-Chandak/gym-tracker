@@ -74,3 +74,11 @@ from the denominator.
 `404`: unknown endpoint or exercise. Unsupported mutation methods return `405`.
 `503`: temporary data-service failure; retry with backoff. Error bodies contain an `error`
 message without database details. No API request is allowed to apply programme changes.
+
+## House coach service
+
+`/api/coach/service/…` is a separate surface for the AI house coach, authenticated with one
+server-side service token rather than a per-user token, and is the only path that writes:
+it stores the coach's plan for an athlete's next session. Every request names an athlete who
+has switched the coach on in Settings and runs under that athlete's own policies. See
+[`docs/coach-automation.md`](coach-automation.md) for the endpoints, setup and limits.

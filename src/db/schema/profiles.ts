@@ -19,6 +19,8 @@ export const profiles = pgTable(
     bodyWeightKg: numeric("body_weight_kg", { precision: 5, scale: 2, mode: "number" }),
     /** Optional rest timer between sets; off unless the user switches it on. */
     restTimerEnabled: boolean("rest_timer_enabled").notNull().default(false),
+    /** Lets the house coach plan this account's sessions. Off unless the user switches it on. */
+    aiCoachEnabled: boolean("ai_coach_enabled").notNull().default(false),
     /** Set when the first-run flow finished. Null sends the account to /welcome. */
     onboardedAt: timestamp("onboarded_at", { withTimezone: true }),
     ...timestamps,

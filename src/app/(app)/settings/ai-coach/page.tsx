@@ -1,0 +1,59 @@
+import type { Metadata } from "next";
+
+import { PageContent } from "@/components/shell/page-content";
+import { PageHeader } from "@/components/shell/page-header";
+import { getDb } from "@/db/client";
+import { withUser } from "@/db/with-user";
+import { getCoachRoutine, getCoachServiceToken } from "@/lib/env";
+import { formatDateTime } from "@/lib/format";
+import { requireUser } from "@/server/auth";
+import { getRequestProfile } from "@/server/queries/request-profile";
+import { getCoachMemo, latestPlan, pendingRequest } from "@/server/repositories/coach-plans";
+
+import { AiCoachSettings } from "./ai-coach-settings";
+
+export const metadata: Metadata = { title: "AI coach" };
+
+export default async function AiCoachSettingsPage() {
+  const user = await requireUser();
+  const profile = await getRequestProfile(user.id, user.email);
+  const { memo, plan, pending } = await withUser(getDb(), user.id, async (tx) => {
+    const [memo, plan, pending] = await Promise.all([
+      getCoachMemo(tx, user.id),
+      latestPlan(tx, user.id),
+      pendingRequest(tx, user.id),
+    ]);
+    return { memo, plan, pending };
+  });
+  // Whether this server can hear from the coach and start it: owner-side setup facts.
+  const configured = getCoachServiceToken() !== null;
+  const canRequest = getCoachRoutine() !== null;
+  const status = !configured
+    ? "Not set up on this server yet"
+    : pending
+      ? `Planning now, asked at ${formatDateTime(pending.requestedAt, profile.timeZone)}`
+      : plan
+        ? `Last plan ${formatDateTime(plan.generatedAt, profile.timeZone)}`
+        : "No plan yet; the first arrives after the next overnight run";
+
+  return (
+    <>
+      <PageHeader title="AI coach" backHref="/settings" />
+      <PageContent>
+        <AiCoachSettings
+          enabled={profile.aiCoachEnabled}
+          status={
+            configured && !canRequest && profile.aiCoachEnabled
+              ? `${status} · Re-planning from Today is not set up on this server`
+              : status
+          }
+          userNotes={memo.userNotes}
+          overview={memo.overview}
+          overviewUpdatedAt={
+            memo.overviewUpdatedAt ? formatDateTime(memo.overviewUpdatedAt, profile.timeZone) : null
+          }
+        />
+      </PageContent>
+    </>
+  );
+}

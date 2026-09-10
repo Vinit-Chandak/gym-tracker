@@ -64,6 +64,8 @@ const exercise: ExerciseVM = {
   suggestion: null,
   regressionStreak: 0,
   decision: null,
+  coachNote: null,
+  coachRestSeconds: null,
 };
 
 const session: SessionVM = {
@@ -86,6 +88,7 @@ const session: SessionVM = {
   notes: null,
   warmup: null,
   restTimerEnabled: false,
+  coachPlan: null,
   warnings: [],
   timeZone: "Asia/Kolkata",
   preferredUnit: "kg" as const,

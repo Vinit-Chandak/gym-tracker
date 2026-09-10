@@ -3,10 +3,12 @@ import type { Metadata } from "next";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { todayInTimeZone } from "@/domain/program-calendar";
+import { LOAD_UNIT_LABELS } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
 import { getActiveSession } from "@/server/queries/active-session";
 import { getWarmupProtocol } from "@/server/queries/reference";
 import { getRequestProfile } from "@/server/queries/request-profile";
+import { todayCoachState } from "@/server/repositories/coach-plans";
 import { listGyms } from "@/server/repositories/gyms";
 import { getTodayPlan } from "@/server/repositories/schedule";
 
@@ -30,9 +32,20 @@ export default async function TodayPage() {
       plan?.suggestedDay && !plan.suggestedDay.includesLifting && plan.suggestedDay.warmupProtocolId
         ? await getWarmupProtocol(tx, plan.suggestedDay.warmupProtocolId)
         : null;
-    return { profile, gyms, plan, restProtocol };
+    // The coach speaks to the day's lifting slot only, and only for an athlete who has it on.
+    const coach =
+      profile.aiCoachEnabled && plan?.suggestion && plan.suggestedDay?.includesLifting
+        ? await todayCoachState(tx, user.id, {
+            enabled: true,
+            timeZone: profile.timeZone,
+            programId: plan.program.id,
+            ref: plan.suggestion.slot,
+            gymId: gyms.find((gym) => gym.isActive && gym.isDefault)?.id ?? null,
+          })
+        : null;
+    return { profile, gyms, plan, restProtocol, coach };
   });
-  const { profile, gyms, plan, restProtocol } = data;
+  const { profile, gyms, plan, restProtocol, coach } = data;
 
   return (
     <TodayView
@@ -45,6 +58,8 @@ export default async function TodayPage() {
       plan={plan}
       inProgress={inProgress}
       restProtocol={restProtocol}
+      coach={coach}
+      unit={LOAD_UNIT_LABELS[profile.preferredUnit]}
     />
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Sparkles } from "lucide-react";
 import { useTransition, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -47,11 +47,15 @@ function WarmupRow({
   done,
   onDone,
 }: {
-  session: SessionVM & { warmup: NonNullable<SessionVM["warmup"]> };
+  session: SessionVM;
   done: boolean;
   onDone: (done: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
+  // The coach's warm-up replaces the protocol for this session; the protocol stays on the
+  // programme day rather than being listed twice here.
+  const coachLines = session.coachPlan?.warmup ?? [];
+  const drills = session.warmup?.drills ?? [];
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -89,7 +93,9 @@ function WarmupRow({
           />
           <span className="min-w-0 flex-1">Warm-up</span>
           <span className="shrink-0 text-xs font-normal text-ink-muted tabular-nums">
-            {session.warmup.drills.length} drills
+            {coachLines.length > 0
+              ? `${coachLines.length} from the coach`
+              : `${drills.length} drills`}
           </span>
         </button>
         <Button
@@ -103,9 +109,18 @@ function WarmupRow({
           {pending ? "Saving…" : done ? "Done ✓" : "Mark done"}
         </Button>
       </div>
-      {open && (
+      {open && coachLines.length > 0 && (
         <ol className="border-t border-line px-4 pb-2 text-sm ruled-list">
-          {session.warmup.drills.map((drill) => (
+          {coachLines.map((line, index) => (
+            <li key={index} className="py-1.5 [overflow-wrap:anywhere]">
+              {line}
+            </li>
+          ))}
+        </ol>
+      )}
+      {open && coachLines.length === 0 && (
+        <ol className="border-t border-line px-4 pb-2 text-sm ruled-list">
+          {drills.map((drill) => (
             <li key={drill.order} className="flex justify-between gap-3 py-1.5">
               <span className="min-w-0">{drill.name}</span>
               <span className="shrink-0 text-right text-ink-muted">{drill.dose}</span>
@@ -201,12 +216,17 @@ export function WorkoutOverview({
         </Card>
       )}
 
-      {!readOnly && session.warmup && (
-        <WarmupRow
-          session={{ ...session, warmup: session.warmup }}
-          done={warmupDone}
-          onDone={setWarmupDone}
-        />
+      {/* The coach's sentence for the session, one slim box: the same shape as the gym row
+          on Today, so it reads as context rather than as another decision. */}
+      {session.coachPlan && (
+        <div className="flex box items-center gap-2 px-3 py-2.5">
+          <Sparkles className="size-4 shrink-0 text-accent" aria-hidden />
+          <p className="min-w-0 text-sm [overflow-wrap:anywhere]">{session.coachPlan.summary}</p>
+        </div>
+      )}
+
+      {!readOnly && (session.warmup || (session.coachPlan?.warmup.length ?? 0) > 0) && (
+        <WarmupRow session={session} done={warmupDone} onDone={setWarmupDone} />
       )}
 
       {session.exercises.length === 0 ? (

@@ -1,6 +1,7 @@
 import { ChevronRight } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { CoachPlanList, coachPlanSummary } from "@/components/coach-plan";
 import { PlannedExerciseList, planSummary } from "@/components/planned-exercises";
 import { hasRunGuidance, RunPlanDetails, runSummary } from "@/components/run-plan";
 import { PageContent } from "@/components/shell/page-content";
@@ -14,9 +15,11 @@ import { InfoTip } from "@/components/ui/info-tip";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import type { WarmupDrill } from "@/domain/types";
 import { formatDateTime, formatIsoDate } from "@/lib/format";
+import type { TodayCoachState } from "@/server/repositories/coach-plans";
 import type { SessionSummary } from "@/server/repositories/sessions";
 import type { ScheduleDay, TodayPlan } from "@/server/repositories/schedule";
 
+import { CoachPending, type CoachGym } from "./coach-actions";
 import { GymSwitcher, type SwitcherGym } from "./gym-switcher";
 import {
   CompleteRestButton,
@@ -100,12 +103,46 @@ export type TodayViewProps = {
   plan: TodayPlan | null;
   inProgress: SessionSummary | null;
   restProtocol: { name: string; drills: WarmupDrill[] } | null;
+  /** The coach's standing for the day's lifting slot; null when the coach is off or it is not a lifting day. */
+  coach?: TodayCoachState | null;
+  /** The label for loads the coach writes without a machine, e.g. "kg". */
+  unit?: string;
 };
 
 /**
- * Today, given everything it needs: the next session, the run beside it, and one way in to
- * each. Separated from the page so the screen can be rendered from fixture data.
+ * One line under the day's action about the coach, only when there is something to say:
+ * that it is planning now, or that its plan was made for another gym.
  */
+function CoachStatus({
+  coach,
+  gymName,
+  gyms,
+}: {
+  coach: TodayCoachState;
+  /** The gym the athlete is about to train at. */
+  gymName: string | null;
+  gyms: readonly SwitcherGym[];
+}) {
+  if (coach.pending) {
+    const planningFor = gyms.find((gym) => gym.id === coach.pending?.gymId)?.name ?? gymName;
+    return (
+      <CoachPending
+        startedAt={coach.pending.requestedAt.toISOString()}
+        gymName={planningFor ?? "your gym"}
+      />
+    );
+  }
+  if (coach.plan && !coach.matchesGym) {
+    return (
+      <p className="text-sm text-ink-muted">
+        The coach planned this for {coach.plan.gymName}
+        {gymName ? `, not ${gymName}` : ""}. Re-plan from More options, or start by the rule.
+      </p>
+    );
+  }
+  return null;
+}
+
 export function TodayView({
   today,
   timeZone,
@@ -113,10 +150,18 @@ export function TodayView({
   plan,
   inProgress,
   restProtocol,
+  coach = null,
+  unit = "kg",
 }: TodayViewProps) {
   const defaultGym = gyms.find((gym) => gym.isDefault) ?? null;
   const day = plan?.suggestedDay ?? null;
   const restDay = day !== null && !day.includesLifting;
+  // The coach's plan stands in for the programme's only when it was made for this gym and
+  // nothing newer is on its way.
+  const coachPlan = coach?.plan && coach.matchesGym && !coach.pending ? coach.plan : null;
+  const coachGyms: CoachGym[] = gyms
+    .filter((gym) => gym.kind === "gym")
+    .map((gym) => ({ id: gym.id, name: gym.name, isDefault: gym.isDefault }));
   const position =
     plan?.suggestion && day
       ? `Cycle ${plan.suggestion.slot.cycleIndex} of ${plan.program.weeks} · Day ${day.dayIndex}`
@@ -193,12 +238,27 @@ export function TodayView({
             */}
             {day.includesLifting && (
               <Card>
+                {/* With a coach plan the card's line is the coach's sentence; what the day is
+                    and costs moves behind the tip, so nothing the programme says is lost. */}
                 <CardHead
                   eyebrow={position}
                   title={day.name}
-                  subtitle={daySubtitle(day)}
-                  note={dayNote(day)}
-                  badge={standing}
+                  subtitle={coachPlan ? coachPlan.summary : daySubtitle(day)}
+                  note={
+                    coachPlan
+                      ? [daySubtitle(day), dayNote(day)].filter(Boolean).join(" · ") || null
+                      : dayNote(day)
+                  }
+                  badge={
+                    coachPlan ? (
+                      <span className="flex shrink-0 flex-wrap justify-end gap-1">
+                        <Badge tone="accent">Coach</Badge>
+                        {standing}
+                      </span>
+                    ) : (
+                      standing
+                    )
+                  }
                 />
                 <StartPlannedButton
                   gymId={defaultGym?.id ?? null}
@@ -210,14 +270,31 @@ export function TodayView({
                 {defaultGym === null && (
                   <p className="text-sm text-ink-muted">Choose a gym above to start.</p>
                 )}
-                {plan.suggestedExercises.length > 0 && (
+                {coach && (
+                  <CoachStatus coach={coach} gymName={defaultGym?.name ?? null} gyms={gyms} />
+                )}
+                {coachPlan ? (
                   <Disclosure
                     summary="The plan"
-                    meta={planSummary(plan.suggestedExercises)}
+                    meta={coachPlanSummary(coachPlan.exercises, plan.suggestedExercises)}
                     variant="footer"
                   >
-                    <PlannedExerciseList exercises={plan.suggestedExercises} />
+                    <CoachPlanList
+                      entries={coachPlan.exercises}
+                      planned={plan.suggestedExercises}
+                      unit={unit}
+                    />
                   </Disclosure>
+                ) : (
+                  plan.suggestedExercises.length > 0 && (
+                    <Disclosure
+                      summary="The plan"
+                      meta={planSummary(plan.suggestedExercises)}
+                      variant="footer"
+                    >
+                      <PlannedExerciseList exercises={plan.suggestedExercises} />
+                    </Disclosure>
+                  )
                 )}
               </Card>
             )}
@@ -286,6 +363,16 @@ export function TodayView({
             <MoreOptions
               gymId={defaultGym?.id ?? null}
               skip={restDay ? null : { dayIndex: day.dayIndex, dayName: day.name }}
+              coach={
+                coach
+                  ? {
+                      gyms: coachGyms,
+                      requestsLeft: coach.requestsLeft,
+                      pending: coach.pending !== null,
+                      hasPlan: coach.plan !== null,
+                    }
+                  : null
+              }
             />
           </>
         )}

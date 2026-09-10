@@ -5,6 +5,7 @@ import {
   KeyRound,
   Link2,
   MapPin,
+  Sparkles,
   Trash,
   User,
 } from "lucide-react";
@@ -63,6 +64,9 @@ export default async function SettingsPage() {
             </li>
             <li>
               <RestTimerSetting enabled={profile.restTimerEnabled} />
+            </li>
+            <li>
+              <LinkRow href="/settings/ai-coach" icon={Sparkles} title="AI coach" />
             </li>
           </List>
         </Section>

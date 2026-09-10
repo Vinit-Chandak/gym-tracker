@@ -302,7 +302,7 @@ export function useSetRows({
     };
     remember(submitted);
     update(row.setIndex, submitted);
-    if (!row.logged) onLogged(exercise.planned?.restMinSeconds ?? 90);
+    if (!row.logged) onLogged(exercise.coachRestSeconds ?? exercise.planned?.restMinSeconds ?? 90);
     setRows((current) =>
       row.setIndex === Math.max(...current.map((r) => r.setIndex)) && row.setIndex < MAX_SETS
         ? [...current, emptyRow(row.setIndex + 1)]
