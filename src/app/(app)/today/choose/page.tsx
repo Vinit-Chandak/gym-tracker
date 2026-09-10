@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { PlannedExerciseList, planSummary } from "@/components/planned-exercises";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -8,28 +9,16 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { List } from "@/components/ui/link-row";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
-import { rangeLabel, SLOT_STATUS_LABELS } from "@/lib/labels";
+import { SLOT_STATUS_LABELS } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { listGyms } from "@/server/repositories/gyms";
-import {
-  getTodayPlan,
-  listExercisesByDay,
-  type PlannedExercisePreview,
-} from "@/server/repositories/schedule";
+import { getTodayPlan, listExercisesByDay } from "@/server/repositories/schedule";
 import { CalendarDays } from "lucide-react";
 
 import { StartPlannedButton } from "../plan-actions";
 
 export const metadata: Metadata = { title: "Choose a day" };
-
-function prescription(e: PlannedExercisePreview): string {
-  const volume =
-    e.prescriptionType === "duration"
-      ? `${e.sets} × ${rangeLabel(e.durationMinSeconds, e.durationMaxSeconds, " s")}`
-      : `${e.sets} × ${rangeLabel(e.repMin, e.repMax)}`;
-  return `${volume}${e.perSide ? " per side" : ""} @ ${rangeLabel(e.rirMin, e.rirMax)} RIR`;
-}
 
 export default async function ChooseDayPage() {
   const user = await requireUser();
@@ -91,26 +80,12 @@ export default async function ChooseDayPage() {
                       <>
                         {exercises.length > 0 && (
                           <Disclosure
-                            summary="Prescription"
-                            meta={`${exercises.length} ${exercises.length === 1 ? "exercise" : "exercises"}`}
+                            summary="The plan"
+                            meta={planSummary(exercises)}
                             variant="inline"
                             className="border-0"
                           >
-                            <ul className="space-y-1">
-                              {exercises.map((exercise) => (
-                                <li
-                                  key={exercise.programExerciseId}
-                                  className="flex flex-wrap justify-between gap-x-3 text-sm"
-                                >
-                                  <span className="min-w-0 [overflow-wrap:anywhere]">
-                                    {exercise.name}
-                                  </span>
-                                  <span className="shrink-0 text-xs text-ink-muted tabular-nums">
-                                    {prescription(exercise)}
-                                  </span>
-                                </li>
-                              ))}
-                            </ul>
+                            <PlannedExerciseList exercises={exercises} />
                           </Disclosure>
                         )}
                         <StartPlannedButton

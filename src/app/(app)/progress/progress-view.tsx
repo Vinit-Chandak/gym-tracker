@@ -6,13 +6,16 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import type { Route } from "next";
 
+import { DateRangeFields } from "@/components/date-range-fields";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Chart, SERIES_COLORS, type ChartSeries } from "@/components/ui/chart";
+import { FilterSheet } from "@/components/ui/filter-sheet";
 import { InfoTip } from "@/components/ui/info-tip";
 import { Field } from "@/components/ui/input";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select } from "@/components/ui/select";
+import { ProgressBar } from "@/components/ui/progress-bar";
 import { Tabs } from "@/components/ui/tabs";
 import type { PerformanceSeries, Point } from "@/domain/analytics";
 import type { MuscleVolume } from "@/domain/muscle-volume";
@@ -59,6 +62,8 @@ export type Adherence = {
 };
 
 type Props = {
+  /** The range every trend on this screen is drawn over; the filter sheet changes it. */
+  range: { from: string; to: string };
   summary: { workouts: number; runs: number; trainingDays: number; truncated: boolean };
   adherence: Adherence | null;
   weeks: Week[];
@@ -191,6 +196,7 @@ function MachinePicker({
 }
 
 export function ProgressView({
+  range,
   summary,
   adherence,
   weeks,
@@ -274,6 +280,11 @@ export function ProgressView({
         options={TABS}
         value={tab}
         onChange={setTab}
+        action={
+          <FilterSheet title="Filters" summary={formatDateRange(range.from, range.to)}>
+            {(close) => <DateRangeFields from={range.from} to={range.to} onApplied={close} />}
+          </FilterSheet>
+        }
       />
 
       {/* Only the chosen section is mounted; the controls above it keep their state. */}
@@ -311,18 +322,11 @@ export function ProgressView({
                   </span>
                   <span className="text-sm text-ink-muted">sessions</span>
                 </p>
-                <div
-                  className="h-1.5 w-full overflow-hidden rounded-full bg-surface-raised"
-                  role="img"
-                  aria-label={`${adherence.completed} of ${adherence.total} sessions complete`}
-                >
-                  <div
-                    className="h-full rounded-full bg-accent"
-                    style={{
-                      width: `${Math.round((adherence.completed / Math.max(1, adherence.total)) * 100)}%`,
-                    }}
-                  />
-                </div>
+                <ProgressBar
+                  value={adherence.completed}
+                  max={adherence.total}
+                  label={`${adherence.completed} of ${adherence.total} sessions complete`}
+                />
                 <p className="text-xs text-ink-muted">
                   {adherence.remaining} remaining · {adherence.skipped} skipped
                 </p>

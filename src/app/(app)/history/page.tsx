@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
-import { DateRangeForm } from "@/components/date-range-form";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { formatDuration, formatPace } from "@/domain/pace";
-import { formatDateTime } from "@/lib/format";
+import { formatDateRange, formatDateTime } from "@/lib/format";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { listGyms } from "@/server/repositories/gyms";
@@ -100,20 +99,23 @@ export default async function HistoryPage(props: PageProps<"/history">) {
   ].sort((a, b) => b.date.localeCompare(a.date));
   return (
     <>
-      <PageHeader title="History" />
+      <PageHeader title="History" context={formatDateRange(range.from, range.to)} />
       <PageContent>
         {rangeError && (
           <p role="alert" className="text-sm text-danger">
             {rangeError}
           </p>
         )}
-        <DateRangeForm from={range.from} to={range.to} />
         {data.training.truncated && (
           <p role="status" className="text-sm text-warning">
             Showing the newest 500 workouts and runs. Narrow the dates to see every entry.
           </p>
         )}
-        <HistoryView items={items} gyms={data.gyms.map((g) => ({ id: g.id, name: g.name }))} />
+        <HistoryView
+          range={range}
+          items={items}
+          gyms={data.gyms.map((g) => ({ id: g.id, name: g.name }))}
+        />
       </PageContent>
     </>
   );

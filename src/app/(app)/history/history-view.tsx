@@ -4,13 +4,15 @@ import { useSearchParams, type ReadonlyURLSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import type { Route } from "next";
 
+import { DateRangeFields } from "@/components/date-range-fields";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Disclosure } from "@/components/ui/disclosure";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FilterSheet } from "@/components/ui/filter-sheet";
 import { Field } from "@/components/ui/input";
 import { LinkRow, List } from "@/components/ui/link-row";
 import { Select } from "@/components/ui/select";
+import { formatDateRange } from "@/lib/format";
 import { CalendarDays } from "lucide-react";
 
 export type HistoryItem = {
@@ -54,9 +56,12 @@ function fromSearch(params: URLSearchParams | ReadonlyURLSearchParams): Filters 
 }
 
 export function HistoryView({
+  range,
   items,
   gyms,
 }: {
+  /** The dates the server read, changed from inside the filter sheet. */
+  range: { from: string; to: string };
   items: HistoryItem[];
   gyms: { id: string; name: string }[];
 }) {
@@ -119,72 +124,79 @@ export function HistoryView({
   ).length;
 
   return (
-    <div className="space-y-4">
-      {/* One place for the filters, collapsed. The chips are not repeated above the list. */}
-      <Disclosure summary="Filters" meta={active > 0 ? `${active} active` : undefined}>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Activity">
-            <Select
-              value={filters.kind}
-              onChange={(e) => apply({ ...filters, kind: e.target.value })}
-            >
-              <option value="all">All activity</option>
-              <option value="workout">Workouts</option>
-              <option value="run">Runs</option>
-              <option value="recovery">Recovery</option>
-            </Select>
-          </Field>
-          <Field label="Gym">
-            <Select
-              value={filters.gym}
-              onChange={(e) => apply({ ...filters, gym: e.target.value, machine: "" })}
-            >
-              <option value="">All gyms</option>
-              {gyms.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label="Exercise">
-            <Select
-              value={filters.exercise}
-              onChange={(e) => apply({ ...filters, exercise: e.target.value, machine: "" })}
-            >
-              <option value="">All exercises</option>
-              {choices.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          {/* The machine list depends on the gym and exercise above it. */}
-          <Field label="Machine">
-            <Select
-              value={filters.machine}
-              onChange={(e) => apply({ ...filters, machine: e.target.value })}
-            >
-              <option value="">All machines</option>
-              {machines.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        </div>
-        {active > 0 && (
-          <Button variant="ghost" size="sm" className="mt-2" onClick={() => apply(EMPTY)}>
-            Clear filters
-          </Button>
-        )}
-      </Disclosure>
-
-      <p role="status" className="px-1 text-xs text-ink-muted">
-        {shown.length} {shown.length === 1 ? "entry" : "entries"}
-      </p>
+    <div className="space-y-3">
+      {/* One control for everything that narrows the list, with what it currently says
+          beside it. The panel is a sheet, so it opens inside the screen on any device. */}
+      <div className="flex min-h-11 items-center justify-between gap-2 pl-1">
+        <p role="status" className="min-w-0 text-sm text-ink-muted tabular-nums">
+          {shown.length} {shown.length === 1 ? "entry" : "entries"}
+        </p>
+        <FilterSheet title="Filters" summary={formatDateRange(range.from, range.to)} count={active}>
+          {(close) => (
+            <>
+              <DateRangeFields from={range.from} to={range.to} onApplied={close} />
+              <div className="grid gap-3 border-t border-line pt-4 sm:grid-cols-2">
+                <Field label="Activity">
+                  <Select
+                    value={filters.kind}
+                    onChange={(e) => apply({ ...filters, kind: e.target.value })}
+                  >
+                    <option value="all">All activity</option>
+                    <option value="workout">Workouts</option>
+                    <option value="run">Runs</option>
+                    <option value="recovery">Recovery</option>
+                  </Select>
+                </Field>
+                <Field label="Gym">
+                  <Select
+                    value={filters.gym}
+                    onChange={(e) => apply({ ...filters, gym: e.target.value, machine: "" })}
+                  >
+                    <option value="">All gyms</option>
+                    {gyms.map((g) => (
+                      <option key={g.id} value={g.id}>
+                        {g.name}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field label="Exercise">
+                  <Select
+                    value={filters.exercise}
+                    onChange={(e) => apply({ ...filters, exercise: e.target.value, machine: "" })}
+                  >
+                    <option value="">All exercises</option>
+                    {choices.map((e) => (
+                      <option key={e.id} value={e.id}>
+                        {e.name}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                {/* The machine list depends on the gym and exercise above it. */}
+                <Field label="Machine">
+                  <Select
+                    value={filters.machine}
+                    onChange={(e) => apply({ ...filters, machine: e.target.value })}
+                  >
+                    <option value="">All machines</option>
+                    {machines.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+              </div>
+              {active > 0 && (
+                <Button variant="ghost" size="sm" className="w-full" onClick={() => apply(EMPTY)}>
+                  Clear filters
+                </Button>
+              )}
+            </>
+          )}
+        </FilterSheet>
+      </div>
 
       {shown.length ? (
         <List>
