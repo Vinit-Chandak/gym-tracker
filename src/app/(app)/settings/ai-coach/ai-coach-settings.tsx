@@ -3,6 +3,7 @@
 import { Sparkles } from "lucide-react";
 import { useActionState, useOptimistic, useState, useTransition } from "react";
 
+import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { FormError, SubmitButton } from "@/components/ui/form";
 import { InfoTip } from "@/components/ui/info-tip";
@@ -14,6 +15,15 @@ import { PLAN_LIMITS } from "@/domain/session-plan";
 import { saveCoachNotesAction, setAiCoachEnabledAction } from "@/server/actions/coach";
 import { INITIAL_FORM_STATE } from "@/server/validation/form";
 
+export type CoachAttempt = {
+  id: string;
+  when: string;
+  trigger: string;
+  status: string;
+  gymName: string | null;
+  error: string | null;
+};
+
 type Props = {
   enabled: boolean;
   /** One line under the switch: what the coach last did, or why it cannot do anything yet. */
@@ -21,6 +31,8 @@ type Props = {
   userNotes: string;
   overview: string;
   overviewUpdatedAt: string | null;
+  /** What the coach has tried lately, so a night it could not plan is not simply silence. */
+  attempts: CoachAttempt[];
 };
 
 /**
@@ -33,6 +45,7 @@ export function AiCoachSettings({
   userNotes,
   overview,
   overviewUpdatedAt,
+  attempts,
 }: Props) {
   const [pending, startTransition] = useTransition();
   const [shown, show] = useOptimistic(enabled);
@@ -105,6 +118,37 @@ export function AiCoachSettings({
           )}
         </Card>
       </Section>
+
+      {attempts.length > 0 && (
+        <Section
+          title="Recent runs"
+          info="Every time the coach tried to plan for you, overnight or because you asked. A failure says what went wrong."
+        >
+          <List>
+            {attempts.map((attempt) => (
+              <li key={attempt.id}>
+                <Row
+                  title={
+                    <>
+                      {attempt.trigger}
+                      {attempt.status === "failed" && <Badge tone="warning">Failed</Badge>}
+                    </>
+                  }
+                  subtitle={
+                    attempt.status === "failed" && attempt.error
+                      ? attempt.error
+                      : [attempt.gymName, attempt.when].filter(Boolean).join(" · ") || undefined
+                  }
+                >
+                  <span className="shrink-0 text-xs text-ink-muted tabular-nums">
+                    {attempt.when.split(",")[0]}
+                  </span>
+                </Row>
+              </li>
+            ))}
+          </List>
+        </Section>
+      )}
 
       <Section
         title="Tell the coach"

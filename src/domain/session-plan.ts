@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import type { TargetSet } from "./progression";
 import { SET_LIMITS } from "./sets";
-import { PLAN_ACTIONS, SET_TYPES } from "./types";
+import { PLAN_ACTIONS, RUN_MODES, SET_TYPES } from "./types";
 
 /**
  * The plan the AI coach writes for one upcoming session.
@@ -41,6 +41,24 @@ export const planSetSchema = z.object({
   rir: z.number().min(0).max(SET_LIMITS.rir).nullable().default(null),
 });
 
+/**
+ * The run the coach plans for a day that runs. Duration and distance are both optional: an
+ * easy run is often prescribed by time alone, and the app derives pace from what is logged.
+ */
+export const planRunSchema = z.object({
+  mode: z.enum(RUN_MODES).default("outdoor"),
+  durationMinutes: z.number().int().min(1).max(600).nullable().default(null),
+  distanceKm: z.number().min(0.1).max(100).nullable().default(null),
+  rpe: z.number().min(1).max(10).nullable().default(null),
+  /** How it should feel, in one line. */
+  paceNote: z.string().trim().max(PLAN_LIMITS.note).default(""),
+  /** When to cut it short, which is what guards a niggle. */
+  stopRule: z.string().trim().max(PLAN_LIMITS.note).default(""),
+  note: z.string().trim().max(PLAN_LIMITS.note).default(""),
+  /** The programme's planned run this fulfils, so a logged run counts towards the block. */
+  programRunId: z.uuid().nullable().default(null),
+});
+
 export const planExerciseSchema = z.object({
   /** The programme slot this entry is for; null adds an exercise the day did not plan. */
   slotId: z.uuid().nullable().default(null),
@@ -54,23 +72,35 @@ export const planExerciseSchema = z.object({
   /** Target per set, in order. Empty leaves the deterministic rule's prefill in place. */
   sets: z.array(planSetSchema).max(PLAN_LIMITS.sets).default([]),
   restSeconds: z.number().int().min(0).max(PLAN_LIMITS.restSeconds).nullable().default(null),
+  /** Exercises sharing a label are performed back to back, for this session only. */
+  supersetGroup: z.string().trim().max(60).nullable().default(null),
+  /** Each set is done on both sides; null keeps whatever the programme's slot says. */
+  perSide: z.boolean().nullable().default(null),
 });
 
-export const coachPlanSchema = z.object({
-  /** Two sentences at most: the session in a breath. */
-  summary: z.string().trim().min(1).max(PLAN_LIMITS.summary),
-  /** The warm-up as short lines, replacing the day's protocol for this session. */
-  warmup: z
-    .array(z.string().trim().min(1).max(PLAN_LIMITS.warmupLine))
-    .max(PLAN_LIMITS.warmupLines)
-    .default([]),
-  exercises: z.array(planExerciseSchema).min(1).max(PLAN_LIMITS.exercises),
-  /** The athlete's memo, rewritten after planning; omitted leaves the memo unchanged. */
-  memo: z.string().trim().max(PLAN_LIMITS.memo).optional(),
-});
+export const coachPlanSchema = z
+  .object({
+    /** Two sentences at most: the session in a breath. */
+    summary: z.string().trim().min(1).max(PLAN_LIMITS.summary),
+    /** The warm-up as short lines, replacing the day's protocol for this session. */
+    warmup: z
+      .array(z.string().trim().min(1).max(PLAN_LIMITS.warmupLine))
+      .max(PLAN_LIMITS.warmupLines)
+      .default([]),
+    exercises: z.array(planExerciseSchema).max(PLAN_LIMITS.exercises).default([]),
+    /** The run, on a day that runs. */
+    run: planRunSchema.nullable().default(null),
+    /** The athlete's memo, rewritten after planning; omitted leaves the memo unchanged. */
+    memo: z.string().trim().max(PLAN_LIMITS.memo).optional(),
+  })
+  .refine((plan) => plan.exercises.length > 0 || plan.run !== null, {
+    message: "A plan needs at least one exercise, or a run.",
+    path: ["exercises"],
+  });
 
 export type PlanSet = z.output<typeof planSetSchema>;
 export type PlanExercise = z.output<typeof planExerciseSchema>;
+export type PlanRun = z.output<typeof planRunSchema>;
 export type CoachPlan = z.output<typeof coachPlanSchema>;
 export type CoachPlanInput = z.input<typeof coachPlanSchema>;
 
@@ -79,7 +109,22 @@ export type StoredPlanExercise = PlanExercise & {
   exerciseId: string;
   exerciseName: string;
   equipmentInstanceName: string | null;
+  /** The slot's identity across programme versions, so a revision keeps the plan readable. */
+  slotLineageId: string | null;
 };
+
+/** A plan run as stored. The programme run is kept only when it is really in the programme. */
+export type StoredPlanRun = PlanRun;
+
+/** "25 min · 4 km · RPE 3": the run in one line. */
+export function runPlanLine(run: PlanRun): string {
+  const parts = [
+    run.durationMinutes === null ? null : `${run.durationMinutes} min`,
+    run.distanceKm === null ? null : `${run.distanceKm} km`,
+    run.rpe === null ? null : `RPE ${run.rpe}`,
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(" · ") : "Easy run";
+}
 
 /** The plan's per-set targets in the shape the session view prefills from. */
 export function planTargets(exercise: Pick<PlanExercise, "sets">): TargetSet[] {

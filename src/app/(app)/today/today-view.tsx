@@ -1,7 +1,7 @@
 import { ChevronRight } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { CoachPlanList, coachPlanSummary } from "@/components/coach-plan";
+import { CoachPlanList, coachPlanSummary, CoachRunDetails } from "@/components/coach-plan";
 import { PlannedExerciseList, planSummary } from "@/components/planned-exercises";
 import { hasRunGuidance, RunPlanDetails, runSummary } from "@/components/run-plan";
 import { PageContent } from "@/components/shell/page-content";
@@ -13,6 +13,7 @@ import { Card } from "@/components/ui/card";
 import { Disclosure } from "@/components/ui/disclosure";
 import { InfoTip } from "@/components/ui/info-tip";
 import { ProgressBar } from "@/components/ui/progress-bar";
+import { runPlanLine } from "@/domain/session-plan";
 import type { WarmupDrill } from "@/domain/types";
 import { formatDateTime, formatIsoDate } from "@/lib/format";
 import type { TodayCoachState } from "@/server/repositories/coach-plans";
@@ -140,6 +141,14 @@ function CoachStatus({
       </p>
     );
   }
+  if (coach.failure) {
+    return (
+      <p className="text-sm text-warning">
+        The coach could not plan this one. {coach.failure.error ?? "It gave no reason."} The
+        programme&apos;s own targets apply.
+      </p>
+    );
+  }
   return null;
 }
 
@@ -159,6 +168,8 @@ export function TodayView({
   // The coach's plan stands in for the programme's only when it was made for this gym and
   // nothing newer is on its way.
   const coachPlan = coach?.plan && coach.matchesGym && !coach.pending ? coach.plan : null;
+  // A run is planned for the day, not for a gym, so it stands whichever gym the plan named.
+  const coachRun = coach?.plan && !coach.pending ? (coach.plan.run ?? null) : null;
   const coachGyms: CoachGym[] = gyms
     .filter((gym) => gym.kind === "gym")
     .map((gym) => ({ id: gym.id, name: gym.name, isDefault: gym.isDefault }));
@@ -283,6 +294,7 @@ export function TodayView({
                       entries={coachPlan.exercises}
                       planned={plan.suggestedExercises}
                       unit={unit}
+                      warnings={coachPlan.warnings}
                     />
                   </Disclosure>
                 ) : (
@@ -299,14 +311,29 @@ export function TodayView({
               </Card>
             )}
 
-            {plan.runTarget && (
+            {(plan.runTarget || coachRun) && (
               <Card>
                 <CardHead
                   eyebrow={day.includesLifting ? undefined : position}
                   title="Easy run"
-                  subtitle={runSummary(plan.runTarget)}
-                  badge={day.includesLifting ? undefined : standing}
+                  subtitle={
+                    coachRun
+                      ? runPlanLine(coachRun)
+                      : plan.runTarget
+                        ? runSummary(plan.runTarget)
+                        : null
+                  }
+                  badge={
+                    <span className="flex shrink-0 flex-wrap justify-end gap-1">
+                      {coachRun && <Badge tone="accent">Coach</Badge>}
+                      {day.includesLifting ? null : standing}
+                    </span>
+                  }
                 />
+                {/* On a day that only runs, the coach's sentence is about the run. */}
+                {coachRun && !day.includesLifting && coachPlan && (
+                  <p className="text-sm">{coachPlan.summary}</p>
+                )}
                 <LinkButton
                   href="/runs/new"
                   variant={day.includesLifting ? "secondary" : "primary"}
@@ -315,10 +342,20 @@ export function TodayView({
                 >
                   Log run
                 </LinkButton>
-                {hasRunGuidance(plan.runTarget) && (
+                {!day.includesLifting && coach && (
+                  <CoachStatus coach={coach} gymName={defaultGym?.name ?? null} gyms={gyms} />
+                )}
+                {coachRun ? (
                   <Disclosure summary="How to run it" variant="footer">
-                    <RunPlanDetails run={plan.runTarget} />
+                    <CoachRunDetails run={coachRun} programme={plan.runTarget} />
                   </Disclosure>
+                ) : (
+                  plan.runTarget &&
+                  hasRunGuidance(plan.runTarget) && (
+                    <Disclosure summary="How to run it" variant="footer">
+                      <RunPlanDetails run={plan.runTarget} />
+                    </Disclosure>
+                  )
                 )}
               </Card>
             )}

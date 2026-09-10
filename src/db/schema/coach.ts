@@ -11,7 +11,8 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
-import type { StoredPlanExercise } from "../../domain/session-plan";
+import type { PlanWarning } from "../../domain/coach-review";
+import type { StoredPlanExercise, StoredPlanRun } from "../../domain/session-plan";
 import { ownerPolicy, timestamps } from "./common";
 import { coachRequestStatusEnum, planStatusEnum, planTriggerEnum } from "./enums";
 import { gyms } from "./gyms";
@@ -72,6 +73,8 @@ export const coachRequests = pgTable(
       .notNull()
       .references(() => profiles.id, { onDelete: "cascade" }),
     gymId: uuid("gym_id").references(() => gyms.id, { onDelete: "set null" }),
+    /** Which kind of planning this was, so a failed nightly run is visible beside a re-plan. */
+    trigger: planTriggerEnum("trigger").notNull().default("replan"),
     status: coachRequestStatusEnum("status").notNull().default("requested"),
     reason: text("reason"),
     routineSessionId: text("routine_session_id"),
@@ -119,6 +122,16 @@ export const sessionPlans = pgTable(
       .notNull()
       .default(sql`'[]'::jsonb`),
     exercises: jsonb("exercises").$type<StoredPlanExercise[]>().notNull(),
+    /** The run the coach planned for this slot, on a day that runs. */
+    run: jsonb("run").$type<StoredPlanRun>(),
+    /**
+     * What the app noticed about the plan when it was stored: a large jump, volume well away
+     * from the programme, an RIR under the floor. Advice only; nothing here blocked the plan.
+     */
+    warnings: jsonb("warnings")
+      .$type<PlanWarning[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
     model: text("model"),
     routineSessionUrl: text("routine_session_url"),
     generatedAt: timestamp("generated_at", { withTimezone: true }).notNull().defaultNow(),

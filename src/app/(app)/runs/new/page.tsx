@@ -4,10 +4,12 @@ import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
+import { runPlanLine } from "@/domain/session-plan";
 import { toDateTimeLocal } from "@/lib/time";
 import { saveRunAction } from "@/server/actions/runs";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
+import { plannedRunForToday } from "@/server/repositories/coach-plans";
 import { listRuns, plannedRunsForCycle } from "@/server/repositories/runs";
 import { getSchedule } from "@/server/repositories/schedule";
 
@@ -20,17 +22,22 @@ export default async function NewRunPage() {
   const requestProfile = await getRequestProfile(user.id, user.email);
   const data = await withUser(getDb(), user.id, async (tx) => {
     const profile = requestProfile;
-    const [logged, schedule] = await Promise.all([
+    const [logged, schedule, coach] = await Promise.all([
       listRuns(tx, user.id, 200),
       getSchedule(tx, user.id),
+      profile.aiCoachEnabled ? plannedRunForToday(tx, user.id) : Promise.resolve(null),
     ]);
     return {
       timeZone: profile.timeZone,
+      coach,
       cycle: schedule ? await plannedRunsForCycle(tx, schedule, logged) : null,
     };
   });
   const planned = data.cycle?.planned ?? [];
   const nextPlanned = planned.find((run) => run.loggedRunId === null);
+  // The coach's run fills the form in, so logging it is a check rather than a transcription.
+  const coachRun = data.coach?.run ?? null;
+  const duration = coachRun?.durationMinutes ?? null;
 
   return (
     <>
@@ -38,20 +45,31 @@ export default async function NewRunPage() {
       <PageContent>
         <RunForm
           action={saveRunAction.bind(null, null)}
+          coach={
+            data.coach
+              ? {
+                  summary: data.coach.summary,
+                  line: runPlanLine(data.coach.run),
+                  note: data.coach.run.note,
+                  paceNote: data.coach.run.paceNote,
+                  stopRule: data.coach.run.stopRule,
+                }
+              : null
+          }
           initial={{
             startedAt: toDateTimeLocal(new Date(), data.timeZone),
-            treadmill: false,
-            distanceKm: "",
-            durationMinutes: "",
+            treadmill: coachRun?.mode === "treadmill",
+            distanceKm: coachRun?.distanceKm === null ? "" : String(coachRun?.distanceKm ?? ""),
+            durationMinutes: duration === null ? "" : String(duration),
             durationSeconds: "",
-            rpe: "",
+            rpe: coachRun?.rpe === null ? "" : String(coachRun?.rpe ?? ""),
             shinLeftPre: "",
             shinRightPre: "",
             shinLeftDuring: "",
             shinRightDuring: "",
             shinLeftPost: "",
             shinRightPost: "",
-            programRunId: nextPlanned?.id ?? "",
+            programRunId: coachRun?.programRunId ?? nextPlanned?.id ?? "",
             notes: "",
           }}
           planned={planned}

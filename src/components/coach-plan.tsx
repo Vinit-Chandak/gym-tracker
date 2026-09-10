@@ -1,7 +1,9 @@
 import { prescription } from "@/components/planned-exercises";
-import { planLine, type StoredPlanExercise } from "@/domain/session-plan";
+import type { PlanWarning } from "@/domain/coach-review";
+import { DetailList } from "@/components/ui/detail-list";
+import { planLine, type PlanRun, type StoredPlanExercise } from "@/domain/session-plan";
 import { cn } from "@/lib/utils";
-import type { PlannedExercisePreview } from "@/server/repositories/schedule";
+import type { PlannedExercisePreview, RunTarget } from "@/server/repositories/schedule";
 
 /** "6 exercises · 15 sets" for a coach plan: what it keeps, and the sets it asks for. */
 export function coachPlanSummary(
@@ -28,39 +30,71 @@ export function CoachPlanList({
   entries,
   planned,
   unit,
+  warnings = [],
 }: {
   entries: readonly StoredPlanExercise[];
   planned: readonly PlannedExercisePreview[];
   unit: string;
+  /** What the app noticed about the plan. Advice, under the plan it is about. */
+  warnings?: readonly PlanWarning[];
 }) {
   return (
-    <ul className="space-y-2.5">
-      {entries.map((entry, index) => {
-        const slot = entry.slotId
-          ? planned.find((p) => p.programExerciseId === entry.slotId)
-          : undefined;
-        const dropped = entry.action === "drop";
-        const name = dropped ? (slot?.name ?? entry.exerciseName) : entry.exerciseName;
-        const machine = !dropped ? entry.equipmentInstanceName : null;
-        const targets = dropped
-          ? "Skipped today"
-          : (planLine(entry, unit) ?? (slot ? prescription(slot) : "By the rule"));
-        return (
-          <li key={`${entry.slotId ?? "added"}-${index}`} className="min-w-0">
-            <p
-              className={cn(
-                "text-sm [overflow-wrap:anywhere]",
-                dropped && "text-ink-subtle line-through",
-              )}
-            >
-              {name}
-              {machine && <span className="text-ink-muted"> · {machine}</span>}
-            </p>
-            <p className="mt-0.5 text-xs text-ink-muted tabular-nums">{targets}</p>
-            {entry.note && <p className="mt-0.5 text-xs text-ink-muted">{entry.note}</p>}
-          </li>
-        );
-      })}
-    </ul>
+    <>
+      <ul className="space-y-2.5">
+        {entries.map((entry, index) => {
+          const slot = entry.slotId
+            ? planned.find((p) => p.programExerciseId === entry.slotId)
+            : undefined;
+          const dropped = entry.action === "drop";
+          const name = dropped ? (slot?.name ?? entry.exerciseName) : entry.exerciseName;
+          const machine = !dropped ? entry.equipmentInstanceName : null;
+          const targets = dropped
+            ? "Skipped today"
+            : (planLine(entry, unit) ?? (slot ? prescription(slot) : "By the rule"));
+          return (
+            <li key={`${entry.slotId ?? "added"}-${index}`} className="min-w-0">
+              <p
+                className={cn(
+                  "text-sm [overflow-wrap:anywhere]",
+                  dropped && "text-ink-subtle line-through",
+                )}
+              >
+                {name}
+                {machine && <span className="text-ink-muted"> · {machine}</span>}
+              </p>
+              <p className="mt-0.5 text-xs text-ink-muted tabular-nums">{targets}</p>
+              {entry.note && <p className="mt-0.5 text-xs text-ink-muted">{entry.note}</p>}
+            </li>
+          );
+        })}
+      </ul>
+      {warnings.length > 0 && (
+        <ul className="mt-3 space-y-1 border-t border-line pt-3">
+          {warnings.map((warning) => (
+            <li key={warning.code} className="text-xs [overflow-wrap:anywhere] text-warning">
+              {warning.message}
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
+/**
+ * How the coach wants the run run, with anything the programme still says underneath. The
+ * coach's own stop rule replaces the programme's when it wrote one, since it was written
+ * knowing this week's shins.
+ */
+export function CoachRunDetails({ run, programme }: { run: PlanRun; programme: RunTarget | null }) {
+  return (
+    <DetailList
+      entries={[
+        ["Why", run.note],
+        ["Pace", run.paceNote || programme?.paceNote],
+        ["Stop if", run.stopRule || programme?.shinRule],
+        ["Where", run.mode === "treadmill" ? "Treadmill" : "Outdoor"],
+      ]}
+    />
   );
 }

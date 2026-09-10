@@ -8,7 +8,12 @@ import { getCoachRoutine, getCoachServiceToken } from "@/lib/env";
 import { formatDateTime } from "@/lib/format";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
-import { getCoachMemo, latestPlan, pendingRequest } from "@/server/repositories/coach-plans";
+import {
+  getCoachMemo,
+  latestPlan,
+  pendingRequest,
+  recentAttempts,
+} from "@/server/repositories/coach-plans";
 
 import { AiCoachSettings } from "./ai-coach-settings";
 
@@ -17,13 +22,14 @@ export const metadata: Metadata = { title: "AI coach" };
 export default async function AiCoachSettingsPage() {
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
-  const { memo, plan, pending } = await withUser(getDb(), user.id, async (tx) => {
-    const [memo, plan, pending] = await Promise.all([
+  const { memo, plan, pending, attempts } = await withUser(getDb(), user.id, async (tx) => {
+    const [memo, plan, pending, attempts] = await Promise.all([
       getCoachMemo(tx, user.id),
       latestPlan(tx, user.id),
       pendingRequest(tx, user.id),
+      recentAttempts(tx, user.id, 8),
     ]);
-    return { memo, plan, pending };
+    return { memo, plan, pending, attempts };
   });
   // Whether this server can hear from the coach and start it: owner-side setup facts.
   const configured = getCoachServiceToken() !== null;
@@ -52,6 +58,14 @@ export default async function AiCoachSettingsPage() {
           overviewUpdatedAt={
             memo.overviewUpdatedAt ? formatDateTime(memo.overviewUpdatedAt, profile.timeZone) : null
           }
+          attempts={attempts.map((attempt) => ({
+            id: attempt.id,
+            when: formatDateTime(attempt.requestedAt, profile.timeZone),
+            trigger: attempt.trigger === "nightly" ? "Overnight" : "You asked",
+            status: attempt.status,
+            gymName: attempt.gymName,
+            error: attempt.error,
+          }))}
         />
       </PageContent>
     </>

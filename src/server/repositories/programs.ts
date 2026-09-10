@@ -1,17 +1,22 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 
 import {
+  equipmentTypes,
+  exercises,
   programDays,
   programExerciseFallbacks,
   programExercises,
   programRuns,
   programs,
+  warmupProtocols,
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import { programEndDate } from "@/domain/program-calendar";
 import {
+  BLUEPRINT_VERSION,
   blueprintExerciseSlugs,
   prescriptionTypeOf,
+  programBlueprintSchema,
   type ProgramBlueprint,
 } from "@/domain/program-blueprint";
 import {
@@ -81,6 +86,12 @@ export type CreateProgramOptions = {
   /** First day of the programme, `YYYY-MM-DD` in the user's time zone. */
   startDate: string;
   /**
+   * Slot the programme starts on. A revision of a running programme passes the original's,
+   * so the sequence keeps its shape; a fresh programme leaves it out and starts at its first
+   * day.
+   */
+  startDayIndex?: number;
+  /**
    * Continue an existing programme lineage instead of starting one. The new row becomes the
    * next version in that family and the previous active version is archived — the path a
    * revised or regenerated plan takes, so logged history keeps pointing at what it prescribed.
@@ -147,7 +158,7 @@ export async function createProgramFromBlueprint(
       .where(and(eq(programs.userId, userId), eq(programs.status, "active")));
   }
 
-  const startDayIndex = Math.min(...blueprint.days.map((d) => d.dayIndex));
+  const startDayIndex = options.startDayIndex ?? Math.min(...blueprint.days.map((d) => d.dayIndex));
   const [program] = await db
     .insert(programs)
     .values({
@@ -199,6 +210,8 @@ export async function createProgramFromBlueprint(
       programDayId: dayId(day.dayIndex),
       exerciseId,
       orderIndex,
+      // A revision carries the slot's lineage over; a fresh plan leaves it for the default.
+      lineageId: exercise.lineageId,
       sets: exercise.sets,
       prescriptionType: prescriptionTypeOf(exercise),
       repMin: exercise.reps?.[0] ?? null,
@@ -272,6 +285,131 @@ export async function createProgramFromBlueprint(
   }
 
   return { id: program.id, familyId, version };
+}
+
+/**
+ * Reads a programme back out as a blueprint, lineage included.
+ *
+ * This is the inverse of `createProgramFromBlueprint`, and it exists so a revision is one
+ * round trip through the same validated document the app already understands: read, patch,
+ * write the next version. Everything is named by slug again, so nothing in the patch has to
+ * know a database id.
+ */
+export async function readProgramBlueprint(
+  db: DbOrTx,
+  userId: string,
+  programId: string,
+): Promise<{ blueprint: ProgramBlueprint; startDayIndex: number } | null> {
+  const [program] = await db
+    .select()
+    .from(programs)
+    .where(and(eq(programs.id, programId), eq(programs.userId, userId)))
+    .limit(1);
+  if (!program) return null;
+  const days = await db
+    .select({ day: programDays, warmupSlug: warmupProtocols.slug })
+    .from(programDays)
+    .leftJoin(warmupProtocols, eq(warmupProtocols.id, programDays.warmupProtocolId))
+    .where(eq(programDays.programId, programId))
+    .orderBy(asc(programDays.dayIndex));
+  const dayIds = days.map((row) => row.day.id);
+  const [slots, runRows] = await Promise.all([
+    dayIds.length
+      ? db
+          .select({ slot: programExercises, slug: exercises.slug })
+          .from(programExercises)
+          .innerJoin(exercises, eq(exercises.id, programExercises.exerciseId))
+          .where(inArray(programExercises.programDayId, dayIds))
+          .orderBy(asc(programExercises.orderIndex))
+      : Promise.resolve([]),
+    db
+      .select()
+      .from(programRuns)
+      .where(eq(programRuns.programId, programId))
+      .orderBy(asc(programRuns.weekIndex), asc(programRuns.dayOfWeek)),
+  ]);
+  const slotIds = slots.map((row) => row.slot.id);
+  const fallbacks = slotIds.length
+    ? await db
+        .select({
+          fallback: programExerciseFallbacks,
+          slug: exercises.slug,
+          typeSlug: equipmentTypes.slug,
+        })
+        .from(programExerciseFallbacks)
+        .innerJoin(exercises, eq(exercises.id, programExerciseFallbacks.fallbackExerciseId))
+        .leftJoin(
+          equipmentTypes,
+          eq(equipmentTypes.id, programExerciseFallbacks.fallbackEquipmentTypeId),
+        )
+        .where(inArray(programExerciseFallbacks.programExerciseId, slotIds))
+        .orderBy(asc(programExerciseFallbacks.rank))
+    : [];
+
+  const blueprint = programBlueprintSchema.parse({
+    blueprintVersion: BLUEPRINT_VERSION,
+    slug: program.slug,
+    name: program.name,
+    weeks: program.weeks ?? 8,
+    notes: program.notes ?? "",
+    days: days.map(({ day, warmupSlug }) => ({
+      dayIndex: day.dayIndex,
+      dayOfWeek: day.dayOfWeek ?? 1,
+      name: day.name,
+      focus: day.focus ?? "",
+      timeNote: day.timeNote ?? "",
+      effortNote: day.effortNote ?? "",
+      notes: day.notes ?? "",
+      includesLifting: day.includesLifting,
+      includesRun: day.includesRun,
+      warmupSlug: warmupSlug ?? "daily-mobility",
+      exercises: slots
+        .filter((row) => row.slot.programDayId === day.id)
+        .map(({ slot, slug }) => ({
+          exerciseSlug: slug,
+          lineageId: slot.lineageId,
+          sets: slot.sets,
+          reps:
+            slot.prescriptionType === "reps" && slot.repMin !== null && slot.repMax !== null
+              ? [slot.repMin, slot.repMax]
+              : undefined,
+          duration:
+            slot.prescriptionType === "duration" &&
+            slot.durationMinSeconds !== null &&
+            slot.durationMaxSeconds !== null
+              ? [slot.durationMinSeconds, slot.durationMaxSeconds]
+              : undefined,
+          perSide: slot.perSide,
+          rir: [slot.rirMin ?? 0, slot.rirMax ?? slot.rirMin ?? 0],
+          rest: [slot.restMinSeconds ?? 0, slot.restMaxSeconds ?? slot.restMinSeconds ?? 0],
+          targetLoadNote: slot.targetLoadNote ?? undefined,
+          progressionNotes: slot.progressionNotes ?? undefined,
+          progressionRule: slot.progressionRule ?? undefined,
+          keyCue: slot.keyCue ?? undefined,
+          supersetGroup: slot.supersetGroup ?? undefined,
+          notes: slot.notes ?? undefined,
+          fallbacks: fallbacks
+            .filter((row) => row.fallback.programExerciseId === slot.id)
+            .map((row) => ({
+              exerciseSlug: row.slug,
+              equipmentTypeSlug: row.typeSlug ?? undefined,
+              rank: row.fallback.rank,
+              notes: row.fallback.notes ?? undefined,
+            })),
+        })),
+    })),
+    runs: runRows.map((run) => ({
+      weekIndex: run.weekIndex,
+      dayOfWeek: run.dayOfWeek,
+      duration: [run.durationMinMinutes, run.durationMaxMinutes],
+      rpe: [run.rpeMin ?? 0, run.rpeMax ?? run.rpeMin ?? 0],
+      paceNote: run.paceNote ?? "",
+      progressionNote: run.progressionNote ?? "",
+      shinRule: run.shinRule ?? "",
+      comment: run.comment ?? undefined,
+    })),
+  });
+  return { blueprint, startDayIndex: program.startDayIndex };
 }
 
 /** The user's active programme, if they have one. */

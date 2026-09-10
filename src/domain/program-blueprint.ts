@@ -58,6 +58,12 @@ export const blueprintFallbackSchema = z.object({
 export const blueprintExerciseSchema = z
   .object({
     exerciseSlug: slug,
+    /**
+     * The slot's identity across versions of one programme. A fresh plan leaves it out and
+     * the write mints one; a revision carries the old slot's lineage over, so history logged
+     * against the previous version still counts as this slot's.
+     */
+    lineageId: z.uuid().optional(),
     sets: z.number().int().min(1).max(20),
     /** Reps, or `duration` for timed work. Exactly one of the two is required. */
     reps: range(z.number().int().min(1).max(100)).optional(),

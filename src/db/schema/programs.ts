@@ -104,6 +104,12 @@ export const programExercises = pgTable(
     programDayId: uuid("program_day_id")
       .notNull()
       .references(() => programDays.id, { onDelete: "cascade" }),
+    /**
+     * The slot's identity across programme versions. A new version of a programme clones its
+     * slots, giving each a new row; the lineage is what says "this is still the squat slot of
+     * Lower A", so comparable history and the coach's own decisions survive a revision.
+     */
+    lineageId: uuid("lineage_id").notNull().defaultRandom(),
     exerciseId: uuid("exercise_id")
       .notNull()
       .references(() => exercises.id, { onDelete: "restrict" }),
@@ -139,6 +145,7 @@ export const programExercises = pgTable(
   },
   (t) => [
     uniqueIndex("program_exercises_day_order_uq").on(t.programDayId, t.orderIndex),
+    index("program_exercises_lineage_idx").on(t.lineageId),
     index("program_exercises_exercise_idx").on(t.exerciseId),
     check("program_exercises_sets_chk", sql`sets > 0`),
     check(

@@ -25,6 +25,11 @@ import {
   saveCoachNotes,
 } from "@/server/repositories/coach-plans";
 import { getGym } from "@/server/repositories/gyms";
+import {
+  applyProposal,
+  ProposalError,
+  rejectProposal,
+} from "@/server/repositories/program-revisions";
 import { formValues, parseForm, type FormState } from "@/server/validation/form";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -123,5 +128,37 @@ export async function requestCoachPlanAction(gymId: string, reason: string): Pro
     return { ok: false, error: message };
   }
   revalidatePath("/today");
+  return { ok: true };
+}
+
+/**
+ * Approves a proposed programme change, which writes the next version of the programme.
+ * Everything logged keeps pointing at what it was actually prescribed.
+ */
+export async function applyProposalAction(proposalId: string): Promise<ActionResult> {
+  const user = await requireUser();
+  if (!z.uuid().safeParse(proposalId).success) return { ok: false, error: "Invalid change." };
+  try {
+    await withUser(getDb(), user.id, (tx) => applyProposal(tx, user.id, proposalId));
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof ProposalError
+          ? error.message
+          : "Could not apply the change. Please retry.",
+    };
+  }
+  revalidatePath("/settings/programme");
+  revalidatePath("/today");
+  return { ok: true };
+}
+
+export async function rejectProposalAction(proposalId: string): Promise<ActionResult> {
+  const user = await requireUser();
+  if (!z.uuid().safeParse(proposalId).success) return { ok: false, error: "Invalid change." };
+  const done = await withUser(getDb(), user.id, (tx) => rejectProposal(tx, user.id, proposalId));
+  if (!done) return { ok: false, error: "That change is no longer waiting for an answer." };
+  revalidatePath("/settings/programme");
   return { ok: true };
 }

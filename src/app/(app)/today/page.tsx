@@ -32,9 +32,12 @@ export default async function TodayPage() {
       plan?.suggestedDay && !plan.suggestedDay.includesLifting && plan.suggestedDay.warmupProtocolId
         ? await getWarmupProtocol(tx, plan.suggestedDay.warmupProtocolId)
         : null;
-    // The coach speaks to the day's lifting slot only, and only for an athlete who has it on.
+    // The coach speaks to the day it is offering, lifting or running, and only for an
+    // athlete who has switched it on.
     const coach =
-      profile.aiCoachEnabled && plan?.suggestion && plan.suggestedDay?.includesLifting
+      profile.aiCoachEnabled &&
+      plan?.suggestion &&
+      (plan.suggestedDay?.includesLifting || plan.suggestedDay?.includesRun)
         ? await todayCoachState(tx, user.id, {
             enabled: true,
             timeZone: profile.timeZone,
