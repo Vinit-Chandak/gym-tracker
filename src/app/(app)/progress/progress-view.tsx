@@ -19,7 +19,7 @@ import { Select } from "@/components/ui/select";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import type { PerformanceSeries, Point } from "@/domain/analytics";
 import type { MuscleVolume } from "@/domain/muscle-volume";
-import type { MuscleGroup } from "@/domain/types";
+import type { BodyLoadUnit, MuscleGroup } from "@/domain/types";
 import { formatDateRange, formatMinutes } from "@/lib/format";
 import { LOAD_UNIT_LABELS, MUSCLE_LABELS } from "@/lib/labels";
 
@@ -77,6 +77,10 @@ type Props = {
   pace: { date: string; value: number | null; mode: string }[];
   options: SeriesOption[];
   body: { from: string; to: string; volume: MuscleVolume; totalSets: number };
+  /** Body weight readings over `range`, already converted into `unit`. */
+  bodyWeight: Point[];
+  /** The account's own unit, which body weight is read in. */
+  unit: BodyLoadUnit;
   /** Only the chosen exercise's numbers cross the wire; the rest stay on the server. */
   selected: PerformanceSeries | null;
 };
@@ -205,6 +209,8 @@ export function ProgressView({
   options,
   selected,
   body,
+  bodyWeight,
+  unit,
 }: Props) {
   const router = useRouter();
   const params = useSearchParams();
@@ -559,42 +565,72 @@ export function ProgressView({
         )}
 
         {tab === "body" && (
-          <Card>
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-base font-medium">Muscles this week</h2>
-              <InfoTip label="About the body map">
-                Working sets from finished workouts. A set counts once for each primary muscle and
-                half for each secondary one; warm-ups are excluded.
-              </InfoTip>
-            </div>
-            {/* Body keeps its own week navigation: it is a snapshot, not a trend. */}
-            <div className="flex items-center justify-between gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                aria-label="Previous week"
-                disabled={pending}
-                onClick={() => stepWeek(-7)}
-              >
-                <ChevronLeft className="size-5" aria-hidden />
-              </Button>
-              <p className="min-w-0 text-center text-sm font-medium">
-                {formatDateRange(body.from, body.to)}
-              </p>
-              <Button
-                variant="ghost"
-                size="sm"
-                aria-label="Next week"
-                disabled={pending}
-                onClick={() => stepWeek(7)}
-              >
-                <ChevronRight className="size-5" aria-hidden />
-              </Button>
-            </div>
-            <div className={pending ? "opacity-50 transition-opacity" : undefined}>
-              <BodyMap volume={body.volume} totalSets={body.totalSets} />
-            </div>
-          </Card>
+          <>
+            <Card>
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-base font-medium">Body weight</h2>
+                <InfoTip label="About body weight">
+                  Every reading you have entered, from finishing a workout or from your profile. One
+                  reading per day; the newest is the weight shown on your profile.
+                </InfoTip>
+              </div>
+              {bodyWeight.length > 0 ? (
+                <>
+                  <Headline points={bodyWeight} unit={unit} />
+                  <Chart
+                    title="Body weight"
+                    unit={unit}
+                    caption={false}
+                    series={[
+                      { name: "Body weight", color: SERIES_COLORS.lifting, points: bodyWeight },
+                    ]}
+                  />
+                </>
+              ) : (
+                <p className="text-sm text-ink-muted">
+                  No readings in this range. Weight recorded when you finish a session appears here,
+                  and you can set it any day from Settings → Profile.
+                </p>
+              )}
+            </Card>
+
+            <Card>
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-base font-medium">Muscles this week</h2>
+                <InfoTip label="About the body map">
+                  Working sets from finished workouts. A set counts once for each primary muscle and
+                  half for each secondary one; warm-ups are excluded.
+                </InfoTip>
+              </div>
+              {/* Body keeps its own week navigation: it is a snapshot, not a trend. */}
+              <div className="flex items-center justify-between gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-label="Previous week"
+                  disabled={pending}
+                  onClick={() => stepWeek(-7)}
+                >
+                  <ChevronLeft className="size-5" aria-hidden />
+                </Button>
+                <p className="min-w-0 text-center text-sm font-medium">
+                  {formatDateRange(body.from, body.to)}
+                </p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-label="Next week"
+                  disabled={pending}
+                  onClick={() => stepWeek(7)}
+                >
+                  <ChevronRight className="size-5" aria-hidden />
+                </Button>
+              </div>
+              <div className={pending ? "opacity-50 transition-opacity" : undefined}>
+                <BodyMap volume={body.volume} totalSets={body.totalSets} />
+              </div>
+            </Card>
+          </>
         )}
 
         {weekDates.length === 0 && (

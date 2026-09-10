@@ -12,6 +12,8 @@ import type {
   PrescriptionType,
   RunMode,
   ResistanceMode,
+  Sex,
+  TrainingGoal,
 } from "@/domain/types";
 
 export const GYM_KIND_LABELS: Record<GymKind, string> = {
@@ -213,6 +215,20 @@ export const SUGGESTION_KIND_LABELS: Record<SuggestionKind, string> = {
   transfer: "Starting guess",
   start: "No history",
   coach: "Coach plan",
+};
+
+export const SEX_LABELS: Record<Sex, string> = {
+  female: "Female",
+  male: "Male",
+  other: "Other",
+};
+
+export const TRAINING_GOAL_LABELS: Record<TrainingGoal, string> = {
+  build_muscle: "Build muscle",
+  lose_fat: "Lose fat",
+  get_stronger: "Get stronger",
+  endurance: "Build endurance",
+  general_fitness: "General fitness",
 };
 
 export const RUN_MODE_LABELS: Record<RunMode, string> = {

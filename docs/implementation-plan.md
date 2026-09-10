@@ -89,6 +89,7 @@ docs/decisions/                   architecture decision records
 8. Coach read API with revocable read-only tokens: done (ADR 0008).
 9. PWA polish: loading/error states, pending saves, manual offline drafts, install guidance: done (ADR 0008).
 10. AI house coach: plans, memos and re-plans through a Claude Code routine on the owner's subscription: done (ADR 0018).
+11. Accounts that know the person: a required first-run profile, emailed links that reach the deployed app, and body weight as a running record with a trend: done (ADR 0020).
 
 ## Decisions taken (2026-09-08)
 

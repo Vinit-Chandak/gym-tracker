@@ -3,6 +3,7 @@
 import Link from "@/components/ui/app-link";
 import { Sheet } from "@/components/ui/sheet";
 import { formatDateTime } from "@/lib/format";
+import { formatBodyWeight } from "@/lib/units";
 
 import type { SessionVM } from "./view-model";
 
@@ -60,7 +61,10 @@ export function SessionDetails({
         {session.day && <Row label="Programme day" value={session.day.name} />}
         {session.cycleIndex !== null && <Row label="Cycle" value={String(session.cycleIndex)} />}
         {session.bodyWeightKg !== null && (
-          <Row label="Body weight" value={`${session.bodyWeightKg} kg`} />
+          <Row
+            label="Body weight"
+            value={formatBodyWeight(session.bodyWeightKg, session.preferredUnit)}
+          />
         )}
       </dl>
 

@@ -7,16 +7,19 @@ import { Card } from "@/components/ui/card";
 import { FormError, SubmitButton } from "@/components/ui/form";
 import { Field, Input, Textarea } from "@/components/ui/input";
 import { Section } from "@/components/ui/section";
+import type { BodyLoadUnit } from "@/domain/types";
 import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
 
 type Props = {
   action: (previous: FormState, formData: FormData) => Promise<FormState>;
   initialBodyWeight: string;
+  /** The account's unit. The weight is typed in it, and the action converts on the way in. */
+  unit: BodyLoadUnit;
   userId: string;
   sessionId: string;
 };
 
-export function FinishForm({ action, initialBodyWeight, userId, sessionId }: Props) {
+export function FinishForm({ action, initialBodyWeight, unit, userId, sessionId }: Props) {
   const drafts = useSessionDrafts(userId, sessionId);
   const [state, formAction] = useActionState(action, INITIAL_FORM_STATE);
   return (
@@ -31,12 +34,17 @@ export function FinishForm({ action, initialBodyWeight, userId, sessionId }: Pro
               placeholder="How it went, anything to remember…"
             />
           </Field>
-          <Field label="Body weight (kg)" hint="Optional" error={state.fieldErrors?.bodyWeightKg}>
+          <Field
+            label={`Body weight (${unit})`}
+            hint="Optional — recorded as today's reading"
+            error={state.fieldErrors?.bodyWeight}
+          >
+            <input type="hidden" name="unit" value={unit} />
             <Input
-              name="bodyWeightKg"
+              name="bodyWeight"
               inputMode="decimal"
-              defaultValue={state.values?.bodyWeightKg ?? initialBodyWeight}
-              placeholder="59.5"
+              defaultValue={state.values?.bodyWeight ?? initialBodyWeight}
+              placeholder={unit === "kg" ? "74.5" : "164.2"}
             />
           </Field>
         </Card>

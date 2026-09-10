@@ -54,13 +54,21 @@ If the password contains `@`, `:`, `/`, `#` or `?`, URL-encode those characters
    - The free tier's built-in email sender is rate-limited to a few messages an hour. If you
      invite more than a handful of people at once, either switch **Confirm email** off or add
      your own SMTP provider under **Authentication → Emails**.
-2. Sidebar → **Authentication** → **URL Configuration**:
-   - **Site URL**: your deployed URL, e.g. `https://overload.vercel.app`.
-   - **Redirect URLs**: add `https://overload.vercel.app/auth/confirm` and, if you develop
-     locally, `http://localhost:3000/auth/confirm`.
+2. Sidebar → **Authentication** → **URL Configuration**. Both boxes matter, and getting them
+   wrong is what makes confirmation emails link to `localhost`:
+   - **Site URL**: your deployed URL, e.g. `https://overload.vercel.app`, with no trailing
+     slash. A new project starts at `http://localhost:3000`, and that is the address Supabase
+     falls back to whenever it will not accept the one the app asked for — so leaving it is
+     how a deployed app emails people a link to their own machine.
+   - **Redirect URLs**: add exactly `https://overload.vercel.app/auth/confirm`, and
+     `http://localhost:3000/auth/confirm` as well if you develop locally.
 
-   Every link the app asks Supabase to email (confirmation and password reset) lands on
-   `/auth/confirm`, which creates the session and forwards the user on.
+   Every link the app asks Supabase to email — confirmation and password reset — lands on
+   `/auth/confirm`, which creates the session and forwards the user on. The app asks for that
+   address and nothing more: no `?next=`, no other query string. Supabase compares the **whole**
+   address it is given against this list, so an entry that is missing part of one does not match
+   and the Site URL is used instead. If you ever need to allow-list a URL that does carry a
+   query string, end the pattern with `**`.
 
 ## 5. Optional: let people delete their sign-in as well as their data
 
@@ -155,10 +163,30 @@ Either way it launches full-screen with the correct padding for notches and gest
 ## What a new account sees
 
 1. **Sign up** with an email and password.
-2. **Welcome**, four short steps: name, time zone (proposed by the device) and units → the
-   first gym → tick which machines that gym has → pick a programme, or skip it.
+2. **Welcome**, four short steps: about you → the first gym → tick which machines that gym has
+   → pick a programme, or skip it. The first step asks for a name, time zone (proposed by the
+   device), units, body weight, height, date of birth, sex and a training goal, and is the one
+   step that cannot be skipped — the rest of the app reads those numbers. Sex may be left as
+   "prefer not to say".
 3. **Today** suggests the next session; everything set up in onboarding is editable in
-   Settings afterwards.
+   **Settings → Profile** afterwards, and an account that predates a question is told there
+   which answers are still missing rather than being sent back through setup.
+
+## If the email links point at localhost
+
+Almost always step 4.2 above. Supabase builds the link from the address the app asks it to use,
+but only if that address is on the **Redirect URLs** list; otherwise it silently uses the
+**Site URL**, which on a new project is `http://localhost:3000`. So:
+
+1. Set **Site URL** to your deployed URL. Even when everything else is right, this is the
+   fallback, and it should never be a developer machine on a deployed project.
+2. Check the **Redirect URLs** list has your deployed URL followed by `/auth/confirm`, spelled
+   exactly — `https` not `http`, no trailing slash, no `www` you do not actually use.
+3. Set `NEXT_PUBLIC_SITE_URL` (step 7.3) to that same deployed URL, so the app asks for the
+   production address from every deployment rather than whichever host served the request.
+
+Links already sent keep pointing wherever they pointed; sign up again, or ask for a fresh
+password reset, once the settings are right.
 
 ## Free-tier notes
 

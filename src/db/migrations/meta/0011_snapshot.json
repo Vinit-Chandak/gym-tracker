@@ -1,6 +1,6 @@
 {
-  "id": "76460346-2fbc-4bf4-a277-45fb9ce93e84",
-  "prevId": "b94c6a5b-68c5-4827-945c-99f7f2b10a31",
+  "id": "15b8fd40-5083-4a15-ac56-287a72da5da1",
+  "prevId": "76460346-2fbc-4bf4-a277-45fb9ce93e84",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1024,6 +1024,14 @@
           "notNull": true,
           "default": true
         },
+        "default_prescription_type": {
+          "name": "default_prescription_type",
+          "type": "prescription_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'reps'"
+        },
         "default_rep_min": {
           "name": "default_rep_min",
           "type": "integer",
@@ -1032,6 +1040,30 @@
         },
         "default_rep_max": {
           "name": "default_rep_max",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "default_duration_min_seconds": {
+          "name": "default_duration_min_seconds",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "default_duration_max_seconds": {
+          "name": "default_duration_max_seconds",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "default_distance_min_meters": {
+          "name": "default_distance_min_meters",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "default_distance_max_meters": {
+          "name": "default_distance_max_meters",
           "type": "integer",
           "primaryKey": false,
           "notNull": false
@@ -1045,6 +1077,12 @@
         "default_rest_seconds": {
           "name": "default_rest_seconds",
           "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rir_note": {
+          "name": "rir_note",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
@@ -1784,6 +1822,18 @@
           "primaryKey": false,
           "notNull": false
         },
+        "distance_min_meters": {
+          "name": "distance_min_meters",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "distance_max_meters": {
+          "name": "distance_max_meters",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "per_side": {
           "name": "per_side",
           "type": "boolean",
@@ -2004,6 +2054,10 @@
         "program_exercises_reps_chk": {
           "name": "program_exercises_reps_chk",
           "value": "rep_min is null or rep_max is null or rep_min <= rep_max"
+        },
+        "program_exercises_distance_chk": {
+          "name": "program_exercises_distance_chk",
+          "value": "(distance_min_meters is null or distance_min_meters >= 0)\n        and (distance_max_meters is null or distance_max_meters >= 0)\n        and (distance_min_meters is null or distance_max_meters is null\n          or distance_min_meters <= distance_max_meters)"
         }
       },
       "isRLSEnabled": true
@@ -2198,6 +2252,14 @@
           "primaryKey": false,
           "notNull": true
         },
+        "part": {
+          "name": "part",
+          "type": "slot_part",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'session'"
+        },
         "status": {
           "name": "status",
           "type": "slot_event_status",
@@ -2207,6 +2269,12 @@
         },
         "workout_session_id": {
           "name": "workout_session_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "run_id": {
+          "name": "run_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
@@ -2249,6 +2317,12 @@
             },
             {
               "expression": "day_index",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "part",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -2638,7 +2712,7 @@
       "checkConstraints": {
         "set_logs_values_chk": {
           "name": "set_logs_values_chk",
-          "value": "(reps is null or reps >= 0)\n        and (rir is null or rir >= 0)\n        and (technique_rating is null or technique_rating between 1 and 5)"
+          "value": "(reps is null or reps >= 0)\n        and (rir is null or rir >= 0)\n        and (duration_seconds is null or duration_seconds >= 0)\n        and (distance_meters is null or distance_meters >= 0)\n        and (technique_rating is null or technique_rating between 1 and 5)"
         }
       },
       "isRLSEnabled": true
@@ -4105,7 +4179,7 @@
     "public.prescription_type": {
       "name": "prescription_type",
       "schema": "public",
-      "values": ["reps", "duration"]
+      "values": ["reps", "duration", "distance"]
     },
     "public.program_status": {
       "name": "program_status",
@@ -4146,6 +4220,11 @@
       "name": "slot_event_status",
       "schema": "public",
       "values": ["completed", "skipped"]
+    },
+    "public.slot_part": {
+      "name": "slot_part",
+      "schema": "public",
+      "values": ["session", "run"]
     },
     "public.training_goal": {
       "name": "training_goal",

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { PageContent } from "@/components/shell/page-content";
 import { Card } from "@/components/ui/card";
-import { requireUser } from "@/server/auth";
+import { requireProfiledUser } from "@/server/auth";
 
 import { Steps } from "../steps";
 import { SkipLink } from "../skip-link";
@@ -11,7 +11,7 @@ import { FirstGymForm } from "./first-gym-form";
 export const metadata: Metadata = { title: "Add your gym" };
 
 export default async function WelcomeGymPage() {
-  await requireUser();
+  await requireProfiledUser();
 
   return (
     <PageContent>

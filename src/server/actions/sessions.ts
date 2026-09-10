@@ -11,10 +11,12 @@ import { profiles } from "@/db/schema";
 import { withUser } from "@/db/with-user";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { nextPendingSlot, pendingParts } from "@/domain/schedule";
-import { SET_TYPES, type SlotPart } from "@/domain/types";
+import { BODY_LOAD_UNITS, SET_TYPES, type SlotPart } from "@/domain/types";
+import { fromKilograms, toKilograms } from "@/lib/units";
 import { requireUser } from "@/server/auth";
 import { ensureProfile } from "@/server/queries/profile";
 import { profileChanged } from "@/server/queries/request-profile";
+import { recordBodyWeight } from "@/server/repositories/body-weight";
 import { addGymFallback } from "@/server/repositories/fallbacks";
 import { voidPlanForSlot } from "@/server/repositories/coach-plans";
 import {
@@ -415,16 +417,35 @@ export async function addExerciseAction(
   redirect(`/workouts/${sessionId}`);
 }
 
-const finishSchema = z.object({
-  notes: z.preprocess(
-    (value) => (typeof value === "string" ? value.trim() : ""),
-    z
-      .string()
-      .max(1000)
-      .transform((value) => (value.length > 0 ? value : null)),
-  ),
-  bodyWeightKg: optionalNumber(20, 300, false),
-});
+/**
+ * The weight is typed in whichever unit the account uses, so the form carries that unit and the
+ * plausibility check happens once the number is in kilograms — the unit it is stored in.
+ */
+const finishSchema = z
+  .object({
+    notes: z.preprocess(
+      (value) => (typeof value === "string" ? value.trim() : ""),
+      z
+        .string()
+        .max(1000)
+        .transform((value) => (value.length > 0 ? value : null)),
+    ),
+    unit: z.enum(BODY_LOAD_UNITS).catch("kg"),
+    bodyWeight: optionalNumber(0, 2000, false),
+  })
+  .transform((values, ctx) => {
+    const bodyWeightKg =
+      values.bodyWeight === null ? null : toKilograms(values.bodyWeight, values.unit);
+    if (bodyWeightKg !== null && (bodyWeightKg < 20 || bodyWeightKg > 500)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["bodyWeight"],
+        message: `Enter a body weight between ${fromKilograms(20, values.unit)} and ${fromKilograms(500, values.unit)} ${values.unit}.`,
+      });
+      return z.NEVER;
+    }
+    return { notes: values.notes, bodyWeightKg };
+  });
 
 export async function finishSessionAction(
   sessionId: string,
@@ -440,6 +461,15 @@ export async function finishSessionAction(
         ensureProfile(tx, user),
         finishSession(tx, user.id, sessionId, parsed.data),
       ]);
+      const today = todayInTimeZone(profile.timeZone);
+      // Weighing yourself is part of finishing, so the reading is dated now rather than when
+      // the session started: a session that ran past midnight was still weighed today.
+      if (parsed.data.bodyWeightKg !== null) {
+        await recordBodyWeight(tx, user.id, {
+          measuredOn: today,
+          weightKg: parsed.data.bodyWeightKg,
+        });
+      }
       // Only the lifting half of the day. A day that also runs still owes its run, and the
       // sequence stays on it until that is logged or skipped in its own right.
       if (finished.programId && finished.dayIndex !== null && finished.cycleIndex !== null) {
@@ -450,12 +480,17 @@ export async function finishSessionAction(
           { cycleIndex: finished.cycleIndex, dayIndex: finished.dayIndex },
           "session",
           "completed",
-          { occurredOn: todayInTimeZone(profile.timeZone), workoutSessionId: sessionId },
+          { occurredOn: today, workoutSessionId: sessionId },
         );
       }
     });
   } catch (error) {
     return { formError: describe(error), values: formValues(formData) };
+  }
+  // The reading may have moved the profile's own body weight.
+  if (parsed.data.bodyWeightKg !== null) {
+    await profileChanged(user.id);
+    revalidatePath("/settings/profile");
   }
   revalidateSession(sessionId);
   redirect(`/workouts/${sessionId}`);

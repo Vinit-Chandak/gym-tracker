@@ -7,8 +7,10 @@ import { liftingAdherence, trainingAnalytics } from "@/domain/analytics";
 import { addDays, todayInTimeZone } from "@/domain/program-calendar";
 import { weekStart } from "@/domain/running";
 import { formatDateRange } from "@/lib/format";
+import { fromKilograms } from "@/lib/units";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
+import { listBodyWeights } from "@/server/repositories/body-weight";
 import { getSchedule } from "@/server/repositories/schedule";
 import { readTrainingData } from "@/server/repositories/training-data";
 import { readMuscleVolume } from "@/server/repositories/muscle-volume";
@@ -37,13 +39,15 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
   const bodyTo = addDays(bodyFrom, 6);
   const bodyRange = parseDateRange({ from: bodyFrom, to: bodyTo }, profile.timeZone);
 
-  const [training, schedule, body] = await withUser(getDb(), user.id, (tx) =>
+  const [training, schedule, body, bodyWeights] = await withUser(getDb(), user.id, (tx) =>
     Promise.all([
       readTrainingData(tx, user.id, range),
       getSchedule(tx, user.id),
       readMuscleVolume(tx, user.id, bodyRange),
+      listBodyWeights(tx, user.id, range),
     ]),
   );
+  const preferredUnit = profile.preferredUnit === "lb" ? "lb" : "kg";
   const analytics = trainingAnalytics(training, profile.timeZone, range.from, range.to);
 
   // Eight weeks of training builds dozens of exercise/machine series, each carrying five
@@ -89,6 +93,13 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
           options={options}
           selected={selected}
           body={{ from: bodyFrom, to: bodyTo, ...body }}
+          unit={preferredUnit}
+          // Stored in kilograms, read in the account's own unit: the chart is about the
+          // person, so it is drawn in the numbers they weigh themselves in.
+          bodyWeight={bodyWeights.map(({ measuredOn, weightKg }) => ({
+            date: measuredOn,
+            value: fromKilograms(weightKg, preferredUnit),
+          }))}
         />
       </PageContent>
     </>
