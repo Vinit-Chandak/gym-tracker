@@ -58,6 +58,18 @@ will use (the **Default** one is fine) and add:
 **Trusted** network access is enough: hosts named on an API credential are reachable regardless
 of the allowlist, and `npm` is on the default list.
 
+API credentials live on the environment, not on the routine, and the section appears only when
+editing an environment that already exists: at claude.ai/code, the cloud icon above the message
+box opens the selector; hover the environment and click its settings icon; the section sits
+below **Environment variables**.
+
+**If your account has no API credentials section**, the scripts also accept the token as an
+ordinary environment variable: add `COACH_SERVICE_TOKEN` = the secret next to `COACH_APP_URL`,
+and switch **Network access** to **Custom** with your app's host in **Allowed domains** and
+**Also include default list of common package managers** ticked (or pick **Full**). An
+environment variable is readable by every session that runs in that environment, so keep
+that environment for the routine and your own sessions only.
+
 ### 3. The routine
 
 Create a routine at [claude.ai/code/routines](https://claude.ai/code/routines), or ask Claude
