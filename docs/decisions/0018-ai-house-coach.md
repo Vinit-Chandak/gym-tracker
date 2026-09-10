@@ -1,4 +1,4 @@
-# 0015 — The AI house coach runs as a routine on the owner's subscription
+# 0018 — The AI house coach runs as a routine on the owner's subscription
 
 Status: accepted, 2026-09-10.
 
