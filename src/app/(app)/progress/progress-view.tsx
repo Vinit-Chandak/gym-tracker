@@ -13,10 +13,10 @@ import { Chart, SERIES_COLORS, type ChartSeries } from "@/components/ui/chart";
 import { FilterSheet } from "@/components/ui/filter-sheet";
 import { InfoTip } from "@/components/ui/info-tip";
 import { Field } from "@/components/ui/input";
+import { SectionSelect } from "@/components/ui/section-select";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select } from "@/components/ui/select";
 import { ProgressBar } from "@/components/ui/progress-bar";
-import { Tabs } from "@/components/ui/tabs";
 import type { PerformanceSeries, Point } from "@/domain/analytics";
 import type { MuscleVolume } from "@/domain/muscle-volume";
 import type { MuscleGroup } from "@/domain/types";
@@ -274,8 +274,7 @@ export function ProgressView({
 
   return (
     <div className="page-stack">
-      <Tabs
-        name="progress-tab"
+      <SectionSelect
         label="Progress section"
         options={TABS}
         value={tab}
@@ -288,11 +287,8 @@ export function ProgressView({
       />
 
       {/* Only the chosen section is mounted; the controls above it keep their state. */}
-      <div
-        role="tabpanel"
-        id="progress-tab-panel"
-        aria-labelledby={`progress-tab-${tab}-tab`}
-        tabIndex={0}
+      <section
+        aria-label={TABS.find((option) => option.value === tab)!.label}
         className="page-stack min-w-0"
       >
         {tab === "overview" && (
@@ -604,7 +600,7 @@ export function ProgressView({
         {weekDates.length === 0 && (
           <p className="text-sm text-ink-muted">No weeks fall inside this range.</p>
         )}
-      </div>
+      </section>
     </div>
   );
 }

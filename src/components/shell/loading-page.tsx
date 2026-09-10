@@ -8,11 +8,11 @@ import { LoadingMessage } from "./navigation-feedback";
  */
 export function LoadingPage({
   title = "Loading",
-  /** Reserves the tab strip, so the destination's rows do not jump up when it arrives. */
-  tabs = 0,
+  /** Reserves the section picker and its filters, so rows do not jump up on arrival. */
+  controls = false,
 }: {
   title?: string;
-  tabs?: number;
+  controls?: boolean;
 }) {
   return (
     <>
@@ -20,15 +20,10 @@ export function LoadingPage({
       <PageContent>
         <div role="status" aria-live="polite" className="space-y-4">
           <LoadingMessage title={title} />
-          {tabs > 0 && (
-            <div
-              aria-hidden="true"
-              className="grid gap-1 border-b border-line pb-2 motion-safe:animate-pulse"
-              style={{ gridTemplateColumns: `repeat(auto-fit, minmax(4.75rem, 1fr))` }}
-            >
-              {Array.from({ length: tabs }, (_, i) => (
-                <div key={i} className="h-9 rounded-control bg-surface-raised" />
-              ))}
+          {controls && (
+            <div aria-hidden="true" className="flex gap-2 motion-safe:animate-pulse">
+              <div className="h-11 flex-1 rounded-control bg-surface-raised" />
+              <div className="h-11 w-24 rounded-control bg-surface-raised" />
             </div>
           )}
           <ul aria-hidden="true" className="box-rows motion-safe:animate-pulse">

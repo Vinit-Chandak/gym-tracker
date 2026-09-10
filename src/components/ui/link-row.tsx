@@ -8,10 +8,16 @@ import { cn } from "@/lib/utils";
 /** The geometry every row in a box shares, so links, buttons and switches line up. */
 export const ROW_CLASS = "flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left";
 
-/** A row that reacts to a tap. */
+/**
+ * A row that reacts to a tap.
+ *
+ * Its focus ring is drawn inside the row rather than around it. A row runs the full width
+ * of whatever holds it, so an outset ring has nowhere to go: inside a sheet or any other
+ * scrolling box it is clipped on three sides, leaving one stray line across the row above.
+ */
 export const PRESSABLE_ROW_CLASS = cn(
   ROW_CLASS,
-  "transition-colors duration-[var(--ov-duration-feedback)] active:bg-surface-raised",
+  "transition-colors duration-[var(--ov-duration-feedback)] focus-visible:-outline-offset-2 active:bg-surface-raised",
 );
 
 /** The leading icon of a row, where a screen uses them: Settings and its sub-pages. */

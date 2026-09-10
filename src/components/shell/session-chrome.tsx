@@ -62,7 +62,7 @@ export function SessionChrome({ session }: { session: ActiveSession }) {
     <div
       ref={ref}
       className="fixed inset-x-0 z-[var(--ov-z-timer)] lg:left-48"
-      style={{ bottom: "calc(var(--nav-height) + env(safe-area-inset-bottom))" }}
+      style={{ bottom: "var(--nav-reserve)" }}
     >
       {session.restTimerEnabled && <RestTimer sessionId={session.id} />}
       <div className="border-t border-line bg-surface">
