@@ -226,7 +226,7 @@ npx tsx scripts/coach/propose.ts --user <userId> --file /tmp/coach/<userId>.prop
 ```
 
 Operations: `substitute` (`lineageId`, `exerciseSlug`), `adjust` (`lineageId`, any of `sets`,
-`reps`, `duration`, `rir`, `rest`), `remove` (`lineageId`), `add` (`dayIndex`, an `exercise` in
+`reps`, `duration`, `distance`, `rir`, `rest`), `remove` (`lineageId`), `add` (`dayIndex`, an `exercise` in
 the blueprint's shape, optional `afterLineageId`), `run` (`weekIndex`, `dayOfWeek`, any of
 `duration`, `rpe`, `paceNote`). Every operation takes a `reason`. Exit code 2 means the
 programme has moved on; drop the proposal rather than forcing it. At most one proposal per
@@ -286,8 +286,12 @@ Rules of the format:
   today. An entry with `slotId: null` adds an exercise.
 - `sets` lists every set you prescribe, in order: `setType` (`working`, or `warmup`, `backoff`,
   `amrap`), `weight` (external load in the machine's unit; bodyweight moves log the added load,
-  0 means bodyweight; null when unknown), `reps` or `durationSeconds`, and `rir`. An empty
-  `sets` array leaves the deterministic rule's prefill in place.
+  0 means bodyweight; null when unknown), one of `reps`, `durationSeconds` or `distanceMeters`,
+  and `rir`. An empty `sets` array leaves the deterministic rule's prefill in place.
+- **Prescribe in what the movement is counted in.** Every library entry carries a `measure`
+  (`reps`, `duration` or `distance`) and the range for it under `defaults`. A carry counts
+  metres and a plank counts seconds; asking either for reps prescribes a number the athlete
+  cannot log.
 - `supersetGroup` puts exercises together for this session; give the same short label to each
   member, or null. `perSide` overrides the programme only when you mean to change it.
 - `run` is required on a day that runs and must be omitted or null on one that does not.

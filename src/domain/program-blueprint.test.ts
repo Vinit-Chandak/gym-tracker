@@ -40,16 +40,30 @@ describe("programme blueprints", () => {
     expect(plan.days[0]?.focus).toBe("");
   });
 
-  it("insists on either reps or duration, never both and never neither", () => {
+  it("insists on exactly one measure: reps, duration or distance", () => {
     const withBoth = minimal();
     // @ts-expect-error building an invalid document on purpose
     withBoth.days[0].exercises[0].duration = [30, 45];
-    expect(() => parseProgramBlueprint(withBoth)).toThrow(/reps or duration/);
+    expect(() => parseProgramBlueprint(withBoth)).toThrow(/exactly one of reps/);
+
+    const withDistanceToo = minimal();
+    // @ts-expect-error building an invalid document on purpose
+    withDistanceToo.days[0].exercises[0].distance = [20, 40];
+    expect(() => parseProgramBlueprint(withDistanceToo)).toThrow(/exactly one of reps/);
 
     const withNeither = minimal();
     // @ts-expect-error building an invalid document on purpose
     delete withNeither.days[0].exercises[0].reps;
-    expect(() => parseProgramBlueprint(withNeither)).toThrow(/reps or duration/);
+    expect(() => parseProgramBlueprint(withNeither)).toThrow(/exactly one of reps/);
+
+    // A carry, which counts metres and has no reps to give, is a valid slot.
+    const carry = minimal();
+    // @ts-expect-error building a valid distance slot on purpose
+    delete carry.days[0].exercises[0].reps;
+    // @ts-expect-error building a valid distance slot on purpose
+    carry.days[0].exercises[0].distance = [20, 40];
+    const parsed = parseProgramBlueprint(carry);
+    expect(prescriptionTypeOf(parsed.days[0]!.exercises[0]!)).toBe("distance");
   });
 
   it("rejects a backwards range, a repeated day and a run past the last week", () => {

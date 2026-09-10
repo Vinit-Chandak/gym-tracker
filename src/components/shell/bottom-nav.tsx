@@ -41,8 +41,10 @@ function NavContent({
   );
 }
 
-export function BottomNav() {
-  const pathname = usePathname();
+export function BottomNav({ pathname: standingIn }: { pathname?: string } = {}) {
+  // The preview screen says which tab it is standing in for; every real screen takes its own.
+  const current = usePathname();
+  const pathname = standingIn ?? current;
   return (
     <nav aria-label="Primary" className="primary-nav">
       <div className="hidden px-6 pt-7 pb-3 lg:block">

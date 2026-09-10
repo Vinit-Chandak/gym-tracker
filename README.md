@@ -25,8 +25,15 @@ Progressive overload, one set at a time.
    has → pick a programme template, or skip.
 3. **Today**, which says what to train next and lets you log it.
 
-The only thing shipped with the app is shared reference data: the equipment catalogue, the
-exercise library, warm-up protocols and the programme templates. Nothing is seeded per person.
+The only thing shipped with the app is shared reference data: the equipment catalogue (92 kinds
+of machine), the exercise library (268 movements, every muscle group covered), warm-up protocols
+and the programme templates. It is one library, readable by everybody and owned by nobody, so a
+new account has all of it on day one and adds only what its own gyms have. Nothing is seeded per
+person.
+
+Each exercise says how it is counted — reps, seconds held, or metres covered — so a farmer's
+carry asks for a distance and a plank for a time, and each may carry its own note on what reps
+in reserve means for it.
 
 - [`SETUP.md`](SETUP.md): the one-time steps to create the Supabase and Vercel projects.
 - [`docs/implementation-plan.md`](docs/implementation-plan.md): structure, phases and decisions.
@@ -66,6 +73,14 @@ need the Supabase values from `SETUP.md`.
 | `npm run db:deploy`   | What a production deploy runs: migrate, then seed the library    |
 | `npm run db:studio`   | Drizzle Studio against the configured database                   |
 
+## Looking at a change without deploying it
+
+Every real screen is behind sign-in and a database. `npm run dev` also serves `/preview` (the
+day's cards, including a day that both lifts and runs) and `/preview/logging` (the set grid in
+each of its three measures) against made-up data, so the navigation, Today and logging can be
+seen on a phone before anything ships. These routes exist in development only; a production
+build does not have them.
+
 ## Project structure
 
 ```
@@ -78,6 +93,7 @@ src/
     (app)/                      the six tabs behind the shared shell
       today/ runs/ history/ progress/ gyms/ settings/
       gyms/[gymId]/..., exercises/..., workouts/[sessionId]/...
+    (preview)/                  development-only screens: the shell without an account
   proxy.ts                      refreshes the Supabase session; keeps the app private
   db/
     schema/                     Drizzle tables, enums and RLS policies (source of truth)

@@ -24,9 +24,12 @@ import {
   EXERCISE_MODALITY_LABELS,
   LOAD_PORTABILITY_HELP,
   LOAD_PORTABILITY_LABELS,
+  MEASURE_COLUMN_LABELS,
+  MEASURE_UNIT_SUFFIX,
   MUSCLE_LABELS,
   rangeLabel,
   restLabel,
+  rirMeaning,
 } from "@/lib/labels";
 import { setPreferredMachineAction } from "@/server/actions/availability";
 import { requireUser } from "@/server/auth";
@@ -90,6 +93,14 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
   });
   if (!data) notFound();
   const { exercise, availability, performances, timeZone, unit } = data;
+  // What one set of this movement counts, and the range it is normally worked in.
+  const measure = exercise.defaultPrescriptionType;
+  const measureRange: [number | null, number | null] =
+    measure === "duration"
+      ? [exercise.defaultDurationMinSeconds, exercise.defaultDurationMaxSeconds]
+      : measure === "distance"
+        ? [exercise.defaultDistanceMinMeters, exercise.defaultDistanceMaxMeters]
+        : [exercise.defaultRepMin, exercise.defaultRepMax];
 
   return (
     <>
@@ -126,13 +137,15 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
           </div>
 
           <StatTileRow>
+            {/* Whatever this movement is actually counted in. A carry has no reps to show. */}
             <StatTile
-              label="Reps"
-              value={rangeLabel(exercise.defaultRepMin, exercise.defaultRepMax)}
+              label={MEASURE_COLUMN_LABELS[measure]}
+              value={rangeLabel(measureRange[0], measureRange[1], MEASURE_UNIT_SUFFIX[measure])}
             />
             <StatTile
               label="RIR"
               value={exercise.defaultRir === null ? "—" : String(exercise.defaultRir)}
+              info={exercise.rirNote ?? rirMeaning(measure)}
             />
             <StatTile
               label="Rest"

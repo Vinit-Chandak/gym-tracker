@@ -31,6 +31,11 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   // Coach routes verify their own revocable Bearer token and never use the browser session.
   if (pathname.startsWith("/api/coach/")) return NextResponse.next();
+  // The development-only preview screens hold no data of anyone's; in a production build the
+  // routes themselves are not found, so there is nothing here to keep private.
+  if (process.env.NODE_ENV !== "production" && pathname.startsWith("/preview")) {
+    return NextResponse.next();
+  }
   const env = getSupabasePublicEnv();
   const isPublic = matches(PUBLIC_PATHS, pathname);
   const isNeutral = matches(NEUTRAL_PATHS, pathname);

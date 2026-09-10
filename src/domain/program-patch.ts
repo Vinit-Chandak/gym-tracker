@@ -42,6 +42,7 @@ export const programPatchOperationSchema = z.discriminatedUnion("op", [
     sets: z.number().int().min(1).max(20).optional(),
     reps: range(z.number().int().min(1).max(100)).optional(),
     duration: range(z.number().int().min(1).max(7200)).optional(),
+    distance: range(z.number().int().min(1).max(10000)).optional(),
     rir: range(z.number().min(0).max(10)).optional(),
     rest: range(z.number().int().min(0).max(1200)).optional(),
     reason,
@@ -137,14 +138,22 @@ export function applyProgramPatch(
         if (operation.sets !== undefined) next.sets = operation.sets;
         if (operation.rir !== undefined) next.rir = operation.rir;
         if (operation.rest !== undefined) next.rest = operation.rest;
-        // Reps and duration are exclusive: setting one clears the other, as the schema requires.
+        // A slot is counted one way. Setting the measure clears whichever it replaces, which
+        // is what the blueprint's "exactly one of reps, duration or distance" requires.
         if (operation.reps !== undefined) {
           next.reps = operation.reps;
           delete next.duration;
+          delete next.distance;
         }
         if (operation.duration !== undefined) {
           next.duration = operation.duration;
           delete next.reps;
+          delete next.distance;
+        }
+        if (operation.distance !== undefined) {
+          next.distance = operation.distance;
+          delete next.reps;
+          delete next.duration;
         }
         result = withExercises(result, found.dayIndex, (exercises) => {
           exercises[found.index] = next;
@@ -212,6 +221,9 @@ export function describePatch(patch: ProgramPatch): string[] {
           operation.duration === undefined
             ? null
             : `${operation.duration[0]}–${operation.duration[1]} s`,
+          operation.distance === undefined
+            ? null
+            : `${operation.distance[0]}–${operation.distance[1]} m`,
           operation.rir === undefined ? null : `${operation.rir[0]}–${operation.rir[1]} RIR`,
           operation.rest === undefined ? null : `${operation.rest[0]}–${operation.rest[1]} s rest`,
         ].filter(Boolean);

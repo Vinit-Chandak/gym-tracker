@@ -13,6 +13,7 @@ import {
   projectedEndDate,
   sessionsBehind,
   slotFor,
+  slotParts,
   slotStatus,
   suggestion,
   type Progress,
@@ -271,12 +272,15 @@ export function pendingCycleForDay(
 ): number | null {
   for (const ref of allSlots(state)) {
     if (ref.dayIndex !== dayIndex) continue;
-    const pending =
-      part === undefined
-        ? pendingParts(state, ref).length > 0
-        : partStatus(state, ref, part) === "pending" &&
-          (slotFor(state, ref)?.includesRun || part === "session");
-    if (pending) return ref.cycleIndex;
+    if (part === undefined) {
+      if (pendingParts(state, ref).length > 0) return ref.cycleIndex;
+      continue;
+    }
+    // The part has to be one the day actually asks for: a day that only runs is never
+    // answered by a session event, however pending that event would otherwise look.
+    const slot = slotFor(state, ref);
+    if (!slot || !slotParts(slot).includes(part)) continue;
+    if (partStatus(state, ref, part) === "pending") return ref.cycleIndex;
   }
   return null;
 }

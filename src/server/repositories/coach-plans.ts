@@ -823,8 +823,14 @@ export async function planningContext(
       pattern: e.movementPattern,
       muscles: e.primaryMuscles,
       portability: e.loadPortability,
+      /** What one set of it counts, so the coach prescribes a carry in metres, not in reps. */
       measure: e.defaultPrescriptionType,
-      defaults: { reps: [e.defaultRepMin, e.defaultRepMax], rir: e.defaultRir },
+      defaults: {
+        reps: [e.defaultRepMin, e.defaultRepMax],
+        seconds: [e.defaultDurationMinSeconds, e.defaultDurationMaxSeconds],
+        meters: [e.defaultDistanceMinMeters, e.defaultDistanceMaxMeters],
+        rir: e.defaultRir,
+      },
       atThisGym: e.available ? { machine: e.machine } : null,
     })),
     limits: PLAN_LIMITS,
@@ -844,6 +850,10 @@ type LibraryEntry = {
   defaultPrescriptionType: PrescriptionType;
   defaultRepMin: number | null;
   defaultRepMax: number | null;
+  defaultDurationMinSeconds: number | null;
+  defaultDurationMaxSeconds: number | null;
+  defaultDistanceMinMeters: number | null;
+  defaultDistanceMaxMeters: number | null;
   defaultRir: number | null;
   available: boolean;
   machine: { id: string; name: string } | null;
@@ -924,6 +934,10 @@ async function libraryAtGym(db: DbOrTx, userId: string, gymId: string): Promise<
       defaultPrescriptionType: e.defaultPrescriptionType,
       defaultRepMin: e.defaultRepMin,
       defaultRepMax: e.defaultRepMax,
+      defaultDurationMinSeconds: e.defaultDurationMinSeconds,
+      defaultDurationMaxSeconds: e.defaultDurationMaxSeconds,
+      defaultDistanceMinMeters: e.defaultDistanceMinMeters,
+      defaultDistanceMaxMeters: e.defaultDistanceMaxMeters,
       defaultRir: e.defaultRir,
       available,
       machine,

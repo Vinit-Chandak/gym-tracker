@@ -37,6 +37,9 @@ export const EQUIPMENT_TYPES: readonly EquipmentTypeSeed[] = [
   type("medicine_ball", "Medicine ball", "free_weight", "free_weight", 16),
   type("resistance_bands", "Resistance bands", "free_weight", "free_weight", 17, "none"),
   type("landmine", "Landmine", "free_weight", "free_weight", 18),
+  type("safety_squat_bar", "Safety squat bar", "free_weight", "free_weight", 19),
+  type("swiss_bar", "Swiss / football bar", "free_weight", "free_weight", 20, "kg"),
+  type("farmers_handles", "Farmer's walk handles", "free_weight", "free_weight", 21),
 
   // --- Bodyweight --------------------------------------------------------------------------
   type("pull_up_bar", "Pull-up bar", "bodyweight", "bodyweight", 20),
@@ -46,6 +49,8 @@ export const EQUIPMENT_TYPES: readonly EquipmentTypeSeed[] = [
   type("suspension_trainer", "Suspension trainer", "bodyweight", "bodyweight", 24, "none"),
   type("captains_chair", "Captain's chair / roman chair", "bodyweight", "bodyweight", 25),
   type("plyo_box", "Plyo box", "bodyweight", "bodyweight", 26, "none"),
+  type("parallettes", "Parallettes", "bodyweight", "bodyweight", 27, "none"),
+  type("stability_ball", "Stability ball", "bodyweight", "bodyweight", 28, "none"),
 
   // --- Machines: pressing and pulling -------------------------------------------------------
   type("smith_machine", "Smith machine", "machine", "plate_loaded", 30),
@@ -53,6 +58,10 @@ export const EQUIPMENT_TYPES: readonly EquipmentTypeSeed[] = [
   type("incline_press_machine", "Incline press machine", "machine", "plate_loaded", 32),
   type("shoulder_press_machine", "Shoulder press machine", "machine", "selectorized", 33),
   type("dip_machine", "Assisted dip machine", "machine", "selectorized", 34),
+  type("triceps_dip_machine", "Seated dip machine", "machine", "selectorized", 35),
+  type("iso_lateral_press", "Iso-lateral plate-loaded press", "machine", "plate_loaded", 36),
+  type("iso_lateral_row", "Iso-lateral plate-loaded row", "machine", "plate_loaded", 37),
+  type("shrug_machine", "Shrug machine", "machine", "plate_loaded", 38),
 
   // --- Cables --------------------------------------------------------------------------------
   type("cable_station", "Cable station", "cable", "selectorized", 40),
@@ -90,6 +99,11 @@ export const EQUIPMENT_TYPES: readonly EquipmentTypeSeed[] = [
   type("hack_squat", "Hack squat", "machine", "plate_loaded", 72),
   type("belt_squat", "Belt squat machine", "machine", "plate_loaded", 73),
   type("glute_ham_raise", "Glute-ham developer", "accessory", "bodyweight", 74),
+  type("pendulum_squat", "Pendulum squat", "machine", "plate_loaded", 79),
+  type("sissy_squat_bench", "Sissy squat bench", "accessory", "bodyweight", 80),
+  type("leg_press_vertical", "Vertical leg press", "machine", "plate_loaded", 81),
+  type("reverse_hyper", "Reverse hyper", "machine", "plate_loaded", 82),
+  type("calf_block", "Calf raise block", "accessory", "bodyweight", 83, "none"),
 
   // --- Machines: core and back ----------------------------------------------------------------
   type("ab_crunch_machine", "Ab crunch machine", "machine", "selectorized", 75),
@@ -106,6 +120,12 @@ export const EQUIPMENT_TYPES: readonly EquipmentTypeSeed[] = [
   type("dip_belt", "Dip belt", "accessory", "free_weight", 95),
   type("foam_roller", "Foam roller", "accessory", "bodyweight", 96, "none"),
   type("jump_rope", "Jump rope", "accessory", "bodyweight", 97, "none"),
+  type("decline_ab_bench", "Decline ab bench", "accessory", "bodyweight", 98),
+  type("wrist_roller", "Wrist roller", "accessory", "free_weight", 99),
+  type("grip_trainer", "Grip trainer", "accessory", "free_weight", 100, "none"),
+  type("weight_vest", "Weight vest", "accessory", "free_weight", 101),
+  type("battle_ropes", "Battle ropes", "accessory", "bodyweight", 102, "none"),
+  type("sled", "Sled / prowler", "accessory", "free_weight", 103),
 
   // --- Cardio ----------------------------------------------------------------------------------
   type("treadmill", "Treadmill", "cardio", "cardio", 110, "none"),
