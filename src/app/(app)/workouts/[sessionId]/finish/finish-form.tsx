@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { useSessionDrafts } from "@/components/use-session-drafts";
 
+import { Card } from "@/components/ui/card";
 import { FormError, SubmitButton } from "@/components/ui/form";
 import { Field, Input, Textarea } from "@/components/ui/input";
 import { Section } from "@/components/ui/section";
@@ -21,22 +22,24 @@ export function FinishForm({ action, initialBodyWeight, userId, sessionId }: Pro
   return (
     <form action={formAction} className="space-y-[var(--section-gap)]">
       <Section title="About this session">
-        <Field label="Notes" hint="Optional" error={state.fieldErrors?.notes}>
-          <Textarea
-            name="notes"
-            defaultValue={state.values?.notes ?? ""}
-            maxLength={1000}
-            placeholder="How it went, anything to remember…"
-          />
-        </Field>
-        <Field label="Body weight (kg)" hint="Optional" error={state.fieldErrors?.bodyWeightKg}>
-          <Input
-            name="bodyWeightKg"
-            inputMode="decimal"
-            defaultValue={state.values?.bodyWeightKg ?? initialBodyWeight}
-            placeholder="59.5"
-          />
-        </Field>
+        <Card>
+          <Field label="Notes" hint="Optional" error={state.fieldErrors?.notes}>
+            <Textarea
+              name="notes"
+              defaultValue={state.values?.notes ?? ""}
+              maxLength={1000}
+              placeholder="How it went, anything to remember…"
+            />
+          </Field>
+          <Field label="Body weight (kg)" hint="Optional" error={state.fieldErrors?.bodyWeightKg}>
+            <Input
+              name="bodyWeightKg"
+              inputMode="decimal"
+              defaultValue={state.values?.bodyWeightKg ?? initialBodyWeight}
+              placeholder="59.5"
+            />
+          </Field>
+        </Card>
       </Section>
 
       <div className="space-y-2">

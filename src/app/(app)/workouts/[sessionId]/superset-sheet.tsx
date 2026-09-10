@@ -110,13 +110,13 @@ export function SupersetSheet({
         </p>
 
         {group === null && existing.length > 0 && (
-          <ul className="border-y border-line ruled-list">
+          <ul className="ruled-list">
             {existing.map((entry) => (
               <li key={entry.name}>
                 <button
                   type="button"
                   onClick={() => onEditGroup(entry.name)}
-                  className="flex min-h-12 w-full items-center gap-3 py-2 superset-row text-left text-sm active:bg-surface-raised"
+                  className="flex min-h-12 w-full items-center gap-3 py-2 pl-2 text-left text-sm superset-row active:bg-surface-raised"
                   style={supersetStyle(entry.hue)}
                 >
                   <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
@@ -130,7 +130,7 @@ export function SupersetSheet({
           </ul>
         )}
 
-        <ul className="border-y border-line ruled-list">
+        <ul className="ruled-list">
           {exercises.map((exercise) => {
             const checked = selected.includes(exercise.id);
             const elsewhere =

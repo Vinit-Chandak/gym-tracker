@@ -43,7 +43,7 @@ export function SegmentedControl<V extends string>({
     <div
       role="radiogroup"
       aria-label={ariaLabel}
-      className="grid gap-1 rounded-control border border-line bg-surface p-1"
+      className="grid gap-1 rounded-control bg-surface-raised p-1"
       style={{
         gridTemplateColumns: columns
           ? `repeat(${columns}, minmax(3.25rem, 1fr))`
@@ -63,12 +63,13 @@ export function SegmentedControl<V extends string>({
           />
           <span
             className={cn(
-              "flex min-h-11 items-center justify-center rounded-control border border-transparent px-1.5 py-1 text-sm leading-tight font-medium text-ink-muted transition-colors duration-[var(--ov-duration-feedback)] select-none",
+              "flex min-h-11 items-center justify-center rounded-control border border-transparent px-1 py-1 text-sm leading-tight font-medium text-ink-muted transition-colors duration-[var(--ov-duration-feedback)] select-none",
               "peer-checked:border-line-strong peer-checked:bg-accent-soft peer-checked:text-ink",
               "peer-focus-visible:ring-2 peer-focus-visible:ring-focus",
             )}
           >
-            <span className="min-w-0 text-center break-words hyphens-auto">{option.label}</span>
+            {/* Hyphenate a long word if it must wrap; never split it at an arbitrary letter. */}
+            <span className="min-w-0 text-center hyphens-auto">{option.label}</span>
           </span>
         </label>
       ))}

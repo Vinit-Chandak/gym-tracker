@@ -3,10 +3,10 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * A row of small numbers under their labels. Inside a panel, four across leaves each label about
+ * A row of small numbers under their labels. Inside a box, four across leaves each label about
  * a quarter of the screen minus the padding, which the longest of them ("Unavailable") only
  * clears from about 440px. Below that it is two rows of two, rather than words broken
- * mid-syllable.
+ * mid-syllable. The gap does the separating; there are no rules between tiles.
  */
 export function StatTileRow({ className, children }: { className?: string; children: ReactNode }) {
   return (
@@ -18,7 +18,7 @@ export function StatTileRow({ className, children }: { className?: string; child
 
 export function StatTile({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div className="min-w-0 border-l border-line pl-3">
+    <div className="min-w-0">
       <dt className="text-xs leading-tight text-ink-muted">{label}</dt>
       <dd className="mt-1 text-lg font-medium tabular-nums">{value}</dd>
     </div>

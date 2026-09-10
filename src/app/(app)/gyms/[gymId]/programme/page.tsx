@@ -103,7 +103,7 @@ export default async function GymProgrammePage(props: PageProps<"/gyms/[gymId]/p
             {row.gymFallbacks.map((fallback) => (
               <div
                 key={fallback.id}
-                className="flex items-center justify-between gap-3 rounded-control border border-line px-3 py-2 text-sm"
+                className="flex items-center justify-between gap-3 rounded-control bg-surface-raised px-3 py-2 text-sm"
               >
                 <span className="min-w-0 truncate">
                   Fallback here: {fallback.fallbackExerciseName}

@@ -76,7 +76,7 @@ function CardTitle({
 function PlannedExercises({ exercises }: { exercises: PlannedExercisePreview[] }) {
   const hues = supersetHues(exercises);
   return (
-    <Disclosure summary="Exercises" meta={String(exercises.length)}>
+    <Disclosure summary="Exercises" meta={String(exercises.length)} variant="inline">
       <ul className="ruled-list">
         {exercises.map((exercise) => {
           const hue = exercise.supersetGroup ? hues.get(exercise.supersetGroup) : undefined;
@@ -86,7 +86,7 @@ function PlannedExercises({ exercises }: { exercises: PlannedExercisePreview[] }
               // Supersets share a colour, not a caption: the rule says which rows go together.
               className={cn(
                 "flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 py-2",
-                hue && "superset-row",
+                hue && "pl-2 superset-row",
               )}
               style={hue ? supersetStyle(hue) : undefined}
             >
@@ -236,7 +236,7 @@ export default async function TodayPage() {
                 {(plan.runTarget.paceNote ||
                   plan.runTarget.progressionNote ||
                   plan.runTarget.shinRule) && (
-                  <Disclosure summary="Plan">
+                  <Disclosure summary="Plan" variant="inline">
                     <dl className="space-y-1 text-sm">
                       {(
                         [
@@ -275,7 +275,11 @@ export default async function TodayPage() {
                   badge={plan.runTarget ? undefined : standing}
                 />
                 {restProtocol && (
-                  <Disclosure summary={restProtocol.name} meta={String(restProtocol.drills.length)}>
+                  <Disclosure
+                    summary={restProtocol.name}
+                    meta={String(restProtocol.drills.length)}
+                    variant="inline"
+                  >
                     <ul className="text-sm ruled-list">
                       {restProtocol.drills.map((drill) => (
                         <li key={drill.order} className="flex justify-between gap-3 py-1.5">
@@ -321,11 +325,7 @@ export default async function TodayPage() {
         )}
 
         {plan && (
-          <Disclosure
-            summary="Programme"
-            meta={`${plan.progress.remaining} to go`}
-            className="border-b-0"
-          >
+          <Disclosure summary="Programme" meta={`${plan.progress.remaining} to go`}>
             <dl className="space-y-1 text-sm">
               <div className="flex justify-between gap-3">
                 <dt className="text-ink-muted">Programme</dt>

@@ -22,7 +22,7 @@ export const metadata: Metadata = { title: "Run" };
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-w-0 border-l border-line px-2 text-center first:border-l-0">
+    <div className="min-w-0 px-2 text-center">
       <dt className="text-xs text-ink-subtle">{label}</dt>
       <dd className="text-base font-medium tabular-nums">{value}</dd>
     </div>

@@ -36,7 +36,7 @@ export function GymSwitcher({ gyms }: { gyms: SwitcherGym[] }) {
     <>
       <section
         aria-label="Current gym"
-        className="flex items-center justify-between gap-3 border-b border-line pb-3"
+        className="flex min-h-14 box items-center justify-between gap-3 py-2 pr-2 pl-4"
       >
         <div className="min-w-0">
           <p className="text-xs text-ink-muted">Training at</p>
@@ -78,7 +78,7 @@ export function GymSwitcher({ gyms }: { gyms: SwitcherGym[] }) {
                   "flex min-h-14 w-full items-center justify-between gap-3 rounded-control border px-4 text-left text-base font-medium",
                   gym.isDefault
                     ? "border-accent bg-accent-soft text-ink"
-                    : "border-line-strong bg-surface text-ink active:bg-surface-raised",
+                    : "border-transparent bg-surface-raised text-ink active:bg-accent-soft",
                   pending && "opacity-60",
                 )}
               >

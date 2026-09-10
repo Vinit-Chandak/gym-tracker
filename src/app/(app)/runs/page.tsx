@@ -126,9 +126,12 @@ export default async function RunsPage() {
             {overview.cycle.planned.length === 0 ? (
               <p className="text-sm text-ink-muted">No runs planned this week.</p>
             ) : (
-              <ul className="border-y border-line ruled-list">
+              <List>
                 {overview.cycle.planned.map((run) => (
-                  <li key={run.id} className="flex items-center justify-between gap-3 py-2">
+                  <li
+                    key={run.id}
+                    className="flex min-h-12 items-center justify-between gap-3 px-4 py-2"
+                  >
                     <span className="min-w-0 text-sm">
                       <span className="font-medium">{WEEKDAY_SHORT[run.dayOfWeek]}</span> ·{" "}
                       {rangeLabel(run.durationMinMinutes, run.durationMaxMinutes, " min")}
@@ -137,7 +140,7 @@ export default async function RunsPage() {
                     {run.loggedRunId ? <Badge tone="success">Done</Badge> : <Badge>Pending</Badge>}
                   </li>
                 ))}
-              </ul>
+              </List>
             )}
           </Section>
         )}

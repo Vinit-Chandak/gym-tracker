@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 
+import { Card } from "@/components/ui/card";
 import { Disclosure } from "@/components/ui/disclosure";
 import { FormError, SubmitButton } from "@/components/ui/form";
 import { Field, Input, Textarea } from "@/components/ui/input";
@@ -104,79 +105,83 @@ export function RunForm({ action, initial, planned, runId, submitLabel }: Props)
   return (
     <form action={formAction} className="space-y-[var(--section-gap)]">
       <Section title="The run">
-        <Field label="When" error={state.fieldErrors?.startedAt}>
-          <Input
-            name="startedAt"
-            type="datetime-local"
-            defaultValue={value("startedAt")}
-            required
-          />
-        </Field>
+        <Card>
+          <Field label="When" error={state.fieldErrors?.startedAt}>
+            <Input
+              name="startedAt"
+              type="datetime-local"
+              defaultValue={value("startedAt")}
+              required
+            />
+          </Field>
 
-        <Field label="Where">
-          <SegmentedControl
-            name="treadmill"
-            aria-label="Run mode"
-            options={MODES}
-            defaultValue={value("treadmill")}
-            columns={2}
-          />
-        </Field>
+          <Field label="Where">
+            <SegmentedControl
+              name="treadmill"
+              aria-label="Run mode"
+              options={MODES}
+              defaultValue={value("treadmill")}
+              columns={2}
+            />
+          </Field>
 
-        {/* Units are on the labels, once; the fields themselves are only numbers. */}
-        <div className="grid grid-cols-3 gap-2">
-          <Field label="Distance km" error={state.fieldErrors?.distanceKm}>
-            <Input
-              name="distanceKm"
-              inputMode="decimal"
-              value={distance}
-              onChange={(event) => setDistance(event.target.value)}
-              placeholder="4.2"
-            />
-          </Field>
-          <Field label="Minutes" error={state.fieldErrors?.durationMinutes}>
-            <Input
-              name="durationMinutes"
-              inputMode="numeric"
-              value={minutes}
-              onChange={(event) => setMinutes(event.target.value)}
-              placeholder="25"
-            />
-          </Field>
-          <Field label="Seconds" error={state.fieldErrors?.durationSeconds}>
-            <Input
-              name="durationSeconds"
-              inputMode="numeric"
-              value={seconds}
-              onChange={(event) => setSeconds(event.target.value)}
-              placeholder="0"
-            />
-          </Field>
-        </div>
-        {pace !== null && (
-          <p role="status" className="text-sm text-ink-muted tabular-nums">
-            Pace {formatPace(pace)} /km
-          </p>
-        )}
+          {/* Units are on the labels, once; the fields themselves are only numbers. */}
+          <div className="grid grid-cols-3 gap-2">
+            <Field label="Distance km" error={state.fieldErrors?.distanceKm}>
+              <Input
+                name="distanceKm"
+                inputMode="decimal"
+                value={distance}
+                onChange={(event) => setDistance(event.target.value)}
+                placeholder="4.2"
+              />
+            </Field>
+            <Field label="Minutes" error={state.fieldErrors?.durationMinutes}>
+              <Input
+                name="durationMinutes"
+                inputMode="numeric"
+                value={minutes}
+                onChange={(event) => setMinutes(event.target.value)}
+                placeholder="25"
+              />
+            </Field>
+            <Field label="Seconds" error={state.fieldErrors?.durationSeconds}>
+              <Input
+                name="durationSeconds"
+                inputMode="numeric"
+                value={seconds}
+                onChange={(event) => setSeconds(event.target.value)}
+                placeholder="0"
+              />
+            </Field>
+          </div>
+          {pace !== null && (
+            <p role="status" className="text-sm text-ink-muted tabular-nums">
+              Pace {formatPace(pace)} /km
+            </p>
+          )}
+        </Card>
       </Section>
 
       <Section title="Effort and plan">
-        <Field label="RPE" hint="Optional" error={state.fieldErrors?.rpe}>
-          <SegmentedControl name="rpe" options={RPE} defaultValue={value("rpe")} columns={5} />
-        </Field>
+        <Card>
+          <Field label="RPE" hint="Optional" error={state.fieldErrors?.rpe}>
+            <SegmentedControl name="rpe" options={RPE} defaultValue={value("rpe")} columns={5} />
+          </Field>
 
-        <Field label="Planned run" error={state.fieldErrors?.programRunId}>
-          <Select name="programRunId" defaultValue={value("programRunId")}>
-            <option value="">Unplanned run</option>
-            {planned.map((run) => (
-              <option key={run.id} value={run.id}>
-                {plannedRunLabel(run)}
-                {/* The run being edited keeps its own link; it is not "already taken". */}
-                {run.loggedRunId && run.loggedRunId !== runId ? " (already logged)" : ""}
-              </option>
-            ))}
-          </Select>
-        </Field>
+          <Field label="Planned run" error={state.fieldErrors?.programRunId}>
+            <Select name="programRunId" defaultValue={value("programRunId")}>
+              <option value="">Unplanned run</option>
+              {planned.map((run) => (
+                <option key={run.id} value={run.id}>
+                  {plannedRunLabel(run)}
+                  {/* The run being edited keeps its own link; it is not "already taken". */}
+                  {run.loggedRunId && run.loggedRunId !== runId ? " (already logged)" : ""}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </Card>
       </Section>
 
       {/*
@@ -236,14 +241,16 @@ export function RunForm({ action, initial, planned, runId, submitLabel }: Props)
       </Disclosure>
 
       <Section title="Notes">
-        <Field label="Notes" hint="Optional" error={state.fieldErrors?.notes}>
-          <Textarea
-            name="notes"
-            defaultValue={value("notes")}
-            maxLength={1000}
-            placeholder="Route, surface, how it felt…"
-          />
-        </Field>
+        <Card>
+          <Field label="Notes" hint="Optional" error={state.fieldErrors?.notes}>
+            <Textarea
+              name="notes"
+              defaultValue={value("notes")}
+              maxLength={1000}
+              placeholder="Route, surface, how it felt…"
+            />
+          </Field>
+        </Card>
       </Section>
 
       <div className="space-y-2">

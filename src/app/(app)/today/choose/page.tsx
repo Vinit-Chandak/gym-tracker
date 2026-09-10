@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Disclosure } from "@/components/ui/disclosure";
 import { EmptyState } from "@/components/ui/empty-state";
+import { List } from "@/components/ui/link-row";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { rangeLabel, SLOT_STATUS_LABELS } from "@/lib/labels";
@@ -68,11 +69,11 @@ export default async function ChooseDayPage() {
           />
         ) : (
           <>
-            <ul className="border-y border-line ruled-list">
+            <List>
               {plan.cycleDays.map(({ day, status }) => {
                 const exercises = exercisesByDay.get(day.id) ?? [];
                 return (
-                  <li key={day.id} className="space-y-2 py-3">
+                  <li key={day.id} className="space-y-2 px-4 py-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="font-medium [overflow-wrap:anywhere]">{day.name}</p>
@@ -92,6 +93,7 @@ export default async function ChooseDayPage() {
                           <Disclosure
                             summary="Prescription"
                             meta={`${exercises.length} ${exercises.length === 1 ? "exercise" : "exercises"}`}
+                            variant="inline"
                             className="border-0"
                           >
                             <ul className="space-y-1">
@@ -127,7 +129,7 @@ export default async function ChooseDayPage() {
                   </li>
                 );
               })}
-            </ul>
+            </List>
           </>
         )}
       </PageContent>

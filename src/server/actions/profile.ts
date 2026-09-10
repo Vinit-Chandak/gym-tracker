@@ -25,6 +25,7 @@ export async function saveProfileAction(
   );
   await profileChanged(user.id);
   revalidatePath("/settings");
+  revalidatePath("/settings/profile");
   revalidatePath("/today");
   return {};
 }

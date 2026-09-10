@@ -7,6 +7,7 @@ import { useEffect, useState, useTransition } from "react";
 import Link from "@/components/ui/app-link";
 import { Badge } from "@/components/ui/badge";
 import { Button, LinkButton } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Disclosure } from "@/components/ui/disclosure";
 import { Input } from "@/components/ui/input";
 import { SetTable } from "@/components/ui/set-table";
@@ -248,7 +249,7 @@ export function ExerciseLogger({
         All exercises
       </button>
 
-      <div className="space-y-1">
+      <Card className="space-y-1">
         <div className="flex items-start justify-between gap-3">
           <h2 className="min-w-0 text-lg font-medium [overflow-wrap:anywhere]">
             {exercise.exercise.name}
@@ -262,7 +263,7 @@ export function ExerciseLogger({
           {equipmentLine(exercise, session.gym.kind)}
           {substituted ? ` · instead of ${plannedName}` : ""}
         </p>
-      </div>
+      </Card>
 
       <Tabs
         name="exercise"
@@ -275,21 +276,26 @@ export function ExerciseLogger({
       <div id="exercise-panel" role="tabpanel" aria-labelledby={`exercise-${tab}-tab`}>
         {tab === "log" && (
           <div className="space-y-3">
-            {prescription && <p className="text-sm font-medium tabular-nums">{prescription}</p>}
-
-            {editable && suggestion && (
-              <div className="flex items-start gap-2">
-                <Badge tone={suggestionTone(suggestion.kind)}>
-                  {SUGGESTION_KIND_LABELS[suggestion.kind]}
-                </Badge>
-                <p className="min-w-0 text-sm font-medium">{suggestion.text}</p>
-              </div>
+            {/* What to do and what the rule says, boxed together; the grid itself stays on
+                the page, where its columns have the width they were measured for. */}
+            {(prescription || (editable && suggestion)) && (
+              <Card>
+                {prescription && <p className="text-sm font-medium tabular-nums">{prescription}</p>}
+                {editable && suggestion && (
+                  <div className="flex items-start gap-2">
+                    <Badge tone={suggestionTone(suggestion.kind)}>
+                      {SUGGESTION_KIND_LABELS[suggestion.kind]}
+                    </Badge>
+                    <p className="min-w-0 text-sm font-medium">{suggestion.text}</p>
+                  </div>
+                )}
+              </Card>
             )}
 
             {/* Equipment problems come before the grid: without a machine there is nothing
                 meaningful to log, so the decision has to be the first thing offered. */}
             {needsDecision && exercise.decision && (
-              <div className="space-y-2 rounded-control border border-warning p-3">
+              <div className="space-y-2 rounded-card border border-warning p-3">
                 <p className="text-sm font-medium">
                   {exercise.decision.resolution.status === "unavailable"
                     ? "Not available at this gym"
@@ -370,7 +376,7 @@ export function ExerciseLogger({
             )}
 
             {(readOnly || completed || skipped) && sets.dirty && (
-              <div className="space-y-2 rounded-control border border-warning p-3">
+              <div className="space-y-2 rounded-card border border-warning p-3">
                 <p className="text-sm text-warning">
                   {readOnly
                     ? "This workout is finished, so these entries cannot be saved here."
@@ -441,7 +447,7 @@ export function ExerciseLogger({
         )}
 
         {tab === "technique" && (
-          <div className="space-y-3 text-sm">
+          <Card className="text-sm">
             {exercise.planned?.keyCue && (
               <p>
                 <span className="text-ink-muted">Cue: </span>
@@ -477,11 +483,11 @@ export function ExerciseLogger({
             >
               Open in the exercise library
             </Link>
-          </div>
+          </Card>
         )}
 
         {tab === "history" && (
-          <div className="space-y-3 text-sm">
+          <Card className="text-sm">
             <p>
               {exercise.previous
                 ? `${exercise.previous.sameMachine ? "Previous on this machine" : "Previous"}: ${formatSets(exercise.previous.sets)} · ${formatDay(exercise.previous.performedAt, session.timeZone)}${exercise.previous.sameMachine ? "" : ` · ${exercise.previous.gymName}`}`
@@ -493,7 +499,7 @@ export function ExerciseLogger({
               </p>
             )}
             {exercise.suggestion && (
-              <Disclosure summary="Why this suggestion">
+              <Disclosure summary="Why this suggestion" variant="inline">
                 <div className="space-y-1 text-sm text-ink-muted">
                   <p>{exercise.suggestion.reason}</p>
                   {exercise.suggestion.advice && <p>{exercise.suggestion.advice}</p>}
@@ -510,7 +516,7 @@ export function ExerciseLogger({
               </Disclosure>
             )}
             {exercise.previous && <SetTable sets={exercise.previous.sets} unitLabel={unit} />}
-          </div>
+          </Card>
         )}
       </div>
 
