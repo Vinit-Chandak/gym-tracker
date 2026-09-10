@@ -9,7 +9,9 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { formatSets } from "@/domain/sets";
 import { finishSessionAction } from "@/server/actions/sessions";
+import { fromKilograms } from "@/lib/units";
 import { requireUser } from "@/server/auth";
+import { getRequestProfile } from "@/server/queries/request-profile";
 import { getSessionDetail } from "@/server/repositories/sessions";
 import { requireUuid } from "@/server/validation/params";
 
@@ -21,9 +23,13 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
   const { sessionId } = await props.params;
   requireUuid(sessionId);
   const user = await requireUser();
-  const session = await withUser(getDb(), user.id, (tx) =>
-    getSessionDetail(tx, user.id, sessionId, { includeGuidance: false }),
-  );
+  const [profile, session] = await Promise.all([
+    getRequestProfile(user.id, user.email),
+    withUser(getDb(), user.id, (tx) =>
+      getSessionDetail(tx, user.id, sessionId, { includeGuidance: false }),
+    ),
+  ]);
+  const unit = profile.preferredUnit === "lb" ? "lb" : "kg";
   if (!session) notFound();
   if (session.completedAt) redirect(`/workouts/${sessionId}`);
 
@@ -100,7 +106,10 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
           userId={user.id}
           sessionId={sessionId}
           action={finishSessionAction.bind(null, sessionId)}
-          initialBodyWeight={session.bodyWeightKg === null ? "" : String(session.bodyWeightKg)}
+          unit={unit}
+          initialBodyWeight={
+            session.bodyWeightKg === null ? "" : String(fromKilograms(session.bodyWeightKg, unit))
+          }
         />
       </PageContent>
     </>

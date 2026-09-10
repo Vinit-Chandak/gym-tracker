@@ -11,7 +11,7 @@ import { findProgramTemplate } from "@/db/seed/data/templates";
 import { withUser } from "@/db/with-user";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { requireUser } from "@/server/auth";
-import { ensureProfile } from "@/server/queries/profile";
+import { ensureProfile, missingProfileDetails } from "@/server/queries/profile";
 import { profileChanged } from "@/server/queries/request-profile";
 import {
   createProgramFromBlueprint,
@@ -50,7 +50,13 @@ export async function adoptProgramTemplateAction(
       const profile = await ensureProfile(tx, user);
       const startDate = parsed.data.startDate ?? todayInTimeZone(profile.timeZone);
       await createProgramFromBlueprint(tx, user.id, template.blueprint, { startDate });
-      if (parsed.data.finishOnboarding && profile.onboardedAt === null) {
+      // Adopting a programme is the last step, and finishes setup — but only for an account
+      // that answered the first one, which cannot be skipped.
+      if (
+        parsed.data.finishOnboarding &&
+        profile.onboardedAt === null &&
+        missingProfileDetails(profile).length === 0
+      ) {
         await tx.update(profiles).set({ onboardedAt: new Date() }).where(eq(profiles.id, user.id));
         finishedOnboarding = true;
       }

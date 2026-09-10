@@ -5,6 +5,7 @@ import { cache } from "react";
 import { isSupabaseConfigured } from "@/lib/env";
 import { getClaimsOptions } from "@/lib/supabase/jwks";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { missingProfileDetails } from "@/server/queries/profile";
 import { getRequestProfile } from "@/server/queries/request-profile";
 
 export type SessionUser = { id: string; email: string | null };
@@ -25,6 +26,22 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
 export async function requireUser(): Promise<SessionUser> {
   const user = await getSessionUser();
   if (!user) redirect("/login");
+  return user;
+}
+
+/**
+ * Like `requireUser`, but sends an account that has not answered the first setup step back to
+ * it. The steps after it may all be skipped; that one may not, and typing a later URL is not a
+ * way around it. An account that finished setup before a question existed is left alone —
+ * Settings is where it answers, and being bounced through setup again would be a lie about
+ * what it is missing.
+ */
+export async function requireProfiledUser(): Promise<SessionUser> {
+  const user = await requireUser();
+  const profile = await getRequestProfile(user.id, user.email);
+  if (profile.onboardedAt === null && missingProfileDetails(profile).length > 0) {
+    redirect("/welcome");
+  }
   return user;
 }
 

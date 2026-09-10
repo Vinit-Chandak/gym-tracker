@@ -127,7 +127,10 @@ export async function signUpAction(
       email: parsed.data.email,
       password: parsed.data.password,
       options: {
-        emailRedirectTo: `${await getSiteUrl()}/auth/confirm?next=/welcome`,
+        // No query string of its own: Supabase matches the whole redirect URL against the
+        // project's Redirect URLs, so anything appended here has to be allow-listed too.
+        // `/auth/confirm` works out where to send the user once the link is confirmed.
+        emailRedirectTo: `${await getSiteUrl()}/auth/confirm`,
         ...(displayName ? { data: { display_name: displayName } } : {}),
       },
     }),
@@ -163,7 +166,7 @@ export async function requestPasswordResetAction(
   const supabase = await createSupabaseServerClient();
   const { error: transport } = await attempt(
     supabase.auth.resetPasswordForEmail(email.data, {
-      redirectTo: `${await getSiteUrl()}/auth/confirm?next=/reset-password`,
+      redirectTo: `${await getSiteUrl()}/auth/confirm`,
     }),
   );
   if (transport) return { error: transport };

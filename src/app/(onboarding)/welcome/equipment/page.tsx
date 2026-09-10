@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { InfoTip } from "@/components/ui/info-tip";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
-import { requireUser } from "@/server/auth";
+import { requireProfiledUser } from "@/server/auth";
 import { listEquipmentTypes } from "@/server/repositories/equipment";
 import { listGyms } from "@/server/repositories/gyms";
 
@@ -17,7 +17,7 @@ import { EquipmentStepForm } from "./equipment-step-form";
 export const metadata: Metadata = { title: "Machines at your gym" };
 
 export default async function WelcomeEquipmentPage(props: PageProps<"/welcome/equipment">) {
-  const user = await requireUser();
+  const user = await requireProfiledUser();
   const { gym: gymParam } = await props.searchParams;
   const { gyms, types } = await withUser(getDb(), user.id, async (tx) => ({
     gyms: await listGyms(tx, user.id),

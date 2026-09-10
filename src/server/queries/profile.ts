@@ -21,6 +21,34 @@ export async function ensureProfile(
   return profile;
 }
 
+/**
+ * The answers a profile is still missing, named as the profile screen asks for them.
+ *
+ * Setup asks for all of these, but accounts that existed before it did — or before a field was
+ * added — are complete in their own terms and must not be shooed back through onboarding. The
+ * Settings screen says what is missing instead, and the profile form is where it gets filled in.
+ */
+export function missingProfileDetails(
+  profile: Pick<
+    Profile,
+    "displayName" | "bodyWeightKg" | "heightCm" | "dateOfBirth" | "trainingGoal"
+  >,
+): string[] {
+  const missing: string[] = [];
+  if (!profile.displayName) missing.push("name");
+  if (profile.bodyWeightKg === null) missing.push("body weight");
+  if (profile.heightCm === null) missing.push("height");
+  if (profile.dateOfBirth === null) missing.push("date of birth");
+  if (profile.trainingGoal === null) missing.push("training goal");
+  return missing;
+}
+
+/** "height", "height and date of birth", "height, date of birth and training goal". */
+export function listSentence(items: string[]): string {
+  if (items.length <= 1) return items[0] ?? "";
+  return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
+}
+
 export type StarterStatus = {
   gymCount: number;
   equipmentCount: number;

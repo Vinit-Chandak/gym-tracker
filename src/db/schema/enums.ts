@@ -17,7 +17,9 @@ import {
   RESISTANCE_MODES,
   RUN_MODES,
   SET_TYPES,
+  SEXES,
   SLOT_EVENT_STATUSES,
+  TRAINING_GOALS,
 } from "../../domain/types";
 
 export const gymKindEnum = pgEnum("gym_kind", GYM_KINDS);
@@ -37,3 +39,5 @@ export const slotEventStatusEnum = pgEnum("slot_event_status", SLOT_EVENT_STATUS
 export const planStatusEnum = pgEnum("plan_status", PLAN_STATUSES);
 export const planTriggerEnum = pgEnum("plan_trigger", PLAN_TRIGGERS);
 export const coachRequestStatusEnum = pgEnum("coach_request_status", COACH_REQUEST_STATUSES);
+export const sexEnum = pgEnum("sex", SEXES);
+export const trainingGoalEnum = pgEnum("training_goal", TRAINING_GOALS);
