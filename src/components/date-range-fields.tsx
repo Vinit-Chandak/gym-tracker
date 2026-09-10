@@ -48,7 +48,10 @@ export function DateRangeFields({
       }}
       className="space-y-3"
     >
-      <div className="grid gap-3 min-[360px]:grid-cols-2">
+      {/* One field per row until a tablet's width. A date field carries a native picker
+          whose own width the platform decides, so two of them share a phone's row only by
+          luck: on iOS the first outgrew its column and disappeared under the second. */}
+      <div className="grid gap-3 sm:grid-cols-2">
         <Field label="From">
           <Input name="from" type="date" defaultValue={from} required />
         </Field>

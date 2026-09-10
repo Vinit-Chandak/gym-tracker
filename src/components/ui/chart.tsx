@@ -1,9 +1,10 @@
 "use client";
 
+import { ChevronDown } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { Point } from "@/domain/analytics";
-import { formatIsoDate } from "@/lib/format";
+import { formatIsoDate, formatIsoDay } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 import { InfoTip } from "./info-tip";
@@ -159,6 +160,9 @@ export function Chart({
   }
 
   const multi = series.length > 1;
+  // Indices into the ascending series, walked backwards, so the table reads latest first
+  // while every lookup still points at the same observation the chart drew.
+  const newestFirst = dates.map((_, i) => dates.length - 1 - i);
 
   return (
     <figure className="space-y-2">
@@ -329,38 +333,55 @@ export function Chart({
         )}
       </div>
 
-      <details className="text-xs text-ink-muted">
-        <summary className="flex min-h-11 cursor-pointer items-center select-none">
+      {/*
+        The same numbers as a table, newest first: a reader who opens this is looking for
+        what happened most recently, and scrolling back through a year to reach last week is
+        not reading. It grows to its full height rather than scrolling inside a box of its
+        own — a scroll region nested in a scrolling page traps the gesture, and its bar
+        lands on top of the right-hand column.
+      */}
+      <details className="group text-xs text-ink-muted">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1.5 font-medium select-none">
+          <ChevronDown
+            className="size-3.5 shrink-0 transition-transform duration-[var(--ov-duration-feedback)] group-open:rotate-180"
+            aria-hidden
+          />
           View values
         </summary>
-        <div className="max-h-64 overflow-y-auto">
-          <table className="w-full text-left tabular-nums">
-            <thead className="sticky top-0 bg-surface">
-              <tr>
-                <th className="py-1 font-medium">Date</th>
+        <table className="w-full text-left tabular-nums">
+          <caption className="sr-only">{title} by date, newest first</caption>
+          <thead>
+            <tr className="text-ink-subtle">
+              <th scope="col" className="py-1.5 font-medium">
+                Date
+              </th>
+              {series.map((s) => (
+                <th scope="col" key={s.name} className="py-1.5 text-right font-medium">
+                  {multi ? s.name : unit}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {newestFirst.map((i) => (
+              <tr
+                key={`${dates[i]}:${i}`}
+                className={cn("border-t border-line", active === i && "text-ink")}
+              >
+                <th scope="row" className="py-1.5 font-normal whitespace-nowrap">
+                  {formatIsoDay(dates[i]!)}
+                </th>
                 {series.map((s) => (
-                  <th key={s.name} className="py-1 text-right font-medium">
-                    {multi ? s.name : unit}
-                  </th>
+                  <td key={s.name} className="py-1.5 text-right">
+                    {s.points[i]?.value === null || s.points[i] === undefined
+                      ? "—"
+                      : format(s.points[i]!.value!)}
+                  </td>
                 ))}
               </tr>
-            </thead>
-            <tbody>
-              {dates.map((date, i) => (
-                <tr key={`${date}:${i}`} className={cn(active === i && "text-ink")}>
-                  <td className="py-1">{date}</td>
-                  {series.map((s) => (
-                    <td key={s.name} className="py-1 text-right">
-                      {s.points[i]?.value === null || s.points[i] === undefined
-                        ? "—"
-                        : format(s.points[i]!.value!)}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </table>
       </details>
     </figure>
   );

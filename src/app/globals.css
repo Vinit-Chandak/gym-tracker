@@ -76,7 +76,11 @@
  */
 :root {
   --nav-height: var(--ov-nav-height);
-  --header-height: calc(var(--ov-control-height) + var(--ov-space-4));
+  /* The gap the navigation island keeps from every edge of the screen. */
+  --nav-inset: var(--ov-space-4);
+  /* Everything the navigation takes off the bottom of the viewport, island and gap. */
+  --nav-reserve: calc(var(--nav-height) + var(--nav-inset) + env(safe-area-inset-bottom));
+  --header-height: calc(var(--ov-control-height) + var(--ov-space-6));
   --page-gutter: var(--ov-page-gutter);
   --panel-padding: var(--ov-panel-padding);
   --section-gap: var(--ov-section-gap);
@@ -129,6 +133,26 @@
   textarea {
     /* iOS Safari zooms into inputs smaller than 16px. Keep them at 16px+. */
     font-size: var(--ov-text-input);
+  }
+
+  /*
+   * iOS puts a native widget inside a date field and sizes the field to that widget,
+   * ignoring the width the layout gave it: two side by side then overlap, and the first
+   * one's value disappears under the second. Dropping the native appearance hands the
+   * width back to the grid, so a date field measures the same on iOS as on Android.
+   */
+  input[type="date"] {
+    appearance: none;
+    -webkit-appearance: none;
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  /* Safari centres the value inside that widget and pads it; line it up with other fields. */
+  input[type="date"]::-webkit-date-and-time-value {
+    margin: 0;
+    text-align: left;
   }
 
   summary {
@@ -212,33 +236,54 @@
 .app-content {
   min-width: 0;
   flex: 1;
-  padding-bottom: calc(
-    var(--nav-height) + var(--session-chrome-height, 0px) + env(safe-area-inset-bottom) + 1rem
-  );
+  padding-bottom: calc(var(--nav-reserve) + var(--session-chrome-height, 0px) + 1rem);
 }
 
+/*
+ * An island, not a bar: the navigation floats clear of all four edges and the page runs
+ * underneath it. Translucency plus a blur is what makes that readable — you can see there
+ * is more page below without being able to read it through the labels — so the fallback
+ * for a browser without a backdrop filter is an opaque island, never a see-through one.
+ */
 .primary-nav {
   position: fixed;
-  inset: auto 0 0;
+  inset: auto max(var(--nav-inset), env(safe-area-inset-right))
+    calc(var(--nav-inset) + env(safe-area-inset-bottom))
+    max(var(--nav-inset), env(safe-area-inset-left));
   z-index: var(--ov-z-nav);
-  border-top: 1px solid var(--ov-line);
-  background: var(--ov-canvas);
+  /* Border-box, so the island measures exactly the height the page reserved for it. */
+  height: var(--nav-height);
+  border: 1px solid var(--ov-line);
+  border-radius: var(--ov-radius-island);
+  background: var(--ov-nav-island);
+  box-shadow: var(--ov-nav-shadow);
+  -webkit-backdrop-filter: blur(1.25rem) saturate(180%);
+  backdrop-filter: blur(1.25rem) saturate(180%);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .primary-nav {
+    background: var(--ov-canvas);
+  }
 }
 
 .nav-items {
   display: flex;
-  padding-left: env(safe-area-inset-left);
-  padding-right: env(safe-area-inset-right);
+  height: 100%;
+  /* Keeps a pressed tab's highlight clear of the island's own edge. */
+  padding: 0.25rem;
 }
 
 .nav-link {
   display: flex;
-  height: calc(var(--nav-height) + env(safe-area-inset-bottom));
-  padding: 0.25rem 0.125rem calc(0.25rem + env(safe-area-inset-bottom));
+  height: 100%;
+  padding-inline: 0.125rem;
   align-items: center;
   justify-content: center;
   flex-direction: column;
   gap: 0.125rem;
+  /* Inside the island's own rounding, so a pressed tab never squares off its corner. */
+  border-radius: calc(var(--ov-radius-island) - 0.25rem);
   font-size: clamp(0.625rem, 2.7vw, 0.75rem);
   font-weight: 500;
   user-select: none;
@@ -290,30 +335,39 @@
 @media (min-width: 64rem) {
   :root {
     --nav-height: 0rem;
+    --nav-inset: 0rem;
   }
   .app-content {
     margin-left: 12rem;
     padding-bottom: calc(2rem + var(--session-chrome-height, 0px));
   }
+  /* A full-height rail rather than an island: there is no thumb to keep clear of here. */
   .primary-nav {
     inset: 0 auto 0 0;
     width: 12rem;
-    border-top: 0;
+    height: auto;
+    border: 0;
     border-right: 1px solid var(--ov-line);
+    border-radius: 0;
+    background: var(--ov-canvas);
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
   .nav-items {
     flex-direction: column;
+    height: auto;
     gap: 0.375rem;
     padding: 1rem 0.75rem;
   }
   .nav-link {
     height: auto;
     min-height: 3rem;
+    border-radius: var(--ov-radius-control);
     flex-direction: row;
     justify-content: flex-start;
     gap: 0.75rem;
     padding: 0.5rem 0.75rem;
-    border-radius: var(--ov-radius-control);
     font-size: var(--ov-text-small);
   }
   .navigation-progress {
@@ -440,6 +494,19 @@ dialog.sheet {
   background: transparent;
   color: var(--ov-ink);
 }
+/*
+ * A modal dialog already stops the page behind it from scrolling, but the scrollbar it
+ * cannot use stays painted — over the backdrop and over the sheet itself. Hiding the track
+ * rather than setting `overflow: hidden` keeps the page exactly where it was on closing.
+ */
+html:has(dialog.sheet[open]) {
+  scrollbar-width: none;
+}
+
+html:has(dialog.sheet[open])::-webkit-scrollbar {
+  display: none;
+}
+
 /*
  * ::backdrop inherits from its originating element in current browsers; the literal is
  * the fallback for the ones where it still inherits from nothing.

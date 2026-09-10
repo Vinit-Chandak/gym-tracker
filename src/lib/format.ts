@@ -20,17 +20,25 @@ export function formatDay(value: string | Date, timeZone: string): string {
   );
 }
 
-/** "Tue 8 Sep 2026" for an ISO date string. */
-export function formatIsoDate(isoDate: string): string {
+/** A calendar date, read as itself: no time zone shifts it off the day it names. */
+function formatIso(isoDate: string, options: Intl.DateTimeFormatOptions): string {
   const [y, m, d] = isoDate.split("-").map(Number);
   if (!y || !m || !d) return isoDate;
-  return new Intl.DateTimeFormat("en-GB", {
-    timeZone: "UTC",
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(Date.UTC(y, m - 1, d)));
+  return new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", ...options }).format(
+    new Date(Date.UTC(y, m - 1, d)),
+  );
+}
+
+const ISO_DAY = { day: "numeric", month: "short", year: "numeric" } as const;
+
+/** "Tue 8 Sep 2026" for an ISO date string. */
+export function formatIsoDate(isoDate: string): string {
+  return formatIso(isoDate, { weekday: "short", ...ISO_DAY });
+}
+
+/** "8 Sep 2026" for an ISO date string: the same date without its weekday. */
+export function formatIsoDay(isoDate: string): string {
+  return formatIso(isoDate, ISO_DAY);
 }
 
 /** Compact date range, retaining both years when it crosses a year boundary. */

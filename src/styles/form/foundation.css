@@ -31,7 +31,7 @@
   --ov-control-height: 2.75rem;
   --ov-target-min: 2.75rem;
   --ov-content-max: 32rem;
-  --ov-nav-height: 3.75rem;
+  --ov-nav-height: 4rem;
   --ov-set-columns: 2.75rem minmax(4rem, 1.25fr) minmax(3.25rem, 1fr) minmax(2.75rem, 0.85fr)
     2.75rem;
 
@@ -73,6 +73,8 @@
   --ov-volume-3: var(--ov-light-volume-3);
   --ov-volume-4: var(--ov-light-volume-4);
   --ov-backdrop: var(--ov-light-backdrop);
+  --ov-nav-island: var(--ov-light-nav-island);
+  --ov-nav-shadow: var(--ov-light-nav-shadow);
   --ov-group-1: var(--ov-light-group-1);
   --ov-group-2: var(--ov-light-group-2);
   --ov-group-3: var(--ov-light-group-3);
@@ -116,6 +118,8 @@
     --ov-volume-3: var(--ov-dark-volume-3);
     --ov-volume-4: var(--ov-dark-volume-4);
     --ov-backdrop: var(--ov-dark-backdrop);
+    --ov-nav-island: var(--ov-dark-nav-island);
+    --ov-nav-shadow: var(--ov-dark-nav-shadow);
     --ov-group-1: var(--ov-dark-group-1);
     --ov-group-2: var(--ov-dark-group-2);
     --ov-group-3: var(--ov-dark-group-3);
@@ -156,6 +160,8 @@
   --ov-volume-3: var(--ov-dark-volume-3);
   --ov-volume-4: var(--ov-dark-volume-4);
   --ov-backdrop: var(--ov-dark-backdrop);
+  --ov-nav-island: var(--ov-dark-nav-island);
+  --ov-nav-shadow: var(--ov-dark-nav-shadow);
   --ov-group-1: var(--ov-dark-group-1);
   --ov-group-2: var(--ov-dark-group-2);
   --ov-group-3: var(--ov-dark-group-3);
@@ -189,6 +195,8 @@
     --ov-accent-strong: Highlight;
     --ov-on-accent: HighlightText;
     --ov-accent-soft: Canvas;
+    --ov-nav-island: Canvas;
+    --ov-nav-shadow: none;
     --ov-success: CanvasText;
     --ov-warning: CanvasText;
     --ov-danger: CanvasText;
