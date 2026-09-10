@@ -6,6 +6,7 @@ import { useTransition, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button, LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { List } from "@/components/ui/link-row";
 import { InfoTip } from "@/components/ui/info-tip";
 import { formatSets } from "@/domain/sets";
 import { supersetHues, supersetStyle } from "@/lib/superset-colors";
@@ -71,13 +72,13 @@ function WarmupRow({
     });
 
   return (
-    <div className="border-y border-line">
-      <div className="flex items-center gap-2">
+    <div className="box">
+      <div className="flex items-center gap-2 pr-3">
         <button
           type="button"
           aria-expanded={open}
           onClick={() => setOpen((current) => !current)}
-          className="flex min-h-11 min-w-0 flex-1 items-center gap-2 py-2 text-left text-sm font-medium"
+          className="flex min-h-14 min-w-0 flex-1 items-center gap-2 py-2 pl-4 text-left font-medium"
         >
           <ChevronDown
             className={cn(
@@ -103,7 +104,7 @@ function WarmupRow({
         </Button>
       </div>
       {open && (
-        <ol className="pb-2 text-sm ruled-list">
+        <ol className="border-t border-line px-4 pb-2 text-sm ruled-list">
           {session.warmup.drills.map((drill) => (
             <li key={drill.order} className="flex justify-between gap-3 py-1.5">
               <span className="min-w-0">{drill.name}</span>
@@ -113,7 +114,7 @@ function WarmupRow({
         </ol>
       )}
       {error && (
-        <p role="alert" className="pb-2 text-sm text-danger">
+        <p role="alert" className="px-4 pb-3 text-sm text-danger">
           {error}
         </p>
       )}
@@ -211,7 +212,7 @@ export function WorkoutOverview({
       {session.exercises.length === 0 ? (
         <p className="text-sm text-ink-muted">No exercises yet.</p>
       ) : (
-        <ul className="border-y border-line ruled-list">
+        <List>
           {session.exercises.map((exercise) => {
             const action = rowAction(exercise);
             const hue = exercise.supersetGroup ? hues.get(exercise.supersetGroup) : undefined;
@@ -221,9 +222,10 @@ export function WorkoutOverview({
                   type="button"
                   onClick={() => onOpenExercise(exercise.id)}
                   className={cn(
-                    "flex min-h-14 w-full items-center gap-3 py-3 text-left active:bg-surface-raised",
-                    // Rows in a superset share one colour; nothing else marks the group.
-                    hue && "superset-row",
+                    "flex min-h-14 w-full items-center gap-3 py-3 pr-4 text-left active:bg-surface-raised",
+                    // Rows in a superset share one colour; nothing else marks the group. The
+                    // rule takes 3px of the gutter so the names still line up.
+                    hue ? "pl-[0.8125rem] superset-row" : "pl-4",
                   )}
                   style={hue ? supersetStyle(hue) : undefined}
                 >
@@ -254,7 +256,7 @@ export function WorkoutOverview({
               </li>
             );
           })}
-        </ul>
+        </List>
       )}
 
       {!readOnly && (

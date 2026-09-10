@@ -80,7 +80,7 @@ export function EquipmentStepForm({
               {group.items.map((type) => (
                 <label
                   key={type.id}
-                  className="flex min-h-12 cursor-pointer items-center gap-3 rounded-control border border-line bg-surface-raised px-3 py-2 has-checked:border-accent has-checked:bg-accent-soft"
+                  className="flex min-h-12 cursor-pointer items-center gap-3 rounded-control border border-transparent bg-surface-raised px-3 py-2 has-checked:border-accent has-checked:bg-accent-soft"
                 >
                   <input
                     type="checkbox"

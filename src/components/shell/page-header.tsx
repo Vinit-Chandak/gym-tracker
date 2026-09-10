@@ -23,7 +23,7 @@ export function PageHeader<T extends string>({
   action,
 }: PageHeaderProps<T>) {
   return (
-    <header className="sticky top-0 z-30 border-b border-line bg-canvas pt-safe">
+    <header className="sticky top-0 z-30 bg-canvas pt-safe">
       <div className="page-width flex min-h-[var(--header-height)] items-center gap-2 py-2">
         {backHref && (
           <Link

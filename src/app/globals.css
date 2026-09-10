@@ -160,12 +160,47 @@
 }
 
 /*
- * Ruled list: the default grouping for ordinary rows. A filled panel is reserved for a
- * distinct decision, summary or form section, so most lists get a rule, not a card.
+ * Ruled list: rows separated by one hairline, running the full width of whatever holds
+ * them. Nothing is drawn on the first row's top or the last row's bottom, so a list adds
+ * no line of its own to the box it sits in.
  */
 @utility ruled-list {
   :where(& > * + *) {
     border-top: 1px solid var(--ov-line);
+  }
+}
+
+/*
+ * A box: the grouping for anything that belongs together. Filled, rounded and without an
+ * outline in either palette, so the lift between canvas and surface is the only edge.
+ */
+@utility box {
+  min-width: 0;
+  border-radius: var(--ov-radius-card);
+  background: var(--ov-surface);
+}
+
+/*
+ * A box of full-bleed rows. The first and last rows take the box's corners themselves,
+ * so a pressed row's highlight follows the rounding without the box clipping anything
+ * that has to escape it, such as an open info tip.
+ */
+@utility box-rows {
+  min-width: 0;
+  border-radius: var(--ov-radius-card);
+  background: var(--ov-surface);
+  :where(& > * + *) {
+    border-top: 1px solid var(--ov-line);
+  }
+  :where(& > :first-child),
+  :where(& > :first-child > *) {
+    border-start-start-radius: inherit;
+    border-start-end-radius: inherit;
+  }
+  :where(& > :last-child),
+  :where(& > :last-child > *) {
+    border-end-start-radius: inherit;
+    border-end-end-radius: inherit;
   }
 }
 
@@ -315,11 +350,11 @@
  * A superset member. The group's hue arrives as --superset-color from the row itself, so
  * one rule serves all eight colours: a rule on the left and a faint wash of the same hue
  * behind the row, which is how two rows say they belong together without a caption.
- * Browsers without color-mix drop the wash and keep the rule.
+ * Browsers without color-mix drop the wash and keep the rule. The row sets its own left
+ * padding, allowing for the rule, so its text lines up with the rows around it.
  */
 @utility superset-row {
   border-left: 3px solid var(--superset-color, var(--ov-accent));
-  padding-left: var(--ov-space-3);
   background: color-mix(in srgb, var(--superset-color, var(--ov-accent)) 10%, transparent);
 }
 

@@ -35,7 +35,7 @@ export function Sheet({ open, onClose, title, children }: SheetProps) {
         if (event.target === ref.current) onClose();
       }}
     >
-      <div className="sheet-panel rounded-t-sheet border-t border-line-strong bg-surface panel-padding pb-[max(var(--panel-padding),env(safe-area-inset-bottom))]">
+      <div className="sheet-panel rounded-t-sheet bg-surface panel-padding pb-[max(var(--panel-padding),env(safe-area-inset-bottom))]">
         <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-line-strong" aria-hidden />
         <h2 className="mb-3 text-lg font-medium">{title}</h2>
         <div className="max-h-[70dvh] overflow-y-auto">{children}</div>

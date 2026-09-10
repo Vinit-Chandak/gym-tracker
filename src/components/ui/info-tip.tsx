@@ -90,7 +90,7 @@ export function InfoTip({ label, children, className }: InfoTipProps) {
           id={id}
           role="note"
           style={{ left: place.left, width: place.width }}
-          className="absolute top-full z-[var(--ov-z-notice)] mt-1 rounded-card border border-line-strong bg-surface px-3 py-2 text-left text-sm leading-snug font-normal text-ink shadow-sm"
+          className="absolute top-full z-[var(--ov-z-notice)] mt-1 rounded-card border border-line-strong bg-surface px-3 py-2 text-left text-sm leading-snug font-normal tracking-normal text-ink normal-case shadow-sm"
         >
           {children}
         </span>

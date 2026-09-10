@@ -11,7 +11,6 @@ import { Card } from "@/components/ui/card";
 import { Chart, SERIES_COLORS, type ChartSeries } from "@/components/ui/chart";
 import { InfoTip } from "@/components/ui/info-tip";
 import { Field } from "@/components/ui/input";
-import { Section } from "@/components/ui/section";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select } from "@/components/ui/select";
 import { Tabs } from "@/components/ui/tabs";
@@ -287,7 +286,7 @@ export function ProgressView({
       >
         {tab === "overview" && (
           <>
-            <dl className="grid grid-cols-3 divide-x divide-line border-y border-line py-1">
+            <dl className="grid box grid-cols-3 gap-2 px-2 py-3">
               <Stat label="Workouts" value={String(summary.workouts)} />
               <Stat label="Runs" value={String(summary.runs)} />
               <Stat label="Active days" value={String(summary.trainingDays)} />
@@ -330,15 +329,14 @@ export function ProgressView({
               </Card>
             )}
 
-            <Section
-              title="Weekly sessions"
-              action={
+            <Card>
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-base font-medium">Weekly sessions</h2>
                 <InfoTip label="About weekly sessions">
                   Weeks run Tuesday to Monday in your time zone. The first and last weeks of the
                   range may be partial.
                 </InfoTip>
-              }
-            >
+              </div>
               <Chart
                 title="Sessions"
                 unit="sessions"
@@ -353,13 +351,13 @@ export function ProgressView({
                 ]}
                 format={(v) => String(Math.round(v))}
               />
-            </Section>
+            </Card>
           </>
         )}
 
         {tab === "strength" && (
           <>
-            <div className="min-w-0 space-y-3">
+            <Card>
               <Field label="Exercise">
                 <Select
                   value={selected?.name ?? ""}
@@ -432,18 +430,17 @@ export function ProgressView({
                   Finish a workout with logged sets to see trends.
                 </p>
               )}
-            </div>
+            </Card>
 
             {muscles.length > 0 && (
-              <Section
-                title="Sets by muscle"
-                action={
+              <Card>
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="text-base font-medium">Sets by muscle</h2>
                   <InfoTip label="About sets by muscle">
                     Working sets per week. A set counts once for each primary muscle and half for
                     each secondary one; warm-ups are excluded.
                   </InfoTip>
-                }
-              >
+                </div>
                 <Field label="Muscle">
                   <Select
                     value={shownMuscle ?? ""}
@@ -470,13 +467,13 @@ export function ProgressView({
                   ]}
                   format={(v) => String(Math.round(v))}
                 />
-              </Section>
+              </Card>
             )}
           </>
         )}
 
         {tab === "running" && (
-          <div className="min-w-0 space-y-3">
+          <Card>
             <SegmentedControl
               name="run-metric"
               aria-label="Running measurement"
@@ -533,11 +530,11 @@ export function ProgressView({
                 }
               />
             )}
-          </div>
+          </Card>
         )}
 
         {tab === "recovery" && (
-          <div className="min-w-0 space-y-3">
+          <Card>
             <SegmentedControl
               name="recovery-metric"
               aria-label="Recovery measurement"
@@ -558,19 +555,18 @@ export function ProgressView({
               ]}
               note="From workout check-ins, daily recovery entries and after-run shin scores. A missing reading leaves a gap."
             />
-          </div>
+          </Card>
         )}
 
         {tab === "body" && (
-          <Section
-            title="Muscles this week"
-            action={
+          <Card>
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-base font-medium">Muscles this week</h2>
               <InfoTip label="About the body map">
                 Working sets from finished workouts. A set counts once for each primary muscle and
                 half for each secondary one; warm-ups are excluded.
               </InfoTip>
-            }
-          >
+            </div>
             {/* Body keeps its own week navigation: it is a snapshot, not a trend. */}
             <div className="flex items-center justify-between gap-2">
               <Button
@@ -598,7 +594,7 @@ export function ProgressView({
             <div className={pending ? "opacity-50 transition-opacity" : undefined}>
               <BodyMap volume={body.volume} totalSets={body.totalSets} />
             </div>
-          </Section>
+          </Card>
         )}
 
         {weekDates.length === 0 && (

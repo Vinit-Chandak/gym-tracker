@@ -3,7 +3,7 @@ import { PageContent } from "./page-content";
 import { LoadingMessage } from "./navigation-feedback";
 
 /**
- * The skeleton matches the geometry it is standing in for — a title, then ruled rows of
+ * The skeleton matches the geometry it is standing in for — a title, then a box of rows of
  * roughly the right height — so the real screen replaces it without the page jumping.
  */
 export function LoadingPage({
@@ -31,12 +31,9 @@ export function LoadingPage({
               ))}
             </div>
           )}
-          <ul
-            aria-hidden="true"
-            className="border-y border-line ruled-list motion-safe:animate-pulse"
-          >
+          <ul aria-hidden="true" className="box-rows motion-safe:animate-pulse">
             {[0, 1, 2, 3, 4].map((i) => (
-              <li key={i} className="flex min-h-14 items-center gap-3 py-3">
+              <li key={i} className="flex min-h-14 items-center gap-3 px-4 py-3">
                 <div className="min-w-0 flex-1 space-y-2">
                   <div className="h-4 w-2/5 rounded-control bg-surface-raised" />
                   <div className="h-3 w-3/5 rounded-control bg-surface-raised" />

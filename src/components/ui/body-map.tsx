@@ -105,7 +105,7 @@ export function BodyMap({ volume, totalSets }: { volume: MuscleVolume; totalSets
         </p>
       )}
 
-      <div className="overflow-hidden border-y border-line">
+      <div className="overflow-hidden rounded-control">
         <table className="w-full text-left text-sm tabular-nums">
           <thead>
             <tr className="border-b border-line bg-surface-raised text-xs text-ink-muted">

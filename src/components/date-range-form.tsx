@@ -9,24 +9,24 @@ import { Input, Field } from "./ui/input";
 import { formatDateRange } from "@/lib/format";
 
 /**
- * Collapsed to a one-line summary by default: the range is worth seeing on every visit,
- * but the two date inputs and their button cost a fifth of a phone screen above the
- * content people actually came for.
+ * Collapsed to a one-row box by default: the range is worth seeing on every visit, but
+ * the two date inputs and their button cost a fifth of a phone screen above the content
+ * people actually came for.
  */
 export function DateRangeForm({ from, to }: { from: string; to: string }) {
   const router = useRouter(),
     pathname = usePathname();
   const [pending, startTransition] = useTransition();
   return (
-    <details className="group border-y border-line">
-      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 py-2 select-none">
-        <span className="flex min-w-0 items-center gap-2 text-sm">
-          <CalendarRange className="size-4 shrink-0 text-ink-muted" aria-hidden />
+    <details className="group box">
+      <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 rounded-card px-4 py-3 select-none">
+        <span className="flex min-w-0 items-center gap-3">
+          <CalendarRange className="size-5 shrink-0 text-ink-muted" aria-hidden />
           <span className="sr-only">Date range: </span>
           <span className="font-medium">{formatDateRange(from, to)}</span>
         </span>
         <ChevronDown
-          className="size-4 shrink-0 text-ink-muted transition-transform duration-[var(--ov-duration-feedback)] group-open:rotate-180"
+          className="size-5 shrink-0 text-ink-subtle transition-transform duration-[var(--ov-duration-feedback)] group-open:rotate-180"
           aria-hidden
         />
       </summary>
@@ -39,7 +39,7 @@ export function DateRangeForm({ from, to }: { from: string; to: string }) {
           params.set("to", String(data.get("to")));
           startTransition(() => router.push(`${pathname}?${params}` as Route));
         }}
-        className="space-y-3 pt-1 pb-3"
+        className="space-y-3 border-t border-line px-4 pt-3 pb-4"
       >
         <div className="grid gap-3 min-[360px]:grid-cols-2">
           <Field label="From">

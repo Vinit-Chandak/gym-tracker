@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { groupByRegion } from "@/domain/muscles";
 import { matchesExerciseQuery } from "@/lib/exercise-search";
 import { BODY_REGION_LABELS, EXERCISE_MODALITY_LABELS, MUSCLE_LABELS } from "@/lib/labels";
-import { cn } from "@/lib/utils";
 import type { ExerciseListItem } from "@/server/repositories/exercises";
 
 type ExercisePickerProps = {
@@ -86,27 +85,23 @@ export function ExercisePicker({ name, exercises, value, onChange, error }: Exer
       ) : (
         groups.map((group) => (
           <section key={group.region}>
-            <h3 className="border-b border-line pb-1 text-xs font-medium tracking-wide text-ink-muted uppercase">
+            <h3 className="px-1 pb-1.5 text-xs font-medium tracking-wide text-ink-muted uppercase">
               {BODY_REGION_LABELS[group.region]}
             </h3>
-            <ul className="ruled-list">
+            <ul className="box-rows">
               {group.items.map((exercise) => (
                 <li key={exercise.id}>
-                  <label className="block">
+                  {/* The label carries the chosen state so the box's rounding applies to it. */}
+                  <label className="block has-checked:bg-accent-soft has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-focus">
                     <input
                       type="radio"
                       name={name}
                       value={exercise.id}
                       checked={value === exercise.id}
                       onChange={() => onChange(exercise.id)}
-                      className="peer sr-only"
+                      className="sr-only"
                     />
-                    <span
-                      className={cn(
-                        "flex min-h-14 items-center gap-3 py-2.5",
-                        "peer-checked:bg-accent-soft peer-focus-visible:ring-2 peer-focus-visible:ring-focus",
-                      )}
-                    >
+                    <span className="flex min-h-14 items-center gap-3 px-4 py-2.5">
                       <span className="min-w-0 flex-1">
                         <span className="block font-medium [overflow-wrap:anywhere]">
                           {exercise.name}

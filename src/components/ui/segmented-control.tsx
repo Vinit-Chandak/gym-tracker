@@ -43,7 +43,7 @@ export function SegmentedControl<V extends string>({
     <div
       role="radiogroup"
       aria-label={ariaLabel}
-      className="grid gap-1 rounded-control border border-line bg-surface p-1"
+      className="grid gap-1 rounded-control bg-surface-raised p-1"
       style={{
         gridTemplateColumns: columns
           ? `repeat(${columns}, minmax(3.25rem, 1fr))`

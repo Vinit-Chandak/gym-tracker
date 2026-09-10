@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
-import { Card } from "@/components/ui/card";
 import { InfoTip } from "@/components/ui/info-tip";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
@@ -48,22 +47,20 @@ export default async function GymFallbackPage(
     <>
       <PageHeader title="Add fallback" backHref={`/gyms/${data.gym.id}/programme`} />
       <PageContent>
-        <Card>
-          <p className="flex items-center gap-1 text-sm text-ink-muted">
-            <span>
-              Instead of <span className="font-medium text-ink">{data.exercise.name}</span> at{" "}
-              {data.gym.name}
-            </span>
-            <InfoTip label="About fallbacks">
-              Used whenever this gym cannot do the exercise, on every day that plans it.
-            </InfoTip>
-          </p>
-          <FallbackForm
-            action={addGymFallbackAction.bind(null, data.gym.id, data.exercise.id)}
-            exercises={data.exercises}
-            machines={data.machines}
-          />
-        </Card>
+        <p className="flex items-center gap-1 px-1 text-sm text-ink-muted">
+          <span>
+            Instead of <span className="font-medium text-ink">{data.exercise.name}</span> at{" "}
+            {data.gym.name}
+          </span>
+          <InfoTip label="About fallbacks">
+            Used whenever this gym cannot do the exercise, on every day that plans it.
+          </InfoTip>
+        </p>
+        <FallbackForm
+          action={addGymFallbackAction.bind(null, data.gym.id, data.exercise.id)}
+          exercises={data.exercises}
+          machines={data.machines}
+        />
       </PageContent>
     </>
   );

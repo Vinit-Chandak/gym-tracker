@@ -1,94 +1,106 @@
+import {
+  BookOpen,
+  ChevronRight,
+  ClipboardList,
+  KeyRound,
+  Link2,
+  MapPin,
+  Trash,
+  User,
+} from "lucide-react";
 import type { Metadata } from "next";
 
-import { AppearanceControl } from "@/components/shell/appearance-control";
-import { InstallCard } from "@/components/shell/install-card";
+import { AppearanceRow } from "@/components/shell/appearance-row";
+import { InstallSection } from "@/components/shell/install-row";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
-import { SubmitButton } from "@/components/ui/form";
-import { LinkRow, List } from "@/components/ui/link-row";
+import Link from "@/components/ui/app-link";
+import { LinkRow, List, PRESSABLE_ROW_CLASS } from "@/components/ui/link-row";
 import { Section } from "@/components/ui/section";
-import { canDeleteSignIn } from "@/server/actions/account";
-import { signOutAction } from "@/server/actions/auth";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 
-import { DeleteAccountSettings } from "./delete-account-settings";
-import { PasswordSettings } from "./password-settings";
-import { ProfileSettings } from "./profile-settings";
 import { RestTimerSetting } from "./rest-timer-setting";
+import { SignOutRow } from "./sign-out-row";
 
 export const metadata: Metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
-  const removesSignIn = await canDeleteSignIn();
-  const email = profile.email ?? user.email ?? "—";
 
   return (
     <>
       <PageHeader title="Settings" />
-      {/* Five groups, in the order they are needed: who you are, what you train, how it
-          looks, who can get in, and the app itself. Each row says only where it goes; what
-          is behind it is found by opening it. */}
+      {/* Boxes of rows, in the order they are needed: who you are, what you train, how it
+          looks, who can get in, the app itself, and the way out. A row says only where it
+          goes; everything behind it has its own page. */}
       <PageContent>
-        <Section title="Profile">
-          <ProfileSettings
-            email={email}
-            values={{
-              displayName: profile.displayName ?? "",
-              timeZone: profile.timeZone,
-              preferredUnit: profile.preferredUnit === "lb" ? "lb" : "kg",
-              bodyWeightKg: profile.bodyWeightKg,
-            }}
-          />
-        </Section>
+        <List>
+          <li>
+            <Link href="/settings/profile" className={PRESSABLE_ROW_CLASS}>
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent">
+                <User className="size-5" strokeWidth={1.75} aria-hidden />
+              </span>
+              <span className="min-w-0 flex-1 font-medium [overflow-wrap:anywhere]">
+                {profile.displayName || "Your profile"}
+              </span>
+              <ChevronRight className="size-5 shrink-0 text-ink-subtle" aria-hidden />
+            </Link>
+          </li>
+        </List>
 
         <Section title="Training">
           <List>
             <li>
-              <LinkRow href="/settings/programme" title="Programme" />
+              <LinkRow href="/settings/programme" icon={ClipboardList} title="Programme" />
             </li>
             <li>
-              <LinkRow href="/gyms" title="Gyms and machines" />
+              <LinkRow href="/gyms" icon={MapPin} title="Gyms and machines" />
             </li>
             <li>
-              <LinkRow href="/exercises" title="Exercise library" />
+              <LinkRow href="/exercises" icon={BookOpen} title="Exercise library" />
+            </li>
+            <li>
+              <RestTimerSetting enabled={profile.restTimerEnabled} />
             </li>
           </List>
-          <RestTimerSetting enabled={profile.restTimerEnabled} />
         </Section>
 
-        <Section title="Appearance">
-          <AppearanceControl />
-        </Section>
-
-        <Section title="Access">
+        <Section title="Preferences">
           <List>
             <li>
-              <LinkRow href="/settings/coach" title="Coach access" />
+              <AppearanceRow />
             </li>
           </List>
-          <PasswordSettings />
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="min-w-0 text-sm break-words text-ink-muted">{email}</p>
-            <form action={signOutAction}>
-              <SubmitButton
-                variant="secondary"
-                size="sm"
-                className="w-auto"
-                pendingLabel="Signing out…"
-              >
-                Sign out
-              </SubmitButton>
-            </form>
-          </div>
         </Section>
 
-        <Section title="App">
-          <InstallCard />
-          <DeleteAccountSettings removesSignIn={removesSignIn} />
+        <Section title="Account">
+          <List>
+            <li>
+              <LinkRow href="/settings/password" icon={KeyRound} title="Password" />
+            </li>
+            <li>
+              <LinkRow href="/settings/coach" icon={Link2} title="Coach access" />
+            </li>
+          </List>
         </Section>
+
+        <InstallSection />
+
+        <List>
+          <li>
+            <SignOutRow />
+          </li>
+          <li>
+            <LinkRow
+              href="/settings/delete-account"
+              icon={Trash}
+              title="Delete account"
+              tone="danger"
+            />
+          </li>
+        </List>
       </PageContent>
     </>
   );

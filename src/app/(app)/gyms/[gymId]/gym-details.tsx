@@ -5,6 +5,7 @@ import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
 import { LinkButton } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Disclosure } from "@/components/ui/disclosure";
 import { EmptyState } from "@/components/ui/empty-state";
 import { InfoTip } from "@/components/ui/info-tip";
@@ -40,9 +41,17 @@ export type GymDetailData = {
   types: Awaited<ReturnType<typeof listEquipmentTypes>>;
   availability: Awaited<ReturnType<typeof gymAvailability>>;
 };
-function EquipmentRows({ gymId, items }: { gymId: string; items: EquipmentListItem[] }) {
+function EquipmentRows({
+  gymId,
+  items,
+  plain = false,
+}: {
+  gymId: string;
+  items: EquipmentListItem[];
+  plain?: boolean;
+}) {
   return (
-    <List>
+    <List plain={plain}>
       {items.map((item) => (
         <li key={item.id}>
           <LinkRow
@@ -102,7 +111,7 @@ export function GymDetails({ data }: { data: GymDetailData }) {
         }
       />
       <PageContent>
-        <div className="min-w-0 space-y-3">
+        <Card>
           <div className="flex flex-wrap items-center gap-2">
             <Badge>{GYM_KIND_LABELS[gym.kind]}</Badge>
             {gym.isDefault && <Badge tone="accent">Default gym</Badge>}
@@ -124,7 +133,7 @@ export function GymDetails({ data }: { data: GymDetailData }) {
               </SubmitButton>
             </form>
           )}
-        </div>
+        </Card>
 
         <List>
           <li>
@@ -155,7 +164,7 @@ export function GymDetails({ data }: { data: GymDetailData }) {
           {/* Archived machines stay out of new logging but remain in the record. */}
           {archivedEquipment.length > 0 && (
             <Disclosure summary="Archived machines" meta={String(archivedEquipment.length)}>
-              <EquipmentRows gymId={gym.id} items={archivedEquipment} />
+              <EquipmentRows gymId={gym.id} items={archivedEquipment} plain />
             </Disclosure>
           )}
         </Section>
@@ -165,66 +174,75 @@ export function GymDetails({ data }: { data: GymDetailData }) {
             title="Unavailable equipment"
             info="Mark what this gym lacks so the programme suggests alternatives instead of asking."
           >
-            {absent.length > 0 && (
-              <ul className="divide-y divide-line">
-                {absent.map((item) => (
-                  <li
-                    key={item.equipmentTypeId}
-                    className="flex items-center justify-between gap-3 py-1.5"
-                  >
-                    <span className="text-sm">{item.typeName}</span>
-                    <form
-                      className="shrink-0"
-                      action={unmarkEquipmentAbsentAction.bind(null, gym.id, item.equipmentTypeId)}
+            <Card>
+              {absent.length === 0 && absentCandidates.length === 0 && (
+                <p className="text-sm text-ink-muted">Nothing marked unavailable.</p>
+              )}
+              {absent.length > 0 && (
+                <ul className="divide-y divide-line">
+                  {absent.map((item) => (
+                    <li
+                      key={item.equipmentTypeId}
+                      className="flex items-center justify-between gap-3 py-1.5"
                     >
-                      <SubmitButton variant="ghost" size="sm">
-                        Remove
-                      </SubmitButton>
-                    </form>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {gym.isActive && absentCandidates.length > 0 && (
-              <form
-                action={markEquipmentAbsentFromFormAction.bind(null, gym.id)}
-                className="space-y-1.5"
-              >
-                <label
-                  htmlFor="absent-equipment"
-                  className="block text-sm font-medium text-ink-muted"
-                >
-                  Mark equipment unavailable
-                </label>
-                {/* The select carries the long equipment names, so it takes the row. */}
-                <div className="flex items-center gap-2">
-                  <Select
-                    id="absent-equipment"
-                    name="equipmentTypeId"
-                    required
-                    defaultValue=""
-                    wrapperClassName="min-w-0 flex-1"
-                  >
-                    <option value="">Choose equipment…</option>
-                    {absentCandidates.map((group) => (
-                      <optgroup
-                        key={group.category}
-                        label={EQUIPMENT_CATEGORY_LABELS[group.category]}
+                      <span className="text-sm">{item.typeName}</span>
+                      <form
+                        className="shrink-0"
+                        action={unmarkEquipmentAbsentAction.bind(
+                          null,
+                          gym.id,
+                          item.equipmentTypeId,
+                        )}
                       >
-                        {group.items.map((type) => (
-                          <option key={type.id} value={type.id}>
-                            {type.name}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </Select>
-                  <SubmitButton variant="secondary" size="md" className="w-auto shrink-0">
-                    Add
-                  </SubmitButton>
-                </div>
-              </form>
-            )}
+                        <SubmitButton variant="ghost" size="sm">
+                          Remove
+                        </SubmitButton>
+                      </form>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {gym.isActive && absentCandidates.length > 0 && (
+                <form
+                  action={markEquipmentAbsentFromFormAction.bind(null, gym.id)}
+                  className="space-y-1.5"
+                >
+                  <label
+                    htmlFor="absent-equipment"
+                    className="block text-sm font-medium text-ink-muted"
+                  >
+                    Mark equipment unavailable
+                  </label>
+                  {/* The select carries the long equipment names, so it takes the row. */}
+                  <div className="flex items-center gap-2">
+                    <Select
+                      id="absent-equipment"
+                      name="equipmentTypeId"
+                      required
+                      defaultValue=""
+                      wrapperClassName="min-w-0 flex-1"
+                    >
+                      <option value="">Choose equipment…</option>
+                      {absentCandidates.map((group) => (
+                        <optgroup
+                          key={group.category}
+                          label={EQUIPMENT_CATEGORY_LABELS[group.category]}
+                        >
+                          {group.items.map((type) => (
+                            <option key={type.id} value={type.id}>
+                              {type.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </Select>
+                    <SubmitButton variant="secondary" size="md" className="w-auto shrink-0">
+                      Add
+                    </SubmitButton>
+                  </div>
+                </form>
+              )}
+            </Card>
           </Section>
         )}
 

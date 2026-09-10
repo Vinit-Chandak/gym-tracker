@@ -182,7 +182,7 @@ export function HistoryView({
         )}
       </Disclosure>
 
-      <p role="status" className="text-xs text-ink-muted">
+      <p role="status" className="px-1 text-xs text-ink-muted">
         {shown.length} {shown.length === 1 ? "entry" : "entries"}
       </p>
 
@@ -199,14 +199,14 @@ export function HistoryView({
                   badge={<Badge>{item.kind === "run" ? "Run" : "Workout"}</Badge>}
                 />
               ) : (
-                <div className="space-y-1 py-3">
+                <div className="space-y-1 px-4 py-3">
                   <p className="flex flex-wrap items-center gap-2 font-medium">
                     {item.title} <Badge>Recovery</Badge>
                   </p>
                   <p className="text-sm text-ink-muted">{item.subtitle}</p>
                 </div>
               )}
-              {item.recovery && <p className="pb-3 text-xs text-ink-muted">{item.recovery}</p>}
+              {item.recovery && <p className="px-4 pb-3 text-xs text-ink-muted">{item.recovery}</p>}
             </li>
           ))}
         </List>
