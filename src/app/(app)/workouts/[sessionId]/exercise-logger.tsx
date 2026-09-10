@@ -73,6 +73,7 @@ function suggestionTone(kind: SuggestionKind): "neutral" | "accent" | "success" 
       return "warning";
     case "hold":
     case "extend":
+    case "coach":
       return "accent";
     default:
       return "neutral";
@@ -99,10 +100,32 @@ function suggestionHeadline(exercise: ExerciseVM, unit: string, holdAll: boolean
     const previousFirst = exercise.previous?.sets.find((s) => WORKING_SET_TYPES.has(s.setType));
     return {
       kind,
-      text: `Holding ${load(previousFirst?.weight)} today (rule said ${SUGGESTION_KIND_LABELS[suggestion.kind].toLowerCase()})`,
+      text: `Holding ${load(previousFirst?.weight)} today (${
+        suggestion.kind === "coach"
+          ? "coach plan set aside"
+          : `rule said ${SUGGESTION_KIND_LABELS[suggestion.kind].toLowerCase()}`
+      })`,
     };
   }
   switch (kind) {
+    case "coach": {
+      const target = !first
+        ? null
+        : first.durationSeconds && first.reps === null
+          ? `${first.durationSeconds} s`
+          : `${load(first.weight)}${first.reps !== null && first.reps !== undefined ? ` × ${first.reps}` : ""}`;
+      const note = exercise.coachNote;
+      return {
+        kind,
+        text: note
+          ? target
+            ? `${target} · ${note}`
+            : note
+          : target
+            ? `Next: ${target}`
+            : "Coach plan",
+      };
+    }
     case "increase":
       return {
         kind,

@@ -55,6 +55,9 @@ export default async function SettingsPage() {
             <li>
               <LinkRow href="/exercises" title="Exercise library" />
             </li>
+            <li>
+              <LinkRow href="/settings/ai-coach" title="AI coach" />
+            </li>
           </List>
           <RestTimerSetting enabled={profile.restTimerEnabled} />
         </Section>

@@ -39,3 +39,26 @@ export function getMigrationDatabaseUrl(): string {
   }
   return url;
 }
+
+/**
+ * The secret the house-coach routine presents on `/api/coach/service`. Stored once on the
+ * server and once as an API credential on the routine's cloud environment; never per user.
+ * Anything shorter than 16 characters is treated as unset rather than accepted.
+ */
+export function getCoachServiceToken(): string | null {
+  const token = process.env.COACH_SERVICE_TOKEN?.trim();
+  return token && token.length >= 16 ? token : null;
+}
+
+/** Where the app fires the coach routine, and the per-routine token that lets it. */
+export function getCoachRoutine(): { fireUrl: string; token: string } | null {
+  const fireUrl = process.env.COACH_ROUTINE_FIRE_URL?.trim();
+  const token = process.env.COACH_ROUTINE_FIRE_TOKEN?.trim();
+  if (!fireUrl || !token) return null;
+  try {
+    if (new URL(fireUrl).protocol !== "https:") return null;
+  } catch {
+    return null;
+  }
+  return { fireUrl, token };
+}

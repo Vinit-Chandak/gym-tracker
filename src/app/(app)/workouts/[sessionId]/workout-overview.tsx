@@ -46,11 +46,14 @@ function WarmupRow({
   done,
   onDone,
 }: {
-  session: SessionVM & { warmup: NonNullable<SessionVM["warmup"]> };
+  session: SessionVM;
   done: boolean;
   onDone: (done: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const drills = session.warmup?.drills ?? [];
+  const coachLines = session.coachPlan?.warmup ?? [];
+  const count = coachLines.length > 0 ? coachLines.length : drills.length;
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -88,7 +91,7 @@ function WarmupRow({
           />
           <span className="min-w-0 flex-1">Warm-up</span>
           <span className="shrink-0 text-xs font-normal text-ink-muted tabular-nums">
-            {session.warmup.drills.length} drills
+            {coachLines.length > 0 ? `${count} from the coach` : `${count} drills`}
           </span>
         </button>
         <Button
@@ -102,9 +105,20 @@ function WarmupRow({
           {pending ? "Saving…" : done ? "Done ✓" : "Mark done"}
         </Button>
       </div>
-      {open && (
+      {open && coachLines.length > 0 && (
+        // The coach's warm-up replaces the protocol for this session; the protocol stays
+        // one tap away on the programme day rather than being listed twice here.
         <ol className="pb-2 text-sm ruled-list">
-          {session.warmup.drills.map((drill) => (
+          {coachLines.map((line, index) => (
+            <li key={index} className="py-1.5">
+              {line}
+            </li>
+          ))}
+        </ol>
+      )}
+      {open && coachLines.length === 0 && (
+        <ol className="pb-2 text-sm ruled-list">
+          {drills.map((drill) => (
             <li key={drill.order} className="flex justify-between gap-3 py-1.5">
               <span className="min-w-0">{drill.name}</span>
               <span className="shrink-0 text-right text-ink-muted">{drill.dose}</span>
@@ -200,12 +214,15 @@ export function WorkoutOverview({
         </Card>
       )}
 
-      {!readOnly && session.warmup && (
-        <WarmupRow
-          session={{ ...session, warmup: session.warmup }}
-          done={warmupDone}
-          onDone={setWarmupDone}
-        />
+      {session.coachPlan && (
+        <p className="text-sm">
+          <Badge tone="accent">Coach</Badge>{" "}
+          <span className="align-middle">{session.coachPlan.summary}</span>
+        </p>
+      )}
+
+      {!readOnly && (session.warmup || (session.coachPlan?.warmup.length ?? 0) > 0) && (
+        <WarmupRow session={session} done={warmupDone} onDone={setWarmupDone} />
       )}
 
       {session.exercises.length === 0 ? (

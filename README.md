@@ -116,6 +116,14 @@ Deploy to Vercel (see `SETUP.md`), then open the URL on the phone. **Settings â†
 Chrome's install prompt on Android; on iPhone use Safari's **Share â†’ Add to Home Screen**. The
 app launches standalone with safe-area padding.
 
+## AI house coach
+
+Optionally, a Claude Code routine on the owner's Claude subscription plans everyone's next
+session overnight: exercises and machines for their gym, sets, reps, RIR, loads and a warm-up,
+with a one-line reason per exercise. Today shows the plan, starting the session prefills it,
+and a re-plan at another gym is one tap away. Each athlete switches it on in Settings; the
+owner sets it up once, as described in [`docs/coach-automation.md`](docs/coach-automation.md).
+
 See [Coach API](docs/coach-api.md) for token setup and endpoint details. Unsaved workout set rows
 are retained on the device for manual retry and removed after a confirmed save. Other forms
 require a connection. The offline screen explains how to reconnect; private pages are not cached.

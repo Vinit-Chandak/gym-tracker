@@ -1,12 +1,15 @@
 import { pgEnum } from "drizzle-orm/pg-core";
 
 import {
+  COACH_REQUEST_STATUSES,
   EQUIPMENT_CATEGORIES,
   EXERCISE_CATEGORIES,
   EXERCISE_MODALITIES,
   GYM_KINDS,
   LOAD_PORTABILITY,
   LOAD_UNITS,
+  PLAN_STATUSES,
+  PLAN_TRIGGERS,
   PRESCRIPTION_TYPES,
   PROGRAM_STATUSES,
   PROPOSAL_SOURCES,
@@ -31,3 +34,6 @@ export const runModeEnum = pgEnum("run_mode", RUN_MODES);
 export const proposalSourceEnum = pgEnum("proposal_source", PROPOSAL_SOURCES);
 export const proposalStatusEnum = pgEnum("proposal_status", PROPOSAL_STATUSES);
 export const slotEventStatusEnum = pgEnum("slot_event_status", SLOT_EVENT_STATUSES);
+export const planStatusEnum = pgEnum("plan_status", PLAN_STATUSES);
+export const planTriggerEnum = pgEnum("plan_trigger", PLAN_TRIGGERS);
+export const coachRequestStatusEnum = pgEnum("coach_request_status", COACH_REQUEST_STATUSES);

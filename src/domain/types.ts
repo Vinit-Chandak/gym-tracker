@@ -72,6 +72,21 @@ export type ProposalStatus = (typeof PROPOSAL_STATUSES)[number];
 export const SLOT_EVENT_STATUSES = ["completed", "skipped"] as const;
 export type SlotEventStatus = (typeof SLOT_EVENT_STATUSES)[number];
 
+/** A coach plan's life: waiting for its session, replaced by a newer plan, used by a session, or dropped. */
+export const PLAN_STATUSES = ["active", "superseded", "consumed", "void"] as const;
+export type PlanStatus = (typeof PLAN_STATUSES)[number];
+
+/** What produced a plan: the nightly run, or a re-plan the user asked for. */
+export const PLAN_TRIGGERS = ["nightly", "replan"] as const;
+export type PlanTrigger = (typeof PLAN_TRIGGERS)[number];
+
+/** What a plan does with one programme slot. */
+export const PLAN_ACTIONS = ["keep", "substitute", "drop"] as const;
+export type PlanAction = (typeof PLAN_ACTIONS)[number];
+
+export const COACH_REQUEST_STATUSES = ["requested", "planned", "failed"] as const;
+export type CoachRequestStatus = (typeof COACH_REQUEST_STATUSES)[number];
+
 export const MUSCLE_GROUPS = [
   "chest",
   "front_delts",

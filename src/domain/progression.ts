@@ -56,13 +56,22 @@ export type PerformedSet = {
 export type SuggestionBasis = "same_equipment" | "exercise" | "other_equipment" | "none";
 
 export type SuggestionKind =
-  "increase" | "hold" | "repeat" | "reduce" | "extend" | "transfer" | "start";
+  | "increase"
+  | "hold"
+  | "repeat"
+  | "reduce"
+  | "extend"
+  | "transfer"
+  | "start"
+  /** Targets written by the AI coach's plan for this session, in place of the rule's. */
+  | "coach";
 
 /** Kinds whose prefill differs from simply copying the previous session. */
 export const CHANGING_KINDS: ReadonlySet<SuggestionKind> = new Set<SuggestionKind>([
   "increase",
   "reduce",
   "extend",
+  "coach",
 ]);
 
 export type TargetSet = {

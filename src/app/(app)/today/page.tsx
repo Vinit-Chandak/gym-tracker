@@ -10,14 +10,16 @@ import { Disclosure } from "@/components/ui/disclosure";
 import { InfoTip } from "@/components/ui/info-tip";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
+import { planLine, type StoredPlanExercise } from "@/domain/session-plan";
 import { formatDateTime, formatIsoDate } from "@/lib/format";
-import { rangeLabel } from "@/lib/labels";
+import { LOAD_UNIT_LABELS, rangeLabel } from "@/lib/labels";
 import { supersetHues, supersetStyle } from "@/lib/superset-colors";
 import { cn } from "@/lib/utils";
 import { requireUser } from "@/server/auth";
 import { getActiveSession } from "@/server/queries/active-session";
 import { getWarmupProtocol } from "@/server/queries/reference";
 import { getRequestProfile } from "@/server/queries/request-profile";
+import { todayCoachState, type TodayCoachState } from "@/server/repositories/coach-plans";
 import { listGyms } from "@/server/repositories/gyms";
 import {
   getTodayPlan,
@@ -26,6 +28,7 @@ import {
   type ScheduleDay,
 } from "@/server/repositories/schedule";
 
+import { CoachPending, CoachRequestButton, type CoachGym } from "./coach-actions";
 import { GymSwitcher } from "./gym-switcher";
 import {
   CompleteRestButton,
@@ -102,6 +105,126 @@ function PlannedExercises({ exercises }: { exercises: PlannedExercisePreview[] }
   );
 }
 
+/** The coach's lines for the day: what to do, on what, and the numbers, one row each. */
+function CoachPlanLines({
+  exercises,
+  planned,
+  unit,
+}: {
+  exercises: StoredPlanExercise[];
+  planned: PlannedExercisePreview[];
+  unit: string;
+}) {
+  return (
+    <ul className="ruled-list">
+      {exercises.map((entry, index) => {
+        const slot = entry.slotId
+          ? planned.find((e) => e.programExerciseId === entry.slotId)
+          : undefined;
+        const substituted =
+          entry.action === "substitute" && slot && slot.name !== entry.exerciseName;
+        const dropped = entry.action === "drop";
+        return (
+          <li key={`${entry.slotId ?? "added"}-${index}`} className="space-y-0.5 py-2">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+              <span
+                className={cn(
+                  "min-w-0 text-sm [overflow-wrap:anywhere]",
+                  dropped && "text-ink-subtle line-through",
+                )}
+              >
+                {dropped ? (slot?.name ?? entry.exerciseName) : entry.exerciseName}
+                {substituted && <span className="text-ink-muted"> · for {slot.name}</span>}
+                {!dropped && entry.equipmentInstanceName && (
+                  <span className="text-ink-muted"> · {entry.equipmentInstanceName}</span>
+                )}
+              </span>
+              <span className="shrink-0 text-xs text-ink-muted tabular-nums">
+                {dropped ? "Skip today" : (planLine(entry, unit) ?? "By the rule")}
+              </span>
+            </div>
+            {entry.note && <p className="text-xs text-ink-muted">{entry.note}</p>}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/**
+ * What the coach has to say about the day: the plan when there is one for this gym, a
+ * note when it was made for another, and the way to ask for one either way.
+ */
+function CoachSection({
+  coach,
+  gyms,
+  gymName,
+  planned,
+  unit,
+}: {
+  coach: TodayCoachState;
+  gyms: CoachGym[];
+  /** The gym the athlete is about to train at. */
+  gymName: string | null;
+  planned: PlannedExercisePreview[];
+  unit: string;
+}) {
+  if (coach.pending) {
+    const gym = gyms.find((g) => g.id === coach.pending?.gymId)?.name ?? gymName ?? "your gym";
+    return <CoachPending startedAt={coach.pending.requestedAt.toISOString()} gymName={gym} />;
+  }
+  if (coach.plan && coach.matchesGym) {
+    return (
+      <>
+        <p className="text-sm">
+          <Badge tone="accent">Coach</Badge>{" "}
+          <span className="align-middle">{coach.plan.summary}</span>
+        </p>
+        <Disclosure summary="Plan" meta={String(coach.plan.exercises.length)} defaultOpen>
+          <CoachPlanLines exercises={coach.plan.exercises} planned={planned} unit={unit} />
+        </Disclosure>
+        {coach.plan.warmup.length > 0 && (
+          <Disclosure summary="Warm-up" meta={String(coach.plan.warmup.length)}>
+            <ol className="space-y-1 text-sm">
+              {coach.plan.warmup.map((line, index) => (
+                <li key={index}>{line}</li>
+              ))}
+            </ol>
+          </Disclosure>
+        )}
+        <CoachRequestButton
+          gyms={gyms}
+          label="Re-plan"
+          variant="ghost"
+          requestsLeft={coach.requestsLeft}
+        />
+      </>
+    );
+  }
+  if (coach.plan) {
+    return (
+      <>
+        <p className="text-sm text-ink-muted">
+          The coach planned this for {coach.plan.gymName}
+          {gymName ? `, not ${gymName}` : ""}. Without a re-plan the rule sets the targets.
+        </p>
+        <CoachRequestButton
+          gyms={gyms}
+          label={gymName ? `Re-plan for ${gymName}` : "Re-plan"}
+          requestsLeft={coach.requestsLeft}
+        />
+      </>
+    );
+  }
+  return (
+    <CoachRequestButton
+      gyms={gyms}
+      label="Ask the coach for a plan"
+      requestsLeft={coach.requestsLeft}
+    />
+  );
+}
+
 function runSummary(run: RunTarget): string {
   const duration = rangeLabel(run.durationMinMinutes, run.durationMaxMinutes, " min");
   return run.rpeMin !== null ? `${duration} · RPE ${rangeLabel(run.rpeMin, run.rpeMax)}` : duration;
@@ -129,15 +252,49 @@ export default async function TodayPage() {
       plan?.suggestedDay && !plan.suggestedDay.includesLifting && plan.suggestedDay.warmupProtocolId
         ? await getWarmupProtocol(tx, plan.suggestedDay.warmupProtocolId)
         : null;
-    return { profile, gyms, plan, restProtocol };
+    // The coach plans the next lifting slot: today's, or the one after a rest day.
+    const coachRef = plan?.suggestion
+      ? plan.suggestedDay?.includesLifting
+        ? plan.suggestion.slot
+        : plan.nextTrainingDay
+          ? { cycleIndex: plan.nextTrainingDay.cycleIndex, dayIndex: plan.nextTrainingDay.dayIndex }
+          : null
+      : null;
+    const coach =
+      plan && coachRef && profile.aiCoachEnabled
+        ? await todayCoachState(tx, user.id, {
+            enabled: true,
+            timeZone: profile.timeZone,
+            programId: plan.program.id,
+            ref: coachRef,
+            gymId: gyms.find((g) => g.isActive && g.isDefault)?.id ?? null,
+          })
+        : null;
+    return { profile, gyms, plan, restProtocol, coach };
   });
-  const { profile, gyms, plan, restProtocol } = data;
+  const { profile, gyms, plan, restProtocol, coach } = data;
   const activeGyms = gyms
     .filter((gym) => gym.isActive)
     .map((gym) => ({ id: gym.id, name: gym.name, kind: gym.kind, isDefault: gym.isDefault }));
   const defaultGym = activeGyms.find((gym) => gym.isDefault) ?? null;
   const day = plan?.suggestedDay ?? null;
   const restDay = day !== null && !day.includesLifting;
+  const coachGyms: CoachGym[] = activeGyms
+    .filter((gym) => gym.kind === "gym")
+    .map((gym) => ({ id: gym.id, name: gym.name, isDefault: gym.isDefault }));
+  const unit = LOAD_UNIT_LABELS[profile.preferredUnit];
+  const coachSection =
+    coach && plan ? (
+      <CoachSection
+        coach={coach}
+        gyms={coachGyms}
+        gymName={defaultGym?.name ?? null}
+        planned={plan.suggestedExercises}
+        unit={unit}
+      />
+    ) : null;
+  // The coach's plan lists the day's exercises itself; the programme list stays for the rest.
+  const showsProgrammeList = !(coach?.plan && coach.matchesGym && !coach.pending);
 
   const standing =
     plan && plan.behind > 0 ? (
@@ -210,7 +367,8 @@ export default async function TodayPage() {
                   note={dayNote(day)}
                   badge={standing}
                 />
-                {plan.suggestedExercises.length > 0 && (
+                {coachSection}
+                {showsProgrammeList && plan.suggestedExercises.length > 0 && (
                   <PlannedExercises exercises={plan.suggestedExercises} />
                 )}
                 <StartPlannedButton
@@ -293,13 +451,16 @@ export default async function TodayPage() {
                 {/* Resting is the suggestion, not a rule: the next lifting day stays one
                     tap away rather than only through "Another day". */}
                 {plan.nextTrainingDay && (
-                  <StartPlannedButton
-                    gymId={defaultGym?.id ?? null}
-                    programDayId={plan.nextTrainingDay.id}
-                    dayIndex={plan.nextTrainingDay.dayIndex}
-                    variant="secondary"
-                    label={`Start ${plan.nextTrainingDay.name} instead`}
-                  />
+                  <>
+                    {coachSection}
+                    <StartPlannedButton
+                      gymId={defaultGym?.id ?? null}
+                      programDayId={plan.nextTrainingDay.id}
+                      dayIndex={plan.nextTrainingDay.dayIndex}
+                      variant="secondary"
+                      label={`Start ${plan.nextTrainingDay.name} instead`}
+                    />
+                  </>
                 )}
               </Card>
             )}

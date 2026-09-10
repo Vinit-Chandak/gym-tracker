@@ -57,6 +57,13 @@
       "when": 1788983120136,
       "tag": "0007_workout_supersets",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1789023338267,
+      "tag": "0008_coach_plans",
+      "breakpoints": true
     }
   ]
 }
