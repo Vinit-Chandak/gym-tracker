@@ -49,7 +49,7 @@ export function ProgramTemplatePicker({
           const active = template.slug === chosen;
           return (
             <li key={template.slug}>
-              <label className="flex cursor-pointer gap-3 rounded-control border border-line bg-surface-raised p-3 has-checked:border-accent has-checked:bg-accent-soft">
+              <label className="flex cursor-pointer gap-3 rounded-control border border-transparent bg-surface-raised p-3 has-checked:border-accent has-checked:bg-accent-soft">
                 <input
                   type="radio"
                   name="templateSlug"

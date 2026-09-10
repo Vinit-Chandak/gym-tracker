@@ -1,6 +1,6 @@
 "use client";
 
-import { Check } from "lucide-react";
+import { Check, MapPin } from "lucide-react";
 import Link from "@/components/ui/app-link";
 import { useState, useTransition } from "react";
 
@@ -34,16 +34,12 @@ export function GymSwitcher({ gyms }: { gyms: SwitcherGym[] }) {
 
   return (
     <>
-      <section
-        aria-label="Current gym"
-        className="flex items-center justify-between gap-3 border-b border-line pb-3"
-      >
-        <div className="min-w-0">
-          <p className="text-xs text-ink-muted">Training at</p>
-          <p className="truncate text-base font-medium">
-            {current ? current.name : gyms.length > 0 ? "No default gym" : "No gyms yet"}
-          </p>
-        </div>
+      {/* One line: the pin says what the name is, so nothing has to caption it. */}
+      <section aria-label="Current gym" className="flex box items-center gap-2 py-1 pr-1 pl-3">
+        <MapPin className="size-4 shrink-0 text-ink-muted" aria-hidden />
+        <p className="min-w-0 flex-1 truncate text-sm font-medium">
+          {current ? current.name : gyms.length > 0 ? "No default gym" : "No gyms yet"}
+        </p>
         {gyms.length > 0 ? (
           <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
             Change
@@ -78,7 +74,7 @@ export function GymSwitcher({ gyms }: { gyms: SwitcherGym[] }) {
                   "flex min-h-14 w-full items-center justify-between gap-3 rounded-control border px-4 text-left text-base font-medium",
                   gym.isDefault
                     ? "border-accent bg-accent-soft text-ink"
-                    : "border-line-strong bg-surface text-ink active:bg-surface-raised",
+                    : "border-transparent bg-surface-raised text-ink active:bg-accent-soft",
                   pending && "opacity-60",
                 )}
               >

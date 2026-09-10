@@ -14,6 +14,12 @@ type DisclosureProps = {
    * an invalid field it had folded away — but the reader can still close it again.
    */
   defaultOpen?: boolean;
+  /**
+   * `box` is its own box on the page; `inline` is a ruled row inside a box that is
+   * already there; `footer` is the last row of a padded box, taking the box's full width
+   * and its bottom edge, so a closed section adds one hairline and nothing else.
+   */
+  variant?: "box" | "inline" | "footer";
   className?: string;
   children: ReactNode;
 };
@@ -26,6 +32,7 @@ export function Disclosure({
   summary,
   meta,
   defaultOpen = false,
+  variant = "box",
   className,
   children,
 }: DisclosureProps) {
@@ -42,9 +49,25 @@ export function Disclosure({
     <details
       open={open}
       onToggle={(event) => setOpen(event.currentTarget.open)}
-      className={cn("group min-w-0 border-y border-line", className)}
+      className={cn(
+        "group min-w-0",
+        variant === "box" && "box",
+        variant === "inline" && "border-y border-line",
+        // Full bleed inside a padded box: one rule above it and the box's bottom edge below.
+        variant === "footer" &&
+          "-mx-[var(--panel-padding)] -mb-[var(--panel-padding)] border-t border-line",
+        className,
+      )}
     >
-      <summary className="flex min-h-11 list-none items-center gap-2 py-2 text-sm font-medium">
+      <summary
+        className={cn(
+          "flex list-none items-center gap-2 font-medium",
+          variant === "box" && "min-h-14 rounded-card px-4 py-3",
+          variant === "inline" && "min-h-11 py-2 text-sm",
+          variant === "footer" &&
+            "min-h-12 rounded-b-card px-[var(--panel-padding)] py-3 text-sm transition-colors duration-[var(--ov-duration-feedback)] group-open:rounded-b-none active:bg-surface-raised",
+        )}
+      >
         <ChevronDown
           className="size-4 shrink-0 text-ink-subtle transition-transform duration-[var(--ov-duration-feedback)] group-open:rotate-180"
           aria-hidden
@@ -52,7 +75,15 @@ export function Disclosure({
         <span className="min-w-0 flex-1">{summary}</span>
         {meta && <span className="shrink-0 text-xs text-ink-muted tabular-nums">{meta}</span>}
       </summary>
-      <div className="pt-1 pb-3">{children}</div>
+      <div
+        className={cn(
+          variant === "box" && "border-t border-line px-4 pt-3 pb-4",
+          variant === "inline" && "pt-1 pb-3",
+          variant === "footer" && "px-[var(--panel-padding)] pt-1 pb-4",
+        )}
+      >
+        {children}
+      </div>
     </details>
   );
 }

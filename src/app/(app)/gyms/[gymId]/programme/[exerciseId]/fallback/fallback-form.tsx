@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 
 import { ExercisePicker } from "@/components/exercise-picker";
+import { Card } from "@/components/ui/card";
 import { FormError, SubmitButton } from "@/components/ui/form";
 import { Field } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -28,23 +29,23 @@ export function FallbackForm({ action, exercises, machines }: FallbackFormProps)
         onChange={setExerciseId}
         error={state.fieldErrors?.fallbackExerciseId}
       />
-      <Field label="Machine" error={state.fieldErrors?.fallbackEquipmentInstanceId}>
-        <Select
-          name="fallbackEquipmentInstanceId"
-          defaultValue={state.values?.fallbackEquipmentInstanceId ?? ""}
-        >
-          <option value="">Any</option>
-          {machines.map((machine) => (
-            <option key={machine.id} value={machine.id}>
-              {machine.name}
-            </option>
-          ))}
-        </Select>
-      </Field>
-      <div className="space-y-2">
+      <Card>
+        <Field label="Machine" error={state.fieldErrors?.fallbackEquipmentInstanceId}>
+          <Select
+            name="fallbackEquipmentInstanceId"
+            defaultValue={state.values?.fallbackEquipmentInstanceId ?? ""}
+          >
+            <option value="">Any</option>
+            {machines.map((machine) => (
+              <option key={machine.id} value={machine.id}>
+                {machine.name}
+              </option>
+            ))}
+          </Select>
+        </Field>
         <FormError message={state.formError} />
         <SubmitButton disabled={!exerciseId}>Save fallback</SubmitButton>
-      </div>
+      </Card>
     </form>
   );
 }

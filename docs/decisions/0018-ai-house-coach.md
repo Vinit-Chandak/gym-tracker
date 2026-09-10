@@ -61,6 +61,20 @@ That is enough to build the coach without an API key.
    and installs dependencies in cloud sessions through a SessionStart hook. The routine's model
    is chosen on the routine itself.
 
+## Interface
+
+Placed under the rules of decisions 0015 to 0017. On Today the coach's plan is part of the
+day's card, not a card of its own: the coach's sentence takes the subtitle line, a Coach badge
+sits by the standing, and the footer row "The plan" lists the coach's exercises in the same
+two-line rhythm as the programme's, the machine after the name where the coach chose one, the
+coach's note as a third small line, a dropped exercise struck through in its place. Asking the
+coach lives in the More options sheet, whose contents swap to the gym picker the way skipping
+asks for its reason. A plan made for another gym, or a request under way, is one muted line
+under the Start button. In the session, the coach's sentence is one slim box above the
+warm-up box, which lists the coach's warm-up in place of the protocol's drills. In Settings the
+coach is a row with an icon in the Training box, and its page is a box with the switch and its
+standing, then labelled boxes for the coach's memo and the athlete's notes.
+
 ## Consequences
 
 - Migration `0008_coach_plans` adds `session_plans`, `coach_memos`, `coach_requests` and

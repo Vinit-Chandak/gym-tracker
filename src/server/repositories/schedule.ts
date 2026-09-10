@@ -20,14 +20,17 @@ import {
   type Suggestion,
 } from "@/domain/schedule";
 import type { PrescriptionType } from "@/domain/types";
+import { sharedWarmupProtocols } from "@/server/queries/reference";
 
 export type ActiveProgram = {
   id: string;
   name: string;
   slug: string;
   startDate: string | null;
+  endDate: string | null;
   weeks: number;
   startDayIndex: number;
+  notes: string | null;
 };
 
 export async function getActiveProgram(db: DbOrTx, userId: string): Promise<ActiveProgram | null> {
@@ -37,8 +40,10 @@ export async function getActiveProgram(db: DbOrTx, userId: string): Promise<Acti
       name: programs.name,
       slug: programs.slug,
       startDate: programs.startDate,
+      endDate: programs.endDate,
       weeks: programs.weeks,
       startDayIndex: programs.startDayIndex,
+      notes: programs.notes,
     })
     .from(programs)
     .where(and(eq(programs.userId, userId), eq(programs.status, "active")))
@@ -79,8 +84,10 @@ export async function getSchedule(db: DbOrTx, userId: string): Promise<Schedule 
       name: programs.name,
       slug: programs.slug,
       startDate: programs.startDate,
+      endDate: programs.endDate,
       weeks: programs.weeks,
       startDayIndex: programs.startDayIndex,
+      notes: programs.notes,
       // Plain SQL on purpose: inside a select list Drizzle drops table qualifiers (see listGyms).
       days: sql<ScheduleDay[]>`coalesce((
         select json_agg(json_build_object(
@@ -116,8 +123,10 @@ export async function getSchedule(db: DbOrTx, userId: string): Promise<Schedule 
     name: row.name,
     slug: row.slug,
     startDate: row.startDate,
+    endDate: row.endDate,
     weeks: row.weeks ?? 8,
     startDayIndex: row.startDayIndex,
+    notes: row.notes,
   };
   return {
     program,
@@ -304,6 +313,19 @@ export type RunTarget = {
   comment: string | null;
 };
 
+function runTargetSelection() {
+  return {
+    durationMinMinutes: programRuns.durationMinMinutes,
+    durationMaxMinutes: programRuns.durationMaxMinutes,
+    rpeMin: programRuns.rpeMin,
+    rpeMax: programRuns.rpeMax,
+    paceNote: programRuns.paceNote,
+    progressionNote: programRuns.progressionNote,
+    shinRule: programRuns.shinRule,
+    comment: programRuns.comment,
+  };
+}
+
 export async function getRunTarget(
   db: DbOrTx,
   programId: string,
@@ -311,16 +333,7 @@ export async function getRunTarget(
   dayOfWeek: number,
 ): Promise<RunTarget | null> {
   const [row] = await db
-    .select({
-      durationMinMinutes: programRuns.durationMinMinutes,
-      durationMaxMinutes: programRuns.durationMaxMinutes,
-      rpeMin: programRuns.rpeMin,
-      rpeMax: programRuns.rpeMax,
-      paceNote: programRuns.paceNote,
-      progressionNote: programRuns.progressionNote,
-      shinRule: programRuns.shinRule,
-      comment: programRuns.comment,
-    })
+    .select(runTargetSelection())
     .from(programRuns)
     .where(
       and(
@@ -331,6 +344,19 @@ export async function getRunTarget(
     )
     .limit(1);
   return row ?? null;
+}
+
+/** Every planned run of one cycle, by the weekday it falls on. */
+export async function listRunTargets(
+  db: DbOrTx,
+  programId: string,
+  cycleIndex: number,
+): Promise<Map<number, RunTarget>> {
+  const rows = await db
+    .select({ dayOfWeek: programRuns.dayOfWeek, ...runTargetSelection() })
+    .from(programRuns)
+    .where(and(eq(programRuns.programId, programId), eq(programRuns.weekIndex, cycleIndex)));
+  return new Map(rows.map(({ dayOfWeek, ...run }) => [dayOfWeek, run]));
 }
 
 export type DayStatus = {
@@ -409,5 +435,86 @@ export async function getTodayPlan(
         : null,
     runTarget,
     cycleDays,
+  };
+}
+
+export type ProgramDayPlan = {
+  day: ScheduleDay;
+  exercises: PlannedExercisePreview[];
+  warmupName: string | null;
+  /** The run planned for this day of the cycle the programme is currently on. */
+  run: RunTarget | null;
+  status: SlotStatus | "pending" | "not_in_programme";
+  /** The day Today is offering. */
+  isNext: boolean;
+};
+
+export type ProgramOverview = {
+  program: ActiveProgram;
+  progress: Progress;
+  projectedEnd: string | null;
+  currentCycle: number;
+  days: ProgramDayPlan[];
+  /** What one cycle actually asks for, which is the shape of the programme. */
+  liftingDays: number;
+  setsPerCycle: number;
+};
+
+/**
+ * The whole active programme: every day of the cycle with its exercises, warm-up and run,
+ * and where the sequence has got to.
+ *
+ * Three statements for any number of days — the schedule, then every day's exercises and
+ * the cycle's runs together — plus the warm-up names, which come from the library already
+ * in memory. Reading a seven-day cycle costs the same as reading a one-day one.
+ */
+export async function getProgramOverview(
+  db: DbOrTx,
+  userId: string,
+  timeZone: string,
+): Promise<ProgramOverview | null> {
+  const schedule = await getSchedule(db, userId);
+  if (!schedule) return null;
+  const state = schedule.state;
+  const next = suggestion(state);
+  const currentCycle = next?.slot.cycleIndex ?? nextPendingSlot(state)?.cycleIndex ?? state.cycles;
+  const [exercisesByDay, runs, warmups] = await Promise.all([
+    listExercisesByDay(
+      db,
+      schedule.days.map((day) => day.id),
+    ),
+    listRunTargets(db, schedule.program.id, currentCycle),
+    sharedWarmupProtocols(db),
+  ]);
+  const warmupNames = new Map(warmups.map((warmup) => [warmup.id, warmup.name]));
+  const slots = allSlots(state);
+  const days: ProgramDayPlan[] = schedule.days.map((day) => {
+    const ref = { cycleIndex: currentCycle, dayIndex: day.dayIndex };
+    const exists = slots.some(
+      (slot) => slot.cycleIndex === ref.cycleIndex && slot.dayIndex === ref.dayIndex,
+    );
+    return {
+      day,
+      exercises: exercisesByDay.get(day.id) ?? [],
+      warmupName: day.warmupProtocolId ? (warmupNames.get(day.warmupProtocolId) ?? null) : null,
+      run: day.includesRun ? (runs.get(day.dayOfWeek ?? 0) ?? null) : null,
+      status: exists ? slotStatus(state, ref) : "not_in_programme",
+      isNext:
+        next !== null &&
+        next.slot.cycleIndex === currentCycle &&
+        next.slot.dayIndex === day.dayIndex,
+    };
+  });
+  return {
+    program: schedule.program,
+    progress: progress(state),
+    projectedEnd: projectedEndDate(state, todayInTimeZone(timeZone)),
+    currentCycle,
+    days,
+    liftingDays: schedule.days.filter((day) => day.includesLifting).length,
+    setsPerCycle: days.reduce(
+      (total, entry) => total + entry.exercises.reduce((sets, e) => sets + e.sets, 0),
+      0,
+    ),
   };
 }

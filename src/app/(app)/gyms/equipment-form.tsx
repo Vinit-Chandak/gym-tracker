@@ -2,6 +2,7 @@
 
 import { useActionState, useRef, useState } from "react";
 
+import { Card } from "@/components/ui/card";
 import { Disclosure } from "@/components/ui/disclosure";
 import { FormError, SubmitButton } from "@/components/ui/form";
 import { Field, Input, Textarea } from "@/components/ui/input";
@@ -108,80 +109,82 @@ export function EquipmentForm({
   return (
     <form action={formAction} className="space-y-[var(--section-gap)]">
       <Section title="What it is">
-        <Field label="Equipment type" error={state.fieldErrors?.equipmentTypeId}>
-          <Select
-            name="equipmentTypeId"
-            value={typeId}
-            onChange={(event) => handleTypeChange(event.target.value)}
-            required
+        <Card>
+          <Field label="Equipment type" error={state.fieldErrors?.equipmentTypeId}>
+            <Select
+              name="equipmentTypeId"
+              value={typeId}
+              onChange={(event) => handleTypeChange(event.target.value)}
+              required
+            >
+              <option value="">Choose a type…</option>
+              {grouped.map((group) => (
+                <optgroup key={group.category} label={EQUIPMENT_CATEGORY_LABELS[group.category]}>
+                  {group.items.map((type) => (
+                    <option key={type.id} value={type.id}>
+                      {type.name}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </Select>
+          </Field>
+
+          <Field label="Name" error={state.fieldErrors?.name}>
+            <Input
+              name="name"
+              value={name}
+              onChange={(event) => {
+                touched.current.name = true;
+                setName(event.target.value);
+              }}
+              maxLength={80}
+              autoComplete="off"
+              required
+            />
+          </Field>
+
+          <Field label="Load" error={state.fieldErrors?.resistanceMode}>
+            <SegmentedControl
+              name="resistanceMode"
+              options={MODE_OPTIONS}
+              value={mode}
+              onChange={(next) => {
+                touched.current.mode = true;
+                setMode(next);
+              }}
+              columns={3}
+            />
+          </Field>
+
+          <Field label="Unit" error={state.fieldErrors?.unit}>
+            <SegmentedControl
+              name="unit"
+              options={UNIT_OPTIONS}
+              value={unit}
+              onChange={(next) => {
+                touched.current.unit = true;
+                setUnit(next);
+              }}
+              columns={5}
+            />
+          </Field>
+
+          <Field
+            label="Smallest load jump"
+            info="In the unit above: 2.5 for a pair of 1.25 kg plates, or one stack step. Progression suggestions move by this amount."
+            htmlFor="load-increment"
+            error={state.fieldErrors?.loadIncrement}
           >
-            <option value="">Choose a type…</option>
-            {grouped.map((group) => (
-              <optgroup key={group.category} label={EQUIPMENT_CATEGORY_LABELS[group.category]}>
-                {group.items.map((type) => (
-                  <option key={type.id} value={type.id}>
-                    {type.name}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </Select>
-        </Field>
-
-        <Field label="Name" error={state.fieldErrors?.name}>
-          <Input
-            name="name"
-            value={name}
-            onChange={(event) => {
-              touched.current.name = true;
-              setName(event.target.value);
-            }}
-            maxLength={80}
-            autoComplete="off"
-            required
-          />
-        </Field>
-
-        <Field label="Load" error={state.fieldErrors?.resistanceMode}>
-          <SegmentedControl
-            name="resistanceMode"
-            options={MODE_OPTIONS}
-            value={mode}
-            onChange={(next) => {
-              touched.current.mode = true;
-              setMode(next);
-            }}
-            columns={3}
-          />
-        </Field>
-
-        <Field label="Unit" error={state.fieldErrors?.unit}>
-          <SegmentedControl
-            name="unit"
-            options={UNIT_OPTIONS}
-            value={unit}
-            onChange={(next) => {
-              touched.current.unit = true;
-              setUnit(next);
-            }}
-            columns={5}
-          />
-        </Field>
-
-        <Field
-          label="Smallest load jump"
-          info="In the unit above: 2.5 for a pair of 1.25 kg plates, or one stack step. Progression suggestions move by this amount."
-          htmlFor="load-increment"
-          error={state.fieldErrors?.loadIncrement}
-        >
-          <Input
-            id="load-increment"
-            name="loadIncrement"
-            inputMode="decimal"
-            defaultValue={value("loadIncrement")}
-            placeholder="2.5"
-          />
-        </Field>
+            <Input
+              id="load-increment"
+              name="loadIncrement"
+              inputMode="decimal"
+              defaultValue={value("loadIncrement")}
+              placeholder="2.5"
+            />
+          </Field>
+        </Card>
       </Section>
 
       <Disclosure summary="Additional details" defaultOpen={detailError || hasDetail}>

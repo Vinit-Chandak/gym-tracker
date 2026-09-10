@@ -6,15 +6,17 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import type { Route } from "next";
 
+import { DateRangeFields } from "@/components/date-range-fields";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Chart, SERIES_COLORS, type ChartSeries } from "@/components/ui/chart";
+import { FilterSheet } from "@/components/ui/filter-sheet";
 import { InfoTip } from "@/components/ui/info-tip";
 import { Field } from "@/components/ui/input";
-import { Section } from "@/components/ui/section";
+import { SectionSelect } from "@/components/ui/section-select";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select } from "@/components/ui/select";
-import { Tabs } from "@/components/ui/tabs";
+import { ProgressBar } from "@/components/ui/progress-bar";
 import type { PerformanceSeries, Point } from "@/domain/analytics";
 import type { MuscleVolume } from "@/domain/muscle-volume";
 import type { MuscleGroup } from "@/domain/types";
@@ -60,6 +62,8 @@ export type Adherence = {
 };
 
 type Props = {
+  /** The range every trend on this screen is drawn over; the filter sheet changes it. */
+  range: { from: string; to: string };
   summary: { workouts: number; runs: number; trainingDays: number; truncated: boolean };
   adherence: Adherence | null;
   weeks: Week[];
@@ -192,6 +196,7 @@ function MachinePicker({
 }
 
 export function ProgressView({
+  range,
   summary,
   adherence,
   weeks,
@@ -269,25 +274,26 @@ export function ProgressView({
 
   return (
     <div className="page-stack">
-      <Tabs
-        name="progress-tab"
+      <SectionSelect
         label="Progress section"
         options={TABS}
         value={tab}
         onChange={setTab}
+        action={
+          <FilterSheet title="Filters" summary={formatDateRange(range.from, range.to)}>
+            {(close) => <DateRangeFields from={range.from} to={range.to} onApplied={close} />}
+          </FilterSheet>
+        }
       />
 
       {/* Only the chosen section is mounted; the controls above it keep their state. */}
-      <div
-        role="tabpanel"
-        id="progress-tab-panel"
-        aria-labelledby={`progress-tab-${tab}-tab`}
-        tabIndex={0}
+      <section
+        aria-label={TABS.find((option) => option.value === tab)!.label}
         className="page-stack min-w-0"
       >
         {tab === "overview" && (
           <>
-            <dl className="grid grid-cols-3 divide-x divide-line border-y border-line py-1">
+            <dl className="grid box grid-cols-3 gap-2 px-2 py-3">
               <Stat label="Workouts" value={String(summary.workouts)} />
               <Stat label="Runs" value={String(summary.runs)} />
               <Stat label="Active days" value={String(summary.trainingDays)} />
@@ -312,33 +318,25 @@ export function ProgressView({
                   </span>
                   <span className="text-sm text-ink-muted">sessions</span>
                 </p>
-                <div
-                  className="h-1.5 w-full overflow-hidden rounded-full bg-surface-raised"
-                  role="img"
-                  aria-label={`${adherence.completed} of ${adherence.total} sessions complete`}
-                >
-                  <div
-                    className="h-full rounded-full bg-accent"
-                    style={{
-                      width: `${Math.round((adherence.completed / Math.max(1, adherence.total)) * 100)}%`,
-                    }}
-                  />
-                </div>
+                <ProgressBar
+                  value={adherence.completed}
+                  max={adherence.total}
+                  label={`${adherence.completed} of ${adherence.total} sessions complete`}
+                />
                 <p className="text-xs text-ink-muted">
                   {adherence.remaining} remaining · {adherence.skipped} skipped
                 </p>
               </Card>
             )}
 
-            <Section
-              title="Weekly sessions"
-              action={
+            <Card>
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-base font-medium">Weekly sessions</h2>
                 <InfoTip label="About weekly sessions">
                   Weeks run Tuesday to Monday in your time zone. The first and last weeks of the
                   range may be partial.
                 </InfoTip>
-              }
-            >
+              </div>
               <Chart
                 title="Sessions"
                 unit="sessions"
@@ -353,13 +351,13 @@ export function ProgressView({
                 ]}
                 format={(v) => String(Math.round(v))}
               />
-            </Section>
+            </Card>
           </>
         )}
 
         {tab === "strength" && (
           <>
-            <div className="min-w-0 space-y-3">
+            <Card>
               <Field label="Exercise">
                 <Select
                   value={selected?.name ?? ""}
@@ -432,18 +430,17 @@ export function ProgressView({
                   Finish a workout with logged sets to see trends.
                 </p>
               )}
-            </div>
+            </Card>
 
             {muscles.length > 0 && (
-              <Section
-                title="Sets by muscle"
-                action={
+              <Card>
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="text-base font-medium">Sets by muscle</h2>
                   <InfoTip label="About sets by muscle">
                     Working sets per week. A set counts once for each primary muscle and half for
                     each secondary one; warm-ups are excluded.
                   </InfoTip>
-                }
-              >
+                </div>
                 <Field label="Muscle">
                   <Select
                     value={shownMuscle ?? ""}
@@ -470,13 +467,13 @@ export function ProgressView({
                   ]}
                   format={(v) => String(Math.round(v))}
                 />
-              </Section>
+              </Card>
             )}
           </>
         )}
 
         {tab === "running" && (
-          <div className="min-w-0 space-y-3">
+          <Card>
             <SegmentedControl
               name="run-metric"
               aria-label="Running measurement"
@@ -533,11 +530,11 @@ export function ProgressView({
                 }
               />
             )}
-          </div>
+          </Card>
         )}
 
         {tab === "recovery" && (
-          <div className="min-w-0 space-y-3">
+          <Card>
             <SegmentedControl
               name="recovery-metric"
               aria-label="Recovery measurement"
@@ -558,19 +555,18 @@ export function ProgressView({
               ]}
               note="From workout check-ins, daily recovery entries and after-run shin scores. A missing reading leaves a gap."
             />
-          </div>
+          </Card>
         )}
 
         {tab === "body" && (
-          <Section
-            title="Muscles this week"
-            action={
+          <Card>
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-base font-medium">Muscles this week</h2>
               <InfoTip label="About the body map">
                 Working sets from finished workouts. A set counts once for each primary muscle and
                 half for each secondary one; warm-ups are excluded.
               </InfoTip>
-            }
-          >
+            </div>
             {/* Body keeps its own week navigation: it is a snapshot, not a trend. */}
             <div className="flex items-center justify-between gap-2">
               <Button
@@ -598,13 +594,13 @@ export function ProgressView({
             <div className={pending ? "opacity-50 transition-opacity" : undefined}>
               <BodyMap volume={body.volume} totalSets={body.totalSets} />
             </div>
-          </Section>
+          </Card>
         )}
 
         {weekDates.length === 0 && (
           <p className="text-sm text-ink-muted">No weeks fall inside this range.</p>
         )}
-      </div>
+      </section>
     </div>
   );
 }

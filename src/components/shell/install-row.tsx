@@ -1,8 +1,11 @@
 "use client";
 
+import { ChevronRight, Download } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { Button } from "@/components/ui/button";
+import { List, PRESSABLE_ROW_CLASS, RowIcon } from "@/components/ui/link-row";
+import { Section } from "@/components/ui/section";
+import { Sheet } from "@/components/ui/sheet";
 import { APP_NAME } from "@/lib/app";
 
 type IosNavigator = Navigator & { standalone?: boolean };
@@ -60,32 +63,47 @@ function useInstallPrompt(): { install: () => void; available: boolean } {
   };
 }
 
-/** How to install, shown only in a browser tab — never inside the installed app. */
-export function InstallCard() {
+/**
+ * The App group of Settings: one row that installs, shown only in a browser tab — never
+ * inside the installed app. Where the browser has no prompt to offer, the row opens the
+ * two-line instructions in a sheet instead of printing them on the page.
+ */
+export function InstallSection() {
   const standalone = useStandalone();
   const { install, available } = useInstallPrompt();
+  const [open, setOpen] = useState(false);
   if (standalone !== false) return null;
 
-  if (available) {
-    return (
-      <div className="flex items-center justify-between gap-3">
-        <p className="font-medium">Install {APP_NAME}</p>
-        <Button variant="secondary" size="sm" onClick={install}>
-          Install
-        </Button>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-w-0 space-y-1">
-      <p className="font-medium">Install {APP_NAME}</p>
-      <p className="text-sm text-ink-muted">
-        <span className="text-ink">Android:</span> Chrome menu ⋮ → Add to Home screen
-      </p>
-      <p className="text-sm text-ink-muted">
-        <span className="text-ink">iPhone:</span> Safari Share → Add to Home Screen
-      </p>
-    </div>
+    <Section title="App">
+      <List>
+        <li>
+          <button
+            type="button"
+            onClick={available ? install : () => setOpen(true)}
+            aria-haspopup={available ? undefined : "dialog"}
+            className={PRESSABLE_ROW_CLASS}
+          >
+            <RowIcon icon={Download} />
+            <span className="min-w-0 flex-1 font-medium">Install {APP_NAME}</span>
+            <ChevronRight className="size-5 shrink-0 text-ink-subtle" aria-hidden />
+          </button>
+        </li>
+      </List>
+      {!available && (
+        <Sheet open={open} onClose={() => setOpen(false)} title={`Install ${APP_NAME}`}>
+          <dl className="space-y-3 text-sm">
+            <div>
+              <dt className="font-medium">Android</dt>
+              <dd className="text-ink-muted">Chrome menu ⋮ → Add to Home screen</dd>
+            </div>
+            <div>
+              <dt className="font-medium">iPhone</dt>
+              <dd className="text-ink-muted">Safari Share → Add to Home Screen</dd>
+            </div>
+          </dl>
+        </Sheet>
+      )}
+    </Section>
   );
 }

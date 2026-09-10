@@ -16,9 +16,9 @@ import { listGyms, type GymListItem } from "@/server/repositories/gyms";
 
 export const metadata: Metadata = { title: "Gyms" };
 
-function GymRows({ gyms }: { gyms: GymListItem[] }) {
+function GymRows({ gyms, plain = false }: { gyms: GymListItem[]; plain?: boolean }) {
   return (
-    <List>
+    <List plain={plain}>
       {gyms.map((gym) => (
         <li key={gym.id}>
           <LinkRow
@@ -72,7 +72,7 @@ export default async function GymsPage() {
         {/* Archived gyms are kept, not deleted: history refers to them. */}
         {archived.length > 0 && (
           <Disclosure summary="Archived" meta={String(archived.length)}>
-            <GymRows gyms={archived} />
+            <GymRows gyms={archived} plain />
           </Disclosure>
         )}
       </PageContent>

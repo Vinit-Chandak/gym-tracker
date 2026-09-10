@@ -59,27 +59,24 @@ export default async function EquipmentPage(
             </div>
           </Card>
         )}
-        <Card>
-          <EquipmentForm
-            action={updateEquipmentAction.bind(null, equipment.id)}
-            types={types}
-            preferredUnit={preferredUnit}
-            initial={{
-              name: equipment.name,
-              equipmentTypeId: equipment.equipmentTypeId,
-              manufacturer: equipment.manufacturer ?? "",
-              model: equipment.model ?? "",
-              resistanceMode: equipment.resistanceMode,
-              unit: equipment.unit,
-              loadIncrement:
-                equipment.loadIncrement === null ? "" : String(equipment.loadIncrement),
-              pulleyRatio: equipment.pulleyRatio ?? "",
-              angleDegrees: equipment.angleDegrees === null ? "" : String(equipment.angleDegrees),
-              notes: equipment.notes ?? "",
-            }}
-            submitLabel="Save changes"
-          />
-        </Card>
+        <EquipmentForm
+          action={updateEquipmentAction.bind(null, equipment.id)}
+          types={types}
+          preferredUnit={preferredUnit}
+          initial={{
+            name: equipment.name,
+            equipmentTypeId: equipment.equipmentTypeId,
+            manufacturer: equipment.manufacturer ?? "",
+            model: equipment.model ?? "",
+            resistanceMode: equipment.resistanceMode,
+            unit: equipment.unit,
+            loadIncrement: equipment.loadIncrement === null ? "" : String(equipment.loadIncrement),
+            pulleyRatio: equipment.pulleyRatio ?? "",
+            angleDegrees: equipment.angleDegrees === null ? "" : String(equipment.angleDegrees),
+            notes: equipment.notes ?? "",
+          }}
+          submitLabel="Save changes"
+        />
         {equipment.isActive && (
           <Card>
             <div className="flex items-center justify-between gap-3">

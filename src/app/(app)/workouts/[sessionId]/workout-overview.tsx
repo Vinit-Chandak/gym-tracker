@@ -1,11 +1,12 @@
 "use client";
 
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Sparkles } from "lucide-react";
 import { useTransition, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button, LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { List } from "@/components/ui/link-row";
 import { InfoTip } from "@/components/ui/info-tip";
 import { formatSets } from "@/domain/sets";
 import { supersetHues, supersetStyle } from "@/lib/superset-colors";
@@ -51,9 +52,10 @@ function WarmupRow({
   onDone: (done: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const drills = session.warmup?.drills ?? [];
+  // The coach's warm-up replaces the protocol for this session; the protocol stays on the
+  // programme day rather than being listed twice here.
   const coachLines = session.coachPlan?.warmup ?? [];
-  const count = coachLines.length > 0 ? coachLines.length : drills.length;
+  const drills = session.warmup?.drills ?? [];
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -74,13 +76,13 @@ function WarmupRow({
     });
 
   return (
-    <div className="border-y border-line">
-      <div className="flex items-center gap-2">
+    <div className="box">
+      <div className="flex items-center gap-2 pr-3">
         <button
           type="button"
           aria-expanded={open}
           onClick={() => setOpen((current) => !current)}
-          className="flex min-h-11 min-w-0 flex-1 items-center gap-2 py-2 text-left text-sm font-medium"
+          className="flex min-h-14 min-w-0 flex-1 items-center gap-2 py-2 pl-4 text-left font-medium"
         >
           <ChevronDown
             className={cn(
@@ -91,7 +93,9 @@ function WarmupRow({
           />
           <span className="min-w-0 flex-1">Warm-up</span>
           <span className="shrink-0 text-xs font-normal text-ink-muted tabular-nums">
-            {coachLines.length > 0 ? `${count} from the coach` : `${count} drills`}
+            {coachLines.length > 0
+              ? `${coachLines.length} from the coach`
+              : `${drills.length} drills`}
           </span>
         </button>
         <Button
@@ -106,18 +110,16 @@ function WarmupRow({
         </Button>
       </div>
       {open && coachLines.length > 0 && (
-        // The coach's warm-up replaces the protocol for this session; the protocol stays
-        // one tap away on the programme day rather than being listed twice here.
-        <ol className="pb-2 text-sm ruled-list">
+        <ol className="border-t border-line px-4 pb-2 text-sm ruled-list">
           {coachLines.map((line, index) => (
-            <li key={index} className="py-1.5">
+            <li key={index} className="py-1.5 [overflow-wrap:anywhere]">
               {line}
             </li>
           ))}
         </ol>
       )}
       {open && coachLines.length === 0 && (
-        <ol className="pb-2 text-sm ruled-list">
+        <ol className="border-t border-line px-4 pb-2 text-sm ruled-list">
           {drills.map((drill) => (
             <li key={drill.order} className="flex justify-between gap-3 py-1.5">
               <span className="min-w-0">{drill.name}</span>
@@ -127,7 +129,7 @@ function WarmupRow({
         </ol>
       )}
       {error && (
-        <p role="alert" className="pb-2 text-sm text-danger">
+        <p role="alert" className="px-4 pb-3 text-sm text-danger">
           {error}
         </p>
       )}
@@ -214,11 +216,13 @@ export function WorkoutOverview({
         </Card>
       )}
 
+      {/* The coach's sentence for the session, one slim box: the same shape as the gym row
+          on Today, so it reads as context rather than as another decision. */}
       {session.coachPlan && (
-        <p className="text-sm">
-          <Badge tone="accent">Coach</Badge>{" "}
-          <span className="align-middle">{session.coachPlan.summary}</span>
-        </p>
+        <div className="flex box items-center gap-2 px-3 py-2.5">
+          <Sparkles className="size-4 shrink-0 text-accent" aria-hidden />
+          <p className="min-w-0 text-sm [overflow-wrap:anywhere]">{session.coachPlan.summary}</p>
+        </div>
       )}
 
       {!readOnly && (session.warmup || (session.coachPlan?.warmup.length ?? 0) > 0) && (
@@ -228,7 +232,7 @@ export function WorkoutOverview({
       {session.exercises.length === 0 ? (
         <p className="text-sm text-ink-muted">No exercises yet.</p>
       ) : (
-        <ul className="border-y border-line ruled-list">
+        <List>
           {session.exercises.map((exercise) => {
             const action = rowAction(exercise);
             const hue = exercise.supersetGroup ? hues.get(exercise.supersetGroup) : undefined;
@@ -238,9 +242,10 @@ export function WorkoutOverview({
                   type="button"
                   onClick={() => onOpenExercise(exercise.id)}
                   className={cn(
-                    "flex min-h-14 w-full items-center gap-3 py-3 text-left active:bg-surface-raised",
-                    // Rows in a superset share one colour; nothing else marks the group.
-                    hue && "superset-row",
+                    "flex min-h-14 w-full items-center gap-3 py-3 pr-4 text-left active:bg-surface-raised",
+                    // Rows in a superset share one colour; nothing else marks the group. The
+                    // rule takes 3px of the gutter so the names still line up.
+                    hue ? "pl-[0.8125rem] superset-row" : "pl-4",
                   )}
                   style={hue ? supersetStyle(hue) : undefined}
                 >
@@ -271,7 +276,7 @@ export function WorkoutOverview({
               </li>
             );
           })}
-        </ul>
+        </List>
       )}
 
       {!readOnly && (

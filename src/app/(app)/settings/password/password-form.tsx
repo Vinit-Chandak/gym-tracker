@@ -1,35 +1,28 @@
 "use client";
 
 import { CheckCircle2 } from "lucide-react";
-import { useActionState, useState } from "react";
+import { useActionState } from "react";
 
-import { Button } from "@/components/ui/button";
+import { LinkButton } from "@/components/ui/button";
 import { FormError, SubmitButton } from "@/components/ui/form";
 import { Field, Input } from "@/components/ui/input";
 import { updatePasswordAction, type PasswordChangeState } from "@/server/actions/auth";
 
 const INITIAL: PasswordChangeState = {};
 
-export function PasswordSettings() {
-  const [open, setOpen] = useState(false);
+export function PasswordForm() {
   const [state, formAction] = useActionState(updatePasswordAction, INITIAL);
 
   if (state.done) {
     return (
-      <p className="flex items-center gap-2 text-sm text-success">
-        <CheckCircle2 className="size-5 shrink-0" aria-hidden />
-        Password updated.
-      </p>
-    );
-  }
-
-  if (!open) {
-    return (
-      <div className="flex items-center justify-between gap-3">
-        <p className="font-medium">Password</p>
-        <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
-          Change
-        </Button>
+      <div className="space-y-3">
+        <p className="flex items-center gap-2 text-sm text-success">
+          <CheckCircle2 className="size-5 shrink-0" aria-hidden />
+          Password updated.
+        </p>
+        <LinkButton href="/settings" variant="secondary" className="w-full">
+          Back to Settings
+        </LinkButton>
       </div>
     );
   }
@@ -49,14 +42,7 @@ export function PasswordSettings() {
         />
       </Field>
       <FormError message={state.error} />
-      <div className="action-row">
-        <Button variant="ghost" onClick={() => setOpen(false)}>
-          Cancel
-        </Button>
-        <SubmitButton variant="secondary" size="md" pendingLabel="Saving…">
-          Save password
-        </SubmitButton>
-      </div>
+      <SubmitButton pendingLabel="Saving…">Save password</SubmitButton>
     </form>
   );
 }

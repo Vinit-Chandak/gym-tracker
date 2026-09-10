@@ -3,9 +3,12 @@
   --ov-font-heading: var(--ov-font-body);
   --ov-weight-heading: 600;
   --ov-heading-tracking: -0.025em;
-  --ov-radius-card: 0.375rem;
+  /* A grouped box: rounded enough to read as one object, in step with the sheet. */
+  --ov-radius-card: 0.75rem;
   --ov-radius-control: 0.25rem;
   --ov-radius-sheet: 0.75rem;
+  /* The navigation island: softer than a card, well short of a capsule. */
+  --ov-radius-island: 1rem;
 
   --ov-light-canvas: #f4f3ee;
   --ov-light-surface: #fffdf8;
@@ -35,6 +38,13 @@
   --ov-light-volume-3: #5c8a67;
   --ov-light-volume-4: #315f40;
   --ov-light-backdrop: rgb(15 23 20 / 0.48);
+  /*
+   * The navigation island, which floats over the page rather than sitting beside it. The
+   * canvas at 72%, so scrolled content stays visible underneath without being readable
+   * through the labels; the blur that makes that work is applied where the island is.
+   */
+  --ov-light-nav-island: rgb(244 243 238 / 0.72);
+  --ov-light-nav-shadow: 0 0.5rem 1.5rem rgb(15 23 20 / 0.12);
   /*
    * Superset hues. Eight, clear of the copper accent, each at least 4.5:1 on the light
    * surfaces, so a coloured rule and set number read on their own without a label.
@@ -75,6 +85,8 @@
   --ov-dark-volume-3: #8eb494;
   --ov-dark-volume-4: #b9d8bb;
   --ov-dark-backdrop: rgb(0 0 0 / 0.64);
+  --ov-dark-nav-island: rgb(23 28 28 / 0.72);
+  --ov-dark-nav-shadow: 0 0.5rem 1.5rem rgb(0 0 0 / 0.45);
   /* The same eight hues, lifted for the dark surfaces; at least 4.5:1 on each. */
   --ov-dark-group-1: #6fd0c2;
   --ov-dark-group-2: #92bcf0;

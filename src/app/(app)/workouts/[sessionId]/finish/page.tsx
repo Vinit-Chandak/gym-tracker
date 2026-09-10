@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
+import { List } from "@/components/ui/link-row";
 import { Section } from "@/components/ui/section";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
@@ -49,11 +50,11 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
           }
         >
           {done.length > 0 ? (
-            <ul className="border-y border-line text-sm ruled-list">
+            <List className="text-sm">
               {done.map((exercise) => (
                 <li
                   key={exercise.id}
-                  className="flex flex-wrap justify-between gap-x-3 gap-y-1 py-2"
+                  className="flex min-h-12 flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 py-2"
                 >
                   <span className="min-w-0 [overflow-wrap:anywhere]">{exercise.exercise.name}</span>
                   <span className="shrink-0 text-ink-muted tabular-nums">
@@ -61,7 +62,7 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
                   </span>
                 </li>
               ))}
-            </ul>
+            </List>
           ) : (
             <p className="text-sm text-ink-muted">No sets logged yet.</p>
           )}
@@ -70,22 +71,28 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
         {/* Not done is a fact about the session, not an error. It is recorded as it stands. */}
         {(untouched.length > 0 || skipped.length > 0) && (
           <Section title="Not done">
-            <ul className="border-y border-line text-sm ruled-list">
+            <List className="text-sm">
               {untouched.map((exercise) => (
-                <li key={exercise.id} className="flex justify-between gap-3 py-2">
+                <li
+                  key={exercise.id}
+                  className="flex min-h-12 items-center justify-between gap-3 px-4 py-2"
+                >
                   <span className="min-w-0 [overflow-wrap:anywhere]">{exercise.exercise.name}</span>
                   <span className="shrink-0 text-ink-muted">Nothing logged</span>
                 </li>
               ))}
               {skipped.map((exercise) => (
-                <li key={exercise.id} className="flex justify-between gap-3 py-2">
+                <li
+                  key={exercise.id}
+                  className="flex min-h-12 items-center justify-between gap-3 px-4 py-2"
+                >
                   <span className="min-w-0 [overflow-wrap:anywhere]">{exercise.exercise.name}</span>
                   <span className="shrink-0 text-ink-muted">
                     Skipped{exercise.notes ? `: ${exercise.notes}` : ""}
                   </span>
                 </li>
               ))}
-            </ul>
+            </List>
           </Section>
         )}
 

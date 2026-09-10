@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 
 import { ExercisePicker } from "@/components/exercise-picker";
+import { Card } from "@/components/ui/card";
 import { FormError, SubmitButton } from "@/components/ui/form";
 import { Field } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -53,59 +54,59 @@ export function PickExerciseForm({
         The machine question is asked only when there is a decision to make. One applicable
         machine is not a choice, and an exercise that uses none should not be handed a list.
       */}
-      {chosen &&
-        (applicable.length > 1 ? (
-          <Field
-            label="Machine"
-            info="History is kept per machine, so the load you lifted stays comparable."
-            htmlFor="equipment-instance"
-            error={state.fieldErrors?.equipmentInstanceId}
-          >
-            <Select
-              id="equipment-instance"
-              name="equipmentInstanceId"
-              defaultValue={state.values?.equipmentInstanceId ?? ""}
+      <Card>
+        {chosen &&
+          (applicable.length > 1 ? (
+            <Field
+              label="Machine"
+              info="History is kept per machine, so the load you lifted stays comparable."
+              htmlFor="equipment-instance"
+              error={state.fieldErrors?.equipmentInstanceId}
             >
-              <option value="">Not on a machine</option>
-              {applicable.map((machine) => (
-                <option key={machine.id} value={machine.id}>
-                  {machine.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        ) : applicable.length === 1 ? (
-          <>
-            <input type="hidden" name="equipmentInstanceId" value={applicable[0]!.id} />
-            <p className="text-sm text-ink-muted">
-              On <span className="font-medium text-ink">{applicable[0]!.name}</span>
-            </p>
-          </>
-        ) : (
-          <>
-            <input type="hidden" name="equipmentInstanceId" value="" />
-            <p className="text-sm text-ink-muted">
-              {chosen.requiresEquipment ? "No machine registered here." : "No machine needed."}
-            </p>
-          </>
-        ))}
+              <Select
+                id="equipment-instance"
+                name="equipmentInstanceId"
+                defaultValue={state.values?.equipmentInstanceId ?? ""}
+              >
+                <option value="">Not on a machine</option>
+                {applicable.map((machine) => (
+                  <option key={machine.id} value={machine.id}>
+                    {machine.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          ) : applicable.length === 1 ? (
+            <>
+              <input type="hidden" name="equipmentInstanceId" value={applicable[0]!.id} />
+              <p className="text-sm text-ink-muted">
+                On <span className="font-medium text-ink">{applicable[0]!.name}</span>
+              </p>
+            </>
+          ) : (
+            <>
+              <input type="hidden" name="equipmentInstanceId" value="" />
+              <p className="text-sm text-ink-muted">
+                {chosen.requiresEquipment ? "No machine registered here." : "No machine needed."}
+              </p>
+            </>
+          ))}
 
-      {remember && (
-        <label className="flex min-h-11 items-center gap-3 text-sm">
-          <input
-            type="checkbox"
-            name="remember"
-            defaultChecked
-            className="size-5 accent-[var(--ov-accent)]"
-          />
-          Remember this as the fallback at this gym
-        </label>
-      )}
+        {remember && (
+          <label className="flex min-h-11 items-center gap-3 text-sm">
+            <input
+              type="checkbox"
+              name="remember"
+              defaultChecked
+              className="size-5 accent-[var(--ov-accent)]"
+            />
+            Remember this as the fallback at this gym
+          </label>
+        )}
 
-      <div className="space-y-2">
         <FormError message={state.formError} />
         <SubmitButton disabled={!exerciseId}>{submitLabel}</SubmitButton>
-      </div>
+      </Card>
     </form>
   );
 }

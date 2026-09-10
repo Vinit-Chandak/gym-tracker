@@ -115,7 +115,7 @@ and Settings says so.
 
 Each athlete opens **Settings → AI coach** and turns it on. The notes field there is read
 before every plan: goals, niggles, what to avoid. The first plan arrives after the next
-overnight run, or at once after **Ask the coach for a plan** on Today.
+overnight run, or at once after **Ask the coach for a plan** in Today's More options.
 
 To try it without waiting, open the routine and click **Run now**. The run appears in your
 session list; its transcript shows every athlete it planned and why.
@@ -124,13 +124,15 @@ session list; its transcript shows every athlete it planned and why.
 
 - **Overnight**: one run plans everyone who is due. A plan is made for the athlete's default
   gym and the next lifting slot of their programme.
-- **Today** shows the plan with one line per exercise. If the default gym has changed since,
-  Today says which gym the plan was made for and offers a re-plan. Starting a session at the
+- **Today** shows the plan inside the day's card: the coach's sentence under the day's name,
+  a Coach badge, and the plan as the card's last row. If the default gym has changed since,
+  a line under the button says which gym the plan was made for. Starting a session at the
   plan's gym uses it; at any other gym the rule takes over.
-- **Re-plan** opens a gym picker and an optional note for the coach. The app fires the routine,
-  and Today refreshes itself until the plan lands, usually within a few minutes. Each athlete
-  gets three requests a day (`REPLAN_DAILY_LIMIT`), because every one is a run on the owner's
-  plan, which also has a daily run allowance shown at claude.ai/code/routines.
+- **Re-plan** lives in Today's More options sheet, as "Re-plan with the coach" or "Ask the
+  coach for a plan": pick a gym, add a line for the coach if you like, and the app fires the
+  routine. Today refreshes itself until the plan lands, usually within a few minutes. Each
+  athlete gets three requests a day (`REPLAN_DAILY_LIMIT`), because every one is a run on the
+  owner's plan, which also has a daily run allowance shown at claude.ai/code/routines.
 - **Once a session has started it is fixed.** A later plan applies to the next session.
 - **Discarding an empty session** gives its plan back.
 
