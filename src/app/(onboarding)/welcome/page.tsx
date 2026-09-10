@@ -24,7 +24,7 @@ export default async function WelcomePage() {
         <div>
           <h1 className="text-xl font-medium">Welcome to {APP_NAME}</h1>
           <p className="text-sm text-ink-muted">
-            Four short steps. Everything can be changed later.
+            Four short steps. Everything here can be changed later, in Settings.
           </p>
         </div>
         <ProfileStepForm
@@ -32,6 +32,10 @@ export default async function WelcomePage() {
           timeZone={profile.timeZone}
           preferredUnit={profile.preferredUnit === "lb" ? "lb" : "kg"}
           bodyWeightKg={profile.bodyWeightKg}
+          heightCm={profile.heightCm}
+          dateOfBirth={profile.dateOfBirth}
+          sex={profile.sex}
+          trainingGoal={profile.trainingGoal}
         />
       </Card>
     </PageContent>

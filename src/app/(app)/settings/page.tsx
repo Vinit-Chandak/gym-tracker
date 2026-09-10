@@ -19,6 +19,7 @@ import Link from "@/components/ui/app-link";
 import { LinkRow, List, PRESSABLE_ROW_CLASS } from "@/components/ui/link-row";
 import { Section } from "@/components/ui/section";
 import { requireUser } from "@/server/auth";
+import { listSentence, missingProfileDetails } from "@/server/queries/profile";
 import { getRequestProfile } from "@/server/queries/request-profile";
 
 import { RestTimerSetting } from "./rest-timer-setting";
@@ -29,6 +30,7 @@ export const metadata: Metadata = { title: "Settings" };
 export default async function SettingsPage() {
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
+  const missing = missingProfileDetails(profile);
 
   return (
     <>
@@ -43,8 +45,17 @@ export default async function SettingsPage() {
               <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent">
                 <User className="size-5" strokeWidth={1.75} aria-hidden />
               </span>
-              <span className="min-w-0 flex-1 font-medium [overflow-wrap:anywhere]">
-                {profile.displayName || "Your profile"}
+              <span className="min-w-0 flex-1">
+                <span className="block font-medium [overflow-wrap:anywhere]">
+                  {profile.displayName || "Your profile"}
+                </span>
+                {/* Said here rather than only behind the row: a detail nobody knows is
+                    missing is a detail nobody adds. */}
+                {missing.length > 0 && (
+                  <span className="block text-sm text-warning">
+                    Add your {listSentence(missing)}
+                  </span>
+                )}
               </span>
               <ChevronRight className="size-5 shrink-0 text-ink-subtle" aria-hidden />
             </Link>

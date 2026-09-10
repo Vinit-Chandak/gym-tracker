@@ -7,7 +7,7 @@ import { getDb } from "@/db/client";
 import { PROGRAM_TEMPLATES } from "@/db/seed/data/templates";
 import { withUser } from "@/db/with-user";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import { requireUser } from "@/server/auth";
+import { requireProfiledUser } from "@/server/auth";
 import { ensureProfile } from "@/server/queries/profile";
 
 import { SkipLink } from "../skip-link";
@@ -16,7 +16,7 @@ import { Steps } from "../steps";
 export const metadata: Metadata = { title: "Choose a programme" };
 
 export default async function WelcomeProgrammePage() {
-  const user = await requireUser();
+  const user = await requireProfiledUser();
   const profile = await withUser(getDb(), user.id, (tx) => ensureProfile(tx, user));
 
   return (

@@ -22,6 +22,23 @@ export type LoadUnit = (typeof LOAD_UNITS)[number];
 export const BODY_LOAD_UNITS = ["kg", "lb"] as const;
 export type BodyLoadUnit = (typeof BODY_LOAD_UNITS)[number];
 
+/**
+ * What someone answers when asked their sex. Null is a fourth answer — "prefer not to say" —
+ * and every formula that reads this has to work without it.
+ */
+export const SEXES = ["female", "male", "other"] as const;
+export type Sex = (typeof SEXES)[number];
+
+/** Why someone is training. The coach reads it; nothing else changes behaviour on it yet. */
+export const TRAINING_GOALS = [
+  "build_muscle",
+  "lose_fat",
+  "get_stronger",
+  "endurance",
+  "general_fitness",
+] as const;
+export type TrainingGoal = (typeof TRAINING_GOALS)[number];
+
 export const EXERCISE_CATEGORIES = ["strength", "hypertrophy", "cardio", "mobility"] as const;
 export type ExerciseCategory = (typeof EXERCISE_CATEGORIES)[number];
 

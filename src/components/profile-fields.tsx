@@ -4,20 +4,46 @@ import { useState, useSyncExternalStore } from "react";
 
 import { Field, Input } from "@/components/ui/input";
 import { SegmentedControl } from "@/components/ui/segmented-control";
-import { BODY_LOAD_UNITS, type BodyLoadUnit } from "@/domain/types";
-import { LOAD_UNIT_LABELS } from "@/lib/labels";
+import { Select } from "@/components/ui/select";
+import {
+  BODY_LOAD_UNITS,
+  SEXES,
+  TRAINING_GOALS,
+  type BodyLoadUnit,
+  type Sex,
+  type TrainingGoal,
+} from "@/domain/types";
+import { LOAD_UNIT_LABELS, SEX_LABELS, TRAINING_GOAL_LABELS } from "@/lib/labels";
+import {
+  fromKilograms,
+  heightUnitFor,
+  toCentimetres,
+  toFeetAndInches,
+  toKilograms,
+} from "@/lib/units";
 
 export type ProfileFieldValues = {
   displayName: string;
   timeZone: string;
   preferredUnit: BodyLoadUnit;
+  /** Stored in kilograms and centimetres; shown in whichever units the account uses. */
   bodyWeightKg: number | null;
+  heightCm: number | null;
+  dateOfBirth: string | null;
+  sex: Sex | null;
+  trainingGoal: TrainingGoal | null;
 };
 
 const UNIT_OPTIONS = BODY_LOAD_UNITS.map((unit) => ({
-  value: unit,
+  value: unit as string,
   label: `${LOAD_UNIT_LABELS[unit]} (${unit === "kg" ? "kilograms" : "pounds"})`,
 }));
+
+/** Saying nothing is the fourth answer, and the one the control starts on. */
+const SEX_OPTIONS = [
+  ...SEXES.map((sex) => ({ value: sex as string, label: SEX_LABELS[sex] })),
+  { value: "", label: "Prefer not to say" },
+];
 
 /** A device's zone does not change while a form is open, so there is nothing to subscribe to. */
 function noSubscription(): () => void {
@@ -40,9 +66,24 @@ function useBrowserTimeZone(): string | null {
   return useSyncExternalStore(noSubscription, readBrowserTimeZone, () => null);
 }
 
+/** What the user typed, as a number, or null when it is blank or not one. */
+function typedNumber(value: string): number | null {
+  const trimmed = value.trim();
+  if (trimmed === "") return null;
+  const parsed = Number(trimmed.replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+const text = (value: number | null): string => (value === null ? "" : String(value));
+
 /**
- * The fields that make the app yours: name, time zone, units and body weight. Shared by the
- * onboarding step and the Settings screen, so the two can never drift apart.
+ * The fields that make the app yours: who you are, how you measure things, and the body the
+ * numbers are about. Shared by the onboarding step and the Settings screen, so the two can
+ * never drift apart — and so nothing asked during setup is impossible to change afterwards.
+ *
+ * Units are a live choice rather than a saved one: switching to pounds re-labels the weight
+ * and re-states the height in feet and inches, carrying whatever is in the fields across, so
+ * a half-filled form survives changing your mind.
  */
 export function ProfileFields({
   values,
@@ -55,11 +96,42 @@ export function ProfileFields({
   detectTimeZone?: boolean;
 }) {
   const detected = useBrowserTimeZone();
-  const [edited, setEdited] = useState<string | null>(null);
+  const [editedZone, setEditedZone] = useState<string | null>(null);
   // Only fill in for an account still on the server default; never overwrite a real choice.
   const suggest =
     detectTimeZone && values.timeZone === "UTC" && detected !== null && detected !== "UTC";
-  const timeZone = edited ?? (suggest ? detected : values.timeZone);
+  const timeZone = editedZone ?? (suggest ? detected : values.timeZone);
+
+  const [unit, setUnit] = useState<BodyLoadUnit>(values.preferredUnit);
+  const imperial = heightUnitFor(unit) === "ftin";
+
+  const initialHeight = values.heightCm === null ? null : toFeetAndInches(values.heightCm);
+  const [weight, setWeight] = useState(() =>
+    text(values.bodyWeightKg === null ? null : fromKilograms(values.bodyWeightKg, unit)),
+  );
+  const [heightCm, setHeightCm] = useState(() => text(values.heightCm));
+  const [feet, setFeet] = useState(() => text(initialHeight?.feet ?? null));
+  const [inches, setInches] = useState(() => text(initialHeight?.inches ?? null));
+
+  /** Re-states everything already typed in the units just chosen. */
+  function changeUnit(next: BodyLoadUnit) {
+    if (next === unit) return;
+    const typedWeight = typedNumber(weight);
+    if (typedWeight !== null) {
+      setWeight(String(fromKilograms(toKilograms(typedWeight, unit), next)));
+    }
+    if (heightUnitFor(next) === "ftin") {
+      const centimetres = typedNumber(heightCm);
+      if (centimetres !== null) {
+        const converted = toFeetAndInches(centimetres);
+        setFeet(String(converted.feet));
+        setInches(String(converted.inches));
+      }
+    } else if (typedNumber(feet) !== null || typedNumber(inches) !== null) {
+      setHeightCm(String(toCentimetres(typedNumber(feet) ?? 0, typedNumber(inches) ?? 0)));
+    }
+    setUnit(next);
+  }
 
   return (
     <>
@@ -70,6 +142,7 @@ export function ProfileFields({
           autoComplete="name"
           maxLength={80}
           defaultValue={values.displayName}
+          required
         />
       </Field>
 
@@ -86,7 +159,7 @@ export function ProfileFields({
           spellCheck={false}
           list="time-zone-suggestions"
           value={timeZone}
-          onChange={(event) => setEdited(event.target.value)}
+          onChange={(event) => setEditedZone(event.target.value)}
           required
         />
       </Field>
@@ -103,9 +176,13 @@ export function ProfileFields({
           name="preferredUnit"
           aria-label="Units"
           options={UNIT_OPTIONS}
-          defaultValue={values.preferredUnit}
+          value={unit}
+          onChange={(next) => changeUnit(next as BodyLoadUnit)}
           columns={2}
         />
+        <span className="block text-xs text-ink-subtle">
+          {imperial ? "Height in feet and inches." : "Height in centimetres."}
+        </span>
         {errors?.preferredUnit && (
           <span role="alert" className="block text-sm text-danger">
             {errors.preferredUnit}
@@ -113,14 +190,101 @@ export function ProfileFields({
         )}
       </div>
 
-      <Field label="Body weight (kg)" error={errors?.bodyWeightKg} hint="Optional">
+      <Field label={`Body weight (${unit})`} error={errors?.bodyWeight}>
         <Input
           type="text"
-          name="bodyWeightKg"
+          name="bodyWeight"
           inputMode="decimal"
-          defaultValue={values.bodyWeightKg === null ? "" : String(values.bodyWeightKg)}
-          placeholder="74.5"
+          value={weight}
+          onChange={(event) => setWeight(event.target.value)}
+          placeholder={unit === "kg" ? "74.5" : "164.2"}
+          required
         />
+      </Field>
+
+      {imperial ? (
+        <div className="space-y-1.5">
+          <span className="block text-sm font-medium text-ink-muted">Height</span>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="Feet" error={errors?.heightFeet}>
+              <Input
+                type="text"
+                name="heightFeet"
+                inputMode="numeric"
+                value={feet}
+                onChange={(event) => setFeet(event.target.value)}
+                placeholder="5"
+                required
+              />
+            </Field>
+            {/* Inches may be left blank: a height of exactly five feet is five feet. */}
+            <Field label="Inches" error={errors?.heightInches}>
+              <Input
+                type="text"
+                name="heightInches"
+                inputMode="numeric"
+                value={inches}
+                onChange={(event) => setInches(event.target.value)}
+                placeholder="10"
+              />
+            </Field>
+          </div>
+        </div>
+      ) : (
+        <Field label="Height (cm)" error={errors?.heightCm}>
+          <Input
+            type="text"
+            name="heightCm"
+            inputMode="decimal"
+            value={heightCm}
+            onChange={(event) => setHeightCm(event.target.value)}
+            placeholder="178"
+            required
+          />
+        </Field>
+      )}
+
+      <Field
+        label="Date of birth"
+        error={errors?.dateOfBirth}
+        hint="So training load can be read against your age"
+      >
+        <Input
+          type="date"
+          name="dateOfBirth"
+          autoComplete="bday"
+          defaultValue={values.dateOfBirth ?? ""}
+          required
+        />
+      </Field>
+
+      <div className="space-y-1.5">
+        <span className="block text-sm font-medium text-ink-muted">Sex</span>
+        <SegmentedControl
+          name="sex"
+          aria-label="Sex"
+          options={SEX_OPTIONS}
+          defaultValue={values.sex ?? ""}
+          columns={2}
+        />
+        {errors?.sex && (
+          <span role="alert" className="block text-sm text-danger">
+            {errors.sex}
+          </span>
+        )}
+      </div>
+
+      <Field label="Training goal" error={errors?.trainingGoal}>
+        <Select name="trainingGoal" defaultValue={values.trainingGoal ?? ""} required>
+          <option value="" disabled>
+            Choose a goal
+          </option>
+          {TRAINING_GOALS.map((goal) => (
+            <option key={goal} value={goal}>
+              {TRAINING_GOAL_LABELS[goal]}
+            </option>
+          ))}
+        </Select>
       </Field>
     </>
   );

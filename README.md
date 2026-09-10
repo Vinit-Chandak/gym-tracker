@@ -21,9 +21,17 @@ Progressive overload, one set at a time.
 ## What a new account gets
 
 1. **Sign up** with an email and password (plus password reset, change and account deletion).
-2. **A four-step welcome**: name, time zone and units → first gym → tick the machines that gym
-   has → pick a programme template, or skip.
+2. **A four-step welcome**: about you → first gym → tick the machines that gym has → pick a
+   programme template, or skip. Step one asks for a name, time zone, units, body weight,
+   height, date of birth, sex and a training goal; it is the one step that is not skippable,
+   and every answer is editable afterwards in **Settings → Profile**.
 3. **Today**, which says what to train next and lets you log it.
+
+Weights and heights are stored once, in kilograms and centimetres, and read back in whichever
+units the account chose — pounds and feet, or kilograms and centimetres. Body weight is a
+running record rather than a single field: finishing a session with a weight, or changing it on
+the profile, writes that day's reading, the profile always shows the newest one, and
+**Progress → Body** draws the trend.
 
 The only thing shipped with the app is shared reference data: the equipment catalogue, the
 exercise library, warm-up protocols and the programme templates. Nothing is seeded per person.

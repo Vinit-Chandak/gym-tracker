@@ -51,6 +51,7 @@ import {
 import { formatSet, formatSets, weightStepFor } from "@/domain/sets";
 import type { MuscleGroup, PlanTrigger } from "@/domain/types";
 import { fromDateTimeLocal } from "@/lib/time";
+import { ageOn } from "@/lib/units";
 import { sessionHistories, type ComparablePerformance } from "@/server/queries/comparable";
 import { getWarmupProtocol, sharedExercises } from "@/server/queries/reference";
 import { parseDateRange } from "@/server/validation/date-range";
@@ -445,6 +446,10 @@ export async function planningContext(
         timeZone: profiles.timeZone,
         preferredUnit: profiles.preferredUnit,
         bodyWeightKg: profiles.bodyWeightKg,
+        heightCm: profiles.heightCm,
+        dateOfBirth: profiles.dateOfBirth,
+        sex: profiles.sex,
+        trainingGoal: profiles.trainingGoal,
       })
       .from(profiles)
       .where(eq(profiles.id, userId))
@@ -707,6 +712,12 @@ export async function planningContext(
       timeZone: profile.timeZone,
       unit: profile.preferredUnit,
       bodyWeightKg: profile.bodyWeightKg,
+      heightCm: profile.heightCm,
+      // Sent as years rather than a birth date: the coach is planning training, and the date
+      // itself would be one more identifying detail in a payload that does not need it.
+      age: profile.dateOfBirth === null ? null : ageOn(profile.dateOfBirth, today),
+      sex: profile.sex,
+      goal: profile.trainingGoal,
       today,
     },
     memo,
