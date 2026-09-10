@@ -139,11 +139,24 @@ function plan(overrides: Partial<TodayPlan> = {}): TodayPlan {
   };
 }
 
+/** The workout of that day, open. Its card becomes Resume; the run card is untouched. */
+const OPEN_SESSION = {
+  id: "00000000-0000-4000-8000-000000000004",
+  gymId: "g1",
+  gymName: "Anytime Fitness",
+  programDayId: DAY.id,
+  dayName: DAY.name,
+  cycleIndex: 1,
+  startedAt: new Date("2026-09-11T07:05:00.000Z"),
+  completedAt: null,
+  exerciseCount: 4,
+  setCount: 5,
+};
+
 export default async function TodayPreviewPage(props: PageProps<"/preview">) {
-  // ?state=before shows the day with nothing done yet; the default is the state the run used
-  // to disappear in — workout finished, run still owed.
+  // The three states of a day that lifts and runs. The default is the one the run used to
+  // disappear in: workout finished, run still owed.
   const { state } = await props.searchParams;
-  const before = state === "before";
 
   return (
     <PreviewShell tab="/today">
@@ -154,8 +167,8 @@ export default async function TodayPreviewPage(props: PageProps<"/preview">) {
           { id: "g1", name: "Anytime Fitness", kind: "gym", isDefault: true },
           { id: "g2", name: "Home", kind: "home", isDefault: false },
         ]}
-        plan={before ? plan({ sessionStatus: "pending" }) : plan()}
-        inProgress={null}
+        plan={state === "done" ? plan() : plan({ sessionStatus: "pending" })}
+        inProgress={state === "training" ? OPEN_SESSION : null}
         restProtocol={null}
       />
     </PreviewShell>
