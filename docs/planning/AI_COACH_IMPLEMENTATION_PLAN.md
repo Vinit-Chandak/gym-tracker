@@ -23,7 +23,7 @@ This plan builds on the completed audit. The user has confirmed that relevant co
 
 ### Confirmed clarifications
 
-All four questions raised during planning are resolved by the user's follow-up. These choices govern implementation; no further confirmation is required for them.
+The four questions raised during planning and the weekly prescription-authority question raised during implementation are resolved by the user's follow-ups. These choices govern implementation; no further confirmation is required for them.
 
 | ID  | Confirmed answer                                               | Implementation consequence                                                                                                                                         |
 | --- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -31,6 +31,7 @@ All four questions raised during planning are resolved by the user's follow-up. 
 | D2  | Use the owner's time zone for this rollout: IST, UTC+05:30.    | Configure one shared 04:00 schedule using the IANA zone Asia/Kolkata (the workspace reports its Asia/Calcutta alias). Do not create athlete-local 04:00 schedules. |
 | D3  | The routine runs in Anthropic's cloud on Anthropic hardware.   | Reuse the cloud schedule and API trigger. There is no personal Mac dependency or local worker to build.                                                            |
 | D4  | Recheck relevant application code whenever necessary.          | Inspect and verify integration points during planning and implementation; follow the installed framework guides before writing application code.                   |
+| D5  | Full autonomy for weekly prescription changes, including set counts and exercise substitutions; try to adhere to the planned muscles. | Do not invent percentage or set-change limits. Prefer feasible substitutions that retain the planned muscle emphasis; report coverage gaps or unknown metadata without turning muscle matching into an approval gate. Split, schedule, priorities, confirmed constraints, and replacement blocks retain the existing review requirement. |
 
 The requested daily/weekly distinction governs this plan. The remark that AI could sometimes change the program daily does not specify an exception policy. Out-of-cycle automatic program restructuring is therefore not part of the implementation contract; session adjustments remain automatic. Do not add an event-driven program-rewrite feature from that remark alone.
 
@@ -127,12 +128,12 @@ Use one logical review key per athlete and scheduled review period. Retries fini
 
 A completed review is not a requirement to change the program. Evaluate adherence, comparable performance, completed workload, duration fit, recovery reports, and repeated substitutions. Missing sessions are different from unsuccessful sets. Preserve useful movements long enough to observe comparable performance. Avoid forced weekly deloads, scheduled novelty, or automatic extra volume solely because a week elapsed.
 
-Proposed authority classification:
+Confirmed authority classification:
 
 | Change                                                                                               | Handling                                                                                                                           |
 | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | Upcoming load, reps, or effort targets within the program                                            | Automatic at session preparation, with an explanation.                                                                             |
-| Small weekly prescription changes within the existing split and confirmed constraints                | Automatic future revision; show what changed. The server, not the model's label, checks whether the change stays in this category. |
+| Weekly prescription changes, including set counts and exercise substitutions, within the existing split and confirmed constraints | Automatic future revision with full prescription autonomy. Prefer the planned muscle emphasis, explain deviations, and preserve explicit unknowns. The server checks the actual diff rather than the model's label. |
 | Change to days/week, day arrangement, split, priorities, or confirmed constraints; replacement block | Proposal and athlete review before activation. Existing prescribed work continues meanwhile.                                       |
 | No useful evidence or continued suitable progress                                                    | Keep the program; record why.                                                                                                      |
 
@@ -280,7 +281,7 @@ Exit: one daily pass covers all eligible athletes, weekly review occurs once per
 
 ### Phase 6: rollout, observability, and recovery
 
-Use separate rollout controls for new intake, generation, automatic weekly minor revisions, and the new dispatcher. Verify additive migrations on a representative database copy and measure the bounded batch. Keep existing program IDs, family lineage, start position, exercise/machine history, locations, and coaching settings intact.
+Use separate rollout controls for new intake, generation, automatic weekly prescription revisions, and the new dispatcher. Verify additive migrations on a representative database copy and measure the bounded batch. Keep existing program IDs, family lineage, start position, exercise/machine history, locations, and coaching settings intact.
 
 Roll out to the current friends group with the owner's explicit opt-in configuration already respected. If new automation must be disabled, stop claiming new jobs, reject incompatible late results, and keep the latest valid program plus normal logging available. Do not roll back performed workouts to reverse a coaching decision.
 
@@ -310,7 +311,7 @@ Before release, run the repository's required checks and relevant end-to-end flo
 
 ## 9. Handoff checklist
 
-- Implement the confirmed D1-D4 choices: Anthropic cloud, shared 04:00 IST, weekly review on each selected rest day, and relevant code rechecks as needed. Keep other proposed engineering decisions visible.
+- Implement the confirmed D1-D5 choices: Anthropic cloud, shared 04:00 IST, weekly review on each selected rest day, relevant code rechecks as needed, and full weekly prescription autonomy within the existing structural review boundaries. Keep other proposed engineering decisions visible.
 - Implement the phases in dependency order; keep UI work independent where the contracts are already stable.
 - Update the routine's compact shared policy, context contracts, scripts, service documentation, and application together.
 - Keep the review and scientific sources available for maintainers, but send only the compact applicable policy and relevant athlete context to the LLM.

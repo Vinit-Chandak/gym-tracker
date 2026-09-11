@@ -208,18 +208,27 @@ npx tsx scripts/coach/propose.ts --user <id> --file /tmp/coach/<id>.proposal.jso
 `scripts/coach/submit.ts` validates the file the way the server does before sending it, and
 prints the server's issues when something named in the plan does not belong to the athlete.
 
+When a submission carries `requestId`, that request must still be pending and unexpired,
+belong to the athlete and gym, and use trigger `replan`. The acceptance transaction locks the
+request until its plan is stored. Duplicate callbacks and late failure reports cannot change
+a completed request back into another outcome. Full intent/version freshness belongs to the
+durable-task implementation described in the AI-first coaching plan.
+
+Today and AI-coach settings reconcile requests older than fifteen minutes into persistent
+failures before reading status. This reconciliation does not launch a routine or retry work.
+
 ## Troubleshooting
 
-| Symptom                                       | Cause and fix                                                                                                                                 |
-| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| Service answers `503 not configured`          | `COACH_SERVICE_TOKEN` missing on the server, or shorter than 16 characters. Add it and redeploy.                                              |
-| `401` from the service                        | The environment's API credential does not match the server token, or is not sent for this host.                                               |
-| `403` for an athlete                          | The coach is switched off for that account, or the id is wrong.                                                                               |
-| `409 Nothing to plan`                         | No active programme, the programme is complete, or no real gym is active.                                                                     |
-| `422` with issues                             | The plan named an exercise, machine or slot the athlete does not have. The issues say which.                                                  |
-| `422 That day has no lifting`                 | The next slot only runs, so the plan takes a run and no exercises.                                                                            |
-| `422` on `run.programRunId`                   | The reference must match the exact programme, cycle and weekday of the target occurrence. Use `slot.programRunId` from that context, or null. |
-| A proposal is refused                         | It names a slot the programme no longer has, or a session is open. Re-read the context and propose again.                                     |
-| Today keeps waiting                           | A request older than 15 minutes counts as failed; the run's transcript says what happened.                                                    |
-| "Re-plan" says the routine rejected the token | `COACH_ROUTINE_FIRE_URL` or `COACH_ROUTINE_FIRE_TOKEN` is wrong or was regenerated. Update and redeploy.                                      |
-| The routine cannot reach the app              | `COACH_APP_URL` unset, or the credential's allowed website does not match the app's host.                                                     |
+| Symptom                                       | Cause and fix                                                                                                                                    |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Service answers `503 not configured`          | `COACH_SERVICE_TOKEN` missing on the server, or shorter than 16 characters. Add it and redeploy.                                                 |
+| `401` from the service                        | The environment's API credential does not match the server token, or is not sent for this host.                                                  |
+| `403` for an athlete                          | The coach is switched off for that account, or the id is wrong.                                                                                  |
+| `409 Nothing to plan`                         | No active programme, the programme is complete, or no real gym is active.                                                                        |
+| `422` with issues                             | The plan named an exercise, machine or slot the athlete does not have. The issues say which.                                                     |
+| `422 That day has no lifting`                 | The next slot only runs, so the plan takes a run and no exercises.                                                                               |
+| `422` on `run.programRunId`                   | The reference must match the exact programme, cycle and weekday of the target occurrence. Use `slot.programRunId` from that context, or null.    |
+| A proposal is refused                         | It names a slot the programme no longer has, or a session is open. Re-read the context and propose again.                                        |
+| A request timed out                           | Today and AI-coach settings persist requests older than 15 minutes as failed. The history retains the failure; no automatic retry is dispatched. |
+| "Re-plan" says the routine rejected the token | `COACH_ROUTINE_FIRE_URL` or `COACH_ROUTINE_FIRE_TOKEN` is wrong or was regenerated. Update and redeploy.                                         |
+| The routine cannot reach the app              | `COACH_APP_URL` unset, or the credential's allowed website does not match the app's host.                                                        |

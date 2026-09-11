@@ -13,6 +13,7 @@ import {
   latestPlan,
   pendingRequest,
   recentAttempts,
+  reconcileExpiredCoachRequests,
 } from "@/server/repositories/coach-plans";
 
 import { AiCoachSettings } from "./ai-coach-settings";
@@ -23,6 +24,7 @@ export default async function AiCoachSettingsPage() {
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
   const { memo, plan, pending, attempts } = await withUser(getDb(), user.id, async (tx) => {
+    await reconcileExpiredCoachRequests(tx, user.id);
     const [memo, plan, pending, attempts] = await Promise.all([
       getCoachMemo(tx, user.id),
       latestPlan(tx, user.id),

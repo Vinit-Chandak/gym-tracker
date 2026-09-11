@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, inArray, isNull, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, lt, ne, or, sql } from "drizzle-orm";
 import type { ZodIssue } from "zod";
 
 import {
@@ -70,6 +70,8 @@ import { readWeeklyTrainingVolume } from "./training-volume";
 export const REPLAN_DAILY_LIMIT = 3;
 /** A request older than this without a plan counts as failed, so Today stops waiting. */
 export const REQUEST_TIMEOUT_MINUTES = 15;
+export const REQUEST_TIMEOUT_MESSAGE =
+  "The coach did not return a plan before this request timed out. Please try again later.";
 /** How far back the coach looks for recent training. */
 const RECENT_DAYS = 14;
 /**
@@ -954,6 +956,32 @@ export async function storePlan(
     throw new PlanValidationError("The plan is not valid.", describeIssues(parsed.error.issues));
   const plan: CoachPlan = parsed.data;
 
+  if (input.requestId) {
+    // The caller's transaction holds this row through acceptance. A timeout or failure
+    // callback cannot race this result into a different terminal state.
+    const [request] = await db
+      .select()
+      .from(coachRequests)
+      .where(and(eq(coachRequests.id, input.requestId), eq(coachRequests.userId, userId)))
+      .limit(1)
+      .for("update");
+    if (
+      !request ||
+      request.status !== "requested" ||
+      request.trigger !== "replan" ||
+      input.trigger !== "replan" ||
+      request.gymId !== input.gymId ||
+      request.requestedAt.getTime() < Date.now() - REQUEST_TIMEOUT_MINUTES * 60_000
+    ) {
+      throw new PlanValidationError("This request is no longer valid for this plan.", [
+        {
+          path: "requestId",
+          message: "Use the athlete's pending, unexpired request for this gym.",
+        },
+      ]);
+    }
+  }
+
   const [schedule, gym, [profile]] = await Promise.all([
     getSchedule(db, userId),
     getGym(db, userId, input.gymId),
@@ -1126,7 +1154,13 @@ export async function storePlan(
     await db
       .update(coachRequests)
       .set({ status: "planned", completedAt: new Date() })
-      .where(and(eq(coachRequests.id, input.requestId), eq(coachRequests.userId, userId)));
+      .where(
+        and(
+          eq(coachRequests.id, input.requestId),
+          eq(coachRequests.userId, userId),
+          eq(coachRequests.status, "requested"),
+        ),
+      );
   }
   return row;
 }
@@ -1331,6 +1365,7 @@ export async function createCoachRequest(
   userId: string,
   input: { gymId: string; reason: string | null; timeZone: string },
 ): Promise<CoachRequest> {
+  await reconcileExpiredCoachRequests(db, userId);
   if ((await countRequestsToday(db, userId, input.timeZone)) >= REPLAN_DAILY_LIMIT)
     throw new CoachRequestLimitError();
   const [row] = await db
@@ -1373,7 +1408,31 @@ export async function markRequestFailed(
   return rows.length > 0;
 }
 
-/** A re-plan the coach has not answered yet, unless it is old enough to count as lost. */
+/**
+ * Persist expired requests before reading waiting/failure state. Conditional updates make
+ * repeated reconciliation safe and preserve a result that was already accepted. This never
+ * dispatches a routine or retries work; the future batch reconciler can call the same helper.
+ */
+export async function reconcileExpiredCoachRequests(
+  db: DbOrTx,
+  userId: string,
+  now = new Date(),
+): Promise<number> {
+  const expired = await db
+    .update(coachRequests)
+    .set({ status: "failed", error: REQUEST_TIMEOUT_MESSAGE, completedAt: now })
+    .where(
+      and(
+        eq(coachRequests.userId, userId),
+        eq(coachRequests.status, "requested"),
+        lt(coachRequests.requestedAt, new Date(now.getTime() - REQUEST_TIMEOUT_MINUTES * 60_000)),
+      ),
+    )
+    .returning({ id: coachRequests.id });
+  return expired.length;
+}
+
+/** A pending re-plan. Call reconciliation first when assembling current request status. */
 export async function pendingRequest(db: DbOrTx, userId: string): Promise<CoachRequest | null> {
   const since = new Date(Date.now() - REQUEST_TIMEOUT_MINUTES * 60_000);
   const [row] = await db
@@ -1518,6 +1577,7 @@ export async function todayCoachState(
     gymId: string | null;
   },
 ): Promise<TodayCoachState> {
+  await reconcileExpiredCoachRequests(db, userId);
   const [plan, pending, used, failure] = await Promise.all([
     activePlanForSlot(db, userId, input.programId, input.ref),
     pendingRequest(db, userId),
