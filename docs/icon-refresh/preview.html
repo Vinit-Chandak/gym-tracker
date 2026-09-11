@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en" data-overload-design="form" data-overload-mode="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Overload · Icon preview</title>
+    <link rel="icon" href="../../src/app/icon.svg" />
+    <link rel="stylesheet" href="preview.css" />
+    <script src="icons.js" defer></script>
+    <script src="preview.js" defer></script>
+  </head>
+  <body>
+    <aside class="preview-tools" aria-label="Icon preview controls">
+      <a href="index.html">Back to comparison</a>
+      <label
+        >Style
+        <select id="pack">
+          <option value="tabler">A · Tabler Outline</option>
+          <option value="duotone">B · Phosphor Duotone</option>
+          <option value="fill">C · Phosphor Fill</option>
+        </select></label
+      >
+      <button type="button" id="theme">Switch to dark</button>
+    </aside>
+    <main class="app-main">
+      <header class="app-header">
+        <div class="page-width"><h1 id="page-title">Settings</h1></div>
+      </header>
+      <div class="page-content page-width" id="content"></div>
+    </main>
+    <nav class="primary-nav" aria-label="Primary navigation preview">
+      <div class="rail-identity">
+        <p class="wordmark">Overload<span aria-hidden="true">.</span></p>
+        <p>Your training, in focus.</p>
+      </div>
+      <div class="nav-items" id="navigation"></div>
+    </nav>
+    <div class="toast" id="toast" role="status" hidden></div>
+    <noscript><p>Enable JavaScript to show the icon mockup.</p></noscript>
+  </body>
+</html>
