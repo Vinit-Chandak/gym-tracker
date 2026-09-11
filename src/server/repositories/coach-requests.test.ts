@@ -12,10 +12,12 @@ import {
   getCoachMemo,
   markRequestFailed,
   pendingRequest,
+  planningContext,
   recentAttempts,
   reconcileExpiredCoachRequests,
   REQUEST_TIMEOUT_MESSAGE,
   REQUEST_TIMEOUT_MINUTES,
+  saveCoachNotes,
   todayCoachState,
 } from "./coach-plans";
 
@@ -161,6 +163,31 @@ describe("durable request timeouts", () => {
 });
 
 describe("request-scoped result acceptance", () => {
+  it("keeps athlete-authored notes separate from coach updates and other athletes", async () => {
+    const user = await athlete();
+    const other = await athlete();
+    const notes = "Confirmed athlete input: avoid exercise X and prioritize goal Y.";
+    await withUser(t.db, user.id, (tx) => saveCoachNotes(tx, user.id, notes));
+
+    const accepted = await submit(user, null, {
+      memo: "Updated derived overview.",
+      userNotes: "Model replacement.",
+    });
+    expect(accepted.status, JSON.stringify(accepted.body)).toBe(201);
+    const context = await withUser(t.db, user.id, (tx) => planningContext(tx, user.id));
+    expect(context.reason).toBeNull();
+    if (context.reason) throw new Error(context.reason);
+    expect(context.memo).toMatchObject({ userNotes: notes, overview: "Updated derived overview." });
+
+    expect((await withUser(t.db, other.id, (tx) => getCoachMemo(tx, user.id))).userNotes).toBe("");
+    await expect(
+      withUser(t.db, other.id, (tx) => saveCoachNotes(tx, user.id, "Foreign replacement.")),
+    ).rejects.toThrow();
+    expect((await withUser(t.db, user.id, (tx) => getCoachMemo(tx, user.id))).userNotes).toBe(
+      notes,
+    );
+  });
+
   it("accepts the same gym UUID regardless of letter casing", async () => {
     const user = await athlete();
     const waiting = await request(user);

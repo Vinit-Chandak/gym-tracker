@@ -75,13 +75,21 @@ Verification:
 
 No live routine, migration, or provider execution is included. The classifier and cadence functions remain contracts for the future workflow, not live automatic activation. Request tests verify terminal transitions and isolation; the in-process database suite does not establish multi-connection race safety for the future job workflow.
 
-## Outstanding athlete-data clarification
+## Personal coaching facts stored per athlete
 
-The user has been asked which athlete account should retain the existing no-weighted-hyperextensions restriction and strength-over-running priority, and whether both remain correct. They must not be copied to an inferred account or treated as universal facts. This migration is pending that answer and the structured athlete-facts work.
+The user identified the account and requested database storage without hardcoded account identifiers. The account selector was supplied only as runtime input, matched exactly one authentication record, and was not added to source, tests, seeds, migrations, or this document.
+
+Stored the two confirmed restrictions/priority notes in that athlete's existing `coach_memos.user_notes` using the app's configured database connection. The write ran under the athlete's row-level security scope, locked the existing memo, and guarded against notes changing after inspection. One row changed. A separate read after commit verified the notes and that the coach-written overview and its timestamp were preserved.
+
+Updated the shared coach instructions to use the current athlete's recorded restrictions and priorities instead of those two universal personal rules. Athlete-authored notes take precedence over the model-derived overview. The existing Settings page exposes those notes and the existing planning context includes them; no new schema or account-specific code is needed. Future structured intake/facts work must preserve this confirmed input.
+
+Added a synthetic regression check for notes reaching planning context, surviving a model callback (including an attempted `userNotes` field), and resisting another athlete's reads/writes.
+
+Verification: all 381 tests in 53 files passed, as did type checking, lint, changed-file Prettier, and the diff whitespace check. A tracked-file scan found no occurrence of the supplied account email. The live routine configuration has not been changed; shared instruction edits are on the implementation branch.
 
 ## Remaining work
 
 - Finish Phase 0 task envelopes, output schemas, and acceptance invariants; integrate the tested authority and review-period contracts with initial anchors, durable review identity, and due/catch-up handling.
-- Finish Phase 1 semantic machine/measure/slot validation, full stale-result rejection, and migration of personal constraints out of universal instructions.
+- Finish Phase 1 semantic machine/measure/slot validation and full stale-result rejection. Carry confirmed athlete notes into the future structured facts model without changing their meaning.
 - Implement the remaining phases in the implementation plan: durable tasks and drafts, onboarding, manual programs and routines, daily/weekly execution, and rollout controls.
 - Verify the actual cloud schedule and allowance during rollout. Measure production-equivalent context size, capacity, and tracker latency before release; local correctness checks are not those measurements.

@@ -28,6 +28,16 @@ A nightly run lists who is due, then plans each athlete in a separate subagent w
 context, so no athlete's numbers are ever in view while another's plan is written. A re-plan
 run receives the athlete, gym and request in its fire payload and plans that one athlete.
 
+Confirmed personal restrictions and priorities belong in the athlete's `coach_memos.user_notes`,
+which Settings exposes and planning context includes. The model can update `overview` through a
+plan callback; it cannot update `user_notes` through that callback. Athlete-authored notes take
+precedence when the derived overview conflicts with them.
+
+Account identifiers and personal rules must not be embedded in shared coach instructions, seeds,
+or account-specific migrations. For a targeted data correction, supply the account selector at
+runtime, resolve exactly one athlete, preserve existing notes and the overview, and verify the
+committed row under that athlete's access scope.
+
 The server checks structure only: real exercises, machines that stand at the chosen gym, slot
 ids from the day being planned, a run only on a day that runs, numbers in range. What the plan
 prescribes is the coach's judgement, guided by the skill and by the athlete's memo and notes.
