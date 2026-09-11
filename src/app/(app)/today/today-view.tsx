@@ -6,6 +6,7 @@ import { PlannedExerciseList, planSummary } from "@/components/planned-exercises
 import { hasRunGuidance, RunPlanDetails, runSummary } from "@/components/run-plan";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
+import { Wordmark } from "@/components/shell/wordmark";
 import Link from "@/components/ui/app-link";
 import { Badge } from "@/components/ui/badge";
 import { LinkButton } from "@/components/ui/button";
@@ -16,7 +17,7 @@ import { ProgressBar } from "@/components/ui/progress-bar";
 import { runPlanLine } from "@/domain/session-plan";
 import type { SlotStatus } from "@/domain/schedule";
 import type { WarmupDrill } from "@/domain/types";
-import { formatDateTime, formatIsoDate } from "@/lib/format";
+import { formatDateTime, formatIsoWeekdayDay } from "@/lib/format";
 import type { TodayCoachState } from "@/server/repositories/coach-plans";
 import type { SessionSummary } from "@/server/repositories/sessions";
 import type { ScheduleDay, TodayPlan } from "@/server/repositories/schedule";
@@ -213,7 +214,7 @@ export function TodayView({
 
   return (
     <>
-      <PageHeader title="Today" context={formatIsoDate(today)} />
+      <PageHeader title={<Wordmark />} meta={formatIsoWeekdayDay(today)} />
       <PageContent>
         {/* Where you are training. Once a session starts the gym is fixed, and its own
             screens carry it, so this row is about the next session, not the current one. */}

@@ -49,11 +49,13 @@ export default async function SubstitutePage(
       {/* Returning lands back on the workout, which is where the request came from. */}
       <PageHeader
         title="Choose a fallback"
-        context={`Instead of ${data.slot.exercise.name} at ${data.session.gym.name}`}
         backHref={`/workouts/${sessionId}?exercise=${workoutExerciseId}`}
-        backLabel="Back to the exercise"
+        backLabel="Exercise"
       />
       <PageContent>
+        <p className="px-1 text-sm text-ink-muted">
+          Instead of {data.slot.exercise.name} at {data.session.gym.name}.
+        </p>
         <PickExerciseForm
           action={substituteExerciseAction.bind(
             null,

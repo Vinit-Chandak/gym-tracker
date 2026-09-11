@@ -42,9 +42,8 @@ export default async function NewEquipmentPage(props: PageProps<"/gyms/[gymId]/e
     <>
       <PageHeader
         title="Add machine"
-        context={data.gym.name}
+        meta={data.gym.name}
         backHref={returnTo ? workoutReturnPath(returnTo) : `/gyms/${data.gym.id}`}
-        backLabel={returnTo ? "Back to the workout" : "Back to the gym"}
       />
       <PageContent>
         <EquipmentForm

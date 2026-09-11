@@ -45,9 +45,9 @@ export function isNavItemActive(pathname: string, href: string): boolean {
 }
 
 /**
- * The name of the section a path belongs to, for the eyebrow above a page's title: a
- * screen opened from Gyms says "GYMS" over its own name, so the header carries the trail
- * the back chevron only hints at.
+ * The name of the section a path belongs to, which is what a page's back control is called:
+ * a screen opened from Gyms goes back to "Gyms", so the chevron names its destination
+ * rather than leaving you to guess where it lands.
  */
 const SECTION_LABELS: Record<string, string> = {
   today: "Today",
