@@ -215,8 +215,8 @@ afterAll(async () => {
   vi.useRealTimers();
 });
 
-async function context() {
-  const result = await withUser(t.db, athleteId, (tx) => planningContext(tx, athleteId), {
+async function context(userId = athleteId) {
+  const result = await withUser(t.db, userId, (tx) => planningContext(tx, userId), {
     readOnly: true,
   });
   if (result.reason) throw new Error(result.reason);
@@ -303,6 +303,122 @@ describe("coaching service transport", () => {
     expect(active[0]?.run?.programRunId).toBe(
       plannedRuns.find((run) => run.weekIndex === 1 && run.dayOfWeek === 3)!.id,
     );
+  });
+});
+
+describe("coaching evidence cutoff", () => {
+  let userId: string, pastId: string, squatId: string;
+
+  beforeAll(async () => {
+    userId = (await t.createAuthUser("cutoff@example.test")).id;
+    const [squat] = await t.db.select().from(exercises).where(eq(exercises.slug, "high-bar-squat"));
+    squatId = squat!.id;
+    await withUser(t.db, userId, async (tx) => {
+      await tx
+        .update(profiles)
+        .set({ aiCoachEnabled: true, timeZone: TZ })
+        .where(eq(profiles.id, userId));
+      const [gym] = await tx
+        .insert(gyms)
+        .values({ userId, name: "Cutoff gym", slug: "cutoff-gym", kind: "gym", isDefault: true })
+        .returning();
+      await createProgramFromBlueprint(tx, userId, blueprint, { startDate: "2026-09-07" });
+      const dates = [
+        {
+          startedAt: new Date(NOW.getTime() - 7_200_000),
+          completedAt: new Date(NOW.getTime() - 3_600_000),
+        },
+        {
+          startedAt: new Date(NOW.getTime() - 60_000),
+          completedAt: new Date(NOW.getTime() + 3_600_000),
+        },
+        { startedAt: NOW, completedAt: NOW },
+        {
+          startedAt: new Date(NOW.getTime() + 3_600_000),
+          completedAt: new Date(NOW.getTime() + 7_200_000),
+        },
+      ];
+      const sessions = await tx
+        .insert(workoutSessions)
+        .values(dates.map((date) => ({ userId, gymId: gym!.id, ...date })))
+        .returning();
+      pastId = sessions.find(
+        (session) => session.startedAt.getTime() === dates[0]!.startedAt.getTime(),
+      )!.id;
+      const performed = await tx
+        .insert(workoutExercises)
+        .values(
+          sessions.map((session) => ({
+            userId,
+            workoutSessionId: session.id,
+            exerciseId: squatId,
+            orderIndex: 1,
+          })),
+        )
+        .returning();
+      await tx.insert(setLogs).values(
+        performed.map((exercise) => ({
+          userId,
+          workoutExerciseId: exercise.id,
+          setIndex: 1,
+          weight: 40,
+          reps: 5,
+        })),
+      );
+      // Future entries must not crowd the one real run out of the bounded narrative sample.
+      await tx.insert(runs).values(
+        [
+          new Date(NOW.getTime() - 3_600_000),
+          ...Array.from({ length: 41 }, (_, i) => new Date(NOW.getTime() + i * 60_000)),
+        ].map((startedAt) => ({
+          userId,
+          startedAt,
+          mode: "outdoor" as const,
+          durationSeconds: 600,
+          distanceMeters: 1000,
+        })),
+      );
+    });
+  });
+
+  it("uses the aggregate cutoff for workout narratives and preserves raw records", async () => {
+    const ctx = await context(userId);
+    expect(ctx.recent.workouts).toHaveLength(1);
+    expect(ctx.recent.workouts[0]?.startedAt).toBe("2026-09-11T06:00:00.000Z");
+    expect(ctx.volume[0]?.totalSets).toBe(1);
+    expect(ctx.volumeCoverage[0]).toMatchObject({ completedWorkouts: 1, incompleteWorkouts: 1 });
+    const raw = await withUser(t.db, userId, (tx) =>
+      readWorkouts(tx, userId, parseDateRange({ from: "2026-09-11", to: "2026-09-11" }, TZ)),
+    );
+    expect(raw.workouts).toHaveLength(4);
+  });
+
+  it("excludes runs at or after the cutoff before applying narrative limits", async () => {
+    const ctx = await context(userId);
+    expect(ctx.recent.runs).toHaveLength(1);
+    expect(ctx.recent.runsHasMore).toBe(false);
+    expect(ctx.running.history).toHaveLength(1);
+    expect(ctx.running.historyHasMore).toBe(false);
+    expect(ctx.running.weeks[0]).toMatchObject({ runs: 1, minutes: 10, km: 1 });
+  });
+
+  it("requires comparable work to be complete by the comparison boundary", async () => {
+    const query = {
+      userId,
+      exerciseId: squatId,
+      loadPortability: "global" as const,
+      equipmentInstanceId: null,
+      before: NOW,
+    };
+    const history = await withUser(t.db, userId, (tx) => comparableHistory(tx, query));
+    expect(history.map((entry) => entry.workoutSessionId)).toEqual([pastId]);
+    const [batch] = await withUser(t.db, userId, (tx) => sessionHistories(tx, [query]));
+    expect(batch?.history).toEqual(history);
+    expect(
+      (await withUser(t.db, userId, (tx) => latestPerformanceAnywhere(tx, query)))
+        ?.workoutSessionId,
+    ).toBe(pastId);
+    expect((await context(userId)).exercises[0]?.history).toHaveLength(1);
   });
 });
 

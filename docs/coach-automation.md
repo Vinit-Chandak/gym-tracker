@@ -216,6 +216,8 @@ durable-task implementation described in the AI-first coaching plan.
 
 Today and AI-coach settings reconcile requests older than fifteen minutes into persistent
 failures before reading status. This reconciliation does not launch a routine or retry work.
+Each status read uses the same cutoff for reconciliation and pending-state selection, so
+crossing the timeout boundary between queries cannot temporarily hide a request.
 
 ## Troubleshooting
 

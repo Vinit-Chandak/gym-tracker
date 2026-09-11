@@ -201,4 +201,32 @@ describe("weekly prescription authority", () => {
     );
     expect(assessProgramChange(before, after, library).authority).toBe("review_required");
   });
+
+  it.each(["current", "proposed"])(
+    "rejects duplicated slot lineage in the %s blueprint",
+    (side) => {
+      const before = blueprint();
+      const after = structuredClone(before);
+      const invalid = side === "current" ? before : after;
+      invalid.days[1]!.exercises[0]!.lineageId = SQUAT;
+      expect(() => assessProgramChange(before, after, library)).toThrow(/lineage.*unique/i);
+    },
+  );
+
+  it("rejects duplicate run occurrences before assigning authority", () => {
+    const before = blueprint();
+    const after = structuredClone(before);
+    after.runs.push({ ...after.runs[0]!, duration: [40, 50] });
+    expect(() => assessProgramChange(before, after, library)).toThrow(/run.*unique/i);
+  });
+
+  it("treats UUID letter casing as the same slot identity", () => {
+    const before = blueprint();
+    before.days[0]!.exercises[0]!.lineageId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const after = structuredClone(before);
+    after.days[0]!.exercises[0]!.lineageId = before.days[0]!.exercises[0]!.lineageId!.toUpperCase();
+    expect(assessProgramChange(before, after, library).authority).toBe("unchanged");
+    after.days[1]!.exercises[0]!.lineageId = before.days[0]!.exercises[0]!.lineageId;
+    expect(() => assessProgramChange(before, after, library)).toThrow(/lineage.*unique/i);
+  });
 });

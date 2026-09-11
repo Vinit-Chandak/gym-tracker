@@ -23,7 +23,7 @@ This plan builds on the completed audit. The user has confirmed that relevant co
 
 ### Confirmed clarifications
 
-The four questions raised during planning and the weekly prescription-authority question raised during implementation are resolved by the user's follow-ups. These choices govern implementation; no further confirmation is required for them.
+The confirmed choices below govern implementation; no further confirmation is required for them.
 
 | ID  | Confirmed answer                                               | Implementation consequence                                                                                                                                         |
 | --- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -32,6 +32,7 @@ The four questions raised during planning and the weekly prescription-authority 
 | D3  | The routine runs in Anthropic's cloud on Anthropic hardware.   | Reuse the cloud schedule and API trigger. There is no personal Mac dependency or local worker to build.                                                            |
 | D4  | Recheck relevant application code whenever necessary.          | Inspect and verify integration points during planning and implementation; follow the installed framework guides before writing application code.                   |
 | D5  | Full autonomy for weekly prescription changes, including set counts and exercise substitutions; try to adhere to the planned muscles. | Do not invent percentage or set-change limits. Prefer feasible substitutions that retain the planned muscle emphasis; report coverage gaps or unknown metadata without turning muscle matching into an approval gate. Split, schedule, priorities, confirmed constraints, and replacement blocks retain the existing review requirement. |
+| D6  | Either proposed review-weekday transition is acceptable; implementation uses the first eligible new weekday. | Use the new weekday at its first 04:00 IST boundary at least seven days after the previous scheduled review boundary. Persist that anchor through settings edits and retries; actual execution time does not replace it. |
 
 The requested daily/weekly distinction governs this plan. The remark that AI could sometimes change the program daily does not specify an exception policy. Out-of-cycle automatic program restructuring is therefore not part of the implementation contract; session adjustments remain automatic. Do not add an event-driven program-rewrite feature from that remark alone.
 
@@ -124,7 +125,7 @@ Proposed efficiency rule: revalidate every athlete daily, but reuse a still-vali
 
 The review becomes due on the athlete's selected weekly rest-day weekday in the shared owner time zone. Review the completed seven-day interval ending at that day's scheduled 04:00 IST boundary, plus longer comparable trends. Return exact boundaries and data coverage. This review interval is independent of a program's repeating cycle and the calendar-week chart. A “week” in existing program data may mean a cycle; do not mix those meanings. Preserve athlete-local dates and time zones for workout records and charts; they do not move the shared batch or its review-period keys. Show exact review boundaries so the reviewed period remains clear. An unexpected workout on the selected rest day does not trigger another review or change the weekly cadence; open-workout protections still apply.
 
-Use one logical review key per athlete and scheduled review period. Retries finish that review rather than create another one. A missed run catches up the latest due review using current relevant evidence; do not generate several historical rewrites consecutively. Preserve a cadence anchor when review-day settings change so edits cannot accidentally cause repeated reviews in one period.
+Use one logical review key per athlete and scheduled review period. Retries finish that review rather than create another one. A missed run catches up the latest due review using current relevant evidence; do not generate several historical rewrites consecutively. Preserve the previous scheduled review boundary as the cadence anchor when review-day settings change. The new weekday takes effect at its first 04:00 IST boundary at least seven days after that anchor. A Monday-to-Tuesday change therefore next reviews eight days after the previous Monday, not the following day. The reviewed interval is still the complete seven days ending at the new boundary; longer trends retain visibility of older training.
 
 A completed review is not a requirement to change the program. Evaluate adherence, comparable performance, completed workload, duration fit, recovery reports, and repeated substitutions. Missing sessions are different from unsuccessful sets. Preserve useful movements long enough to observe comparable performance. Avoid forced weekly deloads, scheduled novelty, or automatic extra volume solely because a week elapsed.
 
@@ -199,7 +200,7 @@ Extend existing primitives rather than introduce a second workout database or a 
 | Weekly review record           | Unique period identity, evidence boundaries, due/completed timestamps, no-change/patch/proposal outcome. A no-change review is still completed.                                                                                                          |
 | Saved workout routines         | Reusable structures separate from actual workouts and active program schedules.                                                                                                                                                                          |
 
-Proposed job state machine: `queued -> claimed -> succeeded | needs_input | failed | superseded`. Waiting on quota or execution availability remains queued with a retry reason/time. Attempts have their own dispatch and lease details. An expired claim is persisted as retryable/failed by reconciliation; a pending row must not simply disappear after fifteen minutes as it currently can.
+Proposed job state machine: `queued -> claimed -> succeeded | needs_input | failed | superseded`. Waiting on quota or execution availability remains queued with a retry reason/time. Attempts have their own dispatch and lease details. An expired claim is persisted as retryable/failed by reconciliation; a pending row must not simply disappear after fifteen minutes. The initial implementation now persists legacy request timeouts on status reads; durable job leases and batch reconciliation remain to be built.
 
 Use separate identities for logical work and execution attempts. Daily evaluation is unique per athlete/batch day; weekly review per athlete/review period; creation per athlete/intake revision/request; gym preparation per athlete/occurrence/intent revision. Different triggers targeting the same unused session must converge on the newest valid intent. Use a database uniqueness rule for active logical work and serialize competing writes per athlete/target.
 
@@ -311,8 +312,8 @@ Before release, run the repository's required checks and relevant end-to-end flo
 
 ## 9. Handoff checklist
 
-- Implement the confirmed D1-D5 choices: Anthropic cloud, shared 04:00 IST, weekly review on each selected rest day, relevant code rechecks as needed, and full weekly prescription autonomy within the existing structural review boundaries. Keep other proposed engineering decisions visible.
+- Implement the confirmed D1-D6 choices: Anthropic cloud, shared 04:00 IST, weekly review on each selected rest day, relevant code rechecks as needed, full weekly prescription autonomy within the existing structural review boundaries, and the selected weekday-transition rule. Keep other proposed engineering decisions visible.
 - Implement the phases in dependency order; keep UI work independent where the contracts are already stable.
 - Update the routine's compact shared policy, context contracts, scripts, service documentation, and application together.
 - Keep the review and scientific sources available for maintainers, but send only the compact applicable policy and relevant athlete context to the LLM.
-- Commit implementation and verification evidence in the next session. This session delivers only this plan, its evidence appendix, and the audited review.
+- Commit focused implementation changes with verification evidence and maintain the implementation progress document. A passing partial slice is not completion of the full release gates.

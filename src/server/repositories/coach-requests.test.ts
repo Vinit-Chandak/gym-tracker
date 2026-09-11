@@ -130,9 +130,15 @@ describe("durable request timeouts", () => {
     expect(
       await withUser(t.db, user.id, (tx) => reconcileExpiredCoachRequests(tx, user.id, NOW)),
     ).toBe(0);
-    expect((await withUser(t.db, user.id, (tx) => pendingRequest(tx, user.id)))?.id).toBe(
-      waiting.id,
-    );
+    // Query latency can cross the cutoff. One status read must use one captured instant.
+    vi.setSystemTime(new Date(NOW.getTime() + 1));
+    try {
+      expect((await withUser(t.db, user.id, (tx) => pendingRequest(tx, user.id, NOW)))?.id).toBe(
+        waiting.id,
+      );
+    } finally {
+      vi.setSystemTime(NOW);
+    }
     expect(
       await withUser(t.db, user.id, (tx) =>
         reconcileExpiredCoachRequests(tx, user.id, new Date(NOW.getTime() + 1)),
@@ -155,6 +161,13 @@ describe("durable request timeouts", () => {
 });
 
 describe("request-scoped result acceptance", () => {
+  it("accepts the same gym UUID regardless of letter casing", async () => {
+    const user = await athlete();
+    const waiting = await request(user);
+    const accepted = await submit(user, waiting.id, { gymId: user.gymId.toUpperCase() });
+    expect(accepted.status, JSON.stringify(accepted.body)).toBe(201);
+  });
+
   it.each(["expired", "failed", "planned", "foreign", "gym", "trigger"])(
     "rejects a %s request association without changing the saved plan or memo",
     async (kind) => {

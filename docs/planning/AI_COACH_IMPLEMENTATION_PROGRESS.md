@@ -53,13 +53,35 @@ Verification:
 
 No migration or live routine change is included in this slice. The repository-wide formatting issues reported above remain outside its scope.
 
-## Unresolved decision
+## Follow-up audit and review-period contract
 
-The user has been asked how a changed weekly review weekday should take effect: use the new weekday once seven days have elapsed from the previous scheduled review boundary, or keep the next review on the old day before switching with the same minimum interval. No answer has been supplied; that transition rule is not implemented.
+The user accepted either review-weekday transition option. D6 records the selected rule: use the first new weekday at least seven days after the previous scheduled review boundary. The domain contract returns the complete seven-day evidence interval at 04:00 Asia/Kolkata. It requires an existing scheduled boundary and does not yet initialize an athlete's first anchor, dispatch work, or persist review identity.
+
+Re-read both implementation commits, their callers, schema constraints, tests, runtime instructions, and plan requirements. The audit found and corrected:
+
+- Recent training and comparable histories could include records after the aggregate cutoff. All three training reads now use the same context timestamp, and comparable workouts must be complete by it. Raw workout history remains available. A synthetic fixture reproduces late completion and future records crowding the real run out of a bounded sample.
+- The any-equipment starting-history helper spread an incoming query, accidentally retaining an extra machine filter. It now selects only its supported fields.
+- Blueprint parsing allowed duplicate slot lineage and duplicate run occurrences. These ambiguous inputs now fail before change classification or parsed program writes.
+- UUID letter casing could misclassify unchanged slot identity or reject the correct request gym. Lineage parsing and the request-gym comparison now use the database's canonical casing; mixed-case duplicates remain invalid.
+- Reconciliation and pending-request selection used separate instants. A single status read now shares its cutoff, including the exact fifteen-minute boundary.
+
+Verification:
+
+- Added eight regression cases that failed before the corrections: future workout/run evidence, completion after the comparison cutoff, duplicate lineage in either blueprint, duplicate run occurrences, and equivalent UUID casing in lineage and request-gym comparisons. The starting-history filter issue was reproduced during those checks and corrected.
+- Added 13 cadence tests, including a sweep of all 49 old/new weekday pairs, exact evidence intervals, year boundaries, and rejection of actual execution times as scheduled anchors. Extended the timeout-boundary test to cover clock movement between status queries.
+- `npm test`: 380 tests passed in 53 files.
+- `npm run typecheck` and `npm run lint`: passed.
+- Prettier on all implementation files changed across both earlier commits and this audit: passed after correcting one formatting warning. Planning documents remain exempt under the repository configuration.
+
+No live routine, migration, or provider execution is included. The classifier and cadence functions remain contracts for the future workflow, not live automatic activation. Request tests verify terminal transitions and isolation; the in-process database suite does not establish multi-connection race safety for the future job workflow.
+
+## Outstanding athlete-data clarification
+
+The user has been asked which athlete account should retain the existing no-weighted-hyperextensions restriction and strength-over-running priority, and whether both remain correct. They must not be copied to an inferred account or treated as universal facts. This migration is pending that answer and the structured athlete-facts work.
 
 ## Remaining work
 
-- Finish Phase 0 task envelopes, output schemas, review-period contracts, and acceptance invariants after clarifying the relevant decisions; integrate the tested authority assessment into the weekly workflow.
+- Finish Phase 0 task envelopes, output schemas, and acceptance invariants; integrate the tested authority and review-period contracts with initial anchors, durable review identity, and due/catch-up handling.
 - Finish Phase 1 semantic machine/measure/slot validation, full stale-result rejection, and migration of personal constraints out of universal instructions.
 - Implement the remaining phases in the implementation plan: durable tasks and drafts, onboarding, manual programs and routines, daily/weekly execution, and rollout controls.
 - Verify the actual cloud schedule and allowance during rollout. Measure production-equivalent context size, capacity, and tracker latency before release; local correctness checks are not those measurements.

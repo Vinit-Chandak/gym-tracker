@@ -24,11 +24,12 @@ export default async function AiCoachSettingsPage() {
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
   const { memo, plan, pending, attempts } = await withUser(getDb(), user.id, async (tx) => {
-    await reconcileExpiredCoachRequests(tx, user.id);
+    const now = new Date();
+    await reconcileExpiredCoachRequests(tx, user.id, now);
     const [memo, plan, pending, attempts] = await Promise.all([
       getCoachMemo(tx, user.id),
       latestPlan(tx, user.id),
-      pendingRequest(tx, user.id),
+      pendingRequest(tx, user.id, now),
       recentAttempts(tx, user.id, 8),
     ]);
     return { memo, plan, pending, attempts };

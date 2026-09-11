@@ -25,7 +25,13 @@ export async function readWorkouts(
   range: DateRange,
   page = 0,
   limit = TRAINING_RECORD_LIMIT,
-  filter: { exerciseId?: string; equipmentInstanceId?: string; completedOnly?: boolean } = {},
+  filter: {
+    exerciseId?: string;
+    equipmentInstanceId?: string;
+    completedOnly?: boolean;
+    /** Require completion by this instant as well as starting within the range. */
+    completedBy?: Date;
+  } = {},
 ) {
   const matchingExercise = filter.exerciseId
     ? exists(
@@ -58,6 +64,7 @@ export async function readWorkouts(
         inRange(range),
         matchingExercise,
         filter.completedOnly ? isNotNull(workoutSessions.completedAt) : undefined,
+        filter.completedBy ? lte(workoutSessions.completedAt, filter.completedBy) : undefined,
       ),
     )
     .orderBy(desc(workoutSessions.startedAt), desc(workoutSessions.id))

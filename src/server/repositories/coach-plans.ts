@@ -506,12 +506,15 @@ export async function planningContext(
           )
           .limit(1)
       : Promise.resolve([]),
-    readWorkouts(db, userId, recentRange, 0, 40, { completedOnly: true }),
+    readWorkouts(db, userId, { ...recentRange, end: snapshot }, 0, 40, {
+      completedOnly: true,
+      completedBy: snapshot,
+    }),
     // A bounded narrative sample only; full workload is aggregated separately below.
     db
       .select()
       .from(runLogs)
-      .where(eq(runLogs.userId, userId))
+      .where(and(eq(runLogs.userId, userId), lt(runLogs.startedAt, snapshot)))
       .orderBy(desc(runLogs.startedAt), desc(runLogs.id))
       .limit(41),
     readRecovery(db, userId, recentRange),
@@ -539,6 +542,7 @@ export async function planningContext(
           r.status === "direct" || r.status === "fallback"
             ? (r.equipmentInstance?.id ?? null)
             : null,
+        before: snapshot,
         limit: HISTORY_DEPTH,
       };
     }),
@@ -970,7 +974,7 @@ export async function storePlan(
       request.status !== "requested" ||
       request.trigger !== "replan" ||
       input.trigger !== "replan" ||
-      request.gymId !== input.gymId ||
+      request.gymId !== input.gymId.toLowerCase() ||
       request.requestedAt.getTime() < Date.now() - REQUEST_TIMEOUT_MINUTES * 60_000
     ) {
       throw new PlanValidationError("This request is no longer valid for this plan.", [
@@ -1432,9 +1436,13 @@ export async function reconcileExpiredCoachRequests(
   return expired.length;
 }
 
-/** A pending re-plan. Call reconciliation first when assembling current request status. */
-export async function pendingRequest(db: DbOrTx, userId: string): Promise<CoachRequest | null> {
-  const since = new Date(Date.now() - REQUEST_TIMEOUT_MINUTES * 60_000);
+/** A pending re-plan. Reconcile with the same instant before assembling current status. */
+export async function pendingRequest(
+  db: DbOrTx,
+  userId: string,
+  now = new Date(),
+): Promise<CoachRequest | null> {
+  const since = new Date(now.getTime() - REQUEST_TIMEOUT_MINUTES * 60_000);
   const [row] = await db
     .select()
     .from(coachRequests)
@@ -1577,10 +1585,11 @@ export async function todayCoachState(
     gymId: string | null;
   },
 ): Promise<TodayCoachState> {
-  await reconcileExpiredCoachRequests(db, userId);
+  const now = new Date();
+  await reconcileExpiredCoachRequests(db, userId, now);
   const [plan, pending, used, failure] = await Promise.all([
     activePlanForSlot(db, userId, input.programId, input.ref),
-    pendingRequest(db, userId),
+    pendingRequest(db, userId, now),
     countRequestsToday(db, userId, input.timeZone),
     lastFailure(db, userId),
   ]);

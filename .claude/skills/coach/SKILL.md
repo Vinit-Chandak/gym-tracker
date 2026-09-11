@@ -73,7 +73,11 @@ Never commit, push, or change files in the repository during a run.
    contribute to volume. Each primary muscle counts a set fully and each secondary muscle
    counts half, a labelled calculation rather than a measurement.
 
-   `recent.from` and `recent.to` are inclusive dates. `recent.workoutsHasMore`,
+   `recent.from` and `recent.to` are inclusive dates; recent and comparable training reads stop
+   at `generatedAt`.
+   A workout must have started before and completed by that cutoff to inform progression or
+   the completed-workout narrative. Runs at or after the cutoff are excluded before sampling.
+   `recent.workoutsHasMore`,
    `recent.runsHasMore`, and `running.historyHasMore` identify truncated narrative samples;
    do not interpret them as all training or total workload. A last plan's
    `performed.completedAt: null` identifies unfinished work, not a completed outcome.
