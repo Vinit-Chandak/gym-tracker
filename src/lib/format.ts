@@ -41,6 +41,14 @@ export function formatIsoDay(isoDate: string): string {
   return formatIso(isoDate, ISO_DAY);
 }
 
+/**
+ * "Fri 11 Sept" — today's date beside the wordmark, where the year is never in question.
+ * en-GB puts a comma after the weekday; a masthead line reads better without it.
+ */
+export function formatIsoWeekdayDay(isoDate: string): string {
+  return formatIso(isoDate, { weekday: "short", day: "numeric", month: "short" }).replace(",", "");
+}
+
 /** Compact date range, retaining both years when it crosses a year boundary. */
 export function formatDateRange(from: string, to: string): string {
   const format = (date: string, year: boolean) =>

@@ -54,7 +54,7 @@ export default async function RunPage(props: PageProps<"/runs/[runId]">) {
 
   return (
     <>
-      <PageHeader title="Run" context={formatDateTime(run.startedAt, timeZone)} backHref="/runs" />
+      <PageHeader title="Run" meta={formatDateTime(run.startedAt, timeZone)} backHref="/runs" />
       <PageContent>
         <Card>
           <div className="flex items-center justify-between gap-3">

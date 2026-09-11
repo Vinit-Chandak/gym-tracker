@@ -31,12 +31,7 @@ export default async function CheckInPage(props: PageProps<"/workouts/[sessionId
     <>
       {/* The session already exists by the time this screen appears, so back goes to it
           rather than to Today, which would leave the workout behind. */}
-      <PageHeader
-        title="How are you today?"
-        context="Optional"
-        backHref={`/workouts/${sessionId}`}
-        backLabel="Back to the workout"
-      />
+      <PageHeader title="How are you today?" meta="Optional" backHref={`/workouts/${sessionId}`} />
       <PageContent>
         <CheckInForm
           action={saveCheckInAction.bind(null, sessionId)}

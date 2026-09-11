@@ -42,9 +42,8 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
     <>
       <PageHeader
         title="Finish session"
-        context={`${session.day?.name ?? "Ad hoc session"} · ${session.gym.name}`}
+        meta={`${session.day?.name ?? "Ad hoc session"} · ${session.gym.name}`}
         backHref={`/workouts/${sessionId}`}
-        backLabel="Back to the workout"
       />
       <PageContent>
         <Section

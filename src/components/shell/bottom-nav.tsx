@@ -5,6 +5,7 @@ import { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 
 import Link from "@/components/ui/app-link";
+import { Wordmark } from "@/components/shell/wordmark";
 import { isNavItemActive, NAV_ITEMS } from "@/lib/nav";
 import { cn } from "@/lib/utils";
 
@@ -49,7 +50,7 @@ export function BottomNav({ pathname: standingIn }: { pathname?: string } = {}) 
     <nav aria-label="Primary" className="primary-nav">
       <div className="hidden px-6 pt-7 pb-3 lg:block">
         <p className="text-lg font-medium">
-          Overload<span className="text-accent">.</span>
+          <Wordmark />
         </p>
         <p className="mt-0.5 text-xs text-ink-muted">Your training, in focus.</p>
       </div>

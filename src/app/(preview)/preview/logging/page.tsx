@@ -120,7 +120,7 @@ export default function LoggingPreviewPage() {
 
   return (
     <PreviewShell tab="/today">
-      <PageHeader title="Logging" context="Preview" />
+      <PageHeader title="Logging" meta="Preview" />
       <PageContent>
         {CASES.map((c) => (
           <Card key={c.measure}>

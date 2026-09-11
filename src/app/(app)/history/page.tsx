@@ -99,7 +99,7 @@ export default async function HistoryPage(props: PageProps<"/history">) {
   ].sort((a, b) => b.date.localeCompare(a.date));
   return (
     <>
-      <PageHeader title="History" context={formatDateRange(range.from, range.to)} />
+      <PageHeader title="History" meta={formatDateRange(range.from, range.to)} />
       <PageContent>
         {rangeError && (
           <p role="alert" className="text-sm text-danger">

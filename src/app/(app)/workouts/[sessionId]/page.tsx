@@ -40,7 +40,7 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
       {/* The gym and the cycle are said once, here. The logger below never repeats them. */}
       <PageHeader
         title={title}
-        context={`${data.gym.name}${data.cycleIndex ? ` · cycle ${data.cycleIndex}` : ""}`}
+        meta={`${data.gym.name}${data.cycleIndex ? ` · cycle ${data.cycleIndex}` : ""}`}
         backHref={data.completedAt ? "/history" : "/today"}
       />
       <PageContent>

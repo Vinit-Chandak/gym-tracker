@@ -64,7 +64,7 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
 
   return (
     <>
-      <PageHeader title="Progress" context={formatDateRange(range.from, range.to)} />
+      <PageHeader title="Progress" meta={formatDateRange(range.from, range.to)} />
       <PageContent>
         {rangeError && (
           <p role="alert" className="text-sm text-danger">
