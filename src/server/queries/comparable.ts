@@ -1,4 +1,4 @@
-import { and, desc, eq, exists, lt, ne, sql } from "drizzle-orm";
+import { and, desc, eq, exists, isNotNull, lt, lte, ne, sql } from "drizzle-orm";
 import { unionAll } from "drizzle-orm/pg-core";
 
 import {
@@ -52,11 +52,13 @@ type PerformanceFilter = {
   limit: number;
 };
 
-/** Performances of an exercise with at least one logged set, newest first. */
+/** Completed-workout performances with at least one logged set, newest first. */
 function performanceQuery(db: DbOrTx, filter: PerformanceFilter, requestIndex: number) {
   const conditions = [
     eq(workoutExercises.userId, filter.userId),
+    eq(workoutSessions.userId, filter.userId),
     eq(workoutExercises.exerciseId, filter.exerciseId),
+    isNotNull(workoutSessions.completedAt),
     exists(
       db
         .select({ one: sql`1` })
@@ -67,7 +69,11 @@ function performanceQuery(db: DbOrTx, filter: PerformanceFilter, requestIndex: n
   if (filter.equipmentInstanceId !== undefined) {
     conditions.push(eq(workoutExercises.equipmentInstanceId, filter.equipmentInstanceId));
   }
-  if (filter.before) conditions.push(lt(workoutSessions.startedAt, filter.before));
+  if (filter.before)
+    conditions.push(
+      lt(workoutSessions.startedAt, filter.before),
+      lte(workoutSessions.completedAt, filter.before),
+    );
   if (filter.excludeWorkoutExerciseId) {
     conditions.push(ne(workoutExercises.id, filter.excludeWorkoutExerciseId));
   }
@@ -139,7 +145,7 @@ export type ComparableQuery = {
   loadPortability: LoadPortability;
   /** The machine about to be used; required for equipment-specific exercises. */
   equipmentInstanceId: string | null;
-  /** Only consider sessions started before this moment. */
+  /** Only consider sessions started before and completed by this moment. */
   before?: Date;
   /** Ignore the exercise currently being logged. */
   excludeWorkoutExerciseId?: string;
@@ -215,11 +221,19 @@ export async function latestPerformanceAnywhere(
   db: DbOrTx,
   query: Pick<ComparableQuery, "userId" | "exerciseId" | "before" | "excludeWorkoutExerciseId">,
 ): Promise<ComparablePerformance | null> {
-  const [row] = await performances(db, { ...query, limit: 1 });
+  // Callers may pass a ComparableQuery variable with extra fields. This read intentionally
+  // ignores its machine scope; spreading it would silently reapply that filter.
+  const [row] = await performances(db, {
+    userId: query.userId,
+    exerciseId: query.exerciseId,
+    before: query.before,
+    excludeWorkoutExerciseId: query.excludeWorkoutExerciseId,
+    limit: 1,
+  });
   return row ?? null;
 }
 
-/** Recent performances of an exercise on every machine, newest first, for the exercise page. */
+/** Recent completed performances on every machine, newest first, for the exercise page. */
 export async function recentPerformances(
   db: DbOrTx,
   userId: string,

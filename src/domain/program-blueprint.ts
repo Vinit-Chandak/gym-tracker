@@ -63,7 +63,10 @@ export const blueprintExerciseSchema = z
      * the write mints one; a revision carries the old slot's lineage over, so history logged
      * against the previous version still counts as this slot's.
      */
-    lineageId: z.uuid().optional(),
+    lineageId: z
+      .uuid()
+      .transform((id) => id.toLowerCase())
+      .optional(),
     sets: z.number().int().min(1).max(20),
     /**
      * How the slot is counted: reps, seconds held, or metres covered. Exactly one, because a
@@ -132,7 +135,29 @@ export const programBlueprintSchema = z
     if (new Set(indexes).size !== indexes.length) {
       ctx.addIssue({ code: "custom", message: "Day indexes must be unique", path: ["days"] });
     }
-    for (const run of plan.runs) {
+    const lineage = new Set<string>();
+    plan.days.forEach((day, dayIndex) => {
+      day.exercises.forEach((exercise, exerciseIndex) => {
+        if (exercise.lineageId === undefined) return;
+        if (lineage.has(exercise.lineageId))
+          ctx.addIssue({
+            code: "custom",
+            message: "Slot lineage IDs must be unique within a program version",
+            path: ["days", dayIndex, "exercises", exerciseIndex, "lineageId"],
+          });
+        lineage.add(exercise.lineageId);
+      });
+    });
+    const occurrences = new Set<string>();
+    plan.runs.forEach((run, runIndex) => {
+      const occurrence = `${run.weekIndex}:${run.dayOfWeek}`;
+      if (occurrences.has(occurrence))
+        ctx.addIssue({
+          code: "custom",
+          message: "Run occurrences must be unique within a program version",
+          path: ["runs", runIndex],
+        });
+      occurrences.add(occurrence);
       if (run.weekIndex > plan.weeks) {
         ctx.addIssue({
           code: "custom",
@@ -140,7 +165,7 @@ export const programBlueprintSchema = z
           path: ["runs"],
         });
       }
-    }
+    });
   });
 
 export type ProgramBlueprint = z.infer<typeof programBlueprintSchema>;

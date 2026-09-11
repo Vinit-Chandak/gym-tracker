@@ -65,6 +65,23 @@ Never commit, push, or change files in the repository during a run.
 2. **Read your own last plans first.** `lastPlans` holds what you prescribed and what the
    athlete actually did against it. Start there, every time. See "Judging your last plan".
 
+   Use `volume` and `running.weeks` for workload totals. These aggregate the full requested
+   window independently of the bounded narrative samples. `volumeCoverage` gives each
+   athlete-local Monday–Sunday week's exact start and exclusive end, marks a partial current
+   week, and counts unfinished workouts separately. It is not a scheduled weekly-review
+   period. Lifting volume and comparable history use completed workouts; warm-ups do not
+   contribute to volume. Each primary muscle counts a set fully and each secondary muscle
+   counts half, a labelled calculation rather than a measurement.
+
+   `recent.from` and `recent.to` are inclusive dates; recent and comparable training reads stop
+   at `generatedAt`.
+   A workout must have started before and completed by that cutoff to inform progression or
+   the completed-workout narrative. Runs at or after the cutoff are excluded before sampling.
+   `recent.workoutsHasMore`,
+   `recent.runsHasMore`, and `running.historyHasMore` identify truncated narrative samples;
+   do not interpret them as all training or total workload. A last plan's
+   `performed.completedAt: null` identifies unfinished work, not a completed outcome.
+
 3. **Decide the session** using the method below. `slot.includesLifting` and
    `slot.includesRun` say what the day asks for.
 
@@ -94,8 +111,10 @@ Never commit, push, or change files in the repository during a run.
 
 ## Reading the context
 
-- `athlete`, `memo.overview` (what you wrote last time) and `memo.userNotes` (what the athlete
-  told you). Both memos outrank your assumptions.
+- `athlete` and `memo.userNotes` contain this athlete's supplied context. Confirmed restrictions
+  and priorities in `memo.userNotes` outrank conflicting claims in `memo.overview`, your derived
+  summary from last time. Apply those facts only to this athlete. Missing information stays
+  unknown; do not borrow personal restrictions or priorities from another account or a template.
 - `programme` and `slot`: which day of which cycle is next, whether it lifts, runs or both, its
   focus, effort and time notes, its warm-up protocol, and `slot.runTarget` with the
   programme's own duration, RPE, pace and shin rule. `slot.programRunId` is what a planned run
@@ -155,8 +174,8 @@ Never commit, push, or change files in the repository during a run.
   fatigue or soreness, or two comparable sessions in a row below the one before: hold loads,
   keep the RIR honest, do not add. One bad day is not a trend; two are.
 - **Pain changes the plan, not the programme.** Lower back rising or at 5+: lighter or fewer
-  hinges and squats, no weighted hyperextensions ever. A sore joint the athlete mentions:
-  choose the variation that spares it.
+  hinges and squats. Respect this athlete's recorded movement restrictions when choosing an
+  alternative. A sore joint the athlete mentions: choose the variation that spares it.
 - **Keep the day's shape.** The programme decides what the day is for; you decide the numbers.
   Substitute when the planned exercise is not possible at this gym, when pain or the athlete's
   notes call for it, or when history shows a variation clearly serves them better. Drop a slot
@@ -184,8 +203,9 @@ for this week; `running` is what the athlete has actually been doing.
 - **Easy means easy.** Prescribe by time and effort, and give a distance only when the
   athlete's own pace makes one realistic. No speed work until easy running is consistent for
   several weeks, and never in the same week a niggle is rising.
-- **A long lifting day shortens the run**, not the other way round; the programme's priority
-  is strength.
+- **Balance lifting and running using this athlete's recorded priorities and time budget.**
+  When no priority is recorded, preserve the existing programme balance and identify the
+  uncertainty; do not invent a priority for the athlete.
 - **Mode.** Keep `outdoor` unless the athlete's recent runs or notes say treadmill.
 - **Always set `programRunId`** to `slot.programRunId` when it is present, so the logged run
   counts towards the block.
@@ -296,6 +316,8 @@ Rules of the format:
   member, or null. `perSide` overrides the programme only when you mean to change it.
 - `run` is required on a day that runs and must be omitted or null on one that does not.
 - On a day that only runs, `exercises` is an empty array.
+- A non-null `run.programRunId` must be `slot.programRunId` from the same context and target
+  occurrence. The server rejects a different day or cycle, even within the same programme.
 - `summary`: at most two sentences. `note`: at most one short line, numbers included only when
   they explain a change. `warmup`: three to six short lines. Numbers live in the fields.
 - `trigger` is `nightly` or `replan`; `requestId` is the request id from a re-plan payload.

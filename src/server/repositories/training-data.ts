@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, exists, gte, inArray, lt, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, exists, gte, inArray, isNotNull, lt, lte, sql } from "drizzle-orm";
 
 import {
   dailyRecovery,
@@ -25,7 +25,13 @@ export async function readWorkouts(
   range: DateRange,
   page = 0,
   limit = TRAINING_RECORD_LIMIT,
-  filter: { exerciseId?: string; equipmentInstanceId?: string } = {},
+  filter: {
+    exerciseId?: string;
+    equipmentInstanceId?: string;
+    completedOnly?: boolean;
+    /** Require completion by this instant as well as starting within the range. */
+    completedBy?: Date;
+  } = {},
 ) {
   const matchingExercise = filter.exerciseId
     ? exists(
@@ -52,7 +58,15 @@ export async function readWorkouts(
     .from(workoutSessions)
     .innerJoin(gyms, eq(gyms.id, workoutSessions.gymId))
     .leftJoin(programDays, eq(programDays.id, workoutSessions.programDayId))
-    .where(and(eq(workoutSessions.userId, userId), inRange(range), matchingExercise))
+    .where(
+      and(
+        eq(workoutSessions.userId, userId),
+        inRange(range),
+        matchingExercise,
+        filter.completedOnly ? isNotNull(workoutSessions.completedAt) : undefined,
+        filter.completedBy ? lte(workoutSessions.completedAt, filter.completedBy) : undefined,
+      ),
+    )
     .orderBy(desc(workoutSessions.startedAt), desc(workoutSessions.id))
     .limit(limit + 1)
     .offset(page * limit);
