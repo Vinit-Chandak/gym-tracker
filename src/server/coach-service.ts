@@ -63,6 +63,7 @@ const planBodySchema = z.object({
   summary: z.unknown(),
   warmup: z.unknown().optional(),
   exercises: z.unknown(),
+  run: z.unknown().optional(),
   memo: z.unknown().optional(),
 });
 

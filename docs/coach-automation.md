@@ -166,10 +166,23 @@ session list; its transcript shows every athlete it planned and why.
 
 The coach reads one athlete at a time: profile, memo and notes, the programme and next slot,
 the gym's machines, the day's prescriptions with comparable history and the rule's own
-suggestion, the last two weeks of workouts, check-ins, runs and recovery, four weeks of running
+suggestion, a bounded recent sample of completed workouts, check-ins, runs and recovery, four weeks of running
 load with any shin trend in it, four weeks of working sets by muscle, its own last three plans
 with what was actually done against each, and the exercise library resolved at that gym. It
 never reads another athlete.
+
+The four calendar-week workload summaries are aggregated from the complete database window,
+independently of the recent forty-record narrative samples. `volumeCoverage` supplies exact
+start and exclusive-end timestamps, marks the partial current week, and counts incomplete
+workouts separately. Week boundaries are Monday–Sunday in the athlete's time zone; they are
+not the owner's scheduled review periods. Warm-ups and unfinished workouts do not contribute
+to lifting volume. Actual performed exercises determine muscle coverage, with full credit
+for primary muscles and half credit for secondary muscles.
+
+`recent.from`/`to` label the narrative date window; `workoutsHasMore` and `runsHasMore` under
+`recent` flag omitted records. `running.historyHasMore` flags older run details. Neither
+narrative sample is a workload total. `lastPlans[].performed.completedAt` distinguishes
+completed outcomes from work still in progress.
 
 That last one is what makes it a coach rather than a generator: without it, every night is the
 first night. Comparable history follows a programme slot by its lineage, not by the row it was
@@ -197,16 +210,16 @@ prints the server's issues when something named in the plan does not belong to t
 
 ## Troubleshooting
 
-| Symptom                                        | Cause and fix                                                                                             |
-| ---------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| Service answers `503 not configured`           | `COACH_SERVICE_TOKEN` missing on the server, or shorter than 16 characters. Add it and redeploy.          |
-| `401` from the service                         | The environment's API credential does not match the server token, or is not sent for this host.           |
-| `403` for an athlete                           | The coach is switched off for that account, or the id is wrong.                                           |
-| `409 Nothing to plan`                          | No active programme, the programme is complete, or no real gym is active.                                 |
-| `422` with issues                              | The plan named an exercise, machine or slot the athlete does not have. The issues say which.              |
-| `422 That day has no lifting`                  | The next slot only runs, so the plan takes a run and no exercises.                                        |
-| `422 That planned run is not in the programme` | `run.programRunId` must be the `slot.programRunId` from the same context, or null.                        |
-| A proposal is refused                          | It names a slot the programme no longer has, or a session is open. Re-read the context and propose again. |
-| Today keeps waiting                            | A request older than 15 minutes counts as failed; the run's transcript says what happened.                |
-| "Re-plan" says the routine rejected the token  | `COACH_ROUTINE_FIRE_URL` or `COACH_ROUTINE_FIRE_TOKEN` is wrong or was regenerated. Update and redeploy.  |
-| The routine cannot reach the app               | `COACH_APP_URL` unset, or the credential's allowed website does not match the app's host.                 |
+| Symptom                                       | Cause and fix                                                                                                                                 |
+| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Service answers `503 not configured`          | `COACH_SERVICE_TOKEN` missing on the server, or shorter than 16 characters. Add it and redeploy.                                              |
+| `401` from the service                        | The environment's API credential does not match the server token, or is not sent for this host.                                               |
+| `403` for an athlete                          | The coach is switched off for that account, or the id is wrong.                                                                               |
+| `409 Nothing to plan`                         | No active programme, the programme is complete, or no real gym is active.                                                                     |
+| `422` with issues                             | The plan named an exercise, machine or slot the athlete does not have. The issues say which.                                                  |
+| `422 That day has no lifting`                 | The next slot only runs, so the plan takes a run and no exercises.                                                                            |
+| `422` on `run.programRunId`                   | The reference must match the exact programme, cycle and weekday of the target occurrence. Use `slot.programRunId` from that context, or null. |
+| A proposal is refused                         | It names a slot the programme no longer has, or a session is open. Re-read the context and propose again.                                     |
+| Today keeps waiting                           | A request older than 15 minutes counts as failed; the run's transcript says what happened.                                                    |
+| "Re-plan" says the routine rejected the token | `COACH_ROUTINE_FIRE_URL` or `COACH_ROUTINE_FIRE_TOKEN` is wrong or was regenerated. Update and redeploy.                                      |
+| The routine cannot reach the app              | `COACH_APP_URL` unset, or the credential's allowed website does not match the app's host.                                                     |

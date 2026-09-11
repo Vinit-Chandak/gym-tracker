@@ -29,16 +29,9 @@ import {
   type ReviewExercise,
 } from "@/domain/coach-review";
 import { resolveExerciseAtGym } from "@/domain/equipment-resolution";
-import { addExerciseVolume, emptyMuscleVolume, type MuscleVolume } from "@/domain/muscle-volume";
 import { performanceScore } from "@/domain/progression";
 import { addDays, todayInTimeZone } from "@/domain/program-calendar";
-import {
-  shinEscalations,
-  volumeSpike,
-  weeklyVolumes,
-  weekStart,
-  type WeekVolume,
-} from "@/domain/running";
+import { shinEscalations, volumeSpike } from "@/domain/running";
 import { allSlots, progress, slotStatus, type SlotRef } from "@/domain/schedule";
 import {
   coachPlanSchema,
@@ -49,7 +42,7 @@ import {
   type StoredPlanExercise,
 } from "@/domain/session-plan";
 import { formatSet, formatSets, weightStepFor } from "@/domain/sets";
-import type { MuscleGroup, PlanTrigger, PrescriptionType } from "@/domain/types";
+import type { PlanTrigger, PrescriptionType } from "@/domain/types";
 import { fromDateTimeLocal } from "@/lib/time";
 import { ageOn } from "@/lib/units";
 import { sessionHistories, type ComparablePerformance } from "@/server/queries/comparable";
@@ -60,7 +53,8 @@ import { resolvePlannedDay } from "./availability";
 import { getGym, listGyms } from "./gyms";
 import { getRunTarget, getSchedule, type Schedule, type ScheduleDay } from "./schedule";
 import { applyRule } from "./progression-rule";
-import { readRecovery, readWorkouts, type TrainingWorkout } from "./training-data";
+import { readRecovery, readWorkouts } from "./training-data";
+import { readWeeklyTrainingVolume } from "./training-volume";
 
 /*
  * The house coach's side of the app.
@@ -263,6 +257,8 @@ export type PlanOutcome = {
   /** What was actually done in the session that used the plan; null when it was never used. */
   performed: {
     startedAt: string;
+    /** Null means this is unfinished work, not a completed plan outcome. */
+    completedAt: string | null;
     exercises: { name: string; machine: string | null; skipped: boolean; sets: string }[];
   } | null;
 };
@@ -334,7 +330,11 @@ async function recentPlanOutcomes(
           )
           .orderBy(asc(setLogs.setIndex)),
         db
-          .select({ id: workoutSessions.id, startedAt: workoutSessions.startedAt })
+          .select({
+            id: workoutSessions.id,
+            startedAt: workoutSessions.startedAt,
+            completedAt: workoutSessions.completedAt,
+          })
           .from(workoutSessions)
           .where(inArray(workoutSessions.id, sessionIds)),
       ])
@@ -373,6 +373,7 @@ async function recentPlanOutcomes(
         sessionId && session
           ? {
               startedAt: session.startedAt.toISOString(),
+              completedAt: session.completedAt?.toISOString() ?? null,
               exercises: slots
                 .filter((slot) => slot.sessionId === sessionId)
                 .map((slot) => ({
@@ -389,44 +390,6 @@ async function recentPlanOutcomes(
           : null,
     };
   });
-}
-
-/** Working sets by muscle for one week, from workouts the context already holds. */
-type WeekMuscleVolume = { weekStart: string; totalSets: number; byMuscle: Partial<MuscleVolume> };
-
-function weeklyMuscleVolume(
-  workouts: readonly TrainingWorkout[],
-  timeZone: string,
-  today: string,
-  weeks: number,
-): WeekMuscleVolume[] {
-  const out: WeekMuscleVolume[] = [];
-  const current = weekStart(today);
-  for (let i = 0; i < weeks; i++) {
-    const start = addDays(current, -7 * i);
-    const volume = emptyMuscleVolume();
-    let totalSets = 0;
-    for (const workout of workouts) {
-      if (weekStart(todayInTimeZone(timeZone, workout.startedAt)) !== start) continue;
-      for (const slot of workout.exercises) {
-        const working = slot.sets.filter((set) => set.setType !== "warmup").length;
-        if (working === 0) continue;
-        totalSets += working;
-        addExerciseVolume(volume, {
-          primaryMuscles: slot.exercise.primaryMuscles,
-          secondaryMuscles: slot.exercise.secondaryMuscles ?? [],
-          workingSets: working,
-        });
-      }
-    }
-    // Only the muscles that were trained, so the coach reads a short list rather than twenty zeros.
-    const byMuscle: Partial<MuscleVolume> = {};
-    for (const [muscle, sets] of Object.entries(volume) as [MuscleGroup, number][]) {
-      if (sets > 0) byMuscle[muscle] = Math.round(sets * 10) / 10;
-    }
-    out.push({ weekStart: start, totalSets, byMuscle });
-  }
-  return out;
 }
 
 /**
@@ -469,7 +432,8 @@ export async function planningContext(
   // A day that lifts needs a real gym with machines; a running day can be anywhere active.
   if (!gym || !gym.isActive || (day.includesLifting && gym.kind !== "gym"))
     return { reason: "no_gym" as const };
-  const today = todayInTimeZone(profile.timeZone);
+  const snapshot = new Date();
+  const today = todayInTimeZone(profile.timeZone, snapshot);
   const recentRange = parseDateRange(
     { from: addDays(today, -RECENT_DAYS), to: today },
     profile.timeZone,
@@ -488,6 +452,7 @@ export async function planningContext(
     recovery,
     library,
     lastPlans,
+    trainingVolume,
   ] = await Promise.all([
     day.includesLifting
       ? resolvePlannedDay(db, userId, gym.id, day.id, {
@@ -539,17 +504,18 @@ export async function planningContext(
           )
           .limit(1)
       : Promise.resolve([]),
-    readWorkouts(db, userId, recentRange, 0, 40),
-    // Enough runs to see four weeks of load, not just the recent window.
+    readWorkouts(db, userId, recentRange, 0, 40, { completedOnly: true }),
+    // A bounded narrative sample only; full workload is aggregated separately below.
     db
       .select()
       .from(runLogs)
       .where(eq(runLogs.userId, userId))
-      .orderBy(desc(runLogs.startedAt))
-      .limit(40),
+      .orderBy(desc(runLogs.startedAt), desc(runLogs.id))
+      .limit(41),
     readRecovery(db, userId, recentRange),
     libraryAtGym(db, userId, gym.id),
     recentPlanOutcomes(db, userId, PLAN_REVIEW_DEPTH),
+    readWeeklyTrainingVolume(db, userId, profile.timeZone, snapshot, 4),
   ]);
   if (!resolved) return { reason: "no_gym" as const };
 
@@ -686,7 +652,7 @@ export async function planningContext(
   });
 
   const state = progress(schedule.state);
-  const runHistory = runRows.map((run) => ({
+  const runHistory = runRows.slice(0, 40).map((run) => ({
     startedAt: run.startedAt.toISOString(),
     startedOn: todayInTimeZone(profile.timeZone, run.startedAt),
     mode: run.mode,
@@ -702,19 +668,11 @@ export async function planningContext(
     programRunId: run.programRunId,
     notes: run.notes,
   }));
-  const weeks: WeekVolume[] = weeklyVolumes(
-    runRows.map((run) => ({
-      startedOn: todayInTimeZone(profile.timeZone, run.startedAt),
-      durationSeconds: run.durationSeconds,
-      distanceMeters: run.distanceMeters,
-    })),
-    today,
-    4,
-  );
+  const weeks = trainingVolume.map((week) => ({ weekStart: week.weekStart, ...week.running }));
   const [thisWeek, lastWeek] = weeks;
   return {
     reason: null,
-    generatedAt: new Date().toISOString(),
+    generatedAt: snapshot.toISOString(),
     athlete: {
       id: userId,
       name: profile.displayName,
@@ -771,6 +729,12 @@ export async function planningContext(
     exercises: slots,
     recent: {
       days: RECENT_DAYS,
+      from: recentRange.from,
+      to: recentRange.to,
+      workoutsHasMore: recent.hasMore,
+      runsHasMore:
+        runRows.length > 40 &&
+        todayInTimeZone(profile.timeZone, runRows[40]!.startedAt) >= recentRange.from,
       workouts: recent.workouts.map((w) => ({
         startedAt: w.startedAt.toISOString(),
         completedAt: w.completedAt?.toISOString() ?? null,
@@ -822,9 +786,12 @@ export async function planningContext(
       spike: thisWeek && lastWeek ? volumeSpike(thisWeek, lastWeek) : null,
       shinEscalations: shinEscalations(runRows),
       history: runHistory.slice(0, 8),
+      historyHasMore: runRows.length > 8,
     },
     /** Working sets by muscle for the last four weeks, newest first. */
-    volume: weeklyMuscleVolume(recent.workouts, profile.timeZone, today, 4),
+    volume: trainingVolume.map((week) => ({ weekStart: week.weekStart, ...week.lifting })),
+    /** Exact aggregate coverage; incomplete workouts are counted separately from completed work. */
+    volumeCoverage: trainingVolume.map((week) => ({ weekStart: week.weekStart, ...week.coverage })),
     /** The coach's own last plans, and what was actually done against each. */
     lastPlans,
     library: library.map((e) => ({
@@ -1060,6 +1027,8 @@ export async function storePlan(
             and(
               eq(programRuns.id, plan.run.programRunId),
               eq(programRuns.programId, schedule.program.id),
+              eq(programRuns.weekIndex, ref.cycleIndex),
+              eq(programRuns.dayOfWeek, day.dayOfWeek ?? 0),
             ),
           )
           .limit(1)
@@ -1068,7 +1037,10 @@ export async function storePlan(
   const slotById = new Map(daySlots.map((slot) => [slot.id, slot]));
   const issues: { path: string; message: string }[] = [];
   if (plan.run?.programRunId && programRun.length === 0)
-    issues.push({ path: "run.programRunId", message: "That planned run is not in the programme." });
+    issues.push({
+      path: "run.programRunId",
+      message: "That planned run does not belong to this occurrence.",
+    });
 
   const stored: StoredPlanExercise[] = plan.exercises.map((entry, index) => {
     const exercise = visible.find((e) => e.slug === entry.exerciseSlug);

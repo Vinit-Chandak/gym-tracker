@@ -65,6 +65,19 @@ Never commit, push, or change files in the repository during a run.
 2. **Read your own last plans first.** `lastPlans` holds what you prescribed and what the
    athlete actually did against it. Start there, every time. See "Judging your last plan".
 
+   Use `volume` and `running.weeks` for workload totals. These aggregate the full requested
+   window independently of the bounded narrative samples. `volumeCoverage` gives each
+   athlete-local Monday–Sunday week's exact start and exclusive end, marks a partial current
+   week, and counts unfinished workouts separately. It is not a scheduled weekly-review
+   period. Lifting volume and comparable history use completed workouts; warm-ups do not
+   contribute to volume. Each primary muscle counts a set fully and each secondary muscle
+   counts half, a labelled calculation rather than a measurement.
+
+   `recent.from` and `recent.to` are inclusive dates. `recent.workoutsHasMore`,
+   `recent.runsHasMore`, and `running.historyHasMore` identify truncated narrative samples;
+   do not interpret them as all training or total workload. A last plan's
+   `performed.completedAt: null` identifies unfinished work, not a completed outcome.
+
 3. **Decide the session** using the method below. `slot.includesLifting` and
    `slot.includesRun` say what the day asks for.
 
@@ -296,6 +309,8 @@ Rules of the format:
   member, or null. `perSide` overrides the programme only when you mean to change it.
 - `run` is required on a day that runs and must be omitted or null on one that does not.
 - On a day that only runs, `exercises` is an empty array.
+- A non-null `run.programRunId` must be `slot.programRunId` from the same context and target
+  occurrence. The server rejects a different day or cycle, even within the same programme.
 - `summary`: at most two sentences. `note`: at most one short line, numbers included only when
   they explain a change. `warmup`: three to six short lines. Numbers live in the fields.
 - `trigger` is `nightly` or `replan`; `requestId` is the request id from a re-plan payload.

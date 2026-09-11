@@ -288,7 +288,12 @@ describe("previous comparable performance", () => {
       ) => {
         const [session] = await tx
           .insert(workoutSessions)
-          .values({ userId: alice.id, gymId, startedAt: new Date(startedAt) })
+          .values({
+            userId: alice.id,
+            gymId,
+            startedAt: new Date(startedAt),
+            completedAt: new Date(new Date(startedAt).getTime() + 60 * 60_000),
+          })
           .returning({ id: workoutSessions.id });
         if (!session) throw new Error("no session");
         for (const [i, entry] of entries.entries()) {

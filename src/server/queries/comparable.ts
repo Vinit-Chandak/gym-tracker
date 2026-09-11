@@ -1,4 +1,4 @@
-import { and, desc, eq, exists, lt, ne, sql } from "drizzle-orm";
+import { and, desc, eq, exists, isNotNull, lt, ne, sql } from "drizzle-orm";
 import { unionAll } from "drizzle-orm/pg-core";
 
 import {
@@ -52,11 +52,13 @@ type PerformanceFilter = {
   limit: number;
 };
 
-/** Performances of an exercise with at least one logged set, newest first. */
+/** Completed-workout performances with at least one logged set, newest first. */
 function performanceQuery(db: DbOrTx, filter: PerformanceFilter, requestIndex: number) {
   const conditions = [
     eq(workoutExercises.userId, filter.userId),
+    eq(workoutSessions.userId, filter.userId),
     eq(workoutExercises.exerciseId, filter.exerciseId),
+    isNotNull(workoutSessions.completedAt),
     exists(
       db
         .select({ one: sql`1` })
@@ -219,7 +221,7 @@ export async function latestPerformanceAnywhere(
   return row ?? null;
 }
 
-/** Recent performances of an exercise on every machine, newest first, for the exercise page. */
+/** Recent completed performances on every machine, newest first, for the exercise page. */
 export async function recentPerformances(
   db: DbOrTx,
   userId: string,

@@ -1,6 +1,6 @@
 # AI-first coaching implementation plan
 
-Status: planning only; application implementation starts in the next session. Updated September 11, 2026.
+Status: implementation started September 11, 2026. See [implementation progress](AI_COACH_IMPLEMENTATION_PROGRESS.md) for the delivered slice, verification, and unresolved decisions. The full release described below is not yet implemented.
 
 This is the implementation handoff for personalized onboarding, scheduled coaching, manual programs, and independent workout tracking. It supersedes the proposed behavior in [the application and industry review](AI_COACH_REVAMP.md). That review records code findings from `main` at `d9075a6cd672a6391b451fcdba1705896e31fcde`. The working branch is `codex/ai-first-coaching`, created from that revision of `origin/main`.
 
