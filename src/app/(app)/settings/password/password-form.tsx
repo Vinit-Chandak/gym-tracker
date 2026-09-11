@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2 } from "@/components/ui/icons";
 import { useActionState } from "react";
 
 import { LinkButton } from "@/components/ui/button";
@@ -17,7 +17,7 @@ export function PasswordForm() {
     return (
       <div className="space-y-3">
         <p className="flex items-center gap-2 text-sm text-success">
-          <CheckCircle2 className="size-5 shrink-0" aria-hidden />
+          <CheckCircle2 className="shrink-0" aria-hidden />
           Password updated.
         </p>
         <LinkButton href="/settings" variant="secondary" className="w-full">

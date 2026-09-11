@@ -1,4 +1,4 @@
-import { MapPin } from "lucide-react";
+import { MapPin } from "@/components/ui/icons";
 import type { Metadata } from "next";
 
 import { PageContent } from "@/components/shell/page-content";

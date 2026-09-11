@@ -1,4 +1,4 @@
-import { Footprints } from "lucide-react";
+import { Footprints } from "@/components/ui/icons";
 import type { Metadata } from "next";
 
 import { PageContent } from "@/components/shell/page-content";

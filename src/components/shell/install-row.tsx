@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, Download } from "lucide-react";
+import { ChevronRight, Download } from "@/components/ui/icons";
 import { useEffect, useState } from "react";
 
 import { List, PRESSABLE_ROW_CLASS, RowIcon } from "@/components/ui/link-row";
@@ -86,7 +86,7 @@ export function InstallSection() {
           >
             <RowIcon icon={Download} />
             <span className="min-w-0 flex-1 font-medium">Install {APP_NAME}</span>
-            <ChevronRight className="size-5 shrink-0 text-ink-subtle" aria-hidden />
+            <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />
           </button>
         </li>
       </List>

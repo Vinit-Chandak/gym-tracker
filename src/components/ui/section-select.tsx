@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronDown } from "lucide-react";
+import { Check, ChevronDown } from "@/components/ui/icons";
 import { useState, type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
@@ -50,7 +50,7 @@ export function SectionSelect<V extends string>({
         <span className="min-w-0 flex-1 truncate">{current?.label}</span>
         <ChevronDown
           className={cn(
-            "size-4 shrink-0 text-ink-subtle transition-transform duration-[var(--ov-duration-feedback)]",
+            "shrink-0 text-ink-subtle transition-transform duration-[var(--ov-duration-feedback)]",
             open && "rotate-180",
           )}
           aria-hidden
@@ -74,7 +74,7 @@ export function SectionSelect<V extends string>({
                 >
                   <span className="min-w-0 flex-1 font-medium">{option.label}</span>
                   {/* The tick, not colour alone, says which one you are looking at. */}
-                  {selected && <Check className="size-5 shrink-0" aria-hidden />}
+                  {selected && <Check className="shrink-0" aria-hidden />}
                 </button>
               </li>
             );

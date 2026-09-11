@@ -30,6 +30,10 @@
   --ov-row-gap: 0.375rem;
   --ov-control-height: 2.75rem;
   --ov-target-min: 2.75rem;
+  --ov-icon-control: clamp(1.125rem, 1.0625rem + 0.25vw, 1.25rem);
+  --ov-icon-navigation: clamp(1.25rem, 1.125rem + 0.5vw, 1.5rem);
+  --ov-icon-row: clamp(1.375rem, 1.25rem + 0.5vw, 1.5rem);
+  --ov-icon-feature: clamp(1.5rem, 1.375rem + 0.5vw, 1.75rem);
   --ov-content-max: 32rem;
   --ov-nav-height: 4rem;
   --ov-set-columns: 2.75rem minmax(4rem, 1.25fr) minmax(3.25rem, 1fr) minmax(2.75rem, 0.85fr)

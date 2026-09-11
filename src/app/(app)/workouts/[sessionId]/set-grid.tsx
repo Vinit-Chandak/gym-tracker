@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, LoaderCircle } from "lucide-react";
+import { Check, LoaderCircle } from "@/components/ui/icons";
 
 import { InfoTip } from "@/components/ui/info-tip";
 import { sanitizeNumberEntry, SET_LIMITS } from "@/domain/sets";
@@ -193,12 +193,12 @@ export function SetGrid({
                       role="status"
                       className="flex h-11 w-full items-center justify-center text-ink-muted"
                     >
-                      <LoaderCircle className="size-4 motion-safe:animate-spin" aria-hidden />
+                      <LoaderCircle className="motion-safe:animate-spin" aria-hidden />
                       <span className="sr-only">Saving set {row.setIndex}</span>
                     </span>
                   ) : saved ? (
                     <span className="flex h-11 w-full items-center justify-center text-success">
-                      <Check className="size-4" aria-hidden />
+                      <Check aria-hidden />
                       <span className="sr-only">Set {row.setIndex} saved</span>
                     </span>
                   ) : (

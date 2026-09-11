@@ -1,6 +1,17 @@
 # Overload icon directions
 
-Three reviewable icon treatments, based on `main` at `c35892d`. **Awaiting the user's choice before replacing production icons.**
+**Selected: Phosphor Duotone, with a brain symbol for AI coach.** The interface replacement is implemented on the PR branch, based on `main` at `c35892d`. The comparison below records the explored treatments and now includes the revised coach symbol.
+
+## Implemented preview
+
+Run `npm run dev` and open `/preview/icons` to inspect the real navigation, row, appearance, information-tip, and switch components with sample content. This development-only route performs no account mutations. The brain symbol is used in Settings, AI coach preferences, and workout guidance.
+
+- [Selected phone, light](screenshots/selected-phone-light.png)
+- [Selected phone, dark](screenshots/selected-phone-dark.png)
+- [Selected tablet, light](screenshots/selected-tablet-light.png)
+- [Selected desktop, dark](screenshots/selected-desktop-dark.png)
+
+All 28 functional symbols go through `src/components/ui/icons.tsx`, using `@phosphor-icons/react` 2.1.10 with fixed duotone weight. Individual context-free imports render on the server and in client components. Shared size tokens cover controls, navigation, rows, and empty states. The information-tip button keeps a 44 px hit area; its smaller glyph scales separately. Existing loading and disclosure animations are retained, including reduced-motion handling. The two inline workout confirmation checkmarks now use the chosen SVG family too.
 
 | Direction | Pack / treatment                                                  | Character                                                                       |
 | --------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------- |
@@ -8,7 +19,7 @@ Three reviewable icon treatments, based on `main` at `c35892d`. **Awaiting the u
 | B         | [Phosphor Duotone](https://github.com/phosphor-icons/core), 2.1.1 | Outlines with soft translucent fills; recommended for the existing warm palette |
 | C         | Phosphor Fill, 2.1.1                                              | Solid silhouettes with more visual weight                                       |
 
-These are two icon packs and three treatments. All previews use the actual upstream SVGs, with no runtime CDN, icon font, or new application dependency. Licenses are retained in [licenses](licenses/); pinned package versions and tarball integrity values are in [sources.json](sources.json).
+These are two icon packs and three treatments. The static comparison uses actual upstream SVGs with no runtime CDN or icon font. Licenses are retained in [licenses](licenses/); comparison asset versions and tarball integrity values are in [sources.json](sources.json). The production React package is pinned in the app's package and lock files.
 
 ## Review
 
@@ -42,69 +53,70 @@ The lightweight server binds to loopback and serves this review directory plus t
 
 ## Scope
 
-This PR contains mockups and documentation only. The production components, dependencies, app behavior, and visual tokens have no changes.
+This PR replaces functional interface icons and adds responsive icon sizing. Changes to application behavior are limited to the information-tip hit area and the rendering of confirmation symbols; routes and account/training operations retain their existing behavior. A development-only preview and the original static comparison accompany the implementation.
 
 The previews import the existing `foundation.css` and `form.css` palettes and reproduce the existing Settings groups, five navigation labels, content width, and 1024 px navigation breakpoint. Only sample profile/appearance values and preview controls are introduced. They are HTML approximations of the existing components, not live account screens.
 
-**Keep the app's identity intact during the later rollout:**
+**The app's identity is preserved:**
 
 - `src/app/icon.svg`, `src/app/apple-icon.png`, and `public/icons/*`
 - The Overload wordmark and accent full stop
 - The dumbbell used as the app mark in `src/app/(auth)/layout.tsx`; the same Lucide glyph's functional Today/gym uses can be replaced independently
 - The existing app mark on the offline screen
 
-The body map and chart SVGs represent data, not interface logos, and are outside this icon replacement. Mathematical multiplication signs and prose arrows also remain text. The two inline workout confirmation checkmarks should use the chosen `Check` symbol during implementation.
+The body map and chart SVGs represent data, not interface logos, and are outside this icon replacement. Mathematical multiplication signs and prose arrows remain text.
 
 ## Complete icon inventory
 
-The 28 unique runtime Lucide imports under `src` are covered. `icons.js` includes the current file usage list and exact upstream asset path for every entry. The `Dumbbell` file list includes the protected auth branding use described above.
+The 28 unique runtime Lucide symbols from the starting version are covered. `icons.js` retains their original file usage list and comparison asset paths. `Sparkles` is now the functional `AiCoach` export and uses `BrainIcon`. The `Dumbbell` file list includes the protected auth branding use described above, which remains on Lucide.
 
-| Current symbol    | Purpose            | A: Tabler              | B/C: Phosphor      |
-| ----------------- | ------------------ | ---------------------- | ------------------ |
-| Dumbbell          | Today / workout    | barbell                | barbell            |
-| Footprints        | Runs               | run                    | sneaker-move       |
-| CalendarDays      | History / calendar | calendar-month         | calendar-dots      |
-| TrendingUp        | Progress           | trending-up            | trend-up           |
-| Settings          | Settings           | settings               | gear-six           |
-| User              | Profile            | user                   | user               |
-| ClipboardList     | Programme          | clipboard-list         | clipboard-text     |
-| MapPin            | Gyms / location    | map-pin                | map-pin            |
-| BookOpen          | Exercise library   | book-2                 | book-open          |
-| Timer             | Rest timer         | stopwatch              | timer              |
-| Sparkles          | AI coach           | sparkles               | sparkle            |
-| SunMoon           | Appearance         | sun-moon               | circle-half        |
-| KeyRound          | Password           | key                    | key                |
-| Link2             | Coach access       | link                   | link               |
-| Download          | Install            | download               | download-simple    |
-| LogOut            | Sign out           | logout                 | sign-out           |
-| Trash             | Delete account     | trash                  | trash              |
-| ChevronRight      | Forward            | chevron-right          | caret-right        |
-| ChevronLeft       | Back               | chevron-left           | caret-left         |
-| ChevronDown       | Expand / select    | chevron-down           | caret-down         |
-| Check             | Selected / saved   | check                  | check              |
-| CheckCircle2      | Success            | circle-check           | check-circle       |
-| Info              | Help               | info-circle            | info               |
-| Search            | Search             | search                 | magnifying-glass   |
-| SlidersHorizontal | Filters            | adjustments-horizontal | sliders-horizontal |
-| ExternalLink      | External resource  | external-link          | arrow-square-out   |
-| LoaderCircle      | Loading            | loader-2               | circle-notch       |
-| MailCheck         | Email confirmation | mail-check             | envelope-open      |
+| Current symbol     | Purpose            | A: Tabler              | B/C: Phosphor      |
+| ------------------ | ------------------ | ---------------------- | ------------------ |
+| Dumbbell           | Today / workout    | barbell                | barbell            |
+| Footprints         | Runs               | run                    | sneaker-move       |
+| CalendarDays       | History / calendar | calendar-month         | calendar-dots      |
+| TrendingUp         | Progress           | trending-up            | trend-up           |
+| Settings           | Settings           | settings               | gear-six           |
+| User               | Profile            | user                   | user               |
+| ClipboardList      | Programme          | clipboard-list         | clipboard-text     |
+| MapPin             | Gyms / location    | map-pin                | map-pin            |
+| BookOpen           | Exercise library   | book-2                 | book-open          |
+| Timer              | Rest timer         | stopwatch              | timer              |
+| Sparkles → AiCoach | AI coach           | brain                  | brain              |
+| SunMoon            | Appearance         | sun-moon               | circle-half        |
+| KeyRound           | Password           | key                    | key                |
+| Link2              | Coach access       | link                   | link               |
+| Download           | Install            | download               | download-simple    |
+| LogOut             | Sign out           | logout                 | sign-out           |
+| Trash              | Delete account     | trash                  | trash              |
+| ChevronRight       | Forward            | chevron-right          | caret-right        |
+| ChevronLeft        | Back               | chevron-left           | caret-left         |
+| ChevronDown        | Expand / select    | chevron-down           | caret-down         |
+| Check              | Selected / saved   | check                  | check              |
+| CheckCircle2       | Success            | circle-check           | check-circle       |
+| Info               | Help               | info-circle            | info               |
+| Search             | Search             | search                 | magnifying-glass   |
+| SlidersHorizontal  | Filters            | adjustments-horizontal | sliders-horizontal |
+| ExternalLink       | External resource  | external-link          | arrow-square-out   |
+| LoaderCircle       | Loading            | loader-2               | circle-notch       |
+| MailCheck          | Email confirmation | mail-check             | envelope-open      |
 
 The Phosphor email symbol is an opened envelope, not a checkmarked envelope. The existing confirmation text carries the success meaning. The pack-specific Runs and Appearance silhouettes are deliberately visible in the comparison.
 
-## Responsive behavior proposed for implementation
+## Responsive behavior
 
 - Navigation icons: `clamp(1.25rem, 1.125rem + 0.5vw, 1.5rem)` (20–24 px at default text size).
 - Leading Settings icons: `clamp(1.375rem, 1.25rem + 0.5vw, 1.5rem)` (22–24 px).
 - Small controls: `clamp(1.125rem, 1.0625rem + 0.25vw, 1.25rem)` (18–20 px).
+- Empty-state icons: `clamp(1.5rem, 1.375rem + 0.5vw, 1.75rem)` (24–28 px).
 - Every SVG retains its native viewBox, inherits `currentColor`, and is hidden from assistive technology when the surrounding control supplies the label.
 - Navigation cells and icon buttons remain at least 44 × 44 px; Settings rows stay at least 56 px tall. The glyph size is separate from the hit target.
 - Bottom navigation below 1024 px; the existing 192 px desktop rail at and above 1024 px. The page reserves navigation space and safe-area insets.
 - Text labels and the selected background accompany icons; meaning does not depend on color alone. Focus outlines and forced-color fallbacks are included. The mockups have no animation.
 
-After a direction is selected, apply its family and sizing consistently to the functional usages in this inventory, including the shared row, navigation, form, loading, and empty-state components. Keep the protected brand usages intact. The production rollout will need its own component and browser verification.
+The chosen family and sizing are applied to the functional usages in this inventory, including shared row, navigation, form, loading, and empty-state components.
 
-## Verification
+## Original mockup verification
 
 Checked on 11 September 2026 in headless Microsoft Edge (Chromium), using Playwright:
 
@@ -116,4 +128,17 @@ Checked on 11 September 2026 in headless Microsoft Edge (Chromium), using Playwr
 - No horizontal overflow with 200% text sizing at 320, 768, and 1440 px.
 - ESLint for the review scripts and Prettier for this directory pass.
 
-Screenshots were visually inspected. These checks emulate viewport sizes; they are not physical iOS/Android or Safari testing. The production test suite was not run because no production source or dependencies changed.
+The initial mockup screenshots were visually inspected. These checks emulate viewport sizes; they are not physical iOS/Android or Safari testing. The initial mockup phase did not change production source or dependencies; implementation validation is recorded separately below.
+
+## Implementation validation
+
+- `npm run typecheck` and `npm run build` pass.
+- `npm run lint` passes. Prettier passes for the changed source and review files.
+- 39 existing tests pass across shared components, navigation, and the exercise logger (8 test files).
+- The real-component `/preview/icons` screen passes 10 light/dark viewport combinations at 320, 390, 768, 1024, and 1440 px. Its 57 visible glyphs retain the Phosphor viewBox, are decorative, and render without missing geometry; the closed appearance sheet's checkmark is excluded from visibility measurements.
+- Brain paths match the official duotone asset. Navigation/row/control dimensions follow their respective ranges; visible buttons and links meet 44 px targets; there is no page overflow.
+- Keyboard information-tip activation and dismissal, the local rest switch, the real appearance sheet, and 200% text sizing pass. Existing Today, logging, and header preview routes have no browser errors or page overflow at phone width.
+- Icons also render with JavaScript disabled. The auth screen still displays its original Lucide dumbbell mark. A Git comparison confirms all protected branding files are unchanged.
+- Updated app and comparison screenshots were inspected. The static comparison's 30 combinations also pass with the new brain symbol.
+
+These are Chromium viewport checks, not physical-device or Safari checks. The full database test suite was not run; this change does not alter database or domain behavior.

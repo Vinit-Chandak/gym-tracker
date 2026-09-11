@@ -1,5 +1,5 @@
 import { SubmitButton } from "@/components/ui/form";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink } from "@/components/ui/icons";
 import type { Metadata } from "next";
 import Link from "@/components/ui/app-link";
 import { notFound } from "next/navigation";
@@ -172,7 +172,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
               className={buttonClassName("secondary", "md", "w-full")}
             >
               Form guide
-              <ExternalLink className="size-4" aria-hidden />
+              <ExternalLink aria-hidden />
             </a>
           )}
         </Card>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Search } from "lucide-react";
+import { Search } from "@/components/ui/icons";
 import { useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -48,10 +48,7 @@ export function ExerciseLibrary({ exercises }: { exercises: ExerciseListItem[] }
   return (
     <div className="space-y-5">
       <div className="relative">
-        <Search
-          className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-subtle"
-          aria-hidden
-        />
+        <Search className="absolute top-1/2 left-3 -translate-y-1/2 text-ink-subtle" aria-hidden />
         <Input
           type="search"
           value={query}

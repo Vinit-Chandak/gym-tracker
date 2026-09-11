@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight } from "@/components/ui/icons";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
@@ -192,7 +192,7 @@ function MachinePicker({
         ))}
       </select>
       <ChevronDown
-        className="pointer-events-none absolute top-1/2 right-1.5 size-3.5 -translate-y-1/2 text-ink-subtle"
+        className="pointer-events-none absolute top-1/2 right-1.5 -translate-y-1/2 text-ink-subtle"
         aria-hidden
       />
     </span>
@@ -611,7 +611,7 @@ export function ProgressView({
                   disabled={pending}
                   onClick={() => stepWeek(-7)}
                 >
-                  <ChevronLeft className="size-5" aria-hidden />
+                  <ChevronLeft aria-hidden />
                 </Button>
                 <p className="min-w-0 text-center text-sm font-medium">
                   {formatDateRange(body.from, body.to)}
@@ -623,7 +623,7 @@ export function ProgressView({
                   disabled={pending}
                   onClick={() => stepWeek(7)}
                 >
-                  <ChevronRight className="size-5" aria-hidden />
+                  <ChevronRight aria-hidden />
                 </Button>
               </div>
               <div className={pending ? "opacity-50 transition-opacity" : undefined}>

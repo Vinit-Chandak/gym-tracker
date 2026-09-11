@@ -3,15 +3,15 @@ import {
   CalendarDays,
   Dumbbell,
   Footprints,
-  type LucideIcon,
+  type AppIcon,
   Settings,
   TrendingUp,
-} from "lucide-react";
+} from "@/components/ui/icons";
 
 export type NavItem = {
   href: Route;
   label: string;
-  icon: LucideIcon;
+  icon: AppIcon;
 };
 
 /**

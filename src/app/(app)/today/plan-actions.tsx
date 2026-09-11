@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight } from "lucide-react";
+import { ChevronRight } from "@/components/ui/icons";
 import Link from "@/components/ui/app-link";
 import { useActionState, useState, useTransition } from "react";
 
@@ -167,7 +167,7 @@ export function MoreOptions({
             <li>
               <Link href="/today/choose" className={PRESSABLE_ROW_CLASS} onClick={close}>
                 <span className="min-w-0 flex-1 font-medium">Train another day</span>
-                <ChevronRight className="size-5 shrink-0 text-ink-subtle" aria-hidden />
+                <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />
               </Link>
             </li>
             <li>
@@ -201,7 +201,7 @@ export function MoreOptions({
                       </span>
                     )}
                   </span>
-                  <ChevronRight className="size-5 shrink-0 text-ink-subtle" aria-hidden />
+                  <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />
                 </button>
               </li>
             )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
+import { ChevronDown } from "@/components/ui/icons";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { Point } from "@/domain/analytics";
@@ -343,7 +343,7 @@ export function Chart({
       <details className="group text-xs text-ink-muted">
         <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1.5 font-medium select-none">
           <ChevronDown
-            className="size-3.5 shrink-0 transition-transform duration-[var(--ov-duration-feedback)] group-open:rotate-180"
+            className="shrink-0 transition-transform duration-[var(--ov-duration-feedback)] group-open:rotate-180"
             aria-hidden
           />
           View values

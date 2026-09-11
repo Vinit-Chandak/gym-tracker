@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ChevronRight, Sparkles } from "lucide-react";
+import { AiCoach, Check, ChevronDown, ChevronRight } from "@/components/ui/icons";
 import { useTransition, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -86,7 +86,7 @@ function WarmupRow({
         >
           <ChevronDown
             className={cn(
-              "size-4 shrink-0 text-ink-subtle transition-transform duration-[var(--ov-duration-feedback)]",
+              "shrink-0 text-ink-subtle transition-transform duration-[var(--ov-duration-feedback)]",
               open && "rotate-180",
             )}
             aria-hidden
@@ -106,7 +106,15 @@ function WarmupRow({
           disabled={pending}
           aria-pressed={done}
         >
-          {pending ? "Saving…" : done ? "Done ✓" : "Mark done"}
+          {pending ? (
+            "Saving…"
+          ) : done ? (
+            <>
+              Done <Check aria-hidden />
+            </>
+          ) : (
+            "Mark done"
+          )}
         </Button>
       </div>
       {open && coachLines.length > 0 && (
@@ -211,7 +219,13 @@ export function WorkoutOverview({
             aria-pressed={holdAll}
             onClick={() => onHoldAllChange(!holdAll)}
           >
-            {holdAll ? "Holding loads today ✓" : "Hold loads today"}
+            {holdAll ? (
+              <>
+                Holding loads today <Check aria-hidden />
+              </>
+            ) : (
+              "Hold loads today"
+            )}
           </Button>
         </Card>
       )}
@@ -220,7 +234,7 @@ export function WorkoutOverview({
           on Today, so it reads as context rather than as another decision. */}
       {session.coachPlan && (
         <div className="flex box items-center gap-2 px-3 py-2.5">
-          <Sparkles className="size-4 shrink-0 text-accent" aria-hidden />
+          <AiCoach className="shrink-0 text-accent" aria-hidden />
           <p className="min-w-0 text-sm [overflow-wrap:anywhere]">{session.coachPlan.summary}</p>
         </div>
       )}
@@ -271,7 +285,7 @@ export function WorkoutOverview({
                   >
                     {action.label}
                   </span>
-                  <ChevronRight className="size-4 shrink-0 text-ink-subtle" aria-hidden />
+                  <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />
                 </button>
               </li>
             );

@@ -1,6 +1,6 @@
 "use client";
 
-import { MailCheck } from "lucide-react";
+import { MailCheck } from "@/components/ui/icons";
 import { useActionState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,7 @@ export function SignUpForm() {
     return (
       <div className="space-y-3">
         <p className="flex items-center gap-2 text-sm font-medium text-success">
-          <MailCheck className="size-5 shrink-0" aria-hidden />
+          <MailCheck className="shrink-0" aria-hidden />
           Check your inbox
         </p>
         <p className="text-sm text-ink-muted">

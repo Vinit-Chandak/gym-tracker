@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
+import { ChevronDown } from "@/components/ui/icons";
 import { useState, type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
@@ -69,7 +69,7 @@ export function Disclosure({
         )}
       >
         <ChevronDown
-          className="size-4 shrink-0 text-ink-subtle transition-transform duration-[var(--ov-duration-feedback)] group-open:rotate-180"
+          className="shrink-0 text-ink-subtle transition-transform duration-[var(--ov-duration-feedback)] group-open:rotate-180"
           aria-hidden
         />
         <span className="min-w-0 flex-1">{summary}</span>

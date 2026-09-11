@@ -14,7 +14,7 @@ import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { listGyms } from "@/server/repositories/gyms";
 import { getTodayPlan, listExercisesByDay } from "@/server/repositories/schedule";
-import { CalendarDays } from "lucide-react";
+import { CalendarDays } from "@/components/ui/icons";
 
 import { StartPlannedButton } from "../plan-actions";
 

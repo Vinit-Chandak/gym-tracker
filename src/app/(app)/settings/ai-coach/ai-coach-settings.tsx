@@ -1,6 +1,6 @@
 "use client";
 
-import { Sparkles } from "lucide-react";
+import { AiCoach } from "@/components/ui/icons";
 import { useActionState, useOptimistic, useState, useTransition } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -74,7 +74,7 @@ export function AiCoachSettings({
         <li>
           <div>
             <Row
-              icon={Sparkles}
+              icon={AiCoach}
               title={
                 <>
                   AI coach
