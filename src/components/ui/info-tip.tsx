@@ -1,6 +1,6 @@
 "use client";
 
-import { Info } from "lucide-react";
+import { Info } from "@/components/ui/icons";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
@@ -78,11 +78,11 @@ export function InfoTip({ label, children, className }: InfoTipProps) {
         aria-controls={id}
         onClick={toggle}
         className={cn(
-          "flex size-8 items-center justify-center rounded-full text-ink-subtle transition-colors duration-[var(--ov-duration-feedback)] hover:text-ink active:bg-surface-raised",
+          "-m-1.5 flex size-11 items-center justify-center rounded-full text-ink-subtle transition-colors duration-[var(--ov-duration-feedback)] hover:text-ink active:bg-surface-raised",
           open && "text-accent",
         )}
       >
-        <Info className="size-4" aria-hidden />
+        <Info aria-hidden />
       </button>
       {/* Rendered only while open: a closed tip costs the page nothing but its button. */}
       {open && (

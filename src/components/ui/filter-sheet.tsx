@@ -1,6 +1,6 @@
 "use client";
 
-import { SlidersHorizontal } from "lucide-react";
+import { SlidersHorizontal } from "@/components/ui/icons";
 import { useState, type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
@@ -48,7 +48,7 @@ export function FilterSheet({
           count > 0 ? "text-accent" : "text-ink-muted hover:text-ink",
         )}
       >
-        <SlidersHorizontal className="size-4 shrink-0" aria-hidden />
+        <SlidersHorizontal className="shrink-0" aria-hidden />
         <span className="hidden min-[24rem]:inline">{label}</span>
         {count > 0 && (
           <span className="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-medium text-on-accent tabular-nums">

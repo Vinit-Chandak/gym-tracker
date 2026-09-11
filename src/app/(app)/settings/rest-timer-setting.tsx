@@ -1,6 +1,6 @@
 "use client";
 
-import { Timer } from "lucide-react";
+import { Timer } from "@/components/ui/icons";
 import { useOptimistic, useState, useTransition } from "react";
 
 import { InfoTip } from "@/components/ui/info-tip";

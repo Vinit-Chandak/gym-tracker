@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft } from "@/components/ui/icons";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 
@@ -304,7 +304,7 @@ export function ExerciseLogger({
         onClick={onBack}
         className="-ml-1 flex min-h-11 items-center gap-1 text-sm font-medium text-ink-muted"
       >
-        <ChevronLeft className="size-4" aria-hidden />
+        <ChevronLeft aria-hidden />
         All exercises
       </button>
 

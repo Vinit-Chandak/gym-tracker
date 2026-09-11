@@ -1,6 +1,6 @@
 "use client";
 
-import { Check } from "lucide-react";
+import { Check } from "@/components/ui/icons";
 import { useActionState, useState } from "react";
 
 import { Field, Input } from "@/components/ui/input";
@@ -64,7 +64,7 @@ export function ProgramTemplatePicker({
                   <ul className="space-y-0.5 pt-1">
                     {template.highlights.map((highlight) => (
                       <li key={highlight} className="flex gap-1.5 text-xs text-ink-subtle">
-                        <Check className="mt-0.5 size-3.5 shrink-0 text-accent" aria-hidden />
+                        <Check className="mt-0.5 shrink-0 text-accent" aria-hidden />
                         <span className="min-w-0">{highlight}</span>
                       </li>
                     ))}

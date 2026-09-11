@@ -5,10 +5,10 @@ import {
   KeyRound,
   Link2,
   MapPin,
-  Sparkles,
+  AiCoach,
   Trash,
   User,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import type { Metadata } from "next";
 
 import { AppearanceRow } from "@/components/shell/appearance-row";
@@ -43,7 +43,7 @@ export default async function SettingsPage() {
           <li>
             <Link href="/settings/profile" className={PRESSABLE_ROW_CLASS}>
               <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent">
-                <User className="size-5" strokeWidth={1.75} aria-hidden />
+                <User scale="row" aria-hidden />
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block font-medium [overflow-wrap:anywhere]">
@@ -57,7 +57,7 @@ export default async function SettingsPage() {
                   </span>
                 )}
               </span>
-              <ChevronRight className="size-5 shrink-0 text-ink-subtle" aria-hidden />
+              <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />
             </Link>
           </li>
         </List>
@@ -77,7 +77,7 @@ export default async function SettingsPage() {
               <RestTimerSetting enabled={profile.restTimerEnabled} />
             </li>
             <li>
-              <LinkRow href="/settings/ai-coach" icon={Sparkles} title="AI coach" />
+              <LinkRow href="/settings/ai-coach" icon={AiCoach} title="AI coach" />
             </li>
           </List>
         </Section>

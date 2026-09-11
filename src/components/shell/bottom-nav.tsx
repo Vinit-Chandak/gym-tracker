@@ -1,6 +1,6 @@
 "use client";
 
-import { LoaderCircle, type LucideIcon } from "lucide-react";
+import { LoaderCircle, type AppIcon } from "@/components/ui/icons";
 import { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -23,7 +23,7 @@ function NavContent({
   active,
 }: {
   label: string;
-  icon: LucideIcon;
+  icon: AppIcon;
   active: boolean;
 }) {
   const { pending } = useLinkStatus();
@@ -31,9 +31,9 @@ function NavContent({
     <span className={cn("nav-tab", (active || pending) && "nav-tab-active")}>
       <span className="flex h-8 w-11 shrink-0 items-center justify-center lg:size-8">
         {pending ? (
-          <LoaderCircle className="size-5 motion-safe:animate-spin" aria-hidden />
+          <LoaderCircle scale="navigation" className="motion-safe:animate-spin" aria-hidden />
         ) : (
-          <Icon className="size-5" strokeWidth={active ? 2.1 : 1.7} aria-hidden />
+          <Icon scale="navigation" aria-hidden />
         )}
       </span>
       <span className="max-w-full truncate">{label}</span>

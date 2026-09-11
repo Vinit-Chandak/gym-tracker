@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut } from "lucide-react";
+import { LogOut } from "@/components/ui/icons";
 import { useFormStatus } from "react-dom";
 
 import { PRESSABLE_ROW_CLASS, RowIcon } from "@/components/ui/link-row";

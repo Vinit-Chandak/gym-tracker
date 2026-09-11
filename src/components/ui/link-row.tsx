@@ -1,4 +1,4 @@
-import { ChevronRight, type LucideIcon } from "lucide-react";
+import { ChevronRight, type AppIcon } from "@/components/ui/icons";
 import type { Route } from "next";
 import Link from "@/components/ui/app-link";
 import type { ReactNode } from "react";
@@ -21,14 +21,8 @@ export const PRESSABLE_ROW_CLASS = cn(
 );
 
 /** The leading icon of a row, where a screen uses them: Settings and its sub-pages. */
-export function RowIcon({ icon: Icon, className }: { icon: LucideIcon; className?: string }) {
-  return (
-    <Icon
-      className={cn("size-6 shrink-0 text-ink-muted", className)}
-      strokeWidth={1.75}
-      aria-hidden
-    />
-  );
+export function RowIcon({ icon: Icon, className }: { icon: AppIcon; className?: string }) {
+  return <Icon scale="row" className={cn("shrink-0 text-ink-muted", className)} aria-hidden />;
 }
 
 type LinkRowProps<T extends string> = {
@@ -37,7 +31,7 @@ type LinkRowProps<T extends string> = {
   subtitle?: string;
   badge?: ReactNode;
   meta?: string;
-  icon?: LucideIcon;
+  icon?: AppIcon;
   /** `danger` for a destination that destroys something, so the row says so before it is opened. */
   tone?: "default" | "danger";
 };
@@ -73,7 +67,7 @@ export function LinkRow<T extends string>({
           {meta}
         </span>
       )}
-      <ChevronRight className="size-5 shrink-0 text-ink-subtle" aria-hidden />
+      <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />
     </Link>
   );
 }
@@ -89,7 +83,7 @@ export function Row({
   children,
   className,
 }: {
-  icon?: LucideIcon;
+  icon?: AppIcon;
   title: ReactNode;
   subtitle?: string;
   children?: ReactNode;

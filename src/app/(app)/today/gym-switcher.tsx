@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, MapPin } from "lucide-react";
+import { Check, MapPin } from "@/components/ui/icons";
 import Link from "@/components/ui/app-link";
 import { useState, useTransition } from "react";
 
@@ -36,7 +36,7 @@ export function GymSwitcher({ gyms }: { gyms: SwitcherGym[] }) {
     <>
       {/* One line: the pin says what the name is, so nothing has to caption it. */}
       <section aria-label="Current gym" className="flex box items-center gap-2 py-1 pr-1 pl-3">
-        <MapPin className="size-4 shrink-0 text-ink-muted" aria-hidden />
+        <MapPin className="shrink-0 text-ink-muted" aria-hidden />
         <p className="min-w-0 flex-1 truncate text-sm font-medium">
           {current ? current.name : gyms.length > 0 ? "No default gym" : "No gyms yet"}
         </p>
@@ -84,7 +84,7 @@ export function GymSwitcher({ gyms }: { gyms: SwitcherGym[] }) {
                     {GYM_KIND_LABELS[gym.kind]}
                   </span>
                 </span>
-                {gym.isDefault && <Check className="size-5 shrink-0 text-accent" aria-hidden />}
+                {gym.isDefault && <Check className="shrink-0 text-accent" aria-hidden />}
               </button>
             </li>
           ))}

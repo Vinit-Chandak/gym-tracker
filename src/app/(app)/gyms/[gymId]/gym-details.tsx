@@ -1,5 +1,5 @@
 import { SubmitButton } from "@/components/ui/form";
-import { Dumbbell } from "lucide-react";
+import { Dumbbell } from "@/components/ui/icons";
 
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";

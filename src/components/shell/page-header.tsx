@@ -1,4 +1,4 @@
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft } from "@/components/ui/icons";
 import type { Route } from "next";
 import Link from "@/components/ui/app-link";
 import type { ReactNode } from "react";
@@ -84,7 +84,7 @@ function NestedBar<T extends string>({
         aria-label={destination === "Back" ? "Back" : `Back to ${destination}`}
         className="-ml-1.5 flex min-w-0 flex-1 items-center gap-0.5 self-stretch rounded-control px-1.5 text-accent transition-colors duration-[var(--ov-duration-feedback)] ease-[var(--ov-ease-standard)] active:bg-surface-raised"
       >
-        <ChevronLeft className="size-5 shrink-0" aria-hidden />
+        <ChevronLeft className="shrink-0" aria-hidden />
         <span className="truncate text-sm">{destination}</span>
       </Link>
       <h1 className="min-w-0 truncate text-lg">{title}</h1>

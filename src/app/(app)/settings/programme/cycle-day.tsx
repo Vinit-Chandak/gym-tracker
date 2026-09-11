@@ -1,4 +1,4 @@
-import { ChevronDown } from "lucide-react";
+import { ChevronDown } from "@/components/ui/icons";
 
 import { PlannedExerciseList, planSummary } from "@/components/planned-exercises";
 import { hasRunGuidance, RunPlanDetails, runSummary } from "@/components/run-plan";
@@ -54,7 +54,7 @@ export function CycleDay({ plan }: { plan: ProgramDayPlan }) {
       </div>
       {expandable && (
         <ChevronDown
-          className="mt-1 size-4 shrink-0 text-ink-subtle transition-transform duration-[var(--ov-duration-feedback)] group-open:rotate-180"
+          className="mt-1 shrink-0 text-ink-subtle transition-transform duration-[var(--ov-duration-feedback)] group-open:rotate-180"
           aria-hidden
         />
       )}

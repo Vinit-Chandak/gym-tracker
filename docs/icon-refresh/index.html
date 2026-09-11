@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en" data-overload-design="form" data-overload-mode="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Overload · Icon directions</title>
+    <link rel="icon" href="../../src/app/icon.svg" />
+    <link rel="stylesheet" href="review.css" />
+    <script src="review.js" defer></script>
+  </head>
+  <body>
+    <main class="review">
+      <header class="intro">
+        <div class="identity">
+          <img
+            src="../../src/app/icon.svg"
+            alt="Overload app logo, retained"
+            width="36"
+            height="36"
+          />
+          <span class="wordmark">Overload<span aria-hidden="true">.</span></span>
+          <span class="edition">Icon study / 01</span>
+        </div>
+        <h1>Phosphor Duotone is selected.</h1>
+        <p class="lede">
+          AI coach now uses a brain symbol. The selected family carries through navigation and
+          Settings; the app logo stays as it is.
+        </p>
+      </header>
+
+      <div class="controls" aria-label="Mockup controls">
+        <label
+          >Screen
+          <select id="screen">
+            <option value="settings">Settings + navigation</option>
+            <option value="inventory">All 28 symbols</option>
+          </select>
+        </label>
+        <label
+          >Device
+          <select id="device">
+            <option value="phone">Phone · up to 390 px</option>
+            <option value="tablet">Tablet · 768 px</option>
+            <option value="desktop">Desktop · 1280 px</option>
+          </select>
+        </label>
+        <fieldset class="theme-picker">
+          <legend>Appearance</legend>
+          <div class="segmented">
+            <button type="button" data-theme="light" aria-pressed="true">Light</button>
+            <button type="button" data-theme="dark" aria-pressed="false">Dark</button>
+          </div>
+        </fieldset>
+        <p class="control-note" id="view-note" aria-live="polite">
+          Actual-size SVGs. Scroll inside each screen to see every Settings row.
+        </p>
+      </div>
+
+      <section class="comparisons" data-device="phone" aria-label="Three icon mockups">
+        <article class="direction" data-pack="tabler">
+          <header class="direction-heading">
+            <span class="letter" aria-hidden="true">A</span>
+            <div>
+              <h2>Tabler Outline</h2>
+              <p>Clean lines. More detailed silhouettes.</p>
+            </div>
+          </header>
+          <div class="frame-wrap">
+            <iframe
+              title="A · Tabler Outline mockup"
+              src="preview.html?pack=tabler&amp;theme=light&amp;screen=settings&amp;embedded=1"
+            ></iframe>
+          </div>
+          <div class="direction-footer">
+            <span>Rounded strokes</span
+            ><a href="preview.html?pack=tabler&amp;theme=light" target="_blank" rel="noopener"
+              >Open A at full size <span aria-hidden="true">↗</span></a
+            >
+          </div>
+        </article>
+        <article class="direction" data-pack="duotone">
+          <header class="direction-heading">
+            <span class="letter" aria-hidden="true">B</span>
+            <div>
+              <h2>Phosphor Duotone <span class="pick">Selected</span></h2>
+              <p>Soft fills. A little more personality.</p>
+            </div>
+          </header>
+          <div class="frame-wrap">
+            <iframe
+              title="B · Phosphor Duotone mockup"
+              src="preview.html?pack=duotone&amp;theme=light&amp;screen=settings&amp;embedded=1"
+            ></iframe>
+          </div>
+          <div class="direction-footer">
+            <span>Outline + translucent fill</span
+            ><a href="preview.html?pack=duotone&amp;theme=light" target="_blank" rel="noopener"
+              >Open B at full size <span aria-hidden="true">↗</span></a
+            >
+          </div>
+        </article>
+        <article class="direction" data-pack="fill">
+          <header class="direction-heading">
+            <span class="letter" aria-hidden="true">C</span>
+            <div>
+              <h2>Phosphor Fill</h2>
+              <p>Solid shapes. The strongest visual weight.</p>
+            </div>
+          </header>
+          <div class="frame-wrap">
+            <iframe
+              title="C · Phosphor Fill mockup"
+              src="preview.html?pack=fill&amp;theme=light&amp;screen=settings&amp;embedded=1"
+            ></iframe>
+          </div>
+          <div class="direction-footer">
+            <span>Solid silhouettes</span
+            ><a href="preview.html?pack=fill&amp;theme=light" target="_blank" rel="noopener"
+              >Open C at full size <span aria-hidden="true">↗</span></a
+            >
+          </div>
+        </article>
+      </section>
+
+      <footer class="review-footer">
+        <p>
+          <strong>B is the selected direction.</strong> The AI coach symbol has been updated to a
+          duotone brain. The other treatments remain here as a record of the comparison.
+        </p>
+        <p>
+          Two packs, three treatments. Icons grow from 20 to 24 px with the viewport; small controls
+          stay 18 to 20 px, with at least 44 px touch targets. The existing bottom navigation
+          becomes the desktop rail at 1024 px.
+        </p>
+        <p class="credits">
+          Original SVGs: <a href="https://github.com/tabler/tabler-icons">Tabler 3.46.0</a> and
+          <a href="https://github.com/phosphor-icons/core">Phosphor 2.1.1</a>. Both MIT licensed.
+          <a href="README.md">Scope and icon inventory</a>.
+        </p>
+      </footer>
+      <noscript
+        ><p>
+          Enable JavaScript to compare the mockups. Static screenshots are available in the
+          screenshots folder.
+        </p></noscript
+      >
+    </main>
+  </body>
+</html>

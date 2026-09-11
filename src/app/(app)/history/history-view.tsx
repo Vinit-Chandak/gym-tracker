@@ -13,7 +13,7 @@ import { Field } from "@/components/ui/input";
 import { LinkRow, List } from "@/components/ui/link-row";
 import { Select } from "@/components/ui/select";
 import { formatDateRange } from "@/lib/format";
-import { CalendarDays } from "lucide-react";
+import { CalendarDays } from "@/components/ui/icons";
 
 export type HistoryItem = {
   id: string;

@@ -215,6 +215,26 @@
   background: var(--ov-surface);
 }
 
+/* Icon dimensions follow the viewport and text size independently of the hit target. */
+.app-icon {
+  display: block;
+  flex-shrink: 0;
+  width: var(--ov-icon-control);
+  height: var(--ov-icon-control);
+}
+.app-icon[data-icon-scale="navigation"] {
+  width: var(--ov-icon-navigation);
+  height: var(--ov-icon-navigation);
+}
+.app-icon[data-icon-scale="row"] {
+  width: var(--ov-icon-row);
+  height: var(--ov-icon-row);
+}
+.app-icon[data-icon-scale="feature"] {
+  width: var(--ov-icon-feature);
+  height: var(--ov-icon-feature);
+}
+
 /*
  * A box of full-bleed rows. The first and last rows take the box's corners themselves,
  * so a pressed row's highlight follows the rounding without the box clipping anything

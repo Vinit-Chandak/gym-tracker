@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight } from "lucide-react";
+import { ChevronRight } from "@/components/ui/icons";
 import { useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -123,7 +123,7 @@ export function SupersetSheet({
                     {entry.members.join(" + ")}
                   </span>
                   <span className="shrink-0 text-xs font-medium text-ink-muted">Edit</span>
-                  <ChevronRight className="size-4 shrink-0 text-ink-subtle" aria-hidden />
+                  <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />
                 </button>
               </li>
             ))}

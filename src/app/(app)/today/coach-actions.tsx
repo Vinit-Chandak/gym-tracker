@@ -1,6 +1,6 @@
 "use client";
 
-import { Check } from "lucide-react";
+import { Check } from "@/components/ui/icons";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 
@@ -95,7 +95,7 @@ export function CoachRequestPanel({
                 )}
               >
                 <span className="min-w-0 truncate">{gym.name}</span>
-                {chosen && <Check className="size-5 shrink-0 text-accent" aria-hidden />}
+                {chosen && <Check className="shrink-0 text-accent" aria-hidden />}
               </button>
             </li>
           );

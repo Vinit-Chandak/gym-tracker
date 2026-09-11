@@ -1,4 +1,4 @@
-import { ChevronRight } from "lucide-react";
+import { ChevronRight } from "@/components/ui/icons";
 import type { ReactNode } from "react";
 
 import { CoachPlanList, coachPlanSummary, CoachRunDetails } from "@/components/coach-plan";
@@ -508,7 +508,7 @@ export function TodayView({
                 </p>
                 <p className="mt-1 font-medium [overflow-wrap:anywhere]">{plan.program.name}</p>
               </div>
-              <ChevronRight className="mt-0.5 size-5 shrink-0 text-ink-subtle" aria-hidden />
+              <ChevronRight className="mt-0.5 shrink-0 text-ink-subtle" aria-hidden />
             </div>
             <ProgressBar
               value={plan.progress.completed}

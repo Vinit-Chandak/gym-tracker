@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronRight, SunMoon } from "lucide-react";
+import { Check, ChevronRight, SunMoon } from "@/components/ui/icons";
 import { useState, useSyncExternalStore } from "react";
 
 import { PRESSABLE_ROW_CLASS, RowIcon } from "@/components/ui/link-row";
@@ -64,7 +64,7 @@ export function AppearanceRow() {
         <RowIcon icon={SunMoon} />
         <span className="min-w-0 flex-1 font-medium">Appearance</span>
         <span className="shrink-0 text-sm text-ink-muted">{APPEARANCE_LABELS[appearance]}</span>
-        <ChevronRight className="size-5 shrink-0 text-ink-subtle" aria-hidden />
+        <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />
       </button>
 
       <Sheet open={open} onClose={() => setOpen(false)} title="Appearance">
@@ -81,9 +81,7 @@ export function AppearanceRow() {
                 )}
               >
                 {APPEARANCE_LABELS[mode]}
-                {appearance === mode && (
-                  <Check className="size-5 shrink-0 text-accent" aria-hidden />
-                )}
+                {appearance === mode && <Check className="shrink-0 text-accent" aria-hidden />}
               </button>
             </li>
           ))}

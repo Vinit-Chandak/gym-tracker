@@ -1,4 +1,4 @@
-import { Check } from "lucide-react";
+import { Check } from "@/components/ui/icons";
 
 import { cn } from "@/lib/utils";
 
@@ -30,7 +30,7 @@ export function Steps({ current }: { current: OnboardingStep }) {
                 !done && !active && "bg-surface-raised text-ink-subtle",
               )}
             >
-              {done ? <Check className="size-3.5" /> : i + 1}
+              {done ? <Check /> : i + 1}
             </span>
             <span
               className={cn(
