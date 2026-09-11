@@ -6,6 +6,7 @@ import { useEffect, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
+import { REQUEST_TIMEOUT_MINUTES } from "@/domain/coach-request";
 import { cn } from "@/lib/utils";
 import { requestCoachPlanAction } from "@/server/actions/coach";
 
@@ -13,7 +14,6 @@ export type CoachGym = { id: string; name: string; isDefault: boolean };
 
 /** How often Today re-reads while the coach is planning, and for how long. */
 const POLL_MS = 15_000;
-const POLL_FOR_MS = 12 * 60_000;
 
 /**
  * One line under the day's action while the coach is planning. It re-reads the page on a
@@ -23,13 +23,30 @@ const POLL_FOR_MS = 12 * 60_000;
 export function CoachPending({ startedAt, gymName }: { startedAt: string; gymName: string }) {
   const router = useRouter();
   useEffect(() => {
-    const until = Date.now() + POLL_FOR_MS;
-    const timer = setInterval(() => {
-      if (Date.now() > until) clearInterval(timer);
-      else router.refresh();
-    }, POLL_MS);
-    return () => clearInterval(timer);
-  }, [router]);
+    const until = new Date(startedAt).getTime() + REQUEST_TIMEOUT_MINUTES * 60_000;
+    let finished = false;
+    let lastRefreshAt = Date.now();
+    const refresh = () => {
+      if (finished || document.visibilityState !== "visible" || !navigator.onLine) return;
+      const now = Date.now();
+      if (now - lastRefreshAt < 1000) return;
+      lastRefreshAt = now;
+      router.refresh();
+      // One final visible/online read lets the server reconcile an expired request.
+      if (now >= until) {
+        finished = true;
+        clearInterval(timer);
+      }
+    };
+    const timer = setInterval(refresh, POLL_MS);
+    document.addEventListener("visibilitychange", refresh);
+    window.addEventListener("online", refresh);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", refresh);
+      window.removeEventListener("online", refresh);
+    };
+  }, [router, startedAt]);
   const time = new Date(startedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   return (
     <p role="status" className="text-sm text-ink-muted">
@@ -53,7 +70,6 @@ export function CoachRequestPanel({
   onDone: () => void;
   onBack: () => void;
 }) {
-  const router = useRouter();
   const [gymId, setGymId] = useState(gyms.find((g) => g.isDefault)?.id ?? gyms[0]?.id ?? "");
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -73,7 +89,6 @@ export function CoachRequestPanel({
         return;
       }
       onDone();
-      router.refresh();
     });
 
   return (

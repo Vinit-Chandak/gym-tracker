@@ -1,7 +1,9 @@
+import { dateTimeFormatter } from "./date-time-format";
+
 /** "Tue 8 Sep, 18:30" in the given IANA time zone. */
 export function formatDateTime(value: string | Date, timeZone: string): string {
   const date = typeof value === "string" ? new Date(value) : value;
-  return new Intl.DateTimeFormat("en-GB", {
+  return dateTimeFormatter("en-GB", {
     timeZone,
     weekday: "short",
     day: "numeric",
@@ -15,16 +17,14 @@ export function formatDateTime(value: string | Date, timeZone: string): string {
 /** "8 Sep" in the given time zone. */
 export function formatDay(value: string | Date, timeZone: string): string {
   const date = typeof value === "string" ? new Date(value) : value;
-  return new Intl.DateTimeFormat("en-GB", { timeZone, day: "numeric", month: "short" }).format(
-    date,
-  );
+  return dateTimeFormatter("en-GB", { timeZone, day: "numeric", month: "short" }).format(date);
 }
 
 /** A calendar date, read as itself: no time zone shifts it off the day it names. */
 function formatIso(isoDate: string, options: Intl.DateTimeFormatOptions): string {
   const [y, m, d] = isoDate.split("-").map(Number);
   if (!y || !m || !d) return isoDate;
-  return new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", ...options }).format(
+  return dateTimeFormatter("en-GB", { timeZone: "UTC", ...options }).format(
     new Date(Date.UTC(y, m - 1, d)),
   );
 }
@@ -52,7 +52,7 @@ export function formatIsoWeekdayDay(isoDate: string): string {
 /** Compact date range, retaining both years when it crosses a year boundary. */
 export function formatDateRange(from: string, to: string): string {
   const format = (date: string, year: boolean) =>
-    new Intl.DateTimeFormat("en-GB", {
+    dateTimeFormatter("en-GB", {
       timeZone: "UTC",
       day: "numeric",
       month: "short",

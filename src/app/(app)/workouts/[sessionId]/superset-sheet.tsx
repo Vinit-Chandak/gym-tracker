@@ -20,7 +20,6 @@ type SupersetSheetProps = {
   /** Switches to editing an existing group; the caller remounts the sheet for it. */
   onEditGroup: (group: string) => void;
   onClose: () => void;
-  onChanged: () => void;
 };
 
 /**
@@ -39,7 +38,6 @@ export function SupersetSheet({
   group,
   onEditGroup,
   onClose,
-  onChanged,
 }: SupersetSheetProps) {
   // The caller mounts this per group, so the selection starts from that group's members
   // without an effect reaching in to reset it afterwards.
@@ -76,7 +74,6 @@ export function SupersetSheet({
         setError("Could not save the superset. Check your connection and try again.");
         return;
       }
-      onChanged();
       onClose();
     });
 
@@ -94,7 +91,6 @@ export function SupersetSheet({
         setError("Could not remove the superset. Check your connection and try again.");
         return;
       }
-      onChanged();
       onClose();
     });
 

@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { PLAN_LIMITS } from "./plan-limits";
 import type { TargetSet } from "./progression";
 import { SET_LIMITS } from "./sets";
 import { PLAN_ACTIONS, RUN_MODES, SET_TYPES } from "./types";
@@ -15,16 +16,7 @@ import { PLAN_ACTIONS, RUN_MODES, SET_TYPES } from "./types";
  *
  * Text is kept short on purpose. Numbers live in the structured fields; a note is one line.
  */
-export const PLAN_LIMITS = {
-  summary: 400,
-  note: 200,
-  warmupLines: 8,
-  warmupLine: 160,
-  exercises: 20,
-  sets: 12,
-  memo: 2500,
-  restSeconds: 1200,
-} as const;
+export { PLAN_LIMITS } from "./plan-limits";
 
 const slug = z
   .string()

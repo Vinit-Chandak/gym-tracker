@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { equipmentTypes, exercises, warmupProtocols } from "@/db/schema";
 import { seedReferenceData } from "@/db/seed/reference";
@@ -31,6 +31,21 @@ afterAll(async () => {
 });
 
 describe("shared reference data", () => {
+  it("coalesces concurrent catalogue misses into a single statement", async () => {
+    resetReferenceCache();
+    const select = vi.spyOn(t.db, "select");
+    try {
+      const [first, second] = await Promise.all([
+        sharedEquipmentTypes(t.db),
+        sharedEquipmentTypes(t.db),
+      ]);
+      expect(first).toBe(second);
+      expect(select).toHaveBeenCalledTimes(1);
+    } finally {
+      select.mockRestore();
+    }
+  });
+
   it("reads the catalogue once and serves the same rows afterwards", async () => {
     const first = await withUser(t.db, user.id, (tx) => sharedEquipmentTypes(tx));
     const second = await withUser(t.db, user.id, (tx) => sharedEquipmentTypes(tx));

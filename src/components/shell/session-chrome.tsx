@@ -59,24 +59,26 @@ export function SessionChrome({ session }: { session: ActiveSession }) {
   if (hidden) return null;
 
   return (
-    <div
-      ref={ref}
-      className="fixed inset-x-0 z-[var(--ov-z-timer)] lg:left-48"
-      style={{ bottom: "var(--nav-reserve)" }}
-    >
-      {session.restTimerEnabled && <RestTimer sessionId={session.id} />}
-      <div className="border-t border-line bg-surface">
-        <div className="page-width flex min-h-11 items-center justify-between gap-3 py-1.5">
-          <p className="min-w-0 truncate text-sm">
-            <span className="text-ink-muted">In progress · </span>
-            {session.name}
-          </p>
-          <Link
-            href={`/workouts/${session.id}`}
-            className="shrink-0 px-2 py-1 text-sm font-medium text-accent"
-          >
-            Resume
-          </Link>
+    <div className="viewport-chrome viewport-chrome-session">
+      <div
+        ref={ref}
+        className="session-chrome fixed inset-x-0 z-[var(--ov-z-timer)] lg:left-48"
+        style={{ bottom: "var(--nav-reserve)" }}
+      >
+        {session.restTimerEnabled && <RestTimer sessionId={session.id} />}
+        <div className="border-t border-line bg-surface">
+          <div className="page-width flex min-h-11 items-center justify-between gap-3 py-1.5">
+            <p className="min-w-0 truncate text-sm">
+              <span className="text-ink-muted">In progress · </span>
+              {session.name}
+            </p>
+            <Link
+              href={`/workouts/${session.id}`}
+              className="shrink-0 px-2 py-1 text-sm font-medium text-accent"
+            >
+              Resume
+            </Link>
+          </div>
         </div>
       </div>
     </div>

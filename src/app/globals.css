@@ -77,18 +77,13 @@
 :root {
   /* The row of tabs, and the whole island: the glass is exactly as tall as its tabs. */
   --nav-height: var(--ov-nav-height);
-  /* The gap the navigation island keeps from every edge of the viewport. */
-  --nav-inset: var(--ov-space-3);
+  /* Side gutters stay independent of the smaller gap below the island. */
+  --nav-inset: var(--ov-space-5);
   /*
-   * The gap under the island, where the home indicator lives. The island clears that strip
-   * rather than standing in it — and rather than padding it out inside its own glass, which
-   * is what left a band of empty island under the labels on an iPhone.
-   *
-   * max(), never a sum: the inset describes the space the indicator needs from the bottom of
-   * the screen, not space owed on top of the island's own gap. Adding the two is what had the
-   * island floating ~46px clear of the bottom edge.
+   * Bring the island 12px closer to the bottom on inset displays, with a 4px minimum gap.
+   * The same gap also positions the resume strip and reserves space in the page below.
    */
-  --nav-gap: max(var(--nav-inset), env(safe-area-inset-bottom));
+  --nav-gap: max(var(--ov-space-1), calc(env(safe-area-inset-bottom, 0px) - var(--ov-space-4)));
   /* Everything the navigation takes off the bottom of the viewport, island and gap. */
   --nav-reserve: calc(var(--nav-height) + var(--nav-gap));
   --header-height: calc(var(--ov-control-height) + var(--ov-space-6));
@@ -299,6 +294,33 @@
   }
 }
 
+/*
+ * Give mobile chrome one explicit, top-anchored dynamic viewport. The island and resume
+ * strip use that containing block, avoiding separate bottom-fixed viewport calculations
+ * during launch and browser-toolbar changes.
+ * The shared bottom gap is applied once within this frame.
+ * The desktop rail retains its normal fixed positioning.
+ */
+@media (width < 64rem) {
+  .viewport-chrome {
+    position: fixed;
+    inset: 0 0 auto;
+    height: 100dvh;
+    z-index: var(--ov-z-nav);
+    pointer-events: none;
+  }
+
+  .viewport-chrome-session {
+    z-index: var(--ov-z-timer);
+  }
+
+  .viewport-chrome > .primary-nav,
+  .viewport-chrome > .session-chrome {
+    position: absolute;
+    pointer-events: auto;
+  }
+}
+
 .nav-items {
   display: flex;
   height: 100%;
@@ -392,6 +414,7 @@
   :root {
     --nav-height: 0rem;
     --nav-inset: 0rem;
+    --nav-gap: 0rem;
   }
   .app-content {
     margin-left: 12rem;

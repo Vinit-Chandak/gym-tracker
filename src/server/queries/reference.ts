@@ -19,15 +19,24 @@ type Loader<T> = (db: DbOrTx) => Promise<T>;
 
 function remembered<T>(load: Loader<T>): Loader<T> & { reset(): void } {
   let entry: { value: T; readAt: number } | null = null;
+  let pending: Promise<T> | null = null;
   const read: Loader<T> = async (db) => {
     if (entry && Date.now() - entry.readAt < REFERENCE_TTL_MS) return entry.value;
-    const value = await load(db);
-    entry = { value, readAt: Date.now() };
-    return value;
+    if (pending) return pending;
+    const request = Promise.resolve().then(() => load(db));
+    pending = request;
+    try {
+      const value = await request;
+      if (pending === request) entry = { value, readAt: Date.now() };
+      return value;
+    } finally {
+      if (pending === request) pending = null;
+    }
   };
   return Object.assign(read, {
     reset() {
       entry = null;
+      pending = null;
     },
   });
 }

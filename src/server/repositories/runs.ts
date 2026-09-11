@@ -228,7 +228,7 @@ export async function getRunsOverview(
   timeZone: string,
 ): Promise<RunsOverview> {
   const today = todayInTimeZone(timeZone);
-  // The runs and the programme are independent, so they are read in one round trip.
+  // The runs and the programme have no dependency on each other's results.
   const [all, schedule] = await Promise.all([listRuns(db, userId, 200), getSchedule(db, userId)]);
   const weeks = weeklyVolumes(
     all.map((run) => ({

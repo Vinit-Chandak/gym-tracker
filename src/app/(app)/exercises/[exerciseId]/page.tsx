@@ -79,7 +79,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
     const exercise = await getExercise(tx, user.id, exerciseId);
     if (!exercise) return null;
     const [availability, performances, profile] = await Promise.all([
-      exerciseAvailability(tx, user.id, exerciseId),
+      exerciseAvailability(tx, user.id, exerciseId, exercise),
       recentPerformances(tx, user.id, exerciseId),
       requestProfile,
     ]);

@@ -135,6 +135,10 @@ describe("planned session lifecycle", () => {
     expect(exerciseRow(detail, "barbell-bench-press").planned?.sets).toBe(4);
     expect(exerciseRow(detail, "barbell-bench-press").weightStep).toBe(2.5);
     expect(detail.warmup?.name).toBe("Upper-body warm-up");
+    const withPreference = await withUser(t.db, user.id, (tx) =>
+      getSessionDetail(tx, user.id, sessionId, { restTimerEnabled: false }),
+    );
+    expect(withPreference).toEqual({ ...detail, restTimerEnabled: false });
     const inProgress = await withUser(t.db, user.id, (tx) => getInProgressSession(tx, user.id));
     expect(inProgress?.id).toBe(sessionId);
   });

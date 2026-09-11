@@ -1,10 +1,12 @@
 /** Wall-clock conversions for `<input type="datetime-local">` values in an IANA time zone. */
 
+import { dateTimeFormatter } from "./date-time-format";
+
 const LOCAL_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/;
 
 /** Offset of `timeZone` from UTC in minutes at the given instant (positive east of UTC). */
 export function timeZoneOffsetMinutes(timeZone: string, at: Date): number {
-  const parts = new Intl.DateTimeFormat("en-US", {
+  const parts = dateTimeFormatter("en-US", {
     timeZone,
     hourCycle: "h23",
     year: "numeric",
@@ -42,7 +44,7 @@ export function fromDateTimeLocal(local: string, timeZone: string): Date | null 
 
 /** Instant → "YYYY-MM-DDTHH:mm" wall-clock time in `timeZone`, for datetime-local inputs. */
 export function toDateTimeLocal(date: Date, timeZone: string): string {
-  const parts = new Intl.DateTimeFormat("en-US", {
+  const parts = dateTimeFormatter("en-US", {
     timeZone,
     hourCycle: "h23",
     year: "numeric",

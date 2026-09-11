@@ -1,7 +1,6 @@
 "use client";
 
 import { ChevronLeft } from "@/components/ui/icons";
-import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 
 import Link from "@/components/ui/app-link";
@@ -209,7 +208,6 @@ export function ExerciseLogger({
   onDirtyChange,
   onLogged,
 }: LoggerProps) {
-  const router = useRouter();
   const [tab, setTab] = useState<LoggerTab>("log");
   const [optionsFor, setOptionsFor] = useState<number | null>(null);
   const [completed, setCompleted] = useState(exercise.completedAt !== null);
@@ -294,7 +292,6 @@ export function ExerciseLogger({
         setMessage("Connection lost. Try again when connected.");
         return;
       }
-      router.refresh();
     });
 
   return (

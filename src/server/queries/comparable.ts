@@ -116,7 +116,7 @@ function performanceQuery(db: DbOrTx, filter: PerformanceFilter, requestIndex: n
     .limit(filter.limit);
 }
 
-/** All exercise lookups in one round trip, with a separate limit for each comparison scope. */
+/** All exercise lookups in one SQL statement, with a separate limit for each comparison scope. */
 async function batchPerformances(
   db: DbOrTx,
   filters: PerformanceFilter[],

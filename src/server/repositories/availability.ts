@@ -30,7 +30,8 @@ import type { GymRow } from "./gyms";
 /*
  * Every read in this file is written so that nothing waits for another query's result: the ids
  * one query would have supplied to the next are expressed as subqueries instead. A screen's whole
- * availability picture therefore costs one database round trip, however many statements it is.
+ * availability reads therefore have no unnecessary JavaScript dependencies. Each statement
+ * still has a network cost: the transaction pooler's unprepared queries are not one round trip.
  */
 
 export type PlannedExerciseSummary = {
@@ -75,6 +76,13 @@ export type GymAvailability = {
 
 /** A gym the caller already holds, so no query has to fetch it again. */
 export type KnownGym = { id: string; kind: GymKind; name: string };
+
+/** Rows already read under the same account/transaction by the gym detail screen. */
+export type GymAvailabilityInputs = {
+  gym: GymRow;
+  equipment: EquipmentInstanceRef[];
+  absentEquipmentTypeIds: Set<string>;
+};
 
 /** A list of ids, or a subquery that yields them. */
 type Ids = readonly string[] | SQLWrapper;
@@ -293,15 +301,18 @@ export async function gymAvailability(
   db: DbOrTx,
   userId: string,
   gymId: string,
+  known?: GymAvailabilityInputs,
 ): Promise<GymAvailability | null> {
   const slotIds = activeSlotIds(db, userId);
   const [[gym], program, planned, fallbacks, options, equipment, absent, names] = await Promise.all(
     [
-      db
-        .select()
-        .from(gyms)
-        .where(and(eq(gyms.id, gymId), eq(gyms.userId, userId)))
-        .limit(1),
+      known
+        ? Promise.resolve([known.gym])
+        : db
+            .select()
+            .from(gyms)
+            .where(and(eq(gyms.id, gymId), eq(gyms.userId, userId)))
+            .limit(1),
       activeProgram(db, userId),
       db
         .select({
@@ -332,8 +343,8 @@ export async function gymAvailability(
         .orderBy(asc(programDays.dayIndex), asc(programExercises.orderIndex)),
       fallbackRows(db, slotIds, gymId),
       optionRefs(db, [slotExerciseIds(db, slotIds), fallbackExerciseIds(db, slotIds, gymId)]),
-      gymEquipmentRefs(db, gymId),
-      absentTypeIds(db, gymId),
+      known ? Promise.resolve(known.equipment) : gymEquipmentRefs(db, gymId),
+      known ? Promise.resolve(known.absentEquipmentTypeIds) : absentTypeIds(db, gymId),
       equipmentTypeNames(db),
     ],
   );
@@ -428,21 +439,31 @@ export async function exerciseAvailability(
   db: DbOrTx,
   userId: string,
   exerciseId: string,
+  knownExercise?: ExerciseRef & { name: string },
 ): Promise<ExerciseGymAvailability[]> {
   const slotIds = activeSlotIds(db, userId, exerciseId);
   const gymIds = activeRealGymIds(db, userId);
   const [[exercise], gymRows, names, allFallbacks, options, allEquipment, allAbsent] =
     await Promise.all([
-      db
-        .select({
-          id: exercises.id,
-          name: exercises.name,
-          modality: exercises.modality,
-          requiresEquipment: exercises.requiresEquipment,
-        })
-        .from(exercises)
-        .where(eq(exercises.id, exerciseId))
-        .limit(1),
+      knownExercise
+        ? Promise.resolve([
+            {
+              id: knownExercise.id,
+              name: knownExercise.name,
+              modality: knownExercise.modality,
+              requiresEquipment: knownExercise.requiresEquipment,
+            },
+          ])
+        : db
+            .select({
+              id: exercises.id,
+              name: exercises.name,
+              modality: exercises.modality,
+              requiresEquipment: exercises.requiresEquipment,
+            })
+            .from(exercises)
+            .where(eq(exercises.id, exerciseId))
+            .limit(1),
       db
         .select({ id: gyms.id, name: gyms.name, kind: gyms.kind })
         .from(gyms)
@@ -596,7 +617,7 @@ function decide(
 }
 
 /**
- * Everything `decide` needs about a gym, read in one round trip. `known` is the gym row when
+ * Independent reads of everything `decide` needs about a gym. `known` is the gym row when
  * the caller already has it, which saves looking it up again.
  */
 async function decisionContext(

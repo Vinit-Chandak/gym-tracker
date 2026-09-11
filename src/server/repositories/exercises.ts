@@ -124,7 +124,7 @@ export async function getExercise(
   userId: string,
   exerciseId: string,
 ): Promise<ExerciseDetail | null> {
-  // Three independent reads, keyed by the exercise alone, in one round trip.
+  // Three independent reads, keyed by the exercise alone.
   const [[row], equipmentOptions, programUsage] = await Promise.all([
     db.select().from(exercises).where(eq(exercises.id, exerciseId)).limit(1),
     db

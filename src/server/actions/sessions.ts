@@ -96,7 +96,7 @@ export async function startPlannedSessionAction(
 ): Promise<void> {
   const user = await requireUser();
   const sessionId = await withUser(getDb(), user.id, async (tx) => {
-    // Three independent reads in one round trip; an open session simply wins.
+    // Three independent reads; an open session simply wins.
     const [open, profile, schedule] = await Promise.all([
       getInProgressSession(tx, user.id),
       ensureProfile(tx, user),

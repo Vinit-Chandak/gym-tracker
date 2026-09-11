@@ -466,16 +466,15 @@ export async function getTodayPlan(
     ? (schedule.days.find((d) => d.dayIndex === next.slot.dayIndex) ?? null)
     : null;
   // The day's exercises and its run target only need the schedule, so they are read together.
-  const [suggestedExercises, runTarget] = await Promise.all([
+  const [suggestedExercises, runTarget, loggedRunId] = await Promise.all([
     suggestedDay ? listDayExercises(db, suggestedDay.id) : Promise.resolve([]),
     next && suggestedDay?.includesRun
       ? getRunTarget(db, schedule.program.id, next.slot.cycleIndex, suggestedDay.dayOfWeek ?? 0)
       : Promise.resolve(null),
-  ]);
-  const loggedRunId =
     next && suggestedDay?.includesRun
-      ? await completedRunIdFor(db, schedule.program.id, next.slot)
-      : null;
+      ? completedRunIdFor(db, schedule.program.id, next.slot)
+      : Promise.resolve(null),
+  ]);
   const nextTrainingRef = next?.nextTrainingSlot ?? null;
   const nextTrainingDay = nextTrainingRef
     ? (schedule.days.find((d) => d.dayIndex === nextTrainingRef.dayIndex) ?? null)

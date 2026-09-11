@@ -396,7 +396,7 @@ export async function getSessionDetail(
   db: DbOrTx,
   userId: string,
   sessionId: string,
-  options: { includeGuidance?: boolean } = {},
+  options: { includeGuidance?: boolean; restTimerEnabled?: boolean } = {},
 ): Promise<SessionDetail | null> {
   const [session] = await db
     .select({
@@ -430,8 +430,7 @@ export async function getSessionDetail(
   };
   const wantsWarnings = includeGuidance && hasCheckIn(checkIn);
 
-  // Everything keyed by the session alone, in one round trip: the slots, their sets, the
-  // rest-timer preference, the warm-up (from memory) and the previous check-in.
+  // Read independent session data together, reusing the page's profile when it has one.
   const plannedExercise = alias(exercises, "planned_exercise");
   const [rows, setRows, [profile], warmup, previousCheck, coachPlan] = await Promise.all([
     db
@@ -492,11 +491,13 @@ export async function getSessionDetail(
       .innerJoin(workoutExercises, eq(workoutExercises.id, setLogs.workoutExerciseId))
       .where(eq(workoutExercises.workoutSessionId, sessionId))
       .orderBy(asc(setLogs.setIndex)),
-    db
-      .select({ restTimerEnabled: profiles.restTimerEnabled })
-      .from(profiles)
-      .where(eq(profiles.id, userId))
-      .limit(1),
+    options.restTimerEnabled === undefined
+      ? db
+          .select({ restTimerEnabled: profiles.restTimerEnabled })
+          .from(profiles)
+          .where(eq(profiles.id, userId))
+          .limit(1)
+      : Promise.resolve([{ restTimerEnabled: options.restTimerEnabled }]),
     session.day?.warmupProtocolId
       ? getWarmupProtocol(db, session.day.warmupProtocolId)
       : Promise.resolve(null),

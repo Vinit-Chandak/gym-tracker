@@ -32,13 +32,9 @@ async function lastProfileChange(): Promise<number> {
  */
 export const getRequestProfile = cache(
   async (id: string, email: string | null): Promise<Profile> => {
-    const cached = profiles.get(id, await lastProfileChange());
-    if (cached) return cached;
-    // Stamped before the read: a write that lands while it runs must invalidate this copy.
-    const readAt = Date.now();
-    const profile = await withUser(getDb(), id, (tx) => ensureProfile(tx, { id, email }));
-    profiles.set(id, profile, readAt);
-    return profile;
+    return profiles.read(id, await lastProfileChange(), () =>
+      withUser(getDb(), id, (tx) => ensureProfile(tx, { id, email })),
+    );
   },
 );
 

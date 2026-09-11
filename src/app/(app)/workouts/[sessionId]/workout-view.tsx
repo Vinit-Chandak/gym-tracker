@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 
 import { startRestTimer } from "@/components/shell/rest-timer";
@@ -24,7 +24,6 @@ const EXERCISE_PARAM = "exercise";
  * the page already has.
  */
 export function WorkoutView({ session, userId }: { session: SessionVM; userId: string }) {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const readOnly = session.completedAt !== null;
 
@@ -107,7 +106,6 @@ export function WorkoutView({ session, userId }: { session: SessionVM; userId: s
           group={supersetFor.group}
           onEditGroup={(group) => setSupersetFor({ group })}
           onClose={() => setSupersetFor(null)}
-          onChanged={() => router.refresh()}
         />
       )}
     </>

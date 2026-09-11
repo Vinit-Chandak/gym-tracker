@@ -8,7 +8,7 @@ import { formatDateRange, formatDateTime } from "@/lib/format";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { listGyms } from "@/server/repositories/gyms";
-import { readTrainingData } from "@/server/repositories/training-data";
+import { readHistory } from "@/server/repositories/history";
 import { parseDateRangeOrDefault } from "@/server/validation/date-range";
 import { HistoryView, type HistoryItem } from "./history-view";
 
@@ -32,36 +32,34 @@ export default async function HistoryPage(props: PageProps<"/history">) {
   );
   const data = await withUser(getDb(), user.id, async (tx) => {
     const [training, gyms] = await Promise.all([
-      readTrainingData(tx, user.id, range),
+      readHistory(tx, user.id, range),
       listGyms(tx, user.id),
     ]);
     return { training, gyms };
   });
   const items: HistoryItem[] = [
-    ...data.training.workouts
-      .filter((w) => w.completedAt)
-      .map((w) => ({
-        id: w.id,
-        kind: "workout" as const,
-        date: w.startedAt.toISOString(),
-        title: w.day?.name ?? "Ad hoc session",
-        subtitle: `${formatDateTime(w.startedAt, profile.timeZone)} · ${w.gym.name}`,
-        href: `/workouts/${w.id}` as const,
-        meta: `${w.exercises.reduce((n, e) => n + e.sets.length, 0)} sets`,
-        gymId: w.gymId,
-        exercises: w.exercises.map((e) => ({
-          id: e.exerciseId,
-          name: e.exercise.name,
-          machineId: e.equipment?.id ?? null,
-          machineName: e.equipment ? `${e.equipment.name} · ${w.gym.name}` : null,
-        })),
-        recovery: readings([
-          ["Sleep h", w.sleepHours],
-          ["Back", w.backPainPre],
-          ["Shin L", w.shinLeftPre],
-          ["Shin R", w.shinRightPre],
-        ]),
+    ...data.training.workouts.map((w) => ({
+      id: w.id,
+      kind: "workout" as const,
+      date: w.startedAt.toISOString(),
+      title: w.dayName ?? "Ad hoc session",
+      subtitle: `${formatDateTime(w.startedAt, profile.timeZone)} · ${w.gymName}`,
+      href: `/workouts/${w.id}` as const,
+      meta: `${w.setCount} sets`,
+      gymId: w.gymId,
+      exercises: w.exercises.map((e) => ({
+        id: e.exerciseId,
+        name: e.name,
+        machineId: e.machineId,
+        machineName: e.machineName ? `${e.machineName} · ${w.gymName}` : null,
       })),
+      recovery: readings([
+        ["Sleep h", w.sleepHours],
+        ["Back", w.backPainPre],
+        ["Shin L", w.shinLeftPre],
+        ["Shin R", w.shinRightPre],
+      ]),
+    })),
     ...data.training.runs.map((r) => ({
       id: r.id,
       kind: "run" as const,

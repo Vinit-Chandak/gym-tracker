@@ -68,8 +68,8 @@ import { readWeeklyTrainingVolume } from "./training-volume";
 
 /** Re-plans one account may ask for in a day: each one is a routine run on the owner's plan. */
 export const REPLAN_DAILY_LIMIT = 3;
-/** A request older than this without a plan counts as failed, so Today stops waiting. */
-export const REQUEST_TIMEOUT_MINUTES = 15;
+export { REQUEST_TIMEOUT_MINUTES } from "@/domain/coach-request";
+import { REQUEST_TIMEOUT_MINUTES } from "@/domain/coach-request";
 export const REQUEST_TIMEOUT_MESSAGE =
   "The coach did not return a plan before this request timed out. Please try again later.";
 /** How far back the coach looks for recent training. */
@@ -1587,16 +1587,67 @@ export async function todayCoachState(
 ): Promise<TodayCoachState> {
   const now = new Date();
   await reconcileExpiredCoachRequests(db, userId, now);
-  const [plan, pending, used, failure] = await Promise.all([
-    activePlanForSlot(db, userId, input.programId, input.ref),
-    pendingRequest(db, userId, now),
-    countRequestsToday(db, userId, input.timeZone),
-    lastFailure(db, userId),
+  const since = new Date(now.getTime() - REQUEST_TIMEOUT_MINUTES * 60_000);
+  const dayStart = startOfToday(input.timeZone);
+  const pendingFilter = and(
+    eq(coachRequests.trigger, "replan"),
+    eq(coachRequests.status, "requested"),
+    gte(coachRequests.requestedAt, since),
+  );
+  const latestOutcome = db
+    .select({ id: coachRequests.id })
+    .from(coachRequests)
+    .where(and(eq(coachRequests.userId, userId), ne(coachRequests.status, "requested")))
+    .orderBy(desc(coachRequests.requestedAt))
+    .limit(1);
+  // One joined plan read and one bounded request read replace five statements. Requests
+  // contain today's quota, any pending re-plan spanning midnight, and the latest outcome.
+  const [[planRow], requests] = await Promise.all([
+    db
+      .select({ plan: sessionPlans, gymName: gyms.name })
+      .from(sessionPlans)
+      .leftJoin(gyms, eq(gyms.id, sessionPlans.gymId))
+      .where(
+        and(
+          eq(sessionPlans.userId, userId),
+          eq(sessionPlans.programId, input.programId),
+          eq(sessionPlans.cycleIndex, input.ref.cycleIndex),
+          eq(sessionPlans.dayIndex, input.ref.dayIndex),
+          eq(sessionPlans.status, "active"),
+        ),
+      )
+      .limit(1),
+    db
+      .select()
+      .from(coachRequests)
+      .where(
+        and(
+          eq(coachRequests.userId, userId),
+          or(
+            and(eq(coachRequests.trigger, "replan"), gte(coachRequests.requestedAt, dayStart)),
+            pendingFilter,
+            inArray(coachRequests.id, latestOutcome),
+          ),
+        ),
+      )
+      .orderBy(desc(coachRequests.requestedAt)),
   ]);
-  const planGym = plan ? await getGym(db, userId, plan.gymId) : null;
+  const plan = planRow?.plan ?? null;
+  const pending =
+    requests.find(
+      (request) =>
+        request.trigger === "replan" &&
+        request.status === "requested" &&
+        request.requestedAt >= since,
+    ) ?? null;
+  const used = requests.filter(
+    (request) => request.trigger === "replan" && request.requestedAt >= dayStart,
+  ).length;
+  const outcome = requests.find((request) => request.status !== "requested");
+  const failure = outcome?.status === "failed" ? outcome : null;
   return {
     enabled: input.enabled,
-    plan: plan ? { ...plan, gymName: planGym?.name ?? "another gym" } : null,
+    plan: plan ? { ...plan, gymName: planRow?.gymName ?? "another gym" } : null,
     matchesGym: plan !== null && input.gymId !== null && plan.gymId === input.gymId,
     pending,
     failure: plan === null && pending === null ? failure : null,
@@ -1620,8 +1671,9 @@ export type PlannedRunToday = {
 export async function plannedRunForToday(
   db: DbOrTx,
   userId: string,
+  knownSchedule?: Schedule | null,
 ): Promise<PlannedRunToday | null> {
-  const schedule = await getSchedule(db, userId);
+  const schedule = knownSchedule === undefined ? await getSchedule(db, userId) : knownSchedule;
   if (!schedule) return null;
   const slot = nextTrainingSlot(schedule);
   if (!slot || !slot.day.includesRun) return null;

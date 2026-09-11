@@ -26,15 +26,18 @@ export default async function NewRunPage(props: PageProps<"/runs/new">) {
   const requestProfile = await getRequestProfile(user.id, user.email);
   const data = await withUser(getDb(), user.id, async (tx) => {
     const profile = requestProfile;
-    const [logged, schedule, coach] = await Promise.all([
+    const [logged, schedule] = await Promise.all([
       listRuns(tx, user.id, 200),
       getSchedule(tx, user.id),
-      profile.aiCoachEnabled ? plannedRunForToday(tx, user.id) : Promise.resolve(null),
+    ]);
+    const [cycle, coach] = await Promise.all([
+      schedule ? plannedRunsForCycle(tx, schedule, logged) : Promise.resolve(null),
+      profile.aiCoachEnabled ? plannedRunForToday(tx, user.id, schedule) : Promise.resolve(null),
     ]);
     return {
       timeZone: profile.timeZone,
       coach,
-      cycle: schedule ? await plannedRunsForCycle(tx, schedule, logged) : null,
+      cycle,
     };
   });
   const planned = data.cycle?.planned ?? [];

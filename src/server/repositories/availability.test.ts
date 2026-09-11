@@ -7,15 +7,16 @@ import { seedTestUserData } from "@/db/test/fixtures";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
 
-import { markEquipmentAbsent } from "./absent-equipment";
+import { listAbsentEquipment, markEquipmentAbsent } from "./absent-equipment";
 import {
   exerciseAvailability,
   gymAvailability,
   type PlannedExerciseAvailability,
 } from "./availability";
-import { listExercises, setPreferredMachine } from "./exercises";
+import { listEquipmentForGym } from "./equipment";
+import { getExercise, listExercises, setPreferredMachine } from "./exercises";
 import { addGymFallback, listGymFallbacks, removeGymFallback } from "./fallbacks";
-import { listGyms } from "./gyms";
+import { getGym, listGyms } from "./gyms";
 
 let t: TestDatabase;
 let user: { id: string; email: string };
@@ -64,6 +65,37 @@ afterAll(async () => {
 });
 
 describe("planned-exercise availability", () => {
+  it("preserves resolutions when detail pages reuse their existing rows", async () => {
+    const id = await exerciseId("leg-press-45");
+    await withUser(t.db, user.id, async (tx) => {
+      const [gym, equipment, absent] = await Promise.all([
+        getGym(tx, user.id, anytimeId),
+        listEquipmentForGym(tx, user.id, anytimeId),
+        listAbsentEquipment(tx, user.id, anytimeId),
+      ]);
+      if (!gym) throw new Error("no gym");
+      const expected = await gymAvailability(tx, user.id, anytimeId);
+      expect(
+        await gymAvailability(tx, user.id, anytimeId, {
+          gym,
+          equipment: equipment.map((item) => ({
+            id: item.id,
+            gymId: anytimeId,
+            name: item.name,
+            isActive: item.isActive,
+            equipmentTypeId: item.typeId,
+          })),
+          absentEquipmentTypeIds: new Set(absent.map((item) => item.equipmentTypeId)),
+        }),
+      ).toEqual(expected);
+      const exercise = await getExercise(tx, user.id, id);
+      if (!exercise) throw new Error("no exercise");
+      expect(await exerciseAvailability(tx, user.id, id, exercise)).toEqual(
+        await exerciseAvailability(tx, user.id, id),
+      );
+    });
+  });
+
   it("resolves the seeded programme at Anytime Fitness", async () => {
     const result = await withUser(t.db, user.id, (tx) => gymAvailability(tx, user.id, anytimeId));
     if (!result) throw new Error("no result");

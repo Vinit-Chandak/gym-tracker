@@ -22,7 +22,9 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
   const requestProfile = await getRequestProfile(user.id, user.email);
   const data = await withUser(getDb(), user.id, async (tx) => {
     const profile = requestProfile;
-    const detail = await getSessionDetail(tx, user.id, sessionId);
+    const detail = await getSessionDetail(tx, user.id, sessionId, {
+      restTimerEnabled: profile.restTimerEnabled,
+    });
     return detail
       ? toSessionVM(detail, profile.timeZone, profile.preferredUnit === "lb" ? "lb" : "kg")
       : null;

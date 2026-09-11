@@ -1,0 +1,2815 @@
+{
+  "baseCommit": "5402072a820b1abf9416470a1d8502cfbd567224",
+  "trackedFiles": 468,
+  "method": "Full-file structural scan; focused manual review of request, rendering and mutation paths. This index records scope, not a claim that every file needed a change.",
+  "files": [
+    {
+      "path": ".claude/settings.json",
+      "bytes": 355,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": ".claude/skills/coach/SKILL.md",
+      "bytes": 19136,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": ".env.example",
+      "bytes": 2883,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": ".gitignore",
+      "bytes": 575,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": ".prettierignore",
+      "bytes": 113,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": ".prettierrc",
+      "bytes": 224,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "AGENTS.md",
+      "bytes": 678,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "CLAUDE.md",
+      "bytes": 11,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "README.md",
+      "bytes": 9100,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "SETUP.md",
+      "bytes": 11554,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/check-in.md",
+      "bytes": 3260,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/coach-api.md",
+      "bytes": 6356,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/coach-automation.md",
+      "bytes": 19824,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/decisions/0001-phase-0-foundation.md",
+      "bytes": 3418,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/decisions/0002-supabase-drizzle-rls.md",
+      "bytes": 4017,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/decisions/0003-phase-2-gym-and-equipment-ui.md",
+      "bytes": 2719,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/decisions/0004-phase-3-library-and-availability.md",
+      "bytes": 2890,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/decisions/0005-phase-4-sessions-and-scheduling.md",
+      "bytes": 4909,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/decisions/0006-phase-5-progression-engine.md",
+      "bytes": 3844,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/decisions/0007-phase-6-running.md",
+      "bytes": 2882,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/decisions/0008-history-coach-and-pwa-polish.md",
+      "bytes": 3813,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/decisions/0009-tuesday-lower-a-cycle.md",
+      "bytes": 2104,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/decisions/0010-multi-user-accounts.md",
+      "bytes": 4945,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/decisions/0011-responsive-interface-and-navigation.md",
+      "bytes": 4704,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/decisions/0012-latency-round-trips-and-caches.md",
+      "bytes": 7455,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/decisions/0013-form-interface.md",
+      "bytes": 6256,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/decisions/0014-less-said-per-screen.md",
+      "bytes": 4200,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/decisions/0015-grouped-boxes.md",
+      "bytes": 4189,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/decisions/0016-today-and-the-programme.md",
+      "bytes": 4781,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/decisions/0017-navigation-island-and-page-headers.md",
+      "bytes": 4775,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/decisions/0018-ai-house-coach.md",
+      "bytes": 5746,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/decisions/0019-the-coach-plans-the-whole-week.md",
+      "bytes": 6919,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/decisions/0020-who-you-are-and-what-you-weigh.md",
+      "bytes": 6467,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/decisions/0021-two-tasks-a-day-and-three-ways-to-count-a-set.md",
+      "bytes": 6452,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/decisions/0022-a-status-bar-at-the-bottom-of-the-screen.md",
+      "bytes": 3947,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/decisions/0023-a-masthead-not-a-stack.md",
+      "bytes": 2974,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/icon-refresh/README.md",
+      "bytes": 12845,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/icon-refresh/icons.js",
+      "bytes": 59058,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "docs/icon-refresh/index.html",
+      "bytes": 6052,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/icon-refresh/licenses/phosphor.txt",
+      "bytes": 1092,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/icon-refresh/licenses/tabler.txt",
+      "bytes": 1094,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/icon-refresh/preview.css",
+      "bytes": 10025,
+      "kind": "layout and rendering rules",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/icon-refresh/preview.html",
+      "bytes": 1659,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/icon-refresh/preview.js",
+      "bytes": 6196,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "docs/icon-refresh/review.css",
+      "bytes": 5649,
+      "kind": "layout and rendering rules",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/icon-refresh/review.js",
+      "bytes": 1593,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "docs/icon-refresh/screenshots/comparison-dark.png",
+      "bytes": 114946,
+      "kind": "asset (not executable)",
+      "checks": ["file size and production inclusion"]
+    },
+    {
+      "path": "docs/icon-refresh/screenshots/comparison-light.png",
+      "bytes": 115844,
+      "kind": "asset (not executable)",
+      "checks": ["file size and production inclusion"]
+    },
+    {
+      "path": "docs/icon-refresh/screenshots/duotone-desktop-dark.png",
+      "bytes": 53561,
+      "kind": "asset (not executable)",
+      "checks": ["file size and production inclusion"]
+    },
+    {
+      "path": "docs/icon-refresh/screenshots/duotone-phone-dark.png",
+      "bytes": 38509,
+      "kind": "asset (not executable)",
+      "checks": ["file size and production inclusion"]
+    },
+    {
+      "path": "docs/icon-refresh/screenshots/duotone-tablet-light.png",
+      "bytes": 51582,
+      "kind": "asset (not executable)",
+      "checks": ["file size and production inclusion"]
+    },
+    {
+      "path": "docs/icon-refresh/screenshots/inventory-dark.png",
+      "bytes": 128661,
+      "kind": "asset (not executable)",
+      "checks": ["file size and production inclusion"]
+    },
+    {
+      "path": "docs/icon-refresh/screenshots/selected-desktop-dark.png",
+      "bytes": 58159,
+      "kind": "asset (not executable)",
+      "checks": ["file size and production inclusion"]
+    },
+    {
+      "path": "docs/icon-refresh/screenshots/selected-phone-dark.png",
+      "bytes": 38831,
+      "kind": "asset (not executable)",
+      "checks": ["file size and production inclusion"]
+    },
+    {
+      "path": "docs/icon-refresh/screenshots/selected-phone-light.png",
+      "bytes": 36814,
+      "kind": "asset (not executable)",
+      "checks": ["file size and production inclusion"]
+    },
+    {
+      "path": "docs/icon-refresh/screenshots/selected-tablet-light.png",
+      "bytes": 50693,
+      "kind": "asset (not executable)",
+      "checks": ["file size and production inclusion"]
+    },
+    {
+      "path": "docs/icon-refresh/serve.mjs",
+      "bytes": 1734,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "docs/icon-refresh/sources.json",
+      "bytes": 614,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/implementation-plan.md",
+      "bytes": 8914,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/planning/AI_COACH_IMPLEMENTATION_PLAN.md",
+      "bytes": 53466,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/planning/AI_COACH_IMPLEMENTATION_PROGRESS.md",
+      "bytes": 10983,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/planning/AI_COACH_REVAMP.md",
+      "bytes": 19564,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/planning/AI_COACH_SCIENCE.md",
+      "bytes": 15872,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/planning/CLAUDE_CODE_IMPLEMENTATION_PROMPT.md",
+      "bytes": 9646,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/planning/DATA_MODEL_AND_ARCHITECTURE.md",
+      "bytes": 9193,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/planning/PRODUCT_REQUIREMENTS.md",
+      "bytes": 10088,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/planning/TRAINING_CONTEXT.md",
+      "bytes": 8121,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/planning/vinit_final_8_week_strength_aesthetics_hybrid.xlsx",
+      "bytes": 12688,
+      "kind": "asset (not executable)",
+      "checks": ["file size and production inclusion"]
+    },
+    {
+      "path": "docs/planning/vinit_training_plan_intake_and_warmups.xlsx",
+      "bytes": 19251,
+      "kind": "asset (not executable)",
+      "checks": ["file size and production inclusion"]
+    },
+    {
+      "path": "docs/ui-redesign/01-layout-specification.md",
+      "bytes": 24600,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/ui-redesign/02-implementation-plan.md",
+      "bytes": 22126,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/ui-redesign/03-themes-and-performance.md",
+      "bytes": 16924,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/ui-redesign/README.md",
+      "bytes": 7334,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "docs/ui-redesign/themes/README.md",
+      "bytes": 7922,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "drizzle.config.ts",
+      "bytes": 540,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "eslint.config.mjs",
+      "bytes": 816,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "next.config.ts",
+      "bytes": 689,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "package-lock.json",
+      "bytes": 362296,
+      "kind": "generated schema/dependency metadata",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "package.json",
+      "bytes": 1829,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "postcss.config.mjs",
+      "bytes": 94,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "public/icons/icon-192.png",
+      "bytes": 1148,
+      "kind": "asset (not executable)",
+      "checks": ["file size and production inclusion"]
+    },
+    {
+      "path": "public/icons/icon-512-maskable.png",
+      "bytes": 3180,
+      "kind": "asset (not executable)",
+      "checks": ["file size and production inclusion"]
+    },
+    {
+      "path": "public/icons/icon-512.png",
+      "bytes": 3180,
+      "kind": "asset (not executable)",
+      "checks": ["file size and production inclusion"]
+    },
+    {
+      "path": "public/offline.html",
+      "bytes": 3021,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "public/sw.js",
+      "bytes": 1911,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "scripts/coach/attempt.ts",
+      "bytes": 930,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "scripts/coach/client.ts",
+      "bytes": 4889,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "scripts/coach/context.ts",
+      "bytes": 1333,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "scripts/coach/due.ts",
+      "bytes": 848,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "scripts/coach/fail.ts",
+      "bytes": 629,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "scripts/coach/propose.ts",
+      "bytes": 1869,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "scripts/coach/submit.ts",
+      "bytes": 2507,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "scripts/install-deps.sh",
+      "bytes": 806,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "scripts/measure-performance.ts",
+      "bytes": 6269,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/error.tsx",
+      "bytes": 1613,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/exercises/[exerciseId]/loading.tsx",
+      "bytes": 145,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/exercises/[exerciseId]/page.tsx",
+      "bytes": 12769,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/exercises/exercise-library.tsx",
+      "bytes": 2958,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/exercises/loading.tsx",
+      "bytes": 146,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/exercises/page.tsx",
+      "bytes": 817,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/gyms/[gymId]/edit/loading.tsx",
+      "bytes": 145,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/gyms/[gymId]/edit/page.tsx",
+      "bytes": 1415,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/gyms/[gymId]/equipment/[equipmentId]/loading.tsx",
+      "bytes": 144,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/gyms/[gymId]/equipment/[equipmentId]/page.tsx",
+      "bytes": 4032,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/gyms/[gymId]/equipment/new/loading.tsx",
+      "bytes": 148,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/gyms/[gymId]/equipment/new/page.tsx",
+      "bytes": 2308,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/gyms/[gymId]/gym-details.tsx",
+      "bytes": 10465,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/gyms/[gymId]/loading.tsx",
+      "bytes": 140,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/gyms/[gymId]/page.tsx",
+      "bytes": 1818,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/gyms/[gymId]/programme/[exerciseId]/fallback/fallback-form.tsx",
+      "bytes": 1916,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/gyms/[gymId]/programme/[exerciseId]/fallback/loading.tsx",
+      "bytes": 149,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/gyms/[gymId]/programme/[exerciseId]/fallback/page.tsx",
+      "bytes": 2508,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/gyms/[gymId]/programme/loading.tsx",
+      "bytes": 150,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/gyms/[gymId]/programme/page.tsx",
+      "bytes": 5384,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/gyms/equipment-form.tsx",
+      "bytes": 8483,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/gyms/gym-form.tsx",
+      "bytes": 2284,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/gyms/loading.tsx",
+      "bytes": 141,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/gyms/new/loading.tsx",
+      "bytes": 144,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/gyms/new/page.tsx",
+      "bytes": 707,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/gyms/page.tsx",
+      "bytes": 2787,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/history/history-view.tsx",
+      "bytes": 9177,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/history/loading.tsx",
+      "bytes": 144,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/history/page.tsx",
+      "bytes": 4271,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/layout.tsx",
+      "bytes": 1689,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/loading.tsx",
+      "bytes": 74,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/not-found.tsx",
+      "bytes": 602,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/progress/loading.tsx",
+      "bytes": 294,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/progress/page.tsx",
+      "bytes": 4581,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/progress/progress-view.tsx",
+      "bytes": 24567,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/runs/[runId]/delete-button.tsx",
+      "bytes": 1081,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/runs/[runId]/edit/loading.tsx",
+      "bytes": 145,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/runs/[runId]/edit/page.tsx",
+      "bytes": 3210,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/runs/[runId]/loading.tsx",
+      "bytes": 140,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/runs/[runId]/page.tsx",
+      "bytes": 5084,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/runs/loading.tsx",
+      "bytes": 141,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/runs/new/loading.tsx",
+      "bytes": 146,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/runs/new/page.tsx",
+      "bytes": 3608,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/runs/page.tsx",
+      "bytes": 7819,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/runs/run-form.tsx",
+      "bytes": 10586,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/settings/ai-coach/ai-coach-settings.tsx",
+      "bytes": 6395,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/settings/ai-coach/loading.tsx",
+      "bytes": 150,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/settings/ai-coach/page.tsx",
+      "bytes": 2920,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/settings/coach/loading.tsx",
+      "bytes": 149,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/settings/coach/page.tsx",
+      "bytes": 2143,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/settings/coach/token-manager.tsx",
+      "bytes": 5077,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/settings/delete-account/delete-account-form.tsx",
+      "bytes": 915,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/settings/delete-account/loading.tsx",
+      "bytes": 156,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/settings/delete-account/page.tsx",
+      "bytes": 1324,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/settings/loading.tsx",
+      "bytes": 145,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/settings/page.tsx",
+      "bytes": 4139,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/settings/password/loading.tsx",
+      "bytes": 150,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/settings/password/page.tsx",
+      "bytes": 646,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/settings/password/password-form.tsx",
+      "bytes": 1562,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/settings/profile/loading.tsx",
+      "bytes": 149,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/settings/profile/page.tsx",
+      "bytes": 2357,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/settings/profile/profile-form.tsx",
+      "bytes": 1035,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/settings/programme/cycle-day.tsx",
+      "bytes": 3552,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/settings/programme/loading.tsx",
+      "bytes": 151,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/settings/programme/page.tsx",
+      "bytes": 6945,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/settings/programme/proposals.tsx",
+      "bytes": 2872,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/settings/rest-timer-setting.tsx",
+      "bytes": 1538,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/settings/sign-out-row.tsx",
+      "bytes": 883,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/today/choose/loading.tsx",
+      "bytes": 149,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/today/choose/page.tsx",
+      "bytes": 4577,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/today/coach-actions.tsx",
+      "bytes": 4989,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/today/gym-switcher.tsx",
+      "bytes": 3719,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/today/loading.tsx",
+      "bytes": 142,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/today/page.tsx",
+      "bytes": 2908,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/today/plan-actions.tsx",
+      "bytes": 10980,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/today/today-view.tsx",
+      "bytes": 21416,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/workouts/[sessionId]/add-exercise/add-exercise-form.tsx",
+      "bytes": 4106,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/workouts/[sessionId]/add-exercise/loading.tsx",
+      "bytes": 149,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/workouts/[sessionId]/add-exercise/page.tsx",
+      "bytes": 2189,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/workouts/[sessionId]/check-in/check-in-form.tsx",
+      "bytes": 5021,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/workouts/[sessionId]/check-in/loading.tsx",
+      "bytes": 145,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/workouts/[sessionId]/check-in/page.tsx",
+      "bytes": 2217,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/workouts/[sessionId]/exercise-logger.test.tsx",
+      "bytes": 10647,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/workouts/[sessionId]/exercise-logger.tsx",
+      "bytes": 22743,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/workouts/[sessionId]/exercises/[workoutExerciseId]/substitute/loading.tsx",
+      "bytes": 154,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/workouts/[sessionId]/exercises/[workoutExerciseId]/substitute/page.tsx",
+      "bytes": 3059,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/workouts/[sessionId]/finish/finish-form.tsx",
+      "bytes": 2592,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/workouts/[sessionId]/finish/loading.tsx",
+      "bytes": 151,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/workouts/[sessionId]/finish/page.tsx",
+      "bytes": 4656,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/workouts/[sessionId]/loading.tsx",
+      "bytes": 144,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/workouts/[sessionId]/page.tsx",
+      "bytes": 2108,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/workouts/[sessionId]/session-details.tsx",
+      "bytes": 3407,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/workouts/[sessionId]/set-grid.tsx",
+      "bytes": 10168,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/workouts/[sessionId]/set-options.tsx",
+      "bytes": 4242,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/workouts/[sessionId]/superset-sheet.tsx",
+      "bytes": 6751,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/workouts/[sessionId]/use-set-rows.ts",
+      "bytes": 14128,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/workouts/[sessionId]/view-model.ts",
+      "bytes": 2470,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/workouts/[sessionId]/workout-overview.tsx",
+      "bytes": 11365,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(app)/workouts/[sessionId]/workout-view.tsx",
+      "bytes": 4236,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(auth)/auth-link.ts",
+      "bytes": 304,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(auth)/forgot-password/forgot-password-form.tsx",
+      "bytes": 1330,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(auth)/forgot-password/page.tsx",
+      "bytes": 1368,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(auth)/layout.tsx",
+      "bytes": 855,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(auth)/login/login-form.tsx",
+      "bytes": 1351,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(auth)/login/page.tsx",
+      "bytes": 1559,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(auth)/not-configured.tsx",
+      "bytes": 573,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(auth)/reset-password/page.tsx",
+      "bytes": 1437,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(auth)/reset-password/reset-password-form.tsx",
+      "bytes": 1676,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(auth)/signup/page.tsx",
+      "bytes": 925,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(auth)/signup/signup-form.tsx",
+      "bytes": 2007,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(onboarding)/layout.tsx",
+      "bytes": 299,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(onboarding)/welcome/equipment/equipment-step-form.tsx",
+      "bytes": 4326,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(onboarding)/welcome/equipment/page.tsx",
+      "bytes": 2048,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(onboarding)/welcome/gym/first-gym-form.tsx",
+      "bytes": 1562,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(onboarding)/welcome/gym/page.tsx",
+      "bytes": 720,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(onboarding)/welcome/page.tsx",
+      "bytes": 1486,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(onboarding)/welcome/profile-step-form.tsx",
+      "bytes": 780,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(onboarding)/welcome/programme/page.tsx",
+      "bytes": 1584,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(onboarding)/welcome/skip-link.tsx",
+      "bytes": 512,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(onboarding)/welcome/steps.tsx",
+      "bytes": 1833,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(preview)/layout.tsx",
+      "bytes": 899,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(preview)/preview-shell.tsx",
+      "bytes": 414,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(preview)/preview/headers/page.tsx",
+      "bytes": 2489,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(preview)/preview/icons/page.tsx",
+      "bytes": 4986,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(preview)/preview/icons/preview-controls.tsx",
+      "bytes": 810,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(preview)/preview/logging/page.tsx",
+      "bytes": 4608,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/(preview)/preview/page.tsx",
+      "bytes": 4855,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/api/coach/[...path]/route.ts",
+      "bytes": 284,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/api/coach/service/[...path]/route.ts",
+      "bytes": 640,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/apple-icon.png",
+      "bytes": 1394,
+      "kind": "asset (not executable)",
+      "checks": ["file size and production inclusion"]
+    },
+    {
+      "path": "src/app/auth/confirm/route.ts",
+      "bytes": 4288,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/globals.css",
+      "bytes": 18778,
+      "kind": "layout and rendering rules",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "src/app/icon.svg",
+      "bytes": 465,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "src/app/layout.tsx",
+      "bytes": 3147,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/manifest.ts",
+      "bytes": 1249,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/not-found.tsx",
+      "bytes": 1159,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/app/page.tsx",
+      "bytes": 167,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/availability-badge.tsx",
+      "bytes": 514,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/coach-plan.tsx",
+      "bytes": 4086,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/date-range-fields.tsx",
+      "bytes": 2360,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/exercise-picker.tsx",
+      "bytes": 4956,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/planned-exercises.tsx",
+      "bytes": 3807,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/profile-fields.test.tsx",
+      "bytes": 3521,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/profile-fields.tsx",
+      "bytes": 9833,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/program-template-picker.tsx",
+      "bytes": 3306,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/run-plan.tsx",
+      "bytes": 1012,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/shell/appearance-row.tsx",
+      "bytes": 3243,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/shell/bottom-nav.tsx",
+      "bytes": 2912,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/shell/connectivity.tsx",
+      "bytes": 1128,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/shell/install-row.tsx",
+      "bytes": 4019,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/shell/loading-page.tsx",
+      "bytes": 1718,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/shell/navigation-feedback.test.tsx",
+      "bytes": 1463,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/shell/navigation-feedback.tsx",
+      "bytes": 2387,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/shell/page-content.tsx",
+      "bytes": 417,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/shell/page-header.test.tsx",
+      "bytes": 1553,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/shell/page-header.tsx",
+      "bytes": 3676,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/shell/rest-timer.tsx",
+      "bytes": 3710,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/shell/session-chrome.tsx",
+      "bytes": 2998,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/shell/session-status.tsx",
+      "bytes": 1033,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/shell/wordmark.tsx",
+      "bytes": 505,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/ui/app-link.tsx",
+      "bytes": 672,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/ui/badge.tsx",
+      "bytes": 930,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/ui/body-map.tsx",
+      "bytes": 5626,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/ui/body-regions.test.ts",
+      "bytes": 2343,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/ui/body-regions.ts",
+      "bytes": 9097,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/ui/button.tsx",
+      "bytes": 2333,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/ui/card.tsx",
+      "bytes": 538,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/ui/chart.tsx",
+      "bytes": 14633,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/ui/detail-list.tsx",
+      "bytes": 964,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/ui/disclosure.tsx",
+      "bytes": 3286,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/ui/empty-state.tsx",
+      "bytes": 880,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/ui/filter-sheet.tsx",
+      "bytes": 2438,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/ui/form.tsx",
+      "bytes": 1210,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/ui/icons.tsx",
+      "bytes": 5223,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/ui/info-tip.test.tsx",
+      "bytes": 2257,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/ui/info-tip.tsx",
+      "bytes": 3825,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/ui/input.tsx",
+      "bytes": 2409,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/ui/link-row.tsx",
+      "bytes": 3998,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/ui/number-field.tsx",
+      "bytes": 2830,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/ui/progress-bar.tsx",
+      "bytes": 818,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/ui/section-select.tsx",
+      "bytes": 3296,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/ui/section.tsx",
+      "bytes": 1285,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/ui/segmented-control.tsx",
+      "bytes": 2883,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/ui/select.tsx",
+      "bytes": 958,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/ui/set-table.tsx",
+      "bytes": 2494,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/ui/sheet.tsx",
+      "bytes": 2049,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/ui/stat-tile.tsx",
+      "bytes": 1368,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/ui/switch.tsx",
+      "bytes": 1481,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/ui/tabs.test.tsx",
+      "bytes": 1778,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/ui/tabs.tsx",
+      "bytes": 3324,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/components/use-session-drafts.ts",
+      "bytes": 681,
+      "kind": "client runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/db/client.ts",
+      "bytes": 1736,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/db/db.test.ts",
+      "bytes": 14269,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/db/deploy.ts",
+      "bytes": 3368,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/db/errors.ts",
+      "bytes": 734,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/db/migrate.ts",
+      "bytes": 2625,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/db/migrations/0000_initial_schema.sql",
+      "bytes": 33354,
+      "kind": "SQL policies, constraints and indexes",
+      "checks": ["schema, index and policy inventory", "migration suite"]
+    },
+    {
+      "path": "src/db/migrations/0001_auth_bridge.sql",
+      "bytes": 2401,
+      "kind": "SQL policies, constraints and indexes",
+      "checks": ["schema, index and policy inventory", "migration suite"]
+    },
+    {
+      "path": "src/db/migrations/0002_gym_absent_equipment.sql",
+      "bytes": 1486,
+      "kind": "SQL policies, constraints and indexes",
+      "checks": ["schema, index and policy inventory", "migration suite"]
+    },
+    {
+      "path": "src/db/migrations/0003_sessions_and_schedule.sql",
+      "bytes": 1908,
+      "kind": "SQL policies, constraints and indexes",
+      "checks": ["schema, index and policy inventory", "migration suite"]
+    },
+    {
+      "path": "src/db/migrations/0004_misty_robin_chapel.sql",
+      "bytes": 1000,
+      "kind": "SQL policies, constraints and indexes",
+      "checks": ["schema, index and policy inventory", "migration suite"]
+    },
+    {
+      "path": "src/db/migrations/0005_tuesday_cycle.sql",
+      "bytes": 3127,
+      "kind": "SQL policies, constraints and indexes",
+      "checks": ["schema, index and policy inventory", "migration suite"]
+    },
+    {
+      "path": "src/db/migrations/0006_profile_onboarding.sql",
+      "bytes": 420,
+      "kind": "SQL policies, constraints and indexes",
+      "checks": ["schema, index and policy inventory", "migration suite"]
+    },
+    {
+      "path": "src/db/migrations/0007_workout_supersets.sql",
+      "bytes": 837,
+      "kind": "SQL policies, constraints and indexes",
+      "checks": ["schema, index and policy inventory", "migration suite"]
+    },
+    {
+      "path": "src/db/migrations/0008_coach_plans.sql",
+      "bytes": 5564,
+      "kind": "SQL policies, constraints and indexes",
+      "checks": ["schema, index and policy inventory", "migration suite"]
+    },
+    {
+      "path": "src/db/migrations/0009_coach_runs_and_lineage.sql",
+      "bytes": 522,
+      "kind": "SQL policies, constraints and indexes",
+      "checks": ["schema, index and policy inventory", "migration suite"]
+    },
+    {
+      "path": "src/db/migrations/0010_profile_measurements_and_body_weight.sql",
+      "bytes": 4243,
+      "kind": "SQL policies, constraints and indexes",
+      "checks": ["schema, index and policy inventory", "migration suite"]
+    },
+    {
+      "path": "src/db/migrations/0011_careless_tinkerer.sql",
+      "bytes": 3505,
+      "kind": "SQL policies, constraints and indexes",
+      "checks": ["schema, index and policy inventory", "migration suite"]
+    },
+    {
+      "path": "src/db/migrations/backfill-body-weight.test.ts",
+      "bytes": 6910,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/db/migrations/meta/0000_snapshot.json",
+      "bytes": 87937,
+      "kind": "generated schema/dependency metadata",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "src/db/migrations/meta/0001_snapshot.json",
+      "bytes": 87937,
+      "kind": "generated schema/dependency metadata",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "src/db/migrations/meta/0002_snapshot.json",
+      "bytes": 91299,
+      "kind": "generated schema/dependency metadata",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "src/db/migrations/meta/0003_snapshot.json",
+      "bytes": 96018,
+      "kind": "generated schema/dependency metadata",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "src/db/migrations/meta/0004_snapshot.json",
+      "bytes": 98865,
+      "kind": "generated schema/dependency metadata",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "src/db/migrations/meta/0005_snapshot.json",
+      "bytes": 98865,
+      "kind": "generated schema/dependency metadata",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "src/db/migrations/meta/0006_snapshot.json",
+      "bytes": 99031,
+      "kind": "generated schema/dependency metadata",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "src/db/migrations/meta/0007_snapshot.json",
+      "bytes": 102855,
+      "kind": "generated schema/dependency metadata",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "src/db/migrations/meta/0008_snapshot.json",
+      "bytes": 117893,
+      "kind": "generated schema/dependency metadata",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "src/db/migrations/meta/0009_snapshot.json",
+      "bytes": 119085,
+      "kind": "generated schema/dependency metadata",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "src/db/migrations/meta/0010_snapshot.json",
+      "bytes": 123813,
+      "kind": "generated schema/dependency metadata",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "src/db/migrations/meta/0011_snapshot.json",
+      "bytes": 126559,
+      "kind": "generated schema/dependency metadata",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "src/db/migrations/meta/_journal.json",
+      "bytes": 1913,
+      "kind": "generated schema/dependency metadata",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "src/db/schema/coach.ts",
+      "bytes": 6326,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/db/schema/common.ts",
+      "bytes": 1827,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/db/schema/enums.ts",
+      "bytes": 1974,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/db/schema/exercises.ts",
+      "bytes": 5150,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/db/schema/gyms.ts",
+      "bytes": 4423,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/db/schema/index.ts",
+      "bytes": 211,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/db/schema/profiles.ts",
+      "bytes": 3725,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/db/schema/programs.ts",
+      "bytes": 12297,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/db/schema/runs.ts",
+      "bytes": 3560,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/db/schema/workouts.ts",
+      "bytes": 6756,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/db/seed/data/equipment-types.ts",
+      "bytes": 9369,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/db/seed/data/exercises.ts",
+      "bytes": 135345,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/db/seed/data/program.ts",
+      "bytes": 19612,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/db/seed/data/templates.ts",
+      "bytes": 2041,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/db/seed/data/warmups.ts",
+      "bytes": 4869,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/db/seed/reference.ts",
+      "bytes": 5956,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/db/seed/run.ts",
+      "bytes": 1297,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/db/seed/seed.test.ts",
+      "bytes": 7094,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/db/test/fixtures.ts",
+      "bytes": 5388,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/db/test/pglite.ts",
+      "bytes": 1884,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/db/tuesday-cycle.test.ts",
+      "bytes": 4803,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/db/types.ts",
+      "bytes": 490,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/db/with-user.test.ts",
+      "bytes": 3245,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/db/with-user.ts",
+      "bytes": 2586,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/domain/analytics.ts",
+      "bytes": 7513,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/domain/coach-cadence.test.ts",
+      "bytes": 3069,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/domain/coach-cadence.ts",
+      "bytes": 2452,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/domain/coach-review.test.ts",
+      "bytes": 4637,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/domain/coach-review.ts",
+      "bytes": 5596,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/domain/comparable-history.test.ts",
+      "bytes": 3005,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/domain/comparable-history.ts",
+      "bytes": 2289,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/domain/equipment-resolution.test.ts",
+      "bytes": 7208,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/domain/equipment-resolution.ts",
+      "bytes": 6777,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/domain/muscle-volume.test.ts",
+      "bytes": 1899,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/domain/muscle-volume.ts",
+      "bytes": 2384,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/domain/muscles.ts",
+      "bytes": 1625,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/domain/pace.test.ts",
+      "bytes": 893,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/domain/pace.ts",
+      "bytes": 1145,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/domain/program-blueprint.test.ts",
+      "bytes": 4924,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/domain/program-blueprint.ts",
+      "bytes": 7825,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/domain/program-calendar.test.ts",
+      "bytes": 1476,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/domain/program-calendar.ts",
+      "bytes": 2084,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/domain/program-change.test.ts",
+      "bytes": 8452,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/domain/program-change.ts",
+      "bytes": 5627,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/domain/program-patch.test.ts",
+      "bytes": 8502,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/domain/program-patch.ts",
+      "bytes": 9259,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/domain/progression.test.ts",
+      "bytes": 7578,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/domain/progression.ts",
+      "bytes": 15077,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/domain/recovery.test.ts",
+      "bytes": 1643,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/domain/recovery.ts",
+      "bytes": 3244,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/domain/running.test.ts",
+      "bytes": 3409,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/domain/running.ts",
+      "bytes": 4406,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/domain/schedule.test.ts",
+      "bytes": 7490,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/domain/schedule.ts",
+      "bytes": 7875,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/domain/session-plan.test.ts",
+      "bytes": 5417,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/domain/session-plan.ts",
+      "bytes": 7930,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/domain/sets.test.ts",
+      "bytes": 3036,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/domain/sets.ts",
+      "bytes": 3906,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/domain/types.ts",
+      "bytes": 6362,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/lib/app.ts",
+      "bytes": 345,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/lib/appearance.ts",
+      "bytes": 3656,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/lib/env.ts",
+      "bytes": 2413,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/lib/exercise-search.test.ts",
+      "bytes": 942,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/lib/exercise-search.ts",
+      "bytes": 1247,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/lib/format.ts",
+      "bytes": 3245,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/lib/labels.test.ts",
+      "bytes": 756,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/lib/labels.ts",
+      "bytes": 7556,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/lib/nav.test.ts",
+      "bytes": 1216,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/lib/nav.ts",
+      "bytes": 2131,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/lib/site-url.ts",
+      "bytes": 947,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/lib/slug.test.ts",
+      "bytes": 633,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/lib/slug.ts",
+      "bytes": 636,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/lib/supabase/jwks.test.ts",
+      "bytes": 962,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/lib/supabase/jwks.ts",
+      "bytes": 2013,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/lib/supabase/server.ts",
+      "bytes": 1176,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/lib/superset-colors.test.ts",
+      "bytes": 980,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/lib/superset-colors.ts",
+      "bytes": 1393,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/lib/time.test.ts",
+      "bytes": 1151,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/lib/time.ts",
+      "bytes": 2288,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/lib/units.test.ts",
+      "bytes": 2378,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/lib/units.ts",
+      "bytes": 3132,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/lib/utils.ts",
+      "bytes": 254,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/lib/workout-drafts.test.ts",
+      "bytes": 3063,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/lib/workout-drafts.ts",
+      "bytes": 5676,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/proxy.ts",
+      "bytes": 3524,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/actions/account.ts",
+      "bytes": 2502,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/actions/auth.ts",
+      "bytes": 8116,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/actions/availability.ts",
+      "bytes": 4363,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/actions/coach-tokens.ts",
+      "bytes": 1624,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/actions/coach.ts",
+      "bytes": 5880,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/actions/equipment.ts",
+      "bytes": 3205,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/actions/gyms.ts",
+      "bytes": 2106,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/actions/onboarding.ts",
+      "bytes": 3482,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/actions/profile.ts",
+      "bytes": 3663,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/actions/programs.ts",
+      "bytes": 2930,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/actions/runs.ts",
+      "bytes": 7895,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/actions/sessions.ts",
+      "bytes": 20702,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/auth.ts",
+      "bytes": 2587,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/coach-api.ts",
+      "bytes": 9052,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/coach-routine.ts",
+      "bytes": 3254,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/coach-service.ts",
+      "bytes": 9147,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/queries/active-session.ts",
+      "bytes": 764,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/queries/comparable.ts",
+      "bytes": 9150,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/queries/profile-cache.test.ts",
+      "bytes": 3409,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/queries/profile-cache.ts",
+      "bytes": 3024,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/queries/profile.test.ts",
+      "bytes": 1563,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/queries/profile.ts",
+      "bytes": 3458,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/queries/reference.test.ts",
+      "bytes": 4648,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/queries/reference.ts",
+      "bytes": 3042,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/queries/request-profile.ts",
+      "bytes": 2233,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/repositories/absent-equipment.ts",
+      "bytes": 1833,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/repositories/analytics-coach.test.ts",
+      "bytes": 14449,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/repositories/availability.test.ts",
+      "bytes": 10812,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/repositories/availability.ts",
+      "bytes": 25714,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/repositories/body-weight.test.ts",
+      "bytes": 3693,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/repositories/body-weight.ts",
+      "bytes": 2201,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/repositories/coach-foundation.test.ts",
+      "bytes": 20830,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/repositories/coach-plans.test.ts",
+      "bytes": 32310,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/repositories/coach-plans.ts",
+      "bytes": 60087,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/repositories/coach-requests.test.ts",
+      "bytes": 9950,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/repositories/coach-tokens.ts",
+      "bytes": 2786,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/repositories/equipment.ts",
+      "bytes": 8332,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/repositories/exercises.ts",
+      "bytes": 8178,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/repositories/fallbacks.ts",
+      "bytes": 4786,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/repositories/gyms.test.ts",
+      "bytes": 6021,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/repositories/gyms.ts",
+      "bytes": 3568,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/repositories/muscle-volume.ts",
+      "bytes": 1587,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/repositories/program-revisions.test.ts",
+      "bytes": 14541,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/repositories/program-revisions.ts",
+      "bytes": 9066,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/repositories/programs.test.ts",
+      "bytes": 5016,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/repositories/programs.ts",
+      "bytes": 16342,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/repositories/progression-rule.ts",
+      "bytes": 6504,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/repositories/runs.test.ts",
+      "bytes": 5517,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/repositories/runs.ts",
+      "bytes": 7609,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/repositories/schedule.ts",
+      "bytes": 20285,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/repositories/sessions.test.ts",
+      "bytes": 29977,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/repositories/sessions.ts",
+      "bytes": 41440,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/repositories/training-data.ts",
+      "bytes": 6809,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/repositories/training-volume.ts",
+      "bytes": 5051,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/validation/date-range.test.ts",
+      "bytes": 693,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/validation/date-range.ts",
+      "bytes": 1691,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/validation/form.ts",
+      "bytes": 1508,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/validation/gyms.test.ts",
+      "bytes": 2660,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/validation/gyms.ts",
+      "bytes": 2134,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/validation/params.ts",
+      "bytes": 1574,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/validation/profile.test.ts",
+      "bytes": 5202,
+      "kind": "test coverage",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/server/validation/profile.ts",
+      "bytes": 6270,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    },
+    {
+      "path": "src/styles/form/form.css",
+      "bytes": 3765,
+      "kind": "layout and rendering rules",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "src/styles/form/foundation.css",
+      "bytes": 8698,
+      "kind": "layout and rendering rules",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "tsconfig.json",
+      "bytes": 791,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "vercel.json",
+      "bytes": 136,
+      "kind": "configuration, static data or documentation",
+      "checks": ["configuration or reference relevance"]
+    },
+    {
+      "path": "vitest.config.mts",
+      "bytes": 418,
+      "kind": "server or shared runtime",
+      "checks": ["runtime import and call inventory", "async and browser side-effect scan"]
+    }
+  ]
+}

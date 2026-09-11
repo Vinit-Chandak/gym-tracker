@@ -696,6 +696,11 @@ describe("a day that lifts and runs", () => {
       summary: "Easy 25 then arms.",
     });
     expect(today?.run.durationMinutes).toBe(25);
+    await withUser(t.db, alice.id, async (tx) => {
+      const schedule = await getSchedule(tx, alice.id);
+      expect(await plannedRunForToday(tx, alice.id, schedule)).toEqual(today);
+      expect(await plannedRunForToday(tx, alice.id, null)).toBeNull();
+    });
   });
 
   it("refuses a run the programme does not have, and a run on a day that does not run", async () => {

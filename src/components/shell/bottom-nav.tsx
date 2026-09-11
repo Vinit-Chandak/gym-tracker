@@ -47,30 +47,35 @@ export function BottomNav({ pathname: standingIn }: { pathname?: string } = {}) 
   const current = usePathname();
   const pathname = standingIn ?? current;
   return (
-    <nav aria-label="Primary" className="primary-nav">
-      <div className="hidden px-6 pt-7 pb-3 lg:block">
-        <p className="text-lg font-medium">
-          <Wordmark />
-        </p>
-        <p className="mt-0.5 text-xs text-ink-muted">Your training, in focus.</p>
-      </div>
-      <ul className="nav-items">
-        {NAV_ITEMS.map(({ href, label, icon }) => {
-          const active = isNavItemActive(pathname, href);
-          return (
-            <li key={href} className="min-w-0 flex-1 lg:flex-none">
-              {/* Partial prefetch warms the loading shell without fetching every tab's data. */}
-              <Link
-                href={href}
-                aria-current={active ? "page" : undefined}
-                className={cn("nav-link", active ? "text-accent" : "text-ink-muted hover:text-ink")}
-              >
-                <NavContent label={label} icon={icon} active={active} />
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </nav>
+    <div className="viewport-chrome">
+      <nav aria-label="Primary" className="primary-nav">
+        <div className="hidden px-6 pt-7 pb-3 lg:block">
+          <p className="text-lg font-medium">
+            <Wordmark />
+          </p>
+          <p className="mt-0.5 text-xs text-ink-muted">Your training, in focus.</p>
+        </div>
+        <ul className="nav-items">
+          {NAV_ITEMS.map(({ href, label, icon }) => {
+            const active = isNavItemActive(pathname, href);
+            return (
+              <li key={href} className="min-w-0 flex-1 lg:flex-none">
+                {/* Partial prefetch warms the loading shell without fetching every tab's data. */}
+                <Link
+                  href={href}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "nav-link",
+                    active ? "text-accent" : "text-ink-muted hover:text-ink",
+                  )}
+                >
+                  <NavContent label={label} icon={icon} active={active} />
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+    </div>
   );
 }

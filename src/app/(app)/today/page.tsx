@@ -21,33 +21,37 @@ export default async function TodayPage() {
   const requestProfile = await getRequestProfile(user.id, user.email);
   // The active session comes from the shared per-request read the resume strip also uses,
   // so Today and the shell agree on one session without asking the database twice.
-  const inProgress = await getActiveSession(user.id);
-  const data = await withUser(getDb(), user.id, async (tx) => {
-    const profile = requestProfile;
-    const [gyms, plan] = await Promise.all([
-      listGyms(tx, user.id),
-      getTodayPlan(tx, user.id, profile.timeZone),
-    ]);
-    const restProtocol =
-      plan?.suggestedDay && !plan.suggestedDay.includesLifting && plan.suggestedDay.warmupProtocolId
-        ? await getWarmupProtocol(tx, plan.suggestedDay.warmupProtocolId)
-        : null;
-    // The coach speaks to the day it is offering, lifting or running, and only for an
-    // athlete who has switched it on.
-    const coach =
-      profile.aiCoachEnabled &&
-      plan?.suggestion &&
-      (plan.suggestedDay?.includesLifting || plan.suggestedDay?.includesRun)
-        ? await todayCoachState(tx, user.id, {
-            enabled: true,
-            timeZone: profile.timeZone,
-            programId: plan.program.id,
-            ref: plan.suggestion.slot,
-            gymId: gyms.find((gym) => gym.isActive && gym.isDefault)?.id ?? null,
-          })
-        : null;
-    return { profile, gyms, plan, restProtocol, coach };
-  });
+  const [inProgress, data] = await Promise.all([
+    getActiveSession(user.id),
+    withUser(getDb(), user.id, async (tx) => {
+      const profile = requestProfile;
+      const [gyms, plan] = await Promise.all([
+        listGyms(tx, user.id),
+        getTodayPlan(tx, user.id, profile.timeZone),
+      ]);
+      const restProtocol =
+        plan?.suggestedDay &&
+        !plan.suggestedDay.includesLifting &&
+        plan.suggestedDay.warmupProtocolId
+          ? await getWarmupProtocol(tx, plan.suggestedDay.warmupProtocolId)
+          : null;
+      // The coach speaks to the day it is offering, lifting or running, and only for an
+      // athlete who has switched it on.
+      const coach =
+        profile.aiCoachEnabled &&
+        plan?.suggestion &&
+        (plan.suggestedDay?.includesLifting || plan.suggestedDay?.includesRun)
+          ? await todayCoachState(tx, user.id, {
+              enabled: true,
+              timeZone: profile.timeZone,
+              programId: plan.program.id,
+              ref: plan.suggestion.slot,
+              gymId: gyms.find((gym) => gym.isActive && gym.isDefault)?.id ?? null,
+            })
+          : null;
+      return { profile, gyms, plan, restProtocol, coach };
+    }),
+  ]);
   const { profile, gyms, plan, restProtocol, coach } = data;
 
   return (

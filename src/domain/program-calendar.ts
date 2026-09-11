@@ -2,6 +2,8 @@
  * Calendar maths for a programme anchored on its start date (not on Mondays).
  * All dates are ISO `YYYY-MM-DD` strings interpreted in the user's time zone.
  */
+import { dateTimeFormatter } from "@/lib/date-time-format";
+
 const DAY_MS = 86_400_000;
 
 /** Weekly volume and charts bucket Monday–Sunday (ISO weekday 1 starts the week). */
@@ -48,7 +50,7 @@ export function isoWeekday(isoDate: string): number {
 
 /** Today's civil date in the given IANA time zone, e.g. "Asia/Kolkata". */
 export function todayInTimeZone(timeZone: string, now: Date = new Date()): string {
-  return new Intl.DateTimeFormat("en-CA", {
+  return dateTimeFormatter("en-CA", {
     timeZone,
     year: "numeric",
     month: "2-digit",

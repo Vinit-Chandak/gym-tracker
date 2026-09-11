@@ -2,6 +2,12 @@
 
 Updated from remote default branch commit `16e0f32` before implementation.
 
+Correction (11 September 2026): the simulated timings below do not describe the configured
+Postgres.js transaction-pooler connection. With `prepare: false`, parameterised statements
+require a describe/bind exchange and `Promise.all` does not make them one network round trip.
+The caches and single-statement aggregates still help; fewer JavaScript await phases alone
+are not evidence of fewer network exchanges. See [the measured audit](../performance-audit.md).
+
 ## Where the wait came from
 
 Every tap was measured as a chain of database round trips rather than as slow statements. A replay of each screen and action against an in-process Postgres with a simulated 30 ms round trip showed the pattern: each protected read opens a transaction (`BEGIN`, the claims statement, `COMMIT` are round trips of their own) and then runs its repository calls one after another, most of which were themselves two to four dependent statements. The profile gate in the shared layout added a four-hop transaction to every screen. The database itself was not the bottleneck: every filter and join path is covered by the indexes in migrations 0000–0006, and the row shape needs no change.
@@ -22,13 +28,13 @@ Three things outside the request path added to it:
 
 **Reference rows are cached for ten minutes.** Equipment types, warm-up protocols and the shared exercise library (`user_id is null`) change only by migration or seed. `reference.ts` remembers them per instance; programme adoption re-reads them once if a blueprint names a slug it does not know. A user's own exercises are still read live and merged by name.
 
-**Repositories read in one round trip where the data allows it.**
+**Repositories remove dependent lookups and combine some reads into single statements.**
 
 - The active schedule is one statement: programme columns plus its days and slot events as JSON aggregates.
-- Availability (`gymAvailability`, `exerciseAvailability`, the machine decisions on the workout screen and when a planned session starts) sends every statement of a lookup in one batch; the earlier chains of id lookups are subqueries now.
+- Availability (`gymAvailability`, `exerciseAvailability`, the machine decisions on the workout screen and when a planned session starts) uses subqueries in place of earlier chains of id lookups. Its separate statements still pay separate network costs.
 - Comparable history returns each performance with its sets, instead of a second statement for the sets.
 - Session detail reads slots, sets, rest-timer preference, warm-up and the previous check-in together, then history and machine decisions together. Starting a planned session inserts the session while the day is resolved; finishing one returns the day index with the update.
-- Pages and actions that needed several independent reads issue them with `Promise.all` inside the same transaction; the driver pipelines them on the one connection.
+- Pages and actions that needed several independent reads issue them with `Promise.all` inside the same transaction. This removes JavaScript dependencies but does not guarantee wire-level pipelining with the configured driver.
 - Adopting a programme inserts its days, exercises, fallbacks and runs as four batched statements instead of one per row.
 
 Row-level security is unchanged: every read and write still runs inside `withUser`, and logging a set keeps its lock-then-read order on purpose.

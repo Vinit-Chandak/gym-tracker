@@ -11,7 +11,7 @@ import { Field, Textarea } from "@/components/ui/input";
 import { List, Row } from "@/components/ui/link-row";
 import { Section } from "@/components/ui/section";
 import { Switch } from "@/components/ui/switch";
-import { PLAN_LIMITS } from "@/domain/session-plan";
+import { PLAN_LIMITS } from "@/domain/plan-limits";
 import { saveCoachNotesAction, setAiCoachEnabledAction } from "@/server/actions/coach";
 import { INITIAL_FORM_STATE } from "@/server/validation/form";
 

@@ -4,6 +4,12 @@ Status: accepted, 2026-09-11. Follows [0017](0017-navigation-island-and-page-hea
 [0021](0021-two-tasks-a-day-and-three-ways-to-count-a-set.md), whose seventh decision this
 replaces.
 
+Follow-up, 11 September 2026: later screenshots show an initial offset that disappears after
+scrolling. The viewport dimensions and cause described below were inferred from a still image;
+they do not establish the cause of that launch-only behavior. The
+[performance and navigation audit](../performance-audit.md) records the new viewport positioning
+and the remaining iPhone verification.
+
 ## Context
 
 **The navigation island still floated, and now it was hollow too.** On the installed app the
