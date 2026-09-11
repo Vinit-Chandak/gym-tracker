@@ -11,11 +11,20 @@ export const metadata: Metadata = {
   description: APP_DESCRIPTION,
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
+    /*
+     * Not `black-translucent`, which iOS is deprecating and which cost the installed app the
+     * bottom of the screen: it lifts the web view under the status bar without making it any
+     * taller, so a 402x874 iPhone ran the whole app in 402x812 and left the navigation island
+     * floating 62px — one status bar — clear of the bottom edge, over a strip of manifest
+     * colour no page could reach. It also paints the clock white whatever is under it, which
+     * on Form's light canvas is white on cream. `default` hands the status bar back to iOS,
+     * which tints it with the theme-colour this app already keeps in step with the palette.
+     */
+    statusBarStyle: "default",
     title: APP_NAME,
   },
   // Next renders only the standard `mobile-web-app-capable`, but iOS still reads the
-  // Apple-prefixed tag, and without it the translucent status bar style is ignored.
+  // Apple-prefixed tag, and without it an installed app opens in a browser view instead.
   other: { "apple-mobile-web-app-capable": "yes" },
   formatDetection: { telephone: false, email: false, address: false },
   // Private single-user app: keep it out of search engines.

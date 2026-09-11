@@ -75,20 +75,22 @@
  * spacing comes from tokens rather than a margin chosen per screen.
  */
 :root {
-  /* The row of tabs. The island is this plus whatever the home indicator needs. */
+  /* The row of tabs, and the whole island: the glass is exactly as tall as its tabs. */
   --nav-height: var(--ov-nav-height);
-  /* The gap the navigation island keeps from every edge of the screen. */
+  /* The gap the navigation island keeps from every edge of the viewport. */
   --nav-inset: var(--ov-space-3);
   /*
-   * The home indicator's strip, carried *inside* the island instead of under it. Padding it
-   * out below the tabs keeps thumbs clear of the system's home gesture while the island's own
-   * bottom edge stays one --nav-inset from the bottom of the screen, on a phone with a home
-   * indicator exactly as on one without. Sitting the island on top of the inset instead is
-   * what left it floating ~46px clear of the screen on an iPhone.
+   * The gap under the island, where the home indicator lives. The island clears that strip
+   * rather than standing in it — and rather than padding it out inside its own glass, which
+   * is what left a band of empty island under the labels on an iPhone.
+   *
+   * max(), never a sum: the inset describes the space the indicator needs from the bottom of
+   * the screen, not space owed on top of the island's own gap. Adding the two is what had the
+   * island floating ~46px clear of the bottom edge.
    */
-  --nav-safe-pad: max(0px, calc(env(safe-area-inset-bottom) - var(--nav-inset)));
+  --nav-gap: max(var(--nav-inset), env(safe-area-inset-bottom));
   /* Everything the navigation takes off the bottom of the viewport, island and gap. */
-  --nav-reserve: calc(var(--nav-height) + var(--nav-safe-pad) + var(--nav-inset));
+  --nav-reserve: calc(var(--nav-height) + var(--nav-gap));
   --header-height: calc(var(--ov-control-height) + var(--ov-space-6));
   --page-gutter: var(--ov-page-gutter);
   --panel-padding: var(--ov-panel-padding);
@@ -256,12 +258,11 @@
  */
 .primary-nav {
   position: fixed;
-  inset: auto max(var(--nav-inset), env(safe-area-inset-right)) var(--nav-inset)
+  inset: auto max(var(--nav-inset), env(safe-area-inset-right)) var(--nav-gap)
     max(var(--nav-inset), env(safe-area-inset-left));
   z-index: var(--ov-z-nav);
   /* Border-box, so the island measures exactly the height the page reserved for it. */
-  height: calc(var(--nav-height) + var(--nav-safe-pad));
-  padding-bottom: var(--nav-safe-pad);
+  height: var(--nav-height);
   border: 1px solid var(--ov-line);
   border-radius: var(--ov-radius-island);
   background: var(--ov-nav-island);
@@ -371,7 +372,6 @@
   :root {
     --nav-height: 0rem;
     --nav-inset: 0rem;
-    --nav-safe-pad: 0px;
   }
   .app-content {
     margin-left: 12rem;
@@ -382,7 +382,6 @@
     inset: 0 auto 0 0;
     width: 12rem;
     height: auto;
-    padding-bottom: 0;
     border: 0;
     border-right: 1px solid var(--ov-line);
     border-radius: 0;
