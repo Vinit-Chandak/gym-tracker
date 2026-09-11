@@ -74,9 +74,9 @@ The product opportunity is to combine these ideas with this app's existing machi
 
 ## Implementation handoff
 
-See the [implementation plan](AI_COACH_IMPLEMENTATION_PLAN.md) for the onboarding questions, accepted coaching cadence and authority, task contracts, minimal context, data changes, performance requirements, delivery phases, and release checks. Timing and local-versus-cloud execution questions remain explicit decisions there; they were not resolved by inspecting a deployment.
+See the [implementation plan](AI_COACH_IMPLEMENTATION_PLAN.md) for the onboarding questions, accepted coaching cadence and authority, task contracts, minimal context, data changes, performance requirements, delivery phases, and release checks. The user has confirmed Anthropic cloud execution, one daily 04:00 IST run in the owner's time zone, and weekly review on each athlete's selected rest day in that run. Relevant code may be rechecked whenever necessary; the cloud adapter, due-user selection, service boundary, and setup documentation were rechecked after this clarification.
 
-The planning phase does not introduce automatic routine calls after workout completion or readiness updates, coaching during an active workout, or a separately billed model integration. The routine API's lack of idempotency and account-level limits require application-side request tracking and bounded retries. Cloud routines and local Desktop tasks have different availability and dispatch requirements. [^8] [^9]
+The planning phase does not introduce automatic routine calls after workout completion or readiness updates, coaching during an active workout, or a separately billed model integration. The routine API's lack of idempotency and account-level limits require application-side request tracking and bounded retries. Execution uses Anthropic's cloud routine and the existing authenticated API trigger; no local device worker is required. [^8] [^9]
 
 ## Evidence scope and validation
 
@@ -84,7 +84,7 @@ Application findings refer to `main` at commit `d9075a6cd672a6391b451fcdba170589
 
 Nine existing test files passed, containing 101 tests: coach plans, program revisions, program materialization, sessions, analytics/export coaching, session-plan validation, program-blueprint validation, program patches, and comparable-history rules. Three additional temporary isolated checks reproduced the two running-transport outcomes and the missing older lifting volume. Those checks confirmed defects; they were not acceptance tests demonstrating correct behavior and were removed after the audit. No production data was used.
 
-The deployed routine's enabled state, actual schedule, current subscription allowance, and production latency were not verified. The 04:00 and minutes-long descriptions come from repository documentation and code. The public sources below establish documented product behavior and provider constraints; this is a focused comparison of relevant industry patterns rather than an exhaustive market census or a clinical validation of the proposed coach.
+The user confirmed the cloud runtime and shared 04:00 IST cadence. The deployed routine's enabled state, saved schedule configuration, current subscription allowance, and production latency were not inspected. Repository documentation and the rechecked code support the cloud architecture; minutes-long latency remains a documented expectation, not a production measurement. The public sources below establish documented product behavior and provider constraints; this is a focused comparison of relevant industry patterns rather than an exhaustive market census or a clinical validation of the proposed coach.
 
 ## Sources
 

@@ -4,7 +4,7 @@ Status: planning only; application implementation starts in the next session. Up
 
 This is the implementation handoff for personalized onboarding, scheduled coaching, manual programs, and independent workout tracking. It supersedes the proposed behavior in [the application and industry review](AI_COACH_REVAMP.md). That review records code findings from `main` at `d9075a6cd672a6391b451fcdba1705896e31fcde`. The working branch is `codex/ai-first-coaching`, created from that revision of `origin/main`.
 
-This plan uses the existing audit. Application code was not reread while drafting this follow-up, following the user's latest instruction. File references identify audited integration points, not changes already implemented. No routine, production data, or application behavior is changed by this document.
+This plan builds on the completed audit. The user has confirmed that relevant code may be rechecked whenever necessary. The cloud dispatch adapter, service boundary, due-user selection, and automation setup documentation were rechecked after that clarification. File references identify integration points, not changes already implemented. No routine, production data, or application behavior is changed by this document.
 
 ## 1. Confirmed product decisions
 
@@ -12,25 +12,25 @@ This plan uses the existing audit. Application code was not reread while draftin
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | New coached users   | Generate a personalized program during onboarding from their goals, circumstances, equipment, and starting ability. Do not silently install the founder's template.                                                                        |
 | Other ways to train | Users can author a program themselves or track workouts indefinitely without any program. All modes share the normal exercise, machine, workout, and analytics records.                                                                    |
-| Execution and cost  | Continue using the owner's Claude Code setup and subscription. Asynchronous results and delays are acceptable. A separately billed model API is outside this release.                                                                      |
-| Daily coaching      | At the daily 04:00 run, evaluate every enabled athlete and prepare their next pending session for the intended/default gym. This is session preparation, not a mandatory daily program replacement.                                        |
+| Execution and cost  | Continue using the owner's Claude Code cloud routine on Anthropic hardware and the existing subscription. Asynchronous results and delays are acceptable. A separately billed model API is outside this release.                           |
+| Daily coaching      | One shared daily run at 04:00 IST in the owner's time zone evaluates every enabled athlete and prepares their next pending session for the intended/default gym. This is session preparation, not a mandatory daily program replacement.   |
 | Gym exception       | Before starting, an athlete changing gyms can explicitly request a session prepared for that gym's actual equipment and machine history. This is an additional asynchronous request.                                                       |
 | During training     | Freeze the prescribed session at Start. No AI regeneration, automatic substitutions, or Adjust remaining workout flow during an active workout. Ordinary recording and correction of what the athlete actually performed remain available. |
 | After training      | Persist performance immediately. The next scheduled run reads it; finishing a workout does not launch a new routine.                                                                                                                       |
-| Weekly coaching     | Review each athlete's program once in the selected weekly morning run, using the past week and longer trends. A review can conclude that the program should stay unchanged.                                                                |
+| Weekly coaching     | Review each athlete's program once a week on their selected rest day, in that day's shared 04:00 IST run, using the past week and longer trends. A review can conclude that the program should stay unchanged.                             |
 | Authority           | Automatically adjust unused upcoming sessions. Require athlete review before major changes to the split or schedule. Preserve revision history and explanations.                                                                           |
 | Later work          | Wearables, continuous conversation, and coaching during workouts are outside this release.                                                                                                                                                 |
 
-### Questions already raised; do not silently choose answers
+### Confirmed clarifications
 
-These are implementation gates for the affected behavior, not a reason to leave unrelated planning unfinished. If answers arrive, update this table before implementation. The remainder of the document distinguishes proposed engineering choices from confirmed product decisions.
+All four questions raised during planning are resolved by the user's follow-up. These choices govern implementation; no further confirmation is required for them.
 
-| ID  | Unresolved question                                                                                      | Consequence                                                                                                                                                                                                     |
-| --- | -------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| D1  | Does “rage day” mean an athlete-selected rest day, or any selected weekly review day?                    | Determines intake wording and which weekday makes a review due. Do not invent a rest day for an athlete.                                                                                                        |
-| D2  | Is 04:00 one shared time in the owner's zone, or 04:00 in each athlete's zone?                           | A single daily invocation cannot occur at 04:00 across different time zones. Athlete-local scheduling needs additional wakeups and a subscription-capacity check.                                               |
-| D3  | Does execution happen locally on the personal Mac, or in a Claude cloud routine configured from the Mac? | Determines how requests are dispatched and what happens when the Mac sleeps. Repository documentation describes cloud API dispatch; the user's description may mean a local task. Deployment was not inspected. |
-| D4  | May relevant application code be rechecked during planning?                                              | Until clarified, this document relies on the completed audit only. Implementers must inspect the actual checkout and applicable framework guides when implementation begins.                                    |
+| ID  | Confirmed answer                                               | Implementation consequence                                                                                                                                         |
+| --- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| D1  | Weekly review is on each athlete's selected rest day at 04:00. | Ask which weekly rest day to use; include the review in that day's daily batch before preparing the next session.                                                  |
+| D2  | Use the owner's time zone for this rollout: IST, UTC+05:30.    | Configure one shared 04:00 schedule using the IANA zone Asia/Kolkata (the workspace reports its Asia/Calcutta alias). Do not create athlete-local 04:00 schedules. |
+| D3  | The routine runs in Anthropic's cloud on Anthropic hardware.   | Reuse the cloud schedule and API trigger. There is no personal Mac dependency or local worker to build.                                                            |
+| D4  | Recheck relevant application code whenever necessary.          | Inspect and verify integration points during planning and implementation; follow the installed framework guides before writing application code.                   |
 
 The requested daily/weekly distinction governs this plan. The remark that AI could sometimes change the program daily does not specify an exception policy. Out-of-cycle automatic program restructuring is therefore not part of the implementation contract; session adjustments remain automatic. Do not add an event-driven program-rewrite feature from that remark alone.
 
@@ -52,7 +52,7 @@ Use a short autosaved form, grouped into a few screens, followed by one editable
 | Experience and recent training | How long have you trained consistently? What have the last month or two looked like? Returning after a break?                   | Separate experience from recent exposure. A long break is relevant even for an experienced athlete.                                                            |
 | Current physique               | Current weight and height, if known; what would you like to change?                                                             | Store dated measurements and units. Allow skip/unknown. Do not infer body-fat percentage or assign a body type. Photos are not required.                       |
 | Availability                   | How many sessions can you realistically do each week, which days usually work, and how much time do you have including warm-up? | Capture frequency, preferred days, and day-specific time budgets. Keep preferred days distinct from completed training.                                        |
-| Weekly review                  | Which day should the coach review your week?                                                                                    | Final wording and time follow D1/D2. The app should not silently choose a different split to manufacture a rest day.                                           |
+| Weekly review                  | Which weekly rest day should the coach use to review your program?                                                              | Review once on that weekday in the shared 04:00 IST run. Do not change the athlete's split to manufacture a rest day.                                          |
 | Training locations             | What is your usual gym? Where else do you train, and which equipment is available?                                              | Resolve feasible movements against real location/equipment records. Additional gym details can be added when needed.                                           |
 | Restrictions and preferences   | Any movements to avoid, current problems, existing restrictions, favorite exercises, or exercises to keep?                      | Save confirmed restrictions separately from model interpretations. Missing means unknown, not “no problems.” Generalize beyond the founder's back/shin fields. |
 | Current performance            | For a few familiar exercises, what did you last lift and for how many reps?                                                     | Capture exercise, load, unit, reps, approximate date, and machine where applicable. Optional set count and effort/RIR. No mandatory max-strength test.         |
@@ -101,16 +101,16 @@ For an athlete with no program, Today leads with empty workouts and saved routin
 
 Retain one coaching configuration with explicit task types and a shared evidence policy. Do not create separate routines per gym or per athlete. The dispatcher handles queue metadata; each athlete task receives only that athlete's context. These are task boundaries, not necessarily separate provider invocations.
 
-| Task              | Trigger                                                       | Output                                                                                                        |
-| ----------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `create_program`  | Confirmed onboarding or an explicit replacement request       | Draft blueprint, rationale, uncertainty/clarifications, optional opening session.                             |
-| `prepare_session` | Daily 04:00 batch or explicit pre-start alternate-gym request | A plan for one exact pending occurrence and its unfinished components, or a reason for no change/defer.       |
-| `review_program`  | Once per resolved review period in the morning batch          | No change, a scoped future-prescription revision, or a structural proposal requiring review.                  |
-| `refresh_due`     | Scheduled dispatch/catch-up                                   | Claims and orders work, reconciles failures, and reports coverage. It does not decide exercise prescriptions. |
+| Task              | Trigger                                                                       | Output                                                                                                        |
+| ----------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `create_program`  | Confirmed onboarding or an explicit replacement request                       | Draft blueprint, rationale, uncertainty/clarifications, optional opening session.                             |
+| `prepare_session` | Shared daily 04:00 IST batch or explicit pre-start alternate-gym request      | A plan for one exact pending occurrence and its unfinished components, or a reason for no change/defer.       |
+| `review_program`  | Once weekly on the athlete's selected rest day, in the shared 04:00 IST batch | No change, a scoped future-prescription revision, or a structural proposal requiring review.                  |
+| `refresh_due`     | Scheduled dispatch/catch-up                                                   | Claims and orders work, reconciles failures, and reports coverage. It does not decide exercise prescriptions. |
 
 ### Daily batch
 
-1. Establish a batch identity, scheduled boundary, time zone, and actual start time. Resolve D2 before configuring the scheduler.
+1. Establish a batch identity, scheduled 04:00 boundary in Asia/Kolkata, and actual start time. Use the configured owner time zone, not the server/browser time zone or the athlete's profile time zone.
 2. Reconcile expired claims and incomplete requests. List all enabled athletes with keyset pagination; remove the current silent 500-account ceiling.
 3. For each athlete, resolve their active program, next unfinished occurrence, intended gym, source revisions, open-workout state, and whether a weekly review is due.
 4. If due, complete the weekly review first. Apply only authorized, validated changes; otherwise retain the active program and save a reviewable proposal.
@@ -121,7 +121,7 @@ Proposed efficiency rule: revalidate every athlete daily, but reuse a still-vali
 
 ### Weekly review and program stability
 
-Review the completed seven-day interval ending at the scheduled review boundary, plus longer comparable trends. Return exact boundaries and data coverage. This review interval is independent of a program's repeating cycle and the calendar-week chart. A “week” in existing program data may mean a cycle; do not mix those meanings.
+The review becomes due on the athlete's selected weekly rest-day weekday in the shared owner time zone. Review the completed seven-day interval ending at that day's scheduled 04:00 IST boundary, plus longer comparable trends. Return exact boundaries and data coverage. This review interval is independent of a program's repeating cycle and the calendar-week chart. A “week” in existing program data may mean a cycle; do not mix those meanings. Preserve athlete-local dates and time zones for workout records and charts; they do not move the shared batch or its review-period keys. Show exact review boundaries so the reviewed period remains clear. An unexpected workout on the selected rest day does not trigger another review or change the weekly cadence; open-workout protections still apply.
 
 Use one logical review key per athlete and scheduled review period. Retries finish that review rather than create another one. A missed run catches up the latest due review using current relevant evidence; do not generate several historical rewrites consecutively. Preserve a cadence anchor when review-day settings change so edits cannot accidentally cause repeated reviews in one period.
 
@@ -142,9 +142,9 @@ Plan for a block's end during its weekly reviews. If no successor is approved, c
 
 ### Runtime and failure behavior
 
-Resolve D3 before implementing dispatch. Anthropic distinguishes cloud routines from Desktop local scheduled tasks; creating a task from a Mac does not identify where it runs. Cloud routines use managed execution. Local tasks require the machine to be available. The current API adapter is a cloud integration. [Claude routine documentation](https://code.claude.com/docs/en/routines).
+The user confirmed Anthropic cloud execution. Reuse the existing cloud routine's shared 04:00 IST schedule and authenticated API trigger for authorized on-demand work. The current dispatch adapter and setup documentation match this architecture. Keep durable requests and bounded reconciliation for cloud/API failures and quota deferrals. [Cloud dispatch adapter](../../src/server/coach-routine.ts), [automation setup](../coach-automation.md), [Claude routine documentation](https://code.claude.com/docs/en/routines).
 
-If the existing cloud routine is confirmed, reuse its schedule and authenticated API trigger. If execution is local, use an authenticated pull/claim worker on the Mac with a lightweight way to discover on-demand jobs; do not assume the cloud API wakes a local task. Persist requests while offline and reconcile on the next successful wake. Verify the actual local scheduling/wakeup mechanism before promising 04:00 availability. This plan does not add paid hosting or expose the Mac as a public server.
+There is no local Mac execution path, device wakeup requirement, or local polling worker in this implementation. Verify the configured cloud schedule, credentials, and actual allowance during rollout; the user's confirmation establishes the intended runtime and cadence, while deployment inspection establishes their operational configuration.
 
 Provider dispatch is not job completion. Each successful routine API trigger starts a new session, and the documented API has no idempotency key. Subscription and run allowances are shared account constraints. Therefore retries need application claims, duplicate-result protection, and special handling for uncertain dispatch responses. [Routine API documentation](https://platform.claude.com/docs/en/api/claude-code/routines-fire).
 
@@ -187,16 +187,16 @@ Return a short user-facing reason, structured changes, evidence IDs, missing-dat
 
 Extend existing primitives rather than introduce a second workout database or a separate program system for AI.
 
-| Data addition/change           | Required behavior                                                                                                                                                                         |
-| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Versioned coaching intake      | Structured confirmed answers, unknowns, completion state, and source timestamps; independent of `onboardedAt`.                                                                            |
-| Reported baselines             | Exercise/machine, load convention, unit, reps/effort/date, and provenance; never fabricated set logs.                                                                                     |
-| Training preferences           | Entry path, coach permission, default gym, review weekday/time-zone policy, and confirmed availability. Program origin remains independent of coach permission.                           |
-| Occurrence preparation intent  | Target program/version and occurrence, gym override, input revision, and lifecycle. Editing a future intent cannot alter an active workout.                                               |
-| Durable coaching jobs/attempts | Operation, trigger, dedupe key, target, input revisions, claim/lease, attempt IDs, dispatch receipt, persistent state, and compact result/error. Extend current requests where practical. |
-| Program drafts/revisions       | Validated blueprint, generating job/intake, source, rationale, change classification, activation boundary, and transition metadata. Reuse existing immutable program versions.            |
-| Weekly review record           | Unique period identity, evidence boundaries, due/completed timestamps, no-change/patch/proposal outcome. A no-change review is still completed.                                           |
-| Saved workout routines         | Reusable structures separate from actual workouts and active program schedules.                                                                                                           |
+| Data addition/change           | Required behavior                                                                                                                                                                                                                                        |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Versioned coaching intake      | Structured confirmed answers, unknowns, completion state, and source timestamps; independent of `onboardedAt`.                                                                                                                                           |
+| Reported baselines             | Exercise/machine, load convention, unit, reps/effort/date, and provenance; never fabricated set logs.                                                                                                                                                    |
+| Training preferences           | Entry path, coach permission, default gym, selected weekly rest day, and confirmed availability. The dispatcher uses the shared owner time zone; athlete-local logging settings remain separate. Program origin remains independent of coach permission. |
+| Occurrence preparation intent  | Target program/version and occurrence, gym override, input revision, and lifecycle. Editing a future intent cannot alter an active workout.                                                                                                              |
+| Durable coaching jobs/attempts | Operation, trigger, dedupe key, target, input revisions, claim/lease, attempt IDs, dispatch receipt, persistent state, and compact result/error. Extend current requests where practical.                                                                |
+| Program drafts/revisions       | Validated blueprint, generating job/intake, source, rationale, change classification, activation boundary, and transition metadata. Reuse existing immutable program versions.                                                                           |
+| Weekly review record           | Unique period identity, evidence boundaries, due/completed timestamps, no-change/patch/proposal outcome. A no-change review is still completed.                                                                                                          |
+| Saved workout routines         | Reusable structures separate from actual workouts and active program schedules.                                                                                                                                                                          |
 
 Proposed job state machine: `queued -> claimed -> succeeded | needs_input | failed | superseded`. Waiting on quota or execution availability remains queued with a retry reason/time. Attempts have their own dispatch and lease details. An expired claim is persisted as retryable/failed by reconciliation; a pending row must not simply disappear after fifteen minutes as it currently can.
 
@@ -232,9 +232,9 @@ No production latency or quota headroom was measured during this planning sessio
 
 ## 7. Implementation sequence and audited integration points
 
-### Phase 0: resolve runtime/cadence and lock contracts
+### Phase 0: verify the confirmed cloud setup and lock contracts
 
-Resolve D1-D3; record the actual scheduler, time zone, quota behavior, and who runs the worker. Preserve the existing flexible sequence unless the user explicitly chooses a different scheduling model. Read the actual checkout and relevant installed Next.js guides before writing application code, as required by AGENTS.md.
+Use the confirmed Anthropic cloud routine, one shared 04:00 Asia/Kolkata schedule, and each athlete's selected weekly rest day. Verify the operational cloud configuration and quota behavior during rollout; do not reopen D1-D4 as product questions. Preserve the existing flexible sequence unless the user explicitly chooses a different scheduling model. Recheck relevant code as needed and read the installed Next.js guides before writing application code, as required by AGENTS.md.
 
 Write task envelopes, output schemas, change classification, review-period rules, and acceptance invariants first. Define fixtures for lifting, running, mixed days, programless users, and two gyms. Do not configure the live routine or enable new writes before subsequent gates pass.
 
@@ -272,7 +272,7 @@ Exit: users can create a manual program, or log repeatedly without any program o
 
 ### Phase 5: daily/weekly execution and pre-start gym exception
 
-Implement the confirmed 04:00 policy, weekly due selection, review-before-session ordering, bounded catch-up, and the chosen runtime adapter. Add occurrence-specific gym intent and explicit asynchronous alternate-gym preparation. Enforce frozen sessions on the server and remove any UI suggestion that logging/check-in triggers immediate AI changes.
+Implement the shared 04:00 IST policy, weekly rest-day selection, review-before-session ordering, bounded catch-up, and the existing cloud runtime adapter. Add occurrence-specific gym intent and explicit asynchronous alternate-gym preparation. Enforce frozen sessions on the server and remove any UI suggestion that logging/check-in triggers immediate AI changes.
 
 Audited surfaces: [schedule](../../src/domain/schedule.ts), [session preparation and requests](../../src/server/repositories/coach-plans.ts), [gym switcher](<../../src/app/(app)/today/gym-switcher.tsx>), [coach skill](../../.claude/skills/coach/SKILL.md), and [automation documentation](../coach-automation.md). Update scripts and service documentation alongside the contract; correct the documented training-week boundary and muscle-volume semantics.
 
@@ -288,21 +288,21 @@ Roll out to the current friends group with the owner's explicit opt-in configura
 
 Write tests for the behavior and data boundaries below, not tests that merely repeat implementation code. Include service-level round trips and transactional concurrency cases; domain-only schema tests are insufficient for the audited transport defect.
 
-| Area                 | Required checks                                                                                                                                                                                                                 |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Bootstrap            | No-program user can generate/preview/activate; unknown baselines yield calibration, not fake logs; duplicate submissions and competing activation preserve one active program.                                                  |
-| Intake               | Autosave/resume, conflicting scratchpad clarification, unit/load conventions, edited intake superseding an old draft, and manual/free path without coaching requirements.                                                       |
-| Logging              | Programless and extra ad hoc workouts appear in completed history/volume without advancing a program; saved routines copy structure and preserve history.                                                                       |
-| Transport/validation | Lifting-only, run-only, and mixed payloads survive endpoint-to-database round trips; incompatible machines, incorrect measures, missing dispositions, and wrong run occurrences fail.                                           |
-| Evidence             | A completed set 21 days ago appears in a four-week summary; eight-week coverage is complete; more than forty records do not silently truncate aggregates; incomplete sessions and partial periods are labelled.                 |
-| Comparability        | Two machines with different stacks, portable exercises, kg/lb, per-hand/total/assisted conventions, and actual substitutions use appropriate history.                                                                           |
-| Cadence              | Daily coverage beyond 500 athletes; one weekly review per period; no-change counts; retry/catch-up/day-change and time-zone/DST behavior; weekly review before session preparation.                                             |
-| Frozen workouts      | Request before Start/result after Start, simultaneous Start and result acceptance, overnight open session, and disabled coaching all reject inappropriate mutation. Completed sets and prescription snapshots remain unchanged. |
-| Gym exception        | One-off visit does not rewrite default gym; out-of-order Gym A/B responses cannot replace newest intent; incompatible-gym plans are never consumed.                                                                             |
-| Progression          | Mixed day with completed lifting plans only its pending run; missed sessions preserve sequence; changed split maps only equivalent events; open workouts block activation.                                                      |
-| Reliability          | Duplicate trigger/claim/callback, expired lease, uncertain dispatch, invalid output, partial batch failure, owner quota exhaustion, and executor downtime remain visible and recoverable.                                       |
-| Isolation            | Cross-athlete context/results and unauthorized job operations fail; free/manual opt-out prevents coaching data collection; logs/caches do not mix private context.                                                              |
-| Performance          | Bounded context/query work on small and large fixtures; no LLM call from set logging or finishing; batch resume skips successful work; compare tracker latency with its baseline.                                               |
+| Area                 | Required checks                                                                                                                                                                                                                                                      |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Bootstrap            | No-program user can generate/preview/activate; unknown baselines yield calibration, not fake logs; duplicate submissions and competing activation preserve one active program.                                                                                       |
+| Intake               | Autosave/resume, conflicting scratchpad clarification, unit/load conventions, edited intake superseding an old draft, and manual/free path without coaching requirements.                                                                                            |
+| Logging              | Programless and extra ad hoc workouts appear in completed history/volume without advancing a program; saved routines copy structure and preserve history.                                                                                                            |
+| Transport/validation | Lifting-only, run-only, and mixed payloads survive endpoint-to-database round trips; incompatible machines, incorrect measures, missing dispositions, and wrong run occurrences fail.                                                                                |
+| Evidence             | A completed set 21 days ago appears in a four-week summary; eight-week coverage is complete; more than forty records do not silently truncate aggregates; incomplete sessions and partial periods are labelled.                                                      |
+| Comparability        | Two machines with different stacks, portable exercises, kg/lb, per-hand/total/assisted conventions, and actual substitutions use appropriate history.                                                                                                                |
+| Cadence              | Daily coverage beyond 500 athletes; one review per selected rest-day period in the shared owner zone; no-change counts; retry/catch-up/rest-day changes; a different athlete/server zone cannot shift the 04:00 IST batch; weekly review before session preparation. |
+| Frozen workouts      | Request before Start/result after Start, simultaneous Start and result acceptance, overnight open session, and disabled coaching all reject inappropriate mutation. Completed sets and prescription snapshots remain unchanged.                                      |
+| Gym exception        | One-off visit does not rewrite default gym; out-of-order Gym A/B responses cannot replace newest intent; incompatible-gym plans are never consumed.                                                                                                                  |
+| Progression          | Mixed day with completed lifting plans only its pending run; missed sessions preserve sequence; changed split maps only equivalent events; open workouts block activation.                                                                                           |
+| Reliability          | Duplicate trigger/claim/callback, expired lease, uncertain dispatch, invalid output, partial batch failure, owner quota exhaustion, and executor downtime remain visible and recoverable.                                                                            |
+| Isolation            | Cross-athlete context/results and unauthorized job operations fail; free/manual opt-out prevents coaching data collection; logs/caches do not mix private context.                                                                                                   |
+| Performance          | Bounded context/query work on small and large fixtures; no LLM call from set logging or finishing; batch resume skips successful work; compare tracker latency with its baseline.                                                                                    |
 
 Add a small, versioned coaching evaluation set using synthetic or deliberately de-identified fixtures: novice without loads, experienced lifter, return after a break, two non-comparable gyms, limited time, hybrid priorities, missing readiness, sparse attendance, repeated pain restrictions, rejected proposal, and a completed block. Evaluate feasibility, evidence/provenance, preserved constraints, workload rationale, stability, and no invented facts. Separate deterministic acceptance failures from model-quality review. Do not consume the owner's routine allowance for these experiments during this planning session.
 
@@ -310,7 +310,7 @@ Before release, run the repository's required checks and relevant end-to-end flo
 
 ## 9. Handoff checklist
 
-- Resolve and record D1-D3 before implementing scheduler/runtime-dependent behavior. Keep other choices above visible as proposed implementation decisions.
+- Implement the confirmed D1-D4 choices: Anthropic cloud, shared 04:00 IST, weekly review on each selected rest day, and relevant code rechecks as needed. Keep other proposed engineering decisions visible.
 - Implement the phases in dependency order; keep UI work independent where the contracts are already stable.
 - Update the routine's compact shared policy, context contracts, scripts, service documentation, and application together.
 - Keep the review and scientific sources available for maintainers, but send only the compact applicable policy and relevant athlete context to the LLM.
