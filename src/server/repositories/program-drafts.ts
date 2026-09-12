@@ -129,7 +129,7 @@ export async function validateBlueprintForAthlete(
         `Use no more than ${PLAN_LIMITS.exercises} exercises per training day.`,
         422,
       );
-    if (!warmups.some((w) => w.slug === day.warmupSlug))
+    if (day.warmupSlug !== "" && !warmups.some((w) => w.slug === day.warmupSlug))
       throw new CoachingError("Choose an available warm-up for every day.", 422);
     if (day.includesLifting !== day.exercises.length > 0)
       throw new CoachingError(

@@ -4,9 +4,30 @@ import { requireProfiledUser } from "@/server/auth";
 import { MAX_COACH_FILE_BYTES, saveCoachAttachment } from "@/server/repositories/coach-attachments";
 import { CoachingError } from "@/server/repositories/coaching-state";
 
+/**
+ * The upload has to come from the app's own screen, not from another site holding the
+ * athlete's cookie.
+ *
+ * The comparison is against the host the browser actually asked for, which is what the
+ * framework itself compares for a Server Action. `request.url` is the server's own view and
+ * says `localhost` whatever the athlete typed, so measuring against it refused every real
+ * upload — from a custom domain, from anything behind a proxy, from an address that is not
+ * the one the process happens to name itself.
+ */
+function fromThisApp(request: Request): boolean {
+  const origin = request.headers.get("origin");
+  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+  if (!origin || !host) return false;
+  try {
+    return new URL(origin).host === host;
+  } catch {
+    return false;
+  }
+}
+
 export async function POST(request: Request) {
   const user = await requireProfiledUser();
-  if (request.headers.get("origin") !== new URL(request.url).origin)
+  if (!fromThisApp(request))
     return Response.json({ error: "Upload from this app's programme screen." }, { status: 403 });
   try {
     const reader = request.body?.getReader();

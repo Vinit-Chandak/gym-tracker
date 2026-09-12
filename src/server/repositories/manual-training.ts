@@ -197,7 +197,7 @@ export async function routineFromWorkout(
       "Copied exercise order and any known targets. Completed set logs remain in the original workout.",
     includesLifting: true,
     includesRun: false,
-    warmupSlug: "none",
+    warmupSlug: "",
     exercises: entries,
   };
   const [routine] = await db.insert(savedRoutines).values({ userId, name: title, day }).returning();
