@@ -22,8 +22,8 @@ fill with a thumb. All values are stored on the session itself.
 ## What it is used for
 
 Since Phase 5 the scores produce **advice only**, shown in a "Recovery check" card at the top of
-the session. Nothing changes the prefilled targets unless you tap **Hold loads today**, which
-swaps them for last session's sets; every set can still be edited.
+the session. Nothing here changes the prefilled targets: the card says what it saw and what it
+would do about it, and every set is yours to set as you find it.
 
 | Warning       | Fires when                                                               | Advice shown                                                   |
 | ------------- | ------------------------------------------------------------------------ | -------------------------------------------------------------- |

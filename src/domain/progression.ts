@@ -74,15 +74,6 @@ export type SuggestionKind =
   /** Targets written by the AI coach's plan for this session, in place of the rule's. */
   | "coach";
 
-/** Kinds whose prefill differs from simply copying the previous session. */
-export const CHANGING_KINDS: ReadonlySet<SuggestionKind> = new Set<SuggestionKind>([
-  "increase",
-  "reduce",
-  "extend",
-  "lengthen",
-  "coach",
-]);
-
 export type TargetSet = {
   setIndex: number;
   setType: SetType;

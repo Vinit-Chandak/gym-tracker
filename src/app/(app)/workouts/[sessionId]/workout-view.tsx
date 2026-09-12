@@ -29,7 +29,6 @@ export function WorkoutView({ session, userId }: { session: SessionVM; userId: s
 
   const draftCount = useSessionDrafts(userId, session.id);
   const [focusedDirty, setFocusedDirty] = useState(false);
-  const [holdAll, setHoldAll] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [supersetFor, setSupersetFor] = useState<{ group: string | null } | null>(null);
   const listScroll = useRef(0);
@@ -70,7 +69,6 @@ export function WorkoutView({ session, userId }: { session: SessionVM; userId: s
           session={session}
           userId={userId}
           readOnly={readOnly}
-          holdAll={holdAll}
           onBack={backToList}
           onDirtyChange={onDirtyChange}
           onLogged={(seconds) => {
@@ -81,8 +79,6 @@ export function WorkoutView({ session, userId }: { session: SessionVM; userId: s
         <WorkoutOverview
           session={session}
           readOnly={readOnly}
-          holdAll={holdAll}
-          onHoldAllChange={setHoldAll}
           hasDrafts={hasDrafts}
           onOpenExercise={openExercise}
           onOpenDetails={() => setDetailsOpen(true)}

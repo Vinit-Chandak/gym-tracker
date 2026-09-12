@@ -112,7 +112,6 @@ function renderLogger(
       session={{ ...session, preferredUnit: overrides.preferredUnit ?? "kg", exercises: [merged] }}
       userId="user"
       readOnly={overrides.readOnly ?? false}
-      holdAll={false}
       onBack={() => {}}
       onDirtyChange={() => {}}
       onLogged={() => {}}

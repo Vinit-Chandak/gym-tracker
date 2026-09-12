@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useTransition } from "react";
 
-import { CHANGING_KINDS } from "@/domain/progression";
 import type { LoadUnit, PrescriptionType, SetType } from "@/domain/types";
 import { canConvertLoad, convertLoad, setInUnit } from "@/lib/units";
 import {
@@ -126,16 +125,10 @@ function toGhost(set: GhostSource): Ghost {
   };
 }
 
-/** The prefill source: the engine's targets, or last session's sets when holding loads today. */
-function prefillTargets(exercise: ExerciseVM, holdAll: boolean): readonly GhostSource[] {
+/** The prefill source: the engine's targets, else the last thing logged here. */
+function prefillTargets(exercise: ExerciseVM): readonly GhostSource[] {
   const suggestion = exercise.suggestion;
-  if (
-    suggestion &&
-    suggestion.sets.length > 0 &&
-    !(holdAll && CHANGING_KINDS.has(suggestion.kind))
-  ) {
-    return suggestion.sets;
-  }
+  if (suggestion && suggestion.sets.length > 0) return suggestion.sets;
   return exercise.previous?.sets ?? exercise.basis?.sets ?? [];
 }
 
@@ -144,9 +137,8 @@ function ghostFor(
   exercise: ExerciseVM,
   rows: readonly RowState[],
   index: number,
-  holdAll: boolean,
 ): Ghost {
-  const targets = prefillTargets(exercise, holdAll);
+  const targets = prefillTargets(exercise);
   const target = targets.find((s) => s.setIndex === index);
   if (target) return toGhost(target);
   const last = [...rows].filter((r) => r.setIndex < index && r.logged).pop()?.logged;
@@ -187,7 +179,6 @@ type Options = {
   userId: string;
   sessionId: string;
   /** Prefill last session's loads instead of the engine's targets. */
-  holdAll: boolean;
   /** What one set of this exercise counts: reps, seconds held, or metres covered. */
   measure: PrescriptionType;
   unit: LoadUnit;
@@ -204,7 +195,6 @@ export function useSetRows({
   exercise,
   userId,
   sessionId,
-  holdAll,
   measure,
   unit,
   onLogged,
@@ -315,7 +305,7 @@ export function useSetRows({
   };
 
   const logRow = (row: RowState) => {
-    const ghost = ghostFor(exercise, rows, row.setIndex, holdAll);
+    const ghost = ghostFor(exercise, rows, row.setIndex);
     const weight = resolve(row, "weight", ghost);
     // Exactly the measure this exercise is counted in. A carry has no reps to save, and
     // saving a zero for one would be a number nobody entered.
@@ -435,7 +425,7 @@ export function useSetRows({
     storageError,
     dirty: rows.some((row) => row.dirty),
     loggedSets: rows.filter((r) => r.logged).map((r) => r.logged as SetVM),
-    ghost: (index: number) => ghostFor(exercise, rows, index, holdAll),
+    ghost: (index: number) => ghostFor(exercise, rows, index),
     editRow,
     restore,
     logRow,

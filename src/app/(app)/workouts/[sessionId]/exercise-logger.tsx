@@ -13,7 +13,6 @@ import { SetTable } from "@/components/ui/set-table";
 import { Sheet } from "@/components/ui/sheet";
 import { Tabs } from "@/components/ui/tabs";
 import {
-  CHANGING_KINDS,
   REGRESSION_WARNING_STREAK,
   WORKING_SET_TYPES,
   type SuggestionKind,
@@ -109,11 +108,10 @@ function suggestionTone(kind: SuggestionKind): "neutral" | "accent" | "success" 
   }
 }
 
-function suggestionHeadline(exercise: ExerciseVM, unit: string, holdAll: boolean) {
+function suggestionHeadline(exercise: ExerciseVM, unit: string) {
   const suggestion = exercise.suggestion;
   if (!suggestion) return null;
-  const holding = holdAll && CHANGING_KINDS.has(suggestion.kind);
-  const kind: SuggestionKind = holding ? "hold" : suggestion.kind;
+  const kind: SuggestionKind = suggestion.kind;
   const first = suggestion.sets.find((s) => WORKING_SET_TYPES.has(s.setType)) ?? suggestion.sets[0];
   // On a bodyweight movement the load is what is added, so nothing added is "bodyweight",
   // not "0 kg".
@@ -125,17 +123,6 @@ function suggestionHeadline(exercise: ExerciseVM, unit: string, holdAll: boolean
         ? "bodyweight"
         : `${weight} ${unit}`;
 
-  if (holding) {
-    const previousFirst = exercise.previous?.sets.find((s) => WORKING_SET_TYPES.has(s.setType));
-    return {
-      kind,
-      text: `Holding ${load(previousFirst?.weight)} today (${
-        suggestion.kind === "coach"
-          ? "coach plan set aside"
-          : `rule said ${SUGGESTION_KIND_LABELS[suggestion.kind].toLowerCase()}`
-      })`,
-    };
-  }
   switch (kind) {
     case "coach": {
       // A coach plan may deliberately leave the load open — a first session, or a machine with
@@ -198,7 +185,6 @@ type LoggerProps = {
   session: SessionVM;
   userId: string;
   readOnly: boolean;
-  holdAll: boolean;
   onBack: () => void;
   onDirtyChange: (dirty: boolean) => void;
   onLogged: (restSeconds: number) => void;
@@ -213,7 +199,6 @@ export function ExerciseLogger({
   session,
   userId,
   readOnly,
-  holdAll,
   onBack,
   onDirtyChange,
   onLogged,
@@ -235,7 +220,6 @@ export function ExerciseLogger({
     exercise,
     userId,
     sessionId: session.id,
-    holdAll,
     measure,
     unit: exercise.equipment?.unit ?? session.preferredUnit,
     onLogged,
@@ -252,7 +236,7 @@ export function ExerciseLogger({
       : null;
   const editable = !readOnly && !skipped && !completed;
   const optionsRow = sets.rows.find((row) => row.setIndex === optionsFor) ?? null;
-  const suggestion = suggestionHeadline(exercise, unit, holdAll);
+  const suggestion = suggestionHeadline(exercise, unit);
   const prescription = prescriptionLine(exercise);
   const plannedName = exercise.planned?.plannedExerciseName;
   const substituted = plannedName !== undefined && plannedName !== exercise.exercise.name;

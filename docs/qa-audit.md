@@ -330,13 +330,13 @@ tests cover some of the cases below; they still need the indicated browser/devic
   optional and a radio cannot uncheck itself.
 - **Free-weight availability** stays as it is: an exercise is possible at a gym unless the gym
   is marked as lacking what it needs.
-- **"Hold loads today"** is still open — see the note below.
+- **"Hold loads today" is gone.** The control only swapped one prefill for another, and it was
+  never the decision it looked like: an athlete who wants to hold simply keeps the weights, and
+  the coach never rewrites a plan mid-session. The recovery check still says what it saw and
+  what it advises; nothing on the workout now claims to act on it.
 
 ## Open findings
 
-- “Hold loads today” resets on leaving or reloading the workout, silently. Whether it should be
-  remembered — or exist at all, given that it only changes what the prefill suggests — is with
-  the user.
 - Old records already saved with an incorrect kg label cannot be distinguished from real kg
   records; no historical data was guessed or rewritten. Older coach plans do not contain a unit
   snapshot, so only newly saved plans can preserve that information.

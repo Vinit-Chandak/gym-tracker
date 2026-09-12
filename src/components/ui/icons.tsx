@@ -4,6 +4,7 @@ import { BarbellIcon } from "@phosphor-icons/react/dist/ssr/Barbell";
 import { BookOpenIcon } from "@phosphor-icons/react/dist/ssr/BookOpen";
 import { BrainIcon } from "@phosphor-icons/react/dist/ssr/Brain";
 import { CalendarDotsIcon } from "@phosphor-icons/react/dist/ssr/CalendarDots";
+import { ChartLineUpIcon } from "@phosphor-icons/react/dist/ssr/ChartLineUp";
 import { CaretDownIcon } from "@phosphor-icons/react/dist/ssr/CaretDown";
 import { CaretLeftIcon } from "@phosphor-icons/react/dist/ssr/CaretLeft";
 import { CaretRightIcon } from "@phosphor-icons/react/dist/ssr/CaretRight";
@@ -25,7 +26,6 @@ import { SlidersHorizontalIcon } from "@phosphor-icons/react/dist/ssr/SlidersHor
 import { SneakerMoveIcon } from "@phosphor-icons/react/dist/ssr/SneakerMove";
 import { TimerIcon } from "@phosphor-icons/react/dist/ssr/Timer";
 import { TrashIcon } from "@phosphor-icons/react/dist/ssr/Trash";
-import { TrendUpIcon } from "@phosphor-icons/react/dist/ssr/TrendUp";
 import { UserIcon } from "@phosphor-icons/react/dist/ssr/User";
 import type { ComponentType } from "react";
 
@@ -87,5 +87,10 @@ export const SlidersHorizontal = /* @__PURE__ */ duotone(SlidersHorizontalIcon);
 export const SunMoon = /* @__PURE__ */ duotone(CircleHalfIcon);
 export const Timer = /* @__PURE__ */ duotone(TimerIcon);
 export const Trash = /* @__PURE__ */ duotone(TrashIcon);
-export const TrendingUp = /* @__PURE__ */ duotone(TrendUpIcon);
+/**
+ * Progress. A chart with its axes rather than a bare rising arrow: the arrow alone floated
+ * in the top of its box, leaving a gap between it and the caption that no other tab had,
+ * and said nothing about being a chart.
+ */
+export const TrendingUp = /* @__PURE__ */ duotone(ChartLineUpIcon);
 export const User = /* @__PURE__ */ duotone(UserIcon);
