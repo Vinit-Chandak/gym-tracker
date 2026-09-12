@@ -31,9 +31,9 @@ async function lastProfileChange(): Promise<number> {
  * minute per account.
  */
 export const getRequestProfile = cache(
-  async (id: string, email: string | null): Promise<Profile> => {
+  async (id: string, email: string | null, displayName?: string | null): Promise<Profile> => {
     return profiles.read(id, await lastProfileChange(), () =>
-      withUser(getDb(), id, (tx) => ensureProfile(tx, { id, email })),
+      withUser(getDb(), id, (tx) => ensureProfile(tx, { id, email, displayName })),
     );
   },
 );

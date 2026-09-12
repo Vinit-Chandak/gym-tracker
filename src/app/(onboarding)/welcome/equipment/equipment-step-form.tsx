@@ -5,6 +5,7 @@ import { useActionState, useMemo, useState } from "react";
 
 import { FormError, SubmitButton } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import type { EquipmentCategory } from "@/domain/types";
 import { EQUIPMENT_CATEGORY_LABELS } from "@/lib/labels";
 import { addStarterEquipmentAction } from "@/server/actions/onboarding";
@@ -26,6 +27,9 @@ export function EquipmentStepForm({
   const [state, formAction] = useActionState(addStarterEquipmentAction, INITIAL_FORM_STATE);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [query, setQuery] = useState("");
+  const selectable = types.filter(
+    (type) => CATEGORY_ORDER.includes(type.category) && !ASSUMED.has(type.category),
+  );
 
   const groups = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -68,6 +72,27 @@ export function EquipmentStepForm({
         />
       </div>
 
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={selectable.length === 0 || selected.size === selectable.length}
+          onClick={() => setSelected(new Set(selectable.map((type) => type.id)))}
+        >
+          Select all machines
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={selected.size === 0}
+          onClick={() => setSelected(new Set())}
+        >
+          Clear all
+        </Button>
+        <span className="text-sm text-ink-muted" aria-live="polite">
+          {selected.size} selected
+        </span>
+      </div>
       {groups.length === 0 ? (
         <p className="text-sm text-ink-muted">Nothing matches “{query.trim()}”.</p>
       ) : (

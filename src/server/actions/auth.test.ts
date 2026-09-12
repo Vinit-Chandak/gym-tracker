@@ -4,11 +4,19 @@ const auth = vi.hoisted(() => ({
   resetPasswordForEmail: vi.fn(),
   updateUser: vi.fn(),
   getClaims: vi.fn(),
+  signUp: vi.fn(),
+  signInWithPassword: vi.fn(),
 }));
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient: async () => ({ auth }) }));
 vi.mock("@/lib/site-url", () => ({ getSiteUrl: async () => "http://localhost:3010" }));
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
-import { requestPasswordResetAction, updatePasswordAction } from "./auth";
+import {
+  requestPasswordResetAction,
+  updatePasswordAction,
+  signUpAction,
+  signInAction,
+} from "./auth";
+import { redirect } from "next/navigation";
 
 const form = (values: Record<string, string>) => {
   const data = new FormData();
@@ -18,6 +26,59 @@ const form = (values: Record<string, string>) => {
 beforeEach(() => {
   vi.useFakeTimers();
   vi.resetAllMocks();
+});
+
+const signup = () =>
+  form({
+    email: "athlete@example.test",
+    displayName: "Sam",
+    password: "Example-password-1!",
+    confirmPassword: "Example-password-1!",
+  });
+
+it("does not promise email delivery for an obfuscated repeat signup", async () => {
+  auth.signUp.mockResolvedValue({ data: { user: { identities: [] }, session: null }, error: null });
+  const result = await signUpAction({}, signup());
+  expect(result.error).toMatch(/already have an account/);
+  expect(result.checkEmail).toBeUndefined();
+  expect(redirect).not.toHaveBeenCalled();
+});
+
+it("passes the signup name to Auth and requests confirmation only for a new identity", async () => {
+  auth.signUp.mockResolvedValue({
+    data: { user: { id: "new-user", identities: [{ id: "email-identity" }] }, session: null },
+    error: null,
+  });
+  expect(await signUpAction({}, signup())).toEqual({ checkEmail: "athlete@example.test" });
+  expect(auth.signUp).toHaveBeenCalledWith(
+    expect.objectContaining({
+      options: {
+        data: { display_name: "Sam" },
+        emailRedirectTo: "http://localhost:3010/auth/confirm",
+      },
+    }),
+  );
+});
+
+it("does not treat an empty provider response or delivery failure as a successful signup", async () => {
+  auth.signUp.mockResolvedValue({ data: { user: null, session: null }, error: null });
+  expect((await signUpAction({}, signup())).error).toBeTruthy();
+  auth.signUp.mockResolvedValue({
+    data: {},
+    error: { code: "over_email_send_rate_limit", message: "Too many emails" },
+  });
+  expect((await signUpAction({}, signup())).checkEmail).toBeUndefined();
+});
+
+it("continues an auto-confirmed signup and rejects sign-in for unconfirmed email", async () => {
+  auth.signUp.mockResolvedValue({
+    data: { user: { id: "new-user", identities: [{}] }, session: {} },
+    error: null,
+  });
+  await signUpAction({}, signup());
+  expect(redirect).toHaveBeenCalledWith("/welcome");
+  auth.signInWithPassword.mockResolvedValue({ error: { code: "email_not_confirmed" } });
+  expect((await signInAction({}, signup())).error).toMatch(/Confirm your email/);
 });
 afterEach(() => {
   vi.clearAllTimers();

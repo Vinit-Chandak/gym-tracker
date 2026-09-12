@@ -10,11 +10,15 @@ import type { DbOrTx } from "@/db/types";
 import { withUser } from "@/db/with-user";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { requireUser, type SessionUser } from "@/server/auth";
-import { ensureProfile, missingProfileDetails } from "@/server/queries/profile";
+import { ensureProfile } from "@/server/queries/profile";
 import { profileChanged } from "@/server/queries/request-profile";
 import { recordBodyWeight } from "@/server/repositories/body-weight";
 import { parseForm, type FormState } from "@/server/validation/form";
-import { profileInputSchema, type ProfileInput } from "@/server/validation/profile";
+import {
+  basicProfileInputSchema,
+  profileInputSchema,
+  type ProfileInput,
+} from "@/server/validation/profile";
 
 /**
  * Writes the profile and, when the weight has moved, records it as today's reading — dated in
@@ -55,34 +59,33 @@ export async function saveProfileAction(
   return {};
 }
 
-/** Onboarding step 1: the same fields, but it moves the user on to the next step. */
+/** Onboarding step 1: optional name, units and time zone, then the next step. */
 export async function saveOnboardingProfileAction(
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
   const user = await requireUser();
-  const parsed = parseForm(profileInputSchema, formData);
+  const parsed = parseForm(basicProfileInputSchema, formData);
   if (!parsed.success) return parsed.state;
 
-  await withUser(getDb(), user.id, (tx) => saveProfile(tx, user, parsed.data));
+  await withUser(getDb(), user.id, async (tx) => {
+    await ensureProfile(tx, user);
+    await tx.update(profiles).set(parsed.data).where(eq(profiles.id, user.id));
+  });
   await profileChanged(user.id);
   redirect("/welcome/gym");
 }
 
 /**
- * Marks the first-run flow finished, from the last step or from skipping ahead. The gym,
- * machines and programme steps are all skippable; the profile step is not, so an account that
- * has not answered it is sent back rather than let out of setup unfinished.
+ * Marks the first-run flow finished, including the programme-free tracking path.
+ * Optional coaching details never block access to ordinary logging.
  */
 export async function completeOnboardingAction(): Promise<void> {
   const user = await requireUser();
-  const finished = await withUser(getDb(), user.id, async (tx) => {
-    const profile = await ensureProfile(tx, user);
-    if (missingProfileDetails(profile).length > 0) return false;
+  await withUser(getDb(), user.id, async (tx) => {
+    await ensureProfile(tx, user);
     await tx.update(profiles).set({ onboardedAt: new Date() }).where(eq(profiles.id, user.id));
-    return true;
   });
-  if (!finished) redirect("/welcome");
   await profileChanged(user.id);
   revalidatePath("/today");
   redirect("/today");

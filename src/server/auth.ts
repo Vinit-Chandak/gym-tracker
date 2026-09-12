@@ -5,10 +5,9 @@ import { cache } from "react";
 import { isSupabaseConfigured } from "@/lib/env";
 import { getClaimsOptions } from "@/lib/supabase/jwks";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { missingProfileDetails } from "@/server/queries/profile";
 import { getRequestProfile } from "@/server/queries/request-profile";
 
-export type SessionUser = { id: string; email: string | null };
+export type SessionUser = { id: string; email: string | null; displayName?: string | null };
 
 /** The signed-in user from the verified JWT, or null. */
 export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
@@ -19,7 +18,13 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   const { data, error } = await supabase.auth.getClaims(undefined, getClaimsOptions());
   const claims = data?.claims;
   if (error || !claims?.sub) return null;
-  return { id: claims.sub, email: typeof claims.email === "string" ? claims.email : null };
+  const metadata = claims.user_metadata as Record<string, unknown> | undefined;
+  const name = metadata?.display_name ?? metadata?.full_name;
+  return {
+    id: claims.sub,
+    email: typeof claims.email === "string" ? claims.email : null,
+    displayName: typeof name === "string" ? name.trim().slice(0, 80) || null : null,
+  };
 });
 
 /** Redirects to /login when nobody is signed in. Use at the top of protected pages and actions. */
@@ -30,18 +35,13 @@ export async function requireUser(): Promise<SessionUser> {
 }
 
 /**
- * Like `requireUser`, but sends an account that has not answered the first setup step back to
- * it. The steps after it may all be skipped; that one may not, and typing a later URL is not a
- * way around it. An account that finished setup before a question existed is left alone —
- * Settings is where it answers, and being bounced through setup again would be a lie about
- * what it is missing.
+ * Like `requireUser`, ensuring the account's profile exists before onboarding actions.
+ * Units and time zone have valid database defaults. Optional name, body measurements and
+ * coaching goals must not redirect a manual/tracking user back to the first setup screen.
  */
 export async function requireProfiledUser(): Promise<SessionUser> {
   const user = await requireUser();
-  const profile = await getRequestProfile(user.id, user.email);
-  if (profile.onboardedAt === null && missingProfileDetails(profile).length > 0) {
-    redirect("/welcome");
-  }
+  await getRequestProfile(user.id, user.email, user.displayName);
   return user;
 }
 
@@ -52,7 +52,7 @@ export async function requireProfiledUser(): Promise<SessionUser> {
  */
 export async function requireOnboardedUser(): Promise<SessionUser> {
   const user = await requireUser();
-  const profile = await getRequestProfile(user.id, user.email);
+  const profile = await getRequestProfile(user.id, user.email, user.displayName);
   if (profile.onboardedAt === null) redirect("/welcome");
   return user;
 }
