@@ -76,7 +76,7 @@ export const blueprintExerciseSchema = z
     duration: range(z.number().int().min(1).max(7200)).optional(),
     distance: range(z.number().int().min(1).max(10000)).optional(),
     perSide: z.boolean().optional(),
-    rir: range(z.number().min(0).max(10)),
+    rir: range(z.number().min(0).max(10)).nullable().default(null),
     rest: range(z.number().int().min(0).max(1200)),
     targetLoadNote: z.string().max(300).optional(),
     progressionNotes: z.string().max(500).optional(),

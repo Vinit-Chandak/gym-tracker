@@ -70,15 +70,16 @@ If the password contains `@`, `:`, `/`, `#` or `?`, URL-encode those characters
    and the Site URL is used instead. If you ever need to allow-list a URL that does carry a
    query string, end the pattern with `**`.
 
-## 5. Optional: let people delete their sign-in as well as their data
+## 5. Configure complete account deletion
 
-**Settings → Delete account** always erases every row a user owns — gyms, machines,
-programmes, sessions, sets, runs and API tokens. Removing the _sign-in record_ itself needs
-Supabase's service-role key, which this project deliberately does not require.
+**Settings → Delete account** removes the Supabase Auth identity first. Its database cascade
+erases the profile and account-owned gyms, machines, programmes, sessions, sets, runs, tokens,
+coaching jobs and retained reports. This allows a later signup with that email to create a
+fresh identity and empty account.
 
-If you want deletion to remove the login too, add `SUPABASE_SERVICE_ROLE_KEY` (Project
-Settings → API Keys → secret key) to the server-side environment variables. Leave it out and
-the app says plainly that the login remains, which you can then remove from the dashboard.
+Set `SUPABASE_SERVICE_ROLE_KEY` to the project's server-only admin credential. Never expose it
+in a browser variable. If it is missing, deletion is unavailable and no data is removed. A
+failed or uncertain Auth deletion is reported as such; there is no profile-only fallback.
 
 ## 6. Apply the database schema and shared data (on your computer)
 
@@ -163,11 +164,12 @@ Either way it launches full-screen with the correct padding for notches and gest
 ## What a new account sees
 
 1. **Sign up** with an email and password.
-2. **Welcome**, four short steps: about you → the first gym → tick which machines that gym has
-   → pick a programme, or skip it. The first step asks for a name, time zone (proposed by the
-   device), units, body weight, height, date of birth, sex and a training goal, and is the one
-   step that cannot be skipped — the rest of the app reads those numbers. Sex may be left as
-   "prefer not to say".
+2. **Welcome**: optional name (prefilled from signup), time zone and units → first gym → select
+   machines, including Select all → programme choices. Create a personal programme with the
+   coach, build one manually, choose the suggested template, or track without a programme.
+   Measurements and coaching goals do not block ordinary logging. The AI path has its own
+   saved intake, optional prompt/reports, and draft review before activation; see
+   [coach setup and rollout](docs/coach-automation.md).
 3. **Today** suggests the next session; everything set up in onboarding is editable in
    **Settings → Profile** afterwards, and an account that predates a question is told there
    which answers are still missing rather than being sent back through setup.

@@ -136,6 +136,7 @@ function CoachStatus({
         startedAt={coach.pending.requestedAt.toISOString()}
         startedAtLabel={formatTime(coach.pending.requestedAt, timeZone)}
         gymName={planningFor ?? "your gym"}
+        workflow={coach.workflow}
       />
     );
   }
@@ -178,7 +179,9 @@ export function TodayView({
   coach = null,
   unit = "kg",
 }: TodayViewProps) {
-  const defaultGym = gyms.find((gym) => gym.isDefault) ?? null;
+  const defaultGym =
+    gyms.find((gym) => (coach?.selectedGymId ? gym.id === coach.selectedGymId : gym.isDefault)) ??
+    null;
   const day = plan?.suggestedDay ?? null;
   // The coach's plan stands in for the programme's only when it was made for this gym and
   // nothing newer is on its way.
@@ -186,8 +189,8 @@ export function TodayView({
   // A run is planned for the day, not for a gym, so it stands whichever gym the plan named.
   const coachRun = coach?.plan && !coach.pending ? (coach.plan.run ?? null) : null;
   const coachGyms: CoachGym[] = gyms
-    .filter((gym) => gym.kind === "gym")
-    .map((gym) => ({ id: gym.id, name: gym.name, isDefault: gym.isDefault }));
+    .filter((gym) => coach?.workflow || gym.kind === "gym")
+    .map((gym) => ({ id: gym.id, name: gym.name, isDefault: gym.id === defaultGym?.id }));
   const position =
     plan?.suggestion && day
       ? `Cycle ${plan.suggestion.slot.cycleIndex} of ${plan.program.weeks} · Day ${day.dayIndex}`
@@ -229,7 +232,11 @@ export function TodayView({
             </LinkButton>
           </Card>
         ) : (
-          <GymSwitcher gyms={gyms} />
+          <GymSwitcher
+            gyms={gyms}
+            workflow={coach?.workflow}
+            selectedGymId={coach?.selectedGymId}
+          />
         )}
 
         {openElsewhere && inProgress && (
@@ -501,6 +508,7 @@ export function TodayView({
                       requestsLeft: coach.requestsLeft,
                       pending: coach.pending !== null,
                       hasPlan: coach.plan !== null,
+                      workflow: coach.workflow,
                     }
                   : null
               }

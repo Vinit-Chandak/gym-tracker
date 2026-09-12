@@ -25,6 +25,7 @@ export type CoachAttempt = {
 };
 
 type Props = {
+  workflow?: boolean;
   enabled: boolean;
   /** One line under the switch: what the coach last did, or why it cannot do anything yet. */
   status: string;
@@ -40,6 +41,7 @@ type Props = {
  * and the place to tell it things. Boxes of rows and labelled boxes, as every Settings page.
  */
 export function AiCoachSettings({
+  workflow = false,
   enabled,
   status,
   userNotes,
@@ -79,12 +81,25 @@ export function AiCoachSettings({
                 <>
                   AI coach
                   <InfoTip label="About the AI coach">
-                    Every morning at four the coach reads your last sessions, check-ins and runs and
-                    writes a plan for your next session at your default gym: exercises, machines,
-                    sets, reps, RIR, loads and a warm-up. Today shows it, and starting the session
-                    uses it. You can ask for a fresh plan at another gym from Today&apos;s More
-                    options. Planning runs on the app owner&apos;s Claude account, with your
-                    training data only.
+                    {workflow ? (
+                      <>
+                        The coach prepares your next session at 04:00 India time and reviews your
+                        programme on your selected rest day. Your first review waits at least seven
+                        days. Changes to your split or schedule need your approval. You can request
+                        preparation for a different gym before Start. Starting a workout fixes its
+                        prescription. The coach uses your training data and retained reports on the
+                        app owner&apos;s Claude account.
+                      </>
+                    ) : (
+                      <>
+                        Every morning at four the coach reads your last sessions, check-ins and runs
+                        and writes a plan for your next session at your default gym: exercises,
+                        machines, sets, reps, RIR, loads and a warm-up. Today shows it, and starting
+                        the session uses it. You can ask for a fresh plan at another gym from
+                        Today&apos;s More options. Planning runs on the app owner&apos;s Claude
+                        account, with your training data only.
+                      </>
+                    )}
                   </InfoTip>
                 </>
               }

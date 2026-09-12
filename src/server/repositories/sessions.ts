@@ -14,6 +14,7 @@ import {
   sql,
 } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
+import { manualPrescription } from "@/domain/manual-prescription";
 
 import {
   equipmentInstances,
@@ -311,7 +312,7 @@ export type SessionExercise = {
   };
   equipment: { id: string; name: string; unit: LoadUnit } | null;
   planned: {
-    programExerciseId: string;
+    programExerciseId: string | null;
     plannedExerciseName: string;
     sets: number;
     prescriptionType: typeof programExercises.$inferSelect.prescriptionType;
@@ -560,8 +561,9 @@ export async function getSessionDetail(
   ]);
   const exerciseDetails: SessionExercise[] = [];
   for (const [index, row] of rows.entries()) {
+    const saved = row.we.savedPrescription ? manualPrescription(row.we.savedPrescription) : null;
     const rule = applyRule({
-      planned: row.planned,
+      planned: row.planned ?? saved,
       exercise: row.exercise,
       equipment: row.equipment?.id ? row.equipment : null,
       preferredUnit: options.preferredUnit ?? (profile?.preferredUnit === "lb" ? "lb" : "kg"),
@@ -634,7 +636,9 @@ export async function getSessionDetail(
             progressionNotes: row.planned.progressionNotes,
             keyCue: row.planned.keyCue,
           }
-        : null,
+        : saved
+          ? { ...saved, programExerciseId: null, plannedExerciseName: row.exercise.name }
+          : null,
       supersetGroup: row.we.supersetGroup,
       substitutionReason: row.we.substitutionReason,
       notes: row.we.notes,

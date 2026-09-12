@@ -10,22 +10,42 @@ import type { GymKind } from "@/domain/types";
 import { GYM_KIND_LABELS } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 import { setDefaultGymAction } from "@/server/actions/gyms";
+import { requestCoachPlanAction } from "@/server/actions/coach";
+import { useRouter } from "next/navigation";
 
 export type SwitcherGym = { id: string; name: string; kind: GymKind; isDefault: boolean };
 
 /** One-tap gym selection: shows the default gym and opens a sheet to change it. */
-export function GymSwitcher({ gyms }: { gyms: SwitcherGym[] }) {
+export function GymSwitcher({
+  gyms,
+  workflow = false,
+  selectedGymId,
+}: {
+  gyms: SwitcherGym[];
+  workflow?: boolean;
+  selectedGymId?: string | null;
+}) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const current = gyms.find((gym) => gym.isDefault);
+  const current = gyms.find((gym) => (selectedGymId ? gym.id === selectedGymId : gym.isDefault));
 
   function choose(gymId: string): void {
     startTransition(async () => {
       setError(null);
       try {
-        await setDefaultGymAction(gymId);
+        if (workflow) {
+          if (gymId !== current?.id) {
+            const result = await requestCoachPlanAction(gymId, "");
+            if (!result.ok) {
+              setError(result.error);
+              return;
+            }
+          }
+        } else await setDefaultGymAction(gymId);
         setOpen(false);
+        router.refresh();
       } catch {
         setError("Could not change gym. Check your connection and try again.");
       }
@@ -52,6 +72,12 @@ export function GymSwitcher({ gyms }: { gyms: SwitcherGym[] }) {
       </section>
 
       <Sheet open={open} onClose={() => setOpen(false)} title="Choose gym">
+        {workflow && (
+          <p className="text-sm text-ink-muted">
+            Choose the gym for your next session. A changed gym asks the coach to prepare for its
+            equipment.
+          </p>
+        )}
         {pending && (
           <p role="status" className="text-sm text-ink-muted">
             Changing gym…
@@ -69,10 +95,10 @@ export function GymSwitcher({ gyms }: { gyms: SwitcherGym[] }) {
                 type="button"
                 onClick={() => choose(gym.id)}
                 disabled={pending}
-                aria-pressed={gym.isDefault}
+                aria-pressed={gym.id === current?.id}
                 className={cn(
                   "flex min-h-14 w-full items-center justify-between gap-3 rounded-control border px-4 text-left text-base font-medium",
-                  gym.isDefault
+                  gym.id === current?.id
                     ? "border-accent bg-accent-soft text-ink"
                     : "border-transparent bg-surface-raised text-ink active:bg-accent-soft",
                   pending && "opacity-60",
@@ -84,7 +110,7 @@ export function GymSwitcher({ gyms }: { gyms: SwitcherGym[] }) {
                     {GYM_KIND_LABELS[gym.kind]}
                   </span>
                 </span>
-                {gym.isDefault && <Check className="shrink-0 text-accent" aria-hidden />}
+                {gym.id === current?.id && <Check className="shrink-0 text-accent" aria-hidden />}
               </button>
             </li>
           ))}

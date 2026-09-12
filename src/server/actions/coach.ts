@@ -3,6 +3,12 @@
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { after } from "next/server";
+import { redirect } from "next/navigation";
+import { dispatchCoachJob } from "@/server/dispatch-coach-job";
+import { requestGymChange } from "@/server/repositories/coaching-jobs";
+import { confirmIntake, latestIntake, setTrainingMode } from "@/server/repositories/coach-intakes";
+import { CoachingError } from "@/server/repositories/coaching-state";
 
 import { getDb } from "@/db/client";
 import { profiles } from "@/db/schema";
@@ -48,6 +54,19 @@ class CoachRequestRefused extends Error {
 
 export async function setAiCoachEnabledAction(enabled: boolean): Promise<void> {
   const user = await requireUser();
+  if (process.env.COACH_WORKFLOW_ENABLED === "true") {
+    if (enabled) {
+      const intake = await withUser(getDb(), user.id, (tx) => latestIntake(tx, user.id), {
+        readOnly: true,
+      });
+      if (!intake?.confirmedAt) redirect("/settings/programme/create");
+      await withUser(getDb(), user.id, (tx) => confirmIntake(tx, user.id, intake.id));
+    } else await withUser(getDb(), user.id, (tx) => setTrainingMode(tx, user.id, "track"));
+    await profileChanged(user.id);
+    revalidatePath("/settings/ai-coach");
+    revalidatePath("/today");
+    return;
+  }
   await withUser(getDb(), user.id, (tx) =>
     tx.update(profiles).set({ aiCoachEnabled: enabled }).where(eq(profiles.id, user.id)),
   );
@@ -98,6 +117,30 @@ export async function requestCoachPlanAction(gymId: string, reason: string): Pro
   const user = await requireUser();
   const parsed = requestSchema.safeParse({ gymId, reason });
   if (!parsed.success) return { ok: false, error: "Choose a gym." };
+  if (process.env.COACH_WORKFLOW_ENABLED === "true") {
+    try {
+      const result = await withUser(getDb(), user.id, (tx) =>
+        requestGymChange(tx, user.id, parsed.data.gymId, parsed.data.reason),
+      );
+      if (!result.job)
+        return {
+          ok: false,
+          error:
+            "This is already the gym selected for your next session. Daily preparation runs at 04:00 India time; no extra run is needed.",
+        };
+      if (result.created) after(() => dispatchCoachJob(getDb(), user.id, result.job!.id));
+      revalidatePath("/today");
+      return { ok: true };
+    } catch (error) {
+      return {
+        ok: false,
+        error:
+          error instanceof CoachingError
+            ? error.message
+            : "Could not save the gym change. Please retry.",
+      };
+    }
+  }
   let requestId: string;
   try {
     const created = await withUser(getDb(), user.id, async (tx) => {

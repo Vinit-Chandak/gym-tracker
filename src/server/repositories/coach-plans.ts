@@ -34,7 +34,15 @@ import type { ProgramPatch } from "@/domain/program-patch";
 import { performanceScore } from "@/domain/progression";
 import { addDays, todayInTimeZone } from "@/domain/program-calendar";
 import { shinEscalations, volumeSpike } from "@/domain/running";
-import { allSlots, progress, sessionsBehind, slotStatus, type SlotRef } from "@/domain/schedule";
+import {
+  allSlots,
+  pendingParts,
+  progress,
+  sessionsBehind,
+  slotStatus,
+  type SlotRef,
+} from "@/domain/schedule";
+import { assertNoOpenWorkout } from "./coaching-state";
 import {
   coachPlanSchema,
   PLAN_LIMITS,
@@ -58,13 +66,7 @@ import { parseDateRange } from "@/server/validation/date-range";
 
 import { resolvePlannedDay } from "./availability";
 import { getGym, listGyms } from "./gyms";
-import {
-  completedRunIdFor,
-  getRunTarget,
-  getSchedule,
-  type Schedule,
-  type ScheduleDay,
-} from "./schedule";
+import { getRunTarget, getSchedule, type Schedule, type ScheduleDay } from "./schedule";
 import { applyRule } from "./progression-rule";
 import { readRecovery, readWorkouts } from "./training-data";
 import { readWeeklyTrainingVolume } from "./training-volume";
@@ -975,7 +977,11 @@ type LibraryEntry = {
 };
 
 /** The exercises the athlete can pick from, each resolved at the gym so a substitution names a real machine. */
-async function libraryAtGym(db: DbOrTx, userId: string, gymId: string): Promise<LibraryEntry[]> {
+export async function libraryAtGym(
+  db: DbOrTx,
+  userId: string,
+  gymId: string,
+): Promise<LibraryEntry[]> {
   const [shared, own, gym, equipment, absentRows] = await Promise.all([
     sharedExercises(db),
     db.select().from(exercises).where(eq(exercises.userId, userId)),
@@ -1068,6 +1074,8 @@ export type StorePlanInput = {
   routineSessionUrl?: string | null;
   model?: string | null;
   plan: unknown;
+  /** New workflow results explicitly account for every pending lifting slot. */
+  strict?: boolean;
 };
 
 export type StoredPlan = typeof sessionPlans.$inferSelect;
@@ -1090,6 +1098,7 @@ export async function storePlan(
   if (!parsed.success)
     throw new PlanValidationError("The plan is not valid.", describeIssues(parsed.error.issues));
   const plan: CoachPlan = parsed.data;
+  await assertNoOpenWorkout(db, userId);
 
   if (input.requestId) {
     // The caller's transaction holds this row through acceptance. A timeout or failure
@@ -1135,10 +1144,21 @@ export async function storePlan(
   if (!day || !exists || !(day.includesLifting || day.includesRun))
     throw new PlanValidationError("The slot is not a training day of the programme.");
   // A lifting day needs a gym with machines; a running day only needs somewhere to be.
-  if (!gym || !gym.isActive || (day.includesLifting && gym.kind !== "gym"))
+  if (!gym || !gym.isActive)
     throw new PlanValidationError("The gym is not one of the athlete's active locations.");
   if (slotStatus(schedule.state, ref) !== "pending")
     throw new PlanValidationError("The slot is no longer pending; plan the next one.");
+  const parts = pendingParts(schedule.state, ref);
+  if (!day.includesRun && plan.run)
+    throw new PlanValidationError("That day has no run in the programme.");
+  if (!parts.includes("session") && plan.exercises.length > 0)
+    throw new PlanValidationError(
+      "This day has no lifting, or its lifting part is already complete or skipped.",
+    );
+  if (!parts.includes("run") && plan.run)
+    throw new PlanValidationError(
+      "This day has no run, or its running part is already complete or skipped.",
+    );
   if (!day.includesLifting && plan.exercises.length > 0)
     throw new PlanValidationError("That day has no lifting, so it takes a run and nothing else.");
   if (!day.includesRun && plan.run)
@@ -1146,7 +1166,7 @@ export async function storePlan(
   // The two halves of a day are answered separately, so a day whose run is still to come and
   // comes back without one is half a plan: the athlete is told what to lift and left to guess
   // the rest. A run already logged needs nothing more said about it.
-  if (day.includesRun && !plan.run && !(await completedRunIdFor(db, schedule.program.id, ref)))
+  if (parts.includes("run") && !plan.run)
     throw new PlanValidationError("That day's run is still to come, so the plan needs a run.");
 
   const [daySlots, machines, visible, programRun] = await Promise.all([
@@ -1155,6 +1175,8 @@ export async function storePlan(
         id: programExercises.id,
         lineageId: programExercises.lineageId,
         sets: programExercises.sets,
+        exerciseId: programExercises.exerciseId,
+        prescriptionType: programExercises.prescriptionType,
       })
       .from(programExercises)
       .where(eq(programExercises.programDayId, day.id)),
@@ -1164,6 +1186,7 @@ export async function storePlan(
         name: equipmentInstances.name,
         unit: equipmentInstances.unit,
         loadIncrement: equipmentInstances.loadIncrement,
+        equipmentTypeId: equipmentInstances.equipmentTypeId,
       })
       .from(equipmentInstances)
       .where(and(eq(equipmentInstances.gymId, gym.id), eq(equipmentInstances.isActive, true))),
@@ -1175,11 +1198,15 @@ export async function storePlan(
             name: exercises.name,
             loadPortability: exercises.loadPortability,
             defaultLoadIncrement: exercises.defaultLoadIncrement,
+            modality: exercises.modality,
+            requiresEquipment: exercises.requiresEquipment,
+            defaultPrescriptionType: exercises.defaultPrescriptionType,
           })
           .from(exercises)
           .where(
             and(
               eq(exercises.isActive, true),
+              or(isNull(exercises.userId), eq(exercises.userId, userId)),
               inArray(
                 exercises.slug,
                 plan.exercises.map((e) => e.exerciseSlug),
@@ -1203,6 +1230,17 @@ export async function storePlan(
       : Promise.resolve([]),
   ]);
   const slotById = new Map(daySlots.map((slot) => [slot.id, slot]));
+  const equipmentOptions = visible.length
+    ? await db
+        .select()
+        .from(exerciseEquipmentOptions)
+        .where(
+          inArray(
+            exerciseEquipmentOptions.exerciseId,
+            visible.map((e) => e.id),
+          ),
+        )
+    : [];
   const issues: { path: string; message: string }[] = [];
   if (plan.run?.programRunId && programRun.length === 0)
     issues.push({
@@ -1230,6 +1268,68 @@ export async function storePlan(
         path: `exercises.${index}.equipmentInstanceId`,
         message: `No active machine with that id at ${gym.name}.`,
       });
+    const slot = entry.slotId ? slotById.get(entry.slotId) : null;
+    const issue = (message: string) => issues.push({ path: `exercises.${index}`, message });
+    if (entry.action === "keep" && slot && exercise && slot.exerciseId !== exercise.id)
+      issue(
+        "Keep must name the slot's original exercise. Use substitute for a different exercise.",
+      );
+    if (!entry.slotId && entry.action !== "keep")
+      issue("An added exercise cannot substitute or drop a programme slot.");
+    if (entry.action === "drop" && entry.sets.length)
+      issue("A dropped slot cannot prescribe sets.");
+    if (entry.action !== "drop" && exercise) {
+      const options = equipmentOptions.filter((o) => o.exerciseId === exercise.id);
+      if (
+        machine &&
+        !options.some(
+          (o) =>
+            o.equipmentInstanceId === machine.id || o.equipmentTypeId === machine.equipmentTypeId,
+        )
+      )
+        issue("That machine is not compatible with this exercise.");
+      if (!machine) {
+        const resolution = resolveExerciseAtGym({
+          exercise,
+          gym,
+          preferredEquipmentInstanceId: null,
+          options,
+          fallbacks: [],
+          gymEquipment: input.strict
+            ? []
+            : machines.map((m) => ({ ...m, gymId: gym.id, isActive: true })),
+        });
+        if (
+          resolution.status !== "direct" &&
+          (input.strict || entry.action !== "keep" || entry.sets.length > 0)
+        )
+          issue("Choose a compatible registered machine for this exercise.");
+      }
+      const measure =
+        entry.action === "keep" && slot ? slot.prescriptionType : exercise.defaultPrescriptionType;
+      for (const set of entry.sets) {
+        const value =
+          measure === "duration"
+            ? set.durationSeconds
+            : measure === "distance"
+              ? set.distanceMeters
+              : set.reps;
+        if (
+          value === null ||
+          value <= 0 ||
+          (measure !== "reps" && set.reps !== null) ||
+          (measure !== "duration" && set.durationSeconds !== null) ||
+          (measure !== "distance" && set.distanceMeters !== null)
+        )
+          issue(`Each set must use the exercise's ${measure} measurement with a positive target.`);
+      }
+      if (
+        input.strict &&
+        (entry.action === "substitute" || !entry.slotId) &&
+        entry.sets.length === 0
+      )
+        issue("Substituted and added exercises need explicit set targets.");
+    }
     return {
       ...entry,
       exerciseId: exercise?.id ?? "",
@@ -1246,8 +1346,16 @@ export async function storePlan(
       issues.push({ path: `exercises.${index}.slotId`, message: "The same slot appears twice." });
     seenSlots.add(entry.slotId);
   }
+  if (input.strict && parts.includes("session") && daySlots.some((slot) => !seenSlots.has(slot.id)))
+    issues.push({
+      path: "exercises",
+      message: "Include keep, substitute or drop for every pending programme slot.",
+    });
   if (issues.length > 0)
-    throw new PlanValidationError("The plan names things this account does not have.", issues);
+    throw new PlanValidationError(
+      `The plan is not usable: ${issues.map((i) => `${i.path}: ${i.message}`).join(" ")}`,
+      issues,
+    );
 
   const warnings = await reviewStoredPlan(db, userId, {
     exercises: stored,
@@ -1739,10 +1847,12 @@ export type TodayCoachState = {
   plan: (StoredPlan & { gymName: string }) | null;
   /** Whether that plan was made for the gym the athlete is about to train at. */
   matchesGym: boolean;
-  pending: CoachRequest | null;
+  pending: (Pick<CoachRequest, "gymId" | "requestedAt"> & Partial<CoachRequest>) | null;
   /** The last thing the coach tried, when it failed and nothing has succeeded since. */
-  failure: CoachRequest | null;
+  failure: (Pick<CoachRequest, "error"> & Partial<CoachRequest>) | null;
   requestsLeft: number;
+  workflow?: boolean;
+  selectedGymId?: string | null;
 };
 
 /** What Today shows about the coach for the suggested slot. */

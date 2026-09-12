@@ -1,4 +1,9 @@
 import type { Metadata } from "next";
+import { ProgrammeOptions } from "@/components/coaching/programme-options";
+import { SavedProgrammeWork } from "@/components/coaching/saved-work";
+import { ProgrammeTools } from "@/components/coaching/programme-tools";
+import { and, desc, eq } from "drizzle-orm";
+import { programs } from "@/db/schema";
 
 import { ProgramTemplatePicker } from "@/components/program-template-picker";
 import { PageContent } from "@/components/shell/page-content";
@@ -27,12 +32,18 @@ export const metadata: Metadata = { title: "Programme" };
 export default async function ProgrammeSettingsPage() {
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
-  const { overview, proposals } = await withUser(getDb(), user.id, async (tx) => {
-    const [overview, proposals] = await Promise.all([
+  const { overview, proposals, archived } = await withUser(getDb(), user.id, async (tx) => {
+    const [overview, proposals, archived] = await Promise.all([
       getProgramOverview(tx, user.id, profile.timeZone),
       listOpenProposals(tx, user.id),
+      tx
+        .select({ id: programs.id, name: programs.name, version: programs.version })
+        .from(programs)
+        .where(and(eq(programs.userId, user.id), eq(programs.status, "archived")))
+        .orderBy(desc(programs.updatedAt))
+        .limit(20),
     ]);
-    return { overview, proposals };
+    return { overview, proposals, archived };
   });
   const templates = PROGRAM_TEMPLATES.map((template) => ({
     slug: template.slug,
@@ -47,6 +58,22 @@ export default async function ProgrammeSettingsPage() {
     <>
       <PageHeader title="Programme" backHref="/settings" />
       <PageContent>
+        <SavedProgrammeWork />
+        {archived.length > 0 && (
+          <details className="box panel-padding">
+            <summary className="min-h-11 cursor-pointer py-2">Archived programmes</summary>
+            <div className="space-y-4">
+              {archived.map((program) => (
+                <div key={program.id} className="space-y-2">
+                  <p className="font-medium">
+                    {program.name} · version {program.version}
+                  </p>
+                  <ProgrammeTools id={program.id} active={false} />
+                </div>
+              ))}
+            </div>
+          </details>
+        )}
         {overview ? (
           <>
             {/* What the programme is and how far through it you are. */}
@@ -77,6 +104,7 @@ export default async function ProgrammeSettingsPage() {
                 <StatTile label="Lifting days" value={overview.liftingDays} />
                 <StatTile label="Sets a cycle" value={overview.setsPerCycle} />
               </StatTileRow>
+              <ProgrammeTools id={overview.program.id} />
               {(overview.program.notes || overview.projectedEnd) && (
                 <Disclosure summary="How it is meant to go" variant="footer">
                   <div className="space-y-3">
@@ -134,6 +162,8 @@ export default async function ProgrammeSettingsPage() {
               info="You get your own copy of the template. Starting another archives the current one; logged sessions keep what they were prescribed."
             >
               <Disclosure summary="Start a new programme">
+                <ProgrammeOptions />
+                <h3 className="font-medium">Or use the suggested template</h3>
                 <ProgramTemplatePicker
                   templates={templates}
                   today={today}
@@ -143,14 +173,17 @@ export default async function ProgrammeSettingsPage() {
             </Section>
           </>
         ) : (
-          <Card>
-            <h2 className="text-lg font-medium">Choose a programme</h2>
-            <ProgramTemplatePicker
-              templates={templates}
-              today={today}
-              submitLabel="Start this programme"
-            />
-          </Card>
+          <div className="space-y-4">
+            <ProgrammeOptions />
+            <Card>
+              <h2 className="text-lg font-medium">Suggested template</h2>
+              <ProgramTemplatePicker
+                templates={templates}
+                today={today}
+                submitLabel="Start this programme"
+              />
+            </Card>
+          </div>
         )}
       </PageContent>
     </>

@@ -30,6 +30,7 @@ export type CoachOptions = {
   /** A request is already under way, so another would only queue behind it. */
   pending: boolean;
   hasPlan: boolean;
+  workflow?: boolean;
 };
 
 /** Primary Start button for a planned day at the default gym. */
@@ -123,7 +124,11 @@ export function MoreOptions({
     setAsking(null);
   };
   const coachRow = coach && !coach.pending;
-  const coachLabel = coach?.hasPlan ? "Re-plan with the coach" : "Ask the coach for a plan";
+  const coachLabel = coach?.workflow
+    ? "Prepare for a different gym"
+    : coach?.hasPlan
+      ? "Re-plan with the coach"
+      : "Ask the coach for a plan";
   // Close once per successful skip (each action result is a new object).
   const [handled, setHandled] = useState<ActionResult>(INITIAL);
   if (state !== handled) {
@@ -153,6 +158,7 @@ export function MoreOptions({
             requestsLeft={coach.requestsLeft}
             onDone={close}
             onBack={() => setAsking(null)}
+            workflow={coach.workflow}
           />
         ) : asking === "skip" && skip ? (
           <form action={formAction} className="space-y-4">

@@ -12,6 +12,13 @@ function boundaryOn(date: string): Date {
   return boundary;
 }
 
+/** Latest scheduled shared batch, including when a delayed run starts after midnight. */
+export function lastCoachBoundary(now = new Date()) {
+  let date = todayInTimeZone(COACH_TIME_ZONE, now);
+  if (boundaryOn(date) > now) date = addDays(date, -1);
+  return { date, at: boundaryOn(date) };
+}
+
 /** The complete seven-day evidence interval ending at a scheduled owner-zone boundary. */
 export function weeklyReviewPeriod(scheduledBoundary: Date) {
   if (!Number.isFinite(scheduledBoundary.getTime()))
@@ -50,3 +57,19 @@ export function nextWeeklyReviewPeriod(input: {
 }
 
 export type WeeklyReviewPeriod = ReturnType<typeof weeklyReviewPeriod>;
+
+/** First review: at least seven full days after consent, then the selected rest weekday. */
+export function firstWeeklyReviewPeriod(enabledAt: Date, reviewWeekday: number) {
+  if (
+    !Number.isFinite(enabledAt.getTime()) ||
+    !Number.isInteger(reviewWeekday) ||
+    reviewWeekday < 1 ||
+    reviewWeekday > 7
+  )
+    throw new Error("A valid enablement time and review weekday are required.");
+  const earliest = new Date(enabledAt.getTime() + 7 * 86_400_000);
+  let date = todayInTimeZone(COACH_TIME_ZONE, earliest);
+  if (boundaryOn(date) < earliest) date = addDays(date, 1);
+  date = addDays(date, (reviewWeekday - isoWeekday(date) + 7) % 7);
+  return weeklyReviewPeriod(boundaryOn(date));
+}

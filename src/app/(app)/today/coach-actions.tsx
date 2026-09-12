@@ -24,18 +24,22 @@ export function CoachPending({
   startedAt,
   startedAtLabel,
   gymName,
+  workflow = false,
 }: {
   /** When the request was made, for the polling deadline. */
   startedAt: string;
   /** The same moment in the athlete's own time zone, formatted on the server as everywhere else. */
   startedAtLabel: string;
   gymName: string;
+  workflow?: boolean;
 }) {
   const router = useRouter();
   useEffect(() => {
     const until = new Date(startedAt).getTime() + REQUEST_TIMEOUT_MINUTES * 60_000;
     let finished = false;
     let lastRefreshAt = Date.now();
+    let delay = POLL_MS;
+    let timer: ReturnType<typeof setTimeout>;
     const refresh = () => {
       if (finished || document.visibilityState !== "visible" || !navigator.onLine) return;
       const now = Date.now();
@@ -43,20 +47,27 @@ export function CoachPending({
       lastRefreshAt = now;
       router.refresh();
       // One final visible/online read lets the server reconcile an expired request.
-      if (now >= until) {
+      if (!workflow && now >= until) {
         finished = true;
-        clearInterval(timer);
+        clearTimeout(timer);
       }
     };
-    const timer = setInterval(refresh, POLL_MS);
+    const schedule = () => {
+      timer = setTimeout(() => {
+        refresh();
+        if (workflow) delay = Math.min(60_000, delay * 2);
+        if (!finished) schedule();
+      }, delay);
+    };
+    schedule();
     document.addEventListener("visibilitychange", refresh);
     window.addEventListener("online", refresh);
     return () => {
-      clearInterval(timer);
+      clearTimeout(timer);
       document.removeEventListener("visibilitychange", refresh);
       window.removeEventListener("online", refresh);
     };
-  }, [router, startedAt]);
+  }, [router, startedAt, workflow]);
   return (
     <p role="status" className="text-sm text-ink-muted">
       Coach is planning for {gymName}, since {startedAtLabel}. This screen updates itself.
@@ -73,11 +84,13 @@ export function CoachRequestPanel({
   requestsLeft,
   onDone,
   onBack,
+  workflow = false,
 }: {
   gyms: CoachGym[];
   requestsLeft: number;
   onDone: () => void;
   onBack: () => void;
+  workflow?: boolean;
 }) {
   const [gymId, setGymId] = useState(gyms.find((g) => g.isDefault)?.id ?? gyms[0]?.id ?? "");
   const [reason, setReason] = useState("");
@@ -102,6 +115,12 @@ export function CoachRequestPanel({
 
   return (
     <div className="space-y-4">
+      {workflow && (
+        <p className="text-sm text-ink-muted">
+          Daily preparation is automatic. Use this when you are training at a different gym for your
+          next session.
+        </p>
+      )}
       <ul className="space-y-2" aria-label="Gym">
         {gyms.map((gym) => {
           const chosen = gym.id === gymId;
@@ -139,11 +158,13 @@ export function CoachRequestPanel({
         </p>
       )}
       <Button size="lg" className="w-full" disabled={pending || !gymId} onClick={submit}>
-        {pending ? "Asking…" : "Ask the coach"}
+        {pending ? "Asking…" : workflow ? "Prepare for this gym" : "Ask the coach"}
       </Button>
       <p className="text-xs text-ink-subtle">
-        {requestsLeft} {requestsLeft === 1 ? "request" : "requests"} left today. The plan arrives in
-        a few minutes.
+        {requestsLeft} {requestsLeft === 1 ? "request" : "requests"} left today.
+        {workflow
+          ? " Shared with programme creation; resets at midnight in your time zone. You can leave while the coach prepares it."
+          : " The plan arrives in a few minutes."}
       </p>
       <Button variant="ghost" className="w-full" onClick={onBack}>
         Back
