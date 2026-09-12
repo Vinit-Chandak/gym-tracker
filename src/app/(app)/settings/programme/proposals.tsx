@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { applyProposalAction, rejectProposalAction } from "@/server/actions/coach";
+import { attempted } from "@/lib/offline-submit";
 
 export type ProposalCard = {
   id: string;
@@ -37,12 +38,12 @@ function Proposal({ proposal }: { proposal: ProposalCard }) {
     setError(null);
     const action = kind === "reject" ? rejectProposalAction : applyProposalAction;
     startTransition(async () => {
-      try {
-        const result = await action(proposal.id);
-        if (!result.ok) setError(result.error);
-      } catch {
-        setError("Connection lost. Try again when connected.");
-      }
+      const outcome = await attempted(
+        () => action(proposal.id),
+        "Connection lost. Try again when connected.",
+      );
+      if (!outcome.ok) setError(outcome.message);
+      else if (!outcome.value.ok) setError(outcome.value.error);
     });
   };
 

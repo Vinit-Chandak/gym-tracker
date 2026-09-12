@@ -10,7 +10,10 @@ import { signUpAction, type SignUpState } from "@/server/actions/auth";
 const INITIAL: SignUpState = {};
 
 export function SignUpForm() {
-  const [state, formAction, pending] = useActionState(signUpAction, INITIAL);
+  const [state, formAction, pending] = useActionState(
+    signUpAction,
+    INITIAL,
+  );
   // What they typed survives a refused attempt, as it does on the sign-in form. Only the
   // passwords are asked for again, which is the one pair worth retyping.
   const [displayName, setDisplayName] = useState("");

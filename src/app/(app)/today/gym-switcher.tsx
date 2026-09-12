@@ -10,6 +10,7 @@ import type { GymKind } from "@/domain/types";
 import { GYM_KIND_LABELS } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 import { setDefaultGymAction } from "@/server/actions/gyms";
+import { attempted } from "@/lib/offline-submit";
 
 export type SwitcherGym = { id: string; name: string; kind: GymKind; isDefault: boolean };
 
@@ -23,12 +24,12 @@ export function GymSwitcher({ gyms }: { gyms: SwitcherGym[] }) {
   function choose(gymId: string): void {
     startTransition(async () => {
       setError(null);
-      try {
-        await setDefaultGymAction(gymId);
-        setOpen(false);
-      } catch {
-        setError("Could not change gym. Check your connection and try again.");
-      }
+      const outcome = await attempted(
+        () => setDefaultGymAction(gymId),
+        "Could not change gym. Check your connection and try again.",
+      );
+      if (outcome.ok) setOpen(false);
+      else setError(outcome.message);
     });
   }
 

@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useTransition } from "react";
 
-import { CHANGING_KINDS } from "@/domain/progression";
 import type { LoadUnit, PrescriptionType, SetType } from "@/domain/types";
 import { canConvertLoad, convertLoad, setInUnit } from "@/lib/units";
 import {
@@ -15,6 +14,7 @@ import {
   type DraftContext,
   type DraftValueField,
 } from "@/lib/workout-drafts";
+import { attempted } from "@/lib/offline-submit";
 import { deleteSetAction, logSetAction } from "@/server/actions/sessions";
 
 import type { ExerciseVM, SetVM } from "./view-model";
@@ -126,27 +126,16 @@ function toGhost(set: GhostSource): Ghost {
   };
 }
 
-/** The prefill source: the engine's targets, or last session's sets when holding loads today. */
-function prefillTargets(exercise: ExerciseVM, holdAll: boolean): readonly GhostSource[] {
+/** The prefill source: the engine's targets, else the last thing logged here. */
+function prefillTargets(exercise: ExerciseVM): readonly GhostSource[] {
   const suggestion = exercise.suggestion;
-  if (
-    suggestion &&
-    suggestion.sets.length > 0 &&
-    !(holdAll && CHANGING_KINDS.has(suggestion.kind))
-  ) {
-    return suggestion.sets;
-  }
+  if (suggestion && suggestion.sets.length > 0) return suggestion.sets;
   return exercise.previous?.sets ?? exercise.basis?.sets ?? [];
 }
 
 /** Faint prefill: the target for this set index, else the last set logged here, else the last target. */
-function ghostFor(
-  exercise: ExerciseVM,
-  rows: readonly RowState[],
-  index: number,
-  holdAll: boolean,
-): Ghost {
-  const targets = prefillTargets(exercise, holdAll);
+function ghostFor(exercise: ExerciseVM, rows: readonly RowState[], index: number): Ghost {
+  const targets = prefillTargets(exercise);
   const target = targets.find((s) => s.setIndex === index);
   if (target) return toGhost(target);
   const last = [...rows].filter((r) => r.setIndex < index && r.logged).pop()?.logged;
@@ -172,14 +161,11 @@ function resolve(row: RowState, field: DraftValueField, ghost: Ghost): number | 
 async function safeAction<T extends { ok: boolean }>(
   action: () => Promise<T>,
 ): Promise<T | { ok: false; error: string }> {
-  try {
-    return await action();
-  } catch {
-    return {
-      ok: false,
-      error: "Connection lost. Your entries are still here. Retry saving when connected.",
-    };
-  }
+  const outcome = await attempted(
+    action,
+    "Connection lost. Your entries are still here. Retry saving when connected.",
+  );
+  return outcome.ok ? outcome.value : { ok: false, error: outcome.message };
 }
 
 type Options = {
@@ -187,7 +173,6 @@ type Options = {
   userId: string;
   sessionId: string;
   /** Prefill last session's loads instead of the engine's targets. */
-  holdAll: boolean;
   /** What one set of this exercise counts: reps, seconds held, or metres covered. */
   measure: PrescriptionType;
   unit: LoadUnit;
@@ -200,15 +185,7 @@ type Options = {
  * Each row keeps its own numbers. Nothing here writes across rows, so four sets that happen
  * to hold the same load are four records that happen to agree, not one shared value.
  */
-export function useSetRows({
-  exercise,
-  userId,
-  sessionId,
-  holdAll,
-  measure,
-  unit,
-  onLogged,
-}: Options) {
+export function useSetRows({ exercise, userId, sessionId, measure, unit, onLogged }: Options) {
   const [rows, setRows] = useState<RowState[]>(() => initialRows(exercise));
   const [pending, startTransition] = useTransition();
   const [storageError, setStorageError] = useState(false);
@@ -315,7 +292,7 @@ export function useSetRows({
   };
 
   const logRow = (row: RowState) => {
-    const ghost = ghostFor(exercise, rows, row.setIndex, holdAll);
+    const ghost = ghostFor(exercise, rows, row.setIndex);
     const weight = resolve(row, "weight", ghost);
     // Exactly the measure this exercise is counted in. A carry has no reps to save, and
     // saving a zero for one would be a number nobody entered.
@@ -435,7 +412,7 @@ export function useSetRows({
     storageError,
     dirty: rows.some((row) => row.dirty),
     loggedSets: rows.filter((r) => r.logged).map((r) => r.logged as SetVM),
-    ghost: (index: number) => ghostFor(exercise, rows, index, holdAll),
+    ghost: (index: number) => ghostFor(exercise, rows, index),
     editRow,
     restore,
     logRow,

@@ -18,6 +18,7 @@ import {
   type ResistanceMode,
 } from "@/domain/types";
 import { EQUIPMENT_CATEGORY_LABELS, LOAD_UNIT_LABELS, RESISTANCE_MODE_LABELS } from "@/lib/labels";
+import { keepsFormOnDisconnect } from "@/lib/offline-submit";
 import type { EquipmentTypeOption } from "@/server/repositories/equipment";
 import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
 
@@ -66,7 +67,7 @@ export function EquipmentForm({
   submitLabel,
   preferredUnit,
 }: EquipmentFormProps) {
-  const [state, formAction] = useActionState(action, INITIAL_FORM_STATE);
+  const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
   const value = (key: keyof EquipmentFormValues): string =>
     state.values?.[key] ?? initial?.[key] ?? "";
 

@@ -4,11 +4,15 @@ import { useActionState } from "react";
 
 import { ProfileFields, type ProfileFieldValues } from "@/components/profile-fields";
 import { FormError, SubmitButton } from "@/components/ui/form";
+import { keepsFormOnDisconnect } from "@/lib/offline-submit";
 import { saveOnboardingProfileAction } from "@/server/actions/profile";
 import { INITIAL_FORM_STATE } from "@/server/validation/form";
 
 export function ProfileStepForm(values: ProfileFieldValues) {
-  const [state, formAction] = useActionState(saveOnboardingProfileAction, INITIAL_FORM_STATE);
+  const [state, formAction] = useActionState(
+    keepsFormOnDisconnect(saveOnboardingProfileAction),
+    INITIAL_FORM_STATE,
+  );
 
   return (
     <form action={formAction} className="space-y-4">

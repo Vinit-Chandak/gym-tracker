@@ -8,6 +8,7 @@ import { Field, Input } from "@/components/ui/input";
 import { NumberField } from "@/components/ui/number-field";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Section } from "@/components/ui/section";
+import { keepsFormOnDisconnect } from "@/lib/offline-submit";
 import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
 
 const FIVE = ["1", "2", "3", "4", "5"].map((v) => ({ value: v, label: v }));
@@ -32,7 +33,7 @@ type Props = {
  * fabricated zero would read as "no pain at all" when nothing was actually said.
  */
 export function CheckInForm({ action, initial }: Props) {
-  const [state, formAction] = useActionState(action, INITIAL_FORM_STATE);
+  const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
   const value = (key: keyof Props["initial"]) => state.values?.[key] ?? initial[key];
   const [back, setBack] = useState(() => value("backPainPre"));
   const [shinLeft, setShinLeft] = useState(() => value("shinLeftPre"));
