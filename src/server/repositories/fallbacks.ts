@@ -10,7 +10,7 @@ import {
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 
-import { GymNotFoundError } from "./equipment";
+import { GymNotFoundError, machinesByExerciseAtGym } from "./equipment";
 import { MachineNotAtGymError } from "./exercises";
 import { getGym } from "./gyms";
 
@@ -23,6 +23,13 @@ export type GymFallbackItem = {
   fallbackInstanceName: string | null;
   rank: number;
 };
+
+export class IncompatibleFallbackMachineError extends Error {
+  constructor() {
+    super("Choose a compatible machine for this exercise, or Any.");
+    this.name = "IncompatibleFallbackMachineError";
+  }
+}
 
 /** Gym-specific fallbacks the user added for the planned exercises of the active programme. */
 export async function listGymFallbacks(
@@ -103,6 +110,10 @@ export async function addGymFallback(
       )
       .limit(1);
     if (!instance) throw new MachineNotAtGymError();
+    const compatible = await machinesByExerciseAtGym(db, userId, input.gymId);
+    if (!compatible[input.fallbackExerciseId]?.includes(instance.id)) {
+      throw new IncompatibleFallbackMachineError();
+    }
   }
 
   const slotIds = await activeProgramExerciseIds(db, userId, input.exerciseId);

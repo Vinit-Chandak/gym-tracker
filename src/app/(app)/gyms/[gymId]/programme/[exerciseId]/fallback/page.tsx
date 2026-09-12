@@ -8,7 +8,7 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { addGymFallbackAction } from "@/server/actions/availability";
 import { requireUser } from "@/server/auth";
-import { listEquipmentForGym } from "@/server/repositories/equipment";
+import { listEquipmentForGym, machinesByExerciseAtGym } from "@/server/repositories/equipment";
 import { getExercise, listExercises } from "@/server/repositories/exercises";
 import { getGym } from "@/server/repositories/gyms";
 import { requireUuid } from "@/server/validation/params";
@@ -30,15 +30,17 @@ export default async function GymFallbackPage(
       getExercise(tx, user.id, exerciseId),
     ]);
     if (!gym || !exercise) return null;
-    const [all, machines] = await Promise.all([
+    const [all, machines, compatibleMachines] = await Promise.all([
       listExercises(tx),
       listEquipmentForGym(tx, user.id, gymId),
+      machinesByExerciseAtGym(tx, user.id, gymId),
     ]);
     return {
       gym,
       exercise,
       exercises: all.filter((e) => e.isActive && e.id !== exerciseId),
       machines: machines.filter((m) => m.isActive).map((m) => ({ id: m.id, name: m.name })),
+      compatibleMachines,
     };
   });
   if (!data) notFound();
@@ -60,6 +62,7 @@ export default async function GymFallbackPage(
           action={addGymFallbackAction.bind(null, data.gym.id, data.exercise.id)}
           exercises={data.exercises}
           machines={data.machines}
+          compatibleMachines={data.compatibleMachines}
         />
       </PageContent>
     </>

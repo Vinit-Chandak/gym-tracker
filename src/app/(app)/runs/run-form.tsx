@@ -144,7 +144,7 @@ export function RunForm({ action, initial, planned, runId, submitLabel, coach = 
             />
           </Field>
 
-          <Field label="Where">
+          <Field group label="Where">
             <SegmentedControl
               name="treadmill"
               aria-label="Run mode"
@@ -194,7 +194,7 @@ export function RunForm({ action, initial, planned, runId, submitLabel, coach = 
 
       <Section title="Effort and plan">
         <Card>
-          <Field label="RPE" hint="Optional" error={state.fieldErrors?.rpe}>
+          <Field group label="RPE" hint="Optional" error={state.fieldErrors?.rpe}>
             <SegmentedControl name="rpe" options={RPE} defaultValue={value("rpe")} columns={5} />
           </Field>
 

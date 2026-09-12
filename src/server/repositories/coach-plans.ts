@@ -578,6 +578,7 @@ export async function planningContext(
           equipment: machine
             ? { id: machine.id, unit: machine.unit, loadIncrement: machine.loadIncrement }
             : null,
+          preferredUnit: profile.preferredUnit === "lb" ? "lb" : "kg",
           slotLineageId: plannedRow.prescription.lineageId,
           history,
           elsewhere: histories[index]?.elsewhere ?? null,
@@ -1099,6 +1100,7 @@ export async function storePlan(
       exerciseId: exercise?.id ?? "",
       exerciseName: exercise?.name ?? entry.exerciseSlug,
       equipmentInstanceName: machine?.name ?? null,
+      unit: machine?.unit ?? (profile?.preferredUnit === "lb" ? "lb" : "kg"),
       slotLineageId: entry.slotId ? (slotById.get(entry.slotId)?.lineageId ?? null) : null,
     };
   });
@@ -1116,6 +1118,12 @@ export async function storePlan(
     exercises: stored,
     run: plan.run,
     plannedSets: daySlots.reduce((total, slot) => total + slot.sets, 0),
+    unchangedSets: daySlots.reduce((total, slot) => {
+      const entry = stored.find((entry) => entry.slotId === slot.id);
+      return (
+        total + (!entry || (entry.action !== "drop" && entry.sets.length === 0) ? slot.sets : 0)
+      );
+    }, 0),
     machines,
     library: visible,
     unit: profile?.preferredUnit ?? "kg",
@@ -1181,6 +1189,7 @@ async function reviewStoredPlan(
     exercises: readonly StoredPlanExercise[];
     run: PlanRun | null;
     plannedSets: number;
+    unchangedSets: number;
     machines: readonly { id: string; loadIncrement: number | null; unit: string }[];
     library: readonly {
       id: string;
@@ -1250,6 +1259,7 @@ async function reviewStoredPlan(
         })),
     ],
     plannedSets: input.plannedSets,
+    unchangedSets: input.unchangedSets,
     run: {
       planned: input.run,
       lastDurationMinutes: lastRun[0] ? Math.round(lastRun[0].durationSeconds / 60) : null,
@@ -1607,13 +1617,21 @@ export async function todayCoachState(
       .select({ plan: sessionPlans, gymName: gyms.name })
       .from(sessionPlans)
       .leftJoin(gyms, eq(gyms.id, sessionPlans.gymId))
+      .leftJoin(workoutSessions, eq(workoutSessions.id, sessionPlans.workoutSessionId))
       .where(
         and(
           eq(sessionPlans.userId, userId),
           eq(sessionPlans.programId, input.programId),
           eq(sessionPlans.cycleIndex, input.ref.cycleIndex),
           eq(sessionPlans.dayIndex, input.ref.dayIndex),
-          eq(sessionPlans.status, "active"),
+          or(
+            eq(sessionPlans.status, "active"),
+            and(
+              eq(sessionPlans.status, "consumed"),
+              isNull(workoutSessions.completedAt),
+              sql`${workoutSessions.id} is not null`,
+            ),
+          ),
         ),
       )
       .limit(1),

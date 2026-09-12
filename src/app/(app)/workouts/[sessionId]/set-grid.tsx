@@ -5,7 +5,7 @@ import { Check, LoaderCircle } from "@/components/ui/icons";
 import { InfoTip } from "@/components/ui/info-tip";
 import { sanitizeNumberEntry, SET_LIMITS } from "@/domain/sets";
 import type { PrescriptionType, SetType } from "@/domain/types";
-import { MEASURE_COLUMN_LABELS, rirMeaning, SET_TYPE_LABELS } from "@/lib/labels";
+import { LOAD_UNIT_LABELS, MEASURE_COLUMN_LABELS, rirMeaning, SET_TYPE_LABELS } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 import type { DraftValueField } from "@/lib/workout-drafts";
 
@@ -130,6 +130,9 @@ export function SetGrid({
 
       <ol>
         {rows.map((row) => {
+          const rowUnit = row.unit
+            ? `${unitLabel.startsWith("+") ? "+" : ""}${LOAD_UNIT_LABELS[row.unit]}`
+            : unitLabel;
           const g = ghost(row.setIndex);
           const saved = row.logged !== null && !row.dirty;
           const mark = SET_TYPE_MARK[row.setType];
@@ -157,8 +160,8 @@ export function SetGrid({
                 <NumericCell
                   row={row}
                   field="weight"
-                  label={`Set ${row.setIndex} load, ${unitLabel}`}
-                  short={unitLabel}
+                  label={`Set ${row.setIndex} load, ${rowUnit}`}
+                  short={rowUnit}
                   ghost={g.weight}
                   inputMode="decimal"
                   max={SET_LIMITS.weight}
@@ -170,7 +173,7 @@ export function SetGrid({
                   label={`Set ${row.setIndex} ${middle.label.toLowerCase()}`}
                   short={middle.label}
                   ghost={g[middle.field]}
-                  inputMode="numeric"
+                  inputMode={measure === "distance" ? "decimal" : "numeric"}
                   max={middle.max}
                   onChange={(value) => onEdit(row, { [middle.field]: value }, middle.field)}
                 />

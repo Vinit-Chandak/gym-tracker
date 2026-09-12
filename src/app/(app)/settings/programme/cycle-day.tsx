@@ -16,7 +16,10 @@ function subtitle(day: ScheduleDay): string | null {
 
 /** What it asks for: the sets, or the run, or neither. */
 function cost(plan: ProgramDayPlan): string {
-  if (plan.exercises.length > 0) return planSummary(plan.exercises);
+  if (plan.exercises.length > 0)
+    return [planSummary(plan.exercises), plan.run ? `Run: ${runSummary(plan.run)}` : null]
+      .filter(Boolean)
+      .join(" · ");
   if (plan.run) return runSummary(plan.run);
   return "Rest day";
 }

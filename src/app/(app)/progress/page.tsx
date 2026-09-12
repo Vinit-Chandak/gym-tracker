@@ -30,7 +30,7 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
     profile.timeZone,
   );
   // The body map steps a week at a time, independent of the trend range above, so it
-  // reads its own Tuesday-Monday window: the same week boundary the programme uses.
+  // reads its own Monday-Sunday window: the same week boundary the programme uses.
   const asked =
     typeof params.week === "string" && /^\d{4}-\d{2}-\d{2}$/.test(params.week)
       ? params.week
@@ -72,7 +72,6 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
           </p>
         )}
         <ProgressView
-          key={`${range.from}:${range.to}`}
           range={range}
           summary={{
             workouts: analytics.workouts,

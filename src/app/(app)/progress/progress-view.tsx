@@ -339,7 +339,7 @@ export function ProgressView({
               <div className="flex items-center justify-between gap-3">
                 <h2 className="text-base font-medium">Weekly sessions</h2>
                 <InfoTip label="About weekly sessions">
-                  Weeks run Tuesday to Monday in your time zone. The first and last weeks of the
+                  Weeks run Monday to Sunday in your time zone. The first and last weeks of the
                   range may be partial.
                 </InfoTip>
               </div>

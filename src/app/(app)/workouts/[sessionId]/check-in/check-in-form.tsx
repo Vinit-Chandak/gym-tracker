@@ -50,7 +50,12 @@ export function CheckInForm({ action, initial }: Props) {
               placeholder="e.g. 6.5"
             />
           </Field>
-          <Field label="Quality" hint="1 = poor, 5 = great" error={state.fieldErrors?.sleepQuality}>
+          <Field
+            group
+            label="Quality"
+            hint="1 = poor, 5 = great"
+            error={state.fieldErrors?.sleepQuality}
+          >
             <SegmentedControl
               name="sleepQuality"
               options={FIVE}
@@ -63,7 +68,12 @@ export function CheckInForm({ action, initial }: Props) {
 
       <Section title="How you feel">
         <Card>
-          <Field label="Energy" hint="1 = flat, 5 = fired up" error={state.fieldErrors?.energy}>
+          <Field
+            group
+            label="Energy"
+            hint="1 = flat, 5 = fired up"
+            error={state.fieldErrors?.energy}
+          >
             <SegmentedControl
               name="energy"
               options={FIVE}
@@ -72,6 +82,7 @@ export function CheckInForm({ action, initial }: Props) {
             />
           </Field>
           <Field
+            group
             label="General fatigue"
             hint="1 = fresh, 5 = wrecked"
             error={state.fieldErrors?.fatigue}
@@ -83,7 +94,12 @@ export function CheckInForm({ action, initial }: Props) {
               columns={5}
             />
           </Field>
-          <Field label="Soreness" hint="1 = none, 5 = severe" error={state.fieldErrors?.soreness}>
+          <Field
+            group
+            label="Soreness"
+            hint="1 = none, 5 = severe"
+            error={state.fieldErrors?.soreness}
+          >
             <SegmentedControl
               name="soreness"
               options={FIVE}

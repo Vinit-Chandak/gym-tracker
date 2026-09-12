@@ -64,7 +64,7 @@ function Figure({
             className="cursor-pointer"
             onClick={() => onPick(active === muscle ? null : muscle)}
           >
-            <title>{`${MUSCLE_LABELS[muscle]}: ${fmt(volume[muscle] ?? 0)} sets`}</title>
+            <title>{`${MUSCLE_LABELS[muscle]}: ${fmt(volume[muscle] ?? 0)} ${volume[muscle] === 1 ? "set" : "sets"}`}</title>
           </polygon>
         )),
       )}

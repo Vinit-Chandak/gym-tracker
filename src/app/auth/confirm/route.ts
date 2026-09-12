@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { isSupabaseConfigured } from "@/lib/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { safeAppPath } from "@/lib/safe-app-path";
 
 const OTP_TYPES = new Set<EmailOtpType>([
   "signup",
@@ -37,12 +38,6 @@ function isRecoveryFlow(data: unknown): boolean {
   );
 }
 
-/** Only same-origin app paths are accepted, so a crafted link cannot bounce elsewhere. */
-function safeNext(next: string | null): string | null {
-  if (!next || !next.startsWith("/") || next.startsWith("//")) return null;
-  return next;
-}
-
 /**
  * Where every link Supabase emails lands: confirmations, invitations, magic links and password
  * recovery. Supabase's default templates send a `code` to exchange; templates written against
@@ -58,7 +53,7 @@ function safeNext(next: string | null): string | null {
  */
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = request.nextUrl;
-  const asked = safeNext(searchParams.get("next"));
+  const asked = safeAppPath(searchParams.get("next"));
   const go = (path: string) => NextResponse.redirect(new URL(asked ?? path, origin));
   const failure = (reason: string) =>
     NextResponse.redirect(new URL(`/login?error=${reason}`, origin));

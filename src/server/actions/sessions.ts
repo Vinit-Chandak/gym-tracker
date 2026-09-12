@@ -11,7 +11,7 @@ import { profiles } from "@/db/schema";
 import { withUser } from "@/db/with-user";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { nextPendingSlot, pendingParts } from "@/domain/schedule";
-import { BODY_LOAD_UNITS, SET_TYPES, type SlotPart } from "@/domain/types";
+import { BODY_LOAD_UNITS, LOAD_UNITS, SET_TYPES, type SlotPart } from "@/domain/types";
 import { fromKilograms, toKilograms } from "@/lib/units";
 import { requireUser } from "@/server/auth";
 import { ensureProfile } from "@/server/queries/profile";
@@ -185,7 +185,13 @@ export async function skipSlotAction(
 const optionalNumber = (min: number, max: number, integer: boolean) =>
   z.preprocess(
     (value) => (typeof value === "string" && value.trim() !== "" ? value.replace(",", ".") : null),
-    (integer ? z.coerce.number().int() : z.coerce.number()).min(min).max(max).nullable(),
+    (integer
+      ? z.coerce.number({ error: "Enter a number." }).int("Enter a whole number.")
+      : z.coerce.number({ error: "Enter a number." })
+    )
+      .min(min, `Enter a value from ${min} to ${max}.`)
+      .max(max, `Enter a value from ${min} to ${max}.`)
+      .nullable(),
   );
 
 const checkInSchema = z.object({
@@ -232,6 +238,7 @@ export async function setWarmupCompletedAction(
 
 const logSetSchema = z
   .object({
+    unit: z.enum(LOAD_UNITS).optional(),
     expectedCompletedAt: z.iso.datetime().nullable().optional(),
     expectedExerciseId: z.uuid().optional(),
     expectedEquipmentInstanceId: z.uuid().nullable().optional(),

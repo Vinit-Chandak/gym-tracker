@@ -14,29 +14,47 @@ type FallbackFormProps = {
   action: (previous: FormState, formData: FormData) => Promise<FormState>;
   exercises: ExerciseListItem[];
   machines: { id: string; name: string }[];
+  compatibleMachines: Record<string, string[]>;
 };
 
-export function FallbackForm({ action, exercises, machines }: FallbackFormProps) {
+export function FallbackForm({
+  action,
+  exercises,
+  machines,
+  compatibleMachines,
+}: FallbackFormProps) {
   const [state, formAction] = useActionState(action, INITIAL_FORM_STATE);
   const [exerciseId, setExerciseId] = useState(state.values?.fallbackExerciseId ?? "");
+  const [machineId, setMachineId] = useState("");
+  const availableMachines = machines.filter((machine) =>
+    compatibleMachines[exerciseId]?.includes(machine.id),
+  );
 
   return (
-    <form action={formAction} className="space-y-[var(--section-gap)]">
+    <form
+      action={formAction}
+      onReset={(event) => event.preventDefault()}
+      className="space-y-[var(--section-gap)]"
+    >
       <ExercisePicker
         name="fallbackExerciseId"
         exercises={exercises}
         value={exerciseId}
-        onChange={setExerciseId}
+        onChange={(id) => {
+          setExerciseId(id);
+          setMachineId("");
+        }}
         error={state.fieldErrors?.fallbackExerciseId}
       />
       <Card>
         <Field label="Machine" error={state.fieldErrors?.fallbackEquipmentInstanceId}>
           <Select
             name="fallbackEquipmentInstanceId"
-            defaultValue={state.values?.fallbackEquipmentInstanceId ?? ""}
+            value={machineId}
+            onChange={(event) => setMachineId(event.target.value)}
           >
             <option value="">Any</option>
-            {machines.map((machine) => (
+            {availableMachines.map((machine) => (
               <option key={machine.id} value={machine.id}>
                 {machine.name}
               </option>

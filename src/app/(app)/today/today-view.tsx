@@ -147,8 +147,8 @@ function CoachStatus({
   if (coach.failure) {
     return (
       <p className="text-sm text-warning">
-        The coach could not plan this one. {coach.failure.error ?? "It gave no reason."} The
-        programme&apos;s own targets apply.
+        The coach&apos;s last planning attempt failed. {coach.failure.error ?? "It gave no reason."}{" "}
+        The programme&apos;s own targets apply.
       </p>
     );
   }
@@ -262,7 +262,7 @@ export function TodayView({
             <CardHead
               eyebrow="Programme complete"
               title={plan.program.name}
-              subtitle={`${plan.progress.total} sessions`}
+              subtitle={`${plan.progress.total} programme days`}
             />
             <LinkButton href="/settings/programme" size="lg" className="w-full">
               Plan the next block
@@ -513,10 +513,10 @@ export function TodayView({
             <ProgressBar
               value={plan.progress.completed}
               max={plan.progress.total}
-              label={`${plan.progress.completed} of ${plan.progress.total} sessions done`}
+              label={`${plan.progress.completed} of ${plan.progress.total} programme days done`}
             />
             <p className="text-xs text-ink-muted tabular-nums">
-              {plan.progress.completed} of {plan.progress.total} sessions ·{" "}
+              {plan.progress.completed} of {plan.progress.total} programme days ·{" "}
               {plan.progress.remaining} to go
               {plan.progress.skipped > 0 && ` · ${plan.progress.skipped} skipped`}
             </p>

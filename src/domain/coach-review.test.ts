@@ -99,7 +99,7 @@ describe("reading a plan back", () => {
         plannedSets: 12,
       }),
     ).toMatchObject([
-      { code: "volume_drift", message: "1 working sets against the programme's 12." },
+      { code: "volume_drift", message: "1 working set against the programme's 12." },
     ]);
     expect(
       review({ exercises: [exercise({ entry: entry({ sets: sets(4) }) })], plannedSets: 4 }),
@@ -113,6 +113,16 @@ describe("reading a plan back", () => {
     expect(
       review({ exercises: [exercise(), dropped("a"), dropped("b"), dropped("c")] }),
     ).toMatchObject([{ code: "many_drops" }]);
+  });
+
+  it("includes unchanged programme sets when a coach plan only adjusts part of the day", () => {
+    expect(
+      review({
+        exercises: [exercise({ entry: entry({ sets: [{ weight: 100, reps: 5, rir: 2 }] }) })],
+        plannedSets: 12,
+        unchangedSets: 11,
+      }),
+    ).toEqual([]);
   });
 
   it("notices a run that grows much longer than the last one", () => {

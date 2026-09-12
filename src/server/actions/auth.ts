@@ -8,6 +8,7 @@ import { z } from "zod";
 import { APP_NAME } from "@/lib/app";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSiteUrl } from "@/lib/site-url";
+import { safeAppPath } from "@/lib/safe-app-path";
 
 export type SignInState = { error?: string };
 export type SignUpState = { error?: string; checkEmail?: string };
@@ -47,7 +48,7 @@ const signUpSchema = z
 
 /** Only same-origin paths inside the app are accepted as a post-login destination. */
 function safeNextPath(next: string | undefined): Route {
-  if (!next || !next.startsWith("/") || next.startsWith("//") || next.startsWith("/login")) {
+  if (!safeAppPath(next) || next?.startsWith("/login")) {
     return "/today";
   }
   // Validated above as a same-origin path; typed routes cannot express that statically.
@@ -164,12 +165,16 @@ export async function requestPasswordResetAction(
   if (!email.success) return { error: "Enter the email address you signed up with." };
 
   const supabase = await createSupabaseServerClient();
-  const { error: transport } = await attempt(
+  const { value, error: transport } = await attempt(
     supabase.auth.resetPasswordForEmail(email.data, {
       redirectTo: `${await getSiteUrl()}/auth/confirm`,
     }),
   );
   if (transport) return { error: transport };
+  if (value?.error) {
+    if (isAuthRetryableFetchError(value.error)) return { error: UNREACHABLE_MESSAGE };
+    return { error: "Could not request a reset link right now. Please try again later." };
+  }
   // Deliberately the same answer whether or not the address has an account.
   return { sent: true };
 }

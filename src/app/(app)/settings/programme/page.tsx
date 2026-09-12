@@ -63,11 +63,11 @@ export default async function ProgrammeSettingsPage() {
               <ProgressBar
                 value={overview.progress.completed}
                 max={overview.progress.total}
-                label={`${overview.progress.completed} of ${overview.progress.total} sessions done`}
+                label={`${overview.progress.completed} of ${overview.progress.total} programme days done`}
               />
               <p className="text-xs text-ink-muted tabular-nums">
                 Cycle {overview.currentCycle} of {overview.program.weeks} ·{" "}
-                {overview.progress.completed} of {overview.progress.total} sessions ·{" "}
+                {overview.progress.completed} of {overview.progress.total} programme days ·{" "}
                 {overview.progress.remaining} to go
                 {overview.progress.skipped > 0 && ` · ${overview.progress.skipped} skipped`}
               </p>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useFormStatus } from "react-dom";
+import { useEffect, useRef } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -11,6 +12,7 @@ export function FormError({ message }: { message?: string }) {
   return (
     <p
       role="alert"
+      tabIndex={-1}
       className="rounded-control border border-danger bg-transparent px-3 py-2 text-sm text-danger"
     >
       {message}
@@ -32,8 +34,24 @@ export function SubmitButton({
   ...props
 }: ButtonProps & { pendingLabel?: string }) {
   const { pending } = useFormStatus();
+  const ref = useRef<HTMLButtonElement>(null);
+  const wasPending = useRef(false);
+  useEffect(() => {
+    if (wasPending.current && !pending) {
+      const form = ref.current?.form;
+      const invalid = form?.querySelector<HTMLElement>('[aria-invalid="true"]');
+      const target =
+        invalid?.querySelector<HTMLElement>("input, select, textarea") ??
+        invalid ??
+        form?.querySelector<HTMLElement>('[role="alert"]');
+      target?.focus();
+      target?.scrollIntoView?.({ block: "center" });
+    }
+    wasPending.current = pending;
+  }, [pending]);
   return (
     <Button
+      ref={ref}
       type="submit"
       size="lg"
       {...props}

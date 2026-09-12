@@ -3,7 +3,8 @@
 import { useEffect, useState, useTransition } from "react";
 
 import { CHANGING_KINDS } from "@/domain/progression";
-import type { PrescriptionType, SetType } from "@/domain/types";
+import type { LoadUnit, PrescriptionType, SetType } from "@/domain/types";
+import { canConvertLoad, convertLoad, setInUnit } from "@/lib/units";
 import {
   draftMatchesSet,
   DRAFT_VALUE_FIELDS,
@@ -28,6 +29,7 @@ const MISSING_VALUE: Record<PrescriptionType, string> = {
 };
 
 export type RowState = {
+  unit?: LoadUnit;
   setIndex: number;
   setType: SetType;
   weight: string;
@@ -52,6 +54,7 @@ const str = (value: number | null | undefined): string | undefined =>
 
 function rowFromSet(set: SetVM): RowState {
   return {
+    unit: set.unit,
     setIndex: set.setIndex,
     setType: set.setType,
     weight: str(set.weight) ?? "",
@@ -88,13 +91,19 @@ function emptyRow(setIndex: number): RowState {
 
 function initialRows(exercise: ExerciseVM): RowState[] {
   const saved = exercise.sets.map(rowFromSet);
+  const coachTargets = exercise.suggestion?.kind === "coach" ? exercise.suggestion.sets : [];
   const target = Math.max(
-    exercise.planned?.sets ?? 1,
+    coachTargets.length || (exercise.planned?.sets ?? 1),
     Math.max(0, ...saved.map((r) => r.setIndex)) + (exercise.completedAt ? 0 : 1),
   );
   const rows: RowState[] = [];
   for (let i = 1; i <= Math.min(MAX_SETS, target); i++)
-    rows.push(saved.find((r) => r.setIndex === i) ?? emptyRow(i));
+    rows.push(
+      saved.find((r) => r.setIndex === i) ?? {
+        ...emptyRow(i),
+        setType: coachTargets.find((set) => set.setIndex === i)?.setType ?? "working",
+      },
+    );
   return rows;
 }
 
@@ -181,6 +190,7 @@ type Options = {
   holdAll: boolean;
   /** What one set of this exercise counts: reps, seconds held, or metres covered. */
   measure: PrescriptionType;
+  unit: LoadUnit;
   onLogged: (restSeconds: number) => void;
 };
 
@@ -190,7 +200,15 @@ type Options = {
  * Each row keeps its own numbers. Nothing here writes across rows, so four sets that happen
  * to hold the same load are four records that happen to agree, not one shared value.
  */
-export function useSetRows({ exercise, userId, sessionId, holdAll, measure, onLogged }: Options) {
+export function useSetRows({
+  exercise,
+  userId,
+  sessionId,
+  holdAll,
+  measure,
+  unit,
+  onLogged,
+}: Options) {
   const [rows, setRows] = useState<RowState[]>(() => initialRows(exercise));
   const [pending, startTransition] = useTransition();
   const [storageError, setStorageError] = useState(false);
@@ -220,10 +238,20 @@ export function useSetRows({ exercise, userId, sessionId, holdAll, measure, onLo
         const byIndex = new Map(current.map((row) => [row.setIndex, row]));
         for (const draft of restored) {
           const row = byIndex.get(draft.setIndex) ?? emptyRow(draft.setIndex);
+          const from = draft.unit ?? unit;
+          const convertible = canConvertLoad(from, unit);
+          const weight =
+            draft.weight.trim() === ""
+              ? ""
+              : convertible
+                ? String(convertLoad(Number(draft.weight.replace(",", ".")), from, unit))
+                : draft.weight;
           const changedElsewhere = (row.logged?.completedAt ?? null) !== draft.baseCompletedAt;
           byIndex.set(draft.setIndex, {
             ...row,
             ...draft,
+            weight,
+            unit: convertible ? unit : from,
             touched: touchedFields(draft),
             dirty: true,
             error: changedElsewhere
@@ -236,7 +264,7 @@ export function useSetRows({ exercise, userId, sessionId, holdAll, measure, onLo
     } catch {
       setStorageError(true);
     }
-  }, [draftContext, exercise.sets]);
+  }, [draftContext, exercise.sets, unit]);
 
   const update = (index: number, patch: Partial<RowState>) =>
     setRows((current) =>
@@ -247,6 +275,7 @@ export function useSetRows({ exercise, userId, sessionId, holdAll, measure, onLo
     try {
       if (
         !writeDraft(localStorage, draftContext, {
+          unit: row.unit ?? unit,
           setIndex: row.setIndex,
           setType: row.setType,
           weight: row.weight,
@@ -302,6 +331,7 @@ export function useSetRows({ exercise, userId, sessionId, holdAll, measure, onLo
     // flight belongs to the next save, and must not be cleared by this one's answer.
     const submitted: RowState = {
       ...row,
+      unit: row.unit ?? unit,
       weight: str(weight) ?? "",
       reps: str(reps === null ? null : Math.round(reps)) ?? "",
       rir: str(rir) ?? "",
@@ -323,6 +353,7 @@ export function useSetRows({ exercise, userId, sessionId, holdAll, measure, onLo
     startTransition(async () => {
       const result = await safeAction(() =>
         logSetAction({
+          unit: submitted.unit,
           workoutExerciseId: exercise.id,
           expectedCompletedAt: row.logged?.completedAt ?? null,
           expectedExerciseId: draftContext.exerciseId,
@@ -342,7 +373,9 @@ export function useSetRows({ exercise, userId, sessionId, holdAll, measure, onLo
       }
       setRows((current) => {
         const next = current.map((r) =>
-          r.setIndex === row.setIndex ? { ...rowFromSet(result.set), saving: false } : r,
+          r.setIndex === row.setIndex
+            ? { ...rowFromSet(setInUnit(result.set, unit)), saving: false }
+            : r,
         );
         const highest = Math.max(...next.map((r) => r.setIndex));
         if (row.setIndex === highest && !exercise.completedAt && highest < MAX_SETS)

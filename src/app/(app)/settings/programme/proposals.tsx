@@ -24,11 +24,13 @@ export type ProposalCard = {
  */
 function Proposal({ proposal }: { proposal: ProposalCard }) {
   const [pending, startTransition] = useTransition();
+  const [operation, setOperation] = useState<"apply" | "reject">("apply");
   const [error, setError] = useState<string | null>(null);
 
   const act = (action: (id: string) => Promise<{ ok: true } | { ok: false; error: string }>) =>
     startTransition(async () => {
       setError(null);
+      setOperation(action === rejectProposalAction ? "reject" : "apply");
       try {
         const result = await action(proposal.id);
         if (!result.ok) setError(result.error);
@@ -66,10 +68,10 @@ function Proposal({ proposal }: { proposal: ProposalCard }) {
           disabled={pending}
           onClick={() => act(rejectProposalAction)}
         >
-          No thanks
+          {pending && operation === "reject" ? "Dismissing…" : "No thanks"}
         </Button>
         <Button className="w-full" disabled={pending} onClick={() => act(applyProposalAction)}>
-          {pending ? "Applying…" : "Apply"}
+          {pending && operation === "apply" ? "Applying…" : "Apply"}
         </Button>
       </div>
     </Card>

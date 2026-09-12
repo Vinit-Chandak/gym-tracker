@@ -16,7 +16,7 @@ export function ProfileForm({ values }: { values: ProfileFieldValues }) {
     state.values === undefined;
 
   return (
-    <form action={formAction} className="space-y-4">
+    <form action={formAction} onReset={(event) => event.preventDefault()} className="space-y-4">
       <ProfileFields values={values} errors={state.fieldErrors} />
       <FormError message={state.formError} />
       <SubmitButton pendingLabel="Saving…">Save</SubmitButton>

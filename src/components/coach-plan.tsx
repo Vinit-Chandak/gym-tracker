@@ -11,13 +11,20 @@ export function coachPlanSummary(
   planned: readonly PlannedExercisePreview[],
 ): string {
   const kept = entries.filter((entry) => entry.action !== "drop");
-  const sets = kept.reduce((total, entry) => {
-    if (entry.sets.length > 0)
-      return total + entry.sets.filter((s) => s.setType !== "warmup").length;
-    // An entry without sets leaves the rule's prefill in place, so it costs what the programme says.
-    return total + (planned.find((p) => p.programExerciseId === entry.slotId)?.sets ?? 0);
-  }, 0);
-  return `${kept.length} ${kept.length === 1 ? "exercise" : "exercises"} · ${sets} sets`;
+  const unchanged = planned.filter(
+    (slot) => !entries.some((entry) => entry.slotId === slot.programExerciseId),
+  );
+  const sets = kept.reduce(
+    (total, entry) => {
+      if (entry.sets.length > 0)
+        return total + entry.sets.filter((s) => s.setType !== "warmup").length;
+      // An entry without sets leaves the rule's prefill in place, so it costs what the programme says.
+      return total + (planned.find((p) => p.programExerciseId === entry.slotId)?.sets ?? 0);
+    },
+    unchanged.reduce((total, slot) => total + slot.sets, 0),
+  );
+  const count = kept.length + unchanged.length;
+  return `${count} ${count === 1 ? "exercise" : "exercises"} · ${sets} ${sets === 1 ? "set" : "sets"}`;
 }
 
 /**
@@ -67,6 +74,14 @@ export function CoachPlanList({
             </li>
           );
         })}
+        {planned
+          .filter((slot) => !entries.some((entry) => entry.slotId === slot.programExerciseId))
+          .map((slot) => (
+            <li key={slot.programExerciseId} className="min-w-0">
+              <p className="text-sm [overflow-wrap:anywhere]">{slot.name}</p>
+              <p className="mt-0.5 text-xs text-ink-muted tabular-nums">{prescription(slot)}</p>
+            </li>
+          ))}
       </ul>
       {warnings.length > 0 && (
         <ul className="mt-3 space-y-1 border-t border-line pt-3">

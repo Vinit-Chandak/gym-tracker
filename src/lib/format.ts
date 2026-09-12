@@ -25,7 +25,7 @@ function formatIso(isoDate: string, options: Intl.DateTimeFormatOptions): string
   const [y, m, d] = isoDate.split("-").map(Number);
   if (!y || !m || !d) return isoDate;
   return dateTimeFormatter("en-GB", { timeZone: "UTC", ...options }).format(
-    new Date(Date.UTC(y, m - 1, d)),
+    new Date(`${isoDate}T00:00:00Z`),
   );
 }
 

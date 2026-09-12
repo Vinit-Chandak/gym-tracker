@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { formatIsoDate } from "@/lib/format";
 
 import {
   addDays,
@@ -12,6 +13,11 @@ import {
 const START = "2026-09-08"; // Tuesday
 
 describe("programme calendar anchored on the start date", () => {
+  it("preserves accepted years below 100 in calculations and labels", () => {
+    expect(programEndDate("0001-01-01", 8)).toBe("0001-02-25");
+    expect(addDays("0099-12-31", 1)).toBe("0100-01-01");
+    expect(formatIsoDate("0001-01-01")).toBe("Mon, 1 Jan 1");
+  });
   it("runs 8 weeks from 8 Sep 2026 to 2 Nov 2026", () => {
     expect(programEndDate(START, 8)).toBe("2026-11-02");
     expect(daysBetween(START, "2026-11-02")).toBe(55);

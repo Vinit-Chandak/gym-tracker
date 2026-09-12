@@ -98,12 +98,18 @@ const session: SessionVM = {
   exercises: [exercise],
 };
 
-function renderLogger(overrides: { exercise?: Partial<ExerciseVM>; readOnly?: boolean } = {}) {
+function renderLogger(
+  overrides: {
+    exercise?: Partial<ExerciseVM>;
+    readOnly?: boolean;
+    preferredUnit?: "kg" | "lb";
+  } = {},
+) {
   const merged = { ...exercise, ...overrides.exercise };
   return render(
     <ExerciseLogger
       exercise={merged}
-      session={{ ...session, exercises: [merged] }}
+      session={{ ...session, preferredUnit: overrides.preferredUnit ?? "kg", exercises: [merged] }}
       userId="user"
       readOnly={overrides.readOnly ?? false}
       holdAll={false}
@@ -128,6 +134,98 @@ beforeEach(() => {
   actions.remove.mockReset();
 });
 afterEach(cleanup);
+
+it("uses the coach's exact set count and types instead of repeating targets to fill the programme", async () => {
+  actions.log.mockResolvedValue({ ok: true, set: { ...saved, setType: "warmup" } });
+  renderLogger({
+    exercise: {
+      planned: {
+        programExerciseId: "planned",
+        plannedExerciseName: "Bench press",
+        sets: 4,
+        prescriptionType: "reps",
+        repMin: 3,
+        repMax: 5,
+        durationMinSeconds: null,
+        durationMaxSeconds: null,
+        distanceMinMeters: null,
+        distanceMaxMeters: null,
+        perSide: false,
+        rirMin: 2,
+        rirMax: 2,
+        restMinSeconds: 180,
+        restMaxSeconds: 240,
+        targetLoadNote: null,
+        progressionNotes: null,
+        keyCue: null,
+      },
+      suggestion: {
+        kind: "coach",
+        basis: "exercise",
+        reason: "Test coach plan",
+        advice: null,
+        loadIncrement: 2.5,
+        sets: [
+          { ...saved, setType: "warmup" },
+          { ...saved, setIndex: 2 },
+        ],
+      },
+    },
+  });
+  expect(screen.getByRole("button", { name: "Save set 2" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Save set 3" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Save set 1" }));
+  await waitFor(() => expect(actions.log).toHaveBeenCalledTimes(1));
+  expect(actions.log.mock.calls[0]?.[0]).toMatchObject({ setType: "warmup", weight: 60, reps: 5 });
+});
+
+it("preserves decimal metres in the grid and the set options", async () => {
+  actions.log.mockResolvedValue({
+    ok: true,
+    set: { ...saved, weight: 20, reps: null, distanceMeters: 25.5 },
+  });
+  renderLogger({
+    exercise: { exercise: { ...exercise.exercise, defaultPrescriptionType: "distance" } },
+  });
+  fireEvent.change(screen.getByRole("textbox", { name: "Set 1 metres" }), {
+    target: { value: "25.5" },
+  });
+  expect((screen.getByRole("textbox", { name: "Set 1 metres" }) as HTMLInputElement).value).toBe(
+    "25.5",
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Set 1 options" }));
+  fireEvent.change(screen.getByRole("textbox", { name: "Metres" }), { target: { value: "26.5" } });
+  expect((screen.getByRole("textbox", { name: "Metres" }) as HTMLInputElement).value).toBe("26.5");
+});
+
+it("converts a restored draft after a preference change and submits its displayed unit", async () => {
+  writeDraft(localStorage, context, {
+    unit: "kg",
+    setIndex: 1,
+    setType: "working",
+    weight: "60",
+    reps: "5",
+    rir: "2",
+    duration: "",
+    distance: "",
+    touched: ["weight", "reps", "rir"],
+    baseCompletedAt: null,
+  });
+  actions.log.mockResolvedValue({ ok: true, set: { ...saved, weight: 132.28, unit: "lb" } });
+  renderLogger({ preferredUnit: "lb" });
+  await waitFor(() =>
+    expect(
+      (screen.getByRole("textbox", { name: "Set 1 load, lb" }) as HTMLInputElement).value,
+    ).toBe("132.28"),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Retry saving set 1" }));
+  await waitFor(() =>
+    expect(actions.log).toHaveBeenCalledWith(
+      expect.objectContaining({ weight: 132.28, unit: "lb" }),
+    ),
+  );
+  await waitFor(() => expect(localStorage.getItem(draftKey(context))).toBeNull());
+});
 
 it("removes the last unsaved row from its set options without leaving a draft behind", async () => {
   renderLogger();

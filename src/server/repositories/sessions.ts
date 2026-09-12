@@ -396,7 +396,11 @@ export async function getSessionDetail(
   db: DbOrTx,
   userId: string,
   sessionId: string,
-  options: { includeGuidance?: boolean; restTimerEnabled?: boolean } = {},
+  options: {
+    includeGuidance?: boolean;
+    restTimerEnabled?: boolean;
+    preferredUnit?: "kg" | "lb";
+  } = {},
 ): Promise<SessionDetail | null> {
   const [session] = await db
     .select({
@@ -491,13 +495,18 @@ export async function getSessionDetail(
       .innerJoin(workoutExercises, eq(workoutExercises.id, setLogs.workoutExerciseId))
       .where(eq(workoutExercises.workoutSessionId, sessionId))
       .orderBy(asc(setLogs.setIndex)),
-    options.restTimerEnabled === undefined
+    options.restTimerEnabled === undefined || options.preferredUnit === undefined
       ? db
-          .select({ restTimerEnabled: profiles.restTimerEnabled })
+          .select({
+            restTimerEnabled: profiles.restTimerEnabled,
+            preferredUnit: profiles.preferredUnit,
+          })
           .from(profiles)
           .where(eq(profiles.id, userId))
           .limit(1)
-      : Promise.resolve([{ restTimerEnabled: options.restTimerEnabled }]),
+      : Promise.resolve([
+          { restTimerEnabled: options.restTimerEnabled, preferredUnit: options.preferredUnit },
+        ]),
     session.day?.warmupProtocolId
       ? getWarmupProtocol(db, session.day.warmupProtocolId)
       : Promise.resolve(null),
@@ -555,6 +564,7 @@ export async function getSessionDetail(
       planned: row.planned,
       exercise: row.exercise,
       equipment: row.equipment?.id ? row.equipment : null,
+      preferredUnit: options.preferredUnit ?? (profile?.preferredUnit === "lb" ? "lb" : "kg"),
       slotLineageId: row.planned?.lineageId ?? null,
       history: histories[index]?.history ?? [],
       elsewhere: histories[index]?.elsewhere ?? null,
@@ -579,7 +589,12 @@ export async function getSessionDetail(
             reason: entry.note || "Coach plan for today",
             advice: null,
             loadIncrement: weightStep,
-            sets: planTargets(entry),
+            sets: planTargets(
+              entry,
+              row.equipment?.unit ??
+                options.preferredUnit ??
+                (profile?.preferredUnit === "lb" ? "lb" : "kg"),
+            ),
           }
         : rule.suggestion;
     exerciseDetails.push({
@@ -781,6 +796,8 @@ export async function setWarmupCompleted(
 }
 
 export type LogSetInput = {
+  /** The unit shown when these numbers were entered, even if preferences change in another tab. */
+  unit?: LoadUnit;
   expectedCompletedAt?: string | null;
   expectedExerciseId?: string;
   expectedEquipmentInstanceId?: string | null;
@@ -816,11 +833,13 @@ export async function logSet(db: DbOrTx, userId: string, input: LogSetInput): Pr
   const [unitRow] = await db
     .select({
       unit: equipmentInstances.unit,
+      preferredUnit: profiles.preferredUnit,
       exerciseId: workoutExercises.exerciseId,
       equipmentInstanceId: workoutExercises.equipmentInstanceId,
       existing: setLogs,
     })
     .from(workoutExercises)
+    .innerJoin(profiles, eq(profiles.id, workoutExercises.userId))
     .leftJoin(equipmentInstances, eq(equipmentInstances.id, workoutExercises.equipmentInstanceId))
     .leftJoin(
       setLogs,
@@ -838,6 +857,14 @@ export async function logSet(db: DbOrTx, userId: string, input: LogSetInput): Pr
   )
     throw new SetConflictError();
   const previous = unitRow.existing;
+  const unit: LoadUnit =
+    input.unit ?? unitRow.unit ?? (unitRow.preferredUnit === "lb" ? "lb" : "kg");
+  if (
+    unitRow.equipmentInstanceId
+      ? unit !== unitRow.unit && unit !== previous?.unit
+      : unit !== "kg" && unit !== "lb"
+  )
+    throw new SetConflictError();
   if (
     input.expectedCompletedAt !== undefined &&
     (previous?.completedAt.toISOString() ?? null) !== input.expectedCompletedAt
@@ -846,6 +873,7 @@ export async function logSet(db: DbOrTx, userId: string, input: LogSetInput): Pr
       previous &&
       previous.setType === input.setType &&
       previous.weight === input.weight &&
+      previous.unit === unit &&
       previous.reps === input.reps &&
       previous.rir === input.rir &&
       previous.durationSeconds === input.durationSeconds &&
@@ -854,7 +882,6 @@ export async function logSet(db: DbOrTx, userId: string, input: LogSetInput): Pr
       return previous;
     throw new SetConflictError();
   }
-  const unit: LoadUnit = unitRow.unit ?? "kg";
   const now = new Date(Math.max(Date.now(), (previous?.completedAt.getTime() ?? 0) + 1));
   const [row] = await db
     .insert(setLogs)

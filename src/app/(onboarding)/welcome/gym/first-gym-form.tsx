@@ -31,7 +31,7 @@ export function FirstGymForm() {
           required
         />
       </Field>
-      <Field label="Type" error={state.fieldErrors?.kind}>
+      <Field group label="Type" error={state.fieldErrors?.kind}>
         <SegmentedControl
           name="kind"
           options={KIND_OPTIONS}

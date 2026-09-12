@@ -1,9 +1,9 @@
-import type { BodyLoadUnit } from "@/domain/types";
+import type { BodyLoadUnit, LoadUnit } from "@/domain/types";
 
 /**
  * Body measurements are stored once, in kilograms and centimetres, and read in whichever
- * units the account prefers. Nothing else in the app converts them: a logged set keeps the
- * unit it was logged in, because that is a fact about the machine, not a preference.
+ * units the account prefers. Logged sets retain their original values and units in storage;
+ * their display and comparable history can convert between kilograms and pounds.
  */
 
 export const LB_PER_KG = 2.2046226218;
@@ -21,6 +21,30 @@ const round = (value: number, places: number): number => {
   const factor = 10 ** places;
   return Math.round(value * factor) / factor;
 };
+
+export function canConvertLoad(from: LoadUnit, to: LoadUnit): boolean {
+  return from === to || ((from === "kg" || from === "lb") && (to === "kg" || to === "lb"));
+}
+
+/** Machine stack numbers and plate counts have no conversion to a physical weight. */
+export function convertLoad(value: number, from: LoadUnit, to: LoadUnit): number {
+  if (!canConvertLoad(from, to)) throw new Error("These load units cannot be converted.");
+  if (from === to) return value;
+  return round(to === "lb" ? value * LB_PER_KG : value / LB_PER_KG, 2);
+}
+
+/** Converts a display copy, retaining nonconvertible machine readings in their original unit. */
+export function setInUnit<T extends { weight: number | null; unit: LoadUnit }>(
+  set: T,
+  unit: LoadUnit,
+): T {
+  if (!canConvertLoad(set.unit, unit)) return set;
+  return {
+    ...set,
+    weight: set.weight === null ? null : convertLoad(set.weight, set.unit, unit),
+    unit,
+  };
+}
 
 /** A weight the user typed, in kilograms. Two decimals is what the column stores. */
 export function toKilograms(value: number, unit: BodyLoadUnit): number {

@@ -88,7 +88,7 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 2,
     defaultRestSeconds: 210,
     defaultLoadIncrement: 2.5,
-    formUrl: `${ACE}/19/chest-press/`,
+    formUrl: "https://www.nasm.org/resource-center/exercise-library/barbell-bench-press",
     equipment: ["barbell"],
   },
   {

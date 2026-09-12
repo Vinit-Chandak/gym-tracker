@@ -15,6 +15,10 @@ type SegmentedControlProps<V extends string> = {
   /** Force an exact number of columns. Omit and the row fits as many as the labels allow. */
   columns?: number;
   "aria-label"?: string;
+  "aria-labelledby"?: string;
+  "aria-describedby"?: string;
+  "aria-invalid"?: boolean;
+  id?: string;
 };
 
 /** Narrowest a pill can be and still hold a word like "Recovery" at 14px, plus its padding. */
@@ -37,16 +41,18 @@ export function SegmentedControl<V extends string>({
   onChange,
   columns,
   "aria-label": ariaLabel,
+  ...accessibility
 }: SegmentedControlProps<V>) {
   const controlled = value !== undefined;
   return (
     <div
       role="radiogroup"
       aria-label={ariaLabel}
+      {...accessibility}
       className="grid gap-1 rounded-control bg-surface-raised p-1"
       style={{
         gridTemplateColumns: columns
-          ? `repeat(${columns}, minmax(3.25rem, 1fr))`
+          ? `repeat(${columns}, minmax(0, 1fr))`
           : `repeat(auto-fit, minmax(${MIN_PILL}, 1fr))`,
       }}
     >

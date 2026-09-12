@@ -26,11 +26,15 @@ function rowAction(exercise: ExerciseVM): { label: string; tone: "accent" | "mut
 
 /** Progress and machine on one line. Status lives in the action, so it is not repeated here. */
 function progressLine(exercise: ExerciseVM): string {
-  const logged = exercise.sets.length;
-  const planned = exercise.planned?.sets ?? null;
+  const logged = exercise.sets.filter((set) => set.setType !== "warmup").length;
+  const coachTargets = exercise.suggestion?.kind === "coach" ? exercise.suggestion.sets : [];
+  const planned =
+    coachTargets.length > 0
+      ? coachTargets.filter((set) => set.setType !== "warmup").length
+      : (exercise.planned?.sets ?? null);
   const count =
     planned !== null
-      ? `${logged} of ${planned} sets`
+      ? `${logged} of ${planned} ${planned === 1 ? "set" : "sets"}`
       : `${logged} ${logged === 1 ? "set" : "sets"}`;
   const machine = exercise.equipment?.name;
   const values = logged > 0 ? formatSets(exercise.sets) : null;
@@ -248,7 +252,7 @@ export function WorkoutOverview({
       ) : (
         <List>
           {session.exercises.map((exercise) => {
-            const action = rowAction(exercise);
+            const action = readOnly ? { label: "View", tone: "muted" } : rowAction(exercise);
             const hue = exercise.supersetGroup ? hues.get(exercise.supersetGroup) : undefined;
             return (
               <li key={exercise.id}>

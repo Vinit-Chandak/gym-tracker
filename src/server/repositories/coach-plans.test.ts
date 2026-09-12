@@ -339,6 +339,18 @@ describe("a session that starts from a plan", () => {
     );
     expect(plan?.status).toBe("consumed");
 
+    const today = await withUser(t.db, alice.id, (tx) =>
+      todayCoachState(tx, alice.id, {
+        enabled: true,
+        timeZone: TZ,
+        programId: ctx.programme.id,
+        ref: { cycleIndex: 1, dayIndex: 1 },
+        gymId: anytimeId,
+      }),
+    );
+    expect(today.plan?.id).toBe(plan?.id);
+    expect(today.failure).toBeNull();
+
     // An empty session gives the plan back; the next start at the same gym uses it again.
     await withUser(t.db, alice.id, (tx) => discardSession(tx, alice.id, sessionId));
     const active = await withUser(t.db, alice.id, (tx) =>
@@ -750,9 +762,9 @@ describe("a day that lifts and runs", () => {
       }),
     );
     expect(plan.status).toBe("active");
-    expect(plan.warnings.map((warning) => warning.code)).toEqual(
-      expect.arrayContaining(["run_jump", "volume_drift"]),
-    );
+    expect(plan.warnings.map((warning) => warning.code)).toContain("run_jump");
+    // Unmentioned exercises stay in the workout, so this is not a one-set day.
+    expect(plan.warnings.map((warning) => warning.code)).not.toContain("volume_drift");
   });
 
   it("drops the plan when the slot is skipped instead of trained", async () => {

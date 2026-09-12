@@ -1,5 +1,5 @@
 import { measureOf, type SetLike } from "@/domain/sets";
-import { MEASURE_COLUMN_LABELS, SET_TYPE_LABELS } from "@/lib/labels";
+import { LOAD_UNIT_LABELS, MEASURE_COLUMN_LABELS, SET_TYPE_LABELS } from "@/lib/labels";
 
 /**
  * Recorded sets, read only. The same columns as the logger's grid — set, load, reps or
@@ -10,6 +10,10 @@ export function SetTable({ sets, unitLabel }: { sets: readonly SetLike[]; unitLa
   if (sets.length === 0) return <p className="text-sm text-ink-muted">No sets logged.</p>;
   // The recorded sets say what they counted; the plan that asked for them is not in scope here.
   const measure = measureOf(sets.find((set) => set.reps === null) ?? sets[0]!);
+  const mixedUnits = new Set(sets.map((set) => set.unit)).size > 1;
+  const heading = mixedUnits
+    ? "Load"
+    : `${unitLabel.startsWith("+") ? "+" : ""}${LOAD_UNIT_LABELS[sets[0]!.unit]}`;
   return (
     <table className="w-full text-sm tabular-nums">
       <thead>
@@ -18,7 +22,7 @@ export function SetTable({ sets, unitLabel }: { sets: readonly SetLike[]; unitLa
             Set
           </th>
           <th scope="col" className="py-1 text-center font-medium">
-            {unitLabel}
+            {heading}
           </th>
           <th scope="col" className="py-1 text-center font-medium">
             {MEASURE_COLUMN_LABELS[measure]}
@@ -40,7 +44,10 @@ export function SetTable({ sets, unitLabel }: { sets: readonly SetLike[]; unitLa
               )}
             </th>
             {/* An em dash, not a zero: nothing recorded is not the same as none. */}
-            <td className="py-1.5 text-center">{set.weight ?? "—"}</td>
+            <td className="py-1.5 text-center">
+              {set.weight ?? "—"}
+              {mixedUnits && set.weight !== null ? ` ${LOAD_UNIT_LABELS[set.unit]}` : ""}
+            </td>
             <td className="py-1.5 text-center">
               {measure === "duration"
                 ? (set.durationSeconds ?? "—")

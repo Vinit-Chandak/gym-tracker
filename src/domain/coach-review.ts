@@ -43,6 +43,8 @@ export type ReviewInput = {
   exercises: readonly ReviewExercise[];
   /** Working sets the programme asks for on this day. */
   plannedSets: number;
+  /** Programme sets retained by slots without an explicit coach target. */
+  unchangedSets?: number;
   run: { planned: PlanRun | null; lastDurationMinutes: number | null };
 };
 
@@ -96,14 +98,14 @@ export function reviewPlan(input: ReviewInput): PlanWarning[] {
 
   const plannedTotal = kept.reduce(
     (total, exercise) => total + workingSets(exercise.entry).length,
-    0,
+    input.unchangedSets ?? 0,
   );
   if (input.plannedSets > 0 && plannedTotal > 0) {
     const drift = Math.abs(plannedTotal - input.plannedSets) / input.plannedSets;
     if (drift > VOLUME_DRIFT_RATIO) {
       warnings.push({
         code: "volume_drift",
-        message: `${plannedTotal} working sets against the programme's ${input.plannedSets}.`,
+        message: `${plannedTotal} working ${plannedTotal === 1 ? "set" : "sets"} against the programme's ${input.plannedSets}.`,
       });
     }
   }

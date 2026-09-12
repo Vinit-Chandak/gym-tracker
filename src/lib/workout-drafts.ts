@@ -1,5 +1,6 @@
-import type { SetType } from "@/domain/types";
-import { SET_TYPES } from "@/domain/types";
+import type { LoadUnit, SetType } from "@/domain/types";
+import { LOAD_UNITS, SET_TYPES } from "@/domain/types";
+import { canConvertLoad, convertLoad } from "./units";
 
 /** The numbers a set row can carry. Which of them the grid shows depends on the measure. */
 export const DRAFT_VALUE_FIELDS = ["weight", "reps", "rir", "duration", "distance"] as const;
@@ -7,6 +8,7 @@ export const DRAFT_VALUE_FIELDS = ["weight", "reps", "rir", "duration", "distanc
 export type DraftValueField = (typeof DRAFT_VALUE_FIELDS)[number];
 
 export type DraftFields = {
+  unit?: LoadUnit;
   setIndex: number;
   setType: SetType;
   weight: string;
@@ -52,6 +54,7 @@ export function readDrafts(storage: StorageLike, ctx: DraftContext): Draft[] {
           row.setIndex >= 1 &&
           row.setIndex <= 50 &&
           SET_TYPES.includes(row.setType) &&
+          (row.unit === undefined || LOAD_UNITS.includes(row.unit)) &&
           [row.weight, row.reps, row.rir, row.duration, row.distance ?? ""].every(
             (v) => typeof v === "string" && v.length <= 24,
           ) &&
@@ -94,7 +97,7 @@ export function removeDraft(
       const current = readDrafts(storage, ctx).find((d) => d.setIndex === setIndex);
       if (
         current &&
-        ["setType", "weight", "reps", "rir", "duration", "distance"].some(
+        ["setType", "unit", "weight", "reps", "rir", "duration", "distance"].some(
           (field) => current[field as keyof DraftFields] !== expected[field as keyof DraftFields],
         )
       )
@@ -124,6 +127,7 @@ export function touchedFields(draft: DraftFields): Set<DraftValueField> {
 export function draftMatchesSet(
   draft: DraftFields,
   set: {
+    unit?: LoadUnit;
     setType: SetType;
     weight: number | null;
     reps: number | null;
@@ -133,9 +137,13 @@ export function draftMatchesSet(
   },
 ) {
   const numeric = (value: string) => (value.trim() === "" ? null : Number(value.replace(",", ".")));
+  const weight = numeric(draft.weight);
+  if (draft.unit && set.unit && !canConvertLoad(draft.unit, set.unit)) return false;
   return (
     draft.setType === set.setType &&
-    numeric(draft.weight) === set.weight &&
+    (weight !== null && draft.unit && set.unit
+      ? convertLoad(weight, draft.unit, set.unit)
+      : weight) === set.weight &&
     numeric(draft.reps) === set.reps &&
     numeric(draft.rir) === set.rir &&
     numeric(draft.duration) === set.durationSeconds &&

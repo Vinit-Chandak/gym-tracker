@@ -14,7 +14,10 @@ function toUtcMs(isoDate: string): number {
   if (y === undefined || m === undefined || d === undefined || Number.isNaN(y + m + d)) {
     throw new Error(`Invalid ISO date: ${isoDate}`);
   }
-  return Date.UTC(y, m - 1, d);
+  const date = new Date(0);
+  // Date.UTC interprets years 0–99 as 1900–1999; setUTCFullYear preserves them.
+  date.setUTCFullYear(y, m - 1, d);
+  return date.getTime();
 }
 
 function fromUtcMs(ms: number): string {

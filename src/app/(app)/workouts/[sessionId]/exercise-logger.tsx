@@ -227,6 +227,7 @@ export function ExerciseLogger({
     sessionId: session.id,
     holdAll,
     measure,
+    unit: exercise.equipment?.unit ?? session.preferredUnit,
     onLogged,
   });
 
@@ -235,6 +236,10 @@ export function ExerciseLogger({
   }, [sets.dirty, onDirtyChange]);
 
   const needsDecision = exercise.decision !== null && !skipped && !readOnly;
+  const availableMachine =
+    exercise.decision?.resolution.status === "direct"
+      ? exercise.decision.resolution.equipmentInstance
+      : null;
   const editable = !readOnly && !skipped && !completed;
   const optionsRow = sets.rows.find((row) => row.setIndex === optionsFor) ?? null;
   const suggestion = suggestionHeadline(exercise, unit, holdAll);
@@ -336,7 +341,12 @@ export function ExerciseLogger({
                 the page, where its columns have the width they were measured for. */}
             {(prescription || (editable && suggestion)) && (
               <Card>
-                {prescription && <p className="text-sm font-medium tabular-nums">{prescription}</p>}
+                {prescription && (
+                  <p className="text-sm font-medium tabular-nums">
+                    {suggestion?.kind === "coach" && "Programme: "}
+                    {prescription}
+                  </p>
+                )}
                 {editable && suggestion && (
                   <div className="flex items-start gap-2">
                     <Badge tone={suggestionTone(suggestion.kind)}>
@@ -353,10 +363,28 @@ export function ExerciseLogger({
             {needsDecision && exercise.decision && (
               <div className="space-y-2 rounded-card border border-warning p-3">
                 <p className="text-sm font-medium">
-                  {exercise.decision.resolution.status === "unavailable"
-                    ? "Not available at this gym"
-                    : `Needs ${exercise.decision.missingTypes.map((t) => t.name.toLowerCase()).join(" or ") || "a machine"} — not registered at ${session.gym.name}`}
+                  {availableMachine
+                    ? "Choose the registered machine for this exercise"
+                    : exercise.decision.resolution.status === "unavailable"
+                      ? "Not available at this gym"
+                      : `Needs ${exercise.decision.missingTypes.map((t) => t.name.toLowerCase()).join(" or ") || "a machine"} — not registered at ${session.gym.name}`}
                 </p>
+                {availableMachine && (
+                  <Button
+                    variant="secondary"
+                    className="w-full"
+                    disabled={pending || sets.dirty}
+                    onClick={() =>
+                      applyFallback(
+                        exercise.exercise.id,
+                        availableMachine.id,
+                        exercise.exercise.name,
+                      )
+                    }
+                  >
+                    Use {availableMachine.name}
+                  </Button>
+                )}
                 {exercise.decision.fallbackOptions.map((option) => (
                   <Button
                     key={option.fallbackId}
@@ -583,7 +611,7 @@ export function ExerciseLogger({
                 </div>
               </Disclosure>
             )}
-            {exercise.previous && <SetTable sets={exercise.previous.sets} unitLabel={unit} />}
+            {exercise.previous && <SetTable sets={exercise.previous.sets} unitLabel={unitLabel} />}
           </Card>
         )}
       </div>

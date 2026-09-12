@@ -19,11 +19,13 @@ import { withUser } from "@/db/with-user";
 import type { Resolution } from "@/domain/equipment-resolution";
 import { formatSets } from "@/domain/sets";
 import { formatDay, formatKilograms } from "@/lib/format";
+import { setInUnit } from "@/lib/units";
 import {
   EXERCISE_CATEGORY_LABELS,
   EXERCISE_MODALITY_LABELS,
   LOAD_PORTABILITY_HELP,
   LOAD_PORTABILITY_LABELS,
+  LOAD_UNIT_LABELS,
   MEASURE_COLUMN_LABELS,
   MEASURE_UNIT_SUFFIX,
   MUSCLE_LABELS,
@@ -155,7 +157,9 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
               label="Load jump"
               value={
                 exercise.defaultLoadIncrement === null
-                  ? "Machine"
+                  ? exercise.loadPortability === "global"
+                    ? "—"
+                    : "Machine"
                   : formatKilograms(exercise.defaultLoadIncrement, unit)
               }
             />
@@ -240,8 +244,13 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
                           : ""}
                       </span>
                     </div>
-                    <p className="text-sm text-ink-muted tabular-nums">
-                      {formatSets(performance.sets)}
+                    <p className="text-sm [overflow-wrap:anywhere] text-ink-muted tabular-nums">
+                      {formatSets(
+                        performance.sets.map((set) =>
+                          exercise.loadPortability === "global" ? setInUnit(set, unit) : set,
+                        ),
+                        (loadUnit) => LOAD_UNIT_LABELS[loadUnit],
+                      )}
                     </p>
                   </Link>
                 </li>
@@ -263,6 +272,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
               <p className="text-sm text-ink-muted">{availabilityDetail(entry)}</p>
               {exercise.requiresEquipment && entry.machines.length > 0 && (
                 <form
+                  key={entry.preferredInstanceId ?? "automatic"}
                   action={setPreferredMachineAction.bind(null, exercise.id, entry.gym.id)}
                   className="space-y-1.5"
                 >

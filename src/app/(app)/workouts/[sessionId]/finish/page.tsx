@@ -9,7 +9,8 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { formatSets } from "@/domain/sets";
 import { finishSessionAction } from "@/server/actions/sessions";
-import { fromKilograms } from "@/lib/units";
+import { fromKilograms, setInUnit } from "@/lib/units";
+import { LOAD_UNIT_LABELS } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { getSessionDetail } from "@/server/repositories/sessions";
@@ -62,8 +63,11 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
                   className="flex min-h-12 flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 py-2"
                 >
                   <span className="min-w-0 [overflow-wrap:anywhere]">{exercise.exercise.name}</span>
-                  <span className="shrink-0 text-ink-muted tabular-nums">
-                    {formatSets(exercise.sets)}
+                  <span className="min-w-0 text-right [overflow-wrap:anywhere] text-ink-muted tabular-nums">
+                    {formatSets(
+                      exercise.sets.map((set) => setInUnit(set, exercise.equipment?.unit ?? unit)),
+                      (loadUnit) => LOAD_UNIT_LABELS[loadUnit],
+                    )}
                   </span>
                 </li>
               ))}
@@ -92,7 +96,7 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
                   className="flex min-h-12 items-center justify-between gap-3 px-4 py-2"
                 >
                   <span className="min-w-0 [overflow-wrap:anywhere]">{exercise.exercise.name}</span>
-                  <span className="shrink-0 text-ink-muted">
+                  <span className="min-w-0 text-right [overflow-wrap:anywhere] text-ink-muted">
                     Skipped{exercise.notes ? `: ${exercise.notes}` : ""}
                   </span>
                 </li>

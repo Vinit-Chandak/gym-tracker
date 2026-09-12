@@ -27,9 +27,6 @@ export const APPEARANCE_ATTRIBUTE = "data-overload-mode";
 export const CANVAS_LIGHT = "#f4f3ee";
 export const CANVAS_DARK = "#171c1c";
 
-/** Id of the meta element that overrides the media-qualified pair Next renders. */
-const THEME_COLOR_ID = "overload-theme-color";
-
 function parseAppearance(value: unknown): Appearance {
   return APPEARANCE_MODES.includes(value as Appearance) ? (value as Appearance) : "system";
 }
@@ -46,18 +43,17 @@ export function readStoredAppearance(): Appearance {
 /**
  * Browser theme-color for an explicit choice.
  *
- * Next renders one meta per colour scheme, which is right for System but reflects the OS
- * rather than the user's override. A media-less meta placed first in the head wins over
- * both, and removing it hands the pair back — so System needs no restore logic.
+ * Keep Next's two metadata nodes in place. React can adopt a manually inserted meta during
+ * hydration; removing it later makes route navigation try to remove an already detached node.
+ * For an explicit choice both scheme entries use that colour; System restores each default.
  */
 function overrideThemeColor(color: string | null): void {
-  document.getElementById(THEME_COLOR_ID)?.remove();
-  if (color === null) return;
-  const meta = document.createElement("meta");
-  meta.id = THEME_COLOR_ID;
-  meta.name = "theme-color";
-  meta.content = color;
-  document.head.insertBefore(meta, document.head.firstChild);
+  for (const meta of document.head.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')) {
+    if (meta.getAttribute("media") === "(prefers-color-scheme: light)")
+      meta.content = color ?? CANVAS_LIGHT;
+    if (meta.getAttribute("media") === "(prefers-color-scheme: dark)")
+      meta.content = color ?? CANVAS_DARK;
+  }
 }
 
 /** Applies a mode to the live document. Colour only: no reload, refetch or remount. */
@@ -75,16 +71,12 @@ export function applyAppearance(mode: Appearance): void {
 /**
  * Runs synchronously before the first paint, from the top of the body.
  *
- * Deliberately bounded: it reads one short string, sets one attribute and inserts one
- * meta. It imports nothing, queries no layout and waits for no hydration, so it cannot
+ * Deliberately bounded: it reads one short string and sets one attribute.
+ * It imports nothing, queries no layout and waits for no hydration, so it cannot
  * become the reason the first screen is late. Any failure leaves System in place.
  */
 export const APPEARANCE_INIT_SCRIPT = `try{var m=localStorage.getItem(${JSON.stringify(
   APPEARANCE_STORAGE_KEY,
 )});if(m==="light"||m==="dark"){document.documentElement.setAttribute(${JSON.stringify(
   APPEARANCE_ATTRIBUTE,
-)},m);var t=document.createElement("meta");t.id=${JSON.stringify(
-  THEME_COLOR_ID,
-)};t.name="theme-color";t.content=m==="dark"?${JSON.stringify(CANVAS_DARK)}:${JSON.stringify(
-  CANVAS_LIGHT,
-)};document.head.insertBefore(t,document.head.firstChild)}}catch(e){}`;
+)},m)}}catch(e){}`;

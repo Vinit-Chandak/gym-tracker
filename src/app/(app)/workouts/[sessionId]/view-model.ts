@@ -1,6 +1,7 @@
 import type { BodyLoadUnit } from "@/domain/types";
 import type { ComparablePerformance } from "@/server/queries/comparable";
 import type { SessionDetail, SessionExercise, SessionSet } from "@/server/repositories/sessions";
+import { setInUnit } from "@/lib/units";
 
 /** JSON-safe shape handed to the client session view (dates as ISO strings). */
 export type SetVM = Omit<SessionSet, "completedAt"> & { completedAt: string };
@@ -67,7 +68,10 @@ export function toSessionVM(
       ...exercise,
       completedAt: exercise.completedAt?.toISOString() ?? null,
       skippedAt: exercise.skippedAt?.toISOString() ?? null,
-      sets: exercise.sets.map((set) => ({ ...set, completedAt: set.completedAt.toISOString() })),
+      sets: exercise.sets.map((set) => ({
+        ...setInUnit(set, exercise.equipment?.unit ?? preferredUnit),
+        completedAt: set.completedAt.toISOString(),
+      })),
       previous: exercise.previous ? toPreviousVM(exercise.previous) : null,
       basis: exercise.basis ? toPreviousVM(exercise.basis) : null,
     })),

@@ -10,6 +10,7 @@ import {
 import { weightStepFor } from "@/domain/sets";
 import type { LoadPortability, LoadUnit, PrescriptionType } from "@/domain/types";
 import type { ComparablePerformance } from "@/server/queries/comparable";
+import { canConvertLoad, convertLoad, setInUnit } from "@/lib/units";
 
 import type { programExercises } from "@/db/schema";
 
@@ -21,6 +22,7 @@ export type RuleInput = {
   };
   /** The machine in use, or null for free weights, bodyweight and an undecided machine. */
   equipment: { id: string; unit: LoadUnit; loadIncrement: number | null } | null;
+  preferredUnit?: "kg" | "lb";
   /** The programme slot being performed, by its lineage, so a revision keeps its history. */
   slotLineageId: string | null;
   /** Comparable performances, newest first (same machine for machine work). */
@@ -45,12 +47,18 @@ export type RuleOutcome = {
  * coach's planning context, so the coach starts from exactly what the athlete would see.
  */
 export function applyRule(input: RuleInput): RuleOutcome {
-  const weightStep = weightStepFor({
+  const unit = input.equipment?.unit ?? input.preferredUnit ?? "kg";
+  const defaultStep = weightStepFor({
     equipmentLoadIncrement: input.equipment?.loadIncrement ?? null,
     exerciseDefaultIncrement: input.exercise.defaultLoadIncrement,
   });
+  const weightStep = input.equipment ? defaultStep : convertLoad(defaultStep, "kg", unit);
+  const normalize = (performance: ComparablePerformance): ComparablePerformance | null =>
+    performance.sets.some((set) => set.weight !== null && !canConvertLoad(set.unit, unit))
+      ? null
+      : { ...performance, sets: performance.sets.map((set) => setInUnit(set, unit)) };
   const scope = comparisonScope(input.exercise.loadPortability);
-  const history = input.history;
+  const history = input.history.map(normalize).filter((item) => item !== null);
   const previous = history[0] ?? null;
   const sameSlot = input.slotLineageId
     ? history.filter((h) => h.plannedSlotLineageId === input.slotLineageId)
@@ -63,16 +71,23 @@ export function applyRule(input: RuleInput): RuleOutcome {
       : "exercise"
     : "none";
   if (!basisPerformance && scope === "equipment_instance" && input.equipment && input.elsewhere) {
-    basisPerformance = input.elsewhere;
-    basis = "other_equipment";
+    basisPerformance = normalize(input.elsewhere);
+    if (basisPerformance) basis = "other_equipment";
   }
   const prescription = prescriptionFor(
     input.planned,
     input.exercise,
     basisPerformance,
     weightStep,
-    input.equipment?.unit ?? "kg",
+    unit,
   );
+  if (prescription && !input.equipment && unit === "lb") {
+    // Explicit programme increments, like library defaults, are specified in kilograms.
+    const rule = input.planned?.progressionRule;
+    const increment =
+      (rule && "loadIncrement" in rule ? rule.loadIncrement : null) ?? input.planned?.loadIncrement;
+    if (increment != null) prescription.loadIncrement = convertLoad(increment, "kg", unit);
+  }
   return {
     weightStep,
     previous,

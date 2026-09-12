@@ -41,23 +41,27 @@ export function measureOf(set: Pick<SetLike, "reps" | "durationSeconds" | "dista
 }
 
 /** "80×10" / "0×12" / "45 s" / "2×20 m" style one-set label. */
-export function formatSet(set: SetLike): string {
+export function formatSet(set: SetLike, unitLabel?: string): string {
+  const weight = set.weight === null ? "—" : `${set.weight}${unitLabel ? ` ${unitLabel}` : ""}`;
+  const times = unitLabel ? " × " : "×";
   if (set.reps === null && set.distanceMeters !== null) {
-    return set.weight ? `${set.weight}×${set.distanceMeters} m` : `${set.distanceMeters} m`;
+    return set.weight ? `${weight}${times}${set.distanceMeters} m` : `${set.distanceMeters} m`;
   }
   if (set.durationSeconds !== null && set.reps === null) {
-    return set.weight ? `${set.weight}×${set.durationSeconds} s` : `${set.durationSeconds} s`;
+    return set.weight ? `${weight}${times}${set.durationSeconds} s` : `${set.durationSeconds} s`;
   }
-  const weight = set.weight === null ? "—" : `${set.weight}`;
   const reps = set.reps === null ? "—" : `${set.reps}`;
-  return `${weight}×${reps}`;
+  return `${weight}${times}${reps}`;
 }
 
 /** Working sets only, joined: "80×10, 80×9, 75×10". */
-export function formatSets(sets: readonly SetLike[]): string {
+export function formatSets(
+  sets: readonly SetLike[],
+  unitLabel?: (unit: LoadUnit) => string,
+): string {
   const working = sets.filter((s) => s.setType !== "warmup");
   const shown = working.length > 0 ? working : sets;
-  return shown.map(formatSet).join(", ");
+  return shown.map((set) => formatSet(set, unitLabel?.(set.unit))).join(", ");
 }
 
 /** Total load moved by working sets, ignoring bodyweight-only sets. */

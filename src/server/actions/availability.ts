@@ -9,7 +9,11 @@ import { withUser } from "@/db/with-user";
 import { requireUser } from "@/server/auth";
 import { markEquipmentAbsent, unmarkEquipmentAbsent } from "@/server/repositories/absent-equipment";
 import { MachineNotAtGymError, setPreferredMachine } from "@/server/repositories/exercises";
-import { addGymFallback, removeGymFallback } from "@/server/repositories/fallbacks";
+import {
+  addGymFallback,
+  IncompatibleFallbackMachineError,
+  removeGymFallback,
+} from "@/server/repositories/fallbacks";
 import { formValues, parseForm, type FormState } from "@/server/validation/form";
 
 function revalidateAvailability(gymId: string, exerciseId?: string): void {
@@ -107,7 +111,10 @@ export async function addGymFallbackAction(
       }),
     );
   } catch (error) {
-    if (error instanceof MachineNotAtGymError) {
+    if (
+      error instanceof MachineNotAtGymError ||
+      error instanceof IncompatibleFallbackMachineError
+    ) {
       return {
         fieldErrors: { fallbackEquipmentInstanceId: error.message },
         values: formValues(formData),

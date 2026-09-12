@@ -3,7 +3,8 @@ import { z } from "zod";
 import { PLAN_LIMITS } from "./plan-limits";
 import type { TargetSet } from "./progression";
 import { SET_LIMITS } from "./sets";
-import { PLAN_ACTIONS, RUN_MODES, SET_TYPES } from "./types";
+import { PLAN_ACTIONS, RUN_MODES, SET_TYPES, type LoadUnit } from "./types";
+import { canConvertLoad, convertLoad } from "@/lib/units";
 
 /**
  * The plan the AI coach writes for one upcoming session.
@@ -100,6 +101,8 @@ export type CoachPlanInput = z.input<typeof coachPlanSchema>;
 
 /** A plan exercise as stored, with the library and machine it resolved to. */
 export type StoredPlanExercise = PlanExercise & {
+  /** Unit at generation time; optional for plans saved before units were recorded. */
+  unit?: LoadUnit;
   exerciseId: string;
   exerciseName: string;
   equipmentInstanceName: string | null;
@@ -121,11 +124,19 @@ export function runPlanLine(run: PlanRun): string {
 }
 
 /** The plan's per-set targets in the shape the session view prefills from. */
-export function planTargets(exercise: Pick<PlanExercise, "sets">): TargetSet[] {
+export function planTargets(
+  exercise: Pick<PlanExercise, "sets"> & { unit?: LoadUnit },
+  displayUnit?: LoadUnit,
+): TargetSet[] {
   return exercise.sets.map((set, index) => ({
     setIndex: index + 1,
     setType: set.setType,
-    weight: set.weight,
+    weight:
+      set.weight === null || !exercise.unit || !displayUnit
+        ? set.weight
+        : canConvertLoad(exercise.unit, displayUnit)
+          ? convertLoad(set.weight, exercise.unit, displayUnit)
+          : null,
     reps: set.reps,
     rir: set.rir,
     durationSeconds: set.durationSeconds,
@@ -134,7 +145,11 @@ export function planTargets(exercise: Pick<PlanExercise, "sets">): TargetSet[] {
 }
 
 /** "3 × 8 @ 70 kg · RIR 2" for the plan's working sets; null when nothing is prescribed. */
-export function planLine(exercise: Pick<PlanExercise, "sets">, unit: string): string | null {
+export function planLine(
+  exercise: Pick<PlanExercise, "sets"> & { unit?: LoadUnit },
+  unit: string,
+): string | null {
+  unit = exercise.unit ?? unit;
   const working = exercise.sets.filter((s) => s.setType !== "warmup");
   const shown = working.length > 0 ? working : exercise.sets;
   if (shown.length === 0) return null;

@@ -107,7 +107,11 @@ export function EquipmentForm({
   const hasDetail = detailKeys.some((key) => value(key).trim() !== "");
 
   return (
-    <form action={formAction} className="space-y-[var(--section-gap)]">
+    <form
+      action={formAction}
+      onReset={(event) => event.preventDefault()}
+      className="space-y-[var(--section-gap)]"
+    >
       <Section title="What it is">
         <Card>
           <Field label="Equipment type" error={state.fieldErrors?.equipmentTypeId}>
@@ -144,7 +148,7 @@ export function EquipmentForm({
             />
           </Field>
 
-          <Field label="Load" error={state.fieldErrors?.resistanceMode}>
+          <Field group label="Load" error={state.fieldErrors?.resistanceMode}>
             <SegmentedControl
               name="resistanceMode"
               options={MODE_OPTIONS}
@@ -157,7 +161,7 @@ export function EquipmentForm({
             />
           </Field>
 
-          <Field label="Unit" error={state.fieldErrors?.unit}>
+          <Field group label="Unit" error={state.fieldErrors?.unit}>
             <SegmentedControl
               name="unit"
               options={UNIT_OPTIONS}

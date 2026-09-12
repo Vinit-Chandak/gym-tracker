@@ -24,6 +24,7 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
     const profile = requestProfile;
     const detail = await getSessionDetail(tx, user.id, sessionId, {
       restTimerEnabled: profile.restTimerEnabled,
+      preferredUnit: profile.preferredUnit === "lb" ? "lb" : "kg",
     });
     return detail
       ? toSessionVM(detail, profile.timeZone, profile.preferredUnit === "lb" ? "lb" : "kg")
@@ -47,7 +48,7 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
       />
       <PageContent>
         <WorkoutView
-          key={`${viewKey}:${data.completedAt ?? "open"}`}
+          key={`${viewKey}:${data.completedAt ?? "open"}:${data.preferredUnit}`}
           session={data}
           userId={user.id}
         />

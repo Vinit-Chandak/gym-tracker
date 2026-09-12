@@ -7,6 +7,15 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { requireUser } from "@/server/auth";
 import {
+  ExerciseHasSetsError,
+  SessionFinishedError,
+  SessionNotFoundError,
+} from "@/server/repositories/sessions";
+import {
+  IncompatibleWorkoutEquipmentError,
+  registerWorkoutEquipment,
+} from "@/server/repositories/workout-equipment";
+import {
   createEquipment,
   EquipmentNameTakenError,
   GymNotFoundError,
@@ -38,8 +47,24 @@ export async function createEquipmentAction(
   const parsed = parseForm(equipmentInputSchema, formData);
   if (!parsed.success) return parsed.state;
   try {
-    await withUser(getDb(), user.id, (tx) => createEquipment(tx, user.id, gymId, parsed.data));
+    await withUser(getDb(), user.id, (tx) =>
+      returnTo
+        ? registerWorkoutEquipment(tx, user.id, gymId, returnTo, parsed.data)
+        : createEquipment(tx, user.id, gymId, parsed.data),
+    );
   } catch (error) {
+    if (error instanceof IncompatibleWorkoutEquipmentError) {
+      return { fieldErrors: { equipmentTypeId: error.message }, values: formValues(formData) };
+    }
+    if (error instanceof SessionFinishedError || error instanceof ExerciseHasSetsError) {
+      return { formError: error.message, values: formValues(formData) };
+    }
+    if (error instanceof SessionNotFoundError) {
+      return {
+        formError: "This exercise is no longer in this workout at this gym.",
+        values: formValues(formData),
+      };
+    }
     if (error instanceof EquipmentNameTakenError) {
       return { fieldErrors: { name: error.message }, values: formValues(formData) };
     }

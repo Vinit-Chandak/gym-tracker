@@ -199,6 +199,58 @@ describe("planned-exercise availability", () => {
     expect(row(after?.rows ?? [], "leg-extension").resolution.status).toBe("unavailable");
   });
 
+  it("only accepts active compatible machines at the fallback's gym", async () => {
+    const legExtension = await exerciseId("leg-extension");
+    const legPress = await exerciseId("leg-press-45");
+    const splitSquat = await exerciseId("split-squat");
+    const pressType = await typeId("leg_press_45");
+    const [machine] = await t.db
+      .insert(equipmentInstances)
+      .values({
+        userId: user.id,
+        gymId: samsungId,
+        equipmentTypeId: pressType,
+        name: "Fallback compatibility test",
+        resistanceMode: "plate_loaded",
+        unit: "kg",
+      })
+      .returning();
+    const input = {
+      gymId: samsungId,
+      exerciseId: legExtension,
+      fallbackExerciseId: legPress,
+      fallbackEquipmentInstanceId: machine!.id,
+    };
+    await expect(
+      withUser(t.db, user.id, (tx) =>
+        addGymFallback(tx, user.id, { ...input, fallbackExerciseId: splitSquat }),
+      ),
+    ).rejects.toThrow("compatible machine");
+    await expect(
+      withUser(t.db, user.id, (tx) => addGymFallback(tx, user.id, { ...input, gymId: anytimeId })),
+    ).rejects.toThrow();
+    expect(await withUser(t.db, user.id, (tx) => addGymFallback(tx, user.id, input))).toBe(1);
+    const added = await withUser(t.db, user.id, (tx) => listGymFallbacks(tx, user.id, samsungId));
+    await withUser(t.db, user.id, async (tx) => {
+      for (const fallback of added.filter(
+        (item) => item.fallbackEquipmentInstanceId === machine!.id,
+      ))
+        await removeGymFallback(tx, user.id, fallback.id);
+    });
+    await t.db
+      .update(equipmentInstances)
+      .set({ isActive: false })
+      .where(eq(equipmentInstances.id, machine!.id));
+    await expect(
+      withUser(t.db, user.id, (tx) => addGymFallback(tx, user.id, input)),
+    ).rejects.toThrow("compatible machine");
+    expect(
+      (await withUser(t.db, user.id, (tx) => listGymFallbacks(tx, user.id, samsungId))).filter(
+        (item) => item.fallbackEquipmentInstanceId === machine!.id,
+      ),
+    ).toHaveLength(0);
+  });
+
   it("uses the preferred machine at a gym for an exercise", async () => {
     const pecDeckFly = await exerciseId("pec-deck-fly");
     const pecDeckType = await typeId("pec_deck");
@@ -226,6 +278,18 @@ describe("planned-exercise availability", () => {
     });
     expect(anytimeBefore?.machines.map((m) => m.name)).toContain("Pec deck (upstairs)");
     expect(anytimeBefore?.preferredInstanceId).toBeNull();
+    const machines = await withUser(t.db, user.id, (tx) =>
+      listEquipmentForGym(tx, user.id, anytimeId),
+    );
+    const wrong = machines.find(
+      (machine) => !anytimeBefore?.machines.some((option) => option.id === machine.id),
+    )!;
+    expect(anytimeBefore?.machines.map((machine) => machine.id)).not.toContain(wrong.id);
+    await expect(
+      withUser(t.db, user.id, (tx) =>
+        setPreferredMachine(tx, user.id, pecDeckFly, anytimeId, wrong.id),
+      ),
+    ).rejects.toThrow();
 
     await withUser(t.db, user.id, (tx) =>
       setPreferredMachine(tx, user.id, pecDeckFly, anytimeId, second.id),

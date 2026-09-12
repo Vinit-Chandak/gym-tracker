@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { AppearanceSync } from "@/components/shell/appearance-sync";
 
 import { APP_DESCRIPTION, APP_NAME } from "@/lib/app";
 import { APPEARANCE_INIT_SCRIPT, CANVAS_DARK, CANVAS_LIGHT } from "@/lib/appearance";
@@ -61,6 +62,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         {/* First thing in the body: it runs while the rest is still being parsed, so an
             explicit Light or Dark choice is in place before anything is painted. */}
         <script dangerouslySetInnerHTML={{ __html: APPEARANCE_INIT_SCRIPT }} />
+        <AppearanceSync />
         {children}
       </body>
     </html>

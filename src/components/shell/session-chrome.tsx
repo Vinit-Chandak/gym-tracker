@@ -37,12 +37,12 @@ export function SessionChrome({ session }: { session: ActiveSession }) {
   // Today shows the session as its own content with a primary Resume action, so the strip
   // stands down there; two resume affordances on one screen is the duplication the
   // hierarchy rules out.
-  const hidden = pathname === "/today" || insideSession(pathname, session.id);
+  const hideResume = pathname === "/today" || insideSession(pathname, session.id);
 
   useEffect(() => {
     const root = document.documentElement;
     const element = ref.current;
-    if (hidden || !element) {
+    if (!element) {
       root.style.removeProperty("--session-chrome-height");
       return;
     }
@@ -54,9 +54,9 @@ export function SessionChrome({ session }: { session: ActiveSession }) {
       observer.disconnect();
       root.style.removeProperty("--session-chrome-height");
     };
-  }, [hidden]);
+  }, [hideResume, session.restTimerEnabled]);
 
-  if (hidden) return null;
+  if (hideResume && !session.restTimerEnabled) return null;
 
   return (
     <div className="viewport-chrome viewport-chrome-session">
@@ -66,20 +66,22 @@ export function SessionChrome({ session }: { session: ActiveSession }) {
         style={{ bottom: "var(--nav-reserve)" }}
       >
         {session.restTimerEnabled && <RestTimer sessionId={session.id} />}
-        <div className="border-t border-line bg-surface">
-          <div className="page-width flex min-h-11 items-center justify-between gap-3 py-1.5">
-            <p className="min-w-0 truncate text-sm">
-              <span className="text-ink-muted">In progress · </span>
-              {session.name}
-            </p>
-            <Link
-              href={`/workouts/${session.id}`}
-              className="shrink-0 px-2 py-1 text-sm font-medium text-accent"
-            >
-              Resume
-            </Link>
+        {!hideResume && (
+          <div className="border-t border-line bg-surface">
+            <div className="page-width flex min-h-11 items-center justify-between gap-3 py-1.5">
+              <p className="min-w-0 truncate text-sm">
+                <span className="text-ink-muted">In progress · </span>
+                {session.name}
+              </p>
+              <Link
+                href={`/workouts/${session.id}`}
+                className="shrink-0 px-2 py-1 text-sm font-medium text-accent"
+              >
+                Resume
+              </Link>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

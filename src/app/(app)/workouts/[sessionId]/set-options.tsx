@@ -85,7 +85,7 @@ export function SetOptions({
               onChange={(value) => onEdit(row, { [counted.field]: value }, counted.field)}
               step={counted.step}
               max={counted.max}
-              inputMode="numeric"
+              inputMode={measure === "distance" ? "decimal" : "numeric"}
               disabled={row.saving}
             />
             <NumberField

@@ -494,7 +494,16 @@ export async function exerciseAvailability(
       absentEquipmentTypeIds: absent,
     });
     const machines = equipment
-      .filter((item) => item.isActive)
+      .filter(
+        (item) =>
+          item.isActive &&
+          options.some(
+            (option) =>
+              option.exerciseId === exercise.id &&
+              (option.equipmentInstanceId === item.id ||
+                option.equipmentTypeId === item.equipmentTypeId),
+          ),
+      )
       .map((item) => ({ id: item.id, name: item.name }))
       .sort((a, b) => a.name.localeCompare(b.name));
     const preferred = options.find(

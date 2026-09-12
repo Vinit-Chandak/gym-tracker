@@ -13,10 +13,10 @@ import { parseDateRangeOrDefault } from "@/server/validation/date-range";
 import { HistoryView, type HistoryItem } from "./history-view";
 
 export const metadata: Metadata = { title: "History" };
-function readings(values: [string, number | null][]) {
+function readings(values: [string, number | null, string?][]) {
   return values
     .filter(([, value]) => value !== null)
-    .map(([label, value]) => `${label} ${value}`)
+    .map(([label, value, unit]) => `${label} ${value}${unit ? ` ${unit}` : ""}`)
     .join(" · ");
 }
 export default async function HistoryPage(props: PageProps<"/history">) {
@@ -45,7 +45,7 @@ export default async function HistoryPage(props: PageProps<"/history">) {
       title: w.dayName ?? "Ad hoc session",
       subtitle: `${formatDateTime(w.startedAt, profile.timeZone)} · ${w.gymName}`,
       href: `/workouts/${w.id}` as const,
-      meta: `${w.setCount} sets`,
+      meta: `${w.setCount} ${w.setCount === 1 ? "set" : "sets"}`,
       gymId: w.gymId,
       exercises: w.exercises.map((e) => ({
         id: e.exerciseId,
@@ -54,7 +54,7 @@ export default async function HistoryPage(props: PageProps<"/history">) {
         machineName: e.machineName ? `${e.machineName} · ${w.gymName}` : null,
       })),
       recovery: readings([
-        ["Sleep h", w.sleepHours],
+        ["Sleep", w.sleepHours, "h"],
         ["Back", w.backPainPre],
         ["Shin L", w.shinLeftPre],
         ["Shin R", w.shinRightPre],
@@ -82,7 +82,7 @@ export default async function HistoryPage(props: PageProps<"/history">) {
       date: r.date,
       title: `Recovery · ${r.date}`,
       subtitle: readings([
-        ["Sleep h", r.sleepHours],
+        ["Sleep", r.sleepHours, "h"],
         ["Energy", r.energy],
         ["Fatigue", r.fatigue],
         ["Back", r.backPain],

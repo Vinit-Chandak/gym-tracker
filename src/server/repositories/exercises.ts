@@ -11,6 +11,7 @@ import {
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import { sharedExercises } from "@/server/queries/reference";
+import { machinesByExerciseAtGym } from "./equipment";
 
 type ExerciseRow = typeof exercises.$inferSelect;
 
@@ -232,6 +233,10 @@ export async function setPreferredMachine(
   const gymInstanceIds = gymInstances.map((row) => row.id);
   if (equipmentInstanceId !== null && !gymInstanceIds.includes(equipmentInstanceId)) {
     throw new MachineNotAtGymError();
+  }
+  if (equipmentInstanceId !== null) {
+    const compatible = await machinesByExerciseAtGym(db, userId, gymId);
+    if (!compatible[exerciseId]?.includes(equipmentInstanceId)) throw new MachineNotAtGymError();
   }
   if (gymInstanceIds.length > 0) {
     await db
