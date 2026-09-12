@@ -20,8 +20,8 @@ afterAll(async () => {
 });
 
 /**
- * Deleting an account deletes one row — the profile — and trusts the schema to take the rest
- * with it. That trust is only as good as the last table somebody added: a new table holding
+ * Auth deletion cascades through the profile. This suite checks that public-data half of the
+ * cascade. That trust is only as good as the last table somebody added: a new table holding
  * training data, with a user_id that does not cascade, leaves that data behind an account
  * that no longer exists, and nothing in the app would ever say so.
  */

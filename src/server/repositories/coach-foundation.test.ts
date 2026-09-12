@@ -224,6 +224,24 @@ async function context(userId = athleteId) {
 }
 
 describe("coaching service transport", () => {
+  // Transport tests prepare a plan before training. Evidence tests below restore the
+  // unfinished workout so they still verify that it is excluded from completed work.
+  beforeAll(async () => {
+    await withUser(t.db, athleteId, (tx) =>
+      tx
+        .update(workoutSessions)
+        .set({ completedAt: NOW })
+        .where(eq(workoutSessions.id, openSessionId)),
+    );
+  });
+  afterAll(async () => {
+    await withUser(t.db, athleteId, (tx) =>
+      tx
+        .update(workoutSessions)
+        .set({ completedAt: null })
+        .where(eq(workoutSessions.id, openSessionId)),
+    );
+  });
   async function submit(dayIndex: number, runOverride?: string) {
     const day = blueprint.days.find((entry) => entry.dayIndex === dayIndex)!;
     const slot = slots.find((entry) => entry.dayIndex === dayIndex);
@@ -303,6 +321,17 @@ describe("coaching service transport", () => {
     expect(active[0]?.run?.programRunId).toBe(
       plannedRuns.find((run) => run.weekIndex === 1 && run.dayOfWeek === 3)!.id,
     );
+  });
+  it("returns a workout conflict for a late plan instead of a service outage", async () => {
+    await withUser(t.db, athleteId, (tx) =>
+      tx
+        .update(workoutSessions)
+        .set({ completedAt: null })
+        .where(eq(workoutSessions.id, openSessionId)),
+    );
+    const { response } = await submit(1);
+    expect(response.status).toBe(409);
+    expect((await response.json()).error).toMatch(/workout/i);
   });
 });
 

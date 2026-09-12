@@ -51,15 +51,20 @@ type ReferenceIds = {
  * know is re-read from the database once before it counts as missing, so a library seeded after
  * this instance started still works.
  */
-async function referenceIds(db: DbOrTx, blueprint: ProgramBlueprint): Promise<ReferenceIds> {
+async function referenceIds(
+  db: DbOrTx,
+  blueprint: ProgramBlueprint,
+  userId: string,
+): Promise<ReferenceIds> {
   const read = async (): Promise<ReferenceIds> => {
-    const [exerciseRows, typeRows, warmupRows] = await Promise.all([
+    const [shared, own, typeRows, warmupRows] = await Promise.all([
       sharedExercises(db),
+      db.select().from(exercises).where(eq(exercises.userId, userId)),
       sharedEquipmentTypes(db),
       sharedWarmupProtocols(db),
     ]);
     return {
-      exerciseIdBySlug: new Map(exerciseRows.map((r) => [r.slug, r.id])),
+      exerciseIdBySlug: new Map([...shared, ...own].map((r) => [r.slug, r.id])),
       typeIdBySlug: new Map(typeRows.map((r) => [r.slug, r.id])),
       warmupIdBySlug: new Map(warmupRows.map((r) => [r.slug, r.id])),
     };
@@ -121,7 +126,7 @@ export async function createProgramFromBlueprint(
 ): Promise<CreatedProgram> {
   const familyId = options.familyId ?? crypto.randomUUID();
   const [{ exerciseIdBySlug, typeIdBySlug, warmupIdBySlug }, [previous]] = await Promise.all([
-    referenceIds(db, blueprint),
+    referenceIds(db, blueprint, userId),
     db
       .select({ id: programs.id, version: programs.version })
       .from(programs)
@@ -221,8 +226,8 @@ export async function createProgramFromBlueprint(
       distanceMinMeters: exercise.distance?.[0] ?? null,
       distanceMaxMeters: exercise.distance?.[1] ?? null,
       perSide: exercise.perSide ?? false,
-      rirMin: exercise.rir[0],
-      rirMax: exercise.rir[1],
+      rirMin: exercise.rir?.[0] ?? null,
+      rirMax: exercise.rir?.[1] ?? null,
       restMinSeconds: exercise.rest[0],
       restMaxSeconds: exercise.rest[1],
       targetLoadNote: exercise.targetLoadNote ?? null,
@@ -388,7 +393,7 @@ export async function readProgramBlueprint(
               ? [slot.distanceMinMeters, slot.distanceMaxMeters]
               : undefined,
           perSide: slot.perSide,
-          rir: [slot.rirMin ?? 0, slot.rirMax ?? slot.rirMin ?? 0],
+          rir: slot.rirMin === null || slot.rirMax === null ? null : [slot.rirMin, slot.rirMax],
           rest: [slot.restMinSeconds ?? 0, slot.restMaxSeconds ?? slot.restMinSeconds ?? 0],
           targetLoadNote: slot.targetLoadNote ?? undefined,
           progressionNotes: slot.progressionNotes ?? undefined,

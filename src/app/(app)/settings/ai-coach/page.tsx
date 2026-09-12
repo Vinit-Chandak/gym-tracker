@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { CoachingActivity } from "@/components/coaching/activity";
 
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
@@ -23,8 +24,11 @@ export const metadata: Metadata = { title: "AI coach" };
 export default async function AiCoachSettingsPage() {
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
+  const workflow = process.env.COACH_WORKFLOW_ENABLED === "true";
   const { memo, plan, pending, attempts } = await withUser(getDb(), user.id, async (tx) => {
     const now = new Date();
+    if (workflow)
+      return { memo: await getCoachMemo(tx, user.id), plan: null, pending: null, attempts: [] };
     await reconcileExpiredCoachRequests(tx, user.id, now);
     const [memo, plan, pending, attempts] = await Promise.all([
       getCoachMemo(tx, user.id),
@@ -39,21 +43,25 @@ export default async function AiCoachSettingsPage() {
   const canRequest = getCoachRoutine() !== null;
   const status = !configured
     ? "Not set up on this server yet"
-    : pending
-      ? `Planning now, asked at ${formatDateTime(pending.requestedAt, profile.timeZone)}`
-      : plan
-        ? `Last plan ${formatDateTime(plan.generatedAt, profile.timeZone)}`
-        : "No plan yet; the first arrives after the next overnight run";
+    : workflow
+      ? "Daily session preparation and weekly programme reviews are enabled"
+      : pending
+        ? `Planning now, asked at ${formatDateTime(pending.requestedAt, profile.timeZone)}`
+        : plan
+          ? `Last plan ${formatDateTime(plan.generatedAt, profile.timeZone)}`
+          : "No plan yet; the first arrives after the next overnight run";
 
   return (
     <>
       <PageHeader title="AI coach" backHref="/settings" />
       <PageContent>
+        <CoachingActivity settings />
         <AiCoachSettings
+          workflow={workflow}
           enabled={profile.aiCoachEnabled}
           status={
             configured && !canRequest && profile.aiCoachEnabled
-              ? `${status} · Re-planning from Today is not set up on this server`
+              ? `${status} · On-demand coaching is not set up on this server`
               : status
           }
           userNotes={memo.userNotes}

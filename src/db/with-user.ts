@@ -55,6 +55,12 @@ export async function withUser<T>(
                      set_config('request.jwt.claim.role', 'authenticated', true),
                      set_config('role', 'authenticated', true)`,
           );
+          // Serialize short write transactions for an athlete. Start, programme activation,
+          // source edits, and coach callbacks must all see one ordered state. Read-only
+          // requests keep their parallel path, and model/network work stays outside here.
+          if (!options.readOnly) {
+            await tx.execute(sql`select id from public.profiles where id = ${userId} for update`);
+          }
           userWorkStarted = true;
           return fn(tx);
         },

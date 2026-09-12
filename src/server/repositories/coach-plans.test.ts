@@ -1099,10 +1099,8 @@ describe("a plan that lands mid-session", () => {
         cycleIndex: context.slot.cycleIndex,
       }),
     );
-    // A re-plan asked for before the session started can still land after it did. It cannot be
-    // the plan being trained, so Today must not show it to someone mid-workout.
-    const later = await store("Arrived after the session had started.");
-    expect(later.id).not.toBe(training.id);
+    // A response arriving after Start is refused before it can supersede any saved plan.
+    await expect(store("Arrived after the session had started.")).rejects.toThrow(/open workout/);
     const today = await withUser(t.db, carol.id, (tx) =>
       todayCoachState(tx, carol.id, {
         enabled: true,

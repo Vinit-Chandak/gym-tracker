@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { LinkButton } from "@/components/ui/button";
 
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
@@ -18,6 +19,9 @@ export default async function ExercisesPage() {
     <>
       <PageHeader title="Exercises" backHref="/settings" />
       <PageContent>
+        <LinkButton href="/exercises/new" variant="secondary">
+          Add your own exercise
+        </LinkButton>
         <ExerciseLibrary exercises={exercises} />
       </PageContent>
     </>

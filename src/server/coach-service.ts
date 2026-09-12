@@ -16,6 +16,8 @@ import {
   storePlan,
 } from "@/server/repositories/coach-plans";
 import { createProposal, ProposalError } from "@/server/repositories/program-revisions";
+import { handleCoachWorkflow } from "./coach-workflow-service";
+import { CoachingError } from "./repositories/coaching-state";
 
 /**
  * The house coach's API: what the routine reads and writes.
@@ -106,6 +108,15 @@ export async function handleCoachServiceRequest(
   const method = request.method.toUpperCase();
   const meta = { version: 1, generatedAt: new Date().toISOString() };
   try {
+    if (path[0] === "workflow") return await handleCoachWorkflow(db, request, path.slice(1));
+    if (process.env.COACH_WORKFLOW_ENABLED === "true")
+      return json(
+        {
+          error:
+            "Use the versioned workflow API. Read the current .claude/skills/coach/SKILL.md before processing jobs.",
+        },
+        409,
+      );
     if (path.length === 1 && path[0] === "due" && method === "GET") {
       return json({ ...meta, users: await listDueUsers(db) });
     }
@@ -229,7 +240,8 @@ export async function handleCoachServiceRequest(
       }
     }
     return json({ error: "Unknown coach service endpoint." }, 404);
-  } catch {
+  } catch (error) {
+    if (error instanceof CoachingError) return json({ error: error.message }, error.status);
     return json({ error: "The coach service is temporarily unavailable. Please retry." }, 503);
   }
 }

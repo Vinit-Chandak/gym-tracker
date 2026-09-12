@@ -1,4 +1,4 @@
-import { and, count, eq } from "drizzle-orm";
+import { and, count, eq, sql } from "drizzle-orm";
 
 import { equipmentInstances, gyms, profiles, programs } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
@@ -8,13 +8,26 @@ export type Profile = typeof profiles.$inferSelect;
 /** Returns the profile, creating it for users who signed up before the trigger existed. */
 export async function ensureProfile(
   db: DbOrTx,
-  user: { id: string; email: string | null },
+  user: { id: string; email: string | null; displayName?: string | null },
 ): Promise<Profile> {
   const [existing] = await db.select().from(profiles).where(eq(profiles.id, user.id)).limit(1);
-  if (existing) return existing;
+  const displayName = user.displayName?.trim().slice(0, 80) || null;
+  if (existing) {
+    if (!existing.displayName?.trim() && displayName) {
+      const [repaired] = await db
+        .update(profiles)
+        .set({ displayName })
+        .where(
+          and(eq(profiles.id, user.id), sql`nullif(trim(${profiles.displayName}), '') is null`),
+        )
+        .returning();
+      if (repaired) return repaired;
+    }
+    return existing;
+  }
   await db
     .insert(profiles)
-    .values({ id: user.id, email: user.email })
+    .values({ id: user.id, email: user.email, displayName })
     .onConflictDoNothing({ target: profiles.id });
   const [profile] = await db.select().from(profiles).where(eq(profiles.id, user.id)).limit(1);
   if (!profile) throw new Error("Profile could not be created");

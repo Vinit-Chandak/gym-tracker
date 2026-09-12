@@ -496,7 +496,7 @@ describe("history across a revision", () => {
     const [slotLineage] = await t.db
       .select({ lineageId: programExercises.lineageId })
       .from(programExercises)
-      .where(eq(programExercises.id, slotBefore));
+      .where(eq(programExercises.id, slotBefore!));
 
     // A change elsewhere in the programme still rewrites every slot into new rows.
     const proposal = await propose([
@@ -525,7 +525,7 @@ describe("history across a revision", () => {
       .select({ programId: programDays.programId })
       .from(programExercises)
       .innerJoin(programDays, eq(programDays.id, programExercises.programDayId))
-      .where(eq(programExercises.id, slotBefore));
+      .where(eq(programExercises.id, slotBefore!));
     expect(archived?.programId).not.toBe((await activeProgram()).id);
   });
 });

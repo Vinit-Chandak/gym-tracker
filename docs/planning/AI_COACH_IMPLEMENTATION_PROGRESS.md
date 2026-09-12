@@ -1,6 +1,6 @@
 # AI coach implementation progress
 
-Updated September 11, 2026 on `codex/ai-first-coaching`.
+Updated September 12, 2026 on `codex/complete-coaching-flow`. The September 11 slices below are historical; the completion and live rollout status is recorded at the end.
 
 ## First slice: existing transport and evidence
 
@@ -87,9 +87,38 @@ Added a synthetic regression check for notes reaching planning context, survivin
 
 Verification: all 381 tests in 53 files passed, as did type checking, lint, changed-file Prettier, and the diff whitespace check. A tracked-file scan found no occurrence of the supplied account email. The live routine configuration has not been changed; shared instruction edits are on the implementation branch.
 
-## Remaining work
+## September 12: complete application workflow and account fixes
 
-- Finish Phase 0 task envelopes, output schemas, and acceptance invariants; integrate the tested authority and review-period contracts with initial anchors, durable review identity, and due/catch-up handling.
-- Finish Phase 1 semantic machine/measure/slot validation and full stale-result rejection. Carry confirmed athlete notes into the future structured facts model without changing their meaning.
-- Implement the remaining phases in the implementation plan: durable tasks and drafts, onboarding, manual programs and routines, daily/weekly execution, and rollout controls.
-- Verify the actual cloud schedule and allowance during rollout. Measure production-equivalent context size, capacity, and tracker latency before release; local correctness checks are not those measurements.
+Audited the two referenced tasks (`01a08f40-6c9c-7051-bcf3-7179863ad3aa` and `01a08f79-a22b-7803-907a-7bdebdde0a84`) and main's history. The planning and foundation slices had been merged through `c35892d`; the personalized screens, durable execution and manual flows had not been implemented. This branch starts from main at `8ce3130` and incorporates main's later PR #19 through `8ca8a29`, preserving its logging/form recovery and expired-session fixes. The new coaching screens use the same disconnected-action handling, with controlled inputs retained and navigation errors rethrown.
+
+The deletion code removed the public profile before attempting optional Auth deletion, then reported success even when the admin credential was unavailable. A read-only account lifecycle check found a retained confirmed Auth identity and a later recreated profile. Repeat signup could therefore encounter the existing identity, send no new signup confirmation, and still show the old success message. The profile fallback also omitted signup name metadata. Email autoconfirm was disabled in the inspected database; actual SMTP delivery and production admin-credential availability remain separate live checks.
+
+Implemented:
+
+- Auth-first account deletion with cascade, no profile-only fallback or false success, and tests for absent credentials, failures and delete/recreate isolation. Signup distinguishes the obfuscated existing-identity response; verified name metadata seeds/repairs only a blank profile name.
+- Optional basic onboarding details, preserved signup name, and Select all/Clear all for machines. Removed the old routing guard that still required body measurements to reach the gym or programme steps.
+- Personalized creation in onboarding and Settings: six saved steps, a long prompt, optional reported lifts and measurements, private retained reports with removal, confirmation, durable status, draft preview/edit/start, and the founder template as an explicit suggestion. Existing profile facts prefill new setup without inventing availability or ability.
+- Three durable job kinds with idempotent requests, single live claims, leases, bounded retries, attempt receipts, exact source/target/gym checks and strict machine/measure/slot/run validation. Opening plans resolve draft-local positions during atomic activation.
+- Daily keyset dispatch without a 500-athlete cap; weekly review before preparation, seven-day initial eligibility, persisted rest-day anchors, no-change reviews, automatic prescription revisions and reviewed structural changes. Open workouts, including ad hoc workouts, freeze acceptance and activation. Log/check-in/finish/page reads do not dispatch AI.
+- One shared three-request allowance for creation and gym changes per athlete-local calendar day. Repeated clicks and unchanged gym intents do not spend another request. One-off gym intent does not change the default gym.
+- Manual programmes with optional RIR, days/exercises/targets and run structure, duplicate/edit-future/archive actions, custom exercises, saved/repeated routines, and routine-to-programme-day import. Saved prescription snapshots preserve unknown targets and historical workouts.
+- Additive migrations 0013–0015, private-file RLS/cascades, source revision triggers, one-active-programme constraint, new workflow CLI and rewritten repository routine skill. Independent intake/generation/dispatch/automatic-review controls accompany the master gate. Old service writes are blocked when the workflow is enabled.
+- Task-specific compact policy, complete review/30-day/eight-week aggregates, bounded narrative evidence, retained decisions, status polling backoff, context-size/time and dispatcher-count diagnostics. Added a versioned synthetic model-quality evaluation set and the exact replacement saved routine prompt in the automation guide.
+
+Verification:
+
+- `npm test`: 501 tests passed in 81 files after incorporating PR #19. New checks cover the actual authenticated service, ownership and freshness, first programme activation, shared quota/local midnight, 502 additional eligible accounts across dispatcher pages, report removal, retry receipts, optional-profile routing, disconnected intake recovery, manual history and rollout behavior.
+- `npm run typecheck`, `npx eslint src scripts`, and `npm run build`: passed. Changed-file Prettier and the diff whitespace check passed. Repository-wide lint still includes pre-existing generated `.next-qa` files, so the lint result reported here is explicitly for application and script sources.
+- Phone-size browser checks: programme choices, six-step intake, retained reports, draft review, manual targets/optional RIR, and selection of all 71 machines. No browser console errors observed. These are synthetic previews; model generation and real email were not simulated as live success.
+- Read-only live preflight found zero accounts with multiple active programmes. No live database records or schema were changed. Real migrations and account cascades ran in the isolated PGlite test database.
+
+## Remaining live release gates
+
+The implementation is not a live deployment. Supabase and Claude dashboards were signed out in the available browser; the access request remains pending. No cloud routine configuration or production environment was changed.
+
+- Review/merge the branch, apply migrations 0013–0015 before serving its pages, and deploy with the documented switches. The routine must clone a branch containing the new skill and CLI.
+- Verify/configure the server-only Supabase admin credential; test real signup confirmation delivery, sign-in/name persistence, and disposable account deletion/re-registration. Never delete an existing account as a repair without its explicit selection.
+- Update the saved cloud routine prompt, verify 04:00 Asia/Kolkata, environment authorization, API trigger, model and current owner allowance. Run claimed creation/weekly/gym flows against the deployed app before enabling automatic revisions.
+- Run the synthetic model-quality cases and measure small/typical/large context bytes and tokens, real batch capacity, database query plans and Start/log latency against a baseline. The local tests and diagnostic hooks do not establish provider quality, production capacity or multi-connection PostgreSQL race behavior.
+
+Rollout order, controls, recovery and the concrete replacement routine prompt are in [the automation guide](../coach-automation.md). Keep these gates open until their results are verified; passing local checks does not close them.

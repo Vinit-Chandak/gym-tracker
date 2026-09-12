@@ -4,6 +4,7 @@ import {
   check,
   index,
   integer,
+  jsonb,
   numeric,
   pgTable,
   text,
@@ -18,6 +19,7 @@ import { exercises } from "./exercises";
 import { equipmentInstances, gyms } from "./gyms";
 import { profiles } from "./profiles";
 import { programDays, programExercises, programs } from "./programs";
+import type { BlueprintExercise } from "../../domain/program-blueprint";
 
 /** One training session at exactly one gym, with the optional pre-session recovery check-in. */
 export const workoutSessions = pgTable(
@@ -98,6 +100,8 @@ export const workoutExercises = pgTable(
      * applied on the day.
      */
     supersetGroup: text("superset_group"),
+    /** A saved routine's targets, copied when Start is pressed and independent of later edits. */
+    savedPrescription: jsonb("saved_prescription").$type<BlueprintExercise>(),
     substitutionReason: text("substitution_reason"),
     notes: text("notes"),
     completedAt: timestamp("completed_at", { withTimezone: true }),

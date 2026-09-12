@@ -4,16 +4,14 @@ import { MailCheck } from "@/components/ui/icons";
 import { useActionState, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import Link from "@/components/ui/app-link";
 import { Field, Input } from "@/components/ui/input";
 import { signUpAction, type SignUpState } from "@/server/actions/auth";
 
 const INITIAL: SignUpState = {};
 
 export function SignUpForm() {
-  const [state, formAction, pending] = useActionState(
-    signUpAction,
-    INITIAL,
-  );
+  const [state, formAction, pending] = useActionState(signUpAction, INITIAL);
   // What they typed survives a refused attempt, as it does on the sign-in form. Only the
   // passwords are asked for again, which is the one pair worth retyping.
   const [displayName, setDisplayName] = useState("");
@@ -27,8 +25,19 @@ export function SignUpForm() {
           Check your inbox
         </p>
         <p className="text-sm text-ink-muted">
-          We sent a confirmation link to <span className="text-ink">{state.checkEmail}</span>. Open
-          it on this device to finish setting up your account.
+          A confirmation link was requested for <span className="text-ink">{state.checkEmail}</span>
+          . Check your inbox and spam folder. Open the link to finish setting up your account.
+        </p>
+        <p className="text-sm text-ink-muted">
+          Already registered?{" "}
+          <Link href="/login" className="text-accent underline">
+            Sign in
+          </Link>{" "}
+          or{" "}
+          <Link href="/forgot-password" className="text-accent underline">
+            reset your password
+          </Link>
+          .
         </p>
       </div>
     );

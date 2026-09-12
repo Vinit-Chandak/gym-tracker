@@ -697,7 +697,7 @@ describe("session-only supersets", () => {
     const planned = await t.db
       .select({ group: programExercises.supersetGroup })
       .from(programExercises)
-      .where(eq(programExercises.id, members[0]!.planned!.programExerciseId));
+      .where(eq(programExercises.id, members[0]!.planned!.programExerciseId!));
     expect(planned[0]?.group).toBeNull();
   });
 

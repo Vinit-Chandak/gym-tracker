@@ -26,11 +26,11 @@ export default async function DeleteAccountPage() {
           </p>
           {!removesSignIn && (
             <p className="text-sm text-ink-muted">
-              Your email and password stay with the sign-in provider; ask whoever runs it to remove
-              the login itself.
+              Account deletion is temporarily unavailable. Your account and data have not been
+              changed.
             </p>
           )}
-          <DeleteAccountForm />
+          {removesSignIn && <DeleteAccountForm />}
         </Card>
       </PageContent>
     </>

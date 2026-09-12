@@ -55,6 +55,9 @@ export const programs = pgTable(
   },
   (t) => [
     uniqueIndex("programs_user_slug_version_uq").on(t.userId, t.slug, t.version),
+    uniqueIndex("programs_one_active_per_user_uq")
+      .on(t.userId)
+      .where(sql`status = 'active'`),
     index("programs_user_status_idx").on(t.userId, t.status),
     ownerPolicy("programs"),
   ],

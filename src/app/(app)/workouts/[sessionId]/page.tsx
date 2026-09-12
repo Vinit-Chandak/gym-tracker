@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SaveWorkoutRoutine } from "@/components/coaching/routines";
 import { notFound } from "next/navigation";
 
 import { PageContent } from "@/components/shell/page-content";
@@ -47,6 +48,7 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
         backHref={data.completedAt ? "/history" : "/today"}
       />
       <PageContent>
+        {data.completedAt && <SaveWorkoutRoutine sessionId={sessionId} name={title} />}
         <WorkoutView
           key={`${viewKey}:${data.completedAt ?? "open"}:${data.preferredUnit}`}
           session={data}

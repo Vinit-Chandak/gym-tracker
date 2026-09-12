@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { CoachingActivity } from "@/components/coaching/activity";
+import { PageContent } from "@/components/shell/page-content";
+import { LinkButton } from "@/components/ui/button";
 
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
@@ -9,6 +12,7 @@ import { getActiveSession } from "@/server/queries/active-session";
 import { getWarmupProtocol } from "@/server/queries/reference";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { todayCoachState } from "@/server/repositories/coach-plans";
+import { todayWorkflowState } from "@/server/repositories/coaching-today";
 import { listGyms } from "@/server/repositories/gyms";
 import { getTodayPlan } from "@/server/repositories/schedule";
 
@@ -41,7 +45,9 @@ export default async function TodayPage() {
         profile.aiCoachEnabled &&
         plan?.suggestion &&
         (plan.suggestedDay?.includesLifting || plan.suggestedDay?.includesRun)
-          ? await todayCoachState(tx, user.id, {
+          ? await (
+              process.env.COACH_WORKFLOW_ENABLED === "true" ? todayWorkflowState : todayCoachState
+            )(tx, user.id, {
               enabled: true,
               timeZone: profile.timeZone,
               programId: plan.program.id,
@@ -55,18 +61,31 @@ export default async function TodayPage() {
   const { profile, gyms, plan, restProtocol, coach } = data;
 
   return (
-    <TodayView
-      today={plan?.today ?? todayInTimeZone(profile.timeZone)}
-      timeZone={profile.timeZone}
-      // Only active gyms can be trained at, so only they can be chosen between.
-      gyms={gyms
-        .filter((gym) => gym.isActive)
-        .map((gym) => ({ id: gym.id, name: gym.name, kind: gym.kind, isDefault: gym.isDefault }))}
-      plan={plan}
-      inProgress={inProgress}
-      restProtocol={restProtocol}
-      coach={coach}
-      unit={LOAD_UNIT_LABELS[profile.preferredUnit]}
-    />
+    <>
+      <TodayView
+        today={plan?.today ?? todayInTimeZone(profile.timeZone)}
+        timeZone={profile.timeZone}
+        // Only active gyms can be trained at, so only they can be chosen between.
+        gyms={gyms
+          .filter((gym) => gym.isActive)
+          .map((gym) => ({ id: gym.id, name: gym.name, kind: gym.kind, isDefault: gym.isDefault }))}
+        plan={plan}
+        inProgress={inProgress}
+        restProtocol={restProtocol}
+        coach={coach}
+        unit={LOAD_UNIT_LABELS[profile.preferredUnit]}
+      />
+      <PageContent>
+        <CoachingActivity />
+        <LinkButton href="/settings/routines" variant="secondary">
+          Saved routines
+        </LinkButton>
+        {!plan && (
+          <LinkButton href="/settings/programme" variant="ghost">
+            Create a programme
+          </LinkButton>
+        )}
+      </PageContent>
+    </>
   );
 }

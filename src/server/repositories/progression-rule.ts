@@ -15,7 +15,7 @@ import { canConvertLoad, convertLoad, setInUnit } from "@/lib/units";
 import type { programExercises } from "@/db/schema";
 
 export type RuleInput = {
-  planned: typeof programExercises.$inferSelect | null;
+  planned: RulePrescription | null;
   exercise: ExerciseDefaults & {
     loadPortability: LoadPortability;
     defaultLoadIncrement: number | null;
@@ -30,6 +30,21 @@ export type RuleInput = {
   /** The latest performance on any other machine: a starting guess only. */
   elsewhere: ComparablePerformance | null;
 };
+type RulePrescription = Pick<
+  typeof programExercises.$inferSelect,
+  | "sets"
+  | "prescriptionType"
+  | "repMin"
+  | "repMax"
+  | "durationMinSeconds"
+  | "durationMaxSeconds"
+  | "distanceMinMeters"
+  | "distanceMaxMeters"
+  | "rirMin"
+  | "rirMax"
+  | "progressionRule"
+  | "loadIncrement"
+>;
 
 export type RuleOutcome = {
   weightStep: number;
@@ -132,7 +147,7 @@ function defaultRange(exercise: ExerciseDefaults): [number, number] | null {
 
 /** Today's prescription for the rule: the programme slot, else the exercise's own defaults. */
 export function prescriptionFor(
-  planned: typeof programExercises.$inferSelect | null,
+  planned: RulePrescription | null,
   exercise: ExerciseDefaults,
   basis: ComparablePerformance | null,
   weightStep: number,

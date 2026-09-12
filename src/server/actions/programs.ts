@@ -11,7 +11,8 @@ import { findProgramTemplate } from "@/db/seed/data/templates";
 import { withUser } from "@/db/with-user";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { requireUser } from "@/server/auth";
-import { ensureProfile, missingProfileDetails } from "@/server/queries/profile";
+import { ensureProfile } from "@/server/queries/profile";
+import { assertNoOpenWorkout, CoachingError } from "@/server/repositories/coaching-state";
 import { profileChanged } from "@/server/queries/request-profile";
 import {
   createProgramFromBlueprint,
@@ -49,20 +50,17 @@ export async function adoptProgramTemplateAction(
     await withUser(getDb(), user.id, async (tx) => {
       const profile = await ensureProfile(tx, user);
       const startDate = parsed.data.startDate ?? todayInTimeZone(profile.timeZone);
+      await assertNoOpenWorkout(tx, user.id);
       await createProgramFromBlueprint(tx, user.id, template.blueprint, { startDate });
-      // Adopting a programme is the last step, and finishes setup — but only for an account
-      // that answered the first one, which cannot be skipped.
-      if (
-        parsed.data.finishOnboarding &&
-        profile.onboardedAt === null &&
-        missingProfileDetails(profile).length === 0
-      ) {
+      // Adopting a programme finishes setup without requiring optional coaching details.
+      if (parsed.data.finishOnboarding && profile.onboardedAt === null) {
         await tx.update(profiles).set({ onboardedAt: new Date() }).where(eq(profiles.id, user.id));
         finishedOnboarding = true;
       }
     });
   } catch (error) {
-    if (error instanceof MissingReferenceDataError) return { error: error.message };
+    if (error instanceof MissingReferenceDataError || error instanceof CoachingError)
+      return { error: error.message };
     throw error;
   }
   if (finishedOnboarding) await profileChanged(user.id);

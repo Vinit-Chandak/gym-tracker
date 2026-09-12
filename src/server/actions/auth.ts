@@ -152,8 +152,15 @@ export async function signUpAction(
     return { error: error.message };
   }
 
-  // No session means the project requires a confirmed email before the first sign-in.
-  if (!value?.data.session) return { checkEmail: parsed.data.email };
+  // A repeat signup can return an obfuscated user with no identities and no session.
+  // Supabase deliberately does not send another confirmation for an already confirmed login.
+  if (value?.data.user?.identities?.length === 0) {
+    return {
+      error: "You may already have an account with this email. Sign in, or reset your password.",
+    };
+  }
+  if (!value?.data.user) return { error: "Could not create your account. Please try again." };
+  if (!value.data.session) return { checkEmail: parsed.data.email };
   redirect("/welcome");
 }
 

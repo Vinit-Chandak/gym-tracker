@@ -167,3 +167,10 @@ export const profileInputSchema = z
   });
 
 export type ProfileInput = z.output<typeof profileInputSchema>;
+
+/** Account setup is independent of optional coaching measurements and goals. */
+export const basicProfileInputSchema = z.object({
+  displayName: z.preprocess(asString, z.string().trim().max(80)),
+  timeZone: timeZoneSchema,
+  preferredUnit: z.enum(BODY_LOAD_UNITS),
+});

@@ -72,13 +72,13 @@ describe("withUser", () => {
     const { db, tx } = fakeDb([null]);
     const order: string[] = [];
     (tx.execute as ReturnType<typeof vi.fn>).mockImplementation(async () => {
-      order.push("claims");
+      order.push(order.length === 0 ? "claims" : "athlete lock");
       return [];
     });
     await withUser(db, "user-1", async () => {
       order.push("work");
       return null;
     });
-    expect(order).toEqual(["claims", "work"]);
+    expect(order).toEqual(["claims", "athlete lock", "work"]);
   });
 });

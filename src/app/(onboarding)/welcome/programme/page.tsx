@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { ProgrammeOptions } from "@/components/coaching/programme-options";
+import { SavedProgrammeWork } from "@/components/coaching/saved-work";
 
 import { ProgramTemplatePicker } from "@/components/program-template-picker";
 import { PageContent } from "@/components/shell/page-content";
@@ -22,8 +24,10 @@ export default async function WelcomeProgrammePage() {
   return (
     <PageContent>
       <Steps current="programme" />
+      <SavedProgrammeWork onboarding />
+      <ProgrammeOptions onboarding />
       <Card>
-        <h1 className="text-xl font-medium">Pick a programme</h1>
+        <h2 className="text-xl font-medium">Or start with a suggested template</h2>
         <ProgramTemplatePicker
           templates={PROGRAM_TEMPLATES.map((template) => ({
             slug: template.slug,
