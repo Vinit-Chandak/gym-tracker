@@ -423,7 +423,10 @@ says it is optional. The messages for an empty form are sentences again.
 fall on a lifting day, so a coach that placed two easy 5ks on the athlete's own running days
 was refused, and the only way through was to attach them to the gym days and make those days
 longer than the hour agreed. The intake asks about running in its own right, and lifting days
-and run days are counted against their own answers.
+and run days are counted against their own answers. Run again afterwards for an athlete who
+lifts Monday, Tuesday, Thursday and Friday and runs on Wednesday and Saturday, the coach
+delivered exactly that: four lifting days on the weekdays they named, and two run days of
+their own.
 
 **Setup lost track of itself.** Leaving partway through and coming back began again at step
 one, and the gym step never mentioned the gym already added: typing the name again made a
