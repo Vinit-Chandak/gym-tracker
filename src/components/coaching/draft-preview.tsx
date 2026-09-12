@@ -14,7 +14,31 @@ import {
 import type { ProgramDraft } from "@/server/repositories/program-drafts";
 import type { ProgramChangeAssessment } from "@/domain/program-change";
 import type { BlueprintExercise, ProgramBlueprint } from "@/domain/program-blueprint";
+import type { MuscleGroup } from "@/domain/types";
+import { MUSCLE_LABELS, rangeLabel } from "@/lib/labels";
 import { WEEKDAYS } from "./intake-form";
+/** "Quads 8, glutes 6" — the muscles as they are named everywhere else, not as they are keyed. */
+function muscleSets(sets: Partial<Record<string, number>>): string {
+  const entries = Object.entries(sets);
+  if (entries.length === 0) return "no known lifting targets";
+  return entries
+    .map(([muscle, count], i) => {
+      const label = MUSCLE_LABELS[muscle as MuscleGroup] ?? muscle;
+      return `${i === 0 ? label : label.toLowerCase()} ${count}`;
+    })
+    .join(", ");
+}
+
+/** "6 weeks · 4 days per cycle · 91 lifting sets per cycle", counting one of anything as one. */
+function shape(blueprint: ProgramBlueprint): string {
+  const sets = blueprint.days.reduce(
+    (total, day) => total + day.exercises.reduce((sum, e) => sum + e.sets, 0),
+    0,
+  );
+  const plural = (count: number, noun: string) => `${count} ${noun}${count === 1 ? "" : "s"}`;
+  return `${plural(blueprint.weeks, "week")} · ${plural(blueprint.days.length, "day")} per cycle · ${plural(sets, "lifting set")} per cycle`;
+}
+
 export function DraftPreview({
   draft,
   library,
@@ -76,14 +100,7 @@ export function DraftPreview({
     <div className="space-y-4">
       <Card>
         <h1 className="text-2xl font-medium">{current.blueprint.name}</h1>
-        <p className="text-sm text-ink-muted">
-          {current.blueprint.weeks} weeks · {current.blueprint.days.length} days per cycle ·{" "}
-          {current.blueprint.days.reduce(
-            (total, day) => total + day.exercises.reduce((sum, e) => sum + e.sets, 0),
-            0,
-          )}{" "}
-          lifting sets per cycle
-        </p>
+        <p className="text-sm text-ink-muted">{shape(current.blueprint)}</p>
         {current.rationale && <p className="text-sm whitespace-pre-wrap">{current.rationale}</p>}
         {current.blueprint.notes && (
           <p className="text-sm whitespace-pre-wrap text-ink-muted">{current.blueprint.notes}</p>
@@ -109,18 +126,18 @@ export function DraftPreview({
                 ? "The programme structure and targets are unchanged."
                 : "Exercise choices or targets change. You can keep your current position in the block."}
           </p>
-          {assessment.muscleCoverage.map((day) => (
-            <p key={day.dayIndex} className="text-xs text-ink-muted">
-              Day {day.dayIndex}:{" "}
-              {Object.entries(day.planned.sets)
-                .map(([m, n]) => `${m} ${n}`)
-                .join(", ") || "no known lifting targets"}{" "}
-              →{" "}
-              {Object.entries(day.next.sets)
-                .map(([m, n]) => `${m} ${n}`)
-                .join(", ") || "no known lifting targets"}
-            </p>
-          ))}
+          {assessment.muscleCoverage
+            // A day with no lifting on either side of the change says nothing; a list of
+            // them is noise between the days that did change.
+            .filter(
+              (day) =>
+                Object.keys(day.planned.sets).length > 0 || Object.keys(day.next.sets).length > 0,
+            )
+            .map((day) => (
+              <p key={day.dayIndex} className="text-xs text-ink-muted">
+                Day {day.dayIndex}: {muscleSets(day.planned.sets)} → {muscleSets(day.next.sets)}
+              </p>
+            ))}
           {currentBlueprint && (
             <details>
               <summary className="min-h-11 cursor-pointer py-2">
@@ -182,10 +199,10 @@ export function DraftPreview({
                   {library.find((x) => x.slug === e.exerciseSlug)?.name ?? e.exerciseSlug}
                 </p>
                 <p className="text-sm text-ink-muted">
-                  {e.sets} × {(e.reps ?? e.duration ?? e.distance)!.join("–")}
+                  {e.sets} × {span(e.reps ?? e.duration ?? e.distance)}
                   {e.duration ? " seconds" : e.distance ? " metres" : " reps"}
-                  {e.perSide ? " per side" : ""} · RIR {e.rir?.join("–") ?? "unspecified"} · Rest{" "}
-                  {e.rest.join("–")} s
+                  {e.perSide ? " per side" : ""} · RIR {e.rir ? span(e.rir) : "unspecified"} · Rest{" "}
+                  {span(e.rest)} s
                 </p>
                 {e.supersetGroup && (
                   <p className="text-xs text-accent">Superset: {e.supersetGroup}</p>
@@ -336,6 +353,12 @@ export function DraftPreview({
     </div>
   );
 }
+/** "4–6", or "5" when a range's ends agree — as targets read everywhere else. */
+function span(range: readonly [number, number] | null | undefined): string {
+  if (!range) return "—";
+  return rangeLabel(range[0], range[1]);
+}
+
 function targets(exercise: BlueprintExercise) {
-  return `${exercise.sets} × ${(exercise.reps ?? exercise.duration ?? exercise.distance)!.join("–")} ${exercise.duration ? "s" : exercise.distance ? "m" : "reps"}${exercise.perSide ? " per side" : ""} · RIR ${exercise.rir?.join("–") ?? "unspecified"} · rest ${exercise.rest.join("–")} s`;
+  return `${exercise.sets} × ${span(exercise.reps ?? exercise.duration ?? exercise.distance)} ${exercise.duration ? "s" : exercise.distance ? "m" : "reps"}${exercise.perSide ? " per side" : ""} · RIR ${exercise.rir ? span(exercise.rir) : "unspecified"} · rest ${span(exercise.rest)} s`;
 }
