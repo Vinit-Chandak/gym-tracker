@@ -430,6 +430,27 @@ export function ProgramBuilder({
                       <legend>Week {run.weekIndex}</legend>
                       <div className="grid grid-cols-2 gap-3">
                         <RangeFields
+                          label="Kilometres"
+                          value={run.distanceKm ?? [NaN, NaN]}
+                          onChange={(distanceKm) =>
+                            change({
+                              runs: plan.runs.map((r) =>
+                                r === run
+                                  ? {
+                                      ...r,
+                                      // Both ends cleared means the run is set by time alone.
+                                      distanceKm: distanceKm.every(
+                                        (value) => !Number.isFinite(value),
+                                      )
+                                        ? undefined
+                                        : distanceKm,
+                                    }
+                                  : r,
+                              ),
+                            })
+                          }
+                        />
+                        <RangeFields
                           label="Minutes"
                           value={run.duration}
                           onChange={(duration) =>

@@ -115,8 +115,20 @@ export const blueprintDaySchema = z.object({
 export const blueprintRunSchema = z.object({
   weekIndex: z.number().int().min(1).max(52),
   dayOfWeek: z.number().int().min(1).max(7),
-  duration: range(z.number().int().min(1).max(600)),
-  rpe: range(z.number().min(0).max(10)),
+  // A week of a run day is written a week at a time, so these say which answer is missing
+  // rather than reporting the shape of the value that was not a number.
+  duration: range(z.number("Give every run week its minutes.").int().min(1).max(600)),
+  /**
+   * How far, in kilometres. Optional, because a run can be prescribed by time alone — but a
+   * block built around "an easy 5k twice a week" is built around the distance, and with only
+   * a duration to go on nothing downstream can tell that it was deliberately held flat.
+   */
+  distanceKm: range(
+    z.number("Give both ends of a run's kilometres, or leave them empty to go by time."),
+  )
+    .pipe(z.tuple([z.number().min(0.1).max(100), z.number().min(0.1).max(100)]))
+    .optional(),
+  rpe: range(z.number("Give every run week its effort.").min(0).max(10)),
   paceNote: z.string().max(300).default(""),
   progressionNote: z.string().max(300).default(""),
   /** When to stop early, e.g. a niggle that worsens as the run goes on. */

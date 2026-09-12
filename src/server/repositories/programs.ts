@@ -282,6 +282,8 @@ export async function createProgramFromBlueprint(
         dayOfWeek: run.dayOfWeek,
         durationMinMinutes: run.duration[0],
         durationMaxMinutes: run.duration[1],
+        distanceMinKm: run.distanceKm?.[0] ?? null,
+        distanceMaxKm: run.distanceKm?.[1] ?? null,
         rpeMin: run.rpe[0],
         rpeMax: run.rpe[1],
         paceNote: run.paceNote,
@@ -416,6 +418,10 @@ export async function readProgramBlueprint(
       weekIndex: run.weekIndex,
       dayOfWeek: run.dayOfWeek,
       duration: [run.durationMinMinutes, run.durationMaxMinutes],
+      distanceKm:
+        run.distanceMinKm === null
+          ? undefined
+          : ([run.distanceMinKm, run.distanceMaxKm ?? run.distanceMinKm] as [number, number]),
       rpe: [run.rpeMin ?? 0, run.rpeMax ?? run.rpeMin ?? 0],
       paceNote: run.paceNote ?? "",
       progressionNote: run.progressionNote ?? "",

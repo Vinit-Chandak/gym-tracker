@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 
 import { Card } from "@/components/ui/card";
+import { runSummary, type RunTargets } from "@/components/run-plan";
 import { DetailList } from "@/components/ui/detail-list";
 import { Disclosure } from "@/components/ui/disclosure";
 import { FormError, SubmitButton } from "@/components/ui/form";
@@ -12,7 +13,7 @@ import { Section } from "@/components/ui/section";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select } from "@/components/ui/select";
 import { formatPace, paceSecondsPerKm } from "@/domain/pace";
-import { rangeLabel, WEEKDAY_SHORT } from "@/lib/labels";
+import { WEEKDAY_SHORT } from "@/lib/labels";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
 import type { PlannedRunStatus } from "@/server/repositories/runs";
 import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
@@ -83,10 +84,8 @@ type Props = {
 export function plannedRunLabel(run: {
   weekIndex: number;
   dayOfWeek: number;
-  durationMinMinutes: number;
-  durationMaxMinutes: number;
-}): string {
-  return `Week ${run.weekIndex} · ${WEEKDAY_SHORT[run.dayOfWeek] ?? "Run"} · ${rangeLabel(run.durationMinMinutes, run.durationMaxMinutes, " min")}`;
+} & RunTargets): string {
+  return `Week ${run.weekIndex} · ${WEEKDAY_SHORT[run.dayOfWeek] ?? "Run"} · ${runSummary(run)}`;
 }
 
 export function RunForm({ action, initial, planned, runId, submitLabel, coach = null }: Props) {
