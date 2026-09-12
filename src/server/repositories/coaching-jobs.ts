@@ -363,16 +363,31 @@ export async function acceptCoachJobResult(
         .from(coachIntakes)
         .where(and(eq(coachIntakes.id, job.intakeId), eq(coachIntakes.userId, userId)));
       if (!intake) throw new CoachingError("Your confirmed answers are unavailable.", 422);
-      const trainingDays = blueprint.days.filter((day) => day.includesLifting || day.includesRun);
+      // Sessions and runs are counted separately, against the answers the athlete gave for
+      // each. Counting a run as a session made an athlete who lifts four days and runs on two
+      // rest days impossible to program for: the runs had to be folded into the lifting days
+      // to pass, which lengthened exactly the days whose time the athlete had agreed.
+      const { sessionsPerWeek, preferredDays, runsPerWeek, preferredRunDays } = intake.answers;
+      const liftingDays = blueprint.days.filter((day) => day.includesLifting);
+      const runDays = blueprint.days.filter((day) => day.includesRun);
       if (
-        trainingDays.length !== intake.answers.sessionsPerWeek ||
-        (intake.answers.preferredDays.length &&
-          trainingDays.some((day) => !intake.answers.preferredDays.includes(day.dayOfWeek)))
+        liftingDays.length !== sessionsPerWeek ||
+        (preferredDays.length &&
+          liftingDays.some((day) => !preferredDays.includes(day.dayOfWeek)))
       )
         throw new CoachingError(
           "The programme must match your confirmed training frequency and preferred days. Ask for clarification if those constraints cannot be met.",
           422,
         );
+      if (
+        (runsPerWeek !== null && runDays.length !== runsPerWeek) ||
+        (preferredRunDays.length && runDays.some((day) => !preferredRunDays.includes(day.dayOfWeek)))
+      )
+        throw new CoachingError(
+          "The running must match the runs a week and run days you confirmed. Ask for clarification if those cannot be met.",
+          422,
+        );
+      const trainingDays = blueprint.days.filter((day) => day.includesLifting || day.includesRun);
       if (new Set(trainingDays.map((day) => day.dayOfWeek)).size !== trainingDays.length)
         throw new CoachingError("Use a distinct weekday for each confirmed training day.", 422);
     }
@@ -407,9 +422,16 @@ export async function acceptCoachJobResult(
           .set({ status: "superseded" })
           .where(eq(programDrafts.id, draftId));
       } else if (assessment.authority === "automatic" && coachRollout().automaticReviews) {
+        // The athlete's own today, not the owner's: a review activated for someone in Los
+        // Angeles was being started on India's date, which is most of a day ahead of theirs.
+        const [athlete] = await db
+          .select({ timeZone: profiles.timeZone })
+          .from(profiles)
+          .where(eq(profiles.id, userId))
+          .limit(1);
         await activateProgramDraft(db, userId, draftId, {
           expectedRevision: draft!.revision,
-          startDate: todayInTimeZone("Asia/Kolkata", now),
+          startDate: todayInTimeZone(athlete?.timeZone ?? "UTC", now),
           transition: "continue",
         });
         reviewOutcome = "automatic";

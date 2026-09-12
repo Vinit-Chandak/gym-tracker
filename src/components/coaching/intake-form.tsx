@@ -217,7 +217,7 @@ export function CoachIntakeForm({
     }
   }
   const number = (
-    key: "sessionsPerWeek" | "minutesPerSession" | "weightKg" | "heightCm",
+    key: "sessionsPerWeek" | "minutesPerSession" | "runsPerWeek" | "weightKg" | "heightCm",
     label: string,
     min: number,
     max: number,
@@ -356,6 +356,34 @@ export function CoachIntakeForm({
                 />
               </Field>
             ))}
+            {number("runsPerWeek", "Runs a week (optional)", 0, 7)}
+            {answers.runsPerWeek !== null && answers.runsPerWeek > 0 && (
+              <fieldset>
+                <legend className="mb-2 text-sm text-ink-muted">
+                  Preferred run days (leave blank for flexible days). A run day may be one of
+                  your training days or a day of its own.
+                </legend>
+                <div className="grid grid-cols-2 gap-2">
+                  {WEEKDAYS.map((day, i) => (
+                    <label key={day} className="flex min-h-11 items-center gap-2">
+                      <input
+                        type="checkbox"
+                        className="size-5 accent-[var(--ov-accent)]"
+                        checked={answers.preferredRunDays.includes(i + 1)}
+                        onChange={(e) =>
+                          change({
+                            preferredRunDays: e.target.checked
+                              ? [...answers.preferredRunDays, i + 1].sort()
+                              : answers.preferredRunDays.filter((d) => d !== i + 1),
+                          })
+                        }
+                      />
+                      {day}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            )}
             <Field label="Where will you train?">
               <select
                 className={INPUT_CLASS}
@@ -781,10 +809,21 @@ export function CoachIntakeForm({
                   answers.preferredDays.map((d) => WEEKDAYS[d - 1]).join(", ") || "Flexible",
                 ],
                 [
+                  "Running",
+                  answers.runsPerWeek === null
+                    ? "Not supplied"
+                    : answers.runsPerWeek === 0
+                      ? "No runs"
+                      : `${answers.runsPerWeek} a week · ${
+                          answers.preferredRunDays.map((d) => WEEKDAYS[d - 1]).join(", ") ||
+                          "flexible days"
+                        }`,
+                ],
+                [
+                  // Every other unanswered row says so plainly; this one used to echo the
+                  // select's own placeholder back as though it were an answer.
                   "Review day",
-                  answers.reviewWeekday
-                    ? WEEKDAYS[answers.reviewWeekday - 1]!
-                    : "Choose a rest day",
+                  answers.reviewWeekday ? WEEKDAYS[answers.reviewWeekday - 1]! : "Not supplied",
                 ],
                 ["Location", gyms.find((g) => g.id === answers.gymId)?.name ?? "Choose a location"],
                 ["Restrictions", answers.restrictions || "None reported"],
