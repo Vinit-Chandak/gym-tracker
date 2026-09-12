@@ -55,7 +55,10 @@ export function TokenManager({
   }[];
 }) {
   const [state, action, pending] = useActionState(createCoachTokenAction, {} as TokenState);
-  const [copied, setCopied] = useState(false),
+  // Which token was copied, not merely that one was: a second token replaces the first in this
+  // panel, and a "Copied" left over from the first would vouch for a secret shown only once.
+  const [copiedToken, setCopiedToken] = useState<string | null>(null),
+    [copyFailed, setCopyFailed] = useState(false),
     [hidden, setHidden] = useState<string | null>(null);
   return (
     <div className="space-y-4">
@@ -103,25 +106,33 @@ export function TokenManager({
                 onClick={async () => {
                   try {
                     await navigator.clipboard.writeText(state.token!);
-                    setCopied(true);
+                    setCopiedToken(state.token!);
+                    setCopyFailed(false);
                   } catch {
-                    setCopied(false);
+                    setCopiedToken(null);
+                    setCopyFailed(true);
                   }
                 }}
               >
-                {copied ? "Copied" : "Copy token"}
+                {copiedToken === state.token ? "Copied" : "Copy token"}
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => {
                   setHidden(state.token!);
-                  setCopied(false);
+                  setCopiedToken(null);
+                  setCopyFailed(false);
                 }}
               >
                 Hide token
               </Button>
             </div>
+            {copyFailed && (
+              <p role="alert" className="text-sm text-danger">
+                Could not copy it. Select the token above and copy it by hand.
+              </p>
+            )}
           </div>
         )}
       </Card>

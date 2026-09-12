@@ -138,13 +138,23 @@ function suggestionHeadline(exercise: ExerciseVM, unit: string, holdAll: boolean
   }
   switch (kind) {
     case "coach": {
+      // A coach plan may deliberately leave the load open — a first session, or a machine with
+      // nothing on record — and there is then no load to hold. Say what it does ask for.
+      const known = first?.weight !== null && first?.weight !== undefined;
+      const reps = first?.reps !== null && first?.reps !== undefined ? first.reps : null;
       const target = !first
         ? null
         : first.reps === null && first.distanceMeters
-          ? `${load(first.weight)} × ${first.distanceMeters} m`
+          ? known
+            ? `${load(first.weight)} × ${first.distanceMeters} m`
+            : `${first.distanceMeters} m`
           : first.durationSeconds && first.reps === null
             ? `${first.durationSeconds} s`
-            : `${load(first.weight)}${first.reps !== null && first.reps !== undefined ? ` × ${first.reps}` : ""}`;
+            : known
+              ? `${load(first.weight)}${reps === null ? "" : ` × ${reps}`}`
+              : reps === null
+                ? null
+                : `${reps} ${reps === 1 ? "rep" : "reps"}`;
       const note = exercise.coachNote;
       return {
         kind,

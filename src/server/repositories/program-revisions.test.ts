@@ -200,6 +200,7 @@ describe("approving a change", () => {
     });
     const context = await as((tx) => planningContext(tx, user.id, { gymId }));
     if (context.reason) throw new Error(context.reason);
+    const plannedSlot = context.exercises[0]!;
     const plan = await as((tx) =>
       storePlan(tx, user.id, {
         slot: { cycleIndex: context.slot.cycleIndex, dayIndex: context.slot.dayIndex },
@@ -207,7 +208,9 @@ describe("approving a change", () => {
         trigger: "nightly",
         plan: {
           summary: "Arms and an easy run.",
-          exercises: [{ exerciseSlug: context.exercises[0]!.planned.slug, sets: [] }],
+          exercises: [
+            { slotId: plannedSlot.slotId, exerciseSlug: plannedSlot.planned.slug, sets: [] },
+          ],
         },
       }),
     );
@@ -269,9 +272,15 @@ describe("approving a change", () => {
     const schedule = await as((tx) => getSchedule(tx, user.id));
     expect(schedule?.program.id).toBe(after.id);
 
-    // A plan written against the old version names slots that are gone, so it is dropped.
-    const [stale] = await t.db.select().from(sessionPlans).where(eq(sessionPlans.id, plan.id));
-    expect(stale?.status).toBe("void");
+    // The plan the athlete was already given is not a casualty of a change to another day: it
+    // moves onto the new version by lineage, naming that version's own slot.
+    const [carried] = await t.db.select().from(sessionPlans).where(eq(sessionPlans.id, plan.id));
+    expect(carried?.status).toBe("active");
+    expect(carried?.programId).toBe(after.id);
+    expect(carried?.exercises).toHaveLength(1);
+    const carriedSlot = afterSlots.find((slot) => slot.id === carried?.exercises[0]?.slotId);
+    expect(carriedSlot?.lineageId).toBe(plannedSlot.lineageId);
+    expect(carried?.exercises[0]?.slotId).not.toBe(plannedSlot.slotId);
 
     const [record] = await t.db
       .select()
@@ -280,6 +289,51 @@ describe("approving a change", () => {
     expect(record?.status).toBe("applied");
     expect(record?.appliedProgramId).toBe(after.id);
     expect(record?.appliedAt).not.toBeNull();
+  });
+
+  it("lets the change itself govern the slots it rewrote, and voids a plan with nothing left", async () => {
+    const context = await as((tx) => planningContext(tx, user.id, { gymId }));
+    if (context.reason) throw new Error(context.reason);
+    const first = context.exercises[0]!;
+    const second = context.exercises[1]!;
+    if (!first.lineageId || !second.lineageId) throw new Error("slots must carry lineage");
+    const plan = await as((tx) =>
+      storePlan(tx, user.id, {
+        slot: { cycleIndex: context.slot.cycleIndex, dayIndex: context.slot.dayIndex },
+        gymId,
+        trigger: "nightly",
+        plan: {
+          summary: "Two lifts, both spoken for.",
+          exercises: [
+            { slotId: first.slotId, exerciseSlug: first.planned.slug, sets: [] },
+            { slotId: second.slotId, exerciseSlug: second.planned.slug, sets: [] },
+          ],
+        },
+      }),
+    );
+
+    // The athlete has just approved new numbers for the first slot; the plan's entry for it was
+    // written against the old ones, so that slot follows the programme and the other is kept.
+    const trim = await propose([
+      { op: "adjust", lineageId: first.lineageId, sets: 2, reason: "The day runs long." },
+    ]);
+    await as((tx) => applyProposal(tx, user.id, trim.id));
+    const [afterAdjust] = await t.db
+      .select()
+      .from(sessionPlans)
+      .where(eq(sessionPlans.id, plan.id));
+    expect(afterAdjust?.status).toBe("active");
+    expect(afterAdjust?.exercises.map((entry) => entry.exerciseSlug)).toEqual([
+      second.planned.slug,
+    ]);
+
+    // Removing the one slot it has left leaves the plan with nothing of its own to say.
+    const drop = await propose([
+      { op: "remove", lineageId: second.lineageId, reason: "Covered elsewhere." },
+    ]);
+    await as((tx) => applyProposal(tx, user.id, drop.id));
+    const [emptied] = await t.db.select().from(sessionPlans).where(eq(sessionPlans.id, plan.id));
+    expect(emptied?.status).toBe("void");
   });
 
   it("refuses a change proposed against a version that has since moved on", async () => {

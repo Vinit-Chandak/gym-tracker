@@ -99,6 +99,76 @@ whitespace checks cover the committed source and report. No live deployment was 
 The broader source formatting check reports 175 pre-existing style warnings in untouched files;
 those files were not reformatted as part of this checkpoint.
 
+## Coach round: what was exercised and what changed
+
+The coach itself ran three times against the running app, as the routine does: a nightly plan
+for an athlete with nothing on record, a re-plan asked from Today at a second gym with a time
+constraint, and a nightly plan after a session had been logged against the first. Each run was a
+separate agent following `.claude/skills/coach/SKILL.md` with no knowledge of this audit, and
+each was asked afterwards what the API, the scripts and the skill made hard. Their answers, and
+the browser and API checks around them, produced the changes below.
+
+Verified end to end: a nightly plan reaching Today and the session built from it (drops,
+supersets, machine choices and set counts all carried into the logger); an on-demand re-plan
+firing the routine, Today reporting it, and the page updating itself when the plan landed
+minutes later; a plan made for another gym saying so instead of being used; the owner's daily
+runs exhausted, a rejected routine token, an unexpected answer and a run that never reported,
+each with its own message and the fifteen-minute reconciliation behind it; a programme
+revision applied around an open session; warnings shown under a partial plan; the coach
+switched off and on again with a plan waiting; and the read API's six endpoints, token expiry
+options, real expiry, revocation, the ten-token cap, paging, date limits and per-account
+isolation.
+
+### Fixed
+
+- Every workout session page threw a hydration error and repainted: Node's ICU and the
+  browser's disagree about the comma after a short weekday, so the server wrote
+  "Sat 12 Sept, 11:47" and the page "Sat, 12 Sept, 11:47". Weekday dates are now assembled from
+  the formatter's parts, so both write the same words.
+- One re-plan spent two of the athlete's three daily asks: the athlete's request and the coach's
+  own record of the run were both counted. `coach_requests.initiated_by` now says who asked, and
+  only the athlete's own asks count. Nothing the coach does of its own accord can spend one.
+- An ask that never became a run — the owner's allowance gone, a routine that would not take the
+  app's token — is given back. A run that started and then failed is still spent.
+- Applying a programme change threw away the coach's plan for the day. The plan now moves onto
+  the new version by slot lineage; only what the change itself rewrote follows the new
+  programme, and a plan left with nothing to say is dropped as before.
+- With a workout open, Today showed a plan that had landed after the session started rather than
+  the one being trained.
+- `lastPlans` could not support the rules built on it: the coach's own past plans came back as
+  display names with no identifiers, and what was performed carried no RIR. They now carry the
+  slot, its lineage, the exercise and the machine, and performances keep the RIR they were
+  logged at.
+- The coach could not tell a gym from the athlete's usual one, could not read the athlete's own
+  words for a re-plan, and was handed a `reason: null` that means "nothing to plan" beside a
+  perfectly good context. The context now marks the default gym, carries the athlete's ask, and
+  sends `reason` only when there is nothing to plan.
+- The coach had no idea when its next session or the athlete's next run fell. The context now
+  says how many slots behind the programme is running and where the next running day is.
+- `submit.ts` told the coach to retry a rejection no edit can fix; it now separates "fix these
+  and submit again" from "this slot will not take a plan". The skill's own commands recorded a
+  re-plan as a nightly run with no gym against it, and said nothing about closing the athlete's
+  request when there was nothing to plan.
+- Dismissing a proposed programme change lit up "Applying…" on the button beside it.
+- A coach plan that deliberately leaves the load open said "the same load × 5" when nothing had
+  ever been logged.
+- The day's Start and Resume buttons answered to "Start Lower A" while showing "Start workout",
+  so voice control could not reach them.
+- A skipped exercise in a finished session read the same as one that was never done.
+- Creating a second coach token while the first was still on screen left the button saying
+  "Copied" for a token that had never been copied, and a clipboard that refused said nothing.
+- An unexpected failure while asking the coach showed the athlete whatever the error said,
+  database messages included.
+
+### Noted, not changed
+
+- `weightStep` resolves the machine's own increment before the exercise's, then 2.5 kg. A stack
+  that moves in 5 kg steps cannot be asked for 2.5, so the machine wins on purpose.
+- A free-weight exercise resolves as available at any gym unless the gym is marked as lacking
+  the equipment, so "direct" is an assumption rather than a confirmation. The skill now says so.
+- `src/domain/coach-cadence.ts` is groundwork for the weekly review in the AI-first plan and is
+  not wired to anything yet.
+
 ## Remaining interactive tests
 
 This is a checkpoint, not a claim that every feature or combination has passed. Automated

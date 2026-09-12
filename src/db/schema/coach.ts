@@ -14,7 +14,12 @@ import {
 import type { PlanWarning } from "../../domain/coach-review";
 import type { StoredPlanExercise, StoredPlanRun } from "../../domain/session-plan";
 import { ownerPolicy, timestamps } from "./common";
-import { coachRequestStatusEnum, planStatusEnum, planTriggerEnum } from "./enums";
+import {
+  coachRequestInitiatorEnum,
+  coachRequestStatusEnum,
+  planStatusEnum,
+  planTriggerEnum,
+} from "./enums";
 import { gyms } from "./gyms";
 import { profiles } from "./profiles";
 import { programDays, programs } from "./programs";
@@ -75,6 +80,11 @@ export const coachRequests = pgTable(
     gymId: uuid("gym_id").references(() => gyms.id, { onDelete: "set null" }),
     /** Which kind of planning this was, so a failed nightly run is visible beside a re-plan. */
     trigger: planTriggerEnum("trigger").notNull().default("replan"),
+    /**
+     * Who started it. The athlete's daily allowance counts only their own asks, so the coach's
+     * own runs and records never spend a request the athlete could have used.
+     */
+    initiatedBy: coachRequestInitiatorEnum("initiated_by").notNull().default("coach"),
     status: coachRequestStatusEnum("status").notNull().default("requested"),
     reason: text("reason"),
     routineSessionId: text("routine_session_id"),

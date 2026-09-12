@@ -1,6 +1,7 @@
 import { pgEnum } from "drizzle-orm/pg-core";
 
 import {
+  COACH_REQUEST_INITIATORS,
   COACH_REQUEST_STATUSES,
   EQUIPMENT_CATEGORIES,
   EXERCISE_CATEGORIES,
@@ -41,5 +42,9 @@ export const slotPartEnum = pgEnum("slot_part", SLOT_PARTS);
 export const planStatusEnum = pgEnum("plan_status", PLAN_STATUSES);
 export const planTriggerEnum = pgEnum("plan_trigger", PLAN_TRIGGERS);
 export const coachRequestStatusEnum = pgEnum("coach_request_status", COACH_REQUEST_STATUSES);
+export const coachRequestInitiatorEnum = pgEnum(
+  "coach_request_initiator",
+  COACH_REQUEST_INITIATORS,
+);
 export const sexEnum = pgEnum("sex", SEXES);
 export const trainingGoalEnum = pgEnum("training_goal", TRAINING_GOALS);

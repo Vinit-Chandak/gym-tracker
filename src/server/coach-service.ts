@@ -132,7 +132,10 @@ export async function handleCoachServiceRequest(
             { ...meta, error: "Nothing to plan for this athlete.", reason: context.reason },
             409,
           );
-        return json({ ...meta, ...context });
+        // `reason` says why there was nothing to plan, so it belongs only on the 409. Sending
+        // it as null beside a real context reads as "the athlete gave no reason for this plan".
+        const { reason: _nothingToPlan, ...plannable } = context;
+        return json({ ...meta, ...plannable });
       }
       if (rest.length === 1 && rest[0] === "plans" && method === "POST") {
         const body = planBodySchema.safeParse(await request.json().catch(() => null));

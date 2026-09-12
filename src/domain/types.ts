@@ -118,6 +118,15 @@ export type PlanAction = (typeof PLAN_ACTIONS)[number];
 export const COACH_REQUEST_STATUSES = ["requested", "planned", "failed"] as const;
 export type CoachRequestStatus = (typeof COACH_REQUEST_STATUSES)[number];
 
+/**
+ * Who set a planning run going. Only what the athlete asked for counts against their daily
+ * allowance: a nightly run, a plan the coach decides to refresh on its own and the coach's own
+ * record of what it tried are the system's doing, and spending the athlete's asks on them would
+ * take away requests they never made.
+ */
+export const COACH_REQUEST_INITIATORS = ["athlete", "coach"] as const;
+export type CoachRequestInitiator = (typeof COACH_REQUEST_INITIATORS)[number];
+
 export const MUSCLE_GROUPS = [
   "chest",
   "front_delts",

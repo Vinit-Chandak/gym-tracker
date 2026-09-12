@@ -20,7 +20,17 @@ const POLL_MS = 15_000;
  * timer until the plan lands or the request times out on the server, so the athlete can
  * leave the app open and come back to a plan.
  */
-export function CoachPending({ startedAt, gymName }: { startedAt: string; gymName: string }) {
+export function CoachPending({
+  startedAt,
+  startedAtLabel,
+  gymName,
+}: {
+  /** When the request was made, for the polling deadline. */
+  startedAt: string;
+  /** The same moment in the athlete's own time zone, formatted on the server as everywhere else. */
+  startedAtLabel: string;
+  gymName: string;
+}) {
   const router = useRouter();
   useEffect(() => {
     const until = new Date(startedAt).getTime() + REQUEST_TIMEOUT_MINUTES * 60_000;
@@ -47,10 +57,9 @@ export function CoachPending({ startedAt, gymName }: { startedAt: string; gymNam
       window.removeEventListener("online", refresh);
     };
   }, [router, startedAt]);
-  const time = new Date(startedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   return (
     <p role="status" className="text-sm text-ink-muted">
-      Coach is planning for {gymName}, since {time}. This screen updates itself.
+      Coach is planning for {gymName}, since {startedAtLabel}. This screen updates itself.
     </p>
   );
 }

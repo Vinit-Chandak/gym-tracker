@@ -252,7 +252,13 @@ export function WorkoutOverview({
       ) : (
         <List>
           {session.exercises.map((exercise) => {
-            const action = readOnly ? { label: "View", tone: "muted" } : rowAction(exercise);
+            // A finished session is a record of what happened, so a skipped exercise still says
+            // it was skipped; without that it reads the same as one that was simply never done.
+            const action: { label: string; tone: "accent" | "muted" } = readOnly
+              ? exercise.skippedAt
+                ? { label: "Skipped", tone: "muted" }
+                : { label: "View", tone: "muted" }
+              : rowAction(exercise);
             const hue = exercise.supersetGroup ? hues.get(exercise.supersetGroup) : undefined;
             return (
               <li key={exercise.id}>

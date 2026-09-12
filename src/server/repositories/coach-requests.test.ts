@@ -64,6 +64,8 @@ async function request(user: Athlete, overrides: Partial<typeof coachRequests.$i
         userId: user.id,
         gymId: user.gymId,
         requestedAt: NOW,
+        // What the athlete asked for, as createCoachRequest writes it.
+        initiatedBy: "athlete",
         ...overrides,
       })
       .returning(),
@@ -96,6 +98,43 @@ async function submit(
   );
   return { status: response.status, body: await response.json() };
 }
+
+describe("what the athlete asked for", () => {
+  it("hands the coach the athlete's own words, for the gym they asked about", async () => {
+    const user = await athlete();
+    const asked = await request(user, { reason: "Short on time today — about 45 minutes." });
+    const atThatGym = await withUser(t.db, user.id, (tx) =>
+      planningContext(tx, user.id, { gymId: user.gymId }),
+    );
+    expect(atThatGym.request).toMatchObject({ id: asked.id, reason: asked.reason });
+    // The same ask says nothing about a different gym, and a context with something to plan
+    // never carries the "nothing to plan" reason as a field of its own.
+    const elsewhere = await withUser(t.db, user.id, (tx) =>
+      planningContext(tx, user.id, { gymId: user.otherGymId }),
+    );
+    expect(elsewhere.request).toBeNull();
+    expect(atThatGym.reason).toBeNull();
+
+    // Over the wire, a context with something to plan carries no `reason` field at all: there it
+    // only ever means "nothing to plan", and null beside a real plan reads as "nothing was said".
+    const response = await handleCoachServiceRequest(
+      t.db,
+      new Request(
+        `https://app.test/api/coach/service/users/${user.id}/context?gymId=${user.gymId}`,
+        { headers: { authorization: `Bearer ${TOKEN}` } },
+      ),
+      ["users", user.id, "context"],
+    );
+    const body = (await response.json()) as Record<string, unknown>;
+    expect(response.status).toBe(200);
+    expect("reason" in body).toBe(false);
+    expect(body.request).toMatchObject({ reason: asked.reason });
+    expect(body.gym).toMatchObject({ isDefault: true });
+    // When the next session falls, and when the next run does, so a race can be planned towards.
+    expect(body.programme).toMatchObject({ slotsBehind: expect.any(Number) });
+    expect(body.programme).toHaveProperty("nextRun");
+  });
+});
 
 describe("durable request timeouts", () => {
   it("persists a timeout and shows the failure on the same Today read", async () => {

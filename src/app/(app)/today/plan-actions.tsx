@@ -39,22 +39,26 @@ export function StartPlannedButton({
   dayIndex,
   label,
   variant = "primary",
-  ariaLabel,
+  dayName,
 }: {
   gymId: string | null;
   programDayId: string;
   dayIndex: number;
   label: string;
   variant?: ButtonVariant;
-  /** Names the day when the visible label is shared by several buttons on one screen. */
-  ariaLabel?: string;
+  /**
+   * Names the day when the visible label is shared by several buttons on one screen. It is
+   * added to the label rather than replacing it, so that saying what the button says still
+   * reaches it: an accessible name that leaves the visible words out answers to neither.
+   */
+  dayName?: string;
 }) {
   const [pending, startTransition] = useTransition();
   return (
     <Button
       size="lg"
       variant={variant}
-      aria-label={ariaLabel}
+      aria-label={dayName ? `${label}: ${dayName}` : undefined}
       className="w-full"
       disabled={gymId === null || pending}
       onClick={() => {

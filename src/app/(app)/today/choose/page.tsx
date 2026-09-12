@@ -93,7 +93,7 @@ export default async function ChooseDayPage() {
                           programDayId={day.id}
                           dayIndex={day.dayIndex}
                           label="Start"
-                          ariaLabel={`Start ${day.name}`}
+                          dayName={day.name}
                           // One calm button per row: seven primary buttons make none primary.
                           variant="secondary"
                         />

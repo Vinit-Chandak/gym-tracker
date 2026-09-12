@@ -11,7 +11,7 @@ import {
 } from "@/domain/program-patch";
 import type { ProposalSource } from "@/domain/types";
 
-import { voidPlansForProgram } from "./coach-plans";
+import { carryPlansToRevision } from "./coach-plans";
 import { createProgramFromBlueprint, readProgramBlueprint } from "./programs";
 
 /**
@@ -236,8 +236,14 @@ export async function applyProposal(
       })),
     );
   }
-  // Plans written against the old version name slots that no longer exist.
-  await voidPlansForProgram(db, userId, program.id);
+  // A plan written against the old version names slots that no longer exist, but it is still
+  // the plan the athlete was given: it moves onto the new version by lineage, minus whatever
+  // this change itself rewrote.
+  await carryPlansToRevision(db, userId, {
+    fromProgramId: program.id,
+    toProgramId: created.id,
+    patch: patch.data,
+  });
 
   const now = new Date();
   await db
