@@ -1,4 +1,5 @@
 "use client";
+import { coachingAction } from "./client-action";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -36,7 +37,7 @@ export function ProgrammeOptions({ onboarding = false }: { onboarding?: boolean 
           variant="ghost"
           onClick={async () => {
             setBusy(true);
-            const result = await chooseTrainingModeAction("track");
+            const result = await coachingAction(() => chooseTrainingModeAction("track"));
             if (result.ok) router.push("/today");
             else setError(result.error);
             setBusy(false);

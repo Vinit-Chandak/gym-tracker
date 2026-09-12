@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { setWarmupCompletedAction } from "@/server/actions/sessions";
 
 import type { ExerciseVM, SessionVM } from "./view-model";
+import { attempted } from "@/lib/offline-submit";
 
 /** What the row's action says, which is also what tapping it does. */
 function rowAction(exercise: ExerciseVM): { label: string; tone: "accent" | "muted" } {
@@ -65,14 +66,16 @@ function WarmupRow({
 
   const toggleDone = () =>
     startTransition(async () => {
-      try {
-        const result = await setWarmupCompletedAction(session.id, !done);
-        if (!result.ok) {
-          setError(result.error);
-          return;
-        }
-      } catch {
-        setError("Connection lost. Try again when connected.");
+      const outcome = await attempted(
+        () => setWarmupCompletedAction(session.id, !done),
+        "Connection lost. Try again when connected.",
+      );
+      if (!outcome.ok) {
+        setError(outcome.message);
+        return;
+      }
+      if (!outcome.value.ok) {
+        setError(outcome.value.error);
         return;
       }
       onDone(!done);
@@ -152,8 +155,6 @@ function WarmupRow({
 type OverviewProps = {
   session: SessionVM;
   readOnly: boolean;
-  holdAll: boolean;
-  onHoldAllChange: (value: boolean) => void;
   hasDrafts: boolean;
   onOpenExercise: (workoutExerciseId: string) => void;
   onOpenDetails: () => void;
@@ -163,8 +164,6 @@ type OverviewProps = {
 export function WorkoutOverview({
   session,
   readOnly,
-  holdAll,
-  onHoldAllChange,
   hasDrafts,
   onOpenExercise,
   onOpenDetails,
@@ -202,9 +201,9 @@ export function WorkoutOverview({
           <div className="flex items-center justify-between gap-3">
             <h2 className="flex items-center gap-1 text-base font-medium">
               Recovery check
-              <InfoTip label="About holding loads">
-                Advice only. Holding prefills last session&apos;s loads instead of the rule&apos;s
-                targets; any set can still be changed.
+              <InfoTip label="About the recovery check">
+                Advice only. Nothing here changes the targets you were given; every set is yours to
+                set as you find it.
               </InfoTip>
             </h2>
             <Badge tone="warning">Advice</Badge>
@@ -217,20 +216,6 @@ export function WorkoutOverview({
               </li>
             ))}
           </ul>
-          <Button
-            variant={holdAll ? "primary" : "secondary"}
-            size="sm"
-            aria-pressed={holdAll}
-            onClick={() => onHoldAllChange(!holdAll)}
-          >
-            {holdAll ? (
-              <>
-                Holding loads today <Check aria-hidden />
-              </>
-            ) : (
-              "Hold loads today"
-            )}
-          </Button>
         </Card>
       )}
 

@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { InfoTip } from "@/components/ui/info-tip";
 import { Field, Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { attempted, keepsErrorOnDisconnect } from "@/lib/offline-submit";
 import {
   createCoachTokenAction,
   revokeCoachTokenAction,
@@ -23,11 +24,11 @@ function Revoke({ id }: { id: string }) {
         disabled={pending}
         onClick={() =>
           startTransition(async () => {
-            try {
-              setError((await revokeCoachTokenAction(id)).error);
-            } catch {
-              setError("Connection lost. Retry revoking.");
-            }
+            const outcome = await attempted(
+              () => revokeCoachTokenAction(id),
+              "Connection lost. Retry revoking.",
+            );
+            setError(outcome.ok ? outcome.value.error : outcome.message);
           })
         }
       >
@@ -54,7 +55,10 @@ export function TokenManager({
     expired: boolean;
   }[];
 }) {
-  const [state, action, pending] = useActionState(createCoachTokenAction, {} as TokenState);
+  const [state, action, pending] = useActionState(
+    keepsErrorOnDisconnect(createCoachTokenAction),
+    {} as TokenState,
+  );
   // Which token was copied, not merely that one was: a second token replaces the first in this
   // panel, and a "Copied" left over from the first would vouch for a secret shown only once.
   const [copiedToken, setCopiedToken] = useState<string | null>(null),

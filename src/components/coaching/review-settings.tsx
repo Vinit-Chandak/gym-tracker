@@ -1,4 +1,5 @@
 "use client";
+import { coachingAction } from "./client-action";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -41,7 +42,7 @@ export function WeeklyReviewSettings({
         disabled={busy || !day || day === weekday}
         onClick={async () => {
           setBusy(true);
-          const result = await saveReviewWeekdayAction(day);
+          const result = await coachingAction(() => saveReviewWeekdayAction(day));
           if (result.ok) {
             setError(null);
             router.refresh();

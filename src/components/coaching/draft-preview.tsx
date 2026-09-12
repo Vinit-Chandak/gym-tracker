@@ -1,4 +1,5 @@
 "use client";
+import { coachingAction } from "./client-action";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
@@ -47,7 +48,9 @@ export function DraftPreview({
   const editable = ["editing", "ready"].includes(current.status);
   async function check() {
     setBusy(true);
-    const result = await reviewProgramDraftAction(current.id, current.revision);
+    const result = await coachingAction(() =>
+      reviewProgramDraftAction(current.id, current.revision),
+    );
     if (result.ok) {
       setCurrent(result.value);
       setNeedsCheck(false);
@@ -57,12 +60,14 @@ export function DraftPreview({
   }
   async function activate() {
     setBusy(true);
-    const result = await activateProgramDraftAction({
-      id: current.id,
-      revision: current.revision,
-      startDate,
-      transition,
-    });
+    const result = await coachingAction(() =>
+      activateProgramDraftAction({
+        id: current.id,
+        revision: current.revision,
+        startDate,
+        transition,
+      }),
+    );
     if (result.ok) router.push("/today");
     else setError(result.error);
     setBusy(false);
@@ -312,7 +317,7 @@ export function DraftPreview({
             disabled={busy}
             onClick={async () => {
               setBusy(true);
-              const result = await rejectProgramDraftAction(current.id);
+              const result = await coachingAction(() => rejectProgramDraftAction(current.id));
               if (result.ok) router.push(base);
               else setError(result.error);
               setBusy(false);

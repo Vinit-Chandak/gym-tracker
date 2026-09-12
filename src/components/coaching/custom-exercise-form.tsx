@@ -1,4 +1,5 @@
 "use client";
+import { coachingAction } from "./client-action";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
@@ -35,15 +36,17 @@ export function CustomExerciseForm({
         e.preventDefault();
         setBusy(true);
         setError(null);
-        const result = await createCustomExerciseAction({
-          name,
-          category,
-          modality,
-          measurement,
-          primaryMuscles: muscles,
-          equipmentInstanceId: equipment || null,
-          notes,
-        });
+        const result = await coachingAction(() =>
+          createCustomExerciseAction({
+            name,
+            category,
+            modality,
+            measurement,
+            primaryMuscles: muscles,
+            equipmentInstanceId: equipment || null,
+            notes,
+          }),
+        );
         if (result.ok) router.push(`/exercises/${result.value.id}` as Route);
         else setError(result.error);
         setBusy(false);

@@ -1,4 +1,5 @@
 "use client";
+import { coachingAction } from "./client-action";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
@@ -13,7 +14,7 @@ export function ProgrammeTools({ id, active = true }: { id: string; active?: boo
   async function copy(duplicate: boolean) {
     setBusy(true);
     setError(null);
-    const result = await copyProgramAction(id, duplicate);
+    const result = await coachingAction(() => copyProgramAction(id, duplicate));
     if (result.ok) router.push(`/settings/programme/manual?draft=${result.value.id}` as Route);
     else setError(result.error);
     setBusy(false);
@@ -46,7 +47,7 @@ export function ProgrammeTools({ id, active = true }: { id: string; active?: boo
               disabled={busy}
               onClick={async () => {
                 setBusy(true);
-                const result = await archiveProgramAction(id);
+                const result = await coachingAction(() => archiveProgramAction(id));
                 if (result.ok) router.refresh();
                 else setError(result.error);
                 setArchive(false);

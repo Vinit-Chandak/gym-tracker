@@ -5,6 +5,7 @@ import { useActionState, useState } from "react";
 
 import { Field, Input } from "@/components/ui/input";
 import { FormError, SubmitButton } from "@/components/ui/form";
+import { keepsErrorOnDisconnect } from "@/lib/offline-submit";
 import { adoptProgramTemplateAction, type AdoptProgramState } from "@/server/actions/programs";
 
 export type TemplateOption = {
@@ -34,7 +35,10 @@ export function ProgramTemplatePicker({
   /** Set on the last onboarding step: adopting also ends setup. */
   finishOnboarding?: boolean;
 }) {
-  const [state, formAction] = useActionState(adoptProgramTemplateAction, INITIAL);
+  const [state, formAction] = useActionState(
+    keepsErrorOnDisconnect(adoptProgramTemplateAction),
+    INITIAL,
+  );
   const [chosen, setChosen] = useState(templates[0]?.slug ?? "");
 
   if (templates.length === 0) {

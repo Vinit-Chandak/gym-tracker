@@ -7,6 +7,7 @@ import { InfoTip } from "@/components/ui/info-tip";
 import { Row } from "@/components/ui/link-row";
 import { Switch } from "@/components/ui/switch";
 import { setRestTimerEnabledAction } from "@/server/actions/sessions";
+import { attempted } from "@/lib/offline-submit";
 
 /** One row, one switch. The state is visible; nothing needs to say what it currently is. */
 export function RestTimerSetting({ enabled }: { enabled: boolean }) {
@@ -18,11 +19,11 @@ export function RestTimerSetting({ enabled }: { enabled: boolean }) {
     startTransition(async () => {
       show(next);
       setError(null);
-      try {
-        await setRestTimerEnabledAction(next);
-      } catch {
-        setError("Could not save. Check your connection and try again.");
-      }
+      const outcome = await attempted(
+        () => setRestTimerEnabledAction(next),
+        "Could not save. Check your connection and try again.",
+      );
+      if (!outcome.ok) setError(outcome.message);
     });
 
   return (

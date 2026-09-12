@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { setDefaultGymAction } from "@/server/actions/gyms";
 import { requestCoachPlanAction } from "@/server/actions/coach";
 import { useRouter } from "next/navigation";
+import { attempted } from "@/lib/offline-submit";
 
 export type SwitcherGym = { id: string; name: string; kind: GymKind; isDefault: boolean };
 
@@ -34,20 +35,19 @@ export function GymSwitcher({
   function choose(gymId: string): void {
     startTransition(async () => {
       setError(null);
-      try {
+      const outcome = await attempted(async () => {
         if (workflow) {
           if (gymId !== current?.id) {
-            const result = await requestCoachPlanAction(gymId, "");
-            if (!result.ok) {
-              setError(result.error);
-              return;
-            }
+            return requestCoachPlanAction(gymId, "");
           }
         } else await setDefaultGymAction(gymId);
+        return { ok: true as const };
+      }, "Could not change gym. Check your connection and try again.");
+      if (!outcome.ok) setError(outcome.message);
+      else if (!outcome.value.ok) setError(outcome.value.error);
+      else {
         setOpen(false);
         router.refresh();
-      } catch {
-        setError("Could not change gym. Check your connection and try again.");
       }
     });
   }

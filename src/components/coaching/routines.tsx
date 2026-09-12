@@ -1,4 +1,5 @@
 "use client";
+import { coachingAction } from "./client-action";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
@@ -58,7 +59,7 @@ export function RoutineLibrary({
             onClick={async () => {
               setBusy(true);
               setError(null);
-              const result = await startRoutineAction(routine.id, gymId);
+              const result = await coachingAction(() => startRoutineAction(routine.id, gymId));
               if (result.ok) router.push(`/workouts/${result.value.sessionId}` as Route);
               else setError(result.error);
               setBusy(false);
@@ -106,7 +107,7 @@ export function SaveWorkoutRoutine({ sessionId, name }: { sessionId: string; nam
           disabled={busy || !title.trim()}
           onClick={async () => {
             setBusy(true);
-            const result = await saveWorkoutRoutineAction(sessionId, title);
+            const result = await coachingAction(() => saveWorkoutRoutineAction(sessionId, title));
             if (result.ok) router.push("/settings/routines");
             else setError(result.error);
             setBusy(false);

@@ -8,6 +8,7 @@ import { FormError, SubmitButton } from "@/components/ui/form";
 import { Field, Input, Textarea } from "@/components/ui/input";
 import { Section } from "@/components/ui/section";
 import type { BodyLoadUnit } from "@/domain/types";
+import { keepsFormOnDisconnect } from "@/lib/offline-submit";
 import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
 
 type Props = {
@@ -21,7 +22,7 @@ type Props = {
 
 export function FinishForm({ action, initialBodyWeight, unit, userId, sessionId }: Props) {
   const drafts = useSessionDrafts(userId, sessionId);
-  const [state, formAction] = useActionState(action, INITIAL_FORM_STATE);
+  const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
   return (
     <form action={formAction} className="space-y-[var(--section-gap)]">
       <Section title="About this session">

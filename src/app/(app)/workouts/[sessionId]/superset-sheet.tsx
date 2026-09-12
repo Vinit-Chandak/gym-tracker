@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { removeSupersetAction, saveSupersetAction } from "@/server/actions/sessions";
 
 import type { ExerciseVM } from "./view-model";
+import { attempted } from "@/lib/offline-submit";
 
 type SupersetSheetProps = {
   sessionId: string;
@@ -61,17 +62,16 @@ export function SupersetSheet({
   const save = () =>
     startTransition(async () => {
       setError(null);
-      try {
-        const result = await saveSupersetAction(sessionId, {
-          group,
-          workoutExerciseIds: selected,
-        });
-        if (!result.ok) {
-          setError(result.error);
-          return;
-        }
-      } catch {
-        setError("Could not save the superset. Check your connection and try again.");
+      const outcome = await attempted(
+        () => saveSupersetAction(sessionId, { group, workoutExerciseIds: selected }),
+        "Could not save the superset. Check your connection and try again.",
+      );
+      if (!outcome.ok) {
+        setError(outcome.message);
+        return;
+      }
+      if (!outcome.value.ok) {
+        setError(outcome.value.error);
         return;
       }
       onClose();
@@ -81,14 +81,16 @@ export function SupersetSheet({
     startTransition(async () => {
       if (group === null) return;
       setError(null);
-      try {
-        const result = await removeSupersetAction(sessionId, group);
-        if (!result.ok) {
-          setError(result.error);
-          return;
-        }
-      } catch {
-        setError("Could not remove the superset. Check your connection and try again.");
+      const outcome = await attempted(
+        () => removeSupersetAction(sessionId, group),
+        "Could not remove the superset. Check your connection and try again.",
+      );
+      if (!outcome.ok) {
+        setError(outcome.message);
+        return;
+      }
+      if (!outcome.value.ok) {
+        setError(outcome.value.error);
         return;
       }
       onClose();

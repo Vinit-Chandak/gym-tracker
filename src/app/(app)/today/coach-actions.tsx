@@ -9,6 +9,7 @@ import { Field, Input } from "@/components/ui/input";
 import { REQUEST_TIMEOUT_MINUTES } from "@/domain/coach-request";
 import { cn } from "@/lib/utils";
 import { requestCoachPlanAction } from "@/server/actions/coach";
+import { attempted } from "@/lib/offline-submit";
 
 export type CoachGym = { id: string; name: string; isDefault: boolean };
 
@@ -100,14 +101,16 @@ export function CoachRequestPanel({
   const submit = () =>
     startTransition(async () => {
       setError(null);
-      try {
-        const result = await requestCoachPlanAction(gymId, reason);
-        if (!result.ok) {
-          setError(result.error);
-          return;
-        }
-      } catch {
-        setError("Connection lost. Try again when connected.");
+      const outcome = await attempted(
+        () => requestCoachPlanAction(gymId, reason),
+        "Connection lost. Try again when connected.",
+      );
+      if (!outcome.ok) {
+        setError(outcome.message);
+        return;
+      }
+      if (!outcome.value.ok) {
+        setError(outcome.value.error);
         return;
       }
       onDone();

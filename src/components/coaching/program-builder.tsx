@@ -1,6 +1,7 @@
 "use client";
+import { coachingAction } from "./client-action";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, unstable_rethrow } from "next/navigation";
 import type { Route } from "next";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -99,15 +100,20 @@ export function ProgramBuilder({
     setError(null);
     setMessage(null);
     try {
-      const result = await saveProgramDraftAction(plan, draft?.id, draft?.revision);
+      const result = await coachingAction(() =>
+        saveProgramDraftAction(plan, draft?.id, draft?.revision),
+      );
       if (!result.ok) throw new Error(result.error);
       setDraft({ id: result.value.id, revision: result.value.revision });
       if (preview) {
-        const checked = await reviewProgramDraftAction(result.value.id, result.value.revision);
+        const checked = await coachingAction(() =>
+          reviewProgramDraftAction(result.value.id, result.value.revision),
+        );
         if (!checked.ok) throw new Error(checked.error);
         router.push(`${base}/drafts/${result.value.id}` as Route);
       } else setMessage("Draft saved. You can return to it from Programme.");
     } catch (e) {
+      unstable_rethrow(e);
       setError(e instanceof Error ? e.message : "Could not save the draft.");
     } finally {
       setBusy(false);
@@ -467,7 +473,7 @@ export function ProgramBuilder({
               disabled={busy}
               onClick={async () => {
                 setBusy(true);
-                const result = await saveRoutineAction(day.name, day);
+                const result = await coachingAction(() => saveRoutineAction(day.name, day));
                 setBusy(false);
                 if (result.ok) setMessage(`Saved “${day.name}” to your routines.`);
                 else setError(result.error);

@@ -9,7 +9,7 @@ import {
   saveCoachIntakeAction,
 } from "@/server/actions/coaching-workflow";
 const { push } = vi.hoisted(() => ({ push: vi.fn() }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push }), unstable_rethrow: vi.fn() }));
 vi.mock("@/server/actions/coaching-workflow", () => ({
   saveCoachIntakeAction: vi.fn(),
   createCoachProgramAction: vi.fn(),
@@ -88,6 +88,23 @@ it("saves the latest detailed prompt before leaving a step and shows a failed sa
     "Answers changed on another device.",
   );
   expect((screen.getByLabelText("Usual minutes per session") as HTMLInputElement).value).toBe("30");
+});
+
+it("keeps the intake editable when an action response is lost", async () => {
+  render(<CoachIntakeForm {...props} />);
+  vi.mocked(saveCoachIntakeAction).mockRejectedValueOnce(new TypeError("Failed to fetch"));
+  fireEvent.change(screen.getByLabelText("Your full brief (optional)"), {
+    target: { value: "Keep this unsaved brief." },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  expect((await screen.findByRole("alert")).textContent).toContain("Connection lost");
+  expect((screen.getByLabelText("Your full brief (optional)") as HTMLTextAreaElement).value).toBe(
+    "Keep this unsaved brief.",
+  );
+  expect((screen.getByRole("button", { name: "Continue" }) as HTMLButtonElement).disabled).toBe(
+    false,
+  );
+  expect(createCoachProgramAction).not.toHaveBeenCalled();
 });
 it("removes a retained report and its request reference before continuing", async () => {
   const report = {

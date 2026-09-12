@@ -3,7 +3,7 @@
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { Button, LinkButton } from "@/components/ui/button";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { useOnline } from "@/components/shell/connectivity";
 import { Card } from "@/components/ui/card";
@@ -17,6 +17,9 @@ export default function AppError({
 }) {
   const router = useRouter(),
     online = useOnline();
+  // The promise about drafts is only true where there are drafts: they belong to a set
+  // being logged, and on Runs or Settings there is nothing of the sort to reassure anyone about.
+  const inWorkout = usePathname().startsWith("/workouts/");
   const [pending, startTransition] = useTransition();
   return (
     <>
@@ -26,7 +29,9 @@ export default function AppError({
           <p className="text-sm text-ink-muted">
             {online
               ? "The page could not load. Retry to fetch it again."
-              : "You’re offline. Reconnect and try again. Unsaved set drafts stay on this device."}
+              : inWorkout
+                ? "You’re offline. Reconnect and try again. Unsaved set drafts stay on this device."
+                : "You’re offline. Reconnect and try again."}
           </p>
           {error.digest && <p className="text-xs text-ink-subtle">Reference: {error.digest}</p>}
           <Button

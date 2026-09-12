@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import type { EquipmentCategory } from "@/domain/types";
 import { EQUIPMENT_CATEGORY_LABELS } from "@/lib/labels";
+import { keepsFormOnDisconnect } from "@/lib/offline-submit";
 import { addStarterEquipmentAction } from "@/server/actions/onboarding";
 import type { EquipmentTypeOption } from "@/server/repositories/equipment";
 import { INITIAL_FORM_STATE } from "@/server/validation/form";
@@ -24,7 +25,10 @@ export function EquipmentStepForm({
   gymId: string;
   types: EquipmentTypeOption[];
 }) {
-  const [state, formAction] = useActionState(addStarterEquipmentAction, INITIAL_FORM_STATE);
+  const [state, formAction] = useActionState(
+    keepsFormOnDisconnect(addStarterEquipmentAction),
+    INITIAL_FORM_STATE,
+  );
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [query, setQuery] = useState("");
   const selectable = types.filter(

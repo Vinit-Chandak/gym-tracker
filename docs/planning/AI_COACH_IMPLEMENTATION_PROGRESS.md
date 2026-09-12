@@ -89,7 +89,7 @@ Verification: all 381 tests in 53 files passed, as did type checking, lint, chan
 
 ## September 12: complete application workflow and account fixes
 
-Audited the two referenced tasks (`01a08f40-6c9c-7051-bcf3-7179863ad3aa` and `01a08f79-a22b-7803-907a-7bdebdde0a84`) and main's history. The planning and foundation slices had been merged through `c35892d`; the personalized screens, durable execution and manual flows had not been implemented. This branch starts from main at `8ce3130`.
+Audited the two referenced tasks (`01a08f40-6c9c-7051-bcf3-7179863ad3aa` and `01a08f79-a22b-7803-907a-7bdebdde0a84`) and main's history. The planning and foundation slices had been merged through `c35892d`; the personalized screens, durable execution and manual flows had not been implemented. This branch starts from main at `8ce3130` and incorporates main's later PR #19 through `8ca8a29`, preserving its logging/form recovery and expired-session fixes. The new coaching screens use the same disconnected-action handling, with controlled inputs retained and navigation errors rethrown.
 
 The deletion code removed the public profile before attempting optional Auth deletion, then reported success even when the admin credential was unavailable. A read-only account lifecycle check found a retained confirmed Auth identity and a later recreated profile. Repeat signup could therefore encounter the existing identity, send no new signup confirmation, and still show the old success message. The profile fallback also omitted signup name metadata. Email autoconfirm was disabled in the inspected database; actual SMTP delivery and production admin-credential availability remain separate live checks.
 
@@ -107,7 +107,7 @@ Implemented:
 
 Verification:
 
-- `npm test`: 480 tests passed in 78 files. New checks cover the actual authenticated service, ownership and freshness, first programme activation, shared quota/local midnight, 502 additional eligible accounts across dispatcher pages, report removal, retry receipts, optional-profile routing, manual history and rollout behavior.
+- `npm test`: 501 tests passed in 81 files after incorporating PR #19. New checks cover the actual authenticated service, ownership and freshness, first programme activation, shared quota/local midnight, 502 additional eligible accounts across dispatcher pages, report removal, retry receipts, optional-profile routing, disconnected intake recovery, manual history and rollout behavior.
 - `npm run typecheck`, `npx eslint src scripts`, and `npm run build`: passed. Changed-file Prettier and the diff whitespace check passed. Repository-wide lint still includes pre-existing generated `.next-qa` files, so the lint result reported here is explicitly for application and script sources.
 - Phone-size browser checks: programme choices, six-step intake, retained reports, draft review, manual targets/optional RIR, and selection of all 71 machines. No browser console errors observed. These are synthetic previews; model generation and real email were not simulated as live success.
 - Read-only live preflight found zero accounts with multiple active programmes. No live database records or schema were changed. Real migrations and account cascades ran in the isolated PGlite test database.

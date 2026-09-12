@@ -1,7 +1,8 @@
 "use client";
+import { coachingAction } from "./client-action";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, unstable_rethrow } from "next/navigation";
 import type { Route } from "next";
 import { Button, LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -90,7 +91,9 @@ export function CoachIntakeForm({
       while (saved.current !== JSON.stringify(current.current)) {
         const snapshot = current.current,
           serialized = JSON.stringify(snapshot);
-        const result = await saveCoachIntakeAction(snapshot, revision.current);
+        const result = await coachingAction(() =>
+          saveCoachIntakeAction(snapshot, revision.current),
+        );
         if (!result.ok) {
           setSaveState("Not saved — retry before leaving.");
           throw new Error(result.error);
@@ -116,7 +119,10 @@ export function CoachIntakeForm({
     setSaveState("Saving…");
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => {
-      void flush().catch((e) => setError(e.message));
+      void flush().catch((e) => {
+        unstable_rethrow(e);
+        setError(e.message);
+      });
     }, 700);
   }
   async function move(next: number) {
@@ -127,6 +133,7 @@ export function CoachIntakeForm({
       setStep(next);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (e) {
+      unstable_rethrow(e);
       setError(e instanceof Error ? e.message : "Could not save your answers.");
     } finally {
       setBusy(false);
@@ -138,11 +145,15 @@ export function CoachIntakeForm({
     try {
       validateIntake(current.current);
       await flush();
-      if (!intakeId.current) throw new Error("Save your answers first.");
-      const result = await createCoachProgramAction(intakeId.current, requestKey);
+      const savedIntakeId = intakeId.current;
+      if (!savedIntakeId) throw new Error("Save your answers first.");
+      const result = await coachingAction(() =>
+        createCoachProgramAction(savedIntakeId, requestKey),
+      );
       if (!result.ok) throw new Error(result.error);
       router.push(`${base}/jobs/${result.value.jobId}` as Route);
     } catch (e) {
+      unstable_rethrow(e);
       setError(
         e && typeof e === "object" && "issues" in e
           ? (e.issues as { message: string }[]).map((i) => i.message).join(" ")
@@ -182,6 +193,7 @@ export function CoachIntakeForm({
       }
       await flush();
     } catch (e) {
+      unstable_rethrow(e);
       setError(e instanceof Error ? e.message : "The upload failed.");
     } finally {
       setBusy(false);
@@ -192,12 +204,13 @@ export function CoachIntakeForm({
     setError(null);
     try {
       await flush();
-      const result = await removeCoachAttachmentAction(file.id);
+      const result = await coachingAction(() => removeCoachAttachmentAction(file.id));
       if (!result.ok) throw new Error(result.error);
       setFiles((previous) => previous.filter((f) => f.id !== file.id));
       change({ attachmentIds: current.current.attachmentIds.filter((id) => id !== file.id) });
       await flush();
     } catch (e) {
+      unstable_rethrow(e);
       setError(e instanceof Error ? e.message : "Could not remove this file.");
     } finally {
       setBusy(false);
@@ -840,6 +853,7 @@ export function CoachIntakeForm({
             await flush();
             router.push(base);
           } catch (e) {
+            unstable_rethrow(e);
             setError(e instanceof Error ? e.message : "Could not save.");
           } finally {
             setBusy(false);
