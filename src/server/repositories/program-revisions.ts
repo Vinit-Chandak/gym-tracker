@@ -45,14 +45,25 @@ function toView(row: Proposal): ProposalView | null {
 /** Proposals still waiting on the athlete, newest first. */
 export async function listOpenProposals(db: DbOrTx, userId: string): Promise<ProposalView[]> {
   const rows = await db
-    .select()
+    .select({ proposal: programChangeProposals })
     .from(programChangeProposals)
+    .innerJoin(programs, eq(programs.id, programChangeProposals.programId))
     .where(
-      and(eq(programChangeProposals.userId, userId), eq(programChangeProposals.status, "proposed")),
+      and(
+        eq(programChangeProposals.userId, userId),
+        eq(programChangeProposals.status, "proposed"),
+        // A change proposed against a programme that has since been archived names slots the
+        // athlete no longer trains. Applying it can only ever be refused, so it is not
+        // offered: it stays in the record below, where it reads as history rather than as a
+        // decision still waiting.
+        eq(programs.status, "active"),
+      ),
     )
     .orderBy(desc(programChangeProposals.createdAt))
     .limit(20);
-  return rows.map(toView).filter((view): view is ProposalView => view !== null);
+  return rows
+    .map((row) => toView(row.proposal))
+    .filter((view): view is ProposalView => view !== null);
 }
 
 /** Everything ever proposed for this account, for the record on the programme screen. */

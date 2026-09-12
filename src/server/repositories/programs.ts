@@ -74,7 +74,7 @@ async function referenceIds(
     blueprintExerciseSlugs(blueprint).every((slug) => ids.exerciseIdBySlug.has(slug)) &&
     blueprint.days.every(
       (day) =>
-        ids.warmupIdBySlug.has(day.warmupSlug) &&
+        (day.warmupSlug === "" || ids.warmupIdBySlug.has(day.warmupSlug)) &&
         day.exercises.every((exercise) =>
           (exercise.fallbacks ?? []).every(
             (fallback) =>
@@ -140,7 +140,8 @@ export async function createProgramFromBlueprint(
   // Resolve every reference first, so a blueprint naming something unknown writes nothing.
   const dayValues = blueprint.days.map((day) => ({
     day,
-    warmupProtocolId: requireId(warmupIdBySlug, day.warmupSlug, "warm-up protocol"),
+    warmupProtocolId:
+      day.warmupSlug === "" ? null : requireId(warmupIdBySlug, day.warmupSlug, "warm-up protocol"),
     exercises: day.exercises.map((exercise, index) => ({
       exercise,
       orderIndex: index + 1,
@@ -369,7 +370,7 @@ export async function readProgramBlueprint(
       notes: day.notes ?? "",
       includesLifting: day.includesLifting,
       includesRun: day.includesRun,
-      warmupSlug: warmupSlug ?? "daily-mobility",
+      warmupSlug: warmupSlug ?? "",
       exercises: slots
         .filter((row) => row.slot.programDayId === day.id)
         .map(({ slot, slug }) => ({

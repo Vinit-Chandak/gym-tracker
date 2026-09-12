@@ -56,6 +56,20 @@ export const coachIntakeSchema = z.object({
     .default([])
     .refine((days) => new Set(days).size === days.length, "Choose each weekday once."),
   minutesPerSession: z.number().int().min(10).max(240).nullable().default(null),
+  /**
+   * Running, asked for in its own right.
+   *
+   * A run is not a gym session, and an athlete who lifts four days and runs on two of their
+   * rest days was previously unable to say so: the coach had to fold the runs into the
+   * lifting days to pass validation, which made those days longer than the athlete had
+   * agreed to. Left null, the coach decides, as before.
+   */
+  runsPerWeek: z.number().int().min(0).max(7).nullable().default(null),
+  preferredRunDays: z
+    .array(weekday)
+    .max(7)
+    .default([])
+    .refine((days) => new Set(days).size === days.length, "Choose each weekday once."),
   dayMinutes: z
     .array(z.object({ day: weekday, minutes: z.number().int().min(10).max(240) }))
     .max(7)
@@ -95,6 +109,16 @@ export function validateIntake(input: unknown): CoachIntake {
           code: "custom",
           path: ["preferredDays"],
           message: "Choose as many preferred days as sessions, or leave days flexible.",
+        });
+      if (
+        answers.preferredRunDays.length > 0 &&
+        answers.runsPerWeek !== null &&
+        answers.preferredRunDays.length !== answers.runsPerWeek
+      )
+        ctx.addIssue({
+          code: "custom",
+          path: ["preferredRunDays"],
+          message: "Choose as many run days as runs, or leave the days flexible.",
         });
     })
     .parse(input);

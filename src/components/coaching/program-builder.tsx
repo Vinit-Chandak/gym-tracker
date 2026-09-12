@@ -233,13 +233,13 @@ export function ProgramBuilder({
               onChange={(e) => dayChange(d, { focus: e.target.value })}
             />
           </Field>
-          <Field label="Warm-up">
+          <Field label="Warm-up (optional)">
             <select
               className={INPUT_CLASS}
               value={day.warmupSlug}
               onChange={(e) => dayChange(d, { warmupSlug: e.target.value })}
             >
-              <option value="">Choose a warm-up</option>
+              <option value="">No warm-up</option>
               {warmups.map((w) => (
                 <option key={w.slug} value={w.slug}>
                   {w.name}

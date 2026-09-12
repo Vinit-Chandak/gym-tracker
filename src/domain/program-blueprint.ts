@@ -96,15 +96,19 @@ export const blueprintDaySchema = z.object({
   /** Position in the cycle, 1-based and contiguous. */
   dayIndex: z.number().int().min(1).max(31),
   /** ISO weekday the day usually falls on, 1 = Monday. */
-  dayOfWeek: z.number().int().min(1).max(7),
-  name: z.string().min(1).max(80),
+  dayOfWeek: z.number().int().min(1, "Choose the weekday each day falls on.").max(7),
+  name: z.string().min(1, "Name every day.").max(80),
   focus: z.string().max(120).default(""),
   timeNote: z.string().max(120).default(""),
   effortNote: z.string().max(120).default(""),
   notes: z.string().max(500).default(""),
   includesLifting: z.boolean(),
   includesRun: z.boolean(),
-  warmupSlug: slug,
+  /**
+   * The shared warm-up this day uses, or "" for none. A programme written by hand is often
+   * just the work: the warm-up is a choice, not a thing every day must carry.
+   */
+  warmupSlug: z.union([slug, z.literal("")]).default(""),
   exercises: z.array(blueprintExerciseSchema).max(30),
 });
 
@@ -124,10 +128,12 @@ export const programBlueprintSchema = z
   .object({
     blueprintVersion: z.literal(BLUEPRINT_VERSION),
     slug: slug.max(60),
-    name: z.string().min(1).max(120),
-    weeks: z.number().int().min(1).max(52),
+    // These four are what someone typing a programme in by hand leaves blank, so they say
+    // what to do rather than reporting the shape of the value that was missing.
+    name: z.string().min(1, "Name your programme.").max(120),
+    weeks: z.number().int().min(1, "Set how many weeks it runs.").max(52),
     notes: z.string().max(2000).default(""),
-    days: z.array(blueprintDaySchema).min(1).max(31),
+    days: z.array(blueprintDaySchema).min(1, "Add at least one day.").max(31),
     runs: z.array(blueprintRunSchema).max(200).default([]),
   })
   .superRefine((plan, ctx) => {

@@ -143,6 +143,37 @@ describe("proposing a change", () => {
     expect((await as((tx) => listProposals(tx, user.id)))[0]?.status).toBe("rejected");
   });
 
+  /**
+   * A change proposed against a programme the athlete has since left behind names slots they
+   * no longer train: applying it can only ever be refused. It stopped being offered, and
+   * stayed in the record as history.
+   */
+  it("stops offering a change once its programme is archived", async () => {
+    const lineageId = await lineageOf(1, 0);
+    await propose(
+      [{ op: "adjust", lineageId, sets: 4, reason: "Squats are moving well." }],
+      "Fourth squat set.",
+    );
+    expect(await as((tx) => listOpenProposals(tx, user.id))).toHaveLength(1);
+    await withUser(t.db, user.id, (tx) =>
+      tx
+        .update(programs)
+        .set({ status: "archived" })
+        .where(and(eq(programs.userId, user.id), eq(programs.status, "active"))),
+    );
+    expect(await as((tx) => listOpenProposals(tx, user.id))).toEqual([]);
+    expect(await as((tx) => listProposals(tx, user.id))).not.toEqual([]);
+    // The account is shared with the tests below, which train on that programme.
+    await withUser(t.db, user.id, (tx) =>
+      tx
+        .update(programs)
+        .set({ status: "active" })
+        .where(and(eq(programs.userId, user.id), eq(programs.status, "archived"))),
+    );
+    const restored = await as((tx) => listOpenProposals(tx, user.id));
+    for (const proposal of restored) await as((tx) => rejectProposal(tx, user.id, proposal.id));
+  });
+
   it("is invisible to other accounts", async () => {
     const other = await t.createAuthUser("not-mine@example.com");
     const rows = await withUser(t.db, other.id, (tx) => tx.select().from(programChangeProposals));

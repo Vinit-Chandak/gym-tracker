@@ -12,7 +12,7 @@ import { todayInTimeZone } from "@/domain/program-calendar";
 import { requireProfiledUser } from "@/server/auth";
 import { ensureProfile } from "@/server/queries/profile";
 
-import { SkipLink } from "../skip-link";
+import { FinishSetupLink } from "../skip-link";
 import { Steps } from "../steps";
 
 export const metadata: Metadata = { title: "Choose a programme" };
@@ -41,7 +41,7 @@ export default async function WelcomeProgrammePage() {
           finishOnboarding
         />
       </Card>
-      <SkipLink label="I'll train without a programme" />
+      <FinishSetupLink label="I'll train without a programme" />
     </PageContent>
   );
 }

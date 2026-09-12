@@ -17,8 +17,15 @@ export async function SavedProgrammeWork({ onboarding = false }: { onboarding?: 
     ]),
   );
   const base = onboarding ? "/welcome/programme" : "/settings/programme";
+  // Only a request that is still going anywhere. A superseded or failed one is finished
+  // with, and listing it under saved work offered the athlete a link to a request that had
+  // already been answered or called off.
   const waiting = jobs
-    .filter((j) => j.kind === "create_program" && j.status !== "succeeded")
+    .filter(
+      (job) =>
+        job.kind === "create_program" &&
+        ["queued", "claimed", "needs_input"].includes(job.status),
+    )
     .slice(0, 3);
   if (!intake && !drafts.length && !waiting.length) return null;
   return (
@@ -31,7 +38,7 @@ export async function SavedProgrammeWork({ onboarding = false }: { onboarding?: 
       ))}
       {waiting.map((job) => (
         <LinkButton key={job.id} href={`${base}/jobs/${job.id}` as Route} variant="secondary">
-          Programme request · {job.status.replaceAll("_", " ")}
+          Programme request · {job.status === "needs_input" ? "needs your answer" : "in progress"}
         </LinkButton>
       ))}
       {intake && (

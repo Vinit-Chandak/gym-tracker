@@ -786,3 +786,121 @@ it("pauses generation independently and routes automatic revisions to review dur
     vi.unstubAllEnvs();
   }
 });
+
+/**
+ * An athlete who lifts on some days and runs on others.
+ *
+ * A run used to count against the sessions a week and had to fall on a lifting day, so an
+ * athlete who lifts Monday and runs Wednesday could not be programmed for at all: the coach's
+ * only way through was to staple the run onto the Monday it did not belong to, lengthening the
+ * one day whose time the athlete had agreed. Runs are now counted and placed on their own.
+ */
+async function runningAthlete(answers: Record<string, unknown>) {
+  const user = await t.createAuthUser(`${crypto.randomUUID()}@example.test`);
+  return withUser(t.db, user.id, async (tx) => {
+    const [gym] = await tx
+      .insert(gyms)
+      .values({ userId: user.id, name: "My gym", slug: "my-gym", isDefault: true })
+      .returning();
+    const intake = await saveIntake(
+      tx,
+      user.id,
+      coachIntakeSchema.parse({
+        goal: "Lift twice and keep two easy runs",
+        sessionsPerWeek: 1,
+        minutesPerSession: 45,
+        reviewWeekday: 7,
+        gymId: gym!.id,
+        ...answers,
+      }),
+      null,
+    );
+    await confirmIntake(tx, user.id, intake.id);
+    return { user, gym: gym!, intake };
+  });
+}
+
+/** The lifting day, plus a run day of its own on Wednesday. */
+function withRunDay(): ProgramBlueprint {
+  return {
+    ...blueprint,
+    days: [
+      { ...blueprint.days[0]!, dayIndex: 1, dayOfWeek: 1 },
+      {
+        ...blueprint.days[0]!,
+        dayIndex: 2,
+        dayOfWeek: 3,
+        name: "Easy run",
+        includesLifting: false,
+        includesRun: true,
+        exercises: [],
+      },
+    ],
+    runs: Array.from({ length: blueprint.weeks }, (_, week) => ({
+      weekIndex: week + 1,
+      dayOfWeek: 3,
+      duration: [25, 40] as [number, number],
+      rpe: [3, 5] as [number, number],
+      paceNote: "Easy, conversational.",
+      progressionNote: "Hold the distance while the shin settles.",
+      shinRule: "Stop if the shin worsens as the run goes on.",
+    })),
+  };
+}
+
+it("takes a run on a day of its own, counted against the runs the athlete confirmed", async () => {
+  const a = await runningAthlete({ runsPerWeek: 1, preferredRunDays: [3] });
+  const { job } = await request(a);
+  const claim = await as(a, (tx) => claimCoachJob(tx, a.user.id, job.id));
+  const accepted = await as(a, (tx) =>
+    acceptCoachJobResult(tx, a.user.id, job.id, claim!.attemptId!, {
+      ...result(a),
+      blueprint: withRunDay(),
+    }),
+  );
+  expect(accepted.accepted).toBe(true);
+  const draft = await as(a, (tx) => getProgramDraft(tx, a.user.id, accepted.draftId!));
+  expect(draft!.blueprint.days.filter((day) => day.includesRun)).toHaveLength(1);
+  expect(draft!.blueprint.days.find((day) => day.includesRun)!.dayOfWeek).toBe(3);
+});
+
+it("refuses runs on a weekday the athlete did not name", async () => {
+  const a = await runningAthlete({ runsPerWeek: 1, preferredRunDays: [6] });
+  const { job } = await request(a);
+  const claim = await as(a, (tx) => claimCoachJob(tx, a.user.id, job.id));
+  await expect(
+    as(a, (tx) =>
+      acceptCoachJobResult(tx, a.user.id, job.id, claim!.attemptId!, {
+        ...result(a),
+        blueprint: withRunDay(),
+      }),
+    ),
+  ).rejects.toThrow(/running must match/i);
+});
+
+it("refuses more runs than the athlete asked for", async () => {
+  const a = await runningAthlete({ runsPerWeek: 0 });
+  const { job } = await request(a);
+  const claim = await as(a, (tx) => claimCoachJob(tx, a.user.id, job.id));
+  await expect(
+    as(a, (tx) =>
+      acceptCoachJobResult(tx, a.user.id, job.id, claim!.attemptId!, {
+        ...result(a),
+        blueprint: withRunDay(),
+      }),
+    ),
+  ).rejects.toThrow(/running must match/i);
+});
+
+it("leaves the running to the coach when the athlete did not say", async () => {
+  const a = await runningAthlete({});
+  const { job } = await request(a);
+  const claim = await as(a, (tx) => claimCoachJob(tx, a.user.id, job.id));
+  const accepted = await as(a, (tx) =>
+    acceptCoachJobResult(tx, a.user.id, job.id, claim!.attemptId!, {
+      ...result(a),
+      blueprint: withRunDay(),
+    }),
+  );
+  expect(accepted.accepted).toBe(true);
+});
