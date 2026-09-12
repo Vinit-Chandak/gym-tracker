@@ -150,7 +150,16 @@
   input[type="date"] {
     appearance: none;
     -webkit-appearance: none;
-    display: block;
+    /*
+     * A single-cell grid, not a block. With the native appearance gone, Safari lays the value
+     * out at the top of the field's content box rather than on its centre line, so the date of
+     * birth sat higher in its box than the weight and height above it. Centring the cell is
+     * height-agnostic, so it holds whatever the control height becomes. Grid rather than flex
+     * because a grid item still fills the field's width, which keeps Chrome's calendar button
+     * on the right-hand edge instead of trailing the date.
+     */
+    display: grid;
+    align-items: center;
     min-width: 0;
     max-width: 100%;
   }
@@ -295,17 +304,22 @@
 }
 
 /*
- * Give mobile chrome one explicit, top-anchored dynamic viewport. The island and resume
- * strip use that containing block, avoiding separate bottom-fixed viewport calculations
- * during launch and browser-toolbar changes.
- * The shared bottom gap is applied once within this frame.
+ * One frame for every piece of mobile chrome: the island and the resume strip share a
+ * containing block, so the two can never disagree about where the bottom of the screen is,
+ * and the gap below them is stated once.
+ *
+ * The frame is pinned to all four edges rather than given `height: 100dvh`. A length has to
+ * be computed, and on iOS `dvh` is resolved against the wrong viewport until the first
+ * scroll settles it — which is exactly the cold-launch offset that put the island below the
+ * bottom of the screen and then snapped it back into place the moment the page moved. An
+ * `inset: 0` fixed element is sized by the browser itself, against the same viewport it
+ * anchors a bottom-fixed element to, so there is no length left to be stale at first paint.
  * The desktop rail retains its normal fixed positioning.
  */
 @media (width < 64rem) {
   .viewport-chrome {
     position: fixed;
-    inset: 0 0 auto;
-    height: 100dvh;
+    inset: 0;
     z-index: var(--ov-z-nav);
     pointer-events: none;
   }

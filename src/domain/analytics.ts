@@ -1,4 +1,4 @@
-import type { TrainingData } from "@/server/repositories/training-data";
+import type { TrainingData, TrainingWorkout } from "@/server/repositories/training-data";
 import type { Schedule } from "@/server/repositories/schedule";
 import { addDays, todayInTimeZone } from "./program-calendar";
 import { weekStart } from "./running";
@@ -45,46 +45,28 @@ export function estimated1RM(
   return round(reps === 1 ? weight : weight * (1 + reps / 30));
 }
 
-/** Calendar weeks and raw measurement gaps are preserved; unrelated machines and units never mix. */
-export function trainingAnalytics(data: TrainingData, timeZone: string, from: string, to: string) {
-  const weeks = new Map<
-    string,
-    {
-      date: string;
-      workouts: number;
-      runs: number;
-      runKm: number;
-      runMinutes: number;
-      muscles: MuscleVolume;
-    }
-  >();
-  for (let date = weekStart(from); date <= to; date = addDays(date, 7))
-    weeks.set(date, {
-      date,
-      workouts: 0,
-      runs: 0,
-      runKm: 0,
-      runMinutes: 0,
-      muscles: emptyMuscleVolume(),
-    });
+/**
+ * One point per finished session, for every exercise / machine / unit combination logged in
+ * `workouts`, oldest point first and sorted by exercise name.
+ *
+ * The Progress screen charts whichever exercise you pick from all of them; an exercise's own
+ * page passes `exerciseId` and charts that one. Both read the same numbers from the same
+ * code, so a load on one screen can never disagree with the load on the other.
+ */
+export function performanceSeries(
+  workouts: readonly TrainingWorkout[],
+  timeZone: string,
+  exerciseId?: string,
+): PerformanceSeries[] {
   const series = new Map<string, PerformanceSeries>();
-  const finished = data.workouts.filter((w) => w.completedAt !== null);
-  for (const workout of [...finished].sort(
-    (a, b) => a.startedAt.getTime() - b.startedAt.getTime(),
-  )) {
+  const finished = workouts
+    .filter((w) => w.completedAt !== null)
+    .sort((a, b) => a.startedAt.getTime() - b.startedAt.getTime());
+  for (const workout of finished) {
     const date = todayInTimeZone(timeZone, workout.startedAt);
-    const week = weeks.get(weekStart(date));
-    if (week) week.workouts++;
     for (const slot of workout.exercises) {
+      if (exerciseId !== undefined && slot.exerciseId !== exerciseId) continue;
       const working = slot.sets.filter((s) => s.setType !== "warmup");
-      // Same weighting the body map uses, so the two views never disagree.
-      if (week) {
-        addExerciseVolume(week.muscles, {
-          primaryMuscles: slot.exercise.primaryMuscles,
-          secondaryMuscles: slot.exercise.secondaryMuscles ?? [],
-          workingSets: working.length,
-        });
-      }
       for (const unit of new Set(working.map((s) => s.unit))) {
         const machineKey =
           slot.exercise.loadPortability === "global"
@@ -124,6 +106,45 @@ export function trainingAnalytics(data: TrainingData, timeZone: string, from: st
         entry.rir.push({ date, value: mean(sets.map((s) => s.rir)) });
         series.set(id, entry);
       }
+    }
+  }
+  return [...series.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** Calendar weeks and raw measurement gaps are preserved; unrelated machines and units never mix. */
+export function trainingAnalytics(data: TrainingData, timeZone: string, from: string, to: string) {
+  const weeks = new Map<
+    string,
+    {
+      date: string;
+      workouts: number;
+      runs: number;
+      runKm: number;
+      runMinutes: number;
+      muscles: MuscleVolume;
+    }
+  >();
+  for (let date = weekStart(from); date <= to; date = addDays(date, 7))
+    weeks.set(date, {
+      date,
+      workouts: 0,
+      runs: 0,
+      runKm: 0,
+      runMinutes: 0,
+      muscles: emptyMuscleVolume(),
+    });
+  const finished = data.workouts.filter((w) => w.completedAt !== null);
+  for (const workout of finished) {
+    const week = weeks.get(weekStart(todayInTimeZone(timeZone, workout.startedAt)));
+    if (!week) continue;
+    week.workouts++;
+    for (const slot of workout.exercises) {
+      // Same weighting the body map uses, so the two views never disagree.
+      addExerciseVolume(week.muscles, {
+        primaryMuscles: slot.exercise.primaryMuscles,
+        secondaryMuscles: slot.exercise.secondaryMuscles ?? [],
+        workingSets: slot.sets.filter((s) => s.setType !== "warmup").length,
+      });
     }
   }
   for (const run of data.runs) {
@@ -176,7 +197,7 @@ export function trainingAnalytics(data: TrainingData, timeZone: string, from: st
       runKm: round(w.runKm),
       runMinutes: round(w.runMinutes),
     })),
-    series: [...series.values()].sort((a, b) => a.name.localeCompare(b.name)),
+    series: performanceSeries(data.workouts, timeZone),
     recovery,
     pace: [...data.runs]
       .sort((a, b) => a.startedAt.getTime() - b.startedAt.getTime())
