@@ -335,11 +335,66 @@ tests cover some of the cases below; they still need the indicated browser/devic
   the coach never rewrites a plan mid-session. The recovery check still says what it saw and
   what it advises; nothing on the workout now claims to act on it.
 
+## Round: losing the connection, losing the session, and leaving
+
+Everything here was done against a production build with the browser's network switched off at
+the moment of saving, or with the sign-in cookie taken away mid-form, and checked in the
+database afterwards.
+
+### What was verified
+
+A set logged with no signal: refused inline, kept in the row, written to the device, restored
+on a reload with a notice, and saved exactly as typed when the retry went through — 100 kg × 5,
+not the target it was offered. A reload while offline, which the page survived. A run and a
+finished session saved with no signal, then saved again on reconnect, landing once. An expired
+sign-in during a set save, during a run save, and during a finish. An account deleted with its
+gyms, machines, programme and fallbacks, checked table by table, with the other accounts
+untouched and the sign-in gone with it.
+
+### What it fixes
+
+**A form lost everything when the signal dropped.** A server action is a fetch, and a fetch
+with no network rejects; nothing caught that on the way out of `useActionState`, so the error
+boundary replaced the screen. A run typed in full — distance, duration, RPE, both shins, notes
+— became "Something went wrong", and "Try again" gave back an empty form; the finish form lost
+the session's notes and the body weight the same way. Seventeen forms now keep what was typed
+and say the save never left the device, as the set logger already did. The four ways in are
+left as they were: a form whose action is a client function no longer submits before the page's
+JavaScript has arrived, and nothing on those pages can be done offline anyway.
+
+**An expired sign-in was reported as a lost connection.** Saving a set on a session that had
+ended said "Connection lost … Retry saving when connected", which could never work: the athlete
+was online and signed out. The proxy was redirecting the action's own POST to the sign-in page,
+so React got a page where it expected an action's reply; and every direct call to an action
+caught the redirect along with everything else and called it the connection. A Server Action
+authorises itself — every one of this app's begins with `requireUser()` — so its POST is let
+through to answer for itself, and the failures are told apart. Signed out mid-set, the athlete
+now arrives at the sign-in screen, and the draft is waiting when they come back.
+
+**The offline message promised something it could not keep.** "Unsaved set drafts stay on this
+device" was shown on every screen in the app, Runs and Settings included, where there are no
+drafts. It now says that only where there are.
+
+### Deleting an account
+
+Deleting removes one row and trusts the schema for the rest. Every table that holds a user's
+data cascades from the profile — checked in the database, and now checked by a test that
+sweeps the schema rather than a list someone has to remember to update. The restriction that
+stops a gym being deleted while a workout still points at it does not stand in the way, because
+by the time it is checked the workout has gone too; that is what makes the whole thing work, so
+it has a test of its own. Everything else held: the wrong confirmation word changes nothing, the
+sign-in record goes with the data where the service-role key allows it, and signing in again is
+refused.
+
 ## Open findings
 
 - Old records already saved with an incorrect kg label cannot be distinguished from real kg
   records; no historical data was guessed or rewritten. Older coach plans do not contain a unit
   snapshot, so only newly saved plans can preserve that information.
+- Signing back in after being signed out mid-save lands on Today rather than the screen the
+  athlete was on: the action redirects to `/login` without saying where it came from. The
+  workout is one tap away under "Resume session", and the draft is intact.
+- Two devices editing the same session at once is out of scope, at the user's direction.
 
 The local fixtures and runtime are kept outside the commit, and the temporary build-directory
 configuration is removed. The audit paused at the user's request for this commit checkpoint.
