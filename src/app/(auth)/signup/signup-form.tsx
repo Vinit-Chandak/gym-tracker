@@ -1,7 +1,7 @@
 "use client";
 
 import { MailCheck } from "@/components/ui/icons";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
@@ -11,6 +11,10 @@ const INITIAL: SignUpState = {};
 
 export function SignUpForm() {
   const [state, formAction, pending] = useActionState(signUpAction, INITIAL);
+  // What they typed survives a refused attempt, as it does on the sign-in form. Only the
+  // passwords are asked for again, which is the one pair worth retyping.
+  const [displayName, setDisplayName] = useState("");
+  const [email, setEmail] = useState("");
 
   if (state.checkEmail) {
     return (
@@ -30,10 +34,25 @@ export function SignUpForm() {
   return (
     <form action={formAction} className="space-y-4">
       <Field label="Name">
-        <Input type="text" name="displayName" autoComplete="name" maxLength={80} />
+        <Input
+          type="text"
+          name="displayName"
+          autoComplete="name"
+          maxLength={80}
+          value={displayName}
+          onChange={(event) => setDisplayName(event.target.value)}
+        />
       </Field>
       <Field label="Email">
-        <Input type="email" name="email" autoComplete="email" inputMode="email" required />
+        <Input
+          type="email"
+          name="email"
+          autoComplete="email"
+          inputMode="email"
+          required
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+        />
       </Field>
       <Field label="Password" hint="At least 8 characters">
         <Input type="password" name="password" autoComplete="new-password" minLength={8} required />

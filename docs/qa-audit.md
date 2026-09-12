@@ -216,6 +216,40 @@ lost what it pointed at. Both are carried now, and the case is covered.
 - A coach prescription measured in metres.
 - Stale and conflicting proposals; a proposal that fails and is retried.
 
+## Getting in: sign-up, the confirmation link, onboarding and a real password reset
+
+Walked with the local auth stub, which delivers its "email" to a file so the links can be
+opened. What the stub cannot stand in for is still listed under what remains.
+
+### Fixed
+
+- **The confirmation link signed nobody in.** It set the session on the host the athlete was
+  on, then redirected to an absolute address built from the origin the server was started with.
+  Where those differ — behind a proxy, on a custom domain, anywhere the app is not reached at
+  its own internal address — the redirect arrived without the cookie, and confirming an email
+  landed back on the sign-in screen. Both `nextUrl.origin` and `request.url` report the server's
+  origin, so the route now redirects to a path and lets the browser resolve it.
+- **The sign-up form emptied itself** whenever it refused: mistype one password and the name and
+  address had to be typed again.
+- **The profile step lost three answers on every refusal.** React clears the fields of a form
+  whose action has run; the date of birth, the sex and the goal went with it, while the message
+  on screen was about the body weight. All three are required, so the athlete had to notice and
+  fill them in again. The fields are held in state and the reset is cancelled.
+
+### Verified
+
+Sign-up refuses an address that already has an account, an invalid address, a short password and
+a mismatched pair, and reports the confirmation state; the profile trigger creates the row. An
+unconfirmed address cannot sign in and says why. A link that was never issued, and one used
+twice, both say so. The confirmation link lands a new account in setup. All four onboarding
+steps: the profile step's validation, prefilling and resume; adding the first gym; ticking
+machines from the list; taking the programme, which lands on Today with the first day ready.
+Skipping ahead from the gym step finishes setup, and the empty account then reads correctly on
+Today, History, Progress, Runs and Gyms. A password reset end to end: an unknown address gets
+the same answer as a known one, a service that cannot send says so rather than claiming success,
+the emailed link opens the new-password screen, the current password is refused as a new one,
+and after the change the old password no longer signs in and the new one does.
+
 ## Remaining interactive tests
 
 This is a checkpoint, not a claim that every feature or combination has passed. Automated
