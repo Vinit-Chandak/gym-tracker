@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { setWarmupCompletedAction } from "@/server/actions/sessions";
 
 import type { ExerciseVM, SessionVM } from "./view-model";
+import { attempted } from "@/lib/offline-submit";
 
 /** What the row's action says, which is also what tapping it does. */
 function rowAction(exercise: ExerciseVM): { label: string; tone: "accent" | "muted" } {
@@ -65,14 +66,16 @@ function WarmupRow({
 
   const toggleDone = () =>
     startTransition(async () => {
-      try {
-        const result = await setWarmupCompletedAction(session.id, !done);
-        if (!result.ok) {
-          setError(result.error);
-          return;
-        }
-      } catch {
-        setError("Connection lost. Try again when connected.");
+      const outcome = await attempted(
+        () => setWarmupCompletedAction(session.id, !done),
+        "Connection lost. Try again when connected.",
+      );
+      if (!outcome.ok) {
+        setError(outcome.message);
+        return;
+      }
+      if (!outcome.value.ok) {
+        setError(outcome.value.error);
         return;
       }
       onDone(!done);
@@ -199,8 +202,8 @@ export function WorkoutOverview({
             <h2 className="flex items-center gap-1 text-base font-medium">
               Recovery check
               <InfoTip label="About the recovery check">
-                Advice only. Nothing here changes the targets you were given; every set is
-                yours to set as you find it.
+                Advice only. Nothing here changes the targets you were given; every set is yours to
+                set as you find it.
               </InfoTip>
             </h2>
             <Badge tone="warning">Advice</Badge>

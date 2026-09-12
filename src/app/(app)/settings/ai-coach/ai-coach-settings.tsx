@@ -12,7 +12,7 @@ import { List, Row } from "@/components/ui/link-row";
 import { Section } from "@/components/ui/section";
 import { Switch } from "@/components/ui/switch";
 import { PLAN_LIMITS } from "@/domain/plan-limits";
-import { keepsFormOnDisconnect } from "@/lib/offline-submit";
+import { attempted, keepsFormOnDisconnect } from "@/lib/offline-submit";
 import { saveCoachNotesAction, setAiCoachEnabledAction } from "@/server/actions/coach";
 import { INITIAL_FORM_STATE } from "@/server/validation/form";
 
@@ -65,11 +65,11 @@ export function AiCoachSettings({
     startTransition(async () => {
       show(next);
       setError(null);
-      try {
-        await setAiCoachEnabledAction(next);
-      } catch {
-        setError("Could not save. Check your connection and try again.");
-      }
+      const outcome = await attempted(
+        () => setAiCoachEnabledAction(next),
+        "Could not save. Check your connection and try again.",
+      );
+      if (!outcome.ok) setError(outcome.message);
     });
 
   return (

@@ -14,6 +14,7 @@ import {
   type DraftContext,
   type DraftValueField,
 } from "@/lib/workout-drafts";
+import { attempted } from "@/lib/offline-submit";
 import { deleteSetAction, logSetAction } from "@/server/actions/sessions";
 
 import type { ExerciseVM, SetVM } from "./view-model";
@@ -133,11 +134,7 @@ function prefillTargets(exercise: ExerciseVM): readonly GhostSource[] {
 }
 
 /** Faint prefill: the target for this set index, else the last set logged here, else the last target. */
-function ghostFor(
-  exercise: ExerciseVM,
-  rows: readonly RowState[],
-  index: number,
-): Ghost {
+function ghostFor(exercise: ExerciseVM, rows: readonly RowState[], index: number): Ghost {
   const targets = prefillTargets(exercise);
   const target = targets.find((s) => s.setIndex === index);
   if (target) return toGhost(target);
@@ -164,14 +161,11 @@ function resolve(row: RowState, field: DraftValueField, ghost: Ghost): number | 
 async function safeAction<T extends { ok: boolean }>(
   action: () => Promise<T>,
 ): Promise<T | { ok: false; error: string }> {
-  try {
-    return await action();
-  } catch {
-    return {
-      ok: false,
-      error: "Connection lost. Your entries are still here. Retry saving when connected.",
-    };
-  }
+  const outcome = await attempted(
+    action,
+    "Connection lost. Your entries are still here. Retry saving when connected.",
+  );
+  return outcome.ok ? outcome.value : { ok: false, error: outcome.message };
 }
 
 type Options = {
@@ -191,14 +185,7 @@ type Options = {
  * Each row keeps its own numbers. Nothing here writes across rows, so four sets that happen
  * to hold the same load are four records that happen to agree, not one shared value.
  */
-export function useSetRows({
-  exercise,
-  userId,
-  sessionId,
-  measure,
-  unit,
-  onLogged,
-}: Options) {
+export function useSetRows({ exercise, userId, sessionId, measure, unit, onLogged }: Options) {
   const [rows, setRows] = useState<RowState[]>(() => initialRows(exercise));
   const [pending, startTransition] = useTransition();
   const [storageError, setStorageError] = useState(false);

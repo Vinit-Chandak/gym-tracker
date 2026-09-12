@@ -81,9 +81,7 @@ export function keepsOutcomeOnDisconnect(action: Action<ActionOutcome>): Action<
  * For an action that reports a single message. Nothing submitted is echoed back: these are
  * the sign-in, password and deletion forms, and their fields are not ours to hand around.
  */
-export function keepsErrorOnDisconnect<S extends { error?: string }>(
-  action: Action<S>,
-): Action<S> {
+export function keepsErrorOnDisconnect<S extends { error?: string }>(action: Action<S>): Action<S> {
   return async (state, form) => {
     try {
       return await action(state, form);
@@ -93,4 +91,26 @@ export function keepsErrorOnDisconnect<S extends { error?: string }>(
       return { ...state, error: OFFLINE_SUBMIT_MESSAGE };
     }
   };
+}
+
+/**
+ * For an action called directly rather than through a form: a set logged, an exercise
+ * skipped, a proposal applied.
+ *
+ * The same rule as the form wrappers, and for the same reason. A bare `catch` here reported
+ * every failure as a lost connection, including the one that is not a failure at all: an
+ * expired sign-in makes the action redirect, and swallowing that left the athlete pressing
+ * Retry against a session that had ended, told to check a connection that was fine.
+ */
+export async function attempted<T>(
+  action: () => Promise<T>,
+  whenDisconnected: string,
+): Promise<{ ok: true; value: T } | { ok: false; message: string }> {
+  try {
+    return { ok: true, value: await action() };
+  } catch (error) {
+    unstable_rethrow(error);
+    if (!neverSent(error)) throw error;
+    return { ok: false, message: whenDisconnected };
+  }
 }

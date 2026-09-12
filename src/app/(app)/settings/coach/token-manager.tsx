@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { InfoTip } from "@/components/ui/info-tip";
 import { Field, Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { keepsErrorOnDisconnect } from "@/lib/offline-submit";
+import { attempted, keepsErrorOnDisconnect } from "@/lib/offline-submit";
 import {
   createCoachTokenAction,
   revokeCoachTokenAction,
@@ -24,11 +24,11 @@ function Revoke({ id }: { id: string }) {
         disabled={pending}
         onClick={() =>
           startTransition(async () => {
-            try {
-              setError((await revokeCoachTokenAction(id)).error);
-            } catch {
-              setError("Connection lost. Retry revoking.");
-            }
+            const outcome = await attempted(
+              () => revokeCoachTokenAction(id),
+              "Connection lost. Retry revoking.",
+            );
+            setError(outcome.ok ? outcome.value.error : outcome.message);
           })
         }
       >

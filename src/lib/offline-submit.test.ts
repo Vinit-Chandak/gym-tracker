@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  attempted,
   keepsErrorOnDisconnect,
   keepsFormOnDisconnect,
   keepsOutcomeOnDisconnect,
@@ -102,5 +103,35 @@ describe("everything else", () => {
     expect(await keepsFormOnDisconnect(action)({}, form())).toEqual({
       values: { distanceKm: "5.4" },
     });
+  });
+});
+
+/**
+ * The same rule for an action called directly. The case that mattered was not the network at
+ * all: an expired sign-in makes the action redirect, and a bare catch reported that as a lost
+ * connection — the athlete pressed Retry against a session that had ended.
+ */
+describe("an action called directly rather than through a form", () => {
+  it("answers in the caller's own words when it never left the device", async () => {
+    const restore = offline();
+    const action = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"));
+    expect(await attempted(action, "Connection lost. Retry revoking.")).toEqual({
+      ok: false,
+      message: "Connection lost. Retry revoking.",
+    });
+    restore();
+  });
+
+  it("hands back what the action answered when it worked", async () => {
+    const action = vi.fn().mockResolvedValue({ ok: false, error: "That token is already gone." });
+    expect(await attempted(action, "Connection lost.")).toEqual({
+      ok: true,
+      value: { ok: false, error: "That token is already gone." },
+    });
+  });
+
+  it("passes on anything the connection is not, so a sign-out is not called a dropped signal", async () => {
+    const action = vi.fn().mockRejectedValue(new Error("NEXT_REDIRECT"));
+    await expect(attempted(action, "Connection lost.")).rejects.toThrow("NEXT_REDIRECT");
   });
 });

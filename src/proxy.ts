@@ -67,6 +67,14 @@ export async function proxy(request: NextRequest) {
   const signedIn = Boolean(data?.claims?.sub);
 
   if (isNeutral) return response;
+  // A Server Action carries its own authorization — every one of this app's begins with
+  // requireUser() — so the guard here is for navigations only. Redirecting the action's own
+  // POST answers React with a sign-in page where it expected an action's reply, which it can
+  // only report as an unexpected response: the athlete's session had ended and all the app
+  // could say was that something went wrong. Letting it through lets the action redirect,
+  // which the router follows to the sign-in screen.
+  const isServerAction = request.method === "POST" && request.headers.has("next-action");
+  if (isServerAction) return response;
   if (!signedIn && !isPublic) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";

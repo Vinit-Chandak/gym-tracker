@@ -7,7 +7,12 @@ import { ExerciseLogger } from "./exercise-logger";
 import type { ExerciseVM, SessionVM, SetVM } from "./view-model";
 
 const actions = vi.hoisted(() => ({ log: vi.fn(), remove: vi.fn() }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
+// `unstable_rethrow` is how a failed save tells a redirect from a dropped connection; the
+// mock has to carry it, or every failure here looks like the framework's own.
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: vi.fn() }),
+  unstable_rethrow: () => {},
+}));
 vi.mock("@/components/ui/app-link", () => ({
   default: (props: ComponentProps<"a">) => <a {...props} />,
 }));
@@ -276,7 +281,8 @@ it("retains unmatched drafts for review when the workout was finished elsewhere"
 });
 
 it("keeps edits through a failed save and a remount, then clears them only after a confirmed retry", async () => {
-  actions.log.mockRejectedValueOnce(new Error("offline"));
+  // What a save that never leaves the device actually rejects with.
+  actions.log.mockRejectedValueOnce(new TypeError("Failed to fetch"));
   const view = renderLogger();
   fireEvent.change(screen.getByRole("textbox", { name: "Set 1 load, kg" }), {
     target: { value: "60" },

@@ -38,6 +38,7 @@ import { SetGrid } from "./set-grid";
 import { SetOptions } from "./set-options";
 import { useSetRows, type RowState } from "./use-set-rows";
 import type { ExerciseVM, SessionVM } from "./view-model";
+import { attempted } from "@/lib/offline-submit";
 
 const TABS = [
   { value: "log", label: "Log" },
@@ -243,14 +244,16 @@ export function ExerciseLogger({
 
   const setCompletedState = (value: boolean) =>
     startTransition(async () => {
-      try {
-        const result = await setExerciseCompletedAction(exercise.id, value);
-        if (!result.ok) {
-          setMessage(result.error);
-          return;
-        }
-      } catch {
-        setMessage("Connection lost. Your entries are still here. Try again when connected.");
+      const outcome = await attempted(
+        () => setExerciseCompletedAction(exercise.id, value),
+        "Connection lost. Your entries are still here. Try again when connected.",
+      );
+      if (!outcome.ok) {
+        setMessage(outcome.message);
+        return;
+      }
+      if (!outcome.value.ok) {
+        setMessage(outcome.value.error);
         return;
       }
       setCompleted(value);
@@ -260,14 +263,16 @@ export function ExerciseLogger({
 
   const skip = () =>
     startTransition(async () => {
-      try {
-        const result = await skipExerciseAction(exercise.id, skipReason.trim() || null);
-        if (!result.ok) {
-          setMessage(result.error);
-          return;
-        }
-      } catch {
-        setMessage("Connection lost. Try again when connected.");
+      const outcome = await attempted(
+        () => skipExerciseAction(exercise.id, skipReason.trim() || null),
+        "Connection lost. Try again when connected.",
+      );
+      if (!outcome.ok) {
+        setMessage(outcome.message);
+        return;
+      }
+      if (!outcome.value.ok) {
+        setMessage(outcome.value.error);
         return;
       }
       setSkipped(true);
@@ -276,19 +281,22 @@ export function ExerciseLogger({
 
   const applyFallback = (exerciseId: string, instanceId: string | null, name: string) =>
     startTransition(async () => {
-      try {
-        const result = await applyFallbackAction(
-          exercise.id,
-          exerciseId,
-          instanceId,
-          `Fallback at ${session.gym.name}: ${exercise.exercise.name} → ${name}`,
-        );
-        if (!result.ok) {
-          setMessage(result.error);
-          return;
-        }
-      } catch {
-        setMessage("Connection lost. Try again when connected.");
+      const outcome = await attempted(
+        () =>
+          applyFallbackAction(
+            exercise.id,
+            exerciseId,
+            instanceId,
+            `Fallback at ${session.gym.name}: ${exercise.exercise.name} → ${name}`,
+          ),
+        "Connection lost. Try again when connected.",
+      );
+      if (!outcome.ok) {
+        setMessage(outcome.message);
+        return;
+      }
+      if (!outcome.value.ok) {
+        setMessage(outcome.value.error);
         return;
       }
     });
