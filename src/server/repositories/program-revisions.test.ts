@@ -28,6 +28,7 @@ import {
   rejectProposal,
 } from "./program-revisions";
 import { readProgramBlueprint } from "./programs";
+import { createRun } from "./runs";
 import { getSchedule, recordSlotEvent } from "./schedule";
 import {
   discardSession,
@@ -211,6 +212,8 @@ describe("approving a change", () => {
           exercises: [
             { slotId: plannedSlot.slotId, exerciseSlug: plannedSlot.planned.slug, sets: [] },
           ],
+          // The slot runs as well as lifts, and a plan for it answers both halves.
+          ...(context.slot.includesRun ? { run: { durationMinutes: 20, rpe: 3 } } : {}),
         },
       }),
     );
@@ -297,9 +300,36 @@ describe("approving a change", () => {
     const first = context.exercises[0]!;
     const second = context.exercises[1]!;
     if (!first.lineageId || !second.lineageId) throw new Error("slots must carry lineage");
+    const ref = { cycleIndex: context.slot.cycleIndex, dayIndex: context.slot.dayIndex };
+    // The run half of the day is already answered, so this plan is only about the lifting.
+    if (context.slot.includesRun) {
+      const logged = await as((tx) =>
+        createRun(tx, user.id, {
+          mode: "outdoor",
+          startedAt: new Date(),
+          durationSeconds: 1200,
+          distanceMeters: 3000,
+          rpe: 3,
+          shinLeftPre: null,
+          shinRightPre: null,
+          shinLeftDuring: null,
+          shinRightDuring: null,
+          shinLeftPost: null,
+          shinRightPost: null,
+          programRunId: null,
+          notes: null,
+        }),
+      );
+      await as((tx) =>
+        recordSlotEvent(tx, user.id, context.programme.id, ref, "run", "completed", {
+          occurredOn: "2026-09-10",
+          runId: logged.id,
+        }),
+      );
+    }
     const plan = await as((tx) =>
       storePlan(tx, user.id, {
-        slot: { cycleIndex: context.slot.cycleIndex, dayIndex: context.slot.dayIndex },
+        slot: ref,
         gymId,
         trigger: "nightly",
         plan: {

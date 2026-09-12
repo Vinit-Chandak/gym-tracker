@@ -55,9 +55,12 @@ export function CoachPlanList({
           const dropped = entry.action === "drop";
           const name = dropped ? (slot?.name ?? entry.exerciseName) : entry.exerciseName;
           const machine = !dropped ? entry.equipmentInstanceName : null;
+          // A slot counted per side stays per side when the coach keeps it, and the line has to
+          // say so: "2 × 10" against a per-side movement is half the work it asks for.
+          const line = planLine(entry, unit, entry.perSide ?? slot?.perSide ?? false);
           const targets = dropped
             ? "Skipped today"
-            : (planLine(entry, unit) ?? (slot ? prescription(slot) : "By the rule"));
+            : (line ?? (slot ? prescription(slot) : "By the rule"));
           return (
             <li key={`${entry.slotId ?? "added"}-${index}`} className="min-w-0">
               <p

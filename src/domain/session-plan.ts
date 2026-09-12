@@ -148,6 +148,8 @@ export function planTargets(
 export function planLine(
   exercise: Pick<PlanExercise, "sets"> & { unit?: LoadUnit },
   unit: string,
+  /** Whether the slot is counted per side, which doubles what the numbers ask for. */
+  perSide = false,
 ): string | null {
   unit = exercise.unit ?? unit;
   const working = exercise.sets.filter((s) => s.setType !== "warmup");
@@ -180,5 +182,5 @@ export function planLine(
       : same((s) => s.rir)
         ? ` · RIR ${first.rir}`
         : ` · RIR ${shown.map((s) => s.rir ?? "—").join("/")}`;
-  return `${count} ${volume}${load}${rir}`;
+  return `${count} ${volume}${perSide ? " per side" : ""}${load}${rir}`;
 }

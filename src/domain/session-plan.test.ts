@@ -169,5 +169,9 @@ describe("coach plan contract", () => {
       planLine(sets({ setType: "warmup", weight: 40, reps: 8 }, { weight: 60, reps: 5 }), "kg"),
     ).toBe("1 × 5 @ 60 kg");
     expect(planLine(sets(), "kg")).toBeNull();
+    // A per-side slot asks for its reps on each side, and the line has to say which.
+    expect(planLine(sets({ weight: 12, reps: 10, rir: 2 }), "kg", true)).toBe(
+      "1 × 10 per side @ 12 kg · RIR 2",
+    );
   });
 });

@@ -58,7 +58,13 @@ import { parseDateRange } from "@/server/validation/date-range";
 
 import { resolvePlannedDay } from "./availability";
 import { getGym, listGyms } from "./gyms";
-import { getRunTarget, getSchedule, type Schedule, type ScheduleDay } from "./schedule";
+import {
+  completedRunIdFor,
+  getRunTarget,
+  getSchedule,
+  type Schedule,
+  type ScheduleDay,
+} from "./schedule";
 import { applyRule } from "./progression-rule";
 import { readRecovery, readWorkouts } from "./training-data";
 import { readWeeklyTrainingVolume } from "./training-volume";
@@ -121,22 +127,28 @@ export type NextTrainingSlot = {
  * is skipped, since there is nothing there to prescribe.
  */
 /**
- * The next pending slot whose day runs, and how many training slots away it is. An athlete with
- * a race in their notes needs to know when their next run falls; without it the coach can only
- * see that today does not run.
+ * The next pending slot that runs after the one being planned, and how many training slots away
+ * it is. An athlete with a race in their notes needs to know when their next run falls — and on
+ * a day that already runs, what they need is the one after it, not this one again.
  */
 export function nextRunningSlot(
   schedule: Schedule,
+  after?: SlotRef,
 ): (NextTrainingSlot & { slotsAway: number }) | null {
   const training = new Map(
     schedule.days.filter((d) => d.includesLifting || d.includesRun).map((d) => [d.dayIndex, d]),
   );
   let slotsAway = 0;
+  let reached = after === undefined;
   for (const ref of allSlots(schedule.state)) {
     const day = training.get(ref.dayIndex);
     if (!day || slotStatus(schedule.state, ref) !== "pending") continue;
-    if (day.includesRun) return { ...ref, day, slotsAway };
+    if (!reached) {
+      if (ref.cycleIndex === after!.cycleIndex && ref.dayIndex === after!.dayIndex) reached = true;
+      continue;
+    }
     slotsAway += 1;
+    if (day.includesRun) return { ...ref, day, slotsAway };
   }
   return null;
 }
@@ -326,13 +338,24 @@ async function recentPlanOutcomes(
   userId: string,
   limit: number,
 ): Promise<PlanOutcome[]> {
-  const plans = await db
+  // The latest plan for each of the last few slots, not the last few plans: a slot re-planned
+  // three times would otherwise fill the coach's whole memory with one day's second thoughts.
+  const recent = await db
     .select({ plan: sessionPlans, gymName: gyms.name })
     .from(sessionPlans)
     .innerJoin(gyms, eq(gyms.id, sessionPlans.gymId))
     .where(eq(sessionPlans.userId, userId))
     .orderBy(desc(sessionPlans.generatedAt))
-    .limit(limit);
+    .limit(limit * 5);
+  const seen = new Set<string>();
+  const plans = recent
+    .filter((row) => {
+      const slot = `${row.plan.programId}:${row.plan.cycleIndex}:${row.plan.dayIndex}`;
+      if (seen.has(slot)) return false;
+      seen.add(slot);
+      return true;
+    })
+    .slice(0, limit);
   if (plans.length === 0) return [];
   const sessionIds = plans
     .map((row) => row.plan.workoutSessionId)
@@ -413,15 +436,25 @@ async function recentPlanOutcomes(
         exerciseId: entry.exerciseId,
         equipmentInstanceId: entry.equipmentInstanceId,
         action: entry.action,
+        // Written the way performances are, so the two can be read against each other: the load
+        // in the unit it was planned in, and the effort it was asked for.
         targets:
           entry.action === "drop"
             ? "left out"
             : entry.sets.length === 0
               ? "by the rule"
               : entry.sets
-                  .map(
-                    (set) =>
-                      `${set.weight ?? "—"}×${set.reps ?? (set.distanceMeters !== null ? `${set.distanceMeters}m` : `${set.durationSeconds ?? "—"}s`)}@${set.rir ?? "—"}`,
+                  .map((set, index) =>
+                    setLine({
+                      setIndex: index + 1,
+                      setType: set.setType,
+                      weight: set.weight,
+                      unit: entry.unit ?? "kg",
+                      reps: set.reps,
+                      rir: set.rir,
+                      durationSeconds: set.durationSeconds,
+                      distanceMeters: set.distanceMeters,
+                    }),
                   )
                   .join(", "),
         note: entry.note,
@@ -488,7 +521,7 @@ export async function planningContext(
   const slot = nextTrainingSlot(schedule);
   if (!slot) return { reason: "programme_complete" as const };
   const day = slot.day;
-  const nextRun = nextRunningSlot(schedule);
+  const nextRun = nextRunningSlot(schedule, slot);
   const gym = options.gymId
     ? await getGym(db, userId, options.gymId)
     : await planningGym(db, userId);
@@ -783,7 +816,7 @@ export async function planningContext(
       slotsBehind: schedule.program.startDate
         ? sessionsBehind(schedule.state, schedule.program.startDate, today)
         : 0,
-      /** When the next run falls, counted in training slots from the one being planned. */
+      /** The next run after the one being planned, in training slots from it. */
       nextRun: nextRun
         ? {
             cycleIndex: nextRun.cycleIndex,
@@ -1109,6 +1142,11 @@ export async function storePlan(
     throw new PlanValidationError("That day has no lifting, so it takes a run and nothing else.");
   if (!day.includesRun && plan.run)
     throw new PlanValidationError("That day has no run in the programme.");
+  // The two halves of a day are answered separately, so a day whose run is still to come and
+  // comes back without one is half a plan: the athlete is told what to lift and left to guess
+  // the rest. A run already logged needs nothing more said about it.
+  if (day.includesRun && !plan.run && !(await completedRunIdFor(db, schedule.program.id, ref)))
+    throw new PlanValidationError("That day's run is still to come, so the plan needs a run.");
 
   const [daySlots, machines, visible, programRun] = await Promise.all([
     db

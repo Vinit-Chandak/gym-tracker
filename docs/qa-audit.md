@@ -160,6 +160,33 @@ isolation.
 - An unexpected failure while asking the coach showed the athlete whatever the error said,
   database messages included.
 
+### Fixed after the run-day round
+
+A fourth coach run planned a day that both lifts and runs, and logging it end to end found
+more:
+
+- A day that runs could be answered with a plan that only covered the lifting. The server took
+  it silently, and the athlete was told what to lift and left to guess the rest. It is refused
+  now, unless that day's run has already been logged — the two halves are answered separately.
+- `programme.nextRun` named the slot being planned when that day ran, which is the one thing
+  the coach already knew. It names the run after it.
+- A coach plan on a per-side slot showed "2 × 10" for what the programme writes as
+  "2 × 10 per side": half the work. The plan line says per side now, and the skill says a
+  per-side slot's numbers are what one side does.
+- `lastPlans` was three versions of one day when a slot had been re-planned. It is the latest
+  plan for each of the last three slots, and its prescribed sets are written the way
+  performances are, in the unit they were planned in.
+- The skill left `supersetGroup: null` ambiguous (it keeps the programme's grouping), did not
+  say that `slot.runTarget.id` and `slot.programRunId` are the same row, and did not explain
+  what `lastPlans[].status` means.
+
+Also verified in the browser this round: a mixed day completed in run-first order, with the run
+logged from the coach's own numbers and linked to the programme's planned run; a timed, per-side
+prescription from plan to logged set; a free-weight set following the athlete's unit after a
+mid-workout switch while machine work stayed in the machine's own unit and nothing already saved
+was rewritten; skipping a day dropping the plan that waited for it; and the rest day's
+"Start Lower A instead".
+
 ### Noted, not changed
 
 - `weightStep` resolves the machine's own increment before the exercise's, then 2.5 kg. A stack
@@ -168,6 +195,15 @@ isolation.
   the equipment, so "direct" is an assumption rather than a confirmation. The skill now says so.
 - `src/domain/coach-cadence.ts` is groundwork for the weekly review in the AI-first plan and is
   not wired to anything yet.
+- A plan may still be stored for a slot whose session is already open. It cannot be used by that
+  session, and Today now shows the session's own plan, so it costs nothing; refusing it would
+  also refuse a plan the athlete asked for before they started.
+
+### Still only covered by tests, not the browser
+
+- A coach plan that adds an exercise the programme's day does not have, logged end to end.
+- A coach prescription measured in metres.
+- Stale and conflicting proposals; a proposal that fails and is retried.
 
 ## Remaining interactive tests
 

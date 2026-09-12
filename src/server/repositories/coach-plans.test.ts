@@ -993,6 +993,79 @@ const RUN_ONLY_BLUEPRINT = parseProgramBlueprint({
   ],
 });
 
+describe("a day that runs", () => {
+  it("will not take a plan that answers only the lifting, until the run is logged", async () => {
+    const dana = await t.createAuthUser("runs-and-lifts@example.com");
+    const fixture = await withUser(t.db, dana.id, (tx) => seedTestUserData(tx, dana));
+    await t.db
+      .update(profiles)
+      .set({ aiCoachEnabled: true, timeZone: TZ })
+      .where(eq(profiles.id, dana.id));
+    const gymId = fixture.gymIdBySlug.get("anytime-fitness")!;
+    // Walk the programme on to the first day that both lifts and runs.
+    const schedule = await withUser(t.db, dana.id, (tx) => getSchedule(tx, dana.id));
+    const runningDay = schedule!.days.find((day) => day.includesRun && day.includesLifting)!;
+    for (const day of schedule!.days) {
+      if (day.dayIndex >= runningDay.dayIndex) break;
+      await withUser(t.db, dana.id, (tx) =>
+        recordSlotEvent(
+          tx,
+          dana.id,
+          fixture.programId,
+          { cycleIndex: 1, dayIndex: day.dayIndex },
+          "session",
+          "skipped",
+          { occurredOn: "2026-09-08" },
+        ),
+      );
+    }
+    const ref = { cycleIndex: 1, dayIndex: runningDay.dayIndex };
+    const context = await withUser(t.db, dana.id, (tx) => planningContext(tx, dana.id, { gymId }));
+    if (context.reason) throw new Error(context.reason);
+    expect(context.slot.includesRun).toBe(true);
+    const liftingOnly = {
+      slot: ref,
+      gymId,
+      trigger: "nightly" as const,
+      plan: {
+        summary: "Only half of the day.",
+        exercises: [{ exerciseSlug: context.exercises[0]!.planned.slug, sets: [] }],
+      },
+    };
+    await expect(
+      withUser(t.db, dana.id, (tx) => storePlan(tx, dana.id, liftingOnly)),
+    ).rejects.toThrow(/needs a run/);
+
+    // Once the run has been logged there is nothing left to say about it, and the same plan
+    // stands: the two halves of the day are answered separately.
+    const logged = await withUser(t.db, dana.id, (tx) =>
+      createRun(tx, dana.id, {
+        mode: "outdoor",
+        startedAt: new Date(),
+        durationSeconds: 1500,
+        distanceMeters: 4000,
+        rpe: 3,
+        shinLeftPre: null,
+        shinRightPre: null,
+        shinLeftDuring: null,
+        shinRightDuring: null,
+        shinLeftPost: null,
+        shinRightPost: null,
+        programRunId: null,
+        notes: null,
+      }),
+    );
+    await withUser(t.db, dana.id, (tx) =>
+      recordSlotEvent(tx, dana.id, fixture.programId, ref, "run", "completed", {
+        occurredOn: "2026-09-12",
+        runId: logged.id,
+      }),
+    );
+    const stored = await withUser(t.db, dana.id, (tx) => storePlan(tx, dana.id, liftingOnly));
+    expect(stored.run).toBeNull();
+  });
+});
+
 describe("a plan that lands mid-session", () => {
   it("keeps showing the plan the open session is being trained from", async () => {
     const carol = await t.createAuthUser("mid-session@example.com");

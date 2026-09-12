@@ -514,7 +514,7 @@ export async function getTodayPlan(
 }
 
 /** The run that answered a slot's run part, if one did. */
-async function completedRunIdFor(
+export async function completedRunIdFor(
   db: DbOrTx,
   programId: string,
   ref: SlotRef,
