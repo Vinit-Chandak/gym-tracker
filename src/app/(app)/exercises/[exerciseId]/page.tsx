@@ -17,6 +17,7 @@ import { StatTile, StatTileRow } from "@/components/ui/stat-tile";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import type { Resolution } from "@/domain/equipment-resolution";
+import { performanceSeries } from "@/domain/analytics";
 import { formatSets } from "@/domain/sets";
 import { formatDay, formatKilograms } from "@/lib/format";
 import { setInUnit } from "@/lib/units";
@@ -42,7 +43,11 @@ import {
   type ExerciseGymAvailability,
 } from "@/server/repositories/availability";
 import { getExercise, type ExerciseProgramUsage } from "@/server/repositories/exercises";
+import { readWorkouts, TRAINING_RECORD_LIMIT } from "@/server/repositories/training-data";
+import { parseDateRangeOrDefault } from "@/server/validation/date-range";
 import { requireUuid } from "@/server/validation/params";
+
+import { ExerciseTrend } from "./exercise-trend";
 
 export const metadata: Metadata = { title: "Exercise" };
 
@@ -76,25 +81,51 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
   const { exerciseId } = await props.params;
   requireUuid(exerciseId);
   const user = await requireUser();
+  const params = await props.searchParams;
   const requestProfile = await getRequestProfile(user.id, user.email);
+  // The chart's window, and the same default Progress opens on: the last twelve weeks.
+  const { range, error: rangeError } = parseDateRangeOrDefault(
+    {
+      from: typeof params.from === "string" ? params.from : undefined,
+      to: typeof params.to === "string" ? params.to : undefined,
+    },
+    requestProfile.timeZone,
+  );
   const data = await withUser(getDb(), user.id, async (tx) => {
     const exercise = await getExercise(tx, user.id, exerciseId);
     if (!exercise) return null;
-    const [availability, performances, profile] = await Promise.all([
+    const [availability, performances, charted, profile] = await Promise.all([
       exerciseAvailability(tx, user.id, exerciseId, exercise),
       recentPerformances(tx, user.id, exerciseId),
+      // Only the sessions this movement was actually in, so the trend costs a page about
+      // one exercise a read about one exercise.
+      readWorkouts(tx, user.id, range, 0, TRAINING_RECORD_LIMIT, {
+        exerciseId,
+        completedOnly: true,
+      }),
       requestProfile,
     ]);
     return {
       exercise,
       availability,
       performances,
+      series: performanceSeries(charted.workouts, profile.timeZone, exerciseId),
       timeZone: profile.timeZone,
       unit: profile.preferredUnit === "lb" ? ("lb" as const) : ("kg" as const),
     };
   });
   if (!data) notFound();
-  const { exercise, availability, performances, timeZone, unit } = data;
+  const { exercise, availability, performances, series, timeZone, unit } = data;
+  // One machine's loads are not another's, so each is its own series and the corner picker
+  // chooses between them. Only the chosen one's points cross the wire.
+  const machines = series.map(({ id, name, machine, unit: loadUnit }) => ({
+    id,
+    name,
+    machine,
+    unit: loadUnit,
+  }));
+  const wanted = typeof params.series === "string" ? params.series : undefined;
+  const selected = series.find((s) => s.id === wanted) ?? series[0] ?? null;
   // What one set of this movement counts, and the range it is normally worked in.
   const measure = exercise.defaultPrescriptionType;
   const measureRange: [number | null, number | null] =
@@ -212,6 +243,13 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
             </ul>
           </Card>
         )}
+
+        {rangeError && (
+          <p role="alert" className="text-sm text-danger">
+            {rangeError}
+          </p>
+        )}
+        <ExerciseTrend range={range} machines={machines} selected={selected} />
 
         <Card>
           <h2 className="flex items-center gap-1 text-base font-medium">
