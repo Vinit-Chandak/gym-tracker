@@ -47,6 +47,8 @@ it("reports a refusal without leaving the buttons stuck", async () => {
   await waitFor(() =>
     expect(screen.getByRole("alert").textContent).toBe("Finish the open session first."),
   );
-  expect(screen.getByRole("button", { name: "Apply" })).toBeTruthy();
+  // The refusal can land a render before the transition ends, so the labels are waited for
+  // rather than read the instant the message appears.
+  await waitFor(() => expect(screen.getByRole("button", { name: "Apply" })).toBeTruthy());
   expect(screen.getByRole("button", { name: "No thanks" })).toBeTruthy();
 });
