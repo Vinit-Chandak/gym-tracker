@@ -366,6 +366,76 @@ describe("approving a change", () => {
     expect(emptied?.status).toBe("void");
   });
 
+  it("carries both halves of a day that lifts and runs", async () => {
+    const schedule = await as((tx) => getSchedule(tx, user.id));
+    const programId = schedule!.program.id;
+    const mixed = schedule!.days.find((day) => day.includesRun && day.includesLifting)!;
+    const ref = { cycleIndex: 1, dayIndex: mixed.dayIndex };
+    const logged = await as((tx) =>
+      createRun(tx, user.id, {
+        mode: "outdoor",
+        startedAt: new Date(),
+        durationSeconds: 1500,
+        distanceMeters: 4000,
+        rpe: 3,
+        shinLeftPre: null,
+        shinRightPre: null,
+        shinLeftDuring: null,
+        shinRightDuring: null,
+        shinLeftPost: null,
+        shinRightPost: null,
+        programRunId: null,
+        notes: null,
+      }),
+    );
+    // The two halves of the day are answered separately and each leaves its own event.
+    await as((tx) =>
+      recordSlotEvent(tx, user.id, programId, ref, "run", "completed", {
+        occurredOn: "2026-09-12",
+        runId: logged.id,
+      }),
+    );
+    await as((tx) =>
+      recordSlotEvent(tx, user.id, programId, ref, "session", "completed", {
+        occurredOn: "2026-09-12",
+      }),
+    );
+
+    const [before] = await t.db
+      .select()
+      .from(programSlotEvents)
+      .where(
+        and(
+          eq(programSlotEvents.programId, programId),
+          eq(programSlotEvents.dayIndex, mixed.dayIndex),
+          eq(programSlotEvents.part, "run"),
+        ),
+      );
+    expect(before?.runId).not.toBeNull();
+
+    const proposal = await propose([
+      { op: "adjust", lineageId: await lineageOf(mixed.dayIndex, 0), sets: 2, reason: "Shorter." },
+    ]);
+    // Without the part, both halves arrive as the session and collide on the slot's uniqueness,
+    // so a change could never be applied again once a mixed day had been answered.
+    const applied = await as((tx) => applyProposal(tx, user.id, proposal.id));
+    const carried = await t.db
+      .select()
+      .from(programSlotEvents)
+      .where(
+        and(
+          eq(programSlotEvents.programId, applied.programId),
+          eq(programSlotEvents.dayIndex, mixed.dayIndex),
+        ),
+      );
+    expect(carried.map((event) => [event.part, event.status]).sort()).toEqual([
+      ["run", "completed"],
+      ["session", "completed"],
+    ]);
+    // The run that answered the day comes with it, so history still points at it.
+    expect(carried.find((event) => event.part === "run")?.runId).toBe(before?.runId);
+  });
+
   it("refuses a change proposed against a version that has since moved on", async () => {
     const stale = await propose([
       { op: "adjust", lineageId: await lineageOf(2, 0), sets: 4, reason: "More pressing." },

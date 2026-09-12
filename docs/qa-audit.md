@@ -187,6 +187,17 @@ mid-workout switch while machine work stayed in the machine's own unit and nothi
 was rewritten; skipping a day dropping the plan that waited for it; and the rest day's
 "Start Lower A instead".
 
+### Applying a programme change, once a mixed day had been trained
+
+Trying a stale proposal in the browser turned up a defect that had nothing to do with the coach:
+**applying any programme change failed for good once the athlete had completed a day that both
+lifts and runs.** The two halves of such a day leave one event each, and the copy that carries an
+athlete's position onto the new version dropped the `part` that tells them apart — so both
+arrived as the session, collided on the slot's own uniqueness, and the whole revision was rolled
+back. The athlete saw "Could not apply the change. Please retry.", and retrying could never
+work. The run that answered the day was dropped from the copy as well, so history would have
+lost what it pointed at. Both are carried now, and the case is covered.
+
 ### Noted, not changed
 
 - `weightStep` resolves the machine's own increment before the exercise's, then 2.5 kg. A stack
