@@ -386,6 +386,60 @@ it has a test of its own. Everything else held: the wrong confirmation word chan
 sign-in record goes with the data where the service-role key allows it, and signing in again is
 refused.
 
+## Round: setting up, and creating a programme
+
+The coaching workflow of migrations 0013–0015, exercised on a running instance with the
+switches on: four accounts signed up from scratch and walked through setup, and the coach run
+twice as the cloud routine does, one agent per athlete, with every claim, context and result
+going through the real service.
+
+### What was verified
+
+Sign-up, the confirmation link, and all four steps of setup, with the answers checked in the
+database at each one. Every screen behind setup redirecting an unfinished account back into
+it. The three exits from the programme step: the suggested template, "just track my workouts",
+and building one by hand. The six-step intake — its autosave, its revisions, the report
+uploads with their type and size limits, and its refusal of an empty submission, which names
+what is missing. A programme created by the coach from a real claimed job. A programme built
+by hand, previewed, checked against current data, activated, and trained. Activation refused
+while a workout was open. Repeated presses of "create my programme" collapsing into one
+request rather than three.
+
+### What it fixes
+
+**A report could not be attached at all.** The upload compared the browser's `Origin` with
+`new URL(request.url).origin` — the server's own view of itself, which says `localhost`
+whatever host the athlete typed. Every upload came back 403, "Upload from this app's programme
+screen". It compares against the host the browser asked for now, or the forwarded host a proxy
+sets, which is the comparison the framework makes for a Server Action.
+
+**A hand-built programme could not be saved.** A new day carries no warm-up and the blueprint
+demanded one, so a filled-in programme — name, weeks, a day, two exercises — was answered with
+"Too small: expected string to have >=1 characters Slugs are lower-case words joined by
+hyphens", naming a field that is not on the screen. A day may have no warm-up now; the field
+says it is optional. The messages for an empty form are sentences again.
+
+**An athlete who runs could not say so.** Runs counted against the sessions a week and had to
+fall on a lifting day, so a coach that placed two easy 5ks on the athlete's own running days
+was refused, and the only way through was to attach them to the gym days and make those days
+longer than the hour agreed. The intake asks about running in its own right, and lifting days
+and run days are counted against their own answers.
+
+**Setup lost track of itself.** Leaving partway through and coming back began again at step
+one, and the gym step never mentioned the gym already added: typing the name again made a
+second gym with the same name, which then appeared twice, indistinguishable, in the coach's
+location picker. Setup resumes where it was left, and the gym step says what is there. "Skip
+for now" skipped the whole of setup rather than its own step, so anyone who skipped a gym was
+never offered a programme; it moves to the next step now.
+
+**A reviewed programme started on the owner's date.** A weekly review activating a change by
+itself used a hardcoded `Asia/Kolkata` today for every athlete.
+
+**Dead controls and keys on screen.** A change proposed against a programme since archived was
+still offered, where applying it could only ever be refused. The draft preview named muscles by
+their database keys, printed ranges whose ends agree twice over, and said "1 days per cycle";
+the custom exercise form listed its categories in the enum's own words.
+
 ## Open findings
 
 - Old records already saved with an incorrect kg label cannot be distinguished from real kg
