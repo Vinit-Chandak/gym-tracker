@@ -7,6 +7,7 @@ import { Field, Input, Textarea } from "@/components/ui/input";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { GYM_KINDS, type GymKind } from "@/domain/types";
 import { GYM_KIND_LABELS } from "@/lib/labels";
+import { keepsFormOnDisconnect } from "@/lib/offline-submit";
 import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
 
 export type GymFormValues = { name: string; kind: GymKind; address: string; notes: string };
@@ -24,7 +25,7 @@ function asKind(value: string | undefined, fallback: GymKind): GymKind {
 }
 
 export function GymForm({ action, initial, submitLabel }: GymFormProps) {
-  const [state, formAction] = useActionState(action, INITIAL_FORM_STATE);
+  const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
   const value = (key: keyof GymFormValues): string => state.values?.[key] ?? initial?.[key] ?? "";
 
   return (

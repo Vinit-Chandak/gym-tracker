@@ -9,6 +9,7 @@ import { Field, Input } from "@/components/ui/input";
 import { PRESSABLE_ROW_CLASS } from "@/components/ui/link-row";
 import { Sheet } from "@/components/ui/sheet";
 import type { SlotPart } from "@/domain/types";
+import { keepsOutcomeOnDisconnect } from "@/lib/offline-submit";
 import { cn } from "@/lib/utils";
 import {
   completeRestSlotAction,
@@ -115,7 +116,7 @@ export function MoreOptions({
   const [pending, startTransition] = useTransition();
   // The workout half only: a day that also runs keeps its run, which is skipped on its own.
   const [state, formAction, skipping] = useActionState(
-    skipSlotAction.bind(null, skip?.dayIndex ?? 0, "session"),
+    keepsOutcomeOnDisconnect(skipSlotAction.bind(null, skip?.dayIndex ?? 0, "session")),
     INITIAL,
   );
   const close = () => {
@@ -250,7 +251,7 @@ export function SkipPartButton({
 }) {
   const [open, setOpen] = useState(false);
   const [state, formAction, skipping] = useActionState(
-    skipSlotAction.bind(null, dayIndex, part),
+    keepsOutcomeOnDisconnect(skipSlotAction.bind(null, dayIndex, part)),
     INITIAL,
   );
   const [handled, setHandled] = useState<ActionResult>(INITIAL);

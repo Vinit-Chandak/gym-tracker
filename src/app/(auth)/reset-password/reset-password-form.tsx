@@ -10,7 +10,10 @@ import { updatePasswordAction, type PasswordChangeState } from "@/server/actions
 const INITIAL: PasswordChangeState = {};
 
 export function ResetPasswordForm() {
-  const [state, formAction, pending] = useActionState(updatePasswordAction, INITIAL);
+  const [state, formAction, pending] = useActionState(
+    updatePasswordAction,
+    INITIAL,
+  );
 
   if (state.done) {
     return (

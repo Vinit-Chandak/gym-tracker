@@ -4,12 +4,13 @@ import { useActionState } from "react";
 
 import { FormError, SubmitButton } from "@/components/ui/form";
 import { Field, Input } from "@/components/ui/input";
+import { keepsErrorOnDisconnect } from "@/lib/offline-submit";
 import { deleteAccountAction, type DeleteAccountState } from "@/server/actions/account";
 
 const INITIAL: DeleteAccountState = {};
 
 export function DeleteAccountForm() {
-  const [state, formAction] = useActionState(deleteAccountAction, INITIAL);
+  const [state, formAction] = useActionState(keepsErrorOnDisconnect(deleteAccountAction), INITIAL);
 
   return (
     <form action={formAction} className="space-y-4">

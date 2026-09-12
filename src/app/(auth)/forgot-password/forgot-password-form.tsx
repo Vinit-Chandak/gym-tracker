@@ -10,7 +10,10 @@ import { requestPasswordResetAction, type PasswordResetState } from "@/server/ac
 const INITIAL: PasswordResetState = {};
 
 export function ForgotPasswordForm() {
-  const [state, formAction, pending] = useActionState(requestPasswordResetAction, INITIAL);
+  const [state, formAction, pending] = useActionState(
+    requestPasswordResetAction,
+    INITIAL,
+  );
 
   if (state.sent) {
     return (

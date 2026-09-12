@@ -13,6 +13,7 @@ import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select } from "@/components/ui/select";
 import { formatPace, paceSecondsPerKm } from "@/domain/pace";
 import { rangeLabel, WEEKDAY_SHORT } from "@/lib/labels";
+import { keepsFormOnDisconnect } from "@/lib/offline-submit";
 import type { PlannedRunStatus } from "@/server/repositories/runs";
 import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
 
@@ -89,7 +90,7 @@ export function plannedRunLabel(run: {
 }
 
 export function RunForm({ action, initial, planned, runId, submitLabel, coach = null }: Props) {
-  const [state, formAction] = useActionState(action, INITIAL_FORM_STATE);
+  const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
   const value = (key: keyof RunFormValues): string => {
     const submitted = state.values?.[key];
     if (submitted !== undefined) return submitted;

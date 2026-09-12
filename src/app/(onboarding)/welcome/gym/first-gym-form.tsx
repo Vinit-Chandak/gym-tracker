@@ -7,6 +7,7 @@ import { Field, Input } from "@/components/ui/input";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { GYM_KINDS, type GymKind } from "@/domain/types";
 import { GYM_KIND_LABELS } from "@/lib/labels";
+import { keepsFormOnDisconnect } from "@/lib/offline-submit";
 import { createFirstGymAction } from "@/server/actions/onboarding";
 import { INITIAL_FORM_STATE } from "@/server/validation/form";
 
@@ -17,7 +18,10 @@ function asKind(value: string | undefined): GymKind {
 }
 
 export function FirstGymForm() {
-  const [state, formAction] = useActionState(createFirstGymAction, INITIAL_FORM_STATE);
+  const [state, formAction] = useActionState(
+    keepsFormOnDisconnect(createFirstGymAction),
+    INITIAL_FORM_STATE,
+  );
 
   return (
     <form action={formAction} className="space-y-5">

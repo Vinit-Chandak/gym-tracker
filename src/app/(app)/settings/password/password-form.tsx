@@ -6,12 +6,13 @@ import { useActionState } from "react";
 import { LinkButton } from "@/components/ui/button";
 import { FormError, SubmitButton } from "@/components/ui/form";
 import { Field, Input } from "@/components/ui/input";
+import { keepsErrorOnDisconnect } from "@/lib/offline-submit";
 import { updatePasswordAction, type PasswordChangeState } from "@/server/actions/auth";
 
 const INITIAL: PasswordChangeState = {};
 
 export function PasswordForm() {
-  const [state, formAction] = useActionState(updatePasswordAction, INITIAL);
+  const [state, formAction] = useActionState(keepsErrorOnDisconnect(updatePasswordAction), INITIAL);
 
   if (state.done) {
     return (

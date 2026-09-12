@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { FormError, SubmitButton } from "@/components/ui/form";
 import { Field } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { keepsFormOnDisconnect } from "@/lib/offline-submit";
 import type { ExerciseListItem } from "@/server/repositories/exercises";
 import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
 
@@ -33,7 +34,7 @@ export function PickExerciseForm({
   remember = false,
   exerciseFieldName = "exerciseId",
 }: Props) {
-  const [state, formAction] = useActionState(action, INITIAL_FORM_STATE);
+  const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
   const [exerciseId, setExerciseId] = useState(state.values?.[exerciseFieldName] ?? "");
 
   const applicableIds = exerciseId ? (machinesByExercise[exerciseId] ?? []) : [];
