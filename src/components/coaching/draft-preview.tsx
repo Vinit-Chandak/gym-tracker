@@ -169,8 +169,9 @@ export function DraftPreview({
                           .filter((run) => run.dayOfWeek === day.dayOfWeek)
                           .map((run) => (
                             <p key={run.weekIndex} className="text-ink-muted">
-                              Run week {run.weekIndex}: {run.duration.join("–")} min · RPE{" "}
-                              {run.rpe.join("–")}
+                              Run week {run.weekIndex}:{" "}
+                              {run.distanceKm ? `${span(run.distanceKm)} km · ` : ""}
+                              {span(run.duration)} min · RPE {span(run.rpe)}
                             </p>
                           ))}
                       </div>
@@ -227,7 +228,8 @@ export function DraftPreview({
                   .filter((r) => r.dayOfWeek === day.dayOfWeek)
                   .map((r) => (
                     <li key={r.weekIndex}>
-                      Week {r.weekIndex}: {r.duration.join("–")} minutes · RPE {r.rpe.join("–")}
+                      Week {r.weekIndex}: {r.distanceKm ? `${span(r.distanceKm)} km · ` : ""}
+                      {span(r.duration)} minutes · RPE {span(r.rpe)}
                       <p className="text-ink-muted">
                         {r.paceNote} {r.shinRule}
                       </p>

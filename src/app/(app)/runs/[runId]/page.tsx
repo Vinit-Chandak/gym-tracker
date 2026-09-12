@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { PageContent } from "@/components/shell/page-content";
+import { runSummary } from "@/components/run-plan";
 import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
 import { LinkButton } from "@/components/ui/button";
@@ -10,7 +11,7 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { formatDuration, formatPace } from "@/domain/pace";
 import { formatDateTime, formatRunKm } from "@/lib/format";
-import { rangeLabel, RUN_MODE_LABELS, WEEKDAY_SHORT } from "@/lib/labels";
+import { RUN_MODE_LABELS, WEEKDAY_SHORT } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { getRun } from "@/server/repositories/runs";
@@ -72,11 +73,7 @@ export default async function RunPage(props: PageProps<"/runs/[runId]">) {
           {run.planned ? (
             <p className="text-sm text-ink-muted">
               Planned run: week {run.planned.weekIndex}, {WEEKDAY_SHORT[run.planned.dayOfWeek]} ·
-              target{" "}
-              {rangeLabel(run.planned.durationMinMinutes, run.planned.durationMaxMinutes, " min")}
-              {run.planned.rpeMin !== null
-                ? ` at RPE ${rangeLabel(run.planned.rpeMin, run.planned.rpeMax)}`
-                : ""}
+              target {runSummary(run.planned)}
             </p>
           ) : (
             <p className="text-sm text-ink-muted">Unplanned run.</p>

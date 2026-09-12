@@ -391,6 +391,8 @@ export type RunTarget = {
   id: string;
   durationMinMinutes: number;
   durationMaxMinutes: number;
+  distanceMinKm: number | null;
+  distanceMaxKm: number | null;
   rpeMin: number | null;
   rpeMax: number | null;
   paceNote: string | null;
@@ -404,6 +406,8 @@ function runTargetSelection() {
     id: programRuns.id,
     durationMinMinutes: programRuns.durationMinMinutes,
     durationMaxMinutes: programRuns.durationMaxMinutes,
+    distanceMinKm: programRuns.distanceMinKm,
+    distanceMaxKm: programRuns.distanceMaxKm,
     rpeMin: programRuns.rpeMin,
     rpeMax: programRuns.rpeMax,
     paceNote: programRuns.paceNote,
