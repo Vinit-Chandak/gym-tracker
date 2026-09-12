@@ -16,6 +16,7 @@ import {
   getTodayPlan,
   pendingCycleForDay,
   recordSlotEvent,
+  reopenSkippedSession,
 } from "./schedule";
 import {
   addExerciseToSession,
@@ -798,5 +799,52 @@ describe("session-only supersets", () => {
         saveSupersetGroup(tx, user.id, { sessionId, group: null, workoutExerciseIds: pair }),
       ),
     ).rejects.toThrow();
+  });
+});
+
+describe("a day that was skipped", () => {
+  it("can be trained after all, in the cycle it was skipped in", async () => {
+    // Its own athlete: the shared one has answered most of the first cycle by now.
+    const athlete = await t.createAuthUser("reopened@example.com");
+    const fixture = await withUser(t.db, athlete.id, (tx) => seedTestUserData(tx, athlete));
+    const gymId = fixture.gymIdBySlug.get("anytime-fitness")!;
+    const schedule = await withUser(t.db, athlete.id, (tx) => getSchedule(tx, athlete.id));
+    const day = schedule!.days.find((d) => d.includesLifting && !d.includesRun)!;
+    const ref = { cycleIndex: 1, dayIndex: day.dayIndex };
+    await withUser(t.db, athlete.id, (tx) =>
+      recordSlotEvent(tx, athlete.id, fixture.programId, ref, "session", "skipped", {
+        occurredOn: "2026-09-08",
+        note: "Gym closed.",
+      }),
+    );
+    const skipped = await withUser(t.db, athlete.id, (tx) => getSchedule(tx, athlete.id));
+    expect(pendingCycleForDay(skipped!.state, day.dayIndex)).toBe(2);
+
+    // Choosing it from the list of this cycle means this occurrence, so the skip goes: a slot
+    // event is written once, and a workout finished against a day still marked skipped would
+    // never be recorded as done.
+    await withUser(t.db, athlete.id, (tx) =>
+      reopenSkippedSession(tx, athlete.id, fixture.programId, ref),
+    );
+    const reopened = await withUser(t.db, athlete.id, (tx) => getSchedule(tx, athlete.id));
+    expect(pendingCycleForDay(reopened!.state, day.dayIndex)).toBe(1);
+
+    const { sessionId } = await withUser(t.db, athlete.id, (tx) =>
+      startPlannedSession(tx, athlete.id, { gymId, programDayId: day.id, cycleIndex: 1 }),
+    );
+    await withUser(t.db, athlete.id, (tx) =>
+      finishSession(tx, athlete.id, sessionId, { notes: null, bodyWeightKg: null }),
+    );
+    // With the skip still there this would have written nothing, and the day the athlete just
+    // trained would have stayed skipped for good.
+    const recorded = await withUser(t.db, athlete.id, (tx) =>
+      recordSlotEvent(tx, athlete.id, fixture.programId, ref, "session", "completed", {
+        occurredOn: "2026-09-12",
+        workoutSessionId: sessionId,
+      }),
+    );
+    expect(recorded).toBe(true);
+    const after = await withUser(t.db, athlete.id, (tx) => getSchedule(tx, athlete.id));
+    expect(pendingCycleForDay(after!.state, day.dayIndex)).toBe(2);
   });
 });

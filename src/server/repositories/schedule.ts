@@ -211,6 +211,33 @@ export async function clearRunSlotEvent(db: DbOrTx, userId: string, runId: strin
     );
 }
 
+/**
+ * Takes back the skip on a slot's session, so the day can be trained after all.
+ *
+ * Picking a skipped day from "Train another day" trains the occurrence the list showed, which
+ * means the skip on it has to go: a slot event is written once, so a workout finished against a
+ * day still marked skipped would never be recorded as done.
+ */
+export async function reopenSkippedSession(
+  db: DbOrTx,
+  userId: string,
+  programId: string,
+  ref: SlotRef,
+): Promise<void> {
+  await db
+    .delete(programSlotEvents)
+    .where(
+      and(
+        eq(programSlotEvents.userId, userId),
+        eq(programSlotEvents.programId, programId),
+        eq(programSlotEvents.cycleIndex, ref.cycleIndex),
+        eq(programSlotEvents.dayIndex, ref.dayIndex),
+        eq(programSlotEvents.part, "session"),
+        eq(programSlotEvents.status, "skipped"),
+      ),
+    );
+}
+
 /** Completes every pending rest slot that comes before `ref` in the sequence, in one statement. */
 export async function completeRestSlotsBefore(
   db: DbOrTx,

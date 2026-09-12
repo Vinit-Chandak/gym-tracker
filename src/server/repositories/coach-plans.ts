@@ -757,7 +757,8 @@ export async function planningContext(
     startedAt: run.startedAt.toISOString(),
     startedOn: todayInTimeZone(profile.timeZone, run.startedAt),
     mode: run.mode,
-    distanceKm: Math.round(run.distanceMeters / 100) / 10,
+    // What was logged, not a tenth of a kilometre: the coach reads these to judge one run.
+    distanceKm: Math.round(run.distanceMeters / 10) / 100,
     durationMinutes: Math.round(run.durationSeconds / 60),
     paceSecondsPerKm: run.averagePaceSecondsPerKm,
     rpe: run.rpe,

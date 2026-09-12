@@ -5,6 +5,7 @@ import {
   formatIsoDate,
   formatIsoDay,
   formatIsoWeekdayDay,
+  formatRunKm,
   formatTime,
 } from "./format";
 
@@ -31,4 +32,13 @@ describe("dates that have to read the same on the server and in the page", () =>
     expect(formatTime("2026-09-12T10:47:00Z", "Europe/London")).toBe("11:47");
     expect(formatIsoDate("not-a-date")).toBe("not-a-date");
   });
+});
+
+it("writes a run's distance as it was logged", () => {
+  // Metres are stored exactly, so 3.45 km is not 3.5 km, and a round number keeps no decimals.
+  expect(formatRunKm(3450)).toBe("3.45");
+  expect(formatRunKm(3400)).toBe("3.4");
+  expect(formatRunKm(5000)).toBe("5");
+  expect(formatRunKm(0)).toBe("0");
+  expect(formatRunKm(12345)).toBe("12.35");
 });

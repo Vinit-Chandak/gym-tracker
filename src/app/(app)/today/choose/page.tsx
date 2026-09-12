@@ -59,7 +59,7 @@ export default async function ChooseDayPage() {
         ) : (
           <>
             <List>
-              {plan.cycleDays.map(({ day, status }) => {
+              {plan.cycleDays.map(({ day, status, cycleIndex }) => {
                 const exercises = exercisesByDay.get(day.id) ?? [];
                 return (
                   <li key={day.id} className="space-y-2 px-4 py-3">
@@ -94,6 +94,7 @@ export default async function ChooseDayPage() {
                           dayIndex={day.dayIndex}
                           label="Start"
                           dayName={day.name}
+                          fromCycleIndex={cycleIndex}
                           // One calm button per row: seven primary buttons make none primary.
                           variant="secondary"
                         />

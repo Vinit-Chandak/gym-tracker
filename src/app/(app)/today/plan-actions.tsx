@@ -40,12 +40,15 @@ export function StartPlannedButton({
   label,
   variant = "primary",
   dayName,
+  fromCycleIndex,
 }: {
   gymId: string | null;
   programDayId: string;
   dayIndex: number;
   label: string;
   variant?: ButtonVariant;
+  /** The cycle the athlete is looking at, when they chose the day from a list of one cycle. */
+  fromCycleIndex?: number;
   /**
    * Names the day when the visible label is shared by several buttons on one screen. It is
    * added to the label rather than replacing it, so that saying what the button says still
@@ -63,7 +66,9 @@ export function StartPlannedButton({
       disabled={gymId === null || pending}
       onClick={() => {
         if (!gymId) return;
-        startTransition(() => startPlannedSessionAction(gymId, programDayId, dayIndex));
+        startTransition(() =>
+          startPlannedSessionAction(gymId, programDayId, dayIndex, fromCycleIndex),
+        );
       }}
     >
       {pending ? "Starting…" : label}

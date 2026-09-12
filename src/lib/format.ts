@@ -96,6 +96,17 @@ export function formatDateRange(from: string, to: string): string {
     : `${format(from, from.slice(0, 4) !== to.slice(0, 4))} – ${format(to, true)}`;
 }
 
+/**
+ * A single run's distance, as it was logged: "3.45", "3.4", "5".
+ *
+ * Metres are stored exactly, so rounding one run to a tenth of a kilometre throws away the
+ * difference between 3.45 and 3.5 for no reason. Weekly and block totals keep their single
+ * decimal, where the second digit is noise.
+ */
+export function formatRunKm(distanceMeters: number): string {
+  return String(Math.round(distanceMeters / 10) / 100);
+}
+
 /** "1 h 12 min" / "48 min". */
 export function formatMinutes(totalMinutes: number): string {
   const hours = Math.floor(totalMinutes / 60);

@@ -285,8 +285,6 @@ tests cover some of the cases below; they still need the indicated browser/devic
 - Real offline/reconnect saves, conflicting edits in two tabs/devices, session expiry during
   a save, and recovery after interrupted finish/discard. Mocked draft/retry tests are not a
   substitute for these end-to-end failure checks.
-- Run RPE clearing: currently an optional selected RPE cannot be cleared through its selector.
-  This remains an open interaction finding.
 
 ### Coach and programme integrations
 
@@ -318,16 +316,27 @@ tests cover some of the cases below; they still need the indicated browser/devic
 - A final browser smoke test against the production build; live deployment, real Supabase
   delivery/admin operations, and the external coach service have not been tested.
 
-## Decisions still awaiting the user
+## Decisions the user has since answered
 
-- Should “Hold loads today” persist across leaving/reloading the workout?
-- Should run summaries show up to two decimal places instead of rounding to one?
-- When choosing a skipped day, reopen that cycle or explicitly offer its next cycle? Currently
-  the picker says Cycle 1 while the action starts the next pending occurrence in Cycle 2.
+- **Run decimals.** A single run now reads the distance that was logged, up to two decimals,
+  wherever that one run appears; weekly and block totals keep their single decimal. The app had
+  been inconsistent about this already — History showed 3.45 km where the run's own row showed
+  3.5 — and one helper now answers for all of them. The coach reads the logged value too.
+- **A skipped day, chosen again.** "Train another day" lists one cycle, so picking a day it
+  shows as skipped now trains that occurrence: the skip is taken back rather than the day being
+  passed over for the next cycle's, which the list never mentioned. A day already completed in
+  the cycle shown still goes to its next occurrence.
+- **An RPE given by mistake.** Pressing the chosen number again lets it go, since the rating is
+  optional and a radio cannot uncheck itself.
+- **Free-weight availability** stays as it is: an exercise is possible at a gym unless the gym
+  is marked as lacking what it needs.
+- **"Hold loads today"** is still open — see the note below.
 
 ## Open findings
 
-- “Hold loads today” resets on leaving/reloading. Persistence preference requested.
+- “Hold loads today” resets on leaving or reloading the workout, silently. Whether it should be
+  remembered — or exist at all, given that it only changes what the prefill suggests — is with
+  the user.
 - Old records already saved with an incorrect kg label cannot be distinguished from real kg
   records; no historical data was guessed or rewritten. Older coach plans do not contain a unit
   snapshot, so only newly saved plans can preserve that information.

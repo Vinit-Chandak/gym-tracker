@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import { cn } from "@/lib/utils";
 
 export type SegmentOption<V extends string> = { value: V; label: string };
@@ -12,6 +14,12 @@ type SegmentedControlProps<V extends string> = {
   /** Controlled value; pair with `onChange`. */
   value?: V;
   onChange?: (value: V) => void;
+  /**
+   * Lets a chosen pill be tapped again to choose nothing, for a group that is optional. A radio
+   * cannot be unchecked by itself, so an optional rating given by mistake would otherwise stay
+   * given until the record was deleted.
+   */
+  clearable?: boolean;
   /** Force an exact number of columns. Omit and the row fits as many as the labels allow. */
   columns?: number;
   "aria-label"?: string;
@@ -39,11 +47,14 @@ export function SegmentedControl<V extends string>({
   defaultValue,
   value,
   onChange,
+  clearable = false,
   columns,
   "aria-label": ariaLabel,
   ...accessibility
 }: SegmentedControlProps<V>) {
   const controlled = value !== undefined;
+  // A clearable group holds its own choice, so that tapping the chosen pill can let it go.
+  const [chosen, setChosen] = useState<V | "">(defaultValue ?? "");
   return (
     <div
       role="radiogroup"
@@ -65,7 +76,16 @@ export function SegmentedControl<V extends string>({
             className="peer sr-only"
             {...(controlled
               ? { checked: value === option.value, onChange: () => onChange?.(option.value) }
-              : { defaultChecked: defaultValue === option.value })}
+              : clearable
+                ? {
+                    checked: chosen === option.value,
+                    onChange: () => setChosen(option.value),
+                    // A second press on the chosen pill fires a click and no change: the
+                    // browser sees nothing to change. That press is what lets it go.
+                    onClick: () =>
+                      setChosen((current) => (current === option.value ? "" : current)),
+                  }
+                : { defaultChecked: defaultValue === option.value })}
           />
           <span
             className={cn(
