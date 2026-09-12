@@ -28,6 +28,7 @@ import {
   rejectProposal,
 } from "./program-revisions";
 import { readProgramBlueprint } from "./programs";
+import { createRun } from "./runs";
 import { getSchedule, recordSlotEvent } from "./schedule";
 import {
   discardSession,
@@ -200,6 +201,7 @@ describe("approving a change", () => {
     });
     const context = await as((tx) => planningContext(tx, user.id, { gymId }));
     if (context.reason) throw new Error(context.reason);
+    const plannedSlot = context.exercises[0]!;
     const plan = await as((tx) =>
       storePlan(tx, user.id, {
         slot: { cycleIndex: context.slot.cycleIndex, dayIndex: context.slot.dayIndex },
@@ -207,7 +209,11 @@ describe("approving a change", () => {
         trigger: "nightly",
         plan: {
           summary: "Arms and an easy run.",
-          exercises: [{ exerciseSlug: context.exercises[0]!.planned.slug, sets: [] }],
+          exercises: [
+            { slotId: plannedSlot.slotId, exerciseSlug: plannedSlot.planned.slug, sets: [] },
+          ],
+          // The slot runs as well as lifts, and a plan for it answers both halves.
+          ...(context.slot.includesRun ? { run: { durationMinutes: 20, rpe: 3 } } : {}),
         },
       }),
     );
@@ -269,9 +275,15 @@ describe("approving a change", () => {
     const schedule = await as((tx) => getSchedule(tx, user.id));
     expect(schedule?.program.id).toBe(after.id);
 
-    // A plan written against the old version names slots that are gone, so it is dropped.
-    const [stale] = await t.db.select().from(sessionPlans).where(eq(sessionPlans.id, plan.id));
-    expect(stale?.status).toBe("void");
+    // The plan the athlete was already given is not a casualty of a change to another day: it
+    // moves onto the new version by lineage, naming that version's own slot.
+    const [carried] = await t.db.select().from(sessionPlans).where(eq(sessionPlans.id, plan.id));
+    expect(carried?.status).toBe("active");
+    expect(carried?.programId).toBe(after.id);
+    expect(carried?.exercises).toHaveLength(1);
+    const carriedSlot = afterSlots.find((slot) => slot.id === carried?.exercises[0]?.slotId);
+    expect(carriedSlot?.lineageId).toBe(plannedSlot.lineageId);
+    expect(carried?.exercises[0]?.slotId).not.toBe(plannedSlot.slotId);
 
     const [record] = await t.db
       .select()
@@ -280,6 +292,148 @@ describe("approving a change", () => {
     expect(record?.status).toBe("applied");
     expect(record?.appliedProgramId).toBe(after.id);
     expect(record?.appliedAt).not.toBeNull();
+  });
+
+  it("lets the change itself govern the slots it rewrote, and voids a plan with nothing left", async () => {
+    const context = await as((tx) => planningContext(tx, user.id, { gymId }));
+    if (context.reason) throw new Error(context.reason);
+    const first = context.exercises[0]!;
+    const second = context.exercises[1]!;
+    if (!first.lineageId || !second.lineageId) throw new Error("slots must carry lineage");
+    const ref = { cycleIndex: context.slot.cycleIndex, dayIndex: context.slot.dayIndex };
+    // The run half of the day is already answered, so this plan is only about the lifting.
+    if (context.slot.includesRun) {
+      const logged = await as((tx) =>
+        createRun(tx, user.id, {
+          mode: "outdoor",
+          startedAt: new Date(),
+          durationSeconds: 1200,
+          distanceMeters: 3000,
+          rpe: 3,
+          shinLeftPre: null,
+          shinRightPre: null,
+          shinLeftDuring: null,
+          shinRightDuring: null,
+          shinLeftPost: null,
+          shinRightPost: null,
+          programRunId: null,
+          notes: null,
+        }),
+      );
+      await as((tx) =>
+        recordSlotEvent(tx, user.id, context.programme.id, ref, "run", "completed", {
+          occurredOn: "2026-09-10",
+          runId: logged.id,
+        }),
+      );
+    }
+    const plan = await as((tx) =>
+      storePlan(tx, user.id, {
+        slot: ref,
+        gymId,
+        trigger: "nightly",
+        plan: {
+          summary: "Two lifts, both spoken for.",
+          exercises: [
+            { slotId: first.slotId, exerciseSlug: first.planned.slug, sets: [] },
+            { slotId: second.slotId, exerciseSlug: second.planned.slug, sets: [] },
+          ],
+        },
+      }),
+    );
+
+    // The athlete has just approved new numbers for the first slot; the plan's entry for it was
+    // written against the old ones, so that slot follows the programme and the other is kept.
+    const trim = await propose([
+      { op: "adjust", lineageId: first.lineageId, sets: 2, reason: "The day runs long." },
+    ]);
+    await as((tx) => applyProposal(tx, user.id, trim.id));
+    const [afterAdjust] = await t.db
+      .select()
+      .from(sessionPlans)
+      .where(eq(sessionPlans.id, plan.id));
+    expect(afterAdjust?.status).toBe("active");
+    expect(afterAdjust?.exercises.map((entry) => entry.exerciseSlug)).toEqual([
+      second.planned.slug,
+    ]);
+
+    // Removing the one slot it has left leaves the plan with nothing of its own to say.
+    const drop = await propose([
+      { op: "remove", lineageId: second.lineageId, reason: "Covered elsewhere." },
+    ]);
+    await as((tx) => applyProposal(tx, user.id, drop.id));
+    const [emptied] = await t.db.select().from(sessionPlans).where(eq(sessionPlans.id, plan.id));
+    expect(emptied?.status).toBe("void");
+  });
+
+  it("carries both halves of a day that lifts and runs", async () => {
+    const schedule = await as((tx) => getSchedule(tx, user.id));
+    const programId = schedule!.program.id;
+    const mixed = schedule!.days.find((day) => day.includesRun && day.includesLifting)!;
+    const ref = { cycleIndex: 1, dayIndex: mixed.dayIndex };
+    const logged = await as((tx) =>
+      createRun(tx, user.id, {
+        mode: "outdoor",
+        startedAt: new Date(),
+        durationSeconds: 1500,
+        distanceMeters: 4000,
+        rpe: 3,
+        shinLeftPre: null,
+        shinRightPre: null,
+        shinLeftDuring: null,
+        shinRightDuring: null,
+        shinLeftPost: null,
+        shinRightPost: null,
+        programRunId: null,
+        notes: null,
+      }),
+    );
+    // The two halves of the day are answered separately and each leaves its own event.
+    await as((tx) =>
+      recordSlotEvent(tx, user.id, programId, ref, "run", "completed", {
+        occurredOn: "2026-09-12",
+        runId: logged.id,
+      }),
+    );
+    await as((tx) =>
+      recordSlotEvent(tx, user.id, programId, ref, "session", "completed", {
+        occurredOn: "2026-09-12",
+      }),
+    );
+
+    const [before] = await t.db
+      .select()
+      .from(programSlotEvents)
+      .where(
+        and(
+          eq(programSlotEvents.programId, programId),
+          eq(programSlotEvents.dayIndex, mixed.dayIndex),
+          eq(programSlotEvents.part, "run"),
+        ),
+      );
+    expect(before?.runId).not.toBeNull();
+
+    const proposal = await propose([
+      { op: "adjust", lineageId: await lineageOf(mixed.dayIndex, 0), sets: 2, reason: "Shorter." },
+    ]);
+    // Without the part, both halves arrive as the session and collide on the slot's uniqueness,
+    // so a change could never be applied again once a mixed day had been answered.
+    const applied = await as((tx) => applyProposal(tx, user.id, proposal.id));
+    const carried = await t.db
+      .select()
+      .from(programSlotEvents)
+      .where(
+        and(
+          eq(programSlotEvents.programId, applied.programId),
+          eq(programSlotEvents.dayIndex, mixed.dayIndex),
+        ),
+      );
+    expect(carried.map((event) => [event.part, event.status]).sort()).toEqual([
+      ["run", "completed"],
+      ["session", "completed"],
+    ]);
+    // The run that answered the day comes with it, so history still points at it.
+    expect(carried.find((event) => event.part === "run")?.runId).toBe(before?.runId);
   });
 
   it("refuses a change proposed against a version that has since moved on", async () => {

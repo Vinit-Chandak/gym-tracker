@@ -9,7 +9,7 @@ import { Card } from "@/components/ui/card";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { formatDuration, formatPace } from "@/domain/pace";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, formatRunKm } from "@/lib/format";
 import { rangeLabel, RUN_MODE_LABELS, WEEKDAY_SHORT } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
@@ -64,7 +64,7 @@ export default async function RunPage(props: PageProps<"/runs/[runId]">) {
             </Badge>
           </div>
           <dl className="grid grid-cols-4">
-            <Stat label="km" value={String(Math.round(run.distanceMeters / 100) / 10)} />
+            <Stat label="km" value={formatRunKm(run.distanceMeters)} />
             <Stat label="Time" value={formatDuration(run.durationSeconds)} />
             <Stat label="/km" value={formatPace(run.averagePaceSecondsPerKm)} />
             <Stat label="RPE" value={run.rpe === null ? "—" : String(run.rpe)} />

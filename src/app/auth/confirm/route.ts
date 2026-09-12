@@ -52,17 +52,28 @@ function isRecoveryFlow(data: unknown): boolean {
  * is still honoured, because links sent before this change carry one.
  */
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = request.nextUrl;
+  const { searchParams } = request.nextUrl;
   const asked = safeAppPath(searchParams.get("next"));
-  const go = (path: string) => NextResponse.redirect(new URL(asked ?? path, origin));
-  const failure = (reason: string) =>
-    NextResponse.redirect(new URL(`/login?error=${reason}`, origin));
+  /**
+   * Sends the athlete on without naming a host.
+   *
+   * Every destination here is a path inside the app, and the session this link just created
+   * belongs to the host they are actually on. Both `nextUrl.origin` and `request.url` report
+   * the origin the server was started with, which is not always that host: behind a proxy, on
+   * a custom domain, or anywhere the two differ, an absolute redirect arrives at a different
+   * origin without the cookie, and confirming an address lands back on the sign-in screen.
+   * A relative location is resolved by the browser against where it already is.
+   */
+  const here = (path: string) =>
+    new NextResponse(null, { status: 307, headers: { Location: path } });
+  const go = (path: string) => here(asked ?? path);
+  const failure = (reason: string) => here(`/login?error=${reason}`);
 
   if (!isSupabaseConfigured()) return failure("not-configured");
 
   // Supabase reports its own failures on the redirect itself (expired or already-used links).
   if (searchParams.get("error")) {
-    return NextResponse.redirect(new URL("/forgot-password?error=link", origin));
+    return here("/forgot-password?error=link");
   }
 
   const supabase = await createSupabaseServerClient();
@@ -81,9 +92,7 @@ export async function GET(request: NextRequest) {
   if (tokenHash && type && OTP_TYPES.has(type)) {
     const { error } = await supabase.auth.verifyOtp({ type, token_hash: tokenHash });
     if (error) {
-      return NextResponse.redirect(
-        new URL(type === "recovery" ? "/forgot-password?error=link" : "/login?error=link", origin),
-      );
+      return here(type === "recovery" ? "/forgot-password?error=link" : "/login?error=link");
     }
     return go(type === "recovery" ? AFTER_RECOVERY : AFTER_CONFIRM);
   }

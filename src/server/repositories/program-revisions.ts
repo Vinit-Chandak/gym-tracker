@@ -11,7 +11,7 @@ import {
 } from "@/domain/program-patch";
 import type { ProposalSource } from "@/domain/types";
 
-import { voidPlansForProgram } from "./coach-plans";
+import { carryPlansToRevision } from "./coach-plans";
 import { createProgramFromBlueprint, readProgramBlueprint } from "./programs";
 
 /**
@@ -217,7 +217,10 @@ export async function applyProposal(
     status: "active",
   });
 
-  // Where the athlete had got to, carried over slot for slot.
+  // Where the athlete had got to, carried over slot for slot — each half of a day with it.
+  // A day that lifts and runs answers the two separately and keeps an event for each, so the
+  // part has to come across: without it both halves arrive as the session, which collides on
+  // the slot's own uniqueness and loses the run that answered it.
   const events = await db
     .select()
     .from(programSlotEvents)
@@ -229,15 +232,23 @@ export async function applyProposal(
         programId: created.id,
         cycleIndex: event.cycleIndex,
         dayIndex: event.dayIndex,
+        part: event.part,
         status: event.status,
         workoutSessionId: event.workoutSessionId,
+        runId: event.runId,
         occurredOn: event.occurredOn,
         note: event.note,
       })),
     );
   }
-  // Plans written against the old version name slots that no longer exist.
-  await voidPlansForProgram(db, userId, program.id);
+  // A plan written against the old version names slots that no longer exist, but it is still
+  // the plan the athlete was given: it moves onto the new version by lineage, minus whatever
+  // this change itself rewrote.
+  await carryPlansToRevision(db, userId, {
+    fromProgramId: program.id,
+    toProgramId: created.id,
+    patch: patch.data,
+  });
 
   const now = new Date();
   await db

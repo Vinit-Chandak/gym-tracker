@@ -11,6 +11,7 @@ import {
   gymAbsentEquipmentTypes,
   gyms,
   profiles,
+  programDays,
   programExercises,
   programRuns,
   runs as runLogs,
@@ -29,10 +30,11 @@ import {
   type ReviewExercise,
 } from "@/domain/coach-review";
 import { resolveExerciseAtGym } from "@/domain/equipment-resolution";
+import type { ProgramPatch } from "@/domain/program-patch";
 import { performanceScore } from "@/domain/progression";
 import { addDays, todayInTimeZone } from "@/domain/program-calendar";
 import { shinEscalations, volumeSpike } from "@/domain/running";
-import { allSlots, progress, slotStatus, type SlotRef } from "@/domain/schedule";
+import { allSlots, progress, sessionsBehind, slotStatus, type SlotRef } from "@/domain/schedule";
 import {
   coachPlanSchema,
   PLAN_LIMITS,
@@ -41,8 +43,13 @@ import {
   type PlanRun,
   type StoredPlanExercise,
 } from "@/domain/session-plan";
-import { formatSet, formatSets, weightStepFor } from "@/domain/sets";
-import type { PlanTrigger, PrescriptionType } from "@/domain/types";
+import { formatSet, weightStepFor } from "@/domain/sets";
+import type {
+  CoachRequestInitiator,
+  CoachRequestStatus,
+  PlanTrigger,
+  PrescriptionType,
+} from "@/domain/types";
 import { fromDateTimeLocal } from "@/lib/time";
 import { ageOn } from "@/lib/units";
 import { sessionHistories, type ComparablePerformance } from "@/server/queries/comparable";
@@ -51,7 +58,13 @@ import { parseDateRange } from "@/server/validation/date-range";
 
 import { resolvePlannedDay } from "./availability";
 import { getGym, listGyms } from "./gyms";
-import { getRunTarget, getSchedule, type Schedule, type ScheduleDay } from "./schedule";
+import {
+  completedRunIdFor,
+  getRunTarget,
+  getSchedule,
+  type Schedule,
+  type ScheduleDay,
+} from "./schedule";
 import { applyRule } from "./progression-rule";
 import { readRecovery, readWorkouts } from "./training-data";
 import { readWeeklyTrainingVolume } from "./training-volume";
@@ -66,7 +79,11 @@ import { readWeeklyTrainingVolume } from "./training-volume";
  * session consumes the plan; the deterministic rule stays the fallback everywhere else.
  */
 
-/** Re-plans one account may ask for in a day: each one is a routine run on the owner's plan. */
+/**
+ * Plans one account may ask the coach for in a day: each one is a routine run on the owner's
+ * plan. Only the athlete's own asks are counted, so nothing the coach decides to do of its own
+ * accord can spend them.
+ */
 export const REPLAN_DAILY_LIMIT = 3;
 export { REQUEST_TIMEOUT_MINUTES } from "@/domain/coach-request";
 import { REQUEST_TIMEOUT_MINUTES } from "@/domain/coach-request";
@@ -109,6 +126,33 @@ export type NextTrainingSlot = {
  * The earliest pending slot the coach plans: one that lifts, runs, or both. Only a rest day
  * is skipped, since there is nothing there to prescribe.
  */
+/**
+ * The next pending slot that runs after the one being planned, and how many training slots away
+ * it is. An athlete with a race in their notes needs to know when their next run falls — and on
+ * a day that already runs, what they need is the one after it, not this one again.
+ */
+export function nextRunningSlot(
+  schedule: Schedule,
+  after?: SlotRef,
+): (NextTrainingSlot & { slotsAway: number }) | null {
+  const training = new Map(
+    schedule.days.filter((d) => d.includesLifting || d.includesRun).map((d) => [d.dayIndex, d]),
+  );
+  let slotsAway = 0;
+  let reached = after === undefined;
+  for (const ref of allSlots(schedule.state)) {
+    const day = training.get(ref.dayIndex);
+    if (!day || slotStatus(schedule.state, ref) !== "pending") continue;
+    if (!reached) {
+      if (ref.cycleIndex === after!.cycleIndex && ref.dayIndex === after!.dayIndex) reached = true;
+      continue;
+    }
+    slotsAway += 1;
+    if (day.includesRun) return { ...ref, day, slotsAway };
+  }
+  return null;
+}
+
 export function nextTrainingSlot(schedule: Schedule): NextTrainingSlot | null {
   const training = new Map(
     schedule.days.filter((d) => d.includesLifting || d.includesRun).map((d) => [d.dayIndex, d]),
@@ -254,6 +298,16 @@ export type PlanOutcome = {
     action: string;
     targets: string;
     note: string;
+    /**
+     * What the entry named, so a plan can be compared with this one by identity rather than by
+     * display name: the slot it answered, that slot's lineage (the only way to name it in a
+     * proposal), the exercise the coach chose and the machine it chose for it.
+     */
+    slotId: string | null;
+    lineageId: string | null;
+    exerciseSlug: string;
+    exerciseId: string;
+    equipmentInstanceId: string | null;
   }[];
   run: string | null;
   /** What was actually done in the session that used the plan; null when it was never used. */
@@ -261,7 +315,14 @@ export type PlanOutcome = {
     startedAt: string;
     /** Null means this is unfinished work, not a completed plan outcome. */
     completedAt: string | null;
-    exercises: { name: string; machine: string | null; skipped: boolean; sets: string }[];
+    exercises: {
+      name: string;
+      machine: string | null;
+      exerciseId: string;
+      equipmentInstanceId: string | null;
+      skipped: boolean;
+      sets: string;
+    }[];
   } | null;
 };
 
@@ -277,13 +338,24 @@ async function recentPlanOutcomes(
   userId: string,
   limit: number,
 ): Promise<PlanOutcome[]> {
-  const plans = await db
+  // The latest plan for each of the last few slots, not the last few plans: a slot re-planned
+  // three times would otherwise fill the coach's whole memory with one day's second thoughts.
+  const recent = await db
     .select({ plan: sessionPlans, gymName: gyms.name })
     .from(sessionPlans)
     .innerJoin(gyms, eq(gyms.id, sessionPlans.gymId))
     .where(eq(sessionPlans.userId, userId))
     .orderBy(desc(sessionPlans.generatedAt))
-    .limit(limit);
+    .limit(limit * 5);
+  const seen = new Set<string>();
+  const plans = recent
+    .filter((row) => {
+      const slot = `${row.plan.programId}:${row.plan.cycleIndex}:${row.plan.dayIndex}`;
+      if (seen.has(slot)) return false;
+      seen.add(slot);
+      return true;
+    })
+    .slice(0, limit);
   if (plans.length === 0) return [];
   const sessionIds = plans
     .map((row) => row.plan.workoutSessionId)
@@ -296,6 +368,8 @@ async function recentPlanOutcomes(
             sessionId: workoutExercises.workoutSessionId,
             id: workoutExercises.id,
             name: exercises.name,
+            exerciseId: workoutExercises.exerciseId,
+            equipmentInstanceId: workoutExercises.equipmentInstanceId,
             machine: equipmentInstances.name,
             skippedAt: workoutExercises.skippedAt,
             orderIndex: workoutExercises.orderIndex,
@@ -356,16 +430,31 @@ async function recentPlanOutcomes(
       prescribed: plan.exercises.map((entry) => ({
         name: entry.exerciseName,
         machine: entry.equipmentInstanceName,
+        slotId: entry.slotId,
+        lineageId: entry.slotLineageId,
+        exerciseSlug: entry.exerciseSlug,
+        exerciseId: entry.exerciseId,
+        equipmentInstanceId: entry.equipmentInstanceId,
         action: entry.action,
+        // Written the way performances are, so the two can be read against each other: the load
+        // in the unit it was planned in, and the effort it was asked for.
         targets:
           entry.action === "drop"
             ? "left out"
             : entry.sets.length === 0
               ? "by the rule"
               : entry.sets
-                  .map(
-                    (set) =>
-                      `${set.weight ?? "—"}×${set.reps ?? (set.distanceMeters !== null ? `${set.distanceMeters}m` : `${set.durationSeconds ?? "—"}s`)}@${set.rir ?? "—"}`,
+                  .map((set, index) =>
+                    setLine({
+                      setIndex: index + 1,
+                      setType: set.setType,
+                      weight: set.weight,
+                      unit: entry.unit ?? "kg",
+                      reps: set.reps,
+                      rir: set.rir,
+                      durationSeconds: set.durationSeconds,
+                      distanceMeters: set.distanceMeters,
+                    }),
                   )
                   .join(", "),
         note: entry.note,
@@ -381,12 +470,15 @@ async function recentPlanOutcomes(
                 .map((slot) => ({
                   name: slot.name,
                   machine: slot.machine,
+                  exerciseId: slot.exerciseId,
+                  equipmentInstanceId: slot.equipmentInstanceId,
                   skipped: slot.skippedAt !== null,
-                  sets: formatSets(
-                    sets
-                      .filter((set) => set.workoutExerciseId === slot.id)
-                      .map((set) => ({ ...set, distanceMeters: set.distanceMeters ?? null })),
-                  ),
+                  // With the RIR, as everywhere else the coach reads performances: whether a
+                  // plan worked is judged against the effort it asked for, not the reps alone.
+                  sets: sets
+                    .filter((set) => set.workoutExerciseId === slot.id)
+                    .map((set) => setLine({ ...set, distanceMeters: set.distanceMeters ?? null }))
+                    .join(", "),
                 })),
             }
           : null,
@@ -405,7 +497,7 @@ export async function planningContext(
   userId: string,
   options: { gymId?: string } = {},
 ) {
-  const [[profile], schedule, memo] = await Promise.all([
+  const [[profile], schedule, memo, pendingAsk] = await Promise.all([
     db
       .select({
         displayName: profiles.displayName,
@@ -422,12 +514,14 @@ export async function planningContext(
       .limit(1),
     getSchedule(db, userId),
     getCoachMemo(db, userId),
+    pendingRequest(db, userId),
   ]);
   if (!profile) throw new Error("Account unavailable");
   if (!schedule) return { reason: "no_programme" as const };
   const slot = nextTrainingSlot(schedule);
   if (!slot) return { reason: "programme_complete" as const };
   const day = slot.day;
+  const nextRun = nextRunningSlot(schedule, slot);
   const gym = options.gymId
     ? await getGym(db, userId, options.gymId)
     : await planningGym(db, userId);
@@ -663,7 +757,8 @@ export async function planningContext(
     startedAt: run.startedAt.toISOString(),
     startedOn: todayInTimeZone(profile.timeZone, run.startedAt),
     mode: run.mode,
-    distanceKm: Math.round(run.distanceMeters / 100) / 10,
+    // What was logged, not a tenth of a kilometre: the coach reads these to judge one run.
+    distanceKm: Math.round(run.distanceMeters / 10) / 100,
     durationMinutes: Math.round(run.durationSeconds / 60),
     paceSecondsPerKm: run.averagePaceSecondsPerKm,
     rpe: run.rpe,
@@ -695,6 +790,19 @@ export async function planningContext(
       today,
     },
     memo,
+    /**
+     * The athlete's own ask, when one is waiting for this gym: their words about today, read from
+     * the same place as everything else rather than relayed through the run's fire payload.
+     * `reason` is null when they asked without saying anything.
+     */
+    request:
+      pendingAsk && pendingAsk.gymId === gym.id
+        ? {
+            id: pendingAsk.id,
+            reason: pendingAsk.reason,
+            requestedAt: pendingAsk.requestedAt.toISOString(),
+          }
+        : null,
     programme: {
       id: schedule.program.id,
       name: schedule.program.name,
@@ -702,6 +810,23 @@ export async function planningContext(
       startDate: schedule.program.startDate,
       progress: state,
       adherence: liftingAdherence(schedule),
+      /**
+       * Slots behind the programme's own one-a-day pace, not calendar days: the app never fixes
+       * a date to a future slot, and the athlete trains the next one whenever they get to it.
+       */
+      slotsBehind: schedule.program.startDate
+        ? sessionsBehind(schedule.state, schedule.program.startDate, today)
+        : 0,
+      /** The next run after the one being planned, in training slots from it. */
+      nextRun: nextRun
+        ? {
+            cycleIndex: nextRun.cycleIndex,
+            dayIndex: nextRun.dayIndex,
+            dayName: nextRun.day.name,
+            slotsAway: nextRun.slotsAway,
+            alsoLifts: nextRun.day.includesLifting,
+          }
+        : null,
     },
     slot: {
       cycleIndex: slot.cycleIndex,
@@ -722,6 +847,11 @@ export async function planningContext(
     gym: {
       id: gym.id,
       name: gym.name,
+      /**
+       * Whether this is the gym the athlete trains at by default. A plan asked for at another
+       * gym must read the machines here rather than what the memo remembers about the usual one.
+       */
+      isDefault: gym.isDefault,
       notes: gym.notes,
       machines: machines.map((m) => ({
         id: m.id,
@@ -1013,6 +1143,11 @@ export async function storePlan(
     throw new PlanValidationError("That day has no lifting, so it takes a run and nothing else.");
   if (!day.includesRun && plan.run)
     throw new PlanValidationError("That day has no run in the programme.");
+  // The two halves of a day are answered separately, so a day whose run is still to come and
+  // comes back without one is half a plan: the athlete is told what to lift and left to guess
+  // the rest. A run already logged needs nothing more said about it.
+  if (day.includesRun && !plan.run && !(await completedRunIdFor(db, schedule.program.id, ref)))
+    throw new PlanValidationError("That day's run is still to come, so the plan needs a run.");
 
   const [daySlots, machines, visible, programRun] = await Promise.all([
     db
@@ -1355,22 +1490,46 @@ function startOfToday(timeZone: string): Date {
   return fromDateTimeLocal(`${todayInTimeZone(timeZone)}T00:00`, timeZone) ?? new Date(0);
 }
 
+/**
+ * Whether one of today's rows spends an ask.
+ *
+ * Only the athlete's own asks count: a nightly run, a plan the coach refreshes on its own and
+ * the coach's record of what it tried are the system's work, and charging those to the athlete
+ * would quietly take away asks they never made. Nor does an ask that never became a run — the
+ * owner's allowance gone for the day, a routine that would not take the app's token — since
+ * the athlete got nothing for it and the failure is the app's to explain, not theirs to pay
+ * for. A run that started and then failed or timed out did happen, and is counted.
+ */
+function spendsAnAsk(request: {
+  initiatedBy: CoachRequestInitiator;
+  status: CoachRequestStatus;
+  routineSessionId: string | null;
+}): boolean {
+  if (request.initiatedBy !== "athlete") return false;
+  return !(request.status === "failed" && request.routineSessionId === null);
+}
+
+/** How many plans the athlete has asked for today, of the three a day they may have. */
 export async function countRequestsToday(
   db: DbOrTx,
   userId: string,
   timeZone: string,
 ): Promise<number> {
   const rows = await db
-    .select({ id: coachRequests.id })
+    .select({
+      initiatedBy: coachRequests.initiatedBy,
+      status: coachRequests.status,
+      routineSessionId: coachRequests.routineSessionId,
+    })
     .from(coachRequests)
     .where(
       and(
         eq(coachRequests.userId, userId),
-        eq(coachRequests.trigger, "replan"),
+        eq(coachRequests.initiatedBy, "athlete"),
         gte(coachRequests.requestedAt, startOfToday(timeZone)),
       ),
     );
-  return rows.length;
+  return rows.filter(spendsAnAsk).length;
 }
 
 /** Records that the athlete asked for a plan. The caller fires the routine and reports back. */
@@ -1384,7 +1543,7 @@ export async function createCoachRequest(
     throw new CoachRequestLimitError();
   const [row] = await db
     .insert(coachRequests)
-    .values({ userId, gymId: input.gymId, reason: input.reason })
+    .values({ userId, gymId: input.gymId, reason: input.reason, initiatedBy: "athlete" })
     .returning();
   if (!row) throw new Error("Request insert returned no row");
   return row;
@@ -1495,6 +1654,9 @@ export async function recordAttempt(
       userId,
       gymId: input.gymId ?? null,
       trigger: input.trigger,
+      // The coach's own record of a run it made. Never the athlete's ask, so it never counts
+      // against their daily allowance, whichever kind of planning it was.
+      initiatedBy: "coach",
       status: input.status,
       error: input.error?.slice(0, 500) ?? null,
       routineSessionId: input.routineSessionId ?? null,
@@ -1634,6 +1796,12 @@ export async function todayCoachState(
           ),
         ),
       )
+      // A plan that arrived after the session started cannot be the one being trained, and the
+      // athlete is mid-workout: show them what they are actually doing, newest otherwise.
+      .orderBy(
+        sql`case when ${sessionPlans.status} = 'consumed' then 0 else 1 end`,
+        desc(sessionPlans.generatedAt),
+      )
       .limit(1),
     db
       .select()
@@ -1642,7 +1810,7 @@ export async function todayCoachState(
         and(
           eq(coachRequests.userId, userId),
           or(
-            and(eq(coachRequests.trigger, "replan"), gte(coachRequests.requestedAt, dayStart)),
+            and(eq(coachRequests.initiatedBy, "athlete"), gte(coachRequests.requestedAt, dayStart)),
             pendingFilter,
             inArray(coachRequests.id, latestOutcome),
           ),
@@ -1659,7 +1827,7 @@ export async function todayCoachState(
         request.requestedAt >= since,
     ) ?? null;
   const used = requests.filter(
-    (request) => request.trigger === "replan" && request.requestedAt >= dayStart,
+    (request) => request.requestedAt >= dayStart && spendsAnAsk(request),
   ).length;
   const outcome = requests.find((request) => request.status !== "requested");
   const failure = outcome?.status === "failed" ? outcome : null;
@@ -1700,22 +1868,102 @@ export async function plannedRunForToday(
   return { planId: plan.id, run: plan.run, summary: plan.summary, dayName: slot.day.name };
 }
 
-/** Plans an account no longer needs, e.g. after its programme changed. Kept for history. */
-export async function voidPlansForProgram(
+/**
+ * Moves the coach's waiting plans onto the version of the programme that has just replaced
+ * theirs.
+ *
+ * A revision rewrites every slot, so a plan written against the old rows names ids that no
+ * longer exist. It is still the plan the athlete was given for today, though, and approving a
+ * change to next week is no reason to lose it: each slot keeps its lineage across versions, so
+ * the plan is re-pointed by lineage rather than thrown away.
+ *
+ * What the change itself touched is the exception. A slot the patch adjusted, substituted or
+ * removed follows the new programme instead — the athlete approved those numbers a moment ago,
+ * and the plan was written against the old ones. The same goes for a run the patch retargeted.
+ * A plan left with nothing of its own to say is voided, as it was before.
+ */
+export async function carryPlansToRevision(
   db: DbOrTx,
   userId: string,
-  programId: string,
+  input: { fromProgramId: string; toProgramId: string; patch: ProgramPatch },
 ): Promise<void> {
-  await db
-    .update(sessionPlans)
-    .set({ status: "void" })
+  const plans = await db
+    .select()
+    .from(sessionPlans)
     .where(
       and(
         eq(sessionPlans.userId, userId),
-        eq(sessionPlans.programId, programId),
+        eq(sessionPlans.programId, input.fromProgramId),
         eq(sessionPlans.status, "active"),
       ),
     );
+  if (plans.length === 0) return;
+
+  const changed = new Set(
+    input.patch.operations.flatMap((operation) =>
+      "lineageId" in operation ? [operation.lineageId] : [],
+    ),
+  );
+  const retargetedRuns = new Set(
+    input.patch.operations.flatMap((operation) =>
+      operation.op === "run" ? [`${operation.weekIndex}:${operation.dayOfWeek}`] : [],
+    ),
+  );
+  const [days, slots, oldRuns, newRuns] = await Promise.all([
+    db
+      .select({ id: programDays.id, dayIndex: programDays.dayIndex })
+      .from(programDays)
+      .where(eq(programDays.programId, input.toProgramId)),
+    db
+      .select({ id: programExercises.id, lineageId: programExercises.lineageId })
+      .from(programExercises)
+      .innerJoin(programDays, eq(programDays.id, programExercises.programDayId))
+      .where(eq(programDays.programId, input.toProgramId)),
+    db
+      .select({ id: programRuns.id, week: programRuns.weekIndex, day: programRuns.dayOfWeek })
+      .from(programRuns)
+      .where(eq(programRuns.programId, input.fromProgramId)),
+    db
+      .select({ id: programRuns.id, week: programRuns.weekIndex, day: programRuns.dayOfWeek })
+      .from(programRuns)
+      .where(eq(programRuns.programId, input.toProgramId)),
+  ]);
+  const dayByIndex = new Map(days.map((day) => [day.dayIndex, day.id]));
+  const slotByLineage = new Map(slots.map((slot) => [slot.lineageId, slot.id]));
+  const occurrenceOfOldRun = new Map(oldRuns.map((run) => [run.id, `${run.week}:${run.day}`]));
+  const newRunByOccurrence = new Map(newRuns.map((run) => [`${run.week}:${run.day}`, run.id]));
+
+  for (const plan of plans) {
+    const programDayId = dayByIndex.get(plan.dayIndex);
+    const exercises = programDayId
+      ? plan.exercises.flatMap((entry) => {
+          if (entry.slotId === null) return [entry];
+          const lineageId = entry.slotLineageId;
+          if (lineageId === null || changed.has(lineageId)) return [];
+          const slotId = slotByLineage.get(lineageId);
+          return slotId ? [{ ...entry, slotId }] : [];
+        })
+      : [];
+    const occurrence = plan.run?.programRunId
+      ? occurrenceOfOldRun.get(plan.run.programRunId)
+      : undefined;
+    const run =
+      plan.run === null || !programDayId
+        ? null
+        : plan.run.programRunId === null
+          ? plan.run
+          : occurrence && !retargetedRuns.has(occurrence)
+            ? { ...plan.run, programRunId: newRunByOccurrence.get(occurrence) ?? null }
+            : null;
+    if (!programDayId || (exercises.length === 0 && run === null)) {
+      await db.update(sessionPlans).set({ status: "void" }).where(eq(sessionPlans.id, plan.id));
+      continue;
+    }
+    await db
+      .update(sessionPlans)
+      .set({ programId: input.toProgramId, programDayId, exercises, run })
+      .where(eq(sessionPlans.id, plan.id));
+  }
 }
 
 /** Whether a session already exists for the plan's slot, which Today uses to hide a stale plan. */

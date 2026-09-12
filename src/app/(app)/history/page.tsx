@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/shell/page-header";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { formatDuration, formatPace } from "@/domain/pace";
-import { formatDateRange, formatDateTime } from "@/lib/format";
+import { formatDateRange, formatDateTime, formatRunKm } from "@/lib/format";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { listGyms } from "@/server/repositories/gyms";
@@ -64,7 +64,7 @@ export default async function HistoryPage(props: PageProps<"/history">) {
       id: r.id,
       kind: "run" as const,
       date: r.startedAt.toISOString(),
-      title: `${r.mode === "treadmill" ? "Treadmill" : "Outdoor"} · ${Math.round(r.distanceMeters / 10) / 100} km`,
+      title: `${r.mode === "treadmill" ? "Treadmill" : "Outdoor"} · ${formatRunKm(r.distanceMeters)} km`,
       subtitle: formatDateTime(r.startedAt, profile.timeZone),
       href: `/runs/${r.id}` as const,
       meta: `${formatDuration(r.durationSeconds)} · ${formatPace(r.averagePaceSecondsPerKm)}/km`,

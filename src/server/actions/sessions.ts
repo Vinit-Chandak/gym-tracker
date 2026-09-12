@@ -10,7 +10,7 @@ import { getDb } from "@/db/client";
 import { profiles } from "@/db/schema";
 import { withUser } from "@/db/with-user";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import { nextPendingSlot, pendingParts } from "@/domain/schedule";
+import { nextPendingSlot, partStatus, pendingParts } from "@/domain/schedule";
 import { BODY_LOAD_UNITS, LOAD_UNITS, SET_TYPES, type SlotPart } from "@/domain/types";
 import { fromKilograms, toKilograms } from "@/lib/units";
 import { requireUser } from "@/server/auth";
@@ -24,6 +24,7 @@ import {
   getSchedule,
   pendingCycleForDay,
   recordSlotEvent,
+  reopenSkippedSession,
 } from "@/server/repositories/schedule";
 import {
   addExerciseToSession,
@@ -93,6 +94,12 @@ export async function startPlannedSessionAction(
   gymId: string,
   programDayId: string,
   dayIndex: number,
+  /**
+   * The cycle the athlete was looking at when they chose this day. "Train another day" lists one
+   * cycle, so a day it shows as skipped is the one they mean: that occurrence is reopened rather
+   * than passed over for the next cycle's, which the list never mentioned.
+   */
+  fromCycleIndex?: number,
 ): Promise<void> {
   const user = await requireUser();
   const sessionId = await withUser(getDb(), user.id, async (tx) => {
@@ -105,10 +112,19 @@ export async function startPlannedSessionAction(
     if (open) return open.id;
     const today = todayInTimeZone(profile.timeZone);
     if (!schedule) throw new SessionNotFoundError();
+    const shown =
+      fromCycleIndex !== undefined &&
+      partStatus(schedule.state, { cycleIndex: fromCycleIndex, dayIndex }, "session") === "skipped"
+        ? fromCycleIndex
+        : null;
     const cycleIndex =
+      shown ??
       pendingCycleForDay(schedule.state, dayIndex) ??
       nextPendingSlot(schedule.state)?.cycleIndex ??
       schedule.state.cycles;
+    if (shown !== null) {
+      await reopenSkippedSession(tx, user.id, schedule.program.id, { cycleIndex, dayIndex });
+    }
     // Passing rest days and starting the session write different rows; both land or neither.
     const [, { sessionId }] = await Promise.all([
       completeRestSlotsBefore(tx, user.id, schedule, { cycleIndex, dayIndex }, today),

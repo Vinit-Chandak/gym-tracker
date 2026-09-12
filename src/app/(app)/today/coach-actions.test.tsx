@@ -22,7 +22,9 @@ afterEach(() => {
 it("pauses reads in the background or offline and refreshes on return", () => {
   const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
   const online = vi.spyOn(navigator, "onLine", "get").mockReturnValue(true);
-  render(<CoachPending startedAt={new Date().toISOString()} gymName="Test gym" />);
+  render(
+    <CoachPending startedAt={new Date().toISOString()} startedAtLabel="09:00" gymName="Test gym" />,
+  );
   act(() => vi.advanceTimersByTime(60_000));
   expect(router.refresh).not.toHaveBeenCalled();
   visibility.mockReturnValue("visible");
@@ -40,7 +42,7 @@ it("refreshes after the server timeout even when it expires in the background, t
   const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
   vi.spyOn(navigator, "onLine", "get").mockReturnValue(true);
   const { unmount } = render(
-    <CoachPending startedAt={new Date().toISOString()} gymName="Test gym" />,
+    <CoachPending startedAt={new Date().toISOString()} startedAtLabel="09:00" gymName="Test gym" />,
   );
   act(() => vi.advanceTimersByTime(16 * 60_000));
   expect(router.refresh).not.toHaveBeenCalled();

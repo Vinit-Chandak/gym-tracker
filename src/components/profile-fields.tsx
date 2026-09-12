@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { Field, Input } from "@/components/ui/input";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -110,6 +110,12 @@ export function ProfileFields({
     text(values.bodyWeightKg === null ? null : fromKilograms(values.bodyWeightKg, unit)),
   );
   const [heightCm, setHeightCm] = useState(() => text(values.heightCm));
+  // Held here, like the fields above, because React clears an uncontrolled field when a form
+  // action returns: a refused profile would otherwise lose the date, the sex and the goal
+  // while complaining about something else, and all three are asked for again before it saves.
+  const [dateOfBirth, setDateOfBirth] = useState(values.dateOfBirth ?? "");
+  const [sex, setSex] = useState<string>(values.sex ?? "");
+  const [trainingGoal, setTrainingGoal] = useState<string>(values.trainingGoal ?? "");
   const [feet, setFeet] = useState(() => text(initialHeight?.feet ?? null));
   const [inches, setInches] = useState(() => text(initialHeight?.inches ?? null));
 
@@ -133,8 +139,28 @@ export function ProfileFields({
     setUnit(next);
   }
 
+  /**
+   * Holds the form together when a server action returns.
+   *
+   * React clears the fields of a form whose action has run, so that a form which saved cleanly
+   * is ready for the next entry. These fields are not: a refused profile comes back with the
+   * answers still in them, because the athlete is being asked to correct one of them, not to
+   * type the other six again. Everything here is held in state above, so there is nothing for a
+   * reset to restore — and it is cancelled rather than re-applied, since React does not write a
+   * controlled value back over a select or a radio the browser has just cleared.
+   */
+  const anchor = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const form = anchor.current?.closest("form");
+    if (!form) return;
+    const keep = (event: Event) => event.preventDefault();
+    form.addEventListener("reset", keep);
+    return () => form.removeEventListener("reset", keep);
+  }, []);
+
   return (
     <>
+      <span ref={anchor} hidden />
       <Field label="Name" error={errors?.displayName}>
         <Input
           type="text"
@@ -253,7 +279,8 @@ export function ProfileFields({
           type="date"
           name="dateOfBirth"
           autoComplete="bday"
-          defaultValue={values.dateOfBirth ?? ""}
+          value={dateOfBirth}
+          onChange={(event) => setDateOfBirth(event.target.value)}
           required
         />
       </Field>
@@ -264,7 +291,8 @@ export function ProfileFields({
           name="sex"
           aria-label="Sex"
           options={SEX_OPTIONS}
-          defaultValue={values.sex ?? ""}
+          value={sex}
+          onChange={setSex}
           columns={2}
         />
         {errors?.sex && (
@@ -275,7 +303,12 @@ export function ProfileFields({
       </div>
 
       <Field label="Training goal" error={errors?.trainingGoal}>
-        <Select name="trainingGoal" defaultValue={values.trainingGoal ?? ""} required>
+        <Select
+          name="trainingGoal"
+          value={trainingGoal}
+          onChange={(event) => setTrainingGoal(event.target.value)}
+          required
+        >
           <option value="" disabled>
             Choose a goal
           </option>

@@ -34,6 +34,18 @@ import { formValues, parseForm, type FormState } from "@/server/validation/form"
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
+/**
+ * A refusal the athlete can do something about, and which is therefore safe to show them.
+ * Anything else that goes wrong is the app's problem, not theirs, and says so instead of
+ * putting a driver's or the database's own words on the screen.
+ */
+class CoachRequestRefused extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CoachRequestRefused";
+  }
+}
+
 export async function setAiCoachEnabledAction(enabled: boolean): Promise<void> {
   const user = await requireUser();
   await withUser(getDb(), user.id, (tx) =>
@@ -93,8 +105,10 @@ export async function requestCoachPlanAction(gymId: string, reason: string): Pro
         ensureProfile(tx, user),
         getGym(tx, user.id, parsed.data.gymId),
       ]);
-      if (!profile.aiCoachEnabled) throw new Error("The AI coach is switched off in Settings.");
-      if (!gym || !gym.isActive || gym.kind !== "gym") throw new Error("Choose one of your gyms.");
+      if (!profile.aiCoachEnabled)
+        throw new CoachRequestRefused("The AI coach is switched off in Settings.");
+      if (!gym || !gym.isActive || gym.kind !== "gym")
+        throw new CoachRequestRefused("Choose one of your gyms.");
       return createCoachRequest(tx, user.id, {
         gymId: gym.id,
         reason: parsed.data.reason,
@@ -103,7 +117,7 @@ export async function requestCoachPlanAction(gymId: string, reason: string): Pro
     });
     requestId = created.id;
   } catch (error) {
-    if (error instanceof CoachRequestLimitError || error instanceof Error)
+    if (error instanceof CoachRequestLimitError || error instanceof CoachRequestRefused)
       return { ok: false, error: error.message };
     return { ok: false, error: "Could not ask the coach. Please retry." };
   }

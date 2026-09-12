@@ -1,7 +1,8 @@
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq, inArray, ne } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import {
+  coachRequests,
   equipmentInstances,
   equipmentTypes,
   gyms as gymsTable,
@@ -399,12 +400,75 @@ describe("a session that starts from a plan", () => {
 });
 
 describe("requests", () => {
+  const requestsLeft = async (programId: string) =>
+    (
+      await withUser(t.db, alice.id, (tx) =>
+        todayCoachState(tx, alice.id, {
+          enabled: true,
+          timeZone: TZ,
+          programId,
+          ref: { cycleIndex: 1, dayIndex: 1 },
+          gymId: anytimeId,
+        }),
+      )
+    ).requestsLeft;
+
+  it("gives back an ask whose run never started", async () => {
+    const schedule = await withUser(t.db, alice.id, (tx) => getSchedule(tx, alice.id));
+    const programId = schedule!.program.id;
+    const before = await requestsLeft(programId);
+    const asked = await withUser(t.db, alice.id, (tx) =>
+      createCoachRequest(tx, alice.id, { gymId: anytimeId, reason: null, timeZone: TZ }),
+    );
+    expect(await requestsLeft(programId)).toBe(before - 1);
+    // The routine could not be started at all — the owner's runs are gone for the day, or the
+    // trigger would not take the app's token. The athlete got nothing, so they keep the ask.
+    await withUser(t.db, alice.id, (tx) =>
+      markRequestFailed(tx, alice.id, asked.id, "The coach has used up today's runs."),
+    );
+    expect(await requestsLeft(programId)).toBe(before);
+
+    // A run that did start and then failed is a run the athlete had: that one is spent.
+    const second = await withUser(t.db, alice.id, (tx) =>
+      createCoachRequest(tx, alice.id, { gymId: anytimeId, reason: null, timeZone: TZ }),
+    );
+    await withUser(t.db, alice.id, (tx) =>
+      recordRoutineRun(tx, alice.id, second.id, {
+        sessionId: "session_started",
+        sessionUrl: "https://claude.ai/code/session_started",
+      }),
+    );
+    await withUser(t.db, alice.id, (tx) =>
+      markRequestFailed(tx, alice.id, second.id, "The coach could not finish."),
+    );
+    expect(await requestsLeft(programId)).toBe(before - 1);
+    // Leave the day's allowance as this test found it, for the ones that follow.
+    await t.db.delete(coachRequests).where(inArray(coachRequests.id, [asked.id, second.id]));
+  });
+
+  it("never spends the day's allowance on a run the coach made itself", async () => {
+    const schedule = await withUser(t.db, alice.id, (tx) => getSchedule(tx, alice.id));
+    const programId = schedule!.program.id;
+    const before = await requestsLeft(programId);
+    // A nightly run, and a re-plan run the coach records itself. Neither is an ask the athlete
+    // made, so neither may cost them one.
+    for (const trigger of ["nightly", "replan"] as const) {
+      await withUser(t.db, alice.id, (tx) =>
+        recordAttempt(tx, alice.id, { trigger, gymId: anytimeId, status: "planned" }),
+      );
+    }
+    expect(await requestsLeft(programId)).toBe(before);
+  });
+
   it("allows a few a day, then stops", async () => {
     const make = () =>
       withUser(t.db, alice.id, (tx) =>
         createCoachRequest(tx, alice.id, { gymId: anytimeId, reason: "Gym changed", timeZone: TZ }),
       );
+    const schedule = await withUser(t.db, alice.id, (tx) => getSchedule(tx, alice.id));
+    const before = await requestsLeft(schedule!.program.id);
     const first = await make();
+    expect(await requestsLeft(schedule!.program.id)).toBe(before - 1);
     for (let i = 1; i < REPLAN_DAILY_LIMIT; i++) await make();
     await expect(make()).rejects.toThrow(CoachRequestLimitError);
 
@@ -927,4 +991,128 @@ const RUN_ONLY_BLUEPRINT = parseProgramBlueprint({
     },
     { weekIndex: 2, dayOfWeek: 1, duration: [25, 30], rpe: [3, 4] },
   ],
+});
+
+describe("a day that runs", () => {
+  it("will not take a plan that answers only the lifting, until the run is logged", async () => {
+    const dana = await t.createAuthUser("runs-and-lifts@example.com");
+    const fixture = await withUser(t.db, dana.id, (tx) => seedTestUserData(tx, dana));
+    await t.db
+      .update(profiles)
+      .set({ aiCoachEnabled: true, timeZone: TZ })
+      .where(eq(profiles.id, dana.id));
+    const gymId = fixture.gymIdBySlug.get("anytime-fitness")!;
+    // Walk the programme on to the first day that both lifts and runs.
+    const schedule = await withUser(t.db, dana.id, (tx) => getSchedule(tx, dana.id));
+    const runningDay = schedule!.days.find((day) => day.includesRun && day.includesLifting)!;
+    for (const day of schedule!.days) {
+      if (day.dayIndex >= runningDay.dayIndex) break;
+      await withUser(t.db, dana.id, (tx) =>
+        recordSlotEvent(
+          tx,
+          dana.id,
+          fixture.programId,
+          { cycleIndex: 1, dayIndex: day.dayIndex },
+          "session",
+          "skipped",
+          { occurredOn: "2026-09-08" },
+        ),
+      );
+    }
+    const ref = { cycleIndex: 1, dayIndex: runningDay.dayIndex };
+    const context = await withUser(t.db, dana.id, (tx) => planningContext(tx, dana.id, { gymId }));
+    if (context.reason) throw new Error(context.reason);
+    expect(context.slot.includesRun).toBe(true);
+    const liftingOnly = {
+      slot: ref,
+      gymId,
+      trigger: "nightly" as const,
+      plan: {
+        summary: "Only half of the day.",
+        exercises: [{ exerciseSlug: context.exercises[0]!.planned.slug, sets: [] }],
+      },
+    };
+    await expect(
+      withUser(t.db, dana.id, (tx) => storePlan(tx, dana.id, liftingOnly)),
+    ).rejects.toThrow(/needs a run/);
+
+    // Once the run has been logged there is nothing left to say about it, and the same plan
+    // stands: the two halves of the day are answered separately.
+    const logged = await withUser(t.db, dana.id, (tx) =>
+      createRun(tx, dana.id, {
+        mode: "outdoor",
+        startedAt: new Date(),
+        durationSeconds: 1500,
+        distanceMeters: 4000,
+        rpe: 3,
+        shinLeftPre: null,
+        shinRightPre: null,
+        shinLeftDuring: null,
+        shinRightDuring: null,
+        shinLeftPost: null,
+        shinRightPost: null,
+        programRunId: null,
+        notes: null,
+      }),
+    );
+    await withUser(t.db, dana.id, (tx) =>
+      recordSlotEvent(tx, dana.id, fixture.programId, ref, "run", "completed", {
+        occurredOn: "2026-09-12",
+        runId: logged.id,
+      }),
+    );
+    const stored = await withUser(t.db, dana.id, (tx) => storePlan(tx, dana.id, liftingOnly));
+    expect(stored.run).toBeNull();
+  });
+});
+
+describe("a plan that lands mid-session", () => {
+  it("keeps showing the plan the open session is being trained from", async () => {
+    const carol = await t.createAuthUser("mid-session@example.com");
+    const fixture = await withUser(t.db, carol.id, (tx) => seedTestUserData(tx, carol));
+    await t.db
+      .update(profiles)
+      .set({ aiCoachEnabled: true, timeZone: TZ })
+      .where(eq(profiles.id, carol.id));
+    const gymId = fixture.gymIdBySlug.get("anytime-fitness")!;
+    const context = await withUser(t.db, carol.id, (tx) =>
+      planningContext(tx, carol.id, { gymId }),
+    );
+    if (context.reason) throw new Error(context.reason);
+    const store = (summary: string) =>
+      withUser(t.db, carol.id, (tx) =>
+        storePlan(tx, carol.id, {
+          slot: { cycleIndex: context.slot.cycleIndex, dayIndex: context.slot.dayIndex },
+          gymId,
+          trigger: "nightly",
+          plan: {
+            summary,
+            exercises: [{ exerciseSlug: context.exercises[0]!.planned.slug, sets: [] }],
+          },
+        }),
+      );
+    const training = await store("The plan the session was started from.");
+    await withUser(t.db, carol.id, (tx) =>
+      startPlannedSession(tx, carol.id, {
+        gymId,
+        programDayId: context.slot.programDayId,
+        cycleIndex: context.slot.cycleIndex,
+      }),
+    );
+    // A re-plan asked for before the session started can still land after it did. It cannot be
+    // the plan being trained, so Today must not show it to someone mid-workout.
+    const later = await store("Arrived after the session had started.");
+    expect(later.id).not.toBe(training.id);
+    const today = await withUser(t.db, carol.id, (tx) =>
+      todayCoachState(tx, carol.id, {
+        enabled: true,
+        timeZone: TZ,
+        programId: context.programme.id,
+        ref: { cycleIndex: context.slot.cycleIndex, dayIndex: context.slot.dayIndex },
+        gymId,
+      }),
+    );
+    expect(today.plan?.id).toBe(training.id);
+    expect(today.plan?.summary).toBe("The plan the session was started from.");
+  });
 });

@@ -195,7 +195,13 @@ export function RunForm({ action, initial, planned, runId, submitLabel, coach = 
       <Section title="Effort and plan">
         <Card>
           <Field group label="RPE" hint="Optional" error={state.fieldErrors?.rpe}>
-            <SegmentedControl name="rpe" options={RPE} defaultValue={value("rpe")} columns={5} />
+            <SegmentedControl
+              name="rpe"
+              options={RPE}
+              defaultValue={value("rpe")}
+              clearable
+              columns={5}
+            />
           </Field>
 
           <Field label="Planned run" error={state.fieldErrors?.programRunId}>

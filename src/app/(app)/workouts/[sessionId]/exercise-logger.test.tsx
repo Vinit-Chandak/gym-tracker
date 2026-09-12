@@ -179,6 +179,25 @@ it("uses the coach's exact set count and types instead of repeating targets to f
   expect(actions.log.mock.calls[0]?.[0]).toMatchObject({ setType: "warmup", weight: 60, reps: 5 });
 });
 
+it("says what an open-ended coach plan asks for instead of a load it never set", () => {
+  renderLogger({
+    exercise: {
+      coachNote: "Nothing on record: find a load you could stop three short of.",
+      suggestion: {
+        kind: "coach",
+        basis: "exercise",
+        reason: "First session at this gym",
+        advice: null,
+        loadIncrement: 2.5,
+        // The coach left the weight open: there is no previous load, so none can be "the same".
+        sets: [{ ...saved, weight: null, reps: 5, rir: 3 }],
+      },
+    },
+  });
+  expect(screen.queryByText(/the same load/)).toBeNull();
+  expect(screen.getByText(/5 reps · Nothing on record/)).toBeTruthy();
+});
+
 it("preserves decimal metres in the grid and the set options", async () => {
   actions.log.mockResolvedValue({
     ok: true,

@@ -14,7 +14,7 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { formatDuration, formatPace } from "@/domain/pace";
 import { RUN_VOLUME_SPIKE_RATIO, SHIN_ESCALATION_RUNS } from "@/domain/running";
-import { formatDay, formatIsoDate } from "@/lib/format";
+import { formatDay, formatIsoDate, formatRunKm } from "@/lib/format";
 import { rangeLabel, RUN_MODE_LABELS, WEEKDAY_SHORT } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
@@ -163,7 +163,7 @@ export default async function RunsPage() {
                 <li key={run.id}>
                   <LinkRow
                     href={`/runs/${run.id}`}
-                    title={`${formatDay(run.startedAt, timeZone)} · ${Math.round(run.distanceMeters / 100) / 10} km`}
+                    title={`${formatDay(run.startedAt, timeZone)} · ${formatRunKm(run.distanceMeters)} km`}
                     subtitle={`${formatDuration(run.durationSeconds)} · ${formatPace(run.averagePaceSecondsPerKm)} /km${run.rpe !== null ? ` · RPE ${run.rpe}` : ""}`}
                     meta={RUN_MODE_LABELS[run.mode]}
                     badge={

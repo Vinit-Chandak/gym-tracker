@@ -27,10 +27,16 @@ function Proposal({ proposal }: { proposal: ProposalCard }) {
   const [operation, setOperation] = useState<"apply" | "reject">("apply");
   const [error, setError] = useState<string | null>(null);
 
-  const act = (action: (id: string) => Promise<{ ok: true } | { ok: false; error: string }>) =>
+  /**
+   * Which button is working has to be set here, in the click itself. Setting it inside the
+   * transition leaves the first pending render with the previous value, so dismissing a change
+   * lit up "Applying…" on the button beside it — the one the athlete did not press.
+   */
+  const act = (kind: "apply" | "reject") => {
+    setOperation(kind);
+    setError(null);
+    const action = kind === "reject" ? rejectProposalAction : applyProposalAction;
     startTransition(async () => {
-      setError(null);
-      setOperation(action === rejectProposalAction ? "reject" : "apply");
       try {
         const result = await action(proposal.id);
         if (!result.ok) setError(result.error);
@@ -38,6 +44,7 @@ function Proposal({ proposal }: { proposal: ProposalCard }) {
         setError("Connection lost. Try again when connected.");
       }
     });
+  };
 
   return (
     <Card>
@@ -66,11 +73,11 @@ function Proposal({ proposal }: { proposal: ProposalCard }) {
           variant="secondary"
           className="w-full"
           disabled={pending}
-          onClick={() => act(rejectProposalAction)}
+          onClick={() => act("reject")}
         >
           {pending && operation === "reject" ? "Dismissing…" : "No thanks"}
         </Button>
-        <Button className="w-full" disabled={pending} onClick={() => act(applyProposalAction)}>
+        <Button className="w-full" disabled={pending} onClick={() => act("apply")}>
           {pending && operation === "apply" ? "Applying…" : "Apply"}
         </Button>
       </div>

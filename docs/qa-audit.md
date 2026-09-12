@@ -99,6 +99,157 @@ whitespace checks cover the committed source and report. No live deployment was 
 The broader source formatting check reports 175 pre-existing style warnings in untouched files;
 those files were not reformatted as part of this checkpoint.
 
+## Coach round: what was exercised and what changed
+
+The coach itself ran three times against the running app, as the routine does: a nightly plan
+for an athlete with nothing on record, a re-plan asked from Today at a second gym with a time
+constraint, and a nightly plan after a session had been logged against the first. Each run was a
+separate agent following `.claude/skills/coach/SKILL.md` with no knowledge of this audit, and
+each was asked afterwards what the API, the scripts and the skill made hard. Their answers, and
+the browser and API checks around them, produced the changes below.
+
+Verified end to end: a nightly plan reaching Today and the session built from it (drops,
+supersets, machine choices and set counts all carried into the logger); an on-demand re-plan
+firing the routine, Today reporting it, and the page updating itself when the plan landed
+minutes later; a plan made for another gym saying so instead of being used; the owner's daily
+runs exhausted, a rejected routine token, an unexpected answer and a run that never reported,
+each with its own message and the fifteen-minute reconciliation behind it; a programme
+revision applied around an open session; warnings shown under a partial plan; the coach
+switched off and on again with a plan waiting; and the read API's six endpoints, token expiry
+options, real expiry, revocation, the ten-token cap, paging, date limits and per-account
+isolation.
+
+### Fixed
+
+- Every workout session page threw a hydration error and repainted: Node's ICU and the
+  browser's disagree about the comma after a short weekday, so the server wrote
+  "Sat 12 Sept, 11:47" and the page "Sat, 12 Sept, 11:47". Weekday dates are now assembled from
+  the formatter's parts, so both write the same words.
+- One re-plan spent two of the athlete's three daily asks: the athlete's request and the coach's
+  own record of the run were both counted. `coach_requests.initiated_by` now says who asked, and
+  only the athlete's own asks count. Nothing the coach does of its own accord can spend one.
+- An ask that never became a run — the owner's allowance gone, a routine that would not take the
+  app's token — is given back. A run that started and then failed is still spent.
+- Applying a programme change threw away the coach's plan for the day. The plan now moves onto
+  the new version by slot lineage; only what the change itself rewrote follows the new
+  programme, and a plan left with nothing to say is dropped as before.
+- With a workout open, Today showed a plan that had landed after the session started rather than
+  the one being trained.
+- `lastPlans` could not support the rules built on it: the coach's own past plans came back as
+  display names with no identifiers, and what was performed carried no RIR. They now carry the
+  slot, its lineage, the exercise and the machine, and performances keep the RIR they were
+  logged at.
+- The coach could not tell a gym from the athlete's usual one, could not read the athlete's own
+  words for a re-plan, and was handed a `reason: null` that means "nothing to plan" beside a
+  perfectly good context. The context now marks the default gym, carries the athlete's ask, and
+  sends `reason` only when there is nothing to plan.
+- The coach had no idea when its next session or the athlete's next run fell. The context now
+  says how many slots behind the programme is running and where the next running day is.
+- `submit.ts` told the coach to retry a rejection no edit can fix; it now separates "fix these
+  and submit again" from "this slot will not take a plan". The skill's own commands recorded a
+  re-plan as a nightly run with no gym against it, and said nothing about closing the athlete's
+  request when there was nothing to plan.
+- Dismissing a proposed programme change lit up "Applying…" on the button beside it.
+- A coach plan that deliberately leaves the load open said "the same load × 5" when nothing had
+  ever been logged.
+- The day's Start and Resume buttons answered to "Start Lower A" while showing "Start workout",
+  so voice control could not reach them.
+- A skipped exercise in a finished session read the same as one that was never done.
+- Creating a second coach token while the first was still on screen left the button saying
+  "Copied" for a token that had never been copied, and a clipboard that refused said nothing.
+- An unexpected failure while asking the coach showed the athlete whatever the error said,
+  database messages included.
+
+### Fixed after the run-day round
+
+A fourth coach run planned a day that both lifts and runs, and logging it end to end found
+more:
+
+- A day that runs could be answered with a plan that only covered the lifting. The server took
+  it silently, and the athlete was told what to lift and left to guess the rest. It is refused
+  now, unless that day's run has already been logged — the two halves are answered separately.
+- `programme.nextRun` named the slot being planned when that day ran, which is the one thing
+  the coach already knew. It names the run after it.
+- A coach plan on a per-side slot showed "2 × 10" for what the programme writes as
+  "2 × 10 per side": half the work. The plan line says per side now, and the skill says a
+  per-side slot's numbers are what one side does.
+- `lastPlans` was three versions of one day when a slot had been re-planned. It is the latest
+  plan for each of the last three slots, and its prescribed sets are written the way
+  performances are, in the unit they were planned in.
+- The skill left `supersetGroup: null` ambiguous (it keeps the programme's grouping), did not
+  say that `slot.runTarget.id` and `slot.programRunId` are the same row, and did not explain
+  what `lastPlans[].status` means.
+
+Also verified in the browser this round: a mixed day completed in run-first order, with the run
+logged from the coach's own numbers and linked to the programme's planned run; a timed, per-side
+prescription from plan to logged set; a free-weight set following the athlete's unit after a
+mid-workout switch while machine work stayed in the machine's own unit and nothing already saved
+was rewritten; skipping a day dropping the plan that waited for it; and the rest day's
+"Start Lower A instead".
+
+### Applying a programme change, once a mixed day had been trained
+
+Trying a stale proposal in the browser turned up a defect that had nothing to do with the coach:
+**applying any programme change failed for good once the athlete had completed a day that both
+lifts and runs.** The two halves of such a day leave one event each, and the copy that carries an
+athlete's position onto the new version dropped the `part` that tells them apart — so both
+arrived as the session, collided on the slot's own uniqueness, and the whole revision was rolled
+back. The athlete saw "Could not apply the change. Please retry.", and retrying could never
+work. The run that answered the day was dropped from the copy as well, so history would have
+lost what it pointed at. Both are carried now, and the case is covered.
+
+### Noted, not changed
+
+- `weightStep` resolves the machine's own increment before the exercise's, then 2.5 kg. A stack
+  that moves in 5 kg steps cannot be asked for 2.5, so the machine wins on purpose.
+- A free-weight exercise resolves as available at any gym unless the gym is marked as lacking
+  the equipment, so "direct" is an assumption rather than a confirmation. The skill now says so.
+- `src/domain/coach-cadence.ts` is groundwork for the weekly review in the AI-first plan and is
+  not wired to anything yet.
+- A plan may still be stored for a slot whose session is already open. It cannot be used by that
+  session, and Today now shows the session's own plan, so it costs nothing; refusing it would
+  also refuse a plan the athlete asked for before they started.
+
+### Still only covered by tests, not the browser
+
+- A coach plan that adds an exercise the programme's day does not have, logged end to end.
+- A coach prescription measured in metres.
+- Stale and conflicting proposals; a proposal that fails and is retried.
+
+## Getting in: sign-up, the confirmation link, onboarding and a real password reset
+
+Walked with the local auth stub, which delivers its "email" to a file so the links can be
+opened. What the stub cannot stand in for is still listed under what remains.
+
+### Fixed
+
+- **The confirmation link signed nobody in.** It set the session on the host the athlete was
+  on, then redirected to an absolute address built from the origin the server was started with.
+  Where those differ — behind a proxy, on a custom domain, anywhere the app is not reached at
+  its own internal address — the redirect arrived without the cookie, and confirming an email
+  landed back on the sign-in screen. Both `nextUrl.origin` and `request.url` report the server's
+  origin, so the route now redirects to a path and lets the browser resolve it.
+- **The sign-up form emptied itself** whenever it refused: mistype one password and the name and
+  address had to be typed again.
+- **The profile step lost three answers on every refusal.** React clears the fields of a form
+  whose action has run; the date of birth, the sex and the goal went with it, while the message
+  on screen was about the body weight. All three are required, so the athlete had to notice and
+  fill them in again. The fields are held in state and the reset is cancelled.
+
+### Verified
+
+Sign-up refuses an address that already has an account, an invalid address, a short password and
+a mismatched pair, and reports the confirmation state; the profile trigger creates the row. An
+unconfirmed address cannot sign in and says why. A link that was never issued, and one used
+twice, both say so. The confirmation link lands a new account in setup. All four onboarding
+steps: the profile step's validation, prefilling and resume; adding the first gym; ticking
+machines from the list; taking the programme, which lands on Today with the first day ready.
+Skipping ahead from the gym step finishes setup, and the empty account then reads correctly on
+Today, History, Progress, Runs and Gyms. A password reset end to end: an unknown address gets
+the same answer as a known one, a service that cannot send says so rather than claiming success,
+the emailed link opens the new-password screen, the current password is refused as a new one,
+and after the change the old password no longer signs in and the new one does.
+
 ## Remaining interactive tests
 
 This is a checkpoint, not a claim that every feature or combination has passed. Automated
@@ -134,8 +285,6 @@ tests cover some of the cases below; they still need the indicated browser/devic
 - Real offline/reconnect saves, conflicting edits in two tabs/devices, session expiry during
   a save, and recovery after interrupted finish/discard. Mocked draft/retry tests are not a
   substitute for these end-to-end failure checks.
-- Run RPE clearing: currently an optional selected RPE cannot be cleared through its selector.
-  This remains an open interaction finding.
 
 ### Coach and programme integrations
 
@@ -167,16 +316,27 @@ tests cover some of the cases below; they still need the indicated browser/devic
 - A final browser smoke test against the production build; live deployment, real Supabase
   delivery/admin operations, and the external coach service have not been tested.
 
-## Decisions still awaiting the user
+## Decisions the user has since answered
 
-- Should “Hold loads today” persist across leaving/reloading the workout?
-- Should run summaries show up to two decimal places instead of rounding to one?
-- When choosing a skipped day, reopen that cycle or explicitly offer its next cycle? Currently
-  the picker says Cycle 1 while the action starts the next pending occurrence in Cycle 2.
+- **Run decimals.** A single run now reads the distance that was logged, up to two decimals,
+  wherever that one run appears; weekly and block totals keep their single decimal. The app had
+  been inconsistent about this already — History showed 3.45 km where the run's own row showed
+  3.5 — and one helper now answers for all of them. The coach reads the logged value too.
+- **A skipped day, chosen again.** "Train another day" lists one cycle, so picking a day it
+  shows as skipped now trains that occurrence: the skip is taken back rather than the day being
+  passed over for the next cycle's, which the list never mentioned. A day already completed in
+  the cycle shown still goes to its next occurrence.
+- **An RPE given by mistake.** Pressing the chosen number again lets it go, since the rating is
+  optional and a radio cannot uncheck itself.
+- **Free-weight availability** stays as it is: an exercise is possible at a gym unless the gym
+  is marked as lacking what it needs.
+- **"Hold loads today"** is still open — see the note below.
 
 ## Open findings
 
-- “Hold loads today” resets on leaving/reloading. Persistence preference requested.
+- “Hold loads today” resets on leaving or reloading the workout, silently. Whether it should be
+  remembered — or exist at all, given that it only changes what the prefill suggests — is with
+  the user.
 - Old records already saved with an incorrect kg label cannot be distinguished from real kg
   records; no historical data was guessed or rewritten. Older coach plans do not contain a unit
   snapshot, so only newly saved plans can preserve that information.

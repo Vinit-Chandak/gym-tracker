@@ -13,6 +13,11 @@ import { api, args, fail, ServiceError } from "./client";
  * The file holds the envelope (slot, gymId, trigger, requestId) and the plan itself. Local
  * validation catches shape mistakes before the request; the server then checks that every
  * exercise, machine and slot really belongs to the athlete, and answers with issues if not.
+ *
+ * Exit codes: 0 stored; 1 the file or the connection was the problem; 2 the plan named
+ * something the athlete does not have, listed in the output, so fix those and submit again;
+ * 3 the server will not take a plan for this slot at all — record the failure instead of
+ * retrying.
  */
 const envelope = z.object({
   slot: z.object({ cycleIndex: z.number().int().min(1), dayIndex: z.number().int().min(1) }),
@@ -63,9 +68,18 @@ api<{ plan: { id: string; slot: { cycleIndex: number; dayIndex: number }; exerci
   })
   .catch((error: unknown) => {
     if (error instanceof ServiceError && error.status === 422) {
-      console.error("The server rejected the plan. Fix these and submit again:");
+      // A 422 comes in two kinds. With `issues`, the plan named something the athlete does not
+      // have: fix exactly those and submit again. Without them, nothing about the plan is wrong
+      // — the slot, the programme or the request has moved on — and resubmitting cannot help.
+      const issues = (error.body as { issues?: unknown } | null)?.issues;
+      if (Array.isArray(issues) && issues.length > 0) {
+        console.error("The server rejected the plan. Fix these and submit again:");
+        console.error(error.message);
+        process.exit(2);
+      }
+      console.error("The server will not take a plan for this slot. Do not retry:");
       console.error(error.message);
-      process.exit(2);
+      process.exit(3);
     }
     fail(error);
   });

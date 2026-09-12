@@ -1,3 +1,4 @@
+import { formatRunKm } from "@/lib/format";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -62,7 +63,7 @@ export default async function EditRunPage(props: PageProps<"/runs/[runId]/edit">
           initial={{
             startedAt: toDateTimeLocal(run.startedAt, timeZone),
             treadmill: run.mode === "treadmill",
-            distanceKm: String(Math.round(run.distanceMeters / 10) / 100),
+            distanceKm: formatRunKm(run.distanceMeters),
             durationMinutes: String(Math.floor(run.durationSeconds / 60)),
             durationSeconds: String(run.durationSeconds % 60),
             rpe: str(run.rpe),

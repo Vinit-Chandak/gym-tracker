@@ -17,7 +17,7 @@ import { ProgressBar } from "@/components/ui/progress-bar";
 import { runPlanLine } from "@/domain/session-plan";
 import type { SlotStatus } from "@/domain/schedule";
 import type { WarmupDrill } from "@/domain/types";
-import { formatDateTime, formatIsoWeekdayDay } from "@/lib/format";
+import { formatDateTime, formatIsoWeekdayDay, formatTime } from "@/lib/format";
 import type { TodayCoachState } from "@/server/repositories/coach-plans";
 import type { SessionSummary } from "@/server/repositories/sessions";
 import type { ScheduleDay, TodayPlan } from "@/server/repositories/schedule";
@@ -121,17 +121,20 @@ function CoachStatus({
   coach,
   gymName,
   gyms,
+  timeZone,
 }: {
   coach: TodayCoachState;
   /** The gym the athlete is about to train at. */
   gymName: string | null;
   gyms: readonly SwitcherGym[];
+  timeZone: string;
 }) {
   if (coach.pending) {
     const planningFor = gyms.find((gym) => gym.id === coach.pending?.gymId)?.name ?? gymName;
     return (
       <CoachPending
         startedAt={coach.pending.requestedAt.toISOString()}
+        startedAtLabel={formatTime(coach.pending.requestedAt, timeZone)}
         gymName={planningFor ?? "your gym"}
       />
     );
@@ -298,7 +301,7 @@ export function TodayView({
                       href={`/workouts/${inProgress.id}`}
                       size="lg"
                       className="w-full"
-                      aria-label={`Resume ${day.name}`}
+                      aria-label={`Resume session: ${day.name}`}
                     >
                       Resume session
                     </LinkButton>
@@ -322,7 +325,7 @@ export function TodayView({
                       programDayId={day.id}
                       dayIndex={day.dayIndex}
                       label="Start workout"
-                      ariaLabel={`Start ${day.name}`}
+                      dayName={day.name}
                     />
                     {defaultGym === null && (
                       <p className="text-sm text-ink-muted">Choose a gym above to start.</p>
@@ -330,7 +333,12 @@ export function TodayView({
                   </>
                 )}
                 {coach && (
-                  <CoachStatus coach={coach} gymName={defaultGym?.name ?? null} gyms={gyms} />
+                  <CoachStatus
+                    coach={coach}
+                    gymName={defaultGym?.name ?? null}
+                    gyms={gyms}
+                    timeZone={timeZone}
+                  />
                 )}
                 {coachPlan ? (
                   <Disclosure
@@ -420,7 +428,12 @@ export function TodayView({
                   </>
                 )}
                 {!day.includesLifting && coach && (
-                  <CoachStatus coach={coach} gymName={defaultGym?.name ?? null} gyms={gyms} />
+                  <CoachStatus
+                    coach={coach}
+                    gymName={defaultGym?.name ?? null}
+                    gyms={gyms}
+                    timeZone={timeZone}
+                  />
                 )}
                 {coachRun ? (
                   <Disclosure summary="How to run it" variant="footer">
