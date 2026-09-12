@@ -5,6 +5,7 @@ import { cache } from "react";
 import { isSupabaseConfigured } from "@/lib/env";
 import { getClaimsOptions } from "@/lib/supabase/jwks";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { onboardingEntry } from "@/server/queries/onboarding-entry";
 import { getRequestProfile } from "@/server/queries/request-profile";
 
 export type SessionUser = { id: string; email: string | null; displayName?: string | null };
@@ -53,6 +54,6 @@ export async function requireProfiledUser(): Promise<SessionUser> {
 export async function requireOnboardedUser(): Promise<SessionUser> {
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email, user.displayName);
-  if (profile.onboardedAt === null) redirect("/welcome");
+  if (profile.onboardedAt === null) redirect(await onboardingEntry(user.id));
   return user;
 }
