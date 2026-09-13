@@ -372,8 +372,7 @@ export async function acceptCoachJobResult(
       const runDays = blueprint.days.filter((day) => day.includesRun);
       if (
         liftingDays.length !== sessionsPerWeek ||
-        (preferredDays.length &&
-          liftingDays.some((day) => !preferredDays.includes(day.dayOfWeek)))
+        (preferredDays.length && liftingDays.some((day) => !preferredDays.includes(day.dayOfWeek)))
       )
         throw new CoachingError(
           "The programme must match your confirmed training frequency and preferred days. Ask for clarification if those constraints cannot be met.",
@@ -381,7 +380,8 @@ export async function acceptCoachJobResult(
         );
       if (
         (runsPerWeek !== null && runDays.length !== runsPerWeek) ||
-        (preferredRunDays.length && runDays.some((day) => !preferredRunDays.includes(day.dayOfWeek)))
+        (preferredRunDays.length &&
+          runDays.some((day) => !preferredRunDays.includes(day.dayOfWeek)))
       )
         throw new CoachingError(
           "The running must match the runs a week and run days you confirmed. Ask for clarification if those cannot be met.",

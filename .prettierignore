@@ -4,6 +4,8 @@ out
 build
 coverage
 package-lock.json
+# Written by drizzle-kit, wholesale, every time a migration is generated.
+src/db/migrations
 public/icons
 *.png
 *.ico

@@ -10,10 +10,7 @@ import { signInAction, type SignInState } from "@/server/actions/auth";
 const INITIAL: SignInState = {};
 
 export function LoginForm({ next }: { next?: string }) {
-  const [state, formAction, pending] = useActionState(
-    signInAction,
-    INITIAL,
-  );
+  const [state, formAction, pending] = useActionState(signInAction, INITIAL);
   const [email, setEmail] = useState("");
 
   return (

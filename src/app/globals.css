@@ -199,6 +199,32 @@
 }
 
 /*
+ * The actions of a multi-step form, kept on screen while the form is scrolled.
+ *
+ * Back and Continue are the whole point of a step, and hunting for them at the bottom of a
+ * long one is the same mistake as hiding them. It sticks above whatever else owns the
+ * bottom of the screen: the navigation island inside the app, the home indicator during
+ * first-run setup, where there is no island to clear.
+ */
+:root {
+  --actions-inset: max(env(safe-area-inset-bottom, 0px), var(--ov-space-3));
+}
+
+.app-content {
+  --actions-inset: calc(var(--nav-reserve) + var(--session-chrome-height, 0px) + var(--ov-space-2));
+}
+
+@utility sticky-actions {
+  position: sticky;
+  bottom: var(--actions-inset);
+  z-index: 1;
+  border-radius: var(--ov-radius-card);
+  background: var(--ov-surface);
+  padding: var(--ov-space-3);
+  box-shadow: var(--ov-nav-shadow);
+}
+
+/*
  * Ruled list: rows separated by one hairline, running the full width of whatever holds
  * them. Nothing is drawn on the first row's top or the last row's bottom, so a list adds
  * no line of its own to the box it sits in.

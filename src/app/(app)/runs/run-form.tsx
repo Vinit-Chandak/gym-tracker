@@ -81,10 +81,12 @@ type Props = {
   submitLabel: string;
 };
 
-export function plannedRunLabel(run: {
-  weekIndex: number;
-  dayOfWeek: number;
-} & RunTargets): string {
+export function plannedRunLabel(
+  run: {
+    weekIndex: number;
+    dayOfWeek: number;
+  } & RunTargets,
+): string {
   return `Week ${run.weekIndex} · ${WEEKDAY_SHORT[run.dayOfWeek] ?? "Run"} · ${runSummary(run)}`;
 }
 
