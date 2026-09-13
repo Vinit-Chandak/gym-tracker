@@ -7,7 +7,6 @@ vi.mock("@/db/with-user", () => ({
   withUser: (_db: unknown, _id: string, run: (tx: unknown) => unknown) => run({}),
 }));
 vi.mock("@/server/repositories/coach-attachments", () => ({
-  MAX_COACH_FILE_BYTES: 3 * 1024 * 1024,
   saveCoachAttachment: (...args: unknown[]) => saved(...args),
 }));
 

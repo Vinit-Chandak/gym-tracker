@@ -22,7 +22,13 @@ import {
   toKilograms,
 } from "@/lib/units";
 import { cn } from "@/lib/utils";
-import { coachIntakeSchema, validateIntake, type CoachIntake } from "@/domain/coaching-workflow";
+import {
+  coachIntakeSchema,
+  validateIntake,
+  MAX_COACH_FILE_BYTES,
+  MAX_REQUEST_FILES,
+  type CoachIntake,
+} from "@/domain/coaching-workflow";
 import {
   createCoachProgramAction,
   removeCoachAttachmentAction,
@@ -30,12 +36,41 @@ import {
 } from "@/server/actions/coaching-workflow";
 
 type Report = { id: string; name: string; mimeType: string; sizeBytes: number };
+
+/** What a file is, when the browser declines to say. Ordered; the first match wins. */
+const TYPE_BY_SUFFIX: readonly (readonly [RegExp, string])[] = [
+  [/\.md$/i, "text/markdown"],
+  [/\.csv$/i, "text/csv"],
+  [/\.txt$/i, "text/plain"],
+];
 type Change = (patch: Partial<CoachIntake>) => void;
 
 /** The detailed route, in the order the questions build on each other. */
 const STEPS = ["You", "Your week", "Your training", "Starting point", "Review"] as const;
 const REVIEW = STEPS.length - 1;
 const GOAL_LABELS = TRAINING_GOALS.map((goal) => TRAINING_GOAL_LABELS[goal]);
+
+/**
+ * The saved answers, with anything still blank taken from the profile.
+ *
+ * The account already knows the body a programme is for, and the questions here say so:
+ * "read back from the profile, so nobody is asked twice". A draft intake used to cancel that
+ * outright — the moment one existed, the profile was never consulted again, and somebody who
+ * had filled in Settings → Profile met three empty boxes. Only blanks are filled, so an
+ * answer given here, including one deliberately different from the profile, always wins.
+ */
+function withProfileDetails(saved: CoachIntake | null, profile?: CoachIntake): CoachIntake {
+  const answers = saved ?? coachIntakeSchema.parse({});
+  if (!profile) return answers;
+  return {
+    ...answers,
+    goal: answers.goal || profile.goal,
+    ageYears: answers.ageYears ?? profile.ageYears,
+    weightKg: answers.weightKg ?? profile.weightKg,
+    heightCm: answers.heightCm ?? profile.heightCm,
+    trainingLocation: answers.trainingLocation ?? profile.trainingLocation,
+  };
+}
 
 export function CoachIntakeForm({
   initial,
@@ -57,11 +92,16 @@ export function CoachIntakeForm({
   preferredUnit?: "kg" | "lb";
 }) {
   const router = useRouter();
-  const [answers, setAnswers] = useState<CoachIntake>(
-    () => initial?.answers ?? prefill ?? coachIntakeSchema.parse({}),
+  const [answers, setAnswers] = useState<CoachIntake>(() =>
+    withProfileDetails(initial?.answers ?? null, prefill),
   );
   const current = useRef(answers),
-    saved = useRef(initial && !initial.needsSave ? JSON.stringify(answers) : ""),
+    // Anything the profile has just filled in is unsaved, whatever the draft's own state was.
+    saved = useRef(
+      initial && !initial.needsSave && JSON.stringify(initial.answers) === JSON.stringify(answers)
+        ? JSON.stringify(answers)
+        : "",
+    ),
     revision = useRef(initial?.revision ?? null),
     intakeId = useRef(initial?.id ?? null);
   const saving = useRef<Promise<void> | null>(null),
@@ -179,17 +219,14 @@ export function CoachIntakeForm({
     setBusy(true);
     setError(null);
     try {
-      if (selected.length + current.current.attachmentIds.length > 5)
+      if (selected.length + current.current.attachmentIds.length > MAX_REQUEST_FILES)
         throw new Error("Attach up to five files to this request.");
       for (const file of Array.from(selected)) {
-        if (file.size > 3 * 1024 * 1024) throw new Error(`${file.name} is larger than 3 MB.`);
+        if (file.size > MAX_COACH_FILE_BYTES) throw new Error(`${file.name} is larger than 5 MB.`);
+        // A browser that names no type for an export still gets the right one from its suffix,
+        // which is the usual case for the .csv a tracking app hands over.
         const mime =
-          file.type ||
-          (/\.md$/i.test(file.name)
-            ? "text/markdown"
-            : /\.txt$/i.test(file.name)
-              ? "text/plain"
-              : "");
+          file.type || TYPE_BY_SUFFIX.find(([suffix]) => suffix.test(file.name))?.[1] || "";
         const response = await fetch("/api/coaching/attachments", {
           method: "POST",
           headers: { "Content-Type": mime, "X-File-Name": encodeURIComponent(file.name) },
@@ -1051,7 +1088,7 @@ function StartingPointStep({
       <Card>
         <Field
           label="Reports and plans"
-          info="PDF, JPG, PNG or text. Up to 3 MB each, five files. Files stay available for later coaching reviews until you remove them."
+          info="PDF, JPG, PNG, CSV or text. Up to 5 MB each, five files. Files stay available for later coaching reviews until you remove them."
         >
           <FilePicker busy={busy} onUpload={onUpload} />
         </Field>
@@ -1066,7 +1103,8 @@ function StartingPointStep({
                   className="size-5 shrink-0 accent-[var(--ov-accent)]"
                   disabled={
                     busy ||
-                    (!answers.attachmentIds.includes(file.id) && answers.attachmentIds.length >= 5)
+                    (!answers.attachmentIds.includes(file.id) &&
+                      answers.attachmentIds.length >= MAX_REQUEST_FILES)
                   }
                   onChange={(event) =>
                     change({
@@ -1122,10 +1160,10 @@ function FilePicker({
     >
       <Paperclip className="text-ink-subtle" aria-hidden />
       <span className="text-sm font-medium">Add files</span>
-      <span className="text-xs text-ink-subtle">PDF, image or text</span>
+      <span className="text-xs text-ink-subtle">PDF, image, CSV or text</span>
       <input
         type="file"
-        accept=".pdf,.jpg,.jpeg,.png,.txt,.md"
+        accept=".pdf,.jpg,.jpeg,.png,.txt,.md,.csv"
         multiple
         disabled={busy}
         className="sr-only"
@@ -1211,6 +1249,24 @@ function ReviewStep({
           </div>
         ))}
       </dl>
+      {/* A question is as long as a sentence, so it gets a line of its own rather than a
+          six-character label column. */}
+      {answers.clarifications.length > 0 && (
+        <Disclosure
+          summary="What the coach asked"
+          meta={`${answers.clarifications.length} answered`}
+          variant="inline"
+        >
+          <dl className="text-sm ruled-list">
+            {answers.clarifications.map((entry) => (
+              <div key={entry.question} className="space-y-0.5 py-2">
+                <dt className="[overflow-wrap:anywhere] text-ink-muted">{entry.question}</dt>
+                <dd className="break-words whitespace-pre-wrap">{entry.answer}</dd>
+              </div>
+            ))}
+          </dl>
+        </Disclosure>
+      )}
       {answers.prompt && (
         <Disclosure summary="Your brief" variant="footer">
           <p className="text-sm break-words whitespace-pre-wrap">{answers.prompt}</p>

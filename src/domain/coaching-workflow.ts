@@ -17,6 +17,20 @@ export const JOB_STATUSES = [
 export const JOB_LEASE_MS = 15 * 60_000;
 export const MAX_JOB_ATTEMPTS = 3;
 
+/**
+ * Reports an athlete attaches. The byte ceiling is read by the browser before it uploads, by
+ * the route as the stream arrives, and by the repository before the row is written, so it
+ * lives here rather than in any one of them.
+ */
+export const MAX_COACH_FILE_BYTES = 5 * 1024 * 1024;
+/** Kept per account for later reviews, and carried by one creation request. */
+export const MAX_COACH_FILES = 20;
+export const MAX_REQUEST_FILES = 5;
+/** Question-and-answer pairs an intake carries; the oldest fall off as new rounds arrive. */
+export const MAX_CLARIFICATIONS = 16;
+/** Types whose bytes are also checked for being real UTF-8 text before they are kept. */
+export const COACH_TEXT_FILE_TYPES = ["text/plain", "text/markdown", "text/csv"] as const;
+
 const weekday = z.number().int().min(1).max(7);
 const optionalText = (max: number) => z.string().trim().max(max).default("");
 
@@ -84,8 +98,24 @@ export const coachIntakeSchema = z.object({
   restrictions: optionalText(3000),
   preferences: optionalText(2000),
   avoidExerciseSlugs: z.array(z.string().min(1).max(120)).max(100).default([]),
+  /**
+   * The coach's own questions and what the athlete answered.
+   *
+   * A request that comes back needing more information is answered where it was asked, and
+   * the answers travel with the next request as part of the intake — the one thing every job
+   * already reads — rather than as a reply to a job that has already finished.
+   */
+  clarifications: z
+    .array(
+      z.object({
+        question: z.string().trim().min(1).max(700),
+        answer: z.string().trim().min(1).max(2000),
+      }),
+    )
+    .max(MAX_CLARIFICATIONS)
+    .default([]),
   prompt: optionalText(16000),
-  attachmentIds: z.array(z.uuid()).max(5).default([]),
+  attachmentIds: z.array(z.uuid()).max(MAX_REQUEST_FILES).default([]),
 });
 export type CoachIntake = z.infer<typeof coachIntakeSchema>;
 export type CoachIntakeTrack = NonNullable<CoachIntake["track"]>;

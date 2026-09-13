@@ -12,7 +12,7 @@ import {
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import { COACH_POLICY } from "@/domain/coach-policy";
-import { COACH_CONTRACT_VERSION } from "@/domain/coaching-workflow";
+import { COACH_CONTRACT_VERSION, coachIntakeSchema } from "@/domain/coaching-workflow";
 import { pendingParts } from "@/domain/schedule";
 import { addDays, todayInTimeZone } from "@/domain/program-calendar";
 import { sharedWarmupProtocols } from "@/server/queries/reference";
@@ -237,7 +237,9 @@ export async function coachJobContext(
           id: intake.id,
           revision: intake.revision,
           confirmedAt: intake.confirmedAt,
-          answers: intake.answers,
+          // Parsed, so a question added after these answers were saved reaches the coach as
+          // its own empty default rather than as a key that is simply not there.
+          answers: coachIntakeSchema.parse(intake.answers),
         }
       : null,
     memo,
