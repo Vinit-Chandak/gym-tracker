@@ -22,9 +22,9 @@ Progressive overload, one set at a time.
 
 1. **Sign up** with an email and password (plus password reset, change and account deletion).
 2. **A four-step welcome**: about you → first gym → tick the machines that gym has → pick a
-   programme template, or skip. Step one asks for a name, time zone, units, body weight,
-   height, date of birth, sex and a training goal; it is the one step that is not skippable,
-   and every answer is editable afterwards in **Settings → Profile**.
+   programme template, or skip. Step one asks only for a name, time zone and units; height,
+   weight, age and a training goal are asked for when a programme is created, and everything
+   is editable afterwards in **Settings → Profile**.
 3. **Today**, which says what to train next and lets you log it.
 
 Weights and heights are stored once, in kilograms and centimetres, and read back in whichever

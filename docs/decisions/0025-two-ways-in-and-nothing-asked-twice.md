@@ -21,17 +21,30 @@ the hour the nightly batch runs. This record covers what changed and the rules t
 3. **Gym or home, and nothing else about the place.** `trainingLocation` is the only location
    question. The server resolves it to a location, creating one the first time somebody
    confirms, so no list of gyms and no question about machines appears during setup.
-4. **Answers already given are shown, not asked for.** Height, weight and age arrive from the
-   profile, in the account's own units, on the first screen rather than inside a collapsed
-   "optional body measurements" section. They are required to confirm, because a programme
-   written for a body nobody described is a guess.
+4. **Height, weight and age are asked once, on the first screen.** They sit in the open rather
+   than inside a collapsed "optional body measurements" section, in the account's own units,
+   and are required to confirm — a programme written for a body nobody described is a guess.
+   The welcome flow does not ask for them (it takes a name, a time zone and units, and says so),
+   so for most people these are three empty boxes here; an account that has them from
+   **Settings → Profile** finds them already filled.
 5. **A self-report is prose.** What the athlete lifts now is one box — "incline bench 60 kg
    for 8" — replacing a per-exercise grid of load, unit, convention, machine, date and note.
    The coach treats it as a starting estimate and corrects it from logged sets.
-6. **You can speak into any long answer.** `SpeechTextarea` puts a microphone inside the box
-   where the browser has speech recognition, and draws nothing where it does not; the
-   keyboard's own dictation key still works either way. Recognition is the browser's, so
-   there is no upload, no key and no cost per minute.
+6. **You can speak into any long answer, where speaking actually works.** `SpeechTextarea` puts
+   a microphone inside the box and draws nothing where the browser cannot hear — which
+   includes every browser on iOS, all of them WebKit, where `webkitSpeechRecognition` accepts
+   `start()` and then reports nothing at all. The keyboard's own dictation key types into these
+   boxes regardless, so nothing is lost where the button is absent. Recognition is the
+   browser's: no upload, no key, no cost per minute.
+
+   The control never waits to be told it stopped. An engine that skips `onend` used to leave
+   the session set and the button listening, and every later tap took the "already running"
+   branch and returned — the microphone could not be switched off again. Stopping now drops
+   the session first and aborts it after, a watchdog reclaims a session that starts and then
+   says nothing, and results are counted here rather than read from `resultIndex`, which some
+   engines pin at zero while `results` grows (that wrote "one onetwo onetwothree" into the
+   box, and the field grew on every phrase).
+
 7. **A step shows where you are, not a row of tabs.** Five bars and "Step 2 of 5", with Back
    and Continue in a bar that sticks above the navigation island. Six wrapped tab buttons and
    a "Save and finish later" hanging below the fold are gone; saving is continuous and the way
