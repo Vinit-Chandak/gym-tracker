@@ -39,8 +39,8 @@ export function ProfileStepForm(values: ProfileFieldValues) {
           className={INPUT_CLASS}
           defaultValue={state.values?.preferredUnit ?? values.preferredUnit}
         >
-          <option value="kg">Kilograms</option>
-          <option value="lb">Pounds</option>
+          <option value="kg">kg (kilograms)</option>
+          <option value="lb">lb (pounds)</option>
         </select>
       </Field>
       <Field label="Time zone" error={state.fieldErrors?.timeZone}>

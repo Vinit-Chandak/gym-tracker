@@ -7,6 +7,7 @@ import {
   coachWeeklyReviews,
   gyms,
   profiles,
+  runs,
   programDrafts,
   programs,
   sessionPlans,
@@ -16,14 +17,21 @@ import { seedReferenceData } from "@/db/seed/reference";
 import { STRENGTH_AESTHETICS_HYBRID_8WK } from "@/db/seed/data/program";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
-import { coachIntakeSchema } from "@/domain/coaching-workflow";
-import { firstWeeklyReviewPeriod, lastCoachBoundary } from "@/domain/coach-cadence";
+import { coachIntakeSchema, MAX_COACH_FILE_BYTES } from "@/domain/coaching-workflow";
+import { lastCoachBoundary } from "@/domain/coach-cadence";
 import type { ProgramBlueprint } from "@/domain/program-blueprint";
-import { confirmIntake, latestIntake, saveIntake, setTrainingMode } from "./coach-intakes";
+import {
+  answerCoachQuestions,
+  confirmIntake,
+  latestIntake,
+  saveIntake,
+  setTrainingMode,
+} from "./coach-intakes";
 import {
   acceptCoachJobResult,
   claimCoachJob,
   enqueueCoachJob,
+  getCoachJob,
   requestGymChange,
   requestProgramCreation,
   dispatchCoachPage,
@@ -282,6 +290,31 @@ it("protects reports and drafts across accounts, and removes reports from future
     "superseded",
   );
 });
+it("takes a CSV export up to five megabytes, and refuses bytes that are not what they claim", async () => {
+  const a = await athlete();
+  const csv = Buffer.from("Date,Exercise,Weight,Reps\n2026-06-13,Bench Press,70,5\n");
+  const file = await as(a, (tx) =>
+    saveCoachAttachment(tx, a.user.id, "fitnotes-export.csv", "text/csv", csv),
+  );
+  expect(file).toMatchObject({ name: "fitnotes-export.csv", mimeType: "text/csv" });
+
+  await expect(
+    as(a, (tx) =>
+      saveCoachAttachment(tx, a.user.id, "sneaky.csv", "text/csv", Buffer.from([0x00, 0x01, 0x02])),
+    ),
+  ).rejects.toThrow(/correct file type/);
+  await expect(
+    as(a, (tx) =>
+      saveCoachAttachment(
+        tx,
+        a.user.id,
+        "huge.csv",
+        "text/csv",
+        Buffer.alloc(MAX_COACH_FILE_BYTES + 1, 0x61),
+      ),
+    ),
+  ).rejects.toThrow(/5 MB/);
+});
 it("applies a weekly prescription revision once, carries position, then queues preparation", async () => {
   const a = await athlete();
   const { draft } = await generated(a);
@@ -494,11 +527,180 @@ it("answers gym-or-home with a location, and reviews on a day the athlete does n
   expect(preference!.reviewWeekday).toBe(6);
 });
 
-it("waits seven full days before the first selected rest-day review", () => {
-  const enabled = new Date("2026-09-12T12:00:00Z");
-  const period = firstWeeklyReviewPeriod(enabled, 6);
-  expect(new Date(period.end).getTime() - enabled.getTime()).toBeGreaterThanOrEqual(604800000);
-  expect(period.reviewDate).toBe("2026-09-26");
+/**
+ * The review waits for a day that was actually quiet.
+ *
+ * The programme is a sequence, not a timetable, so the weekday it nominally rests on stops
+ * being the athlete's rest day the first time a session slides. What the log says happened is
+ * the only thing that still knows.
+ */
+const DAY = 86_400_000;
+
+/** Every page, because the test database holds every athlete these tests have made. */
+async function dispatchEveryone(now: Date) {
+  let after: string | null = null;
+  for (;;) {
+    const page: Awaited<ReturnType<typeof dispatchCoachPage>> = await dispatchCoachPage(
+      t.db,
+      after,
+      now,
+    );
+    if (!page.nextCursor) return;
+    after = page.nextCursor;
+  }
+}
+
+/** Noon of the last complete UTC day before a batch boundary. */
+function theDayBefore(boundary: Date): Date {
+  const day = new Date(boundary);
+  day.setUTCDate(day.getUTCDate() - 1);
+  day.setUTCHours(12, 0, 0, 0);
+  return day;
+}
+
+async function reviewing() {
+  const a = await athlete();
+  const { draft } = await generated(a);
+  await as(a, (tx) =>
+    activateProgramDraft(tx, a.user.id, draft.id, {
+      expectedRevision: draft.revision,
+      startDate: "2026-09-14",
+      transition: "new_block",
+    }),
+  );
+  // Fixed here so "the day just finished" is the same day the test is reasoning about.
+  await as(a, (tx) =>
+    tx.update(profiles).set({ timeZone: "UTC" }).where(eq(profiles.id, a.user.id)),
+  );
+  return {
+    ...a,
+    anchor: (at: Date) =>
+      as(a, (tx) =>
+        tx
+          .update(coachPreferences)
+          .set({ reviewAnchorAt: at })
+          .where(eq(coachPreferences.userId, a.user.id)),
+      ),
+    ran: (at: Date) =>
+      as(a, (tx) =>
+        tx.insert(runs).values({
+          userId: a.user.id,
+          mode: "outdoor",
+          startedAt: at,
+          durationSeconds: 1800,
+          distanceMeters: 5000,
+        }),
+      ),
+    reviews: async () =>
+      (await as(a, (tx) => tx.select().from(coachJobs))).filter(
+        (job) => job.kind === "review_program",
+      ),
+  };
+}
+
+it("files only the questions the coach asked, then retires the request that asked them", async () => {
+  const a = await athlete();
+  const { job } = await request(a);
+  const claim = await as(a, (tx) => claimCoachJob(tx, a.user.id, job.id));
+  const asked = "How many days a week can you actually train?";
+  await as(a, (tx) =>
+    acceptCoachJobResult(tx, a.user.id, job.id, claim!.attemptId!, {
+      outcome: "needs_input",
+      questions: [asked, "Does your gym have a hack squat?"],
+      rationale: "The intake and the plan the athlete pasted disagree about the days.",
+      evidence: [],
+      uncertainties: [],
+    }),
+  );
+  expect((await as(a, (tx) => getCoachJob(tx, a.user.id, job.id)))?.status).toBe("needs_input");
+
+  const answered = await as(a, (tx) =>
+    answerCoachQuestions(tx, a.user.id, job.id, [
+      { question: asked, answer: "Five, and Sunday is always off." },
+      { question: "Does your gym have a hack squat?", answer: "" },
+      { question: "Something the coach never asked", answer: "Ignore this." },
+    ]),
+  );
+  expect(answered.answers.clarifications).toEqual([
+    { question: asked, answer: "Five, and Sunday is always off." },
+  ]);
+  expect(answered.revision).toBe(a.intake.revision + 1);
+
+  // Confirming the answers finishes with the request that asked, so saved work stops
+  // offering a link to a question that has been answered.
+  await as(a, (tx) => confirmIntake(tx, a.user.id, answered.id));
+  expect((await as(a, (tx) => getCoachJob(tx, a.user.id, job.id)))?.status).toBe("superseded");
+  await expect(
+    as(a, (tx) => answerCoachQuestions(tx, a.user.id, job.id, [{ question: asked, answer: "No" }])),
+  ).rejects.toThrow(/not waiting on an answer/);
+});
+
+it("writes the body the athlete described to the coach onto their profile", async () => {
+  const user = await t.createAuthUser(`${crypto.randomUUID()}@example.test`);
+  const saved = await withUser(t.db, user.id, async (tx) => {
+    const intake = await saveIntake(
+      tx,
+      user.id,
+      coachIntakeSchema.parse({
+        goal: "Get stronger",
+        sessionsPerWeek: 3,
+        minutesPerSession: 45,
+        trainingLocation: "home",
+        heightCm: 181,
+        weightKg: 77.25,
+        ageYears: 29,
+      }),
+      null,
+    );
+    await confirmIntake(tx, user.id, intake.id);
+    const [profile] = await tx.select().from(profiles).where(eq(profiles.id, user.id));
+    return profile;
+  });
+  // The age is deliberately absent: a number of years is not a date of birth.
+  expect(saved).toMatchObject({
+    heightCm: 181,
+    bodyWeightKg: 77.25,
+    trainingGoal: "get_stronger",
+    dateOfBirth: null,
+  });
+});
+
+it("reviews on the first quiet day after a week, not on a weekday chosen in advance", async () => {
+  const a = await reviewing();
+  const base = lastCoachBoundary().at;
+
+  // Six days on, nothing is owed however quiet the day before was.
+  await a.anchor(new Date(base.getTime() - 6 * DAY));
+  await dispatchEveryone(base);
+  expect(await a.reviews()).toHaveLength(0);
+
+  // Eight days on, but the athlete ran yesterday: the review keeps waiting.
+  const second = new Date(base.getTime() + DAY);
+  await a.anchor(new Date(second.getTime() - 8 * DAY));
+  await a.ran(theDayBefore(second));
+  await dispatchEveryone(second);
+  expect(await a.reviews()).toHaveLength(0);
+
+  // Eight days on with nothing logged yesterday, and it reads every day since the last one.
+  const third = new Date(base.getTime() + 2 * DAY);
+  const anchor = new Date(third.getTime() - 8 * DAY);
+  await a.anchor(anchor);
+  await dispatchEveryone(third);
+  const reviews = await a.reviews();
+  expect(reviews).toHaveLength(1);
+  expect(reviews[0]?.target).toMatchObject({
+    reviewStart: anchor.toISOString(),
+    reviewEnd: third.toISOString(),
+  });
+});
+
+it("stops waiting for a quiet day once the athlete has trained for ten days straight", async () => {
+  const a = await reviewing();
+  const boundary = lastCoachBoundary().at;
+  await a.anchor(new Date(boundary.getTime() - 10 * DAY));
+  await a.ran(theDayBefore(boundary));
+  await dispatchEveryone(boundary);
+  expect(await a.reviews()).toHaveLength(1);
 });
 
 it("enforces bearer authentication, rollout, live attempts and account isolation through HTTP", async () => {

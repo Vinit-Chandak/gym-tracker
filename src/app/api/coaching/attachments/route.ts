@@ -1,7 +1,8 @@
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { requireProfiledUser } from "@/server/auth";
-import { MAX_COACH_FILE_BYTES, saveCoachAttachment } from "@/server/repositories/coach-attachments";
+import { MAX_COACH_FILE_BYTES } from "@/domain/coaching-workflow";
+import { saveCoachAttachment } from "@/server/repositories/coach-attachments";
 import { CoachingError } from "@/server/repositories/coaching-state";
 
 /**
@@ -40,7 +41,7 @@ export async function POST(request: Request) {
       size += value.length;
       if (size > MAX_COACH_FILE_BYTES) {
         await reader.cancel();
-        throw new CoachingError("Files must be 3 MB or smaller.", 413);
+        throw new CoachingError("Files must be 5 MB or smaller.", 413);
       }
       chunks.push(value);
     }

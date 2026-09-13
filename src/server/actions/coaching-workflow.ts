@@ -14,6 +14,7 @@ import { requireProfiledUser } from "@/server/auth";
 import { dispatchCoachJob } from "@/server/dispatch-coach-job";
 import { profileChanged } from "@/server/queries/request-profile";
 import {
+  answerCoachQuestions,
   confirmIntake,
   latestIntake,
   saveIntake,
@@ -68,7 +69,18 @@ export async function saveCoachIntakeAction(answers: unknown, revision: number |
     return saveIntake(tx, userId, answers, z.number().int().positive().nullable().parse(revision));
   });
 }
-export async function createCoachProgramAction(intakeId: string, requestKey: string) {
+/**
+ * Confirms an intake and asks for a programme from it.
+ *
+ * Both ways of asking end here — the last step of the form, and answering the questions a
+ * request came back with — because they are the same request with different answers behind
+ * them, and each spends one of the day's three. The request key is the athlete's own, so a
+ * double tap is one request rather than two.
+ */
+async function requestProgramme(
+  requestKey: string,
+  settle: (tx: DbOrTx, userId: string) => Promise<string>,
+) {
   if (
     process.env.COACH_WORKFLOW_ENABLED !== "true" ||
     !coachRollout().generation ||
@@ -80,7 +92,7 @@ export async function createCoachProgramAction(intakeId: string, requestKey: str
       error: "Programme generation is not configured yet. Your answers and reports are saved.",
     };
   const result = await mutate(async (tx, userId) => {
-    await confirmIntake(tx, userId, z.uuid().parse(intakeId));
+    const intakeId = await settle(tx, userId);
     const request = await requestProgramCreation(tx, userId, intakeId, z.uuid().parse(requestKey));
     return { userId, jobId: request.job.id, created: request.created };
   });
@@ -91,6 +103,33 @@ export async function createCoachProgramAction(intakeId: string, requestKey: str
   }
   return result;
 }
+export async function createCoachProgramAction(intakeId: string, requestKey: string) {
+  return requestProgramme(requestKey, async (tx, userId) => {
+    await confirmIntake(tx, userId, z.uuid().parse(intakeId));
+    return z.uuid().parse(intakeId);
+  });
+}
+
+/**
+ * Answers the questions a request came back with, from the screen that asked them, and asks
+ * again. The answers become a new revision of the intake in a write of their own, so a request
+ * that cannot be made — the day's three spent, a workout still open — keeps what was typed.
+ */
+export async function answerCoachQuestionsAction(
+  jobId: string,
+  answers: unknown,
+  requestKey: string,
+) {
+  const saved = await mutate((tx, userId) =>
+    answerCoachQuestions(tx, userId, z.uuid().parse(jobId), answers).then((intake) => intake.id),
+  );
+  if (!saved.ok) return saved;
+  return requestProgramme(requestKey, async (tx, userId) => {
+    await confirmIntake(tx, userId, saved.value);
+    return saved.value;
+  });
+}
+
 export async function removeCoachAttachmentAction(id: string) {
   return mutate((tx, userId) => removeCoachAttachment(tx, userId, z.uuid().parse(id)));
 }

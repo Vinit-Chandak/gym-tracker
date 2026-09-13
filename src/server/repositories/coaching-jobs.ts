@@ -26,6 +26,7 @@ import {
   profiles,
   programDrafts,
   programDays,
+  runs,
   sessionPlans,
   workoutSessions,
 } from "@/db/schema";
@@ -40,8 +41,8 @@ import {
   type JobTarget,
 } from "@/domain/coaching-workflow";
 import { assessProgramChange } from "@/domain/program-change";
-import { firstWeeklyReviewPeriod, nextWeeklyReviewPeriod } from "@/domain/coach-cadence";
-import { todayInTimeZone } from "@/domain/program-calendar";
+import { lastCoachBoundary, reviewStanding, weeklyReviewPeriod } from "@/domain/coach-cadence";
+import { addDays, todayInTimeZone } from "@/domain/program-calendar";
 import { sharedExercises } from "@/server/queries/reference";
 import { nextTrainingSlot, planningGym, storePlan } from "./coach-plans";
 import {
@@ -58,7 +59,6 @@ import {
   validateBlueprintForAthlete,
   validateOpeningPlan,
 } from "./program-drafts";
-import { lastCoachBoundary } from "@/domain/coach-cadence";
 import { fromDateTimeLocal } from "@/lib/time";
 import { coachRollout } from "@/lib/coach-rollout";
 
@@ -565,10 +565,48 @@ export async function enqueueDailySession(db: DbOrTx, userId: string, batchDate:
   });
 }
 
+/**
+ * Whether anything was trained on one of the athlete's own calendar days.
+ *
+ * A rest day is a day with nothing logged on it — no workout started, no run recorded —
+ * measured in the athlete's zone, because it is their day that was quiet. A programme that
+ * merely calls the day a rest day does not count: the sequence slides, and what the plan
+ * expected and what happened stop agreeing after the first missed session.
+ */
+async function trainedOn(
+  db: DbOrTx,
+  userId: string,
+  timeZone: string,
+  date: string,
+): Promise<boolean> {
+  const from = fromDateTimeLocal(`${date}T00:00`, timeZone);
+  const to = fromDateTimeLocal(`${addDays(date, 1)}T00:00`, timeZone);
+  // An unreadable zone is not evidence of rest; the ceiling still brings the review round.
+  if (!from || !to) return true;
+  const [session] = await db
+    .select({ id: workoutSessions.id })
+    .from(workoutSessions)
+    .where(
+      and(
+        eq(workoutSessions.userId, userId),
+        gte(workoutSessions.startedAt, from),
+        lt(workoutSessions.startedAt, to),
+      ),
+    )
+    .limit(1);
+  if (session) return true;
+  const [run] = await db
+    .select({ id: runs.id })
+    .from(runs)
+    .where(and(eq(runs.userId, userId), gte(runs.startedAt, from), lt(runs.startedAt, to)))
+    .limit(1);
+  return Boolean(run);
+}
+
 /** Stable keyset paging: the caller drains pages; there is no silent 500-athlete ceiling. */
 export async function dispatchCoachPage(db: Db, after: string | null = null, now = new Date()) {
   const rows = await db
-    .select({ id: profiles.id })
+    .select({ id: profiles.id, timeZone: profiles.timeZone })
     .from(profiles)
     .where(and(eq(profiles.aiCoachEnabled, true), after ? gt(profiles.id, after) : undefined))
     .orderBy(asc(profiles.id))
@@ -585,28 +623,27 @@ export async function dispatchCoachPage(db: Db, after: string | null = null, now
         const active = await getActiveProgram(tx, athlete.id);
         if (!active) return;
         let result: Awaited<ReturnType<typeof enqueueCoachJob>> | null = null;
-        if (preference?.reviewWeekday && preference.consentedAt) {
-          let period = preference.reviewAnchorAt
-            ? nextWeeklyReviewPeriod({
-                previousScheduledBoundary: preference.reviewAnchorAt,
-                reviewWeekday: preference.reviewWeekday,
-              })
-            : firstWeeklyReviewPeriod(preference.consentedAt, preference.reviewWeekday);
-          // Catch up only the latest due review, never rewrite every missed historical week.
-          while (true) {
-            const following = nextWeeklyReviewPeriod({
-              previousScheduledBoundary: new Date(period.end),
-              reviewWeekday: preference.reviewWeekday,
-            });
-            if (new Date(following.end) > boundary.at) break;
-            period = following;
-          }
-          if (new Date(period.end) <= boundary.at)
+        // The last review's own end, or the moment coaching was switched on; there is no
+        // missed-week backlog to replay, because one review reads everything since the last.
+        const anchor = preference?.reviewAnchorAt ?? preference?.consentedAt ?? null;
+        if (anchor) {
+          const standing = reviewStanding(anchor, boundary.at);
+          const due =
+            standing === "due" ||
+            (standing === "needs_a_quiet_day" &&
+              !(await trainedOn(
+                tx,
+                athlete.id,
+                athlete.timeZone,
+                addDays(todayInTimeZone(athlete.timeZone, boundary.at), -1),
+              )));
+          if (due) {
+            const period = weeklyReviewPeriod(anchor, boundary.at);
             result = await enqueueCoachJob(tx, athlete.id, {
               kind: "review_program",
               trigger: "weekly",
               dedupeKey: `review:${period.end}`,
-              intakeId: preference.intakeId,
+              intakeId: preference?.intakeId,
               target: {
                 programId: active.id,
                 batchDate: boundary.date,
@@ -614,6 +651,7 @@ export async function dispatchCoachPage(db: Db, after: string | null = null, now
                 reviewEnd: period.end,
               },
             });
+          }
         }
         if (result && !pending.includes(result.job.status as "queued" | "claimed")) result = null;
         result ??= await enqueueDailySession(tx, athlete.id, boundary.date);
