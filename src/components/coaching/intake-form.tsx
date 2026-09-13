@@ -423,7 +423,7 @@ function TrackChooser({
             track: "guided",
             title: "I'm new to this",
             points: [
-              "Four quick questions",
+              "A few short questions, on one screen",
               "Say the rest in your own words, typed or spoken",
               "The coach picks your split, exercises and starting loads",
             ],
