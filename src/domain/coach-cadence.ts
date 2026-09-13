@@ -73,3 +73,25 @@ export function firstWeeklyReviewPeriod(enabledAt: Date, reviewWeekday: number) 
   date = addDays(date, (reviewWeekday - isoWeekday(date) + 7) % 7);
   return weeklyReviewPeriod(boundaryOn(date));
 }
+
+/**
+ * Which weekday a programme review lands on: one the athlete does not train.
+ *
+ * Nobody is asked this. A review reads the week that has just finished and adjusts the week
+ * to come, so it belongs on a day with nothing to disturb — and an athlete already told us
+ * which days those are when they said when they train. Each weekday scores by what sits on
+ * it (a session, a run, or nothing) and the quietest wins; the tie goes to the later day in
+ * the week, so a Monday-to-Friday lifter reviews on Sunday, ready for Monday. An athlete
+ * who trains all seven days still gets a day, because a review that never runs is worse
+ * than one on a training day.
+ */
+export function reviewWeekdayFor(week: {
+  trainingDays: readonly number[];
+  runDays?: readonly number[];
+}): number {
+  const cost = (day: number) =>
+    (week.trainingDays.includes(day) ? 2 : 0) + (week.runDays?.includes(day) ? 1 : 0);
+  let chosen = 7;
+  for (let day = 1; day <= 7; day++) if (cost(day) <= cost(chosen)) chosen = day;
+  return chosen;
+}

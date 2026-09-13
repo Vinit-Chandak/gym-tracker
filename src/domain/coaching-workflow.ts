@@ -1,11 +1,10 @@
 import { z } from "zod";
 import { programBlueprintSchema } from "./program-blueprint";
 import { coachPlanSchema, planExerciseSchema, planRunSchema } from "./session-plan";
-import { BODY_LOAD_UNITS } from "./types";
 import { PLAN_LIMITS } from "./plan-limits";
 
 export const COACH_CONTRACT_VERSION = 1;
-export const COACH_POLICY_VERSION = "2026-09-12";
+export const COACH_POLICY_VERSION = "2026-09-13";
 export const JOB_KINDS = ["create_program", "prepare_session", "review_program"] as const;
 export const JOB_STATUSES = [
   "queued",
@@ -20,35 +19,33 @@ export const MAX_JOB_ATTEMPTS = 3;
 
 const weekday = z.number().int().min(1).max(7);
 const optionalText = (max: number) => z.string().trim().max(max).default("");
-export const baselineSchema = z.object({
-  exerciseSlug: z.string().min(1).max(120),
-  gymId: z.uuid().nullable().default(null),
-  equipmentInstanceId: z.uuid().nullable().default(null),
-  load: z.number().min(0).max(2000).nullable().default(null),
-  unit: z.enum(BODY_LOAD_UNITS),
-  convention: z.enum(["total", "per_hand", "assistance", "bodyweight", "stack_label", "unknown"]),
-  reps: z.number().int().min(1).max(200).nullable().default(null),
-  rir: z.number().min(0).max(10).nullable().default(null),
-  recordedOn: z.iso.date().nullable().default(null),
-  note: optionalText(500),
-});
 
-/** Draft answers may be incomplete. Confirming uses validateIntake, never fabricated defaults. */
+/**
+ * What the athlete answers before the coach writes them a programme.
+ *
+ * Two routes through it. `guided` is somebody who does not yet have a routine to describe:
+ * a goal, anything that hurts, the days they can train, and one box they may write or speak
+ * into. `detailed` is somebody who already trains and wants to say exactly what they want.
+ * Both end at the same confirmed answers, so nothing downstream has to know which was used.
+ *
+ * Draft answers may be incomplete. Confirming uses validateIntake, never fabricated defaults.
+ */
 export const coachIntakeSchema = z.object({
+  track: z.enum(["guided", "detailed"]).nullable().default(null),
   goal: optionalText(1500),
-  priorities: optionalText(1000),
   experience: z
     .enum(["beginner", "intermediate", "experienced", "returning", "unknown"])
     .default("unknown"),
-  recentTraining: optionalText(1500),
-  physiqueGoal: optionalText(1000),
-  ageRange: z
-    .enum(["under_18", "18_29", "30_39", "40_49", "50_59", "60_plus", "prefer_not_to_say"])
-    .nullable()
-    .default(null),
+  /**
+   * What the athlete is lifting now, in their own words — "incline bench 60kg for 8" — rather
+   * than a grid of load, unit, convention, machine and date per exercise. Nobody filled that
+   * grid in, and the coach recalibrates from logged sets within a session or two anyway.
+   */
+  recentTraining: optionalText(3000),
+  /** Read back from the profile, so nobody is asked twice for what they gave at sign-up. */
+  ageYears: z.number().int().min(10).max(100).nullable().default(null),
   weightKg: z.number().min(20).max(500).nullable().default(null),
   heightCm: z.number().min(50).max(260).nullable().default(null),
-  measuredOn: z.iso.date().nullable().default(null),
   sessionsPerWeek: z.number().int().min(1).max(7).nullable().default(null),
   preferredDays: z
     .array(weekday)
@@ -78,16 +75,21 @@ export const coachIntakeSchema = z.object({
       (days) => new Set(days.map((entry) => entry.day)).size === days.length,
       "Set the time for each weekday once.",
     ),
-  reviewWeekday: weekday.nullable().default(null),
+  /**
+   * Gym or home, which is as much as anyone is asked. `gymId` is the location that answer
+   * resolves to, filled in by the server; it is never a question on screen.
+   */
+  trainingLocation: z.enum(["gym", "home"]).nullable().default(null),
   gymId: z.uuid().nullable().default(null),
   restrictions: optionalText(3000),
   preferences: optionalText(2000),
   avoidExerciseSlugs: z.array(z.string().min(1).max(120)).max(100).default([]),
-  baselines: z.array(baselineSchema).max(20).default([]),
   prompt: optionalText(16000),
   attachmentIds: z.array(z.uuid()).max(5).default([]),
 });
 export type CoachIntake = z.infer<typeof coachIntakeSchema>;
+export type CoachIntakeTrack = NonNullable<CoachIntake["track"]>;
+export type TrainingLocation = NonNullable<CoachIntake["trainingLocation"]>;
 
 export function validateIntake(input: unknown): CoachIntake {
   return coachIntakeSchema
@@ -95,9 +97,18 @@ export function validateIntake(input: unknown): CoachIntake {
       const required: [keyof CoachIntake, string][] = [
         ["goal", "Tell the coach your main goal."],
         ["sessionsPerWeek", "Choose how often you can train."],
-        ["minutesPerSession", "Choose your usual session length."],
-        ["reviewWeekday", "Choose your weekly review day."],
-        ["gymId", "Choose where you will train."],
+        ["trainingLocation", "Say whether you train at a gym or at home."],
+        ["heightCm", "Add your height."],
+        ["weightKg", "Add your weight."],
+        ["ageYears", "Add your age."],
+        // Only the detailed route asks for a session length; the guided one lets the coach
+        // choose it, so requiring it there would block an answer nobody was asked for.
+        ...(answers.track === "guided"
+          ? []
+          : ([["minutesPerSession", "Choose your usual session length."]] as [
+              keyof CoachIntake,
+              string,
+            ][])),
       ];
       for (const [key, message] of required)
         if (!answers[key]) ctx.addIssue({ code: "custom", path: [key], message });

@@ -17,7 +17,7 @@ import {
   reviewProgramDraftAction,
 } from "@/server/actions/coaching-workflow";
 import { saveRoutineAction } from "@/server/actions/manual-training";
-import { WEEKDAYS } from "./intake-form";
+import { WEEKDAY_NAMES } from "@/lib/labels";
 
 type LibraryEntry = {
   slug: string;
@@ -219,7 +219,7 @@ export function ProgramBuilder({
               }}
             >
               <option value="">Choose a weekday</option>
-              {WEEKDAYS.map((name, i) => (
+              {WEEKDAY_NAMES.slice(1).map((name, i) => (
                 <option key={name} value={i + 1}>
                   {name}
                 </option>

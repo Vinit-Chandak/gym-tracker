@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { z } from "zod";
 import { getDb } from "@/db/client";
-import { coachPreferences, profiles, programDrafts } from "@/db/schema";
+import { profiles, programDrafts } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import { withUser } from "@/db/with-user";
 import { getCoachRoutine, getCoachServiceToken } from "@/lib/env";
@@ -186,15 +186,4 @@ export async function chooseTrainingModeAction(mode: "manual" | "track") {
     revalidatePath("/today");
   }
   return result;
-}
-export async function saveReviewWeekdayAction(reviewWeekday: number) {
-  return mutate(async (tx, userId) => {
-    const [updated] = await tx
-      .update(coachPreferences)
-      .set({ reviewWeekday: z.number().int().min(1).max(7).parse(reviewWeekday) })
-      .where(eq(coachPreferences.userId, userId))
-      .returning();
-    if (!updated) throw new CoachingError("Complete your coaching intake first.");
-    return updated;
-  });
 }

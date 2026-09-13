@@ -1,18 +1,57 @@
-import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import {
   coachAttachments,
   coachIntakes,
   coachJobs,
   coachPreferences,
-  equipmentInstances,
   exercises,
   gyms,
   profiles,
   programDrafts,
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
-import { coachIntakeSchema, validateIntake, type CoachIntake } from "@/domain/coaching-workflow";
+import {
+  coachIntakeSchema,
+  validateIntake,
+  type CoachIntake,
+  type TrainingLocation,
+} from "@/domain/coaching-workflow";
+import { reviewWeekdayFor } from "@/domain/coach-cadence";
+import { createGym } from "./gyms";
 import { CoachingError } from "./coaching-state";
+
+/**
+ * The location an answer of "gym" or "home" stands for.
+ *
+ * The athlete is never shown a list. A location they already chose is kept when it still
+ * matches the answer, otherwise their default one of that kind is used — and a row is only
+ * created once they confirm, so an abandoned draft never leaves an empty gym behind.
+ */
+async function resolveTrainingLocation(
+  db: DbOrTx,
+  userId: string,
+  answers: CoachIntake,
+  { create }: { create: boolean },
+): Promise<CoachIntake> {
+  const kind: TrainingLocation | null = answers.trainingLocation;
+  if (!kind) return answers;
+  const owned = await db
+    .select({ id: gyms.id, kind: gyms.kind, isDefault: gyms.isDefault })
+    .from(gyms)
+    .where(and(eq(gyms.userId, userId), eq(gyms.isActive, true)))
+    .orderBy(desc(gyms.isDefault), asc(gyms.createdAt));
+  const chosen = owned.find((gym) => gym.id === answers.gymId && gym.kind === kind);
+  const matching = chosen ?? owned.find((gym) => gym.kind === kind);
+  if (matching) return { ...answers, gymId: matching.id };
+  if (!create) return { ...answers, gymId: null };
+  const created = await createGym(db, userId, {
+    name: kind === "home" ? "Home" : "Gym",
+    kind,
+    address: null,
+    notes: null,
+  });
+  return { ...answers, gymId: created.id };
+}
 
 export async function latestIntake(db: DbOrTx, userId: string) {
   const [row] = await db
@@ -31,7 +70,9 @@ export async function saveIntake(
   input: unknown,
   expectedRevision: number | null,
 ) {
-  const answers = coachIntakeSchema.parse(input);
+  const answers = await resolveTrainingLocation(db, userId, coachIntakeSchema.parse(input), {
+    create: false,
+  });
   const current = await latestIntake(db, userId);
   if ((current?.revision ?? null) !== expectedRevision)
     throw new CoachingError(
@@ -57,16 +98,23 @@ export async function confirmIntake(db: DbOrTx, userId: string, intakeId: string
   const intake = await latestIntake(db, userId);
   if (!intake || intake.id !== intakeId)
     throw new CoachingError("Review your latest answers before creating a programme.");
-  const answers = validateIntake(intake.answers);
-  await checkIntakeReferences(db, userId, answers);
   const [previous] = await db
     .select()
     .from(coachPreferences)
     .where(eq(coachPreferences.userId, userId));
+  // Confirming the same answers twice is the retry of a dropped response, not a new consent:
+  // nothing is re-derived and no location is created a second time.
   if (intake.confirmedAt && previous?.mode === "coach" && previous.intakeId === intake.id)
     return intake;
+  const answers = await resolveTrainingLocation(db, userId, validateIntake(intake.answers), {
+    create: true,
+  });
+  await checkIntakeReferences(db, userId, answers);
   const now = new Date();
-  await db.update(coachIntakes).set({ confirmedAt: now }).where(eq(coachIntakes.id, intake.id));
+  await db
+    .update(coachIntakes)
+    .set({ confirmedAt: now, answers })
+    .where(eq(coachIntakes.id, intake.id));
   await db
     .update(coachJobs)
     .set({ status: "superseded", completedAt: now, error: "Your confirmed answers changed." })
@@ -81,13 +129,18 @@ export async function confirmIntake(db: DbOrTx, userId: string, intakeId: string
         inArray(programDrafts.status, ["editing", "ready"]),
       ),
     );
+  // Nobody picks their review day; it falls on a day they do not train.
+  const reviewWeekday = reviewWeekdayFor({
+    trainingDays: answers.preferredDays,
+    runDays: answers.preferredRunDays,
+  });
   await db
     .insert(coachPreferences)
     .values({
       userId,
       mode: "coach",
       intakeId,
-      reviewWeekday: answers.reviewWeekday,
+      reviewWeekday,
       consentedAt: now,
     })
     .onConflictDoUpdate({
@@ -95,7 +148,7 @@ export async function confirmIntake(db: DbOrTx, userId: string, intakeId: string
       set: {
         mode: "coach",
         intakeId,
-        reviewWeekday: answers.reviewWeekday,
+        reviewWeekday,
         consentedAt: previous?.consentedAt ?? now,
         updatedAt: now,
       },
@@ -142,39 +195,6 @@ async function checkIntakeReferences(db: DbOrTx, userId: string, answers: CoachI
       available.length !== answers.avoidExerciseSlugs.length
     )
       throw new CoachingError("Choose each exercise to avoid once, from your own library.", 400);
-  }
-  for (const baseline of answers.baselines) {
-    if (baseline.gymId) {
-      const [location] = await db
-        .select({ id: gyms.id })
-        .from(gyms)
-        .where(and(eq(gyms.id, baseline.gymId), eq(gyms.userId, userId)));
-      if (!location) throw new CoachingError("A reported lift names an unavailable location.", 400);
-    }
-    const [exercise] = await db
-      .select({ id: exercises.id })
-      .from(exercises)
-      .where(
-        and(
-          eq(exercises.slug, baseline.exerciseSlug),
-          sql`(${exercises.userId} is null or ${exercises.userId} = ${userId})`,
-        ),
-      );
-    if (!exercise)
-      throw new CoachingError("Choose an exercise from your library for each starting lift.", 400);
-    if (baseline.equipmentInstanceId) {
-      const [machine] = await db
-        .select()
-        .from(equipmentInstances)
-        .where(
-          and(
-            eq(equipmentInstances.id, baseline.equipmentInstanceId),
-            eq(equipmentInstances.userId, userId),
-          ),
-        );
-      if (!machine || machine.gymId !== baseline.gymId)
-        throw new CoachingError("A reported lift names a machine from another location.", 400);
-    }
   }
 }
 

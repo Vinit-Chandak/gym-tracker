@@ -17,8 +17,7 @@ export function ProgrammeOptions({ onboarding = false }: { onboarding?: boolean 
       <Card>
         <h2 className="text-lg font-medium">Create your own programme</h2>
         <p className="text-sm text-ink-muted">
-          Give the AI coach your goals, schedule, a detailed prompt and any reports. Review its
-          draft before you start.
+          Answer a few questions and the coach writes it. You review the draft before you start.
         </p>
         <LinkButton href={`${base}/create` as Route}>Create with the coach</LinkButton>
       </Card>

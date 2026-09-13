@@ -23,8 +23,7 @@ export async function SavedProgrammeWork({ onboarding = false }: { onboarding?: 
   const waiting = jobs
     .filter(
       (job) =>
-        job.kind === "create_program" &&
-        ["queued", "claimed", "needs_input"].includes(job.status),
+        job.kind === "create_program" && ["queued", "claimed", "needs_input"].includes(job.status),
     )
     .slice(0, 3);
   if (!intake && !drafts.length && !waiting.length) return null;
@@ -43,7 +42,7 @@ export async function SavedProgrammeWork({ onboarding = false }: { onboarding?: 
       ))}
       {intake && (
         <LinkButton href={`${base}/create` as Route} variant="ghost">
-          Continue your coaching intake
+          Continue where you left off
         </LinkButton>
       )}
     </Card>

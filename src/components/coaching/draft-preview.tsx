@@ -16,7 +16,7 @@ import type { ProgramChangeAssessment } from "@/domain/program-change";
 import type { BlueprintExercise, ProgramBlueprint } from "@/domain/program-blueprint";
 import type { MuscleGroup } from "@/domain/types";
 import { MUSCLE_LABELS, rangeLabel } from "@/lib/labels";
-import { WEEKDAYS } from "./intake-form";
+import { WEEKDAY_NAMES } from "@/lib/labels";
 /** "Quads 8, glutes 6" — the muscles as they are named everywhere else, not as they are keyed. */
 function muscleSets(sets: Partial<Record<string, number>>): string {
   const entries = Object.entries(sets);
@@ -156,7 +156,7 @@ export function DraftPreview({
                     {(plan as ProgramBlueprint).days.map((day) => (
                       <div key={day.dayIndex}>
                         <p className="font-medium">
-                          {day.name} · {WEEKDAYS[day.dayOfWeek - 1]}
+                          {day.name} · {WEEKDAY_NAMES[day.dayOfWeek]}
                         </p>
                         {day.exercises.map((exercise, index) => (
                           <p key={index} className="mt-1 text-ink-muted">
@@ -189,7 +189,7 @@ export function DraftPreview({
             {day.dayIndex}. {day.name}
           </h2>
           <p className="text-sm text-ink-muted">
-            {WEEKDAYS[day.dayOfWeek - 1]}
+            {WEEKDAY_NAMES[day.dayOfWeek]}
             {day.focus ? ` · ${day.focus}` : ""}
             {day.timeNote ? ` · ${day.timeNote}` : ""}
           </p>

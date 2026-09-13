@@ -94,7 +94,10 @@ async function athlete() {
         goal: "Become stronger with one training day",
         sessionsPerWeek: 1,
         minutesPerSession: 45,
-        reviewWeekday: 7,
+        trainingLocation: "gym",
+        heightCm: 178,
+        weightKg: 74.5,
+        ageYears: 31,
         gymId: gym!.id,
         prompt: "A custom programme, not the founder template.",
       }),
@@ -143,8 +146,8 @@ async function generated(a: Athlete) {
 
 it("keeps unknown intake values, detects competing edits and preserves confirmed answers", async () => {
   const a = await athlete();
-  expect(a.intake.answers.weightKg).toBeNull();
-  expect(a.intake.answers.baselines).toEqual([]);
+  expect(a.intake.answers.runsPerWeek).toBeNull();
+  expect(a.intake.answers.recentTraining).toBe("");
   const edited = await as(a, (tx) =>
     saveIntake(tx, a.user.id, { ...a.intake.answers, prompt: "Changed brief" }, a.intake.revision),
   );
@@ -454,6 +457,43 @@ it("cascades new coaching data when Auth is deleted and allows a fresh identity 
   expect(fresh.id).not.toBe(a.user.id);
   expect(await withUser(t.db, fresh.id, (tx) => latestIntake(tx, fresh.id))).toBeNull();
 });
+it("answers gym-or-home with a location, and reviews on a day the athlete does not train", async () => {
+  const user = await t.createAuthUser(`${crypto.randomUUID()}@example.test`);
+  const confirmed = await withUser(t.db, user.id, async (tx) => {
+    // No location of any kind yet: the athlete says "home" and never sees a list.
+    const intake = await saveIntake(
+      tx,
+      user.id,
+      coachIntakeSchema.parse({
+        goal: "Get going at home",
+        sessionsPerWeek: 3,
+        minutesPerSession: 40,
+        preferredDays: [1, 3, 5],
+        preferredRunDays: [7],
+        runsPerWeek: 1,
+        trainingLocation: "home",
+        heightCm: 170,
+        weightKg: 62,
+        ageYears: 28,
+      }),
+      null,
+    );
+    expect(intake.answers.gymId).toBeNull();
+    await confirmIntake(tx, user.id, intake.id);
+    return latestIntake(tx, user.id);
+  });
+  const [home] = await withUser(t.db, user.id, (tx) =>
+    tx.select().from(gyms).where(eq(gyms.userId, user.id)),
+  );
+  expect(home).toMatchObject({ kind: "home", name: "Home" });
+  expect(confirmed!.answers.gymId).toBe(home!.id);
+  const [preference] = await withUser(t.db, user.id, (tx) =>
+    tx.select().from(coachPreferences).where(eq(coachPreferences.userId, user.id)),
+  );
+  // Monday, Wednesday and Friday lift; Sunday runs. Saturday is the only untouched day.
+  expect(preference!.reviewWeekday).toBe(6);
+});
+
 it("waits seven full days before the first selected rest-day review", () => {
   const enabled = new Date("2026-09-12T12:00:00Z");
   const period = firstWeeklyReviewPeriod(enabled, 6);
@@ -809,7 +849,10 @@ async function runningAthlete(answers: Record<string, unknown>) {
         goal: "Lift twice and keep two easy runs",
         sessionsPerWeek: 1,
         minutesPerSession: 45,
-        reviewWeekday: 7,
+        trainingLocation: "gym",
+        heightCm: 178,
+        weightKg: 74.5,
+        ageYears: 31,
         gymId: gym!.id,
         ...answers,
       }),

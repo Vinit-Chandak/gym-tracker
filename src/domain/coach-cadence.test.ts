@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { nextWeeklyReviewPeriod, weeklyReviewPeriod } from "./coach-cadence";
+import { nextWeeklyReviewPeriod, reviewWeekdayFor, weeklyReviewPeriod } from "./coach-cadence";
 import { isoWeekday } from "./program-calendar";
 
 const DAY_MS = 86_400_000;
@@ -72,4 +72,30 @@ describe("weekly review periods", () => {
       ).toThrow(/boundary/);
     },
   );
+});
+
+describe("choosing the review day", () => {
+  it.each([
+    // A weekday lifter reviews on Sunday, ready for Monday.
+    [[1, 3, 5], [], 7],
+    // The last free day before a weekend block, rather than on top of it.
+    [[6, 7], [], 5],
+    // A run costs a day less than a session, so a run day beats a lifting day.
+    [[1, 2, 3, 4, 5, 6], [7], 7],
+    [[1, 2, 3, 4, 5, 7], [6], 6],
+    // Training every day still has to land somewhere.
+    [[1, 2, 3, 4, 5, 6, 7], [], 7],
+    // Nothing said yet: the end of the week.
+    [[], [], 7],
+  ])("puts the review on a free day for %j", (trainingDays, runDays, expected) => {
+    expect(reviewWeekdayFor({ trainingDays, runDays })).toBe(expected);
+  });
+
+  it("never lands on a lifting day while any other day is free", () => {
+    for (let sessions = 1; sessions <= 6; sessions++) {
+      const trainingDays = [1, 2, 3, 4, 5, 6, 7].slice(0, sessions);
+      const chosen = reviewWeekdayFor({ trainingDays, runDays: [] });
+      expect(trainingDays).not.toContain(chosen);
+    }
+  });
 });

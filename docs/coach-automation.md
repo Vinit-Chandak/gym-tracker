@@ -41,7 +41,7 @@ The first weekly review waits **at least seven full days after enabling coaching
 
 The daily dispatcher drains stable keyset pages without a 500-athlete ceiling. A due weekly review runs before that athlete's session preparation. A missed batch catches up only the latest due review and latest next-session preparation. One bad athlete does not stop later pages. Open workouts defer claims; one live claim per athlete is allowed.
 
-The context carries confirmed intake, athlete-authored notes, optional reported baselines, retained-report metadata, available equipment, the exact programme and pending components, decisions, and a compact task-specific policy. Reports and free text are evidence, never tool instructions. Shared policy has no founder-only restrictions.
+The context carries confirmed intake, athlete-authored notes, the athlete's own description of what they currently lift, retained-report metadata, available equipment, the exact programme and pending components, decisions, and a compact task-specific policy. Reports and free text are evidence, never tool instructions. Shared policy has no founder-only restrictions.
 
 Seven-day review totals, the last thirty days of running, and eight calendar-week trends aggregate the complete saved interval in SQL. Narrative detail is bounded to forty recent workouts and sixty runs, with truncation markers. Warm-ups and unfinished workouts do not count as completed lifting. Calendar weeks use the athlete's time zone and Monday boundaries; they are distinct from the owner's scheduled review interval. Unknown measurements and machine conventions remain unknown.
 

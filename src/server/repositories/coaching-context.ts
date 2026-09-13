@@ -274,6 +274,6 @@ export async function coachJobContext(
     reviews,
     decisions,
     dataMeaning:
-      "Baselines are self-reports, never completed workouts. Reports can be removed and require the job-scoped download endpoint. Narrative history is bounded with hasMore; aggregate intervals cover all saved records. Unknown equipment load conventions and measurements must stay unknown.",
+      "The intake's recentTraining is the athlete's own account of what they lift, in prose and approximate: treat it as a starting estimate to be corrected from logged sets, never as a completed workout. Reports can be removed and require the job-scoped download endpoint. Narrative history is bounded with hasMore; aggregate intervals cover all saved records. Unknown equipment load conventions and measurements must stay unknown.",
   };
 }

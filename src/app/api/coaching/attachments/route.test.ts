@@ -49,7 +49,10 @@ it("takes one from behind a proxy, which names the public host separately", asyn
 });
 
 it("refuses one posted from somewhere else with the athlete's cookie", async () => {
-  const response = await upload({ origin: "https://not-overload.example", host: "overload.example" });
+  const response = await upload({
+    origin: "https://not-overload.example",
+    host: "overload.example",
+  });
   expect(response.status).toBe(403);
   expect(await response.json()).toEqual({ error: "Upload from this app's programme screen." });
   expect(saved).not.toHaveBeenCalled();
