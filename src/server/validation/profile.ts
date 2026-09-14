@@ -85,7 +85,7 @@ const HEIGHT_CM = { min: 50, max: 260 } as const;
 
 /**
  * Everything the app knows about the person training. Both the onboarding step and the
- * Settings screen parse with this, so the two can never ask for different things.
+ * profile edit screen parse with this, so the two can never ask for different things.
  *
  * Weight and height arrive in whichever units the account uses — pounds and feet, or
  * kilograms and centimetres — and leave as kilograms and centimetres, which is how they are

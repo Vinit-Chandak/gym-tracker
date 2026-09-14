@@ -86,7 +86,7 @@ export default async function ProgrammeSettingsPage() {
 
   return (
     <>
-      <PageHeader title="Programme" backHref="/settings" />
+      <PageHeader title="Programme" backHref="/profile" />
       <PageContent>
         <SavedProgrammeWork />
         {overview ? (

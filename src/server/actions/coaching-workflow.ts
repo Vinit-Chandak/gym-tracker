@@ -150,7 +150,7 @@ export async function archiveProgramAction(id: string) {
   const result = await mutate((tx, userId) => archiveActiveProgram(tx, userId, z.uuid().parse(id)));
   if (result.ok) {
     revalidatePath("/today");
-    revalidatePath("/settings/programme");
+    revalidatePath("/profile/programme");
   }
   return result;
 }
@@ -193,7 +193,7 @@ export async function activateProgramDraftAction(input: {
   if (result.ok) {
     await profileChanged(result.value.userId);
     revalidatePath("/today");
-    revalidatePath("/settings/programme");
+    revalidatePath("/profile/programme");
   }
   return result;
 }

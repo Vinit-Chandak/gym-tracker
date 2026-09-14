@@ -55,7 +55,7 @@ export default async function AiCoachSettingsPage() {
 
   return (
     <>
-      <PageHeader title="AI coach" backHref="/settings" />
+      <PageHeader title="AI coach" backHref="/profile" />
       <PageContent>
         <AiCoachSettings
           workflow={workflow}

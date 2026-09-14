@@ -64,7 +64,7 @@ function useInstallPrompt(): { install: () => void; available: boolean } {
 }
 
 /**
- * The App group of Settings: one row that installs, shown only in a browser tab — never
+ * The App group of Profile: one row that installs, shown only in a browser tab — never
  * inside the installed app. Where the browser has no prompt to offer, the row opens the
  * two-line instructions in a sheet instead of printing them on the page.
  */

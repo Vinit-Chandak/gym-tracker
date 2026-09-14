@@ -20,7 +20,7 @@ export const PRESSABLE_ROW_CLASS = cn(
   "transition-colors duration-[var(--ov-duration-feedback)] focus-visible:-outline-offset-2 active:bg-surface-raised",
 );
 
-/** The leading icon of a row, where a screen uses them: Settings and its sub-pages. */
+/** The leading icon of a row, where a screen uses them: Profile and its sub-pages. */
 export function RowIcon({ icon: Icon, className }: { icon: AppIcon; className?: string }) {
   return <Icon scale="row" className={cn("shrink-0 text-ink-muted", className)} aria-hidden />;
 }

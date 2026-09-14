@@ -13,7 +13,7 @@ export default async function PasswordPage() {
   await requireUser();
   return (
     <>
-      <PageHeader title="Password" backHref="/settings" />
+      <PageHeader title="Password" backHref="/profile" />
       <PageContent>
         <Card>
           <PasswordForm />

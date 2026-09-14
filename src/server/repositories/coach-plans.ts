@@ -1783,7 +1783,7 @@ export async function pendingRequest(
  * A re-plan already leaves a row when the athlete asks for one. A nightly run left nothing at
  * all, so a night the coach could not plan looked exactly like a night it was never asked:
  * Today simply had no plan and said nothing. Every attempt now lands here, and the failures
- * are what Settings and Today can point at.
+ * are what Profile and Today can point at.
  */
 export async function recordAttempt(
   db: DbOrTx,

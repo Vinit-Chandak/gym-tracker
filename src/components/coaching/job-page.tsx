@@ -28,7 +28,7 @@ export async function ProgrammeJobPage({
     return { job, draftId: draft?.id ?? null };
   });
   if (!data.job) notFound();
-  const base = onboarding ? "/welcome/programme" : "/settings/programme";
+  const base = onboarding ? "/welcome/programme" : "/profile/programme";
   return (
     <>
       <PageHeader title="Programme request" backHref={base} />

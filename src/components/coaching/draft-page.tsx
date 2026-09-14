@@ -56,7 +56,7 @@ export async function ProgrammeDraftPage({
     { readOnly: true },
   );
   if (!data) notFound();
-  const base = onboarding ? "/welcome/programme" : "/settings/programme";
+  const base = onboarding ? "/welcome/programme" : "/profile/programme";
   return (
     <>
       <PageHeader title="Review programme" backHref={base} />

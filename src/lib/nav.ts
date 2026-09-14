@@ -4,8 +4,8 @@ import {
   Dumbbell,
   Footprints,
   type AppIcon,
-  Settings,
   TrendingUp,
+  User,
 } from "@/components/ui/icons";
 
 export type NavItem = {
@@ -18,18 +18,22 @@ export type NavItem = {
  * Bottom navigation tabs, in display order.
  *
  * Five, not six: Gyms is a place you set up once and then rarely touch, so it lives behind
- * Settings › Gyms and machines rather than taking a permanent share of the thumb's reach.
+ * Profile › Gyms and machines rather than taking a permanent share of the thumb's reach.
+ *
+ * The fifth tab is Profile, not Settings (ADR 0026): it keeps every setting it had and gains
+ * who you are and, later, the people you follow. Renaming the tab rather than adding a sixth
+ * keeps the island at five.
  */
 export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/today", label: "Today", icon: Dumbbell },
   { href: "/runs", label: "Runs", icon: Footprints },
   { href: "/history", label: "History", icon: CalendarDays },
   { href: "/progress", label: "Progress", icon: TrendingUp },
-  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/profile", label: "Profile", icon: User },
 ];
 
-/** Sections reached from Settings, which keep Settings selected while you are in them. */
-const UNDER_SETTINGS = ["/exercises", "/gyms"];
+/** Sections reached from Profile, which keep Profile selected while you are in them. */
+const UNDER_PROFILE = ["/exercises", "/gyms"];
 
 const withinSection = (pathname: string, section: string) =>
   pathname === section || pathname.startsWith(`${section}/`);
@@ -38,8 +42,8 @@ const withinSection = (pathname: string, section: string) =>
 export function isNavItemActive(pathname: string, href: string): boolean {
   const sectionPath = pathname.startsWith("/workouts/")
     ? "/today"
-    : UNDER_SETTINGS.some((section) => withinSection(pathname, section))
-      ? "/settings"
+    : UNDER_PROFILE.some((section) => withinSection(pathname, section))
+      ? "/profile"
       : pathname;
   return withinSection(sectionPath, href);
 }
@@ -54,7 +58,7 @@ const SECTION_LABELS: Record<string, string> = {
   runs: "Runs",
   history: "History",
   progress: "Progress",
-  settings: "Settings",
+  profile: "Profile",
   gyms: "Gyms",
   exercises: "Exercises",
   workouts: "Workout",

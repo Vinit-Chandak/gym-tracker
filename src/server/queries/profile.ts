@@ -39,7 +39,7 @@ export async function ensureProfile(
  *
  * Setup asks for all of these, but accounts that existed before it did — or before a field was
  * added — are complete in their own terms and must not be shooed back through onboarding. The
- * Settings screen says what is missing instead, and the profile form is where it gets filled in.
+ * Profile tab says what is missing instead, and the profile form is where it gets filled in.
  */
 export function missingProfileDetails(
   profile: Pick<

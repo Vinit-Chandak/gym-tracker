@@ -16,7 +16,7 @@ export default async function DeleteAccountPage() {
 
   return (
     <>
-      <PageHeader title="Delete account" backHref="/settings" />
+      <PageHeader title="Delete account" backHref="/profile" />
       <PageContent>
         {/* The one screen that says what it means in full: what goes is irreversible. */}
         <Card>

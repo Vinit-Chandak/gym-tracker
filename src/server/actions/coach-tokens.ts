@@ -21,7 +21,7 @@ export async function createCoachTokenAction(
     const result = await withUser(getDb(), user.id, (tx) =>
       createCoachToken(tx, user.id, parsed.data.name, Number(parsed.data.days)),
     );
-    revalidatePath("/settings/coach");
+    revalidatePath("/profile/coach");
     return result;
   } catch {
     return {
@@ -36,7 +36,7 @@ export async function revokeCoachTokenAction(tokenId: string): Promise<{ error?:
   if (!z.uuid().safeParse(tokenId).success) return { error: "Invalid token." };
   try {
     await withUser(getDb(), user.id, (tx) => revokeCoachToken(tx, user.id, tokenId));
-    revalidatePath("/settings/coach");
+    revalidatePath("/profile/coach");
     return {};
   } catch {
     return { error: "Could not revoke the token. Please retry." };

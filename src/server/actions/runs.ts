@@ -129,7 +129,7 @@ async function linkRunToProgramme(
 function revalidateRuns(runId?: string): void {
   revalidatePath("/runs");
   revalidatePath("/today");
-  revalidatePath("/settings/programme");
+  revalidatePath("/profile/programme");
   revalidatePath("/history");
   revalidatePath("/progress");
   if (runId) revalidatePath(`/runs/${runId}`);

@@ -72,7 +72,7 @@ If the password contains `@`, `:`, `/`, `#` or `?`, URL-encode those characters
 
 ## 5. Configure complete account deletion
 
-**Settings → Delete account** removes the Supabase Auth identity first. Its database cascade
+**Profile → Delete account** removes the Supabase Auth identity first. Its database cascade
 erases the profile and account-owned gyms, machines, programmes, sessions, sets, runs, tokens,
 coaching jobs and retained reports. This allows a later signup with that email to create a
 fresh identity and empty account.
@@ -155,7 +155,7 @@ the trade: previews cannot break production data.
 
 ## 8. Install it on a phone
 
-- **Android (Chrome)**: open the URL, then either tap **Install** on the card in Settings, or
+- **Android (Chrome)**: open the URL, then either tap **Install** on the card on the Profile tab, or
   use the ⋮ menu → **Add to Home screen**.
 - **iPhone (Safari)**: open the URL → **Share** → **Add to Home Screen**.
 
@@ -171,7 +171,7 @@ Either way it launches full-screen with the correct padding for notches and gest
    saved intake, optional prompt/reports, and draft review before activation; see
    [coach setup and rollout](docs/coach-automation.md).
 3. **Today** suggests the next session; everything set up in onboarding is editable in
-   **Settings → Profile** afterwards, and an account that predates a question is told there
+   **Profile → Edit profile** afterwards, and an account that predates a question is told there
    which answers are still missing rather than being sent back through setup.
 
 ## If the email links point at localhost

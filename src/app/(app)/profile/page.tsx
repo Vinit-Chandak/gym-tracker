@@ -25,23 +25,23 @@ import { getRequestProfile } from "@/server/queries/request-profile";
 import { RestTimerSetting } from "./rest-timer-setting";
 import { SignOutRow } from "./sign-out-row";
 
-export const metadata: Metadata = { title: "Settings" };
+export const metadata: Metadata = { title: "Profile" };
 
-export default async function SettingsPage() {
+export default async function ProfilePage() {
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
   const missing = missingProfileDetails(profile);
 
   return (
     <>
-      <PageHeader title="Settings" />
+      <PageHeader title="Profile" />
       {/* Boxes of rows, in the order they are needed: who you are, what you train, how it
           looks, who can get in, the app itself, and the way out. A row says only where it
           goes; everything behind it has its own page. */}
       <PageContent>
         <List>
           <li>
-            <Link href="/settings/profile" className={PRESSABLE_ROW_CLASS}>
+            <Link href="/profile/edit" className={PRESSABLE_ROW_CLASS}>
               <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent">
                 <User scale="row" aria-hidden />
               </span>
@@ -65,7 +65,7 @@ export default async function SettingsPage() {
         <Section title="Training">
           <List>
             <li>
-              <LinkRow href="/settings/programme" icon={ClipboardList} title="Programme" />
+              <LinkRow href="/profile/programme" icon={ClipboardList} title="Programme" />
             </li>
             <li>
               <LinkRow href="/gyms" icon={MapPin} title="Gyms and machines" />
@@ -77,7 +77,7 @@ export default async function SettingsPage() {
               <RestTimerSetting enabled={profile.restTimerEnabled} />
             </li>
             <li>
-              <LinkRow href="/settings/ai-coach" icon={AiCoach} title="AI coach" />
+              <LinkRow href="/profile/ai-coach" icon={AiCoach} title="AI coach" />
             </li>
           </List>
         </Section>
@@ -93,10 +93,10 @@ export default async function SettingsPage() {
         <Section title="Account">
           <List>
             <li>
-              <LinkRow href="/settings/password" icon={KeyRound} title="Password" />
+              <LinkRow href="/profile/password" icon={KeyRound} title="Password" />
             </li>
             <li>
-              <LinkRow href="/settings/coach" icon={Link2} title="Coach access" />
+              <LinkRow href="/profile/coach" icon={Link2} title="Coach access" />
             </li>
           </List>
         </Section>
@@ -109,7 +109,7 @@ export default async function SettingsPage() {
           </li>
           <li>
             <LinkRow
-              href="/settings/delete-account"
+              href="/profile/delete-account"
               icon={Trash}
               title="Delete account"
               tone="danger"

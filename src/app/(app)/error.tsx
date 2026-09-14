@@ -18,7 +18,7 @@ export default function AppError({
   const router = useRouter(),
     online = useOnline();
   // The promise about drafts is only true where there are drafts: they belong to a set
-  // being logged, and on Runs or Settings there is nothing of the sort to reassure anyone about.
+  // being logged, and on Runs or Profile there is nothing of the sort to reassure anyone about.
   const inWorkout = usePathname().startsWith("/workouts/");
   const [pending, startTransition] = useTransition();
   return (

@@ -52,8 +52,8 @@ export async function saveProfileAction(
 
   await withUser(getDb(), user.id, (tx) => saveProfile(tx, user, parsed.data));
   await profileChanged(user.id);
-  revalidatePath("/settings");
-  revalidatePath("/settings/profile");
+  revalidatePath("/profile");
+  revalidatePath("/profile/edit");
   revalidatePath("/progress");
   revalidatePath("/today");
   return {};

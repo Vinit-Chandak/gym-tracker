@@ -101,8 +101,8 @@ src/
     (auth)/                     sign in, sign up, forgot and reset password
     auth/confirm/               where every emailed link lands
     (onboarding)/welcome/       the four first-run steps
-    (app)/                      the six tabs behind the shared shell
-      today/ runs/ history/ progress/ gyms/ settings/
+    (app)/                      the five tabs behind the shared shell
+      today/ runs/ history/ progress/ gyms/ profile/
       gyms/[gymId]/..., exercises/..., workouts/[sessionId]/...
     (preview)/                  development-only screens: the shell without an account
   proxy.ts                      refreshes the Supabase session; keeps the app private

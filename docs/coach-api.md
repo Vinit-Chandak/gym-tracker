@@ -1,6 +1,6 @@
 # Coach read API
 
-Create a token in **Settings → Coach access**. Give it a name and choose 30, 90 or 365 days.
+Create a token in **Profile → Coach access**. Give it a name and choose 30, 90 or 365 days.
 Copy it when it appears; the database stores only a SHA-256 hash. Keep it in the external
 client's secret storage. Revoke it from the same screen to stop subsequent requests immediately.
 There can be up to 10 active tokens. No connection or scheduled automation is configured by the app.
@@ -82,5 +82,5 @@ message without database details. No API request is allowed to apply programme c
 `/api/coach/service/…` is a separate surface for the AI house coach, authenticated with one
 server-side service token rather than a per-user token, and is the only path that writes:
 it stores the coach's plan for an athlete's next session. Every request names an athlete who
-has switched the coach on in Settings and runs under that athlete's own policies. See
+has switched the coach on from their profile and runs under that athlete's own policies. See
 [`docs/coach-automation.md`](coach-automation.md) for the endpoints, setup and limits.

@@ -251,7 +251,7 @@ export function TodayView({
         {!plan ? (
           <Card>
             <h2 className="text-lg font-medium">No programme</h2>
-            <LinkButton href="/settings/programme" size="lg" className="w-full">
+            <LinkButton href="/profile/programme" size="lg" className="w-full">
               Choose a programme
             </LinkButton>
             <StartAdHocButton gymId={defaultGym?.id ?? null} />
@@ -263,7 +263,7 @@ export function TodayView({
               title={plan.program.name}
               subtitle={`${plan.progress.total} programme days`}
             />
-            <LinkButton href="/settings/programme" size="lg" className="w-full">
+            <LinkButton href="/profile/programme" size="lg" className="w-full">
               Plan the next block
             </LinkButton>
             <StartAdHocButton gymId={defaultGym?.id ?? null} />
@@ -440,7 +440,7 @@ export function TodayView({
         {/* The programme in a sentence, and the way into all of it. */}
         {plan && (
           <Link
-            href="/settings/programme"
+            href="/profile/programme"
             className="block box space-y-2 panel-padding transition-colors duration-[var(--ov-duration-feedback)] active:bg-surface-raised"
           >
             <div className="flex items-start justify-between gap-3">

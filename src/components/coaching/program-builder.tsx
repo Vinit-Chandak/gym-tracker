@@ -42,7 +42,7 @@ export function ProgramBuilder({
   initial: { id: string; revision: number; blueprint: ProgramBlueprint } | null;
   library: LibraryEntry[];
   warmups: { slug: string; name: string }[];
-  base: "/welcome/programme" | "/settings/programme";
+  base: "/welcome/programme" | "/profile/programme";
   routines?: { id: string; name: string; day: import("@/domain/saved-routine").SavedRoutineDay }[];
 }) {
   const router = useRouter();

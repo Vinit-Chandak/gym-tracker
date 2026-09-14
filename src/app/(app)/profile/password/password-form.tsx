@@ -21,8 +21,8 @@ export function PasswordForm() {
           <CheckCircle2 className="shrink-0" aria-hidden />
           Password updated.
         </p>
-        <LinkButton href="/settings" variant="secondary" className="w-full">
-          Back to Settings
+        <LinkButton href="/profile" variant="secondary" className="w-full">
+          Back to Profile
         </LinkButton>
       </div>
     );

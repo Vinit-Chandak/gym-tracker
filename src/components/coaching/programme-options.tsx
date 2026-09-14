@@ -10,7 +10,7 @@ import { chooseTrainingModeAction } from "@/server/actions/coaching-workflow";
 /**
  * The two ways to get a programme, and on the first run a third way to skip having one.
  *
- * `nested` is for a section that is already a box — Settings folds these away behind "Start a
+ * `nested` is for a section that is already a box — Profile folds these away behind "Start a
  * new programme" — where a card inside a card inside a section draws three edges around one
  * choice. There they are ruled rows in the box that already exists; on their own, on the
  * first-run screen, they keep the box each.
@@ -25,7 +25,7 @@ export function ProgrammeOptions({
   const router = useRouter();
   const [error, setError] = useState<string | null>(null),
     [busy, setBusy] = useState(false);
-  const base = onboarding ? "/welcome/programme" : "/settings/programme";
+  const base = onboarding ? "/welcome/programme" : "/profile/programme";
   return (
     <div className={nested ? "ruled-list" : "space-y-3"}>
       <Option nested={nested} title="Create your own programme">

@@ -186,7 +186,7 @@ export async function requestPasswordResetAction(
   return { sent: true };
 }
 
-/** Sets a new password for the signed-in user — after a recovery link, or from Settings. */
+/** Sets a new password for the signed-in user — after a recovery link, or from Profile. */
 export async function updatePasswordAction(
   _previous: PasswordChangeState,
   formData: FormData,

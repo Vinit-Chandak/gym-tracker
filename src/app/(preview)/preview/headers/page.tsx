@@ -22,7 +22,7 @@ export const metadata: Metadata = { title: "Preview · Headers" };
  */
 export default function PreviewHeadersPage() {
   return (
-    <PreviewShell tab="/settings">
+    <PreviewShell tab="/profile">
       <div className="[&_header]:static">
         <PageHeader title={<Wordmark />} meta="Fri 11 Sept" />
         <PageHeader

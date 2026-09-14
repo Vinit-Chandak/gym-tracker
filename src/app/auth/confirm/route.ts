@@ -28,7 +28,7 @@ const AFTER_RECOVERY = "/reset-password";
  * `exchangeCodeForSession` reads the flow back off the stored code verifier and returns it as
  * `redirectType`, but @supabase/auth-js 2.116 leaves it off `AuthTokenResponse`. It is read
  * defensively so a version that stops sending it treats the link as an ordinary confirmation
- * instead of failing: Settings → Password can still change a password from there.
+ * instead of failing: Profile → Password can still change a password from there.
  */
 function isRecoveryFlow(data: unknown): boolean {
   return (

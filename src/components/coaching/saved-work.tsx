@@ -26,7 +26,7 @@ export async function SavedProgrammeWork({ onboarding = false }: { onboarding?: 
       listCoachJobs(tx, user.id),
     ]),
   );
-  const base = onboarding ? "/welcome/programme" : "/settings/programme";
+  const base = onboarding ? "/welcome/programme" : "/profile/programme";
   // Only a request that is still going anywhere. A superseded or failed one is finished
   // with, and listing it under saved work offered the athlete a link to a request that had
   // already been answered or called off.

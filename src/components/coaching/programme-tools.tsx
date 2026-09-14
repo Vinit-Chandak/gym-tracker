@@ -23,7 +23,7 @@ export function ProgrammeTools({ id, active = true }: { id: string; active?: boo
     setBusy(true);
     setError(null);
     const result = await coachingAction(() => copyProgramAction(id, duplicate));
-    if (result.ok) router.push(`/settings/programme/manual?draft=${result.value.id}` as Route);
+    if (result.ok) router.push(`/profile/programme/manual?draft=${result.value.id}` as Route);
     else setError(result.error);
     setBusy(false);
   }

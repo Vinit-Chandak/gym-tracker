@@ -36,7 +36,7 @@ function useAppearance(): Appearance {
   return useSyncExternalStore(subscribe, readStoredAppearance, () => "system" as const);
 }
 
-/** A Settings row that shows the current mode and opens the three choices in a sheet. */
+/** A Profile row that shows the current mode and opens the three choices in a sheet. */
 export function AppearanceRow() {
   const appearance = useAppearance();
   const [open, setOpen] = useState(false);

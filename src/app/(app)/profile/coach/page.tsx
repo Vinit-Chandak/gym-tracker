@@ -15,7 +15,7 @@ export default async function CoachSettingsPage() {
   const tokens = await withUser(getDb(), user.id, (tx) => listCoachTokens(tx, user.id));
   return (
     <>
-      <PageHeader title="Coach access" backHref="/settings" />
+      <PageHeader title="Coach access" backHref="/profile" />
       <PageContent>
         <TokenManager
           tokens={tokens.map((t) => ({

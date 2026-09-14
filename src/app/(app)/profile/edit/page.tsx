@@ -11,9 +11,9 @@ import { getRequestProfile } from "@/server/queries/request-profile";
 
 import { ProfileForm } from "./profile-form";
 
-export const metadata: Metadata = { title: "Profile" };
+export const metadata: Metadata = { title: "Edit profile" };
 
-export default async function ProfilePage() {
+export default async function EditProfilePage() {
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
   const email = profile.email ?? user.email ?? "—";
@@ -22,7 +22,7 @@ export default async function ProfilePage() {
 
   return (
     <>
-      <PageHeader title="Profile" backHref="/settings" />
+      <PageHeader title="Edit profile" backHref="/profile" />
       <PageContent>
         {/* The email is the account's identity and cannot be edited here, so it is a row
             rather than a field. */}

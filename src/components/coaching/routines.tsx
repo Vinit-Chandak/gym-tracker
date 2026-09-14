@@ -82,7 +82,7 @@ export function RoutineLibrary({
           {error}
         </p>
       )}
-      <LinkButton href="/settings/programme/manual" variant="secondary">
+      <LinkButton href="/profile/programme/manual" variant="secondary">
         Build a routine or programme
       </LinkButton>
     </div>
@@ -108,7 +108,7 @@ export function SaveWorkoutRoutine({ sessionId, name }: { sessionId: string; nam
           onClick={async () => {
             setBusy(true);
             const result = await coachingAction(() => saveWorkoutRoutineAction(sessionId, title));
-            if (result.ok) router.push("/settings/routines");
+            if (result.ok) router.push("/profile/routines");
             else setError(result.error);
             setBusy(false);
           }}
