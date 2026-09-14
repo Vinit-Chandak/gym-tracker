@@ -47,6 +47,7 @@ export default async function EditProfilePage() {
           <ProfileForm
             values={{
               displayName: profile.displayName ?? "",
+              username: profile.username,
               timeZone: profile.timeZone,
               preferredUnit: unit,
               bodyWeightKg: profile.bodyWeightKg,

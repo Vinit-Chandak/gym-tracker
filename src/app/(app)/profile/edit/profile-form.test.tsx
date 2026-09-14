@@ -11,6 +11,7 @@ it("does not let an action reset the selected unit while leaving converted value
     <ProfileForm
       values={{
         displayName: "QA",
+        username: "qa",
         timeZone: "UTC",
         preferredUnit: "kg",
         bodyWeightKg: 75,

@@ -5,12 +5,12 @@ import {
   equipmentTypes,
   gymAbsentEquipmentTypes,
   gyms,
-  profiles,
   programs,
 } from "@/db/schema";
 import { STRENGTH_AESTHETICS_HYBRID_8WK } from "@/db/seed/data/program";
 import type { DbOrTx } from "@/db/types";
 import type { GymKind, LoadUnit, ResistanceMode } from "@/domain/types";
+import { ensureProfile } from "@/server/queries/profile";
 import { createProgramFromBlueprint } from "@/server/repositories/programs";
 
 /**
@@ -80,10 +80,9 @@ export async function seedTestUserData(
   user: { id: string; email?: string | null },
   options: { startDate?: string } = {},
 ): Promise<FixtureResult> {
-  await db
-    .insert(profiles)
-    .values({ id: user.id, email: user.email ?? null })
-    .onConflictDoNothing({ target: profiles.id });
+  // The auth trigger has normally written the row already; this is the same fallback the app
+  // itself uses for an account that predates it.
+  await ensureProfile(db, { id: user.id, email: user.email ?? null });
 
   await db
     .insert(gyms)

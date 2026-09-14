@@ -29,6 +29,7 @@ export default async function WelcomePage() {
         </div>
         <ProfileStepForm
           displayName={profile.displayName ?? ""}
+          username={profile.username}
           timeZone={profile.timeZone}
           preferredUnit={profile.preferredUnit === "lb" ? "lb" : "kg"}
           bodyWeightKg={profile.bodyWeightKg}
