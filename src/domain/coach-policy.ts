@@ -50,7 +50,7 @@ export const COACH_POLICY = {
       id: "evidence",
       tasks: ["create_program", "prepare_session", "review_program"],
       kind: "coaching_principle",
-      rule: "Separate completed logs, self-reported baselines, estimates and missing data. Compare matching exercise/measurement/load convention and the same machine when load is not portable. Retain timestamps, units and source IDs. Primary sets plus half secondary credit is an accounting heuristic, not a measured biological dose.",
+      rule: "Separate completed logs, the athlete's self-reported training, estimates and missing data. Compare matching exercise/measurement/load convention and the same machine when load is not portable. Retain timestamps, units and source IDs. Primary sets plus half secondary credit is an accounting heuristic, not a measured biological dose.",
     },
     {
       id: "windows_and_confirmation",

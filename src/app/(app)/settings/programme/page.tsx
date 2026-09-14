@@ -29,6 +29,36 @@ import { Proposals } from "./proposals";
 
 export const metadata: Metadata = { title: "Programme" };
 
+/**
+ * Programmes that have been retired, under everything they were retired in favour of.
+ *
+ * They used to open the screen, above the programme actually being trained, which put the
+ * past before the present for the one account in ten that has a past at all. Folded, and
+ * last.
+ */
+function Archived({
+  programmes,
+}: {
+  programmes: readonly { id: string; name: string; version: number }[];
+}) {
+  return (
+    <Section title="Archived programmes">
+      <Disclosure summary="Programmes you have retired" meta={`${programmes.length}`}>
+        <ul className="ruled-list">
+          {programmes.map((programme) => (
+            <li key={programme.id} className="space-y-2 py-3 first:pt-0 last:pb-0">
+              <p className="font-medium [overflow-wrap:anywhere]">
+                {programme.name} · version {programme.version}
+              </p>
+              <ProgrammeTools id={programme.id} active={false} />
+            </li>
+          ))}
+        </ul>
+      </Disclosure>
+    </Section>
+  );
+}
+
 export default async function ProgrammeSettingsPage() {
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
@@ -59,21 +89,6 @@ export default async function ProgrammeSettingsPage() {
       <PageHeader title="Programme" backHref="/settings" />
       <PageContent>
         <SavedProgrammeWork />
-        {archived.length > 0 && (
-          <details className="box panel-padding">
-            <summary className="min-h-11 cursor-pointer py-2">Archived programmes</summary>
-            <div className="space-y-4">
-              {archived.map((program) => (
-                <div key={program.id} className="space-y-2">
-                  <p className="font-medium">
-                    {program.name} · version {program.version}
-                  </p>
-                  <ProgrammeTools id={program.id} active={false} />
-                </div>
-              ))}
-            </div>
-          </details>
-        )}
         {overview ? (
           <>
             {/* What the programme is and how far through it you are. */}
@@ -157,33 +172,45 @@ export default async function ProgrammeSettingsPage() {
               </ul>
             </Section>
 
+            {/* Folded away, because starting over is the rarest thing anyone comes here to
+                do — and open, it is three choices that each need a sentence of their own. */}
             <Section
               title="Change programme"
               info="You get your own copy of the template. Starting another archives the current one; logged sessions keep what they were prescribed."
             >
               <Disclosure summary="Start a new programme">
-                <ProgrammeOptions />
-                <h3 className="font-medium">Or use the suggested template</h3>
+                <div className="space-y-4">
+                  <ProgrammeOptions nested />
+                  <div className="space-y-2 border-t border-line pt-4">
+                    <h3 className="font-medium">Or use the suggested template</h3>
+                    <ProgramTemplatePicker
+                      templates={templates}
+                      today={today}
+                      submitLabel="Replace my programme"
+                    />
+                  </div>
+                </div>
+              </Disclosure>
+            </Section>
+
+            {archived.length > 0 && <Archived programmes={archived} />}
+          </>
+        ) : (
+          <>
+            <Section title="Start a programme">
+              <ProgrammeOptions />
+            </Section>
+            <Section title="Or use the suggested template">
+              <Card>
                 <ProgramTemplatePicker
                   templates={templates}
                   today={today}
-                  submitLabel="Replace my programme"
+                  submitLabel="Start this programme"
                 />
-              </Disclosure>
+              </Card>
             </Section>
+            {archived.length > 0 && <Archived programmes={archived} />}
           </>
-        ) : (
-          <div className="space-y-4">
-            <ProgrammeOptions />
-            <Card>
-              <h2 className="text-lg font-medium">Suggested template</h2>
-              <ProgramTemplatePicker
-                templates={templates}
-                today={today}
-                submitLabel="Start this programme"
-              />
-            </Card>
-          </div>
         )}
       </PageContent>
     </>

@@ -18,6 +18,8 @@ CREATE TABLE "coach_evidence_baselines" (
 ALTER TABLE "coach_evidence_baselines" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE "equipment_instances" ADD COLUMN "available_loads" jsonb DEFAULT '[]'::jsonb NOT NULL;--> statement-breakpoint
 ALTER TABLE "equipment_instances" ADD COLUMN "load_convention" text DEFAULT 'unknown' NOT NULL;--> statement-breakpoint
+ALTER TABLE "set_logs" ADD COLUMN "effort_reported" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "runs" ADD COLUMN "effort_reported" boolean DEFAULT false NOT NULL;--> statement-breakpoint
 ALTER TABLE "coach_memos" ADD COLUMN "items" jsonb DEFAULT '[]'::jsonb NOT NULL;--> statement-breakpoint
 ALTER TABLE "coach_memos" ADD COLUMN "memory_revision" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
 ALTER TABLE "coach_change_records" ADD CONSTRAINT "coach_change_records_user_id_profiles_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint

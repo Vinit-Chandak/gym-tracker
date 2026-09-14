@@ -12,7 +12,7 @@ import {
   PRESCRIPTION_TYPES,
   type MuscleGroup,
 } from "@/domain/types";
-import { EXERCISE_MODALITY_LABELS, MUSCLE_LABELS } from "@/lib/labels";
+import { EXERCISE_CATEGORY_LABELS, EXERCISE_MODALITY_LABELS, MUSCLE_LABELS } from "@/lib/labels";
 import { createCustomExerciseAction } from "@/server/actions/manual-training";
 export function CustomExerciseForm({
   machines,
@@ -66,7 +66,7 @@ export function CustomExerciseForm({
           <option value="">Choose a category</option>
           {EXERCISE_CATEGORIES.map((value) => (
             <option key={value} value={value}>
-              {value}
+              {EXERCISE_CATEGORY_LABELS[value]}
             </option>
           ))}
         </select>

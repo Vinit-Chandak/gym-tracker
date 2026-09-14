@@ -24,6 +24,7 @@ import {
 } from "@/domain/program-blueprint";
 import { assessProgramChange } from "@/domain/program-change";
 import { openingPlanSchema, type OpeningPlan } from "@/domain/coaching-workflow";
+import { reviewWeekdayFor } from "@/domain/coach-cadence";
 import { sharedWarmupProtocols } from "@/server/queries/reference";
 import { libraryAtGym, nextTrainingSlot, storePlan } from "./coach-plans";
 import { assertNoOpenWorkout, CoachingError, sourceRevision } from "./coaching-state";
@@ -131,7 +132,7 @@ export async function validateBlueprintForAthlete(
         `Use no more than ${PLAN_LIMITS.exercises} exercises per training day.`,
         422,
       );
-    if (!warmups.some((w) => w.slug === day.warmupSlug))
+    if (day.warmupSlug !== "" && !warmups.some((w) => w.slug === day.warmupSlug))
       throw new CoachingError("Choose an available warm-up for every day.", 422);
     if (day.includesLifting !== day.exercises.length > 0)
       throw new CoachingError(
@@ -502,8 +503,14 @@ export async function activateProgramDraft(
           scope: `run:${next.dayOfWeek}`,
           kind: "program",
           evidenceIds: [],
-          before: { duration: old.duration[1] * 60 },
-          after: { duration: next.duration[1] * 60 },
+          before: {
+            duration: old.duration[1] * 60,
+            ...(old.distanceKm ? { distance: old.distanceKm[1] * 1000 } : {}),
+          },
+          after: {
+            duration: next.duration[1] * 60,
+            ...(next.distanceKm ? { distance: next.distanceKm[1] * 1000 } : {}),
+          },
         });
     }
     if (changes.length)
@@ -511,6 +518,7 @@ export async function activateProgramDraft(
         .insert(coachChangeRecords)
         .values({ userId, changes, programBefore: priorBlueprint });
   }
+  await moveReviewToARestDay(db, userId, blueprint);
   await db
     .update(programDrafts)
     .set({ status: "activated", activatedProgramId: created.id })
@@ -522,6 +530,28 @@ export async function activateProgramDraft(
       and(eq(programDrafts.userId, userId), inArray(programDrafts.status, ["editing", "ready"])),
     );
   return { programId: created.id, alreadyActivated: false };
+}
+
+/**
+ * Re-points the weekly review at a day the new programme leaves free. Answers given before
+ * a programme existed are only a plan; once the days are real, they are what the review
+ * should dodge — and a split that moves from Monday/Wednesday/Friday to a weekend block
+ * should not leave the review landing on a training day.
+ */
+async function moveReviewToARestDay(db: DbOrTx, userId: string, blueprint: ProgramBlueprint) {
+  await db
+    .update(coachPreferences)
+    .set({
+      reviewWeekday: reviewWeekdayFor({
+        trainingDays: blueprint.days.filter((day) => day.includesLifting).map((d) => d.dayOfWeek),
+        runDays: [
+          ...blueprint.days.filter((day) => day.includesRun).map((d) => d.dayOfWeek),
+          ...blueprint.runs.map((run) => run.dayOfWeek),
+        ],
+      }),
+      updatedAt: new Date(),
+    })
+    .where(and(eq(coachPreferences.userId, userId), eq(coachPreferences.mode, "coach")));
 }
 
 async function storeOpeningPlan(db: DbOrTx, userId: string, programId: string, raw: OpeningPlan) {

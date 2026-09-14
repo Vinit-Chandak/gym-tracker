@@ -17,7 +17,7 @@ import {
   reviewProgramDraftAction,
 } from "@/server/actions/coaching-workflow";
 import { saveRoutineAction } from "@/server/actions/manual-training";
-import { WEEKDAYS } from "./intake-form";
+import { WEEKDAY_NAMES } from "@/lib/labels";
 
 type LibraryEntry = {
   slug: string;
@@ -219,7 +219,7 @@ export function ProgramBuilder({
               }}
             >
               <option value="">Choose a weekday</option>
-              {WEEKDAYS.map((name, i) => (
+              {WEEKDAY_NAMES.slice(1).map((name, i) => (
                 <option key={name} value={i + 1}>
                   {name}
                 </option>
@@ -233,13 +233,13 @@ export function ProgramBuilder({
               onChange={(e) => dayChange(d, { focus: e.target.value })}
             />
           </Field>
-          <Field label="Warm-up">
+          <Field label="Warm-up (optional)">
             <select
               className={INPUT_CLASS}
               value={day.warmupSlug}
               onChange={(e) => dayChange(d, { warmupSlug: e.target.value })}
             >
-              <option value="">Choose a warm-up</option>
+              <option value="">No warm-up</option>
               {warmups.map((w) => (
                 <option key={w.slug} value={w.slug}>
                   {w.name}
@@ -429,6 +429,27 @@ export function ProgramBuilder({
                     <fieldset key={run.weekIndex} className="space-y-3 border-t border-line pt-3">
                       <legend>Week {run.weekIndex}</legend>
                       <div className="grid grid-cols-2 gap-3">
+                        <RangeFields
+                          label="Kilometres"
+                          value={run.distanceKm ?? [NaN, NaN]}
+                          onChange={(distanceKm) =>
+                            change({
+                              runs: plan.runs.map((r) =>
+                                r === run
+                                  ? {
+                                      ...r,
+                                      // Both ends cleared means the run is set by time alone.
+                                      distanceKm: distanceKm.every(
+                                        (value) => !Number.isFinite(value),
+                                      )
+                                        ? undefined
+                                        : distanceKm,
+                                    }
+                                  : r,
+                              ),
+                            })
+                          }
+                        />
                         <RangeFields
                           label="Minutes"
                           value={run.duration}

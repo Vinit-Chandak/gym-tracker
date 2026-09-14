@@ -74,7 +74,7 @@ async function referenceIds(
     blueprintExerciseSlugs(blueprint).every((slug) => ids.exerciseIdBySlug.has(slug)) &&
     blueprint.days.every(
       (day) =>
-        ids.warmupIdBySlug.has(day.warmupSlug) &&
+        (day.warmupSlug === "" || ids.warmupIdBySlug.has(day.warmupSlug)) &&
         day.exercises.every((exercise) =>
           (exercise.fallbacks ?? []).every(
             (fallback) =>
@@ -140,7 +140,8 @@ export async function createProgramFromBlueprint(
   // Resolve every reference first, so a blueprint naming something unknown writes nothing.
   const dayValues = blueprint.days.map((day) => ({
     day,
-    warmupProtocolId: requireId(warmupIdBySlug, day.warmupSlug, "warm-up protocol"),
+    warmupProtocolId:
+      day.warmupSlug === "" ? null : requireId(warmupIdBySlug, day.warmupSlug, "warm-up protocol"),
     exercises: day.exercises.map((exercise, index) => ({
       exercise,
       orderIndex: index + 1,
@@ -281,6 +282,8 @@ export async function createProgramFromBlueprint(
         dayOfWeek: run.dayOfWeek,
         durationMinMinutes: run.duration[0],
         durationMaxMinutes: run.duration[1],
+        distanceMinKm: run.distanceKm?.[0] ?? null,
+        distanceMaxKm: run.distanceKm?.[1] ?? null,
         rpeMin: run.rpe[0],
         rpeMax: run.rpe[1],
         paceNote: run.paceNote,
@@ -369,7 +372,7 @@ export async function readProgramBlueprint(
       notes: day.notes ?? "",
       includesLifting: day.includesLifting,
       includesRun: day.includesRun,
-      warmupSlug: warmupSlug ?? "daily-mobility",
+      warmupSlug: warmupSlug ?? "",
       exercises: slots
         .filter((row) => row.slot.programDayId === day.id)
         .map(({ slot, slug }) => ({
@@ -415,6 +418,10 @@ export async function readProgramBlueprint(
       weekIndex: run.weekIndex,
       dayOfWeek: run.dayOfWeek,
       duration: [run.durationMinMinutes, run.durationMaxMinutes],
+      distanceKm:
+        run.distanceMinKm === null
+          ? undefined
+          : ([run.distanceMinKm, run.distanceMaxKm ?? run.distanceMinKm] as [number, number]),
       rpe: [run.rpeMin ?? 0, run.rpeMax ?? run.rpeMin ?? 0],
       paceNote: run.paceNote ?? "",
       progressionNote: run.progressionNote ?? "",

@@ -123,6 +123,8 @@ function plan(overrides: Partial<TodayPlan> = {}): TodayPlan {
     runTarget: {
       id: "00000000-0000-4000-8000-000000000003",
       durationMinMinutes: 25,
+      distanceMinKm: 5,
+      distanceMaxKm: 5,
       durationMaxMinutes: 30,
       rpeMin: 3,
       rpeMax: 4,

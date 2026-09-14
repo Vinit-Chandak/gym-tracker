@@ -47,7 +47,7 @@ export default async function WelcomeEquipmentPage(props: PageProps<"/welcome/eq
         </div>
         <EquipmentStepForm gymId={gym.id} types={types} />
       </Card>
-      <SkipLink />
+      <SkipLink href="/welcome/programme" />
     </PageContent>
   );
 }

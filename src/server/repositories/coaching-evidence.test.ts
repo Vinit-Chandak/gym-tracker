@@ -438,6 +438,28 @@ it("checks run distance separately when duration is unchanged and preserves spar
     await expect(
       assessSessionEvidence(db, a.user.id, a.target, output, evidence, new Set(runIds)),
     ).rejects.toThrow(/automatic limit/);
+    await db
+      .update(programRuns)
+      .set({ distanceMinKm: 5, distanceMaxKm: 5 })
+      .where(eq(programRuns.programId, a.program.id));
+    output.plan.run.distanceKm = 5.5;
+    await expect(
+      assessSessionEvidence(db, a.user.id, a.target, output, evidence, new Set(runIds)),
+    ).rejects.toThrow(/distance is outside the program range/);
+    const current = (await readProgramBlueprint(db, a.user.id, a.program.id))!.blueprint;
+    const next = structuredClone(current);
+    next.runs[0]!.distanceKm = [5.5, 5.5];
+    const library = await sharedExercises(db);
+    expect(assessWeeklyEvidence(current, next, evidence, new Set(), library, now).automatic).toBe(
+      false,
+    );
+    const supported = assessWeeklyEvidence(current, next, evidence, new Set(runIds), library, now);
+    expect(supported.automatic).toBe(true);
+    expect(supported.changes[0]?.after.distance).toBe(5500);
+    next.runs[0]!.distanceKm = [6, 6];
+    expect(
+      assessWeeklyEvidence(current, next, evidence, new Set(runIds), library, now).automatic,
+    ).toBe(false);
   });
 });
 it("keeps memo provenance private, invalidates removed sources and detects competing corrections", async () => {

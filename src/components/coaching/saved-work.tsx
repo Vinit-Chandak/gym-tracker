@@ -1,12 +1,22 @@
 import type { Route } from "next";
-import { LinkButton } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { LinkRow, List } from "@/components/ui/link-row";
+import { Section } from "@/components/ui/section";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { requireProfiledUser } from "@/server/auth";
 import { latestIntake } from "@/server/repositories/coach-intakes";
 import { listProgramDrafts } from "@/server/repositories/program-drafts";
 import { listCoachJobs } from "@/server/repositories/coaching-jobs";
+
+/**
+ * Everything half-finished, as a list of places to go back to.
+ *
+ * These were stacked buttons in a box, which read as three competing decisions and left the
+ * quietest of them — the answers still being written — floating a line below its own heading.
+ * They are all the same kind of thing: somewhere you were, one tap away. A ruled list says
+ * that, and says what each one is waiting on without the reader opening it.
+ */
 export async function SavedProgrammeWork({ onboarding = false }: { onboarding?: boolean }) {
   const user = await requireProfiledUser();
   const [intake, drafts, jobs] = await withUser(getDb(), user.id, (tx) =>
@@ -17,28 +27,56 @@ export async function SavedProgrammeWork({ onboarding = false }: { onboarding?: 
     ]),
   );
   const base = onboarding ? "/welcome/programme" : "/settings/programme";
+  // Only a request that is still going anywhere. A superseded or failed one is finished
+  // with, and listing it under saved work offered the athlete a link to a request that had
+  // already been answered or called off.
   const waiting = jobs
-    .filter((j) => j.kind === "create_program" && j.status !== "succeeded")
+    .filter(
+      (job) =>
+        job.kind === "create_program" && ["queued", "claimed", "needs_input"].includes(job.status),
+    )
     .slice(0, 3);
   if (!intake && !drafts.length && !waiting.length) return null;
   return (
-    <Card>
-      <h2 className="font-medium">Your saved work</h2>
-      {drafts.map((draft) => (
-        <LinkButton key={draft.id} href={`${base}/drafts/${draft.id}` as Route} variant="secondary">
-          Review {draft.blueprint.name}
-        </LinkButton>
-      ))}
-      {waiting.map((job) => (
-        <LinkButton key={job.id} href={`${base}/jobs/${job.id}` as Route} variant="secondary">
-          Programme request · {job.status.replaceAll("_", " ")}
-        </LinkButton>
-      ))}
-      {intake && (
-        <LinkButton href={`${base}/create` as Route} variant="ghost">
-          Continue your coaching intake
-        </LinkButton>
-      )}
-    </Card>
+    <Section title="Your saved work">
+      <List>
+        {drafts.map((draft) => (
+          <li key={draft.id}>
+            <LinkRow
+              href={`${base}/drafts/${draft.id}` as Route}
+              title={draft.blueprint.name}
+              subtitle="A draft programme, ready for you to review and start"
+            />
+          </li>
+        ))}
+        {waiting.map((job) => (
+          <li key={job.id}>
+            <LinkRow
+              href={`${base}/jobs/${job.id}` as Route}
+              title="Programme request"
+              subtitle={
+                job.status === "needs_input"
+                  ? "The coach has asked you something"
+                  : "The coach is writing your programme"
+              }
+              badge={
+                job.status === "needs_input" ? (
+                  <Badge tone="warning">Needs your answer</Badge>
+                ) : undefined
+              }
+            />
+          </li>
+        ))}
+        {intake && (
+          <li>
+            <LinkRow
+              href={`${base}/create` as Route}
+              title="Your answers to the coach"
+              subtitle="Continue where you left off"
+            />
+          </li>
+        )}
+      </List>
+    </Section>
   );
 }

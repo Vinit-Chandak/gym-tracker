@@ -164,6 +164,19 @@ export function assessProgramChange(
     );
     if (
       old &&
+      (!!old.distanceKm !== !!next.distanceKm ||
+        (old.distanceKm &&
+          next.distanceKm &&
+          old.distanceKm.some(
+            (value, i) =>
+              Math.abs(next.distanceKm![i]! / value - 1) > TRAINING_POLICY.maxRunChange + 1e-9,
+          )))
+    )
+      doseChanges.push(
+        `Run ${next.weekIndex}/${next.dayOfWeek}: distance changes need calibration or exceed the automatic limit.`,
+      );
+    if (
+      old &&
       (old.duration.some(
         (value, i) => Math.abs(next.duration[i]! / value - 1) > TRAINING_POLICY.maxRunChange + 1e-9,
       ) ||

@@ -236,6 +236,18 @@ export const RUN_MODE_LABELS: Record<RunMode, string> = {
   treadmill: "Treadmill",
 };
 
+/** ISO weekday (1 = Monday) to its name. Index 0 is unused, so the day number indexes it. */
+export const WEEKDAY_NAMES: readonly string[] = [
+  "",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+];
+
 /** ISO weekday (1 = Monday) to a short name. */
 export const WEEKDAY_SHORT: readonly string[] = [
   "",

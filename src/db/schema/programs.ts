@@ -219,6 +219,9 @@ export const programRuns = pgTable(
     dayOfWeek: integer("day_of_week").notNull(),
     durationMinMinutes: integer("duration_min_minutes").notNull(),
     durationMaxMinutes: integer("duration_max_minutes").notNull(),
+    /** Kilometres, as the programme is written and the athlete speaks about a run. */
+    distanceMinKm: numeric("distance_min_km", { precision: 5, scale: 2, mode: "number" }),
+    distanceMaxKm: numeric("distance_max_km", { precision: 5, scale: 2, mode: "number" }),
     rpeMin: numeric("rpe_min", { precision: 3, scale: 1, mode: "number" }),
     rpeMax: numeric("rpe_max", { precision: 3, scale: 1, mode: "number" }),
     paceNote: text("pace_note"),

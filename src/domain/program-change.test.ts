@@ -64,6 +64,18 @@ function blueprint() {
 }
 
 describe("weekly prescription authority", () => {
+  it("checks run distance when duration stays fixed, including adding or removing the target", () => {
+    const before = blueprint();
+    before.runs[0]!.distanceKm = [5, 5];
+    const after = structuredClone(before);
+    after.runs[0]!.distanceKm = [5.5, 5.5];
+    expect(assessProgramChange(before, after, library).authority).toBe("automatic");
+    after.runs[0]!.distanceKm = [6, 6];
+    expect(assessProgramChange(before, after, library).authority).toBe("review_required");
+    delete after.runs[0]!.distanceKm;
+    expect(assessProgramChange(before, after, library).authority).toBe("review_required");
+    expect(assessProgramChange(after, before, library).authority).toBe("review_required");
+  });
   it("recognizes unchanged data regardless of object keys or explicit day/run array order", () => {
     const before = blueprint();
     const after = { ...before, days: [...before.days].reverse() };

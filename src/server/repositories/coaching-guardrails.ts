@@ -134,13 +134,20 @@ export function assessWeeklyEvidence(
     const old = before.runs.find(
       (run) => run.weekIndex === next.weekIndex && run.dayOfWeek === next.dayOfWeek,
     );
-    if (!old || (!different(old.duration, next.duration) && !different(old.rpe, next.rpe)))
+    if (
+      !old ||
+      (!different(old.duration, next.duration) &&
+        !different(old.distanceKm, next.distanceKm) &&
+        !different(old.rpe, next.rpe))
+    )
       continue;
     const scope = `run:${next.dayOfWeek}`;
     const candidates = evidence.running.history.filter(
       (run) =>
         run.effortReported &&
         run.dayOfWeek === old.dayOfWeek &&
+        run.duration >= old.duration[0] * 60 &&
+        (!old.distanceKm || run.distance >= old.distanceKm[0] * 1000) &&
         run.rpe !== null &&
         run.rpe >= old.rpe[0] &&
         run.rpe <= old.rpe[1],
@@ -148,6 +155,9 @@ export function assessWeeklyEvidence(
     const matching = candidates.filter((run) => run.mode === candidates.at(-1)?.mode);
     const reduction =
       next.duration.some((value, index) => value < old.duration[index]!) ||
+      (old.distanceKm &&
+        (!next.distanceKm ||
+          next.distanceKm.some((value, index) => value < old.distanceKm![index]!))) ||
       next.rpe.some((value, index) => value < old.rpe[index]!);
     if (reduction)
       reasons.push(
@@ -161,29 +171,39 @@ export function assessWeeklyEvidence(
     );
     if (fresh.days < 2)
       reasons.push(`Run ${next.dayOfWeek}: needs two new runs with comparable effort.`);
-    const originalRun = evidence.changes
+    const recentRunChanges = evidence.changes
       .filter(
         (record) =>
           record.createdAt.getTime() >= now.getTime() - TRAINING_POLICY.cumulativeDays * 86_400_000,
       )
       .flatMap((record) => record.changes)
-      .find(
-        (change) => change.scope === scope && change.kind !== "temporary" && change.before.duration,
-      );
-    if (
-      originalRun?.before.duration &&
-      Math.abs((next.duration[1] * 60) / originalRun.before.duration - 1) >
-        TRAINING_POLICY.maxRunChange + 1e-9
-    )
-      reasons.push(
-        `Run ${next.dayOfWeek}: combined daily and weekly duration changes over 14 days need review.`,
-      );
+      .filter((change) => change.scope === scope && change.kind !== "temporary");
+    for (const [metric, value] of [
+      ["duration", next.duration[1] * 60],
+      ["distance", next.distanceKm ? next.distanceKm[1] * 1000 : null],
+    ] as const) {
+      const original = recentRunChanges.find((change) => change.before[metric])?.before[metric];
+      if (
+        value !== null &&
+        original &&
+        Math.abs(value / original - 1) > TRAINING_POLICY.maxRunChange + 1e-9
+      )
+        reasons.push(
+          `Run ${next.dayOfWeek}: combined daily and weekly ${metric} changes over 14 days need review.`,
+        );
+    }
     changes.push({
       scope,
       kind: "program",
       evidenceIds: fresh.ids,
-      before: { duration: old.duration[1] * 60 },
-      after: { duration: next.duration[1] * 60 },
+      before: {
+        duration: old.duration[1] * 60,
+        ...(old.distanceKm ? { distance: old.distanceKm[1] * 1000 } : {}),
+      },
+      after: {
+        duration: next.duration[1] * 60,
+        ...(next.distanceKm ? { distance: next.distanceKm[1] * 1000 } : {}),
+      },
     });
   }
   // Compare against the original program before any recent automatic review, not just last week.
@@ -547,6 +567,16 @@ export async function assessSessionEvidence(
         run.durationMinutes > runPrescription.durationMaxMinutes)
     )
       fail("The run duration is outside the program range and needs review.");
+    if (
+      runPrescription &&
+      (runPrescription.distanceMinKm != null || runPrescription.distanceMaxKm != null) &&
+      (run.distanceKm === null ||
+        (!temporary &&
+          runPrescription.distanceMinKm != null &&
+          run.distanceKm < runPrescription.distanceMinKm) ||
+        (runPrescription.distanceMaxKm != null && run.distanceKm > runPrescription.distanceMaxKm))
+    )
+      fail("The run distance is outside the program range and needs review.");
     const history = evidence.running.history.filter(
       (item) =>
         item.effortReported &&

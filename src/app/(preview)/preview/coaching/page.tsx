@@ -28,13 +28,17 @@ const blueprint = {
   runs: [],
 };
 const answers = coachIntakeSchema.parse({
+  track: "detailed",
   goal: "Build strength around a busy week",
   sessionsPerWeek: 3,
   minutesPerSession: 45,
   preferredDays: [1, 3, 5],
-  reviewWeekday: 7,
+  trainingLocation: "gym",
   gymId: ID,
-  recentTraining: "Returning after a break",
+  heightCm: 178,
+  weightKg: 74.5,
+  ageYears: 31,
+  recentTraining: "Incline bench 60 kg for 8. Squat 90 kg for 5.",
   prompt:
     "I want a programme with three training days, room for easy runs, and clear starting-load guidance. Please use my available equipment and explain the progression.",
 });
@@ -56,9 +60,9 @@ const library = EXERCISES.map((exercise) => ({
 export default async function CoachingPreview({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string; step?: string }>;
+  searchParams: Promise<{ view?: string; step?: string; track?: string }>;
 }) {
-  const { view = "options", step = "0" } = await searchParams;
+  const { view = "options", step = "0", track = "detailed" } = await searchParams;
   return (
     <PreviewShell tab="/settings">
       <PageHeader title="Coaching preview" />
@@ -84,15 +88,33 @@ export default async function CoachingPreview({
               className="flex flex-wrap gap-3 text-sm text-accent"
               aria-label="Intake preview steps"
             >
-              {[0, 1, 2, 3, 4, 5].map((index) => (
+              {(
+                [
+                  ["none", "Choices"],
+                  ["guided", "Guided"],
+                ] as const
+              ).map(([value, label]) => (
+                <a key={value} href={`?view=intake&track=${value}`}>
+                  {label}
+                </a>
+              ))}
+              {[0, 1, 2, 3, 4].map((index) => (
                 <a key={index} href={`?view=intake&step=${index}`}>
                   Step {index + 1}
                 </a>
               ))}
             </nav>
             <CoachIntakeForm
-              key={step}
-              initial={{ id: ID, revision: 1, answers }}
+              key={`${track}-${step}`}
+              initial={{
+                id: ID,
+                revision: 1,
+                answers: {
+                  ...answers,
+                  track: track === "none" ? null : track === "guided" ? "guided" : "detailed",
+                  minutesPerSession: track === "guided" ? null : answers.minutesPerSession,
+                },
+              }}
               reports={[
                 {
                   id: ID,
@@ -101,12 +123,10 @@ export default async function CoachingPreview({
                   sizeBytes: 2048,
                 },
               ]}
-              gyms={[{ id: ID, name: "Example gym" }]}
-              machines={[]}
               library={library}
               base="/settings/programme"
               configured
-              initialStep={Math.min(5, Math.max(0, Number(step) || 0))}
+              initialStep={Math.min(4, Math.max(0, Number(step) || 0))}
             />
           </>
         )}

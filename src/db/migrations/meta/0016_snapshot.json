@@ -1,5 +1,5 @@
 {
-  "id": "38babdb2-b37a-4086-a106-784734427cf3",
+  "id": "f6d93353-237e-493e-b85a-e4898446b4eb",
   "prevId": "56b93a90-b515-4c6d-8bcd-e565b5947882",
   "version": "7",
   "dialect": "postgresql",
@@ -97,8 +97,12 @@
           "name": "body_weight_logs_user_id_profiles_id_fk",
           "tableFrom": "body_weight_logs",
           "tableTo": "profiles",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -110,7 +114,9 @@
           "name": "body_weight_logs_owner",
           "as": "PERMISSIVE",
           "for": "ALL",
-          "to": ["authenticated"],
+          "to": [
+            "authenticated"
+          ],
           "using": "user_id = (select auth.uid())",
           "withCheck": "user_id = (select auth.uid())"
         }
@@ -236,7 +242,9 @@
           "name": "profiles_owner",
           "as": "PERMISSIVE",
           "for": "ALL",
-          "to": ["authenticated"],
+          "to": [
+            "authenticated"
+          ],
           "using": "id = (select auth.uid())",
           "withCheck": "id = (select auth.uid())"
         }
@@ -316,20 +324,6 @@
           "type": "numeric(6, 2)",
           "primaryKey": false,
           "notNull": false
-        },
-        "available_loads": {
-          "name": "available_loads",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
-        },
-        "load_convention": {
-          "name": "load_convention",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'unknown'"
         },
         "pulley_ratio": {
           "name": "pulley_ratio",
@@ -420,8 +414,12 @@
           "name": "equipment_instances_user_id_profiles_id_fk",
           "tableFrom": "equipment_instances",
           "tableTo": "profiles",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -429,8 +427,12 @@
           "name": "equipment_instances_gym_id_gyms_id_fk",
           "tableFrom": "equipment_instances",
           "tableTo": "gyms",
-          "columnsFrom": ["gym_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "gym_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -438,8 +440,12 @@
           "name": "equipment_instances_equipment_type_id_equipment_types_id_fk",
           "tableFrom": "equipment_instances",
           "tableTo": "equipment_types",
-          "columnsFrom": ["equipment_type_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "equipment_type_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -451,7 +457,9 @@
           "name": "equipment_instances_owner",
           "as": "PERMISSIVE",
           "for": "ALL",
-          "to": ["authenticated"],
+          "to": [
+            "authenticated"
+          ],
           "using": "user_id = (select auth.uid())",
           "withCheck": "user_id = (select auth.uid())"
         }
@@ -526,7 +534,9 @@
         "equipment_types_slug_unique": {
           "name": "equipment_types_slug_unique",
           "nullsNotDistinct": false,
-          "columns": ["slug"]
+          "columns": [
+            "slug"
+          ]
         }
       },
       "policies": {
@@ -534,7 +544,9 @@
           "name": "equipment_types_read",
           "as": "PERMISSIVE",
           "for": "SELECT",
-          "to": ["authenticated"],
+          "to": [
+            "authenticated"
+          ],
           "using": "true"
         }
       },
@@ -612,8 +624,12 @@
           "name": "gym_absent_equipment_types_user_id_profiles_id_fk",
           "tableFrom": "gym_absent_equipment_types",
           "tableTo": "profiles",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -621,8 +637,12 @@
           "name": "gym_absent_equipment_types_gym_id_gyms_id_fk",
           "tableFrom": "gym_absent_equipment_types",
           "tableTo": "gyms",
-          "columnsFrom": ["gym_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "gym_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -630,8 +650,12 @@
           "name": "gym_absent_equipment_types_equipment_type_id_equipment_types_id_fk",
           "tableFrom": "gym_absent_equipment_types",
           "tableTo": "equipment_types",
-          "columnsFrom": ["equipment_type_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "equipment_type_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -643,7 +667,9 @@
           "name": "gym_absent_equipment_types_owner",
           "as": "PERMISSIVE",
           "for": "ALL",
-          "to": ["authenticated"],
+          "to": [
+            "authenticated"
+          ],
           "using": "user_id = (select auth.uid())",
           "withCheck": "user_id = (select auth.uid())"
         }
@@ -788,8 +814,12 @@
           "name": "gyms_user_id_profiles_id_fk",
           "tableFrom": "gyms",
           "tableTo": "profiles",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -801,7 +831,9 @@
           "name": "gyms_owner",
           "as": "PERMISSIVE",
           "for": "ALL",
-          "to": ["authenticated"],
+          "to": [
+            "authenticated"
+          ],
           "using": "user_id = (select auth.uid())",
           "withCheck": "user_id = (select auth.uid())"
         }
@@ -887,8 +919,12 @@
           "name": "exercise_equipment_options_user_id_profiles_id_fk",
           "tableFrom": "exercise_equipment_options",
           "tableTo": "profiles",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -896,8 +932,12 @@
           "name": "exercise_equipment_options_exercise_id_exercises_id_fk",
           "tableFrom": "exercise_equipment_options",
           "tableTo": "exercises",
-          "columnsFrom": ["exercise_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "exercise_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -905,8 +945,12 @@
           "name": "exercise_equipment_options_equipment_type_id_equipment_types_id_fk",
           "tableFrom": "exercise_equipment_options",
           "tableTo": "equipment_types",
-          "columnsFrom": ["equipment_type_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "equipment_type_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -914,8 +958,12 @@
           "name": "exercise_equipment_options_equipment_instance_id_equipment_instances_id_fk",
           "tableFrom": "exercise_equipment_options",
           "tableTo": "equipment_instances",
-          "columnsFrom": ["equipment_instance_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "equipment_instance_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -927,21 +975,27 @@
           "name": "exercise_equipment_options_select",
           "as": "PERMISSIVE",
           "for": "SELECT",
-          "to": ["authenticated"],
+          "to": [
+            "authenticated"
+          ],
           "using": "user_id is null or user_id = (select auth.uid())"
         },
         "exercise_equipment_options_insert": {
           "name": "exercise_equipment_options_insert",
           "as": "PERMISSIVE",
           "for": "INSERT",
-          "to": ["authenticated"],
+          "to": [
+            "authenticated"
+          ],
           "withCheck": "user_id = (select auth.uid())"
         },
         "exercise_equipment_options_update": {
           "name": "exercise_equipment_options_update",
           "as": "PERMISSIVE",
           "for": "UPDATE",
-          "to": ["authenticated"],
+          "to": [
+            "authenticated"
+          ],
           "using": "user_id = (select auth.uid())",
           "withCheck": "user_id = (select auth.uid())"
         },
@@ -949,7 +1003,9 @@
           "name": "exercise_equipment_options_delete",
           "as": "PERMISSIVE",
           "for": "DELETE",
-          "to": ["authenticated"],
+          "to": [
+            "authenticated"
+          ],
           "using": "user_id = (select auth.uid())"
         }
       },
@@ -1162,8 +1218,12 @@
           "name": "exercises_user_id_profiles_id_fk",
           "tableFrom": "exercises",
           "tableTo": "profiles",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1173,7 +1233,9 @@
         "exercises_slug_unique": {
           "name": "exercises_slug_unique",
           "nullsNotDistinct": false,
-          "columns": ["slug"]
+          "columns": [
+            "slug"
+          ]
         }
       },
       "policies": {
@@ -1181,21 +1243,27 @@
           "name": "exercises_select",
           "as": "PERMISSIVE",
           "for": "SELECT",
-          "to": ["authenticated"],
+          "to": [
+            "authenticated"
+          ],
           "using": "user_id is null or user_id = (select auth.uid())"
         },
         "exercises_insert": {
           "name": "exercises_insert",
           "as": "PERMISSIVE",
           "for": "INSERT",
-          "to": ["authenticated"],
+          "to": [
+            "authenticated"
+          ],
           "withCheck": "user_id = (select auth.uid())"
         },
         "exercises_update": {
           "name": "exercises_update",
           "as": "PERMISSIVE",
           "for": "UPDATE",
-          "to": ["authenticated"],
+          "to": [
+            "authenticated"
+          ],
           "using": "user_id = (select auth.uid())",
           "withCheck": "user_id = (select auth.uid())"
         },
@@ -1203,7 +1271,9 @@
           "name": "exercises_delete",
           "as": "PERMISSIVE",
           "for": "DELETE",
-          "to": ["authenticated"],
+          "to": [
+            "authenticated"
+          ],
           "using": "user_id = (select auth.uid())"
         }
       },
@@ -1261,7 +1331,9 @@
         "warmup_protocols_slug_unique": {
           "name": "warmup_protocols_slug_unique",
           "nullsNotDistinct": false,
-          "columns": ["slug"]
+          "columns": [
+            "slug"
+          ]
         }
       },
       "policies": {
@@ -1269,7 +1341,9 @@
           "name": "warmup_protocols_read",
           "as": "PERMISSIVE",
           "for": "SELECT",
-          "to": ["authenticated"],
+          "to": [
+            "authenticated"
+          ],
           "using": "true"
         }
       },
@@ -1381,8 +1455,12 @@
           "name": "program_change_proposals_user_id_profiles_id_fk",
           "tableFrom": "program_change_proposals",
           "tableTo": "profiles",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1390,8 +1468,12 @@
           "name": "program_change_proposals_program_id_programs_id_fk",
           "tableFrom": "program_change_proposals",
           "tableTo": "programs",
-          "columnsFrom": ["program_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "program_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1399,8 +1481,12 @@
           "name": "program_change_proposals_applied_program_id_programs_id_fk",
           "tableFrom": "program_change_proposals",
           "tableTo": "programs",
-          "columnsFrom": ["applied_program_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "applied_program_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1412,7 +1498,9 @@
           "name": "program_change_proposals_owner",
           "as": "PERMISSIVE",
           "for": "ALL",
-          "to": ["authenticated"],
+          "to": [
+            "authenticated"
+          ],
           "using": "user_id = (select auth.uid())",
           "withCheck": "user_id = (select auth.uid())"
         }
@@ -1547,8 +1635,12 @@
           "name": "program_days_user_id_profiles_id_fk",
           "tableFrom": "program_days",
           "tableTo": "profiles",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1556,8 +1648,12 @@
           "name": "program_days_program_id_programs_id_fk",
           "tableFrom": "program_days",
           "tableTo": "programs",
-          "columnsFrom": ["program_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "program_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1565,8 +1661,12 @@
           "name": "program_days_warmup_protocol_id_warmup_protocols_id_fk",
           "tableFrom": "program_days",
           "tableTo": "warmup_protocols",
-          "columnsFrom": ["warmup_protocol_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "warmup_protocol_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -1574,8 +1674,12 @@
           "name": "program_days_recommended_gym_id_gyms_id_fk",
           "tableFrom": "program_days",
           "tableTo": "gyms",
-          "columnsFrom": ["recommended_gym_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "recommended_gym_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1587,7 +1691,9 @@
           "name": "program_days_owner",
           "as": "PERMISSIVE",
           "for": "ALL",
-          "to": ["authenticated"],
+          "to": [
+            "authenticated"
+          ],
           "using": "user_id = (select auth.uid())",
           "withCheck": "user_id = (select auth.uid())"
         }
@@ -1690,8 +1796,12 @@
           "name": "program_exercise_fallbacks_user_id_profiles_id_fk",
           "tableFrom": "program_exercise_fallbacks",
           "tableTo": "profiles",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1699,8 +1809,12 @@
           "name": "program_exercise_fallbacks_program_exercise_id_program_exercises_id_fk",
           "tableFrom": "program_exercise_fallbacks",
           "tableTo": "program_exercises",
-          "columnsFrom": ["program_exercise_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "program_exercise_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1708,8 +1822,12 @@
           "name": "program_exercise_fallbacks_gym_id_gyms_id_fk",
           "tableFrom": "program_exercise_fallbacks",
           "tableTo": "gyms",
-          "columnsFrom": ["gym_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "gym_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1717,8 +1835,12 @@
           "name": "program_exercise_fallbacks_fallback_exercise_id_exercises_id_fk",
           "tableFrom": "program_exercise_fallbacks",
           "tableTo": "exercises",
-          "columnsFrom": ["fallback_exercise_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "fallback_exercise_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -1726,8 +1848,12 @@
           "name": "program_exercise_fallbacks_fallback_equipment_type_id_equipment_types_id_fk",
           "tableFrom": "program_exercise_fallbacks",
           "tableTo": "equipment_types",
-          "columnsFrom": ["fallback_equipment_type_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "fallback_equipment_type_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -1735,8 +1861,12 @@
           "name": "program_exercise_fallbacks_fallback_equipment_instance_id_equipment_instances_id_fk",
           "tableFrom": "program_exercise_fallbacks",
           "tableTo": "equipment_instances",
-          "columnsFrom": ["fallback_equipment_instance_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "fallback_equipment_instance_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1748,7 +1878,9 @@
           "name": "program_exercise_fallbacks_owner",
           "as": "PERMISSIVE",
           "for": "ALL",
-          "to": ["authenticated"],
+          "to": [
+            "authenticated"
+          ],
           "using": "user_id = (select auth.uid())",
           "withCheck": "user_id = (select auth.uid())"
         }
@@ -2006,8 +2138,12 @@
           "name": "program_exercises_user_id_profiles_id_fk",
           "tableFrom": "program_exercises",
           "tableTo": "profiles",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2015,8 +2151,12 @@
           "name": "program_exercises_program_day_id_program_days_id_fk",
           "tableFrom": "program_exercises",
           "tableTo": "program_days",
-          "columnsFrom": ["program_day_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "program_day_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2024,8 +2164,12 @@
           "name": "program_exercises_exercise_id_exercises_id_fk",
           "tableFrom": "program_exercises",
           "tableTo": "exercises",
-          "columnsFrom": ["exercise_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "exercise_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -2033,8 +2177,12 @@
           "name": "program_exercises_preferred_equipment_type_id_equipment_types_id_fk",
           "tableFrom": "program_exercises",
           "tableTo": "equipment_types",
-          "columnsFrom": ["preferred_equipment_type_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "preferred_equipment_type_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -2042,8 +2190,12 @@
           "name": "program_exercises_preferred_equipment_instance_id_equipment_instances_id_fk",
           "tableFrom": "program_exercises",
           "tableTo": "equipment_instances",
-          "columnsFrom": ["preferred_equipment_instance_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "preferred_equipment_instance_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -2055,7 +2207,9 @@
           "name": "program_exercises_owner",
           "as": "PERMISSIVE",
           "for": "ALL",
-          "to": ["authenticated"],
+          "to": [
+            "authenticated"
+          ],
           "using": "user_id = (select auth.uid())",
           "withCheck": "user_id = (select auth.uid())"
         }
@@ -2122,6 +2276,18 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true
+        },
+        "distance_min_km": {
+          "name": "distance_min_km",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "distance_max_km": {
+          "name": "distance_max_km",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false
         },
         "rpe_min": {
           "name": "rpe_min",
@@ -2201,8 +2367,12 @@
           "name": "program_runs_user_id_profiles_id_fk",
           "tableFrom": "program_runs",
           "tableTo": "profiles",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2210,8 +2380,12 @@
           "name": "program_runs_program_id_programs_id_fk",
           "tableFrom": "program_runs",
           "tableTo": "programs",
-          "columnsFrom": ["program_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "program_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2223,7 +2397,9 @@
           "name": "program_runs_owner",
           "as": "PERMISSIVE",
           "for": "ALL",
-          "to": ["authenticated"],
+          "to": [
+            "authenticated"
+          ],
           "using": "user_id = (select auth.uid())",
           "withCheck": "user_id = (select auth.uid())"
         }
@@ -2353,8 +2529,12 @@
           "name": "program_slot_events_user_id_profiles_id_fk",
           "tableFrom": "program_slot_events",
           "tableTo": "profiles",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2362,8 +2542,12 @@
           "name": "program_slot_events_program_id_programs_id_fk",
           "tableFrom": "program_slot_events",
           "tableTo": "programs",
-          "columnsFrom": ["program_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "program_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2375,7 +2559,9 @@
           "name": "program_slot_events_owner",
           "as": "PERMISSIVE",
           "for": "ALL",
-          "to": ["authenticated"],
+          "to": [
+            "authenticated"
+          ],
           "using": "user_id = (select auth.uid())",
           "withCheck": "user_id = (select auth.uid())"
         }
@@ -2555,8 +2741,12 @@
           "name": "programs_user_id_profiles_id_fk",
           "tableFrom": "programs",
           "tableTo": "profiles",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2568,7 +2758,9 @@
           "name": "programs_owner",
           "as": "PERMISSIVE",
           "for": "ALL",
-          "to": ["authenticated"],
+          "to": [
+            "authenticated"
+          ],
           "using": "user_id = (select auth.uid())",
           "withCheck": "user_id = (select auth.uid())"
         }
@@ -2712,8 +2904,12 @@
           "name": "set_logs_user_id_profiles_id_fk",
           "tableFrom": "set_logs",
           "tableTo": "profiles",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2721,8 +2917,12 @@
           "name": "set_logs_workout_exercise_id_workout_exercises_id_fk",
           "tableFrom": "set_logs",
           "tableTo": "workout_exercises",
-          "columnsFrom": ["workout_exercise_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "workout_exercise_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2734,7 +2934,9 @@
           "name": "set_logs_owner",
           "as": "PERMISSIVE",
           "for": "ALL",
-          "to": ["authenticated"],
+          "to": [
+            "authenticated"
+          ],
           "using": "user_id = (select auth.uid())",
           "withCheck": "user_id = (select auth.uid())"
         }
@@ -2893,8 +3095,12 @@
           "name": "workout_exercises_user_id_profiles_id_fk",
           "tableFrom": "workout_exercises",
           "tableTo": "profiles",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2902,8 +3108,12 @@
           "name": "workout_exercises_workout_session_id_workout_sessions_id_fk",
           "tableFrom": "workout_exercises",
           "tableTo": "workout_sessions",
-          "columnsFrom": ["workout_session_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "workout_session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2911,8 +3121,12 @@
           "name": "workout_exercises_exercise_id_exercises_id_fk",
           "tableFrom": "workout_exercises",
           "tableTo": "exercises",
-          "columnsFrom": ["exercise_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "exercise_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -2920,8 +3134,12 @@
           "name": "workout_exercises_equipment_instance_id_equipment_instances_id_fk",
           "tableFrom": "workout_exercises",
           "tableTo": "equipment_instances",
-          "columnsFrom": ["equipment_instance_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "equipment_instance_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -2929,8 +3147,12 @@
           "name": "workout_exercises_planned_program_exercise_id_program_exercises_id_fk",
           "tableFrom": "workout_exercises",
           "tableTo": "program_exercises",
-          "columnsFrom": ["planned_program_exercise_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "planned_program_exercise_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -2942,7 +3164,9 @@
           "name": "workout_exercises_owner",
           "as": "PERMISSIVE",
           "for": "ALL",
-          "to": ["authenticated"],
+          "to": [
+            "authenticated"
+          ],
           "using": "user_id = (select auth.uid())",
           "withCheck": "user_id = (select auth.uid())"
         }
@@ -3119,8 +3343,12 @@
           "name": "workout_sessions_user_id_profiles_id_fk",
           "tableFrom": "workout_sessions",
           "tableTo": "profiles",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -3128,8 +3356,12 @@
           "name": "workout_sessions_program_id_programs_id_fk",
           "tableFrom": "workout_sessions",
           "tableTo": "programs",
-          "columnsFrom": ["program_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "program_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -3137,8 +3369,12 @@
           "name": "workout_sessions_program_day_id_program_days_id_fk",
           "tableFrom": "workout_sessions",
           "tableTo": "program_days",
-          "columnsFrom": ["program_day_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "program_day_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -3146,8 +3382,12 @@
           "name": "workout_sessions_gym_id_gyms_id_fk",
           "tableFrom": "workout_sessions",
           "tableTo": "gyms",
-          "columnsFrom": ["gym_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "gym_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -3159,7 +3399,9 @@
           "name": "workout_sessions_owner",
           "as": "PERMISSIVE",
           "for": "ALL",
-          "to": ["authenticated"],
+          "to": [
+            "authenticated"
+          ],
           "using": "user_id = (select auth.uid())",
           "withCheck": "user_id = (select auth.uid())"
         }
@@ -3292,8 +3534,12 @@
           "name": "daily_recovery_user_id_profiles_id_fk",
           "tableFrom": "daily_recovery",
           "tableTo": "profiles",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -3305,7 +3551,9 @@
           "name": "daily_recovery_owner",
           "as": "PERMISSIVE",
           "for": "ALL",
-          "to": ["authenticated"],
+          "to": [
+            "authenticated"
+          ],
           "using": "user_id = (select auth.uid())",
           "withCheck": "user_id = (select auth.uid())"
         }
@@ -3485,8 +3733,12 @@
           "name": "runs_user_id_profiles_id_fk",
           "tableFrom": "runs",
           "tableTo": "profiles",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -3494,8 +3746,12 @@
           "name": "runs_workout_session_id_workout_sessions_id_fk",
           "tableFrom": "runs",
           "tableTo": "workout_sessions",
-          "columnsFrom": ["workout_session_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "workout_session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -3503,8 +3759,12 @@
           "name": "runs_gym_id_gyms_id_fk",
           "tableFrom": "runs",
           "tableTo": "gyms",
-          "columnsFrom": ["gym_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "gym_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -3512,8 +3772,12 @@
           "name": "runs_program_run_id_program_runs_id_fk",
           "tableFrom": "runs",
           "tableTo": "program_runs",
-          "columnsFrom": ["program_run_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "program_run_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -3525,7 +3789,9 @@
           "name": "runs_owner",
           "as": "PERMISSIVE",
           "for": "ALL",
-          "to": ["authenticated"],
+          "to": [
+            "authenticated"
+          ],
           "using": "user_id = (select auth.uid())",
           "withCheck": "user_id = (select auth.uid())"
         }
@@ -3624,8 +3890,12 @@
           "name": "api_tokens_user_id_profiles_id_fk",
           "tableFrom": "api_tokens",
           "tableTo": "profiles",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -3637,7 +3907,9 @@
           "name": "api_tokens_owner",
           "as": "PERMISSIVE",
           "for": "ALL",
-          "to": ["authenticated"],
+          "to": [
+            "authenticated"
+          ],
           "using": "user_id = (select auth.uid())",
           "withCheck": "user_id = (select auth.uid())"
         }
@@ -3668,20 +3940,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "''"
-        },
-        "items": {
-          "name": "items",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
-        },
-        "memory_revision": {
-          "name": "memory_revision",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
         },
         "user_notes": {
           "name": "user_notes",
@@ -3733,8 +3991,12 @@
           "name": "coach_memos_user_id_profiles_id_fk",
           "tableFrom": "coach_memos",
           "tableTo": "profiles",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -3746,7 +4008,9 @@
           "name": "coach_memos_owner",
           "as": "PERMISSIVE",
           "for": "ALL",
-          "to": ["authenticated"],
+          "to": [
+            "authenticated"
+          ],
           "using": "user_id = (select auth.uid())",
           "withCheck": "user_id = (select auth.uid())"
         }
@@ -3867,8 +4131,12 @@
           "name": "coach_requests_user_id_profiles_id_fk",
           "tableFrom": "coach_requests",
           "tableTo": "profiles",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -3876,8 +4144,12 @@
           "name": "coach_requests_gym_id_gyms_id_fk",
           "tableFrom": "coach_requests",
           "tableTo": "gyms",
-          "columnsFrom": ["gym_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "gym_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -3889,7 +4161,9 @@
           "name": "coach_requests_owner",
           "as": "PERMISSIVE",
           "for": "ALL",
-          "to": ["authenticated"],
+          "to": [
+            "authenticated"
+          ],
           "using": "user_id = (select auth.uid())",
           "withCheck": "user_id = (select auth.uid())"
         }
@@ -4107,8 +4381,12 @@
           "name": "session_plans_user_id_profiles_id_fk",
           "tableFrom": "session_plans",
           "tableTo": "profiles",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -4116,8 +4394,12 @@
           "name": "session_plans_program_id_programs_id_fk",
           "tableFrom": "session_plans",
           "tableTo": "programs",
-          "columnsFrom": ["program_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "program_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -4125,8 +4407,12 @@
           "name": "session_plans_program_day_id_program_days_id_fk",
           "tableFrom": "session_plans",
           "tableTo": "program_days",
-          "columnsFrom": ["program_day_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "program_day_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -4134,8 +4420,12 @@
           "name": "session_plans_gym_id_gyms_id_fk",
           "tableFrom": "session_plans",
           "tableTo": "gyms",
-          "columnsFrom": ["gym_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "gym_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -4143,8 +4433,12 @@
           "name": "session_plans_request_id_coach_requests_id_fk",
           "tableFrom": "session_plans",
           "tableTo": "coach_requests",
-          "columnsFrom": ["request_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "request_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -4152,8 +4446,12 @@
           "name": "session_plans_workout_session_id_workout_sessions_id_fk",
           "tableFrom": "session_plans",
           "tableTo": "workout_sessions",
-          "columnsFrom": ["workout_session_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "workout_session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -4165,7 +4463,9 @@
           "name": "session_plans_owner",
           "as": "PERMISSIVE",
           "for": "ALL",
-          "to": ["authenticated"],
+          "to": [
+            "authenticated"
+          ],
           "using": "user_id = (select auth.uid())",
           "withCheck": "user_id = (select auth.uid())"
         }
@@ -4249,8 +4549,12 @@
           "name": "coach_attachments_user_id_profiles_id_fk",
           "tableFrom": "coach_attachments",
           "tableTo": "profiles",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -4262,7 +4566,9 @@
           "name": "coach_attachments_owner",
           "as": "PERMISSIVE",
           "for": "ALL",
-          "to": ["authenticated"],
+          "to": [
+            "authenticated"
+          ],
           "using": "user_id = (select auth.uid())",
           "withCheck": "user_id = (select auth.uid())"
         }
@@ -4377,8 +4683,12 @@
           "name": "coach_gym_intents_user_id_profiles_id_fk",
           "tableFrom": "coach_gym_intents",
           "tableTo": "profiles",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -4386,8 +4696,12 @@
           "name": "coach_gym_intents_program_id_programs_id_fk",
           "tableFrom": "coach_gym_intents",
           "tableTo": "programs",
-          "columnsFrom": ["program_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "program_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -4399,7 +4713,9 @@
           "name": "coach_gym_intents_owner",
           "as": "PERMISSIVE",
           "for": "ALL",
-          "to": ["authenticated"],
+          "to": [
+            "authenticated"
+          ],
           "using": "user_id = (select auth.uid())",
           "withCheck": "user_id = (select auth.uid())"
         }
@@ -4485,8 +4801,12 @@
           "name": "coach_intakes_user_id_profiles_id_fk",
           "tableFrom": "coach_intakes",
           "tableTo": "profiles",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -4498,7 +4818,9 @@
           "name": "coach_intakes_owner",
           "as": "PERMISSIVE",
           "for": "ALL",
-          "to": ["authenticated"],
+          "to": [
+            "authenticated"
+          ],
           "using": "user_id = (select auth.uid())",
           "withCheck": "user_id = (select auth.uid())"
         }
@@ -4605,8 +4927,12 @@
           "name": "coach_job_attempts_user_id_profiles_id_fk",
           "tableFrom": "coach_job_attempts",
           "tableTo": "profiles",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -4614,8 +4940,12 @@
           "name": "coach_job_attempts_job_id_coach_jobs_id_fk",
           "tableFrom": "coach_job_attempts",
           "tableTo": "coach_jobs",
-          "columnsFrom": ["job_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "job_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -4627,7 +4957,9 @@
           "name": "coach_job_attempts_owner",
           "as": "PERMISSIVE",
           "for": "ALL",
-          "to": ["authenticated"],
+          "to": [
+            "authenticated"
+          ],
           "using": "user_id = (select auth.uid())",
           "withCheck": "user_id = (select auth.uid())"
         }
@@ -4848,8 +5180,12 @@
           "name": "coach_jobs_user_id_profiles_id_fk",
           "tableFrom": "coach_jobs",
           "tableTo": "profiles",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -4857,8 +5193,12 @@
           "name": "coach_jobs_intake_id_coach_intakes_id_fk",
           "tableFrom": "coach_jobs",
           "tableTo": "coach_intakes",
-          "columnsFrom": ["intake_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "intake_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -4870,7 +5210,9 @@
           "name": "coach_jobs_owner",
           "as": "PERMISSIVE",
           "for": "ALL",
-          "to": ["authenticated"],
+          "to": [
+            "authenticated"
+          ],
           "using": "user_id = (select auth.uid())",
           "withCheck": "user_id = (select auth.uid())"
         }
@@ -4949,8 +5291,12 @@
           "name": "coach_preferences_user_id_profiles_id_fk",
           "tableFrom": "coach_preferences",
           "tableTo": "profiles",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -4958,8 +5304,12 @@
           "name": "coach_preferences_intake_id_coach_intakes_id_fk",
           "tableFrom": "coach_preferences",
           "tableTo": "coach_intakes",
-          "columnsFrom": ["intake_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "intake_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -4971,7 +5321,9 @@
           "name": "coach_preferences_owner",
           "as": "PERMISSIVE",
           "for": "ALL",
-          "to": ["authenticated"],
+          "to": [
+            "authenticated"
+          ],
           "using": "user_id = (select auth.uid())",
           "withCheck": "user_id = (select auth.uid())"
         }
@@ -5012,8 +5364,12 @@
           "name": "coach_source_revisions_user_id_profiles_id_fk",
           "tableFrom": "coach_source_revisions",
           "tableTo": "profiles",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -5025,7 +5381,9 @@
           "name": "coach_source_revisions_owner",
           "as": "PERMISSIVE",
           "for": "ALL",
-          "to": ["authenticated"],
+          "to": [
+            "authenticated"
+          ],
           "using": "user_id = (select auth.uid())",
           "withCheck": "user_id = (select auth.uid())"
         }
@@ -5122,8 +5480,12 @@
           "name": "coach_weekly_reviews_user_id_profiles_id_fk",
           "tableFrom": "coach_weekly_reviews",
           "tableTo": "profiles",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -5131,8 +5493,12 @@
           "name": "coach_weekly_reviews_job_id_coach_jobs_id_fk",
           "tableFrom": "coach_weekly_reviews",
           "tableTo": "coach_jobs",
-          "columnsFrom": ["job_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "job_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -5140,8 +5506,12 @@
           "name": "coach_weekly_reviews_draft_id_program_drafts_id_fk",
           "tableFrom": "coach_weekly_reviews",
           "tableTo": "program_drafts",
-          "columnsFrom": ["draft_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "draft_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -5153,7 +5523,9 @@
           "name": "coach_weekly_reviews_owner",
           "as": "PERMISSIVE",
           "for": "ALL",
-          "to": ["authenticated"],
+          "to": [
+            "authenticated"
+          ],
           "using": "user_id = (select auth.uid())",
           "withCheck": "user_id = (select auth.uid())"
         }
@@ -5312,8 +5684,12 @@
           "name": "program_drafts_user_id_profiles_id_fk",
           "tableFrom": "program_drafts",
           "tableTo": "profiles",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -5321,8 +5697,12 @@
           "name": "program_drafts_job_id_coach_jobs_id_fk",
           "tableFrom": "program_drafts",
           "tableTo": "coach_jobs",
-          "columnsFrom": ["job_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "job_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -5330,8 +5710,12 @@
           "name": "program_drafts_intake_id_coach_intakes_id_fk",
           "tableFrom": "program_drafts",
           "tableTo": "coach_intakes",
-          "columnsFrom": ["intake_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "intake_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -5339,8 +5723,12 @@
           "name": "program_drafts_base_program_id_programs_id_fk",
           "tableFrom": "program_drafts",
           "tableTo": "programs",
-          "columnsFrom": ["base_program_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "base_program_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -5348,8 +5736,12 @@
           "name": "program_drafts_activated_program_id_programs_id_fk",
           "tableFrom": "program_drafts",
           "tableTo": "programs",
-          "columnsFrom": ["activated_program_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "activated_program_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -5361,7 +5753,9 @@
           "name": "program_drafts_owner",
           "as": "PERMISSIVE",
           "for": "ALL",
-          "to": ["authenticated"],
+          "to": [
+            "authenticated"
+          ],
           "using": "user_id = (select auth.uid())",
           "withCheck": "user_id = (select auth.uid())"
         }
@@ -5435,8 +5829,12 @@
           "name": "saved_routines_user_id_profiles_id_fk",
           "tableFrom": "saved_routines",
           "tableTo": "profiles",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -5448,179 +5846,9 @@
           "name": "saved_routines_owner",
           "as": "PERMISSIVE",
           "for": "ALL",
-          "to": ["authenticated"],
-          "using": "user_id = (select auth.uid())",
-          "withCheck": "user_id = (select auth.uid())"
-        }
-      },
-      "checkConstraints": {},
-      "isRLSEnabled": true
-    },
-    "public.coach_change_records": {
-      "name": "coach_change_records",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "job_id": {
-          "name": "job_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "changes": {
-          "name": "changes",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
-        },
-        "program_before": {
-          "name": "program_before",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "coach_change_records_user_created_idx": {
-          "name": "coach_change_records_user_created_idx",
-          "columns": [
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
+          "to": [
+            "authenticated"
           ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "coach_change_records_user_id_profiles_id_fk": {
-          "name": "coach_change_records_user_id_profiles_id_fk",
-          "tableFrom": "coach_change_records",
-          "tableTo": "profiles",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {
-        "coach_change_records_owner": {
-          "name": "coach_change_records_owner",
-          "as": "PERMISSIVE",
-          "for": "ALL",
-          "to": ["authenticated"],
-          "using": "user_id = (select auth.uid())",
-          "withCheck": "user_id = (select auth.uid())"
-        }
-      },
-      "checkConstraints": {},
-      "isRLSEnabled": true
-    },
-    "public.coach_evidence_baselines": {
-      "name": "coach_evidence_baselines",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "scope": {
-          "name": "scope",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "reference": {
-          "name": "reference",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "coach_evidence_baselines_scope_uq": {
-          "name": "coach_evidence_baselines_scope_uq",
-          "columns": [
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "scope",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "coach_evidence_baselines_user_id_profiles_id_fk": {
-          "name": "coach_evidence_baselines_user_id_profiles_id_fk",
-          "tableFrom": "coach_evidence_baselines",
-          "tableTo": "profiles",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {
-        "coach_evidence_baselines_owner": {
-          "name": "coach_evidence_baselines_owner",
-          "as": "PERMISSIVE",
-          "for": "ALL",
-          "to": ["authenticated"],
           "using": "user_id = (select auth.uid())",
           "withCheck": "user_id = (select auth.uid())"
         }
@@ -5633,22 +5861,41 @@
     "public.coach_request_initiator": {
       "name": "coach_request_initiator",
       "schema": "public",
-      "values": ["athlete", "coach"]
+      "values": [
+        "athlete",
+        "coach"
+      ]
     },
     "public.coach_request_status": {
       "name": "coach_request_status",
       "schema": "public",
-      "values": ["requested", "planned", "failed"]
+      "values": [
+        "requested",
+        "planned",
+        "failed"
+      ]
     },
     "public.equipment_category": {
       "name": "equipment_category",
       "schema": "public",
-      "values": ["free_weight", "machine", "cable", "bodyweight", "cardio", "accessory"]
+      "values": [
+        "free_weight",
+        "machine",
+        "cable",
+        "bodyweight",
+        "cardio",
+        "accessory"
+      ]
     },
     "public.exercise_category": {
       "name": "exercise_category",
       "schema": "public",
-      "values": ["strength", "hypertrophy", "cardio", "mobility"]
+      "values": [
+        "strength",
+        "hypertrophy",
+        "cardio",
+        "mobility"
+      ]
     },
     "public.exercise_modality": {
       "name": "exercise_modality",
@@ -5667,82 +5914,153 @@
     "public.gym_kind": {
       "name": "gym_kind",
       "schema": "public",
-      "values": ["gym", "outdoor", "home"]
+      "values": [
+        "gym",
+        "outdoor",
+        "home"
+      ]
     },
     "public.load_portability": {
       "name": "load_portability",
       "schema": "public",
-      "values": ["global", "equipment_specific", "context_dependent"]
+      "values": [
+        "global",
+        "equipment_specific",
+        "context_dependent"
+      ]
     },
     "public.load_unit": {
       "name": "load_unit",
       "schema": "public",
-      "values": ["kg", "lb", "plate_count", "stack_index", "none"]
+      "values": [
+        "kg",
+        "lb",
+        "plate_count",
+        "stack_index",
+        "none"
+      ]
     },
     "public.plan_status": {
       "name": "plan_status",
       "schema": "public",
-      "values": ["active", "superseded", "consumed", "void"]
+      "values": [
+        "active",
+        "superseded",
+        "consumed",
+        "void"
+      ]
     },
     "public.plan_trigger": {
       "name": "plan_trigger",
       "schema": "public",
-      "values": ["nightly", "replan"]
+      "values": [
+        "nightly",
+        "replan"
+      ]
     },
     "public.prescription_type": {
       "name": "prescription_type",
       "schema": "public",
-      "values": ["reps", "duration", "distance"]
+      "values": [
+        "reps",
+        "duration",
+        "distance"
+      ]
     },
     "public.program_status": {
       "name": "program_status",
       "schema": "public",
-      "values": ["draft", "active", "archived"]
+      "values": [
+        "draft",
+        "active",
+        "archived"
+      ]
     },
     "public.proposal_source": {
       "name": "proposal_source",
       "schema": "public",
-      "values": ["manual", "ai", "rule_engine"]
+      "values": [
+        "manual",
+        "ai",
+        "rule_engine"
+      ]
     },
     "public.proposal_status": {
       "name": "proposal_status",
       "schema": "public",
-      "values": ["proposed", "approved", "rejected", "applied"]
+      "values": [
+        "proposed",
+        "approved",
+        "rejected",
+        "applied"
+      ]
     },
     "public.resistance_mode": {
       "name": "resistance_mode",
       "schema": "public",
-      "values": ["free_weight", "plate_loaded", "selectorized", "bodyweight", "cardio"]
+      "values": [
+        "free_weight",
+        "plate_loaded",
+        "selectorized",
+        "bodyweight",
+        "cardio"
+      ]
     },
     "public.run_mode": {
       "name": "run_mode",
       "schema": "public",
-      "values": ["outdoor", "treadmill"]
+      "values": [
+        "outdoor",
+        "treadmill"
+      ]
     },
     "public.set_type": {
       "name": "set_type",
       "schema": "public",
-      "values": ["warmup", "working", "backoff", "drop", "amrap", "failure"]
+      "values": [
+        "warmup",
+        "working",
+        "backoff",
+        "drop",
+        "amrap",
+        "failure"
+      ]
     },
     "public.sex": {
       "name": "sex",
       "schema": "public",
-      "values": ["female", "male", "other"]
+      "values": [
+        "female",
+        "male",
+        "other"
+      ]
     },
     "public.slot_event_status": {
       "name": "slot_event_status",
       "schema": "public",
-      "values": ["completed", "skipped"]
+      "values": [
+        "completed",
+        "skipped"
+      ]
     },
     "public.slot_part": {
       "name": "slot_part",
       "schema": "public",
-      "values": ["session", "run"]
+      "values": [
+        "session",
+        "run"
+      ]
     },
     "public.training_goal": {
       "name": "training_goal",
       "schema": "public",
-      "values": ["build_muscle", "lose_fat", "get_stronger", "endurance", "general_fitness"]
+      "values": [
+        "build_muscle",
+        "lose_fat",
+        "get_stronger",
+        "endurance",
+        "general_fitness"
+      ]
     }
   },
   "schemas": {},

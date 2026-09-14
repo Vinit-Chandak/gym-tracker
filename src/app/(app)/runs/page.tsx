@@ -2,6 +2,7 @@ import { Footprints } from "@/components/ui/icons";
 import type { Metadata } from "next";
 
 import { PageContent } from "@/components/shell/page-content";
+import { runSummary } from "@/components/run-plan";
 import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
 import { LinkButton } from "@/components/ui/button";
@@ -15,7 +16,7 @@ import { withUser } from "@/db/with-user";
 import { formatDuration, formatPace } from "@/domain/pace";
 import { RUN_VOLUME_SPIKE_RATIO, SHIN_ESCALATION_RUNS } from "@/domain/running";
 import { formatDay, formatIsoDate, formatRunKm } from "@/lib/format";
-import { rangeLabel, RUN_MODE_LABELS, WEEKDAY_SHORT } from "@/lib/labels";
+import { RUN_MODE_LABELS, WEEKDAY_SHORT } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { getRunsOverview } from "@/server/repositories/runs";
@@ -134,8 +135,7 @@ export default async function RunsPage() {
                   >
                     <span className="min-w-0 text-sm">
                       <span className="font-medium">{WEEKDAY_SHORT[run.dayOfWeek]}</span> ·{" "}
-                      {rangeLabel(run.durationMinMinutes, run.durationMaxMinutes, " min")}
-                      {run.rpeMin !== null ? ` · RPE ${rangeLabel(run.rpeMin, run.rpeMax)}` : ""}
+                      {runSummary(run)}
                     </span>
                     {run.loggedRunId ? <Badge tone="success">Done</Badge> : <Badge>Pending</Badge>}
                   </li>

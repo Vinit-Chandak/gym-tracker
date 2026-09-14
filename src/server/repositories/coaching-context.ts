@@ -12,7 +12,7 @@ import {
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import { COACH_POLICY } from "@/domain/coach-policy";
-import { COACH_CONTRACT_VERSION } from "@/domain/coaching-workflow";
+import { COACH_CONTRACT_VERSION, coachIntakeSchema } from "@/domain/coaching-workflow";
 import { pendingParts } from "@/domain/schedule";
 import { addDays, todayInTimeZone } from "@/domain/program-calendar";
 import { sharedWarmupProtocols } from "@/server/queries/reference";
@@ -249,7 +249,9 @@ export async function coachJobContext(
           id: intake.id,
           revision: intake.revision,
           confirmedAt: intake.confirmedAt,
-          answers: intake.answers,
+          // Parsed, so a question added after these answers were saved reaches the coach as
+          // its own empty default rather than as a key that is simply not there.
+          answers: coachIntakeSchema.parse(intake.answers),
         }
       : null,
     memo,
@@ -292,6 +294,6 @@ export async function coachJobContext(
     reviews,
     decisions,
     dataMeaning:
-      "Baselines are self-reports, never completed workouts. Reports can be removed and require the job-scoped download endpoint. Narrative history is bounded with hasMore; aggregate intervals cover all saved records. Unknown equipment load conventions and measurements must stay unknown.",
+      "The intake's recentTraining is the athlete's own account of what they lift, in prose and approximate: treat it as a starting estimate to be corrected from logged sets, never as a completed workout. Reports can be removed and require the job-scoped download endpoint. Narrative history is bounded with hasMore; aggregate intervals cover all saved records. Unknown equipment load conventions and measurements must stay unknown.",
   };
 }

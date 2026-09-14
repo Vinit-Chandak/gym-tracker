@@ -96,23 +96,39 @@ export const blueprintDaySchema = z.object({
   /** Position in the cycle, 1-based and contiguous. */
   dayIndex: z.number().int().min(1).max(31),
   /** ISO weekday the day usually falls on, 1 = Monday. */
-  dayOfWeek: z.number().int().min(1).max(7),
-  name: z.string().min(1).max(80),
+  dayOfWeek: z.number().int().min(1, "Choose the weekday each day falls on.").max(7),
+  name: z.string().min(1, "Name every day.").max(80),
   focus: z.string().max(120).default(""),
   timeNote: z.string().max(120).default(""),
   effortNote: z.string().max(120).default(""),
   notes: z.string().max(500).default(""),
   includesLifting: z.boolean(),
   includesRun: z.boolean(),
-  warmupSlug: slug,
+  /**
+   * The shared warm-up this day uses, or "" for none. A programme written by hand is often
+   * just the work: the warm-up is a choice, not a thing every day must carry.
+   */
+  warmupSlug: z.union([slug, z.literal("")]).default(""),
   exercises: z.array(blueprintExerciseSchema).max(30),
 });
 
 export const blueprintRunSchema = z.object({
   weekIndex: z.number().int().min(1).max(52),
   dayOfWeek: z.number().int().min(1).max(7),
-  duration: range(z.number().int().min(1).max(600)),
-  rpe: range(z.number().min(0).max(10)),
+  // A week of a run day is written a week at a time, so these say which answer is missing
+  // rather than reporting the shape of the value that was not a number.
+  duration: range(z.number("Give every run week its minutes.").int().min(1).max(600)),
+  /**
+   * How far, in kilometres. Optional, because a run can be prescribed by time alone — but a
+   * block built around "an easy 5k twice a week" is built around the distance, and with only
+   * a duration to go on nothing downstream can tell that it was deliberately held flat.
+   */
+  distanceKm: range(
+    z.number("Give both ends of a run's kilometres, or leave them empty to go by time."),
+  )
+    .pipe(z.tuple([z.number().min(0.1).max(100), z.number().min(0.1).max(100)]))
+    .optional(),
+  rpe: range(z.number("Give every run week its effort.").min(0).max(10)),
   paceNote: z.string().max(300).default(""),
   progressionNote: z.string().max(300).default(""),
   /** When to stop early, e.g. a niggle that worsens as the run goes on. */
@@ -124,10 +140,12 @@ export const programBlueprintSchema = z
   .object({
     blueprintVersion: z.literal(BLUEPRINT_VERSION),
     slug: slug.max(60),
-    name: z.string().min(1).max(120),
-    weeks: z.number().int().min(1).max(52),
+    // These four are what someone typing a programme in by hand leaves blank, so they say
+    // what to do rather than reporting the shape of the value that was missing.
+    name: z.string().min(1, "Name your programme.").max(120),
+    weeks: z.number().int().min(1, "Set how many weeks it runs.").max(52),
     notes: z.string().max(2000).default(""),
-    days: z.array(blueprintDaySchema).min(1).max(31),
+    days: z.array(blueprintDaySchema).min(1, "Add at least one day.").max(31),
     runs: z.array(blueprintRunSchema).max(200).default([]),
   })
   .superRefine((plan, ctx) => {

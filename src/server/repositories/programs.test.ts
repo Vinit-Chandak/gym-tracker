@@ -14,7 +14,11 @@ import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
 import { parseProgramBlueprint, type ProgramBlueprint } from "@/domain/program-blueprint";
 
-import { createProgramFromBlueprint, MissingReferenceDataError } from "./programs";
+import {
+  createProgramFromBlueprint,
+  MissingReferenceDataError,
+  readProgramBlueprint,
+} from "./programs";
 
 let t: TestDatabase;
 let user: { id: string; email: string };
@@ -122,5 +126,63 @@ describe("materialising a blueprint", () => {
       runs: [],
     });
     await expect(adopt(unknownExercise, "2027-06-07")).rejects.toThrow(MissingReferenceDataError);
+  });
+});
+
+/**
+ * A run written as a distance.
+ *
+ * A block built around "an easy 5k twice a week" is built around the distance, and the run
+ * carried only minutes: the number the block is about survived as prose in a pace note, where
+ * a later review reading structured fields could not see that it had been held flat on
+ * purpose. It goes with the run now, and comes back with it.
+ */
+describe("a run's distance", () => {
+  const withRuns = (distanceKm?: [number, number]): ProgramBlueprint =>
+    parseProgramBlueprint({
+      ...STRENGTH_AESTHETICS_HYBRID_8WK,
+      slug: `distance-${distanceKm?.join("-") ?? "none"}`,
+      runs: [
+        {
+          weekIndex: 1,
+          dayOfWeek: 3,
+          duration: [25, 40],
+          ...(distanceKm ? { distanceKm } : {}),
+          rpe: [3, 5],
+          paceNote: "Easy, conversational.",
+          progressionNote: "Hold the distance while the shin settles.",
+          shinRule: "Stop if it worsens as the run goes on.",
+        },
+      ],
+    });
+
+  it("is written with the run and read back with it", async () => {
+    const created = await adopt(withRuns([5, 5]), "2027-02-01");
+    const [row] = await withUser(t.db, user.id, (tx) =>
+      tx.select().from(programRuns).where(eq(programRuns.programId, created.id)),
+    );
+    expect(row?.distanceMinKm).toBe(5);
+    expect(row?.distanceMaxKm).toBe(5);
+    const read = await withUser(t.db, user.id, (tx) =>
+      readProgramBlueprint(tx, user.id, created.id),
+    );
+    expect(read!.blueprint.runs[0]!.distanceKm).toEqual([5, 5]);
+  });
+
+  it("keeps a range where the programme gives one", async () => {
+    const created = await adopt(withRuns([5, 8]), "2027-03-01");
+    const read = await withUser(t.db, user.id, (tx) =>
+      readProgramBlueprint(tx, user.id, created.id),
+    );
+    expect(read!.blueprint.runs[0]!.distanceKm).toEqual([5, 8]);
+  });
+
+  it("leaves a run prescribed by time alone without one", async () => {
+    const created = await adopt(withRuns(), "2027-04-01");
+    const read = await withUser(t.db, user.id, (tx) =>
+      readProgramBlueprint(tx, user.id, created.id),
+    );
+    expect(read!.blueprint.runs[0]!.distanceKm).toBeUndefined();
+    expect(read!.blueprint.runs[0]!.duration).toEqual([25, 40]);
   });
 });

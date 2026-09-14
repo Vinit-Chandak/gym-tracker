@@ -3,7 +3,7 @@
 import { AiCoach } from "@/components/ui/icons";
 import { MemoryEditor } from "@/components/coaching/memory-editor";
 import type { MemoryItem } from "@/domain/coach-memory";
-import { useActionState, useOptimistic, useState, useTransition } from "react";
+import { useActionState, useOptimistic, useState, useTransition, type ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -30,8 +30,12 @@ export type CoachAttempt = {
 type Props = {
   workflow?: boolean;
   enabled: boolean;
-  /** One line under the switch: what the coach last did, or why it cannot do anything yet. */
-  status: string;
+  /**
+   * One line under the switch, for the two things worth saying: that the coach cannot run on
+   * this server, or what it last did on the older single-plan path. A working coach says
+   * nothing — the switch already reads "on", and when it plans is not the athlete's business.
+   */
+  status: string | null;
   userNotes: string;
   overview: string;
   memoryItems?: MemoryItem[];
@@ -40,10 +44,12 @@ type Props = {
   overviewUpdatedAt: string | null;
   /** What the coach has tried lately, so a night it could not plan is not simply silence. */
   attempts: CoachAttempt[];
+  /** Coaching links, and anything the coach has concluded lately. */
+  children?: ReactNode;
 };
 
 /**
- * The coach, on one screen: the switch with its standing, what the coach knows about you,
+ * The coach, on one screen: the switch, what it has been doing, what it knows about you,
  * and the place to tell it things. Boxes of rows and labelled boxes, as every Settings page.
  */
 export function AiCoachSettings({
@@ -57,6 +63,7 @@ export function AiCoachSettings({
   memoryReviewDueIds = [],
   overviewUpdatedAt,
   attempts,
+  children,
 }: Props) {
   const [pending, startTransition] = useTransition();
   const [shown, show] = useOptimistic(enabled);
@@ -95,27 +102,23 @@ export function AiCoachSettings({
                   <InfoTip label="About the AI coach">
                     {workflow ? (
                       <>
-                        The coach prepares your next session at 04:00 India time and reviews your
-                        programme on your selected rest day. Your first review waits at least seven
-                        days. Changes to your split or schedule need your approval. You can request
-                        preparation for a different gym before Start. Starting a workout fixes its
-                        prescription. The coach uses your training data and retained reports on the
-                        app owner&apos;s Claude account.
+                        The coach writes your programme, prepares each session before you train, and
+                        reviews the programme every week. A change to your split or schedule waits
+                        for your approval; starting a workout fixes its prescription. It plans from
+                        your training data and the reports you attach.
                       </>
                     ) : (
                       <>
-                        Every morning at four the coach reads your last sessions, check-ins and runs
-                        and writes a plan for your next session at your default gym: exercises,
-                        machines, sets, reps, RIR, loads and a warm-up. Today shows it, and starting
-                        the session uses it. You can ask for a fresh plan at another gym from
-                        Today&apos;s More options. Planning runs on the app owner&apos;s Claude
-                        account, with your training data only.
+                        The coach reads your last sessions, check-ins and runs and writes a plan for
+                        your next session at your default gym: exercises, machines, sets, reps, RIR,
+                        loads and a warm-up. Today shows it, and starting the session uses it. You
+                        can ask for a fresh plan at another gym from Today&apos;s More options.
                       </>
                     )}
                   </InfoTip>
                 </>
               }
-              subtitle={shown ? status : undefined}
+              subtitle={shown && status ? status : undefined}
             >
               <Switch label="AI coach" checked={shown} onChange={change} disabled={pending} />
             </Row>
@@ -127,6 +130,8 @@ export function AiCoachSettings({
           </div>
         </li>
       </List>
+
+      {children}
 
       <Section
         title="What the coach knows"
@@ -152,6 +157,31 @@ export function AiCoachSettings({
             reviewDueIds={memoryReviewDueIds}
           />
         )}
+      </Section>
+
+      <Section
+        title="Tell the coach"
+        info="Goals, injuries, what you like or want to avoid. The coach reads this before every plan."
+      >
+        <Card>
+          <form action={formAction} className="space-y-4">
+            <Field label="Notes for the coach">
+              <Textarea
+                name="userNotes"
+                defaultValue={state.values?.userNotes ?? userNotes}
+                maxLength={PLAN_LIMITS.memo}
+                placeholder="Left knee is a bit sore on deep squats. Bench matters most to me."
+              />
+            </Field>
+            <FormError message={state.formError} />
+            <SubmitButton variant="secondary" pendingLabel="Saving…">
+              Save notes
+            </SubmitButton>
+            <p className="sr-only" role="status">
+              {saved ? "Notes saved" : ""}
+            </p>
+          </form>
+        </Card>
       </Section>
 
       {attempts.length > 0 && (
@@ -184,31 +214,6 @@ export function AiCoachSettings({
           </List>
         </Section>
       )}
-
-      <Section
-        title="Tell the coach"
-        info="Goals, injuries, what you like or want to avoid. The coach reads this before every plan."
-      >
-        <Card>
-          <form action={formAction} className="space-y-4">
-            <Field label="Notes for the coach">
-              <Textarea
-                name="userNotes"
-                defaultValue={state.values?.userNotes ?? userNotes}
-                maxLength={PLAN_LIMITS.memo}
-                placeholder="Left knee is a bit sore on deep squats. Bench matters most to me."
-              />
-            </Field>
-            <FormError message={state.formError} />
-            <SubmitButton variant="secondary" pendingLabel="Saving…">
-              Save notes
-            </SubmitButton>
-            <p className="sr-only" role="status">
-              {saved ? "Notes saved" : ""}
-            </p>
-          </form>
-        </Card>
-      </Section>
     </>
   );
 }

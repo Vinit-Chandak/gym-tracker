@@ -53,6 +53,8 @@ export type PlannedRunRef = {
   dayOfWeek: number;
   durationMinMinutes: number;
   durationMaxMinutes: number;
+  distanceMinKm: number | null;
+  distanceMaxKm: number | null;
   rpeMin: number | null;
   rpeMax: number | null;
 };
@@ -133,6 +135,8 @@ const plannedColumns = {
   dayOfWeek: programRuns.dayOfWeek,
   durationMinMinutes: programRuns.durationMinMinutes,
   durationMaxMinutes: programRuns.durationMaxMinutes,
+  distanceMinKm: programRuns.distanceMinKm,
+  distanceMaxKm: programRuns.distanceMaxKm,
   rpeMin: programRuns.rpeMin,
   rpeMax: programRuns.rpeMax,
 };

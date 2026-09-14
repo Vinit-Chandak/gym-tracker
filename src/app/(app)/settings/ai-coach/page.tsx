@@ -41,10 +41,12 @@ export default async function AiCoachSettingsPage() {
   // Whether this server can hear from the coach and start it: owner-side setup facts.
   const configured = getCoachServiceToken() !== null;
   const canRequest = getCoachRoutine() !== null;
+  // A coach that is on and working says nothing: the switch is the statement. What is worth a
+  // line is that it cannot run here, or, on the older single-plan path, what it last produced.
   const status = !configured
     ? "Not set up on this server yet"
     : workflow
-      ? "Daily session preparation and weekly programme reviews are enabled"
+      ? null
       : pending
         ? `Planning now, asked at ${formatDateTime(pending.requestedAt, profile.timeZone)}`
         : plan
@@ -55,13 +57,14 @@ export default async function AiCoachSettingsPage() {
     <>
       <PageHeader title="AI coach" backHref="/settings" />
       <PageContent>
-        <CoachingActivity settings />
         <AiCoachSettings
           workflow={workflow}
           enabled={profile.aiCoachEnabled}
           status={
             configured && !canRequest && profile.aiCoachEnabled
-              ? `${status} · On-demand coaching is not set up on this server`
+              ? [status, "On-demand coaching is not set up on this server"]
+                  .filter(Boolean)
+                  .join(" · ")
               : status
           }
           userNotes={memo.userNotes}
@@ -80,7 +83,9 @@ export default async function AiCoachSettingsPage() {
             gymName: attempt.gymName,
             error: attempt.error,
           }))}
-        />
+        >
+          <CoachingActivity settings />
+        </AiCoachSettings>
       </PageContent>
     </>
   );
