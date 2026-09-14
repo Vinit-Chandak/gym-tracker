@@ -47,6 +47,9 @@ in reserve means for it.
 - [`docs/implementation-plan.md`](docs/implementation-plan.md): structure, phases and decisions.
 - [`docs/decisions/`](docs/decisions/): architecture decision records.
 - [`docs/planning/`](docs/planning/): the original requirements and training context.
+- [`docs/planning/FRIENDS_COMPARE_LEADERBOARD_PLAN.md`](docs/planning/FRIENDS_COMPARE_LEADERBOARD_PLAN.md)
+  and [ADR 0026](docs/decisions/0026-friends-and-what-a-friend-can-see.md): following, comparison
+  and leaderboards among friends, and the contract for what a follower can see.
 
 ## Local setup
 
