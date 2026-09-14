@@ -1,13 +1,11 @@
 import {
   BookOpen,
-  ChevronRight,
   ClipboardList,
   KeyRound,
   Link2,
   MapPin,
   AiCoach,
   Trash,
-  User,
 } from "@/components/ui/icons";
 import type { Metadata } from "next";
 
@@ -15,8 +13,10 @@ import { AppearanceRow } from "@/components/shell/appearance-row";
 import { InstallSection } from "@/components/shell/install-row";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
-import Link from "@/components/ui/app-link";
-import { LinkRow, List, PRESSABLE_ROW_CLASS } from "@/components/ui/link-row";
+import { Avatar } from "@/components/ui/avatar";
+import { LinkButton } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { LinkRow, List } from "@/components/ui/link-row";
 import { Section } from "@/components/ui/section";
 import { requireUser } from "@/server/auth";
 import { listSentence, missingProfileDetails } from "@/server/queries/profile";
@@ -39,28 +39,27 @@ export default async function ProfilePage() {
           looks, who can get in, the app itself, and the way out. A row says only where it
           goes; everything behind it has its own page. */}
       <PageContent>
-        <List>
-          <li>
-            <Link href="/profile/edit" className={PRESSABLE_ROW_CLASS}>
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent">
-                <User scale="row" aria-hidden />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block font-medium [overflow-wrap:anywhere]">
-                  {profile.displayName || "Your profile"}
-                </span>
-                {/* Said here rather than only behind the row: a detail nobody knows is
-                    missing is a detail nobody adds. */}
-                {missing.length > 0 && (
-                  <span className="block text-sm text-warning">
-                    Add your {listSentence(missing)}
-                  </span>
-                )}
-              </span>
-              <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />
-            </Link>
-          </li>
-        </List>
+        {/* The header card is what a friend will see of you (ADR 0026): the avatar, the name
+            and the handle. Follower counts join it once there is anyone to count. */}
+        <Card>
+          <div className="flex items-center gap-4">
+            <Avatar username={profile.username} displayName={profile.displayName} size="header" />
+            <div className="min-w-0 flex-1">
+              <p className="text-lg font-medium [overflow-wrap:anywhere]">
+                {profile.displayName || profile.username}
+              </p>
+              <p className="text-sm [overflow-wrap:anywhere] text-ink-muted">@{profile.username}</p>
+              {/* Said here rather than only behind the link: a detail nobody knows is
+                  missing is a detail nobody adds. */}
+              {missing.length > 0 && (
+                <p className="mt-1 text-sm text-warning">Add your {listSentence(missing)}</p>
+              )}
+            </div>
+          </div>
+          <LinkButton href="/profile/edit" variant="secondary" size="sm" className="w-full">
+            Edit profile
+          </LinkButton>
+        </Card>
 
         <Section title="Training">
           <List>

@@ -87,6 +87,11 @@
   --ov-group-6: var(--ov-light-group-6);
   --ov-group-7: var(--ov-light-group-7);
   --ov-group-8: var(--ov-light-group-8);
+  /* Avatar circles: the hue is the person's, these two lightnesses are the palette's. */
+  --ov-avatar-surface-l: 0.88;
+  --ov-avatar-surface-c: 0.06;
+  --ov-avatar-ink-l: 0.4;
+  --ov-avatar-ink-c: 0.11;
 }
 
 /* System, including absent/invalid preference; explicit Light/Dark are excluded. */
@@ -132,6 +137,10 @@
     --ov-group-6: var(--ov-dark-group-6);
     --ov-group-7: var(--ov-dark-group-7);
     --ov-group-8: var(--ov-dark-group-8);
+    --ov-avatar-surface-l: 0.34;
+    --ov-avatar-surface-c: 0.06;
+    --ov-avatar-ink-l: 0.88;
+    --ov-avatar-ink-c: 0.08;
   }
 }
 
@@ -174,6 +183,10 @@
   --ov-group-6: var(--ov-dark-group-6);
   --ov-group-7: var(--ov-dark-group-7);
   --ov-group-8: var(--ov-dark-group-8);
+  --ov-avatar-surface-l: 0.34;
+  --ov-avatar-surface-c: 0.06;
+  --ov-avatar-ink-l: 0.88;
+  --ov-avatar-ink-c: 0.08;
 }
 
 @media (prefers-reduced-motion: reduce) {
