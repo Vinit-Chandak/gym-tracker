@@ -45,7 +45,12 @@ export default async function NewRunPage(props: PageProps<"/runs/new">) {
     planned.find((run) => run.id === requestedPlanId) ??
     planned.find((run) => run.loggedRunId === null);
   // The coach's run fills the form in, so logging it is a check rather than a transcription.
-  const coachRun = data.coach?.run ?? null;
+  // Opening a different occurrence must not overwrite it with today's coach targets.
+  const selectedCoach =
+    data.coach && (!requestedPlanId || data.coach.run.programRunId === requestedPlanId)
+      ? data.coach
+      : null;
+  const coachRun = selectedCoach?.run ?? null;
   const duration = coachRun?.durationMinutes ?? null;
 
   return (
@@ -55,13 +60,14 @@ export default async function NewRunPage(props: PageProps<"/runs/new">) {
         <RunForm
           action={saveRunAction.bind(null, null)}
           coach={
-            data.coach
+            selectedCoach
               ? {
-                  summary: data.coach.summary,
-                  line: runPlanLine(data.coach.run),
-                  note: data.coach.run.note,
-                  paceNote: data.coach.run.paceNote,
-                  stopRule: data.coach.run.stopRule,
+                  summary: selectedCoach.summary,
+                  warnings: selectedCoach.warnings,
+                  line: runPlanLine(selectedCoach.run),
+                  note: selectedCoach.run.note,
+                  paceNote: selectedCoach.run.paceNote,
+                  stopRule: selectedCoach.run.stopRule,
                 }
               : null
           }

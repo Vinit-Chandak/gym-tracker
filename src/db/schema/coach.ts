@@ -48,7 +48,7 @@ export const apiTokens = pgTable(
 ).enableRLS();
 
 /**
- * Concise, item-based memory with protected athlete corrections and source-backed observations.
+ * Coach-maintained memory with attributable athlete reports and source-backed observations.
  * Overview remains for compatibility; user_notes is the athlete's independent channel.
  */
 export const coachMemos = pgTable(
@@ -69,6 +69,24 @@ export const coachMemos = pgTable(
     ...timestamps,
   },
   (t) => [uniqueIndex("coach_memos_user_uq").on(t.userId), ownerPolicy("coach_memos")],
+).enableRLS();
+
+/** Append-only athlete messages. Saving another note never erases an unread one. */
+export const coachNotes = pgTable(
+  "coach_notes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    text: text("text").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("coach_notes_user_created_idx").on(t.userId, t.createdAt),
+    ownerPolicy("coach_notes"),
+  ],
 ).enableRLS();
 
 /**
@@ -132,6 +150,10 @@ export const sessionPlans = pgTable(
     trigger: planTriggerEnum("trigger").notNull(),
     requestId: uuid("request_id").references(() => coachRequests.id, { onDelete: "set null" }),
     summary: text("summary").notNull(),
+    sportSummaries: jsonb("sport_summaries")
+      .$type<{ workout?: string; run?: string }>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     warmup: jsonb("warmup")
       .$type<string[]>()
       .notNull()

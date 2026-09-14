@@ -1,5 +1,6 @@
 import { prescription } from "@/components/planned-exercises";
 import type { PlanWarning } from "@/domain/coach-review";
+import { warningsForSport } from "@/domain/sport-scope";
 import { DetailList } from "@/components/ui/detail-list";
 import { planLine, type PlanRun, type StoredPlanExercise } from "@/domain/session-plan";
 import { cn } from "@/lib/utils";
@@ -86,10 +87,13 @@ export function CoachPlanList({
             </li>
           ))}
       </ul>
-      {warnings.length > 0 && (
+      {warningsForSport(warnings, "workout").length > 0 && (
         <ul className="mt-3 space-y-1 border-t border-line pt-3">
-          {warnings.map((warning) => (
-            <li key={warning.code} className="text-xs [overflow-wrap:anywhere] text-warning">
+          {warningsForSport(warnings, "workout").map((warning, index) => (
+            <li
+              key={`${warning.code}-${index}`}
+              className="text-xs [overflow-wrap:anywhere] text-warning"
+            >
               {warning.message}
             </li>
           ))}

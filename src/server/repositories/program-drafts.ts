@@ -596,6 +596,7 @@ async function storeOpeningPlan(db: DbOrTx, userId: string, programId: string, r
     strict: true,
     plan: {
       summary: opening.summary,
+      sportSummaries: opening.sportSummaries,
       warmup: opening.warmup,
       exercises,
       run: opening.run ? { ...opening.run, programRunId: run?.id ?? null } : null,

@@ -1,11 +1,16 @@
 import { z } from "zod";
 import { programBlueprintSchema } from "./program-blueprint";
-import { coachPlanSchema, planExerciseSchema, planRunSchema } from "./session-plan";
+import {
+  coachPlanSchema,
+  planExerciseSchema,
+  planRunSchema,
+  sportSummariesSchema,
+} from "./session-plan";
 import { PLAN_LIMITS } from "./plan-limits";
-import { memoryPatchSchema } from "./coach-memory";
+import { memoryPatchSchema, sourceQuoteSchema } from "./coach-memory";
 
 export const COACH_CONTRACT_VERSION = 2;
-export const COACH_POLICY_VERSION = "2026-09-14";
+export const COACH_POLICY_VERSION = "2026-09-14.1";
 export const JOB_KINDS = ["create_program", "prepare_session", "review_program"] as const;
 export const JOB_STATUSES = [
   "queued",
@@ -184,6 +189,7 @@ export const openingPlanSchema = z.object({
   dayIndex: z.number().int().min(1).max(31),
   gymId: z.uuid(),
   summary: z.string().trim().min(1).max(PLAN_LIMITS.summary),
+  sportSummaries: sportSummariesSchema.optional(),
   warmup: z
     .array(z.string().trim().min(1).max(PLAN_LIMITS.warmupLine))
     .max(PLAN_LIMITS.warmupLines)
@@ -205,6 +211,8 @@ const explanation = {
   evidence: z.array(z.string().trim().min(1).max(200)).max(50).default([]),
   uncertainties: z.array(z.string().trim().min(1).max(500)).max(20).default([]),
   memory: memoryPatchSchema.optional(),
+  /** A temporary adaptation may cite a fresh symptom report in Tell the coach. */
+  reportedConstraint: sourceQuoteSchema.optional(),
   /** A session-only adaptation expires with this exact occurrence. Evidence must be cited. */
   adjustment: z.enum(["normal", "temporary", "equipment", "calibration"]).default("normal"),
 };

@@ -67,11 +67,14 @@ export default async function AiCoachSettingsPage() {
                   .join(" · ")
               : status
           }
-          userNotes={memo.userNotes}
+          noteId={crypto.randomUUID()}
+          notes={memo.notes.recent.map((note) => ({
+            id: note.id,
+            text: note.text,
+            when: formatDateTime(note.createdAt, profile.timeZone),
+            reviewed: note.reviewedAt !== null,
+          }))}
           overview={memo.overview}
-          memoryItems={[...memo.items, ...memo.reviewDueItems]}
-          memoryRevision={memo.memoryRevision}
-          memoryReviewDueIds={memo.reviewDueItems.map((item) => item.id)}
           overviewUpdatedAt={
             memo.overviewUpdatedAt ? formatDateTime(memo.overviewUpdatedAt, profile.timeZone) : null
           }

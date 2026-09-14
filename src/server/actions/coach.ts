@@ -9,8 +9,6 @@ import { dispatchCoachJob } from "@/server/dispatch-coach-job";
 import { requestGymChange } from "@/server/repositories/coaching-jobs";
 import { confirmIntake, latestIntake, setTrainingMode } from "@/server/repositories/coach-intakes";
 import { CoachingError } from "@/server/repositories/coaching-state";
-import { updateCoachMemory } from "@/server/repositories/coach-memory";
-import { memoryItemSchema } from "@/domain/coach-memory";
 
 import { getDb } from "@/db/client";
 import { profiles } from "@/db/schema";
@@ -41,50 +39,6 @@ import {
 import { formValues, parseForm, type FormState } from "@/server/validation/form";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
-
-/** Athlete edits are confirmed input and cannot subsequently be overwritten by the coach. */
-export async function saveMemoryItemAction(
-  _previous: FormState,
-  formData: FormData,
-): Promise<FormState> {
-  const user = await requireUser();
-  const revision = Number(formData.get("memoryRevision"));
-  const id = String(formData.get("itemId") || crypto.randomUUID());
-  const remove = formData.get("operation") === "remove";
-  try {
-    const item = remove
-      ? null
-      : memoryItemSchema.parse({
-          id,
-          category: formData.get("category"),
-          text: formData.get("text"),
-          status: "confirmed",
-          sourceIds: [],
-          reviewAfter: null,
-        });
-    await withUser(getDb(), user.id, (tx) =>
-      updateCoachMemory(
-        tx,
-        user.id,
-        {
-          expectedRevision: revision,
-          upsert: item ? [item] : [],
-          removeIds: remove ? [id] : [],
-        },
-        "athlete",
-      ),
-    );
-  } catch (error) {
-    return {
-      formError:
-        error instanceof CoachingError ? error.message : "Check the memo text and try again.",
-      values: formValues(formData),
-    };
-  }
-  revalidatePath("/settings/ai-coach");
-  revalidatePath("/today");
-  return {};
-}
 
 /**
  * A refusal the athlete can do something about, and which is therefore safe to show them.
@@ -122,9 +76,10 @@ export async function setAiCoachEnabledAction(enabled: boolean): Promise<void> {
 }
 
 const notesSchema = z.object({
+  noteId: z.preprocess((value) => value || crypto.randomUUID(), z.uuid()),
   userNotes: z.preprocess(
     (value) => (typeof value === "string" ? value.trim() : ""),
-    z.string().max(PLAN_LIMITS.memo),
+    z.string().min(1, "Write a note for the coach.").max(PLAN_LIMITS.memo),
   ),
 });
 
@@ -137,7 +92,9 @@ export async function saveCoachNotesAction(
   const parsed = parseForm(notesSchema, formData);
   if (!parsed.success) return parsed.state;
   try {
-    await withUser(getDb(), user.id, (tx) => saveCoachNotes(tx, user.id, parsed.data.userNotes));
+    await withUser(getDb(), user.id, (tx) =>
+      saveCoachNotes(tx, user.id, parsed.data.userNotes, parsed.data.noteId),
+    );
   } catch {
     return { formError: "Could not save your notes. Please retry.", values: formValues(formData) };
   }

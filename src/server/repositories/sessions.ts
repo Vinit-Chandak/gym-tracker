@@ -1,3 +1,4 @@
+import { summaryForSport } from "@/domain/sport-scope";
 import {
   and,
   asc,
@@ -710,7 +711,7 @@ export async function getSessionDetail(
     warnings,
     coachPlan: coachPlan
       ? {
-          summary: coachPlan.summary,
+          summary: summaryForSport(coachPlan, "workout"),
           warmup: coachPlan.warmup,
           generatedAt: coachPlan.generatedAt.toISOString(),
         }

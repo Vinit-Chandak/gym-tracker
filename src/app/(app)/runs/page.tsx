@@ -20,6 +20,11 @@ import { RUN_MODE_LABELS, WEEKDAY_SHORT } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { getRunsOverview } from "@/server/repositories/runs";
+import { getTodayPlan } from "@/server/repositories/schedule";
+import { todayCoachState } from "@/server/repositories/coach-plans";
+import { todayWorkflowState } from "@/server/repositories/coaching-today";
+import { listGyms } from "@/server/repositories/gyms";
+import { PlannedRun } from "./planned-run";
 
 export const metadata: Metadata = { title: "Runs" };
 
@@ -31,10 +36,29 @@ function volumeLine(week: { runs: number; minutes: number; km: number }): string
 export default async function RunsPage() {
   const user = await requireUser();
   const requestProfile = await getRequestProfile(user.id, user.email);
-  const { overview, timeZone } = await withUser(getDb(), user.id, async (tx) => {
+  const { overview, timeZone, plan, coach } = await withUser(getDb(), user.id, async (tx) => {
     const profile = requestProfile;
+    const [overview, plan, gyms] = await Promise.all([
+      getRunsOverview(tx, user.id, profile.timeZone),
+      getTodayPlan(tx, user.id, profile.timeZone),
+      listGyms(tx, user.id),
+    ]);
+    const coach =
+      profile.aiCoachEnabled && plan?.suggestion && plan.suggestedDay?.includesRun
+        ? await (
+            process.env.COACH_WORKFLOW_ENABLED === "true" ? todayWorkflowState : todayCoachState
+          )(tx, user.id, {
+            enabled: true,
+            timeZone: profile.timeZone,
+            programId: plan.program.id,
+            ref: plan.suggestion.slot,
+            gymId: gyms.find((gym) => gym.isActive && gym.isDefault)?.id ?? null,
+          })
+        : null;
     return {
-      overview: await getRunsOverview(tx, user.id, profile.timeZone),
+      overview,
+      plan,
+      coach,
       timeZone: profile.timeZone,
     };
   });
@@ -45,6 +69,7 @@ export default async function RunsPage() {
     <>
       <PageHeader title="Runs" />
       <PageContent>
+        <PlannedRun plan={plan} coach={coach} />
         {/* This week against last, then the one action. The workload warning sits with the
             numbers that produced it rather than in a banner of its own. */}
         {thisWeek && (
@@ -78,9 +103,11 @@ export default async function RunsPage() {
           </Card>
         )}
 
-        <LinkButton href="/runs/new" size="lg" className="w-full">
-          Log a run
-        </LinkButton>
+        {!(plan?.suggestedDay?.includesRun && plan.runStatus === "pending") && (
+          <LinkButton href="/runs/new" size="lg" className="w-full">
+            Log a run
+          </LinkButton>
+        )}
 
         {overview.shin.length > 0 && (
           <Card>

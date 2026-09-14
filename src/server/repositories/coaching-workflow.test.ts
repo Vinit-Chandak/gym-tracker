@@ -181,6 +181,12 @@ it("keeps unknown intake values, detects competing edits and preserves confirmed
 it("claims once, accepts an exact duplicate once, and activates an opening session atomically", async () => {
   const a = await athlete(),
     key = crypto.randomUUID();
+  await as(a, (tx) =>
+    tx
+      .update(profiles)
+      .set({ bodyWeightKg: 82, heightCm: 181, dateOfBirth: "1995-01-01" })
+      .where(eq(profiles.id, a.user.id)),
+  );
   const one = await as(a, (tx) => requestProgramCreation(tx, a.user.id, a.intake.id, key));
   const same = await as(a, (tx) => requestProgramCreation(tx, a.user.id, a.intake.id, key));
   expect(same.job.id).toBe(one.job.id);
@@ -192,6 +198,7 @@ it("claims once, accepts an exact duplicate once, and activates an opening sessi
   const claim = claims.find(Boolean)!;
   const ctx = await as(a, (tx) => coachJobContext(tx, a.user.id, one.job.id, claim.attemptId!));
   expect(ctx.confirmedIntake?.answers.goal).toBe(a.intake.answers.goal);
+  expect(ctx.athlete).toMatchObject({ bodyWeightKg: 82, heightCm: 181, age: expect.any(Number) });
   expect(ctx.program).toBeNull();
   expect(ctx.policy.rules.length).toBeGreaterThan(0);
   const accepted = await as(a, (tx) =>
@@ -389,7 +396,7 @@ it.each(["bodyweight-squat", "goblet-squat"])(
       }),
     );
     const detail = await as(a, (tx) => getSessionDetail(tx, a.user.id, second.sessionId));
-    expect(detail?.coachPlan?.summary).toBe(plan.summary);
+    expect(detail?.coachPlan?.summary).toBe("Follow the exercise targets below.");
     expect(detail?.exercises[0]?.suggestion?.kind).toBe("coach");
   },
 );

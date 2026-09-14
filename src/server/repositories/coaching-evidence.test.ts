@@ -3,6 +3,7 @@ import { afterAll, beforeAll, expect, it } from "vitest";
 import {
   coachChangeRecords,
   coachEvidenceBaselines,
+  coachNotes,
   dailyRecovery,
   equipmentInstances,
   equipmentTypes,
@@ -372,6 +373,42 @@ it("retains a temporary session's baseline and exposes it to the fallback rule",
         new Set(),
       ),
     ).rejects.toThrow(/current recovery/);
+  });
+});
+
+it("uses a recent quoted Tell the coach report for a temporary adjustment, but rejects old or invented reports", async () => {
+  const a = await fixture();
+  await a.as(async (db) => {
+    const [note] = await db
+      .insert(coachNotes)
+      .values({
+        userId: a.user.id,
+        text: "My knee is sore today.",
+        createdAt: new Date(now.getTime() - 3600_000),
+      })
+      .returning();
+    const evidence = await readCoachingEvidence(db, a.user.id, a.program.id, now);
+    const output = a.output(45, 10, "temporary");
+    const cited = new Set([`note:${note!.id}`]);
+    await expect(
+      assessSessionEvidence(db, a.user.id, a.target, output, evidence, cited),
+    ).rejects.toThrow(/temporary reduction needs/);
+    output.reportedConstraint = { sourceId: `note:${note!.id}`, text: "My knee is sore today." };
+    expect(
+      (await assessSessionEvidence(db, a.user.id, a.target, output, evidence, cited))[0],
+    ).toMatchObject({ kind: "temporary", before: { load: 50 }, after: { load: 45 } });
+    output.reportedConstraint.text = "My back is injured.";
+    await expect(
+      assessSessionEvidence(db, a.user.id, a.target, output, evidence, cited),
+    ).rejects.toThrow(/temporary reduction needs/);
+    output.reportedConstraint.text = "My knee is sore today.";
+    await db
+      .update(coachNotes)
+      .set({ createdAt: new Date(now.getTime() - 4 * 86400_000) })
+      .where(eq(coachNotes.id, note!.id));
+    await expect(
+      assessSessionEvidence(db, a.user.id, a.target, output, evidence, cited),
+    ).rejects.toThrow(/temporary reduction needs/);
   });
 });
 it("invalidates retained numeric references when supporting logs are edited or deleted", async () => {

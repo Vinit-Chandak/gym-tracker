@@ -43,6 +43,8 @@ import {
 } from "@/domain/schedule";
 import { assertNoOpenWorkout } from "./coaching-state";
 import { readCoachMemory } from "./coach-memory";
+import { summaryForSport, warningsForSport } from "@/domain/sport-scope";
+import { coachNotes } from "@/db/schema";
 import {
   coachPlanSchema,
   PLAN_LIMITS,
@@ -266,7 +268,26 @@ export async function getCoachMemo(db: DbOrTx, userId: string) {
   return readCoachMemory(db, userId);
 }
 
-export async function saveCoachNotes(db: DbOrTx, userId: string, userNotes: string): Promise<void> {
+export async function saveCoachNotes(
+  db: DbOrTx,
+  userId: string,
+  userNotes: string,
+  noteId = crypto.randomUUID(),
+): Promise<void> {
+  const [saved] = await db
+    .insert(coachNotes)
+    .values({ id: noteId, userId, text: userNotes })
+    .onConflictDoNothing()
+    .returning();
+  // A retried mobile submission is the same message, not another copy.
+  if (!saved) {
+    const [existing] = await db
+      .select()
+      .from(coachNotes)
+      .where(and(eq(coachNotes.userId, userId), eq(coachNotes.id, noteId)));
+    if (existing?.text === userNotes) return;
+    throw new Error("This note submission was already used. Reload and send a new note.");
+  }
   await db
     .insert(coachMemos)
     .values({ userId, userNotes })
@@ -426,6 +447,7 @@ async function recentPlanOutcomes(
       gymName,
       status: plan.status,
       summary: plan.summary,
+      sportSummaries: plan.sportSummaries,
       warnings: plan.warnings,
       prescribed: plan.exercises.map((entry) => ({
         name: entry.exerciseName,
@@ -1413,6 +1435,7 @@ export async function storePlan(
       trigger: input.trigger,
       requestId: input.requestId ?? null,
       summary: plan.summary,
+      sportSummaries: plan.sportSummaries ?? {},
       warmup: plan.warmup,
       exercises: stored,
       run: plan.run,
@@ -1973,6 +1996,7 @@ export type PlannedRunToday = {
   planId: string;
   run: PlanRun;
   summary: string;
+  warnings: PlanWarning[];
   /** The day the run belongs to, so the log screen can say which one it is. */
   dayName: string;
 };
@@ -1993,7 +2017,13 @@ export async function plannedRunForToday(
   if (!slot || !slot.day.includesRun) return null;
   const plan = await activePlanForSlot(db, userId, schedule.program.id, slot);
   if (!plan?.run) return null;
-  return { planId: plan.id, run: plan.run, summary: plan.summary, dayName: slot.day.name };
+  return {
+    planId: plan.id,
+    run: plan.run,
+    summary: summaryForSport(plan, "run"),
+    warnings: warningsForSport(plan.warnings, "run"),
+    dayName: slot.day.name,
+  };
 }
 
 /**

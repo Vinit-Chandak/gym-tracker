@@ -36,10 +36,10 @@ it("preserves unrelated and athlete-confirmed items when the coach updates one o
   expect(next[0]).toEqual(confirmed);
   expect(() =>
     mergeMemory(next, patch([], [confirmed.id]), "coach", new Set([source]), now),
-  ).toThrow(/only.*athlete/);
+  ).toThrow(/newer athlete note/);
   expect(() =>
     mergeMemory(next, patch([{ ...item(), id: confirmed.id }]), "coach", new Set([source]), now),
-  ).toThrow(/only.*athlete/);
+  ).toThrow(/newer athlete note/);
 });
 it("requires provenance, a future review date and an honest status for coach claims", () => {
   expect(() => mergeMemory([], patch(), "coach", new Set(), now)).toThrow(/existing evidence/);
@@ -103,4 +103,108 @@ it("lets athletes correct a coach observation and keeps that correction protecte
   };
   const [saved] = mergeMemory([prior], patch([corrected]), "athlete", new Set(), now);
   expect(saved).toMatchObject({ origin: "athlete", status: "confirmed", text: corrected.text });
+});
+
+it("lets the coach remember a reported preference only with an exact athlete quote", () => {
+  const note = `note:${crypto.randomUUID()}`;
+  const sources = new Map([
+    [note, { text: "I prefer dumbbells at home.", createdAt: now.toISOString() }],
+  ]);
+  const preference = memoryItemSchema.parse({
+    ...item(),
+    category: "preference",
+    status: "reported",
+    text: "Prefers dumbbells at home.",
+    sourceIds: [note],
+    sourceQuote: { sourceId: note, text: "I prefer dumbbells at home." },
+    reviewAfter: null,
+  });
+  const saved = mergeMemory([], patch([preference]), "coach", new Set([note]), now, sources);
+  expect(saved[0]).toMatchObject({ status: "reported", origin: "coach", reviewAfter: null });
+  expect(() =>
+    mergeMemory(
+      [],
+      patch([{ ...preference, sourceQuote: { sourceId: note, text: "I dislike running." } }]),
+      "coach",
+      new Set([note]),
+      now,
+      sources,
+    ),
+  ).toThrow(/exact words/);
+  expect(() => mergeMemory([], patch([preference]), "coach", new Set([note]), now)).toThrow(
+    /exact words/,
+  );
+});
+
+it("requires a newer quoted note to correct or remove protected memory", () => {
+  const old: MemoryItem = {
+    ...item(),
+    origin: "athlete",
+    category: "preference",
+    status: "confirmed",
+    text: "Prefers machines.",
+    updatedAt: new Date(now.getTime() - 86400_000).toISOString(),
+  };
+  const note = `note:${crypto.randomUUID()}`;
+  const text = "Please forget the preference for machines. I now prefer dumbbells.";
+  const sources = new Map([[note, { text, createdAt: now.toISOString() }]]);
+  const corrected = memoryPatchSchema.parse({
+    expectedRevision: 0,
+    upsert: [
+      {
+        ...item(),
+        id: old.id,
+        category: "preference",
+        status: "reported",
+        text: "Prefers dumbbells.",
+        sourceIds: [note],
+        sourceQuote: { sourceId: note, text },
+        reviewAfter: null,
+      },
+    ],
+    corrections: [{ itemId: old.id, sourceId: note, text }],
+  });
+  expect(mergeMemory([old], corrected, "coach", new Set([note]), now, sources)[0]).toMatchObject({
+    origin: "coach",
+    text: "Prefers dumbbells.",
+  });
+  const removal = memoryPatchSchema.parse({
+    expectedRevision: 0,
+    removeIds: [old.id],
+    corrections: corrected.corrections,
+  });
+  expect(mergeMemory([old], removal, "coach", new Set([note]), now, sources)).toEqual([]);
+  sources.set(note, { text, createdAt: old.updatedAt });
+  expect(() => mergeMemory([old], removal, "coach", new Set([note]), now, sources)).toThrow(
+    /newer athlete note/,
+  );
+});
+
+it("orders corrections by when the athlete spoke, even if an old report was summarized later", () => {
+  const first = `note:${crypto.randomUUID()}`,
+    second = `note:${crypto.randomUUID()}`;
+  const firstText = "Prefer machines.",
+    secondText = "Forget that; I prefer dumbbells.";
+  const sourceTimes = new Map([
+    [first, { text: firstText, createdAt: "2026-09-10T12:00:00Z" }],
+    [second, { text: secondText, createdAt: "2026-09-11T12:00:00Z" }],
+  ]);
+  const old: MemoryItem = {
+    ...item(),
+    origin: "coach",
+    status: "reported",
+    category: "preference",
+    sourceIds: [first],
+    sourceQuote: { sourceId: first, text: firstText },
+    reviewAfter: null,
+    updatedAt: "2026-09-12T12:00:00Z",
+  };
+  const removal = memoryPatchSchema.parse({
+    expectedRevision: 0,
+    removeIds: [old.id],
+    corrections: [{ itemId: old.id, sourceId: second, text: secondText }],
+  });
+  expect(mergeMemory([old], removal, "coach", new Set([first, second]), now, sourceTimes)).toEqual(
+    [],
+  );
 });

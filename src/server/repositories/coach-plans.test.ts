@@ -306,7 +306,7 @@ describe("a session that starts from a plan", () => {
       getSessionDetail(tx, alice.id, sessionId),
     );
     if (!detail) throw new Error("no detail");
-    expect(detail.coachPlan?.summary).toBe("Consumed plan");
+    expect(detail.coachPlan?.summary).toBe("Follow the exercise targets below.");
     expect(detail.coachPlan?.warmup).toEqual(["Bike 4 min", "Squat ramp 40×6, 50×3"]);
     expect(detail.exercises).toHaveLength(7);
 
@@ -778,7 +778,7 @@ describe("a day that lifts and runs", () => {
     expect(today).toMatchObject({
       planId: plan.id,
       dayName: "Easy Run + Arms",
-      summary: "Easy 25 then arms.",
+      summary: "Follow the run targets below.",
     });
     expect(today?.run.durationMinutes).toBe(25);
     await withUser(t.db, alice.id, async (tx) => {
