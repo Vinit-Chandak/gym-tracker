@@ -78,7 +78,7 @@ const SYMBOLS: readonly [string, AppIcon][] = [
 export default function PreviewIconsPage() {
   return (
     <PreviewShell tab="/profile">
-      <PageHeader title="Settings" />
+      <PageHeader title="Profile" />
       <PageContent>
         <List>
           <li>

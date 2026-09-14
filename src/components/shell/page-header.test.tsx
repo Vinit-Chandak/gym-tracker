@@ -22,6 +22,13 @@ it("names the way back from the section the destination belongs to", () => {
   expect(back.textContent).toBe("Gyms");
 });
 
+it("names the Profile tab from any of its sub-pages", () => {
+  render(<PageHeader title="Edit profile" backHref="/profile" />);
+  expect(screen.getByRole("link", { name: "Back to Profile" }).getAttribute("href")).toBe(
+    "/profile",
+  );
+});
+
 it("prefers a given back label to the section's own name", () => {
   render(<PageHeader title="Choose a fallback" backHref="/workouts/abc" backLabel="Exercise" />);
   expect(screen.getByRole("link", { name: "Back to Exercise" }).textContent).toBe("Exercise");

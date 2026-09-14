@@ -17,7 +17,7 @@ src/
     (app)/gyms/[gymId]/           gym detail and equipment inventory
     (app)/exercises/[exerciseId]/ exercise library detail and per-gym availability
     (app)/workouts/[sessionId]/   session logging screen (Phase 4)
-    (app)/settings/               profile, default gym, units, time zone, coach tokens
+    (app)/profile/                who you are, friends, units, time zone, coach tokens
     api/coach/...                 read-only JSON endpoints for an external AI client (Phase 8)
   db/
     schema/                       Drizzle schema, one file per domain
