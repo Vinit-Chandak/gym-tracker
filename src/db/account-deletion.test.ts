@@ -62,6 +62,8 @@ it("leaves nothing but the shared catalogues without an owner", async () => {
   `);
   expect(rows.rows.map((row) => row.table_name)).toEqual([
     "equipment_types",
+    // Owned twice over: both sides cascade from profiles, which the first test checks.
+    "follows",
     "profiles",
     "warmup_protocols",
   ]);

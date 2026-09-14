@@ -33,7 +33,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
 ];
 
 /** Sections reached from Profile, which keep Profile selected while you are in them. */
-const UNDER_PROFILE = ["/exercises", "/gyms"];
+const UNDER_PROFILE = ["/exercises", "/gyms", "/u"];
 
 const withinSection = (pathname: string, section: string) =>
   pathname === section || pathname.startsWith(`${section}/`);
@@ -62,6 +62,7 @@ const SECTION_LABELS: Record<string, string> = {
   gyms: "Gyms",
   exercises: "Exercises",
   workouts: "Workout",
+  u: "People",
 };
 
 export function sectionLabel(path: string): string | undefined {

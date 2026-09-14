@@ -2,7 +2,7 @@
 
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
-import { followButtonState, type FollowButtonState } from "@/domain/follows";
+import type { FollowRelation } from "@/domain/follows";
 import { normaliseUsername, usernameProblem } from "@/domain/username";
 import { requireUser } from "@/server/auth";
 import { followRelations } from "@/server/repositories/follows";
@@ -11,12 +11,12 @@ import { searchQuerySchema } from "@/server/validation/people";
 
 export type UsernameCheck = "available" | "taken" | "invalid";
 
-/** A search hit: who they are, and what the follow button beside them should say. */
+/** A search hit: who they are, and where you stand with them, for the button beside them. */
 export type PersonResult = {
   id: string;
   username: string;
   displayName: string | null;
-  button: FollowButtonState;
+  relation: FollowRelation;
 };
 
 /** Find people (plan §3.4). The results are an action's reply, not a page, so nothing is cached. */
@@ -34,7 +34,7 @@ export async function searchPeopleAction(query: string): Promise<PersonResult[]>
         id: person.id,
         username: person.username,
         displayName: person.displayName,
-        button: followButtonState(relations[i]!),
+        relation: relations[i]!,
       }));
     },
     { readOnly: true },

@@ -11,6 +11,7 @@ it.each([
   ["/exercises", "/profile"],
   ["/exercises/bench", "/profile"],
   ["/profile/programme", "/profile"],
+  ["/u/phani03", "/profile"],
 ])("keeps one primary destination selected for %s", (pathname, expected) => {
   expect(
     NAV_ITEMS.filter(({ href }) => isNavItemActive(pathname, href)).map(({ href }) => href),
@@ -25,6 +26,7 @@ it("names the section a detail screen was opened from", () => {
   expect(sectionLabel("/gyms/abc/equipment/new")).toBe("Gyms");
   expect(sectionLabel("/workouts/abc")).toBe("Workout");
   expect(sectionLabel("/profile")).toBe("Profile");
+  expect(sectionLabel("/u/phani03")).toBe("People");
 });
 
 it("has no section name for a path outside the primary sections", () => {
