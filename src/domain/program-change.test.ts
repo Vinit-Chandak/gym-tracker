@@ -64,6 +64,18 @@ function blueprint() {
 }
 
 describe("weekly prescription authority", () => {
+  it("checks run distance when duration stays fixed, including adding or removing the target", () => {
+    const before = blueprint();
+    before.runs[0]!.distanceKm = [5, 5];
+    const after = structuredClone(before);
+    after.runs[0]!.distanceKm = [5.5, 5.5];
+    expect(assessProgramChange(before, after, library).authority).toBe("automatic");
+    after.runs[0]!.distanceKm = [6, 6];
+    expect(assessProgramChange(before, after, library).authority).toBe("review_required");
+    delete after.runs[0]!.distanceKm;
+    expect(assessProgramChange(before, after, library).authority).toBe("review_required");
+    expect(assessProgramChange(after, before, library).authority).toBe("review_required");
+  });
   it("recognizes unchanged data regardless of object keys or explicit day/run array order", () => {
     const before = blueprint();
     const after = { ...before, days: [...before.days].reverse() };
@@ -71,7 +83,7 @@ describe("weekly prescription authority", () => {
     expect(after.days[0]?.dayIndex).toBe(2);
   });
 
-  it("permits substantial set, target, rest and run-prescription changes without inventing minor-change thresholds", () => {
+  it("routes substantial set, target and run-prescription changes to review", () => {
     const before = blueprint();
     const after = applyProgramPatch(
       before,
@@ -98,7 +110,8 @@ describe("weekly prescription authority", () => {
       }),
     );
     const assessment = assessProgramChange(before, after, library);
-    expect(assessment.authority).toBe("automatic");
+    expect(assessment.authority).toBe("review_required");
+    expect(assessment.doseChanges.length).toBeGreaterThan(0);
     expect(assessment.structuralChanges).toEqual([]);
     expect(assessment.muscleCoverage[0]).toMatchObject({
       planned: { sets: { quads: 3, glutes: 3 } },
@@ -148,7 +161,7 @@ describe("weekly prescription authority", () => {
     });
     after.days[0]!.exercises[0]!.exerciseSlug = "biceps-curl";
     expect(assessProgramChange(before, after, library)).toMatchObject({
-      authority: "automatic",
+      authority: "review_required",
       muscleCoverage: [
         {
           dayIndex: 1,

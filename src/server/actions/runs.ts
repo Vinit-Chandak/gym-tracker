@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { EFFORT_INPUT_VERSION } from "@/domain/effort";
 
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
@@ -45,6 +46,7 @@ const shinScore = optionalNumber(0, 10, true, "Shin scores are whole numbers fro
 
 const runSchema = z
   .object({
+    effortInputVersion: z.string().optional(),
     startedAt: z.preprocess(
       (value) => (typeof value === "string" ? value.trim() : ""),
       z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/, { error: "Enter the date and time." }),
@@ -80,6 +82,18 @@ const runSchema = z
     ),
   })
   .superRefine((value, ctx) => {
+    if (value.effortInputVersion !== String(EFFORT_INPUT_VERSION))
+      ctx.addIssue({
+        code: "custom",
+        path: ["rpe"],
+        message: "Reload the run page, then enter the run's actual effort before saving.",
+      });
+    if (value.rpe === null)
+      ctx.addIssue({
+        code: "custom",
+        path: ["rpe"],
+        message: "Rate the run's actual effort from 1 to 10.",
+      });
     if ((value.durationMinutes ?? 0) * 60 + (value.durationSeconds ?? 0) <= 0) {
       ctx.addIssue({ code: "custom", path: ["durationMinutes"], message: "Enter the duration." });
     }

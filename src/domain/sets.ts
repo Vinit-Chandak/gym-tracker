@@ -16,6 +16,7 @@ export const SET_LIMITS = {
   weight: 2000,
   reps: 1000,
   rir: 10,
+  rpe: 10,
   durationSeconds: 36_000,
   /** Metres. Carries and sled work; 100 km is far past anything logged as a set. */
   distanceMeters: 100_000,

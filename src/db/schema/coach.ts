@@ -12,6 +12,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import type { PlanWarning } from "../../domain/coach-review";
+import type { MemoryItem } from "../../domain/coach-memory";
 import type { StoredPlanExercise, StoredPlanRun } from "../../domain/session-plan";
 import { ownerPolicy, timestamps } from "./common";
 import {
@@ -47,9 +48,8 @@ export const apiTokens = pgTable(
 ).enableRLS();
 
 /**
- * What the coach knows about one athlete, in a few hundred words: who they are, what they
- * are after, what hurts, how they are progressing and what has been tried. The coach rewrites
- * `overview` after every plan; `user_notes` is the athlete's own channel to the coach.
+ * Concise, item-based memory with protected athlete corrections and source-backed observations.
+ * Overview remains for compatibility; user_notes is the athlete's independent channel.
  */
 export const coachMemos = pgTable(
   "coach_memos",
@@ -59,6 +59,11 @@ export const coachMemos = pgTable(
       .notNull()
       .references(() => profiles.id, { onDelete: "cascade" }),
     overview: text("overview").notNull().default(""),
+    items: jsonb("items")
+      .$type<MemoryItem[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    memoryRevision: integer("memory_revision").notNull().default(0),
     userNotes: text("user_notes").notNull().default(""),
     overviewUpdatedAt: timestamp("overview_updated_at", { withTimezone: true }),
     ...timestamps,

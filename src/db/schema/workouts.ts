@@ -139,6 +139,8 @@ export const setLogs = pgTable(
     reps: integer("reps"),
     rir: numeric("rir", { precision: 3, scale: 1, mode: "number" }),
     rpe: numeric("rpe", { precision: 3, scale: 1, mode: "number" }),
+    /** False for legacy rows whose effort may have been copied from a target. */
+    effortReported: boolean("effort_reported").notNull().default(false),
     durationSeconds: integer("duration_seconds"),
     distanceMeters: numeric("distance_meters", { precision: 8, scale: 1, mode: "number" }),
     techniqueRating: integer("technique_rating"),

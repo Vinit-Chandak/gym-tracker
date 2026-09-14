@@ -4,9 +4,10 @@ import {
   type ProgramBlueprint,
 } from "./program-blueprint";
 import { MUSCLE_GROUPS, type MuscleGroup } from "./types";
+import { TRAINING_POLICY } from "./training-evidence";
 
 /** Confirmed policy: prescription autonomy, with best-effort preservation of planned muscles. */
-export const WEEKLY_CHANGE_POLICY_VERSION = 1;
+export const WEEKLY_CHANGE_POLICY_VERSION = 2;
 
 export type ProgramChangeAuthority = "unchanged" | "automatic" | "review_required";
 export type StructuralChange =
@@ -84,6 +85,7 @@ export function assessProgramChange(
   const before = normalized(current);
   const after = normalized(proposed);
   const structuralChanges: StructuralChange[] = [];
+  const doseChanges: string[] = [];
   if (before.slug !== after.slug) structuralChanges.push("program_identity");
   if (before.weeks !== after.weeks) structuralChanges.push("block_length");
   if (!same(split(before), split(after))) structuralChanges.push("split_or_schedule");
@@ -106,6 +108,84 @@ export function assessProgramChange(
     structuralChanges.push("slot_moved_between_days");
 
   const library = new Map(exerciseLibrary.map((exercise) => [exercise.slug, exercise]));
+  const priorSlots = new Map(
+    before.days.flatMap((day) =>
+      day.exercises.map((e, index) => [e.lineageId ?? `${day.dayIndex}:${index}`, e] as const),
+    ),
+  );
+  const nextSlots = after.days.flatMap((day) =>
+    day.exercises.map((e, index) => ({
+      key: e.lineageId ?? `${day.dayIndex}:${index}`,
+      exercise: e,
+    })),
+  );
+  const oldTotal = before.days.reduce(
+    (sum, day) => sum + day.exercises.reduce((n, e) => n + e.sets, 0),
+    0,
+  );
+  const newTotal = nextSlots.reduce((sum, slot) => sum + slot.exercise.sets, 0);
+  if (oldTotal > 0 && Math.abs(newTotal / oldTotal - 1) > TRAINING_POLICY.maxTotalSetChange + 1e-9)
+    doseChanges.push("Total working sets change by more than 20%.");
+  if (priorSlots.size !== nextSlots.length)
+    doseChanges.push("Adding or removing exercise slots needs review.");
+  for (const { key, exercise: next } of nextSlots) {
+    const old = priorSlots.get(key);
+    if (!old) {
+      doseChanges.push("A new slot needs review.");
+      continue;
+    }
+    if (
+      Math.abs(next.sets - old.sets) > 1 ||
+      Math.abs(next.sets / old.sets - 1) > TRAINING_POLICY.maxExerciseSetChange + 1e-9
+    )
+      doseChanges.push(`${next.exerciseSlug}: set change exceeds one set or 25%.`);
+    for (const metric of ["reps", "duration", "distance"] as const) {
+      const a = old[metric],
+        b = next[metric];
+      if (
+        !!a !== !!b ||
+        (a &&
+          b &&
+          a.some(
+            (v, i) => Math.abs(b[i]! - v) > Math.max(metric === "reps" ? 1 : 0, v * 0.1) + 1e-9,
+          ))
+      )
+        doseChanges.push(`${next.exerciseSlug}: ${metric} range needs review.`);
+    }
+    if (
+      !!old.rir !== !!next.rir ||
+      (old.rir && next.rir && old.rir.some((v, i) => Math.abs(next.rir![i]! - v) > 1))
+    )
+      doseChanges.push(`${next.exerciseSlug}: effort changes by more than one RIR.`);
+  }
+  for (const next of after.runs) {
+    const old = before.runs.find(
+      (run) => run.weekIndex === next.weekIndex && run.dayOfWeek === next.dayOfWeek,
+    );
+    if (
+      old &&
+      (!!old.distanceKm !== !!next.distanceKm ||
+        (old.distanceKm &&
+          next.distanceKm &&
+          old.distanceKm.some(
+            (value, i) =>
+              Math.abs(next.distanceKm![i]! / value - 1) > TRAINING_POLICY.maxRunChange + 1e-9,
+          )))
+    )
+      doseChanges.push(
+        `Run ${next.weekIndex}/${next.dayOfWeek}: distance changes need calibration or exceed the automatic limit.`,
+      );
+    if (
+      old &&
+      (old.duration.some(
+        (value, i) => Math.abs(next.duration[i]! / value - 1) > TRAINING_POLICY.maxRunChange + 1e-9,
+      ) ||
+        old.rpe.some((value, i) => Math.abs(next.rpe[i]! - value) > 1))
+    )
+      doseChanges.push(
+        `Run ${next.weekIndex}/${next.dayOfWeek}: duration or effort exceeds the automatic limit.`,
+      );
+  }
   const dayIndexes = [...new Set([...before.days, ...after.days].map((day) => day.dayIndex))].sort(
     (a, b) => a - b,
   );
@@ -133,13 +213,14 @@ export function assessProgramChange(
   });
   const authority: ProgramChangeAuthority = same(before, after)
     ? "unchanged"
-    : structuralChanges.length > 0
+    : structuralChanges.length > 0 || doseChanges.length > 0
       ? "review_required"
       : "automatic";
   return {
     policyVersion: WEEKLY_CHANGE_POLICY_VERSION,
     authority,
     structuralChanges,
+    doseChanges,
     muscleCoverage,
   };
 }

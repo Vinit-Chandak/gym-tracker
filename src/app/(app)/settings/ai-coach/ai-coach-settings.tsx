@@ -1,6 +1,8 @@
 "use client";
 
 import { AiCoach } from "@/components/ui/icons";
+import { MemoryEditor } from "@/components/coaching/memory-editor";
+import type { MemoryItem } from "@/domain/coach-memory";
 import { useActionState, useOptimistic, useState, useTransition, type ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -36,6 +38,9 @@ type Props = {
   status: string | null;
   userNotes: string;
   overview: string;
+  memoryItems?: MemoryItem[];
+  memoryRevision?: number;
+  memoryReviewDueIds?: string[];
   overviewUpdatedAt: string | null;
   /** What the coach has tried lately, so a night it could not plan is not simply silence. */
   attempts: CoachAttempt[];
@@ -53,6 +58,9 @@ export function AiCoachSettings({
   status,
   userNotes,
   overview,
+  memoryItems = [],
+  memoryRevision = 0,
+  memoryReviewDueIds = [],
   overviewUpdatedAt,
   attempts,
   children,
@@ -127,20 +135,28 @@ export function AiCoachSettings({
 
       <Section
         title="What the coach knows"
-        info="The coach keeps a short memo about you and rewrites it after every plan: goals, niggles, how you are progressing, what has been tried. Read it here; correct it below."
+        info="A short memo of preferences, repeated observations and current experiments. You can correct individual items. The coach cannot overwrite your confirmed corrections."
       >
         <Card>
           {overview ? (
             <p className="text-sm [overflow-wrap:anywhere] whitespace-pre-line">{overview}</p>
           ) : (
             <p className="text-sm text-ink-muted">
-              Nothing yet. The coach writes this after its first plan.
+              No memo yet. Add a preference below, or the coach can add an observation when there is
+              enough evidence.
             </p>
           )}
           {overviewUpdatedAt && (
             <p className="text-xs text-ink-muted tabular-nums">Updated {overviewUpdatedAt}</p>
           )}
         </Card>
+        {workflow && (
+          <MemoryEditor
+            items={memoryItems}
+            revision={memoryRevision}
+            reviewDueIds={memoryReviewDueIds}
+          />
+        )}
       </Section>
 
       <Section

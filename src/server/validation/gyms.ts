@@ -57,6 +57,31 @@ export const equipmentInputSchema = z.object({
     max: 1000,
     message: "Enter the smallest load jump as a number, for example 2.5.",
   }),
+  availableLoads: z
+    .preprocess(
+      asString,
+      z
+        .string()
+        .max(2000)
+        .transform((value, ctx) => {
+          if (!value.trim()) return [];
+          const values = value
+            .split(/[,;\s]+/)
+            .filter(Boolean)
+            .map(Number);
+          if (values.length > 200 || values.some((n) => !Number.isFinite(n) || n < 0 || n > 2000)) {
+            ctx.addIssue({
+              code: "custom",
+              message:
+                "Enter up to 200 available loads, separated by commas, using the selected unit.",
+            });
+            return z.NEVER;
+          }
+          return [...new Set(values)].sort((a, b) => a - b);
+        }),
+    )
+    .optional(),
+  loadConvention: z.enum(["total", "per_hand", "assistance", "stack_label", "unknown"]).optional(),
   pulleyRatio: optionalText(40),
   angleDegrees: optionalNumber({ min: 0, max: 90, message: "Angle must be between 0 and 90." }),
   notes: optionalText(1000),

@@ -558,35 +558,35 @@ describe("progression suggestions", () => {
     await finish(sessionId);
   });
 
-  it("suggests a load increase only after every set met the plan, prefilled per set", async () => {
+  it("holds after one successful workout while preserving its load and target effort", async () => {
     const { sessionId, detail } = await startUpperA(2);
     const bench = exerciseRow(detail, "barbell-bench-press");
-    expect(bench.suggestion).toMatchObject({ kind: "increase", basis: "exercise" });
+    expect(bench.suggestion).toMatchObject({ kind: "hold", basis: "exercise" });
     expect(bench.suggestion?.sets.map((s) => [s.weight, s.reps, s.rir])).toEqual([
-      [62.5, 3, 2],
-      [62.5, 3, 2],
-      [62.5, 3, 2],
-      [62.5, 3, 2],
+      [60, 5, 2],
+      [60, 5, 2],
+      [60, 5, 2],
+      [60, 5, 2],
     ]);
     const row = exerciseRow(detail, "seated-cable-row");
-    expect(row.suggestion).toMatchObject({ kind: "increase", basis: "same_equipment" });
-    expect(row.suggestion?.sets[0]?.weight).toBe(40 + row.weightStep);
+    expect(row.suggestion).toMatchObject({ kind: "hold", basis: "same_equipment" });
+    expect(row.suggestion?.sets[0]?.weight).toBe(40);
     for (let i = 1; i <= 4; i++) await log(bench.id, i, 62.5, i === 1 ? 2 : 3, 1);
     for (let i = 1; i <= 3; i++) await log(row.id, i, 45, 8, 1);
     await finish(sessionId);
   });
 
-  it("reduces after a miss and counts sessions below the last", async () => {
+  it("holds after a miss without treating same-day sessions as repeated decline", async () => {
     const { sessionId, detail } = await startUpperA(3);
     const bench = exerciseRow(detail, "barbell-bench-press");
-    expect(bench.suggestion?.kind).toBe("reduce");
-    expect(bench.suggestion?.sets[0]).toMatchObject({ weight: 60, reps: 3, rir: 2 });
-    expect(bench.regressionStreak).toBe(1);
+    expect(bench.suggestion?.kind).toBe("hold");
+    expect(bench.suggestion?.sets[0]).toMatchObject({ weight: 62.5, reps: 3, rir: 2 });
+    expect(bench.regressionStreak).toBe(0);
     expect(exerciseRow(detail, "seated-cable-row").suggestion?.kind).toBe("hold");
     for (let i = 1; i <= 4; i++) await log(bench.id, i, 60, 4, 2);
     await finish(sessionId);
     const next = await startUpperA(4);
-    expect(exerciseRow(next.detail, "barbell-bench-press").regressionStreak).toBe(2);
+    expect(exerciseRow(next.detail, "barbell-bench-press").regressionStreak).toBe(0);
     await discard(next.sessionId);
   });
 
@@ -615,7 +615,7 @@ describe("progression suggestions", () => {
     expect(row.previous).toBeNull();
     expect(row.suggestion).toMatchObject({ kind: "transfer", basis: "other_equipment" });
     expect(row.basis?.gymName).toBe("Anytime Fitness");
-    expect(row.suggestion?.sets.map((s) => s.weight)).toEqual([45, 45, 45]);
+    expect(row.suggestion?.sets.map((s) => s.weight)).toEqual([null, null, null]);
     await discard(sessionId);
   });
 

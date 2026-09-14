@@ -19,6 +19,7 @@ function row(setIndex: number, patch: Partial<RowState> = {}): RowState {
     weight: "",
     reps: "",
     rir: "",
+    rpe: "",
     duration: "",
     distance: "",
     touched: new Set<DraftValueField>(),

@@ -506,7 +506,7 @@ describe("complete coaching evidence", () => {
   it("labels the bounded narrative and incomplete work while raw history keeps unfinished workouts", async () => {
     const ctx = await context();
     expect(ctx.recent).toMatchObject({
-      from: "2026-08-28",
+      from: "2026-09-04",
       to: "2026-09-11",
       workoutsHasMore: true,
       runsHasMore: true,

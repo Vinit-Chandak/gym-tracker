@@ -76,7 +76,7 @@ function prescriptionLine(exercise: ExerciseVM): string | null {
   const p = exercise.planned;
   if (!p) return null;
   const volume = `${p.sets} × ${volumeRange(exercise)}`;
-  return `${volume}${p.perSide ? " per side" : ""} @ ${rangeLabel(p.rirMin, p.rirMax)} RIR · rest ${restLabel(p.restMinSeconds, p.restMaxSeconds)}`;
+  return `${volume}${p.perSide ? " per side" : ""}${p.prescriptionType === "reps" ? ` @ ${rangeLabel(p.rirMin, p.rirMax)} RIR` : " · report RPE"} · rest ${restLabel(p.restMinSeconds, p.restMaxSeconds)}`;
 }
 
 /** The machine, or what stands in for one. The gym itself is session context, not row chrome. */
@@ -486,7 +486,7 @@ export function ExerciseLogger({
                           : measure === "distance"
                             ? `${row.distance || "—"} m`
                             : `${row.reps || "—"} reps`}{" "}
-                        · RIR {row.rir || "—"}
+                        · {measure === "reps" ? `RIR ${row.rir || "—"}` : `RPE ${row.rpe || "—"}`}
                       </p>
                       <Button variant="ghost" size="sm" onClick={() => sets.restore(row)}>
                         Discard this local draft
@@ -593,7 +593,8 @@ export function ExerciseLogger({
             </p>
             {exercise.regressionStreak >= REGRESSION_WARNING_STREAK && (
               <p className="text-warning">
-                Down {exercise.regressionStreak} sessions in a row. Repeat the load before adding.
+                Repeated comparable decline. Keep the baseline pending coach review and reassess
+                current recovery.
               </p>
             )}
             {exercise.suggestion && (

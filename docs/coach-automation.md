@@ -1,6 +1,6 @@
 # The AI house coach
 
-The coaching workflow creates a personal programme, prepares the next pending session, and reviews the programme on a day the athlete rested — about once a week. New programmes are drafts the athlete reviews and starts. Weekly prescription and substitution changes can apply to future training automatically; split, schedule and replacement-block changes need athlete approval. Starting any workout freezes it.
+The coaching workflow creates a personal programme, prepares the next pending session, and reviews the programme on a day the athlete rested — about once a week. New programmes are drafts the athlete reviews and starts. Only evidence-supported weekly changes within individual and cumulative limits can apply automatically; larger, unsupported and structural changes need athlete review. Starting any workout freezes it. See [policy v2](planning/AI_COACH_POLICY_V2.md) for the accepted algorithm, effort requirements, memory format and rollout order.
 
 The accepted runtime is the owner's Claude Code cloud routine, with one daily schedule at **04:00 Asia/Kolkata** and an API trigger for explicit requests. Keep the configured subscription/model; this application does not call a separately billed model API. Routine sessions use the owner's allowance and account. Verify actual limits in that account before enabling the release. [Claude routines documentation](https://code.claude.com/docs/en/routines).
 

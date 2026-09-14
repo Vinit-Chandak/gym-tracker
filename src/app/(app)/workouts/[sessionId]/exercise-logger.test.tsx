@@ -39,6 +39,7 @@ const saved: SetVM = {
   weight: 60,
   reps: 5,
   rir: 2,
+  effortReported: true,
   durationSeconds: null,
   distanceMeters: null,
   unit: "kg",
@@ -223,6 +224,7 @@ it("preserves decimal metres in the grid and the set options", async () => {
 
 it("converts a restored draft after a preference change and submits its displayed unit", async () => {
   writeDraft(localStorage, context, {
+    effortVersion: 2,
     unit: "kg",
     setIndex: 1,
     setType: "working",
@@ -313,6 +315,7 @@ it("shows the next row immediately while a request is still in flight", async ()
   );
   renderLogger();
   fireEvent.change(screen.getByRole("textbox", { name: "Set 1 reps" }), { target: { value: "5" } });
+  fireEvent.change(screen.getByRole("textbox", { name: "Set 1 RIR" }), { target: { value: "2" } });
   fireEvent.click(screen.getByRole("button", { name: "Save set 1" }));
   expect(screen.getByRole("button", { name: "Set 2 options" })).toBeTruthy();
   expect(screen.queryByText("Set 1 saved")).toBeNull();
@@ -344,6 +347,7 @@ it("keeps each set's values to itself when a sibling row is edited", async () =>
     target: { value: "60" },
   });
   fireEvent.change(screen.getByRole("textbox", { name: "Set 1 reps" }), { target: { value: "5" } });
+  fireEvent.change(screen.getByRole("textbox", { name: "Set 1 RIR" }), { target: { value: "2" } });
   fireEvent.click(screen.getByRole("button", { name: "Save set 1" }));
   await screen.findByText("Set 1 saved");
 
@@ -359,7 +363,7 @@ it("keeps each set's values to itself when a sibling row is edited", async () =>
   expect(screen.getByText("Set 1 saved")).toBeTruthy();
 });
 
-it("saves a cleared optional value as unknown instead of restoring its suggestion", async () => {
+it("requires reported RIR after clearing it and never restores the target as actual effort", async () => {
   actions.log.mockResolvedValue({ ok: true, set: { ...saved, rir: null } });
   renderLogger({
     exercise: {
@@ -385,18 +389,17 @@ it("saves a cleared optional value as unknown instead of restoring its suggestio
   });
 
   const rir = screen.getByRole("textbox", { name: "Set 1 RIR" }) as HTMLInputElement;
-  // The suggestion is offered, unconfirmed, as the row's placeholder.
-  expect(rir.placeholder).toBe("2");
+  expect(rir.placeholder).toBe("");
   // Typing then clearing is a decision, not silence: it must not come back as the target.
   fireEvent.change(rir, { target: { value: "3" } });
   fireEvent.change(rir, { target: { value: "" } });
   fireEvent.click(screen.getByRole("button", { name: "Save set 1" }));
 
-  await waitFor(() => expect(actions.log).toHaveBeenCalledTimes(1));
-  expect(actions.log.mock.calls[0]?.[0]).toMatchObject({ setIndex: 1, rir: null, reps: 5 });
+  await screen.findByText(/Enter RIR/);
+  expect(actions.log).not.toHaveBeenCalled();
 });
 
-it("takes an untouched row's suggestion, so a blank set still records the target", async () => {
+it("accepts load and reps targets only after the athlete supplies actual effort", async () => {
   actions.log.mockResolvedValue({ ok: true, set: saved });
   renderLogger({
     exercise: {
@@ -421,6 +424,72 @@ it("takes an untouched row's suggestion, so a blank set still records the target
     },
   });
   fireEvent.click(screen.getByRole("button", { name: "Save set 1" }));
+  await screen.findByText(/Enter RIR/);
+  expect(actions.log).not.toHaveBeenCalled();
+  fireEvent.change(screen.getByRole("textbox", { name: "Set 1 RIR" }), { target: { value: "3" } });
+  fireEvent.click(screen.getByRole("button", { name: "Retry saving set 1" }));
   await waitFor(() => expect(actions.log).toHaveBeenCalledTimes(1));
-  expect(actions.log.mock.calls[0]?.[0]).toMatchObject({ weight: 60, reps: 5, rir: 2 });
+  expect(actions.log.mock.calls[0]?.[0]).toMatchObject({ weight: 60, reps: 5, rir: 3 });
+});
+
+it("uses mandatory RPE for a carry and persists that reported effort", async () => {
+  actions.log.mockResolvedValue({
+    ok: true,
+    set: { ...saved, reps: null, rir: null, rpe: 7, distanceMeters: 25 },
+  });
+  renderLogger({
+    exercise: { exercise: { ...exercise.exercise, defaultPrescriptionType: "distance" } },
+  });
+  expect(screen.queryByRole("textbox", { name: "Set 1 RIR" })).toBeNull();
+  fireEvent.change(screen.getByRole("textbox", { name: "Set 1 metres" }), {
+    target: { value: "25" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Save set 1" }));
+  await screen.findByText(/Enter effort/);
+  expect(actions.log).not.toHaveBeenCalled();
+  fireEvent.change(screen.getByRole("textbox", { name: "Set 1 RPE" }), { target: { value: "7" } });
+  fireEvent.click(screen.getByRole("button", { name: "Retry saving set 1" }));
+  await waitFor(() =>
+    expect(actions.log).toHaveBeenCalledWith(
+      expect.objectContaining({ rir: null, rpe: 7, distanceMeters: 25 }),
+    ),
+  );
+});
+
+it("preserves an older draft but requires its possibly copied effort to be re-entered", async () => {
+  writeDraft(localStorage, context, {
+    setIndex: 1,
+    setType: "working",
+    weight: "60",
+    reps: "5",
+    rir: "2",
+    duration: "",
+    distance: "",
+    touched: ["weight", "reps", "rir"],
+    baseCompletedAt: null,
+  });
+  actions.log.mockResolvedValue({ ok: true, set: { ...saved, rir: 3 } });
+  renderLogger();
+  await screen.findByText("Unsaved draft restored. Review and retry saving.");
+  fireEvent.click(screen.getByRole("button", { name: "Retry saving set 1" }));
+  await screen.findByText(/Review and re-enter actual RIR/);
+  expect(actions.log).not.toHaveBeenCalled();
+  expect(localStorage.getItem(draftKey(context))).toContain('"weight":"60"');
+  fireEvent.change(screen.getByRole("textbox", { name: "Set 1 RIR" }), { target: { value: "3" } });
+  fireEvent.click(screen.getByRole("button", { name: "Retry saving set 1" }));
+  await waitFor(() =>
+    expect(actions.log).toHaveBeenCalledWith(
+      expect.objectContaining({ weight: 60, rir: 3, effortInputVersion: 2 }),
+    ),
+  );
+});
+
+it("does not confirm an older saved effort rating when only the load is edited", async () => {
+  renderLogger({ exercise: { sets: [{ ...saved, effortReported: false }] } });
+  fireEvent.change(screen.getByRole("textbox", { name: "Set 1 load, kg" }), {
+    target: { value: "62.5" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Update set 1" }));
+  await screen.findByText(/Review and re-enter actual RIR/);
+  expect(actions.log).not.toHaveBeenCalled();
 });

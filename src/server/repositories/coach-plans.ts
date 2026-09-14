@@ -31,7 +31,6 @@ import {
 } from "@/domain/coach-review";
 import { resolveExerciseAtGym } from "@/domain/equipment-resolution";
 import type { ProgramPatch } from "@/domain/program-patch";
-import { performanceScore } from "@/domain/progression";
 import { addDays, todayInTimeZone } from "@/domain/program-calendar";
 import { shinEscalations, volumeSpike } from "@/domain/running";
 import {
@@ -43,6 +42,7 @@ import {
   type SlotRef,
 } from "@/domain/schedule";
 import { assertNoOpenWorkout } from "./coaching-state";
+import { readCoachMemory } from "./coach-memory";
 import {
   coachPlanSchema,
   PLAN_LIMITS,
@@ -68,6 +68,7 @@ import { resolvePlannedDay } from "./availability";
 import { getGym, listGyms } from "./gyms";
 import { getRunTarget, getSchedule, type Schedule, type ScheduleDay } from "./schedule";
 import { applyRule } from "./progression-rule";
+import { readCoachingChanges } from "./coaching-changes";
 import { readRecovery, readWorkouts } from "./training-data";
 import { readWeeklyTrainingVolume } from "./training-volume";
 
@@ -92,7 +93,7 @@ import { REQUEST_TIMEOUT_MINUTES } from "@/domain/coach-request";
 export const REQUEST_TIMEOUT_MESSAGE =
   "The coach did not return a plan before this request timed out. Please try again later.";
 /** How far back the coach looks for recent training. */
-const RECENT_DAYS = 14;
+const RECENT_DAYS = 7;
 /**
  * How many comparable performances each slot carries. Enough to see a block's trend rather
  * than only the last session, which is what a decision to hold or deload rests on.
@@ -167,15 +168,13 @@ export function nextTrainingSlot(schedule: Schedule): NextTrainingSlot | null {
 }
 
 /**
- * The gym a plan is made for when the athlete names none: their default real gym, then any
- * real gym, and finally any active location at all, which is what a running day needs when
- * the only place on the account is Outdoor.
+ * The location a plan is made for when the athlete names none: their active default,
+ * including home or outdoor, then a gym or another active location if no default is set.
  */
 export async function planningGym(db: DbOrTx, userId: string) {
   const active = (await listGyms(db, userId)).filter((g) => g.isActive);
-  const real = active.filter((g) => g.kind === "gym");
   return (
-    real.find((g) => g.isDefault) ?? real[0] ?? active.find((g) => g.isDefault) ?? active[0] ?? null
+    active.find((g) => g.isDefault) ?? active.find((g) => g.kind === "gym") ?? active[0] ?? null
   );
 }
 
@@ -243,7 +242,15 @@ export async function listDueUsers(db: Db): Promise<DueUser[]> {
 function setLine(set: ComparablePerformance["sets"][number]): string {
   const base = formatSet(set);
   const type = set.setType === "working" ? "" : ` ${set.setType}`;
-  return set.rir === null ? `${base}${type}` : `${base} @${set.rir} RIR${type}`;
+  const effort =
+    set.reps !== null
+      ? set.rir === null
+        ? ""
+        : ` @${set.rir} RIR`
+      : set.rpe == null
+        ? ""
+        : ` @${set.rpe} RPE`;
+  return `${base}${effort}${effort && set.effortReported === false ? " (unconfirmed legacy effort)" : ""}${type}`;
 }
 
 function performanceSummary(p: ComparablePerformance) {
@@ -256,16 +263,7 @@ function performanceSummary(p: ComparablePerformance) {
 }
 
 export async function getCoachMemo(db: DbOrTx, userId: string) {
-  const [row] = await db
-    .select({
-      overview: coachMemos.overview,
-      userNotes: coachMemos.userNotes,
-      overviewUpdatedAt: coachMemos.overviewUpdatedAt,
-    })
-    .from(coachMemos)
-    .where(eq(coachMemos.userId, userId))
-    .limit(1);
-  return row ?? { overview: "", userNotes: "", overviewUpdatedAt: null };
+  return readCoachMemory(db, userId);
 }
 
 export async function saveCoachNotes(db: DbOrTx, userId: string, userNotes: string): Promise<void> {
@@ -527,15 +525,17 @@ export async function planningContext(
   const gym = options.gymId
     ? await getGym(db, userId, options.gymId)
     : await planningGym(db, userId);
-  // A day that lifts needs a real gym with machines; a running day can be anywhere active.
-  if (!gym || !gym.isActive || (day.includesLifting && gym.kind !== "gym"))
-    return { reason: "no_gym" as const };
+  // Home and outdoor lifting use the same slot identities and equipment resolution.
+  // Availability is decided per exercise; the location kind does not rule out lifting.
+  if (!gym || !gym.isActive) return { reason: "no_gym" as const };
   const snapshot = new Date();
   const today = todayInTimeZone(profile.timeZone, snapshot);
   const recentRange = parseDateRange(
     { from: addDays(today, -RECENT_DAYS), to: today },
     profile.timeZone,
   );
+  recentRange.start = new Date(snapshot.getTime() - RECENT_DAYS * 86_400_000);
+  recentRange.end = snapshot;
 
   const [
     resolved,
@@ -551,6 +551,7 @@ export async function planningContext(
     library,
     lastPlans,
     trainingVolume,
+    coachingChanges,
   ] = await Promise.all([
     day.includesLifting
       ? resolvePlannedDay(db, userId, gym.id, day.id, {
@@ -571,6 +572,8 @@ export async function planningContext(
         name: equipmentInstances.name,
         type: equipmentTypes.name,
         typeSlug: equipmentTypes.slug,
+        availableLoads: equipmentInstances.availableLoads,
+        loadConvention: equipmentInstances.loadConvention,
         unit: equipmentInstances.unit,
         loadIncrement: equipmentInstances.loadIncrement,
         notes: equipmentInstances.notes,
@@ -617,6 +620,7 @@ export async function planningContext(
     libraryAtGym(db, userId, gym.id),
     recentPlanOutcomes(db, userId, PLAN_REVIEW_DEPTH),
     readWeeklyTrainingVolume(db, userId, profile.timeZone, snapshot, 4),
+    readCoachingChanges(db, userId, snapshot),
   ]);
   if (!resolved) return { reason: "no_gym" as const };
 
@@ -658,6 +662,11 @@ export async function planningContext(
     const history = histories[index]?.history ?? [];
     const rule = plannedRow
       ? applyRule({
+          asOf: snapshot,
+          changes: coachingChanges,
+          exerciseSlug: resolvedExercise?.slug ?? plannedRow.exercise.slug,
+          locationKind: gym.kind,
+          timeZone: profile.timeZone,
           planned: plannedRow.prescription,
           exercise: {
             loadPortability: plannedRow.exercise.loadPortability,
@@ -672,7 +681,13 @@ export async function planningContext(
             defaultRir: plannedRow.exercise.defaultRir,
           },
           equipment: machine
-            ? { id: machine.id, unit: machine.unit, loadIncrement: machine.loadIncrement }
+            ? {
+                id: machine.id,
+                unit: machine.unit,
+                loadIncrement: machine.loadIncrement,
+                availableLoads: machine.availableLoads,
+                loadConvention: machine.loadConvention,
+              }
             : null,
           preferredUnit: profile.preferredUnit === "lb" ? "lb" : "kg",
           slotLineageId: plannedRow.prescription.lineageId,
@@ -729,9 +744,6 @@ export async function planningContext(
       history: history.map((h) => ({
         ...performanceSummary(h),
         sameSlot: h.plannedSlotLineageId === plannedRow?.prescription.lineageId,
-        // One number per session, comparable within this slot: estimated 1RM where the sets
-        // allow one, else total reps, else seconds. A trend, rather than three loose sessions.
-        score: Math.round(performanceScore(h.sets) * 10) / 10,
       })),
       startingGuess: histories[index]?.elsewhere
         ? performanceSummary(histories[index]!.elsewhere!)
@@ -747,6 +759,8 @@ export async function planningContext(
               reps: s.reps,
               durationSeconds: s.durationSeconds,
               rir: s.rir,
+              rpe: s.rpe ?? null,
+              distanceMeters: s.distanceMeters,
             })),
           }
         : null,
@@ -834,6 +848,7 @@ export async function planningContext(
       cycleIndex: slot.cycleIndex,
       dayIndex: slot.dayIndex,
       programDayId: day.id,
+      dayOfWeek: day.dayOfWeek,
       name: day.name,
       focus: day.focus,
       timeNote: day.timeNote,
@@ -848,6 +863,7 @@ export async function planningContext(
     },
     gym: {
       id: gym.id,
+      kind: gym.kind,
       name: gym.name,
       /**
        * Whether this is the gym the athlete trains at by default. A plan asked for at another
@@ -860,6 +876,8 @@ export async function planningContext(
         name: m.name,
         type: m.type,
         unit: m.unit,
+        availableLoads: m.availableLoads,
+        loadConvention: m.loadConvention,
         loadIncrement: m.loadIncrement,
         notes: m.notes,
       })),

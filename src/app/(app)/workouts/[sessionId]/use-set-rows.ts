@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 
 import type { LoadUnit, PrescriptionType, SetType } from "@/domain/types";
+import { EFFORT_INPUT_VERSION, effortError } from "@/domain/effort";
 import { canConvertLoad, convertLoad, setInUnit } from "@/lib/units";
 import {
   draftMatchesSet,
@@ -35,6 +36,8 @@ export type RowState = {
   weight: string;
   reps: string;
   rir: string;
+  rpe: string;
+  effortVersion?: typeof EFFORT_INPUT_VERSION;
   duration: string;
   /** Metres, for exercises measured by ground covered rather than by reps. */
   distance: string;
@@ -60,6 +63,8 @@ function rowFromSet(set: SetVM): RowState {
     weight: str(set.weight) ?? "",
     reps: str(set.reps) ?? "",
     rir: str(set.rir) ?? "",
+    rpe: str(set.rpe) ?? "",
+    effortVersion: set.effortReported === true ? EFFORT_INPUT_VERSION : undefined,
     duration: str(set.durationSeconds) ?? "",
     distance: str(set.distanceMeters) ?? "",
     // A recorded set is the truth about itself. Editing one must never let a suggestion
@@ -79,6 +84,7 @@ function emptyRow(setIndex: number): RowState {
     weight: "",
     reps: "",
     rir: "",
+    rpe: "",
     duration: "",
     distance: "",
     touched: new Set(),
@@ -227,6 +233,8 @@ export function useSetRows({ exercise, userId, sessionId, measure, unit, onLogge
           byIndex.set(draft.setIndex, {
             ...row,
             ...draft,
+            rpe: draft.rpe ?? "",
+            effortVersion: draft.effortVersion,
             weight,
             unit: convertible ? unit : from,
             touched: touchedFields(draft),
@@ -258,6 +266,8 @@ export function useSetRows({ exercise, userId, sessionId, measure, unit, onLogge
           weight: row.weight,
           reps: row.reps,
           rir: row.rir,
+          rpe: row.rpe,
+          effortVersion: row.effortVersion,
           duration: row.duration,
           distance: row.distance,
           touched: [...row.touched],
@@ -281,7 +291,13 @@ export function useSetRows({ exercise, userId, sessionId, measure, unit, onLogge
   /** Edits one row. Values go to that row's draft; no sibling row is read or written. */
   const editRow = (row: RowState, patch: Partial<RowState>, touch?: DraftValueField) => {
     const touched = touch ? new Set(row.touched).add(touch) : row.touched;
-    const next = { ...row, ...patch, touched, dirty: true };
+    const next = {
+      ...row,
+      ...patch,
+      touched,
+      effortVersion: touch === "rir" || touch === "rpe" ? EFFORT_INPUT_VERSION : row.effortVersion,
+      dirty: true,
+    };
     remember(next);
     update(row.setIndex, next);
   };
@@ -299,9 +315,29 @@ export function useSetRows({ exercise, userId, sessionId, measure, unit, onLogge
     const reps = measure === "reps" ? resolve(row, "reps", ghost) : null;
     const duration = measure === "duration" ? resolve(row, "duration", ghost) : null;
     const distance = measure === "distance" ? resolve(row, "distance", ghost) : null;
-    const rir = resolve(row, "rir", ghost);
+    // Effort must be entered for this set, never copied from the planned or previous effort.
+    const rir = measure === "reps" ? resolve(row, "rir", {}) : null;
+    const rpe = measure !== "reps" ? resolve(row, "rpe", {}) : null;
     if (reps === null && duration === null && distance === null) {
       update(row.setIndex, { error: MISSING_VALUE[measure] });
+      return;
+    }
+    const effortIssue = effortError({
+      setType: row.setType,
+      reps,
+      durationSeconds: duration,
+      distanceMeters: distance,
+      rir,
+      rpe,
+    });
+    if (effortIssue) {
+      update(row.setIndex, { error: effortIssue });
+      return;
+    }
+    if (row.setType !== "warmup" && row.effortVersion !== EFFORT_INPUT_VERSION) {
+      update(row.setIndex, {
+        error: `Review and re-enter actual ${measure === "reps" ? "RIR" : "RPE"} before saving this older entry.`,
+      });
       return;
     }
     // The request carries a snapshot, not a live reference: an edit made while it is in
@@ -312,6 +348,7 @@ export function useSetRows({ exercise, userId, sessionId, measure, unit, onLogge
       weight: str(weight) ?? "",
       reps: str(reps === null ? null : Math.round(reps)) ?? "",
       rir: str(rir) ?? "",
+      rpe: str(rpe) ?? "",
       duration: str(duration === null ? null : Math.round(duration)) ?? "",
       distance: str(distance) ?? "",
       touched: new Set(DRAFT_VALUE_FIELDS),
@@ -330,6 +367,7 @@ export function useSetRows({ exercise, userId, sessionId, measure, unit, onLogge
     startTransition(async () => {
       const result = await safeAction(() =>
         logSetAction({
+          effortInputVersion: EFFORT_INPUT_VERSION,
           unit: submitted.unit,
           workoutExerciseId: exercise.id,
           expectedCompletedAt: row.logged?.completedAt ?? null,
@@ -340,6 +378,7 @@ export function useSetRows({ exercise, userId, sessionId, measure, unit, onLogge
           weight,
           reps: reps === null ? null : Math.round(reps),
           rir,
+          rpe,
           durationSeconds: duration === null ? null : Math.round(duration),
           distanceMeters: distance,
         }),

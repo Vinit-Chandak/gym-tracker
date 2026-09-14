@@ -65,7 +65,7 @@ export function DraftPreview({
     [needsCheck, setNeedsCheck] = useState(stale || draft.status === "editing"),
     [startDate, setStartDate] = useState(today),
     [transition, setTransition] = useState<"continue" | "new_block">(
-      assessment?.authority === "automatic" ? "continue" : "new_block",
+      assessment && assessment.structuralChanges.length === 0 ? "continue" : "new_block",
     ),
     [busy, setBusy] = useState(false),
     [error, setError] = useState<string | null>(null);
@@ -120,12 +120,19 @@ export function DraftPreview({
         <Card>
           <h2 className="font-medium">What changes</h2>
           <p className="text-sm">
-            {assessment.authority === "review_required"
+            {assessment.structuralChanges.length > 0
               ? "This changes the programme structure. Starting it will begin a new block; your logged workouts remain in history."
-              : assessment.authority === "unchanged"
-                ? "The programme structure and targets are unchanged."
-                : "Exercise choices or targets change. You can keep your current position in the block."}
+              : assessment.authority === "review_required"
+                ? "These target changes need your review. You can approve them while keeping your current position in the block."
+                : assessment.authority === "unchanged"
+                  ? "The programme structure and targets are unchanged."
+                  : "Exercise choices or targets change. You can keep your current position in the block."}
           </p>
+          {assessment.doseChanges.map((reason) => (
+            <p key={reason} className="text-sm text-ink-muted">
+              {reason}
+            </p>
+          ))}
           {assessment.muscleCoverage
             // A day with no lifting on either side of the change says nothing; a list of
             // them is noise between the days that did change.
@@ -202,8 +209,11 @@ export function DraftPreview({
                 <p className="text-sm text-ink-muted">
                   {e.sets} × {span(e.reps ?? e.duration ?? e.distance)}
                   {e.duration ? " seconds" : e.distance ? " metres" : " reps"}
-                  {e.perSide ? " per side" : ""} · RIR {e.rir ? span(e.rir) : "unspecified"} · Rest{" "}
-                  {span(e.rest)} s
+                  {e.perSide ? " per side" : ""}
+                  {e.duration || e.distance
+                    ? " · report RPE"
+                    : ` · RIR ${e.rir ? span(e.rir) : "unspecified"}`}{" "}
+                  · Rest {span(e.rest)} s
                 </p>
                 {e.supersetGroup && (
                   <p className="text-xs text-accent">Superset: {e.supersetGroup}</p>
@@ -302,7 +312,7 @@ export function DraftPreview({
               </Button>
             </>
           )}
-          {assessment && assessment.authority !== "review_required" && (
+          {assessment && assessment.structuralChanges.length === 0 && (
             <fieldset>
               <legend className="text-sm text-ink-muted">How should this take effect?</legend>
               {[

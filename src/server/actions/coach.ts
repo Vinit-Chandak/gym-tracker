@@ -9,6 +9,8 @@ import { dispatchCoachJob } from "@/server/dispatch-coach-job";
 import { requestGymChange } from "@/server/repositories/coaching-jobs";
 import { confirmIntake, latestIntake, setTrainingMode } from "@/server/repositories/coach-intakes";
 import { CoachingError } from "@/server/repositories/coaching-state";
+import { updateCoachMemory } from "@/server/repositories/coach-memory";
+import { memoryItemSchema } from "@/domain/coach-memory";
 
 import { getDb } from "@/db/client";
 import { profiles } from "@/db/schema";
@@ -39,6 +41,50 @@ import {
 import { formValues, parseForm, type FormState } from "@/server/validation/form";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
+
+/** Athlete edits are confirmed input and cannot subsequently be overwritten by the coach. */
+export async function saveMemoryItemAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const user = await requireUser();
+  const revision = Number(formData.get("memoryRevision"));
+  const id = String(formData.get("itemId") || crypto.randomUUID());
+  const remove = formData.get("operation") === "remove";
+  try {
+    const item = remove
+      ? null
+      : memoryItemSchema.parse({
+          id,
+          category: formData.get("category"),
+          text: formData.get("text"),
+          status: "confirmed",
+          sourceIds: [],
+          reviewAfter: null,
+        });
+    await withUser(getDb(), user.id, (tx) =>
+      updateCoachMemory(
+        tx,
+        user.id,
+        {
+          expectedRevision: revision,
+          upsert: item ? [item] : [],
+          removeIds: remove ? [id] : [],
+        },
+        "athlete",
+      ),
+    );
+  } catch (error) {
+    return {
+      formError:
+        error instanceof CoachingError ? error.message : "Check the memo text and try again.",
+      values: formValues(formData),
+    };
+  }
+  revalidatePath("/settings/ai-coach");
+  revalidatePath("/today");
+  return {};
+}
 
 /**
  * A refusal the athlete can do something about, and which is therefore safe to show them.
@@ -150,8 +196,8 @@ export async function requestCoachPlanAction(gymId: string, reason: string): Pro
       ]);
       if (!profile.aiCoachEnabled)
         throw new CoachRequestRefused("The AI coach is switched off in Settings.");
-      if (!gym || !gym.isActive || gym.kind !== "gym")
-        throw new CoachRequestRefused("Choose one of your gyms.");
+      if (!gym || !gym.isActive)
+        throw new CoachRequestRefused("Choose one of your active training locations.");
       return createCoachRequest(tx, user.id, {
         gymId: gym.id,
         reason: parsed.data.reason,

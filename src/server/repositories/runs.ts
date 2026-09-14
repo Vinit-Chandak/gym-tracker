@@ -100,7 +100,7 @@ export async function createRun(
   await assertPlannedRun(db, userId, input.programRunId);
   const [row] = await db
     .insert(runs)
-    .values({ userId, ...input })
+    .values({ userId, ...input, effortReported: input.rpe !== null })
     .returning({ id: runs.id });
   if (!row) throw new Error("Run insert returned no row");
   return row;
@@ -115,7 +115,7 @@ export async function updateRun(
   await assertPlannedRun(db, userId, input.programRunId);
   const updated = await db
     .update(runs)
-    .set({ ...input, updatedAt: new Date() })
+    .set({ ...input, effortReported: input.rpe !== null, updatedAt: new Date() })
     .where(and(eq(runs.id, runId), eq(runs.userId, userId)))
     .returning({ id: runs.id });
   if (updated.length === 0) throw new RunNotFoundError();

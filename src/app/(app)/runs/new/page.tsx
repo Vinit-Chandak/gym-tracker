@@ -71,7 +71,7 @@ export default async function NewRunPage(props: PageProps<"/runs/new">) {
             distanceKm: coachRun?.distanceKm === null ? "" : String(coachRun?.distanceKm ?? ""),
             durationMinutes: duration === null ? "" : String(duration),
             durationSeconds: "",
-            rpe: coachRun?.rpe === null ? "" : String(coachRun?.rpe ?? ""),
+            rpe: "",
             shinLeftPre: "",
             shinRightPre: "",
             shinLeftDuring: "",
