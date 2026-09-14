@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { CoachingActivity } from "@/components/coaching/activity";
 import { PageContent } from "@/components/shell/page-content";
 import { LinkButton } from "@/components/ui/button";
 
@@ -42,9 +41,7 @@ export default async function TodayPage() {
       // The coach speaks to the day it is offering, lifting or running, and only for an
       // athlete who has switched it on.
       const coach =
-        profile.aiCoachEnabled &&
-        plan?.suggestion &&
-        (plan.suggestedDay?.includesLifting || plan.suggestedDay?.includesRun)
+        profile.aiCoachEnabled && plan?.suggestion && plan.suggestedDay?.includesLifting
           ? await (
               process.env.COACH_WORKFLOW_ENABLED === "true" ? todayWorkflowState : todayCoachState
             )(tx, user.id, {
@@ -76,7 +73,6 @@ export default async function TodayPage() {
         unit={LOAD_UNIT_LABELS[profile.preferredUnit]}
       />
       <PageContent>
-        <CoachingActivity />
         <LinkButton href="/settings/routines" variant="secondary">
           Saved routines
         </LinkButton>

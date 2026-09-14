@@ -1,8 +1,6 @@
 "use client";
 
 import { AiCoach } from "@/components/ui/icons";
-import { MemoryEditor } from "@/components/coaching/memory-editor";
-import type { MemoryItem } from "@/domain/coach-memory";
 import { useActionState, useOptimistic, useState, useTransition, type ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -36,11 +34,9 @@ type Props = {
    * nothing — the switch already reads "on", and when it plans is not the athlete's business.
    */
   status: string | null;
-  userNotes: string;
+  noteId: string;
+  notes: { id: string; text: string; when: string; reviewed: boolean }[];
   overview: string;
-  memoryItems?: MemoryItem[];
-  memoryRevision?: number;
-  memoryReviewDueIds?: string[];
   overviewUpdatedAt: string | null;
   /** What the coach has tried lately, so a night it could not plan is not simply silence. */
   attempts: CoachAttempt[];
@@ -56,11 +52,9 @@ export function AiCoachSettings({
   workflow = false,
   enabled,
   status,
-  userNotes,
+  noteId,
+  notes,
   overview,
-  memoryItems = [],
-  memoryRevision = 0,
-  memoryReviewDueIds = [],
   overviewUpdatedAt,
   attempts,
   children,
@@ -135,53 +129,64 @@ export function AiCoachSettings({
 
       <Section
         title="What the coach knows"
-        info="A short memo of preferences, repeated observations and current experiments. You can correct individual items. The coach cannot overwrite your confirmed corrections."
+        info="The coach maintains this memo from your notes and training. It keeps useful preferences, recurring trends, exercise observations and ongoing experiments, up to 3,000 words. To add or correct something, use Tell the coach below."
       >
         <Card>
           {overview ? (
             <p className="text-sm [overflow-wrap:anywhere] whitespace-pre-line">{overview}</p>
           ) : (
             <p className="text-sm text-ink-muted">
-              No memo yet. Add a preference below, or the coach can add an observation when there is
-              enough evidence.
+              No memo yet. Tell the coach something below; it will remember useful details when it
+              next reviews your training.
             </p>
           )}
           {overviewUpdatedAt && (
             <p className="text-xs text-ink-muted tabular-nums">Updated {overviewUpdatedAt}</p>
           )}
         </Card>
-        {workflow && (
-          <MemoryEditor
-            items={memoryItems}
-            revision={memoryRevision}
-            reviewDueIds={memoryReviewDueIds}
-          />
-        )}
+        <p className="text-sm text-ink-muted">
+          Your profile, goals, programme answers and training history are read separately. They do
+          not all need to appear in this memo.
+        </p>
       </Section>
 
       <Section
         title="Tell the coach"
-        info="Goals, injuries, what you like or want to avoid. The coach reads this before every plan."
+        info="Share a preference, a change, or a correction to something remembered. Each note is saved. At its next planning or review, the coach reads your notes and keeps the important, lasting details in the memo."
       >
         <Card>
-          <form action={formAction} className="space-y-4">
+          <form key={noteId} action={formAction} className="space-y-4">
+            <input type="hidden" name="noteId" value={state.values?.noteId ?? noteId} />
             <Field label="Notes for the coach">
               <Textarea
                 name="userNotes"
-                defaultValue={state.values?.userNotes ?? userNotes}
+                defaultValue={state.values?.userNotes ?? ""}
+                required
                 maxLength={PLAN_LIMITS.memo}
                 placeholder="Left knee is a bit sore on deep squats. Bench matters most to me."
               />
             </Field>
             <FormError message={state.formError} />
             <SubmitButton variant="secondary" pendingLabel="Saving…">
-              Save notes
+              Send note
             </SubmitButton>
-            <p className="sr-only" role="status">
-              {saved ? "Notes saved" : ""}
+            <p className="text-sm text-ink-muted" role="status">
+              {saved ? "Note saved. The coach will review it before its next plan." : ""}
             </p>
           </form>
         </Card>
+        {notes.length > 0 && (
+          <List>
+            {notes.map((note) => (
+              <li key={note.id} className="space-y-1 p-4">
+                <p className="text-sm [overflow-wrap:anywhere] whitespace-pre-line">{note.text}</p>
+                <p className="text-xs text-ink-muted">
+                  {note.when} · {note.reviewed ? "Reviewed by coach" : "Waiting for coach"}
+                </p>
+              </li>
+            ))}
+          </List>
+        )}
       </Section>
 
       {attempts.length > 0 && (

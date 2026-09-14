@@ -1,9 +1,8 @@
 import { ChevronRight } from "@/components/ui/icons";
 import type { ReactNode } from "react";
 
-import { CoachPlanList, coachPlanSummary, CoachRunDetails } from "@/components/coach-plan";
+import { CoachPlanList, coachPlanSummary } from "@/components/coach-plan";
 import { PlannedExerciseList, planSummary } from "@/components/planned-exercises";
-import { hasRunGuidance, RunPlanDetails, runSummary } from "@/components/run-plan";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { Wordmark } from "@/components/shell/wordmark";
@@ -14,7 +13,7 @@ import { Card } from "@/components/ui/card";
 import { Disclosure } from "@/components/ui/disclosure";
 import { InfoTip } from "@/components/ui/info-tip";
 import { ProgressBar } from "@/components/ui/progress-bar";
-import { runPlanLine } from "@/domain/session-plan";
+import { summaryForSport } from "@/domain/sport-scope";
 import type { SlotStatus } from "@/domain/schedule";
 import type { WarmupDrill } from "@/domain/types";
 import { formatDateTime, formatIsoWeekdayDay, formatTime } from "@/lib/format";
@@ -28,7 +27,6 @@ import {
   CompleteRestButton,
   DiscardSessionButton,
   MoreOptions,
-  SkipPartButton,
   StartAdHocButton,
   StartPlannedButton,
 } from "./plan-actions";
@@ -186,8 +184,6 @@ export function TodayView({
   // The coach's plan stands in for the programme's only when it was made for this gym and
   // nothing newer is on its way.
   const coachPlan = coach?.plan && coach.matchesGym && !coach.pending ? coach.plan : null;
-  // A run is planned for the day, not for a gym, so it stands whichever gym the plan named.
-  const coachRun = coach?.plan && !coach.pending ? (coach.plan.run ?? null) : null;
   const coachGyms: CoachGym[] = gyms
     .filter((gym) => coach?.workflow || gym.kind === "gym")
     .map((gym) => ({ id: gym.id, name: gym.name, isDefault: gym.id === defaultGym?.id }));
@@ -203,15 +199,8 @@ export function TodayView({
       <Badge tone="success">On track</Badge>
     );
 
-  /*
-   * The two halves of the day, each answered on its own. A workout and a run are different
-   * things that happen to fall on the same date: the workout card never mentions the run and
-   * the run card never mentions the workout, and finishing one leaves the other exactly where
-   * it was. The day is only over when both have been done or skipped.
-   */
+  // One programme, with each sport's prescription and actions in its own tab.
   const sessionStatus = plan?.sessionStatus ?? "pending";
-  const runStatus = plan?.runStatus ?? "pending";
-  const showRun = day !== null && (day.includesRun || coachRun !== null);
   const restDay = day !== null && !day.includesLifting && !day.includesRun;
   // The open session belongs to the day when it was started from it; anything else — an ad hoc
   // session, or another day started early — is its own thing and gets its own card.
@@ -289,11 +278,19 @@ export function TodayView({
                 <CardHead
                   eyebrow={position}
                   title={day.name}
-                  subtitle={coachPlan ? coachPlan.summary : daySubtitle(day)}
-                  note={
+                  subtitle={
                     coachPlan
-                      ? [daySubtitle(day), dayNote(day)].filter(Boolean).join(" · ") || null
-                      : dayNote(day)
+                      ? summaryForSport(coachPlan, "workout")
+                      : day.includesRun
+                        ? planSummary(plan.suggestedExercises)
+                        : daySubtitle(day)
+                  }
+                  note={
+                    day.includesRun
+                      ? null
+                      : coachPlan
+                        ? [daySubtitle(day), dayNote(day)].filter(Boolean).join(" · ") || null
+                        : dayNote(day)
                   }
                   badge={
                     <span className="flex shrink-0 flex-wrap justify-end gap-1">
@@ -374,86 +371,10 @@ export function TodayView({
               </Card>
             )}
 
-            {/* The run. Its own card, its own action, its own way out — and nothing on it is
-                about the workout, whatever the workout's own card says. */}
-            {showRun && (
+            {!day.includesLifting && !restDay && (
               <Card>
-                <CardHead
-                  eyebrow={day.includesLifting ? undefined : position}
-                  title="Easy run"
-                  subtitle={
-                    coachRun
-                      ? runPlanLine(coachRun)
-                      : plan.runTarget
-                        ? runSummary(plan.runTarget)
-                        : null
-                  }
-                  badge={
-                    <span className="flex shrink-0 flex-wrap justify-end gap-1">
-                      {coachRun && <Badge tone="accent">Coach</Badge>}
-                      {runStatus === "pending"
-                        ? day.includesLifting
-                          ? null
-                          : standing
-                        : TASK_BADGE[runStatus]}
-                    </span>
-                  }
-                />
-                {runStatus === "completed" ? (
-                  <>
-                    <DoneNote>Run logged.</DoneNote>
-                    {plan.loggedRunId && (
-                      <LinkButton
-                        href={`/runs/${plan.loggedRunId}`}
-                        variant="secondary"
-                        className="w-full"
-                      >
-                        See the run
-                      </LinkButton>
-                    )}
-                  </>
-                ) : runStatus === "skipped" ? (
-                  <DoneNote>Run skipped.</DoneNote>
-                ) : (
-                  <>
-                    <LinkButton
-                      href={plan.runTarget ? `/runs/new?planned=${plan.runTarget.id}` : "/runs/new"}
-                      variant={day.includesLifting ? "secondary" : "primary"}
-                      size="lg"
-                      className="w-full"
-                    >
-                      Log run
-                    </LinkButton>
-                    {day.includesRun && (
-                      <SkipPartButton
-                        dayIndex={day.dayIndex}
-                        part="run"
-                        title="Skip today's run?"
-                        label="Skip run"
-                      />
-                    )}
-                  </>
-                )}
-                {!day.includesLifting && coach && (
-                  <CoachStatus
-                    coach={coach}
-                    gymName={defaultGym?.name ?? null}
-                    gyms={gyms}
-                    timeZone={timeZone}
-                  />
-                )}
-                {coachRun ? (
-                  <Disclosure summary="How to run it" variant="footer">
-                    <CoachRunDetails run={coachRun} programme={plan.runTarget} />
-                  </Disclosure>
-                ) : (
-                  plan.runTarget &&
-                  hasRunGuidance(plan.runTarget) && (
-                    <Disclosure summary="How to run it" variant="footer">
-                      <RunPlanDetails run={plan.runTarget} />
-                    </Disclosure>
-                  )
-                )}
+                <h2 className="text-lg font-medium">No workout planned for this day</h2>
+                <StartAdHocButton gymId={defaultGym?.id ?? null} />
               </Card>
             )}
 

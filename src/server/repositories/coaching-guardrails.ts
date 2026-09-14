@@ -1,5 +1,10 @@
 import { and, desc, eq, isNotNull } from "drizzle-orm";
-import { coachIntakes, equipmentInstances, type CoachingChangeRecord } from "@/db/schema";
+import {
+  coachIntakes,
+  coachNotes,
+  equipmentInstances,
+  type CoachingChangeRecord,
+} from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import type { CoachJobResult, JobTarget } from "@/domain/coaching-workflow";
 import type { ProgramBlueprint } from "@/domain/program-blueprint";
@@ -252,7 +257,29 @@ export async function assessSessionEvidence(
       intake.confirmedAt && intake.answers.restrictions.trim() && cited.has(`intake:${intake.id}`),
   );
   const temporary = result.adjustment === "temporary";
-  if (temporary && !restrictionSource && !evidence.acuteEvidenceIds.some((id) => cited.has(id)))
+  const noteId = result.reportedConstraint?.sourceId.startsWith("note:")
+    ? result.reportedConstraint.sourceId.slice(5)
+    : null;
+  const [constraintNote] = noteId
+    ? await db
+        .select()
+        .from(coachNotes)
+        .where(and(eq(coachNotes.userId, userId), eq(coachNotes.id, noteId)))
+    : [];
+  const evidenceTime = new Date(evidence.end).getTime();
+  const noteSource =
+    constraintNote &&
+    result.reportedConstraint &&
+    cited.has(result.reportedConstraint.sourceId) &&
+    constraintNote.text.includes(result.reportedConstraint.text) &&
+    constraintNote.createdAt.getTime() >= evidenceTime - 3 * 86_400_000 &&
+    constraintNote.createdAt.getTime() <= evidenceTime;
+  if (
+    temporary &&
+    !restrictionSource &&
+    !noteSource &&
+    !evidence.acuteEvidenceIds.some((id) => cited.has(id))
+  )
     fail(
       "A temporary reduction needs a cited current recovery/symptom report or confirmed restriction. Otherwise retain the baseline or ask for input.",
     );

@@ -1,9 +1,10 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import {
   coachAttachments,
   coachIntakes,
   coachJobs,
   coachMemos,
+  coachNotes,
   dailyRecovery,
   runs,
   workoutExercises,
@@ -15,6 +16,8 @@ import {
   memoryOverview,
   memoryPatchSchema,
   mergeMemory,
+  validateMemoryQuote,
+  type AthleteSource,
   type MemoryItem,
 } from "@/domain/coach-memory";
 import { CoachingError } from "./coaching-state";
@@ -33,6 +36,7 @@ export async function existingEvidenceIds(db: DbOrTx, userId: string, input: rea
     ["attachment", coachAttachments],
     ["intake", coachIntakes],
     ["job", coachJobs],
+    ["note", coachNotes],
   ] as const;
   const records = await Promise.all(
     groups.map(async ([prefix, table]) => {
@@ -48,6 +52,58 @@ export async function existingEvidenceIds(db: DbOrTx, userId: string, input: rea
   return new Set(records.flat());
 }
 
+/** Only direct athlete text can support a reported preference or correction. */
+async function athleteMemorySources(db: DbOrTx, userId: string, ids: readonly string[]) {
+  const sources = new Map<string, AthleteSource>();
+  const noteIds = ids.filter((id) => id.startsWith("note:")).map((id) => id.slice(5));
+  const intakeIds = ids.filter((id) => id.startsWith("intake:")).map((id) => id.slice(7));
+  if (noteIds.length) {
+    const notes = await db
+      .select()
+      .from(coachNotes)
+      .where(and(eq(coachNotes.userId, userId), inArray(coachNotes.id, noteIds)));
+    for (const note of notes)
+      sources.set(`note:${note.id}`, { text: note.text, createdAt: note.createdAt.toISOString() });
+  }
+  if (intakeIds.length) {
+    const intakes = await db
+      .select()
+      .from(coachIntakes)
+      .where(and(eq(coachIntakes.userId, userId), inArray(coachIntakes.id, intakeIds)));
+    const textValues = (value: unknown): string[] =>
+      typeof value === "string"
+        ? [value]
+        : value && typeof value === "object"
+          ? Object.values(value).flatMap(textValues)
+          : [];
+    for (const intake of intakes)
+      if (intake.confirmedAt)
+        sources.set(`intake:${intake.id}`, {
+          text: textValues(intake.answers).join("\n"),
+          createdAt: intake.confirmedAt.toISOString(),
+        });
+  }
+  return sources;
+}
+
+export async function readCoachNotes(db: DbOrTx, userId: string) {
+  const [pending, recent] = await Promise.all([
+    db
+      .select()
+      .from(coachNotes)
+      .where(and(eq(coachNotes.userId, userId), isNull(coachNotes.reviewedAt)))
+      .orderBy(asc(coachNotes.createdAt), asc(coachNotes.id))
+      .limit(51),
+    db
+      .select()
+      .from(coachNotes)
+      .where(eq(coachNotes.userId, userId))
+      .orderBy(desc(coachNotes.createdAt), desc(coachNotes.id))
+      .limit(10),
+  ]);
+  return { pending: pending.slice(0, 50), hasMorePending: pending.length > 50, recent };
+}
+
 export async function readCoachMemory(db: DbOrTx, userId: string, now = new Date()) {
   const [row] = await db.select().from(coachMemos).where(eq(coachMemos.userId, userId)).limit(1);
   const items = row?.items ?? [];
@@ -57,17 +113,33 @@ export async function readCoachMemory(db: DbOrTx, userId: string, now = new Date
     items.flatMap((item) => item.sourceIds),
   );
   const today = now.toISOString().slice(0, 10);
-  const active = items.filter(
-    (item) =>
-      item.origin === "athlete" ||
-      (item.sourceIds.length > 0 &&
-        item.sourceIds.every((id) => valid.has(id)) &&
-        (!item.reviewAfter || item.reviewAfter > today)),
+  const athleteSources = await athleteMemorySources(
+    db,
+    userId,
+    items.flatMap((item) => item.sourceIds),
   );
+  const active = items.filter((item) => {
+    if (item.origin === "athlete") return true;
+    if (
+      !item.sourceIds.length ||
+      item.sourceIds.some((id) => !valid.has(id)) ||
+      (item.reviewAfter && item.reviewAfter <= today)
+    )
+      return false;
+    if (item.status !== "reported") return true;
+    if (!item.sourceQuote) return false;
+    try {
+      validateMemoryQuote(item.sourceQuote, athleteSources);
+      return true;
+    } catch {
+      return false;
+    }
+  });
   return {
     overview: items.length ? memoryOverview(active) : (row?.overview ?? ""),
     legacyOverview: items.length ? "" : (row?.overview ?? ""),
     userNotes: row?.userNotes ?? "",
+    notes: await readCoachNotes(db, userId),
     overviewUpdatedAt: row?.overviewUpdatedAt ?? null,
     items: active,
     reviewDueItems: items.filter((item) => !active.includes(item)),
@@ -97,9 +169,17 @@ export async function updateCoachMemory(
     userId,
     patch.upsert.flatMap((item) => item.sourceIds),
   );
+  const athleteSources = await athleteMemorySources(db, userId, [
+    ...row.items.flatMap((item) => item.sourceIds),
+    ...patch.upsert.flatMap((item) => item.sourceIds),
+    ...patch.corrections.map((correction) => correction.sourceId),
+    ...patch.reviewedNoteIds.map((id) => `note:${id}`),
+  ]);
+  if (patch.reviewedNoteIds.some((id) => !athleteSources.has(`note:${id}`)))
+    throw new CoachingError("Only mark this athlete's existing notes as reviewed.", 422);
   let items: MemoryItem[];
   try {
-    items = mergeMemory(row.items, patch, origin, valid, now);
+    items = mergeMemory(row.items, patch, origin, valid, now, athleteSources);
   } catch (error) {
     throw new CoachingError(error instanceof Error ? error.message : "Invalid memo update.", 422);
   }
@@ -107,10 +187,23 @@ export async function updateCoachMemory(
     .update(coachMemos)
     .set({
       items,
-      overview: memoryOverview(items),
-      overviewUpdatedAt: now,
+      // A note acknowledgement alone must not erase the legacy overview before conversion.
+      overview: items.length || row.items.length ? memoryOverview(items) : row.overview,
+      overviewUpdatedAt:
+        patch.upsert.length || patch.removeIds.length ? now : row.overviewUpdatedAt,
       memoryRevision: row.memoryRevision + 1,
     })
     .where(eq(coachMemos.id, row.id));
+  if (patch.reviewedNoteIds.length)
+    await db
+      .update(coachNotes)
+      .set({ reviewedAt: now })
+      .where(
+        and(
+          eq(coachNotes.userId, userId),
+          inArray(coachNotes.id, patch.reviewedNoteIds),
+          isNull(coachNotes.reviewedAt),
+        ),
+      );
   return { items, memoryRevision: row.memoryRevision + 1 };
 }

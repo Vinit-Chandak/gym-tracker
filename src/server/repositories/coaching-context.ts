@@ -12,6 +12,7 @@ import {
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import { COACH_POLICY } from "@/domain/coach-policy";
+import { ageOn } from "@/lib/units";
 import { COACH_CONTRACT_VERSION, coachIntakeSchema } from "@/domain/coaching-workflow";
 import { pendingParts } from "@/domain/schedule";
 import { addDays, todayInTimeZone } from "@/domain/program-calendar";
@@ -243,6 +244,16 @@ export async function coachJobContext(
       name: profile.displayName,
       timeZone: profile.timeZone,
       preferredUnit: profile.preferredUnit,
+      bodyWeightKg: profile.bodyWeightKg,
+      heightCm: profile.heightCm,
+      age:
+        profile.dateOfBirth === null
+          ? null
+          : ageOn(profile.dateOfBirth, todayInTimeZone(profile.timeZone, now)),
+      sex: profile.sex,
+      goal: profile.trainingGoal,
+      dataMeaning:
+        "Current profile readings. Confirmed intake is the saved programme brief, including its original measurements; use current non-null profile measurements for age, weight and height. Do not invent missing values or silently change the programme goal when the profile goal differs.",
     },
     confirmedIntake: intake
       ? {

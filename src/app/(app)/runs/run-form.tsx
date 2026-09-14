@@ -63,6 +63,7 @@ const SHIN_KEYS: ShinKey[] = [
 ];
 
 export type CoachRunBrief = {
+  warnings?: { code: string; message: string }[];
   summary: string;
   line: string;
   note: string;
@@ -124,6 +125,11 @@ export function RunForm({ action, initial, planned, runId, submitLabel, coach = 
           <Card>
             <p className="text-sm font-medium tabular-nums">{coach.line}</p>
             <p className="text-sm [overflow-wrap:anywhere] text-ink-muted">{coach.summary}</p>
+            {coach.warnings?.map((warning, index) => (
+              <p key={`${warning.code}-${index}`} className="text-sm text-warning">
+                {warning.message}
+              </p>
+            ))}
             {(coach.note || coach.paceNote || coach.stopRule) && (
               <DetailList
                 entries={[

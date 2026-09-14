@@ -74,10 +74,17 @@ export const planExerciseSchema = z.object({
   perSide: z.boolean().nullable().default(null),
 });
 
+/** Text has an explicit destination; older combined summaries stay in programme context. */
+export const sportSummariesSchema = z.object({
+  workout: z.string().trim().min(1).max(PLAN_LIMITS.summary).optional(),
+  run: z.string().trim().min(1).max(PLAN_LIMITS.summary).optional(),
+});
+
 export const coachPlanSchema = z
   .object({
     /** Two sentences at most: the session in a breath. */
     summary: z.string().trim().min(1).max(PLAN_LIMITS.summary),
+    sportSummaries: sportSummariesSchema.optional(),
     /** The warm-up as short lines, replacing the day's protocol for this session. */
     warmup: z
       .array(z.string().trim().min(1).max(PLAN_LIMITS.warmupLine))
