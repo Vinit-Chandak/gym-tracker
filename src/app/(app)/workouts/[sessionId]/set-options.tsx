@@ -6,6 +6,7 @@ import { NumberField } from "@/components/ui/number-field";
 import { Select } from "@/components/ui/select";
 import { Sheet } from "@/components/ui/sheet";
 import { SET_LIMITS } from "@/domain/sets";
+import { effortMetric } from "@/domain/effort";
 import type { PrescriptionType, SetType } from "@/domain/types";
 import { MEASURE_COLUMN_LABELS, SET_TYPE_LABELS } from "@/lib/labels";
 import type { DraftValueField } from "@/lib/workout-drafts";
@@ -47,6 +48,7 @@ export function SetOptions({
     duration: { field: "duration", step: 5, max: SET_LIMITS.durationSeconds },
     distance: { field: "distance", step: 5, max: SET_LIMITS.distanceMeters },
   }[measure] as { field: "reps" | "duration" | "distance"; step: number; max: number };
+  const effort = effortMetric(measure);
   return (
     <Sheet open={row !== null} onClose={onClose} title={row ? `Set ${row.setIndex}` : "Set"}>
       {row && (
@@ -89,12 +91,11 @@ export function SetOptions({
               disabled={row.saving}
             />
             <NumberField
-              label="RIR"
-              value={row.rir}
-              ghost={ghost.rir}
-              onChange={(value) => onEdit(row, { rir: value }, "rir")}
+              label={effort.toUpperCase()}
+              value={row[effort]}
+              onChange={(value) => onEdit(row, { [effort]: value }, effort)}
               step={1}
-              max={SET_LIMITS.rir}
+              max={SET_LIMITS[effort]}
               disabled={row.saving}
             />
           </div>

@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, inArray, isNull, or } from "drizzle-orm";
 import {
+  coachChangeRecords,
   coachIntakes,
   coachJobs,
   coachPreferences,
@@ -13,6 +14,7 @@ import {
   programSlotEvents,
   programs,
   sessionPlans,
+  type CoachingChangeRecord,
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import {
@@ -398,7 +400,12 @@ export async function activateProgramDraft(
   db: DbOrTx,
   userId: string,
   id: string,
-  input: { expectedRevision: number; startDate: string; transition: "new_block" | "continue" },
+  input: {
+    expectedRevision: number;
+    startDate: string;
+    transition: "new_block" | "continue";
+    automatic?: boolean;
+  },
 ) {
   const draft = await getProgramDraft(db, userId, id);
   if (!draft) throw new CoachingError("Programme draft not found.", 404);
@@ -415,15 +422,17 @@ export async function activateProgramDraft(
   if (draft.baseProgramId !== (active?.id ?? null))
     throw new CoachingError("Your active programme changed while this draft was waiting.");
   const blueprint = await validateBlueprintForAthlete(db, userId, draft.blueprint);
+  let priorBlueprint: ProgramBlueprint | null = null;
   let familyId: string | undefined,
     startDate = input.startDate,
     startDayIndex: number | undefined;
   if (input.transition === "continue") {
     if (!active?.startDate) throw new CoachingError("There is no running block to continue.");
     const current = await readProgramBlueprint(db, userId, active.id);
+    priorBlueprint = current?.blueprint ?? null;
     if (
       !current ||
-      assessProgramChange(current.blueprint, blueprint, []).authority === "review_required"
+      assessProgramChange(current.blueprint, blueprint, []).structuralChanges.length > 0
     )
       throw new CoachingError(
         "This changes the split or schedule. Start it as a new block after reviewing the new days.",
@@ -467,6 +476,41 @@ export async function activateProgramDraft(
       );
   if (draft.openingPlan && input.transition === "new_block")
     await storeOpeningPlan(db, userId, created.id, draft.openingPlan);
+  if (priorBlueprint && !input.automatic) {
+    // Athlete-approved revisions also start a new evidence cycle for affected targets.
+    const changes: CoachingChangeRecord[] = [];
+    for (const next of blueprint.days.flatMap((day) => day.exercises)) {
+      const old = priorBlueprint.days
+        .flatMap((day) => day.exercises)
+        .find((item) => item.lineageId === next.lineageId);
+      if (next.lineageId && old && JSON.stringify(old) !== JSON.stringify(next))
+        changes.push({
+          scope: `slot:${next.lineageId}`,
+          kind: "program",
+          exerciseSlug: next.exerciseSlug,
+          evidenceIds: [],
+          before: { sets: old.sets },
+          after: { sets: next.sets },
+        });
+    }
+    for (const next of blueprint.runs) {
+      const old = priorBlueprint.runs.find(
+        (item) => item.weekIndex === next.weekIndex && item.dayOfWeek === next.dayOfWeek,
+      );
+      if (old && JSON.stringify(old) !== JSON.stringify(next))
+        changes.push({
+          scope: `run:${next.dayOfWeek}`,
+          kind: "program",
+          evidenceIds: [],
+          before: { duration: old.duration[1] * 60 },
+          after: { duration: next.duration[1] * 60 },
+        });
+    }
+    if (changes.length)
+      await db
+        .insert(coachChangeRecords)
+        .values({ userId, changes, programBefore: priorBlueprint });
+  }
   await db
     .update(programDrafts)
     .set({ status: "activated", activatedProgramId: created.id })

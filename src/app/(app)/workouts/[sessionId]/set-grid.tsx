@@ -4,8 +4,9 @@ import { Check, LoaderCircle } from "@/components/ui/icons";
 
 import { InfoTip } from "@/components/ui/info-tip";
 import { sanitizeNumberEntry, SET_LIMITS } from "@/domain/sets";
+import { effortMetric, RIR_HELP, RPE_HELP } from "@/domain/effort";
 import type { PrescriptionType, SetType } from "@/domain/types";
-import { LOAD_UNIT_LABELS, MEASURE_COLUMN_LABELS, rirMeaning, SET_TYPE_LABELS } from "@/lib/labels";
+import { LOAD_UNIT_LABELS, MEASURE_COLUMN_LABELS, SET_TYPE_LABELS } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 import type { DraftValueField } from "@/lib/workout-drafts";
 
@@ -102,6 +103,7 @@ export function SetGrid({
   onOptions,
 }: SetGridProps) {
   const middle = { ...MEASURE_FIELD[measure], label: MEASURE_COLUMN_LABELS[measure] };
+  const effort = effortMetric(measure);
 
   return (
     <div className="set-grid">
@@ -112,18 +114,19 @@ export function SetGrid({
         {/* RIR is the one column whose meaning changes with the movement, so it explains
             itself here rather than being left to a glossary nobody opens mid-set. */}
         <span className="flex items-center justify-center gap-0.5">
-          RIR
-          <InfoTip label="What RIR means here" className="-my-2">
-            {rirNote ?? rirMeaning(measure)}
-            {rirTarget ? ` Today's target is ${rirTarget} RIR.` : ""}
+          {effort.toUpperCase()}
+          <InfoTip label={`What ${effort.toUpperCase()} means here`} className="-my-2">
+            {effort === "rir" ? (rirNote ?? RIR_HELP) : RPE_HELP}
+            {effort === "rir" && rirTarget ? ` Today's target is ${rirTarget} RIR.` : ""}
           </InfoTip>
         </span>
         {/* The one explanation the grid needs, kept out of the way over the save column. */}
         <span className="flex justify-center">
           <span className="sr-only">Save</span>
           <InfoTip label="How suggestions work">
-            Faint numbers are this set&apos;s suggestion. Save records them as shown; type over one
-            to use your own, or clear it to leave it unknown.
+            Faint load and rep/time/distance numbers are suggestions. Type over them to record
+            something different. Enter your actual effort for each working set; effort is never
+            copied from a suggestion. Warm-up effort is optional.
           </InfoTip>
         </span>
       </div>
@@ -179,13 +182,13 @@ export function SetGrid({
                 />
                 <NumericCell
                   row={row}
-                  field="rir"
-                  label={`Set ${row.setIndex} RIR`}
-                  short="RIR"
-                  ghost={g.rir}
+                  field={effort}
+                  label={`Set ${row.setIndex} ${effort.toUpperCase()}`}
+                  short={effort.toUpperCase()}
+                  ghost={undefined}
                   inputMode="decimal"
-                  max={SET_LIMITS.rir}
-                  onChange={(value) => onEdit(row, { rir: value }, "rir")}
+                  max={SET_LIMITS[effort]}
+                  onChange={(value) => onEdit(row, { [effort]: value }, effort)}
                 />
 
                 {/* A saved, unedited row has nothing to save, so its cell is a mark rather

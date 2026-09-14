@@ -3,9 +3,10 @@ import { programBlueprintSchema } from "./program-blueprint";
 import { coachPlanSchema, planExerciseSchema, planRunSchema } from "./session-plan";
 import { BODY_LOAD_UNITS } from "./types";
 import { PLAN_LIMITS } from "./plan-limits";
+import { memoryPatchSchema } from "./coach-memory";
 
-export const COACH_CONTRACT_VERSION = 1;
-export const COACH_POLICY_VERSION = "2026-09-12";
+export const COACH_CONTRACT_VERSION = 2;
+export const COACH_POLICY_VERSION = "2026-09-14";
 export const JOB_KINDS = ["create_program", "prepare_session", "review_program"] as const;
 export const JOB_STATUSES = [
   "queued",
@@ -138,6 +139,9 @@ const explanation = {
   rationale: z.string().trim().min(1).max(3000),
   evidence: z.array(z.string().trim().min(1).max(200)).max(50).default([]),
   uncertainties: z.array(z.string().trim().min(1).max(500)).max(20).default([]),
+  memory: memoryPatchSchema.optional(),
+  /** A session-only adaptation expires with this exact occurrence. Evidence must be cited. */
+  adjustment: z.enum(["normal", "temporary", "equipment", "calibration"]).default("normal"),
 };
 export const coachJobResultSchema = z.discriminatedUnion("outcome", [
   z.object({

@@ -32,6 +32,7 @@ import { getSchedule } from "./schedule";
 import { readProgramBlueprint } from "./programs";
 import { readRuns, readRecovery, readWorkouts } from "./training-data";
 import { readWeeklyTrainingVolume } from "./training-volume";
+import { readCoachingEvidence } from "./coaching-evidence";
 
 /** Full interval aggregates are independent of the bounded narrative evidence below. */
 export async function trainingPeriodSummary(db: DbOrTx, userId: string, start: Date, end: Date) {
@@ -131,9 +132,13 @@ export async function coachJobContext(
         .from(coachIntakes)
         .where(and(eq(coachIntakes.id, job.intakeId), eq(coachIntakes.userId, userId)))
     : [];
-  const today = todayInTimeZone(profile.timeZone, now);
-  const range = parseDateRange({ from: addDays(today, -28), to: today }, profile.timeZone);
-  range.end = now;
+  const evidenceEnd = job.target.reviewEnd
+    ? new Date(Math.min(now.getTime(), new Date(job.target.reviewEnd).getTime()))
+    : now;
+  const today = todayInTimeZone(profile.timeZone, evidenceEnd);
+  const range = parseDateRange({ from: addDays(today, -7), to: today }, profile.timeZone);
+  range.start = new Date(evidenceEnd.getTime() - 7 * 86_400_000);
+  range.end = evidenceEnd;
   const [
     locations,
     attachments,
@@ -149,6 +154,7 @@ export async function coachJobContext(
     decisions,
     preferences,
     thirtyDayEvidence,
+    trainingEvidence,
   ] = await Promise.all([
     listGyms(db, userId),
     listCoachAttachments(db, userId),
@@ -159,7 +165,7 @@ export async function coachJobContext(
     readWorkouts(db, userId, range, 0, 40),
     readRuns(db, userId, range, 0, 60),
     readRecovery(db, userId, range),
-    readWeeklyTrainingVolume(db, userId, profile.timeZone, now, 8),
+    readWeeklyTrainingVolume(db, userId, profile.timeZone, evidenceEnd, 8),
     db
       .select()
       .from(coachWeeklyReviews)
@@ -179,7 +185,13 @@ export async function coachJobContext(
       .orderBy(desc(programDrafts.createdAt))
       .limit(20),
     getCoachingPreferences(db, userId),
-    trainingPeriodSummary(db, userId, new Date(now.getTime() - 30 * 86_400_000), now),
+    trainingPeriodSummary(
+      db,
+      userId,
+      new Date(evidenceEnd.getTime() - 30 * 86_400_000),
+      evidenceEnd,
+    ),
+    readCoachingEvidence(db, userId, job.target.programId, evidenceEnd),
   ]);
   const gymId = job.target.gymId ?? intake?.answers.gymId ?? null;
   const [catalogue, equipment] = gymId
@@ -267,6 +279,12 @@ export async function coachJobContext(
         : null,
     reviewPeriod: period,
     longerTrends: weeks,
+    trainingEvidence,
+    recentInterval: {
+      start: range.start.toISOString(),
+      end: range.end.toISOString(),
+      endExclusive: true,
+    },
     recentWorkouts: history,
     recentRuns: running,
     lastThirtyDays: thirtyDayEvidence,

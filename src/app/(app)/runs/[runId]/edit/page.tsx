@@ -66,7 +66,7 @@ export default async function EditRunPage(props: PageProps<"/runs/[runId]/edit">
             distanceKm: formatRunKm(run.distanceMeters),
             durationMinutes: String(Math.floor(run.durationSeconds / 60)),
             durationSeconds: String(run.durationSeconds % 60),
-            rpe: str(run.rpe),
+            rpe: run.effortReported ? str(run.rpe) : "",
             shinLeftPre: str(run.shinLeftPre),
             shinRightPre: str(run.shinRightPre),
             shinLeftDuring: str(run.shinLeftDuring),

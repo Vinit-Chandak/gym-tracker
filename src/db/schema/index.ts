@@ -7,3 +7,4 @@ export * from "./workouts";
 export * from "./runs";
 export * from "./coach";
 export * from "./coaching-workflow";
+export * from "./coaching-evidence";

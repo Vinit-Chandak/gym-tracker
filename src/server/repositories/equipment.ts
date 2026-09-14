@@ -183,6 +183,8 @@ function toColumns(input: EquipmentInput) {
     resistanceMode: input.resistanceMode,
     unit: input.unit,
     loadIncrement: input.loadIncrement,
+    availableLoads: input.availableLoads,
+    loadConvention: input.loadConvention,
     pulleyRatio: input.pulleyRatio,
     angleDegrees: input.angleDegrees,
     notes: input.notes,

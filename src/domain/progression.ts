@@ -1,4 +1,9 @@
 import type { LoadUnit, PrescriptionType, ProgressionRule, SetType } from "./types";
+import {
+  summarizeExerciseEvidence,
+  TRAINING_POLICY,
+  type EvidencePerformance,
+} from "./training-evidence";
 
 /**
  * Deterministic progression engine (Phase 5).
@@ -40,6 +45,8 @@ export type Prescription = {
   /** Smallest load jump for this exercise on this equipment, already resolved. */
   loadIncrement: number;
   unit: LoadUnit;
+  availableLoads?: readonly number[];
+  requireConfirmedLoads?: boolean;
 };
 
 export type PerformedSet = {
@@ -48,6 +55,8 @@ export type PerformedSet = {
   weight: number | null;
   reps: number | null;
   rir: number | null;
+  rpe?: number | null;
+  effortReported?: boolean;
   durationSeconds: number | null;
   distanceMeters: number | null;
 };
@@ -80,6 +89,7 @@ export type TargetSet = {
   weight: number | null;
   reps: number | null;
   rir: number | null;
+  rpe?: number | null;
   durationSeconds: number | null;
   distanceMeters: number | null;
 };
@@ -113,6 +123,7 @@ function copy(sets: readonly PerformedSet[]): TargetSet[] {
     weight: s.weight,
     reps: s.reps,
     rir: s.rir,
+    rpe: s.rpe,
     durationSeconds: s.durationSeconds,
     distanceMeters: s.distanceMeters,
   }));
@@ -201,12 +212,11 @@ function forReps(
 
   const worse = working.find((s) => muchWorseRir(s, targetRir));
   if (worse) {
-    const lighter = Math.max(0, round((worse.weight ?? 0) - inc));
     return base(
       "repeat",
       basis,
       `Set ${worse.setIndex} was ${worse.rir} RIR against a ${targetRir} RIR plan`,
-      `Or drop to ${lighter} ${p.unit}`,
+      "Keep the baseline and reassess the next comparable session; one harder set is not a persistent decline.",
       inc,
       copy(previous),
     );
@@ -226,159 +236,6 @@ function forReps(
   return base("hold", basis, reason, null, inc, copy(previous));
 }
 
-function forTime(
-  p: Prescription,
-  previous: readonly PerformedSet[],
-  working: readonly PerformedSet[],
-  basis: SuggestionBasis,
-): ProgressionSuggestion {
-  const inc = p.loadIncrement;
-  const targetRir = p.rirMin;
-  const max = p.durationMaxSeconds;
-  const min = p.durationMinSeconds;
-  const first = working[0];
-  if (!first) throw new Error("forTime needs at least one working set");
-  const atMax = (s: PerformedSet) =>
-    max !== null &&
-    s.durationSeconds !== null &&
-    s.durationSeconds >= max &&
-    rirSatisfied(s, targetRir);
-
-  if (max !== null && working.length >= p.sets && working.every(atMax)) {
-    return base(
-      "hold",
-      basis,
-      `Every set held ${max} s${targetRir === null ? "" : ` at ≥${targetRir} RIR`}`,
-      `Time is maxed; add load (e.g. ${inc} ${p.unit}) and drop back to ${min ?? max} s when you want more`,
-      inc,
-      copy(previous),
-    );
-  }
-
-  if (min !== null && first.durationSeconds !== null && first.durationSeconds < min) {
-    return base(
-      "repeat",
-      basis,
-      `First set stopped at ${first.durationSeconds} s, below the ${min} s minimum`,
-      null,
-      inc,
-      copy(previous),
-    );
-  }
-
-  const worse = working.find((s) => muchWorseRir(s, targetRir));
-  if (worse) {
-    return base(
-      "repeat",
-      basis,
-      `Set ${worse.setIndex} was ${worse.rir} RIR against a ${targetRir} RIR plan`,
-      null,
-      inc,
-      copy(previous),
-    );
-  }
-
-  const sets = copy(previous).map((s) =>
-    WORKING_SET_TYPES.has(s.setType) && s.durationSeconds !== null
-      ? {
-          ...s,
-          durationSeconds:
-            max === null
-              ? s.durationSeconds + TIME_STEP_SECONDS
-              : Math.min(max, s.durationSeconds + TIME_STEP_SECONDS),
-        }
-      : s,
-  );
-  return base(
-    "extend",
-    basis,
-    `Add ${TIME_STEP_SECONDS} s per set${max === null ? "" : ` up to ${max} s`}`,
-    null,
-    inc,
-    sets,
-  );
-}
-
-/**
- * Carries and sled work: cover the distance before you add the load.
- *
- * Same shape as the timed rule, in metres. A carry has no reps to leave in reserve, so RIR is
- * read as ground left rather than repetitions left, and the rule never asks for one more step
- * once the planned distance is being covered at the planned quality.
- */
-function forDistance(
-  p: Prescription,
-  previous: readonly PerformedSet[],
-  working: readonly PerformedSet[],
-  basis: SuggestionBasis,
-): ProgressionSuggestion {
-  const inc = p.loadIncrement;
-  const targetRir = p.rirMin;
-  const max = p.distanceMaxMeters;
-  const min = p.distanceMinMeters;
-  const first = working[0];
-  if (!first) throw new Error("forDistance needs at least one working set");
-  const atMax = (s: PerformedSet) =>
-    max !== null &&
-    s.distanceMeters !== null &&
-    s.distanceMeters >= max &&
-    rirSatisfied(s, targetRir);
-
-  if (max !== null && working.length >= p.sets && working.every(atMax)) {
-    return base(
-      "increase",
-      basis,
-      `Every set covered ${max} m${targetRir === null ? "" : ` at ≥${targetRir} RIR`}`,
-      `Distance is maxed; add ${inc} ${p.unit} per hand and drop back to ${min ?? max} m`,
-      inc,
-      shiftLoad(previous, inc, p).map((s) => ({ ...s, distanceMeters: min ?? s.distanceMeters })),
-    );
-  }
-
-  if (min !== null && first.distanceMeters !== null && first.distanceMeters < min) {
-    return base(
-      "repeat",
-      basis,
-      `First carry stopped at ${first.distanceMeters} m, short of the ${min} m minimum`,
-      null,
-      inc,
-      copy(previous),
-    );
-  }
-
-  const worse = working.find((s) => muchWorseRir(s, targetRir));
-  if (worse) {
-    return base(
-      "repeat",
-      basis,
-      `Set ${worse.setIndex} was ${worse.rir} RIR against a ${targetRir} RIR plan`,
-      null,
-      inc,
-      copy(previous),
-    );
-  }
-
-  const sets = copy(previous).map((s) =>
-    WORKING_SET_TYPES.has(s.setType) && s.distanceMeters !== null
-      ? {
-          ...s,
-          distanceMeters:
-            max === null
-              ? s.distanceMeters + DISTANCE_STEP_METERS
-              : Math.min(max, s.distanceMeters + DISTANCE_STEP_METERS),
-        }
-      : s,
-  );
-  return base(
-    "lengthen",
-    basis,
-    `Add ${DISTANCE_STEP_METERS} m per carry${max === null ? "" : ` up to ${max} m`}`,
-    null,
-    inc,
-    sets,
-  );
-}
-
 /**
  * What to do next for one exercise. `previous` is the basis performance (same machine for
  * machine work, any gym for free weights) or a different-machine guess when `basis` says so.
@@ -387,6 +244,7 @@ export function suggestNext(
   prescription: Prescription,
   previous: readonly PerformedSet[] | null,
   basis: SuggestionBasis,
+  history: readonly EvidencePerformance[] = [],
 ): ProgressionSuggestion {
   const inc = prescription.loadIncrement;
   if (!previous || basis === "none") {
@@ -400,20 +258,128 @@ export function suggestNext(
     return base(
       "transfer",
       basis,
-      "Different machine last time, so this is a starting guess",
-      "Adjust by feel and log honest RIR; the rule starts once this machine has history",
+      "This machine needs its own starting load",
+      "Calibrate with an available load and report actual effort. Loads on different machines are not equivalent.",
       inc,
-      copy(previous),
+      copy(previous).map((set) => ({ ...set, weight: null })),
     );
   }
-  switch (prescription.prescriptionType) {
-    case "duration":
-      return forTime(prescription, previous, working, basis);
-    case "distance":
-      return forDistance(prescription, previous, working, basis);
-    default:
-      return forReps(prescription, previous, working, basis);
+  const evidence = summarizeExerciseEvidence(prescription, history);
+  const hold = (reason: string, advice: string | null = null) =>
+    base(
+      "hold",
+      basis,
+      reason,
+      advice,
+      inc,
+      copy(previous).map((set) => ({
+        ...set,
+        rir: prescription.prescriptionType === "reps" ? prescription.rirMin : null,
+        rpe: prescription.prescriptionType === "reps" ? undefined : null,
+        reps:
+          set.reps === null || prescription.repMin === null
+            ? set.reps
+            : Math.max(prescription.repMin, set.reps),
+      })),
+    );
+  let candidate: ProgressionSuggestion;
+  if (prescription.prescriptionType !== "reps") {
+    if (!evidence.repeatedCompletion)
+      return hold(
+        "Repeat the target until two comparable sessions meet it with reported effort.",
+        "Log RPE for timed sets and carries; RIR counts repetitions only.",
+      );
+    const max =
+      prescription.prescriptionType === "duration"
+        ? prescription.durationMaxSeconds
+        : prescription.distanceMaxMeters;
+    const field =
+      prescription.prescriptionType === "duration" ? "durationSeconds" : "distanceMeters";
+    if (evidence.progressionReady)
+      return hold(
+        "The upper target was met twice.",
+        "Review a feasible load or exercise variation before increasing beyond this range.",
+      );
+    return base(
+      prescription.prescriptionType === "duration" ? "extend" : "lengthen",
+      basis,
+      "Two comparable sessions met the target with suitable effort.",
+      null,
+      inc,
+      copy(previous).map((set) =>
+        !WORKING_SET_TYPES.has(set.setType)
+          ? set
+          : {
+              ...set,
+              rir: null,
+              rpe: null,
+              [field]:
+                set[field] === null
+                  ? null
+                  : Math.min(
+                      max ?? Infinity,
+                      set[field]! + Math.min(5, Math.max(1, Math.floor(set[field]! * 0.1))),
+                    ),
+            },
+      ),
+    );
   }
+  candidate = forReps(prescription, previous, working, basis);
+  if (candidate.kind === "reduce" && !evidence.declineCandidate)
+    return hold(
+      "One low performance does not lower the baseline.",
+      "Repeat the planned range and check effort, rest and why the set stopped. A persistent reduction needs repeated comparable evidence.",
+    );
+  if (candidate.kind === "increase" && !evidence.progressionReady)
+    return hold("Confirm the upper rep target in two comparable sessions before increasing load.");
+  if (candidate.kind === "hold" && evidence.repeatedCompletion && prescription.repMax !== null)
+    return {
+      ...candidate,
+      reason: "Two comparable sessions met the target; add one rep within the range.",
+      sets: copy(previous).map((set) =>
+        WORKING_SET_TYPES.has(set.setType) && set.reps !== null
+          ? { ...set, reps: Math.min(prescription.repMax!, set.reps + 1), rir: prescription.rirMin }
+          : set,
+      ),
+    };
+  if (candidate.kind === "increase" || candidate.kind === "reduce") {
+    const direction = candidate.kind === "increase" ? 1 : -1;
+    const targetSets = candidate.sets.map((set) => {
+      const old = working.find((item) => item.setIndex === set.setIndex);
+      if (!old || old.weight == null || old.weight <= 0) return set;
+      const loads = [...(prescription.availableLoads ?? [])].sort((a, b) => a - b);
+      const selectable =
+        direction > 0
+          ? loads.find((load) => load > old.weight!)
+          : loads.filter((load) => load < old.weight!).pop();
+      return selectable === undefined ? set : { ...set, weight: selectable };
+    });
+    const invalid = targetSets.some((set) => {
+      const old = working.find((item) => item.setIndex === set.setIndex);
+      if (!old) return false;
+      if (old.weight == null || old.weight <= 0 || set.weight == null) return true;
+      const relative = Math.abs(set.weight / old.weight - 1);
+      return (
+        relative >
+          (direction > 0 ? TRAINING_POLICY.maxLoadIncrease : TRAINING_POLICY.maxLoadReduction) +
+            1e-9 ||
+        (!!prescription.requireConfirmedLoads &&
+          !(prescription.availableLoads ?? []).includes(set.weight))
+      );
+    });
+    if (invalid)
+      return hold(
+        "Keep the current load; the next available jump needs review.",
+        "Confirm available weights and the load convention. Progress reps within the range or review a feasible variation.",
+      );
+    candidate = { ...candidate, sets: targetSets };
+  }
+  return {
+    ...candidate,
+    sets: candidate.sets.map((set) =>
+      WORKING_SET_TYPES.has(set.setType) ? { ...set, rir: prescription.rirMin } : set,
+    ),
+  };
 }
 
 /**

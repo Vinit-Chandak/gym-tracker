@@ -18,6 +18,7 @@ import {
 import { alias } from "drizzle-orm/pg-core";
 import {
   coachGymIntents,
+  coachChangeRecords,
   coachIntakes,
   coachJobs,
   coachPreferences,
@@ -39,7 +40,15 @@ import {
   jobTargetSchema,
   type JobTarget,
 } from "@/domain/coaching-workflow";
-import { assessProgramChange } from "@/domain/program-change";
+import {
+  assessWeeklyEvidence,
+  assessSessionEvidence,
+  validateCitedEvidence,
+} from "./coaching-guardrails";
+import { readCoachingEvidence, retainEvidenceBaselines } from "./coaching-evidence";
+import { updateCoachMemory } from "./coach-memory";
+import type { CoachingChangeRecord } from "@/db/schema";
+import type { ProgramBlueprint } from "@/domain/program-blueprint";
 import { firstWeeklyReviewPeriod, nextWeeklyReviewPeriod } from "@/domain/coach-cadence";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { sharedExercises } from "@/server/queries/reference";
@@ -342,6 +351,18 @@ export async function acceptCoachJobResult(
   if (job.kind === "review_program" && result.outcome === "session")
     throw new CoachingError("Submit the weekly review before session preparation.", 422);
   let draftId: string | null = null;
+  const evidenceEnd = job.target.reviewEnd
+    ? new Date(Math.min(now.getTime(), new Date(job.target.reviewEnd).getTime()))
+    : now;
+  const trainingEvidence = await readCoachingEvidence(
+    db,
+    userId,
+    job.target.programId,
+    evidenceEnd,
+  );
+  const cited = await validateCitedEvidence(db, userId, result);
+  let acceptedChanges: CoachingChangeRecord[] = [];
+  let programBefore: ProgramBlueprint | null = null;
   let reviewOutcome: "no_change" | "automatic" | "proposal" = "no_change";
   if (result.outcome === "program") {
     const blueprint = await validateBlueprintForAthlete(
@@ -396,29 +417,53 @@ export async function acceptCoachJobResult(
     if (job.kind === "review_program" && job.target.programId) {
       const current = await readProgramBlueprint(db, userId, job.target.programId);
       if (!current) throw new CoachingError("The reviewed programme is no longer available.");
-      const assessment = assessProgramChange(
+      const assessment = assessWeeklyEvidence(
         current.blueprint,
         blueprint,
+        trainingEvidence,
+        cited,
         await sharedExercises(db),
+        now,
       );
       if (assessment.authority === "unchanged") {
         await db
           .update(programDrafts)
           .set({ status: "superseded" })
           .where(eq(programDrafts.id, draftId));
-      } else if (assessment.authority === "automatic" && coachRollout().automaticReviews) {
+      } else if (assessment.automatic && coachRollout().automaticReviews) {
         await activateProgramDraft(db, userId, draftId, {
           expectedRevision: draft!.revision,
           startDate: todayInTimeZone("Asia/Kolkata", now),
           transition: "continue",
+          automatic: true,
         });
         reviewOutcome = "automatic";
-      } else reviewOutcome = "proposal";
+        acceptedChanges = assessment.changes;
+        programBefore = current.blueprint;
+      } else {
+        reviewOutcome = "proposal";
+        await db
+          .update(programDrafts)
+          .set({
+            uncertainties: [...result.uncertainties, ...assessment.reasons]
+              .slice(0, 20)
+              .map((text) => text.slice(0, 500)),
+          })
+          .where(eq(programDrafts.id, draftId));
+      }
     }
   }
   if (result.outcome === "session") {
     if (!job.target.cycleIndex || !job.target.dayIndex || !job.target.gymId)
       throw new CoachingError("The session target is incomplete.", 422);
+    acceptedChanges = await assessSessionEvidence(
+      db,
+      userId,
+      job.target,
+      result,
+      trainingEvidence,
+      cited,
+    );
     await storePlan(db, userId, {
       slot: { cycleIndex: job.target.cycleIndex, dayIndex: job.target.dayIndex },
       gymId: job.target.gymId,
@@ -466,6 +511,17 @@ export async function acceptCoachJobResult(
   }
   if (job.kind === "review_program" && result.outcome === "needs_input")
     await enqueueDailySession(db, userId, job.target.batchDate ?? lastCoachBoundary(now).date);
+  if (result.memory) await updateCoachMemory(db, userId, result.memory, "coach", now);
+  await retainEvidenceBaselines(db, userId, trainingEvidence);
+  if (acceptedChanges.length)
+    await db
+      .insert(coachChangeRecords)
+      .values({ userId, jobId: job.id, changes: acceptedChanges, programBefore, createdAt: now });
+  if (draftId && (job.kind === "create_program" || reviewOutcome === "proposal"))
+    await db
+      .update(programDrafts)
+      .set({ sourceRevision: await sourceRevision(db, userId) })
+      .where(eq(programDrafts.id, draftId));
   await db
     .update(coachJobs)
     .set({

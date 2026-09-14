@@ -1,4 +1,4 @@
-import { and, desc, eq, exists, isNotNull, lt, lte, ne, sql } from "drizzle-orm";
+import { and, desc, eq, exists, isNotNull, isNull, lt, lte, ne, sql } from "drizzle-orm";
 import { unionAll } from "drizzle-orm/pg-core";
 
 import {
@@ -20,6 +20,8 @@ export type ComparableSet = {
   unit: LoadUnit;
   reps: number | null;
   rir: number | null;
+  rpe?: number | null;
+  effortReported?: boolean;
   durationSeconds: number | null;
   distanceMeters: number | null;
 };
@@ -59,6 +61,7 @@ function performanceQuery(db: DbOrTx, filter: PerformanceFilter, requestIndex: n
     eq(workoutSessions.userId, filter.userId),
     eq(workoutExercises.exerciseId, filter.exerciseId),
     isNotNull(workoutSessions.completedAt),
+    isNull(workoutExercises.skippedAt),
     exists(
       db
         .select({ one: sql`1` })
@@ -100,6 +103,8 @@ function performanceQuery(db: DbOrTx, filter: PerformanceFilter, requestIndex: n
           'unit', s.unit,
           'reps', s.reps,
           'rir', s.rir,
+          'rpe', s.rpe,
+          'effortReported', s.effort_reported,
           'durationSeconds', s.duration_seconds,
           'distanceMeters', s.distance_meters
         ) order by s.set_index)

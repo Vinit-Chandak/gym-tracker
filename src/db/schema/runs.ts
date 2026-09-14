@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   check,
   date,
   index,
@@ -50,6 +51,7 @@ export const runs = pgTable(
       sql`case when distance_meters > 0 then round(duration_seconds * 1000.0 / distance_meters, 1) end`,
     ),
     rpe: numeric("rpe", { precision: 3, scale: 1, mode: "number" }),
+    effortReported: boolean("effort_reported").notNull().default(false),
     shinLeftPre: integer("shin_left_pre"),
     shinRightPre: integer("shin_right_pre"),
     shinLeftDuring: integer("shin_left_during"),

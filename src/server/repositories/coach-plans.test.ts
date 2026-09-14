@@ -125,7 +125,13 @@ describe("planning context", () => {
       ctx.library.find((e) => e.slug === "leg-press-horizontal")?.atThisGym?.machine?.name,
     ).toBe("Horizontal leg press");
     expect(ctx.library.find((e) => e.slug === "lying-leg-curl")?.atThisGym).toBeNull();
-    expect(ctx.memo).toEqual({ overview: "", userNotes: "", overviewUpdatedAt: null });
+    expect(ctx.memo).toMatchObject({
+      overview: "",
+      userNotes: "",
+      overviewUpdatedAt: null,
+      items: [],
+      memoryRevision: 0,
+    });
     expect(ctx.recent.workouts).toEqual([]);
     expect(ctx.limits.summary).toBe(400);
   });
@@ -722,7 +728,10 @@ describe("a day that lifts and runs", () => {
     expect(ctx.running.history).toHaveLength(3);
     expect(ctx.running.history[0]?.durationMinutes).toBe(25);
     expect(ctx.running.weeks).toHaveLength(4);
-    expect(ctx.running.weeks[0]?.minutes).toBeGreaterThan(0);
+    // On Monday all three recent runs belong to earlier calendar weeks.
+    expect(ctx.running.weeks.reduce((minutes, week) => minutes + week.minutes, 0)).toBe(
+      22 + 24 + 25,
+    );
     expect(ctx.volume).toHaveLength(4);
     // The coach's own last calls, so it can tell whether they worked.
     expect(ctx.lastPlans.length).toBeGreaterThan(0);

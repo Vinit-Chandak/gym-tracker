@@ -142,6 +142,7 @@ describe("coach plan contract", () => {
         weight?: number | null;
         reps?: number | null;
         rir?: number | null;
+        rpe?: number | null;
         durationSeconds?: number | null;
         setType?: "warmup" | "working";
       }[]
@@ -162,8 +163,8 @@ describe("coach plan contract", () => {
       planLine(sets({ weight: 60, reps: 5, rir: 2 }, { weight: 60, reps: 4, rir: 1 }), "kg"),
     ).toBe("2 × 5/4 @ 60 kg · RIR 2/1");
     expect(
-      planLine(sets({ durationSeconds: 30, rir: 2 }, { durationSeconds: 30, rir: 2 }), "kg"),
-    ).toBe("2 × 30 s · RIR 2");
+      planLine(sets({ durationSeconds: 30, rpe: 7 }, { durationSeconds: 30, rpe: 7 }), "kg"),
+    ).toBe("2 × 30 s · RPE 7");
     expect(planLine(sets({ reps: 10 }), "kg")).toBe("1 × 10");
     expect(
       planLine(sets({ setType: "warmup", weight: 40, reps: 8 }, { weight: 60, reps: 5 }), "kg"),

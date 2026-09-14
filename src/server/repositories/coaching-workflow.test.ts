@@ -1,10 +1,13 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, expect, it, vi } from "vitest";
 import {
+  coachChangeRecords,
   coachJobs,
   coachJobAttempts,
   coachPreferences,
   coachWeeklyReviews,
+  equipmentInstances,
+  equipmentTypes,
   gyms,
   profiles,
   programDrafts,
@@ -53,7 +56,13 @@ import {
   saveRoutine,
   startSavedRoutine,
 } from "./manual-training";
-import { finishSession, getSessionDetail, startAdHocSession } from "./sessions";
+import {
+  finishSession,
+  getSessionDetail,
+  startAdHocSession,
+  startPlannedSession,
+} from "./sessions";
+import { planningContext, planningGym } from "./coach-plans";
 import { handleCoachServiceRequest } from "@/server/coach-service";
 import { todayWorkflowState } from "./coaching-today";
 
@@ -80,12 +89,12 @@ const blueprint: ProgramBlueprint = {
     },
   ],
 };
-async function athlete() {
+async function athlete(kind: "gym" | "home" = "gym") {
   const user = await t.createAuthUser(`${crypto.randomUUID()}@example.test`);
   return withUser(t.db, user.id, async (tx) => {
     const [gym] = await tx
       .insert(gyms)
-      .values({ userId: user.id, name: "My gym", slug: "my-gym", isDefault: true })
+      .values({ userId: user.id, name: "My gym", slug: "my-gym", kind, isDefault: true })
       .returning();
     const intake = await saveIntake(
       tx,
@@ -203,6 +212,204 @@ it("claims once, accepts an exact duplicate once, and activates an opening sessi
   expect(opening?.exercises[0]?.slotId).toBeTruthy();
   expect(opening?.exercises[0]?.sets[0]?.weight).toBeNull();
 });
+it("keeps a newly generated draft usable when its result also updates the concise memo", async () => {
+  const a = await athlete();
+  const { job } = await request(a);
+  const claim = await as(a, (tx) => claimCoachJob(tx, a.user.id, job.id));
+  const accepted = await as(a, (tx) =>
+    acceptCoachJobResult(tx, a.user.id, job.id, claim!.attemptId!, {
+      ...result(a),
+      memory: {
+        expectedRevision: 0,
+        upsert: [
+          {
+            id: crypto.randomUUID(),
+            category: "experiment",
+            status: "hypothesis",
+            text: "Reassess the starting exercise range after two logged sessions.",
+            sourceIds: [`intake:${a.intake.id}`],
+            reviewAfter: new Date(Date.now() + 14 * 86_400_000).toISOString().slice(0, 10),
+          },
+        ],
+      },
+    }),
+  );
+  const draft = await as(a, (tx) => getProgramDraft(tx, a.user.id, accepted.draftId!));
+  await expect(
+    as(a, (tx) =>
+      activateProgramDraft(tx, a.user.id, draft!.id, {
+        expectedRevision: draft!.revision,
+        startDate: "2026-09-14",
+        transition: "new_block",
+      }),
+    ),
+  ).resolves.toMatchObject({ alreadyActivated: false });
+});
+it.each(["bodyweight-squat", "goblet-squat"])(
+  "creates, prepares and starts %s sessions at home with real slot identities",
+  async (exerciseSlug) => {
+    const a = await athlete("home");
+    let equipmentInstanceId: string | null = null;
+    if (exerciseSlug === "goblet-squat") {
+      const [type] = await t.db
+        .select()
+        .from(equipmentTypes)
+        .where(eq(equipmentTypes.slug, "dumbbells"));
+      const [equipment] = await as(a, (tx) =>
+        tx
+          .insert(equipmentInstances)
+          .values({
+            userId: a.user.id,
+            gymId: a.gym.id,
+            equipmentTypeId: type!.id,
+            name: "Home dumbbells",
+            resistanceMode: "free_weight",
+            unit: "kg",
+            loadIncrement: 2,
+          })
+          .returning(),
+      );
+      equipmentInstanceId = equipment!.id;
+    }
+    const homeBlueprint = structuredClone(blueprint);
+    homeBlueprint.days[0]!.exercises[0]!.exerciseSlug = exerciseSlug;
+    homeBlueprint.days[0]!.exercises[0]!.fallbacks = [];
+    const opening = result(a).openingPlan;
+    const { job } = await request(a);
+    const creation = await as(a, (tx) => claimCoachJob(tx, a.user.id, job.id));
+    const accepted = await as(a, (tx) =>
+      acceptCoachJobResult(tx, a.user.id, job.id, creation!.attemptId!, {
+        ...result(a),
+        blueprint: homeBlueprint,
+        openingPlan: {
+          ...opening,
+          exercises: [{ ...opening.exercises[0]!, exerciseSlug, equipmentInstanceId }],
+        },
+      }),
+    );
+    const draft = await as(a, (tx) => getProgramDraft(tx, a.user.id, accepted.draftId!));
+    await as(a, (tx) =>
+      activateProgramDraft(tx, a.user.id, draft!.id, {
+        expectedRevision: draft!.revision,
+        startDate: "2026-09-14",
+        transition: "new_block",
+      }),
+    );
+    const schedule = await as(a, (tx) => getSchedule(tx, a.user.id));
+    const first = await as(a, (tx) =>
+      startPlannedSession(tx, a.user.id, {
+        gymId: a.gym.id,
+        programDayId: schedule!.days[0]!.id,
+        cycleIndex: 1,
+      }),
+    );
+    await as(a, (tx) =>
+      finishSession(tx, a.user.id, first.sessionId, { notes: null, bodyWeightKg: null }),
+    );
+    await as(a, (tx) =>
+      recordSlotEvent(
+        tx,
+        a.user.id,
+        schedule!.program.id,
+        { cycleIndex: 1, dayIndex: 1 },
+        "session",
+        "completed",
+        {
+          occurredOn: "2026-09-14",
+          workoutSessionId: first.sessionId,
+        },
+      ),
+    );
+    const prep = await as(a, (tx) => enqueueDailySession(tx, a.user.id, lastCoachBoundary().date));
+    expect(prep!.job.target).toMatchObject({ gymId: a.gym.id, cycleIndex: 2, dayIndex: 1 });
+    const claim = await as(a, (tx) => claimCoachJob(tx, a.user.id, prep!.job.id));
+    const ctx = await as(a, (tx) =>
+      coachJobContext(tx, a.user.id, prep!.job.id, claim!.attemptId!),
+    );
+    const next = ctx.nextSession;
+    expect(next?.reason).toBeNull();
+    if (!next || next.reason !== null) throw new Error("Missing home planning context");
+    expect(next.gym).toMatchObject({ id: a.gym.id, kind: "home" });
+    expect(next.exercises).toHaveLength(1);
+    expect(next.exercises[0]!.slotId).toBeTruthy();
+    expect(next.exercises[0]!.atThisGym.status).toBe("direct");
+    expect(next.exercises[0]!.atThisGym.machine?.id ?? null).toBe(equipmentInstanceId);
+    expect(ctx.catalogue.find((e) => e.slug === "high-bar-squat")?.available).toBe(false);
+    const plan = {
+      summary: "Continue the home programme.",
+      exercises: [
+        {
+          ...opening.exercises[0]!,
+          exerciseSlug,
+          equipmentInstanceId,
+          sets: Array.from(
+            { length: next.exercises[0]!.prescription!.sets },
+            () => opening.exercises[0]!.sets[0]!,
+          ),
+        },
+      ],
+    };
+    await expect(
+      as(a, (tx) =>
+        acceptCoachJobResult(tx, a.user.id, prep!.job.id, claim!.attemptId!, {
+          outcome: "session",
+          rationale: "Use the available home equipment.",
+          plan,
+        }),
+      ),
+    ).rejects.toThrow(/plan is not valid|pending.*slot|every.*slot|program proposal/i);
+    expect(
+      await as(a, (tx) =>
+        acceptCoachJobResult(tx, a.user.id, prep!.job.id, claim!.attemptId!, {
+          outcome: "session",
+          rationale: "Use the available home equipment.",
+          plan: {
+            ...plan,
+            exercises: [{ ...plan.exercises[0]!, slotId: next.exercises[0]!.slotId }],
+          },
+        }),
+      ),
+    ).toMatchObject({ accepted: true });
+    const second = await as(a, (tx) =>
+      startPlannedSession(tx, a.user.id, {
+        gymId: a.gym.id,
+        programDayId: schedule!.days[0]!.id,
+        cycleIndex: 2,
+      }),
+    );
+    const detail = await as(a, (tx) => getSessionDetail(tx, a.user.id, second.sessionId));
+    expect(detail?.coachPlan?.summary).toBe(plan.summary);
+    expect(detail?.exercises[0]?.suggestion?.kind).toBe("coach");
+  },
+);
+
+it("honors a default home alongside gyms and exposes unavailable slots for substitution", async () => {
+  const a = await athlete("home");
+  await as(a, (tx) =>
+    tx.insert(gyms).values({ userId: a.user.id, name: "Another gym", slug: "another-gym" }),
+  );
+  expect((await as(a, (tx) => planningGym(tx, a.user.id)))?.id).toBe(a.gym.id);
+  const manual = await as(a, (tx) => saveManualDraft(tx, a.user.id, blueprint));
+  const ready = await as(a, (tx) => refreshProgramDraft(tx, a.user.id, manual.id, manual.revision));
+  await as(a, (tx) =>
+    activateProgramDraft(tx, a.user.id, ready.id, {
+      expectedRevision: ready.revision,
+      startDate: "2026-09-14",
+      transition: "new_block",
+    }),
+  );
+  const ctx = await as(a, (tx) => planningContext(tx, a.user.id));
+  expect(ctx.reason).toBeNull();
+  if (ctx.reason !== null) throw new Error("Missing home planning context");
+  expect(ctx.gym.id).toBe(a.gym.id);
+  expect(ctx.exercises[0]!.slotId).toBeTruthy();
+  expect(ctx.exercises[0]!.atThisGym.status).toBe("unavailable");
+  await as(a, (tx) => tx.update(gyms).set({ isActive: false }).where(eq(gyms.id, a.gym.id)));
+  expect(await as(a, (tx) => planningContext(tx, a.user.id, { gymId: a.gym.id }))).toEqual({
+    reason: "no_gym",
+  });
+});
+
 it("rejects stale generation and opening sessions that omit a slot before saving a draft", async () => {
   const a = await athlete();
   const { job } = await request(a);
@@ -279,7 +486,7 @@ it("protects reports and drafts across accounts, and removes reports from future
     "superseded",
   );
 });
-it("applies a weekly prescription revision once, carries position, then queues preparation", async () => {
+it("routes an unsupported weekly increase to review, preserves position and queues preparation", async () => {
   const a = await athlete();
   const { draft } = await generated(a);
   const initial = await as(a, (tx) =>
@@ -332,11 +539,11 @@ it("applies a weekly prescription revision once, carries position, then queues p
     await as(a, (tx) => acceptCoachJobResult(tx, a.user.id, job.id, claim!.attemptId!, output)),
   ).toMatchObject({ accepted: true });
   const schedule = await as(a, (tx) => getSchedule(tx, a.user.id));
-  expect(schedule?.program.id).not.toBe(initial.programId);
+  expect(schedule?.program.id).toBe(initial.programId);
   expect(schedule?.state.events.length).toBeGreaterThan(0);
   const reviews = await as(a, (tx) => tx.select().from(coachWeeklyReviews));
   expect(reviews).toHaveLength(1);
-  expect(reviews[0]?.outcome).toBe("automatic");
+  expect(reviews[0]?.outcome).toBe("proposal");
   expect(
     (await as(a, (tx) => tx.select().from(coachJobs))).some(
       (j) => j.kind === "prepare_session" && j.target.programId === schedule?.program.id,
@@ -345,6 +552,18 @@ it("applies a weekly prescription revision once, carries position, then queues p
   expect(
     await as(a, (tx) => acceptCoachJobResult(tx, a.user.id, job.id, claim!.attemptId!, output)),
   ).toMatchObject({ duplicate: true });
+  const proposed = await as(a, (tx) => getProgramDraft(tx, a.user.id, reviews[0]!.draftId!));
+  const activated = await as(a, (tx) =>
+    activateProgramDraft(tx, a.user.id, proposed!.id, {
+      expectedRevision: proposed!.revision,
+      startDate: "2026-09-14",
+      transition: "continue",
+    }),
+  );
+  const continued = await as(a, (tx) => getSchedule(tx, a.user.id));
+  expect(continued?.program.id).toBe(activated.programId);
+  expect(continued?.state.events.length).toBe(schedule?.state.events.length);
+  expect((await as(a, (tx) => tx.select().from(coachChangeRecords))).length).toBe(1);
 });
 it("requires review for structural changes and leaves the active programme intact", async () => {
   const a = await athlete();

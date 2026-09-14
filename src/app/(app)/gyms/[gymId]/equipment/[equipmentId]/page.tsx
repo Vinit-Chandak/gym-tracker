@@ -71,6 +71,8 @@ export default async function EquipmentPage(
             resistanceMode: equipment.resistanceMode,
             unit: equipment.unit,
             loadIncrement: equipment.loadIncrement === null ? "" : String(equipment.loadIncrement),
+            availableLoads: equipment.availableLoads.join(", "),
+            loadConvention: equipment.loadConvention,
             pulleyRatio: equipment.pulleyRatio ?? "",
             angleDegrees: equipment.angleDegrees === null ? "" : String(equipment.angleDegrees),
             notes: equipment.notes ?? "",

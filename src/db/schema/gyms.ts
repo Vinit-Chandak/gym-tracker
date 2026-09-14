@@ -3,6 +3,7 @@ import {
   boolean,
   index,
   integer,
+  jsonb,
   numeric,
   pgTable,
   text,
@@ -82,6 +83,15 @@ export const equipmentInstances = pgTable(
     unit: loadUnitEnum("unit").notNull().default("kg"),
     /** Smallest load jump on this machine, in `unit`. Null = not known yet. */
     loadIncrement: numeric("load_increment", { precision: 6, scale: 2, mode: "number" }),
+    /** Actual selectable loads, in unit; an empty list means unconfirmed. */
+    availableLoads: jsonb("available_loads")
+      .$type<number[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    loadConvention: text("load_convention")
+      .$type<"total" | "per_hand" | "assistance" | "stack_label" | "unknown">()
+      .notNull()
+      .default("unknown"),
     pulleyRatio: text("pulley_ratio"),
     angleDegrees: numeric("angle_degrees", { precision: 5, scale: 2, mode: "number" }),
     notes: text("notes"),

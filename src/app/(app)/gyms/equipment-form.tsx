@@ -30,6 +30,8 @@ export type EquipmentFormValues = {
   resistanceMode: ResistanceMode;
   unit: LoadUnit;
   loadIncrement: string;
+  availableLoads?: string;
+  loadConvention?: string;
   pulleyRatio: string;
   angleDegrees: string;
   notes: string;
@@ -175,6 +177,27 @@ export function EquipmentForm({
             />
           </Field>
 
+          <Field
+            label="Available loads"
+            info="List the weights you can actually select, in the unit above. For example: 4, 6, 8, 10, 12. Leave blank if unconfirmed."
+            error={state.fieldErrors?.availableLoads}
+          >
+            <Input
+              name="availableLoads"
+              defaultValue={value("availableLoads")}
+              maxLength={2000}
+              placeholder="4, 6, 8, 10, 12"
+            />
+          </Field>
+          <Field label="What one logged load means" error={state.fieldErrors?.loadConvention}>
+            <Select name="loadConvention" defaultValue={value("loadConvention") || "unknown"}>
+              <option value="unknown">Not confirmed</option>
+              <option value="total">Total external load</option>
+              <option value="per_hand">Per hand</option>
+              <option value="assistance">Assistance supplied</option>
+              <option value="stack_label">Machine stack label</option>
+            </Select>
+          </Field>
           <Field
             label="Smallest load jump"
             info="In the unit above: 2.5 for a pair of 1.25 kg plates, or one stack step. Progression suggestions move by this amount."

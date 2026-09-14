@@ -1,6 +1,5 @@
 import { comparisonScope } from "@/domain/comparable-history";
 import {
-  regressionStreak,
   suggestNext,
   workingSets,
   type Prescription,
@@ -13,15 +12,32 @@ import type { ComparablePerformance } from "@/server/queries/comparable";
 import { canConvertLoad, convertLoad, setInUnit } from "@/lib/units";
 
 import type { programExercises } from "@/db/schema";
+import { summarizeExerciseEvidence, TRAINING_POLICY } from "@/domain/training-evidence";
+import { todayInTimeZone } from "@/domain/program-calendar";
 
 export type RuleInput = {
+  asOf?: Date;
+  /** Accepted decisions for this account, oldest first. */
+  changes?: readonly {
+    createdAt: Date;
+    changes: readonly import("@/db/schema").CoachingChangeRecord[];
+  }[];
+  exerciseSlug?: string;
   planned: RulePrescription | null;
   exercise: ExerciseDefaults & {
     loadPortability: LoadPortability;
     defaultLoadIncrement: number | null;
   };
   /** The machine in use, or null for free weights, bodyweight and an undecided machine. */
-  equipment: { id: string; unit: LoadUnit; loadIncrement: number | null } | null;
+  equipment: {
+    id: string;
+    unit: LoadUnit;
+    loadIncrement: number | null;
+    availableLoads?: number[];
+    loadConvention?: string;
+  } | null;
+  locationKind?: string;
+  timeZone?: string;
   preferredUnit?: "kg" | "lb";
   /** The programme slot being performed, by its lineage, so a revision keeps its history. */
   slotLineageId: string | null;
@@ -73,7 +89,15 @@ export function applyRule(input: RuleInput): RuleOutcome {
       ? null
       : { ...performance, sets: performance.sets.map((set) => setInUnit(set, unit)) };
   const scope = comparisonScope(input.exercise.loadPortability);
-  const history = input.history.map(normalize).filter((item) => item !== null);
+  const now = input.asOf ?? new Date();
+  const history = input.history
+    .filter(
+      (h) =>
+        h.equipmentInstanceId === (input.equipment?.id ?? null) &&
+        h.performedAt.getTime() >= now.getTime() - TRAINING_POLICY.trendDays * 86_400_000,
+    )
+    .map(normalize)
+    .filter((item) => item !== null);
   const previous = history[0] ?? null;
   const sameSlot = input.slotLineageId
     ? history.filter((h) => h.plannedSlotLineageId === input.slotLineageId)
@@ -103,15 +127,132 @@ export function applyRule(input: RuleInput): RuleOutcome {
       (rule && "loadIncrement" in rule ? rule.loadIncrement : null) ?? input.planned?.loadIncrement;
     if (increment != null) prescription.loadIncrement = convertLoad(increment, "kg", unit);
   }
+  if (prescription) {
+    prescription.availableLoads = input.equipment?.availableLoads;
+    prescription.requireConfirmedLoads = input.locationKind === "home";
+    if (prescription.requireConfirmedLoads && input.equipment?.loadConvention === "unknown")
+      prescription.availableLoads = [];
+    if (
+      input.equipment &&
+      ["assistance", "stack_label"].includes(input.equipment.loadConvention ?? "")
+    ) {
+      prescription.requireConfirmedLoads = true;
+      prescription.availableLoads = [];
+    }
+  }
+  const evidenceHistory = basisHistory.map((h) => ({
+    ...h,
+    performedOn: todayInTimeZone(input.timeZone ?? "Asia/Kolkata", h.performedAt),
+  }));
+  const decisions = (input.changes ?? []).flatMap((record) =>
+    record.changes
+      .filter((change) => change.scope === `slot:${input.slotLineageId}`)
+      .map((change) => ({ ...change, at: record.createdAt })),
+  );
+  const lastDecision = decisions.filter((change) => change.kind !== "temporary").at(-1);
+  const freshHistory = lastDecision
+    ? evidenceHistory.filter(
+        (h) =>
+          h.performedAt > lastDecision.at &&
+          !decisions.some(
+            (change) =>
+              change.kind !== "temporary" &&
+              change.evidenceIds.includes(`workout:${h.workoutSessionId}`),
+          ),
+      )
+    : evidenceHistory;
+  let suggestion = prescription
+    ? suggestNext(prescription, basisPerformance?.sets ?? null, basis, freshHistory)
+    : null;
+  const original = basisHistory
+    .filter(
+      (h) => h.performedAt.getTime() >= now.getTime() - TRAINING_POLICY.cumulativeDays * 86_400_000,
+    )
+    .at(-1);
+  if (
+    suggestion?.kind === "increase" &&
+    original &&
+    basisPerformance &&
+    suggestion.sets.some((set) => {
+      const old = workingSets(original.sets).find((item) => item.setIndex === set.setIndex);
+      return (
+        old?.weight != null &&
+        old.weight > 0 &&
+        set.weight != null &&
+        set.weight / old.weight - 1 > TRAINING_POLICY.maxCumulativeLoadIncrease + 1e-9
+      );
+    })
+  )
+    suggestion = {
+      ...suggestion,
+      kind: "hold",
+      reason: "Combined load increases over 14 days need review.",
+      advice: "Repeat the current load until the coach reviews the recent progression.",
+      sets: basisPerformance.sets.map((set) => ({ ...set, rir: prescription?.rirMin ?? null })),
+    };
+  const lastLoadDecision = decisions
+    .filter(
+      (change) =>
+        change.exerciseSlug === input.exerciseSlug &&
+        change.equipmentId === (input.equipment?.id ?? null) &&
+        change.unit &&
+        canConvertLoad(change.unit, unit) &&
+        (change.before.loads?.length || change.after.loads?.length),
+    )
+    .at(-1);
+  const referenceLoads =
+    lastLoadDecision?.kind === "temporary"
+      ? lastLoadDecision.before.loads
+      : lastLoadDecision?.after.loads;
+  const currentWorking = workingSets(basisPerformance?.sets ?? []);
+  if (
+    suggestion &&
+    prescription &&
+    referenceLoads?.some(
+      (load) =>
+        currentWorking[load.index]?.weight !==
+        convertLoad(load.load, lastLoadDecision!.unit!, unit),
+    )
+  ) {
+    suggestion = {
+      ...suggestion,
+      kind: "hold",
+      reason:
+        "Return to the retained baseline after the temporary session; reassess current readiness.",
+      advice:
+        "A lighter session does not permanently lower the plan. Report current recovery before training.",
+      sets: suggestion.sets.map((set) => {
+        const index = currentWorking.findIndex((item) => item.setIndex === set.setIndex);
+        const load = referenceLoads.find((item) => item.index === index);
+        return load
+          ? {
+              ...set,
+              weight: convertLoad(load.load, lastLoadDecision!.unit!, unit),
+              rir: prescription.rirMin,
+            }
+          : set;
+      }),
+    };
+  }
+  // The fallback can flag decline but cannot create an unrecorded lasting reduction.
+  if (suggestion?.kind === "reduce" && basisPerformance)
+    suggestion = {
+      ...suggestion,
+      kind: "hold",
+      reason: "Repeated decline needs a coach review against the retained reference.",
+      advice: "Keep the baseline pending review; a recovery adjustment can still be temporary.",
+      sets: basisPerformance.sets.map((set) => ({ ...set, rir: prescription?.rirMin ?? null })),
+    };
   return {
     weightStep,
     previous,
     basis,
     basisPerformance,
-    suggestion: prescription
-      ? suggestNext(prescription, basisPerformance?.sets ?? null, basis)
-      : null,
-    regressionStreak: regressionStreak(basisHistory.map((h) => h.sets)),
+    suggestion,
+    regressionStreak:
+      prescription && summarizeExerciseEvidence(prescription, evidenceHistory).declineCandidate
+        ? 2
+        : 0,
   };
 }
 

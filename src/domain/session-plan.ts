@@ -34,6 +34,7 @@ export const planSetSchema = z.object({
   /** Metres, for carries and sled work: what those sets count instead of reps. */
   distanceMeters: z.number().min(0).max(SET_LIMITS.distanceMeters).nullable().default(null),
   rir: z.number().min(0).max(SET_LIMITS.rir).nullable().default(null),
+  rpe: z.number().min(1).max(SET_LIMITS.rpe).nullable().optional(),
 });
 
 /**
@@ -139,6 +140,7 @@ export function planTargets(
           : null,
     reps: set.reps,
     rir: set.rir,
+    rpe: set.rpe,
     durationSeconds: set.durationSeconds,
     distanceMeters: set.distanceMeters ?? null,
   }));
@@ -182,5 +184,9 @@ export function planLine(
       : same((s) => s.rir)
         ? ` · RIR ${first.rir}`
         : ` · RIR ${shown.map((s) => s.rir ?? "—").join("/")}`;
-  return `${count} ${volume}${perSide ? " per side" : ""}${load}${rir}`;
+  const rpe =
+    first.reps === null && first.rpe != null
+      ? ` · RPE ${same((s) => s.rpe ?? null) ? first.rpe : shown.map((s) => s.rpe ?? "—").join("/")}`
+      : "";
+  return `${count} ${volume}${perSide ? " per side" : ""}${load}${first.reps === null ? rpe : rir}`;
 }

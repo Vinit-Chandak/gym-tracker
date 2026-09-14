@@ -1,5 +1,7 @@
 "use server";
 
+import { EFFORT_INPUT_VERSION, EFFORT_REFRESH_MESSAGE, effortError } from "@/domain/effort";
+
 import { refresh, revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -254,6 +256,7 @@ export async function setWarmupCompletedAction(
 
 const logSetSchema = z
   .object({
+    effortInputVersion: z.literal(EFFORT_INPUT_VERSION, { error: EFFORT_REFRESH_MESSAGE }),
     unit: z.enum(LOAD_UNITS).optional(),
     expectedCompletedAt: z.iso.datetime().nullable().optional(),
     expectedExerciseId: z.uuid().optional(),
@@ -264,13 +267,15 @@ const logSetSchema = z
     weight: z.number().min(0).max(SET_LIMITS.weight).nullable(),
     reps: z.number().int().min(0).max(SET_LIMITS.reps).nullable(),
     rir: z.number().min(0).max(SET_LIMITS.rir).nullable(),
+    rpe: z.number().min(1).max(SET_LIMITS.rpe).nullable().default(null),
     durationSeconds: z.number().int().min(0).max(SET_LIMITS.durationSeconds).nullable(),
     distanceMeters: z.number().min(0).max(SET_LIMITS.distanceMeters).nullable().default(null),
   })
   .refine(
     (value) =>
-      value.reps !== null || value.durationSeconds !== null || value.distanceMeters !== null,
-    { message: "Enter reps, a duration or a distance." },
+      [value.reps, value.durationSeconds, value.distanceMeters].filter((item) => item !== null)
+        .length === 1,
+    { message: "Enter exactly one measure: reps, duration or distance." },
   );
 
 /** Logged set with a JSON-safe timestamp (matches the client view model). */
@@ -283,6 +288,8 @@ export async function logSetAction(input: unknown): Promise<LogSetResult> {
   const parsed = logSetSchema.safeParse(input);
   if (!parsed.success)
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid set." };
+  const effortIssue = effortError(parsed.data);
+  if (effortIssue) return { ok: false, error: effortIssue };
   try {
     const set = await withUser(getDb(), user.id, (tx) => logSet(tx, user.id, parsed.data));
     // The set count on Today, History and Progress comes from this row too.

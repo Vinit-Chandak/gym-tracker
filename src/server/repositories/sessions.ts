@@ -44,6 +44,7 @@ import { decideExercisesAtGym, resolvePlannedDay, type ExerciseDecision } from "
 import { getGym } from "./gyms";
 import { consumePlan, planForSession, releasePlan } from "./coach-plans";
 import { applyRule } from "./progression-rule";
+import { readCoachingChanges } from "./coaching-changes";
 
 export class SessionNotFoundError extends Error {
   constructor() {
@@ -290,6 +291,8 @@ export type SessionSet = {
   unit: LoadUnit;
   reps: number | null;
   rir: number | null;
+  rpe?: number | null;
+  effortReported?: boolean;
   durationSeconds: number | null;
   distanceMeters: number | null;
   completedAt: Date;
@@ -401,6 +404,7 @@ export async function getSessionDetail(
     includeGuidance?: boolean;
     restTimerEnabled?: boolean;
     preferredUnit?: "kg" | "lb";
+    timeZone?: string;
   } = {},
 ): Promise<SessionDetail | null> {
   const [session] = await db
@@ -464,6 +468,8 @@ export async function getSessionDetail(
           name: equipmentInstances.name,
           unit: equipmentInstances.unit,
           loadIncrement: equipmentInstances.loadIncrement,
+          availableLoads: equipmentInstances.availableLoads,
+          loadConvention: equipmentInstances.loadConvention,
         },
         planned: programExercises,
         plannedExerciseName: plannedExercise.name,
@@ -488,6 +494,8 @@ export async function getSessionDetail(
         unit: setLogs.unit,
         reps: setLogs.reps,
         rir: setLogs.rir,
+        rpe: setLogs.rpe,
+        effortReported: setLogs.effortReported,
         durationSeconds: setLogs.durationSeconds,
         distanceMeters: setLogs.distanceMeters,
         completedAt: setLogs.completedAt,
@@ -496,10 +504,13 @@ export async function getSessionDetail(
       .innerJoin(workoutExercises, eq(workoutExercises.id, setLogs.workoutExerciseId))
       .where(eq(workoutExercises.workoutSessionId, sessionId))
       .orderBy(asc(setLogs.setIndex)),
-    options.restTimerEnabled === undefined || options.preferredUnit === undefined
+    options.restTimerEnabled === undefined ||
+    options.preferredUnit === undefined ||
+    options.timeZone === undefined
       ? db
           .select({
             restTimerEnabled: profiles.restTimerEnabled,
+            timeZone: profiles.timeZone,
             preferredUnit: profiles.preferredUnit,
           })
           .from(profiles)
@@ -533,7 +544,7 @@ export async function getSessionDetail(
       )
     : [];
   // History and machine decisions depend on the slots but not on each other.
-  const [histories, decisions] = await Promise.all([
+  const [histories, decisions, coachingChanges] = await Promise.all([
     includeGuidance
       ? sessionHistories(
           db,
@@ -558,11 +569,20 @@ export async function getSessionDetail(
       })),
       session.gym,
     ),
+    includeGuidance
+      ? readCoachingChanges(db, userId, session.session.startedAt)
+      : Promise.resolve([]),
   ]);
   const exerciseDetails: SessionExercise[] = [];
   for (const [index, row] of rows.entries()) {
     const saved = row.we.savedPrescription ? manualPrescription(row.we.savedPrescription) : null;
     const rule = applyRule({
+      asOf: session.session.startedAt,
+      changes: coachingChanges,
+      exerciseSlug: row.exercise.slug,
+      locationKind: session.gym.kind,
+      timeZone:
+        options.timeZone ?? (profile && "timeZone" in profile ? profile.timeZone : "Asia/Kolkata"),
       planned: row.planned ?? saved,
       exercise: row.exercise,
       equipment: row.equipment?.id ? row.equipment : null,
@@ -811,6 +831,7 @@ export type LogSetInput = {
   weight: number | null;
   reps: number | null;
   rir: number | null;
+  rpe?: number | null;
   durationSeconds: number | null;
   /** Metres, for carries and sled work. Left out on everything measured in reps or seconds. */
   distanceMeters?: number | null;
@@ -818,6 +839,7 @@ export type LogSetInput = {
 
 /** Creates or replaces one set. Raw values are stored exactly as entered. */
 export async function logSet(db: DbOrTx, userId: string, input: LogSetInput): Promise<SessionSet> {
+  const effortReported = input.reps !== null ? input.rir !== null : input.rpe != null;
   const [sessionRow] = await db
     .select({ completedAt: workoutSessions.completedAt })
     .from(workoutExercises)
@@ -880,6 +902,8 @@ export async function logSet(db: DbOrTx, userId: string, input: LogSetInput): Pr
       previous.unit === unit &&
       previous.reps === input.reps &&
       previous.rir === input.rir &&
+      previous.rpe === (input.rpe ?? null) &&
+      previous.effortReported === effortReported &&
       previous.durationSeconds === input.durationSeconds &&
       previous.distanceMeters === (input.distanceMeters ?? null)
     )
@@ -898,6 +922,8 @@ export async function logSet(db: DbOrTx, userId: string, input: LogSetInput): Pr
       unit,
       reps: input.reps,
       rir: input.rir,
+      rpe: input.rpe ?? null,
+      effortReported,
       durationSeconds: input.durationSeconds,
       distanceMeters: input.distanceMeters ?? null,
       completedAt: now,
@@ -910,6 +936,8 @@ export async function logSet(db: DbOrTx, userId: string, input: LogSetInput): Pr
         unit,
         reps: input.reps,
         rir: input.rir,
+        rpe: input.rpe ?? null,
+        effortReported,
         durationSeconds: input.durationSeconds,
         distanceMeters: input.distanceMeters ?? null,
         completedAt: now,
@@ -923,6 +951,8 @@ export async function logSet(db: DbOrTx, userId: string, input: LogSetInput): Pr
       unit: setLogs.unit,
       reps: setLogs.reps,
       rir: setLogs.rir,
+      rpe: setLogs.rpe,
+      effortReported: setLogs.effortReported,
       durationSeconds: setLogs.durationSeconds,
       distanceMeters: setLogs.distanceMeters,
       completedAt: setLogs.completedAt,

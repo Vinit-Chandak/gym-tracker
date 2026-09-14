@@ -66,6 +66,9 @@ export default async function AiCoachSettingsPage() {
           }
           userNotes={memo.userNotes}
           overview={memo.overview}
+          memoryItems={[...memo.items, ...memo.reviewDueItems]}
+          memoryRevision={memo.memoryRevision}
+          memoryReviewDueIds={memo.reviewDueItems.map((item) => item.id)}
           overviewUpdatedAt={
             memo.overviewUpdatedAt ? formatDateTime(memo.overviewUpdatedAt, profile.timeZone) : null
           }

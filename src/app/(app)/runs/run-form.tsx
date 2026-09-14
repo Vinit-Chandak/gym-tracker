@@ -12,6 +12,7 @@ import { Section } from "@/components/ui/section";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select } from "@/components/ui/select";
 import { formatPace, paceSecondsPerKm } from "@/domain/pace";
+import { EFFORT_INPUT_VERSION } from "@/domain/effort";
 import { rangeLabel, WEEKDAY_SHORT } from "@/lib/labels";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
 import type { PlannedRunStatus } from "@/server/repositories/runs";
@@ -71,7 +72,7 @@ export type CoachRunBrief = {
 type Props = {
   action: (previous: FormState, formData: FormData) => Promise<FormState>;
   initial: RunFormValues;
-  /** What the coach asked for, when it planned this run. The fields start from it. */
+  /** The coach's targets; actual effort is always entered separately. */
   coach?: CoachRunBrief | null;
   /** The current cycle's planned runs, for linking the run to the programme. */
   planned: PlannedRunStatus[];
@@ -116,6 +117,7 @@ export function RunForm({ action, initial, planned, runId, submitLabel, coach = 
 
   return (
     <form action={formAction} className="space-y-[var(--section-gap)]">
+      <input type="hidden" name="effortInputVersion" value={EFFORT_INPUT_VERSION} />
       {coach && (
         <Section title="The coach asked for">
           <Card>
@@ -195,7 +197,12 @@ export function RunForm({ action, initial, planned, runId, submitLabel, coach = 
 
       <Section title="Effort and plan">
         <Card>
-          <Field group label="RPE" hint="Optional" error={state.fieldErrors?.rpe}>
+          <Field
+            group
+            label="RPE"
+            hint="Required: actual effort, 1 very easy to 10 maximal"
+            error={state.fieldErrors?.rpe}
+          >
             <SegmentedControl
               name="rpe"
               options={RPE}

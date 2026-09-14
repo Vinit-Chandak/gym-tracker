@@ -3,7 +3,7 @@ import { LOAD_UNITS, SET_TYPES } from "@/domain/types";
 import { canConvertLoad, convertLoad } from "./units";
 
 /** The numbers a set row can carry. Which of them the grid shows depends on the measure. */
-export const DRAFT_VALUE_FIELDS = ["weight", "reps", "rir", "duration", "distance"] as const;
+export const DRAFT_VALUE_FIELDS = ["weight", "reps", "rir", "rpe", "duration", "distance"] as const;
 
 export type DraftValueField = (typeof DRAFT_VALUE_FIELDS)[number];
 
@@ -14,13 +14,16 @@ export type DraftFields = {
   weight: string;
   reps: string;
   rir: string;
+  rpe?: string;
+  /** Present only after effort was explicitly entered in the current logging flow. */
+  effortVersion?: 2;
   duration: string;
   distance: string;
   /**
    * Which values the user actually set. An empty field that was never touched still takes
    * its row's suggestion when the set is saved; one the user deliberately cleared stays
-   * unknown. Without this the two are the same empty string, and clearing an optional RIR
-   * would silently restore the target it was cleared to reject.
+   * unknown. Effort never takes a suggestion; effortVersion separately records whether
+   * its value was reported instead of restored from a potentially auto-filled old draft.
    */
   touched?: DraftValueField[];
 };
@@ -55,7 +58,8 @@ export function readDrafts(storage: StorageLike, ctx: DraftContext): Draft[] {
           row.setIndex <= 50 &&
           SET_TYPES.includes(row.setType) &&
           (row.unit === undefined || LOAD_UNITS.includes(row.unit)) &&
-          [row.weight, row.reps, row.rir, row.duration, row.distance ?? ""].every(
+          (row.effortVersion === undefined || row.effortVersion === 2) &&
+          [row.weight, row.reps, row.rir, row.rpe ?? "", row.duration, row.distance ?? ""].every(
             (v) => typeof v === "string" && v.length <= 24,
           ) &&
           (row.touched === undefined ||
@@ -97,7 +101,17 @@ export function removeDraft(
       const current = readDrafts(storage, ctx).find((d) => d.setIndex === setIndex);
       if (
         current &&
-        ["setType", "unit", "weight", "reps", "rir", "duration", "distance"].some(
+        [
+          "setType",
+          "unit",
+          "weight",
+          "reps",
+          "rir",
+          "rpe",
+          "effortVersion",
+          "duration",
+          "distance",
+        ].some(
           (field) => current[field as keyof DraftFields] !== expected[field as keyof DraftFields],
         )
       )
@@ -132,6 +146,7 @@ export function draftMatchesSet(
     weight: number | null;
     reps: number | null;
     rir: number | null;
+    rpe?: number | null;
     durationSeconds: number | null;
     distanceMeters: number | null;
   },
@@ -146,6 +161,7 @@ export function draftMatchesSet(
       : weight) === set.weight &&
     numeric(draft.reps) === set.reps &&
     numeric(draft.rir) === set.rir &&
+    numeric(draft.rpe ?? "") === (set.rpe ?? null) &&
     numeric(draft.duration) === set.durationSeconds &&
     numeric(draft.distance) === set.distanceMeters
   );
