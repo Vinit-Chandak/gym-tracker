@@ -1,6 +1,7 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 
 import { sql } from "drizzle-orm";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { profileDirectory, profiles } from "../schema";
 import { createTestDatabase, type TestDatabase } from "../test/pglite";
@@ -97,6 +98,44 @@ describe("generate_username", () => {
   it("invents a name when the email offers nothing", async () => {
     expect(await generate("+++", null)).toMatch(/^athlete_[0-9a-f]{8}$/);
     expect(await generate("", null)).toMatch(/^athlete_[0-9a-f]{8}$/);
+  });
+});
+
+describe("the backfill", () => {
+  /** The migration's own DO block, read out of the file rather than retyped. */
+  const BACKFILL = readFileSync(
+    new URL("./0019_usernames_and_privacy.sql", import.meta.url),
+    "utf8",
+  )
+    .split("--> statement-breakpoint")
+    .map((statement) =>
+      statement
+        .split("\n")
+        .filter((line) => !line.trim().startsWith("--"))
+        .join("\n")
+        .trim(),
+    )
+    .find((statement) => statement.startsWith("DO $$"));
+
+  it("names every account that has none, oldest first", async () => {
+    expect(BACKFILL).toBeDefined();
+    // Accounts from before the column existed: the migration has already run against an
+    // empty table here, so the state it met in production is rebuilt by hand.
+    const older = await signUp("sam@one.example");
+    const newer = await signUp("sam@two.example");
+    await t.client.exec("alter table profiles alter column username drop not null");
+    await t.client.query(
+      "update profiles set username = null, created_at = $3 where id = any($1::uuid[]) and $2",
+      [[older, newer], true, "2026-01-01T00:00:00Z"],
+    );
+    await t.client.query("update profiles set created_at = $2 where id = $1", [
+      newer,
+      "2026-02-01T00:00:00Z",
+    ]);
+    await t.client.exec(BACKFILL!);
+    await t.client.exec("alter table profiles alter column username set not null");
+    expect(await usernameOf(older)).toBe("sam");
+    expect(await usernameOf(newer)).toBe("sam2");
   });
 });
 
