@@ -6,6 +6,7 @@ import {
   EQUIPMENT_CATEGORIES,
   EXERCISE_CATEGORIES,
   EXERCISE_MODALITIES,
+  FOLLOW_STATUSES,
   GYM_KINDS,
   LOAD_PORTABILITY,
   LOAD_UNITS,
@@ -47,4 +48,5 @@ export const coachRequestInitiatorEnum = pgEnum(
   COACH_REQUEST_INITIATORS,
 );
 export const sexEnum = pgEnum("sex", SEXES);
+export const followStatusEnum = pgEnum("follow_status", FOLLOW_STATUSES);
 export const trainingGoalEnum = pgEnum("training_goal", TRAINING_GOALS);

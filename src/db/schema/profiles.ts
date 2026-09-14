@@ -4,6 +4,7 @@ import {
   check,
   date,
   index,
+  integer,
   numeric,
   pgTable,
   pgView,
@@ -93,8 +94,8 @@ export const profiles = pgTable(
  * profile headers and leaderboard names find people. Owned by the migration role, so it reads
  * `profiles` without RLS; `security_barrier` keeps a caller's predicates from being pushed
  * inside it. No email, no measurements, and of the privacy switches only `follow_approval`,
- * which the follow button needs to say Follow or Request. Follower counts join it with the
- * `follows` table in the next migration.
+ * which the follow button needs to say Follow or Request. The two counts are of accepted
+ * follows only; a pending request counts for nobody.
  */
 export const profileDirectory = pgView("profile_directory", {
   id: uuid("id").notNull(),
@@ -102,10 +103,15 @@ export const profileDirectory = pgView("profile_directory", {
   displayName: text("display_name"),
   joinedAt: timestamp("joined_at", { withTimezone: true }).notNull(),
   followApproval: boolean("follow_approval").notNull(),
+  followers: integer("followers").notNull(),
+  following: integer("following").notNull(),
 })
   .with({ securityBarrier: true })
   .as(
-    sql`select id, username, display_name, created_at as joined_at, follow_approval from public.profiles`,
+    sql`select p.id, p.username, p.display_name, p.created_at as joined_at, p.follow_approval,
+      (select count(*)::integer from public.follows f where f.followee_id = p.id and f.status = 'accepted') as followers,
+      (select count(*)::integer from public.follows f where f.follower_id = p.id and f.status = 'accepted') as following
+      from public.profiles p`,
   );
 
 /**

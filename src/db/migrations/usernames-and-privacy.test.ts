@@ -196,6 +196,9 @@ describe("profile_directory", () => {
       "display_name",
       "joined_at",
       "follow_approval",
+      // Added by 0020 with the follows table they count.
+      "followers",
+      "following",
     ]);
   });
 
