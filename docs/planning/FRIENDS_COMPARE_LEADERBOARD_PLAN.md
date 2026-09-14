@@ -1,7 +1,7 @@
 # Friends, comparison and leaderboards — implementation plan
 
-Status: decisions locked on 2026-09-14. Phase 0 and phase 1 implemented on 2026-09-14 (see the
-notes under phase 1); phase 2 next.
+Status: decisions locked on 2026-09-14. Phases 0, 1 and 2 implemented on 2026-09-14 (see the
+notes under each phase); phase 3 next.
 Owner: Vinit. Written after a full read of the codebase on `main` at `33cdbe7`.
 
 This plan adds people to an app that was built for one person at a time: a username, following
@@ -769,6 +769,25 @@ cannot see a table their branch adds. Sizes: S under a day, M one to two days, L
 - **Tests**: RLS (bob cannot read alice's follows with carol; alice cannot accept her own
   request; the client-supplied status is ignored by the trigger); `can_view_training` truth
   table across approval, acceptance and `share_training`; `FollowButton` state rendering.
+- **As built** (decisions taken with the owner during implementation):
+  - `/u/[username]` is the header card with the follow button, or "This is you · Edit
+    profile"; nothing below it until phase 3, including the "Follow @x to see their training"
+    line, which belongs with the training section it stands in for.
+  - Search never returns the viewer's own account.
+  - With nobody followed and no followers the People box is omitted; the search field is the
+    one thing always on the Friends page. Requests appear only when any are waiting.
+  - Your own header card's counts open `/profile/friends?people=followers|following` (the
+    two-way control's choice lives in the URL); counts on anyone else's page are plain text.
+  - Unfollow, Remove follower and cancelling a request confirm in a sheet; Decline does not,
+    since the requester can simply ask again. The "quiet Remove/Unfollow behind a disclosure"
+    is a ghost button at the row's end whose sheet is the disclosure.
+  - `profile_directory` gained `followers` and `following` (accepted follows only) by
+    `CREATE OR REPLACE VIEW`, since `find_profile_by_email()` returns its row type.
+  - `followRelations` reads both directions for a whole list in one query, and the button
+    derives its five states from that relation, so a withdrawn request lands on whatever a
+    fresh tap would do (Follow, Request or Follow back).
+  - Search results rows also open the person's page, since the page exists in this phase.
+  - The Privacy row uses a `Lock` icon (Phosphor `LockSimple`); the plan named no icon for it.
 
 ### Phase 3 — Shared stats and records (L)
 
