@@ -165,6 +165,8 @@ export async function writeSessionStats(
           workingSets: e.workingSets,
           totalReps: e.totalReps,
           topWeightKg: e.topWeightKg,
+          topWeightSets: e.topWeightSets,
+          topWeightReps: e.topWeightReps,
           bestE1rmKg: e.bestE1rmKg,
           bestSetVolumeKg: e.bestSetVolumeKg,
           mostReps: e.mostReps,
@@ -185,6 +187,8 @@ export async function writeSessionStats(
           workingSets: sql`excluded.working_sets`,
           totalReps: sql`excluded.total_reps`,
           topWeightKg: sql`excluded.top_weight_kg`,
+          topWeightSets: sql`excluded.top_weight_sets`,
+          topWeightReps: sql`excluded.top_weight_reps`,
           bestE1rmKg: sql`excluded.best_e1rm_kg`,
           bestSetVolumeKg: sql`excluded.best_set_volume_kg`,
           mostReps: sql`excluded.most_reps`,
@@ -423,13 +427,25 @@ export async function readMuscleSets(
   return rows.reduce<MuscleSets>((into, row) => addMuscleSets(into, row.muscleSets), {});
 }
 
-export type ExerciseBest = { metric: SharedMetric; value: number; occurredOn: string };
+export type ExerciseBest = {
+  metric: SharedMetric;
+  value: number;
+  occurredOn: string;
+  /**
+   * For top weight only: the working sets at that load in the session credited with it and
+   * the most reps one of them reached — "4 × 12". Null on the other metrics, and on a best
+   * from rows written before the columns existed.
+   */
+  work: { sets: number; reps: number | null } | null;
+};
 
 /**
  * The best value of each metric each person has for one movement, and when it was set: the
  * "Your records" tiles, and both sides of an exercise comparison. Read in full and reduced
  * here; a person's rows for one exercise are a few hundred at most. A person with no rows
- * (or none the viewer may see) is absent from the map.
+ * (or none the viewer may see) is absent from the map. Ties keep the earliest day, except
+ * that a top weight is credited to the session that worked it hardest — more reps, then more
+ * sets — since "7.5 kg · 4 × 12" says more than the day 7.5 kg was first lifted once.
  */
 export async function readExerciseBests(
   tx: DbOrTx,
@@ -443,6 +459,8 @@ export async function readExerciseBests(
       occurredOn: sharedExerciseStats.occurredOn,
       bestE1rmKg: sharedExerciseStats.bestE1rmKg,
       topWeightKg: sharedExerciseStats.topWeightKg,
+      topWeightSets: sharedExerciseStats.topWeightSets,
+      topWeightReps: sharedExerciseStats.topWeightReps,
       bestSetVolumeKg: sharedExerciseStats.bestSetVolumeKg,
       mostReps: sharedExerciseStats.mostReps,
       longestDurationSeconds: sharedExerciseStats.longestDurationSeconds,
@@ -465,15 +483,28 @@ export async function readExerciseBests(
       let best: ExerciseBest | null = null;
       for (const row of own) {
         const value = metricValue(row, metric);
-        if (value !== null && (best === null || value > best.value)) {
-          best = { metric, value, occurredOn: row.occurredOn };
-        }
+        if (value === null) continue;
+        const work =
+          metric === "top_weight" && row.topWeightSets !== null
+            ? { sets: row.topWeightSets, reps: row.topWeightReps }
+            : null;
+        const better =
+          best === null || value > best.value || (value === best.value && harder(work, best.work));
+        if (better) best = { metric, value, occurredOn: row.occurredOn, work };
       }
       if (best) bests.push(best);
     }
     result.set(userId, bests);
   }
   return result;
+}
+
+/** Whether one session's work at a load outdoes another's: more reps, then more sets. */
+function harder(a: ExerciseBest["work"], b: ExerciseBest["work"]): boolean {
+  if (!a) return false;
+  if (!b) return true;
+  const reps = (work: NonNullable<ExerciseBest["work"]>) => work.reps ?? 0;
+  return reps(a) > reps(b) || (reps(a) === reps(b) && a.sets > b.sets);
 }
 
 export type TrendPoint = { date: string; value: number };

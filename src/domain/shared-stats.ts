@@ -154,6 +154,9 @@ export type ExerciseStats = {
   workingSets: number;
   totalReps: number | null;
   topWeightKg: number | null;
+  /** Working sets at the top weight, and the most reps one of them reached; null without one. */
+  topWeightSets: number | null;
+  topWeightReps: number | null;
   bestE1rmKg: number | null;
   bestSetVolumeKg: number | null;
   mostReps: number | null;
@@ -236,6 +239,8 @@ export function sessionStats(
       workingSets: 0,
       totalReps: null,
       topWeightKg: null,
+      topWeightSets: null,
+      topWeightReps: null,
       bestE1rmKg: null,
       bestSetVolumeKg: null,
       mostReps: null,
@@ -249,7 +254,20 @@ export function sessionStats(
       reps.length === 0
         ? current.totalReps
         : (current.totalReps ?? 0) + reps.reduce((n, r) => n + r, 0);
-    current.topWeightKg = better(current.topWeightKg, max(loaded.map((set) => set.kg)));
+    const top = max(loaded.map((set) => set.kg));
+    if (top !== null && (current.topWeightKg === null || top >= current.topWeightKg)) {
+      // The sets at the top load and the most reps one of them got. A movement done in two
+      // slots of one session adds its sets up when both reached the same load; a heavier
+      // slot replaces what a lighter one counted.
+      const atTop = loaded.filter((set) => set.kg === top);
+      const carried = top === current.topWeightKg;
+      current.topWeightSets = atTop.length + (carried ? (current.topWeightSets ?? 0) : 0);
+      current.topWeightReps = better(
+        carried ? current.topWeightReps : null,
+        max(atTop.flatMap((set) => (set.reps === null ? [] : [set.reps]))),
+      );
+    }
+    current.topWeightKg = better(current.topWeightKg, top);
     current.bestE1rmKg = better(
       current.bestE1rmKg,
       max(

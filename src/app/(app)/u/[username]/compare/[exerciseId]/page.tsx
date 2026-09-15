@@ -7,7 +7,7 @@ import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { Card } from "@/components/ui/card";
 import { Chart } from "@/components/ui/chart";
-import { CompareBar, type BarSide } from "@/components/ui/compare-bars";
+import { CompareTable, type CompareSide } from "@/components/ui/compare-table";
 import { PeriodSelect } from "@/components/ui/period-select";
 import { Section } from "@/components/ui/section";
 import { getDb } from "@/db/client";
@@ -23,7 +23,7 @@ import {
   type SharedMetric,
 } from "@/domain/shared-stats";
 import type { BodyLoadUnit } from "@/domain/types";
-import { formatIsoDay, formatSharedMetric } from "@/lib/format";
+import { formatIsoDay, formatSharedMetric, formatTopWeightWork } from "@/lib/format";
 import { BODY_REGION_LABELS } from "@/lib/labels";
 import { fromKilograms } from "@/lib/units";
 import { requireUser } from "@/server/auth";
@@ -52,22 +52,25 @@ function side(
   reading: SharedReading | undefined,
   ratio: boolean,
   unit: BodyLoadUnit,
-): BarSide {
+): CompareSide {
   const best = bests?.find((b) => b.metric === metric);
-  if (!best) return { value: null, text: "0" };
+  // No best is not a best of nothing: an estimated 1RM needs a set of ten reps or fewer.
+  if (!best) return { value: null, text: "—" };
   const sub = [formatIsoDay(best.occurredOn)];
+  if (best.work) sub.unshift(formatTopWeightWork(best.work));
   const bodyWeight = ratio && RATIO_METRICS.has(metric) ? (reading?.weightKg ?? null) : null;
   const times = bodyWeight === null ? null : bodyWeightRatio(best.value, bodyWeight);
-  if (times !== null) sub.push(`${times}× body weight`);
+  if (times !== null) sub.push(`${times}× BW`);
   return { value: best.value, text: formatSharedMetric(metric, best.value, unit), sub };
 }
 
 /**
  * One movement head to head (plan §3.11): the Stronger badge under whoever leads on the
- * primary metric over all time, a bar pair per metric the movement is measured by with the
- * day each best was set, "× body weight" under the loads when you both share it, and the
- * primary metric per session over the chosen period as two lines on one chart. Only a
- * comparable movement (§3.9) has this page at all.
+ * primary metric over all time, the bests side by side for each metric the movement is
+ * measured by with the day each was set (and, for the top weight, how it was worked),
+ * "× body weight" under the loads when you both share it, and the primary metric per session
+ * over the chosen period as two lines on one chart. Only a comparable movement (§3.9) has
+ * this page at all.
  */
 export default async function CompareExercisePage(
   props: PageProps<"/u/[username]/compare/[exerciseId]">,
@@ -161,18 +164,18 @@ export default async function CompareExercisePage(
 
         <Section
           title="Best"
-          info={`All-time bests, with the day each was set. Stronger goes to whoever leads on ${metricLabel(metric, exercise).toLowerCase()}; a tie shows nobody.${ratio ? " Loads also read as multiples of each person's latest body weight, since you both share it." : ""}`}
+          info={`All-time bests, with the day each was set; under a top weight, how it was worked (working sets at that load × the most reps one of them reached). Stronger goes to whoever leads on ${metricLabel(metric, exercise).toLowerCase()}; a tie shows nobody.${metric === "e1rm" ? " An estimated 1RM needs a set of 1–10 reps, so a side whose sets were all longer reads 0." : ""}${ratio ? " Loads also read as multiples of each person's latest body weight (× BW), since you both share it." : ""}`}
         >
-          <Card className="space-y-4">
-            {metricsForExercise(exercise).map((m) => (
-              <CompareBar
-                key={m}
-                label={metricLabel(m, exercise)}
-                names={names}
-                a={side(m, mine, readings.get(me.id), ratio, unit)}
-                b={side(m, theirs, readings.get(them.id), ratio, unit)}
-              />
-            ))}
+          <Card>
+            <CompareTable
+              names={names}
+              rows={metricsForExercise(exercise).map((m) => ({
+                key: m,
+                label: metricLabel(m, exercise),
+                a: side(m, mine, readings.get(me.id), ratio, unit),
+                b: side(m, theirs, readings.get(them.id), ratio, unit),
+              }))}
+            />
           </Card>
         </Section>
 

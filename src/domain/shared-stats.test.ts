@@ -147,6 +147,9 @@ describe("sessionStats", () => {
       workingSets: 3,
       totalReps: 15,
       topWeightKg: 62.5,
+      // One working set at 62.5, for 4.
+      topWeightSets: 1,
+      topWeightReps: 4,
       // Epley on 60 × 6, the best of the three working sets.
       bestE1rmKg: 72,
       bestSetVolumeKg: 360,
@@ -192,9 +195,34 @@ describe("sessionStats", () => {
     expect(session.title).toBe("Workout");
     expect(session.workingSets).toBe(3);
     expect(exercises).toHaveLength(1);
-    expect(exercises[0]).toMatchObject({ workingSets: 2, topWeightKg: 50, totalReps: 8 });
+    // 100 lb is 45.36 kg, so the second slot's 50 kg is the top weight, worked once for 3.
+    expect(exercises[0]).toMatchObject({
+      workingSets: 2,
+      topWeightKg: 50,
+      topWeightSets: 1,
+      topWeightReps: 3,
+      totalReps: 8,
+    });
     expect(exercises[0]!.bestSetVolumeKg).toBeCloseTo(226.8, 1);
     expect(session.volumeKg).toBeCloseTo(226.8 + 150 + 200, 1);
+  });
+  it("adds up the sets at the top weight across two slots, and lets a heavier slot replace them", () => {
+    const twice = (kg: number) =>
+      sessionStats(
+        workout([
+          {
+            exerciseId: "bench",
+            exercise: bench,
+            sets: [set({ weight: 60, reps: 8 }), set({ weight: 60, reps: 6 })],
+          },
+          { exerciseId: "bench", exercise: bench, sets: [set({ weight: kg, reps: 3 })] },
+        ]),
+        "UTC",
+      ).exercises[0]!;
+    // The same load in both slots: three sets at 60, the best of them for 8.
+    expect(twice(60)).toMatchObject({ topWeightKg: 60, topWeightSets: 3, topWeightReps: 8 });
+    // A heavier second slot: the top weight is its one set, worked for 3.
+    expect(twice(70)).toMatchObject({ topWeightKg: 70, topWeightSets: 1, topWeightReps: 3 });
   });
   it("caps a session left open at four hours and counts holds and carries", () => {
     const { session, exercises } = sessionStats(

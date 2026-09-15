@@ -23,9 +23,10 @@ it("draws one polygon per series inside a scaling box, with the values in a tabl
   // A viewBox and a fluid width: the same drawing at 320px and on a tablet.
   expect(svg.getAttribute("viewBox")).toBe("0 0 320 320");
   expect(svg.getAttribute("class")).toContain("w-full");
-  // Four rings plus one shape; six markers on it.
+  // Four rings plus one shape, filled, with no markers at its corners.
   expect(container.querySelectorAll("polygon")).toHaveLength(5);
-  expect(container.querySelectorAll("circle")).toHaveLength(6);
+  expect(container.querySelectorAll("circle")).toHaveLength(0);
+  expect(container.querySelectorAll("polygon")[4]!.getAttribute("fill-opacity")).toBe("0.28");
   for (const axis of SPLIT_GROUPS) expect(screen.getAllByText(axis).length).toBeGreaterThan(0);
   // One series needs no legend: the caption names it.
   expect(container.querySelector("ul")).toBeNull();

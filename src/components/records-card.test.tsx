@@ -51,14 +51,15 @@ it("tiles the bests with their dates, labelled for the movement", () => {
       unit="kg"
       exercise={pullUp}
       bests={[
-        { metric: "most_reps", value: 12, occurredOn: "2026-09-08" },
-        { metric: "top_weight", value: 10, occurredOn: "2026-08-30" },
+        { metric: "most_reps", value: 12, occurredOn: "2026-09-08", work: null },
+        { metric: "top_weight", value: 10, occurredOn: "2026-08-30", work: { sets: 3, reps: 8 } },
       ]}
     />,
   );
   expect(screen.getByText("Added load")).toBeTruthy();
   expect(screen.getByText("10 kg")).toBeTruthy();
-  expect(screen.getByText("30 Aug 2026")).toBeTruthy();
+  expect(screen.getByText("3 × 8 · 30 Aug 2026")).toBeTruthy();
+  expect(screen.getByText("8 Sept 2026")).toBeTruthy();
 });
 
 it("lists period records with the metric and day under the name", () => {

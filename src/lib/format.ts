@@ -159,6 +159,15 @@ export function formatSharedMetric(
   }
 }
 
+/**
+ * How a top weight was worked, in set notation: "4 × 12" for four sets whose best reached
+ * twelve reps, "4 sets" for a hold or carry that has no reps to count.
+ */
+export function formatTopWeightWork(work: { sets: number; reps: number | null }): string {
+  if (work.reps === null) return `${work.sets} ${work.sets === 1 ? "set" : "sets"}`;
+  return `${work.sets} × ${work.reps}`;
+}
+
 /** "42.3 km": a period's distance, to a tenth, as the weekly totals on Runs read. */
 export function formatTotalKm(distanceMeters: number): string {
   return `${Math.round(distanceMeters / 100) / 10} km`;

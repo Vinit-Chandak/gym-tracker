@@ -5,7 +5,7 @@ import { CompareHeader } from "@/components/compare-header";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { Card } from "@/components/ui/card";
-import { CompareBar, type BarSide } from "@/components/ui/compare-bars";
+import { CompareTable, type CompareSide } from "@/components/ui/compare-table";
 import { InfoTip } from "@/components/ui/info-tip";
 import { LinkRow, List } from "@/components/ui/link-row";
 import { RadarChart } from "@/components/ui/radar-chart";
@@ -42,16 +42,17 @@ import { parseSport } from "@/server/validation/sport";
 export const metadata: Metadata = { title: "Compare" };
 
 /** One side of a stats row: the period's number, or "—" where the period cannot give one. */
-function side(totals: PeriodTotals, metric: ActivityMetric, unit: BodyLoadUnit): BarSide {
+function side(totals: PeriodTotals, metric: ActivityMetric, unit: BodyLoadUnit): CompareSide {
   const value = activityValue(totals, metric);
   return { value, text: value === null ? "—" : formatActivityMetric(metric, value, unit) };
 }
 
 /**
  * Head to head, overall (plan §3.10, §3.16): the two of you, then for lifting the shape of
- * each split, one bar pair per number for the period, and the comparable movements you both
- * did, each leading to its own comparison; for running the five run numbers, since a split
- * and exercises in common do not apply. Everything is in the viewer's unit.
+ * each split, the period's numbers side by side with the difference under each, and the
+ * comparable movements you both did, each leading to its own comparison; for running the
+ * five run numbers, since a split and exercises in common do not apply. Everything is in
+ * the viewer's unit.
  */
 export default async function ComparePage(props: PageProps<"/u/[username]/compare">) {
   const user = await requireUser();
@@ -140,17 +141,17 @@ export default async function ComparePage(props: PageProps<"/u/[username]/compar
               title="Stats"
               info={`The last ${PERIOD_LABELS[period]}, from the viewer's side: the percentage is how far ahead or behind you are of ${names[1]}.${sport === "run" ? " Best pace is the fastest average pace over a run of at least 1 km; a faster pace leads." : ""}`}
             >
-              <Card className="space-y-4">
-                {ACTIVITY_METRICS[sport].map((metric) => (
-                  <CompareBar
-                    key={metric}
-                    label={ACTIVITY_METRIC_LABELS[metric]}
-                    names={names}
-                    lowerIsBetter={lowerIsBetter(metric)}
-                    a={side(found.totals[0], metric, unit)}
-                    b={side(found.totals[1], metric, unit)}
-                  />
-                ))}
+              <Card>
+                <CompareTable
+                  names={names}
+                  rows={ACTIVITY_METRICS[sport].map((metric) => ({
+                    key: metric,
+                    label: ACTIVITY_METRIC_LABELS[metric],
+                    lowerIsBetter: lowerIsBetter(metric),
+                    a: side(found.totals[0], metric, unit),
+                    b: side(found.totals[1], metric, unit),
+                  }))}
+                />
               </Card>
             </Section>
 
