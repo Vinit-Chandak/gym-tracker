@@ -25,17 +25,21 @@ export function RequestRow({ person }: { person: Person & { id: string } }) {
   return (
     <div>
       <PersonRow person={person}>
-        <Button size="sm" disabled={pending} onClick={() => answer(acceptRequestAction)}>
-          Accept
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          disabled={pending}
-          onClick={() => answer(declineRequestAction)}
-        >
-          Decline
-        </Button>
+        {/* Two buttons beside a name is a row on most phones; on a 320px one they stack, so
+            the name keeps enough width to read as a word. */}
+        <span className="flex shrink-0 flex-col gap-1 min-[400px]:flex-row min-[400px]:gap-2">
+          <Button size="sm" disabled={pending} onClick={() => answer(acceptRequestAction)}>
+            Accept
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={pending}
+            onClick={() => answer(declineRequestAction)}
+          >
+            Decline
+          </Button>
+        </span>
       </PersonRow>
       {error && (
         <p role="alert" className="px-4 pb-3 text-sm text-danger">

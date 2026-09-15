@@ -365,6 +365,8 @@ export function Chart({
             aria-hidden
           />
           View values
+          {/* Several charts on one screen: a screen reader's list of controls tells them apart. */}
+          <span className="sr-only"> for {title}</span>
         </summary>
         <table className="w-full text-left tabular-nums">
           <caption className="sr-only">{title} by date, newest first</caption>
