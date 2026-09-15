@@ -1,4 +1,9 @@
+import { METRIC_UNIT, type SharedMetric } from "@/domain/shared-stats";
+import type { BodyLoadUnit } from "@/domain/types";
+
+import { formatDuration } from "@/domain/pace";
 import { dateTimeFormatter } from "./date-time-format";
+import { fromKilograms } from "./units";
 
 /**
  * The pieces of a formatted date, so a caller can join them itself.
@@ -125,4 +130,41 @@ const LB_PER_KG = 2.2046226218;
 export function formatKilograms(kilograms: number, unit: "kg" | "lb"): string {
   if (unit === "kg") return `${kilograms} kg`;
   return `${Math.round(kilograms * LB_PER_KG * 10) / 10} lb`;
+}
+
+/** "6,240 kg" / "13,757 lb": a shared load in the reader's unit, thousands separated. */
+export function formatSharedLoad(kilograms: number, unit: BodyLoadUnit): string {
+  return `${fromKilograms(kilograms, unit).toLocaleString("en-GB")} ${unit}`;
+}
+
+/**
+ * A shared metric's value as a reader in `unit` should see it (ADR 0026): loads in their
+ * unit, reps as a count, holds as a clock, carries in metres.
+ */
+export function formatSharedMetric(
+  metric: SharedMetric,
+  value: number,
+  unit: BodyLoadUnit,
+): string {
+  switch (METRIC_UNIT[metric]) {
+    case "kg":
+      return formatSharedLoad(value, unit);
+    case "reps":
+      return `${value} ${value === 1 ? "rep" : "reps"}`;
+    case "seconds":
+      return formatDuration(value);
+    case "metres":
+      return `${value.toLocaleString("en-GB")} m`;
+  }
+}
+
+/** "Today", "Yesterday", else the weekday and date: how an activity row says when. */
+export function formatRelativeDay(isoDate: string, today: string): string {
+  if (isoDate === today) return "Today";
+  const [y, m, d] = today.split("-").map(Number);
+  if (y && m && d) {
+    const yesterday = new Date(Date.UTC(y, m - 1, d - 1)).toISOString().slice(0, 10);
+    if (isoDate === yesterday) return "Yesterday";
+  }
+  return formatIsoWeekdayDay(isoDate);
 }

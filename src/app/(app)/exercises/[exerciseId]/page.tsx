@@ -5,6 +5,7 @@ import Link from "@/components/ui/app-link";
 import { notFound } from "next/navigation";
 
 import { AvailabilityBadge } from "@/components/availability-badge";
+import { ExerciseBestsTiles } from "@/components/records-card";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +19,7 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import type { Resolution } from "@/domain/equipment-resolution";
 import { performanceSeries } from "@/domain/analytics";
+import { isComparable } from "@/domain/shared-stats";
 import { formatSets } from "@/domain/sets";
 import { formatDay, formatKilograms } from "@/lib/format";
 import { setInUnit } from "@/lib/units";
@@ -43,6 +45,7 @@ import {
   type ExerciseGymAvailability,
 } from "@/server/repositories/availability";
 import { getExercise, type ExerciseProgramUsage } from "@/server/repositories/exercises";
+import { readExerciseBests } from "@/server/repositories/shared-stats";
 import { readWorkouts, TRAINING_RECORD_LIMIT } from "@/server/repositories/training-data";
 import { parseDateRangeOrDefault } from "@/server/validation/date-range";
 import { requireUuid } from "@/server/validation/params";
@@ -94,7 +97,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
   const data = await withUser(getDb(), user.id, async (tx) => {
     const exercise = await getExercise(tx, user.id, exerciseId);
     if (!exercise) return null;
-    const [availability, performances, charted, profile] = await Promise.all([
+    const [availability, performances, charted, bests, profile] = await Promise.all([
       exerciseAvailability(tx, user.id, exerciseId, exercise),
       recentPerformances(tx, user.id, exerciseId),
       // Only the sessions this movement was actually in, so the trend costs a page about
@@ -103,19 +106,23 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
         exerciseId,
         completedOnly: true,
       }),
+      // Records exist only for movements whose load means the same everywhere (plan §3.13);
+      // a machine's numbers stay with its machine, in the trend below.
+      isComparable(exercise) ? readExerciseBests(tx, user.id, exerciseId) : [],
       requestProfile,
     ]);
     return {
       exercise,
       availability,
       performances,
+      bests,
       series: performanceSeries(charted.workouts, profile.timeZone, exerciseId),
       timeZone: profile.timeZone,
       unit: profile.preferredUnit === "lb" ? ("lb" as const) : ("kg" as const),
     };
   });
   if (!data) notFound();
-  const { exercise, availability, performances, series, timeZone, unit } = data;
+  const { exercise, availability, performances, bests, series, timeZone, unit } = data;
   // One machine's loads are not another's, so each is its own series and the corner picker
   // chooses between them. Only the chosen one's points cross the wire.
   const machines = series.map(({ id, name, machine, unit: loadUnit }) => ({
@@ -243,6 +250,8 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
             </ul>
           </Card>
         )}
+
+        <ExerciseBestsTiles exercise={exercise} bests={bests} unit={unit} />
 
         {rangeError && (
           <p role="alert" className="text-sm text-danger">

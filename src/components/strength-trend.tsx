@@ -144,6 +144,8 @@ export function StrengthTrend({
                     : selected.machine === "Across gyms"
                       ? "The load means the same at every gym, so all sessions count."
                       : `Sessions on ${selected.machine}.`}
+                  {metric === "estimated1RM" &&
+                    " Estimated 1RM is Epley's formula on barbell and dumbbell sets of 1–10 reps; a dumbbell load counts as logged, not doubled per hand."}
                 </InfoTip>
               </span>
             </div>
