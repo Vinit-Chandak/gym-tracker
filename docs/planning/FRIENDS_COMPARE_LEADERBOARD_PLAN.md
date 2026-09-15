@@ -827,7 +827,11 @@ cannot see a table their branch adds. Sizes: S under a day, M one to two days, L
     §2 fixes `--ov-series-1..4` as the only series colours, so they stand.
   - The backfill also seeds `shared_body_weight` from each account's newest reading, and lives
     at `src/db/backfill-shared-stats.ts` beside `migrate.ts` (the precedent for scripts that run
-    as the migration role) so PGlite can test it; `npm run db:backfill:shared-stats` runs it.
+    as the migration role) so PGlite can test it. **It runs itself once**: `db:deploy` runs it
+    on the first production deploy after migration `0021` and records that in a
+    `data_backfills` ledger (created by the same migration; RLS with no policy), so no later
+    deploy repeats it and nobody has to remember rollout step 3. `npm run
+    db:backfill:shared-stats` runs it again by hand.
   - On `/u/[username]` when the training is hidden, one line — "Follow @x to see their
     training" for any not-yet-following state, "x keeps their training private" when you follow
     them and they share nothing — with an info tip beside it that explains both the pending
@@ -906,10 +910,9 @@ comments or reactions, an inbox for requests, avatar uploads, a feed on Today.
 1. Merge phase 1; production deploy migrates and backfills usernames. Tell the friends their
    username (it is on their profile) and that they can change it.
 2. Merge phase 2; nothing to run.
-3. Merge phase 3; production deploy migrates; then run `npm run db:backfill:shared-stats`
-   once against production with `.env.local` pointing `DIRECT_DATABASE_URL` at it. Until it
-   runs, profiles and activity show only sessions finished after the deploy, which is
-   harmless.
+3. Merge phase 3; production deploy migrates and, the same deploy, backfills the shared rows
+   from history once (as built: the deploy script does this itself and records it). Nothing
+   to run by hand.
 4. Merge phases 4–7 as they land.
 
 Preview deployments built from a phase branch will error on the screens that touch that

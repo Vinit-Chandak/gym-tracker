@@ -2,6 +2,11 @@ import { config as loadEnv } from "dotenv";
 import { drizzle } from "drizzle-orm/postgres-js";
 
 import { getMigrationDatabaseUrl } from "../lib/env";
+import {
+  backfillSharedStats,
+  hasBackfillRun,
+  SHARED_STATS_BACKFILL,
+} from "./backfill-shared-stats";
 import { createMigrationClient, describeTarget, runMigrations } from "./migrate";
 import * as schema from "./schema";
 import { seedReferenceData } from "./seed/reference";
@@ -15,7 +20,10 @@ import { seedReferenceData } from "./seed/reference";
  * until they are seeded. Both are corrected here, before the build produces anything.
  *
  * Neither step touches a single row a user owns: migrations change structure, and the seed
- * upserts shared rows by slug.
+ * upserts shared rows by slug. The one exception is a named one-off backfill, run the first
+ * time a deploy finds it has not run and recorded so it never runs unasked again: it writes
+ * derived rows (the friends' shared stats) that the app would have written itself had the
+ * tables existed at the time.
  */
 
 /**
@@ -60,12 +68,23 @@ async function main(): Promise<void> {
     console.log(`Database deploy (${because}) → ${describeTarget(url)}`);
     await runMigrations(client);
     console.log("  migrations applied");
-    const reference = await seedReferenceData(drizzle(client, { schema }));
+    const db = drizzle(client, { schema });
+    const reference = await seedReferenceData(db);
     console.log(
       `  shared library seeded: ${reference.equipmentTypes} equipment types, ` +
         `${reference.exercises} exercises, ${reference.equipmentOptions} equipment options, ` +
         `${reference.warmupProtocols} warm-up protocols`,
     );
+    if (await hasBackfillRun(db, SHARED_STATS_BACKFILL)) {
+      console.log("  shared stats backfill already ran; skipped");
+    } else {
+      const backfill = await backfillSharedStats(db);
+      console.log(
+        `  shared stats backfilled once: ${backfill.accounts} accounts, ` +
+          `${backfill.workouts} workouts, ${backfill.runs} runs, ` +
+          `${backfill.readings} body weight readings`,
+      );
+    }
   } finally {
     await client.end();
   }

@@ -1,5 +1,5 @@
 import { config as loadEnv } from "dotenv";
-import { asc, desc, eq } from "drizzle-orm";
+import { asc, desc, eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 
 import { getMigrationDatabaseUrl } from "../lib/env";
@@ -28,7 +28,22 @@ import type { DbOrTx } from "./types";
  * only rewrites rows to the same values. Also seeds each account's shared body weight from
  * its newest reading. Runs as the migration role, so it reads every account; nothing here
  * goes through RLS, which is why it lives beside the migrations and not in the app.
+ *
+ * `db:deploy` runs it once, on the first production deploy after the tables arrive, and
+ * records that in `data_backfills` so later deploys skip it; `npm run db:backfill:shared-stats`
+ * runs it again by hand whenever wanted.
  */
+export const SHARED_STATS_BACKFILL = "shared_stats";
+
+/** Whether a named backfill has completed on this database. */
+export async function hasBackfillRun(db: DbOrTx, name: string): Promise<boolean> {
+  const result = await db.execute(
+    sql`select 1 as ran from public.data_backfills where name = ${name}`,
+  );
+  const rows = Array.isArray(result) ? result : ((result as { rows?: unknown[] }).rows ?? []);
+  return rows.length > 0;
+}
+
 export type BackfillSummary = {
   accounts: number;
   workouts: number;
@@ -77,6 +92,10 @@ export async function backfillSharedStats(db: DbOrTx): Promise<BackfillSummary> 
       summary.readings++;
     }
   }
+  await db.execute(
+    sql`insert into public.data_backfills (name) values (${SHARED_STATS_BACKFILL})
+        on conflict (name) do update set completed_at = now()`,
+  );
   return summary;
 }
 

@@ -1,7 +1,11 @@
 import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { backfillSharedStats } from "@/db/backfill-shared-stats";
+import {
+  backfillSharedStats,
+  hasBackfillRun,
+  SHARED_STATS_BACKFILL,
+} from "@/db/backfill-shared-stats";
 import {
   exercises,
   profileDirectory,
@@ -365,12 +369,21 @@ describe("backfill", () => {
       weights: await t.db.select().from(sharedBodyWeight),
     });
     const before = await snapshot();
+    // Nothing has run it yet, which is what the deploy script checks before running it once.
+    expect(await hasBackfillRun(t.db, SHARED_STATS_BACKFILL)).toBe(false);
     // Wipe what the app wrote; the backfill must produce it again from the sessions alone.
     await t.db.delete(sharedExerciseStats);
     await t.db.delete(sharedSessionStats);
     await t.db.delete(sharedBodyWeight);
     const first = await backfillSharedStats(t.db);
     expect(first).toEqual({ accounts: 3, workouts: 2, runs: 0, readings: 1 });
+    expect(await hasBackfillRun(t.db, SHARED_STATS_BACKFILL)).toBe(true);
+    // The ledger is the migration role's alone: an account cannot read it.
+    expect(
+      await as(alice)((tx) => tx.execute(sql`select * from public.data_backfills`)),
+    ).toMatchObject({
+      rows: [],
+    });
     const strip = <T extends { id?: string; createdAt?: Date; updatedAt?: Date }>(rows: T[]) =>
       rows.map(({ id: _id, createdAt: _c, updatedAt: _u, ...rest }) => rest);
     const after = await snapshot();

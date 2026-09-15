@@ -61,6 +61,8 @@ it("leaves nothing but the shared catalogues without an owner", async () => {
     order by 1
   `);
   expect(rows.rows.map((row) => row.table_name)).toEqual([
+    // The deploy script's ledger of one-off backfills: names and dates, nothing anyone owns.
+    "data_backfills",
     "equipment_types",
     // Owned twice over: both sides cascade from profiles, which the first test checks.
     "follows",
