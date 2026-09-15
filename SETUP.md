@@ -153,6 +153,22 @@ A preview built from a branch that adds a migration therefore runs against a dat
 it, and its pages will error until the branch is merged and deployed to production. That is
 the trade: previews cannot break production data.
 
+### One-off after the release that adds friends' shared stats
+
+The tables a follower reads (`shared_session_stats`, `shared_exercise_stats`,
+`shared_body_weight`) are written as workouts finish and runs are logged. History from before
+that release has no rows until you run, once, with `.env.local` pointing `DIRECT_DATABASE_URL`
+at the production database:
+
+```bash
+npm run db:backfill:shared-stats
+```
+
+It walks every account's finished workouts, runs and newest body weight reading and writes
+their shared rows with the same code the app uses. Safe to repeat: it upserts, so running it
+twice changes nothing. Until it has run, profiles and activity show only sessions finished after
+the deploy, which is harmless.
+
 ## 8. Install it on a phone
 
 - **Android (Chrome)**: open the URL, then either tap **Install** on the card on the Profile tab, or
