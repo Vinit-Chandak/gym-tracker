@@ -3,11 +3,13 @@ import type { CSSProperties } from "react";
 import { avatarHue, avatarInitial } from "@/domain/avatar";
 import { cn } from "@/lib/utils";
 
-export type AvatarSize = "row" | "header";
+export type AvatarSize = "row" | "header" | "compare";
 
 const SIZE_CLASSES: Record<AvatarSize, string> = {
   row: "size-9 text-base",
   header: "size-16 text-2xl",
+  /** Head to head: two of these fit a 320px screen with "VS" between. */
+  compare: "size-[5.5rem] text-4xl",
 };
 
 /**

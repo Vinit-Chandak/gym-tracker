@@ -25,6 +25,7 @@ import { MapPinIcon } from "@phosphor-icons/react/dist/ssr/MapPin";
 import { MicrophoneIcon } from "@phosphor-icons/react/dist/ssr/Microphone";
 import { MicrophoneSlashIcon } from "@phosphor-icons/react/dist/ssr/MicrophoneSlash";
 import { PaperclipIcon } from "@phosphor-icons/react/dist/ssr/Paperclip";
+import { ScalesIcon } from "@phosphor-icons/react/dist/ssr/Scales";
 import { SignOutIcon } from "@phosphor-icons/react/dist/ssr/SignOut";
 import { SlidersHorizontalIcon } from "@phosphor-icons/react/dist/ssr/SlidersHorizontal";
 import { SneakerMoveIcon } from "@phosphor-icons/react/dist/ssr/SneakerMove";
@@ -91,6 +92,8 @@ export const MapPin = /* @__PURE__ */ duotone(MapPinIcon);
 export const Mic = /* @__PURE__ */ duotone(MicrophoneIcon);
 export const MicOff = /* @__PURE__ */ duotone(MicrophoneSlashIcon);
 export const Paperclip = /* @__PURE__ */ duotone(PaperclipIcon);
+/** Compare: two pans weighed against each other. */
+export const Scales = /* @__PURE__ */ duotone(ScalesIcon);
 export const Search = /* @__PURE__ */ duotone(MagnifyingGlassIcon);
 export const Settings = /* @__PURE__ */ duotone(GearSixIcon);
 export const SlidersHorizontal = /* @__PURE__ */ duotone(SlidersHorizontalIcon);

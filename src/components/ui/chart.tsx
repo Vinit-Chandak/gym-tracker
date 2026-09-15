@@ -46,7 +46,36 @@ type ChartProps = {
    * already says what it is, so the same words are not printed twice.
    */
   caption?: boolean;
+  /**
+   * Draw a line straight across a null rather than breaking it there. For one person's
+   * readings a gap is a missing measurement and the break is honest; when two people share
+   * one date axis, a null is only the other person's training day, and a break would leave
+   * both lines in pieces.
+   */
+  bridgeGaps?: boolean;
 };
+
+/**
+ * Splits a series at nulls so a missing reading breaks the line instead of bridging it —
+ * or, with `bridge`, keeps the known points as one run.
+ */
+export function chartSegments(
+  points: readonly Point[],
+  bridge = false,
+): { i: number; value: number }[][] {
+  const runs: { i: number; value: number }[][] = [];
+  let run: { i: number; value: number }[] = [];
+  points.forEach((p, i) => {
+    if (p.value === null) {
+      if (!bridge && run.length) {
+        runs.push(run);
+        run = [];
+      }
+    } else run.push({ i, value: p.value });
+  });
+  if (run.length) runs.push(run);
+  return runs;
+}
 
 const PAD = { top: 10, right: 12, bottom: 22, left: 40 };
 
@@ -83,6 +112,7 @@ export function Chart({
   height = 200,
   note,
   caption = true,
+  bridgeGaps = false,
 }: ChartProps) {
   const holder = useRef<HTMLDivElement>(null);
   // Width is measured after mount: the server cannot know it, and guessing would
@@ -121,19 +151,7 @@ export function Chart({
   const step = dates.length > 1 ? plotW / (dates.length - 1) : 0;
   const x = (i: number) => PAD.left + (dates.length > 1 ? i * step : plotW / 2);
 
-  /** Splits a series at nulls so a missing reading breaks the line instead of bridging it. */
-  const segments = (points: readonly Point[]) => {
-    const runs: { i: number; value: number }[][] = [];
-    let run: { i: number; value: number }[] = [];
-    points.forEach((p, i) => {
-      if (p.value === null) {
-        if (run.length) runs.push(run);
-        run = [];
-      } else run.push({ i, value: p.value });
-    });
-    if (run.length) runs.push(run);
-    return runs;
-  };
+  const segments = (points: readonly Point[]) => chartSegments(points, bridgeGaps);
 
   const onMove = useCallback(
     (event: React.PointerEvent<SVGSVGElement>) => {

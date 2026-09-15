@@ -28,8 +28,12 @@ import { createRun, deleteRun, updateRun, type RunInput } from "./runs";
 import { addExerciseToSession, finishSession, logSet, startAdHocSession } from "./sessions";
 import {
   canViewTraining,
+  getComparableExercise,
   readActivity,
+  readBodyWeights,
   readExerciseBests,
+  readExercisesInCommon,
+  readExerciseTrend,
   readMuscleSets,
   readPeriodTotals,
   readRecords,
@@ -79,16 +83,20 @@ async function exerciseId(slug: string): Promise<string> {
 type Set = { weight: number | null; reps: number | null; unit?: "kg" | "lb"; warmup?: boolean };
 
 /** A finished ad hoc workout for alice: each entry is one exercise with its sets. */
-async function train(plan: { exercise: string; sets: Set[] }[]): Promise<string> {
-  return as(alice)(async (tx) => {
-    const { sessionId } = await startAdHocSession(tx, alice, { gymId });
+async function train(
+  plan: { exercise: string; sets: Set[] }[],
+  who = alice,
+  at = gymId,
+): Promise<string> {
+  return as(who)(async (tx) => {
+    const { sessionId } = await startAdHocSession(tx, who, { gymId: at });
     for (const slot of plan) {
-      const { workoutExerciseId } = await addExerciseToSession(tx, alice, sessionId, {
+      const { workoutExerciseId } = await addExerciseToSession(tx, who, sessionId, {
         exerciseId: slot.exercise,
         equipmentInstanceId: null,
       });
       for (const [i, set] of slot.sets.entries()) {
-        await logSet(tx, alice, {
+        await logSet(tx, who, {
           workoutExerciseId,
           setIndex: i + 1,
           setType: set.warmup ? "warmup" : "working",
@@ -100,7 +108,7 @@ async function train(plan: { exercise: string; sets: Set[] }[]): Promise<string>
         });
       }
     }
-    await finishSession(tx, alice, sessionId, { notes: "private", bodyWeightKg: null });
+    await finishSession(tx, who, sessionId, { notes: "private", bodyWeightKg: null });
     return sessionId;
   });
 }
@@ -224,7 +232,7 @@ describe("finishing a workout", () => {
   });
 
   it("reads bests, period totals, the split and the records list for the owner", async () => {
-    const bests = await as(alice)((tx) => readExerciseBests(tx, alice, bench));
+    const bests = (await as(alice)((tx) => readExerciseBests(tx, [alice], bench))).get(alice)!;
     expect(bests.map((b) => [b.metric, b.value])).toEqual([
       ["e1rm", 75.8],
       ["top_weight", 65],
@@ -232,7 +240,14 @@ describe("finishing a workout", () => {
       ["most_reps", 5],
     ]);
     const totals = await as(alice)((tx) => readPeriodTotals(tx, [alice, bob], "workout", ALL));
-    expect(totals.get(alice)).toEqual({ sessions: 2, workingSets: 7, volumeKg: 3475 });
+    expect(totals.get(alice)).toEqual({
+      sessions: 2,
+      workingSets: 7,
+      volumeKg: 3475,
+      durationSeconds: expect.any(Number),
+      activeDays: 1,
+      records: 3,
+    });
     expect(totals.has(bob)).toBe(false);
     const muscles = await as(alice)((tx) => readMuscleSets(tx, alice, ALL));
     expect(muscles.chest).toBe(3);
@@ -355,6 +370,67 @@ describe("who may read", () => {
   });
 });
 
+describe("head to head", () => {
+  let bobGym: string;
+
+  it("reads both people's bests, trend and exercises in common, but only what bob may see", async () => {
+    // Bob follows alice; alice does not follow bob. Bob benches in pounds and pulls up too.
+    await as(bob)((tx) => seedTestUserData(tx, { id: bob, email: "bob@example.com" }));
+    bobGym = (await as(bob)((tx) => listGyms(tx, bob))).find((g) => g.slug === "home")!.id;
+    await train(
+      [
+        { exercise: bench, sets: [{ weight: 135, reps: 5, unit: "lb" }] },
+        { exercise: pullUp, sets: [{ weight: 0, reps: 12 }] },
+        { exercise: legPress, sets: [{ weight: 100, reps: 10 }] },
+      ],
+      bob,
+      bobGym,
+    );
+    const bests = await as(bob)((tx) => readExerciseBests(tx, [bob, alice], bench));
+    expect(bests.get(bob)!.find((b) => b.metric === "top_weight")!.value).toBe(61.23);
+    expect(bests.get(alice)!.find((b) => b.metric === "top_weight")!.value).toBe(65);
+    // Alice does not follow bob, so his rows are not hers to read: the map has only her.
+    const aliceSees = await as(alice)((tx) => readExerciseBests(tx, [alice, bob], bench));
+    expect([...aliceSees.keys()]).toEqual([alice]);
+
+    const trend = await as(bob)((tx) => readExerciseTrend(tx, [bob, alice], bench, "e1rm", ALL));
+    // Alice's two sessions fell on one day, so the better one stands for the day.
+    expect(trend.get(alice)!.map((p) => p.value)).toEqual([75.8]);
+    expect(trend.get(bob)!).toHaveLength(1);
+
+    const common = await as(bob)((tx) => readExercisesInCommon(tx, bob, alice, ALL));
+    expect(common.comparable.map((e) => [e.name, e.region])).toEqual([
+      ["Barbell bench press", "chest"],
+      ["Pull-up", "back"],
+    ]);
+    expect(common.notComparable).toBe(1);
+  });
+
+  it("names a comparable movement and refuses a machine", async () => {
+    expect(await as(bob)((tx) => getComparableExercise(tx, bench))).toMatchObject({
+      name: "Barbell bench press",
+      modality: "barbell",
+      defaultPrescriptionType: "reps",
+      region: "chest",
+    });
+    expect(await as(bob)((tx) => getComparableExercise(tx, legPress))).toBeNull();
+  });
+
+  it("hands over body weights only where both people share", async () => {
+    const opt = (id: string, on: boolean) =>
+      t.client.query("update profiles set share_body_weight = $2 where id = $1", [id, on]);
+    await as(bob)((tx) => recordBodyWeight(tx, bob, { measuredOn: "2026-09-12", weightKg: 80 }));
+    await opt(alice, true);
+    await opt(bob, true);
+    const both = await as(bob)((tx) => readBodyWeights(tx, [bob, alice]));
+    expect([...both.keys()].sort()).toEqual([alice, bob].sort());
+    expect(both.get(alice)).toEqual({ weightKg: 60, measuredOn: "2026-09-10" });
+    await opt(alice, false);
+    expect([...(await as(bob)((tx) => readBodyWeights(tx, [bob, alice]))).keys()]).toEqual([bob]);
+    await opt(bob, false);
+  });
+});
+
 describe("backfill", () => {
   it("rewrites the same rows from history and changes nothing the second time", async () => {
     const snapshot = async () => ({
@@ -376,7 +452,7 @@ describe("backfill", () => {
     await t.db.delete(sharedSessionStats);
     await t.db.delete(sharedBodyWeight);
     const first = await backfillSharedStats(t.db);
-    expect(first).toEqual({ accounts: 3, workouts: 2, runs: 0, readings: 1 });
+    expect(first).toEqual({ accounts: 3, workouts: 3, runs: 0, readings: 2 });
     expect(await hasBackfillRun(t.db, SHARED_STATS_BACKFILL)).toBe(true);
     // The ledger is the migration role's alone: an account cannot read it.
     expect(

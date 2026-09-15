@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, inArray, lt, lte, notInArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, lt, lte, notInArray, sql } from "drizzle-orm";
 
 import {
   exercises,
@@ -10,6 +10,7 @@ import {
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import { addMuscleSets, type MuscleSets } from "@/domain/muscle-split";
+import { regionOf, type BodyRegion } from "@/domain/muscles";
 import { detectRecords, type PreviousMaxima, type TrainingRecord } from "@/domain/records";
 import {
   metricValue,
@@ -307,7 +308,16 @@ export async function readSessionRecords(
   });
 }
 
-export type PeriodTotals = { sessions: number; workingSets: number; volumeKg: number };
+export type PeriodTotals = {
+  sessions: number;
+  workingSets: number;
+  volumeKg: number;
+  durationSeconds: number;
+  /** Distinct days with a session. */
+  activeDays: number;
+  /** Records set across the period's sessions. */
+  records: number;
+};
 
 /** A period's headline numbers for each of several people; absent when they logged nothing. */
 export async function readPeriodTotals(
@@ -323,6 +333,9 @@ export async function readPeriodTotals(
       sessions: sql<number>`count(*)::int`,
       workingSets: sql<number>`coalesce(sum(${sharedSessionStats.workingSets}), 0)::int`,
       volumeKg: sql<number>`coalesce(sum(${sharedSessionStats.volumeKg}), 0)::float8`,
+      durationSeconds: sql<number>`coalesce(sum(${sharedSessionStats.durationSeconds}), 0)::int`,
+      activeDays: sql<number>`count(distinct ${sharedSessionStats.occurredOn})::int`,
+      records: sql<number>`coalesce(sum(jsonb_array_length(${sharedSessionStats.records})), 0)::int`,
     })
     .from(sharedSessionStats)
     .where(
@@ -360,17 +373,20 @@ export async function readMuscleSets(
 export type ExerciseBest = { metric: SharedMetric; value: number; occurredOn: string };
 
 /**
- * The best value of each metric one person has for one movement, and when it was set: the
- * "Your records" tiles. Read in full and reduced here; a person's rows for one exercise are
- * a few hundred at most.
+ * The best value of each metric each person has for one movement, and when it was set: the
+ * "Your records" tiles, and both sides of an exercise comparison. Read in full and reduced
+ * here; a person's rows for one exercise are a few hundred at most. A person with no rows
+ * (or none the viewer may see) is absent from the map.
  */
 export async function readExerciseBests(
   tx: DbOrTx,
-  userId: string,
+  userIds: readonly string[],
   exerciseId: string,
-): Promise<ExerciseBest[]> {
+): Promise<Map<string, ExerciseBest[]>> {
+  if (userIds.length === 0) return new Map();
   const rows = await tx
     .select({
+      userId: sharedExerciseStats.userId,
       occurredOn: sharedExerciseStats.occurredOn,
       bestE1rmKg: sharedExerciseStats.bestE1rmKg,
       topWeightKg: sharedExerciseStats.topWeightKg,
@@ -381,22 +397,171 @@ export async function readExerciseBests(
     })
     .from(sharedExerciseStats)
     .where(
-      and(eq(sharedExerciseStats.userId, userId), eq(sharedExerciseStats.exerciseId, exerciseId)),
+      and(
+        inArray(sharedExerciseStats.userId, [...userIds]),
+        eq(sharedExerciseStats.exerciseId, exerciseId),
+      ),
     )
     // Oldest first, so a tie keeps the day it was first reached.
     .orderBy(asc(sharedExerciseStats.startedAt));
-  const bests: ExerciseBest[] = [];
-  for (const metric of SHARED_METRICS) {
-    let best: ExerciseBest | null = null;
-    for (const row of rows) {
-      const value = metricValue(row, metric);
-      if (value !== null && (best === null || value > best.value)) {
-        best = { metric, value, occurredOn: row.occurredOn };
+  const result = new Map<string, ExerciseBest[]>();
+  for (const userId of new Set(rows.map((row) => row.userId))) {
+    const own = rows.filter((row) => row.userId === userId);
+    const bests: ExerciseBest[] = [];
+    for (const metric of SHARED_METRICS) {
+      let best: ExerciseBest | null = null;
+      for (const row of own) {
+        const value = metricValue(row, metric);
+        if (value !== null && (best === null || value > best.value)) {
+          best = { metric, value, occurredOn: row.occurredOn };
+        }
       }
+      if (best) bests.push(best);
     }
-    if (best) bests.push(best);
+    result.set(userId, bests);
   }
-  return bests;
+  return result;
+}
+
+export type TrendPoint = { date: string; value: number };
+
+/**
+ * One metric of one movement per session for each person over a period, oldest first: the
+ * two lines of an exercise comparison. Two sessions on one day keep the better one.
+ */
+export async function readExerciseTrend(
+  tx: DbOrTx,
+  userIds: readonly string[],
+  exerciseId: string,
+  metric: SharedMetric,
+  range: DateRange,
+): Promise<Map<string, TrendPoint[]>> {
+  if (userIds.length === 0) return new Map();
+  const rows = await tx
+    .select({
+      userId: sharedExerciseStats.userId,
+      occurredOn: sharedExerciseStats.occurredOn,
+      bestE1rmKg: sharedExerciseStats.bestE1rmKg,
+      topWeightKg: sharedExerciseStats.topWeightKg,
+      bestSetVolumeKg: sharedExerciseStats.bestSetVolumeKg,
+      mostReps: sharedExerciseStats.mostReps,
+      longestDurationSeconds: sharedExerciseStats.longestDurationSeconds,
+      longestDistanceMeters: sharedExerciseStats.longestDistanceMeters,
+    })
+    .from(sharedExerciseStats)
+    .where(
+      and(
+        inArray(sharedExerciseStats.userId, [...userIds]),
+        eq(sharedExerciseStats.exerciseId, exerciseId),
+        gte(sharedExerciseStats.occurredOn, range.from),
+        lte(sharedExerciseStats.occurredOn, range.to),
+      ),
+    )
+    .orderBy(asc(sharedExerciseStats.startedAt));
+  const result = new Map<string, Map<string, number>>();
+  for (const row of rows) {
+    const value = metricValue(row, metric);
+    if (value === null) continue;
+    const days = result.get(row.userId) ?? new Map<string, number>();
+    days.set(row.occurredOn, Math.max(days.get(row.occurredOn) ?? -Infinity, value));
+    result.set(row.userId, days);
+  }
+  return new Map(
+    [...result].map(([userId, days]) => [
+      userId,
+      [...days].map(([date, value]) => ({ date, value })),
+    ]),
+  );
+}
+
+export type CommonExercise = {
+  id: string;
+  name: string;
+  region: BodyRegion;
+};
+
+/**
+ * The comparable movements both people logged in the period, by name, and how many machine
+ * or context-bound movements they also share, which are counted but never compared (§3.9).
+ */
+export async function readExercisesInCommon(
+  tx: DbOrTx,
+  a: string,
+  b: string,
+  range: DateRange,
+): Promise<{ comparable: CommonExercise[]; notComparable: number }> {
+  const rows = await tx
+    .selectDistinct({
+      userId: sharedExerciseStats.userId,
+      id: exercises.id,
+      name: exercises.name,
+      primaryMuscles: exercises.primaryMuscles,
+      comparable: sharedExerciseStats.comparable,
+    })
+    .from(sharedExerciseStats)
+    .innerJoin(exercises, eq(exercises.id, sharedExerciseStats.exerciseId))
+    .where(
+      and(
+        inArray(sharedExerciseStats.userId, [a, b]),
+        gte(sharedExerciseStats.occurredOn, range.from),
+        lte(sharedExerciseStats.occurredOn, range.to),
+      ),
+    );
+  const ofA = new Set(rows.filter((row) => row.userId === a).map((row) => row.id));
+  const both = rows.filter((row) => row.userId === b && ofA.has(row.id));
+  return {
+    comparable: both
+      .filter((row) => row.comparable)
+      .map((row) => ({ id: row.id, name: row.name, region: regionOf(row.primaryMuscles) }))
+      .sort((x, y) => x.name.localeCompare(y.name)),
+    notComparable: both.filter((row) => !row.comparable).length,
+  };
+}
+
+export type SharedReading = { weightKg: number; measuredOn: string };
+
+/** The latest body weight of each person the viewer may see it for (both opted in). */
+export async function readBodyWeights(
+  tx: DbOrTx,
+  userIds: readonly string[],
+): Promise<Map<string, SharedReading>> {
+  if (userIds.length === 0) return new Map();
+  const rows = await tx
+    .select({
+      userId: sharedBodyWeight.userId,
+      weightKg: sharedBodyWeight.weightKg,
+      measuredOn: sharedBodyWeight.measuredOn,
+    })
+    .from(sharedBodyWeight)
+    .where(inArray(sharedBodyWeight.userId, [...userIds]));
+  return new Map(rows.map(({ userId, ...reading }) => [userId, reading]));
+}
+
+export type ComparableExerciseRow = MetricExercise & {
+  id: string;
+  name: string;
+  region: BodyRegion;
+};
+
+/** A shared-library movement that can be compared across people, or null (§3.9). */
+export async function getComparableExercise(
+  tx: DbOrTx,
+  exerciseId: string,
+): Promise<ComparableExerciseRow | null> {
+  const [row] = await tx
+    .select({ ...EXERCISE_COLUMNS, primaryMuscles: exercises.primaryMuscles })
+    .from(exercises)
+    .where(
+      and(
+        eq(exercises.id, exerciseId),
+        isNull(exercises.userId),
+        eq(exercises.loadPortability, "global"),
+      ),
+    )
+    .limit(1);
+  if (!row) return null;
+  const { primaryMuscles, ...exercise } = row;
+  return { ...exercise, region: regionOf(primaryMuscles) };
 }
 
 export type PeriodRecord = {

@@ -19,6 +19,7 @@ import { muscleSplit, SPLIT_GROUPS } from "@/domain/muscle-split";
 import { PERIOD_LABELS } from "@/domain/period";
 import { formatSharedLoad } from "@/lib/format";
 import { requireUser } from "@/server/auth";
+import { hiddenTrainingLine } from "@/server/queries/head-to-head";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { followState } from "@/server/repositories/follows";
 import { getDirectoryProfile } from "@/server/repositories/people";
@@ -152,12 +153,15 @@ export default async function PersonPage(props: PageProps<"/u/[username]">) {
                 )}
               </Card>
             </Section>
+            {relation && (
+              <LinkButton href={`/u/${person.username}/compare`} className="w-full">
+                Compare
+              </LinkButton>
+            )}
           </>
         ) : (
           <p className="flex items-center gap-1 px-1 text-sm text-ink-muted">
-            {relation?.outgoing === "accepted"
-              ? `${name} keeps their training private.`
-              : `Follow @${person.username} to see their training.`}
+            {hiddenTrainingLine({ them: person, relation: relation ?? { outgoing: null } })}
             <InfoTip label="About seeing someone's training">
               Their training appears here once they have accepted you as a follower and while they
               share it. With sharing off, the profile card is all a follower sees.

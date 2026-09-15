@@ -108,14 +108,14 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
       }),
       // Records exist only for movements whose load means the same everywhere (plan §3.13);
       // a machine's numbers stay with its machine, in the trend below.
-      isComparable(exercise) ? readExerciseBests(tx, user.id, exerciseId) : [],
+      isComparable(exercise) ? readExerciseBests(tx, [user.id], exerciseId) : new Map(),
       requestProfile,
     ]);
     return {
       exercise,
       availability,
       performances,
-      bests,
+      bests: bests.get(user.id) ?? [],
       series: performanceSeries(charted.workouts, profile.timeZone, exerciseId),
       timeZone: profile.timeZone,
       unit: profile.preferredUnit === "lb" ? ("lb" as const) : ("kg" as const),
