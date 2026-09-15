@@ -20,7 +20,7 @@ const INITIAL: AdoptProgramState = {};
 
 /**
  * Picks a shared programme and a start date, then copies it into the user's own rows.
- * Used by the last onboarding step and by Settings for anyone starting a new block.
+ * Used by the last onboarding step and by Profile › Programme for anyone starting a new block.
  */
 export function ProgramTemplatePicker({
   templates,

@@ -205,10 +205,13 @@ describe("history and analytics", () => {
     expect(result.completed).toBe(0);
     expect(result.completionRate).toBeNull();
   });
-  it("does not estimate stack, bodyweight or high-rep maximums", () => {
+  it("estimates barbell and dumbbell maximums, never stack, bodyweight or high-rep ones", () => {
     expect(estimated1RM(60, 1, "barbell", "kg")).toBe(60);
+    // A dumbbell load is taken as logged, not doubled per hand (ADR 0026).
+    expect(estimated1RM(30, 6, "dumbbell", "kg")).toBe(36);
     expect(estimated1RM(60, 11, "barbell", "kg")).toBeNull();
     expect(estimated1RM(60, 5, "machine", "kg")).toBeNull();
+    expect(estimated1RM(30, 5, "dumbbell", "stack_index")).toBeNull();
     expect(estimated1RM(0, 5, "bodyweight", "kg")).toBeNull();
   });
   it("returns no other account's history even with another user ID passed to the repository", async () => {

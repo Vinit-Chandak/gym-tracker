@@ -5,7 +5,11 @@ import type { DbOrTx } from "@/db/types";
 
 export type Profile = typeof profiles.$inferSelect;
 
-/** Returns the profile, creating it for users who signed up before the trigger existed. */
+/**
+ * Returns the profile, creating it for users who signed up before the trigger existed. A
+ * created row gets its username the way the trigger gives one: generated from the email, in
+ * the database, where the uniqueness check lives.
+ */
 export async function ensureProfile(
   db: DbOrTx,
   user: { id: string; email: string | null; displayName?: string | null },
@@ -25,9 +29,15 @@ export async function ensureProfile(
     }
     return existing;
   }
+  const emailLocalPart = (user.email ?? "").split("@")[0] ?? "";
   await db
     .insert(profiles)
-    .values({ id: user.id, email: user.email, displayName })
+    .values({
+      id: user.id,
+      email: user.email,
+      displayName,
+      username: sql`public.generate_username(${emailLocalPart}, null)`,
+    })
     .onConflictDoNothing({ target: profiles.id });
   const [profile] = await db.select().from(profiles).where(eq(profiles.id, user.id)).limit(1);
   if (!profile) throw new Error("Profile could not be created");
@@ -39,7 +49,7 @@ export async function ensureProfile(
  *
  * Setup asks for all of these, but accounts that existed before it did — or before a field was
  * added — are complete in their own terms and must not be shooed back through onboarding. The
- * Settings screen says what is missing instead, and the profile form is where it gets filled in.
+ * Profile tab says what is missing instead, and the profile form is where it gets filled in.
  */
 export function missingProfileDetails(
   profile: Pick<

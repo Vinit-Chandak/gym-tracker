@@ -60,6 +60,30 @@ it("passes the signup name to Auth and requests confirmation only for a new iden
   );
 });
 
+it("passes a chosen username to Auth, made canonical, and refuses one that breaks the rules", async () => {
+  auth.signUp.mockResolvedValue({
+    data: { user: { id: "new-user", identities: [{ id: "email-identity" }] }, session: null },
+    error: null,
+  });
+  const data = signup();
+  data.set("username", " @Sam.94 ");
+  await signUpAction({}, data);
+  expect(auth.signUp).toHaveBeenCalledWith(
+    expect.objectContaining({
+      options: expect.objectContaining({ data: { display_name: "Sam", username: "sam.94" } }),
+    }),
+  );
+  data.set("username", "coach");
+  expect((await signUpAction({}, data)).error).toBe("That name is reserved.");
+  data.set("username", "   ");
+  await signUpAction({}, data);
+  expect(auth.signUp).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      options: expect.objectContaining({ data: { display_name: "Sam" } }),
+    }),
+  );
+});
+
 it("does not treat an empty provider response or delivery failure as a successful signup", async () => {
   auth.signUp.mockResolvedValue({ data: { user: null, session: null }, error: null });
   expect((await signUpAction({}, signup())).error).toBeTruthy();

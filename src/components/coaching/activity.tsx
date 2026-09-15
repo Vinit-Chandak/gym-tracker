@@ -41,14 +41,14 @@ export async function CoachingActivity({ settings = false }: { settings?: boolea
           <List>
             <li>
               <LinkRow
-                href="/settings/programme/create"
+                href="/profile/programme/create"
                 icon={SlidersHorizontal}
                 title="Goals, availability and reports"
               />
             </li>
             <li>
               <LinkRow
-                href="/settings/programme"
+                href="/profile/programme"
                 icon={ClipboardList}
                 title="Programme and drafts"
               />

@@ -8,6 +8,7 @@ afterEach(cleanup);
 
 const saved: ProfileFieldValues = {
   displayName: "Sam",
+  username: "sam",
   timeZone: "Europe/Lisbon",
   preferredUnit: "kg",
   bodyWeightKg: 74.5,

@@ -29,6 +29,10 @@ export type BodyLoadUnit = (typeof BODY_LOAD_UNITS)[number];
 export const SEXES = ["female", "male", "other"] as const;
 export type Sex = (typeof SEXES)[number];
 
+/** A follow is asked for, then accepted; a declined or withdrawn one is deleted, not kept. */
+export const FOLLOW_STATUSES = ["pending", "accepted"] as const;
+export type FollowStatus = (typeof FOLLOW_STATUSES)[number];
+
 /** Why someone is training. The coach reads it; nothing else changes behaviour on it yet. */
 export const TRAINING_GOALS = [
   "build_muscle",

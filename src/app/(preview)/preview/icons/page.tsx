@@ -77,8 +77,8 @@ const SYMBOLS: readonly [string, AppIcon][] = [
 /** Production components with sample content; the parent layout excludes this from production. */
 export default function PreviewIconsPage() {
   return (
-    <PreviewShell tab="/settings">
-      <PageHeader title="Settings" />
+    <PreviewShell tab="/profile">
+      <PageHeader title="Profile" />
       <PageContent>
         <List>
           <li>

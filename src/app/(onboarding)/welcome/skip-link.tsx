@@ -21,7 +21,7 @@ export function SkipLink({ href, label = "Skip for now" }: { href: Route; label?
   );
 }
 
-/** Ends setup from the last step: everything skipped is in Settings. */
+/** Ends setup from the last step: everything skipped is on the Profile tab. */
 export function FinishSetupLink({ label }: { label: string }) {
   return (
     <form action={completeOnboardingAction} className="flex justify-center">

@@ -1,5 +1,7 @@
 export * from "./enums";
 export * from "./profiles";
+export * from "./follows";
+export * from "./shared-stats";
 export * from "./gyms";
 export * from "./exercises";
 export * from "./programs";

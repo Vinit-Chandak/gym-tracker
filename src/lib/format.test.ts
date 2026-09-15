@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  formatActivityMetric,
   formatDateTime,
   formatIsoDate,
   formatIsoDay,
@@ -41,4 +42,17 @@ it("writes a run's distance as it was logged", () => {
   expect(formatRunKm(5000)).toBe("5");
   expect(formatRunKm(0)).toBe("0");
   expect(formatRunKm(12345)).toBe("12.35");
+});
+
+it("writes a period's total by what it counts, in the reader's unit", () => {
+  expect(formatActivityMetric("workouts", 12, "kg")).toBe("12");
+  expect(formatActivityMetric("workout_time", 4320, "kg")).toBe("1 h 12 min");
+  expect(formatActivityMetric("volume", 6240, "lb")).toBe("13,756.8 lb");
+  expect(formatActivityMetric("records", 1234, "kg")).toBe("1,234");
+  expect(formatActivityMetric("runs", 3, "kg")).toBe("3");
+  expect(formatActivityMetric("distance", 21450, "kg")).toBe("21.5 km");
+  expect(formatActivityMetric("time", 1870, "kg")).toBe("31 min");
+  expect(formatActivityMetric("best_pace", 325, "kg")).toBe("5:25 /km");
+  // One run keeps its logged distance; a total rounds to a tenth.
+  expect(formatActivityMetric("longest_run", 5245, "kg")).toBe("5.25 km");
 });

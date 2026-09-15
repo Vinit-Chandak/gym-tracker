@@ -45,7 +45,7 @@ export async function ProgrammeBuilderPage({
     { readOnly: true },
   );
   if (draftId && (!data.initial || !["editing", "ready"].includes(data.initial.status))) notFound();
-  const base = onboarding ? "/welcome/programme" : "/settings/programme";
+  const base = onboarding ? "/welcome/programme" : "/profile/programme";
   return (
     <>
       <PageHeader title="Programme builder" backHref={base} />

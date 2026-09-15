@@ -265,6 +265,12 @@
   height: var(--ov-icon-feature);
 }
 
+/* The avatar's colours, from the hue the component sets and the lightnesses the palette sets. */
+.avatar {
+  background: oklch(var(--ov-avatar-surface-l) var(--ov-avatar-surface-c) var(--avatar-hue));
+  color: oklch(var(--ov-avatar-ink-l) var(--ov-avatar-ink-c) var(--avatar-hue));
+}
+
 /*
  * A box of full-bleed rows. The first and last rows take the box's corners themselves,
  * so a pressed row's highlight follows the rounding without the box clipping anything

@@ -64,7 +64,7 @@ export default async function CoachingPreview({
 }) {
   const { view = "options", step = "0", track = "detailed" } = await searchParams;
   return (
-    <PreviewShell tab="/settings">
+    <PreviewShell tab="/profile">
       <PageHeader title="Coaching preview" />
       <PageContent>
         <p className="text-xs text-ink-muted">Development preview with example data</p>
@@ -124,7 +124,7 @@ export default async function CoachingPreview({
                 },
               ]}
               library={library}
-              base="/settings/programme"
+              base="/profile/programme"
               configured
               initialStep={Math.min(4, Math.max(0, Number(step) || 0))}
             />
@@ -135,7 +135,7 @@ export default async function CoachingPreview({
             initial={{ id: ID, revision: 1, blueprint }}
             library={library}
             warmups={[...WARMUP_PROTOCOLS]}
-            base="/settings/programme"
+            base="/profile/programme"
           />
         )}
         {view === "draft" && (
@@ -163,7 +163,7 @@ export default async function CoachingPreview({
             }}
             library={library}
             today="2026-09-12"
-            base="/settings/programme"
+            base="/profile/programme"
             stale={false}
             assessment={null}
             currentBlueprint={null}

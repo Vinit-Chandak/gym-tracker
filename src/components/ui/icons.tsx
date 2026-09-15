@@ -19,17 +19,22 @@ import { GearSixIcon } from "@phosphor-icons/react/dist/ssr/GearSix";
 import { InfoIcon } from "@phosphor-icons/react/dist/ssr/Info";
 import { KeyIcon } from "@phosphor-icons/react/dist/ssr/Key";
 import { LinkIcon } from "@phosphor-icons/react/dist/ssr/Link";
+import { LockSimpleIcon } from "@phosphor-icons/react/dist/ssr/LockSimple";
 import { MagnifyingGlassIcon } from "@phosphor-icons/react/dist/ssr/MagnifyingGlass";
 import { MapPinIcon } from "@phosphor-icons/react/dist/ssr/MapPin";
 import { MicrophoneIcon } from "@phosphor-icons/react/dist/ssr/Microphone";
 import { MicrophoneSlashIcon } from "@phosphor-icons/react/dist/ssr/MicrophoneSlash";
 import { PaperclipIcon } from "@phosphor-icons/react/dist/ssr/Paperclip";
+import { ScalesIcon } from "@phosphor-icons/react/dist/ssr/Scales";
 import { SignOutIcon } from "@phosphor-icons/react/dist/ssr/SignOut";
 import { SlidersHorizontalIcon } from "@phosphor-icons/react/dist/ssr/SlidersHorizontal";
 import { SneakerMoveIcon } from "@phosphor-icons/react/dist/ssr/SneakerMove";
 import { TimerIcon } from "@phosphor-icons/react/dist/ssr/Timer";
 import { TrashIcon } from "@phosphor-icons/react/dist/ssr/Trash";
+import { TrophyIcon } from "@phosphor-icons/react/dist/ssr/Trophy";
 import { UserIcon } from "@phosphor-icons/react/dist/ssr/User";
+import { UserPlusIcon } from "@phosphor-icons/react/dist/ssr/UserPlus";
+import { UsersIcon } from "@phosphor-icons/react/dist/ssr/Users";
 import type { ComponentType } from "react";
 
 import { cn } from "@/lib/utils";
@@ -81,12 +86,15 @@ export const Info = /* @__PURE__ */ duotone(InfoIcon);
 export const KeyRound = /* @__PURE__ */ duotone(KeyIcon);
 export const Link2 = /* @__PURE__ */ duotone(LinkIcon);
 export const LoaderCircle = /* @__PURE__ */ duotone(CircleNotchIcon);
+export const Lock = /* @__PURE__ */ duotone(LockSimpleIcon);
 export const LogOut = /* @__PURE__ */ duotone(SignOutIcon);
 export const MailCheck = /* @__PURE__ */ duotone(EnvelopeOpenIcon);
 export const MapPin = /* @__PURE__ */ duotone(MapPinIcon);
 export const Mic = /* @__PURE__ */ duotone(MicrophoneIcon);
 export const MicOff = /* @__PURE__ */ duotone(MicrophoneSlashIcon);
 export const Paperclip = /* @__PURE__ */ duotone(PaperclipIcon);
+/** Compare: two pans weighed against each other. */
+export const Scales = /* @__PURE__ */ duotone(ScalesIcon);
 export const Search = /* @__PURE__ */ duotone(MagnifyingGlassIcon);
 export const Settings = /* @__PURE__ */ duotone(GearSixIcon);
 export const SlidersHorizontal = /* @__PURE__ */ duotone(SlidersHorizontalIcon);
@@ -99,4 +107,8 @@ export const Trash = /* @__PURE__ */ duotone(TrashIcon);
  * and said nothing about being a chart.
  */
 export const TrendingUp = /* @__PURE__ */ duotone(ChartLineUpIcon);
+/** Leaderboard: the cup, which needs no explaining. */
+export const Trophy = /* @__PURE__ */ duotone(TrophyIcon);
 export const User = /* @__PURE__ */ duotone(UserIcon);
+export const UserPlus = /* @__PURE__ */ duotone(UserPlusIcon);
+export const Users = /* @__PURE__ */ duotone(UsersIcon);

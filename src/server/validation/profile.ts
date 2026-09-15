@@ -3,6 +3,8 @@ import { z } from "zod";
 import { BODY_LOAD_UNITS, SEXES, TRAINING_GOALS, type BodyLoadUnit } from "@/domain/types";
 import { fromKilograms, heightUnitFor, toCentimetres, toKilograms } from "@/lib/units";
 
+import { usernameSchema } from "./username";
+
 const asString = (value: unknown): string => (typeof value === "string" ? value : "");
 
 /** Any IANA zone the running platform knows about; the browser proposes one during onboarding. */
@@ -85,7 +87,7 @@ const HEIGHT_CM = { min: 50, max: 260 } as const;
 
 /**
  * Everything the app knows about the person training. Both the onboarding step and the
- * Settings screen parse with this, so the two can never ask for different things.
+ * profile edit screen parse with this, so the two can never ask for different things.
  *
  * Weight and height arrive in whichever units the account uses — pounds and feet, or
  * kilograms and centimetres — and leave as kilograms and centimetres, which is how they are
@@ -102,6 +104,7 @@ export const profileInputSchema = z
         .min(1, "Tell us what to call you.")
         .max(80, "Keep this under 80 characters."),
     ),
+    username: usernameSchema,
     timeZone: timeZoneSchema,
     preferredUnit: z.enum(BODY_LOAD_UNITS, { error: "Choose kilograms or pounds." }),
     dateOfBirth: dateOfBirthSchema,
@@ -156,6 +159,7 @@ export const profileInputSchema = z
 
     return {
       displayName: values.displayName,
+      username: values.username,
       timeZone: values.timeZone,
       preferredUnit: unit,
       dateOfBirth: values.dateOfBirth,
@@ -171,6 +175,7 @@ export type ProfileInput = z.output<typeof profileInputSchema>;
 /** Account setup is independent of optional coaching measurements and goals. */
 export const basicProfileInputSchema = z.object({
   displayName: z.preprocess(asString, z.string().trim().max(80)),
+  username: usernameSchema,
   timeZone: timeZoneSchema,
   preferredUnit: z.enum(BODY_LOAD_UNITS),
 });

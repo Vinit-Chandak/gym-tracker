@@ -4,8 +4,10 @@ import {
   check,
   date,
   index,
+  integer,
   numeric,
   pgTable,
+  pgView,
   text,
   timestamp,
   uniqueIndex,
@@ -25,6 +27,13 @@ export const profiles = pgTable(
     id: uuid("id").primaryKey(),
     email: text("email"),
     displayName: text("display_name"),
+    /**
+     * The public handle (ADR 0026): lowercase, 3–20 characters, unique. Set at sign-up by the
+     * auth trigger — from what the form asked for, or generated from the email — and editable
+     * from the profile. Rules are `domain/username.ts`; the check below and `generate_username()`
+     * in the migration are the same rules in SQL.
+     */
+    username: text("username").notNull(),
     /** IANA zone; every civil date in the app is resolved in it. Set during onboarding. */
     timeZone: text("time_zone").notNull().default("UTC"),
     preferredUnit: loadUnitEnum("preferred_unit").notNull().default("kg"),
@@ -47,18 +56,63 @@ export const profiles = pgTable(
     aiCoachEnabled: boolean("ai_coach_enabled").notNull().default(false),
     /** Set when the first-run flow finished. Null sends the account to /welcome. */
     onboardedAt: timestamp("onboarded_at", { withTimezone: true }),
+    /**
+     * Privacy (ADR 0026). Owner-only like every other column here; the follow trigger and the
+     * `can_view_*` helpers read them as the migration role. Whether a follow needs approval.
+     */
+    followApproval: boolean("follow_approval").notNull().default(true),
+    /** Off means followers see the profile card only: no stats, not on their leaderboards. */
+    shareTraining: boolean("share_training").notNull().default(true),
+    /** Opt-in: "per kg of body weight" rows and rankings, only with followers who also opt in. */
+    shareBodyWeight: boolean("share_body_weight").notNull().default(false),
+    /** Whether the exact-email lookup on the Friends page may return this account. */
+    discoverableByEmail: boolean("discoverable_by_email").notNull().default(true),
     ...timestamps,
   },
-  () => [
+  (t) => [
     // The bounds the forms already enforced, written down where the data lives.
     check(
       "profiles_measurements_chk",
       sql`(body_weight_kg is null or (body_weight_kg > 0 and body_weight_kg <= 500))
         and (height_cm is null or (height_cm >= 50 and height_cm <= 260))`,
     ),
+    // Stored lowercase, so the plain unique index is the case-insensitive one.
+    uniqueIndex("profiles_username_uq").on(t.username),
+    // The same rules as `USERNAME_PATTERN` and `RESERVED_USERNAMES`; `username_reserved()` is
+    // defined in the migration so the list is written once in SQL.
+    check(
+      "profiles_username_chk",
+      sql`username ~ '^[a-z0-9][a-z0-9._]{1,18}[a-z0-9]$'
+        and username not like '%..%' and not public.username_reserved(username)`,
+    ),
     ownerPolicy("profiles", "id"),
   ],
 ).enableRLS();
+
+/**
+ * The only facts about an account that any other account may read (ADR 0026): how search,
+ * profile headers and leaderboard names find people. Owned by the migration role, so it reads
+ * `profiles` without RLS; `security_barrier` keeps a caller's predicates from being pushed
+ * inside it. No email, no measurements, and of the privacy switches only `follow_approval`,
+ * which the follow button needs to say Follow or Request. The two counts are of accepted
+ * follows only; a pending request counts for nobody.
+ */
+export const profileDirectory = pgView("profile_directory", {
+  id: uuid("id").notNull(),
+  username: text("username").notNull(),
+  displayName: text("display_name"),
+  joinedAt: timestamp("joined_at", { withTimezone: true }).notNull(),
+  followApproval: boolean("follow_approval").notNull(),
+  followers: integer("followers").notNull(),
+  following: integer("following").notNull(),
+})
+  .with({ securityBarrier: true })
+  .as(
+    sql`select p.id, p.username, p.display_name, p.created_at as joined_at, p.follow_approval,
+      (select count(*)::integer from public.follows f where f.followee_id = p.id and f.status = 'accepted') as followers,
+      (select count(*)::integer from public.follows f where f.follower_id = p.id and f.status = 'accepted') as following
+      from public.profiles p`,
+  );
 
 /**
  * Every body weight reading, at most one per day. Finishing a workout with a weight writes one,

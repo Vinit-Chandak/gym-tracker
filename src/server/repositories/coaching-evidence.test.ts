@@ -8,7 +8,6 @@ import {
   equipmentInstances,
   equipmentTypes,
   gyms,
-  profiles,
   programDays,
   programExercises,
   programRuns,
@@ -33,6 +32,7 @@ import {
 } from "./coaching-guardrails";
 import { existingEvidenceIds, readCoachMemory, updateCoachMemory } from "./coach-memory";
 import { planningContext } from "./coach-plans";
+import { ensureProfile } from "@/server/queries/profile";
 import { sharedExercises } from "@/server/queries/reference";
 import { applyRule } from "./progression-rule";
 import { sessionHistories } from "@/server/queries/comparable";
@@ -50,7 +50,7 @@ async function fixture(values = [12, 12, 12, 12, 12, 12]) {
   const user = await t.createAuthUser(`${crypto.randomUUID()}@evidence.test`);
   const as = <T>(fn: (db: DbOrTx) => Promise<T>) => withUser(t.db, user.id, fn);
   return as(async (db) => {
-    await db.insert(profiles).values({ id: user.id }).onConflictDoNothing();
+    await ensureProfile(db, { id: user.id, email: user.email });
     const [home] = await db
       .insert(gyms)
       .values({ userId: user.id, slug: "home", name: "Home", kind: "home", isDefault: true })

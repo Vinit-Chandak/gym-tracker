@@ -239,7 +239,7 @@ export async function confirmIntake(db: DbOrTx, userId: string, intakeId: string
  * about them.
  *
  * Height, weight and a goal are asked for here because a programme cannot be written without
- * them, and leaving the answers in the intake alone is how Settings → Profile stays blank for
+ * them, and leaving the answers in the intake alone is how Profile → Edit profile stays blank for
  * someone who has answered all three. The weight goes through the reading log, which owns
  * `profiles.body_weight_kg`, so the number on the profile and the trend behind it cannot
  * disagree. Age is left alone: a number of years is not a birthday, and a birthday invented

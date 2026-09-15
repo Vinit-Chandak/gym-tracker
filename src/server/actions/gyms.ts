@@ -13,7 +13,7 @@ import { gymInputSchema } from "@/server/validation/gyms";
 function revalidateGyms(gymId?: string): void {
   revalidatePath("/gyms");
   revalidatePath("/today");
-  revalidatePath("/settings");
+  revalidatePath("/profile");
   if (gymId) revalidatePath(`/gyms/${gymId}`);
 }
 

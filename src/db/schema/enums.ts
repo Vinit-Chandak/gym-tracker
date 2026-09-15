@@ -6,6 +6,7 @@ import {
   EQUIPMENT_CATEGORIES,
   EXERCISE_CATEGORIES,
   EXERCISE_MODALITIES,
+  FOLLOW_STATUSES,
   GYM_KINDS,
   LOAD_PORTABILITY,
   LOAD_UNITS,
@@ -23,6 +24,7 @@ import {
   SLOT_PARTS,
   TRAINING_GOALS,
 } from "../../domain/types";
+import { TRAINING_SPORTS } from "../../domain/sport-scope";
 
 export const gymKindEnum = pgEnum("gym_kind", GYM_KINDS);
 export const resistanceModeEnum = pgEnum("resistance_mode", RESISTANCE_MODES);
@@ -47,4 +49,6 @@ export const coachRequestInitiatorEnum = pgEnum(
   COACH_REQUEST_INITIATORS,
 );
 export const sexEnum = pgEnum("sex", SEXES);
+export const followStatusEnum = pgEnum("follow_status", FOLLOW_STATUSES);
 export const trainingGoalEnum = pgEnum("training_goal", TRAINING_GOALS);
+export const trainingSportEnum = pgEnum("training_sport", TRAINING_SPORTS);

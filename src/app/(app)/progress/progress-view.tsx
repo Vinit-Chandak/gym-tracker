@@ -455,7 +455,7 @@ export function ProgressView({
               ) : (
                 <p className="text-sm text-ink-muted">
                   No readings in this range. Weight recorded when you finish a session appears here,
-                  and you can set it any day from Settings → Profile.
+                  and you can set it any day from Profile → Edit profile.
                 </p>
               )}
             </Card>

@@ -64,7 +64,7 @@ export async function adoptProgramTemplateAction(
     throw error;
   }
   if (finishedOnboarding) await profileChanged(user.id);
-  revalidatePath("/settings");
+  revalidatePath("/profile");
   revalidatePath("/today");
   if (parsed.data.finishOnboarding) redirect("/today");
   return {};

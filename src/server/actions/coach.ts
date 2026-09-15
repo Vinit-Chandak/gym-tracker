@@ -59,11 +59,11 @@ export async function setAiCoachEnabledAction(enabled: boolean): Promise<void> {
       const intake = await withUser(getDb(), user.id, (tx) => latestIntake(tx, user.id), {
         readOnly: true,
       });
-      if (!intake?.confirmedAt) redirect("/settings/programme/create");
+      if (!intake?.confirmedAt) redirect("/profile/programme/create");
       await withUser(getDb(), user.id, (tx) => confirmIntake(tx, user.id, intake.id));
     } else await withUser(getDb(), user.id, (tx) => setTrainingMode(tx, user.id, "track"));
     await profileChanged(user.id);
-    revalidatePath("/settings/ai-coach");
+    revalidatePath("/profile/ai-coach");
     revalidatePath("/today");
     return;
   }
@@ -71,7 +71,7 @@ export async function setAiCoachEnabledAction(enabled: boolean): Promise<void> {
     tx.update(profiles).set({ aiCoachEnabled: enabled }).where(eq(profiles.id, user.id)),
   );
   await profileChanged(user.id);
-  revalidatePath("/settings/ai-coach");
+  revalidatePath("/profile/ai-coach");
   revalidatePath("/today");
 }
 
@@ -98,7 +98,7 @@ export async function saveCoachNotesAction(
   } catch {
     return { formError: "Could not save your notes. Please retry.", values: formValues(formData) };
   }
-  revalidatePath("/settings/ai-coach");
+  revalidatePath("/profile/ai-coach");
   return {};
 }
 
@@ -152,7 +152,7 @@ export async function requestCoachPlanAction(gymId: string, reason: string): Pro
         getGym(tx, user.id, parsed.data.gymId),
       ]);
       if (!profile.aiCoachEnabled)
-        throw new CoachRequestRefused("The AI coach is switched off in Settings.");
+        throw new CoachRequestRefused("The AI coach is switched off on your profile.");
       if (!gym || !gym.isActive)
         throw new CoachRequestRefused("Choose one of your active training locations.");
       return createCoachRequest(tx, user.id, {
@@ -209,7 +209,7 @@ export async function applyProposalAction(proposalId: string): Promise<ActionRes
           : "Could not apply the change. Please retry.",
     };
   }
-  revalidatePath("/settings/programme");
+  revalidatePath("/profile/programme");
   revalidatePath("/today");
   return { ok: true };
 }
@@ -219,6 +219,6 @@ export async function rejectProposalAction(proposalId: string): Promise<ActionRe
   if (!z.uuid().safeParse(proposalId).success) return { ok: false, error: "Invalid change." };
   const done = await withUser(getDb(), user.id, (tx) => rejectProposal(tx, user.id, proposalId));
   if (!done) return { ok: false, error: "That change is no longer waiting for an answer." };
-  revalidatePath("/settings/programme");
+  revalidatePath("/profile/programme");
   return { ok: true };
 }

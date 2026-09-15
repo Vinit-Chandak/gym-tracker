@@ -19,6 +19,7 @@
     "db:seed": "tsx src/db/seed/run.ts",
     "db:setup": "npm run db:migrate && npm run db:seed",
     "db:deploy": "tsx src/db/deploy.ts",
+    "db:backfill:shared-stats": "tsx src/db/backfill-shared-stats.ts",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {

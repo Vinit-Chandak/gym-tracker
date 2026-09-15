@@ -24,11 +24,12 @@ export default async function WelcomePage() {
         <div>
           <h1 className="text-xl font-medium">Welcome to {APP_NAME}</h1>
           <p className="text-sm text-ink-muted">
-            Four short steps. Everything here can be changed later, in Settings.
+            Four short steps. Everything here can be changed later, from your profile.
           </p>
         </div>
         <ProfileStepForm
           displayName={profile.displayName ?? ""}
+          username={profile.username}
           timeZone={profile.timeZone}
           preferredUnit={profile.preferredUnit === "lb" ? "lb" : "kg"}
           bodyWeightKg={profile.bodyWeightKg}

@@ -73,11 +73,11 @@ export default async function TodayPage() {
         unit={LOAD_UNIT_LABELS[profile.preferredUnit]}
       />
       <PageContent>
-        <LinkButton href="/settings/routines" variant="secondary">
+        <LinkButton href="/profile/routines" variant="secondary">
           Saved routines
         </LinkButton>
         {!plan && (
-          <LinkButton href="/settings/programme" variant="ghost">
+          <LinkButton href="/profile/programme" variant="ghost">
             Create a programme
           </LinkButton>
         )}

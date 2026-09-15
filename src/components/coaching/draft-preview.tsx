@@ -53,7 +53,7 @@ export function DraftPreview({
   draft: ProgramDraft;
   library: { slug: string; name: string }[];
   today: string;
-  base: "/welcome/programme" | "/settings/programme";
+  base: "/welcome/programme" | "/profile/programme";
   stale: boolean;
   assessment: ProgramChangeAssessment | null;
   currentBlueprint: ProgramBlueprint | null;

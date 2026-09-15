@@ -27,7 +27,7 @@ it("keeps the rest timer visible inside the workout while hiding the redundant r
 });
 
 it("shows the resume strip and timer on other screens", () => {
-  route.pathname = "/settings";
+  route.pathname = "/profile";
   render(<SessionChrome session={{ id: "active", name: "Lower A", restTimerEnabled: true }} />);
   expect(screen.getByRole("timer")).toBeTruthy();
   expect(screen.getByRole("link", { name: "Resume" })).toBeTruthy();

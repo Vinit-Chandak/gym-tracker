@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getDb } from "@/db/client";
+import { isUniqueViolation } from "@/db/errors";
 import { profiles } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import { withUser } from "@/db/with-user";
@@ -13,12 +14,22 @@ import { requireUser, type SessionUser } from "@/server/auth";
 import { ensureProfile } from "@/server/queries/profile";
 import { profileChanged } from "@/server/queries/request-profile";
 import { recordBodyWeight } from "@/server/repositories/body-weight";
-import { parseForm, type FormState } from "@/server/validation/form";
+import { formValues, parseForm, type FormState } from "@/server/validation/form";
 import {
   basicProfileInputSchema,
   profileInputSchema,
   type ProfileInput,
 } from "@/server/validation/profile";
+import { USERNAME_TAKEN_MESSAGE } from "@/server/validation/username";
+
+/**
+ * The unique index on `profiles.username` is the last word on whether a name is free: the live
+ * check under the field can lose a race. Its refusal comes back against the field, with the
+ * rest of the form intact.
+ */
+function usernameTaken(formData: FormData): FormState {
+  return { fieldErrors: { username: USERNAME_TAKEN_MESSAGE }, values: formValues(formData) };
+}
 
 /**
  * Writes the profile and, when the weight has moved, records it as today's reading — dated in
@@ -50,16 +61,21 @@ export async function saveProfileAction(
   const parsed = parseForm(profileInputSchema, formData);
   if (!parsed.success) return parsed.state;
 
-  await withUser(getDb(), user.id, (tx) => saveProfile(tx, user, parsed.data));
+  try {
+    await withUser(getDb(), user.id, (tx) => saveProfile(tx, user, parsed.data));
+  } catch (error) {
+    if (isUniqueViolation(error)) return usernameTaken(formData);
+    throw error;
+  }
   await profileChanged(user.id);
-  revalidatePath("/settings");
-  revalidatePath("/settings/profile");
+  revalidatePath("/profile");
+  revalidatePath("/profile/edit");
   revalidatePath("/progress");
   revalidatePath("/today");
   return {};
 }
 
-/** Onboarding step 1: optional name, units and time zone, then the next step. */
+/** Onboarding step 1: optional name, username, units and time zone, then the next step. */
 export async function saveOnboardingProfileAction(
   _previous: FormState,
   formData: FormData,
@@ -68,10 +84,15 @@ export async function saveOnboardingProfileAction(
   const parsed = parseForm(basicProfileInputSchema, formData);
   if (!parsed.success) return parsed.state;
 
-  await withUser(getDb(), user.id, async (tx) => {
-    await ensureProfile(tx, user);
-    await tx.update(profiles).set(parsed.data).where(eq(profiles.id, user.id));
-  });
+  try {
+    await withUser(getDb(), user.id, async (tx) => {
+      await ensureProfile(tx, user);
+      await tx.update(profiles).set(parsed.data).where(eq(profiles.id, user.id));
+    });
+  } catch (error) {
+    if (isUniqueViolation(error)) return usernameTaken(formData);
+    throw error;
+  }
   await profileChanged(user.id);
   redirect("/welcome/gym");
 }

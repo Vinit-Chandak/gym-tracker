@@ -6,6 +6,7 @@ import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import Link from "@/components/ui/app-link";
 import { Field, Input } from "@/components/ui/input";
+import { UsernameField } from "@/components/username-field";
 import { signUpAction, type SignUpState } from "@/server/actions/auth";
 
 const INITIAL: SignUpState = {};
@@ -55,6 +56,12 @@ export function SignUpForm() {
           onChange={(event) => setDisplayName(event.target.value)}
         />
       </Field>
+      {/* Optional here: a blank one is made from the email and shown on the first step of
+          setup, where it can be changed. Typed, it is checked as you go. */}
+      <UsernameField
+        required={false}
+        hint="Optional. Lowercase letters, digits, dots and underscores; made from your email if left blank."
+      />
       <Field label="Email">
         <Input
           type="email"

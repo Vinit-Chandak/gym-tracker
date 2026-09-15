@@ -56,7 +56,7 @@ const GOAL_LABELS = TRAINING_GOALS.map((goal) => TRAINING_GOAL_LABELS[goal]);
  * The account already knows the body a programme is for, and the questions here say so:
  * "read back from the profile, so nobody is asked twice". A draft intake used to cancel that
  * outright — the moment one existed, the profile was never consulted again, and somebody who
- * had filled in Settings → Profile met three empty boxes. Only blanks are filled, so an
+ * had filled in Profile → Edit profile met three empty boxes. Only blanks are filled, so an
  * answer given here, including one deliberately different from the profile, always wins.
  */
 function withProfileDetails(saved: CoachIntake | null, profile?: CoachIntake): CoachIntake {
@@ -86,7 +86,7 @@ export function CoachIntakeForm({
   prefill?: CoachIntake;
   reports: Report[];
   library: { slug: string; name: string }[];
-  base: "/welcome/programme" | "/settings/programme";
+  base: "/welcome/programme" | "/profile/programme";
   configured: boolean;
   initialStep?: number;
   preferredUnit?: "kg" | "lb";

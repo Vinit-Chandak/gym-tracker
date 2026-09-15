@@ -66,7 +66,7 @@ export async function ProgrammeCreationPage({ onboarding = false }: { onboarding
     },
     { readOnly: true },
   );
-  const base = onboarding ? "/welcome/programme" : "/settings/programme";
+  const base = onboarding ? "/welcome/programme" : "/profile/programme";
   const usual = data.locations.find((location) => location.isDefault) ?? data.locations[0];
   return (
     <>

@@ -4,6 +4,7 @@ import { profileInputSchema } from "./profile";
 
 const metric = {
   displayName: "Sam",
+  username: "sam_94",
   timeZone: "Europe/Lisbon",
   preferredUnit: "kg",
   bodyWeight: "74.5",
@@ -39,6 +40,7 @@ describe("profile input", () => {
     const result = parse();
     expect(result.success && result.data).toEqual({
       displayName: "Sam",
+      username: "sam_94",
       timeZone: "Europe/Lisbon",
       preferredUnit: "kg",
       bodyWeightKg: 74.5,
@@ -76,10 +78,20 @@ describe("profile input", () => {
 
   it("requires a name, a weight, a height, a birth date and a goal", () => {
     expect(errorFor(parse({ displayName: "   " }), "displayName")).toBeDefined();
+    expect(errorFor(parse({ username: "" }), "username")).toBeDefined();
     expect(errorFor(parse({ bodyWeight: "" }), "bodyWeight")).toBeDefined();
     expect(errorFor(parse({ heightCm: "" }), "heightCm")).toBeDefined();
     expect(errorFor(parse({ dateOfBirth: "" }), "dateOfBirth")).toBeDefined();
     expect(errorFor(parse({ trainingGoal: "" }), "trainingGoal")).toBeDefined();
+  });
+
+  it("makes the username canonical and holds it to the rules", () => {
+    expect(
+      parse({ username: " @Sam.94 " }).success && parse({ username: " @Sam.94 " }).data,
+    ).toMatchObject({ username: "sam.94" });
+    expect(errorFor(parse({ username: "sa" }), "username")).toBe("Use 3 to 20 characters.");
+    expect(errorFor(parse({ username: "sam 94" }), "username")).toBeDefined();
+    expect(errorFor(parse({ username: "coach" }), "username")).toBe("That name is reserved.");
   });
 
   it("reports a missing imperial height against the feet field", () => {

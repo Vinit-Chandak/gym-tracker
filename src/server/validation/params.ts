@@ -2,6 +2,8 @@ import type { Route } from "next";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 
+import { isValidUsername, normaliseUsername } from "@/domain/username";
+
 const uuid = z.uuid();
 
 /**
@@ -12,6 +14,23 @@ const uuid = z.uuid();
 export function requireUuid(value: string): string {
   if (!uuid.safeParse(value).success) notFound();
   return value;
+}
+
+/**
+ * The one segment that is not a UUID: `/u/[username]`. Made canonical, so `/u/@Vinit` finds
+ * vinit, and held to the username rules, which keeps a reserved word or anything that could
+ * never be a handle from reaching the directory query.
+ */
+export function requireUsername(value: string): string {
+  let decoded = value;
+  try {
+    decoded = decodeURIComponent(value);
+  } catch {
+    notFound();
+  }
+  const username = normaliseUsername(decoded);
+  if (!isValidUsername(username)) notFound();
+  return username;
 }
 
 export type WorkoutReturn = { sessionId: string; workoutExerciseId: string };

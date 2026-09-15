@@ -9,6 +9,7 @@ import { APP_NAME } from "@/lib/app";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSiteUrl } from "@/lib/site-url";
 import { safeAppPath } from "@/lib/safe-app-path";
+import { usernameSchema } from "@/server/validation/username";
 
 export type SignInState = { error?: string };
 export type SignUpState = { error?: string; checkEmail?: string };
@@ -39,6 +40,15 @@ const signUpSchema = z
     password: passwordSchema,
     confirmPassword: z.string(),
     displayName: z.string().trim().max(80).optional(),
+    /**
+     * Asked for but not required: the auth trigger makes one from the email when this is
+     * blank, and Welcome step 1 shows it. Typed, it has to follow the rules; whether it is
+     * still free when the account is created is the trigger's call (ADR 0026).
+     */
+    username: z.preprocess(
+      (value) => (typeof value === "string" && value.trim() !== "" ? value : undefined),
+      usernameSchema.optional(),
+    ),
     next: z.string().optional(),
   })
   .refine((values) => values.password === values.confirmPassword, {
@@ -115,6 +125,7 @@ export async function signUpAction(
     password: formData.get("password"),
     confirmPassword: formData.get("confirmPassword"),
     displayName: formData.get("displayName") ?? undefined,
+    username: formData.get("username") ?? undefined,
     next: formData.get("next") ?? undefined,
   });
   if (!parsed.success) {
@@ -123,6 +134,10 @@ export async function signUpAction(
 
   const supabase = await createSupabaseServerClient();
   const displayName = parsed.data.displayName?.trim();
+  const metadata = {
+    ...(displayName ? { display_name: displayName } : {}),
+    ...(parsed.data.username ? { username: parsed.data.username } : {}),
+  };
   const { value, error: transport } = await attempt(
     supabase.auth.signUp({
       email: parsed.data.email,
@@ -132,7 +147,7 @@ export async function signUpAction(
         // project's Redirect URLs, so anything appended here has to be allow-listed too.
         // `/auth/confirm` works out where to send the user once the link is confirmed.
         emailRedirectTo: `${await getSiteUrl()}/auth/confirm`,
-        ...(displayName ? { data: { display_name: displayName } } : {}),
+        ...(Object.keys(metadata).length > 0 ? { data: metadata } : {}),
       },
     }),
   );
@@ -186,7 +201,7 @@ export async function requestPasswordResetAction(
   return { sent: true };
 }
 
-/** Sets a new password for the signed-in user — after a recovery link, or from Settings. */
+/** Sets a new password for the signed-in user — after a recovery link, or from Profile. */
 export async function updatePasswordAction(
   _previous: PasswordChangeState,
   formData: FormData,

@@ -62,7 +62,7 @@ function revalidateSession(sessionId?: string): void {
   revalidatePath("/runs");
   revalidatePath("/history");
   revalidatePath("/progress");
-  revalidatePath("/settings");
+  revalidatePath("/profile");
   if (sessionId) revalidatePath(`/workouts/${sessionId}`);
 }
 
@@ -521,7 +521,7 @@ export async function finishSessionAction(
   // The reading may have moved the profile's own body weight.
   if (parsed.data.bodyWeightKg !== null) {
     await profileChanged(user.id);
-    revalidatePath("/settings/profile");
+    revalidatePath("/profile/edit");
   }
   revalidateSession(sessionId);
   redirect(`/workouts/${sessionId}`);
@@ -587,7 +587,7 @@ export async function setRestTimerEnabledAction(enabled: boolean): Promise<void>
     tx.update(profiles).set({ restTimerEnabled: enabled }).where(eq(profiles.id, user.id)),
   );
   await profileChanged(user.id);
-  revalidatePath("/settings");
+  revalidatePath("/profile");
 }
 
 /** Marks the pending rest slot of a day as done without starting anything. */

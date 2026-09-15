@@ -23,7 +23,7 @@ export function CoachJobStatus({
 }: {
   job: CoachJob;
   draftId: string | null;
-  base: "/welcome/programme" | "/settings/programme";
+  base: "/welcome/programme" | "/profile/programme";
 }) {
   const router = useRouter();
   const pending = job.status === "queued" || job.status === "claimed";
@@ -109,7 +109,7 @@ function CoachQuestions({
 }: {
   jobId: string;
   questions: readonly string[];
-  base: "/welcome/programme" | "/settings/programme";
+  base: "/welcome/programme" | "/profile/programme";
 }) {
   const router = useRouter();
   const [answers, setAnswers] = useState<string[]>(() => questions.map(() => ""));

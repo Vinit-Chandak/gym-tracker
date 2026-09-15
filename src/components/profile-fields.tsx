@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Field, Input } from "@/components/ui/input";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select } from "@/components/ui/select";
+import { UsernameField } from "@/components/username-field";
 import {
   BODY_LOAD_UNITS,
   SEXES,
@@ -24,6 +25,7 @@ import {
 
 export type ProfileFieldValues = {
   displayName: string;
+  username: string;
   timeZone: string;
   preferredUnit: BodyLoadUnit;
   /** Stored in kilograms and centimetres; shown in whichever units the account uses. */
@@ -78,7 +80,7 @@ const text = (value: number | null): string => (value === null ? "" : String(val
 
 /**
  * The fields that make the app yours: who you are, how you measure things, and the body the
- * numbers are about. Shared by the onboarding step and the Settings screen, so the two can
+ * numbers are about. Shared by the onboarding step and the profile edit screen, so the two can
  * never drift apart — and so nothing asked during setup is impossible to change afterwards.
  *
  * Units are a live choice rather than a saved one: switching to pounds re-labels the weight
@@ -171,6 +173,12 @@ export function ProfileFields({
           required
         />
       </Field>
+
+      <UsernameField
+        defaultValue={values.username}
+        current={values.username}
+        error={errors?.username}
+      />
 
       <Field
         label="Time zone"
