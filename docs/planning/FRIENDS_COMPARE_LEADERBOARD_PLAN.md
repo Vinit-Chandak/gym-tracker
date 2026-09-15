@@ -1,7 +1,7 @@
 # Friends, comparison and leaderboards — implementation plan
 
-Status: decisions locked on 2026-09-14. Phases 0, 1 and 2 implemented on 2026-09-14 and
-phase 3 on 2026-09-15 (see the notes under each phase); phase 4 next.
+Status: decisions locked on 2026-09-14. Phases 0, 1 and 2 implemented on 2026-09-14, phases
+3 and 4 on 2026-09-15 (see the notes under each phase); phase 5 next.
 Owner: Vinit. Written after a full read of the codebase on `main` at `33cdbe7`.
 
 This plan adds people to an app that was built for one person at a time: a username, following
@@ -857,6 +857,30 @@ cannot see a table their branch adds. Sizes: S under a day, M one to two days, L
 - **Tests**: `compareValues` (zero on either side, equal, lower-is-better), `strongerVerdict`
   ties, `periodBounds` at year and month edges; radar renders one and two polygons with the
   values table; bars render "—" for a missing side.
+- **As built** (decisions taken with the owner during implementation):
+  - The percentage on a stats row is **(you − friend) ÷ friend**, said from the viewer's side:
+    "+20%" ahead, "−16.7%" behind, "=" when equal, "—" when the friend's side is nothing. A
+    side with a value leads a side without one whichever way the metric points.
+  - The exercise trend keeps one point per session for each person on the union of their
+    dates, and `Chart` gained an opt-in `bridgeGaps` so a person's line runs across the other
+    person's training days instead of breaking there (for one person's readings the break
+    stays honest). Two sessions on one day keep the better one.
+  - The "× body weight" line sits under estimated 1RM and top weight only, when the
+    policies hand both readings over (both opted in); best set volume and the totals stay
+    absolute.
+  - The Friends' leaderboard on the exercise comparison (§3.11 item 4) waits for phase 5,
+    which defines the board; nothing dead ships. The sport switch waits for phase 6, so
+    Compare is Lifting with the period control only, as the profile page already is.
+  - Exercises in common are listed by name with the region under each; the machine note
+    beneath carries an info tip. "Compare" on the Friends page is a row leading to the
+    pick-a-friend list for now; the Leaderboard card joins it side by side in phase 5.
+  - Reads added to `repositories/shared-stats.ts`: `readPeriodTotals` gained workout time,
+    active days and records; `readExerciseBests` takes several people and returns a map (a
+    person the viewer may not read is simply absent); `readExerciseTrend`,
+    `readExercisesInCommon` (comparable by name, plus the count of machines in common),
+    `readBodyWeights`, `getComparableExercise`. `queries/head-to-head.ts` resolves the two
+    people, the relation and visibility for both compare screens and the profile's line.
+  - `Avatar` gained the 88px `compare` size; `Scales` (Phosphor) is the Compare icon.
 
 ### Phase 5 — Leaderboard (M)
 
