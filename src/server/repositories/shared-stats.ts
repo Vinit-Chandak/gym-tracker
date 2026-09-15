@@ -9,6 +9,7 @@ import {
   sharedSessionStats,
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
+import { activityValue, type ActivityMetric } from "@/domain/leaderboard";
 import { addMuscleSets, type MuscleSets } from "@/domain/muscle-split";
 import { regionOf, type BodyRegion } from "@/domain/muscles";
 import { detectRecords, type PreviousMaxima, type TrainingRecord } from "@/domain/records";
@@ -350,6 +351,23 @@ export async function readPeriodTotals(
   return new Map(rows.map(({ userId, ...totals }) => [userId, totals]));
 }
 
+/**
+ * Activity mode of the leaderboard (plan §3.12): one number per person in the circle for the
+ * period, read off the same totals Compare shows. A person with no session in the period is
+ * absent, which the board lists as "—"; one who trained but scored nothing on the metric is
+ * present at 0, since that is a fact about their training and not a gap in it.
+ */
+export async function readLeaderboard(
+  tx: DbOrTx,
+  userIds: readonly string[],
+  sport: TrainingSport,
+  metric: ActivityMetric,
+  range: DateRange,
+): Promise<Map<string, number>> {
+  const totals = await readPeriodTotals(tx, userIds, sport, range);
+  return new Map([...totals].map(([userId, t]) => [userId, activityValue(t, metric)]));
+}
+
 /** One person's working sets per muscle over a period, for the split radar. */
 export async function readMuscleSets(
   tx: DbOrTx,
@@ -562,6 +580,42 @@ export async function getComparableExercise(
   if (!row) return null;
   const { primaryMuscles, ...exercise } = row;
   return { ...exercise, region: regionOf(primaryMuscles) };
+}
+
+export type CircleExercise = ComparableExerciseRow & {
+  /** How many people in the circle have logged it, ever. */
+  people: number;
+};
+
+/**
+ * Exercise mode's picker (plan §3.12): the comparable movements anyone in the circle has
+ * ever logged, the ones most of them share first, then by name.
+ */
+export async function readCircleExercises(
+  tx: DbOrTx,
+  userIds: readonly string[],
+): Promise<CircleExercise[]> {
+  if (userIds.length === 0) return [];
+  const rows = await tx
+    .select({
+      ...EXERCISE_COLUMNS,
+      primaryMuscles: exercises.primaryMuscles,
+      people: sql<number>`count(distinct ${sharedExerciseStats.userId})::int`,
+    })
+    .from(sharedExerciseStats)
+    .innerJoin(exercises, eq(exercises.id, sharedExerciseStats.exerciseId))
+    .where(
+      and(
+        inArray(sharedExerciseStats.userId, [...userIds]),
+        eq(sharedExerciseStats.comparable, true),
+      ),
+    )
+    .groupBy(exercises.id)
+    .orderBy(desc(sql`count(distinct ${sharedExerciseStats.userId})`), asc(exercises.name));
+  return rows.map(({ primaryMuscles, ...exercise }) => ({
+    ...exercise,
+    region: regionOf(primaryMuscles),
+  }));
 }
 
 export type PeriodRecord = {

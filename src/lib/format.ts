@@ -1,3 +1,4 @@
+import type { ActivityMetric } from "@/domain/leaderboard";
 import { METRIC_UNIT, type SharedMetric } from "@/domain/shared-stats";
 import type { BodyLoadUnit } from "@/domain/types";
 
@@ -155,6 +156,25 @@ export function formatSharedMetric(
       return formatDuration(value);
     case "metres":
       return `${value.toLocaleString("en-GB")} m`;
+  }
+}
+
+/** A period's total on the leaderboard: a count, a clock, or a load in the reader's unit. */
+export function formatActivityMetric(
+  metric: ActivityMetric,
+  value: number,
+  unit: BodyLoadUnit,
+): string {
+  switch (metric) {
+    case "workout_time":
+      return formatMinutes(value / 60);
+    case "volume":
+      return formatSharedLoad(value, unit);
+    case "workouts":
+    case "working_sets":
+    case "active_days":
+    case "records":
+      return value.toLocaleString("en-GB");
   }
 }
 

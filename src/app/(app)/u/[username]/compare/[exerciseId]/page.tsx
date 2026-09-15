@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 
 import { CompareHeader } from "@/components/compare-header";
+import { FriendsBoardCard } from "@/components/friends-board-card";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { Card } from "@/components/ui/card";
@@ -12,6 +13,7 @@ import { Section } from "@/components/ui/section";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { alignSeries, bodyWeightRatio, strongerVerdict } from "@/domain/compare";
+import { topWithYou } from "@/domain/leaderboard";
 import { PERIOD_LABELS } from "@/domain/period";
 import {
   METRIC_UNIT,
@@ -26,6 +28,7 @@ import { BODY_REGION_LABELS } from "@/lib/labels";
 import { fromKilograms } from "@/lib/units";
 import { requireUser } from "@/server/auth";
 import { hiddenTrainingLine, loadHeadToHead } from "@/server/queries/head-to-head";
+import { loadCircle, rankExercise } from "@/server/queries/leaderboard";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import {
   getComparableExercise,
@@ -90,12 +93,20 @@ export default async function CompareExercisePage(
       if (!head.visible) return { ...head, exercise };
       const ids = [head.me.id, head.them.id];
       const metric = primaryMetric(exercise);
+      // The friend is in the circle whenever their training is visible (you follow them), so
+      // one read of the circle's bests serves the bar pairs and the board beneath.
+      const circle = await loadCircle(tx, { id: user.id, username: viewer.username });
       const [bests, readings, trend] = await Promise.all([
-        readExerciseBests(tx, ids, exerciseId),
+        readExerciseBests(
+          tx,
+          circle.map((person) => person.id),
+          exerciseId,
+        ),
         readBodyWeights(tx, ids),
         readExerciseTrend(tx, ids, exerciseId, metric, range),
       ]);
-      return { ...head, exercise, metric, bests, readings, trend };
+      const board = topWithYou(rankExercise(circle, bests, new Map(), metric), head.me.id, 5);
+      return { ...head, exercise, metric, bests, readings, trend, board };
     },
     { readOnly: true },
   );
@@ -120,7 +131,7 @@ export default async function CompareExercisePage(
     );
   }
 
-  const { metric, bests, readings, trend } = found;
+  const { metric, bests, readings, trend, board } = found;
   const mine = bests.get(me.id);
   const theirs = bests.get(them.id);
   // Both readings are here only when both opted in: the policy on the table decides.
@@ -188,6 +199,14 @@ export default async function CompareExercisePage(
             />
           </Card>
         </Section>
+
+        <FriendsBoardCard
+          exercise={exercise}
+          metric={metric}
+          rows={board}
+          you={me.id}
+          unit={unit}
+        />
       </PageContent>
     </>
   );

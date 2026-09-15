@@ -19,7 +19,9 @@ import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import type { DbOrTx } from "@/db/types";
 import { withUser } from "@/db/with-user";
 import { performanceSeries } from "@/domain/analytics";
+import { ACTIVITY_METRICS } from "@/domain/leaderboard";
 import { convertLoad } from "@/lib/units";
+import { loadCircle, rankExercise } from "@/server/queries/leaderboard";
 
 import { recordBodyWeight } from "./body-weight";
 import { acceptFollow, requestFollow } from "./follows";
@@ -31,9 +33,11 @@ import {
   getComparableExercise,
   readActivity,
   readBodyWeights,
+  readCircleExercises,
   readExerciseBests,
   readExercisesInCommon,
   readExerciseTrend,
+  readLeaderboard,
   readMuscleSets,
   readPeriodTotals,
   readRecords,
@@ -471,5 +475,102 @@ describe("backfill", () => {
     expect(again.sessions.map((s) => s.id)).toEqual(after.sessions.map((s) => s.id));
     expect(again.exercises.map((e) => e.id)).toEqual(after.exercises.map((e) => e.id));
     expect(again.sessions.map((s) => s.records)).toEqual(after.sessions.map((s) => s.records));
+  });
+});
+
+describe("leaderboard", () => {
+  const opt = (id: string, column: string, on: boolean) =>
+    t.client.query(`update profiles set ${column} = $2 where id = $1`, [id, on]);
+  let circle: string[];
+
+  beforeAll(async () => {
+    // Bob's circle: alice (already), and now carol, who accepts anyone and benches heavier.
+    await opt(carol, "follow_approval", false);
+    await as(bob)((tx) => requestFollow(tx, bob, carol));
+    await as(carol)((tx) => seedTestUserData(tx, { id: carol, email: "carol@example.com" }));
+    const carolGym = (await as(carol)((tx) => listGyms(tx, carol))).find(
+      (g) => g.slug === "home",
+    )!.id;
+    await train([{ exercise: bench, sets: [{ weight: 80, reps: 3 }] }], carol, carolGym);
+    circle = (await as(bob)((tx) => loadCircle(tx, { id: bob, username: "bob" }))).map((p) => p.id);
+  });
+
+  it("is the viewer and the people they follow, by name", () => {
+    expect(circle).toEqual([alice, bob, carol]);
+  });
+
+  it("reads one number per person for each activity metric, absent without a session", async () => {
+    const boards = new Map(
+      await Promise.all(
+        ACTIVITY_METRICS.map(
+          async (metric) =>
+            [
+              metric,
+              await as(bob)((tx) => readLeaderboard(tx, circle, "workout", metric, ALL)),
+            ] as const,
+        ),
+      ),
+    );
+    const of = (metric: (typeof ACTIVITY_METRICS)[number]) =>
+      [alice, bob, carol].map((id) => boards.get(metric)!.get(id));
+    expect(of("workouts")).toEqual([2, 1, 1]);
+    expect(of("working_sets")).toEqual([7, 3, 1]);
+    expect(of("volume")).toEqual([3475, 1306.15, 240]);
+    expect(of("active_days")).toEqual([1, 1, 1]);
+    // Bob and carol trained but set no records: 0, not absent.
+    expect(of("records")).toEqual([3, 0, 0]);
+    expect(of("workout_time").every((n) => typeof n === "number")).toBe(true);
+    const outside = await as(bob)((tx) =>
+      readLeaderboard(tx, circle, "workout", "workouts", {
+        ...ALL,
+        from: "2019-01-01",
+        to: "2019-12-31",
+      }),
+    );
+    expect(outside.size).toBe(0);
+  });
+
+  it("lists the comparable movements the circle has logged, most shared first", async () => {
+    const exercises = await as(bob)((tx) => readCircleExercises(tx, circle));
+    expect(exercises.map((e) => [e.name, e.people])).toEqual([
+      ["Barbell bench press", 3],
+      ["Pull-up", 2],
+    ]);
+  });
+
+  it("ranks a movement's bests over all time, and per kg only among those sharing", async () => {
+    const people = await as(bob)((tx) => loadCircle(tx, { id: bob, username: "bob" }));
+    const bests = await as(bob)((tx) => readExerciseBests(tx, circle, bench));
+    const board = rankExercise(people, bests, new Map(), "e1rm");
+    expect(board.map((r) => [r.username, r.rank, r.value])).toEqual([
+      ["carol", 1, 88],
+      ["alice", 2, 75.8],
+      ["bob", 3, 71.4],
+    ]);
+    // Only alice and bob share body weight; carol has no reading and is left off, not "—".
+    await opt(alice, "share_body_weight", true);
+    await opt(bob, "share_body_weight", true);
+    const readings = await as(bob)((tx) => readBodyWeights(tx, circle));
+    const perKg = rankExercise(people, bests, readings, "e1rm_per_kg");
+    expect(perKg.map((r) => [r.username, r.rank, r.value])).toEqual([
+      ["alice", 1, 1.26],
+      ["bob", 2, 0.89],
+    ]);
+    await opt(alice, "share_body_weight", false);
+    await opt(bob, "share_body_weight", false);
+  });
+
+  it("drops a friend who stopped sharing from every board", async () => {
+    await opt(carol, "share_training", false);
+    const workouts = await as(bob)((tx) => readLeaderboard(tx, circle, "workout", "workouts", ALL));
+    expect([...workouts.keys()].sort()).toEqual([alice, bob].sort());
+    const exercises = await as(bob)((tx) => readCircleExercises(tx, circle));
+    expect(exercises.map((e) => [e.name, e.people])).toEqual([
+      ["Barbell bench press", 2],
+      ["Pull-up", 2],
+    ]);
+    const bests = await as(bob)((tx) => readExerciseBests(tx, circle, bench));
+    expect(bests.has(carol)).toBe(false);
+    await opt(carol, "share_training", true);
   });
 });

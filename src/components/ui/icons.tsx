@@ -31,6 +31,7 @@ import { SlidersHorizontalIcon } from "@phosphor-icons/react/dist/ssr/SlidersHor
 import { SneakerMoveIcon } from "@phosphor-icons/react/dist/ssr/SneakerMove";
 import { TimerIcon } from "@phosphor-icons/react/dist/ssr/Timer";
 import { TrashIcon } from "@phosphor-icons/react/dist/ssr/Trash";
+import { TrophyIcon } from "@phosphor-icons/react/dist/ssr/Trophy";
 import { UserIcon } from "@phosphor-icons/react/dist/ssr/User";
 import { UserPlusIcon } from "@phosphor-icons/react/dist/ssr/UserPlus";
 import { UsersIcon } from "@phosphor-icons/react/dist/ssr/Users";
@@ -106,6 +107,8 @@ export const Trash = /* @__PURE__ */ duotone(TrashIcon);
  * and said nothing about being a chart.
  */
 export const TrendingUp = /* @__PURE__ */ duotone(ChartLineUpIcon);
+/** Leaderboard: the cup, which needs no explaining. */
+export const Trophy = /* @__PURE__ */ duotone(TrophyIcon);
 export const User = /* @__PURE__ */ duotone(UserIcon);
 export const UserPlus = /* @__PURE__ */ duotone(UserPlusIcon);
 export const Users = /* @__PURE__ */ duotone(UsersIcon);

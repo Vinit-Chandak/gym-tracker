@@ -5,6 +5,7 @@ import Link from "@/components/ui/app-link";
 import { notFound } from "next/navigation";
 
 import { AvailabilityBadge } from "@/components/availability-badge";
+import { FriendsBoardCard } from "@/components/friends-board-card";
 import { ExerciseBestsTiles } from "@/components/records-card";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
@@ -19,7 +20,8 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import type { Resolution } from "@/domain/equipment-resolution";
 import { performanceSeries } from "@/domain/analytics";
-import { isComparable } from "@/domain/shared-stats";
+import { topWithYou } from "@/domain/leaderboard";
+import { isComparable, primaryMetric } from "@/domain/shared-stats";
 import { formatSets } from "@/domain/sets";
 import { formatDay, formatKilograms } from "@/lib/format";
 import { setInUnit } from "@/lib/units";
@@ -38,6 +40,7 @@ import {
 } from "@/lib/labels";
 import { setPreferredMachineAction } from "@/server/actions/availability";
 import { requireUser } from "@/server/auth";
+import { loadCircle, rankExercise } from "@/server/queries/leaderboard";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { recentPerformances } from "@/server/queries/comparable";
 import {
@@ -97,6 +100,12 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
   const data = await withUser(getDb(), user.id, async (tx) => {
     const exercise = await getExercise(tx, user.id, exerciseId);
     if (!exercise) return null;
+    // Records exist only for movements whose load means the same everywhere (plan §3.13);
+    // a machine's numbers stay with its machine, in the trend below. The same movements are
+    // the ones friends are ranked on, so one read of the circle's bests serves both.
+    const circle = isComparable(exercise)
+      ? await loadCircle(tx, { id: user.id, username: requestProfile.username })
+      : [];
     const [availability, performances, charted, bests, profile] = await Promise.all([
       exerciseAvailability(tx, user.id, exerciseId, exercise),
       recentPerformances(tx, user.id, exerciseId),
@@ -106,23 +115,32 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
         exerciseId,
         completedOnly: true,
       }),
-      // Records exist only for movements whose load means the same everywhere (plan §3.13);
-      // a machine's numbers stay with its machine, in the trend below.
-      isComparable(exercise) ? readExerciseBests(tx, [user.id], exerciseId) : new Map(),
+      circle.length > 0
+        ? readExerciseBests(
+            tx,
+            circle.map((person) => person.id),
+            exerciseId,
+          )
+        : new Map(),
       requestProfile,
     ]);
+    // The Friends' leaderboard (plan §3.12) once there is someone to rank against and
+    // anyone in the circle has logged the movement; nothing dead ships.
+    const board =
+      circle.length > 1 ? rankExercise(circle, bests, new Map(), primaryMetric(exercise)) : [];
     return {
       exercise,
       availability,
       performances,
       bests: bests.get(user.id) ?? [],
+      board: board.some((row) => row.value !== null) ? topWithYou(board, user.id, 3) : [],
       series: performanceSeries(charted.workouts, profile.timeZone, exerciseId),
       timeZone: profile.timeZone,
       unit: profile.preferredUnit === "lb" ? ("lb" as const) : ("kg" as const),
     };
   });
   if (!data) notFound();
-  const { exercise, availability, performances, bests, series, timeZone, unit } = data;
+  const { exercise, availability, performances, bests, board, series, timeZone, unit } = data;
   // One machine's loads are not another's, so each is its own series and the corner picker
   // chooses between them. Only the chosen one's points cross the wire.
   const machines = series.map(({ id, name, machine, unit: loadUnit }) => ({
@@ -252,6 +270,16 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
         )}
 
         <ExerciseBestsTiles exercise={exercise} bests={bests} unit={unit} />
+
+        {board.length > 0 && (
+          <FriendsBoardCard
+            exercise={exercise}
+            metric={primaryMetric(exercise)}
+            rows={board}
+            you={user.id}
+            unit={unit}
+          />
+        )}
 
         {rangeError && (
           <p role="alert" className="text-sm text-danger">
