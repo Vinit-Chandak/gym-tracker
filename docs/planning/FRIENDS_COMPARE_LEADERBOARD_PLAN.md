@@ -1,7 +1,7 @@
 # Friends, comparison and leaderboards — implementation plan
 
 Status: decisions locked on 2026-09-14. Phases 0, 1 and 2 implemented on 2026-09-14, phases
-3 and 4 on 2026-09-15 (see the notes under each phase); phase 5 next.
+3, 4 and 5 on 2026-09-15 (see the notes under each phase); phase 6 next.
 Owner: Vinit. Written after a full read of the codebase on `main` at `33cdbe7`.
 
 This plan adds people to an app that was built for one person at a time: a username, following
@@ -892,6 +892,38 @@ cannot see a table their branch adds. Sizes: S under a day, M one to two days, L
   only when two or more in the circle share body weight.
 - **Tests**: `rank` ordering, ties and the no-data tail; `readLeaderboard` for each metric on
   PGlite with three accounts, one not sharing.
+- **As built** (decisions taken with the owner during implementation):
+  - Activity mode ranks **six** numbers, not five: Workout time joins the list so the board
+    and Compare (§3.10) rank the same lifting numbers. Default Workouts, last 30 days.
+  - The metric is a native select, one row at every width, as Progress's exercise picker is;
+    six labels like "Working sets" do not fit one row of pills on a phone. Mode is a two-pill
+    control; the period keeps its four. Every choice lives in the URL (`mode`, `metric`,
+    `period`, `exercise`) and the board dims while the next one loads.
+  - "Per kg" is two more options in Exercise mode's metric select — "Est. 1RM ÷ body weight"
+    and "Top weight ÷ body weight" — offered only when the viewer can read two or more body
+    weights in the circle (theirs and a friend's, both opted in), and listing only those
+    people; the value reads "1.18×".
+  - A person with a workout in the period but nothing on the metric ranks at 0 ("Records set"
+    is a fact about their training); only someone with no session in the period trails as
+    "—". Ranks are competition ranks (1, 1, 3). Ties and the tail are in name order, the
+    viewer included by name; every row opens the person's page.
+  - The exercise page's Friends' leaderboard card appears only once the viewer follows
+    someone and anyone in the circle has logged the movement: nothing dead ships. It reads
+    the circle's bests in the one query "Your records" already made. The head to head's
+    board is the same card with five rows; both link to the full board with the movement
+    preselected.
+  - With nobody followed the leaderboard is the Compare picker's empty state — one sentence
+    and the search field, focused. Exercise mode with nothing comparable logged says so and
+    keeps the mode control.
+  - Leaderboard and Compare are two link cards side by side at the top of Friends, each an
+    icon and one short line so both fit a 320px screen; `Trophy` (Phosphor) is the icon.
+  - The sport switch waits for phase 6, as on Compare; `readLeaderboard` already takes the
+    sport and `rank` a lower-is-better flag for Best pace.
+  - Added: `domain/leaderboard.ts` (`rank`, `topWithYou`, `activityValue`,
+    `boardMetricsForExercise`), `queries/leaderboard.ts` (`loadCircle`, `rankCircle`,
+    `rankExercise`, `perKgAvailable`), `readLeaderboard` and `readCircleExercises` in the
+    shared-stats repository, `validation/leaderboard.ts`, `ui/rank-list.tsx`,
+    `components/friends-board-card.tsx`, `formatActivityMetric`.
 
 ### Phase 6 — Running (M)
 
