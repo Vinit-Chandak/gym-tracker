@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { activityValue, boardMetricsForExercise, perKgBase, rank, topWithYou } from "./leaderboard";
+import {
+  activityValue,
+  boardMetricsForExercise,
+  lowerIsBetter,
+  perKgBase,
+  rank,
+  topWithYou,
+} from "./leaderboard";
 
 const rows = [
   { key: "vinit", value: 12 },
@@ -84,21 +91,40 @@ describe("topWithYou", () => {
 });
 
 describe("activityValue", () => {
-  it("reads each metric off a period's totals", () => {
-    const totals = {
-      sessions: 4,
-      durationSeconds: 3600,
-      volumeKg: 6240,
-      workingSets: 60,
-      activeDays: 3,
-      records: 2,
-    };
+  const totals = {
+    sessions: 4,
+    durationSeconds: 3600,
+    volumeKg: 6240,
+    workingSets: 60,
+    activeDays: 3,
+    records: 2,
+    distanceMeters: 21500,
+    bestPaceSecondsPerKm: 325,
+    longestRunMeters: 8000,
+  };
+
+  it("reads each lifting metric off a period's totals", () => {
     expect(activityValue(totals, "workouts")).toBe(4);
     expect(activityValue(totals, "workout_time")).toBe(3600);
     expect(activityValue(totals, "volume")).toBe(6240);
     expect(activityValue(totals, "working_sets")).toBe(60);
     expect(activityValue(totals, "active_days")).toBe(3);
     expect(activityValue(totals, "records")).toBe(2);
+  });
+
+  it("reads each running metric, and nothing for a best pace without a run of a kilometre", () => {
+    expect(activityValue(totals, "runs")).toBe(4);
+    expect(activityValue(totals, "distance")).toBe(21500);
+    expect(activityValue(totals, "time")).toBe(3600);
+    expect(activityValue(totals, "best_pace")).toBe(325);
+    expect(activityValue(totals, "longest_run")).toBe(8000);
+    expect(activityValue({ ...totals, bestPaceSecondsPerKm: null }, "best_pace")).toBeNull();
+  });
+
+  it("knows that only a pace improves downwards", () => {
+    expect(lowerIsBetter("best_pace")).toBe(true);
+    expect(lowerIsBetter("distance")).toBe(false);
+    expect(lowerIsBetter("workout_time")).toBe(false);
   });
 });
 

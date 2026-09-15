@@ -1,4 +1,5 @@
 import { metricsForExercise, type MetricExercise, type SharedMetric } from "./shared-stats";
+import type { TrainingSport } from "./sport-scope";
 
 /**
  * The leaderboard (plan §3.12): who in your circle leads on a number. Two kinds of board —
@@ -16,8 +17,12 @@ export const BOARD_MODE_LABELS: Record<BoardMode, string> = {
   exercise: "Exercise",
 };
 
-/** What Activity mode can rank, for lifting: the six numbers Compare shows for a period. */
-export const ACTIVITY_METRICS = [
+/**
+ * What Activity mode can rank, by sport (plan §3.12, §3.16): for lifting the six numbers
+ * Compare shows for a period; for running its five. Running has no Exercise mode, so these
+ * are the whole of its board.
+ */
+export const LIFTING_METRICS = [
   "workouts",
   "workout_time",
   "volume",
@@ -25,8 +30,19 @@ export const ACTIVITY_METRICS = [
   "active_days",
   "records",
 ] as const;
-export type ActivityMetric = (typeof ACTIVITY_METRICS)[number];
-export const DEFAULT_ACTIVITY_METRIC: ActivityMetric = "workouts";
+export const RUNNING_METRICS = ["runs", "distance", "time", "best_pace", "longest_run"] as const;
+export type LiftingMetric = (typeof LIFTING_METRICS)[number];
+export type RunningMetric = (typeof RUNNING_METRICS)[number];
+export type ActivityMetric = LiftingMetric | RunningMetric;
+
+export const ACTIVITY_METRICS: Record<TrainingSport, readonly ActivityMetric[]> = {
+  workout: LIFTING_METRICS,
+  run: RUNNING_METRICS,
+};
+export const DEFAULT_ACTIVITY_METRIC: Record<TrainingSport, ActivityMetric> = {
+  workout: "workouts",
+  run: "runs",
+};
 
 export const ACTIVITY_METRIC_LABELS: Record<ActivityMetric, string> = {
   workouts: "Workouts",
@@ -35,7 +51,17 @@ export const ACTIVITY_METRIC_LABELS: Record<ActivityMetric, string> = {
   working_sets: "Working sets",
   active_days: "Active days",
   records: "Records set",
+  runs: "Runs",
+  distance: "Distance",
+  time: "Time",
+  best_pace: "Best pace",
+  longest_run: "Longest run",
 };
+
+/** The one metric that improves downwards: a faster pace is a smaller number. */
+export function lowerIsBetter(metric: ActivityMetric): boolean {
+  return metric === "best_pace";
+}
 
 /** A period's totals for one person, as the shared session rows sum them. */
 export type ActivityTotals = {
@@ -45,14 +71,23 @@ export type ActivityTotals = {
   workingSets: number;
   activeDays: number;
   records: number;
+  distanceMeters: number;
+  /** The fastest average pace over a run of at least 1 km; null without one (§3.16). */
+  bestPaceSecondsPerKm: number | null;
+  longestRunMeters: number;
 };
 
-/** The one number a metric reads off a period's totals. */
-export function activityValue(totals: ActivityTotals, metric: ActivityMetric): number {
+/**
+ * The one number a metric reads off a period's totals, or null when the period has nothing
+ * for it — a best pace needs a run of a kilometre — which the board lists as "—".
+ */
+export function activityValue(totals: ActivityTotals, metric: ActivityMetric): number | null {
   switch (metric) {
     case "workouts":
+    case "runs":
       return totals.sessions;
     case "workout_time":
+    case "time":
       return totals.durationSeconds;
     case "volume":
       return totals.volumeKg;
@@ -62,6 +97,12 @@ export function activityValue(totals: ActivityTotals, metric: ActivityMetric): n
       return totals.activeDays;
     case "records":
       return totals.records;
+    case "distance":
+      return totals.distanceMeters;
+    case "best_pace":
+      return totals.bestPaceSecondsPerKm;
+    case "longest_run":
+      return totals.longestRunMeters;
   }
 }
 

@@ -19,9 +19,9 @@ import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import type { DbOrTx } from "@/db/types";
 import { withUser } from "@/db/with-user";
 import { performanceSeries } from "@/domain/analytics";
-import { ACTIVITY_METRICS } from "@/domain/leaderboard";
+import { LIFTING_METRICS, RUNNING_METRICS, type ActivityMetric } from "@/domain/leaderboard";
 import { convertLoad } from "@/lib/units";
-import { loadCircle, rankExercise } from "@/server/queries/leaderboard";
+import { loadCircle, rankCircle, rankExercise } from "@/server/queries/leaderboard";
 
 import { recordBodyWeight } from "./body-weight";
 import { acceptFollow, requestFollow } from "./follows";
@@ -251,6 +251,9 @@ describe("finishing a workout", () => {
       durationSeconds: expect.any(Number),
       activeDays: 1,
       records: 3,
+      distanceMeters: 0,
+      bestPaceSecondsPerKm: null,
+      longestRunMeters: 0,
     });
     expect(totals.has(bob)).toBe(false);
     const muscles = await as(alice)((tx) => readMuscleSets(tx, alice, ALL));
@@ -500,9 +503,9 @@ describe("leaderboard", () => {
   });
 
   it("reads one number per person for each activity metric, absent without a session", async () => {
-    const boards = new Map(
+    const boards = new Map<ActivityMetric, Map<string, number>>(
       await Promise.all(
-        ACTIVITY_METRICS.map(
+        LIFTING_METRICS.map(
           async (metric) =>
             [
               metric,
@@ -511,7 +514,7 @@ describe("leaderboard", () => {
         ),
       ),
     );
-    const of = (metric: (typeof ACTIVITY_METRICS)[number]) =>
+    const of = (metric: ActivityMetric) =>
       [alice, bob, carol].map((id) => boards.get(metric)!.get(id));
     expect(of("workouts")).toEqual([2, 1, 1]);
     expect(of("working_sets")).toEqual([7, 3, 1]);
@@ -572,5 +575,105 @@ describe("leaderboard", () => {
     const bests = await as(bob)((tx) => readExerciseBests(tx, circle, bench));
     expect(bests.has(carol)).toBe(false);
     await opt(carol, "share_training", true);
+  });
+});
+
+describe("running", () => {
+  let circle: string[];
+
+  beforeAll(async () => {
+    circle = (await as(bob)((tx) => loadCircle(tx, { id: bob, username: "bob" }))).map((p) => p.id);
+  });
+
+  it("sums a period's runs, takes the best pace only from runs of a kilometre or more", async () => {
+    // Alice: a 5.2 km run and a faster 800 m one, which is not a pace. Bob: one 3 km run.
+    // Carol: a 500 m jog, so she has a run but no best pace.
+    await as(alice)((tx) => createRun(tx, alice, run()));
+    await as(alice)((tx) =>
+      createRun(
+        tx,
+        alice,
+        run({
+          startedAt: new Date("2026-09-11T01:00:00Z"),
+          distanceMeters: 800,
+          durationSeconds: 180,
+        }),
+      ),
+    );
+    await as(bob)((tx) =>
+      createRun(
+        tx,
+        bob,
+        run({
+          startedAt: new Date("2026-09-12T01:00:00Z"),
+          distanceMeters: 3000,
+          durationSeconds: 1080,
+        }),
+      ),
+    );
+    await as(carol)((tx) =>
+      createRun(
+        tx,
+        carol,
+        run({
+          startedAt: new Date("2026-09-12T02:00:00Z"),
+          distanceMeters: 500,
+          durationSeconds: 150,
+        }),
+      ),
+    );
+    const totals = await as(bob)((tx) => readPeriodTotals(tx, circle, "run", ALL));
+    expect(totals.get(alice)).toMatchObject({
+      sessions: 2,
+      durationSeconds: 1870,
+      distanceMeters: 6000,
+      bestPaceSecondsPerKm: 325,
+      longestRunMeters: 5200,
+      workingSets: 0,
+      volumeKg: 0,
+    });
+    expect(totals.get(bob)).toMatchObject({ sessions: 1, bestPaceSecondsPerKm: 360 });
+    expect(totals.get(carol)).toMatchObject({ sessions: 1, bestPaceSecondsPerKm: null });
+    // Lifting totals are untouched by runs.
+    const lifting = await as(bob)((tx) => readPeriodTotals(tx, circle, "workout", ALL));
+    expect(lifting.get(alice)!.sessions).toBe(2);
+  });
+
+  it("ranks each running metric, leaving out whoever cannot be ranked on it", async () => {
+    const boards = new Map<ActivityMetric, Map<string, number>>(
+      await Promise.all(
+        RUNNING_METRICS.map(
+          async (metric) =>
+            [
+              metric,
+              await as(bob)((tx) => readLeaderboard(tx, circle, "run", metric, ALL)),
+            ] as const,
+        ),
+      ),
+    );
+    const of = (metric: ActivityMetric) =>
+      [alice, bob, carol].map((id) => boards.get(metric)!.get(id));
+    expect(of("runs")).toEqual([2, 1, 1]);
+    expect(of("distance")).toEqual([6000, 3000, 500]);
+    expect(of("time")).toEqual([1870, 1080, 150]);
+    expect(of("longest_run")).toEqual([5200, 3000, 500]);
+    // Carol ran, but never a kilometre: no pace to rank, so "—" rather than a fast sprint.
+    expect(of("best_pace")).toEqual([325, 360, undefined]);
+    const people = await as(bob)((tx) => loadCircle(tx, { id: bob, username: "bob" }));
+    const ranked = rankCircle(
+      people,
+      new Map([...boards.get("best_pace")!].map(([id, value]) => [id, { value }])),
+      true,
+    );
+    expect(ranked.map((r) => [r.username, r.rank])).toEqual([
+      ["alice", 1],
+      ["bob", 2],
+      ["carol", null],
+    ]);
+    // Nobody ran in 2019.
+    const none = await as(bob)((tx) =>
+      readLeaderboard(tx, circle, "run", "runs", { ...ALL, from: "2019-01-01", to: "2019-12-31" }),
+    );
+    expect(none.size).toBe(0);
   });
 });

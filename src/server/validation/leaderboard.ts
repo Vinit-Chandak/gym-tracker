@@ -8,6 +8,7 @@ import {
   type BoardMetric,
   type BoardMode,
 } from "@/domain/leaderboard";
+import type { TrainingSport } from "@/domain/sport-scope";
 
 type Param = string | string[] | undefined;
 
@@ -16,8 +17,11 @@ export function parseBoardMode(value: Param): BoardMode {
   return BOARD_MODES.find((mode) => mode === value) ?? "activity";
 }
 
-export function parseActivityMetric(value: Param): ActivityMetric {
-  return ACTIVITY_METRICS.find((metric) => metric === value) ?? DEFAULT_ACTIVITY_METRIC;
+/** A metric among the sport's own; the sport's first is its default. */
+export function parseActivityMetric(value: Param, sport: TrainingSport): ActivityMetric {
+  return (
+    ACTIVITY_METRICS[sport].find((metric) => metric === value) ?? DEFAULT_ACTIVITY_METRIC[sport]
+  );
 }
 
 /** A metric among those the chosen movement can be ranked by; the first is its primary. */

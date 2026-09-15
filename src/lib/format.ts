@@ -2,7 +2,7 @@ import type { ActivityMetric } from "@/domain/leaderboard";
 import { METRIC_UNIT, type SharedMetric } from "@/domain/shared-stats";
 import type { BodyLoadUnit } from "@/domain/types";
 
-import { formatDuration } from "@/domain/pace";
+import { formatDuration, formatPace } from "@/domain/pace";
 import { dateTimeFormatter } from "./date-time-format";
 import { fromKilograms } from "./units";
 
@@ -159,7 +159,15 @@ export function formatSharedMetric(
   }
 }
 
-/** A period's total on the leaderboard: a count, a clock, or a load in the reader's unit. */
+/** "42.3 km": a period's distance, to a tenth, as the weekly totals on Runs read. */
+export function formatTotalKm(distanceMeters: number): string {
+  return `${Math.round(distanceMeters / 100) / 10} km`;
+}
+
+/**
+ * A period's total on the leaderboard or a compare row: a count, a time as the other period
+ * totals read it, a load in the reader's unit, a distance in kilometres, or a pace.
+ */
 export function formatActivityMetric(
   metric: ActivityMetric,
   value: number,
@@ -167,6 +175,7 @@ export function formatActivityMetric(
 ): string {
   switch (metric) {
     case "workout_time":
+    case "time":
       return formatMinutes(value / 60);
     case "volume":
       return formatSharedLoad(value, unit);
@@ -174,7 +183,15 @@ export function formatActivityMetric(
     case "working_sets":
     case "active_days":
     case "records":
+    case "runs":
       return value.toLocaleString("en-GB");
+    case "distance":
+      return formatTotalKm(value);
+    case "best_pace":
+      return `${formatPace(value)} /km`;
+    // One run, so the distance as it was logged, not rounded to a tenth.
+    case "longest_run":
+      return `${formatRunKm(value)} km`;
   }
 }
 

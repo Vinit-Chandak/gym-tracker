@@ -4,6 +4,9 @@ import type { PlanWarning, PlanWarningCode } from "./coach-review";
 export const TRAINING_SPORTS = ["workout", "run"] as const;
 export type TrainingSport = (typeof TRAINING_SPORTS)[number];
 
+/** What the sport switch on the social screens calls each sport (plan §2). */
+export const SPORT_LABELS: Record<TrainingSport, string> = { workout: "Lifting", run: "Running" };
+
 /** Exhaustive routing also works for warnings saved before sport-specific displays existed. */
 const WARNING_SPORT: Record<PlanWarningCode, TrainingSport> = {
   big_jump: "workout",

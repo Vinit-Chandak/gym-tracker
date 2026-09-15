@@ -14,6 +14,7 @@ import {
   ACTIVITY_METRIC_LABELS,
   boardMetricsForExercise,
   isPerKgMetric,
+  lowerIsBetter,
   perKgBase,
   type BoardMetric,
 } from "@/domain/leaderboard";
@@ -37,6 +38,7 @@ import {
   parseExerciseParam,
 } from "@/server/validation/leaderboard";
 import { parsePeriod, periodRange } from "@/server/validation/period";
+import { parseSport } from "@/server/validation/sport";
 
 import { LeaderboardControls, type ExerciseChoice } from "./leaderboard-controls";
 
@@ -57,18 +59,20 @@ function formatBoardMetric(metric: BoardMetric, value: number, unit: BodyLoadUni
 }
 
 /**
- * The leaderboard (plan §3.12): you and the people you follow, ranked. Activity ranks a
- * period's totals on one of six lifting numbers; Exercise ranks all-time bests of one
- * comparable movement on the metrics it is measured by, with "÷ body weight" variants of the
- * loads once two of you share yours. Equal values share a rank; whoever has nothing for the
- * metric trails as "—"; a friend who turned sharing off is simply not there. Lifting only,
- * as Compare is, until the sport switch lands.
+ * The leaderboard (plan §3.12, §3.16): you and the people you follow, ranked. Activity ranks
+ * a period's totals — six lifting numbers, or five running ones — and, for lifting only,
+ * Exercise ranks all-time bests of one comparable movement on the metrics it is measured by,
+ * with "÷ body weight" variants of the loads once two of you share yours. Equal values share
+ * a rank; whoever has nothing for the metric trails as "—"; a friend who turned sharing off
+ * is simply not there.
  */
 export default async function LeaderboardPage(props: PageProps<"/profile/friends/leaderboard">) {
   const user = await requireUser();
   const params = await props.searchParams;
-  const mode = parseBoardMode(params.mode);
-  const activityMetric = parseActivityMetric(params.metric);
+  const sport = parseSport(params.sport);
+  // Running has no Exercise mode (§3.16): whatever the URL says, it is one board.
+  const mode = sport === "workout" ? parseBoardMode(params.mode) : "activity";
+  const activityMetric = parseActivityMetric(params.metric, sport);
   const period = parsePeriod(params.period);
   const viewer = await getRequestProfile(user.id, user.email);
   const unit = viewer.preferredUnit === "lb" ? ("lb" as const) : ("kg" as const);
@@ -82,8 +86,12 @@ export default async function LeaderboardPage(props: PageProps<"/profile/friends
       if (circle.length < 2) return { kind: "alone" as const };
       const ids = circle.map((person) => person.id);
       if (mode === "activity") {
-        const values = await readLeaderboard(tx, ids, "workout", activityMetric, range);
-        const rows = rankCircle(circle, new Map([...values].map(([id, value]) => [id, { value }])));
+        const values = await readLeaderboard(tx, ids, sport, activityMetric, range);
+        const rows = rankCircle(
+          circle,
+          new Map([...values].map(([id, value]) => [id, { value }])),
+          lowerIsBetter(activityMetric),
+        );
         return { kind: "activity" as const, rows };
       }
       const [exercises, readings] = await Promise.all([
@@ -141,6 +149,7 @@ export default async function LeaderboardPage(props: PageProps<"/profile/friends
         ) : (
           <>
             <LeaderboardControls
+              sport={sport}
               mode={mode}
               activityMetric={activityMetric}
               period={period}
@@ -150,7 +159,11 @@ export default async function LeaderboardPage(props: PageProps<"/profile/friends
             {board.kind === "activity" ? (
               <Section
                 title={ACTIVITY_METRIC_LABELS[activityMetric]}
-                info={`The last ${PERIOD_LABELS[period]}, ending today. Equal values share a rank; someone with no workout in the period reads "—".`}
+                info={
+                  sport === "workout"
+                    ? `The last ${PERIOD_LABELS[period]}, ending today. Equal values share a rank; someone with no workout in the period reads "—".`
+                    : `The last ${PERIOD_LABELS[period]}, ending today. Equal values share a rank; someone with no run in the period reads "—". Best pace is the fastest average pace over a run of at least 1 km, and a faster pace ranks higher.`
+                }
               >
                 <RankList
                   rows={board.rows}

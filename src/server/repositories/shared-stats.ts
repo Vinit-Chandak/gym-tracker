@@ -318,9 +318,33 @@ export type PeriodTotals = {
   activeDays: number;
   /** Records set across the period's sessions. */
   records: number;
+  /** Runs (§3.16): total distance, the fastest pace over a run of 1 km or more, longest run. */
+  distanceMeters: number;
+  bestPaceSecondsPerKm: number | null;
+  longestRunMeters: number;
 };
 
-/** A period's headline numbers for each of several people; absent when they logged nothing. */
+/** A period with nothing in it: what a person with no session reads as. */
+export const EMPTY_TOTALS: PeriodTotals = {
+  sessions: 0,
+  workingSets: 0,
+  volumeKg: 0,
+  durationSeconds: 0,
+  activeDays: 0,
+  records: 0,
+  distanceMeters: 0,
+  bestPaceSecondsPerKm: null,
+  longestRunMeters: 0,
+};
+
+/** A run shorter than this cannot set a best pace: a sprint to the corner is not a pace. */
+export const BEST_PACE_MIN_METERS = 1000;
+
+/**
+ * A period's headline numbers for each of several people; absent when they logged nothing.
+ * One shape for both sports: a workout's run columns read zero and a run's lifting columns
+ * do, so the sport asked for decides which are shown.
+ */
 export async function readPeriodTotals(
   tx: DbOrTx,
   userIds: readonly string[],
@@ -337,6 +361,11 @@ export async function readPeriodTotals(
       durationSeconds: sql<number>`coalesce(sum(${sharedSessionStats.durationSeconds}), 0)::int`,
       activeDays: sql<number>`count(distinct ${sharedSessionStats.occurredOn})::int`,
       records: sql<number>`coalesce(sum(jsonb_array_length(${sharedSessionStats.records})), 0)::int`,
+      distanceMeters: sql<number>`coalesce(sum(${sharedSessionStats.distanceMeters}), 0)::float8`,
+      bestPaceSecondsPerKm: sql<
+        number | null
+      >`(min(${sharedSessionStats.paceSecondsPerKm}) filter (where ${sharedSessionStats.distanceMeters} >= ${BEST_PACE_MIN_METERS}))::float8`,
+      longestRunMeters: sql<number>`coalesce(max(${sharedSessionStats.distanceMeters}), 0)::float8`,
     })
     .from(sharedSessionStats)
     .where(
@@ -354,7 +383,8 @@ export async function readPeriodTotals(
 /**
  * Activity mode of the leaderboard (plan §3.12): one number per person in the circle for the
  * period, read off the same totals Compare shows. A person with no session in the period is
- * absent, which the board lists as "—"; one who trained but scored nothing on the metric is
+ * absent, which the board lists as "—", as is one whose sessions cannot give the metric (no
+ * run of a kilometre for a best pace); one who trained but scored nothing on the metric is
  * present at 0, since that is a fact about their training and not a gap in it.
  */
 export async function readLeaderboard(
@@ -365,7 +395,12 @@ export async function readLeaderboard(
   range: DateRange,
 ): Promise<Map<string, number>> {
   const totals = await readPeriodTotals(tx, userIds, sport, range);
-  return new Map([...totals].map(([userId, t]) => [userId, activityValue(t, metric)]));
+  const values = new Map<string, number>();
+  for (const [userId, t] of totals) {
+    const value = activityValue(t, metric);
+    if (value !== null) values.set(userId, value);
+  }
+  return values;
 }
 
 /** One person's working sets per muscle over a period, for the split radar. */
