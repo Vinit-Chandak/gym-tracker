@@ -17,7 +17,8 @@ import { listFollowers, listFollowing, listRequests } from "@/server/repositorie
 import { readActivity } from "@/server/repositories/shared-stats";
 
 import { ActivityRow } from "./activity-row";
-import { PEOPLE_TABS, PeopleLists, type PeopleTab } from "./people-lists";
+import { PeopleLists } from "./people-lists";
+import { PEOPLE_TABS, type PeopleTab } from "./people-tabs";
 import { RequestRow } from "./request-row";
 
 export const metadata: Metadata = { title: "Friends" };

@@ -11,8 +11,7 @@ import { SegmentedControl } from "@/components/ui/segmented-control";
 import { attempted } from "@/lib/offline-submit";
 import { removeFollowerAction, unfollowAction } from "@/server/actions/follows";
 
-export type PeopleTab = "following" | "followers";
-export const PEOPLE_TABS: readonly PeopleTab[] = ["following", "followers"];
+import type { PeopleTab } from "./people-tabs";
 
 type ListedPerson = Person & { id: string };
 
