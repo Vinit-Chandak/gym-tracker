@@ -47,13 +47,19 @@ function polygon(count: number, shares: readonly number[]): string {
 /**
  * A radar of a few axes (plan §3.10): the shape of a training split at a glance, and for two
  * people whether the shapes match. Hand-drawn SVG on the theme's series tokens, like `Chart`.
- * Rings and spokes are hairlines; each polygon is a 2px line over a light wash with ≥8px
- * markers ringed in the surface colour, so two shapes stay legible where they cross. The
- * values are in the table beneath for anyone who cannot read the shape.
+ * Rings and spokes are hairlines; each polygon is a filled shape — a translucent wash of its
+ * series colour under a 2px edge, no markers at the corners — so two shapes read as two
+ * areas and stay legible where they cross, the overlap darker than either. The values are
+ * in the table beneath for anyone who cannot read the shape.
  */
 export function RadarChart({ title, axes, series, format = percent, className }: RadarChartProps) {
   const count = axes.length;
   const multi = series.length > 1;
+  // The outer ring is the largest share on the chart, rounded up to the next 5%: six groups
+  // share one whole, so nothing ever nears 100%, and drawn against it every split would be a
+  // speck in the middle. The table beneath keeps the real percentages.
+  const outer = Math.max(0.05, Math.ceil(Math.max(...series.flatMap((s) => s.values)) * 20) / 20);
+  const scaled = (values: readonly number[]) => values.map((value) => value / outer);
   return (
     <figure className={cn("space-y-2", className)}>
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
@@ -122,27 +128,13 @@ export function RadarChart({ title, axes, series, format = percent, className }:
         {series.map((s) => (
           <g key={s.name}>
             <polygon
-              points={polygon(count, s.values)}
+              points={polygon(count, scaled(s.values))}
               fill={s.color}
-              fillOpacity="0.12"
+              fillOpacity={multi ? 0.32 : 0.28}
               stroke={s.color}
               strokeWidth="2"
               strokeLinejoin="round"
             />
-            {s.values.map((value, i) => {
-              const { x, y } = point(i, count, value);
-              return (
-                <circle
-                  key={axes[i]}
-                  cx={x}
-                  cy={y}
-                  r="4"
-                  fill={s.color}
-                  stroke="var(--color-surface)"
-                  strokeWidth="2"
-                />
-              );
-            })}
           </g>
         ))}
       </svg>
