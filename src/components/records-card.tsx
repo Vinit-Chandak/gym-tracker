@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { StatTile, StatTileRow } from "@/components/ui/stat-tile";
 import { metricLabel, type MetricExercise } from "@/domain/shared-stats";
 import type { BodyLoadUnit } from "@/domain/types";
-import { formatIsoDay, formatSharedMetric } from "@/lib/format";
+import { formatIsoDay, formatSharedMetric, formatTopWeightWork } from "@/lib/format";
 import type {
   ExerciseBest,
   PeriodRecord,
@@ -56,7 +56,8 @@ export function SessionRecordsCard({
 
 /**
  * "Your records" on an exercise page: the best of each metric the movement is measured by,
- * with the day it was set. Tiles, like the exercise's defaults above them.
+ * with the day it was set and, under the top weight, how it was worked ("4 × 12"). Tiles,
+ * like the exercise's defaults above them.
  */
 export function ExerciseBestsTiles({
   exercise,
@@ -80,6 +81,7 @@ export function ExerciseBestsTiles({
               <>
                 {formatSharedMetric(best.metric, best.value, unit)}
                 <span className="mt-0.5 block text-xs font-normal text-ink-muted">
+                  {best.work ? `${formatTopWeightWork(best.work)} · ` : ""}
                   {formatIsoDay(best.occurredOn)}
                 </span>
               </>

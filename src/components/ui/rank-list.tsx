@@ -14,6 +14,8 @@ export type RankRow = Ranked<{
   value: number | null;
   /** The day a best was set, under the value; null on a period's totals. */
   occurredOn: string | null;
+  /** How a top weight was worked — "4 × 12" — between the value and its day; null otherwise. */
+  detail?: string | null;
 }>;
 
 /**
@@ -71,6 +73,9 @@ export function RankList({
                 ) : (
                   <>
                     <span className="block font-medium">{format(row.value)}</span>
+                    {row.detail && (
+                      <span className="block text-xs text-ink-muted">{row.detail}</span>
+                    )}
                     {row.occurredOn && (
                       <span className="block text-xs text-ink-muted">
                         {formatIsoDay(row.occurredOn)}

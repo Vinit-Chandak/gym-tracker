@@ -237,11 +237,12 @@ describe("finishing a workout", () => {
 
   it("reads bests, period totals, the split and the records list for the owner", async () => {
     const bests = (await as(alice)((tx) => readExerciseBests(tx, [alice], bench))).get(alice)!;
-    expect(bests.map((b) => [b.metric, b.value])).toEqual([
-      ["e1rm", 75.8],
-      ["top_weight", 65],
-      ["best_set_volume", 325],
-      ["most_reps", 5],
+    expect(bests.map((b) => [b.metric, b.value, b.work])).toEqual([
+      ["e1rm", 75.8, null],
+      // The second session's one set at 65, for 5.
+      ["top_weight", 65, { sets: 1, reps: 5 }],
+      ["best_set_volume", 325, null],
+      ["most_reps", 5, null],
     ]);
     const totals = await as(alice)((tx) => readPeriodTotals(tx, [alice, bob], "workout", ALL));
     expect(totals.get(alice)).toEqual({
@@ -675,5 +676,41 @@ describe("running", () => {
       readLeaderboard(tx, circle, "run", "runs", { ...ALL, from: "2019-01-01", to: "2019-12-31" }),
     );
     expect(none.size).toBe(0);
+  });
+});
+
+describe("top weight, worked", () => {
+  it("credits a repeated top weight to the session that worked it hardest", async () => {
+    // Alice's bench is at 65 from before; three sets and one of them for 6: no record, yet the best
+    // now reads that day's work, and the board says so under the load.
+    const third = await train([
+      {
+        exercise: bench,
+        sets: [
+          { weight: 65, reps: 6 },
+          { weight: 65, reps: 5 },
+          { weight: 65, reps: 4 },
+        ],
+      },
+    ]);
+    const records = await as(alice)((tx) => readSessionRecords(tx, alice, third));
+    // 65 × 6 is a better Epley estimate than 65 × 5 and a heavier single set; 65 itself is not new.
+    expect(records.map((r) => [r.metric, r.value, r.previous])).toEqual([
+      ["e1rm", 78, 75.8],
+      ["best_set_volume", 390, 325],
+      ["most_reps", 6, 5],
+    ]);
+    const bests = (await as(alice)((tx) => readExerciseBests(tx, [alice], bench))).get(alice)!;
+    expect(bests.find((b) => b.metric === "top_weight")).toMatchObject({
+      value: 65,
+      work: { sets: 3, reps: 6 },
+    });
+    const circle = await as(alice)((tx) => loadCircle(tx, { id: alice, username: "alice" }));
+    const board = rankExercise(circle, new Map([[alice, bests]]), new Map(), "top_weight");
+    expect(board[0]).toMatchObject({ key: alice, rank: 1, value: 65, detail: "3 × 6" });
+    expect(rankExercise(circle, new Map([[alice, bests]]), new Map(), "e1rm")[0]).toMatchObject({
+      value: 78,
+      detail: null,
+    });
   });
 });

@@ -175,6 +175,14 @@ export default async function LeaderboardPage(props: PageProps<"/profile/friends
               <Section
                 title={board.exercise.name}
                 info={`All-time bests, with the day each was set. ${
+                  perKgBase(board.metric) === "top_weight" || board.metric === "top_weight"
+                    ? "Under a top weight, how it was worked: working sets at that load × the most reps one of them reached. "
+                    : ""
+                }${
+                  perKgBase(board.metric) === "e1rm" || board.metric === "e1rm"
+                    ? 'An estimated 1RM needs a set of 1–10 reps; someone whose sets were all longer reads "—". '
+                    : ""
+                }${
                   isPerKgMetric(board.metric)
                     ? "A load over each person's latest body weight; only people who share theirs are listed."
                     : "Movements from the shared library whose load means the same everywhere; a machine's numbers are its own and are never ranked."

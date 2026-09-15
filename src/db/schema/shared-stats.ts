@@ -111,6 +111,14 @@ export const sharedExerciseStats = pgTable(
     totalReps: integer("total_reps"),
     /** kg and lb sets only, converted to kilograms; stack steps carry no weight. */
     topWeightKg: numeric("top_weight_kg", { precision: 7, scale: 2, mode: "number" }),
+    /**
+     * How the top weight was worked that session: the working sets at exactly that load and
+     * the most reps any of them reached, so a board can read "7.5 kg · 4 × 12" rather than a
+     * bare load. Null on rows written before these columns existed until the backfill
+     * re-derives them.
+     */
+    topWeightSets: integer("top_weight_sets"),
+    topWeightReps: integer("top_weight_reps"),
     bestE1rmKg: numeric("best_e1rm_kg", { precision: 7, scale: 2, mode: "number" }),
     /** The heaviest single set by weight × reps. */
     bestSetVolumeKg: numeric("best_set_volume_kg", { precision: 9, scale: 2, mode: "number" }),

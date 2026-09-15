@@ -1,6 +1,7 @@
 import type { DbOrTx } from "@/db/types";
 import { bodyWeightRatio } from "@/domain/compare";
 import { perKgBase, rank, type BoardMetric, type Ranked } from "@/domain/leaderboard";
+import { formatTopWeightWork } from "@/lib/format";
 import { listFollowing } from "@/server/repositories/follows";
 import { getDirectoryProfile, type DirectoryProfile } from "@/server/repositories/people";
 import type { ExerciseBest, SharedReading } from "@/server/repositories/shared-stats";
@@ -12,6 +13,8 @@ export type BoardRow = {
   displayName: string | null;
   value: number | null;
   occurredOn: string | null;
+  /** A line under the value — "4 × 12" for how a top weight was worked; null otherwise. */
+  detail: string | null;
 };
 
 /**
@@ -38,7 +41,7 @@ export async function loadCircle(
 /** Everyone in the circle ranked by one number; absent from `values` means nothing to rank. */
 export function rankCircle(
   circle: readonly DirectoryProfile[],
-  values: ReadonlyMap<string, { value: number; occurredOn?: string }>,
+  values: ReadonlyMap<string, { value: number; occurredOn?: string; detail?: string | null }>,
   lowerIsBetter = false,
 ): Ranked<BoardRow>[] {
   return rank(
@@ -50,6 +53,7 @@ export function rankCircle(
         displayName: person.displayName,
         value: found?.value ?? null,
         occurredOn: found?.occurredOn ?? null,
+        detail: found?.detail ?? null,
       };
     }),
     lowerIsBetter,
@@ -66,9 +70,10 @@ export function perKgAvailable(readings: ReadonlyMap<string, SharedReading>): bo
 }
 
 /**
- * The circle ranked on one movement's metric over all time, with the day each best was set.
- * A per-kg metric divides the load by each person's latest reading and lists only the people
- * whose reading the viewer holds; everyone else is left off rather than trailing as "—".
+ * The circle ranked on one movement's metric over all time, with the day each best was set
+ * and, for a top weight, how it was worked ("4 × 12"). A per-kg metric divides the load by
+ * each person's latest reading and lists only the people whose reading the viewer holds;
+ * everyone else is left off rather than trailing as "—".
  */
 export function rankExercise(
   circle: readonly DirectoryProfile[],
@@ -77,16 +82,18 @@ export function rankExercise(
   metric: BoardMetric,
 ): Ranked<BoardRow>[] {
   const base = perKgBase(metric);
-  const values = new Map<string, { value: number; occurredOn: string }>();
+  const values = new Map<string, { value: number; occurredOn: string; detail: string | null }>();
   for (const person of circle) {
     const best = bests.get(person.id)?.find((b) => b.metric === (base ?? metric));
     if (!best) continue;
+    const detail = best.work ? formatTopWeightWork(best.work) : null;
     if (base === null) {
-      values.set(person.id, best);
+      values.set(person.id, { value: best.value, occurredOn: best.occurredOn, detail });
       continue;
     }
     const ratio = bodyWeightRatio(best.value, readings.get(person.id)?.weightKg ?? null);
-    if (ratio !== null) values.set(person.id, { value: ratio, occurredOn: best.occurredOn });
+    if (ratio !== null)
+      values.set(person.id, { value: ratio, occurredOn: best.occurredOn, detail });
   }
   const listed = base === null ? circle : circle.filter((person) => readings.has(person.id));
   return rankCircle(listed, values);

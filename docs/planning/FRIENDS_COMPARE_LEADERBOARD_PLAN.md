@@ -301,17 +301,21 @@ Lifting, 30d.
    **share** of their own working sets, so a friend who trains twice as much still compares by
    shape. Legend under it with the two names; the same six numbers as a small table behind
    "View values", as every chart in the app has.
-3. **Stats**: one row per metric, each a pair of horizontal bars scaled to the larger value,
-   with the values at the bar ends and the difference as a percentage with an arrow, coloured
-   from the viewer's side (success when ahead, muted when behind, as `Headline` already does).
+3. **Stats**: a table, the two people across the top ("You" and the friend, each with the
+   colour the radar gives them) and one row per metric with the two values side by side, the
+   leading one heavier, and the difference under the metric's name as a percentage from the
+   viewer's side with an arrow, coloured as `Headline` colours its change (success when
+   ahead, muted when behind). _Revised 2026-09-15: the first version drew a pair of bars per
+   metric as well; bars, values and a percentage were three ways of saying one thing, and on
+   a phone the bars said it worst._
    Lifting: Workouts, Workout time, Total volume, Working sets, Active days, Records set.
    Running (phase 8): Runs, Distance, Time, Best pace, Longest run.
 4. **Exercises in common** (Lifting): comparable exercises both people logged in the period,
    as rows with the exercise's region under the name, leading to the exercise comparison. The
    one-line note about machine exercises sits under the list.
 5. **States**: the friend does not share training → the header and a sentence, nothing else.
-   No data in the period for one side → bars still draw, the empty side reads "0" and the
-   percentage is "—". The other person is you → redirect to your own profile.
+   No data in the period for one side → the empty side reads "0" (muted) and the percentage
+   is "—". The other person is you → redirect to your own profile.
 
 ### 3.11 Compare, one exercise (`/u/[username]/compare/[exerciseId]`)
 
@@ -319,9 +323,13 @@ Only reachable for comparable exercises; anything else is `notFound()`.
 
 1. **Header**: exercise name and region, the two avatars, and a **Stronger** badge under
    whoever leads on the primary metric (§3.9) over all time. A tie shows no badge.
-2. **Metrics**: bar pairs for the metrics that apply to this movement, all-time bests with the
-   date each was set under the value. The body-weight ratio line appears under load metrics
-   when both share.
+2. **Metrics**: the same table as §3.10 for the metrics that apply to this movement, all-time
+   bests with the date each was set under the value; under the top weight, how it was worked
+   — "4 × 12", the working sets at that load in the session credited with it and the most
+   reps one of them reached (a repeated load is credited to the session that worked it
+   hardest). The body-weight ratio line ("1.18× BW") appears under load metrics when both
+   share. A side with no best for a metric reads "—": an estimated 1RM needs a set of 1–10
+   reps, so a lifter whose sets were all longer has none.
 3. **Trend**: the existing `Chart` with two series, one per person, of the primary metric per
    session over the selected period (the period control lives here too; the bests above are
    always all-time). Series colours are `--ov-series-1` (viewer) and `--ov-series-2` (friend),
@@ -342,7 +350,8 @@ Activity mode only.
   that apply. Ranks all-time bests with the date each was set. A "per kg" variant of the load
   metrics appears when at least two people in the circle share body weight.
 
-Rows: rank, avatar, name (your own row reads "You" and is highlighted), value in your unit.
+Rows: rank, avatar, name (your own row reads "You" and is highlighted), value in your unit,
+and under a top weight (or its per-kg variant) how it was worked, "4 × 12", above the date.
 Equal values share a rank. People with no data for the metric are listed after the ranked
 rows, greyed, with "—", so a friend's absence is visible rather than mysterious. A friend who
 turned sharing off is simply not listed; the privacy screen told them that would happen.
@@ -539,6 +548,8 @@ comparable                boolean not null             -- library exercise with 
 working_sets              integer not null
 total_reps                integer
 top_weight_kg             numeric(7,2)                 -- kg/lb sets only, converted
+top_weight_sets           integer                      -- working sets at that load, and the most reps
+top_weight_reps           integer                      --   one of them reached (migration 0022)
 best_e1rm_kg              numeric(7,2)
 best_set_volume_kg        numeric(9,2)
 most_reps                 integer

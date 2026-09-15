@@ -33,7 +33,12 @@ import type { DbOrTx } from "./types";
  * records that in `data_backfills` so later deploys skip it; `npm run db:backfill:shared-stats`
  * runs it again by hand whenever wanted.
  */
-export const SHARED_STATS_BACKFILL = "shared_stats";
+/**
+ * Versioned: a new name makes the next deploy run the backfill again. "shared_stats" was the
+ * first run, when the tables arrived; "_v2" re-derives every row for the top-weight sets and
+ * reps columns (migration 0022), which rows written before it do not have.
+ */
+export const SHARED_STATS_BACKFILL = "shared_stats_v2";
 
 /** Whether a named backfill has completed on this database. */
 export async function hasBackfillRun(db: DbOrTx, name: string): Promise<boolean> {
