@@ -1,7 +1,8 @@
 # Friends, comparison and leaderboards — implementation plan
 
 Status: decisions locked on 2026-09-14. Phases 0, 1 and 2 implemented on 2026-09-14, phases
-3 to 6 on 2026-09-15 (see the notes under each phase); phase 7 next.
+3 to 7 on 2026-09-15 (see the notes under each phase). Screenshots are the one thing still to
+file (`docs/friends/README.md` lists them).
 Owner: Vinit. Written after a full read of the codebase on `main` at `33cdbe7`.
 
 This plan adds people to an app that was built for one person at a time: a username, following
@@ -958,6 +959,25 @@ cannot see a table their branch adds. Sizes: S under a day, M one to two days, L
 - README section "Friends", SETUP backfill note, coach docs paths, screenshots in `docs/`.
 - Empty states reviewed on a 320px phone; keyboard order on the search; `View values` tables
   on both charts read by a screen reader.
+- **As built** (decisions taken with the owner during implementation):
+  - README gained a **Friends** section, the sentence "nobody else can see them" now says what
+    a follower may see, sign-up mentions the username, the scripts table lists the backfill,
+    the structure map lists `profile/friends/` and `u/[username]/`, and "How data access
+    works" records the `shared_*` exception. Every remaining "Settings →" path in README and
+    the coach docs became its Profile path (SETUP's note on the backfill was written with
+    phase 3). Supabase's and Vercel's own "Project Settings" stay as they are.
+  - Screenshots are taken from the deployed app by the owner, since the real screens need an
+    account and the working copy points at production; `docs/friends/README.md` names the
+    thirteen to take and the state each should show, and README links the folder.
+  - The 320px review was done by construction — every screen uses the fluid tokens and shared
+    primitives — and found one squeeze: a follow request's Accept and Decline beside a name
+    left the name a few characters wide. They now stack under 400px. The search's keyboard
+    order (label, field, live status, then each result's name link and follow button) needed
+    no change.
+  - Both charts' "View values" disclosures now say which chart they open ("View values for
+    Est. 1RM", visually hidden), since a screen with several charts otherwise lists identical
+    controls; `Chart`'s table gained the test `RadarChart`'s already had — caption, scoped
+    row and column headers, a dash and not a zero where a person did not train.
 
 Not in this plan, recorded so it is not forgotten: invite link (decision 8), blocking,
 comments or reactions, an inbox for requests, avatar uploads, a feed on Today.
