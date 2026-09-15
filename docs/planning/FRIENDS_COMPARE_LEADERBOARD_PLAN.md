@@ -1,7 +1,7 @@
 # Friends, comparison and leaderboards — implementation plan
 
-Status: decisions locked on 2026-09-14. Phases 0, 1 and 2 implemented on 2026-09-14 (see the
-notes under each phase); phase 3 next.
+Status: decisions locked on 2026-09-14. Phases 0, 1 and 2 implemented on 2026-09-14 and
+phase 3 on 2026-09-15 (see the notes under each phase); phase 4 next.
 Owner: Vinit. Written after a full read of the codebase on `main` at `33cdbe7`.
 
 This plan adds people to an app that was built for one person at a time: a username, following
@@ -807,6 +807,38 @@ cannot see a table their branch adds. Sizes: S under a day, M one to two days, L
 - **Tests**: parity with `performanceSeries`; `detectRecords` (strict, no first-timers, per
   metric); `muscleSplit` sums to one and maps every muscle group; RLS on all three tables;
   backfill idempotence on PGlite; run update re-writes pace.
+- **As built** (decisions taken with the owner during implementation):
+  - `best_set_volume_kg` is the heaviest single set by weight × reps, as its name says (Hevy's
+    "best set volume"), not the exercise's session total that `performanceSeries.volume`
+    charts. The parity test holds top weight, estimated 1RM and most reps to
+    `performanceSeries` and the session's `volume_kg` to the sum of every exercise's Progress
+    volume in kilograms.
+  - A profile's Records are the period's **bests**: for each comparable movement done in the
+    period its best primary-metric value with the day it was set — the five best lifts by
+    estimated 1RM, then up to five other movements by their own metric. Record *events* live on
+    the workout page and in the activity row's count.
+  - "Your records" tiles on an exercise page appear only for comparable movements; a machine's
+    numbers stay with its machine in the trend.
+  - Recent activity on the Friends page ships now and shows every sport: the row's summary is
+    an exhaustive switch on `TrainingSport`, so a sport added later must say what its row reads.
+  - The six-axis radar (`components/ui/radar-chart.tsx`) is built now with one polygon; phase 4
+    adds the second and the legend. The theme's series tokens pass the dataviz validator's CVD
+    and contrast checks but sit under its chroma floor — the Form palette is muted by design and
+    §2 fixes `--ov-series-1..4` as the only series colours, so they stand.
+  - The backfill also seeds `shared_body_weight` from each account's newest reading, and lives
+    at `src/db/backfill-shared-stats.ts` beside `migrate.ts` (the precedent for scripts that run
+    as the migration role) so PGlite can test it; `npm run db:backfill:shared-stats` runs it.
+  - On `/u/[username]` when the training is hidden, one line — "Follow @x to see their
+    training" for any not-yet-following state, "x keeps their training private" when you follow
+    them and they share nothing — with an info tip beside it that explains both the pending
+    request and sharing being off. The Compare button waits for phase 4; nothing dead ships.
+  - `finishSession` reads the account's time zone itself rather than taking a parameter, so
+    every caller — the action, tests, the backfill — resolves civil dates the same way. The
+    finished-workout page shows the Records card above "Save as routine".
+  - `readWorkouts` accepts a null range and a `sessionId` filter, which is how finishing reads
+    the one session it computes from through the same code Progress reads.
+  - `training_sport` is `TRAINING_SPORTS` in `domain/sport-scope.ts`; the muscle-split groups
+    map through `MUSCLE_REGION` so a new muscle group cannot be left off an axis.
 
 ### Phase 4 — Compare (L)
 
