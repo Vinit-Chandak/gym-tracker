@@ -15,17 +15,22 @@ import type { DbOrTx } from "@/db/types";
 import type { DateRange } from "@/server/validation/date-range";
 
 export const TRAINING_RECORD_LIMIT = 500;
-const inRange = (range: DateRange) =>
-  and(gte(workoutSessions.startedAt, range.start), lt(workoutSessions.startedAt, range.end));
+const inRange = (range: DateRange | null) =>
+  range
+    ? and(gte(workoutSessions.startedAt, range.start), lt(workoutSessions.startedAt, range.end))
+    : undefined;
 
 /** Bounded, batched raw data shared by history, analytics and the read-only coach API. Caller enforces RLS. */
 export async function readWorkouts(
   db: DbOrTx,
   userId: string,
-  range: DateRange,
+  /** Null reads across all time; pair it with `sessionId` or accept the record limit. */
+  range: DateRange | null,
   page = 0,
   limit = TRAINING_RECORD_LIMIT,
   filter: {
+    /** One session, whole: what finishing it computes its shared stats from. */
+    sessionId?: string;
     exerciseId?: string;
     equipmentInstanceId?: string;
     completedOnly?: boolean;
@@ -62,6 +67,7 @@ export async function readWorkouts(
       and(
         eq(workoutSessions.userId, userId),
         inRange(range),
+        filter.sessionId ? eq(workoutSessions.id, filter.sessionId) : undefined,
         matchingExercise,
         filter.completedOnly ? isNotNull(workoutSessions.completedAt) : undefined,
         filter.completedBy ? lte(workoutSessions.completedAt, filter.completedBy) : undefined,
@@ -82,10 +88,13 @@ export async function readWorkouts(
             slot: workoutExercises,
             exercise: {
               id: exercises.id,
+              /** Null for the shared library; the shared stats need to know (plan §3.9). */
+              userId: exercises.userId,
               name: exercises.name,
               slug: exercises.slug,
               modality: exercises.modality,
               loadPortability: exercises.loadPortability,
+              defaultPrescriptionType: exercises.defaultPrescriptionType,
               primaryMuscles: exercises.primaryMuscles,
               secondaryMuscles: exercises.secondaryMuscles,
             },

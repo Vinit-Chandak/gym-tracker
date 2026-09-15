@@ -41,11 +41,15 @@ import type { LoadUnit, SetType, WarmupDrill } from "@/domain/types";
 import { sessionHistories, type ComparablePerformance } from "@/server/queries/comparable";
 import { getWarmupProtocol } from "@/server/queries/reference";
 
+import type { TrainingRecord } from "@/domain/records";
+
 import { decideExercisesAtGym, resolvePlannedDay, type ExerciseDecision } from "./availability";
 import { getGym } from "./gyms";
 import { consumePlan, planForSession, releasePlan } from "./coach-plans";
 import { applyRule } from "./progression-rule";
 import { readCoachingChanges } from "./coaching-changes";
+import { writeSessionStats } from "./shared-stats";
+import { readWorkouts } from "./training-data";
 
 export class SessionNotFoundError extends Error {
   constructor() {
@@ -1217,8 +1221,15 @@ export type FinishedSession = {
   programDayId: string | null;
   dayIndex: number | null;
   cycleIndex: number | null;
+  /** The records this session set (ADR 0026), decided as it finished. */
+  records: TrainingRecord[];
 };
 
+/**
+ * Finishes the session and, in the same transaction, writes what a follower may see of it:
+ * the shared rows are computed from the finished session's own slots and sets, so the
+ * numbers a friend reads are the numbers Progress reads.
+ */
 export async function finishSession(
   db: DbOrTx,
   userId: string,
@@ -1242,7 +1253,11 @@ export async function finishSession(
       )`,
     });
   if (!row) throw new SessionNotFoundError();
-  return { ...row, dayIndex: row.dayIndex ?? null };
+  const { workouts } = await readWorkouts(db, userId, null, 0, 1, { sessionId });
+  const finished = workouts[0];
+  if (!finished) throw new SessionNotFoundError();
+  const records = await writeSessionStats(db, userId, finished);
+  return { ...row, dayIndex: row.dayIndex ?? null, records };
 }
 
 /** Deletes a session that has no sets. */

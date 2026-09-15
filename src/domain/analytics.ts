@@ -25,7 +25,11 @@ const mean = (values: (number | null)[]) => {
   return known.length ? round(known.reduce((a, b) => a + b, 0) / known.length) : null;
 };
 
-/** Epley estimate only for loaded barbell sets of 1–10 reps; never includes bodyweight or stack units. */
+/**
+ * Epley estimate for loaded barbell and dumbbell sets of 1–10 reps; never bodyweight or stack
+ * units. A dumbbell load is taken as logged — what the bell says, per hand or not — and never
+ * doubled (ADR 0026); `equipment_instances.load_convention` records which it was.
+ */
 export function estimated1RM(
   weight: number | null,
   reps: number | null,
@@ -33,7 +37,7 @@ export function estimated1RM(
   unit: string,
 ): number | null {
   if (
-    modality !== "barbell" ||
+    (modality !== "barbell" && modality !== "dumbbell") ||
     !["kg", "lb"].includes(unit) ||
     weight === null ||
     weight <= 0 ||

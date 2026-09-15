@@ -1,6 +1,8 @@
 import type { PlanWarning, PlanWarningCode } from "./coach-review";
 
-export type TrainingSport = "workout" | "run";
+/** The sports a shared session row can be (ADR 0026); the `training_sport` enum in Postgres. */
+export const TRAINING_SPORTS = ["workout", "run"] as const;
+export type TrainingSport = (typeof TRAINING_SPORTS)[number];
 
 /** Exhaustive routing also works for warnings saved before sport-specific displays existed. */
 const WARNING_SPORT: Record<PlanWarningCode, TrainingSport> = {

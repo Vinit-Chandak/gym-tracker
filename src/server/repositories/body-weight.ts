@@ -4,6 +4,8 @@ import { bodyWeightLogs, profiles } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import type { DateRange } from "@/server/validation/date-range";
 
+import { writeBodyWeight } from "./shared-stats";
+
 /** One reading: what the scale said, and the day it said it. */
 export type BodyWeightReading = { measuredOn: string; weightKg: number };
 
@@ -13,7 +15,8 @@ export type BodyWeightReading = { measuredOn: string; weightKg: number };
  * A day holds one reading, so weighing yourself again — or finishing a second session — corrects
  * the day rather than adding a second point to the trend. The profile's own body weight is never
  * written anywhere else, which is what keeps "what I weigh" and the chart behind it in step even
- * when a reading is entered for a day in the past.
+ * when a reading is entered for a day in the past. The shared copy (ADR 0026) is the same newest
+ * reading, so a follower who may see it sees exactly what the profile says.
  */
 export async function recordBodyWeight(
   db: DbOrTx,
@@ -29,13 +32,14 @@ export async function recordBodyWeight(
     });
 
   const [newest] = await db
-    .select({ weightKg: bodyWeightLogs.weightKg })
+    .select({ weightKg: bodyWeightLogs.weightKg, measuredOn: bodyWeightLogs.measuredOn })
     .from(bodyWeightLogs)
     .where(eq(bodyWeightLogs.userId, userId))
     .orderBy(desc(bodyWeightLogs.measuredOn))
     .limit(1);
   if (!newest) return;
   await db.update(profiles).set({ bodyWeightKg: newest.weightKg }).where(eq(profiles.id, userId));
+  await writeBodyWeight(db, userId, newest);
 }
 
 /** Every reading inside the range, oldest first — the order a trend is drawn in. */

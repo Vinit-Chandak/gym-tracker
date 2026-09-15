@@ -15,6 +15,7 @@ import { nextPendingSlot, suggestion } from "@/domain/schedule";
 import type { RunMode } from "@/domain/types";
 
 import { getSchedule, type Schedule } from "./schedule";
+import { deleteRunStats, writeRunStats } from "./shared-stats";
 
 export class RunNotFoundError extends Error {
   constructor() {
@@ -103,6 +104,8 @@ export async function createRun(
     .values({ userId, ...input, effortReported: input.rpe !== null })
     .returning({ id: runs.id });
   if (!row) throw new Error("Run insert returned no row");
+  // What a follower may see of the run (ADR 0026), kept in step on every write.
+  await writeRunStats(db, userId, { id: row.id, ...input });
   return row;
 }
 
@@ -119,6 +122,7 @@ export async function updateRun(
     .where(and(eq(runs.id, runId), eq(runs.userId, userId)))
     .returning({ id: runs.id });
   if (updated.length === 0) throw new RunNotFoundError();
+  await writeRunStats(db, userId, { id: runId, ...input });
 }
 
 export async function deleteRun(db: DbOrTx, userId: string, runId: string): Promise<void> {
@@ -127,6 +131,7 @@ export async function deleteRun(db: DbOrTx, userId: string, runId: string): Prom
     .where(and(eq(runs.id, runId), eq(runs.userId, userId)))
     .returning({ id: runs.id });
   if (deleted.length === 0) throw new RunNotFoundError();
+  await deleteRunStats(db, userId, runId);
 }
 
 const plannedColumns = {
