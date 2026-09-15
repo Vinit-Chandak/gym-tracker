@@ -1,7 +1,7 @@
 # Friends, comparison and leaderboards — implementation plan
 
 Status: decisions locked on 2026-09-14. Phases 0, 1 and 2 implemented on 2026-09-14, phases
-3, 4 and 5 on 2026-09-15 (see the notes under each phase); phase 6 next.
+3 to 6 on 2026-09-15 (see the notes under each phase); phase 7 next.
 Owner: Vinit. Written after a full read of the codebase on `main` at `33cdbe7`.
 
 This plan adds people to an app that was built for one person at a time: a username, following
@@ -931,6 +931,27 @@ cannot see a table their branch adds. Sizes: S under a day, M one to two days, L
   (metrics in §3.16), the run rows in activity are already there.
 - **Acceptance**: sport switch on both screens; best pace ignores runs under 1 km; a person
   with no runs in the period reads "—".
+- **As built** (decisions taken with the owner during implementation):
+  - The sport switch is on **three** screens, not two: Compare, the leaderboard, and a
+    person's page, since §3.13 already made a profile's numbers "the chosen period's
+    sport". In Running the person's page shows four tiles — Runs, Distance, Time, Best
+    pace — and neither the split nor Records; its Compare button opens the comparison on
+    the same sport.
+  - A period's running Time reads as the other period totals do ("1 h 12 min"); a single
+    run's numbers keep their own formats ("5:25 /km", "5.2 km" as logged, totals to a
+    tenth of a kilometre).
+  - Running is one board: the Activity / Exercise control is not drawn in Running, and
+    switching sport drops the mode and metric so Lifting comes back in Activity mode on
+    its default. Best pace ranks a faster pace higher (`rank`'s lower-is-better flag).
+  - Sport and period stack on a phone and share one row from 640px (`SportPeriodControls`),
+    the sport a third of it — where six pills first fit at their minimum width.
+  - Best pace is `min(pace) filter (where distance ≥ 1000 m)` in `readPeriodTotals`; a
+    person with runs but none of a kilometre is absent from that board ("—"), not ranked
+    on a sprint. One `PeriodTotals` shape serves both sports (a workout's run columns read
+    zero); `EMPTY_TOTALS` is what a person with no session reads as. Compare's stats rows
+    are now generated from `ACTIVITY_METRICS[sport]`, so a sport's list is written once.
+  - `SPORT_LABELS` (Lifting / Running) lives in `domain/sport-scope.ts` beside the enum;
+    `validation/sport.ts` parses the `sport` parameter, defaulting to lifting.
 
 ### Phase 7 — Polish and docs (S)
 
