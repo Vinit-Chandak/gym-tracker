@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, expect, it } from "vitest";
-import { coachMemos, coachNotes } from "@/db/schema";
+import { coachMemos, coachNotes, coachPreferences, gyms, workoutSessions } from "@/db/schema";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
 import { saveCoachNotes } from "./coach-plans";
@@ -48,7 +48,7 @@ it("retains messages, deduplicates retries and acknowledges extraction atomicall
             reviewAfter: null,
           },
         ],
-        reviewedNoteIds: [first],
+        reviewedNotes: [{ id: first, disposition: "remembered" }],
       },
       "coach",
     );
@@ -70,7 +70,12 @@ it("rejects another account's note as a quote or acknowledgment without changing
   await withUser(t.db, b.id, async (db) => {
     expect((await readCoachMemory(db, b.id)).notes.pending).toEqual([]);
     await expect(
-      updateCoachMemory(db, b.id, { expectedRevision: 0, reviewedNoteIds: [note] }, "coach"),
+      updateCoachMemory(
+        db,
+        b.id,
+        { expectedRevision: 0, reviewedNotes: [{ id: note, disposition: "remembered" }] },
+        "coach",
+      ),
     ).rejects.toThrow(/this athlete/);
     expect((await readCoachMemory(db, b.id)).memoryRevision).toBe(0);
     await expect(
@@ -114,7 +119,14 @@ it("keeps excess unread messages pending and preserves them after acknowledging 
     await updateCoachMemory(
       db,
       user.id,
-      { expectedRevision: 0, reviewedNoteIds: before.notes.pending.map((note) => note.id) },
+      {
+        expectedRevision: 0,
+        reviewedNotes: before.notes.pending.map((note) => ({
+          id: note.id,
+          disposition: "no_action",
+          detail: "Nothing to change.",
+        })),
+      },
       "coach",
     );
     expect((await readCoachMemory(db, user.id)).notes.pending).toHaveLength(5);
@@ -131,9 +143,102 @@ it("does not erase an existing legacy memo when notes are reviewed without new m
       .values({ userId: user.id, overview: "Existing context awaiting verification." });
     const note = crypto.randomUUID();
     await saveCoachNotes(db, user.id, "Thanks.", note);
-    await updateCoachMemory(db, user.id, { expectedRevision: 0, reviewedNoteIds: [note] }, "coach");
+    await updateCoachMemory(
+      db,
+      user.id,
+      {
+        expectedRevision: 0,
+        reviewedNotes: [{ id: note, disposition: "no_action", detail: "Nothing to change." }],
+      },
+      "coach",
+    );
     expect((await readCoachMemory(db, user.id)).legacyOverview).toBe(
       "Existing context awaiting verification.",
     );
+  });
+});
+
+it("treats a note written during training as a message, and closes it with an outcome", async () => {
+  const user = await t.createAuthUser(`${crypto.randomUUID()}@memo.test`);
+  await withUser(t.db, user.id, async (db) => {
+    const [gym] = await db
+      .insert(gyms)
+      .values({ userId: user.id, name: "My gym", slug: "my-gym", kind: "gym", isDefault: true })
+      .returning();
+    await db.insert(coachPreferences).values({ userId: user.id, mode: "coach" });
+    const at = new Date();
+    const [session] = await db
+      .insert(workoutSessions)
+      .values({
+        userId: user.id,
+        gymId: gym!.id,
+        startedAt: at,
+        completedAt: at,
+        notes: "Can we add Bayesian curls? The cable version aggravates my elbow.",
+      })
+      .returning();
+    const source = `workout:${session!.id}`;
+
+    const waiting = await readCoachMemory(db, user.id);
+    expect(waiting.notes.training.pending.map((note) => note.sourceId)).toEqual([source]);
+    expect(waiting.notes.training.hasMore).toBe(false);
+
+    // It is the athlete speaking, so it can carry a remembered preference of its own.
+    await updateCoachMemory(
+      db,
+      user.id,
+      {
+        expectedRevision: 0,
+        upsert: [
+          {
+            id: crypto.randomUUID(),
+            category: "preference",
+            status: "reported",
+            text: "The cable curl aggravates the elbow.",
+            sourceIds: [source],
+            sourceQuote: { sourceId: source, text: "The cable version aggravates my elbow." },
+            reviewAfter: null,
+          },
+        ],
+        reviewedNotes: [
+          {
+            id: source,
+            disposition: "queued_for_review",
+            detail: "Adding a slot needs your approval.",
+          },
+        ],
+      },
+      "coach",
+    );
+
+    // Answered once, it never crowds a later job again, and the request brings the review in.
+    const after = await readCoachMemory(db, user.id);
+    expect(after.notes.training.pending).toEqual([]);
+    expect(after.items).toHaveLength(1);
+    const [preference] = await db
+      .select()
+      .from(coachPreferences)
+      .where(eq(coachPreferences.userId, user.id));
+    expect(preference?.reviewRequestedAt).not.toBeNull();
+  });
+});
+
+it("says what became of a Tell the coach note, not merely that it was read", async () => {
+  const user = await t.createAuthUser(`${crypto.randomUUID()}@memo.test`);
+  await withUser(t.db, user.id, async (db) => {
+    const note = crypto.randomUUID();
+    await saveCoachNotes(db, user.id, "Bench matters most to me.", note);
+    await updateCoachMemory(
+      db,
+      user.id,
+      {
+        expectedRevision: 0,
+        reviewedNotes: [{ id: note, disposition: "remembered" }],
+      },
+      "coach",
+    );
+    const [saved] = await db.select().from(coachNotes).where(eq(coachNotes.id, note));
+    expect(saved).toMatchObject({ disposition: "remembered", dispositionDetail: "" });
+    expect(saved?.reviewedAt).not.toBeNull();
   });
 });

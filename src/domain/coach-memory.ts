@@ -35,6 +35,62 @@ export const memoryItemSchema = z.object({
 });
 export type MemoryItemInput = z.infer<typeof memoryItemSchema>;
 export type MemoryItem = MemoryItemInput & { origin: "athlete" | "coach"; updatedAt: string };
+
+/**
+ * Sources that are the athlete speaking, rather than the app measuring.
+ *
+ * Only these can support a remembered preference or correct one. A note sent from Tell the
+ * coach is the obvious one; a note written on the finish screen or against a single exercise
+ * is the same act performed somewhere more useful, at the moment it was true, and counts the
+ * same. Confirmed intake answers are athlete text too, but they are a brief rather than a
+ * message, so they may be quoted and never used to overturn a later statement.
+ */
+const ATHLETE_TEXT_PREFIXES = ["note", "workout", "exercise"] as const;
+export const isAthleteTextSource = (sourceId: string) =>
+  ATHLETE_TEXT_PREFIXES.some((prefix) => sourceId.startsWith(`${prefix}:`));
+
+/** Two items hold the same athlete statement when they quote the same words from one source. */
+const quoteKey = (item: Pick<MemoryItemInput, "sourceQuote">) =>
+  item.sourceQuote ? JSON.stringify([item.sourceQuote.sourceId, item.sourceQuote.text]) : null;
+
+/**
+ * What became of a note, in the athlete's terms rather than the machine's.
+ *
+ * "Reviewed by coach" says a note was read, which is not the thing anyone wants to know. A
+ * request that cannot be granted yet, one that is waiting for the next programme review, and
+ * one that changed tomorrow's session all looked identical — like silence. Every note the
+ * coach closes now names its outcome, and the two that leave the athlete waiting have to say
+ * why in a sentence.
+ */
+export const NOTE_DISPOSITIONS = [
+  "remembered",
+  "applied",
+  "queued_for_review",
+  "no_action",
+] as const;
+export type NoteDisposition = (typeof NOTE_DISPOSITIONS)[number];
+export const NOTE_DISPOSITION_LABELS: Record<NoteDisposition, string> = {
+  remembered: "Remembered",
+  applied: "Applied to your next session",
+  queued_for_review: "Queued for your programme review",
+  no_action: "No action",
+};
+
+export const reviewedNoteSchema = z
+  .object({
+    /** A bare UUID is a Tell the coach note; a training note names its own source type. */
+    id: z.union([z.uuid().transform((id) => `note:${id}`), evidenceIdSchema]),
+    disposition: z.enum(NOTE_DISPOSITIONS),
+    detail: z.string().trim().max(200).default(""),
+  })
+  .refine((entry) => isAthleteTextSource(entry.id), "Only the athlete's own notes are reviewed.")
+  .refine(
+    (entry) => entry.detail.length > 0 || ["remembered", "applied"].includes(entry.disposition),
+    "Say in one line why this note is waiting or was not acted on.",
+  )
+  .transform(({ id, disposition, detail }) => ({ sourceId: id, disposition, detail }));
+export type ReviewedNote = z.infer<typeof reviewedNoteSchema>;
+
 export const memoryPatchSchema = z.object({
   expectedRevision: z.number().int().min(0),
   upsert: z.array(memoryItemSchema).max(MEMORY_LIMITS.items).default([]),
@@ -44,7 +100,7 @@ export const memoryPatchSchema = z.object({
     .array(z.object({ itemId: z.uuid(), ...sourceQuoteSchema.shape }))
     .max(40)
     .default([]),
-  reviewedNoteIds: z.array(z.uuid()).max(100).default([]),
+  reviewedNotes: z.array(reviewedNoteSchema).max(100).default([]),
 });
 export type MemoryPatch = z.infer<typeof memoryPatchSchema>;
 
@@ -88,6 +144,14 @@ export function mergeMemory(
   )
     throw new Error("Attach each correction to one memo item being changed.");
   if (origin === "coach") {
+    // What the memo will hold once this patch lands, so a statement that survives under
+    // another item can be told apart from one being dropped.
+    const projected = new Map<string, MemoryItemInput>(byId);
+    for (const id of patch.removeIds) projected.delete(id);
+    for (const item of patch.upsert) projected.set(item.id, item);
+    const carriedQuotes = new Set(
+      [...projected.values()].map(quoteKey).filter((key): key is string => key !== null),
+    );
     for (const id of writes) {
       const old = byId.get(id);
       if (!old || !(old.origin === "athlete" || old.status === "reported")) continue;
@@ -99,8 +163,28 @@ export function mergeMemory(
         patch.removeIds.includes(id)
       )
         continue;
+      const oldQuote = quoteKey(old);
+      const replacement = projected.get(id);
+      // Rewording is not revision. While an item still quotes the same words at the same
+      // standing, the coach owns the sentence and may tighten it, retitle it or file it under
+      // another category without the athlete having to say the whole thing again. Without this
+      // a clumsy first draft was permanent, and the memo grew into a transcript of its own
+      // edits — which is the opposite of a summary. The quote stays the anchor: change what is
+      // quoted, or drop the quote, and the athlete's newer words are needed as before.
+      if (
+        replacement &&
+        oldQuote &&
+        old.status === "reported" &&
+        replacement.status === "reported" &&
+        quoteKey(replacement) === oldQuote &&
+        replacement.sourceIds.includes(old.sourceQuote!.sourceId)
+      )
+        continue;
+      // Folding two items about one subject into one is the same reasoning: nothing is lost
+      // while the athlete's words survive somewhere in the memo.
+      if (!replacement && oldQuote && carriedQuotes.has(oldQuote)) continue;
       const correction = corrections.get(id);
-      if (!correction || !correction.sourceId.startsWith("note:"))
+      if (!correction || !isAthleteTextSource(correction.sourceId))
         throw new Error(
           "Changing athlete-reported memory requires a correction from a newer athlete note.",
         );

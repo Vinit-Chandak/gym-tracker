@@ -27,12 +27,14 @@ export function FinishForm({ action, initialBodyWeight, unit, userId, sessionId 
     <form action={formAction} className="space-y-[var(--section-gap)]">
       <Section title="About this session">
         <Card>
-          <Field label="Notes" hint="Optional" error={state.fieldErrors?.notes}>
+          {/* Say that the coach reads this. It always could, and people wrote requests here
+              expecting an answer; a field that looks like a diary should not be one. */}
+          <Field label="Notes" hint="Your coach reads these" error={state.fieldErrors?.notes}>
             <Textarea
               name="notes"
               defaultValue={state.values?.notes ?? ""}
               maxLength={1000}
-              placeholder="How it went, anything to remember…"
+              placeholder="How it went, anything the coach should know…"
             />
           </Field>
           <Field

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { median, summarizeExerciseEvidence, type EvidencePerformance } from "./training-evidence";
+import {
+  median,
+  smallestIncrement,
+  summarizeExerciseEvidence,
+  upwardLoadAllowance,
+  type EvidencePerformance,
+} from "./training-evidence";
 import { suggestNext, type Prescription } from "./progression";
 import { effortError } from "./effort";
 
@@ -150,4 +156,25 @@ it("requires the appropriate actual effort metric, while permitting warmups and 
   expect(effortError({ ...set, rir: null, setType: "warmup" })).toBeNull();
   expect(effortError({ ...set, reps: null, durationSeconds: 30, rir: 2 })).toMatch(/Enter effort/);
   expect(effortError({ ...set, reps: null, durationSeconds: 30, rir: null, rpe: 7 })).toBeNull();
+});
+
+describe("what a load step is allowed to be", () => {
+  const limit = 0.05;
+  it("lets one real increment through when the percentage alone would freeze a light lift", () => {
+    // 20kg to the next dumbbell up is 12.5%, and the only step this rack offers.
+    expect(upwardLoadAllowance(limit, 20, { loadIncrement: 2.5 })).toBeCloseTo(0.125);
+    expect(
+      upwardLoadAllowance(limit, 20, { loadIncrement: null, availableLoads: [20, 22.5, 25] }),
+    ).toBeCloseTo(0.125);
+  });
+  it("leaves the percentage alone on a heavy lift, where the increment is already smaller", () => {
+    expect(upwardLoadAllowance(limit, 100, { loadIncrement: 2.5 })).toBe(limit);
+    expect(upwardLoadAllowance(limit, 100, null)).toBe(limit);
+    expect(upwardLoadAllowance(limit, 0, { loadIncrement: 2.5 })).toBe(limit);
+  });
+  it("reads the smallest real gap, and nothing at all from an unconfirmed rack", () => {
+    expect(smallestIncrement([10, 12.5, 15, 20])).toBe(2.5);
+    expect(smallestIncrement([20])).toBeNull();
+    expect(smallestIncrement([])).toBeNull();
+  });
 });

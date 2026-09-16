@@ -265,7 +265,19 @@ export async function coachJobContext(
           answers: coachIntakeSchema.parse(intake.answers),
         }
       : null,
-    memo,
+    // A note that has been answered is already memory, or was already declined in writing.
+    // Sending it again on every run afterwards is the same fact twice, for good, crowding out
+    // the reading the job actually needs. What arrives here is what is still open.
+    memo: {
+      ...memo,
+      notes: {
+        pending: memo.notes.pending,
+        hasMorePending: memo.notes.hasMorePending,
+        training: memo.notes.training,
+        meaning:
+          "Athlete messages awaiting an answer: pending are from Tell the coach, training are notes written on a finished session or against one exercise. Close every one you read with a disposition; reviewed notes are not sent again.",
+      },
+    },
     coachingPreferences: preferences
       ? {
           reviewWeekday: preferences.reviewWeekday,

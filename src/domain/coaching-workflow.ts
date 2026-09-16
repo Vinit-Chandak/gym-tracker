@@ -9,8 +9,8 @@ import {
 import { PLAN_LIMITS } from "./plan-limits";
 import { memoryPatchSchema, sourceQuoteSchema } from "./coach-memory";
 
-export const COACH_CONTRACT_VERSION = 2;
-export const COACH_POLICY_VERSION = "2026-09-14.1";
+export const COACH_CONTRACT_VERSION = 3;
+export const COACH_POLICY_VERSION = "2026-09-16.1";
 export const JOB_KINDS = ["create_program", "prepare_session", "review_program"] as const;
 export const JOB_STATUSES = [
   "queued",
@@ -211,7 +211,7 @@ const explanation = {
   evidence: z.array(z.string().trim().min(1).max(200)).max(50).default([]),
   uncertainties: z.array(z.string().trim().min(1).max(500)).max(20).default([]),
   memory: memoryPatchSchema.optional(),
-  /** A temporary adaptation may cite a fresh symptom report in Tell the coach. */
+  /** A temporary adaptation may quote any fresh note the athlete wrote themselves. */
   reportedConstraint: sourceQuoteSchema.optional(),
   /** A session-only adaptation expires with this exact occurrence. Evidence must be cited. */
   adjustment: z.enum(["normal", "temporary", "equipment", "calibration"]).default("normal"),

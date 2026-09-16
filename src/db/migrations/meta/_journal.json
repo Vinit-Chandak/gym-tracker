@@ -162,6 +162,13 @@
       "when": 1789486388334,
       "tag": "0022_top_weight_sets",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1789541507587,
+      "tag": "0023_coach_note_dispositions",
+      "breakpoints": true
     }
   ]
 }

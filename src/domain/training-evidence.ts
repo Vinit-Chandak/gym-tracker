@@ -4,7 +4,7 @@ import { canConvertLoad, convertLoad } from "@/lib/units";
 
 /** Versioned product limits to evaluate, not physiological optima or injury guarantees. */
 export const TRAINING_POLICY = {
-  version: "2026-09-14",
+  version: "2026-09-16",
   detailDays: 7,
   trendDays: 56,
   confirmationExposures: 2,
@@ -19,8 +19,44 @@ export const TRAINING_POLICY = {
   maxExerciseSetChange: 0.25,
   maxTotalSetChange: 0.2,
   maxRunChange: 0.1,
+  /** Reps a target may gain in one session on repeated completion; a decline still cuts one. */
+  maxRepIncrease: 2,
   cumulativeDays: 14,
 } as const;
+
+/** The smallest real gap between the loads a machine actually offers, if it offers enough. */
+export function smallestIncrement(loads: readonly number[]): number | null {
+  const sorted = [...new Set(loads.filter((load) => Number.isFinite(load) && load > 0))].sort(
+    (a, b) => a - b,
+  );
+  let smallest: number | null = null;
+  for (let index = 1; index < sorted.length; index++) {
+    const gap = sorted[index]! - sorted[index - 1]!;
+    if (gap > 0 && (smallest === null || gap < smallest)) smallest = gap;
+  }
+  return smallest;
+}
+
+/**
+ * The largest upward load step allowed, as a fraction of the load being stepped up from.
+ *
+ * A percentage on its own freezes light lifts. The next dumbbell above 20kg is 22.5kg — a
+ * 12.5% jump — so a 5% rule forbids the only step that physically exists, and the lift sits
+ * at 20kg for good. The ceiling is therefore the percentage or one real increment of this
+ * equipment, whichever is larger.
+ *
+ * Downward steps deliberately keep the plain percentage. When no cut small enough exists,
+ * holding the load is the safe answer, and a decline worth acting on can go to review.
+ */
+export function upwardLoadAllowance(
+  limit: number,
+  baseline: number,
+  equipment?: { loadIncrement?: number | null; availableLoads?: readonly number[] | null } | null,
+): number {
+  if (!(baseline > 0)) return limit;
+  const increment = equipment?.loadIncrement ?? smallestIncrement(equipment?.availableLoads ?? []);
+  return increment && increment > 0 ? Math.max(limit, increment / baseline) : limit;
+}
 
 export type EvidencePerformance = {
   workoutExerciseId: string;

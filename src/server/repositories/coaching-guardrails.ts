@@ -1,17 +1,13 @@
 import { and, desc, eq, isNotNull } from "drizzle-orm";
-import {
-  coachIntakes,
-  coachNotes,
-  equipmentInstances,
-  type CoachingChangeRecord,
-} from "@/db/schema";
+import { coachIntakes, equipmentInstances, type CoachingChangeRecord } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import type { CoachJobResult, JobTarget } from "@/domain/coaching-workflow";
 import type { ProgramBlueprint } from "@/domain/program-blueprint";
+import { isAthleteTextSource, type AthleteSource } from "@/domain/coach-memory";
 import { assessProgramChange, type ExerciseMuscleReference } from "@/domain/program-change";
-import { TRAINING_POLICY } from "@/domain/training-evidence";
+import { TRAINING_POLICY, upwardLoadAllowance } from "@/domain/training-evidence";
 import type { CoachingEvidence } from "./coaching-evidence";
-import { existingEvidenceIds } from "./coach-memory";
+import { athleteMemorySources, existingEvidenceIds } from "./coach-memory";
 import { planningContext } from "./coach-plans";
 import { CoachingError } from "./coaching-state";
 import { canConvertLoad, convertLoad } from "@/lib/units";
@@ -257,23 +253,25 @@ export async function assessSessionEvidence(
       intake.confirmedAt && intake.answers.restrictions.trim() && cited.has(`intake:${intake.id}`),
   );
   const temporary = result.adjustment === "temporary";
-  const noteId = result.reportedConstraint?.sourceId.startsWith("note:")
-    ? result.reportedConstraint.sourceId.slice(5)
-    : null;
-  const [constraintNote] = noteId
-    ? await db
-        .select()
-        .from(coachNotes)
-        .where(and(eq(coachNotes.userId, userId), eq(coachNotes.id, noteId)))
-    : [];
+  // Any note the athlete wrote themselves will do — sent from Tell the coach, left on a
+  // finished session, or written against the one exercise it is about. The same three checks
+  // apply to all of them: they own it, the quote is really theirs, and they said it recently.
+  const constraint = result.reportedConstraint;
+  const constraintSources =
+    constraint && isAthleteTextSource(constraint.sourceId)
+      ? await athleteMemorySources(db, userId, [constraint.sourceId])
+      : new Map<string, AthleteSource>();
+  const constraintNote = constraint ? constraintSources.get(constraint.sourceId) : undefined;
   const evidenceTime = new Date(evidence.end).getTime();
+  const writtenAt = constraintNote ? new Date(constraintNote.createdAt).getTime() : null;
   const noteSource =
     constraintNote &&
-    result.reportedConstraint &&
-    cited.has(result.reportedConstraint.sourceId) &&
-    constraintNote.text.includes(result.reportedConstraint.text) &&
-    constraintNote.createdAt.getTime() >= evidenceTime - 3 * 86_400_000 &&
-    constraintNote.createdAt.getTime() <= evidenceTime;
+    constraint &&
+    cited.has(constraint.sourceId) &&
+    constraintNote.text.includes(constraint.text) &&
+    writtenAt !== null &&
+    writtenAt >= evidenceTime - 3 * 86_400_000 &&
+    writtenAt <= evidenceTime;
   if (
     temporary &&
     !restrictionSource &&
@@ -429,9 +427,22 @@ export async function assessSessionEvidence(
         const delta = value - targetBaseline;
         if (temporary && delta > 0)
           fail("A temporary recovery adjustment cannot increase reps, duration or distance.");
+        // One rep a session is slower than the evidence earns. Somebody who has twice held the
+        // top of the range at the prescribed effort has shown the whole range, so the target may
+        // go straight to it; anyone else clearing the range twice moves up to two. Cuts stay at
+        // one rep, behind the decline test: chase a good session, never flinch at a bad one. The
+        // range check above still caps every step at what the programme actually prescribes.
+        const step =
+          p.type !== "reps"
+            ? targetBaseline * 0.1
+            : delta < 0
+              ? 1
+              : trend?.progressionReady && range?.[1] != null
+                ? Math.max(1, range[1] - targetBaseline)
+                : TRAINING_POLICY.maxRepIncrease;
         if (
           !temporary &&
-          (Math.abs(delta) > (p.type === "reps" ? 1 : targetBaseline * 0.1) + 1e-9 ||
+          (Math.abs(delta) > step + 1e-9 ||
             !(delta > 0 ? trend?.repeatedCompletion : trend?.declineCandidate))
         )
           fail(
@@ -480,9 +491,12 @@ export async function assessSessionEvidence(
         );
       const delta = set.weight / setBaseline - 1;
       if (temporary && delta > 0) fail("A temporary recovery adjustment cannot increase load.");
+      // The percentage or one real increment of this machine, whichever is larger, so the only
+      // step a light lift has is never the step that is forbidden.
       if (
         !temporary &&
-        (delta > TRAINING_POLICY.maxLoadIncrease + 1e-9 ||
+        (delta >
+          upwardLoadAllowance(TRAINING_POLICY.maxLoadIncrease, setBaseline, machine) + 1e-9 ||
           delta < -TRAINING_POLICY.maxLoadReduction - 1e-9)
       )
         fail(
@@ -503,7 +517,9 @@ export async function assessSessionEvidence(
       if (!temporary && originalLoad != null && originalLoad > 0) {
         const totalChange = set.weight / originalLoad - 1;
         if (
-          totalChange > TRAINING_POLICY.maxCumulativeLoadIncrease + 1e-9 ||
+          totalChange >
+            upwardLoadAllowance(TRAINING_POLICY.maxCumulativeLoadIncrease, originalLoad, machine) +
+              1e-9 ||
           totalChange < -TRAINING_POLICY.maxCumulativeLoadReduction - 1e-9
         )
           fail(
@@ -527,9 +543,11 @@ export async function assessSessionEvidence(
         );
       const original = earliest?.before.loads?.find((item) => item.index === index);
       if (!temporary && original && original.load > 0) {
-        const cumulative = set.weight / convertLoad(original.load, earliest!.unit!, unit) - 1;
+        const from = convertLoad(original.load, earliest!.unit!, unit);
+        const cumulative = set.weight / from - 1;
         if (
-          cumulative > TRAINING_POLICY.maxCumulativeLoadIncrease + 1e-9 ||
+          cumulative >
+            upwardLoadAllowance(TRAINING_POLICY.maxCumulativeLoadIncrease, from, machine) + 1e-9 ||
           cumulative < -TRAINING_POLICY.maxCumulativeLoadReduction - 1e-9
         )
           fail(`${entry.exerciseSlug}: the combined load changes over 14 days need review.`);

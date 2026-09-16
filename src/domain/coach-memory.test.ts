@@ -208,3 +208,98 @@ it("orders corrections by when the athlete spoke, even if an old report was summ
     [],
   );
 });
+
+it("lets the coach reword and merge its own items, but not change what they claim", () => {
+  const note = `note:${crypto.randomUUID()}`;
+  const said = "Weighted hyperextensions are fine now, I don't mind them.";
+  const sources = new Map([[note, { text: said, createdAt: now.toISOString() }]]);
+  const quote = { sourceId: note, text: said };
+  const narrated = memoryItemSchema.parse({
+    ...item(),
+    category: "preference",
+    status: "reported",
+    text: "The athlete asked on 10 Sep not to be given weighted hyperextensions, then said on 14 Sep they may be included. The later note supersedes the restriction.",
+    sourceIds: [note],
+    sourceQuote: quote,
+    reviewAfter: null,
+  });
+  const stored = mergeMemory([], patch([narrated]), "coach", new Set([note]), now, sources);
+
+  // The fact, without the story of the fact, and without asking the athlete to say it again.
+  const tidied = { ...narrated, text: "Weighted hyperextensions are allowed." };
+  expect(
+    mergeMemory(stored, patch([tidied]), "coach", new Set([note]), now, sources)[0],
+  ).toMatchObject({ text: "Weighted hyperextensions are allowed." });
+
+  // Recategorising is the same act; dropping the quote or changing it is not.
+  expect(() =>
+    mergeMemory(
+      stored,
+      patch([{ ...tidied, sourceQuote: undefined, sourceIds: [source] }]),
+      "coach",
+      new Set([source]),
+      now,
+      sources,
+    ),
+  ).toThrow(/newer athlete note/);
+  expect(() =>
+    mergeMemory(stored, patch([], [narrated.id]), "coach", new Set([note]), now, sources),
+  ).toThrow(/newer athlete note/);
+
+  // Folding two items about one subject into one keeps the athlete's words in the memo.
+  const duplicate = memoryItemSchema.parse({ ...narrated, id: crypto.randomUUID() });
+  const both = mergeMemory(stored, patch([duplicate]), "coach", new Set([note]), now, sources);
+  expect(
+    mergeMemory(both, patch([tidied], [duplicate.id]), "coach", new Set([note]), now, sources),
+  ).toHaveLength(1);
+});
+
+it("closes a note with an outcome, and makes the waiting ones explain themselves", () => {
+  const closed = memoryPatchSchema.parse({
+    expectedRevision: 0,
+    reviewedNotes: [
+      { id: crypto.randomUUID(), disposition: "remembered" },
+      { id: `exercise:${crypto.randomUUID()}`, disposition: "applied" },
+      {
+        id: `workout:${crypto.randomUUID()}`,
+        disposition: "queued_for_review",
+        detail: "Adding a slot needs your approval.",
+      },
+    ],
+  });
+  expect(closed.reviewedNotes.map((note) => note.sourceId.split(":")[0])).toEqual([
+    "note",
+    "exercise",
+    "workout",
+  ]);
+  expect(() =>
+    memoryPatchSchema.parse({
+      expectedRevision: 0,
+      reviewedNotes: [{ id: crypto.randomUUID(), disposition: "no_action" }],
+    }),
+  ).toThrow(/why this note/);
+  expect(() =>
+    memoryPatchSchema.parse({
+      expectedRevision: 0,
+      reviewedNotes: [{ id: `run:${crypto.randomUUID()}`, disposition: "remembered" }],
+    }),
+  ).toThrow(/own notes/);
+});
+
+it("accepts a note written during training as the words behind a remembered preference", () => {
+  const slot = `exercise:${crypto.randomUUID()}`;
+  const said = "Bayesian curls felt much better than the cable version here.";
+  const sources = new Map([[slot, { text: said, createdAt: now.toISOString() }]]);
+  const preference = memoryItemSchema.parse({
+    ...item(),
+    category: "preference",
+    status: "reported",
+    text: "Prefers Bayesian curls to the cable version.",
+    sourceIds: [slot],
+    sourceQuote: { sourceId: slot, text: said },
+    reviewAfter: null,
+  });
+  expect(
+    mergeMemory([], patch([preference]), "coach", new Set([slot]), now, sources)[0],
+  ).toMatchObject({ status: "reported", origin: "coach" });
+});

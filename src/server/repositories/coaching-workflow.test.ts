@@ -15,6 +15,9 @@ import {
   programs,
   sessionPlans,
   setLogs,
+  exercises,
+  workoutExercises,
+  workoutSessions,
 } from "@/db/schema";
 import { seedReferenceData } from "@/db/seed/reference";
 import { STRENGTH_AESTHETICS_HYBRID_8WK } from "@/db/seed/data/program";
@@ -817,6 +820,41 @@ async function reviewing() {
           distanceMeters: 5000,
         }),
       ),
+    /** A session on this day. `work` decides whether anything was actually lifted in it. */
+    trained: async (at: Date, work: "working" | "warmup") => {
+      await as(a, async (tx) => {
+        const [exercise] = await tx.select({ id: exercises.id }).from(exercises).limit(1);
+        const [session] = await tx
+          .insert(workoutSessions)
+          .values({ userId: a.user.id, gymId: a.gym.id, startedAt: at, completedAt: at })
+          .returning({ id: workoutSessions.id });
+        const [slot] = await tx
+          .insert(workoutExercises)
+          .values({
+            userId: a.user.id,
+            workoutSessionId: session!.id,
+            exerciseId: exercise!.id,
+            orderIndex: 1,
+          })
+          .returning({ id: workoutExercises.id });
+        await tx.insert(setLogs).values({
+          userId: a.user.id,
+          workoutExerciseId: slot!.id,
+          setIndex: 1,
+          setType: work,
+          weight: 20,
+          reps: 10,
+          rir: 2,
+        });
+      });
+    },
+    requested: (at: Date) =>
+      as(a, (tx) =>
+        tx
+          .update(coachPreferences)
+          .set({ reviewRequestedAt: at })
+          .where(eq(coachPreferences.userId, a.user.id)),
+      ),
     reviews: async () =>
       (await as(a, (tx) => tx.select().from(coachJobs))).filter(
         (job) => job.kind === "review_program",
@@ -918,6 +956,45 @@ it("reviews on the first quiet day after a week, not on a weekday chosen in adva
     reviewStart: anchor.toISOString(),
     reviewEnd: third.toISOString(),
   });
+});
+
+it("counts a mobility day as the rest day it is, and a day with real work as training", async () => {
+  const a = await reviewing();
+  const base = lastCoachBoundary().at;
+
+  // A rest-and-mobility slot is a real card and opening it writes a session row. Nothing was
+  // lifted in it, so the day was quiet and the review it had been waiting for belongs on it.
+  await a.anchor(new Date(base.getTime() - 8 * DAY));
+  await a.trained(theDayBefore(base), "warmup");
+  await dispatchEveryone(base);
+  expect(await a.reviews()).toHaveLength(1);
+
+  // One working set on the day before, and the review waits as it always did.
+  const b = await reviewing();
+  const next = new Date(base.getTime() + DAY);
+  await b.anchor(new Date(next.getTime() - 8 * DAY));
+  await b.trained(theDayBefore(next), "working");
+  await dispatchEveryone(next);
+  expect(await b.reviews()).toHaveLength(0);
+});
+
+it("hears a request for something only a review can grant without waiting out the week", async () => {
+  const a = await reviewing();
+  const base = lastCoachBoundary().at;
+
+  // Three days in, with the athlete training daily: nothing would otherwise be owed.
+  const anchor = new Date(base.getTime() - 3 * DAY);
+  await a.anchor(anchor);
+  await a.trained(theDayBefore(base), "working");
+  await dispatchEveryone(base);
+  expect(await a.reviews()).toHaveLength(0);
+
+  await a.requested(new Date(anchor.getTime() + DAY));
+  const next = new Date(base.getTime() + DAY);
+  await dispatchEveryone(next);
+  const reviews = await a.reviews();
+  expect(reviews).toHaveLength(1);
+  expect(reviews[0]?.target).toMatchObject({ reviewStart: anchor.toISOString() });
 });
 
 it("stops waiting for a quiet day once the athlete has trained for ten days straight", async () => {
