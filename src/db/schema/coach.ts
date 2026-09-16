@@ -12,7 +12,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import type { PlanWarning } from "../../domain/coach-review";
-import type { MemoryItem } from "../../domain/coach-memory";
+import type { MemoryItem, NoteDisposition } from "../../domain/coach-memory";
 import type { StoredPlanExercise, StoredPlanRun } from "../../domain/session-plan";
 import { ownerPolicy, timestamps } from "./common";
 import {
@@ -82,10 +82,41 @@ export const coachNotes = pgTable(
     text: text("text").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    /** What became of the note: remembered, applied, queued for review, or no action. */
+    disposition: text("disposition").$type<NoteDisposition>(),
+    /** One line saying why, required of the dispositions that leave the athlete waiting. */
+    dispositionDetail: text("disposition_detail").notNull().default(""),
   },
   (t) => [
     index("coach_notes_user_created_idx").on(t.userId, t.createdAt),
     ownerPolicy("coach_notes"),
+  ],
+).enableRLS();
+
+/**
+ * The coach's read receipt for a note written during training.
+ *
+ * Notes on a finished session and on a single exercise are athlete messages too, but they
+ * live on rows the athlete's log owns, which a coaching read must never write to. The receipt
+ * is kept beside them instead, so a training note can be pending, then closed with the same
+ * outcome as any other note, and is never quietly lost when it ages out of the read window.
+ */
+export const coachNoteReviews = pgTable(
+  "coach_note_reviews",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    /** `workout:<uuid>` or `exercise:<uuid>`; Tell the coach notes carry their own column. */
+    sourceId: text("source_id").notNull(),
+    disposition: text("disposition").$type<NoteDisposition>().notNull(),
+    detail: text("detail").notNull().default(""),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("coach_note_reviews_user_source_uq").on(t.userId, t.sourceId),
+    ownerPolicy("coach_note_reviews"),
   ],
 ).enableRLS();
 

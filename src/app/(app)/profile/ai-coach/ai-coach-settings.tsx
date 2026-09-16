@@ -35,7 +35,8 @@ type Props = {
    */
   status: string | null;
   noteId: string;
-  notes: { id: string; text: string; when: string; reviewed: boolean }[];
+  /** `outcome` is what the coach did with the note, or null while it is still waiting. */
+  notes: { id: string; text: string; when: string; outcome: string | null }[];
   overview: string;
   overviewUpdatedAt: string | null;
   /** What the coach has tried lately, so a night it could not plan is not simply silence. */
@@ -152,7 +153,7 @@ export function AiCoachSettings({
 
       <Section
         title="Tell the coach"
-        info="Share a preference, a change, or a correction to something remembered. Each note is saved. At its next planning or review, the coach reads your notes and keeps the important, lasting details in the memo."
+        info="Share a preference, a change, or a correction to something remembered. At its next planning or review the coach reads every waiting note, keeps the lasting details in the memo, and says underneath what it did with each one. Notes you leave on a finished session or on a single exercise reach it the same way."
       >
         <Card>
           <form key={noteId} action={formAction} className="space-y-4">
@@ -181,7 +182,7 @@ export function AiCoachSettings({
               <li key={note.id} className="space-y-1 p-4">
                 <p className="text-sm [overflow-wrap:anywhere] whitespace-pre-line">{note.text}</p>
                 <p className="text-xs text-ink-muted">
-                  {note.when} · {note.reviewed ? "Reviewed by coach" : "Waiting for coach"}
+                  {note.when} · {note.outcome ?? "Waiting for coach"}
                 </p>
               </li>
             ))}

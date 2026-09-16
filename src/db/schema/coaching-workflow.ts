@@ -63,6 +63,13 @@ export const coachPreferences = pgTable(
     intakeId: uuid("intake_id").references(() => coachIntakes.id, { onDelete: "set null" }),
     reviewWeekday: integer("review_weekday"),
     reviewAnchorAt: instant("review_anchor_at"),
+    /**
+     * When the athlete last asked for something only a programme review can grant. A request
+     * left sitting for up to ten days looked exactly like being ignored, so it brings the
+     * review forward to the next nightly run; the answer is still a proposal the athlete
+     * approves. Cleared by the review it asked for.
+     */
+    reviewRequestedAt: instant("review_requested_at"),
     consentedAt: instant("consented_at"),
     ...timestamps,
   },

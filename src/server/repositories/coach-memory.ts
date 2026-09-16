@@ -1,11 +1,14 @@
-import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, ne } from "drizzle-orm";
 import {
   coachAttachments,
   coachIntakes,
   coachJobs,
   coachMemos,
+  coachNoteReviews,
   coachNotes,
+  coachPreferences,
   dailyRecovery,
+  exercises,
   runs,
   workoutExercises,
   workoutSessions,
@@ -53,10 +56,12 @@ export async function existingEvidenceIds(db: DbOrTx, userId: string, input: rea
 }
 
 /** Only direct athlete text can support a reported preference or correction. */
-async function athleteMemorySources(db: DbOrTx, userId: string, ids: readonly string[]) {
+export async function athleteMemorySources(db: DbOrTx, userId: string, ids: readonly string[]) {
   const sources = new Map<string, AthleteSource>();
   const noteIds = ids.filter((id) => id.startsWith("note:")).map((id) => id.slice(5));
   const intakeIds = ids.filter((id) => id.startsWith("intake:")).map((id) => id.slice(7));
+  const sessionIds = ids.filter((id) => id.startsWith("workout:")).map((id) => id.slice(8));
+  const slotIds = ids.filter((id) => id.startsWith("exercise:")).map((id) => id.slice(9));
   if (noteIds.length) {
     const notes = await db
       .select()
@@ -64,6 +69,43 @@ async function athleteMemorySources(db: DbOrTx, userId: string, ids: readonly st
       .where(and(eq(coachNotes.userId, userId), inArray(coachNotes.id, noteIds)));
     for (const note of notes)
       sources.set(`note:${note.id}`, { text: note.text, createdAt: note.createdAt.toISOString() });
+  }
+  // A note written on the finish screen, or against one exercise, is the athlete speaking at
+  // the moment it was true. It is dated by when the work was put down, not when the row began,
+  // so a session opened in the morning and finished at night is quoted as the evening it was.
+  if (sessionIds.length) {
+    const sessions = await db
+      .select({
+        id: workoutSessions.id,
+        notes: workoutSessions.notes,
+        startedAt: workoutSessions.startedAt,
+        completedAt: workoutSessions.completedAt,
+      })
+      .from(workoutSessions)
+      .where(and(eq(workoutSessions.userId, userId), inArray(workoutSessions.id, sessionIds)));
+    for (const session of sessions)
+      if (session.notes?.trim())
+        sources.set(`workout:${session.id}`, {
+          text: session.notes,
+          createdAt: (session.completedAt ?? session.startedAt).toISOString(),
+        });
+  }
+  if (slotIds.length) {
+    const slots = await db
+      .select({
+        id: workoutExercises.id,
+        notes: workoutExercises.notes,
+        createdAt: workoutExercises.createdAt,
+        completedAt: workoutExercises.completedAt,
+      })
+      .from(workoutExercises)
+      .where(and(eq(workoutExercises.userId, userId), inArray(workoutExercises.id, slotIds)));
+    for (const slot of slots)
+      if (slot.notes?.trim())
+        sources.set(`exercise:${slot.id}`, {
+          text: slot.notes,
+          createdAt: (slot.completedAt ?? slot.createdAt).toISOString(),
+        });
   }
   if (intakeIds.length) {
     const intakes = await db
@@ -86,8 +128,93 @@ async function athleteMemorySources(db: DbOrTx, userId: string, ids: readonly st
   return sources;
 }
 
-export async function readCoachNotes(db: DbOrTx, userId: string) {
-  const [pending, recent] = await Promise.all([
+/** How far back an unread training note is still worth answering, and how many at once. */
+const TRAINING_NOTE_DAYS = 30;
+const TRAINING_NOTE_LIMIT = 20;
+
+/**
+ * Notes written while training that the coach has not closed yet.
+ *
+ * These used to reach the coach only as a field on a session inside seven days of raw history
+ * — visible, unanswerable, and gone by the eighth day. Read as messages they behave like every
+ * other note: they arrive oldest first, they stay pending until they are answered, and a
+ * backlog waits for the next job rather than being dropped.
+ */
+async function pendingTrainingNotes(db: DbOrTx, userId: string, now: Date) {
+  const since = new Date(now.getTime() - TRAINING_NOTE_DAYS * 86_400_000);
+  const written = and(eq(workoutSessions.userId, userId), gte(workoutSessions.startedAt, since));
+  const [sessions, slots] = await Promise.all([
+    db
+      .select({
+        id: workoutSessions.id,
+        text: workoutSessions.notes,
+        startedAt: workoutSessions.startedAt,
+        completedAt: workoutSessions.completedAt,
+      })
+      .from(workoutSessions)
+      .where(and(written, isNotNull(workoutSessions.notes), ne(workoutSessions.notes, ""))),
+    db
+      .select({
+        id: workoutExercises.id,
+        text: workoutExercises.notes,
+        exercise: exercises.name,
+        startedAt: workoutSessions.startedAt,
+        completedAt: workoutExercises.completedAt,
+      })
+      .from(workoutExercises)
+      .innerJoin(workoutSessions, eq(workoutSessions.id, workoutExercises.workoutSessionId))
+      .innerJoin(exercises, eq(exercises.id, workoutExercises.exerciseId))
+      .where(
+        and(
+          written,
+          eq(workoutExercises.userId, userId),
+          isNotNull(workoutExercises.notes),
+          ne(workoutExercises.notes, ""),
+        ),
+      ),
+  ]);
+  const found = [
+    ...sessions.map((session) => ({
+      sourceId: `workout:${session.id}`,
+      about: "the session",
+      text: session.text!,
+      createdAt: (session.completedAt ?? session.startedAt).toISOString(),
+    })),
+    ...slots.map((slot) => ({
+      sourceId: `exercise:${slot.id}`,
+      about: slot.exercise,
+      text: slot.text!,
+      createdAt: (slot.completedAt ?? slot.startedAt).toISOString(),
+    })),
+  ].filter((note) => note.text.trim().length > 0);
+  if (!found.length) return { pending: [], hasMore: false };
+  const closed = new Set(
+    (
+      await db
+        .select({ sourceId: coachNoteReviews.sourceId })
+        .from(coachNoteReviews)
+        .where(
+          and(
+            eq(coachNoteReviews.userId, userId),
+            inArray(
+              coachNoteReviews.sourceId,
+              found.map((note) => note.sourceId),
+            ),
+          ),
+        )
+    ).map((row) => row.sourceId),
+  );
+  const open = found
+    .filter((note) => !closed.has(note.sourceId))
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.sourceId.localeCompare(b.sourceId));
+  return {
+    pending: open.slice(0, TRAINING_NOTE_LIMIT),
+    hasMore: open.length > TRAINING_NOTE_LIMIT,
+  };
+}
+
+export async function readCoachNotes(db: DbOrTx, userId: string, now = new Date()) {
+  const [pending, recent, training] = await Promise.all([
     db
       .select()
       .from(coachNotes)
@@ -100,8 +227,9 @@ export async function readCoachNotes(db: DbOrTx, userId: string) {
       .where(eq(coachNotes.userId, userId))
       .orderBy(desc(coachNotes.createdAt), desc(coachNotes.id))
       .limit(10),
+    pendingTrainingNotes(db, userId, now),
   ]);
-  return { pending: pending.slice(0, 50), hasMorePending: pending.length > 50, recent };
+  return { pending: pending.slice(0, 50), hasMorePending: pending.length > 50, recent, training };
 }
 
 export async function readCoachMemory(db: DbOrTx, userId: string, now = new Date()) {
@@ -139,7 +267,7 @@ export async function readCoachMemory(db: DbOrTx, userId: string, now = new Date
     overview: items.length ? memoryOverview(active) : (row?.overview ?? ""),
     legacyOverview: items.length ? "" : (row?.overview ?? ""),
     userNotes: row?.userNotes ?? "",
-    notes: await readCoachNotes(db, userId),
+    notes: await readCoachNotes(db, userId, now),
     overviewUpdatedAt: row?.overviewUpdatedAt ?? null,
     items: active,
     reviewDueItems: items.filter((item) => !active.includes(item)),
@@ -173,9 +301,9 @@ export async function updateCoachMemory(
     ...row.items.flatMap((item) => item.sourceIds),
     ...patch.upsert.flatMap((item) => item.sourceIds),
     ...patch.corrections.map((correction) => correction.sourceId),
-    ...patch.reviewedNoteIds.map((id) => `note:${id}`),
+    ...patch.reviewedNotes.map((note) => note.sourceId),
   ]);
-  if (patch.reviewedNoteIds.some((id) => !athleteSources.has(`note:${id}`)))
+  if (patch.reviewedNotes.some((note) => !athleteSources.has(note.sourceId)))
     throw new CoachingError("Only mark this athlete's existing notes as reviewed.", 422);
   let items: MemoryItem[];
   try {
@@ -194,16 +322,35 @@ export async function updateCoachMemory(
       memoryRevision: row.memoryRevision + 1,
     })
     .where(eq(coachMemos.id, row.id));
-  if (patch.reviewedNoteIds.length)
+  for (const note of patch.reviewedNotes) {
+    if (note.sourceId.startsWith("note:"))
+      await db
+        .update(coachNotes)
+        .set({ reviewedAt: now, disposition: note.disposition, dispositionDetail: note.detail })
+        .where(
+          and(
+            eq(coachNotes.userId, userId),
+            eq(coachNotes.id, note.sourceId.slice(5)),
+            isNull(coachNotes.reviewedAt),
+          ),
+        );
+    else
+      await db
+        .insert(coachNoteReviews)
+        .values({
+          userId,
+          sourceId: note.sourceId,
+          disposition: note.disposition,
+          detail: note.detail,
+          reviewedAt: now,
+        })
+        .onConflictDoNothing({ target: [coachNoteReviews.userId, coachNoteReviews.sourceId] });
+  }
+  // Something only a programme review can grant stops waiting for the weekly cadence.
+  if (patch.reviewedNotes.some((note) => note.disposition === "queued_for_review"))
     await db
-      .update(coachNotes)
-      .set({ reviewedAt: now })
-      .where(
-        and(
-          eq(coachNotes.userId, userId),
-          inArray(coachNotes.id, patch.reviewedNoteIds),
-          isNull(coachNotes.reviewedAt),
-        ),
-      );
+      .update(coachPreferences)
+      .set({ reviewRequestedAt: now })
+      .where(eq(coachPreferences.userId, userId));
   return { items, memoryRevision: row.memoryRevision + 1 };
 }

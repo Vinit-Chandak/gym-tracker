@@ -29,6 +29,8 @@ import {
   programDays,
   runs,
   sessionPlans,
+  setLogs,
+  workoutExercises,
   workoutSessions,
 } from "@/db/schema";
 import type { Db, DbOrTx } from "@/db/types";
@@ -513,6 +515,9 @@ export async function acceptCoachJobResult(
     if (!existing)
       throw new CoachingError("There is no prepared session to keep. Submit a session plan.", 422);
   }
+  // Before the review below closes out any outstanding request: a review that reads a note and
+  // still cannot grant it must not queue itself again, or it would run every night from then on.
+  if (result.memory) await updateCoachMemory(db, userId, result.memory, "coach", now);
   if (job.kind === "review_program" && result.outcome !== "needs_input") {
     if (!job.target.reviewStart || !job.target.reviewEnd)
       throw new CoachingError("The review period is missing.", 422);
@@ -527,13 +532,13 @@ export async function acceptCoachJobResult(
     });
     await db
       .update(coachPreferences)
-      .set({ reviewAnchorAt: new Date(job.target.reviewEnd) })
+      // The review the athlete asked for has now happened, whatever it concluded.
+      .set({ reviewAnchorAt: new Date(job.target.reviewEnd), reviewRequestedAt: null })
       .where(eq(coachPreferences.userId, userId));
     await enqueueDailySession(db, userId, job.target.batchDate ?? lastCoachBoundary(now).date);
   }
   if (job.kind === "review_program" && result.outcome === "needs_input")
     await enqueueDailySession(db, userId, job.target.batchDate ?? lastCoachBoundary(now).date);
-  if (result.memory) await updateCoachMemory(db, userId, result.memory, "coach", now);
   await retainEvidenceBaselines(db, userId, trainingEvidence);
   if (acceptedChanges.length)
     await db
@@ -624,10 +629,16 @@ export async function enqueueDailySession(db: DbOrTx, userId: string, batchDate:
 /**
  * Whether anything was trained on one of the athlete's own calendar days.
  *
- * A rest day is a day with nothing logged on it — no workout started, no run recorded —
- * measured in the athlete's zone, because it is their day that was quiet. A programme that
- * merely calls the day a rest day does not count: the sequence slides, and what the plan
- * expected and what happened stop agreeing after the first missed session.
+ * A rest day is a day with no training work logged on it — no working set, no run — measured
+ * in the athlete's zone, because it is their day that was quiet. A programme that merely calls
+ * the day a rest day does not count: the sequence slides, and what the plan expected and what
+ * happened stop agreeing after the first missed session.
+ *
+ * What is counted is working sets rather than sessions. A rest-and-mobility day is a real slot
+ * with a real card, and opening it writes a session row; asking only whether a session exists
+ * made those days look like training and pushed the review out to its ceiling, week after
+ * week, for anyone whose programme carries one. A session holding nothing but warm-up or
+ * mobility work is a day the athlete rested, and a review belongs on it.
  */
 async function trainedOn(
   db: DbOrTx,
@@ -639,18 +650,22 @@ async function trainedOn(
   const to = fromDateTimeLocal(`${addDays(date, 1)}T00:00`, timeZone);
   // An unreadable zone is not evidence of rest; the ceiling still brings the review round.
   if (!from || !to) return true;
-  const [session] = await db
-    .select({ id: workoutSessions.id })
-    .from(workoutSessions)
+  const [set] = await db
+    .select({ id: setLogs.id })
+    .from(setLogs)
+    .innerJoin(workoutExercises, eq(workoutExercises.id, setLogs.workoutExerciseId))
+    .innerJoin(workoutSessions, eq(workoutSessions.id, workoutExercises.workoutSessionId))
     .where(
       and(
+        eq(setLogs.userId, userId),
         eq(workoutSessions.userId, userId),
         gte(workoutSessions.startedAt, from),
         lt(workoutSessions.startedAt, to),
+        ne(setLogs.setType, "warmup"),
       ),
     )
     .limit(1);
-  if (session) return true;
+  if (set) return true;
   const [run] = await db
     .select({ id: runs.id })
     .from(runs)
@@ -684,8 +699,19 @@ export async function dispatchCoachPage(db: Db, after: string | null = null, now
         const anchor = preference?.reviewAnchorAt ?? preference?.consentedAt ?? null;
         if (anchor) {
           const standing = reviewStanding(anchor, boundary.at);
+          // An athlete who has asked for something only a review can grant does not wait out
+          // the cadence for it. The request comes from a note the coach read and could not
+          // answer, and what it buys is a hearing, not an outcome: the review still has to
+          // find the evidence, and anything structural still arrives as a proposal.
+          const requested =
+            !!preference?.reviewRequestedAt &&
+            preference.reviewRequestedAt > anchor &&
+            // An interval has to have somewhere to start; a request made since the last
+            // boundary is heard at the next one.
+            boundary.at > anchor;
           const due =
             standing === "due" ||
+            requested ||
             (standing === "needs_a_quiet_day" &&
               !(await trainedOn(
                 tx,

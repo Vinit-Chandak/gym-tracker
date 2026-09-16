@@ -5,6 +5,7 @@ import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
+import { NOTE_DISPOSITION_LABELS } from "@/domain/coach-memory";
 import { getCoachRoutine, getCoachServiceToken } from "@/lib/env";
 import { formatDateTime } from "@/lib/format";
 import { requireUser } from "@/server/auth";
@@ -72,7 +73,17 @@ export default async function AiCoachSettingsPage() {
             id: note.id,
             text: note.text,
             when: formatDateTime(note.createdAt, profile.timeZone),
-            reviewed: note.reviewedAt !== null,
+            // What became of it, not merely that it was read: a request the coach has parked
+            // until your programme review reads very differently from one it declined.
+            outcome:
+              note.reviewedAt === null
+                ? null
+                : [
+                    note.disposition ? NOTE_DISPOSITION_LABELS[note.disposition] : "Reviewed",
+                    note.dispositionDetail,
+                  ]
+                    .filter(Boolean)
+                    .join(" — "),
           }))}
           overview={memo.overview}
           overviewUpdatedAt={
