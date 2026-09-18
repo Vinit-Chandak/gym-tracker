@@ -267,7 +267,7 @@ it("closes a note with an outcome, and makes the waiting ones explain themselves
       },
     ],
   });
-  expect(closed.reviewedNotes.map((note) => note.sourceId.split(":")[0])).toEqual([
+  expect(closed.reviewedNotes.map((note) => note.id.split(":")[0])).toEqual([
     "note",
     "exercise",
     "workout",
@@ -284,6 +284,27 @@ it("closes a note with an outcome, and makes the waiting ones explain themselves
       reviewedNotes: [{ id: `run:${crypto.randomUUID()}`, disposition: "remembered" }],
     }),
   ).toThrow(/own notes/);
+});
+
+it("survives the second parse the memo write performs on an already-parsed result", () => {
+  // The workflow route parses a result, then the memo write parses the patch again. A field
+  // that renamed itself on the way through failed that second parse on every entry, so no note
+  // could ever be closed; only an empty array got past it.
+  const patch = {
+    expectedRevision: 0,
+    reviewedNotes: [
+      { id: crypto.randomUUID(), disposition: "remembered" },
+      { id: `workout:${crypto.randomUUID()}`, disposition: "applied" },
+      { id: `exercise:${crypto.randomUUID()}`, disposition: "no_action", detail: "Already held." },
+    ],
+  };
+  const once = memoryPatchSchema.parse(patch);
+  expect(memoryPatchSchema.parse(once)).toEqual(once);
+  expect(once.reviewedNotes.map((note) => note.id.split(":")[0])).toEqual([
+    "note",
+    "workout",
+    "exercise",
+  ]);
 });
 
 it("accepts a note written during training as the words behind a remembered preference", () => {
