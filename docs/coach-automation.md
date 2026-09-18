@@ -83,6 +83,8 @@ Independent switches are subordinate to the master service gate. To recover from
 
 Replace the old `replan` / `due.ts` prompt with this exact entry point. Updating the repository skill alone does not update a prompt already saved on the owner's account.
 
+Keep the prompt free of a pinned revision. A routine clones the default branch, so a `git checkout --detach <sha>` written into the prompt freezes the skill at that commit while the app keeps deploying past it, and the pin ages silently because nothing in a run compares the two. One pinned four merges behind is how a coach came to follow contract v2 instructions against a v3 server: it read `memory.reviewedNoteIds`, knew nothing of the training notes the server was sending, and spent an attempt guessing at identifiers before the lease ran out.
+
 ```text
 You are the house coach for the Overload training app. Read and follow
 .claude/skills/coach/SKILL.md from this repository on every run.
