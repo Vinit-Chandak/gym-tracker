@@ -301,9 +301,9 @@ export async function updateCoachMemory(
     ...row.items.flatMap((item) => item.sourceIds),
     ...patch.upsert.flatMap((item) => item.sourceIds),
     ...patch.corrections.map((correction) => correction.sourceId),
-    ...patch.reviewedNotes.map((note) => note.sourceId),
+    ...patch.reviewedNotes.map((note) => note.id),
   ]);
-  if (patch.reviewedNotes.some((note) => !athleteSources.has(note.sourceId)))
+  if (patch.reviewedNotes.some((note) => !athleteSources.has(note.id)))
     throw new CoachingError("Only mark this athlete's existing notes as reviewed.", 422);
   let items: MemoryItem[];
   try {
@@ -323,14 +323,14 @@ export async function updateCoachMemory(
     })
     .where(eq(coachMemos.id, row.id));
   for (const note of patch.reviewedNotes) {
-    if (note.sourceId.startsWith("note:"))
+    if (note.id.startsWith("note:"))
       await db
         .update(coachNotes)
         .set({ reviewedAt: now, disposition: note.disposition, dispositionDetail: note.detail })
         .where(
           and(
             eq(coachNotes.userId, userId),
-            eq(coachNotes.id, note.sourceId.slice(5)),
+            eq(coachNotes.id, note.id.slice(5)),
             isNull(coachNotes.reviewedAt),
           ),
         );
@@ -339,7 +339,7 @@ export async function updateCoachMemory(
         .insert(coachNoteReviews)
         .values({
           userId,
-          sourceId: note.sourceId,
+          sourceId: note.id,
           disposition: note.disposition,
           detail: note.detail,
           reviewedAt: now,

@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { coachMemos, coachNotes, coachPreferences, gyms, workoutSessions } from "@/db/schema";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
+import { memoryPatchSchema } from "@/domain/coach-memory";
 import { withUser } from "@/db/with-user";
 import { saveCoachNotes } from "./coach-plans";
 import { readCoachMemory, updateCoachMemory } from "./coach-memory";
@@ -184,10 +185,11 @@ it("treats a note written during training as a message, and closes it with an ou
     expect(waiting.notes.training.hasMore).toBe(false);
 
     // It is the athlete speaking, so it can carry a remembered preference of its own.
+    // Exactly what the workflow route hands the memo write: a result it has already parsed.
     await updateCoachMemory(
       db,
       user.id,
-      {
+      memoryPatchSchema.parse({
         expectedRevision: 0,
         upsert: [
           {
@@ -207,7 +209,7 @@ it("treats a note written during training as a message, and closes it with an ou
             detail: "Adding a slot needs your approval.",
           },
         ],
-      },
+      }),
       "coach",
     );
 

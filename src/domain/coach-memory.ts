@@ -76,6 +76,22 @@ export const NOTE_DISPOSITION_LABELS: Record<NoteDisposition, string> = {
   no_action: "No action",
 };
 
+/**
+ * Parsing this twice must produce what parsing it once did.
+ *
+ * A result is validated at the workflow route and then again inside the memo write, and this
+ * was the one field in the patch that did not survive the round trip: it renamed `id` to
+ * `sourceId`, so the second parse met an object with no `id` at all and rejected every entry
+ * with `invalid_union` at `reviewedNotes[].id`. The rename read as a rejection of the
+ * identifier itself, so a coach that had done nothing wrong spent its corrections hunting for
+ * an ID shape that would be accepted; none exists, because the value was never the problem.
+ * The empty array was the only patch that could pass, which is why closing no notes worked and
+ * closing any note did not — on every athlete, on every job, whatever the identifier.
+ *
+ * So the field keeps the name it arrives under. Anything added here must reparse to itself:
+ * normalising a bare UUID to `note:<uuid>` is safe because the result parses to itself again,
+ * and renaming a key is not.
+ */
 export const reviewedNoteSchema = z
   .object({
     /** A bare UUID is a Tell the coach note; a training note names its own source type. */
@@ -87,8 +103,7 @@ export const reviewedNoteSchema = z
   .refine(
     (entry) => entry.detail.length > 0 || ["remembered", "applied"].includes(entry.disposition),
     "Say in one line why this note is waiting or was not acted on.",
-  )
-  .transform(({ id, disposition, detail }) => ({ sourceId: id, disposition, detail }));
+  );
 export type ReviewedNote = z.infer<typeof reviewedNoteSchema>;
 
 export const memoryPatchSchema = z.object({
