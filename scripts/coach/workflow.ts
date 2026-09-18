@@ -1,15 +1,33 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { z } from "zod";
+import { contractSkew } from "@/domain/coaching-workflow";
 import { api, appUrl, args, fail } from "./client";
 
 const a = args(),
   command = process.argv[2];
 const required = (key: string) => a.get(key) ?? fail(`Pass --${key}.`);
 const uuid = (key: string) => z.uuid().parse(required(key));
+
+/**
+ * Stop while an attempt is still cheap.
+ *
+ * The contract and the context both state the version the server validates against. Checking
+ * it here, at the two calls every job makes, turns a stale routine clone into one line of
+ * diagnosis instead of a session computed against field names the server discarded.
+ */
+const checked = (payload: unknown, key: "version" | "contractVersion") => {
+  const served = (payload as Record<string, unknown> | null)?.[key];
+  if (typeof served === "number") {
+    const skew = contractSkew(served);
+    if (skew) fail(skew);
+  }
+  return payload;
+};
+
 async function main() {
   let result: unknown;
-  if (command === "contract") result = await api("workflow/contract");
+  if (command === "contract") result = checked(await api("workflow/contract"), "version");
   else if (command === "dispatch")
     result = await api("workflow/dispatch", {
       method: "POST",
@@ -24,7 +42,8 @@ async function main() {
     else {
       const attempt = uuid("attempt"),
         query = `?attemptId=${attempt}`;
-      if (command === "context") result = await api(`${root}/context${query}`);
+      if (command === "context")
+        result = checked(await api(`${root}/context${query}`), "contractVersion");
       else if (command === "result")
         result = await api(`${root}/result${query}`, {
           method: "POST",
