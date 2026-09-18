@@ -44,6 +44,8 @@ npx tsx scripts/coach/workflow.ts contract --out /tmp/coach/<job>/contract.json
 npx tsx scripts/coach/workflow.ts context --user <user> --job <job> --attempt <attempt> --out /tmp/coach/<job>/context.json
 ```
 
+This skill is written for **contract version 3**, and both commands stop the run when the server serves a different one. That means this clone and the deployed app disagree, so the field names described here are not the names being validated. Report the skew and stop. Never work around a rejected field by guessing at another name, stripping a prefix from an identifier, or spending corrections to find the shape by trial: an attempt is worth more than the guess.
+
 The context contains confirmed intake, self-reported baselines, policy, retained-report metadata, current structure, equipment/catalogue, pending components, evidence coverage, review interval and prior decisions.
 
 Read relevant reports through the scoped endpoint:

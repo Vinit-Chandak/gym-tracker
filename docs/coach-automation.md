@@ -30,6 +30,8 @@ All workflow endpoints are under `/api/coach/service/workflow`. They require the
 | POST result    | `/users/:user/jobs/:job/result?attemptId=:attempt`          | Validate and accept a result; inspect `accepted`, not HTTP status alone                                      |
 | POST fail      | `/users/:user/jobs/:job/fail?attemptId=:attempt`            | Record a bounded transient retry or terminal failure                                                         |
 
+The contract is versioned, and `scripts/coach/workflow.ts` refuses one this checkout was not written for. A routine clones the repository for its skill while the app deploys on its own schedule, so a run fired before a deploy — or one reusing a cached workspace — can follow instructions the server has since renamed past. It now stops on the first contract or context read with a line naming both versions, instead of computing a complete result against fields the service will discard. Bump `COACH_CONTRACT_VERSION` and the routine's next run must clone the default branch again.
+
 The job kinds are `create_program`, `prepare_session`, and `review_program`. Claim state, attempt IDs, leases, source revisions and exact target intent are enforced on the server. Outputs cannot invent their authority. Every pending lifting slot needs one keep/substitute/drop disposition; additions need explicit targets. Machine compatibility, measurement, warm-up and run occurrence are validated against the actual athlete's records.
 
 One short write transaction per athlete serializes Start, source edits, activation and acceptance. Model computation and routine dispatch happen outside these transactions. Late, superseded, wrong-gym, wrong-programme, expired and post-Start results cannot change the active workout. Activation archives the old version atomically and preserves logged records and eligible slot lineage. The database enforces one active programme per athlete.
@@ -80,6 +82,8 @@ Independent switches are subordinate to the master service gate. To recover from
 ### Saved routine prompt
 
 Replace the old `replan` / `due.ts` prompt with this exact entry point. Updating the repository skill alone does not update a prompt already saved on the owner's account.
+
+Keep the prompt free of a pinned revision. A routine clones the default branch, so a `git checkout --detach <sha>` written into the prompt freezes the skill at that commit while the app keeps deploying past it, and the pin ages silently because nothing in a run compares the two. One pinned four merges behind is how a coach came to follow contract v2 instructions against a v3 server: it read `memory.reviewedNoteIds`, knew nothing of the training notes the server was sending, and spent an attempt guessing at identifiers before the lease ran out.
 
 ```text
 You are the house coach for the Overload training app. Read and follow

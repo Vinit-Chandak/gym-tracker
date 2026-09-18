@@ -10,6 +10,30 @@ import { PLAN_LIMITS } from "./plan-limits";
 import { memoryPatchSchema, sourceQuoteSchema } from "./coach-memory";
 
 export const COACH_CONTRACT_VERSION = 3;
+
+/**
+ * Whether the server is serving a contract this checkout was written against.
+ *
+ * The routine clones the repository to read its skill, and the app deploys on its own
+ * schedule, so the two drift apart. When they did, a run followed a skill that still named
+ * `memory.reviewedNoteIds` and knew nothing of `memo.notes.training` against a server that had
+ * moved on — and found out the expensive way: a complete session computed, rejected on
+ * validation, corrected twice against guessed field names, then lost with the lease. Both the
+ * contract and every job context have always carried the version; it simply had nothing to
+ * disagree with. This constant ships in the same checkout as the skill, so comparing the two
+ * names a stale clone before an attempt is spent discovering it.
+ */
+export function contractSkew(served: number): string | null {
+  if (served === COACH_CONTRACT_VERSION) return null;
+  const stale = served > COACH_CONTRACT_VERSION;
+  return (
+    `Contract version ${served} from the coach service, ${COACH_CONTRACT_VERSION} in this checkout. ` +
+    (stale
+      ? "This routine is running a stale clone, so its skill describes fields the server no longer accepts. Re-run it on the repository's default branch."
+      : "This checkout is ahead of the deployed app. Wait for the deployment to finish.") +
+    " Stop and report the skew; do not guess at field names."
+  );
+}
 export const COACH_POLICY_VERSION = "2026-09-16.1";
 export const JOB_KINDS = ["create_program", "prepare_session", "review_program"] as const;
 export const JOB_STATUSES = [
