@@ -18,10 +18,10 @@ The user supplied seven mobile screenshots and requested two improvements:
 2. The full current programme should have one home. Programme reviews should show only actual
    differences, grouped by day, instead of repeating the current, proposed, and draft programmes.
 
-The rep/load progression policy and its research basis are a separate, later task after the user
-provides their spreadsheet. This plan neither changes progression thresholds nor treats the
-current engineering limits as research-proven prescriptions. No exercise selection, sets, reps,
-load, placement, or medical restriction is being prescribed for the user in this document.
+The original scope deferred rep/load research until the user supplied their spreadsheet. That
+workbook has now been reviewed and condensed into [Coach training reference](COACH_TRAINING_REFERENCE.md).
+Section 9 records the follow-up integration proposal. This document does not change progression
+thresholds or prescribe an individual exercise, load, rep range or medical restriction.
 
 ## 2. Confirmed product decisions
 
@@ -451,9 +451,9 @@ file list. Report the verified commit, branch, and document path.
 
 The acceptance checkboxes in section 7.1 and test scenarios in section 7.2 belong to the later
 implementation. This planning task does not claim that those application changes or tests have
-been completed. Only this Markdown document belongs in the planning commit; preserve existing
-unrelated untracked work. Publishing, deployment, and the later progression research are outside
-this handoff.
+been completed. The original planning commit contains only this Markdown document. The subsequent
+documentation-only follow-up adds the training reference and section 9; preserve existing unrelated
+untracked work. Publishing and deployment are outside this handoff.
 
 ## 8. Source map
 
@@ -483,3 +483,80 @@ The current implementation, not older planning prose, establishes the baseline d
 - [Existing interface conventions](../decisions/0016-today-and-the-programme.md) and
   [previous AI coach plan](AI_COACH_IMPLEMENTATION_PLAN.md). Older schedule/authority statements
   in these documents must not override the current code or the user's decisions for this work.
+
+## 9. Training-reference follow-up
+
+Added 19 September 2026 after review of the supplied exercise-evidence workbook. The user asked
+for a concise reference passed directly to the model, periodic updates, gradual improvement and
+minimal UI explanation. The reference is prepared; the integration and 30-day diagnostic
+retention below are recommendations for later implementation, not deployed behaviour.
+
+### 9.1 One compact reference
+
+Use [COACH_TRAINING_REFERENCE.md](COACH_TRAINING_REFERENCE.md) as the complete shared training
+reference supplied to the model. It condenses the workbook's general rules, muscle-family
+planning, useful trial findings and exercise exceptions. Repeated catalogue rows, empty optimum
+columns, spreadsheet formulas/examples, bibliographic detail and historical personal restrictions
+are omitted. Existing app exercise IDs, equipment and current athlete records remain authoritative.
+Target about 1,500 words or less; replace obsolete guidance instead of continually appending it.
+
+Add this text once to the server's existing context for `create_program`, `review_program` and
+`prepare_session`. No spreadsheet parsing, vector database, retrieval round trip or extra scheduled
+model run is needed. Supply the deployed server copy so a routine's older checkout cannot silently
+use different guidance. Keep the same reference for an already claimed attempt; later claims use
+the updated version. Check the actual context to ensure the reference is present exactly once.
+
+Consolidate overlapping scientific prose in the current coaching policy when implementing this.
+Keep server permissions, numerical limits, confirmation checks and measurement validation in
+code. A broad research range must not become the exercise's default target band. The workbook's
+optional progression method must not silently replace existing progression logic. Any behavioural
+change to that logic needs explicit implementation scope and focused evaluation.
+
+### 9.2 Minimal user-facing information
+
+| Situation                  | Display                                                                                                               |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Normal workout             | Exercise and targets. Add at most one short actionable note when useful.                                              |
+| Changed target             | Old target → new target, with one short practical reason.                                                             |
+| Routine unchanged exercise | No extra research explanation or repeated hold message.                                                               |
+| Explicit request           | A concise outcome: included in a proposal, declined/deferred with the actual reason, or the specific question needed. |
+| Programme review           | The agreed day-grouped diff. A no-change review gets one short summary.                                               |
+
+Do not add research badges, citation lists, version labels or a new audit screen. Explain more
+when asked. Explicit programme requests still receive assessment only in the next scheduled
+daily run and proposed structural changes still require approval. Concision must not hide an
+unanswered request, failed run or blocking question.
+
+### 9.3 Keep optional diagnostics for 30 days
+
+Recommend a small internal record per completed coach attempt: reference version, outcome/error
+and compact validation diagnostics. Do not require a bibliography or separate research-reference
+list for every decision, or capture hidden model reasoning. Avoid duplicating full prompts,
+workout histories and reports just for debugging.
+
+Expire these optional records 30 days after completion, with a daily cleanup independent of
+whether any athlete's coach job succeeds. Keep them out of ordinary UI and future model context.
+Use the same expiry for any new duplicate diagnostic payloads or application logs. Provider logs
+and backups have separate lifecycles and must be checked before claiming end-to-end deletion.
+
+This expiry does not delete workout history, current prescriptions, programme revisions, durable
+preferences, unresolved requests, draft/approval state, operational receipts or training-evidence
+baselines. Those support normal product behaviour, including evidence windows longer than 30
+days, and follow their existing lifecycle. Do not cascade a diagnostic cleanup into them or remove
+the existing identifiers used to validate athlete evidence. Shared reference revisions remain in
+Git, with no per-athlete research history in the UI.
+
+### 9.4 Improve in small, evaluated steps
+
+Update the single reference when a reviewed workbook or a useful correction arrives. Bump its
+internal version, review the diff and deploy through the usual release path. A reference update
+alone does not rewrite programmes or trigger extra coach runs. Confirm the next eligible run
+receives the new text.
+
+Before rollout, compare representative decisions with the current coach: a feasible curl/core
+request, a chosen low rep ceiling, missing effort, assisted movements, timed core work, mixed
+running/lifting goals, and stale personal information in a reference document. Check that reasons
+stay short, existing permissions hold, and no broad range is treated as a mandatory rep ladder.
+Test diagnostic expiry at the 30-day boundary, repeated cleanup, and preservation of active drafts,
+pending requests, historical workouts and longer training windows. Measure context size and actual
+decision quality before expanding the reference or adding more infrastructure.
