@@ -40,11 +40,13 @@ import { expireCoachDiagnostics, recordAttemptDiagnostics } from "./coach-diagno
 import { coachJobContext } from "./coaching-context";
 import {
   acceptCoachJobResult,
+  athleteReviewStatus,
   claimCoachJob,
   dispatchCoachPage,
   enqueueCoachJob,
   enqueueDailySession,
   requestGymChange,
+  requestProgramReview,
 } from "./coaching-jobs";
 import { activateProgramDraft, getProgramDraft } from "./program-drafts";
 import { readProgramBlueprint } from "./programs";
@@ -679,6 +681,88 @@ it("reviews for a waiting request without consuming the scheduled review", async
   // The anchor has not moved: the week this run did not read is still owed a real review.
   expect(preference?.reviewAnchorAt?.toISOString()).toBe(anchor.toISOString());
   expect(await as(a, (tx) => listOpenRequests(tx, a.user.id))).toEqual([]);
+});
+
+it("gives the athlete one review of their own a week, and answers their asks with it", async () => {
+  const a = await training();
+  await as(a, (tx) =>
+    tx.update(profiles).set({ aiCoachEnabled: true }).where(eq(profiles.id, a.user.id)),
+  );
+  const noteId = await noteFrom(a);
+  await as(a, (tx) =>
+    tx.insert(coachProgramRequests).values({
+      id: crypto.randomUUID(),
+      userId: a.user.id,
+      sourceId: `note:${noteId}`,
+      quote: "more direct core work",
+      summary: "More direct core work",
+      state: "waiting",
+    }),
+  );
+  const before = await as(a, (tx) => athleteReviewStatus(tx, a.user.id));
+  expect(before).toMatchObject({ canAsk: true, running: false, nextAt: null });
+
+  const asked = await as(a, (tx) => requestProgramReview(tx, a.user.id));
+  expect(asked.created).toBe(true);
+  // It is the scheduled kind of work, so the asks it exists to answer are handed to it; and
+  // it is not the scheduled review, so the week the cadence owes is still owed.
+  expect(asked.job).toMatchObject({ kind: "review_program", trigger: "weekly" });
+  expect(asked.job.target.purpose).toBe("requests");
+  const claim = await as(a, (tx) => claimCoachJob(tx, a.user.id, asked.job.id));
+  const context = await as(a, (tx) =>
+    coachJobContext(tx, a.user.id, asked.job.id, claim!.attemptId!),
+  );
+  expect(context.requestsToAddress.items).toHaveLength(1);
+
+  // A second tap is the same review, not a second one.
+  const again = await as(a, (tx) => requestProgramReview(tx, a.user.id));
+  expect(again).toMatchObject({ created: false });
+  expect(again.job.id).toBe(asked.job.id);
+
+  await as(a, (tx) =>
+    acceptCoachJobResult(tx, a.user.id, asked.job.id, claim!.attemptId!, {
+      outcome: "no_change",
+      rationale: "The training day already carries it.",
+      evidence: [],
+      uncertainties: [],
+      requests: {
+        open: [],
+        decisions: [
+          {
+            requestId: context.requestsToAddress.items[0]!.id,
+            state: "already_satisfied",
+            detail: "Two direct core sets are already prescribed.",
+          },
+        ],
+      },
+    }),
+  );
+  const after = await as(a, (tx) => athleteReviewStatus(tx, a.user.id));
+  expect(after).toMatchObject({ canAsk: false, running: false });
+  expect(after.nextAt).not.toBeNull();
+  await expect(as(a, (tx) => requestProgramReview(tx, a.user.id))).rejects.toThrow(
+    /already asked for a review this week/i,
+  );
+  // A week on, they may ask again.
+  const later = await as(a, (tx) =>
+    athleteReviewStatus(tx, a.user.id, new Date(Date.now() + 8 * 86_400_000)),
+  );
+  expect(later.canAsk).toBe(true);
+});
+
+it("will not review while a workout is open", async () => {
+  const a = await training();
+  await as(a, (tx) =>
+    tx.update(profiles).set({ aiCoachEnabled: true }).where(eq(profiles.id, a.user.id)),
+  );
+  await as(a, (tx) =>
+    tx
+      .insert(workoutSessions)
+      .values({ userId: a.user.id, gymId: a.gym.id, startedAt: new Date() }),
+  );
+  await expect(as(a, (tx) => requestProgramReview(tx, a.user.id))).rejects.toThrow(
+    /Finish or discard your open workout/i,
+  );
 });
 
 it("keeps an ask saved after the input snapshot for the next daily run", async () => {
