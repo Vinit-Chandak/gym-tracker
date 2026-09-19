@@ -3,7 +3,10 @@ import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
+import { ACTIVITY_SPORT_LABELS } from "@/domain/activity";
 import { liftingAdherence, trainingAnalytics } from "@/domain/analytics";
+import { multisportRollout } from "@/lib/multisport-rollout";
+import { readActivityTotals } from "@/server/repositories/activity-analytics";
 import { addDays, todayInTimeZone } from "@/domain/program-calendar";
 import { weekStart } from "@/domain/running";
 import { formatDateRange } from "@/lib/format";
@@ -39,15 +42,30 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
   const bodyTo = addDays(bodyFrom, 6);
   const bodyRange = parseDateRange({ from: bodyFrom, to: bodyTo }, profile.timeZone);
 
-  const [training, schedule, body, bodyWeights] = await withUser(getDb(), user.id, (tx) =>
+  const canonical = multisportRollout().canonicalWrites;
+  const [training, schedule, body, bodyWeights, totals] = await withUser(getDb(), user.id, (tx) =>
     Promise.all([
       readTrainingData(tx, user.id, range),
       getSchedule(tx, user.id),
       readMuscleVolume(tx, user.id, bodyRange),
       listBodyWeights(tx, user.id, range),
+      // Complete per-sport totals, read only where the canonical tables are the authority.
+      // Before the switch these would be a partial picture presented as a full one (§10.1).
+      canonical ? readActivityTotals(tx, user.id, { from: range.from, to: range.to }) : null,
     ]),
   );
   const preferredUnit = profile.preferredUnit === "lb" ? "lb" : "kg";
+  const sportTotals =
+    totals?.bySport.map((total) => ({
+      sport: total.sport,
+      label: ACTIVITY_SPORT_LABELS[total.sport],
+      count: total.count,
+      days: total.days,
+      durationMs: total.durationMs,
+      unknownDurations: total.unknownDurations,
+      distanceMetres: total.distanceMetres,
+      unknownDistances: total.unknownDistances,
+    })) ?? null;
   const analytics = trainingAnalytics(training, profile.timeZone, range.from, range.to);
 
   // Eight weeks of training builds dozens of exercise/machine series, each carrying five
@@ -79,6 +97,7 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
             trainingDays: analytics.trainingDays,
             truncated: analytics.truncated,
           }}
+          sportTotals={sportTotals}
           adherence={liftingAdherence(schedule)}
           weeks={analytics.weeks}
           recovery={analytics.recovery.map(

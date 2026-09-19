@@ -92,7 +92,8 @@ const row = (over: Partial<Activity>): Activity => ({
 
 it("reads a workout row and a run row the way the plan writes them", () => {
   render(<ActivityRow row={row({})} unit="kg" today="2026-09-15" />);
-  expect(screen.getByRole("link").getAttribute("href")).toBe("/u/phani03");
+  // The shared row's own id: a raw activity id would name a private record (AT-PRIV-04).
+  expect(screen.getByRole("link").getAttribute("href")).toBe("/u/phani03/activities/1");
   expect(screen.getByText("Upper A · 18 sets · 6,240 kg · 2 records")).toBeTruthy();
   expect(screen.getByText("Yesterday")).toBeTruthy();
   cleanup();
@@ -113,4 +114,50 @@ it("reads a workout row and a run row the way the plan writes them", () => {
   );
   expect(screen.getByText("Run · 5.2 km · 28:10 · 5:25 /km")).toBeTruthy();
   expect(screen.getByText("Today")).toBeTruthy();
+  cleanup();
+
+  /**
+   * AT-PRIV-02: a shared ride says it happened and how long it took, and no more.
+   *
+   * No pace, because indoors, outdoors and assisted are not comparable and a bare number
+   * would be read as though they were. An unknown distance is simply absent rather than zero.
+   */
+  render(
+    <ActivityRow
+      row={row({
+        sport: "cycle",
+        title: "Ride",
+        durationSeconds: 1800,
+        distanceMeters: 18200,
+        paceSecondsPerKm: null,
+        workingSets: 0,
+        volumeKg: 0,
+        records: 0,
+        occurredOn: "2026-09-15",
+      })}
+      unit="kg"
+      today="2026-09-15"
+    />,
+  );
+  expect(screen.getByText("Ride · 18.2 km · 30:00")).toBeTruthy();
+  cleanup();
+
+  render(
+    <ActivityRow
+      row={row({
+        sport: "swim",
+        title: "Swim",
+        durationSeconds: 1500,
+        distanceMeters: null,
+        paceSecondsPerKm: null,
+        workingSets: 0,
+        volumeKg: 0,
+        records: 0,
+        occurredOn: "2026-09-15",
+      })}
+      unit="kg"
+      today="2026-09-15"
+    />,
+  );
+  expect(screen.getByText("Swim · 25:00")).toBeTruthy();
 });

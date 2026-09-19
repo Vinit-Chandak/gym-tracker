@@ -31,6 +31,16 @@ function summary(row: Activity, unit: BodyLoadUnit): string[] {
         formatDuration(row.durationSeconds),
         `${formatPace(row.paceSecondsPerKm)} /km`,
       ];
+    // A shared ride or swim says it happened, how long it took, and how far where a distance
+    // is known. No pace: without the environment, the assistance or the pool it would be a
+    // number pretending to be comparable (SOCIAL-01, AT-PRIV-02).
+    case "cycle":
+    case "swim":
+      return [
+        row.title,
+        row.distanceMeters === null ? null : `${formatRunKm(row.distanceMeters)} km`,
+        formatDuration(row.durationSeconds),
+      ].filter((part): part is string => part !== null);
   }
 }
 
@@ -49,7 +59,9 @@ export function ActivityRow({
 }) {
   const { person } = row;
   return (
-    <Link href={`/u/${person.username}`} className={PRESSABLE_ROW_CLASS}>
+    // The shared row's own id, never the activity's: a raw id names a private record, and a
+    // link is a place where guessing one would be easiest (AT-PRIV-04).
+    <Link href={`/u/${person.username}/activities/${row.id}`} className={PRESSABLE_ROW_CLASS}>
       <Avatar username={person.username} displayName={person.displayName} size="row" />
       <span className="min-w-0 flex-1">
         <span className="flex flex-wrap items-baseline justify-between gap-x-2">

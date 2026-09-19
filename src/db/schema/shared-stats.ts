@@ -63,6 +63,15 @@ export const sharedSessionStats = pgTable(
     sport: trainingSportEnum("sport").notNull(),
     /** `workout_sessions.id` or `runs.id`; no FK, since the sport decides which. */
     sourceId: uuid("source_id").notNull(),
+    /**
+     * The canonical activity this projects, once one exists.
+     *
+     * Nullable and unconstrained here on purpose. The same-owner foreign key belongs to M2,
+     * after the backfill has been reconciled: a row whose source cannot be resolved is an
+     * anomaly to be looked at, not a constraint violation to be worked around at cutover
+     * (plan §§9.2, 10.1). `db:validate:multisport` adds it once the ledger is clean.
+     */
+    activityId: uuid("activity_id"),
     /** The programme day's name, or "Workout" / "Run". Never a note. */
     title: text("title").notNull(),
     /** The civil date of `started_at` in the owner's time zone. */

@@ -24,10 +24,15 @@ import {
   type LogOrigin,
   type TimeZoneSource,
 } from "@/domain/activity";
-import { actualDurationMs, validateActual, type EnduranceActual } from "@/domain/activity-metrics";
+import {
+  actualDurationMs,
+  distanceFromLengths,
+  validateActual,
+  type EnduranceActual,
+} from "@/domain/activity-metrics";
 import { canLog } from "@/domain/occurrences";
 
-import { deleteRunStats, writeRunStats } from "./shared-stats";
+import { deleteActivityStats, writeEnduranceStats, writeRunStats } from "./shared-stats";
 
 /**
  * The one place an activity is created, corrected or removed (plan §6.5).
@@ -327,9 +332,13 @@ async function writeDetail(
  * What a follower may see of this activity.
  *
  * Running keeps the projection it already had, under the same legacy discriminator, so a feed
- * and a leaderboard read exactly what they read before. Cycling and swimming project nothing
- * yet: their sharing defaults to off, and their projection arrives with the rest of the
- * social work (§9.2).
+ * and a leaderboard read exactly what they read before, and under the sharing choice the
+ * account already made. Cycling and swimming project participation only — that it happened,
+ * how long it took, and how far where a distance is known — and only where the athlete has
+ * opted that sport in, which it is not by default (§9.2, SOCIAL-02).
+ *
+ * A projection is rewritten on every save, and removed on every delete, so a corrected or
+ * withdrawn record cannot leave a stale row behind (AT-PRIV-05).
  */
 async function projectSharedStats(
   tx: DbOrTx,
@@ -339,22 +348,55 @@ async function projectSharedStats(
   startedAt: Date,
   timeZone: string,
 ): Promise<void> {
-  if (actual.sport !== "running") return;
-  await writeRunStats(
+  if (actual.sport === "running") {
+    await writeRunStats(
+      tx,
+      userId,
+      {
+        id: activityId,
+        startedAt,
+        durationSeconds: Math.round(actual.durationMs / 1000),
+        distanceMeters: actual.distance.metres,
+      },
+      timeZone,
+    );
+    return;
+  }
+  const elapsedMs = actual.sport === "swimming" ? actual.elapsedMs : actual.durationMs;
+  await writeEnduranceStats(
     tx,
     userId,
+    actual.sport === "cycling" ? "cycle" : "swim",
     {
       id: activityId,
       startedAt,
-      durationSeconds: Math.round(actual.durationMs / 1000),
-      distanceMeters: actual.distance.metres,
+      durationSeconds: Math.round(elapsedMs / 1000),
+      distanceMeters: sharedDistanceMetres(actual),
     },
     timeZone,
   );
 }
 
+/**
+ * The distance a shared row may carry, or null.
+ *
+ * A length-counted swim has no asserted distance of its own; the lengths and the pool are the
+ * authority, and the same arithmetic the form does is done here rather than sharing nothing
+ * (SWIM-01). An unknown distance stays null and never becomes zero.
+ */
+function sharedDistanceMetres(actual: EnduranceActual): number | null {
+  if (actual.sport === "cycling") return actual.distance?.metres ?? null;
+  if (actual.sport === "swimming") {
+    if (actual.distanceMethod === "manual") return actual.distance?.metres ?? null;
+    if (actual.distanceMethod === "lengths" && actual.lengths !== null && actual.poolLength)
+      return distanceFromLengths(actual.lengths, actual.poolLength);
+    return null;
+  }
+  return actual.distance.metres;
+}
+
 async function clearSharedStats(tx: DbOrTx, userId: string, activityId: string): Promise<void> {
-  await deleteRunStats(tx, userId, activityId);
+  await deleteActivityStats(tx, userId, activityId);
 }
 
 export async function createActivity(

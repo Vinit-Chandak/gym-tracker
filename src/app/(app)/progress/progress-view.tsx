@@ -47,6 +47,17 @@ export type Week = {
   muscles: Record<MuscleGroup, number>;
 };
 
+export type SportTotal = {
+  sport: string;
+  label: string;
+  count: number;
+  days: number;
+  durationMs: number;
+  unknownDurations: number;
+  distanceMetres: number | null;
+  unknownDistances: number;
+};
+
 export type Adherence = {
   name: string;
   total: number;
@@ -60,6 +71,14 @@ type Props = {
   /** The range every trend on this screen is drawn over; the filter sheet changes it. */
   range: { from: string; to: string };
   summary: { workouts: number; runs: number; trainingDays: number; truncated: boolean };
+  /**
+   * Per-sport totals over the whole range, computed in SQL (plan §9.1).
+   *
+   * Absent before canonical writes are the authority, because there is nothing canonical to
+   * total yet. When present these are complete, which is why they are shown beside the list
+   * caps rather than instead of them: a list is a sample and a total is a total.
+   */
+  sportTotals: readonly SportTotal[] | null;
   adherence: Adherence | null;
   weeks: Week[];
   recovery: {
@@ -118,6 +137,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 export function ProgressView({
   range,
   summary,
+  sportTotals,
   adherence,
   weeks,
   recovery,
@@ -215,8 +235,54 @@ export function ProgressView({
 
             {summary.truncated && (
               <p role="status" className="text-sm text-warning">
-                Over 500 workouts or runs in this range; narrow the dates for complete totals.
+                Over 500 workouts or runs in this range; the charts below draw a sample. The totals
+                by sport are complete.
               </p>
+            )}
+
+            {sportTotals && sportTotals.some((total) => total.count > 0) && (
+              <Card>
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="text-base font-medium">By sport</h2>
+                  <InfoTip label="What these totals count">
+                    Every activity in this range, counted in full rather than sampled. Recorded
+                    training time, not unique wall-clock time — overlapping sessions are counted
+                    once each. Distance is per sport and never added across them.
+                  </InfoTip>
+                </div>
+                <ul className="space-y-2">
+                  {sportTotals
+                    .filter((total) => total.count > 0)
+                    .map((total) => (
+                      <li key={total.sport} className="flex flex-wrap items-baseline gap-x-2">
+                        <span className="font-medium">{total.label}</span>
+                        <span className="text-sm text-ink-muted tabular-nums">
+                          {total.count} {total.count === 1 ? "session" : "sessions"} · {total.days}{" "}
+                          {total.days === 1 ? "day" : "days"} ·{" "}
+                          {formatMinutes(total.durationMs / 60_000)}
+                          {total.distanceMetres !== null && total.distanceMetres > 0
+                            ? ` · ${Math.round(total.distanceMetres / 100) / 10} km`
+                            : ""}
+                        </span>
+                        {/* What the totals could not include, said rather than hidden. */}
+                        {(total.unknownDistances > 0 || total.unknownDurations > 0) && (
+                          <span className="w-full text-xs text-ink-subtle">
+                            {[
+                              total.unknownDistances > 0
+                                ? `${total.unknownDistances} without a distance`
+                                : null,
+                              total.unknownDurations > 0
+                                ? `${total.unknownDurations} without a duration`
+                                : null,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                </ul>
+              </Card>
             )}
 
             {adherence && (
