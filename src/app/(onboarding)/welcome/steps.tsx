@@ -4,6 +4,9 @@ import { cn } from "@/lib/utils";
 
 export const ONBOARDING_STEPS = [
   { key: "profile", label: "You" },
+  // What you train decides which of the next two steps you are asked at all: a gym and its
+  // machines belong to lifting, and a swimmer is not sent looking for one (SCOPE-02).
+  { key: "sports", label: "Sports" },
   { key: "gym", label: "Gym" },
   { key: "equipment", label: "Machines" },
   { key: "programme", label: "Plan" },
@@ -11,7 +14,7 @@ export const ONBOARDING_STEPS = [
 
 export type OnboardingStep = (typeof ONBOARDING_STEPS)[number]["key"];
 
-/** Where the user is in the first-run flow. Four dots, not a progress bar: it is short. */
+/** Where the user is in the first-run flow. Dots, not a progress bar: it is short. */
 export function Steps({ current }: { current: OnboardingStep }) {
   const index = ONBOARDING_STEPS.findIndex((step) => step.key === current);
   return (

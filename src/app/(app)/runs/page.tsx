@@ -1,5 +1,6 @@
 import { Footprints } from "@/components/ui/icons";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
 import { PageContent } from "@/components/shell/page-content";
 import { runSummary } from "@/components/run-plan";
@@ -17,6 +18,7 @@ import { formatDuration, formatPace } from "@/domain/pace";
 import { RUN_VOLUME_SPIKE_RATIO } from "@/domain/running";
 import { formatDay, formatIsoDate, formatRunKm } from "@/lib/format";
 import { RUN_MODE_LABELS, WEEKDAY_SHORT } from "@/lib/labels";
+import { multisportRollout } from "@/lib/multisport-rollout";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { getRunsOverview } from "@/server/repositories/runs";
@@ -33,7 +35,15 @@ function volumeLine(week: { runs: number; minutes: number; km: number }): string
   return `${week.minutes} min · ${week.km} km · ${week.runs} ${week.runs === 1 ? "run" : "runs"}`;
 }
 
+/**
+ * The old Runs tab (plan §3.2). Once the shared surfaces are on, this is a compatibility
+ * alias and nothing else: a bookmark, a stored coach link or an old tab lands here and is
+ * sent to Training filtered to running.
+ */
 export default async function RunsPage() {
+  // A bookmark, a stored coach link or an old tab lands here; Training filtered to running is
+  // where it now belongs (plan §3.2).
+  if (multisportRollout().sharedNavigation) redirect("/training?sport=running");
   const user = await requireUser();
   const requestProfile = await getRequestProfile(user.id, user.email);
   const { overview, timeZone, plan, coach } = await withUser(getDb(), user.id, async (tx) => {

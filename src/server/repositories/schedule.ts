@@ -28,6 +28,8 @@ import { sharedWarmupProtocols } from "@/server/queries/reference";
 
 export type ActiveProgram = {
   id: string;
+  /** The lineage across versions: what an occurrence belongs to, rather than one version. */
+  familyId: string;
   name: string;
   slug: string;
   startDate: string | null;
@@ -41,6 +43,7 @@ export async function getActiveProgram(db: DbOrTx, userId: string): Promise<Acti
   const [row] = await db
     .select({
       id: programs.id,
+      familyId: programs.familyId,
       name: programs.name,
       slug: programs.slug,
       startDate: programs.startDate,
@@ -85,6 +88,7 @@ export async function getSchedule(db: DbOrTx, userId: string): Promise<Schedule 
   const [row] = await db
     .select({
       id: programs.id,
+      familyId: programs.familyId,
       name: programs.name,
       slug: programs.slug,
       startDate: programs.startDate,
@@ -125,6 +129,7 @@ export async function getSchedule(db: DbOrTx, userId: string): Promise<Schedule 
   if (!row) return null;
   const program: ActiveProgram = {
     id: row.id,
+    familyId: row.familyId,
     name: row.name,
     slug: row.slug,
     startDate: row.startDate,

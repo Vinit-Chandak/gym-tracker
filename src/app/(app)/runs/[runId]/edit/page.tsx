@@ -1,6 +1,6 @@
 import { formatRunKm } from "@/lib/format";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
@@ -8,7 +8,10 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { toDateTimeLocal } from "@/lib/time";
 import { saveRunAction } from "@/server/actions/runs";
+import { LegacyUnavailable } from "@/components/activities/legacy-unavailable";
+import { multisportRollout } from "@/lib/multisport-rollout";
 import { requireUser } from "@/server/auth";
+import { activityForLegacyRun } from "@/server/legacy-routes";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { getRun, listRuns, plannedRunsForCycle } from "@/server/repositories/runs";
 import { getSchedule } from "@/server/repositories/schedule";
@@ -24,6 +27,16 @@ export default async function EditRunPage(props: PageProps<"/runs/[runId]/edit">
   const { runId } = await props.params;
   requireUuid(runId);
   const user = await requireUser();
+  if (multisportRollout().sharedNavigation) {
+    const activityId = await withUser(
+      getDb(),
+      user.id,
+      (tx) => activityForLegacyRun(tx, user.id, runId),
+      { readOnly: true },
+    );
+    if (!activityId) return <LegacyUnavailable />;
+    redirect(`/training/activities/${activityId}/edit`);
+  }
   const requestProfile = await getRequestProfile(user.id, user.email);
   const data = await withUser(getDb(), user.id, async (tx) => {
     const [run, logged, schedule] = await Promise.all([

@@ -9,6 +9,7 @@ export const metadata: Metadata = { title: "Preview · Today" };
 
 const PROGRAM: TodayPlan["program"] = {
   id: "00000000-0000-4000-8000-000000000001",
+  familyId: "00000000-0000-4000-8000-00000000000f",
   name: "8-Week Strength + Aesthetics Hybrid",
   slug: "strength-aesthetics-hybrid-8wk",
   startDate: "2026-09-08",

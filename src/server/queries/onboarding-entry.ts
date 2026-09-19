@@ -2,7 +2,9 @@ import type { Route } from "next";
 
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
+import { multisportRollout } from "@/lib/multisport-rollout";
 import { listGyms } from "@/server/repositories/gyms";
+import { enabledSportsFor } from "@/server/repositories/sport-preferences";
 
 /**
  * Where a setup that was left unfinished picks up again.
@@ -13,6 +15,14 @@ import { listGyms } from "@/server/repositories/gyms";
  * about the gym already added — took the same name a second time and made a duplicate.
  */
 export async function onboardingEntry(userId: string): Promise<Route> {
+  // A sport-only account never reaches the gym steps, so their absence says nothing about how
+  // far setup got. It picks up at the plan step instead (SCOPE-02).
+  if (multisportRollout().sharedNavigation) {
+    const sports = await withUser(getDb(), userId, (tx) => enabledSportsFor(tx, userId), {
+      readOnly: true,
+    });
+    if (!sports.includes("strength")) return "/welcome/programme";
+  }
   const gyms = await withUser(getDb(), userId, (tx) => listGyms(tx, userId), { readOnly: true });
   if (gyms.length === 0) return "/welcome";
   const gym = gyms.find((candidate) => candidate.isDefault) ?? gyms[0]!;
