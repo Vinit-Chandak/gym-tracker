@@ -228,9 +228,9 @@ const ISSUE_QUERIES: readonly IssueQuery[] = [
   },
   {
     category: "id_collision_run_session",
-    blocking: true,
+    blocking: false,
     description:
-      "One UUID is both a run and a workout session. The canonical parent keeps the run's id only when it is free, so these need the namespaced mapping.",
+      "One UUID is both a run and a workout session. The run keeps its id, the session's parent is minted, and the ledger records both — the deterministic mapping in §10.3, not a decision anybody has to make.",
     rows: (userId) => sql`
       select r.user_id, 'runs' as source, r.id::text as id, s.id::text as related_id
       from public.runs r

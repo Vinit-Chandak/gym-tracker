@@ -55,6 +55,8 @@ export const programs = pgTable(
   },
   (t) => [
     uniqueIndex("programs_user_slug_version_uq").on(t.userId, t.slug, t.version),
+    // Lets a relation carry the owner in its key, so a foreign programme fails in the database.
+    uniqueIndex("programs_owner_id_uq").on(t.userId, t.id),
     uniqueIndex("programs_one_active_per_user_uq")
       .on(t.userId)
       .where(sql`status = 'active'`),
@@ -93,6 +95,7 @@ export const programDays = pgTable(
   },
   (t) => [
     uniqueIndex("program_days_program_day_uq").on(t.programId, t.dayIndex),
+    uniqueIndex("program_days_owner_id_uq").on(t.userId, t.id),
     check("program_days_day_of_week_chk", sql`day_of_week is null or day_of_week between 1 and 7`),
     ownerPolicy("program_days"),
   ],

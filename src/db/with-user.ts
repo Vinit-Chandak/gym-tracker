@@ -49,10 +49,15 @@ export async function withUser<T>(
     try {
       return await db.transaction(
         async (tx) => {
+          // The canonical tables' write policies additionally require this marker, which is
+          // set here, after authentication, and only for a mutating request. It is
+          // transaction-local, so it cannot survive on a pooled connection, and a read-only
+          // transaction explicitly clears it (plan §6.3).
           await tx.execute(
             sql`select set_config('request.jwt.claims', ${claims}, true),
                      set_config('request.jwt.claim.sub', ${userId}, true),
                      set_config('request.jwt.claim.role', 'authenticated', true),
+                     set_config('app.server_write', ${options.readOnly ? "" : "on"}, true),
                      set_config('role', 'authenticated', true)`,
           );
           // Serialize short write transactions for an athlete. Start, programme activation,

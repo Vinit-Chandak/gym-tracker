@@ -84,14 +84,14 @@ Blocking categories stop the backfill and the cutover gate until a person resolv
 | `slot_event_orphan_run` / `slot_event_orphan_session` | A completion names a record that no longer exists; an event may not invent an activity |
 | `cross_owner_run_planned` / `cross_owner_run_session` / `cross_owner_slot_event_*` | A link crosses accounts; the raw record is kept and the link isolated, never reassigned |
 | `shared_stat_missing_source` | The same-owner source constraint (M2) cannot be validated |
-| `id_collision_run_session` | One UUID is both a run and a session; the namespaced map is required |
 | `unknown_blueprint_payload` | A stored draft matches no known contract; it is read by hand, not guessed |
 
 Non-blocking categories are mapped deterministically and are reported so the numbers are
 known in advance: `legacy_completion_without_run` (migration 0011's case → legacy-completed
 resolution, no fabricated activity), `legacy_unconfirmed_effort`, `run_zero_distance`,
 `run_outside_new_bounds`, `planned_run_without_program_day`, `unconfirmed_time_zone`,
-`session_plan_run_payload`.
+`session_plan_run_payload`, and `id_collision_run_session` — where one UUID is both a run and
+a session, the run keeps its id, the session's parent is minted, and the ledger records both.
 
 `projection` states what the backfill will write, for the cardinality half of the
 reconciliation contract: one canonical activity per raw run and per workout session, one

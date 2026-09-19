@@ -23,6 +23,7 @@
     "db:deploy": "tsx src/db/deploy.ts",
     "db:backfill:shared-stats": "tsx src/db/backfill-shared-stats.ts",
     "db:audit:multisport": "tsx src/db/multisport-audit.ts",
+    "db:backfill:multisport": "tsx src/db/backfill-multisport.ts",
     "db:studio": "drizzle-kit studio",
     "icons": "node scripts/render-icons.mjs"
   },

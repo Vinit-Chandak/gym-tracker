@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   boolean,
   check,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -13,6 +14,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+import { activities } from "./activities";
 import { ownerPolicy, timestamps } from "./common";
 import { loadUnitEnum, setTypeEnum } from "./enums";
 import { exercises } from "./exercises";
@@ -47,6 +49,12 @@ export const workoutSessions = pgTable(
     energy: integer("energy"),
     fatigue: integer("fatigue"),
     soreness: integer("soreness"),
+    /**
+     * The canonical activity this session is the strength detail of (plan §6.3). Null while
+     * legacy writes are still authoritative and for sessions that predate the backfill; the
+     * canonical path creates both in one transaction.
+     */
+    activityId: uuid("activity_id"),
     /** The single warm-up entry per session: done or not. */
     warmupCompleted: boolean("warmup_completed").notNull().default(false),
     notes: text("notes"),
@@ -54,6 +62,15 @@ export const workoutSessions = pgTable(
   },
   (t) => [
     index("workout_sessions_user_started_idx").on(t.userId, t.startedAt.desc()),
+    uniqueIndex("workout_sessions_owner_id_uq").on(t.userId, t.id),
+    uniqueIndex("workout_sessions_activity_uq")
+      .on(t.activityId)
+      .where(sql`activity_id is not null`),
+    foreignKey({
+      name: "workout_sessions_activity_fk",
+      columns: [t.userId, t.activityId],
+      foreignColumns: [activities.userId, activities.id],
+    }).onDelete("cascade"),
     check(
       "workout_sessions_scales_chk",
       sql`(sleep_quality is null or sleep_quality between 1 and 5)
