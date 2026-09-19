@@ -103,14 +103,23 @@ SELECT
   v."reviewed_at",
   now()
 FROM "coach_note_reviews" v
+-- The cast has to be safe on its own. A guard beside it in the same ON clause is not enough:
+-- Postgres does not promise to evaluate the two in order, so a `workout:` row reached the
+-- exercise join's `substring(... from 10)` and offered it a uuid with its first character cut
+-- off. Matching the prefix inside the pattern makes the operand NULL for every row this join
+-- is not about, whichever order the planner picks.
 LEFT JOIN "workout_sessions" ws
-  ON v."source_id" ~ '^workout:[0-9a-fA-F-]{36}$'
-  AND ws."id" = substring(v."source_id" from 9)::uuid
-  AND ws."user_id" = v."user_id"
+  ON ws."user_id" = v."user_id"
+  AND ws."id" = substring(
+    v."source_id"
+    from '^workout:([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$'
+  )::uuid
 LEFT JOIN "workout_exercises" we
-  ON v."source_id" ~ '^exercise:[0-9a-fA-F-]{36}$'
-  AND we."id" = substring(v."source_id" from 10)::uuid
-  AND we."user_id" = v."user_id"
+  ON we."user_id" = v."user_id"
+  AND we."id" = substring(
+    v."source_id"
+    from '^exercise:([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$'
+  )::uuid
 WHERE v."disposition" = 'queued_for_review'
   AND coalesce(ws."notes", we."notes", '') <> ''
   AND NOT EXISTS (
