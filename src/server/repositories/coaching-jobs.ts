@@ -604,8 +604,9 @@ export async function acceptCoachJobResult(
     await enqueueDailySession(db, userId, job.target.batchDate ?? lastCoachBoundary(now).date);
   // A session job can find an ask but cannot decide it. The review that can is enqueued for
   // this same batch, so the run draining the queue handles both rather than the athlete
-  // waiting a second night for a handover between two of the coach's own jobs.
-  if (job.kind === "prepare_session" && requests.remaining > 0)
+  // waiting a second night for a handover between two of the coach's own jobs. Only the
+  // scheduled daily job does this: an on-demand gym change is not a request for a hearing.
+  if (job.kind === "prepare_session" && job.trigger === "daily" && requests.remaining > 0)
     await enqueueRequestReview(db, userId, now);
   await retainEvidenceBaselines(db, userId, trainingEvidence);
   if (acceptedChanges.length)

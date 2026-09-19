@@ -106,8 +106,10 @@ it("gives a no-change review a reason and request outcomes, with nothing to appl
       })}
     />,
   );
-  expect(screen.getAllByText("No programme changes").length).toBeGreaterThan(0);
+  // Said once, at the top, and not repeated in an empty box beneath it.
+  expect(screen.getAllByText("No programme changes")).toHaveLength(1);
   expect(screen.getByText(/nothing needs to change/)).toBeTruthy();
+  expect(screen.getByText(/Your programme stays as it is/)).toBeTruthy();
   expect(screen.getByText("Add Bayesian cable curls")).toBeTruthy();
   expect(screen.getByText(/no adjustable low pulley/)).toBeTruthy();
   expect(screen.queryByRole("button", { name: /Approve|Use these changes/ })).toBeNull();

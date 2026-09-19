@@ -231,7 +231,13 @@ export async function coachJobContext(
   // A proposal the athlete can no longer approve is not an answer, so those asks go back on
   // the list before this attempt is told what it owes an outcome.
   await reopenOrphanedRequests(db, userId, now);
-  const requests = await claimRequestsForAttempt(db, userId, job.id, attemptId, today);
+  // Explicit requests are assessed by the scheduled daily work and by nothing else. An
+  // on-demand gym change, or a fresh programme, is not the athlete asking for that hearing,
+  // and handing it the list would make any tap on Today a trigger for a programme decision.
+  const scheduled = job.trigger === "daily" || job.trigger === "weekly";
+  const requests = scheduled
+    ? await claimRequestsForAttempt(db, userId, job.id, attemptId, today)
+    : { items: [], hasMore: false };
   return {
     contractVersion: COACH_CONTRACT_VERSION,
     /**
@@ -343,8 +349,9 @@ export async function coachJobContext(
     requestsToAddress: {
       items: requests.items,
       hasMore: requests.hasMore,
-      meaning:
-        job.kind === "prepare_session"
+      meaning: !scheduled
+        ? "This job is not the scheduled daily work, so it decides no explicit request. Anything the athlete has asked for is assessed at the next scheduled daily run."
+        : job.kind === "prepare_session"
           ? "Explicit asks already open. A session cannot decide one: open any new ask you find in the athlete's notes and leave the outcome to the programme review in this same daily run."
           : "Explicit asks this attempt must decide. Give each one exactly one decision in requests.decisions, and open any further ask you find in the athlete's notes in requests.open. Anything saved after this snapshot waits for the next daily run.",
     },

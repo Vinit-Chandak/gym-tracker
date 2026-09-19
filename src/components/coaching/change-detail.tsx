@@ -109,6 +109,11 @@ export function ChangeDetail(props: ChangeDetailProps) {
         {props.rationale && (
           <p className="text-sm [overflow-wrap:anywhere] whitespace-pre-wrap">{props.rationale}</p>
         )}
+        {props.diff.empty && (
+          <p className="text-sm text-ink-muted">
+            Your programme stays as it is. Nothing you have logged changes.
+          </p>
+        )}
         {props.uncertainties.length > 0 && (
           <ul className="list-disc space-y-1 pl-5 text-sm text-ink-muted">
             {props.uncertainties.map((line, index) => (
@@ -147,22 +152,19 @@ export function ChangeDetail(props: ChangeDetailProps) {
         </Card>
       )}
 
-      <ProgramDiffView
-        diff={props.diff}
-        names={props.names}
-        effectiveScope={
-          props.diff.empty
-            ? null
-            : transition === "continue"
+      {/* Nothing differs, so there is nothing to draw: the heading above has already said so,
+          and a second box repeating it is the duplication this screen exists to remove. */}
+      {!props.diff.empty && (
+        <ProgramDiffView
+          diff={props.diff}
+          names={props.names}
+          effectiveScope={
+            transition === "continue"
               ? "Takes effect from your next unstarted session. Workouts you have already logged keep what they were prescribed."
               : "Starts a new block from the date you choose. Workouts you have already logged keep what they were prescribed."
-        }
-        emptyReason={
-          props.rationale
-            ? "Your programme stays as it is."
-            : "Your programme stays as it is. Open Cycle to see it."
-        }
-      />
+          }
+        />
+      )}
 
       {open && !props.diff.empty && (
         <Card>

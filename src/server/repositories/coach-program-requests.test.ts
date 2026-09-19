@@ -1,4 +1,6 @@
-import { and, eq } from "drizzle-orm";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { and, eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, expect, it } from "vitest";
 
 import {
@@ -37,6 +39,7 @@ import {
   dispatchCoachPage,
   enqueueCoachJob,
   enqueueDailySession,
+  requestGymChange,
 } from "./coaching-jobs";
 import { activateProgramDraft, getProgramDraft } from "./program-drafts";
 import { readProgramBlueprint } from "./programs";
@@ -397,6 +400,56 @@ it("refuses a quote the athlete did not write, and a decision on somebody else's
       }),
     ),
   ).rejects.toThrow(/supplied to this attempt/i);
+  const twice = crypto.randomUUID();
+  await expect(
+    as(a, (tx) =>
+      acceptCoachJobResult(tx, a.user.id, job.id, attemptId, {
+        ...invented,
+        requests: {
+          open: [
+            {
+              id: twice,
+              sourceId: `note:${noteId}`,
+              quote: "more direct core work",
+              summary: "More direct core work",
+            },
+          ],
+          decisions: [
+            { requestId: twice, state: "not_recommended", detail: "One reason." },
+            { requestId: twice, state: "already_satisfied", detail: "And another." },
+          ],
+        },
+      }),
+    ),
+  ).rejects.toThrow(/exactly one decision/i);
+});
+
+it("does not let an on-demand gym change become a hearing for a request", async () => {
+  const a = await training();
+  const noteId = await noteFrom(a);
+  await as(a, (tx) =>
+    tx.insert(coachProgramRequests).values({
+      id: crypto.randomUUID(),
+      userId: a.user.id,
+      sourceId: `note:${noteId}`,
+      quote: "more direct core work",
+      summary: "More direct core work",
+      state: "waiting",
+    }),
+  );
+  await as(a, (tx) =>
+    tx.insert(gyms).values({ userId: a.user.id, name: "Another gym", slug: "another-gym" }),
+  );
+  const [other] = await as(a, (tx) => tx.select().from(gyms).where(eq(gyms.slug, "another-gym")));
+  const change = await as(a, (tx) => requestGymChange(tx, a.user.id, other!.id, "Travelling"));
+  const claim = await as(a, (tx) => claimCoachJob(tx, a.user.id, change.job!.id));
+  const context = await as(a, (tx) =>
+    coachJobContext(tx, a.user.id, change.job!.id, claim!.attemptId!),
+  );
+  // The gym run is handed no assessment list, and the ask stays where it was.
+  expect(context.requestsToAddress.items).toEqual([]);
+  expect(context.requestsToAddress.meaning).toMatch(/next scheduled daily run/);
+  expect(await as(a, (tx) => listOpenRequests(tx, a.user.id))).toHaveLength(1);
 });
 
 it("lets a session job find an ask but never decide one", async () => {
@@ -689,4 +742,81 @@ it("expires a coaching receipt after thirty days and nothing else with it", asyn
   expect(await as(a, (tx) => listOpenRequests(tx, a.user.id))).toHaveLength(1);
   expect(await as(a, (tx) => readProgramBlueprint(tx, a.user.id, a.programId))).not.toBeNull();
   expect(await as(a, (tx) => tx.select().from(coachNotes))).not.toHaveLength(0);
+});
+
+it("keeps one athlete's asks out of another's job", async () => {
+  const mine = await training();
+  const theirs = await training();
+  const noteId = await noteFrom(theirs);
+  const foreign = crypto.randomUUID();
+  await as(theirs, (tx) =>
+    tx.insert(coachProgramRequests).values({
+      id: foreign,
+      userId: theirs.user.id,
+      sourceId: `note:${noteId}`,
+      quote: "Bayesian cable curls",
+      summary: "Add Bayesian cable curls",
+      state: "waiting",
+    }),
+  );
+  const { job, attemptId, context } = await reviewJob(mine);
+  expect(context.requestsToAddress.items).toEqual([]);
+  await expect(
+    as(mine, (tx) =>
+      acceptCoachJobResult(tx, mine.user.id, job.id, attemptId, {
+        outcome: "no_change",
+        rationale: "Nothing to change.",
+        evidence: [],
+        uncertainties: [],
+        requests: {
+          open: [],
+          decisions: [{ requestId: foreign, state: "not_recommended", detail: "No." }],
+        },
+      }),
+    ),
+  ).rejects.toThrow(/supplied to this attempt/i);
+  // And the other athlete's ask is untouched by the attempt that tried to close it.
+  expect((await as(theirs, (tx) => listOpenRequests(tx, theirs.user.id)))[0]?.state).toBe(
+    "waiting",
+  );
+});
+
+it("carries a queued note forward once, however often the backfill is run", async () => {
+  const a = await training();
+  const noteId = await noteFrom(a, "Please add some direct calf work.");
+  await as(a, (tx) =>
+    tx
+      .update(coachNotes)
+      .set({
+        reviewedAt: new Date(),
+        disposition: "queued_for_review",
+        dispositionDetail: "Needs a new slot, so it waits for your programme review.",
+      })
+      .where(eq(coachNotes.id, noteId)),
+  );
+  const migration = readFileSync(
+    join(process.cwd(), "src/db/migrations/0024_coach_program_requests.sql"),
+    "utf8",
+  );
+  const backfill = migration
+    .split("--> statement-breakpoint")
+    .map((statement) => statement.trim())
+    .filter((statement) => statement.includes('INSERT INTO "coach_program_requests"'));
+  expect(backfill).toHaveLength(2);
+  const run = async () => {
+    for (const statement of backfill) await t.db.execute(sql.raw(statement));
+  };
+  await run();
+  await run();
+  const carried = await as(a, (tx) =>
+    tx
+      .select()
+      .from(coachProgramRequests)
+      .where(eq(coachProgramRequests.sourceId, `note:${noteId}`)),
+  );
+  expect(carried).toHaveLength(1);
+  expect(carried[0]).toMatchObject({
+    state: "waiting",
+    quote: "Please add some direct calf work.",
+  });
 });

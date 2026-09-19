@@ -48,29 +48,31 @@ function FieldLines({ fields }: { fields: readonly DiffField[] }) {
   );
 }
 
-/** The exercise itself, tinted for its side of a change and never tinted only. */
-function Side({
-  tone,
-  name,
-  targets,
-}: {
-  tone: "added" | "removed" | "plain";
-  name: string;
-  targets?: string;
-}) {
+type Tone = "added" | "removed" | "plain";
+
+/**
+ * One side of a change: a ruled edge in its semantic colour, on the ordinary surface.
+ *
+ * A filled tint was the first instinct and the wrong one — the palette's soft accent is warm
+ * in both modes, so the new exercise came out looking like the discarded one. The app already
+ * answers this elsewhere: a Badge and the danger button both carry their meaning on an outline
+ * at 3:1 rather than on a fill. The name itself stays in ordinary ink, because it is the thing
+ * being read, and the removed side is simply quieter.
+ */
+function Side({ tone, name, targets }: { tone: Tone; name: string; targets?: string }) {
   return (
     <div
       className={cn(
-        "min-w-0 rounded-control px-2 py-1.5",
-        tone === "added" && "bg-accent-soft",
-        tone === "removed" && "bg-surface-raised",
+        "min-w-0 rounded-control border-l-2 bg-surface-raised px-2.5 py-1.5",
+        tone === "added" && "border-success",
+        tone === "removed" && "border-danger",
+        tone === "plain" && "border-line-strong",
       )}
     >
       <p
         className={cn(
           "font-medium [overflow-wrap:anywhere]",
-          tone === "added" && "text-success",
-          tone === "removed" && "text-danger",
+          tone === "removed" && "text-ink-muted",
         )}
       >
         {name}
@@ -82,20 +84,46 @@ function Side({
   );
 }
 
+/**
+ * What happened, in a word above it.
+ *
+ * The word comes first and is never optional: in forced-colours mode the whole palette
+ * collapses to two inks by design, and a row that says only "green" has said nothing.
+ */
 function Operation({
   icon: Icon,
   label,
+  tone = "plain",
   children,
 }: {
   icon: AppIcon;
   label: string;
+  tone?: Tone;
   children: ReactNode;
 }) {
   return (
     <li className="flex min-w-0 gap-3 py-3 first:pt-0 last:pb-0">
-      <Icon scale="row" className="mt-0.5 shrink-0 text-ink-muted" aria-hidden />
+      <Icon
+        scale="row"
+        className={cn(
+          "mt-0.5 shrink-0",
+          tone === "added" ? "text-success" : tone === "removed" ? "text-danger" : "text-ink-muted",
+        )}
+        aria-hidden
+      />
       <div className="min-w-0 flex-1">
-        <p className="text-xs font-medium tracking-wide text-ink-muted uppercase">{label}</p>
+        <p
+          className={cn(
+            "text-xs font-medium tracking-wide uppercase",
+            tone === "added"
+              ? "text-success"
+              : tone === "removed"
+                ? "text-danger"
+                : "text-ink-muted",
+          )}
+        >
+          {label}
+        </p>
         <div className="mt-1 min-w-0">{children}</div>
       </div>
     </li>
@@ -115,7 +143,7 @@ function OperationRow({
     switch (operation.kind) {
       case "added":
         return (
-          <Operation icon={Plus} label="Added">
+          <Operation icon={Plus} label="Added" tone="added">
             <Side
               tone="added"
               name={nameOf(names, operation.to.exerciseSlug)}
@@ -125,7 +153,7 @@ function OperationRow({
         );
       case "removed":
         return (
-          <Operation icon={Minus} label="Removed">
+          <Operation icon={Minus} label="Removed" tone="removed">
             <Side
               tone="removed"
               name={nameOf(names, operation.from.exerciseSlug)}
@@ -202,13 +230,21 @@ function OperationRow({
         );
       case "run_added":
         return (
-          <Operation icon={Footprints} label={`Run added · week ${operation.weekIndex}`}>
+          <Operation
+            icon={Footprints}
+            label={`Run added · week ${operation.weekIndex}`}
+            tone="added"
+          >
             <Side tone="added" name={operation.to} />
           </Operation>
         );
       case "run_removed":
         return (
-          <Operation icon={Footprints} label={`Run removed · week ${operation.weekIndex}`}>
+          <Operation
+            icon={Footprints}
+            label={`Run removed · week ${operation.weekIndex}`}
+            tone="removed"
+          >
             <Side tone="removed" name={operation.from} />
           </Operation>
         );

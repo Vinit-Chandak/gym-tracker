@@ -102,7 +102,7 @@ Open every further ask you find in their notes in `requests.open` as `{id, sourc
 
 `applied` is the server's to give, in the transaction that activates the programme, and only after the athlete approves. A session that happens to contain the exercise has not granted a programme request.
 
-**prepare_session** may open asks but must not decide them; the programme review in the same daily run does that. The server enqueues it for you.
+**prepare_session** may open asks but must not decide them; the programme review in the same daily run does that. The server enqueues it for you. A job that is not the scheduled daily or weekly work — an on-demand gym change, a programme the athlete has just asked for — is handed an empty list and decides nothing: a tap on Today is not a request for a programme hearing.
 
 Evaluate each ask on its own terms. A named variation is not satisfied by a different one, and an exercise with no research of its own is not thereby ineffective — insufficient evidence for an automatic progression is a different thing from a preference you can evaluate and propose. If the exact exercise is not in the athlete's accessible catalogue, say so and offer the custom-exercise path or ask about an alternative you name; never substitute quietly and never create a global library exercise.
 

@@ -70,7 +70,9 @@ function RequestRow({ request, base }: { request: RequestView; base: string }) {
   const [noteId] = useState(() => crypto.randomUUID());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const open = ["waiting", "needs_answer", "proposed", "deferred"].includes(request.state);
+  // A proposal already has its own decision — approve, revise or decline — on the change it
+  // points at. Offering a second way to say no here would be two answers to one question.
+  const withdrawable = ["waiting", "needs_answer", "deferred"].includes(request.state);
 
   const act = async (work: () => Promise<{ ok: boolean; error?: string }>) => {
     setBusy(true);
@@ -132,7 +134,7 @@ function RequestRow({ request, base }: { request: RequestView; base: string }) {
           </Button>
         </div>
       )}
-      {open && (
+      {withdrawable && (
         <Button
           variant="ghost"
           className="flex w-full"
