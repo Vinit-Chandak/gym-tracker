@@ -2,6 +2,11 @@
 
 Version: 2026-09-19.1
 
+This document is the editorial source. The copy the coach actually reads is served by the
+deployed app from `src/domain/coach-training-reference.ts`, once per job, so a routine's older
+checkout cannot coach from different guidance. Change both together and bump the version in
+both when the text changes.
+
 ## Use and limits
 
 Apply this reference with the athlete's current goals, preferences, restrictions, equipment,

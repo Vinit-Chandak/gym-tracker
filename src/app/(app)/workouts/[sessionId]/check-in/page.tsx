@@ -41,9 +41,6 @@ export default async function CheckInPage(props: PageProps<"/workouts/[sessionId
             energy: str(session.energy),
             fatigue: str(session.fatigue),
             soreness: str(session.soreness),
-            backPainPre: str(session.backPainPre),
-            shinLeftPre: str(session.shinLeftPre),
-            shinRightPre: str(session.shinRightPre),
           }}
         />
         <LinkButton href={`/workouts/${sessionId}`} variant="ghost" className="w-full">

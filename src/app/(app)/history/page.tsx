@@ -53,12 +53,7 @@ export default async function HistoryPage(props: PageProps<"/history">) {
         machineId: e.machineId,
         machineName: e.machineName ? `${e.machineName} · ${w.gymName}` : null,
       })),
-      recovery: readings([
-        ["Sleep", w.sleepHours, "h"],
-        ["Back", w.backPainPre],
-        ["Shin L", w.shinLeftPre],
-        ["Shin R", w.shinRightPre],
-      ]),
+      recovery: readings([["Sleep", w.sleepHours, "h"]]),
     })),
     ...data.training.runs.map((r) => ({
       id: r.id,
@@ -70,11 +65,7 @@ export default async function HistoryPage(props: PageProps<"/history">) {
       meta: `${formatDuration(r.durationSeconds)} · ${formatPace(r.averagePaceSecondsPerKm)}/km`,
       gymId: r.gymId,
       exercises: [],
-      recovery: readings([
-        ["RPE", r.rpe],
-        ["Shin L after", r.shinLeftPost],
-        ["Shin R after", r.shinRightPost],
-      ]),
+      recovery: readings([["RPE", r.rpe]]),
     })),
     ...data.training.recovery.map((r) => ({
       id: r.id,
@@ -85,9 +76,7 @@ export default async function HistoryPage(props: PageProps<"/history">) {
         ["Sleep", r.sleepHours, "h"],
         ["Energy", r.energy],
         ["Fatigue", r.fatigue],
-        ["Back", r.backPain],
-        ["Shin L", r.shinLeft],
-        ["Shin R", r.shinRight],
+        ["Soreness", r.soreness],
       ]),
       meta: "",
       gymId: null,

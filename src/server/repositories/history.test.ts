@@ -35,11 +35,11 @@ beforeAll(async () => {
         .insert(gyms)
         .values({ userId: user.id, name: "Test gym", slug: "test-gym" })
         .returning();
-      for (const [index, startedAt] of [
+      for (const startedAt of [
         new Date("2026-08-31T18:30:00Z"), // first instant of September in this zone
         new Date("2026-09-01T18:30:00Z"),
         new Date("2026-09-02T18:30:00Z"), // exclusive end: must not appear
-      ].entries()) {
+      ]) {
         const [session] = await tx
           .insert(workoutSessions)
           .values({
@@ -48,7 +48,6 @@ beforeAll(async () => {
             startedAt,
             completedAt: new Date(startedAt.getTime() + 60_000),
             sleepHours: 7,
-            backPainPre: index,
           })
           .returning();
         const [slot] = await tx
@@ -99,9 +98,6 @@ describe("history projection", () => {
           gymName: w.gym.name,
           dayName: w.day?.name ?? null,
           sleepHours: w.sleepHours,
-          backPainPre: w.backPainPre,
-          shinLeftPre: w.shinLeftPre,
-          shinRightPre: w.shinRightPre,
           setCount: w.exercises.reduce((n, e) => n + e.sets.length, 0),
           exercises: w.exercises.map((e) => ({
             exerciseId: e.exerciseId,

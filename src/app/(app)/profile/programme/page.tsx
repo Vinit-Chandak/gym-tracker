@@ -18,14 +18,15 @@ import { getDb } from "@/db/client";
 import { PROGRAM_TEMPLATES } from "@/db/seed/data/templates";
 import { withUser } from "@/db/with-user";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import { formatDateTime, formatIsoDate } from "@/lib/format";
+import { formatIsoDate } from "@/lib/format";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
-import { listOpenProposals } from "@/server/repositories/program-revisions";
 import { getProgramOverview } from "@/server/repositories/schedule";
 
+import { loadProgrammeChanges, ProgrammeChanges } from "./changes";
 import { CycleDay } from "./cycle-day";
-import { Proposals } from "./proposals";
+import { ProgrammeTabs } from "./programme-tabs";
+import { PROGRAMME_VIEWS, type ProgrammeView } from "./programme-views";
 
 export const metadata: Metadata = { title: "Programme" };
 
@@ -59,13 +60,24 @@ function Archived({
   );
 }
 
-export default async function ProgrammeSettingsPage() {
+/**
+ * The programme, under two headings.
+ *
+ * Cycle is the whole programme and the only place it is printed in full. Changes is what the
+ * coach has altered, proposed or answered, as differences rather than as a second copy of the
+ * programme. The card above them belongs to neither: it is what programme this is and how far
+ * through it you are, which is true on both tabs.
+ */
+export default async function ProgrammeSettingsPage(props: PageProps<"/profile/programme">) {
   const user = await requireUser();
+  const params = await props.searchParams;
+  const requested = Array.isArray(params.view) ? params.view[0] : params.view;
+  const view: ProgrammeView = PROGRAMME_VIEWS.find((value) => value === requested) ?? "cycle";
   const profile = await getRequestProfile(user.id, user.email);
-  const { overview, proposals, archived } = await withUser(getDb(), user.id, async (tx) => {
-    const [overview, proposals, archived] = await Promise.all([
+  const { overview, changes, archived } = await withUser(getDb(), user.id, async (tx) => {
+    const [overview, changes, archived] = await Promise.all([
       getProgramOverview(tx, user.id, profile.timeZone),
-      listOpenProposals(tx, user.id),
+      loadProgrammeChanges(tx, user.id, profile.timeZone),
       tx
         .select({ id: programs.id, name: programs.name, version: programs.version })
         .from(programs)
@@ -73,7 +85,7 @@ export default async function ProgrammeSettingsPage() {
         .orderBy(desc(programs.updatedAt))
         .limit(20),
     ]);
-    return { overview, proposals, archived };
+    return { overview, changes, archived };
   });
   const templates = PROGRAM_TEMPLATES.map((template) => ({
     slug: template.slug,
@@ -139,61 +151,56 @@ export default async function ProgrammeSettingsPage() {
               )}
             </Card>
 
-            {/* A change waiting on you comes before the programme it would change. */}
-            {proposals.length > 0 && (
-              <Section
-                title="Suggested changes"
-                info="The coach proposes a change when a session-by-session fix keeps repeating. Applying one writes the next version of the programme, keeping your position and everything you have logged."
-              >
-                <Proposals
-                  proposals={proposals.map((proposal) => ({
-                    id: proposal.id,
-                    summary: proposal.summary,
-                    rationale: proposal.rationale,
-                    lines: proposal.lines,
-                    createdAt: formatDateTime(proposal.createdAt, profile.timeZone),
-                    fromCoach: proposal.source === "ai",
-                  }))}
-                />
-              </Section>
-            )}
-
-            {/* Every session the programme asks for, in the order it asks for them. */}
-            <Section
-              title="The cycle"
-              info="One pass through these days is a cycle, and the programme repeats it for its whole length. Open a day to see everything it prescribes."
+            <ProgrammeTabs view={view} waiting={changes.waiting} />
+            <div
+              id="programme-panel"
+              role="tabpanel"
+              aria-labelledby={`programme-${view}-tab`}
+              className="min-w-0 space-y-6"
             >
-              <ul className="space-y-3">
-                {overview.days.map((plan) => (
-                  <li key={plan.day.id}>
-                    <CycleDay plan={plan} />
-                  </li>
-                ))}
-              </ul>
-            </Section>
+              {view === "changes" ? (
+                <ProgrammeChanges data={changes} />
+              ) : (
+                <>
+                  {/* Every session the programme asks for, in the order it asks for them. */}
+                  <Section
+                    title="The cycle"
+                    info="One pass through these days is a cycle, and the programme repeats it for its whole length. Open a day to see everything it prescribes."
+                  >
+                    <ul className="space-y-3">
+                      {overview.days.map((plan) => (
+                        <li key={plan.day.id}>
+                          <CycleDay plan={plan} />
+                        </li>
+                      ))}
+                    </ul>
+                  </Section>
 
-            {/* Folded away, because starting over is the rarest thing anyone comes here to
-                do — and open, it is three choices that each need a sentence of their own. */}
-            <Section
-              title="Change programme"
-              info="You get your own copy of the template. Starting another archives the current one; logged sessions keep what they were prescribed."
-            >
-              <Disclosure summary="Start a new programme">
-                <div className="space-y-4">
-                  <ProgrammeOptions nested />
-                  <div className="space-y-2 border-t border-line pt-4">
-                    <h3 className="font-medium">Or use the suggested template</h3>
-                    <ProgramTemplatePicker
-                      templates={templates}
-                      today={today}
-                      submitLabel="Replace my programme"
-                    />
-                  </div>
-                </div>
-              </Disclosure>
-            </Section>
+                  {/* Folded away, because starting over is the rarest thing anyone comes here
+                      to do — and open, it is three choices that each need a sentence. */}
+                  <Section
+                    title="Change programme"
+                    info="You get your own copy of the template. Starting another archives the current one; logged sessions keep what they were prescribed."
+                  >
+                    <Disclosure summary="Start a new programme">
+                      <div className="space-y-4">
+                        <ProgrammeOptions nested />
+                        <div className="space-y-2 border-t border-line pt-4">
+                          <h3 className="font-medium">Or use the suggested template</h3>
+                          <ProgramTemplatePicker
+                            templates={templates}
+                            today={today}
+                            submitLabel="Replace my programme"
+                          />
+                        </div>
+                      </div>
+                    </Disclosure>
+                  </Section>
 
-            {archived.length > 0 && <Archived programmes={archived} />}
+                  {archived.length > 0 && <Archived programmes={archived} />}
+                </>
+              )}
+            </div>
           </>
         ) : (
           <>

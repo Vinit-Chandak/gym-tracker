@@ -23,7 +23,7 @@ const double = (increment: number | null = null): ProgressionRule => ({
 });
 const timeFirst: ProgressionRule = { kind: "time_first" };
 
-const SHIN_RULE = "Pain rising each km → stop";
+const STOP_RULE = "Pain rising each km → stop";
 
 /**
  * A six-day upper/lower split with two easy runs and a mobility day, offered to every account as
@@ -544,7 +544,7 @@ export const STRENGTH_AESTHETICS_HYBRID_8WK: ProgramBlueprint = {
       rpe: [3, 4],
       paceNote: "Talk-test; slower than push pace",
       progressionNote: "Complete without escalation",
-      shinRule: SHIN_RULE,
+      stopRule: STOP_RULE,
       comment: "Consistency",
     },
     {
@@ -554,7 +554,7 @@ export const STRENGTH_AESTHETICS_HYBRID_8WK: ProgramBlueprint = {
       rpe: [3, 4],
       paceNote: "Talk-test; slower than push pace",
       progressionNote: "Complete without escalation",
-      shinRule: SHIN_RULE,
+      stopRule: STOP_RULE,
       comment: "Consistency",
     },
     {
@@ -564,7 +564,7 @@ export const STRENGTH_AESTHETICS_HYBRID_8WK: ProgramBlueprint = {
       rpe: [3, 4],
       paceNote: "Conversational",
       progressionNote: "Add only if settled",
-      shinRule: SHIN_RULE,
+      stopRule: STOP_RULE,
     },
     {
       weekIndex: 2,
@@ -573,7 +573,7 @@ export const STRENGTH_AESTHETICS_HYBRID_8WK: ProgramBlueprint = {
       rpe: [3, 4],
       paceNote: "Conversational",
       progressionNote: "Add only if settled",
-      shinRule: SHIN_RULE,
+      stopRule: STOP_RULE,
     },
     {
       weekIndex: 3,
@@ -582,7 +582,7 @@ export const STRENGTH_AESTHETICS_HYBRID_8WK: ProgramBlueprint = {
       rpe: [3, 4],
       paceNote: "Conversational",
       progressionNote: "Small time increase",
-      shinRule: SHIN_RULE,
+      stopRule: STOP_RULE,
     },
     {
       weekIndex: 3,
@@ -591,7 +591,7 @@ export const STRENGTH_AESTHETICS_HYBRID_8WK: ProgramBlueprint = {
       rpe: [3, 4],
       paceNote: "Conversational",
       progressionNote: "Small time increase",
-      shinRule: SHIN_RULE,
+      stopRule: STOP_RULE,
     },
     {
       weekIndex: 4,
@@ -600,7 +600,7 @@ export const STRENGTH_AESTHETICS_HYBRID_8WK: ProgramBlueprint = {
       rpe: [3, 4],
       paceNote: "Conversational",
       progressionNote: "No speed work",
-      shinRule: SHIN_RULE,
+      stopRule: STOP_RULE,
     },
     {
       weekIndex: 4,
@@ -609,7 +609,7 @@ export const STRENGTH_AESTHETICS_HYBRID_8WK: ProgramBlueprint = {
       rpe: [3, 4],
       paceNote: "Conversational",
       progressionNote: "No speed work",
-      shinRule: SHIN_RULE,
+      stopRule: STOP_RULE,
     },
     {
       weekIndex: 5,
@@ -618,7 +618,7 @@ export const STRENGTH_AESTHETICS_HYBRID_8WK: ProgramBlueprint = {
       rpe: [3, 3],
       paceNote: "Easy",
       progressionNote: "Reduce if lifting fatigue high",
-      shinRule: SHIN_RULE,
+      stopRule: STOP_RULE,
       comment: "Optional deload",
     },
     {
@@ -628,7 +628,7 @@ export const STRENGTH_AESTHETICS_HYBRID_8WK: ProgramBlueprint = {
       rpe: [3, 3],
       paceNote: "Easy",
       progressionNote: "Reduce if lifting fatigue high",
-      shinRule: SHIN_RULE,
+      stopRule: STOP_RULE,
       comment: "Optional deload",
     },
     {
@@ -638,7 +638,7 @@ export const STRENGTH_AESTHETICS_HYBRID_8WK: ProgramBlueprint = {
       rpe: [3, 4],
       paceNote: "Conversational",
       progressionNote: "Resume if stable",
-      shinRule: SHIN_RULE,
+      stopRule: STOP_RULE,
     },
     {
       weekIndex: 6,
@@ -647,7 +647,7 @@ export const STRENGTH_AESTHETICS_HYBRID_8WK: ProgramBlueprint = {
       rpe: [3, 4],
       paceNote: "Conversational",
       progressionNote: "Resume if stable",
-      shinRule: SHIN_RULE,
+      stopRule: STOP_RULE,
     },
     {
       weekIndex: 7,
@@ -656,7 +656,7 @@ export const STRENGTH_AESTHETICS_HYBRID_8WK: ProgramBlueprint = {
       rpe: [3, 4],
       paceNote: "Conversational",
       progressionNote: "Time, not pace",
-      shinRule: SHIN_RULE,
+      stopRule: STOP_RULE,
     },
     {
       weekIndex: 7,
@@ -665,7 +665,7 @@ export const STRENGTH_AESTHETICS_HYBRID_8WK: ProgramBlueprint = {
       rpe: [3, 4],
       paceNote: "Conversational",
       progressionNote: "Time, not pace",
-      shinRule: SHIN_RULE,
+      stopRule: STOP_RULE,
     },
     {
       weekIndex: 8,
@@ -674,7 +674,7 @@ export const STRENGTH_AESTHETICS_HYBRID_8WK: ProgramBlueprint = {
       rpe: [3, 4],
       paceNote: "Conversational",
       progressionNote: "Finish capable of more",
-      shinRule: SHIN_RULE,
+      stopRule: STOP_RULE,
       comment: "Next block may add faster work",
     },
     {
@@ -684,7 +684,7 @@ export const STRENGTH_AESTHETICS_HYBRID_8WK: ProgramBlueprint = {
       rpe: [3, 4],
       paceNote: "Conversational",
       progressionNote: "Finish capable of more",
-      shinRule: SHIN_RULE,
+      stopRule: STOP_RULE,
       comment: "Next block may add faster work",
     },
   ],

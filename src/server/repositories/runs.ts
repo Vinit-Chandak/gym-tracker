@@ -3,14 +3,7 @@ import { and, asc, desc, eq } from "drizzle-orm";
 import { programRuns, runs } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import {
-  shinEscalations,
-  volumeSpike,
-  weeklyVolumes,
-  type ShinEscalation,
-  type VolumeSpike,
-  type WeekVolume,
-} from "@/domain/running";
+import { volumeSpike, weeklyVolumes, type VolumeSpike, type WeekVolume } from "@/domain/running";
 import { nextPendingSlot, suggestion } from "@/domain/schedule";
 import type { RunMode } from "@/domain/types";
 
@@ -37,12 +30,6 @@ export type RunInput = {
   durationSeconds: number;
   distanceMeters: number;
   rpe: number | null;
-  shinLeftPre: number | null;
-  shinRightPre: number | null;
-  shinLeftDuring: number | null;
-  shinRightDuring: number | null;
-  shinLeftPost: number | null;
-  shinRightPost: number | null;
   /** The programme run this fulfils, or null for an unplanned run. */
   programRunId: string | null;
   notes: string | null;
@@ -170,7 +157,7 @@ export async function getRun(db: DbOrTx, userId: string, runId: string): Promise
 export type PlannedRunStatus = PlannedRunRef & {
   paceNote: string | null;
   progressionNote: string | null;
-  shinRule: string | null;
+  stopRule: string | null;
   comment: string | null;
   /** The logged run that fulfils this planned run, if any. */
   loggedRunId: string | null;
@@ -203,7 +190,7 @@ export async function plannedRunsForCycle(
       ...plannedColumns,
       paceNote: programRuns.paceNote,
       progressionNote: programRuns.progressionNote,
-      shinRule: programRuns.shinRule,
+      stopRule: programRuns.stopRule,
       comment: programRuns.comment,
     })
     .from(programRuns)
@@ -226,7 +213,6 @@ export type RunsOverview = {
   weeks: WeekVolume[];
   spike: VolumeSpike | null;
   cycle: PlannedRunsForCycle | null;
-  shin: ShinEscalation[];
   recent: RunRecord[];
 };
 
@@ -254,7 +240,6 @@ export async function getRunsOverview(
     weeks,
     spike: thisWeek && lastWeek ? volumeSpike(thisWeek, lastWeek) : null,
     cycle: schedule ? await plannedRunsForCycle(db, schedule, all) : null,
-    shin: shinEscalations(all),
     recent: all.slice(0, 20),
   };
 }

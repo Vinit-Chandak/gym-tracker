@@ -226,7 +226,8 @@ export const programRuns = pgTable(
     rpeMax: numeric("rpe_max", { precision: 3, scale: 1, mode: "number" }),
     paceNote: text("pace_note"),
     progressionNote: text("progression_note"),
-    shinRule: text("shin_rule"),
+    /** When to cut a run short, in the terms this runner's own situation calls for. */
+    stopRule: text("stop_rule"),
     comment: text("comment"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },

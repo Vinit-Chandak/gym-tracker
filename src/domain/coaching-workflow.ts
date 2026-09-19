@@ -8,8 +8,9 @@ import {
 } from "./session-plan";
 import { PLAN_LIMITS } from "./plan-limits";
 import { memoryPatchSchema, sourceQuoteSchema } from "./coach-memory";
+import { requestPatchSchema } from "./program-request";
 
-export const COACH_CONTRACT_VERSION = 3;
+export const COACH_CONTRACT_VERSION = 4;
 
 /**
  * Whether the server is serving a contract this checkout was written against.
@@ -34,7 +35,7 @@ export function contractSkew(served: number): string | null {
     " Stop and report the skew; do not guess at field names."
   );
 }
-export const COACH_POLICY_VERSION = "2026-09-16.1";
+export const COACH_POLICY_VERSION = "2026-09-19.1";
 export const JOB_KINDS = ["create_program", "prepare_session", "review_program"] as const;
 export const JOB_STATUSES = [
   "queued",
@@ -205,6 +206,13 @@ export const jobTargetSchema = z.object({
   reviewEnd: z.iso.datetime().nullable().default(null),
   intentId: z.uuid().nullable().default(null),
   reason: z.string().trim().max(200).nullable().default(null),
+  /**
+   * Why a review is running. `scheduled` is the ordinary cadence, which reads the whole
+   * interval and moves its anchor. `requests` is the daily run answering what the athlete
+   * asked for: it reads the same evidence but does not consume the scheduled review, and
+   * anything it proposes waits for approval.
+   */
+  purpose: z.enum(["scheduled", "requests"]).default("scheduled"),
 });
 export type JobTarget = z.infer<typeof jobTargetSchema>;
 
@@ -239,6 +247,12 @@ const explanation = {
   reportedConstraint: sourceQuoteSchema.optional(),
   /** A session-only adaptation expires with this exact occurrence. Evidence must be cited. */
   adjustment: z.enum(["normal", "temporary", "equipment", "calibration"]).default("normal"),
+  /**
+   * The athlete's explicit asks: the ones this result discovered, and an outcome for every
+   * one the job was given. A preference kept in the memo is not an outcome, so this is
+   * separate from `memory` and the server refuses a result that leaves an ask unanswered.
+   */
+  requests: requestPatchSchema.optional(),
 };
 export const coachJobResultSchema = z.discriminatedUnion("outcome", [
   z.object({

@@ -47,9 +47,6 @@ export const workoutSessions = pgTable(
     energy: integer("energy"),
     fatigue: integer("fatigue"),
     soreness: integer("soreness"),
-    backPainPre: integer("back_pain_pre"),
-    shinLeftPre: integer("shin_left_pre"),
-    shinRightPre: integer("shin_right_pre"),
     /** The single warm-up entry per session: done or not. */
     warmupCompleted: boolean("warmup_completed").notNull().default(false),
     notes: text("notes"),
@@ -62,10 +59,7 @@ export const workoutSessions = pgTable(
       sql`(sleep_quality is null or sleep_quality between 1 and 5)
         and (energy is null or energy between 1 and 5)
         and (fatigue is null or fatigue between 1 and 5)
-        and (soreness is null or soreness between 1 and 5)
-        and (back_pain_pre is null or back_pain_pre between 0 and 10)
-        and (shin_left_pre is null or shin_left_pre between 0 and 10)
-        and (shin_right_pre is null or shin_right_pre between 0 and 10)`,
+        and (soreness is null or soreness between 1 and 5)`,
     ),
     ownerPolicy("workout_sessions"),
   ],

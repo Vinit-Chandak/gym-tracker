@@ -150,8 +150,8 @@ describe("a run's distance", () => {
           ...(distanceKm ? { distanceKm } : {}),
           rpe: [3, 5],
           paceNote: "Easy, conversational.",
-          progressionNote: "Hold the distance while the shin settles.",
-          shinRule: "Stop if it worsens as the run goes on.",
+          progressionNote: "Hold the distance while it settles.",
+          stopRule: "Stop if it worsens as the run goes on.",
         },
       ],
     });

@@ -42,8 +42,6 @@ const optionalNumber = (min: number, max: number, integer: boolean, message: str
       .nullable(),
   );
 
-const shinScore = optionalNumber(0, 10, true, "Shin scores are whole numbers from 0 to 10.");
-
 const runSchema = z
   .object({
     effortInputVersion: z.string().optional(),
@@ -63,12 +61,6 @@ const runSchema = z
     durationMinutes: optionalNumber(0, 600, true, "Minutes must be a whole number."),
     durationSeconds: optionalNumber(0, 59, true, "Seconds go from 0 to 59."),
     rpe: optionalNumber(1, 10, false, "RPE goes from 1 to 10."),
-    shinLeftPre: shinScore,
-    shinRightPre: shinScore,
-    shinLeftDuring: shinScore,
-    shinRightDuring: shinScore,
-    shinLeftPost: shinScore,
-    shinRightPost: shinScore,
     programRunId: z.preprocess(
       (value) => (typeof value === "string" && value.length > 0 ? value : null),
       z.uuid({ error: "Choose a planned run or none." }).nullable(),
@@ -178,12 +170,6 @@ export async function saveRunAction(
         durationSeconds: (value.durationMinutes ?? 0) * 60 + (value.durationSeconds ?? 0),
         distanceMeters: Math.round(value.distanceKm * 1000),
         rpe: value.rpe,
-        shinLeftPre: value.shinLeftPre,
-        shinRightPre: value.shinRightPre,
-        shinLeftDuring: value.shinLeftDuring,
-        shinRightDuring: value.shinRightDuring,
-        shinLeftPost: value.shinLeftPost,
-        shinRightPost: value.shinRightPost,
         programRunId: value.programRunId,
         notes: value.notes,
       };

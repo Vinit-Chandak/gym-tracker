@@ -27,6 +27,10 @@ export async function SavedProgrammeWork({ onboarding = false }: { onboarding?: 
     ]),
   );
   const base = onboarding ? "/welcome/programme" : "/profile/programme";
+  // A draft written against a running programme is a change, not saved work: it lives under
+  // Programme → Changes with the review that produced it, where it is read as a difference
+  // rather than as another programme to start.
+  const newProgrammes = drafts.filter((draft) => draft.baseProgramId === null);
   // Only a request that is still going anywhere. A superseded or failed one is finished
   // with, and listing it under saved work offered the athlete a link to a request that had
   // already been answered or called off.
@@ -36,11 +40,11 @@ export async function SavedProgrammeWork({ onboarding = false }: { onboarding?: 
         job.kind === "create_program" && ["queued", "claimed", "needs_input"].includes(job.status),
     )
     .slice(0, 3);
-  if (!intake && !drafts.length && !waiting.length) return null;
+  if (!intake && !newProgrammes.length && !waiting.length) return null;
   return (
     <Section title="Your saved work">
       <List>
-        {drafts.map((draft) => (
+        {newProgrammes.map((draft) => (
           <li key={draft.id}>
             <LinkRow
               href={`${base}/drafts/${draft.id}` as Route}

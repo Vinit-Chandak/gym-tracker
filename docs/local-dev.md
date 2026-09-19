@@ -90,6 +90,12 @@ through `/login`, and `page.screenshot({ fullPage: true })` per route. Check
 `document.documentElement.scrollWidth > clientWidth` on each page: the app should never scroll
 sideways at 320 px.
 
+## Coaching screens
+
+The three accounts have training but no coaching: no proposal to approve, no requests, no
+reviews. [Auditing the coaching screens](coaching-audit.md) adds those, and says what each
+decision must leave behind.
+
 ## Starting over
 
 ```sh

@@ -30,8 +30,6 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-const score = (value: number | null) => (value === null ? "—" : String(value));
-
 export default async function RunPage(props: PageProps<"/runs/[runId]">) {
   const { runId } = await props.params;
   requireUuid(runId);
@@ -44,15 +42,6 @@ export default async function RunPage(props: PageProps<"/runs/[runId]">) {
   });
   if (!data) notFound();
   const { run, timeZone } = data;
-  const hasShin = [
-    run.shinLeftPre,
-    run.shinRightPre,
-    run.shinLeftDuring,
-    run.shinRightDuring,
-    run.shinLeftPost,
-    run.shinRightPost,
-  ].some((value) => value !== null);
-
   return (
     <>
       <PageHeader title="Run" meta={formatDateTime(run.startedAt, timeZone)} backHref="/runs" />
@@ -77,32 +66,6 @@ export default async function RunPage(props: PageProps<"/runs/[runId]">) {
             </p>
           ) : (
             <p className="text-sm text-ink-muted">Unplanned run.</p>
-          )}
-          {hasShin && (
-            <table className="w-full text-sm tabular-nums">
-              <thead className="text-xs text-ink-muted">
-                <tr className="border-b border-line">
-                  <th className="text-left font-medium">Shins</th>
-                  <th className="font-medium">Before</th>
-                  <th className="font-medium">During</th>
-                  <th className="font-medium">After</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr className="border-b border-line">
-                  <td className="py-1">Left</td>
-                  <td className="text-center">{score(run.shinLeftPre)}</td>
-                  <td className="text-center">{score(run.shinLeftDuring)}</td>
-                  <td className="text-center">{score(run.shinLeftPost)}</td>
-                </tr>
-                <tr>
-                  <td className="py-1">Right</td>
-                  <td className="text-center">{score(run.shinRightPre)}</td>
-                  <td className="text-center">{score(run.shinRightDuring)}</td>
-                  <td className="text-center">{score(run.shinRightPost)}</td>
-                </tr>
-              </tbody>
-            </table>
           )}
           {run.notes && <p className="text-sm whitespace-pre-line">{run.notes}</p>}
         </Card>

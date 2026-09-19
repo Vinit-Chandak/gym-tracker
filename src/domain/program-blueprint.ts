@@ -131,8 +131,11 @@ export const blueprintRunSchema = z.object({
   rpe: range(z.number("Give every run week its effort.").min(0).max(10)),
   paceNote: z.string().max(300).default(""),
   progressionNote: z.string().max(300).default(""),
-  /** When to stop early, e.g. a niggle that worsens as the run goes on. */
-  shinRule: z.string().max(300).default(""),
+  /**
+   * When to cut this run short, written for the runner it belongs to: the niggle their own
+   * history shows, the effort they are not to exceed, whatever their situation calls for.
+   */
+  stopRule: z.string().max(300).default(""),
   comment: z.string().max(300).optional(),
 });
 

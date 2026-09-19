@@ -619,7 +619,7 @@ describe("progression suggestions", () => {
     await discard(sessionId);
   });
 
-  it("turns the check-in into advice against the previous check-in", async () => {
+  it("turns the check-in into advice, and says nothing about a good one", async () => {
     const first = await startUpperA(4);
     await withUser(t.db, pUser.id, (tx) =>
       saveCheckIn(tx, pUser.id, first.sessionId, {
@@ -628,31 +628,28 @@ describe("progression suggestions", () => {
         energy: 4,
         fatigue: 2,
         soreness: 2,
-        backPainPre: 1,
-        shinLeftPre: 1,
-        shinRightPre: 1,
       }),
     );
+    const rested = await withUser(t.db, pUser.id, (tx) =>
+      getSessionDetail(tx, pUser.id, first.sessionId),
+    );
+    expect(rested?.warnings).toEqual([]);
     await finish(first.sessionId);
     const second = await startUpperA(5);
     await withUser(t.db, pUser.id, (tx) =>
       saveCheckIn(tx, pUser.id, second.sessionId, {
         sleepHours: 5,
         sleepQuality: 3,
-        energy: 3,
-        fatigue: 3,
+        energy: 1,
+        fatigue: 5,
         soreness: 2,
-        backPainPre: 3,
-        shinLeftPre: 1,
-        shinRightPre: 5,
       }),
     );
     const detail = await withUser(t.db, pUser.id, (tx) =>
       getSessionDetail(tx, pUser.id, second.sessionId),
     );
-    expect(detail?.warnings.map((w) => w.code)).toEqual(["short_sleep", "back_pain", "shin_pain"]);
-    expect(detail?.warnings[1]?.title).toBe("Lower back 3/10, up from 1");
-    expect(detail?.warnings[2]?.title).toBe("Right shin 5/10, up from 1");
+    expect(detail?.warnings.map((w) => w.code)).toEqual(["short_sleep", "low_readiness"]);
+    expect(detail?.warnings[1]?.title).toBe("Worst score on energy, fatigue");
     await discard(second.sessionId);
   });
 });

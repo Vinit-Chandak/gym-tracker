@@ -20,7 +20,7 @@ const VISIBLE = [
 ];
 const NEVER = [
   "Notes on sessions, sets or runs, and substitution reasons.",
-  "Check-ins and recovery: sleep, energy, fatigue, soreness, back or shin pain.",
+  "Check-ins and recovery: sleep, energy, fatigue and soreness.",
   "Gyms, machines and addresses, or which machine a set was on.",
   "Programmes, prescriptions and anything the coach wrote.",
   "Exercises you created yourself.",

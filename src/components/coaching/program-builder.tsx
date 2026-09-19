@@ -610,7 +610,7 @@ function emptyRun(weekIndex: number, dayOfWeek: number): BlueprintRun {
     rpe: [NaN, NaN],
     paceNote: "",
     progressionNote: "",
-    shinRule: "",
+    stopRule: "",
   };
 }
 function RangeFields({

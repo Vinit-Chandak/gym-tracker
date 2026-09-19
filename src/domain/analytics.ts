@@ -159,33 +159,29 @@ export function trainingAnalytics(data: TrainingData, timeZone: string, from: st
       week.runMinutes += run.durationSeconds / 60;
     }
   }
+  // The readings every account gives, from wherever they were given. Sleep is in hours; the
+  // rest are the 1–5 scales of the check-in and the daily log.
   const recovery = [
     ...data.workouts.map((w) => ({
       date: todayInTimeZone(timeZone, w.startedAt),
       source: "Workout check-in",
       sleep: w.sleepHours,
-      back: w.backPainPre,
-      leftShin: w.shinLeftPre,
-      rightShin: w.shinRightPre,
+      quality: w.sleepQuality,
+      energy: w.energy,
+      fatigue: w.fatigue,
+      soreness: w.soreness,
     })),
     ...data.recovery.map((r) => ({
       date: r.date,
       source: "Daily recovery",
       sleep: r.sleepHours,
-      back: r.backPain,
-      leftShin: r.shinLeft,
-      rightShin: r.shinRight,
-    })),
-    ...data.runs.map((r) => ({
-      date: todayInTimeZone(timeZone, r.startedAt),
-      source: "Run (after)",
-      sleep: null,
-      back: null,
-      leftShin: r.shinLeftPost,
-      rightShin: r.shinRightPost,
+      quality: r.sleepQuality,
+      energy: r.energy,
+      fatigue: r.fatigue,
+      soreness: r.soreness,
     })),
   ]
-    .filter((r) => [r.sleep, r.back, r.leftShin, r.rightShin].some((v) => v !== null))
+    .filter((r) => [r.sleep, r.quality, r.energy, r.fatigue, r.soreness].some((v) => v !== null))
     .sort((a, b) => a.date.localeCompare(b.date));
   const trainingDays = new Set([
     ...finished.map((w) => todayInTimeZone(timeZone, w.startedAt)),

@@ -23,6 +23,7 @@ import {
 } from "./enums";
 import { gyms } from "./gyms";
 import { profiles } from "./profiles";
+import { coachProgramRequests } from "./coaching-workflow";
 import { programDays, programs } from "./programs";
 import { workoutSessions } from "./workouts";
 
@@ -86,6 +87,14 @@ export const coachNotes = pgTable(
     disposition: text("disposition").$type<NoteDisposition>(),
     /** One line saying why, required of the dispositions that leave the athlete waiting. */
     dispositionDetail: text("disposition_detail").notNull().default(""),
+    /**
+     * The open request this note answers, when the athlete wrote it from a coach question.
+     * The note still reaches the coach as an ordinary message; this says which question it
+     * closes, so the answer resumes that request instead of starting another one.
+     */
+    requestId: uuid("request_id").references(() => coachProgramRequests.id, {
+      onDelete: "set null",
+    }),
   },
   (t) => [
     index("coach_notes_user_created_idx").on(t.userId, t.createdAt),

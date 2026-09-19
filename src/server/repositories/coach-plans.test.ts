@@ -702,12 +702,6 @@ describe("a day that lifts and runs", () => {
           durationSeconds: minutes * 60,
           distanceMeters: minutes * 150,
           rpe: 3,
-          shinLeftPre: 1,
-          shinRightPre: 1,
-          shinLeftDuring: null,
-          shinRightDuring: null,
-          shinLeftPost: 2,
-          shinRightPost: 1,
           programRunId: null,
           notes: null,
         });
@@ -753,7 +747,7 @@ describe("a day that lifts and runs", () => {
             durationMinutes: 25,
             rpe: 3,
             paceNote: "Nose-breathing pace.",
-            stopRule: "Stop if either shin goes past 3.",
+            stopRule: "Stop if the ache goes past 3.",
             programRunId: ctx.slot.programRunId,
           },
           exercises: [
@@ -771,7 +765,7 @@ describe("a day that lifts and runs", () => {
       durationMinutes: 25,
       rpe: 3,
       programRunId: ctx.slot.programRunId,
-      stopRule: "Stop if either shin goes past 3.",
+      stopRule: "Stop if the ache goes past 3.",
     });
     expect(plan.exercises[0]?.slotLineageId).toBeTruthy();
     const today = await withUser(t.db, alice.id, (tx) => plannedRunForToday(tx, alice.id));
@@ -996,7 +990,7 @@ const RUN_ONLY_BLUEPRINT = parseProgramBlueprint({
       duration: [20, 25],
       rpe: [3, 4],
       paceNote: "Conversational.",
-      shinRule: "Stop if either shin goes past 3.",
+      stopRule: "Stop if the ache goes past 3.",
     },
     { weekIndex: 2, dayOfWeek: 1, duration: [25, 30], rpe: [3, 4] },
   ],
@@ -1054,12 +1048,6 @@ describe("a day that runs", () => {
         durationSeconds: 1500,
         distanceMeters: 4000,
         rpe: 3,
-        shinLeftPre: null,
-        shinRightPre: null,
-        shinLeftDuring: null,
-        shinRightDuring: null,
-        shinLeftPost: null,
-        shinRightPost: null,
         programRunId: null,
         notes: null,
       }),

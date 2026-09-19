@@ -186,19 +186,10 @@ export async function handleCoachRequest(
               energy: w.energy,
               fatigue: w.fatigue,
               soreness: w.soreness,
-              backPain: w.backPainPre,
-              shinLeft: w.shinLeftPre,
-              shinRight: w.shinRightPre,
             })),
             runs: runData.runs.map((r) => ({
               runId: r.id,
               startedAt: r.startedAt,
-              shinLeftPre: r.shinLeftPre,
-              shinRightPre: r.shinRightPre,
-              shinLeftDuring: r.shinLeftDuring,
-              shinRightDuring: r.shinRightDuring,
-              shinLeftPost: r.shinLeftPost,
-              shinRightPost: r.shinRightPost,
             })),
           });
         }
