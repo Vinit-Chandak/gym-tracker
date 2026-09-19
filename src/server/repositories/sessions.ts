@@ -29,6 +29,9 @@ import { getWarmupProtocol } from "@/server/queries/reference";
 
 import type { TrainingRecord } from "@/domain/records";
 
+import { multisportRollout } from "@/lib/multisport-rollout";
+
+import { closeStrengthParent, discardStrengthParent, openStrengthParent } from "./activities";
 import { decideExercisesAtGym, resolvePlannedDay, type ExerciseDecision } from "./availability";
 import { getGym } from "./gyms";
 import { consumePlan, planForSession, releasePlan } from "./coach-plans";
@@ -180,10 +183,11 @@ export async function startPlannedSession(
         gymId: input.gymId,
         cycleIndex: input.cycleIndex,
       })
-      .returning({ id: workoutSessions.id }),
+      .returning({ id: workoutSessions.id, startedAt: workoutSessions.startedAt }),
   ]);
   if (!resolved) throw new SessionNotFoundError();
   if (!session) throw new Error("Session insert returned no row");
+  await openParent(db, userId, session);
 
   // The coach's plan for this slot, if it was made for this gym. From here the session owns
   // what the plan said: a substitution or a drop is written into the session's own rows.
@@ -269,9 +273,24 @@ export async function startAdHocSession(
   const [session] = await db
     .insert(workoutSessions)
     .values({ userId, gymId: input.gymId })
-    .returning({ id: workoutSessions.id });
+    .returning({ id: workoutSessions.id, startedAt: workoutSessions.startedAt });
   if (!session) throw new Error("Session insert returned no row");
+  await openParent(db, userId, session);
   return { sessionId: session.id };
+}
+
+/**
+ * The canonical parent of a strength session, opened in the same transaction as the session
+ * (plan §5.2). Off until canonical writes are switched on, so the bridge release writes
+ * exactly what it writes today.
+ */
+async function openParent(
+  db: DbOrTx,
+  userId: string,
+  session: { id: string; startedAt: Date },
+): Promise<void> {
+  if (!multisportRollout().canonicalWrites) return;
+  await openStrengthParent(db, userId, session);
 }
 
 export type SessionSet = {
@@ -1187,6 +1206,8 @@ export async function finishSession(
       )`,
     });
   if (!row) throw new SessionNotFoundError();
+  if (multisportRollout().canonicalWrites)
+    await closeStrengthParent(db, userId, sessionId, new Date());
   const { workouts } = await readWorkouts(db, userId, null, 0, 1, { sessionId });
   const finished = workouts[0];
   if (!finished) throw new SessionNotFoundError();
@@ -1205,6 +1226,7 @@ export async function discardSession(db: DbOrTx, userId: string, sessionId: stri
   if ((sets?.n ?? 0) > 0) throw new SessionHasSetsError();
   // An empty session gives its plan back, so starting again at the same gym still uses it.
   await releasePlan(db, userId, sessionId);
+  if (multisportRollout().canonicalWrites) await discardStrengthParent(db, userId, sessionId);
   await db
     .delete(workoutSessions)
     .where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.userId, userId)));

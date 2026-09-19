@@ -191,6 +191,9 @@ export const occurrenceEvents = pgTable(
       columns: [t.userId, t.occurrenceId],
       foreignColumns: [plannedOccurrences.userId, plannedOccurrences.id],
     }).onDelete("cascade"),
+    // Deleting an activity clears the pointer and keeps the event: what happened to an
+    // occurrence is history, and history does not disappear with the record it described.
+    // The migration writes `on delete set null (activity_id)` so the owner is not nulled too.
     foreignKey({
       name: "occurrence_events_activity_fk",
       columns: [t.userId, t.activityId],
