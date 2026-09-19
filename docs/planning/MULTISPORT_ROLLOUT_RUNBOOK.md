@@ -49,7 +49,7 @@ recorded here rather than left to be discovered:
 
 | Phase | Result | Suite after it |
 | --- | --- | --- |
-| P0 | Audit, fixtures and this runbook. No schema change. | 128 files, 827 tests |
+| P0 | Audit, fixtures and this runbook. No schema change. | 121 files, 827 tests |
 | P1 | Typed sport, effort, measurements, prescriptions, occurrences, legacy decoders. | 128 files, 893 tests |
 | P2 | Migration 0026, the canonical tables, the backfill and reconciliation. | 130 files, 924 tests |
 | P3 | One save/edit/delete boundary; running parity; strength parents. | 134 files, 965 tests |
