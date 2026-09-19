@@ -36,63 +36,6 @@ const EFFORT_OPTIONS = [
   { value: "unsure", label: "Not sure" },
 ];
 
-export function WhenField({ value, error }: { value: string; error?: string }) {
-  return (
-    <Field label="When" error={error}>
-      <Input name="startedAt" type="datetime-local" defaultValue={value} required />
-    </Field>
-  );
-}
-
-/**
- * Hours, minutes and seconds. Three boxes rather than one clever one: a duration typed on a
- * phone in a car park should not need a format to be guessed right.
- */
-export function DurationFields({
-  values,
-  errors,
-  label = "Duration",
-  showHours = true,
-}: {
-  values: (key: string) => string;
-  errors?: Record<string, string>;
-  label?: string;
-  showHours?: boolean;
-}) {
-  return (
-    <Field group label={label} error={errors?.minutes ?? errors?.hours ?? errors?.seconds}>
-      <div className={showHours ? "grid grid-cols-3 gap-2" : "grid grid-cols-2 gap-2"}>
-        {showHours && (
-          <Field label="Hours">
-            <Input
-              name="hours"
-              inputMode="numeric"
-              defaultValue={values("hours")}
-              placeholder="0"
-            />
-          </Field>
-        )}
-        <Field label="Minutes">
-          <Input
-            name="minutes"
-            inputMode="numeric"
-            defaultValue={values("minutes")}
-            placeholder="30"
-          />
-        </Field>
-        <Field label="Seconds">
-          <Input
-            name="seconds"
-            inputMode="decimal"
-            defaultValue={values("seconds")}
-            placeholder="0"
-          />
-        </Field>
-      </div>
-    </Field>
-  );
-}
-
 /** A distance and the unit it was entered in. Both are stored; neither is re-derived. */
 export function DistanceField({
   value,

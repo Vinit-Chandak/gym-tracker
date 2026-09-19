@@ -24,12 +24,7 @@ import {
   type LogOrigin,
   type TimeZoneSource,
 } from "@/domain/activity";
-import {
-  actualDistanceMetres,
-  actualDurationMs,
-  validateActual,
-  type EnduranceActual,
-} from "@/domain/activity-metrics";
+import { actualDurationMs, validateActual, type EnduranceActual } from "@/domain/activity-metrics";
 import { canLog } from "@/domain/occurrences";
 
 import { deleteRunStats, writeRunStats } from "./shared-stats";
@@ -205,7 +200,6 @@ async function resolveTarget(
   userId: string,
   origin: LogOrigin,
   sport: EnduranceSport,
-  excludeActivityId?: string,
 ): Promise<OccurrenceTarget | null> {
   if (origin.kind === "ad_hoc") return null;
   const [row] = await tx
@@ -233,7 +227,7 @@ async function resolveTarget(
     .from(activities)
     .where(and(eq(activities.userId, userId), eq(activities.occurrenceId, row.occurrenceId)))
     .limit(1);
-  if (taken && taken.id !== excludeActivityId) throw new OccurrenceTakenError(taken.id);
+  if (taken) throw new OccurrenceTakenError(taken.id);
   if (!canLog({ disposition: row.disposition }, null)) throw new OccurrenceNotFoundError();
   return { occurrenceId: row.occurrenceId, revisionId: row.revisionId, sport: row.sport };
 }
@@ -873,9 +867,4 @@ function localDate(instant: Date, timeZone: string): string {
     month: "2-digit",
     day: "2-digit",
   }).format(instant);
-}
-
-/** The distance this activity asserts, for callers that only need the number. */
-export function distanceOf(record: ActivityRecord): number | null {
-  return record.actual ? actualDistanceMetres(record.actual) : null;
 }
