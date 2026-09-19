@@ -50,6 +50,36 @@ export async function listOpenRequests(db: DbOrTx, userId: string, limit = 20) {
     .limit(limit);
 }
 
+/**
+ * Every ask the review that wrote this draft answered, oldest first.
+ *
+ * Not only the ones it proposed a change for. A single note holds two asks, and the run that
+ * proposes the curls may still have a question about the core work; a change screen that
+ * showed only the first would be answering half of what was asked. Falls back to the draft's
+ * own proposals when there is no job behind it — a draft the athlete wrote themselves.
+ */
+export async function listRequestsForDraft(
+  db: DbOrTx,
+  userId: string,
+  draft: { id: string; jobId: string | null },
+) {
+  return db
+    .select()
+    .from(coachProgramRequests)
+    .where(
+      and(
+        eq(coachProgramRequests.userId, userId),
+        draft.jobId
+          ? or(
+              eq(coachProgramRequests.draftId, draft.id),
+              eq(coachProgramRequests.decidedJobId, draft.jobId),
+            )
+          : eq(coachProgramRequests.draftId, draft.id),
+      ),
+    )
+    .orderBy(asc(coachProgramRequests.createdAt), asc(coachProgramRequests.id));
+}
+
 /** Recently settled asks, so an outcome does not vanish the moment it is given. */
 export async function listSettledRequests(db: DbOrTx, userId: string, limit = 10) {
   return db
@@ -250,15 +280,22 @@ export async function applyRequestPatch(
   );
   for (const entry of patch.open) if (!required.has(entry.id)) required.set(entry.id, null);
 
-  // A session job discovers asks; only a programme review decides them. Answering a programme
-  // request with tomorrow's session would be the same silence in a different place.
-  if (input.kind === "prepare_session" && patch.decisions.length)
-    throw new CoachingError(
-      "Session preparation cannot decide a programme request. It is assessed by the programme review in this same daily run.",
-      422,
-    );
-  if (input.kind === "prepare_session")
+  // Any job may discover an ask; only the programme review decides one. Neither of the other
+  // two was handed the athlete's list to assess — a session job is preparing tomorrow, and a
+  // creation run is writing a different programme from the one the ask was about — so an ask
+  // they find waits for the next daily review rather than being closed by them. Refusing the
+  // decision is not enough on its own: an opened ask joins `required` above, and a run that
+  // was obliged to decide what it may not decide could only fail.
+  if (input.kind !== "review_program") {
+    if (patch.decisions.length)
+      throw new CoachingError(
+        input.kind === "prepare_session"
+          ? "Session preparation cannot decide a programme request. It is assessed by the programme review in this same daily run."
+          : "Programme creation cannot decide a programme request. It is assessed by the next daily programme review.",
+        422,
+      );
     return { opened: patch.open.length, decided: 0, remaining: required.size };
+  }
 
   const seen = new Set<string>();
   for (const decision of patch.decisions) {

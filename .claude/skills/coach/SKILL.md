@@ -92,7 +92,7 @@ A disposition closes a message. It does not answer an ask, and one message can h
 
 Open every further ask you find in their notes in `requests.open` as `{id, sourceId, quote, summary}`: mint the `id` yourself so your own decisions can refer to it, `sourceId` is the `note:<uuid>`, `workout:<uuid>` or `exercise:<uuid>` it came from, and `quote` must be their exact words from that source. Two asks in one note are two items. Opening an ask does not replace closing the note: do both.
 
-**review_program** must return exactly one `requests.decisions` entry for every item supplied and every item you opened:
+Only **review_program** decides an ask. **prepare_session** and **create_program** may open one — a creation run is writing a different programme from the one the ask was about — and the server refuses a decision from either; an ask they open waits for the next daily review. **review_program** must return exactly one `requests.decisions` entry for every item supplied and every item you opened:
 
 - `needs_answer` — `detail` is the one specific question. Ask only what you cannot decide without.
 - `proposed` — `changeRefs` names the diff operations your revised blueprint actually contains (`slot:<lineageId>`, `add:<day>:<position>:<slug>`, `remove:…`, `run:<week>:<weekday>`, `day:day-<index>`, `program:<field>`). The server recomputes the difference and rejects a claim the blueprint does not support.

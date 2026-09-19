@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/card";
 import { SpeechTextarea } from "@/components/ui/dictation";
 import { PLAN_LIMITS } from "@/domain/session-plan";
 import { REQUEST_STATE_LABELS, type RequestState } from "@/domain/program-request";
+import { formatIsoDay } from "@/lib/format";
 import {
   answerProgramRequestAction,
   withdrawProgramRequestAction,
@@ -93,7 +94,10 @@ function RequestRow({ request, base }: { request: RequestView; base: string }) {
       {request.detail && <p className="text-sm [overflow-wrap:anywhere]">{request.detail}</p>}
       {request.state === "deferred" && (request.condition || request.reconsiderAfter) && (
         <p className="text-sm text-ink-muted tabular-nums">
-          {[request.condition, request.reconsiderAfter && `Back on ${request.reconsiderAfter}`]
+          {[
+            request.condition,
+            request.reconsiderAfter && `Back on ${formatIsoDay(request.reconsiderAfter)}`,
+          ]
             .filter(Boolean)
             .join(" · ")}
         </p>
