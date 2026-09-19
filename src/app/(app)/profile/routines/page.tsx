@@ -5,13 +5,10 @@ import { PageHeader } from "@/components/shell/page-header";
 import { getDb } from "@/db/client";
 import { gyms, exercises } from "@/db/schema";
 import { withUser } from "@/db/with-user";
-import { redirect } from "next/navigation";
 
-import { multisportRollout } from "@/lib/multisport-rollout";
 import { requireProfiledUser } from "@/server/auth";
 import { listSavedRoutines } from "@/server/repositories/manual-training";
 export default async function Page() {
-  if (multisportRollout().sharedNavigation) redirect("/training/templates");
   const user = await requireProfiledUser();
   const [routines, locations, library] = await withUser(
     getDb(),

@@ -492,14 +492,7 @@ describe("reading history", () => {
 });
 
 /** AT-REG-04: the strength parent is opened, closed and discarded with the session itself. */
-describe("the strength lifecycle in canonical mode", () => {
-  beforeEach(() => {
-    process.env.MULTISPORT_CANONICAL_WRITES = "true";
-  });
-  afterEach(() => {
-    delete process.env.MULTISPORT_CANONICAL_WRITES;
-  });
-
+describe("the strength lifecycle", () => {
   it("opens a parent with the session and closes it when the session finishes", async () => {
     const account = await seeded("lifecycle@example.test");
     const started = await withUser(t.db, account.userId, (tx) =>

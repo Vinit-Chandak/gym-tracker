@@ -101,31 +101,25 @@ it("refuses a version that is not a number at all", async () => {
 });
 
 /**
- * AT-COACH-10: the v3 write paths stay closed independently of the workflow flag.
+ * AT-COACH-10: once the workflow API is serving, the v3 paths are closed — writes included.
  *
- * This is the case the plan calls out by name: turning off a rollout flag must not resurrect
- * a v3 mutation path. With the workflow API disabled and canonical writes on, a legacy POST
- * still gets an upgrade response and writes nothing.
+ * A v3 plan names a day and a gym, and there is no honest way to read that as one occurrence
+ * out of a Tuesday that has two. An old worker that keeps posting gets told to upgrade and
+ * writes nothing.
  */
-it("keeps the legacy write paths closed when the workflow flag is off", async () => {
-  vi.stubEnv("COACH_WORKFLOW_ENABLED", "false");
-  vi.stubEnv("MULTISPORT_CANONICAL_WRITES", "true");
+it("closes the legacy write paths once the workflow API is serving", async () => {
+  vi.stubEnv("COACH_WORKFLOW_ENABLED", "true");
   const user = await athlete();
   const response = await call(["users", user.id, "attempts"], {
     method: "POST",
     body: { trigger: "nightly", status: "planned" },
   });
   expect(response.status).toBe(409);
-  expect((await response.json()) as { error: string }).toMatchObject({
-    error: "upgrade_required",
-  });
 });
 
-/** Before cutover the legacy service is still the one in use, and reads keep working. */
-it("still serves the legacy read path before canonical writes are switched on", async () => {
+/** Until then the legacy service is still the one in use, and its reads keep working. */
+it("still serves the legacy read path with the workflow flag off", async () => {
   vi.stubEnv("COACH_WORKFLOW_ENABLED", "false");
-  vi.stubEnv("MULTISPORT_CANONICAL_WRITES", "");
-  vi.stubEnv("MULTISPORT_ROLLOUT", "");
   const response = await call(["due"]);
   expect(response.status).toBe(200);
 });

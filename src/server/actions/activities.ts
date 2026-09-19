@@ -31,7 +31,6 @@ import {
   type SwimmingActualV1,
 } from "@/domain/activity-metrics";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import { multisportRollout } from "@/lib/multisport-rollout";
 import { fromDateTimeLocal } from "@/lib/time";
 import { requireUser } from "@/server/auth";
 import { ensureProfile } from "@/server/queries/profile";
@@ -336,15 +335,9 @@ export async function saveActivityAction(
   formData: FormData,
 ): Promise<FormState> {
   const user = await requireUser();
-  const rollout = multisportRollout();
-  if (!rollout.canonicalWrites)
-    return { formError: "Logging through this form is not switched on yet." };
-
   const parsed = parseForm(activitySchema, formData);
   if (!parsed.success) return parsed.state;
   const form = parsed.data;
-  if (!rollout.newSports && form.sport !== "running")
-    return { formError: "That sport is not switched on yet.", values: formValues(formData) };
 
   const actual = actualFrom(form);
   const confirmation = confirmationNeeded(form.sport, actual);
@@ -415,8 +408,6 @@ export type DeleteActivityResult = { ok: true } | { ok: false; error: string };
  */
 export async function deleteActivityAction(activityId: string): Promise<DeleteActivityResult> {
   const user = await requireUser();
-  if (!multisportRollout().canonicalWrites)
-    return { ok: false, error: "Logging through this form is not switched on yet." };
   let removed: { occurrenceId: string | null; sport: string };
   try {
     removed = await withUser(getDb(), user.id, (tx) => deleteActivity(tx, user.id, activityId));

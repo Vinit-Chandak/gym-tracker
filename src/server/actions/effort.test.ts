@@ -9,7 +9,6 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn(), refresh: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
 
 import { logSetAction } from "./sessions";
-import { saveRunAction } from "./runs";
 
 beforeEach(() => vi.resetAllMocks());
 
@@ -39,17 +38,5 @@ it("requires actual RIR even from a current screen", async () => {
     durationSeconds: null,
   });
   expect(result).toEqual({ ok: false, error: expect.stringMatching(/Enter RIR/) });
-  expect(mocks.getDb).not.toHaveBeenCalled();
-});
-
-it("rejects an old run screen's prefilled RPE and keeps the submitted form values", async () => {
-  const form = new FormData();
-  form.set("startedAt", "2026-09-14T07:00");
-  form.set("distanceKm", "4.2");
-  form.set("durationMinutes", "30");
-  form.set("rpe", "6");
-  const result = await saveRunAction(null, {}, form);
-  expect(result.fieldErrors?.rpe).toMatch(/Reload the run page/);
-  expect(result.values?.distanceKm).toBe("4.2");
   expect(mocks.getDb).not.toHaveBeenCalled();
 });

@@ -27,7 +27,6 @@ import { assessProgramChange } from "@/domain/program-change";
 import { openingPlanSchema, type OpeningPlan } from "@/domain/coaching-workflow";
 import { reviewWeekdayFor } from "@/domain/coach-cadence";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import { multisportRollout } from "@/lib/multisport-rollout";
 import { sharedWarmupProtocols } from "@/server/queries/reference";
 import { libraryAtGym, nextTrainingSlot, storePlan } from "./coach-plans";
 import { materialiseOccurrences, occurrencesFromBlueprint } from "./program-occurrences";
@@ -505,28 +504,25 @@ export async function activateProgramDraft(
   if (draft.openingPlan && input.transition === "new_block")
     await storeOpeningPlan(db, userId, created.id, draft.openingPlan);
   // The endurance half of the approved programme becomes real occurrences, each with its own
-  // identity and its own immutable prescription (plan §8.2 item 2). Off until the canonical
-  // writer is the authority: before that, programRuns is still what the app reads.
-  if (multisportRollout().canonicalWrites) {
-    const [athlete] = await db
-      .select({ timeZone: profiles.timeZone })
-      .from(profiles)
-      .where(eq(profiles.id, userId))
-      .limit(1);
-    const zone = athlete?.timeZone ?? "UTC";
-    await materialiseOccurrences(db, userId, {
-      programId: created.id,
+  // identity and its own immutable prescription (plan §8.2 item 2).
+  const [athlete] = await db
+    .select({ timeZone: profiles.timeZone })
+    .from(profiles)
+    .where(eq(profiles.id, userId))
+    .limit(1);
+  const zone = athlete?.timeZone ?? "UTC";
+  await materialiseOccurrences(db, userId, {
+    programId: created.id,
+    familyId: created.familyId,
+    blueprint: occurrencesFromBlueprint(blueprint, {
       familyId: created.familyId,
-      blueprint: occurrencesFromBlueprint(blueprint, {
-        familyId: created.familyId,
-        startDate,
-        schedulingTimeZone: zone,
-      }),
-      schedulingZone: zone,
-      today: todayInTimeZone(zone, new Date()),
-      transition: input.transition,
-    });
-  }
+      startDate,
+      schedulingTimeZone: zone,
+    }),
+    schedulingZone: zone,
+    today: todayInTimeZone(zone, new Date()),
+    transition: input.transition,
+  });
   if (priorBlueprint && !input.automatic) {
     // Athlete-approved revisions also start a new evidence cycle for affected targets.
     const changes: CoachingChangeRecord[] = [];

@@ -5,7 +5,6 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getDb } from "@/db/client";
-import { multisportRollout } from "@/lib/multisport-rollout";
 import { isUniqueViolation } from "@/db/errors";
 import { profiles } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
@@ -96,7 +95,7 @@ export async function saveOnboardingProfileAction(
   }
   await profileChanged(user.id);
   // Which sports come next; the gym step follows only if lifting is one of them.
-  redirect(multisportRollout().sharedNavigation ? "/welcome/sports" : "/welcome/gym");
+  redirect("/welcome/sports");
 }
 
 /**

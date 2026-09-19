@@ -6,7 +6,6 @@ import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
-import { multisportRollout } from "@/lib/multisport-rollout";
 import { toDateTimeLocal } from "@/lib/time";
 import { saveActivityAction } from "@/server/actions/activities";
 import { requireUser } from "@/server/auth";
@@ -28,7 +27,6 @@ export default async function EditActivityPage(
 ) {
   const { activityId } = await props.params;
   requireUuid(activityId);
-  if (!multisportRollout().canonicalWrites) notFound();
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
   const activity = await withUser(getDb(), user.id, (tx) => getActivity(tx, user.id, activityId), {

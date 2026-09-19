@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { beforeEach, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ getDb: vi.fn() }));
 vi.mock("@/db/client", () => ({ getDb: mocks.getDb }));
@@ -39,42 +39,6 @@ const runningForm = (overrides: Record<string, string> = {}) =>
 
 beforeEach(() => {
   vi.resetAllMocks();
-  process.env.MULTISPORT_CANONICAL_WRITES = "true";
-  process.env.MULTISPORT_NEW_SPORTS = "true";
-});
-afterEach(() => {
-  delete process.env.MULTISPORT_CANONICAL_WRITES;
-  delete process.env.MULTISPORT_NEW_SPORTS;
-});
-
-it("refuses to write at all while canonical writes are switched off", async () => {
-  delete process.env.MULTISPORT_CANONICAL_WRITES;
-  delete process.env.MULTISPORT_NEW_SPORTS;
-
-  const state = await saveActivityAction(null, {}, runningForm());
-
-  expect(state.formError).toMatch(/not switched on/);
-  expect(mocks.getDb).not.toHaveBeenCalled();
-});
-
-it("refuses a new sport until new sports are switched on", async () => {
-  delete process.env.MULTISPORT_NEW_SPORTS;
-
-  const state = await saveActivityAction(
-    null,
-    {},
-    form({
-      sport: "cycling",
-      submissionKey: KEY,
-      startedAt: "2026-09-18T06:00",
-      environment: "indoor",
-      minutes: "30",
-      effort: "4",
-    }),
-  );
-
-  expect(state.formError).toMatch(/not switched on/);
-  expect(mocks.getDb).not.toHaveBeenCalled();
 });
 
 /** LOG-03: an answer is required, and "not sure" is one of the two answers. */

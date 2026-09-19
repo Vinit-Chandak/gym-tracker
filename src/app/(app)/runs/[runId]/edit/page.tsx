@@ -1,93 +1,26 @@
-import { formatRunKm } from "@/lib/format";
 import type { Metadata } from "next";
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 
-import { PageContent } from "@/components/shell/page-content";
-import { PageHeader } from "@/components/shell/page-header";
+import { LegacyUnavailable } from "@/components/activities/legacy-unavailable";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
-import { toDateTimeLocal } from "@/lib/time";
-import { saveRunAction } from "@/server/actions/runs";
-import { LegacyUnavailable } from "@/components/activities/legacy-unavailable";
-import { multisportRollout } from "@/lib/multisport-rollout";
 import { requireUser } from "@/server/auth";
 import { activityForLegacyRun } from "@/server/legacy-routes";
-import { getRequestProfile } from "@/server/queries/request-profile";
-import { getRun, listRuns, plannedRunsForCycle } from "@/server/repositories/runs";
-import { getSchedule } from "@/server/repositories/schedule";
 import { requireUuid } from "@/server/validation/params";
-
-import { RunForm } from "../../run-form";
 
 export const metadata: Metadata = { title: "Edit run" };
 
-const str = (value: number | null): string => (value === null ? "" : String(value));
-
+/** The old edit link, resolved onto the activity the run became (plan §3.2). */
 export default async function EditRunPage(props: PageProps<"/runs/[runId]/edit">) {
   const { runId } = await props.params;
   requireUuid(runId);
   const user = await requireUser();
-  if (multisportRollout().sharedNavigation) {
-    const activityId = await withUser(
-      getDb(),
-      user.id,
-      (tx) => activityForLegacyRun(tx, user.id, runId),
-      { readOnly: true },
-    );
-    if (!activityId) return <LegacyUnavailable />;
-    redirect(`/training/activities/${activityId}/edit`);
-  }
-  const requestProfile = await getRequestProfile(user.id, user.email);
-  const data = await withUser(getDb(), user.id, async (tx) => {
-    const [run, logged, schedule] = await Promise.all([
-      getRun(tx, user.id, runId),
-      listRuns(tx, user.id, 200),
-      getSchedule(tx, user.id),
-    ]);
-    if (!run) return null;
-    const profile = requestProfile;
-    return {
-      run,
-      timeZone: profile.timeZone,
-      cycle: schedule ? await plannedRunsForCycle(tx, schedule, logged) : null,
-    };
-  });
-  if (!data) notFound();
-  const { run, timeZone, cycle } = data;
-  const planned = cycle?.planned ?? [];
-  // Keep the run's own planned link selectable even when it belongs to another cycle.
-  if (run.planned && !planned.some((p) => p.id === run.planned?.id)) {
-    planned.unshift({
-      ...run.planned,
-      paceNote: null,
-      progressionNote: null,
-      stopRule: null,
-      comment: null,
-      loggedRunId: run.id,
-    });
-  }
-
-  return (
-    <>
-      <PageHeader title="Edit run" backHref={`/runs/${run.id}`} />
-      <PageContent>
-        <RunForm
-          action={saveRunAction.bind(null, run.id)}
-          initial={{
-            startedAt: toDateTimeLocal(run.startedAt, timeZone),
-            treadmill: run.mode === "treadmill",
-            distanceKm: formatRunKm(run.distanceMeters),
-            durationMinutes: String(Math.floor(run.durationSeconds / 60)),
-            durationSeconds: String(run.durationSeconds % 60),
-            rpe: run.effortReported ? str(run.rpe) : "",
-            programRunId: run.programRunId ?? "",
-            notes: run.notes ?? "",
-          }}
-          planned={planned}
-          runId={run.id}
-          submitLabel="Save changes"
-        />
-      </PageContent>
-    </>
+  const activityId = await withUser(
+    getDb(),
+    user.id,
+    (tx) => activityForLegacyRun(tx, user.id, runId),
+    { readOnly: true },
   );
+  if (!activityId) return <LegacyUnavailable />;
+  redirect(`/training/activities/${activityId}/edit`);
 }

@@ -24,30 +24,17 @@ export type NavItem = {
  * who you are and, later, the people you follow. Renaming the tab rather than adding a sixth
  * keeps the island at five.
  *
- * The second tab is where the release changes shape. It was Runs, a product of its own for
- * one sport. It becomes Training: where any sport is logged, scheduled and planned, with the
- * programme behind it (plan §2.3). Still five tabs, and each still has one job.
+ * The second tab was Runs, a product of its own for one sport. It is Training: where any
+ * sport is logged, scheduled and planned, with the programme behind it (plan §2.3). Still
+ * five tabs, and each still has one job.
  */
 export const NAV_ITEMS: readonly NavItem[] = [
-  { href: "/today", label: "Today", icon: Dumbbell },
-  { href: "/runs", label: "Runs", icon: Footprints },
-  { href: "/history", label: "History", icon: CalendarDays },
-  { href: "/progress", label: "Progress", icon: TrendingUp },
-  { href: "/profile", label: "Profile", icon: User },
-];
-
-/** The same five tabs with Training in place of Runs, once the shared surfaces are on. */
-export const SHARED_NAV_ITEMS: readonly NavItem[] = [
   { href: "/today", label: "Today", icon: Dumbbell },
   { href: "/training", label: "Training", icon: Footprints },
   { href: "/history", label: "History", icon: CalendarDays },
   { href: "/progress", label: "Progress", icon: TrendingUp },
   { href: "/profile", label: "Profile", icon: User },
 ];
-
-export function navItems(sharedNavigation: boolean): readonly NavItem[] {
-  return sharedNavigation ? SHARED_NAV_ITEMS : NAV_ITEMS;
-}
 
 /** Sections reached from Profile, which keep Profile selected while you are in them. */
 const UNDER_PROFILE = ["/exercises", "/gyms", "/u"];

@@ -9,9 +9,13 @@ import { Card } from "@/components/ui/card";
 import { Section } from "@/components/ui/section";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
-import { ACTIVITY_SPORT_LABELS, isActivitySport, type ActivitySport } from "@/domain/activity";
+import {
+  ACTIVITY_SPORT_LABELS,
+  ACTIVITY_SPORTS,
+  isActivitySport,
+  type ActivitySport,
+} from "@/domain/activity";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import { enabledSports, multisportRollout } from "@/lib/multisport-rollout";
 import { requireUser } from "@/server/auth";
 import { getActiveSession } from "@/server/queries/active-session";
 import { getRequestProfile } from "@/server/queries/request-profile";
@@ -29,8 +33,6 @@ export const metadata: Metadata = { title: "Training" };
  * happened lives in History; what is scheduled for today lives on Today.
  */
 export default async function TrainingPage(props: PageProps<"/training">) {
-  const rollout = multisportRollout();
-  if (!rollout.sharedNavigation) notFound();
   const search = await props.searchParams;
   const requested = typeof search.sport === "string" ? search.sport : null;
   // An unknown sport filter is refused rather than quietly ignored (AT-NAV-06).
@@ -53,7 +55,6 @@ export default async function TrainingPage(props: PageProps<"/training">) {
       { readOnly: true },
     ),
   ]);
-  const sports = enabledSports(rollout);
   const upcoming = data.standalone.upcoming.length;
   const earlier = data.standalone.earlier.filter(
     (occurrence) => occurrence.resolution.kind === "incomplete",
@@ -72,7 +73,7 @@ export default async function TrainingPage(props: PageProps<"/training">) {
               >
                 All
               </Link>
-              {sports.map((sport) => (
+              {ACTIVITY_SPORTS.map((sport) => (
                 <Link
                   key={sport}
                   href={`/training?sport=${sport}`}

@@ -13,12 +13,12 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import {
   ACTIVITY_SPORT_LABELS,
+  ENDURANCE_SPORTS,
   isActivitySport,
   isEnduranceSport,
   type EnduranceSport,
 } from "@/domain/activity";
 import { describePrescription } from "@/domain/activity-prescription";
-import { enabledSports, multisportRollout } from "@/lib/multisport-rollout";
 import { toDateTimeLocal } from "@/lib/time";
 import { saveActivityAction } from "@/server/actions/activities";
 import { requireUser } from "@/server/auth";
@@ -43,8 +43,6 @@ function single(value: string | string[] | undefined): string | null {
  */
 export default async function NewActivityPage(props: PageProps<"/training/new">) {
   const search = await props.searchParams;
-  const rollout = multisportRollout();
-  if (!rollout.canonicalWrites || !rollout.sharedNavigation) notFound();
 
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
@@ -60,22 +58,18 @@ export default async function NewActivityPage(props: PageProps<"/training/new">)
   if (requested && !(isActivitySport(requested) && isEnduranceSport(requested))) notFound();
   if (requested && occurrence && occurrence.sport !== requested) notFound();
 
-  const available = enabledSports(rollout).filter(
-    (item): item is EnduranceSport => item !== "strength",
-  );
   const sport: EnduranceSport | null = occurrence
     ? (occurrence.sport as EnduranceSport)
     : requested && isActivitySport(requested) && isEnduranceSport(requested)
       ? requested
       : null;
-  if (sport && !available.includes(sport)) notFound();
 
   if (!sport) {
     // The chooser, with the sports this account actually trains offered first (§3.1).
     const preferred = await withUser(getDb(), user.id, (tx) => enabledSportsFor(tx, user.id), {
       readOnly: true,
     });
-    const ordered = [...available].sort(
+    const ordered = [...ENDURANCE_SPORTS].sort(
       (a, b) => Number(preferred.includes(b)) - Number(preferred.includes(a)),
     );
     return (

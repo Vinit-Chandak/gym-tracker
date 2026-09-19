@@ -7,7 +7,6 @@ import { PageHeader } from "@/components/shell/page-header";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { fromMetres } from "@/lib/distance-units";
-import { multisportRollout } from "@/lib/multisport-rollout";
 import { saveTemplateAction } from "@/server/actions/activity-templates";
 import { requireUser } from "@/server/auth";
 import { getTemplate } from "@/server/repositories/activity-templates";
@@ -24,7 +23,6 @@ export default async function EditTemplatePage(
 ) {
   const { templateId } = await props.params;
   requireUuid(templateId);
-  if (!multisportRollout().sharedNavigation) notFound();
   const user = await requireUser();
   const template = await withUser(getDb(), user.id, (tx) => getTemplate(tx, user.id, templateId), {
     readOnly: true,

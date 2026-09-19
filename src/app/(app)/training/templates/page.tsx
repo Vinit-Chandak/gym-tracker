@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
@@ -13,7 +12,6 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { ACTIVITY_SPORT_LABELS } from "@/domain/activity";
 import { describePrescription } from "@/domain/activity-prescription";
-import { multisportRollout } from "@/lib/multisport-rollout";
 import { requireUser } from "@/server/auth";
 import { listTemplates } from "@/server/repositories/activity-templates";
 import { listSavedRoutines } from "@/server/repositories/manual-training";
@@ -28,7 +26,6 @@ export const metadata: Metadata = { title: "Templates" };
  * not converted into something they are not (§5.1).
  */
 export default async function TemplatesPage() {
-  if (!multisportRollout().sharedNavigation) notFound();
   const user = await requireUser();
   const { templates, routines } = await withUser(
     getDb(),
