@@ -183,6 +183,13 @@
       "when": 1789824624431,
       "tag": "0025_drop_personal_symptoms",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1789824625431,
+      "tag": "0026_coach_review_anchor",
+      "breakpoints": true
     }
   ]
 }
