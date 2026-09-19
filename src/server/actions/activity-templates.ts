@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { endurancePrescriptionSchema } from "@/domain/activity-prescription";
-import { multisportRollout } from "@/lib/multisport-rollout";
 import { requireUser } from "@/server/auth";
 import {
   archiveTemplate,
@@ -49,13 +48,9 @@ export async function saveTemplateAction(
   formData: FormData,
 ): Promise<FormState> {
   const user = await requireUser();
-  const rollout = multisportRollout();
-  if (!rollout.sharedNavigation) return { formError: "Templates are not switched on yet." };
   const parsed = parseForm(templateSchema, formData);
   if (!parsed.success) return parsed.state;
   const form = parsed.data;
-  if (form.sport !== "running" && !rollout.newSports)
-    return { formError: "That sport is not switched on yet.", values: formValues(formData) };
 
   const prescription = prescriptionFromForm(form);
   if (!prescription.ok) return problemsToState(prescription.problems, formData);
@@ -97,8 +92,6 @@ export type ArchiveResult = { ok: true } | { ok: false; error: string };
 /** Archives a template. What was scheduled from it keeps working, by design. */
 export async function archiveTemplateAction(templateId: string): Promise<ArchiveResult> {
   const user = await requireUser();
-  if (!multisportRollout().sharedNavigation)
-    return { ok: false, error: "Templates are not switched on yet." };
   try {
     await withUser(getDb(), user.id, (tx) => archiveTemplate(tx, user.id, templateId));
   } catch (error) {

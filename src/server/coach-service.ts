@@ -16,8 +16,6 @@ import {
   storePlan,
 } from "@/server/repositories/coach-plans";
 import { createProposal, ProposalError } from "@/server/repositories/program-revisions";
-import { COACH_CONTRACT_VERSION } from "@/domain/coaching-workflow";
-import { multisportRollout } from "@/lib/multisport-rollout";
 import { handleCoachWorkflow } from "./coach-workflow-service";
 import { CoachingError } from "./repositories/coaching-state";
 
@@ -116,25 +114,6 @@ export async function handleCoachServiceRequest(
         {
           error:
             "Use the versioned workflow API. Read the current .claude/skills/coach/SKILL.md before processing jobs.",
-        },
-        409,
-      );
-    /**
-     * The v3 mutation paths are closed, and stay closed (plan §8.5).
-     *
-     * This check deliberately does not read COACH_WORKFLOW_ENABLED. A rollout flag turned off
-     * during an incident must not resurrect a writer that cannot represent a ride or a swim:
-     * a v3 plan names a day and a gym, and there is no honest way to read that as one
-     * occurrence out of a Tuesday that has two. An old worker gets an upgrade response and
-     * writes nothing (AT-COACH-10).
-     */
-    if (method !== "GET" && multisportRollout().canonicalWrites)
-      return json(
-        {
-          error: "upgrade_required",
-          detail:
-            "This coach worker speaks contract v3, which can no longer describe a target. Deploy the current worker and use the workflow API.",
-          contractVersion: COACH_CONTRACT_VERSION,
         },
         409,
       );

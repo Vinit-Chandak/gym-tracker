@@ -1,5 +1,5 @@
-import { and, eq } from "drizzle-orm";
-import { afterAll, beforeAll, beforeEach, expect, it, vi } from "vitest";
+import { eq } from "drizzle-orm";
+import { afterAll, beforeAll, expect, it } from "vitest";
 
 import {
   coachJobs,
@@ -45,11 +45,6 @@ beforeAll(async () => {
 afterAll(async () => {
   await t.close();
 });
-beforeEach(() => {
-  vi.unstubAllEnvs();
-  vi.stubEnv("MULTISPORT_ROLLOUT", "true");
-});
-
 function prescription(
   sport: EnduranceSport,
   durationMs: [number, number] = [30 * MINUTE, 40 * MINUTE],
@@ -515,20 +510,4 @@ it("carries occurrences across a revision, freezing the past and cancelling what
   // The past one keeps what was actually prescribed on the day, untouched.
   expect(past?.prescription?.sessionTargets.durationMs).toEqual([30 * MINUTE, 40 * MINUTE]);
   expect(rows.find((row) => row.id === before[1]!.id)?.disposition).toBe("cancelled");
-});
-
-/** §10.4: nothing new is written while the legacy tables are still the authority. */
-it("queues no occurrence preparations while canonical writes are off", async () => {
-  vi.stubEnv("MULTISPORT_ROLLOUT", "");
-  vi.stubEnv("MULTISPORT_CANONICAL_WRITES", "");
-  const a = await athlete();
-  expect(await as(a, (tx) => enqueueOccurrencePreparations(tx, a.id, "2026-09-21"))).toBe(0);
-  expect(
-    await as(a, (tx) =>
-      tx
-        .select()
-        .from(coachJobs)
-        .where(and(eq(coachJobs.userId, a.id), eq(coachJobs.kind, "prepare_session"))),
-    ),
-  ).toHaveLength(0);
 });

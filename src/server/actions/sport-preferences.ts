@@ -7,7 +7,6 @@ import { z } from "zod";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { ACTIVITY_SPORTS, legacySportOf, type ActivitySport } from "@/domain/activity";
-import { multisportRollout } from "@/lib/multisport-rollout";
 import { requireUser } from "@/server/auth";
 import { deleteSportStats, rebuildSportStats } from "@/server/repositories/shared-stats";
 import { setSportPreference } from "@/server/repositories/sport-preferences";
@@ -44,7 +43,6 @@ export async function chooseSportsAction(
   formData: FormData,
 ): Promise<FormState> {
   const user = await requireUser();
-  if (!multisportRollout().sharedNavigation) redirect("/welcome/gym");
   const parsed = parseForm(sportsSchema, formData);
   if (!parsed.success) return parsed.state;
   const chosen = parsed.data.sports;
@@ -66,7 +64,6 @@ export async function setSportSharingAction(sport: ActivitySport, share: boolean
   const user = await requireUser();
   if (!ACTIVITY_SPORTS.includes(sport) || typeof share !== "boolean")
     throw new Error("Not a sport preference");
-  if (!multisportRollout().sharedNavigation) return;
   const legacy = legacySportOf(sport) ?? (sport === "cycling" ? "cycle" : "swim");
   await withUser(getDb(), user.id, async (tx) => {
     await setSportPreference(tx, user.id, sport, { shareStats: share });
@@ -84,8 +81,6 @@ export async function saveSportsAction(
   formData: FormData,
 ): Promise<FormState> {
   const user = await requireUser();
-  if (!multisportRollout().sharedNavigation)
-    return { formError: "Sport preferences are not switched on yet." };
   const parsed = parseForm(sportsSchema, formData);
   if (!parsed.success) return parsed.state;
   if (parsed.data.sports.length === 0)

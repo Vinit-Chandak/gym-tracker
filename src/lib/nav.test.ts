@@ -1,10 +1,10 @@
 import { expect, it } from "vitest";
-import { isNavItemActive, NAV_ITEMS, navItems, originPath, parseOrigin, sectionLabel } from "./nav";
+import { isNavItemActive, NAV_ITEMS, originPath, parseOrigin, sectionLabel } from "./nav";
 
 it.each([
   ["/today", "/today"],
   ["/workouts/session/check-in", "/today"],
-  ["/runs/run/edit", "/runs"],
+  ["/training/activities/abc", "/training"],
   // Gyms left the tab bar; its screens keep Profile selected, the way it is reached.
   ["/gyms", "/profile"],
   ["/gyms/gym/equipment/new", "/profile"],
@@ -19,7 +19,7 @@ it.each([
 });
 
 it("does not match unrelated path prefixes", () => {
-  expect(isNavItemActive("/runs-other", "/runs")).toBe(false);
+  expect(isNavItemActive("/training-other", "/training")).toBe(false);
 });
 
 it("names the section a detail screen was opened from", () => {
@@ -33,8 +33,8 @@ it("has no section name for a path outside the primary sections", () => {
   expect(sectionLabel("/nowhere")).toBeUndefined();
 });
 
-it("puts Training where Runs was, once the shared surfaces are on", () => {
-  expect(navItems(true).map((item) => item.href)).toEqual([
+it("puts Training where Runs was", () => {
+  expect(NAV_ITEMS.map((item) => item.href)).toEqual([
     "/today",
     "/training",
     "/history",
@@ -42,8 +42,7 @@ it("puts Training where Runs was, once the shared surfaces are on", () => {
     "/profile",
   ]);
   // Still five tabs, and no separate Runs product among them (AT-NAV-01).
-  expect(navItems(true).map((item) => item.label)).not.toContain("Runs");
-  expect(navItems(false).map((item) => item.href)).toContain("/runs");
+  expect(NAV_ITEMS.map((item) => item.label)).not.toContain("Runs");
 });
 
 it.each([
@@ -54,9 +53,7 @@ it.each([
   ["/workouts/abc/check-in", "/today"],
 ])("keeps one shared tab selected for %s", (pathname, expected) => {
   expect(
-    navItems(true)
-      .filter(({ href }) => isNavItemActive(pathname, href))
-      .map(({ href }) => href),
+    NAV_ITEMS.filter(({ href }) => isNavItemActive(pathname, href)).map(({ href }) => href),
   ).toEqual([expected]);
 });
 

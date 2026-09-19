@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
@@ -14,7 +13,6 @@ import { withUser } from "@/db/with-user";
 import { ACTIVITY_SPORT_LABELS } from "@/domain/activity";
 import { describePrescription } from "@/domain/activity-prescription";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import { multisportRollout } from "@/lib/multisport-rollout";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { standaloneSchedule, type ScheduledOccurrence } from "@/server/repositories/occurrences";
@@ -64,7 +62,6 @@ function OccurrenceRow({ occurrence, late }: { occurrence: ScheduledOccurrence; 
 }
 
 export default async function ScheduledPage() {
-  if (!multisportRollout().sharedNavigation) notFound();
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
   const today = todayInTimeZone(profile.timeZone);

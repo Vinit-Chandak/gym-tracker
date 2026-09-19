@@ -16,14 +16,12 @@ import { listGyms } from "@/server/repositories/gyms";
 import { occurrencesOnDate } from "@/server/repositories/occurrences";
 import { getTodayPlan } from "@/server/repositories/schedule";
 import { TodayActivities } from "@/components/activities/today-activities";
-import { multisportRollout } from "@/lib/multisport-rollout";
 
 import { TodayView } from "./today-view";
 
 export const metadata: Metadata = { title: "Today" };
 
 export default async function TodayPage() {
-  const shared = multisportRollout().sharedNavigation;
   const user = await requireUser();
   const requestProfile = await getRequestProfile(user.id, user.email);
   // The active session comes from the shared per-request read the resume strip also uses,
@@ -58,9 +56,7 @@ export default async function TodayPage() {
           : null;
       // Today's scheduled endurance work, and only today's: nothing rolls forward, and the
       // strength projection below is left to its own sequence (plan §2.3).
-      const scheduled = shared
-        ? await occurrencesOnDate(tx, user.id, todayInTimeZone(profile.timeZone))
-        : [];
+      const scheduled = await occurrencesOnDate(tx, user.id, todayInTimeZone(profile.timeZone));
       return { profile, gyms, plan, restProtocol, coach, scheduled };
     }),
   ]);
@@ -83,11 +79,11 @@ export default async function TodayPage() {
       />
       <PageContent>
         <TodayActivities occurrences={scheduled} />
-        <LinkButton href={shared ? "/training/templates" : "/profile/routines"} variant="secondary">
+        <LinkButton href="/training/templates" variant="secondary">
           Saved routines
         </LinkButton>
         {!plan && (
-          <LinkButton href={shared ? "/training/programme" : "/profile/programme"} variant="ghost">
+          <LinkButton href="/training/programme" variant="ghost">
             Create a programme
           </LinkButton>
         )}

@@ -5,7 +5,6 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { ACTIVITY_SPORT_LABELS } from "@/domain/activity";
 import { liftingAdherence, trainingAnalytics } from "@/domain/analytics";
-import { multisportRollout } from "@/lib/multisport-rollout";
 import { readActivityTotals } from "@/server/repositories/activity-analytics";
 import { addDays, todayInTimeZone } from "@/domain/program-calendar";
 import { weekStart } from "@/domain/running";
@@ -42,16 +41,14 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
   const bodyTo = addDays(bodyFrom, 6);
   const bodyRange = parseDateRange({ from: bodyFrom, to: bodyTo }, profile.timeZone);
 
-  const canonical = multisportRollout().canonicalWrites;
   const [training, schedule, body, bodyWeights, totals] = await withUser(getDb(), user.id, (tx) =>
     Promise.all([
       readTrainingData(tx, user.id, range),
       getSchedule(tx, user.id),
       readMuscleVolume(tx, user.id, bodyRange),
       listBodyWeights(tx, user.id, range),
-      // Complete per-sport totals, read only where the canonical tables are the authority.
-      // Before the switch these would be a partial picture presented as a full one (§10.1).
-      canonical ? readActivityTotals(tx, user.id, { from: range.from, to: range.to }) : null,
+      // Complete per-sport totals, from the canonical tables every sport is written to.
+      readActivityTotals(tx, user.id, { from: range.from, to: range.to }),
     ]),
   );
   const preferredUnit = profile.preferredUnit === "lb" ? "lb" : "kg";

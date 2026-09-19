@@ -82,7 +82,6 @@ import {
 } from "./program-drafts";
 import { fromDateTimeLocal } from "@/lib/time";
 import { coachRollout } from "@/lib/coach-rollout";
-import { multisportRollout } from "@/lib/multisport-rollout";
 import type { ActivitySport } from "@/domain/activity";
 import { coverageProblems, type SportCoverage } from "@/domain/coach-sport-policy";
 
@@ -902,7 +901,6 @@ export async function enqueueOccurrencePreparations(
   userId: string,
   batchDate: string,
 ): Promise<number> {
-  if (!multisportRollout().canonicalWrites) return 0;
   const preferences = await getCoachingPreferences(db, userId);
   const active = await getActiveProgram(db, userId);
   const occurrences = await openOccurrencesBetween(

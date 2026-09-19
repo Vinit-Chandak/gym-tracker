@@ -1,15 +1,21 @@
 import { beforeEach, expect, it, vi } from "vitest";
 
-const { gyms } = vi.hoisted(() => ({ gyms: vi.fn() }));
+const { gyms, sports } = vi.hoisted(() => ({ gyms: vi.fn(), sports: vi.fn() }));
 vi.mock("@/db/client", () => ({ getDb: () => ({}) }));
 vi.mock("@/db/with-user", () => ({
   withUser: (_db: unknown, _id: string, run: (tx: unknown) => unknown) => run({}),
 }));
 vi.mock("@/server/repositories/gyms", () => ({ listGyms: gyms }));
+vi.mock("@/server/repositories/sport-preferences", () => ({ enabledSportsFor: sports }));
 
 import { onboardingEntry } from "./onboarding-entry";
 
-beforeEach(() => gyms.mockReset());
+beforeEach(() => {
+  gyms.mockReset();
+  sports.mockReset();
+  // Lifting is on unless a test says otherwise, which is the path through all four steps.
+  sports.mockResolvedValue(["strength", "running"]);
+});
 
 const gym = (over: Partial<{ id: string; isDefault: boolean; equipmentCount: number }> = {}) => ({
   id: "gym-1",
@@ -35,6 +41,13 @@ it("picks up at the machines once a gym is there", async () => {
 
 it("picks up at the programme once that gym has machines", async () => {
   gyms.mockResolvedValue([gym({ equipmentCount: 3 })]);
+  expect(await onboardingEntry("user-1")).toBe("/welcome/programme");
+});
+
+/** SCOPE-02: a swimmer never reaches the gym steps, so their absence says nothing. */
+it("skips the gym steps for an account that does not lift", async () => {
+  sports.mockResolvedValue(["swimming"]);
+  gyms.mockResolvedValue([]);
   expect(await onboardingEntry("user-1")).toBe("/welcome/programme");
 });
 

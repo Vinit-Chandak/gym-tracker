@@ -10,7 +10,6 @@ import { withUser } from "@/db/with-user";
 import { ENDURANCE_SPORTS } from "@/domain/activity";
 import { endurancePrescriptionSchema, PRESCRIPTION_VERSION } from "@/domain/activity-prescription";
 import { occurrenceVersions, plannedOccurrences } from "@/db/schema";
-import { multisportRollout } from "@/lib/multisport-rollout";
 import { requireUser } from "@/server/auth";
 import { ensureProfile } from "@/server/queries/profile";
 import { getTemplateRevision } from "@/server/repositories/activity-templates";
@@ -51,8 +50,6 @@ export async function skipOccurrenceAction(
   note?: string,
 ): Promise<OccurrenceResult> {
   const user = await requireUser();
-  if (!multisportRollout().sharedNavigation)
-    return { ok: false, error: "Scheduling is not switched on yet." };
   try {
     await withUser(getDb(), user.id, (tx) => skipOccurrence(tx, user.id, occurrenceId, note));
   } catch (error) {
@@ -64,8 +61,6 @@ export async function skipOccurrenceAction(
 
 export async function reopenOccurrenceAction(occurrenceId: string): Promise<OccurrenceResult> {
   const user = await requireUser();
-  if (!multisportRollout().sharedNavigation)
-    return { ok: false, error: "Scheduling is not switched on yet." };
   try {
     await withUser(getDb(), user.id, (tx) => reopenOccurrence(tx, user.id, occurrenceId));
   } catch (error) {
@@ -88,8 +83,6 @@ export async function rescheduleOccurrenceAction(
   formData: FormData,
 ): Promise<FormState> {
   const user = await requireUser();
-  if (!multisportRollout().sharedNavigation)
-    return { formError: "Scheduling is not switched on yet." };
   const parsed = parseForm(rescheduleSchema, formData);
   if (!parsed.success) return parsed.state;
   try {
@@ -137,13 +130,9 @@ export async function scheduleActivityAction(
   formData: FormData,
 ): Promise<FormState> {
   const user = await requireUser();
-  const rollout = multisportRollout();
-  if (!rollout.sharedNavigation) return { formError: "Scheduling is not switched on yet." };
   const parsed = parseForm(scheduleSchema, formData);
   if (!parsed.success) return parsed.state;
   const form = parsed.data;
-  if (form.sport !== "running" && !rollout.newSports)
-    return { formError: "That sport is not switched on yet.", values: formValues(formData) };
 
   let occurrenceId: string;
   try {

@@ -15,6 +15,7 @@ import {
   workoutSessions,
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
+import { DURATION_MS } from "@/domain/activity-limits";
 import {
   originFromStorage,
   type ActivityOutcome,
@@ -863,11 +864,14 @@ export async function closeStrengthParent(
     .where(and(eq(workoutSessions.userId, userId), eq(workoutSessions.id, sessionId)))
     .limit(1);
   if (!session?.activityId) return;
+  // Elapsed time, unless the session was left open longer than a duration may sanely be:
+  // an unrecorded duration is honest, and finishing must not fail on an old open session.
+  const elapsed = completedAt.getTime() - session.startedAt.getTime();
   await tx
     .update(activities)
     .set({
       status: "completed",
-      durationMs: Math.max(1, completedAt.getTime() - session.startedAt.getTime()),
+      durationMs: elapsed > 0 && elapsed <= DURATION_MS.max ? elapsed : null,
       updatedAt: new Date(),
     })
     .where(and(eq(activities.userId, userId), eq(activities.id, session.activityId)));

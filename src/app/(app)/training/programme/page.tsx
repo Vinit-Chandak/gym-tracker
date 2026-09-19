@@ -16,7 +16,6 @@ import { ACTIVITY_SPORT_LABELS, isActivitySport, type ActivitySport } from "@/do
 import { describePrescription } from "@/domain/activity-prescription";
 import { adherenceBySport } from "@/domain/occurrences";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import { multisportRollout } from "@/lib/multisport-rollout";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { programmeOccurrences } from "@/server/repositories/occurrences";
@@ -40,7 +39,6 @@ const STATUS: Record<string, { label: string; tone: "accent" | "neutral" }> = {
  * this page, and doing any of those touches that session alone.
  */
 export default async function ProgrammePage(props: PageProps<"/training/programme">) {
-  if (!multisportRollout().sharedNavigation) notFound();
   const search = await props.searchParams;
   const requested = typeof search.sport === "string" ? search.sport : null;
   const sportFilter: ActivitySport | null =

@@ -15,7 +15,6 @@ import { ACTIVITY_SPORT_LABELS } from "@/domain/activity";
 import { describePrescription, prescriptionTotals } from "@/domain/activity-prescription";
 import { isOverdue } from "@/domain/occurrences";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import { multisportRollout } from "@/lib/multisport-rollout";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { activePlanForOccurrence } from "@/server/repositories/coach-plans";
@@ -33,7 +32,6 @@ export default async function OccurrencePage(
 ) {
   const { occurrenceId } = await props.params;
   requireUuid(occurrenceId);
-  if (!multisportRollout().sharedNavigation) notFound();
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
   const { occurrence, plan } = await withUser(

@@ -10,7 +10,6 @@ import { getRequestProfile } from "@/server/queries/request-profile";
 import { listGyms } from "@/server/repositories/gyms";
 import { listActivityPage } from "@/server/repositories/activity-analytics";
 import { readHistory } from "@/server/repositories/history";
-import { multisportRollout } from "@/lib/multisport-rollout";
 import { parseDateRangeOrDefault } from "@/server/validation/date-range";
 import { HistoryView, type HistoryItem } from "./history-view";
 
@@ -32,7 +31,6 @@ export default async function HistoryPage(props: PageProps<"/history">) {
     },
     profile.timeZone,
   );
-  const rollout = multisportRollout();
   const data = await withUser(
     getDb(),
     user.id,
@@ -42,16 +40,13 @@ export default async function HistoryPage(props: PageProps<"/history">) {
         listGyms(tx, user.id),
       ]);
       // Cycling and swimming have no legacy table to read, so they come from the canonical
-      // one — and only where it is the authority. Before the switch there is nothing there
-      // for an athlete to be missing (§10.1).
-      const endurance = rollout.canonicalWrites
-        ? await listActivityPage(tx, user.id, {
-            sports: ["cycling", "swimming"],
-            from: range.from,
-            to: range.to,
-            limit: 100,
-          })
-        : { items: [], nextCursor: null };
+      // one.
+      const endurance = await listActivityPage(tx, user.id, {
+        sports: ["cycling", "swimming"],
+        from: range.from,
+        to: range.to,
+        limit: 100,
+      });
       return { training, gyms, endurance };
     },
     { readOnly: true },

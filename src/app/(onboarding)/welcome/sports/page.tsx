@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 
 import { SportChoice } from "@/components/activities/sport-choice";
 import { PageContent } from "@/components/shell/page-content";
 import { Card } from "@/components/ui/card";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
-import { enabledSports, multisportRollout } from "@/lib/multisport-rollout";
+import { ACTIVITY_SPORTS } from "@/domain/activity";
 import { chooseSportsAction } from "@/server/actions/sport-preferences";
 import { requireUser } from "@/server/auth";
 import { enabledSportsFor } from "@/server/repositories/sport-preferences";
@@ -23,8 +22,6 @@ export const metadata: Metadata = { title: "Your sports" };
  * to invent a gym to get through a form.
  */
 export default async function SportsStepPage() {
-  const rollout = multisportRollout();
-  if (!rollout.sharedNavigation) redirect("/welcome/gym");
   const user = await requireUser();
   const enabled = await withUser(getDb(), user.id, (tx) => enabledSportsFor(tx, user.id), {
     readOnly: true,
@@ -42,7 +39,7 @@ export default async function SportsStepPage() {
         </div>
         <SportChoice
           action={chooseSportsAction}
-          sports={enabledSports(rollout)}
+          sports={ACTIVITY_SPORTS}
           enabled={enabled}
           submitLabel="Continue"
           note="Only lifting needs a gym set up. The rest you can start logging straight away."

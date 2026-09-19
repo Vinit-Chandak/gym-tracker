@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 
 import Link from "@/components/ui/app-link";
 import { Wordmark } from "@/components/shell/wordmark";
-import { isNavItemActive, navItems } from "@/lib/nav";
+import { isNavItemActive, NAV_ITEMS } from "@/lib/nav";
 import { cn } from "@/lib/utils";
 
 /**
@@ -42,18 +42,11 @@ function NavContent({
   );
 }
 
-export function BottomNav({
-  pathname: standingIn,
-  sharedNavigation = false,
-}: {
-  pathname?: string;
-  /** Whether the second tab is Training or the Runs product it replaces (plan §2.3). */
-  sharedNavigation?: boolean;
-} = {}) {
+export function BottomNav({ pathname: standingIn }: { pathname?: string } = {}) {
   // The preview screen says which tab it is standing in for; every real screen takes its own.
   const current = usePathname();
   const pathname = standingIn ?? current;
-  const items = navItems(sharedNavigation);
+  const items = NAV_ITEMS;
   return (
     <div className="viewport-chrome">
       <nav aria-label="Primary" className="primary-nav">
