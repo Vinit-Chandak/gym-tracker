@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
   profiles,
@@ -124,6 +124,21 @@ async function currentProgram(db: DbOrTx, userId: string) {
 }
 
 /**
+ * Whether version 1 has been retired on this database.
+ *
+ * Asked of the schema rather than of a flag or a marker, because retirement is not a
+ * preference somebody can toggle back: v1 reads the raw run table, and after the contraction
+ * that table is gone. `to_regclass` answers in one round trip, needs no policy of its own,
+ * and cannot disagree with reality the way a cached flag can. Before the contraction it is
+ * false and every v1 path answers exactly as it always did.
+ */
+async function legacyApiRetired(tx: DbOrTx): Promise<boolean> {
+  const result = await tx.execute(sql`select to_regclass('public.runs') is null as retired`);
+  const rows = Array.isArray(result) ? result : ((result as { rows?: unknown[] }).rows ?? []);
+  return (rows[0] as { retired?: boolean } | undefined)?.retired === true;
+}
+
+/**
  * The v2 surface, under the same token and the same read-only transaction.
  *
  * Separate from v1 in every respect that matters to a consumer: its own paths, its own
@@ -197,6 +212,26 @@ export async function handleCoachRequest(
         const endpoint = path.join("/");
         if (endpoint.startsWith("v2/"))
           return await handleV2(tx, userId, endpoint.slice(3), params, profile.timeZone);
+        /**
+         * Version 1 after its window has run (plan §8.6, AT-API-06).
+         *
+         * `410 Gone` with somewhere to go, not a redirect: a JSON client handed an HTML page
+         * or a v2 body it did not ask for cannot tell what happened, and a permanent status
+         * is the only one that says "this will not come back". The contraction marker is what
+         * decides, so the answer changes when the operator retires it and not before.
+         */
+        if (await legacyApiRetired(tx))
+          return json(
+            {
+              error: "gone",
+              detail:
+                "Version 1 of this API has been retired after its compatibility window. Read /api/coach/v2/activities and /api/coach/v2/summary; see docs/coach-api.md.",
+              version: 1,
+              upgradeTo: "/api/coach/v2/activities",
+            },
+            410,
+            V1_COMPATIBILITY,
+          );
         if (endpoint === "program/current") {
           // A programme with a ride or a swim in it has no v1 shape. Saying so is the whole
           // point: half a programme presented as the programme cannot be detected downstream.

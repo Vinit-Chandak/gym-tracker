@@ -28,6 +28,7 @@ import {
   slotForPlannedRun,
 } from "@/server/repositories/schedule";
 import { todayInTimeZone } from "@/domain/program-calendar";
+import { multisportRollout } from "@/lib/multisport-rollout";
 import { formValues, parseForm, type FormState } from "@/server/validation/form";
 
 const optionalNumber = (min: number, max: number, integer: boolean, message: string) =>
@@ -133,12 +134,29 @@ function describe(error: unknown): string {
   return "Something went wrong. Please try again.";
 }
 
+/**
+ * What a retired writer says (plan §10.1).
+ *
+ * After the switch, canonical activities are the authority and no old action may
+ * independently edit a retired run row — not because the table is necessarily gone yet, but
+ * because two writers producing rows nobody reconciles is the exact failure the ordered
+ * rollout exists to prevent. The form that reaches here is an old tab or a replayed request;
+ * it is told plainly rather than silently succeeding into a table nothing reads.
+ */
+const RETIRED =
+  "Running is logged through Training now. Reload the page; this older form no longer saves.";
+
+function legacyWritesClosed(): boolean {
+  return multisportRollout().canonicalWrites;
+}
+
 /** Creates a run, or updates it when `runId` is given, then opens it. */
 export async function saveRunAction(
   runId: string | null,
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
+  if (legacyWritesClosed()) return { formError: RETIRED };
   const user = await requireUser();
   const parsed = parseForm(runSchema, formData);
   if (!parsed.success) return parsed.state;
@@ -194,6 +212,7 @@ export async function saveRunAction(
 export type DeleteResult = { ok: true } | { ok: false; error: string };
 
 export async function deleteRunAction(runId: string): Promise<DeleteResult> {
+  if (legacyWritesClosed()) return { ok: false, error: RETIRED };
   const user = await requireUser();
   try {
     await withUser(getDb(), user.id, async (tx) => {

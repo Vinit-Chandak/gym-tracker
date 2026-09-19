@@ -57,6 +57,7 @@ recorded here rather than left to be discovered:
 | P5 | Occurrence-scoped coaching, sport policy, contract negotiation, v3 closure, migration 0027. | 142 files, 1,067 tests |
 | P6 | SQL totals, per-sport sharing, the v2 read API, migration 0028 and the M2 command. | 145 files, 1,096 tests |
 | P7 | The cutover stage model, the markers, and the ordered rehearsal. | 146 files, 1,105 tests |
+| P8 | The gated contraction command, the v1 410, and the closed legacy writers. | 147 files, 1,115 tests |
 
 Every run was `npm test` against PGlite with the real migrations applied, plus `npm run lint`,
 `npm run format:check` and `npm run typecheck`. No network database was contacted.
@@ -240,10 +241,52 @@ background-and-resume, the safe-area navigation, and signing out.
   documented 410, never a redirect to HTML or to v2.
 - Each window starts at cutover, not at implementation. Record the dates here when they start.
 
+### Contracting (M3)
+
+```
+npm run db:contract:multisport -- --dry-run --last-legacy-use 2026-12-01
+npm run db:contract:multisport -- --last-legacy-use 2026-12-01
+```
+
+`src/db/contract-multisport.ts`. **Not in the migration journal**, and for a stronger reason
+than M2: everything in the journal runs on the next deploy, and these gates are measured in
+months from a cutover that has not happened. A migration file that drops `runs` would drop it
+long before any window elapsed — that is not a contraction, it is data loss with a version
+number. The SQL is here, tested against a real database, and applied by an explicit command.
+
+Six gates, all of which must be open:
+
+| Gate | Source |
+| --- | --- |
+| Authority has switched | the `multisport_authority_switched` marker |
+| 90 days since the switch (UI aliases) | that marker's timestamp |
+| 180 days since the switch (read API v1) | that marker's timestamp |
+| 30 days with no legitimate legacy use | `--last-legacy-use`, from the access logs |
+| No legacy writer survived the switch | `cutoverAssertions` |
+| Reconciliation still passes | `reconcileMultisport` |
+
+`--last-legacy-use` is the operator's to supply. It cannot be read from the database, and an
+unknown answer is not a quiet one — leaving it out fails that gate rather than passing it.
+
+It drops `runs` and `program_runs`. It keeps `daily_recovery` (only ever declared beside runs
+in TypeScript, which is not a reason to drop a table), the migration ledger (a report written
+a year ago still says `run:<uuid>`, and resolving it is the difference between history that
+reads and history that does not), and the route resolvers for as long as legitimate bookmarks
+persist. After it runs, `/api/coach/*` v1 answers `410` with the v2 path — never a redirect,
+because a JSON client handed HTML cannot tell what happened.
+
+The legacy run writers close earlier than this, at the switch itself: `saveRunAction` and
+`deleteRunAction` refuse as soon as `MULTISPORT_CANONICAL_WRITES` is on, so an old tab is
+told plainly rather than succeeding into a table nothing reads (§10.1).
+
 ## 7. Rollback
 
 Before the first canonical write: stop, return to the bridge, keep the additive tables for
 investigation. Legacy is still authoritative, so nothing has to be squeezed into an old shape.
+
+After M3 there is no old-app rollback at all, and the runbook says so rather than implying
+one: the tables an earlier release reads are gone. What remains is the canonical recovery
+procedure below, a current backup, and the configured retention.
 
 After canonical writes: an old app cannot represent cycling or swimming. Prefer a previous
 compatible canonical release, or roll forward with the database intact. If restoration is

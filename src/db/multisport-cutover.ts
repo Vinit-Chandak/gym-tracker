@@ -23,6 +23,8 @@ export const CUTOVER_MARKERS = {
   authoritySwitched: "multisport_authority_switched",
   /** The first activity the canonical writer produced, for the rollback boundary (§10.6). */
   firstCanonicalWrite: "multisport_first_canonical_write",
+  /** M3 applied: the retired raw tables are gone and no old-app rollback remains (§11 P8). */
+  legacyContracted: "multisport_legacy_contracted",
 } as const;
 
 export type CutoverMarker = (typeof CUTOVER_MARKERS)[keyof typeof CUTOVER_MARKERS];
