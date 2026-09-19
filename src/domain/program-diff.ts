@@ -301,10 +301,10 @@ function runFields(before: BlueprintRun, after: BlueprintRun): DiffField[] {
   );
   push(
     fields,
-    "shinRule",
+    "stopRule",
     "Stop rule",
-    text(before.shinRule) || DASH,
-    text(after.shinRule) || DASH,
+    text(before.stopRule) || DASH,
+    text(after.stopRule) || DASH,
   );
   push(fields, "comment", "Comment", text(before.comment) || DASH, text(after.comment) || DASH);
   return fields;

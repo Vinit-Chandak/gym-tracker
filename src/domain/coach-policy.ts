@@ -37,7 +37,7 @@ export const COACH_POLICY = {
       id: "running",
       tasks: ["create_program", "prepare_session", "review_program"],
       kind: "coaching_principle",
-      rule: "Use recent frequency, longest run, gaps, symptoms and session distance/duration together. Compare the same scheduled role and mode. Lasting running reductions require athlete review; RPE alone does not establish decline. Check distance and duration independently. The weekly 10% rule is not a safety guarantee. Do not invent missing pace or automatically prioritize strength over running.",
+      rule: "Use recent frequency, longest run, gaps, symptoms and session distance/duration together. Compare the same scheduled role and mode. Lasting running reductions require athlete review; RPE alone does not establish decline. Check distance and duration independently. The weekly 10% rule is not a safety guarantee. Do not invent missing pace or automatically prioritize strength over running. A run's stopRule is when this runner should cut this run short, in their own terms: the niggle their history shows, the effort not to exceed, the week they are coming back from. One line, written for them, or left empty when nothing specific applies.",
     },
     {
       id: "requests",

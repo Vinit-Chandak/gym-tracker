@@ -5,10 +5,8 @@ import { useActionState, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { runSummary, type RunTargets } from "@/components/run-plan";
 import { DetailList } from "@/components/ui/detail-list";
-import { Disclosure } from "@/components/ui/disclosure";
 import { FormError, SubmitButton } from "@/components/ui/form";
 import { Field, Input, Textarea } from "@/components/ui/input";
-import { NumberField } from "@/components/ui/number-field";
 import { Section } from "@/components/ui/section";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select } from "@/components/ui/select";
@@ -35,32 +33,9 @@ export type RunFormValues = {
   durationMinutes: string;
   durationSeconds: string;
   rpe: string;
-  shinLeftPre: string;
-  shinRightPre: string;
-  shinLeftDuring: string;
-  shinRightDuring: string;
-  shinLeftPost: string;
-  shinRightPost: string;
   programRunId: string;
   notes: string;
 };
-
-type ShinKey =
-  | "shinLeftPre"
-  | "shinRightPre"
-  | "shinLeftDuring"
-  | "shinRightDuring"
-  | "shinLeftPost"
-  | "shinRightPost";
-
-const SHIN_KEYS: ShinKey[] = [
-  "shinLeftPre",
-  "shinRightPre",
-  "shinLeftDuring",
-  "shinRightDuring",
-  "shinLeftPost",
-  "shinRightPost",
-];
 
 export type CoachRunBrief = {
   warnings?: { code: string; message: string }[];
@@ -103,19 +78,9 @@ export function RunForm({ action, initial, planned, runId, submitLabel, coach = 
   const [distance, setDistance] = useState(() => value("distanceKm"));
   const [minutes, setMinutes] = useState(() => value("durationMinutes"));
   const [seconds, setSeconds] = useState(() => value("durationSeconds"));
-  const [shin, setShin] = useState<Record<ShinKey, string>>(() => ({
-    shinLeftPre: value("shinLeftPre"),
-    shinRightPre: value("shinRightPre"),
-    shinLeftDuring: value("shinLeftDuring"),
-    shinRightDuring: value("shinRightDuring"),
-    shinLeftPost: value("shinLeftPost"),
-    shinRightPost: value("shinRightPost"),
-  }));
 
   const totalSeconds = Number(minutes || 0) * 60 + Number(seconds || 0);
   const pace = paceSecondsPerKm(Number(distance.replace(",", ".")) * 1000, totalSeconds);
-  const shinError = SHIN_KEYS.some((key) => state.fieldErrors?.[key]);
-  const hasShinReading = SHIN_KEYS.some((key) => shin[key].trim() !== "");
 
   return (
     <form action={formAction} className="space-y-[var(--section-gap)]">
@@ -233,62 +198,6 @@ export function RunForm({ action, initial, planned, runId, submitLabel, coach = 
           </Field>
         </Card>
       </Section>
-
-      {/*
-        Six optional readings, folded away by default. It opens on its own when one of them
-        is invalid or already filled in, so a rejected value is never hidden behind a summary
-        the user has no reason to open.
-      */}
-      <Disclosure
-        summary="Shin readings"
-        meta="0–10, optional"
-        defaultOpen={shinError || hasShinReading}
-      >
-        <div className="space-y-2">
-          {(
-            [
-              ["Left", "shinLeftPre", "shinLeftDuring", "shinLeftPost"],
-              ["Right", "shinRightPre", "shinRightDuring", "shinRightPost"],
-            ] as const
-          ).map(([side, before, during, after]) => (
-            <div key={side} className="grid grid-cols-[2.5rem_1fr_1fr_1fr] items-end gap-2">
-              <span className="pb-3.5 text-sm">{side}</span>
-              <NumberField
-                label="Before"
-                value={shin[before]}
-                onChange={(next) => setShin((current) => ({ ...current, [before]: next }))}
-                step={1}
-                max={10}
-                inputMode="numeric"
-              />
-              <NumberField
-                label="During"
-                value={shin[during]}
-                onChange={(next) => setShin((current) => ({ ...current, [during]: next }))}
-                step={1}
-                max={10}
-                inputMode="numeric"
-              />
-              <NumberField
-                label="After"
-                value={shin[after]}
-                onChange={(next) => setShin((current) => ({ ...current, [after]: next }))}
-                step={1}
-                max={10}
-                inputMode="numeric"
-              />
-            </div>
-          ))}
-          {SHIN_KEYS.map((key) => (
-            <input key={key} type="hidden" name={key} value={shin[key]} />
-          ))}
-          {shinError && (
-            <p role="alert" className="text-sm text-danger">
-              Shin scores are whole numbers from 0 to 10.
-            </p>
-          )}
-        </div>
-      </Disclosure>
 
       <Section title="Notes">
         <Card>

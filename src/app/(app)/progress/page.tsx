@@ -81,13 +81,16 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
           }}
           adherence={liftingAdherence(schedule)}
           weeks={analytics.weeks}
-          recovery={analytics.recovery.map(({ date, sleep, back, leftShin, rightShin }) => ({
-            date,
-            sleep,
-            back,
-            leftShin,
-            rightShin,
-          }))}
+          recovery={analytics.recovery.map(
+            ({ date, sleep, quality, energy, fatigue, soreness }) => ({
+              date,
+              sleep,
+              quality,
+              energy,
+              fatigue,
+              soreness,
+            }),
+          )}
           pace={analytics.pace}
           options={options}
           selected={selected}

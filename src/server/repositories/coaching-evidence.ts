@@ -235,33 +235,10 @@ export async function readCoachingEvidence(
         .filter(
           ({ session }) =>
             session.startedAt.getTime() >= end.getTime() - 3 * 86_400_000 &&
-            (hasReadinessReason(session) ||
-              [session.backPainPre, session.shinLeftPre, session.shinRightPre].some(
-                (v) => (v ?? 0) > 0,
-              )),
+            hasReadinessReason(session),
         )
         .map(({ session }) => `workout:${session.id}`),
-      ...recovery
-        .filter(
-          (record) =>
-            hasReadinessReason(record) ||
-            [record.backPain, record.shinLeft, record.shinRight].some((v) => (v ?? 0) > 0),
-        )
-        .map((record) => `recovery:${record.id}`),
-      ...running
-        .filter(
-          (run) =>
-            run.startedAt.getTime() >= end.getTime() - 3 * 86_400_000 &&
-            [
-              run.shinLeftPre,
-              run.shinRightPre,
-              run.shinLeftDuring,
-              run.shinRightDuring,
-              run.shinLeftPost,
-              run.shinRightPost,
-            ].some((v) => (v ?? 0) > 0),
-        )
-        .map((run) => `run:${run.id}`),
+      ...recovery.filter(hasReadinessReason).map((record) => `recovery:${record.id}`),
     ]),
   ];
   return {

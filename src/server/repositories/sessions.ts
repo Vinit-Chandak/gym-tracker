@@ -1,19 +1,5 @@
 import { summaryForSport } from "@/domain/sport-scope";
-import {
-  and,
-  asc,
-  count,
-  desc,
-  eq,
-  inArray,
-  isNotNull,
-  isNull,
-  lt,
-  max,
-  ne,
-  or,
-  sql,
-} from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNotNull, isNull, max, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { manualPrescription } from "@/domain/manual-prescription";
 
@@ -375,9 +361,6 @@ export type SessionDetail = {
   energy: number | null;
   fatigue: number | null;
   soreness: number | null;
-  backPainPre: number | null;
-  shinLeftPre: number | null;
-  shinRightPre: number | null;
   warmupCompleted: boolean;
   notes: string | null;
   warmup: { name: string; drills: WarmupDrill[] } | null;
@@ -438,15 +421,12 @@ export async function getSessionDetail(
     energy: session.session.energy,
     fatigue: session.session.fatigue,
     soreness: session.session.soreness,
-    backPainPre: session.session.backPainPre,
-    shinLeftPre: session.session.shinLeftPre,
-    shinRightPre: session.session.shinRightPre,
   };
   const wantsWarnings = includeGuidance && hasCheckIn(checkIn);
 
   // Read independent session data together, reusing the page's profile when it has one.
   const plannedExercise = alias(exercises, "planned_exercise");
-  const [rows, setRows, [profile], warmup, previousCheck, coachPlan] = await Promise.all([
+  const [rows, setRows, [profile], warmup, coachPlan] = await Promise.all([
     db
       .select({
         we: workoutExercises,
@@ -526,9 +506,6 @@ export async function getSessionDetail(
         ]),
     session.day?.warmupProtocolId
       ? getWarmupProtocol(db, session.day.warmupProtocolId)
-      : Promise.resolve(null),
-    wantsWarnings
-      ? previousCheckIn(db, userId, session.session.startedAt, session.session.id)
       : Promise.resolve(null),
     includeGuidance ? planForSession(db, sessionId) : Promise.resolve(null),
   ]);
@@ -683,7 +660,7 @@ export async function getSessionDetail(
     });
   }
 
-  const warnings = wantsWarnings ? recoveryWarnings(checkIn, previousCheck) : [];
+  const warnings = wantsWarnings ? recoveryWarnings(checkIn) : [];
 
   return {
     id: session.session.id,
@@ -705,9 +682,6 @@ export async function getSessionDetail(
     energy: session.session.energy,
     fatigue: session.session.fatigue,
     soreness: session.session.soreness,
-    backPainPre: session.session.backPainPre,
-    shinLeftPre: session.session.shinLeftPre,
-    shinRightPre: session.session.shinRightPre,
     warmupCompleted: session.session.warmupCompleted,
     notes: session.session.notes,
     warmup,
@@ -722,43 +696,6 @@ export async function getSessionDetail(
       : null,
     exercises: exerciseDetails,
   };
-}
-
-/** The last session before this one that recorded any check-in value. */
-async function previousCheckIn(
-  db: DbOrTx,
-  userId: string,
-  before: Date,
-  excludeSessionId: string,
-): Promise<CheckIn | null> {
-  const [row] = await db
-    .select({
-      sleepHours: workoutSessions.sleepHours,
-      sleepQuality: workoutSessions.sleepQuality,
-      energy: workoutSessions.energy,
-      fatigue: workoutSessions.fatigue,
-      soreness: workoutSessions.soreness,
-      backPainPre: workoutSessions.backPainPre,
-      shinLeftPre: workoutSessions.shinLeftPre,
-      shinRightPre: workoutSessions.shinRightPre,
-    })
-    .from(workoutSessions)
-    .where(
-      and(
-        eq(workoutSessions.userId, userId),
-        lt(workoutSessions.startedAt, before),
-        ne(workoutSessions.id, excludeSessionId),
-        or(
-          isNotNull(workoutSessions.sleepHours),
-          isNotNull(workoutSessions.backPainPre),
-          isNotNull(workoutSessions.shinLeftPre),
-          isNotNull(workoutSessions.shinRightPre),
-        ),
-      ),
-    )
-    .orderBy(desc(workoutSessions.startedAt))
-    .limit(1);
-  return row ?? null;
 }
 
 async function requireOpenSession(db: DbOrTx, userId: string, sessionId: string) {
@@ -793,9 +730,6 @@ export type CheckInInput = {
   energy: number | null;
   fatigue: number | null;
   soreness: number | null;
-  backPainPre: number | null;
-  shinLeftPre: number | null;
-  shinRightPre: number | null;
 };
 
 export async function saveCheckIn(

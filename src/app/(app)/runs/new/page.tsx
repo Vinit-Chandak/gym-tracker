@@ -78,12 +78,6 @@ export default async function NewRunPage(props: PageProps<"/runs/new">) {
             durationMinutes: duration === null ? "" : String(duration),
             durationSeconds: "",
             rpe: "",
-            shinLeftPre: "",
-            shinRightPre: "",
-            shinLeftDuring: "",
-            shinRightDuring: "",
-            shinLeftPost: "",
-            shinRightPost: "",
             programRunId: coachRun?.programRunId ?? nextPlanned?.id ?? "",
             notes: "",
           }}

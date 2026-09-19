@@ -14,7 +14,7 @@ import { Section } from "@/components/ui/section";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { formatDuration, formatPace } from "@/domain/pace";
-import { RUN_VOLUME_SPIKE_RATIO, SHIN_ESCALATION_RUNS } from "@/domain/running";
+import { RUN_VOLUME_SPIKE_RATIO } from "@/domain/running";
 import { formatDay, formatIsoDate, formatRunKm } from "@/lib/format";
 import { RUN_MODE_LABELS, WEEKDAY_SHORT } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
@@ -109,43 +109,12 @@ export default async function RunsPage() {
           </LinkButton>
         )}
 
-        {overview.shin.length > 0 && (
-          <Card>
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="flex items-center gap-1 text-base font-medium">
-                Shin check
-                <InfoTip label="About the shin check">
-                  From the shin scores of the last {SHIN_ESCALATION_RUNS} runs.
-                </InfoTip>
-              </h2>
-              <Badge tone="warning">Advice</Badge>
-            </div>
-            <ul className="space-y-1 text-sm">
-              {overview.shin.map((flag) => (
-                <li key={flag.side}>
-                  <span className="font-medium">
-                    {flag.side === "left" ? "Left" : "Right"} shin{" "}
-                    {flag.pattern === "rising"
-                      ? `rose during or after each of the last ${flag.runs} runs`
-                      : `has felt worse after each of the last ${flag.runs} runs`}
-                    .
-                  </span>{" "}
-                  <span className="text-ink-muted">
-                    Stop adding run time; keep runs easy or swap for walking or cycling. Get it
-                    assessed if it is pinpoint or hurts while walking.
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </Card>
-        )}
-
         {overview.cycle && (
           <Section
             title={`Programme · week ${overview.cycle.cycleIndex}`}
             info={
               notes
-                ? [notes.paceNote, notes.progressionNote, notes.shinRule, notes.comment]
+                ? [notes.paceNote, notes.progressionNote, notes.stopRule, notes.comment]
                     .filter(Boolean)
                     .join(" · ")
                 : undefined

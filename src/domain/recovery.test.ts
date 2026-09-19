@@ -8,41 +8,31 @@ const blank: CheckIn = {
   energy: null,
   fatigue: null,
   soreness: null,
-  backPainPre: null,
-  shinLeftPre: null,
-  shinRightPre: null,
 };
 
 describe("recovery warnings", () => {
   it("is silent for a good check-in and for no check-in", () => {
-    expect(recoveryWarnings(blank, null)).toEqual([]);
+    expect(recoveryWarnings(blank)).toEqual([]);
     expect(hasCheckIn(blank)).toBe(false);
-    const good = { ...blank, sleepHours: 7, sleepQuality: 4, energy: 4, backPainPre: 1 };
-    expect(recoveryWarnings(good, null)).toEqual([]);
+    expect(recoveryWarnings({ ...blank, sleepHours: 7, sleepQuality: 4, energy: 4 })).toEqual([]);
   });
 
   it("warns on short sleep and worst-level readiness scores", () => {
-    const codes = recoveryWarnings({ ...blank, sleepHours: 5.5, fatigue: 5 }, null).map(
-      (w) => w.code,
-    );
+    const codes = recoveryWarnings({ ...blank, sleepHours: 5.5, fatigue: 5 }).map((w) => w.code);
     expect(codes).toEqual(["short_sleep", "low_readiness"]);
-    expect(recoveryWarnings({ ...blank, sleepHours: 6 }, null)).toEqual([]);
+    expect(recoveryWarnings({ ...blank, sleepHours: 6 })).toEqual([]);
   });
 
-  it("warns when a symptom rises two points or reaches five", () => {
-    const rise = recoveryWarnings(
-      { ...blank, backPainPre: 3, shinLeftPre: 2 },
-      { ...blank, backPainPre: 1, shinLeftPre: 2 },
-    );
-    expect(rise.map((w) => w.code)).toEqual(["back_pain"]);
-    expect(rise[0]?.title).toBe("Lower back 3/10, up from 1");
-
-    const high = recoveryWarnings({ ...blank, shinRightPre: 5 }, null);
-    expect(high.map((w) => w.code)).toEqual(["shin_pain"]);
-    expect(high[0]?.title).toBe("Right shin 5/10");
-
-    expect(recoveryWarnings({ ...blank, backPainPre: 4 }, { ...blank, backPainPre: 3 })).toEqual(
-      [],
-    );
+  it("names every reading at its worst, and nothing in between", () => {
+    const warnings = recoveryWarnings({
+      ...blank,
+      sleepQuality: 1,
+      energy: 1,
+      fatigue: 5,
+      soreness: 5,
+    });
+    expect(warnings.map((w) => w.code)).toEqual(["low_readiness"]);
+    expect(warnings[0]?.title).toBe("Worst score on sleep quality, energy, fatigue, soreness");
+    expect(recoveryWarnings({ ...blank, sleepQuality: 2, energy: 2, fatigue: 4 })).toEqual([]);
   });
 });

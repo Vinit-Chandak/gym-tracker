@@ -147,7 +147,7 @@ export function DraftPreview({
                       Week {r.weekIndex}: {r.distanceKm ? `${span(r.distanceKm)} km · ` : ""}
                       {span(r.duration)} minutes · RPE {span(r.rpe)}
                       <p className="text-ink-muted">
-                        {r.paceNote} {r.shinRule}
+                        {r.paceNote} {r.stopRule}
                       </p>
                     </li>
                   ))}

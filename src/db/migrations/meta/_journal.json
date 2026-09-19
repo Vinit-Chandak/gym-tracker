@@ -176,6 +176,13 @@
       "when": 1789813272829,
       "tag": "0024_coach_program_requests",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1789824624431,
+      "tag": "0025_drop_personal_symptoms",
+      "breakpoints": true
     }
   ]
 }

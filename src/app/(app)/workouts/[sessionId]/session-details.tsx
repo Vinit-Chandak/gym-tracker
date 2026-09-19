@@ -13,9 +13,6 @@ const CHECK_IN_LABELS: [keyof SessionVM, string][] = [
   ["energy", "Energy"],
   ["fatigue", "Fatigue"],
   ["soreness", "Soreness"],
-  ["backPainPre", "Lower back"],
-  ["shinLeftPre", "Left shin"],
-  ["shinRightPre", "Right shin"],
 ];
 
 function Row({ label, value }: { label: string; value: string }) {

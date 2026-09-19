@@ -106,7 +106,7 @@ export function CoachPlanList({
 /**
  * How the coach wants the run run, with anything the programme still says underneath. The
  * coach's own stop rule replaces the programme's when it wrote one, since it was written
- * knowing this week's shins.
+ * knowing how this week has actually gone.
  */
 export function CoachRunDetails({ run, programme }: { run: PlanRun; programme: RunTarget | null }) {
   return (
@@ -114,7 +114,7 @@ export function CoachRunDetails({ run, programme }: { run: PlanRun; programme: R
       entries={[
         ["Why", run.note],
         ["Pace", run.paceNote || programme?.paceNote],
-        ["Stop if", run.stopRule || programme?.shinRule],
+        ["Stop if", run.stopRule || programme?.stopRule],
         ["Where", run.mode === "treadmill" ? "Treadmill" : "Outdoor"],
       ]}
     />

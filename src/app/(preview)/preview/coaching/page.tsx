@@ -75,7 +75,7 @@ const CHANGE_BASE: ProgramBlueprint = {
       rpe: [4, 5],
       paceNote: "Easy",
       progressionNote: "",
-      shinRule: "",
+      stopRule: "",
     },
   ],
   days: [

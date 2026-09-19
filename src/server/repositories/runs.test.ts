@@ -31,12 +31,6 @@ function run(overrides: Partial<RunInput> = {}): RunInput {
     durationSeconds: 25 * 60,
     distanceMeters: 4000,
     rpe: 3,
-    shinLeftPre: 1,
-    shinRightPre: 1,
-    shinLeftDuring: null,
-    shinRightDuring: null,
-    shinLeftPost: 1,
-    shinRightPost: 1,
     programRunId: null,
     notes: null,
     ...overrides,
@@ -95,10 +89,10 @@ describe("run logging", () => {
     expect(await withUser(t.db, other.id, (tx) => listRuns(tx, other.id))).toEqual([]);
   });
 
-  it("summarises the week and flags a volume spike and a rising shin", async () => {
+  it("summarises the week and flags a volume spike", async () => {
     const now = Date.now();
     const day = 24 * 60 * 60 * 1000;
-    // Last week: two easy runs; this week: already 70 minutes with rising right-shin scores.
+    // Last week: two easy runs; this week: already 70 minutes.
     await withUser(t.db, user.id, async (tx) => {
       await createRun(
         tx,
@@ -112,12 +106,7 @@ describe("run logging", () => {
       );
     });
     await withUser(t.db, user.id, (tx) =>
-      updateRun(
-        tx,
-        user.id,
-        firstId,
-        run({ durationSeconds: 70 * 60, shinRightPre: 1, shinRightPost: 3 }),
-      ),
+      updateRun(tx, user.id, firstId, run({ durationSeconds: 70 * 60 })),
     );
     const overview = await withUser(t.db, user.id, (tx) => getRunsOverview(tx, user.id, TZ));
     const thisWeek = overview.weeks[0];
@@ -127,20 +116,6 @@ describe("run logging", () => {
     if (overview.weeks[1]?.runs === 2) {
       expect(overview.spike?.lastWeekMinutes).toBe(50);
     }
-    // Three runs with right shin rising 1 → 2, 1 → 2, 1 → 3 (newest first).
-    await withUser(t.db, user.id, async (tx) => {
-      const olderOnes = (await listRuns(tx, user.id)).filter((r) => r.id !== firstId);
-      for (const older of olderOnes) {
-        await updateRun(
-          tx,
-          user.id,
-          older.id,
-          run({ startedAt: older.startedAt, shinRightPre: 1, shinRightPost: 2 }),
-        );
-      }
-    });
-    const flagged = await withUser(t.db, user.id, (tx) => getRunsOverview(tx, user.id, TZ));
-    expect(flagged.shin).toEqual([{ side: "right", pattern: "rising", runs: 3 }]);
   });
 
   it("deletes a run and refuses to touch a missing one", async () => {

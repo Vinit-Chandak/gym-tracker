@@ -28,9 +28,6 @@ export async function readHistoryWorkouts(
       gymName: gyms.name,
       dayName: programDays.name,
       sleepHours: workoutSessions.sleepHours,
-      backPainPre: workoutSessions.backPainPre,
-      shinLeftPre: workoutSessions.shinLeftPre,
-      shinRightPre: workoutSessions.shinRightPre,
       // Explicit qualifiers keep correlated columns intact in Drizzle's select list.
       setCount: sql<number>`(
         select count(*) from set_logs s

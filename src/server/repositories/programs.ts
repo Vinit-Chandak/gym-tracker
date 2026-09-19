@@ -288,7 +288,7 @@ export async function createProgramFromBlueprint(
         rpeMax: run.rpe[1],
         paceNote: run.paceNote,
         progressionNote: run.progressionNote,
-        shinRule: run.shinRule,
+        stopRule: run.stopRule,
         comment: run.comment ?? null,
       })),
     );
@@ -425,7 +425,7 @@ export async function readProgramBlueprint(
       rpe: [run.rpeMin ?? 0, run.rpeMax ?? run.rpeMin ?? 0],
       paceNote: run.paceNote ?? "",
       progressionNote: run.progressionNote ?? "",
-      shinRule: run.shinRule ?? "",
+      stopRule: run.stopRule ?? "",
       comment: run.comment ?? undefined,
     })),
   });
