@@ -1,4 +1,6 @@
 import type { Icon as PhosphorIcon, IconProps } from "@phosphor-icons/react/lib";
+import { ArrowRightIcon } from "@phosphor-icons/react/dist/ssr/ArrowRight";
+import { ArrowsDownUpIcon } from "@phosphor-icons/react/dist/ssr/ArrowsDownUp";
 import { ArrowSquareOutIcon } from "@phosphor-icons/react/dist/ssr/ArrowSquareOut";
 import { BarbellIcon } from "@phosphor-icons/react/dist/ssr/Barbell";
 import { BookOpenIcon } from "@phosphor-icons/react/dist/ssr/BookOpen";
@@ -24,7 +26,9 @@ import { MagnifyingGlassIcon } from "@phosphor-icons/react/dist/ssr/MagnifyingGl
 import { MapPinIcon } from "@phosphor-icons/react/dist/ssr/MapPin";
 import { MicrophoneIcon } from "@phosphor-icons/react/dist/ssr/Microphone";
 import { MicrophoneSlashIcon } from "@phosphor-icons/react/dist/ssr/MicrophoneSlash";
+import { MinusIcon } from "@phosphor-icons/react/dist/ssr/Minus";
 import { PaperclipIcon } from "@phosphor-icons/react/dist/ssr/Paperclip";
+import { PlusIcon } from "@phosphor-icons/react/dist/ssr/Plus";
 import { ScalesIcon } from "@phosphor-icons/react/dist/ssr/Scales";
 import { SignOutIcon } from "@phosphor-icons/react/dist/ssr/SignOut";
 import { SlidersHorizontalIcon } from "@phosphor-icons/react/dist/ssr/SlidersHorizontal";
@@ -70,6 +74,8 @@ function duotone(Icon: PhosphorIcon): AppIcon {
 
 // Keep functional names stable for the shared row, form and navigation components.
 export const AiCoach = /* @__PURE__ */ duotone(BrainIcon);
+export const ArrowRight = /* @__PURE__ */ duotone(ArrowRightIcon);
+export const ArrowsDownUp = /* @__PURE__ */ duotone(ArrowsDownUpIcon);
 export const BookOpen = /* @__PURE__ */ duotone(BookOpenIcon);
 export const CalendarDays = /* @__PURE__ */ duotone(CalendarDotsIcon);
 export const Check = /* @__PURE__ */ duotone(CheckIcon);
@@ -92,7 +98,9 @@ export const MailCheck = /* @__PURE__ */ duotone(EnvelopeOpenIcon);
 export const MapPin = /* @__PURE__ */ duotone(MapPinIcon);
 export const Mic = /* @__PURE__ */ duotone(MicrophoneIcon);
 export const MicOff = /* @__PURE__ */ duotone(MicrophoneSlashIcon);
+export const Minus = /* @__PURE__ */ duotone(MinusIcon);
 export const Paperclip = /* @__PURE__ */ duotone(PaperclipIcon);
+export const Plus = /* @__PURE__ */ duotone(PlusIcon);
 /** Compare: two pans weighed against each other. */
 export const Scales = /* @__PURE__ */ duotone(ScalesIcon);
 export const Search = /* @__PURE__ */ duotone(MagnifyingGlassIcon);

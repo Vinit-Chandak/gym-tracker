@@ -12,6 +12,10 @@ import {
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import { COACH_POLICY } from "@/domain/coach-policy";
+import {
+  COACH_TRAINING_REFERENCE,
+  COACH_TRAINING_REFERENCE_VERSION,
+} from "@/domain/coach-training-reference";
 import { ageOn } from "@/lib/units";
 import { COACH_CONTRACT_VERSION, coachIntakeSchema } from "@/domain/coaching-workflow";
 import { pendingParts } from "@/domain/schedule";
@@ -19,6 +23,7 @@ import { addDays, todayInTimeZone } from "@/domain/program-calendar";
 import { sharedWarmupProtocols } from "@/server/queries/reference";
 import { parseDateRange } from "@/server/validation/date-range";
 import { getCoachJob } from "./coaching-jobs";
+import { claimRequestsForAttempt, reopenOrphanedRequests } from "./coach-program-requests";
 import {
   assertCoachEnabled,
   assertNoOpenWorkout,
@@ -223,8 +228,28 @@ export async function coachJobContext(
     job.kind === "prepare_session"
       ? await planningContext(db, userId, { gymId: gymId ?? undefined })
       : null;
+  // A proposal the athlete can no longer approve is not an answer, so those asks go back on
+  // the list before this attempt is told what it owes an outcome.
+  await reopenOrphanedRequests(db, userId, now);
+  // Explicit requests are assessed by the scheduled daily work and by nothing else. An
+  // on-demand gym change, or a fresh programme, is not the athlete asking for that hearing,
+  // and handing it the list would make any tap on Today a trigger for a programme decision.
+  const scheduled = job.trigger === "daily" || job.trigger === "weekly";
+  const requests = scheduled
+    ? await claimRequestsForAttempt(db, userId, job.id, attemptId, today)
+    : { items: [], hasMore: false };
   return {
     contractVersion: COACH_CONTRACT_VERSION,
+    /**
+     * The shared training guidance, supplied once by the server rather than read from a
+     * routine's own checkout, so every run coaches from the deployed text.
+     */
+    trainingReference: {
+      version: COACH_TRAINING_REFERENCE_VERSION,
+      text: COACH_TRAINING_REFERENCE,
+      meaning:
+        "General guidance. Server permissions, the policy's numeric limits and this athlete's records outrank it. A broad research range is not an exercise's default target band.",
+    },
     policy: {
       ...COACH_POLICY,
       rules: COACH_POLICY.rules.filter((rule) =>
@@ -316,6 +341,20 @@ export async function coachJobContext(
     recovery,
     reviews,
     decisions,
+    /**
+     * What the athlete asked for and has not had an answer to. Kept apart from the memo on
+     * purpose: remembering a preference is not the same as proposing, applying or declining
+     * a change, and this job owes every one of these an outcome.
+     */
+    requestsToAddress: {
+      items: requests.items,
+      hasMore: requests.hasMore,
+      meaning: !scheduled
+        ? "This job is not the scheduled daily work, so it decides no explicit request. Anything the athlete has asked for is assessed at the next scheduled daily run."
+        : job.kind === "prepare_session"
+          ? "Explicit asks already open. A session cannot decide one: open any new ask you find in the athlete's notes and leave the outcome to the programme review in this same daily run."
+          : "Explicit asks this attempt must decide. Give each one exactly one decision in requests.decisions, and open any further ask you find in the athlete's notes in requests.open. Anything saved after this snapshot waits for the next daily run.",
+    },
     dataMeaning:
       "The intake's recentTraining is the athlete's own account of what they lift, in prose and approximate: treat it as a starting estimate to be corrected from logged sets, never as a completed workout. Reports can be removed and require the job-scoped download endpoint. Narrative history is bounded with hasMore; aggregate intervals cover all saved records. Unknown equipment load conventions and measurements must stay unknown.",
   };

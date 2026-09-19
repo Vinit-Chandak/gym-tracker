@@ -14,6 +14,7 @@ import {
   getCoachJob,
   queuedCoachJobs,
 } from "./repositories/coaching-jobs";
+import { recordAttemptDiagnostics } from "./repositories/coach-diagnostics";
 import { assertCoachEnabled, CoachingError } from "./repositories/coaching-state";
 import { PlanValidationError } from "./repositories/coach-plans";
 
@@ -143,6 +144,14 @@ export async function handleCoachWorkflow(
               completedAt: retry ? null : new Date(),
             })
             .where(and(eq(coachJobs.id, id), eq(coachJobs.userId, userId)));
+          await recordAttemptDiagnostics(tx, userId, {
+            jobId: id,
+            attemptId,
+            kind: job.kind,
+            outcome: retry ? "failed_retryable" : "failed",
+            diagnostics: { attempt: job.attempts },
+            error: body.error,
+          });
           return { accepted: true, retry };
         }),
       );

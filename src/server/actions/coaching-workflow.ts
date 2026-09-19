@@ -10,6 +10,7 @@ import type { DbOrTx } from "@/db/types";
 import { withUser } from "@/db/with-user";
 import { getCoachRoutine, getCoachServiceToken } from "@/lib/env";
 import { coachRollout } from "@/lib/coach-rollout";
+import { PLAN_LIMITS } from "@/domain/session-plan";
 import { requireProfiledUser } from "@/server/auth";
 import { dispatchCoachJob } from "@/server/dispatch-coach-job";
 import { profileChanged } from "@/server/queries/request-profile";
@@ -30,7 +31,12 @@ import {
   saveManualDraft,
 } from "@/server/repositories/program-drafts";
 import { removeCoachAttachment } from "@/server/repositories/coach-attachments";
-import { PlanValidationError } from "@/server/repositories/coach-plans";
+import { PlanValidationError, saveCoachNotes } from "@/server/repositories/coach-plans";
+import {
+  answerProgramRequest,
+  releaseRequestsForDraft,
+  withdrawProgramRequest,
+} from "@/server/repositories/coach-program-requests";
 
 type Result<T> = { ok: true; value: T } | { ok: false; error: string };
 async function mutate<T>(work: (tx: DbOrTx, userId: string) => Promise<T>): Promise<Result<T>> {
@@ -214,6 +220,117 @@ export async function rejectProgramDraftAction(id: string) {
     return rows[0];
   });
 }
+/**
+ * "No thanks" on a reviewed set of changes.
+ *
+ * The draft stops being offered and the requests it answered are settled with the athlete's
+ * own decision, rather than being left waiting for a proposal that no longer exists. Nothing
+ * they have logged, and nothing in the running programme, moves.
+ */
+export async function declineProgramChangeAction(id: string) {
+  const result = await mutate(async (tx, userId) => {
+    const draftId = z.uuid().parse(id);
+    const rows = await tx
+      .update(programDrafts)
+      .set({ status: "rejected" })
+      .where(
+        and(
+          eq(programDrafts.id, draftId),
+          eq(programDrafts.userId, userId),
+          inArray(programDrafts.status, ["editing", "ready"]),
+        ),
+      )
+      .returning({ id: programDrafts.id });
+    if (!rows.length) throw new CoachingError("That change is no longer waiting for an answer.");
+    await releaseRequestsForDraft(tx, userId, draftId, "declined", "You declined this change.");
+    return rows[0]!;
+  });
+  if (result.ok) revalidatePath("/profile/programme");
+  return result;
+}
+
+/**
+ * "Not quite — here is what I want instead."
+ *
+ * The note is saved the way every note is saved, so the coach may quote it, and the requests
+ * this proposal was answering go back to waiting. Like any request, it is assessed at the
+ * next scheduled daily run: this does not start a coach run, and it does not go through
+ * whole-programme creation, which would throw away the block the athlete is part-way through.
+ */
+export async function requestChangeRevisionsAction(id: string, notes: string, noteId: string) {
+  const result = await mutate(async (tx, userId) => {
+    const parsed = z
+      .object({
+        id: z.uuid(),
+        noteId: z.uuid(),
+        notes: z.string().trim().min(1, "Say what you would like changed.").max(PLAN_LIMITS.memo),
+      })
+      .parse({ id, noteId, notes });
+    const rows = await tx
+      .update(programDrafts)
+      .set({ status: "rejected" })
+      .where(
+        and(
+          eq(programDrafts.id, parsed.id),
+          eq(programDrafts.userId, userId),
+          inArray(programDrafts.status, ["editing", "ready"]),
+        ),
+      )
+      .returning({ id: programDrafts.id });
+    if (!rows.length) throw new CoachingError("That change is no longer waiting for an answer.");
+    await saveCoachNotes(tx, userId, parsed.notes, parsed.noteId);
+    await releaseRequestsForDraft(
+      tx,
+      userId,
+      parsed.id,
+      "waiting",
+      "You asked for revisions. The coach reworks this at its next daily run.",
+    );
+    return rows[0]!;
+  });
+  if (result.ok) {
+    revalidatePath("/profile/programme");
+    revalidatePath("/profile/ai-coach");
+  }
+  return result;
+}
+
+/**
+ * The answer to one coach question, given where the question was asked.
+ *
+ * It resumes that request rather than starting a programme from scratch, and it waits for the
+ * next scheduled daily run like everything else the athlete saves.
+ */
+export async function answerProgramRequestAction(id: string, answer: string, noteId: string) {
+  const result = await mutate(async (tx, userId) => {
+    const parsed = z
+      .object({
+        id: z.uuid(),
+        noteId: z.uuid(),
+        answer: z.string().trim().min(1, "Write your answer.").max(PLAN_LIMITS.memo),
+      })
+      .parse({ id, noteId, answer });
+    return answerProgramRequest(tx, userId, parsed.id, parsed.answer, parsed.noteId);
+  });
+  if (result.ok) {
+    revalidatePath("/profile/ai-coach");
+    revalidatePath("/profile/programme");
+  }
+  return result;
+}
+
+/** The athlete no longer wants this; it stops coming back, without being marked granted. */
+export async function withdrawProgramRequestAction(id: string) {
+  const result = await mutate((tx, userId) =>
+    withdrawProgramRequest(tx, userId, z.uuid().parse(id)),
+  );
+  if (result.ok) {
+    revalidatePath("/profile/ai-coach");
+    revalidatePath("/profile/programme");
+  }
+  return result;
+}
+
 export async function chooseTrainingModeAction(mode: "manual" | "track") {
   const result = await mutate(async (tx, userId) => {
     await setTrainingMode(tx, userId, z.enum(["manual", "track"]).parse(mode));

@@ -1,9 +1,17 @@
 import { COACH_POLICY_VERSION } from "./coaching-workflow";
 
-/** Distilled from docs/planning/AI_COACH_SCIENCE.md; no founder-specific defaults. */
+/**
+ * What the server requires, rather than what the research says.
+ *
+ * The training guidance the coach reads now arrives once per job as the shared reference in
+ * `coach-training-reference.ts`, so the science that used to be restated here has been
+ * removed from these rules. What is left is the part the server actually enforces or checks:
+ * permissions, numeric limits, measurement contracts and the shape of a valid result. Do not
+ * move a limit out of this file into the reference — general guidance is not permission.
+ */
 export const COACH_POLICY = {
   version: COACH_POLICY_VERSION,
-  reviewedOn: "2026-09-16",
+  reviewedOn: "2026-09-19",
   scope:
     "General strength, muscle, basic running and hybrid training. Population evidence is not an individualized optimum.",
   rules: [
@@ -17,28 +25,31 @@ export const COACH_POLICY = {
       id: "fit",
       tasks: ["create_program", "review_program"],
       kind: "coaching_principle",
-      rule: "Match dose and exercise choice to confirmed goals, experience, time, equipment and restrictions. Do not copy the founder template or presume six training days. Training to failure or complex periodization is not necessary for benefit.",
-      source: "https://acsm.org/resistance-training-guidelines-update-2026/",
+      rule: "Match dose and exercise choice to confirmed goals, experience, time, equipment and restrictions. Do not copy the founder template or presume six training days. Prescribing detail is your judgement within the trainingReference; the limits below are the server's.",
     },
     {
       id: "effort",
       tasks: ["create_program", "prepare_session", "review_program"],
       kind: "coaching_principle",
-      rule: "Require actual RIR after rep working sets and actual RPE after timed/distance sets and runs. Warmups are optional. Never copy target effort into actual logs or turn historical missing effort into zero. RIR is an imperfect estimate; no failure test is required. Set goal-appropriate target RIR; use RPE for work without repetitions. Unknown starting loads require calibration with feasible equipment.",
-      source: "https://pubmed.ncbi.nlm.nih.gov/34542869/",
+      rule: "Require actual RIR after rep working sets and actual RPE after timed/distance sets and runs. Warmups are optional. Never copy target effort into actual logs or turn historical missing effort into zero. Unknown starting loads require calibration with feasible equipment.",
     },
     {
       id: "running",
       tasks: ["create_program", "prepare_session", "review_program"],
       kind: "coaching_principle",
       rule: "Use recent frequency, longest run, gaps, symptoms and session distance/duration together. Compare the same scheduled role and mode. Lasting running reductions require athlete review; RPE alone does not establish decline. Check distance and duration independently. The weekly 10% rule is not a safety guarantee. Do not invent missing pace or automatically prioritize strength over running.",
-      source: "https://pubmed.ncbi.nlm.nih.gov/40623829/",
+    },
+    {
+      id: "requests",
+      tasks: ["create_program", "prepare_session", "review_program"],
+      kind: "server_rule",
+      rule: "requestsToAddress holds the athlete's explicit asks. Open any further ask you find in their notes in requests.open [{id, sourceId, quote, summary}], quoting their exact words from a note they own; one note may hold several asks and each needs its own item. A review must return exactly one requests.decisions entry for every supplied and newly opened item: needs_answer with the single question, proposed with changeRefs naming real diff operations, deferred with reconsiderAfter within 56 days and the condition, not_recommended with the reason, or already_satisfied naming where the active programme covers it. The server checks the claim against the blueprint difference and rejects an incomplete or unsupported set. Applied is the server's alone and only after activation; a session containing the exercise never closes a programme request. Session preparation may open asks but must not decide them: the programme review in the same daily run does that. A remembered preference is not an outcome, and requests saved after your input snapshot stay open for the next daily run.",
     },
     {
       id: "authority",
       tasks: ["review_program"],
       kind: "server_rule",
-      rule: "The server checks actual changes, supporting evidence, and 14-day cumulative decisions. Only supported changes within the versioned limits can activate automatically. Larger or structural changes need athlete review. Permanent set-count changes belong in weekly review. Preserve confirmed goals, restrictions, schedule and slot lineage. No change is valid.",
+      rule: "The server checks actual changes, supporting evidence, and 14-day cumulative decisions. Only supported changes within the versioned limits can activate automatically. Larger or structural changes, and anything answering an explicit athlete request, need athlete review. Permanent set-count changes belong in weekly review. Preserve confirmed goals, restrictions, schedule and slot lineage. No change is valid.",
     },
     {
       id: "freeze",

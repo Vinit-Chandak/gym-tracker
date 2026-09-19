@@ -3,6 +3,7 @@ import {
   type BlueprintDay,
   type ProgramBlueprint,
 } from "./program-blueprint";
+import { diffPrograms } from "./program-diff";
 import { MUSCLE_GROUPS, type MuscleGroup } from "./types";
 import { TRAINING_POLICY } from "./training-evidence";
 
@@ -211,7 +212,10 @@ export function assessProgramChange(
       ),
     };
   });
-  const authority: ProgramChangeAuthority = same(before, after)
+  // One definition of "nothing changed", shared with the screen that shows the difference.
+  // A revision that only mints slot lineage is not a change the athlete can see, and it must
+  // not leave behind a draft offering to apply nothing.
+  const authority: ProgramChangeAuthority = diffPrograms(before, after).empty
     ? "unchanged"
     : structuralChanges.length > 0 || doseChanges.length > 0
       ? "review_required"

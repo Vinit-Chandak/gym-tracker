@@ -1,39 +1,28 @@
-import { desc, eq } from "drizzle-orm";
 import { ClipboardList, SlidersHorizontal } from "@/components/ui/icons";
 import { Card } from "@/components/ui/card";
 import { LinkRow, List } from "@/components/ui/link-row";
 import { Section } from "@/components/ui/section";
 import { getDb } from "@/db/client";
-import { coachWeeklyReviews } from "@/db/schema";
 import { withUser } from "@/db/with-user";
 import { requireProfiledUser } from "@/server/auth";
 import { listCoachJobs } from "@/server/repositories/coaching-jobs";
 
 /**
- * What the coach has done for you lately, and the two places you can change what it does.
+ * The two places you can change what the coach does, and the one thing it cannot do itself.
  *
  * It used to open by saying when the nightly batch runs and that logging a workout does not
  * start one — a description of the machinery, to somebody who only wants to know whether
- * their programme changed. A run that succeeded is not news either: the programme itself is
- * the result. So only two things are said here, a review that reached a conclusion and a run
- * that failed, and neither appears when there is nothing of the kind to report.
+ * their programme changed. It then repeated the last three review summaries, which are the
+ * same sentences the Changes tab shows beside the changes they describe. Both are gone: what
+ * is left is a link to where a review actually lives, and a run that failed, which is the one
+ * thing nothing else would tell them.
  */
 export async function CoachingActivity({ settings = false }: { settings?: boolean }) {
   if (process.env.COACH_WORKFLOW_ENABLED !== "true") return null;
   const user = await requireProfiledUser();
-  const [jobs, reviews] = await withUser(getDb(), user.id, (tx) =>
-    Promise.all([
-      listCoachJobs(tx, user.id, 5),
-      tx
-        .select()
-        .from(coachWeeklyReviews)
-        .where(eq(coachWeeklyReviews.userId, user.id))
-        .orderBy(desc(coachWeeklyReviews.periodEnd))
-        .limit(3),
-    ]),
-  );
+  const jobs = await withUser(getDb(), user.id, (tx) => listCoachJobs(tx, user.id, 5));
   const failed = jobs.find((job) => job.status === "failed");
-  if (!settings && !failed && !reviews.length) return null;
+  if (!settings && !failed) return null;
   return (
     <>
       {settings && (
@@ -48,9 +37,10 @@ export async function CoachingActivity({ settings = false }: { settings?: boolea
             </li>
             <li>
               <LinkRow
-                href="/profile/programme"
+                href="/profile/programme?view=changes"
                 icon={ClipboardList}
-                title="Programme and drafts"
+                title="Programme changes"
+                subtitle="What the coach has changed, proposed or answered"
               />
             </li>
           </List>
@@ -67,24 +57,6 @@ export async function CoachingActivity({ settings = false }: { settings?: boolea
                   : "Your next session could not be prepared."}
             </p>
             {failed.error && <p className="text-sm text-ink-muted">{failed.error}</p>}
-          </Card>
-        </Section>
-      )}
-      {reviews.length > 0 && (
-        <Section title="Recent reviews">
-          <Card className="space-y-0 ruled-list">
-            {reviews.map((review) => (
-              <div key={review.id} className="space-y-1 py-3 first:pt-0 last:pb-0">
-                <p className="text-sm font-medium">
-                  {review.outcome === "no_change"
-                    ? "Programme kept as it is"
-                    : review.outcome === "automatic"
-                      ? "Future sessions updated"
-                      : "A change is waiting for you"}
-                </p>
-                <p className="text-sm text-ink-muted">{review.rationale}</p>
-              </div>
-            ))}
           </Card>
         </Section>
       )}

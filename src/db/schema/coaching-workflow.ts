@@ -19,6 +19,7 @@ import type {
   OpeningPlan,
 } from "../../domain/coaching-workflow";
 import type { ProgramBlueprint } from "../../domain/program-blueprint";
+import type { RequestState } from "../../domain/program-request";
 import type { SavedRoutineDay } from "../../domain/saved-routine";
 import { ownerPolicy, timestamps } from "./common";
 import { profiles } from "./profiles";
@@ -262,4 +263,114 @@ export const savedRoutines = pgTable(
     ...timestamps,
   },
   (t) => [index("saved_routines_user_idx").on(t.userId), ownerPolicy("saved_routines")],
+).enableRLS();
+
+/**
+ * One thing the athlete asked the programme to do, kept until it has an outcome.
+ *
+ * The note it came from is a message and can hold more than one ask; a single read receipt
+ * on that message could not say that the curls were proposed and the core work still needs a
+ * question answered. Each ask is its own row, anchored to the athlete's exact words, and it
+ * survives the review that could not grant it — a preference remembered in the memo is not an
+ * answer, and neither is a note marked reviewed.
+ */
+export const coachProgramRequests = pgTable(
+  "coach_program_requests",
+  {
+    /** Minted by the coaching run, so its own result can decide a request it just opened. */
+    id: uuid("id").primaryKey(),
+    userId: owner(),
+    /** `note:<uuid>`, `workout:<uuid>` or `exercise:<uuid>` — the athlete's own words. */
+    sourceId: text("source_id").notNull(),
+    quote: text("quote").notNull(),
+    summary: text("summary").notNull(),
+    state: text("state").$type<RequestState>().notNull().default("waiting"),
+    /** The question, the reason, or where the programme already covers it. */
+    detail: text("detail").notNull().default(""),
+    /** What has to be true for a deferral to be reconsidered, beside its date. */
+    condition: text("condition").notNull().default(""),
+    reconsiderAfter: date("reconsider_after"),
+    openedJobId: uuid("opened_job_id").references(() => coachJobs.id, { onDelete: "set null" }),
+    decidedJobId: uuid("decided_job_id").references(() => coachJobs.id, { onDelete: "set null" }),
+    draftId: uuid("draft_id").references(() => programDrafts.id, { onDelete: "set null" }),
+    /** Diff operation IDs the accepted decision named, so a claim can be checked later. */
+    changeRefs: jsonb("change_refs")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    /**
+     * The attempt whose input snapshot carried this request. A request saved after that
+     * snapshot is not the claimed run's to close, and waits for the next daily run.
+     */
+    claimedJobId: uuid("claimed_job_id").references(() => coachJobs.id, { onDelete: "set null" }),
+    claimedAttemptId: uuid("claimed_attempt_id"),
+    resolvedAt: instant("resolved_at"),
+    ...timestamps,
+  },
+  (t) => [
+    index("coach_program_requests_user_state_idx").on(t.userId, t.state, t.createdAt),
+    index("coach_program_requests_source_idx").on(t.userId, t.sourceId),
+    ownerPolicy("coach_program_requests"),
+  ],
+).enableRLS();
+
+/** Every outcome a request has had, so a decision is never quietly rewritten. */
+export const coachRequestDecisions = pgTable(
+  "coach_request_decisions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: owner(),
+    requestId: uuid("request_id")
+      .notNull()
+      .references(() => coachProgramRequests.id, { onDelete: "cascade" }),
+    jobId: uuid("job_id").references(() => coachJobs.id, { onDelete: "set null" }),
+    state: text("state").$type<RequestState>().notNull(),
+    detail: text("detail").notNull().default(""),
+    changeRefs: jsonb("change_refs")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    decidedAt: instant("decided_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("coach_request_decisions_request_idx").on(t.userId, t.requestId, t.decidedAt),
+    ownerPolicy("coach_request_decisions"),
+  ],
+).enableRLS();
+
+/**
+ * A small receipt for one finished coaching attempt, kept for thirty days.
+ *
+ * Enough to answer "which guidance did that run read, and what did the server say about its
+ * result" when something looks wrong, and nothing more: no prompts, no histories, no hidden
+ * reasoning. It is never shown in the app and never sent back to the model, and it expires on
+ * its own so debugging material does not become a second copy of the athlete's training.
+ */
+export const coachAttemptDiagnostics = pgTable(
+  "coach_attempt_diagnostics",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: owner(),
+    jobId: uuid("job_id").references(() => coachJobs.id, { onDelete: "cascade" }),
+    attemptId: uuid("attempt_id"),
+    kind: text("kind").notNull(),
+    outcome: text("outcome").notNull(),
+    /** The training reference and result contract the run was served. */
+    referenceVersion: text("reference_version").notNull(),
+    contractVersion: integer("contract_version").notNull(),
+    /** Counts and flags only — never prose the athlete wrote or the model produced. */
+    diagnostics: jsonb("diagnostics")
+      .$type<Record<string, number | string | boolean>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    error: text("error"),
+    completedAt: instant("completed_at").notNull().defaultNow(),
+    /** Deleted on or after this instant by the daily cleanup, whatever else happened. */
+    expiresAt: instant("expires_at").notNull(),
+  },
+  (t) => [
+    index("coach_attempt_diagnostics_expiry_idx").on(t.expiresAt),
+    index("coach_attempt_diagnostics_user_idx").on(t.userId, t.completedAt),
+    ownerPolicy("coach_attempt_diagnostics"),
+  ],
 ).enableRLS();
