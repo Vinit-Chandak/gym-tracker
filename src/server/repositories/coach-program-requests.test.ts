@@ -34,6 +34,7 @@ import {
   applyRequestPatch,
   hasActionableRequests,
   listOpenRequests,
+  listRequestsForDraft,
 } from "./coach-program-requests";
 import { expireCoachDiagnostics, recordAttemptDiagnostics } from "./coach-diagnostics";
 import { coachJobContext } from "./coaching-context";
@@ -514,6 +515,105 @@ it("lets a session job find an ask but never decide one", async () => {
     state: "waiting",
     summary: "More direct core work",
   });
+});
+
+it("lets programme creation find an ask but never decide one", async () => {
+  const a = await athlete();
+  const noteId = crypto.randomUUID();
+  await as(a, (tx) => saveCoachNotes(tx, a.user.id, NOTE, noteId));
+  const { job } = await as(a, (tx) =>
+    enqueueCoachJob(tx, a.user.id, {
+      kind: "create_program",
+      trigger: "onboarding",
+      dedupeKey: `create:${crypto.randomUUID()}`,
+      intakeId: a.intake.id,
+      target: { gymId: a.gym.id },
+    }),
+  );
+  const claim = await as(a, (tx) => claimCoachJob(tx, a.user.id, job.id));
+  const context = await as(a, (tx) => coachJobContext(tx, a.user.id, job.id, claim!.attemptId!));
+  // A creation run is writing a different programme from the one the ask was about, so it is
+  // handed no list to assess.
+  expect(context.requestsToAddress.items).toEqual([]);
+  const id = crypto.randomUUID();
+  const open = [
+    { id, sourceId: `note:${noteId}`, quote: "more direct core work", summary: "Core work" },
+  ];
+  const patch = (decisions: unknown[]) =>
+    as(a, (tx) =>
+      applyRequestPatch(tx, a.user.id, {
+        jobId: job.id,
+        attemptId: claim!.attemptId!,
+        kind: "create_program",
+        patch: { open, decisions },
+        changeOperationIds: null,
+        draftId: null,
+        now: new Date(),
+        today: "2026-09-19",
+      }),
+    );
+  await expect(
+    patch([{ requestId: id, state: "not_recommended", detail: "No room for it." }]),
+  ).rejects.toThrow(/cannot decide a programme request/i);
+  // And the same result without a decision is accepted: finding an ask must not oblige a run
+  // to close it, or the only way through would be to break the rule above.
+  expect(await patch([])).toMatchObject({ opened: 1, decided: 0 });
+  expect((await as(a, (tx) => listOpenRequests(tx, a.user.id)))[0]).toMatchObject({
+    state: "waiting",
+    summary: "Core work",
+  });
+});
+
+it("shows a change every ask its own review answered, not only the ones it proposed", async () => {
+  const a = await training();
+  const noteId = await noteFrom(a);
+  const { job, attemptId } = await reviewJob(a, "requests");
+  const proposed = crypto.randomUUID();
+  const asked = crypto.randomUUID();
+  const revised = await withAddedExercise(a);
+  const accepted = await as(a, (tx) =>
+    acceptCoachJobResult(tx, a.user.id, job.id, attemptId, {
+      outcome: "program",
+      blueprint: revised,
+      openingPlan: null,
+      rationale: "The curls go in; the core work needs one answer.",
+      evidence: [],
+      uncertainties: [],
+      requests: {
+        open: [
+          {
+            id: proposed,
+            sourceId: `note:${noteId}`,
+            quote: "Bayesian cable curls",
+            summary: "Curls",
+          },
+          {
+            id: asked,
+            sourceId: `note:${noteId}`,
+            quote: "more direct core work please",
+            summary: "Core work",
+          },
+        ],
+        decisions: [
+          {
+            requestId: proposed,
+            state: "proposed",
+            detail: "Added to your only training day.",
+            changeRefs: ["add:1:2:cable-crunch"],
+          },
+          { requestId: asked, state: "needs_answer", detail: "Which day has the most time?" },
+        ],
+      },
+    }),
+  );
+  const draft = await as(a, (tx) => getProgramDraft(tx, a.user.id, accepted.draftId!));
+  const shown = await as(a, (tx) => listRequestsForDraft(tx, a.user.id, draft!));
+  // Both asks from the one note, each with the outcome it was actually given — the question
+  // included, which pointing at the draft alone would have left off the screen.
+  expect(shown.map((request) => `${request.summary}: ${request.state}`).sort()).toEqual([
+    "Core work: needs_answer",
+    "Curls: proposed",
+  ]);
 });
 
 it("reviews for a waiting request without consuming the scheduled review", async () => {

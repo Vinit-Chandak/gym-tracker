@@ -4,7 +4,7 @@ import { z } from "zod";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { getDb } from "@/db/client";
-import { coachProgramRequests, equipmentInstances, exercises } from "@/db/schema";
+import { equipmentInstances, exercises } from "@/db/schema";
 import { withUser } from "@/db/with-user";
 import { assessProgramChange } from "@/domain/program-change";
 import { diffPrograms } from "@/domain/program-diff";
@@ -12,10 +12,10 @@ import { todayInTimeZone } from "@/domain/program-calendar";
 import { formatDateTime } from "@/lib/format";
 import { requireProfiledUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
+import { listRequestsForDraft } from "@/server/repositories/coach-program-requests";
 import { getProgramDraft } from "@/server/repositories/program-drafts";
 import { readProgramBlueprint } from "@/server/repositories/programs";
 import { sourceRevision } from "@/server/repositories/coaching-state";
-import { and } from "drizzle-orm";
 import { ChangeDetail } from "./change-detail";
 import { DraftPreview } from "./draft-preview";
 
@@ -54,15 +54,7 @@ export async function ProgrammeDraftPage({
           .select({ id: equipmentInstances.id, unit: equipmentInstances.unit })
           .from(equipmentInstances)
           .where(eq(equipmentInstances.userId, user.id)),
-        tx
-          .select()
-          .from(coachProgramRequests)
-          .where(
-            and(
-              eq(coachProgramRequests.userId, user.id),
-              eq(coachProgramRequests.draftId, draft.id),
-            ),
-          ),
+        listRequestsForDraft(tx, user.id, draft),
       ]);
       return {
         draft,
