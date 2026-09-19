@@ -82,7 +82,7 @@ beforeAll(async () => {
         .set({
           startedAt: new Date(i === 0 ? "2026-09-06T19:00:00Z" : "2026-09-14T00:00:00Z"),
           sleepHours: i === 0 ? 7 : null,
-          backPainPre: i,
+          energy: i === 0 ? 3 : 4,
         })
         .where(eq(workoutSessions.id, session.sessionId));
       for (const [exerciseId, equipmentInstanceId] of [
@@ -122,11 +122,10 @@ beforeAll(async () => {
       startedAt: new Date("2026-09-08T00:00:00Z"),
       durationSeconds: 1800,
       distanceMeters: 5000,
-      shinLeftPost: 0,
     });
     await tx
       .insert(dailyRecovery)
-      .values({ userId: alice.id, date: "2026-09-30", sleepHours: 8, shinLeft: 2 });
+      .values({ userId: alice.id, date: "2026-09-30", sleepHours: 8, soreness: 2 });
     token = (await createCoachToken(tx, alice.id, "Test coach", 90)).token;
   });
 });
@@ -195,8 +194,10 @@ describe("history and analytics", () => {
     expect(result.weeks.find((w) => w.date === "2026-09-14")?.muscles.chest).toBe(1);
     expect(result.weeks.find((w) => w.date === "2026-09-07")?.runKm).toBe(5);
     expect(result.weeks.find((w) => w.date === "2026-08-31")?.workouts).toBe(0);
-    expect(result.recovery.some((r) => r.sleep === null)).toBe(true);
-    expect(result.recovery.find((r) => r.source === "Run (after)")?.leftShin).toBe(0);
+    // A workout that recorded only its energy still appears; a run never carried a reading.
+    expect(result.recovery.some((r) => r.sleep === null && r.energy !== null)).toBe(true);
+    expect(result.recovery.find((r) => r.source === "Daily recovery")?.soreness).toBe(2);
+    expect(result.recovery.every((r) => r.source !== "Run (after)")).toBe(true);
   });
   it("excludes rest slots from programme adherence", async () => {
     const schedule = await withUser(t.db, alice.id, (tx) => getSchedule(tx, alice.id));

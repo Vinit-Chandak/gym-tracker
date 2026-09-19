@@ -2,6 +2,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import type { Route } from "next";
 
 import { Proposals } from "./proposals";
+import { RequestReview, type ReviewAvailability } from "./request-review";
 import { RequestList, type RequestView } from "@/components/coaching/request-list";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -10,11 +11,14 @@ import { Section } from "@/components/ui/section";
 import { coachWeeklyReviews, programDrafts } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import { diffPrograms, programDiffSummary } from "@/domain/program-diff";
-import { formatDateTime } from "@/lib/format";
+import { getCoachRoutine, getCoachServiceToken } from "@/lib/env";
+import { formatDateTime, formatIsoDay } from "@/lib/format";
+import { todayInTimeZone } from "@/domain/program-calendar";
 import {
   listOpenRequests,
   listSettledRequests,
 } from "@/server/repositories/coach-program-requests";
+import { athleteReviewStatus } from "@/server/repositories/coaching-jobs";
 import { listOpenProposals } from "@/server/repositories/program-revisions";
 import { readProgramBlueprint } from "@/server/repositories/programs";
 
@@ -26,7 +30,7 @@ import { readProgramBlueprint } from "@/server/repositories/programs";
  * reprinted under every review.
  */
 export async function loadProgrammeChanges(db: DbOrTx, userId: string, timeZone: string) {
-  const [drafts, legacy, open, settled, reviews] = await Promise.all([
+  const [drafts, legacy, open, settled, reviews, reviewStatus] = await Promise.all([
     db
       .select()
       .from(programDrafts)
@@ -44,6 +48,7 @@ export async function loadProgrammeChanges(db: DbOrTx, userId: string, timeZone:
       .where(eq(coachWeeklyReviews.userId, userId))
       .orderBy(desc(coachWeeklyReviews.periodEnd))
       .limit(8),
+    athleteReviewStatus(db, userId),
   ]);
   // Only a draft written against a programme is a change; one with no base is a new
   // programme, and it stays with the saved work that produced it.
@@ -96,6 +101,19 @@ export async function loadProgrammeChanges(db: DbOrTx, userId: string, timeZone:
       summaries.length +
       legacy.length +
       open.filter((request) => request.state === "needs_answer").length,
+    review: {
+      // Only the server that can start the coach offers to; elsewhere the card would promise
+      // something no tap could deliver.
+      offered:
+        process.env.COACH_WORKFLOW_ENABLED === "true" &&
+        getCoachRoutine() !== null &&
+        getCoachServiceToken() !== null,
+      canAsk: reviewStatus.canAsk,
+      running: reviewStatus.running,
+      nextOn: reviewStatus.nextAt
+        ? formatIsoDay(todayInTimeZone(timeZone, reviewStatus.nextAt))
+        : null,
+    } satisfies ReviewAvailability,
   };
 }
 
@@ -122,12 +140,15 @@ export function ProgrammeChanges({
     !data.reviews.length;
   if (nothing)
     return (
-      <Card>
-        <p className="text-sm text-ink-muted">
-          Nothing has changed yet. When the coach reviews your programme, what it changed shows up
-          here — only the differences, grouped by day.
-        </p>
-      </Card>
+      <div className="space-y-6">
+        <Card>
+          <p className="text-sm text-ink-muted">
+            Nothing has changed yet. When the coach reviews your programme, what it changed shows up
+            here — only the differences, grouped by day.
+          </p>
+        </Card>
+        <RequestReview availability={data.review} />
+      </div>
     );
   return (
     <div className="space-y-6">
@@ -173,32 +194,35 @@ export function ProgrammeChanges({
         </Section>
       )}
 
-      {data.reviews.length > 0 && (
-        <Section title="Recent reviews">
-          <List>
-            {data.reviews.map((review) =>
-              // A no-change review has no change to open. Its draft was superseded on the
-              // server precisely so nothing offers to apply a programme identical to this one.
-              review.draftId && review.outcome !== "no_change" ? (
-                <li key={review.id}>
-                  <LinkRow
-                    href={`${base}/drafts/${review.draftId}` as Route}
-                    title={REVIEW_HEADLINE[review.outcome] ?? "Review"}
-                    subtitle={review.rationale}
-                    meta={review.when.split(",")[0]}
-                  />
-                </li>
-              ) : (
-                <li key={review.id} className="space-y-1 p-4">
-                  <p className="font-medium">{REVIEW_HEADLINE[review.outcome] ?? "Review"}</p>
-                  <p className="text-sm [overflow-wrap:anywhere] text-ink-muted">
-                    {review.rationale}
-                  </p>
-                  <p className="text-xs text-ink-muted tabular-nums">{review.when}</p>
-                </li>
-              ),
-            )}
-          </List>
+      {(data.review.offered || data.reviews.length > 0) && (
+        <Section title="Reviews">
+          <RequestReview availability={data.review} />
+          {data.reviews.length > 0 && (
+            <List>
+              {data.reviews.map((review) =>
+                // A no-change review has no change to open. Its draft was superseded on the
+                // server precisely so nothing offers to apply a programme identical to this one.
+                review.draftId && review.outcome !== "no_change" ? (
+                  <li key={review.id}>
+                    <LinkRow
+                      href={`${base}/drafts/${review.draftId}` as Route}
+                      title={REVIEW_HEADLINE[review.outcome] ?? "Review"}
+                      subtitle={review.rationale}
+                      meta={review.when.split(",")[0]}
+                    />
+                  </li>
+                ) : (
+                  <li key={review.id} className="space-y-1 p-4">
+                    <p className="font-medium">{REVIEW_HEADLINE[review.outcome] ?? "Review"}</p>
+                    <p className="text-sm [overflow-wrap:anywhere] text-ink-muted">
+                      {review.rationale}
+                    </p>
+                    <p className="text-xs text-ink-muted tabular-nums">{review.when}</p>
+                  </li>
+                ),
+              )}
+            </List>
+          )}
         </Section>
       )}
     </div>

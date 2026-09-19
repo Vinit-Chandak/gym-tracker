@@ -31,7 +31,7 @@ export function runSummary(run: RunTargets): string {
 
 /** Whether the run says anything beyond how long and how hard. */
 export function hasRunGuidance(run: RunTarget): boolean {
-  return Boolean(run.paceNote || run.progressionNote || run.shinRule);
+  return Boolean(run.paceNote || run.progressionNote || run.stopRule);
 }
 
 /** How to run it, once the duration and effort have already been said. */
@@ -41,7 +41,7 @@ export function RunPlanDetails({ run }: { run: RunTarget }) {
       entries={[
         ["Pace", run.paceNote],
         ["Progression", run.progressionNote],
-        ["Shins", run.shinRule],
+        ["Stop if", run.stopRule],
       ]}
     />
   );

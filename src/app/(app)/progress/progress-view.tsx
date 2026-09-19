@@ -65,9 +65,10 @@ type Props = {
   recovery: {
     date: string;
     sleep: number | null;
-    back: number | null;
-    leftShin: number | null;
-    rightShin: number | null;
+    quality: number | null;
+    energy: number | null;
+    fatigue: number | null;
+    soreness: number | null;
   }[];
   pace: { date: string; value: number | null; mode: string }[];
   options: SeriesOption[];
@@ -98,9 +99,10 @@ type RunMetric = (typeof RUN_METRICS)[number]["value"];
 
 const RECOVERY_METRICS = [
   { value: "sleep", label: "Sleep" },
-  { value: "back", label: "Back" },
-  { value: "leftShin", label: "L shin" },
-  { value: "rightShin", label: "R shin" },
+  { value: "quality", label: "Quality" },
+  { value: "energy", label: "Energy" },
+  { value: "fatigue", label: "Fatigue" },
+  { value: "soreness", label: "Soreness" },
 ] as const;
 type RecoveryMetric = (typeof RECOVERY_METRICS)[number]["value"];
 
@@ -413,11 +415,11 @@ export function ProgressView({
               options={RECOVERY_METRICS}
               value={recoveryMetric}
               onChange={setRecoveryMetric}
-              columns={4}
+              columns={5}
             />
             <Chart
               title={RECOVERY_METRICS.find((m) => m.value === recoveryMetric)!.label}
-              unit={recoveryMetric === "sleep" ? "hours" : "0–10"}
+              unit={recoveryMetric === "sleep" ? "hours" : "1–5"}
               series={[
                 {
                   name: "Reading",
@@ -425,7 +427,7 @@ export function ProgressView({
                   points: recovery.map((r) => ({ date: r.date, value: r[recoveryMetric] })),
                 },
               ]}
-              note="From workout check-ins, daily recovery entries and after-run shin scores. A missing reading leaves a gap."
+              note="From workout check-ins and daily recovery entries. A missing reading leaves a gap."
             />
           </Card>
         )}

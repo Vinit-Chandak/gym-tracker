@@ -358,7 +358,7 @@ describe("runs", () => {
         rpe: [4, 5],
         paceNote: "Easy",
         progressionNote: "",
-        shinRule: "",
+        stopRule: "",
       },
       {
         weekIndex: 2,
@@ -367,7 +367,7 @@ describe("runs", () => {
         rpe: [4, 5],
         paceNote: "Easy",
         progressionNote: "",
-        shinRule: "",
+        stopRule: "",
       },
     ],
   });

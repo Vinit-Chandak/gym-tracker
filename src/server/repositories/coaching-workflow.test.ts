@@ -1390,8 +1390,8 @@ function withRunDay(): ProgramBlueprint {
       duration: [25, 40] as [number, number],
       rpe: [3, 5] as [number, number],
       paceNote: "Easy, conversational.",
-      progressionNote: "Hold the distance while the shin settles.",
-      shinRule: "Stop if the shin worsens as the run goes on.",
+      progressionNote: "Hold the distance while it settles.",
+      stopRule: "Stop if the ache worsens as the run goes on.",
     })),
   };
 }

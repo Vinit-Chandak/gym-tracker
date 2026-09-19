@@ -219,9 +219,6 @@ const checkInSchema = z.object({
   energy: optionalNumber(1, 5, true),
   fatigue: optionalNumber(1, 5, true),
   soreness: optionalNumber(1, 5, true),
-  backPainPre: optionalNumber(0, 10, true),
-  shinLeftPre: optionalNumber(0, 10, true),
-  shinRightPre: optionalNumber(0, 10, true),
 });
 
 export async function saveCheckInAction(

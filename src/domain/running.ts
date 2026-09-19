@@ -1,14 +1,12 @@
 import { addDays, isoWeekday, TRAINING_WEEK_START } from "./program-calendar";
 
 /**
- * Running rules (Phase 6): weekly volume, the week-over-week spike warning and the shin
- * escalation flag from the training context. Advice only, like the rest of the engine.
+ * Running rules (Phase 6): weekly volume and the week-over-week spike warning. Advice only,
+ * like the rest of the engine.
  */
 
 /** This week's minutes above this multiple of last week's counts as a spike. */
 export const RUN_VOLUME_SPIKE_RATIO = 1.3;
-/** Runs in a row with a rising shin score before the escalation flag shows. */
-export const SHIN_ESCALATION_RUNS = 3;
 
 export type RunVolumeInput = {
   /** Civil date of the run in the user's time zone, "YYYY-MM-DD". */
@@ -63,61 +61,4 @@ export function volumeSpike(thisWeek: WeekVolume, lastWeek: WeekVolume): VolumeS
     lastWeekMinutes: lastWeek.minutes,
     ratio: Math.round(ratio * 100) / 100,
   };
-}
-
-export type ShinReadings = {
-  shinLeftPre: number | null;
-  shinLeftDuring: number | null;
-  shinLeftPost: number | null;
-  shinRightPre: number | null;
-  shinRightDuring: number | null;
-  shinRightPost: number | null;
-};
-
-export type ShinSide = "left" | "right";
-
-export type ShinEscalation = {
-  side: ShinSide;
-  /** `rising`: worse than before the run on each recent run; `worsening`: higher after each run. */
-  pattern: "rising" | "worsening";
-  runs: number;
-};
-
-function peak(reading: ShinReadings, side: ShinSide): number | null {
-  const during = side === "left" ? reading.shinLeftDuring : reading.shinRightDuring;
-  const post = side === "left" ? reading.shinLeftPost : reading.shinRightPost;
-  if (during === null && post === null) return null;
-  return Math.max(during ?? -1, post ?? -1);
-}
-
-function pre(reading: ShinReadings, side: ShinSide): number | null {
-  return side === "left" ? reading.shinLeftPre : reading.shinRightPre;
-}
-
-/**
- * The training-context escalation rule on the numbers we have: a side whose score rose during
- * or after each of the last N runs, or whose after-run score went up run after run.
- */
-export function shinEscalations(readings: readonly ShinReadings[]): ShinEscalation[] {
-  const recent = readings.slice(0, SHIN_ESCALATION_RUNS);
-  if (recent.length < SHIN_ESCALATION_RUNS) return [];
-  const out: ShinEscalation[] = [];
-  for (const side of ["left", "right"] as const) {
-    const rising = recent.every((reading) => {
-      const before = pre(reading, side);
-      const after = peak(reading, side);
-      return before !== null && after !== null && after > before;
-    });
-    if (rising) {
-      out.push({ side, pattern: "rising", runs: recent.length });
-      continue;
-    }
-    const peaks = recent.map((reading) => peak(reading, side));
-    const worsening = peaks.every(
-      (value, index) =>
-        value !== null && (index === recent.length - 1 || value > (peaks[index + 1] ?? Infinity)),
-    );
-    if (worsening) out.push({ side, pattern: "worsening", runs: recent.length });
-  }
-  return out;
 }

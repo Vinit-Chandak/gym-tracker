@@ -8,6 +8,7 @@ import {
   gte,
   inArray,
   isNull,
+  like,
   lt,
   lte,
   ne,
@@ -950,6 +951,121 @@ export async function queuedCoachJobs(db: Db, now = new Date()) {
       asc(coachJobs.id),
     )
     .limit(50);
+}
+
+/** How often an athlete may ask for a review of their own, on top of the cadence. */
+export const ATHLETE_REVIEW_INTERVAL_DAYS = 7;
+
+/** The `coach_jobs.dedupe_key` prefix that marks a review the athlete asked for. */
+const ASKED_REVIEW_PREFIX = "review:asked:";
+
+/**
+ * Whether the athlete may ask for a review now, and when they may next.
+ *
+ * The cadence decides when a review is owed; this decides when one may be asked for, which
+ * is a different question and needs its own answer on screen. Somebody who has just changed
+ * gym, or come back from a week away, should not have to guess whether tapping does anything.
+ */
+export async function athleteReviewStatus(db: DbOrTx, userId: string, now = new Date()) {
+  const [last] = await db
+    .select({ createdAt: coachJobs.createdAt })
+    .from(coachJobs)
+    .where(
+      and(
+        eq(coachJobs.userId, userId),
+        eq(coachJobs.kind, "review_program"),
+        like(coachJobs.dedupeKey, `${ASKED_REVIEW_PREFIX}%`),
+      ),
+    )
+    .orderBy(desc(coachJobs.createdAt))
+    .limit(1);
+  const [running] = await db
+    .select({ id: coachJobs.id })
+    .from(coachJobs)
+    .where(
+      and(
+        eq(coachJobs.userId, userId),
+        eq(coachJobs.kind, "review_program"),
+        inArray(coachJobs.status, ["queued", "claimed"]),
+      ),
+    )
+    .limit(1);
+  const nextAt = last
+    ? new Date(last.createdAt.getTime() + ATHLETE_REVIEW_INTERVAL_DAYS * 86_400_000)
+    : null;
+  return {
+    /** A review is already queued or running; asking again would only duplicate it. */
+    running: Boolean(running),
+    canAsk: !running && (!nextAt || nextAt <= now),
+    nextAt: nextAt && nextAt > now ? nextAt : null,
+  };
+}
+
+/**
+ * The athlete asks for their programme to be reviewed now.
+ *
+ * The cadence reviews about once a week on a day they rested, which is right for the ordinary
+ * case and useless when something has just changed. This runs the same review against the
+ * same evidence, and answers the asks they are waiting on, but it is not the scheduled one:
+ * `purpose: "requests"` leaves the anchor where it was, so the training week the cadence owes
+ * them is still read by the review that owes it, and nothing this produces is applied without
+ * their approval.
+ *
+ * One a week each. A review already queued is returned as it is rather than duplicated — the
+ * athlete gets the review they asked for either way.
+ */
+export async function requestProgramReview(db: DbOrTx, userId: string, now = new Date()) {
+  const profile = await assertCoachEnabled(db, userId);
+  // The coach will not claim anything while a workout is open, so a review asked for now
+  // would sit in the queue rather than run. Say so, in the terms of what was asked.
+  const [open] = await db
+    .select({ id: workoutSessions.id })
+    .from(workoutSessions)
+    .where(and(eq(workoutSessions.userId, userId), isNull(workoutSessions.completedAt)))
+    .limit(1);
+  if (open)
+    throw new CoachingError("Finish or discard your open workout, then ask for the review.");
+  const active = await getActiveProgram(db, userId);
+  if (!active) throw new CoachingError("There is no programme to review yet.");
+  const status = await athleteReviewStatus(db, userId, now);
+  if (status.running) {
+    const [existing] = await db
+      .select()
+      .from(coachJobs)
+      .where(
+        and(
+          eq(coachJobs.userId, userId),
+          eq(coachJobs.kind, "review_program"),
+          inArray(coachJobs.status, ["queued", "claimed"]),
+        ),
+      )
+      .limit(1);
+    return { job: existing!, created: false };
+  }
+  if (!status.canAsk)
+    throw new CoachingError(
+      "You have already asked for a review this week. The coach reviews your programme on its own schedule too.",
+      429,
+    );
+  const preference = await getCoachingPreferences(db, userId);
+  const anchor = preference?.reviewAnchorAt ?? preference?.consentedAt ?? null;
+  if (!anchor) throw new CoachingError("Switch the coach on before asking it for a review.");
+  if (anchor >= now) throw new CoachingError("There is nothing new to review yet.");
+  return enqueueCoachJob(db, userId, {
+    kind: "review_program",
+    // Scheduled work, so the review is handed the asks it is meant to answer; the purpose
+    // below is what keeps it from consuming the cadence's own review.
+    trigger: "weekly",
+    dedupeKey: `${ASKED_REVIEW_PREFIX}${todayInTimeZone(profile.timeZone, now)}`,
+    intakeId: preference?.intakeId,
+    target: {
+      programId: active.id,
+      batchDate: lastCoachBoundary(now).date,
+      reviewStart: anchor.toISOString(),
+      reviewEnd: now.toISOString(),
+      purpose: "requests",
+    },
+  });
 }
 
 /** A durable last choice wins for the exact upcoming occurrence. Same gym is a no-op. */

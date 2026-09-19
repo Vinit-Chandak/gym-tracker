@@ -48,7 +48,7 @@ export default async function EditRunPage(props: PageProps<"/runs/[runId]/edit">
       ...run.planned,
       paceNote: null,
       progressionNote: null,
-      shinRule: null,
+      stopRule: null,
       comment: null,
       loggedRunId: run.id,
     });
@@ -67,12 +67,6 @@ export default async function EditRunPage(props: PageProps<"/runs/[runId]/edit">
             durationMinutes: String(Math.floor(run.durationSeconds / 60)),
             durationSeconds: String(run.durationSeconds % 60),
             rpe: run.effortReported ? str(run.rpe) : "",
-            shinLeftPre: str(run.shinLeftPre),
-            shinRightPre: str(run.shinRightPre),
-            shinLeftDuring: str(run.shinLeftDuring),
-            shinRightDuring: str(run.shinRightDuring),
-            shinLeftPost: str(run.shinLeftPost),
-            shinRightPost: str(run.shinRightPost),
             programRunId: run.programRunId ?? "",
             notes: run.notes ?? "",
           }}

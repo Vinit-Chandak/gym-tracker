@@ -397,7 +397,7 @@ export type RunTarget = {
   rpeMax: number | null;
   paceNote: string | null;
   progressionNote: string | null;
-  shinRule: string | null;
+  stopRule: string | null;
   comment: string | null;
 };
 
@@ -412,7 +412,7 @@ function runTargetSelection() {
     rpeMax: programRuns.rpeMax,
     paceNote: programRuns.paceNote,
     progressionNote: programRuns.progressionNote,
-    shinRule: programRuns.shinRule,
+    stopRule: programRuns.stopRule,
     comment: programRuns.comment,
   };
 }

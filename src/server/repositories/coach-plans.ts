@@ -32,7 +32,7 @@ import {
 import { resolveExerciseAtGym } from "@/domain/equipment-resolution";
 import type { ProgramPatch } from "@/domain/program-patch";
 import { addDays, todayInTimeZone } from "@/domain/program-calendar";
-import { shinEscalations, volumeSpike } from "@/domain/running";
+import { volumeSpike } from "@/domain/running";
 import {
   allSlots,
   pendingParts,
@@ -800,11 +800,6 @@ export async function planningContext(
     durationMinutes: Math.round(run.durationSeconds / 60),
     paceSecondsPerKm: run.averagePaceSecondsPerKm,
     rpe: run.rpe,
-    shins: {
-      pre: [run.shinLeftPre, run.shinRightPre],
-      during: [run.shinLeftDuring, run.shinRightDuring],
-      post: [run.shinLeftPost, run.shinRightPost],
-    },
     programRunId: run.programRunId,
     notes: run.notes,
   }));
@@ -925,9 +920,6 @@ export async function planningContext(
           energy: w.energy,
           fatigue: w.fatigue,
           soreness: w.soreness,
-          lowerBack: w.backPainPre,
-          shinLeft: w.shinLeftPre,
-          shinRight: w.shinRightPre,
         },
         bodyWeightKg: w.bodyWeightKg,
         notes: w.notes,
@@ -949,21 +941,16 @@ export async function planningContext(
         energy: d.energy,
         fatigue: d.fatigue,
         soreness: d.soreness,
-        lowerBack: d.backPain,
-        shinLeft: d.shinLeft,
-        shinRight: d.shinRight,
         notes: d.notes,
       })),
     },
     /**
      * Running load, whatever the day is. A lifting plan is decided partly by what the legs
-     * have been doing, and the shin rule from the athlete's history depends on the trend
-     * rather than on one run.
+     * have been doing.
      */
     running: {
       weeks,
       spike: thisWeek && lastWeek ? volumeSpike(thisWeek, lastWeek) : null,
-      shinEscalations: shinEscalations(runRows),
       history: runHistory.slice(0, 8),
       historyHasMore: runRows.length > 8,
     },

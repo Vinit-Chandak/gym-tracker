@@ -56,7 +56,7 @@ const blueprint = (): ProgramBlueprint =>
         duration: [20, 25],
         rpe: [3, 4],
         paceNote: "Conversational.",
-        shinRule: "Stop if the shins bark.",
+        stopRule: "Stop if the ache sharpens.",
       },
     ],
   });
@@ -166,15 +166,15 @@ describe("a change to the programme itself", () => {
         weekIndex: 1,
         dayOfWeek: 4,
         duration: [25, 30],
-        reason: "The shins have been quiet for a fortnight.",
+        reason: "It has been quiet for a fortnight.",
       }),
     );
     expect(next.runs[0]).toMatchObject({
       duration: [25, 30],
       rpe: [3, 4],
       paceNote: "Conversational.",
-      shinRule: "Stop if the shins bark.",
-      comment: "The shins have been quiet for a fortnight.",
+      stopRule: "Stop if the ache sharpens.",
+      comment: "It has been quiet for a fortnight.",
     });
   });
 

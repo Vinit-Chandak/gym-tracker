@@ -52,12 +52,6 @@ export const runs = pgTable(
     ),
     rpe: numeric("rpe", { precision: 3, scale: 1, mode: "number" }),
     effortReported: boolean("effort_reported").notNull().default(false),
-    shinLeftPre: integer("shin_left_pre"),
-    shinRightPre: integer("shin_right_pre"),
-    shinLeftDuring: integer("shin_left_during"),
-    shinRightDuring: integer("shin_right_during"),
-    shinLeftPost: integer("shin_left_post"),
-    shinRightPost: integer("shin_right_post"),
     surface: text("surface"),
     notes: text("notes"),
     ...timestamps,
@@ -83,9 +77,6 @@ export const dailyRecovery = pgTable(
     energy: integer("energy"),
     fatigue: integer("fatigue"),
     soreness: integer("soreness"),
-    backPain: integer("back_pain"),
-    shinLeft: integer("shin_left"),
-    shinRight: integer("shin_right"),
     notes: text("notes"),
     ...timestamps,
   },
@@ -96,10 +87,7 @@ export const dailyRecovery = pgTable(
       sql`(sleep_quality is null or sleep_quality between 1 and 5)
         and (energy is null or energy between 1 and 5)
         and (fatigue is null or fatigue between 1 and 5)
-        and (soreness is null or soreness between 1 and 5)
-        and (back_pain is null or back_pain between 0 and 10)
-        and (shin_left is null or shin_left between 0 and 10)
-        and (shin_right is null or shin_right between 0 and 10)`,
+        and (soreness is null or soreness between 1 and 5)`,
     ),
     ownerPolicy("daily_recovery"),
   ],

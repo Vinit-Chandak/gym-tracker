@@ -1,11 +1,10 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState } from "react";
 
 import { Card } from "@/components/ui/card";
 import { FormError, SubmitButton } from "@/components/ui/form";
 import { Field, Input } from "@/components/ui/input";
-import { NumberField } from "@/components/ui/number-field";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Section } from "@/components/ui/section";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
@@ -21,23 +20,17 @@ type Props = {
     energy: string;
     fatigue: string;
     soreness: string;
-    backPainPre: string;
-    shinLeftPre: string;
-    shinRightPre: string;
   };
 };
 
 /**
  * Pre-session recovery questionnaire. Every reading is optional, and left blank it stays
  * unknown rather than becoming a zero — the recovery rules distinguish the two, and a
- * fabricated zero would read as "no pain at all" when nothing was actually said.
+ * fabricated reading would speak for somebody who said nothing.
  */
 export function CheckInForm({ action, initial }: Props) {
   const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
   const value = (key: keyof Props["initial"]) => state.values?.[key] ?? initial[key];
-  const [back, setBack] = useState(() => value("backPainPre"));
-  const [shinLeft, setShinLeft] = useState(() => value("shinLeftPre"));
-  const [shinRight, setShinRight] = useState(() => value("shinRightPre"));
 
   return (
     <form action={formAction} className="space-y-[var(--section-gap)]">
@@ -108,47 +101,6 @@ export function CheckInForm({ action, initial }: Props) {
               columns={5}
             />
           </Field>
-        </Card>
-      </Section>
-
-      <Section title="Symptoms" description="0 = none, 10 = worst">
-        <Card>
-          <div className="grid grid-cols-3 gap-2">
-            <NumberField
-              label="Lower back"
-              value={back}
-              onChange={setBack}
-              step={1}
-              max={10}
-              inputMode="numeric"
-            />
-            <NumberField
-              label="Left shin"
-              value={shinLeft}
-              onChange={setShinLeft}
-              step={1}
-              max={10}
-              inputMode="numeric"
-            />
-            <NumberField
-              label="Right shin"
-              value={shinRight}
-              onChange={setShinRight}
-              step={1}
-              max={10}
-              inputMode="numeric"
-            />
-          </div>
-          <input type="hidden" name="backPainPre" value={back} />
-          <input type="hidden" name="shinLeftPre" value={shinLeft} />
-          <input type="hidden" name="shinRightPre" value={shinRight} />
-          {(state.fieldErrors?.backPainPre ||
-            state.fieldErrors?.shinLeftPre ||
-            state.fieldErrors?.shinRightPre) && (
-            <p role="alert" className="text-sm text-danger">
-              Symptom scores must be whole numbers from 0 to 10.
-            </p>
-          )}
         </Card>
       </Section>
 

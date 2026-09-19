@@ -21,7 +21,7 @@ import {
   saveIntake,
   setTrainingMode,
 } from "@/server/repositories/coach-intakes";
-import { requestProgramCreation } from "@/server/repositories/coaching-jobs";
+import { requestProgramCreation, requestProgramReview } from "@/server/repositories/coaching-jobs";
 import { CoachingError } from "@/server/repositories/coaching-state";
 import {
   activateProgramDraft,
@@ -134,6 +134,38 @@ export async function answerCoachQuestionsAction(
     await confirmIntake(tx, userId, saved.value);
     return saved.value;
   });
+}
+
+/**
+ * "Look at my programme now."
+ *
+ * The cadence reviews about once a week on a day the athlete rested, which is right until
+ * something changes — a new gym, a week away, a run of sessions that went nothing like the
+ * plan. This starts that same review against the same evidence, once a week each. Whatever it
+ * proposes still waits for approval.
+ */
+export async function requestProgramReviewAction() {
+  if (
+    process.env.COACH_WORKFLOW_ENABLED !== "true" ||
+    !getCoachRoutine() ||
+    !getCoachServiceToken()
+  )
+    return {
+      ok: false as const,
+      error:
+        "On-demand coaching is not set up on this server. Your next scheduled review still runs.",
+    };
+  const result = await mutate(async (tx, userId) => {
+    const request = await requestProgramReview(tx, userId);
+    return { userId, jobId: request.job.id, created: request.created };
+  });
+  if (result.ok) {
+    if (result.value.created)
+      after(() => dispatchCoachJob(getDb(), result.value.userId, result.value.jobId));
+    revalidatePath("/profile/programme");
+    revalidatePath("/profile/ai-coach");
+  }
+  return result;
 }
 
 export async function removeCoachAttachmentAction(id: string) {

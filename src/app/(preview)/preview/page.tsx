@@ -130,7 +130,7 @@ function plan(overrides: Partial<TodayPlan> = {}): TodayPlan {
       rpeMax: 4,
       paceNote: "Talk-test; slower than push pace",
       progressionNote: "Complete without escalation",
-      shinRule: "Pain rising each km → stop",
+      stopRule: "Pain rising each km → stop",
       comment: "Consistency",
     },
     sessionStatus: "completed",
