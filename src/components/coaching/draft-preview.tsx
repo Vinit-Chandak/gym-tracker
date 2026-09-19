@@ -12,22 +12,10 @@ import {
   reviewProgramDraftAction,
 } from "@/server/actions/coaching-workflow";
 import type { ProgramDraft } from "@/server/repositories/program-drafts";
-import type { ProgramChangeAssessment } from "@/domain/program-change";
-import type { BlueprintExercise, ProgramBlueprint } from "@/domain/program-blueprint";
-import type { MuscleGroup } from "@/domain/types";
-import { MUSCLE_LABELS, rangeLabel } from "@/lib/labels";
+import type { ProgramBlueprint } from "@/domain/program-blueprint";
+import { exerciseTargets } from "@/domain/program-diff";
+import { rangeLabel } from "@/lib/labels";
 import { WEEKDAY_NAMES } from "@/lib/labels";
-/** "Quads 8, glutes 6" — the muscles as they are named everywhere else, not as they are keyed. */
-function muscleSets(sets: Partial<Record<string, number>>): string {
-  const entries = Object.entries(sets);
-  if (entries.length === 0) return "no known lifting targets";
-  return entries
-    .map(([muscle, count], i) => {
-      const label = MUSCLE_LABELS[muscle as MuscleGroup] ?? muscle;
-      return `${i === 0 ? label : label.toLowerCase()} ${count}`;
-    })
-    .join(", ");
-}
 
 /** "6 weeks · 4 days per cycle · 91 lifting sets per cycle", counting one of anything as one. */
 function shape(blueprint: ProgramBlueprint): string {
@@ -39,14 +27,19 @@ function shape(blueprint: ProgramBlueprint): string {
   return `${plural(blueprint.weeks, "week")} · ${plural(blueprint.days.length, "day")} per cycle · ${plural(sets, "lifting set")} per cycle`;
 }
 
+/**
+ * A first programme, in full, before anybody starts it.
+ *
+ * This is the one screen that still prints a whole programme, because there is nothing to
+ * compare it against: an athlete with no programme cannot be shown a difference. Every later
+ * version arrives as a change detail instead, and the programme itself lives in Cycle.
+ */
 export function DraftPreview({
   draft,
   library,
   today,
   base,
   stale,
-  assessment,
-  currentBlueprint,
   machines,
   preferredUnit,
 }: {
@@ -55,8 +48,6 @@ export function DraftPreview({
   today: string;
   base: "/welcome/programme" | "/profile/programme";
   stale: boolean;
-  assessment: ProgramChangeAssessment | null;
-  currentBlueprint: ProgramBlueprint | null;
   machines: { id: string; unit: string }[];
   preferredUnit: "kg" | "lb";
 }) {
@@ -64,9 +55,6 @@ export function DraftPreview({
   const [current, setCurrent] = useState(draft),
     [needsCheck, setNeedsCheck] = useState(stale || draft.status === "editing"),
     [startDate, setStartDate] = useState(today),
-    [transition, setTransition] = useState<"continue" | "new_block">(
-      assessment && assessment.structuralChanges.length === 0 ? "continue" : "new_block",
-    ),
     [busy, setBusy] = useState(false),
     [error, setError] = useState<string | null>(null);
   const editable = ["editing", "ready"].includes(current.status);
@@ -89,7 +77,7 @@ export function DraftPreview({
         id: current.id,
         revision: current.revision,
         startDate,
-        transition,
+        transition: "new_block",
       }),
     );
     if (result.ok) router.push("/today");
@@ -99,7 +87,7 @@ export function DraftPreview({
   return (
     <div className="space-y-4">
       <Card>
-        <h1 className="text-2xl font-medium">{current.blueprint.name}</h1>
+        <h1 className="text-2xl font-medium [overflow-wrap:anywhere]">{current.blueprint.name}</h1>
         <p className="text-sm text-ink-muted">{shape(current.blueprint)}</p>
         {current.rationale && <p className="text-sm whitespace-pre-wrap">{current.rationale}</p>}
         {current.blueprint.notes && (
@@ -116,83 +104,9 @@ export function DraftPreview({
           </div>
         )}
       </Card>
-      {assessment && (
-        <Card>
-          <h2 className="font-medium">What changes</h2>
-          <p className="text-sm">
-            {assessment.structuralChanges.length > 0
-              ? "This changes the programme structure. Starting it will begin a new block; your logged workouts remain in history."
-              : assessment.authority === "review_required"
-                ? "These target changes need your review. You can approve them while keeping your current position in the block."
-                : assessment.authority === "unchanged"
-                  ? "The programme structure and targets are unchanged."
-                  : "Exercise choices or targets change. You can keep your current position in the block."}
-          </p>
-          {assessment.doseChanges.map((reason) => (
-            <p key={reason} className="text-sm text-ink-muted">
-              {reason}
-            </p>
-          ))}
-          {assessment.muscleCoverage
-            // A day with no lifting on either side of the change says nothing; a list of
-            // them is noise between the days that did change.
-            .filter(
-              (day) =>
-                Object.keys(day.planned.sets).length > 0 || Object.keys(day.next.sets).length > 0,
-            )
-            .map((day) => (
-              <p key={day.dayIndex} className="text-xs text-ink-muted">
-                Day {day.dayIndex}: {muscleSets(day.planned.sets)} → {muscleSets(day.next.sets)}
-              </p>
-            ))}
-          {currentBlueprint && (
-            <details>
-              <summary className="min-h-11 cursor-pointer py-2">
-                Compare current and proposed targets
-              </summary>
-              <div className="grid gap-4 sm:grid-cols-2">
-                {[
-                  ["Current", currentBlueprint],
-                  ["Proposed", current.blueprint],
-                ].map(([label, plan]) => (
-                  <div key={label as string} className="space-y-3 text-sm">
-                    <h3 className="font-medium">{label as string}</h3>
-                    <p>
-                      {(plan as ProgramBlueprint).name} · {(plan as ProgramBlueprint).weeks} weeks
-                    </p>
-                    {(plan as ProgramBlueprint).days.map((day) => (
-                      <div key={day.dayIndex}>
-                        <p className="font-medium">
-                          {day.name} · {WEEKDAY_NAMES[day.dayOfWeek]}
-                        </p>
-                        {day.exercises.map((exercise, index) => (
-                          <p key={index} className="mt-1 text-ink-muted">
-                            {library.find((entry) => entry.slug === exercise.exerciseSlug)?.name ??
-                              exercise.exerciseSlug}
-                            : {targets(exercise)}
-                          </p>
-                        ))}
-                        {(plan as ProgramBlueprint).runs
-                          .filter((run) => run.dayOfWeek === day.dayOfWeek)
-                          .map((run) => (
-                            <p key={run.weekIndex} className="text-ink-muted">
-                              Run week {run.weekIndex}:{" "}
-                              {run.distanceKm ? `${span(run.distanceKm)} km · ` : ""}
-                              {span(run.duration)} min · RPE {span(run.rpe)}
-                            </p>
-                          ))}
-                      </div>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            </details>
-          )}
-        </Card>
-      )}
       {current.blueprint.days.map((day) => (
         <Card key={day.dayIndex}>
-          <h2 className="text-lg font-medium">
+          <h2 className="text-lg font-medium [overflow-wrap:anywhere]">
             {day.dayIndex}. {day.name}
           </h2>
           <p className="text-sm text-ink-muted">
@@ -203,18 +117,10 @@ export function DraftPreview({
           <ol className="space-y-3">
             {day.exercises.map((e, i) => (
               <li key={i}>
-                <p className="font-medium">
+                <p className="font-medium [overflow-wrap:anywhere]">
                   {library.find((x) => x.slug === e.exerciseSlug)?.name ?? e.exerciseSlug}
                 </p>
-                <p className="text-sm text-ink-muted">
-                  {e.sets} × {span(e.reps ?? e.duration ?? e.distance)}
-                  {e.duration ? " seconds" : e.distance ? " metres" : " reps"}
-                  {e.perSide ? " per side" : ""}
-                  {e.duration || e.distance
-                    ? " · report RPE"
-                    : ` · RIR ${e.rir ? span(e.rir) : "unspecified"}`}{" "}
-                  · Rest {span(e.rest)} s
-                </p>
+                <p className="text-sm text-ink-muted">{exerciseTargets(e)}</p>
                 {e.supersetGroup && (
                   <p className="text-xs text-accent">Superset: {e.supersetGroup}</p>
                 )}
@@ -312,31 +218,11 @@ export function DraftPreview({
               </Button>
             </>
           )}
-          {assessment && assessment.structuralChanges.length === 0 && (
-            <fieldset>
-              <legend className="text-sm text-ink-muted">How should this take effect?</legend>
-              {[
-                ["continue", "Continue the current block"],
-                ["new_block", "Start a new block"],
-              ].map(([value, label]) => (
-                <label key={value} className="flex min-h-11 items-center gap-2">
-                  <input
-                    type="radio"
-                    checked={transition === value}
-                    onChange={() => setTransition(value as "continue" | "new_block")}
-                  />
-                  {label}
-                </label>
-              ))}
-            </fieldset>
-          )}
-          {transition === "new_block" && (
-            <Field label="Start date">
-              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-            </Field>
-          )}
+          <Field label="Start date">
+            <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          </Field>
           <Button disabled={busy || needsCheck || !startDate} onClick={activate}>
-            {busy ? "Saving…" : current.baseProgramId ? "Use this programme" : "Start my programme"}
+            {busy ? "Saving…" : "Start my programme"}
           </Button>
           <LinkButton href={`${base}/manual?draft=${current.id}` as Route} variant="secondary">
             Edit the draft
@@ -369,8 +255,4 @@ export function DraftPreview({
 function span(range: readonly [number, number] | null | undefined): string {
   if (!range) return "—";
   return rangeLabel(range[0], range[1]);
-}
-
-function targets(exercise: BlueprintExercise) {
-  return `${exercise.sets} × ${span(exercise.reps ?? exercise.duration ?? exercise.distance)} ${exercise.duration ? "s" : exercise.distance ? "m" : "reps"}${exercise.perSide ? " per side" : ""} · RIR ${exercise.rir ? span(exercise.rir) : "unspecified"} · rest ${span(exercise.rest)} s`;
 }

@@ -27,6 +27,7 @@ import { openingPlanSchema, type OpeningPlan } from "@/domain/coaching-workflow"
 import { reviewWeekdayFor } from "@/domain/coach-cadence";
 import { sharedWarmupProtocols } from "@/server/queries/reference";
 import { libraryAtGym, nextTrainingSlot, storePlan } from "./coach-plans";
+import { markRequestsApplied } from "./coach-program-requests";
 import { assertNoOpenWorkout, CoachingError, sourceRevision } from "./coaching-state";
 import { createProgramFromBlueprint, readProgramBlueprint } from "./programs";
 import { getActiveProgram, getSchedule } from "./schedule";
@@ -519,6 +520,9 @@ export async function activateProgramDraft(
         .values({ userId, changes, programBefore: priorBlueprint });
   }
   await moveReviewToARestDay(db, userId, blueprint);
+  // Applied is given here and nowhere else: a proposal that never activated has granted
+  // nothing, and a session that happens to contain the exercise is not a programme change.
+  await markRequestsApplied(db, userId, id);
   await db
     .update(programDrafts)
     .set({ status: "activated", activatedProgramId: created.id })

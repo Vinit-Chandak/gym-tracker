@@ -8,7 +8,8 @@ import { Card } from "@/components/ui/card";
 import { FormError, SubmitButton } from "@/components/ui/form";
 import { InfoTip } from "@/components/ui/info-tip";
 import { Field, Textarea } from "@/components/ui/input";
-import { List, Row } from "@/components/ui/link-row";
+import { LinkRow, List, Row } from "@/components/ui/link-row";
+import { RequestList, type RequestView } from "@/components/coaching/request-list";
 import { Section } from "@/components/ui/section";
 import { Switch } from "@/components/ui/switch";
 import { PLAN_LIMITS } from "@/domain/plan-limits";
@@ -41,6 +42,10 @@ type Props = {
   overviewUpdatedAt: string | null;
   /** What the coach has tried lately, so a night it could not plan is not simply silence. */
   attempts: CoachAttempt[];
+  /** Requests waiting on one specific answer, asked and answered in the same place. */
+  questions?: RequestView[];
+  /** How many asks are open in total, so the link to the rest can say so. */
+  openRequests?: number;
   /** Coaching links, and anything the coach has concluded lately. */
   children?: ReactNode;
 };
@@ -58,6 +63,8 @@ export function AiCoachSettings({
   overview,
   overviewUpdatedAt,
   attempts,
+  questions = [],
+  openRequests = 0,
   children,
 }: Props) {
   const [pending, startTransition] = useTransition();
@@ -128,6 +135,28 @@ export function AiCoachSettings({
 
       {children}
 
+      {questions.length > 0 && (
+        <Section
+          title="The coach has asked you something"
+          info="One question, answered here. Your answer is read at the next daily coach run, which then proposes a change or explains why it cannot."
+        >
+          <RequestList requests={questions} />
+        </Section>
+      )}
+
+      {openRequests > questions.length && (
+        <List>
+          <li>
+            <LinkRow
+              href="/profile/programme?view=changes"
+              title="What you asked for"
+              subtitle="Outcomes, proposals and anything still waiting"
+              meta={`${openRequests}`}
+            />
+          </li>
+        </List>
+      )}
+
       <Section
         title="What the coach knows"
         info="The coach maintains this memo from your notes and training. It keeps useful preferences, recurring trends, exercise observations and ongoing experiments, up to 3,000 words. To add or correct something, use Tell the coach below."
@@ -153,7 +182,7 @@ export function AiCoachSettings({
 
       <Section
         title="Tell the coach"
-        info="Share a preference, a change, or a correction to something remembered. At its next planning or review the coach reads every waiting note, keeps the lasting details in the memo, and says underneath what it did with each one. Notes you leave on a finished session or on a single exercise reach it the same way."
+        info="Share a preference, a change, or a correction to something remembered. Notes are read at the next daily coach run: lasting details go in the memo, and anything you have asked the programme to do gets its own outcome under Programme → Changes. Notes you leave on a finished session or on a single exercise reach it the same way."
       >
         <Card>
           <form key={noteId} action={formAction} className="space-y-4">
@@ -172,7 +201,7 @@ export function AiCoachSettings({
               Send note
             </SubmitButton>
             <p className="text-sm text-ink-muted" role="status">
-              {saved ? "Note saved. The coach will review it before its next plan." : ""}
+              {saved ? "Note saved. The coach reads it at its next daily run." : ""}
             </p>
           </form>
         </Card>
@@ -182,7 +211,7 @@ export function AiCoachSettings({
               <li key={note.id} className="space-y-1 p-4">
                 <p className="text-sm [overflow-wrap:anywhere] whitespace-pre-line">{note.text}</p>
                 <p className="text-xs text-ink-muted">
-                  {note.when} · {note.outcome ?? "Waiting for coach"}
+                  {note.when} · {note.outcome ?? "Waiting for the next daily coach run"}
                 </p>
               </li>
             ))}

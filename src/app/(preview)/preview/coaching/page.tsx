@@ -2,6 +2,7 @@ import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { CoachIntakeForm } from "@/components/coaching/intake-form";
 import { ProgramBuilder } from "@/components/coaching/program-builder";
+import { ChangeDetail } from "@/components/coaching/change-detail";
 import { DraftPreview } from "@/components/coaching/draft-preview";
 import { ProgrammeOptions } from "@/components/coaching/programme-options";
 import { EquipmentStepForm } from "@/app/(onboarding)/welcome/equipment/equipment-step-form";
@@ -10,6 +11,8 @@ import { STRENGTH_AESTHETICS_HYBRID_8WK } from "@/db/seed/data/program";
 import { EXERCISES } from "@/db/seed/data/exercises";
 import { EQUIPMENT_TYPES } from "@/db/seed/data/equipment-types";
 import { WARMUP_PROTOCOLS } from "@/db/seed/data/warmups";
+import { diffPrograms } from "@/domain/program-diff";
+import type { ProgramBlueprint } from "@/domain/program-blueprint";
 import { PreviewShell } from "../../preview-shell";
 
 const ID = "00000000-0000-4000-8000-000000000001";
@@ -56,6 +59,148 @@ const library = EXERCISES.map((exercise) => ({
   defaultRestSeconds: null,
 }));
 
+const LINEAGE = (n: number) => `00000000-0000-4000-8000-00000000000${n}`;
+/** A base and a proposal covering every kind of change the diff can show. */
+const CHANGE_BASE: ProgramBlueprint = {
+  blueprintVersion: 1,
+  slug: "example-block",
+  name: "Example personal programme",
+  weeks: 6,
+  notes: "",
+  runs: [
+    {
+      weekIndex: 1,
+      dayOfWeek: 6,
+      duration: [30, 30],
+      rpe: [4, 5],
+      paceNote: "Easy",
+      progressionNote: "",
+      shinRule: "",
+    },
+  ],
+  days: [
+    {
+      dayIndex: 1,
+      dayOfWeek: 1,
+      name: "Upper",
+      focus: "Press and pull",
+      timeNote: "45 min",
+      effortNote: "",
+      notes: "",
+      includesLifting: true,
+      includesRun: false,
+      warmupSlug: "",
+      exercises: [
+        {
+          exerciseSlug: "barbell-bench-press",
+          lineageId: LINEAGE(1),
+          sets: 3,
+          reps: [5, 8],
+          rir: [1, 2],
+          rest: [180, 180],
+        },
+        {
+          exerciseSlug: "barbell-curl",
+          lineageId: LINEAGE(2),
+          sets: 3,
+          reps: [8, 12],
+          rir: [1, 2],
+          rest: [90, 90],
+        },
+        {
+          exerciseSlug: "cable-lateral-raise",
+          lineageId: LINEAGE(3),
+          sets: 2,
+          reps: [12, 15],
+          rir: [1, 2],
+          rest: [60, 90],
+        },
+      ],
+    },
+    {
+      dayIndex: 2,
+      dayOfWeek: 3,
+      name: "Lower",
+      focus: "Squat and hinge",
+      timeNote: "",
+      effortNote: "",
+      notes: "",
+      includesLifting: true,
+      includesRun: false,
+      warmupSlug: "",
+      exercises: [
+        {
+          exerciseSlug: "high-bar-squat",
+          lineageId: LINEAGE(4),
+          sets: 3,
+          reps: [5, 8],
+          rir: [1, 2],
+          rest: [180, 240],
+        },
+      ],
+    },
+    {
+      dayIndex: 3,
+      dayOfWeek: 6,
+      name: "Easy run",
+      focus: "",
+      timeNote: "",
+      effortNote: "",
+      notes: "",
+      includesLifting: false,
+      includesRun: true,
+      warmupSlug: "",
+      exercises: [],
+    },
+  ],
+};
+const CHANGE_PROPOSED: ProgramBlueprint = {
+  ...CHANGE_BASE,
+  weeks: 8,
+  days: [
+    {
+      ...CHANGE_BASE.days[0]!,
+      timeNote: "50 min",
+      exercises: [
+        {
+          ...CHANGE_BASE.days[0]!.exercises[0]!,
+          sets: 4,
+          rest: [180, 240],
+          progressionNotes: "Add 2.5 kg once all four sets reach eight at the prescribed effort.",
+        },
+        {
+          ...CHANGE_BASE.days[0]!.exercises[1]!,
+          exerciseSlug: "cable-curl",
+          reps: [10, 15],
+        },
+        {
+          exerciseSlug: "cable-crunch",
+          sets: 3,
+          reps: [10, 15],
+          rir: [1, 2],
+          rest: [60, 90],
+        },
+      ],
+    },
+    {
+      ...CHANGE_BASE.days[1]!,
+      exercises: [
+        CHANGE_BASE.days[1]!.exercises[0]!,
+        // Moved here from the upper day, rather than removed there and invented here.
+        CHANGE_BASE.days[0]!.exercises[2]!,
+      ],
+    },
+    CHANGE_BASE.days[2]!,
+  ],
+  runs: [
+    {
+      ...CHANGE_BASE.runs[0]!,
+      duration: [35, 35],
+      distanceKm: [5, 5],
+    },
+  ],
+};
+
 /** Synthetic visual fixtures only; the preview layout disables these routes in production. */
 export default async function CoachingPreview({
   searchParams,
@@ -74,6 +219,8 @@ export default async function CoachingPreview({
             ["intake", "Intake"],
             ["manual", "Builder"],
             ["draft", "Draft"],
+            ["changes", "Changes"],
+            ["unchanged", "No changes"],
             ["equipment", "Machines"],
           ].map(([value, label]) => (
             <a key={value} href={`?view=${value}`}>
@@ -165,10 +312,45 @@ export default async function CoachingPreview({
             today="2026-09-12"
             base="/profile/programme"
             stale={false}
-            assessment={null}
-            currentBlueprint={null}
             machines={[]}
             preferredUnit="kg"
+          />
+        )}
+        {(view === "changes" || view === "unchanged") && (
+          <ChangeDetail
+            draftId={ID}
+            revision={2}
+            author="coach"
+            status="ready"
+            name="Example personal programme"
+            when="19 September 2026, 04:12"
+            rationale="Bayesian cable curls go in on your upper day. Core work needs one answer before I can place it."
+            uncertainties={[]}
+            diff={diffPrograms(CHANGE_BASE, view === "unchanged" ? CHANGE_BASE : CHANGE_PROPOSED)}
+            names={Object.fromEntries(EXERCISES.map((e) => [e.slug, e.name]))}
+            canContinue={false}
+            requests={[
+              {
+                id: `${ID.slice(0, 35)}2`,
+                summary: "Add Bayesian cable curls",
+                quote: "Can I have Bayesian cable curls?",
+                state: view === "unchanged" ? "not_recommended" : "proposed",
+                detail:
+                  view === "unchanged"
+                    ? "Your cable station has no adjustable low pulley, so this variation is not set up at your gym."
+                    : "Added to Upper, in place of the barbell curl.",
+              },
+              {
+                id: `${ID.slice(0, 35)}3`,
+                summary: "More direct core work",
+                quote: "and more direct core work please",
+                state: "needs_answer",
+                detail: "Which day has the most time to spare for two extra sets?",
+              },
+            ]}
+            today="2026-09-19"
+            base="/profile/programme"
+            stale={false}
           />
         )}
         {view === "equipment" && (
