@@ -23,6 +23,10 @@ export type NavItem = {
  * The fifth tab is Profile, not Settings (ADR 0026): it keeps every setting it had and gains
  * who you are and, later, the people you follow. Renaming the tab rather than adding a sixth
  * keeps the island at five.
+ *
+ * The second tab is where the release changes shape. It was Runs, a product of its own for
+ * one sport. It becomes Training: where any sport is logged, scheduled and planned, with the
+ * programme behind it (plan §2.3). Still five tabs, and each still has one job.
  */
 export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/today", label: "Today", icon: Dumbbell },
@@ -32,13 +36,32 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/profile", label: "Profile", icon: User },
 ];
 
+/** The same five tabs with Training in place of Runs, once the shared surfaces are on. */
+export const SHARED_NAV_ITEMS: readonly NavItem[] = [
+  { href: "/today", label: "Today", icon: Dumbbell },
+  { href: "/training", label: "Training", icon: Footprints },
+  { href: "/history", label: "History", icon: CalendarDays },
+  { href: "/progress", label: "Progress", icon: TrendingUp },
+  { href: "/profile", label: "Profile", icon: User },
+];
+
+export function navItems(sharedNavigation: boolean): readonly NavItem[] {
+  return sharedNavigation ? SHARED_NAV_ITEMS : NAV_ITEMS;
+}
+
 /** Sections reached from Profile, which keep Profile selected while you are in them. */
 const UNDER_PROFILE = ["/exercises", "/gyms", "/u"];
 
 const withinSection = (pathname: string, section: string) =>
   pathname === section || pathname.startsWith(`${section}/`);
 
-/** Detail screens belong to the same primary section as their entry point. */
+/**
+ * Detail screens belong to the same primary section as their entry point.
+ *
+ * The strength logger is the exception that proves it: `/workouts/...` is opened from Today's
+ * card, so it keeps Today selected. A shared activity route says where it belongs in its own
+ * path, which is why Training does not have to be listed here.
+ */
 export function isNavItemActive(pathname: string, href: string): boolean {
   const sectionPath = pathname.startsWith("/workouts/")
     ? "/today"
@@ -55,6 +78,7 @@ export function isNavItemActive(pathname: string, href: string): boolean {
  */
 const SECTION_LABELS: Record<string, string> = {
   today: "Today",
+  training: "Training",
   runs: "Runs",
   history: "History",
   progress: "Progress",
@@ -67,4 +91,35 @@ const SECTION_LABELS: Record<string, string> = {
 
 export function sectionLabel(path: string): string | undefined {
   return SECTION_LABELS[path.split(/[?#]/)[0]!.split("/")[1] ?? ""];
+}
+
+/**
+ * Where a screen was opened from (NAV-03).
+ *
+ * A bounded list, not a return URL: an arbitrary destination in a query parameter is an open
+ * redirect wearing a helpful name. Anything unrecognised falls back to the section the record
+ * belongs to, which is History for something already done.
+ */
+export const NAV_ORIGINS = ["today", "training", "history", "programme", "shared"] as const;
+export type NavOrigin = (typeof NAV_ORIGINS)[number];
+
+const ORIGIN_PATHS: Record<NavOrigin, string> = {
+  today: "/today",
+  training: "/training",
+  history: "/history",
+  programme: "/training/programme",
+  shared: "/profile/friends",
+};
+
+export function parseOrigin(value: string | string[] | undefined): NavOrigin | null {
+  if (typeof value !== "string") return null;
+  return (NAV_ORIGINS as readonly string[]).includes(value) ? (value as NavOrigin) : null;
+}
+
+/** The path a validated origin goes back to, or the default for a record of this kind. */
+export function originPath(
+  origin: NavOrigin | null,
+  fallback: "history" | "training" = "history",
+): string {
+  return origin ? ORIGIN_PATHS[origin] : ORIGIN_PATHS[fallback];
 }

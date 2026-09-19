@@ -13,6 +13,8 @@ import {
   lte,
   ne,
   notExists,
+  notInArray,
+  notLike,
   or,
   sql,
 } from "drizzle-orm";
@@ -28,6 +30,9 @@ import {
   profiles,
   programDrafts,
   programDays,
+  plannedOccurrences,
+  occurrenceVersions,
+  activities,
   runs,
   sessionPlans,
   setLogs,
@@ -59,7 +64,8 @@ import { lastCoachBoundary, reviewStanding, weeklyReviewPeriod } from "@/domain/
 import { diffOperationIds, diffPrograms } from "@/domain/program-diff";
 import { addDays, todayInTimeZone } from "@/domain/program-calendar";
 import { sharedExercises } from "@/server/queries/reference";
-import { nextTrainingSlot, planningGym, storePlan } from "./coach-plans";
+import { nextTrainingSlot, planningGym, storeOccurrencePlan, storePlan } from "./coach-plans";
+import { openOccurrencesBetween } from "./program-occurrences";
 import {
   assertCoachEnabled,
   assertNoOpenWorkout,
@@ -76,6 +82,9 @@ import {
 } from "./program-drafts";
 import { fromDateTimeLocal } from "@/lib/time";
 import { coachRollout } from "@/lib/coach-rollout";
+import { multisportRollout } from "@/lib/multisport-rollout";
+import type { ActivitySport } from "@/domain/activity";
+import { coverageProblems, type SportCoverage } from "@/domain/coach-sport-policy";
 
 export type CoachJob = typeof coachJobs.$inferSelect;
 const pending = ["queued", "claimed"] as const;
@@ -298,6 +307,37 @@ async function targetMismatch(db: DbOrTx, userId: string, job: CoachJob): Promis
   if (job.intakeId && job.intakeId !== preferences?.intakeId)
     return "Your confirmed answers changed.";
   if (job.kind !== "prepare_session") return null;
+  // An occurrence job answers for one identity, so what could have changed under it is that
+  // identity's own state: a newer revision, a log, a skip, a cancellation (COACH-08).
+  if (job.target.occurrenceId) {
+    const [occurrence] = await db
+      .select({
+        disposition: plannedOccurrences.disposition,
+        currentRevisionId: plannedOccurrences.currentRevisionId,
+        activityId: activities.id,
+      })
+      .from(plannedOccurrences)
+      .leftJoin(
+        activities,
+        and(
+          eq(activities.occurrenceId, plannedOccurrences.id),
+          eq(activities.userId, plannedOccurrences.userId),
+        ),
+      )
+      .where(
+        and(
+          eq(plannedOccurrences.userId, userId),
+          eq(plannedOccurrences.id, job.target.occurrenceId),
+        ),
+      )
+      .limit(1);
+    if (!occurrence) return "That scheduled session no longer exists.";
+    if (occurrence.activityId) return "That session has already been logged.";
+    if (occurrence.disposition !== "pending") return "That session is no longer outstanding.";
+    if (occurrence.currentRevisionId !== job.target.occurrenceRevisionId)
+      return "That session changed while this request was waiting.";
+    return null;
+  }
   const schedule = await getSchedule(db, userId);
   const slot = schedule ? nextTrainingSlot(schedule) : null;
   if (!slot || slot.cycleIndex !== job.target.cycleIndex || slot.dayIndex !== job.target.dayIndex)
@@ -513,9 +553,39 @@ export async function acceptCoachJobResult(
       }
     }
   }
-  if (result.outcome === "session") {
+  if (result.outcome === "session" && job.target.occurrenceId) {
+    // An occurrence preparation answers for exactly one target, and may not reach past it:
+    // no other occurrence, no strength slot, no weekly structure (§8.2).
+    if (!job.target.occurrenceRevisionId)
+      throw new CoachingError("The occurrence target is missing its revision.", 422);
+    if (result.plan.exercises.length > 0 || result.plan.run !== null)
+      throw new CoachingError(
+        "An endurance preparation carries its own session and nothing else.",
+        422,
+      );
+    if (result.plan.endurance.length !== 1)
+      throw new CoachingError("Prepare exactly the occurrence this job was claimed for.", 422);
+    await storeOccurrencePlan(
+      db,
+      userId,
+      {
+        occurrenceId: job.target.occurrenceId,
+        occurrenceRevisionId: job.target.occurrenceRevisionId,
+        trigger: job.trigger === "gym" ? "replan" : "nightly",
+        routineSessionUrl: job.routineSessionUrl,
+        entry: result.plan.endurance[0],
+        memo: result.plan.memo,
+      },
+      now,
+    );
+  } else if (result.outcome === "session") {
     if (!job.target.cycleIndex || !job.target.dayIndex || !job.target.gymId)
       throw new CoachingError("The session target is incomplete.", 422);
+    if (result.plan.endurance.length > 0)
+      throw new CoachingError(
+        "A strength preparation cannot prepare an endurance occurrence; those are their own jobs.",
+        422,
+      );
     acceptedChanges = await assessSessionEvidence(
       db,
       userId,
@@ -534,20 +604,33 @@ export async function acceptCoachJobResult(
     });
   }
   if (result.outcome === "no_change" && job.kind === "prepare_session") {
-    const [existing] = await db
-      .select({ id: sessionPlans.id })
-      .from(sessionPlans)
-      .where(
-        and(
-          eq(sessionPlans.userId, userId),
-          eq(sessionPlans.programId, job.target.programId!),
-          eq(sessionPlans.cycleIndex, job.target.cycleIndex!),
-          eq(sessionPlans.dayIndex, job.target.dayIndex!),
-          eq(sessionPlans.gymId, job.target.gymId!),
-          eq(sessionPlans.status, "active"),
-        ),
-      )
-      .limit(1);
+    const [existing] = job.target.occurrenceId
+      ? await db
+          .select({ id: sessionPlans.id })
+          .from(sessionPlans)
+          .where(
+            and(
+              eq(sessionPlans.userId, userId),
+              eq(sessionPlans.occurrenceId, job.target.occurrenceId),
+              eq(sessionPlans.occurrenceRevisionId, job.target.occurrenceRevisionId!),
+              eq(sessionPlans.status, "active"),
+            ),
+          )
+          .limit(1)
+      : await db
+          .select({ id: sessionPlans.id })
+          .from(sessionPlans)
+          .where(
+            and(
+              eq(sessionPlans.userId, userId),
+              eq(sessionPlans.programId, job.target.programId!),
+              eq(sessionPlans.cycleIndex, job.target.cycleIndex!),
+              eq(sessionPlans.dayIndex, job.target.dayIndex!),
+              eq(sessionPlans.gymId, job.target.gymId!),
+              eq(sessionPlans.status, "active"),
+            ),
+          )
+          .limit(1);
     if (!existing)
       throw new CoachingError("There is no prepared session to keep. Submit a session plan.", 422);
   }
@@ -575,6 +658,7 @@ export async function acceptCoachJobResult(
   if (job.kind === "review_program" && result.outcome !== "needs_input") {
     if (!job.target.reviewStart || !job.target.reviewEnd)
       throw new CoachingError("The review period is missing.", 422);
+    await assertSportCoverage(db, userId, job, result.coverage ?? []);
     await db.insert(coachWeeklyReviews).values({
       userId,
       jobId: job.id,
@@ -652,6 +736,78 @@ export async function acceptCoachJobResult(
   return { accepted: true, draftId, contractVersion: COACH_CONTRACT_VERSION };
 }
 
+/**
+ * Which sports this programme actually includes, from the programme itself.
+ *
+ * Read from the programme rather than from the athlete's sport preferences, because a
+ * shortcut turned off on the profile does not remove a sport from a programme they agreed to
+ * — and a review that quietly stopped covering it would be the switch deciding their
+ * training (SPORT-01, COACH-03).
+ */
+export async function programmeSports(
+  db: DbOrTx,
+  userId: string,
+  programId: string | null,
+): Promise<ActivitySport[]> {
+  if (!programId) return [];
+  const sports = new Set<ActivitySport>();
+  const days = await db
+    .select({
+      includesLifting: programDays.includesLifting,
+      includesRun: programDays.includesRun,
+    })
+    .from(programDays)
+    .where(and(eq(programDays.userId, userId), eq(programDays.programId, programId)));
+  for (const day of days) {
+    if (day.includesLifting) sports.add("strength");
+    if (day.includesRun) sports.add("running");
+  }
+  const occurrenceSports = await db
+    .selectDistinct({ sport: plannedOccurrences.sport })
+    .from(plannedOccurrences)
+    .innerJoin(
+      occurrenceVersions,
+      and(
+        eq(occurrenceVersions.id, plannedOccurrences.currentRevisionId),
+        eq(occurrenceVersions.userId, plannedOccurrences.userId),
+      ),
+    )
+    .where(
+      and(
+        eq(plannedOccurrences.userId, userId),
+        eq(occurrenceVersions.programVersionId, programId),
+        ne(plannedOccurrences.disposition, "cancelled"),
+      ),
+    );
+  for (const row of occurrenceSports) sports.add(row.sport);
+  return [...sports];
+}
+
+/**
+ * Refuses a review that left a sport out, or covered one the programme does not include.
+ *
+ * Coverage is checked against the programme, not taken on the result's word. Missing coverage
+ * is invalid (§8.2 item 7): a swim that got no mention is not a swim the coach decided to
+ * leave alone, it is a swim nobody looked at.
+ */
+async function assertSportCoverage(
+  db: DbOrTx,
+  userId: string,
+  job: CoachJob,
+  coverage: readonly SportCoverage[],
+): Promise<void> {
+  const included = await programmeSports(db, userId, job.target.programId);
+  if (included.length === 0) return;
+  const problems = coverageProblems(included, coverage);
+  if (problems.length > 0)
+    throw new CoachingError(
+      `Every sport in the programme needs a coverage entry. ${problems
+        .map((problem) => problem.message)
+        .join(" ")}`,
+      422,
+    );
+}
+
 export async function sessionTarget(
   db: DbOrTx,
   userId: string,
@@ -721,7 +877,91 @@ export async function enqueueRequestReview(db: DbOrTx, userId: string, now = new
   });
 }
 
+/**
+ * How far ahead a daily run prepares. Today and the next two days, which is the 48 hours
+ * §8.2 item 4 asks for expressed in the athlete's own dates: a Friday night run prepares
+ * Saturday and Sunday, and no further.
+ */
+export const PREPARATION_LOOKAHEAD_DAYS = 2;
+
+/**
+ * The endurance preparations one batch owes, one job per occurrence and revision.
+ *
+ * Today's identity was one job per athlete per date, which cannot describe two rides on one
+ * Tuesday and cannot say which of them a result is for. So each occurrence gets its own job,
+ * keyed by the exact revision it was queued against: a revision arriving afterwards leaves
+ * the old job superseded rather than quietly re-aimed, and a repeated dispatch finds the same
+ * key rather than enqueuing a second (SCHED-02, AT-COACH-06).
+ *
+ * Overdue work is deliberately not here. Nothing rolls forward: an unfinished Wednesday swim
+ * is still Wednesday's, and preparing it again on Friday would be the coach deciding to move
+ * it (TODAY-01).
+ */
+export async function enqueueOccurrencePreparations(
+  db: DbOrTx,
+  userId: string,
+  batchDate: string,
+): Promise<number> {
+  if (!multisportRollout().canonicalWrites) return 0;
+  const preferences = await getCoachingPreferences(db, userId);
+  const active = await getActiveProgram(db, userId);
+  const occurrences = await openOccurrencesBetween(
+    db,
+    userId,
+    batchDate,
+    addDays(batchDate, PREPARATION_LOOKAHEAD_DAYS),
+  );
+  let queued = 0;
+  for (const occurrence of occurrences) {
+    // Only the active programme's work is coached. Standalone scheduled activities are the
+    // athlete's own, and adding one to the programme is an explicit act (SCHED-08).
+    if (!occurrence.programVersionId || occurrence.programVersionId !== active?.id) continue;
+    const { created } = await enqueueCoachJob(db, userId, {
+      kind: "prepare_session",
+      trigger: "daily",
+      dedupeKey: `occurrence:${occurrence.id}:${occurrence.revisionId}`,
+      intakeId: preferences?.intakeId,
+      target: {
+        programId: active.id,
+        occurrenceId: occurrence.id,
+        occurrenceRevisionId: occurrence.revisionId,
+        sport: occurrence.sport as ActivitySport,
+        batchDate,
+      },
+    });
+    if (created) queued++;
+  }
+  // A preparation written against a revision that has since moved on is not a plan for
+  // anything; it is superseded rather than answered (COACH-08).
+  await db
+    .update(coachJobs)
+    .set({
+      status: "superseded",
+      error: "That session changed after this preparation was queued.",
+      completedAt: new Date(),
+      leaseUntil: null,
+    })
+    .where(
+      and(
+        eq(coachJobs.userId, userId),
+        eq(coachJobs.kind, "prepare_session"),
+        inArray(coachJobs.status, ["queued", "claimed"]),
+        like(coachJobs.dedupeKey, "occurrence:%"),
+        notInArray(
+          coachJobs.dedupeKey,
+          occurrences.length > 0
+            ? occurrences.map(
+                (occurrence) => `occurrence:${occurrence.id}:${occurrence.revisionId}`,
+              )
+            : [""],
+        ),
+      ),
+    );
+  return queued;
+}
+
 export async function enqueueDailySession(db: DbOrTx, userId: string, batchDate: string) {
+  await enqueueOccurrencePreparations(db, userId, batchDate);
   const target = await sessionTarget(db, userId, batchDate);
   if (!target) return null;
   const preferences = await getCoachingPreferences(db, userId);
@@ -739,6 +979,9 @@ export async function enqueueDailySession(db: DbOrTx, userId: string, batchDate:
         eq(coachJobs.trigger, "daily"),
         inArray(coachJobs.status, ["queued", "claimed"]),
         ne(coachJobs.dedupeKey, `daily:${batchDate}`),
+        // An occurrence's job is keyed by its own identity, not by the batch, so the strength
+        // preparation replacing itself must not sweep the day's swims away with it.
+        notLike(coachJobs.dedupeKey, "occurrence:%"),
       ),
     );
   return enqueueCoachJob(db, userId, {

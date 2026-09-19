@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, ne } from "drizzle-orm";
 import {
+  activities,
   coachAttachments,
   coachIntakes,
   coachJobs,
@@ -23,6 +24,7 @@ import {
   type AthleteSource,
   type MemoryItem,
 } from "@/domain/coach-memory";
+import { activityNoteSources } from "./activity-evidence";
 import { CoachingError } from "./coaching-state";
 
 /** Verify provenance within this account, including when a supporting record was removed. */
@@ -32,6 +34,7 @@ export async function existingEvidenceIds(db: DbOrTx, userId: string, input: rea
       .filter((id) => id.startsWith(prefix + ":") && evidenceIdSchema.safeParse(id).success)
       .map((id) => id.slice(prefix.length + 1));
   const groups = [
+    ["activity", activities],
     ["workout", workoutSessions],
     ["exercise", workoutExercises],
     ["run", runs],
@@ -58,6 +61,10 @@ export async function existingEvidenceIds(db: DbOrTx, userId: string, input: rea
 /** Only direct athlete text can support a reported preference or correction. */
 export async function athleteMemorySources(db: DbOrTx, userId: string, ids: readonly string[]) {
   const sources = new Map<string, AthleteSource>();
+  // An endurance note is the athlete speaking about their own session, under the same rules
+  // the strength ones already follow: owned, theirs, and quoted as it stands now (§8.4).
+  for (const [id, source] of await activityNoteSources(db, userId, ids))
+    sources.set(id, { text: source.text, createdAt: source.createdAt });
   const noteIds = ids.filter((id) => id.startsWith("note:")).map((id) => id.slice(5));
   const intakeIds = ids.filter((id) => id.startsWith("intake:")).map((id) => id.slice(7));
   const sessionIds = ids.filter((id) => id.startsWith("workout:")).map((id) => id.slice(8));

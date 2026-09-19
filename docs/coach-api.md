@@ -53,6 +53,44 @@ drawing conclusions. Adherence covers the whole active programme, not just the r
 its completion rate is completed / (completed + skipped), with pending and rest slots excluded
 from the denominator.
 
+## Version 2
+
+Version 1 is unchanged and stays available. Version 2 is a separate surface for the sports
+version 1 has no shape for; nothing has been added to a v1 payload, and no v1 response has
+become a redirect.
+
+| GET path                        | Payload                                                                                                                                   |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `/api/coach/v2/activities`      | Every sport, with the canonical discriminator, the typed detail for that sport, effort and its provenance, and the occurrence it answered |
+| `/api/coach/v2/summary`         | Per-sport totals, distinct training days, per-sport adherence and comparable whole-session bests over the stated period                   |
+| `/api/coach/v2/program/current` | The active programme's endurance occurrences, their prescriptions and what became of each                                                 |
+
+Responses carry `version: 2`. `activities` pages by `cursor` rather than by `page`: read
+`nextCursor` and pass it back until it is null. The cursor is a timestamp and an id together,
+so two activities recorded at the same instant cannot straddle a page boundary; `limit`
+defaults to 50 and may not exceed 100. `sport` takes a comma-separated list of `strength`,
+`running`, `cycling` and `swimming` — an unknown name is a 400, not an empty list.
+
+`summary` aggregates in SQL over the whole stated period and says so in `coverage`. Its
+`period` is inclusive at both ends, defaults to the last 28 local days, and may not exceed
+366 days per request; longer exports are paged. The totals carry `unknownDistances` and
+`unknownDurations`: a ride with no distance is counted as a session and excluded from the
+distance, and saying which is the point. Zero and unknown are different answers throughout.
+
+`comparableBests` are whole-session longest distance and duration within a context that makes
+them comparable — indoor and outdoor rides are separate, assisted and unassisted are
+separate, and pools of different lengths are separate. A session whose context was not
+recorded is counted in the totals and excluded from the bests. There are no segment records,
+no estimated power and no stroke efficiency, because none of those were measured.
+
+A v1 `/program/current` whose programme contains cycling or swimming returns `409` with
+`error: "upgrade_required"` and the v2 path to read instead. It never returns a partial
+programme: half a programme presented as the programme cannot be detected downstream. Every
+v1 response carries `Deprecation: true`, a `Link` to this document, and
+`X-Coach-Api-Supported-Sports: workout, run`. Version 1 is maintained for at least 180 days
+after cutover; removal additionally requires known clients to have upgraded and 30 days with
+no legitimate use, and then answers `410` rather than redirecting.
+
 ## Interpretation
 
 - Preserve raw `unit`, `equipmentInstanceId` and exercise identity. Machine loads from different

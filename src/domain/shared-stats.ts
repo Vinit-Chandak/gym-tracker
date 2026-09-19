@@ -322,6 +322,44 @@ export type StatsRun = {
   distanceMeters: number;
 };
 
+/**
+ * A ride's or a swim's shared row: that it happened, how long it took, and how far where a
+ * distance is actually known (SOCIAL-01, §9.2).
+ *
+ * Deliberately narrower than running's. No pace is projected, because a shared pace would be
+ * read as a comparable one and it is not: indoors is not outdoors, an assisted bike is not a
+ * rider, and a swim's pace depends on whether the athlete timed their swimming or their
+ * session. The advanced fields, the effort, the notes, the pool and the named bike stay in
+ * the owner's own records; the public label is generated, never the athlete's title.
+ */
+export type StatsEnduranceSession = {
+  id: string;
+  startedAt: Date;
+  durationSeconds: number;
+  /** Null is unknown, and stays unknown rather than becoming zero. */
+  distanceMeters: number | null;
+};
+
+export function enduranceStats(
+  sport: "cycle" | "swim",
+  session: StatsEnduranceSession,
+  timeZone: string,
+): SessionStats {
+  return {
+    sport,
+    sourceId: session.id,
+    title: sport === "cycle" ? "Ride" : "Swim",
+    occurredOn: todayInTimeZone(timeZone, session.startedAt),
+    startedAt: session.startedAt,
+    durationSeconds: session.durationSeconds,
+    workingSets: 0,
+    volumeKg: 0,
+    distanceMeters: session.distanceMeters,
+    paceSecondsPerKm: null,
+    muscleSets: {},
+  };
+}
+
 /** A run's shared row: distance, time and pace; outdoor and treadmill are not told apart. */
 export function runStats(run: StatsRun, timeZone: string): SessionStats {
   const pace = paceSecondsPerKm(run.distanceMeters, run.durationSeconds);

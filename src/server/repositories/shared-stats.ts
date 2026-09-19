@@ -1,19 +1,25 @@
 import { and, asc, desc, eq, gte, inArray, isNull, lt, lte, notInArray, sql } from "drizzle-orm";
 
 import {
+  activities,
+  cyclingActivityDetails,
   exercises,
   profileDirectory,
   profiles,
   sharedBodyWeight,
   sharedExerciseStats,
   sharedSessionStats,
+  swimmingActivityDetails,
+  userSportPreferences,
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
+import type { ActivitySport } from "@/domain/activity";
 import { activityValue, type ActivityMetric } from "@/domain/leaderboard";
 import { addMuscleSets, type MuscleSets } from "@/domain/muscle-split";
 import { regionOf, type BodyRegion } from "@/domain/muscles";
 import { detectRecords, type PreviousMaxima, type TrainingRecord } from "@/domain/records";
 import {
+  enduranceStats,
   metricValue,
   primaryMetric,
   runStats,
@@ -21,6 +27,7 @@ import {
   sessionStats,
   type MetricExercise,
   type SharedMetric,
+  type StatsEnduranceSession,
   type StatsRun,
   type StatsWorkout,
 } from "@/domain/shared-stats";
@@ -237,6 +244,139 @@ export async function writeRunStats(
         updatedAt: new Date(),
       },
     });
+}
+
+/**
+ * A ride's or a swim's shared row, written only where the athlete has opted in (SOCIAL-02).
+ *
+ * Two gates, both of which must be open: the global `share_training` switch, which is the
+ * upper bound on everything, and this sport's own preference, which starts off. Neither is
+ * inferred from the other, and no migration opens one — an account that never answered
+ * shares nothing new.
+ */
+export async function writeEnduranceStats(
+  tx: DbOrTx,
+  userId: string,
+  sport: "cycle" | "swim",
+  session: StatsEnduranceSession,
+  timeZone?: string,
+): Promise<void> {
+  const canonical = sport === "cycle" ? "cycling" : "swimming";
+  const [profile] = await tx
+    .select({ shareTraining: profiles.shareTraining, timeZone: profiles.timeZone })
+    .from(profiles)
+    .where(eq(profiles.id, userId))
+    .limit(1);
+  if (!profile?.shareTraining) return;
+  const [preference] = await tx
+    .select({ shareStats: userSportPreferences.shareStats })
+    .from(userSportPreferences)
+    .where(and(eq(userSportPreferences.userId, userId), eq(userSportPreferences.sport, canonical)))
+    .limit(1);
+  if (!preference?.shareStats) return;
+  const stats = enduranceStats(sport, session, timeZone ?? profile.timeZone);
+  await tx
+    .insert(sharedSessionStats)
+    .values({
+      userId,
+      sport: stats.sport,
+      sourceId: stats.sourceId,
+      activityId: session.id,
+      title: stats.title,
+      occurredOn: stats.occurredOn,
+      startedAt: stats.startedAt,
+      durationSeconds: stats.durationSeconds,
+      workingSets: 0,
+      volumeKg: 0,
+      distanceMeters: stats.distanceMeters,
+      paceSecondsPerKm: null,
+      muscleSets: {},
+      records: [],
+    })
+    .onConflictDoUpdate({
+      target: [sharedSessionStats.userId, sharedSessionStats.sport, sharedSessionStats.sourceId],
+      set: {
+        occurredOn: stats.occurredOn,
+        startedAt: stats.startedAt,
+        durationSeconds: stats.durationSeconds,
+        distanceMeters: stats.distanceMeters,
+        updatedAt: new Date(),
+      },
+    });
+}
+
+/**
+ * Removes every shared projection of one activity, whatever sport it is.
+ *
+ * Called when the activity is deleted and when sharing is turned off. Turning a switch off
+ * has to take the rows with it immediately: a projection that outlives the consent that
+ * created it is the whole of what AT-PRIV-05 is about.
+ */
+export async function deleteActivityStats(
+  tx: DbOrTx,
+  userId: string,
+  activityId: string,
+): Promise<void> {
+  await tx
+    .delete(sharedSessionStats)
+    .where(and(eq(sharedSessionStats.userId, userId), eq(sharedSessionStats.sourceId, activityId)));
+}
+
+/**
+ * Rebuilds one sport's shared rows from the activities that are still there.
+ *
+ * Only currently consented fields: the projection is derived afresh rather than restored from
+ * anything kept aside, so re-enabling sharing cannot bring back a field the athlete has since
+ * stopped sharing, or an activity they have since deleted (§9.2).
+ */
+export async function rebuildSportStats(
+  tx: DbOrTx,
+  userId: string,
+  sport: ActivitySport,
+): Promise<void> {
+  if (sport !== "cycling" && sport !== "swimming") return;
+  const legacy = sport === "cycling" ? "cycle" : "swim";
+  await deleteSportStats(tx, userId, legacy);
+  const details = sport === "cycling" ? cyclingActivityDetails : swimmingActivityDetails;
+  const rows = await tx
+    .select({
+      id: activities.id,
+      startedAt: activities.startedAt,
+      durationMs: activities.durationMs,
+      distanceMetres: sql<string | null>`coalesce(
+        ${details.distanceMetres},
+        ${sport === "swimming" ? sql`${swimmingActivityDetails.lengths} * ${swimmingActivityDetails.poolLengthMetres}` : sql`null`}
+      )::numeric`,
+    })
+    .from(activities)
+    .innerJoin(details, eq(details.activityId, activities.id))
+    .where(
+      and(
+        eq(activities.userId, userId),
+        eq(activities.sport, sport),
+        eq(activities.status, "completed"),
+      ),
+    );
+  for (const row of rows) {
+    if (row.durationMs === null) continue;
+    await writeEnduranceStats(tx, userId, legacy, {
+      id: row.id,
+      startedAt: row.startedAt,
+      durationSeconds: Math.round(row.durationMs / 1000),
+      distanceMeters: row.distanceMetres === null ? null : Number(row.distanceMetres),
+    });
+  }
+}
+
+/** Every shared row of one sport, for a switch turned off (AT-PRIV-05). */
+export async function deleteSportStats(
+  tx: DbOrTx,
+  userId: string,
+  sport: TrainingSport,
+): Promise<void> {
+  await tx
+    .delete(sharedSessionStats)
+    .where(and(eq(sharedSessionStats.userId, userId), eq(sharedSessionStats.sport, sport)));
 }
 
 export async function deleteRunStats(tx: DbOrTx, userId: string, runId: string): Promise<void> {
@@ -619,6 +759,49 @@ export async function readBodyWeights(
     .from(sharedBodyWeight)
     .where(inArray(sharedBodyWeight.userId, [...userIds]));
   return new Map(rows.map(({ userId, ...reading }) => [userId, reading]));
+}
+
+export type SharedActivityDetail = {
+  id: string;
+  sport: TrainingSport;
+  title: string;
+  occurredOn: string;
+  durationSeconds: number;
+  workingSets: number;
+  volumeKg: number;
+  distanceMeters: number | null;
+  paceSecondsPerKm: number | null;
+};
+
+/**
+ * One shared row, read by its own shared id and by nothing else (SOCIAL-02, AT-PRIV-04).
+ *
+ * The parameter is the `shared_session_stats` id, not the activity's. That is the whole
+ * privacy argument: a raw activity id names a private record, and guessing one must reveal
+ * neither its contents nor the fact that it exists. RLS answers the rest — a row the reader
+ * is not allowed to see simply is not there, so a wrong id and a forbidden id look identical.
+ */
+export async function readSharedActivity(
+  tx: DbOrTx,
+  ownerId: string,
+  sharedStatId: string,
+): Promise<SharedActivityDetail | null> {
+  const [row] = await tx
+    .select({
+      id: sharedSessionStats.id,
+      sport: sharedSessionStats.sport,
+      title: sharedSessionStats.title,
+      occurredOn: sharedSessionStats.occurredOn,
+      durationSeconds: sharedSessionStats.durationSeconds,
+      workingSets: sharedSessionStats.workingSets,
+      volumeKg: sharedSessionStats.volumeKg,
+      distanceMeters: sharedSessionStats.distanceMeters,
+      paceSecondsPerKm: sharedSessionStats.paceSecondsPerKm,
+    })
+    .from(sharedSessionStats)
+    .where(and(eq(sharedSessionStats.id, sharedStatId), eq(sharedSessionStats.userId, ownerId)))
+    .limit(1);
+  return row ?? null;
 }
 
 export type ComparableExerciseRow = MetricExercise & {

@@ -13,13 +13,17 @@ import { getRequestProfile } from "@/server/queries/request-profile";
 import { todayCoachState } from "@/server/repositories/coach-plans";
 import { todayWorkflowState } from "@/server/repositories/coaching-today";
 import { listGyms } from "@/server/repositories/gyms";
+import { occurrencesOnDate } from "@/server/repositories/occurrences";
 import { getTodayPlan } from "@/server/repositories/schedule";
+import { TodayActivities } from "@/components/activities/today-activities";
+import { multisportRollout } from "@/lib/multisport-rollout";
 
 import { TodayView } from "./today-view";
 
 export const metadata: Metadata = { title: "Today" };
 
 export default async function TodayPage() {
+  const shared = multisportRollout().sharedNavigation;
   const user = await requireUser();
   const requestProfile = await getRequestProfile(user.id, user.email);
   // The active session comes from the shared per-request read the resume strip also uses,
@@ -52,10 +56,15 @@ export default async function TodayPage() {
               gymId: gyms.find((gym) => gym.isActive && gym.isDefault)?.id ?? null,
             })
           : null;
-      return { profile, gyms, plan, restProtocol, coach };
+      // Today's scheduled endurance work, and only today's: nothing rolls forward, and the
+      // strength projection below is left to its own sequence (plan §2.3).
+      const scheduled = shared
+        ? await occurrencesOnDate(tx, user.id, todayInTimeZone(profile.timeZone))
+        : [];
+      return { profile, gyms, plan, restProtocol, coach, scheduled };
     }),
   ]);
-  const { profile, gyms, plan, restProtocol, coach } = data;
+  const { profile, gyms, plan, restProtocol, coach, scheduled } = data;
 
   return (
     <>
@@ -73,11 +82,12 @@ export default async function TodayPage() {
         unit={LOAD_UNIT_LABELS[profile.preferredUnit]}
       />
       <PageContent>
-        <LinkButton href="/profile/routines" variant="secondary">
+        <TodayActivities occurrences={scheduled} />
+        <LinkButton href={shared ? "/training/templates" : "/profile/routines"} variant="secondary">
           Saved routines
         </LinkButton>
         {!plan && (
-          <LinkButton href="/profile/programme" variant="ghost">
+          <LinkButton href={shared ? "/training/programme" : "/profile/programme"} variant="ghost">
             Create a programme
           </LinkButton>
         )}

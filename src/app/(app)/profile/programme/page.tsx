@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { ProgrammeOptions } from "@/components/coaching/programme-options";
 import { SavedProgrammeWork } from "@/components/coaching/saved-work";
 import { ProgrammeTools } from "@/components/coaching/programme-tools";
@@ -17,6 +18,7 @@ import { StatTile, StatTileRow } from "@/components/ui/stat-tile";
 import { getDb } from "@/db/client";
 import { PROGRAM_TEMPLATES } from "@/db/seed/data/templates";
 import { withUser } from "@/db/with-user";
+import { multisportRollout } from "@/lib/multisport-rollout";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { formatIsoDate } from "@/lib/format";
 import { requireUser } from "@/server/auth";
@@ -69,6 +71,9 @@ function Archived({
  * through it you are, which is true on both tabs.
  */
 export default async function ProgrammeSettingsPage(props: PageProps<"/profile/programme">) {
+  // The programme's home is Training once the shared surfaces are on; the create, manual,
+  // draft and job destinations below it keep working from either side (plan §3.2).
+  if (multisportRollout().sharedNavigation) redirect("/training/programme");
   const user = await requireUser();
   const params = await props.searchParams;
   const requested = Array.isArray(params.view) ? params.view[0] : params.view;

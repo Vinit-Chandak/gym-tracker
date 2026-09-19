@@ -17,11 +17,12 @@ import { CalendarDays } from "@/components/ui/icons";
 
 export type HistoryItem = {
   id: string;
-  kind: "workout" | "run" | "recovery";
+  /** Every sport history holds, plus the recovery readings that are not training at all. */
+  kind: "workout" | "run" | "cycling" | "swimming" | "recovery";
   date: string;
   title: string;
   subtitle: string;
-  href?: Route<`/workouts/${string}` | `/runs/${string}`>;
+  href?: Route<`/workouts/${string}` | `/runs/${string}` | `/training/activities/${string}`>;
   meta: string;
   gymId: string | null;
   exercises: { id: string; name: string; machineId: string | null; machineName: string | null }[];
@@ -29,6 +30,15 @@ export type HistoryItem = {
 };
 
 type Filters = { kind: string; gym: string; exercise: string; machine: string };
+
+/** What each row calls itself. Exhaustive: a sport added later has to be named here. */
+const KIND_LABELS: Record<HistoryItem["kind"], string> = {
+  workout: "Workout",
+  run: "Run",
+  cycling: "Ride",
+  swimming: "Swim",
+  recovery: "Recovery",
+};
 
 const EMPTY: Filters = { kind: "all", gym: "", exercise: "", machine: "" };
 
@@ -108,6 +118,9 @@ export function HistoryView({
     [items, filters.gym, filters.exercise],
   );
 
+  /** The sports this history actually contains, so the filter offers only what is there. */
+  const kinds = useMemo(() => new Set(items.map((item) => item.kind)), [items]);
+
   const shown = items.filter(
     (item) =>
       (filters.kind === "all" || item.kind === filters.kind) &&
@@ -144,6 +157,9 @@ export function HistoryView({
                     <option value="all">All activity</option>
                     <option value="workout">Workouts</option>
                     <option value="run">Runs</option>
+                    {/* Shown only where they exist, so a lifter's filter list stays short. */}
+                    {kinds.has("cycling") && <option value="cycling">Rides</option>}
+                    {kinds.has("swimming") && <option value="swimming">Swims</option>}
                     <option value="recovery">Recovery</option>
                   </Select>
                 </Field>
@@ -208,7 +224,7 @@ export function HistoryView({
                   title={item.title}
                   subtitle={item.subtitle}
                   meta={item.meta}
-                  badge={<Badge>{item.kind === "run" ? "Run" : "Workout"}</Badge>}
+                  badge={<Badge>{KIND_LABELS[item.kind]}</Badge>}
                 />
               ) : (
                 <div className="space-y-1 px-4 py-3">

@@ -31,17 +31,33 @@ export const LIFTING_METRICS = [
   "records",
 ] as const;
 export const RUNNING_METRICS = ["runs", "distance", "time", "best_pace", "longest_run"] as const;
+
+/**
+ * What cycling and swimming may be ranked by, in release one (SOCIAL-01).
+ *
+ * Participation only: how many sessions, how many days, how long, and how far where a
+ * distance is actually known. Deliberately no pace, no speed and no power — a ride's speed
+ * depends on whether the bike was assisted and whether the ride was indoors, and a swim's
+ * pace depends on a time basis nobody else can see. Ranking people on numbers that are not
+ * comparable is worse than not ranking them at all, so those stay private this release.
+ */
+export const PARTICIPATION_METRICS = ["sessions", "active_days", "time", "distance"] as const;
 export type LiftingMetric = (typeof LIFTING_METRICS)[number];
 export type RunningMetric = (typeof RUNNING_METRICS)[number];
-export type ActivityMetric = LiftingMetric | RunningMetric;
+export type ParticipationMetric = (typeof PARTICIPATION_METRICS)[number];
+export type ActivityMetric = LiftingMetric | RunningMetric | ParticipationMetric;
 
 export const ACTIVITY_METRICS: Record<TrainingSport, readonly ActivityMetric[]> = {
   workout: LIFTING_METRICS,
   run: RUNNING_METRICS,
+  cycle: PARTICIPATION_METRICS,
+  swim: PARTICIPATION_METRICS,
 };
 export const DEFAULT_ACTIVITY_METRIC: Record<TrainingSport, ActivityMetric> = {
   workout: "workouts",
   run: "runs",
+  cycle: "sessions",
+  swim: "sessions",
 };
 
 export const ACTIVITY_METRIC_LABELS: Record<ActivityMetric, string> = {
@@ -52,6 +68,7 @@ export const ACTIVITY_METRIC_LABELS: Record<ActivityMetric, string> = {
   active_days: "Active days",
   records: "Records set",
   runs: "Runs",
+  sessions: "Sessions",
   distance: "Distance",
   time: "Time",
   best_pace: "Best pace",
@@ -85,6 +102,7 @@ export function activityValue(totals: ActivityTotals, metric: ActivityMetric): n
   switch (metric) {
     case "workouts":
     case "runs":
+    case "sessions":
       return totals.sessions;
     case "workout_time":
     case "time":

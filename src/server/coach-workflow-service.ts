@@ -4,7 +4,12 @@ import { coachJobs } from "@/db/schema";
 import type { Db } from "@/db/types";
 import { withUser } from "@/db/with-user";
 import { coachRollout } from "@/lib/coach-rollout";
-import { coachJobResultSchema, COACH_CONTRACT_VERSION } from "@/domain/coaching-workflow";
+import {
+  coachJobResultSchema,
+  COACH_CONTRACT_VERSION,
+  isSupportedContract,
+  SUPPORTED_CONTRACT_VERSIONS,
+} from "@/domain/coaching-workflow";
 import { getCoachAttachment } from "./repositories/coach-attachments";
 import { coachJobContext } from "./repositories/coaching-context";
 import {
@@ -37,8 +42,31 @@ export async function handleCoachWorkflow(
     if (path.length === 1 && path[0] === "contract" && method === "GET")
       return json({
         version: COACH_CONTRACT_VERSION,
+        supportedVersions: SUPPORTED_CONTRACT_VERSIONS,
         result: z.toJSONSchema(coachJobResultSchema, { io: "input", unrepresentable: "any" }),
       });
+    /**
+     * A worker says which contract it speaks before it is given anything to do.
+     *
+     * The version has always travelled in the context; what it lacked was somewhere to be
+     * checked. Declaring it on the request means a stale clone is turned away before an
+     * attempt is spent — and, at cutover, that a v3 worker draining an old queue cannot claim
+     * a job whose target it has no way to describe (§8.5, AT-API-07).
+     */
+    const declared = request.headers.get("x-coach-contract-version");
+    if (declared !== null) {
+      const version = Number(declared);
+      if (!Number.isInteger(version) || !isSupportedContract(version))
+        return json(
+          {
+            error: "upgrade_required",
+            detail: `This worker declares contract ${declared}; this server speaks ${COACH_CONTRACT_VERSION}. Re-run on the repository's default branch and read the current skill before claiming anything.`,
+            version: COACH_CONTRACT_VERSION,
+            supportedVersions: SUPPORTED_CONTRACT_VERSIONS,
+          },
+          409,
+        );
+    }
     if (path.length === 1 && path[0] === "dispatch" && method === "POST") {
       if (!coachRollout().dispatcher) return json({ error: "Scheduled dispatch is paused." }, 503);
       const body = z

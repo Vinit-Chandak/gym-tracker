@@ -7,6 +7,8 @@
  */
 import { EnvHttpProxyAgent, setGlobalDispatcher } from "undici";
 
+import { COACH_CONTRACT_VERSION } from "@/domain/coaching-workflow";
+
 /**
  * Send requests through the session's proxy, which Node's built-in `fetch` otherwise ignores.
  *
@@ -70,7 +72,13 @@ export async function api<T>(
   path: string,
   init: { method?: "GET" | "POST"; body?: unknown } = {},
 ): Promise<T> {
-  const headers: Record<string, string> = { Accept: "application/json" };
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+    // Say which contract this checkout speaks, before anything is claimed. A stale clone is
+    // then turned away by the server rather than discovering the skew halfway through an
+    // attempt it has already spent (plan §8.5).
+    "X-Coach-Contract-Version": String(COACH_CONTRACT_VERSION),
+  };
   const token = process.env.COACH_SERVICE_TOKEN?.trim();
   if (token) headers.Authorization = `Bearer ${token}`;
   if (init.body !== undefined) headers["Content-Type"] = "application/json";
@@ -87,8 +95,47 @@ export async function api<T>(
   } catch {
     // Not JSON: keep the text for the error message.
   }
-  if (!response.ok) throw new ServiceError(response.status, body);
+  if (!response.ok) {
+    // An upgrade response is not a transient failure and must not be retried into. The
+    // deployed app has moved past this checkout; the fix is a fresh clone, not another
+    // attempt (AT-API-07).
+    const record = body as { error?: unknown; detail?: unknown } | null;
+    if (response.status === 409 && record?.error === "upgrade_required")
+      throw new UpgradeRequiredError(String(record.detail ?? "Upgrade this coach checkout."));
+    throw new ServiceError(response.status, body);
+  }
   return body as T;
+}
+
+/** The server speaks a contract this checkout does not. Stop; do not guess at field names. */
+export class UpgradeRequiredError extends Error {
+  constructor(detail: string) {
+    super(detail);
+    this.name = "UpgradeRequiredError";
+  }
+}
+
+/**
+ * Whether the legacy mutation scripts may still write.
+ *
+ * They ask the server what it speaks before they try. Once the workflow API answers with a
+ * contract version, the v3 write paths are closed — a plan naming a day and a gym cannot
+ * describe one occurrence out of a Tuesday that has two — and the honest thing for an old
+ * script to do is say so and stop, rather than send a body that will be refused (§8.5).
+ */
+export async function assertLegacyWritesAllowed(): Promise<void> {
+  try {
+    const contract = await api<{ version?: number }>("workflow/contract");
+    if (typeof contract.version === "number")
+      fail(
+        `This script writes through the retired contract-v3 service. The app now speaks contract ${contract.version}: use scripts/coach/workflow.ts and read .claude/skills/coach/SKILL.md.`,
+      );
+  } catch (error) {
+    if (error instanceof UpgradeRequiredError) fail(error.message);
+    // A 503 means the workflow API is not enabled here, so the legacy path is still the one
+    // in use. Anything else is a live failure the caller should see from its own request.
+    if (error instanceof ServiceError && error.status !== 503) throw error;
+  }
 }
 
 /** `--name value` pairs from the command line, no libraries needed. */

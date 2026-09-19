@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   check,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -13,7 +14,11 @@ import {
 
 import type { PlanWarning } from "../../domain/coach-review";
 import type { MemoryItem, NoteDisposition } from "../../domain/coach-memory";
-import type { StoredPlanExercise, StoredPlanRun } from "../../domain/session-plan";
+import type {
+  StoredPlanExercise,
+  StoredPlannedOccurrence,
+  StoredPlanRun,
+} from "../../domain/session-plan";
 import { ownerPolicy, timestamps } from "./common";
 import {
   coachRequestInitiatorEnum,
@@ -21,7 +26,9 @@ import {
   planStatusEnum,
   planTriggerEnum,
 } from "./enums";
+import { activitySportEnum } from "./multisport-enums";
 import { gyms } from "./gyms";
+import { occurrenceVersions, plannedOccurrences } from "./occurrences";
 import { profiles } from "./profiles";
 import { coachProgramRequests } from "./coaching-workflow";
 import { programDays, programs } from "./programs";
@@ -163,9 +170,16 @@ export const coachRequests = pgTable(
 ).enableRLS();
 
 /**
- * The coach's plan for one upcoming programme slot at one gym. Exactly one plan is active per
- * slot; a newer plan supersedes it, and starting the session consumes it. The session keeps
- * pointing at the plan it used, so history shows what was prescribed on the day.
+ * The coach's plan for one upcoming session. Exactly one plan is active per target; a newer
+ * plan supersedes it, and starting the session consumes it. The session keeps pointing at the
+ * plan it used, so history shows what was prescribed on the day.
+ *
+ * A plan has one of two targets, and the check below holds it to exactly one. A strength
+ * preparation names the programme slot and the gym, as it always did. An endurance
+ * preparation names one occurrence and the exact prescription revision it was written
+ * against — which is what a week and a weekday could never do once two rides can share a
+ * Tuesday, and what keeps a preparation from silently becoming the answer to a target that
+ * has since changed (plan §8.1, SCHED-02, COACH-08).
  */
 export const sessionPlans = pgTable(
   "session_plans",
@@ -174,18 +188,28 @@ export const sessionPlans = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => profiles.id, { onDelete: "cascade" }),
-    programId: uuid("program_id")
+    /** Null only for a standalone endurance occurrence, which belongs to no programme. */
+    programId: uuid("program_id").references(() => programs.id, { onDelete: "cascade" }),
+    programDayId: uuid("program_day_id").references(() => programDays.id, { onDelete: "cascade" }),
+    cycleIndex: integer("cycle_index"),
+    dayIndex: integer("day_index"),
+    /**
+     * The gym the plan chose machines for; a session at another gym does not use it. Null for
+     * endurance, which needs a pool or a road rather than a room full of machines (SCOPE-02).
+     */
+    gymId: uuid("gym_id").references(() => gyms.id, { onDelete: "restrict" }),
+    /** Which sport this preparation is for. Strength, for every plan written before v2. */
+    sport: activitySportEnum("sport").notNull().default("strength"),
+    /** 1 for the slot-and-gym contract, 2 for the occurrence one. */
+    planVersion: integer("plan_version").notNull().default(1),
+    /** The exact occurrence and revision an endurance preparation answers for. */
+    occurrenceId: uuid("occurrence_id"),
+    occurrenceRevisionId: uuid("occurrence_revision_id"),
+    /** The prepared endurance sessions, one entry per occurrence this plan covers. */
+    endurance: jsonb("endurance")
+      .$type<StoredPlannedOccurrence[]>()
       .notNull()
-      .references(() => programs.id, { onDelete: "cascade" }),
-    programDayId: uuid("program_day_id")
-      .notNull()
-      .references(() => programDays.id, { onDelete: "cascade" }),
-    cycleIndex: integer("cycle_index").notNull(),
-    dayIndex: integer("day_index").notNull(),
-    /** The gym the plan chose machines for; a session at another gym does not use it. */
-    gymId: uuid("gym_id")
-      .notNull()
-      .references(() => gyms.id, { onDelete: "restrict" }),
+      .default(sql`'[]'::jsonb`),
     status: planStatusEnum("status").notNull().default("active"),
     trigger: planTriggerEnum("trigger").notNull(),
     requestId: uuid("request_id").references(() => coachRequests.id, { onDelete: "set null" }),
@@ -221,10 +245,44 @@ export const sessionPlans = pgTable(
   (t) => [
     uniqueIndex("session_plans_active_slot_uq")
       .on(t.programId, t.cycleIndex, t.dayIndex)
-      .where(sql`status = 'active'`),
+      .where(sql`status = 'active' and occurrence_id is null`),
+    // One live preparation per occurrence and revision. Two same-day swims are two rows;
+    // a second preparation for the same revision is the same preparation (AT-COACH-06).
+    uniqueIndex("session_plans_active_occurrence_uq")
+      .on(t.userId, t.occurrenceId, t.occurrenceRevisionId)
+      .where(sql`status = 'active' and occurrence_id is not null`),
     index("session_plans_user_generated_idx").on(t.userId, t.generatedAt.desc()),
     index("session_plans_session_idx").on(t.workoutSessionId),
+    index("session_plans_occurrence_idx").on(t.userId, t.occurrenceId),
+    // Owner and sport travel in the key, so a plan cannot claim a target belonging to another
+    // account or name a swim as though it were a ride (AT-DATA-02).
+    foreignKey({
+      name: "session_plans_occurrence_fk",
+      columns: [t.userId, t.occurrenceId, t.sport],
+      foreignColumns: [plannedOccurrences.userId, plannedOccurrences.id, plannedOccurrences.sport],
+    }).onDelete("cascade"),
+    // And the revision has to belong to the occurrence it claims to be a revision of.
+    foreignKey({
+      name: "session_plans_occurrence_revision_fk",
+      columns: [t.userId, t.occurrenceId, t.occurrenceRevisionId, t.sport],
+      foreignColumns: [
+        occurrenceVersions.userId,
+        occurrenceVersions.occurrenceId,
+        occurrenceVersions.id,
+        occurrenceVersions.sport,
+      ],
+    }).onDelete("cascade"),
     check("session_plans_indexes_chk", sql`cycle_index >= 1 and day_index >= 1`),
+    // Exactly one kind of target. A strength plan names its slot, its day and its gym; an
+    // endurance plan names its occurrence and the revision it was written against.
+    check(
+      "session_plans_target_chk",
+      sql`(occurrence_id is null and program_id is not null and program_day_id is not null
+            and cycle_index is not null and day_index is not null and gym_id is not null
+            and sport = 'strength')
+          or (occurrence_id is not null and occurrence_revision_id is not null
+            and sport <> 'strength')`,
+    ),
     ownerPolicy("session_plans"),
   ],
 ).enableRLS();

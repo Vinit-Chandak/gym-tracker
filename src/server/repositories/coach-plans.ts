@@ -2,6 +2,7 @@ import { and, asc, desc, eq, gte, inArray, isNull, lt, ne, or, sql } from "drizz
 import type { ZodIssue } from "zod";
 
 import {
+  activities,
   coachMemos,
   coachRequests,
   equipmentInstances,
@@ -10,6 +11,9 @@ import {
   exercises,
   gymAbsentEquipmentTypes,
   gyms,
+  occurrenceEditClaims,
+  occurrenceVersions,
+  plannedOccurrences,
   profiles,
   programDays,
   programExercises,
@@ -48,11 +52,14 @@ import { coachNotes } from "@/db/schema";
 import {
   coachPlanSchema,
   PLAN_LIMITS,
+  plannedOccurrenceSchema,
   runPlanLine,
+  SESSION_PLAN_VERSION,
   type CoachPlan,
   type PlanRun,
   type StoredPlanExercise,
 } from "@/domain/session-plan";
+import { assessSportChange } from "@/domain/coach-sport-policy";
 import { formatSet, weightStepFor } from "@/domain/sets";
 import type {
   CoachRequestInitiator,
@@ -308,7 +315,8 @@ async function saveCoachOverview(db: DbOrTx, userId: string, overview: string): 
 export type PlanOutcome = {
   generatedAt: string;
   trigger: PlanTrigger;
-  slot: { cycleIndex: number; dayIndex: number };
+  /** Null on an endurance preparation, which names an occurrence rather than a cycle slot. */
+  slot: { cycleIndex: number | null; dayIndex: number | null };
   gymName: string;
   status: string;
   summary: string;
@@ -1538,6 +1546,234 @@ async function reviewStoredPlan(
   });
 }
 
+export type StoreOccurrencePlanInput = {
+  occurrenceId: string;
+  /** The revision the coach read. A newer one means the target moved under the preparation. */
+  occurrenceRevisionId: string;
+  trigger: PlanTrigger;
+  routineSessionUrl?: string | null;
+  model?: string | null;
+  entry: unknown;
+  /** The athlete's memo, rewritten after planning; omitted leaves it unchanged. */
+  memo?: string;
+};
+
+/**
+ * Stores one endurance preparation, for exactly one occurrence.
+ *
+ * Everything this checks is about authority rather than about training. The occurrence has to
+ * be the athlete's, still open, and still on the revision the coach read; the prescription has
+ * to stay inside the envelope the athlete approved, or it is a proposal rather than a
+ * preparation (§8.3). A target somebody has already started logging against is frozen: the
+ * edit claim pins the revision they are reading, and a coach acceptance may not move it
+ * underneath them (§§5.3, 8.4).
+ */
+export async function storeOccurrencePlan(
+  db: DbOrTx,
+  userId: string,
+  input: StoreOccurrencePlanInput,
+  now = new Date(),
+): Promise<StoredPlan> {
+  const parsed = plannedOccurrenceSchema.safeParse(input.entry);
+  if (!parsed.success)
+    throw new PlanValidationError(
+      "The endurance session is not valid.",
+      describeIssues(parsed.error.issues),
+    );
+  const entry = parsed.data;
+  if (
+    entry.occurrenceId !== input.occurrenceId ||
+    entry.occurrenceRevisionId !== input.occurrenceRevisionId
+  )
+    throw new PlanValidationError("The plan names a different occurrence than the job's target.", [
+      { path: "occurrenceId", message: "Prepare the occurrence this job was claimed for." },
+    ]);
+
+  const [target] = await db
+    .select({
+      id: plannedOccurrences.id,
+      sport: plannedOccurrences.sport,
+      disposition: plannedOccurrences.disposition,
+      currentRevisionId: plannedOccurrences.currentRevisionId,
+      prescription: occurrenceVersions.prescription,
+      scheduledOn: occurrenceVersions.scheduledOn,
+      activityId: activities.id,
+    })
+    .from(plannedOccurrences)
+    .innerJoin(
+      occurrenceVersions,
+      and(
+        eq(occurrenceVersions.id, plannedOccurrences.currentRevisionId),
+        eq(occurrenceVersions.userId, plannedOccurrences.userId),
+      ),
+    )
+    .leftJoin(
+      activities,
+      and(
+        eq(activities.occurrenceId, plannedOccurrences.id),
+        eq(activities.userId, plannedOccurrences.userId),
+      ),
+    )
+    .where(
+      and(eq(plannedOccurrences.userId, userId), eq(plannedOccurrences.id, input.occurrenceId)),
+    )
+    .limit(1);
+  if (!target)
+    throw new PlanValidationError("That scheduled session is not one of this athlete's.", [
+      { path: "occurrenceId", message: "Unknown occurrence." },
+    ]);
+  if (target.sport !== entry.sport)
+    throw new PlanValidationError("The plan's sport is not the occurrence's sport.", [
+      { path: "sport", message: `That occurrence is ${target.sport}.` },
+    ]);
+  if (target.currentRevisionId !== input.occurrenceRevisionId)
+    throw new PlanValidationError("That session changed while this plan was being written.", [
+      { path: "occurrenceRevisionId", message: "Claim a fresh job against the new revision." },
+    ]);
+  if (target.activityId !== null)
+    throw new PlanValidationError("That session has already been logged.", [
+      { path: "occurrenceId", message: "A completed occurrence takes no new preparation." },
+    ]);
+  if (target.disposition !== "pending")
+    throw new PlanValidationError(`That session is ${target.disposition.replace("_", " ")}.`, [
+      { path: "occurrenceId", message: "Only an open occurrence is prepared." },
+    ]);
+  const [claim] = await db
+    .select({ id: occurrenceEditClaims.id })
+    .from(occurrenceEditClaims)
+    .where(
+      and(
+        eq(occurrenceEditClaims.userId, userId),
+        eq(occurrenceEditClaims.occurrenceId, input.occurrenceId),
+        gte(occurrenceEditClaims.expiresAt, now),
+      ),
+    )
+    .limit(1);
+  if (claim)
+    throw new PlanValidationError("The athlete is logging this session right now.", [
+      { path: "occurrenceId", message: "A claimed target is not changed underneath them." },
+    ]);
+
+  // The approved prescription is the authority. A preparation may choose inside it; anything
+  // else is a proposal for the athlete, not a plan the coach may simply store (COACH-05).
+  if (entry.prescription && target.prescription) {
+    const assessment = assessSportChange(target.prescription, entry.prescription);
+    if (assessment.authority === "review_required")
+      throw new PlanValidationError(
+        "That change is outside what the athlete approved, so it is a proposal rather than a preparation.",
+        assessment.reasons.map((reason) => ({
+          path: `prescription.${reason.path}`,
+          message: reason.message,
+        })),
+      );
+  }
+  if (entry.prescription && !target.prescription)
+    throw new PlanValidationError(
+      "This occurrence has no approved prescription to choose inside, so a new one is a proposal.",
+      [{ path: "prescription", message: "Propose the session instead of preparing it." }],
+    );
+
+  await db
+    .update(sessionPlans)
+    .set({ status: "superseded" })
+    .where(
+      and(
+        eq(sessionPlans.userId, userId),
+        eq(sessionPlans.occurrenceId, input.occurrenceId),
+        eq(sessionPlans.status, "active"),
+      ),
+    );
+  const [row] = await db
+    .insert(sessionPlans)
+    .values({
+      userId,
+      sport: entry.sport,
+      planVersion: SESSION_PLAN_VERSION,
+      occurrenceId: input.occurrenceId,
+      occurrenceRevisionId: input.occurrenceRevisionId,
+      trigger: input.trigger,
+      summary: entry.summary,
+      sportSummaries: {},
+      warmup: [],
+      exercises: [],
+      run: null,
+      endurance: [entry],
+      warnings: [],
+      model: input.model ?? null,
+      routineSessionUrl: input.routineSessionUrl ?? null,
+    })
+    .returning();
+  if (!row) throw new Error("Plan insert returned no row");
+  if (input.memo !== undefined) await saveCoachOverview(db, userId, input.memo);
+  return row;
+}
+
+/** The preparation waiting for one occurrence, if any. */
+export async function activePlanForOccurrence(
+  db: DbOrTx,
+  userId: string,
+  occurrenceId: string,
+): Promise<StoredPlan | null> {
+  const [row] = await db
+    .select()
+    .from(sessionPlans)
+    .where(
+      and(
+        eq(sessionPlans.userId, userId),
+        eq(sessionPlans.occurrenceId, occurrenceId),
+        eq(sessionPlans.status, "active"),
+      ),
+    )
+    .limit(1);
+  return row ?? null;
+}
+
+/** Preparations waiting for a set of occurrences, for Today's cards. */
+export async function activePlansForOccurrences(
+  db: DbOrTx,
+  userId: string,
+  occurrenceIds: readonly string[],
+): Promise<Map<string, StoredPlan>> {
+  if (occurrenceIds.length === 0) return new Map();
+  const rows = await db
+    .select()
+    .from(sessionPlans)
+    .where(
+      and(
+        eq(sessionPlans.userId, userId),
+        inArray(sessionPlans.occurrenceId, [...occurrenceIds]),
+        eq(sessionPlans.status, "active"),
+      ),
+    );
+  return new Map(rows.flatMap((row) => (row.occurrenceId ? [[row.occurrenceId, row]] : [])));
+}
+
+/**
+ * Withdraws preparations whose target has moved on.
+ *
+ * A preparation names a revision. When a revision arrives, what was written against the old
+ * one is no longer a plan for anything, and leaving it active would show the athlete a card
+ * describing a session the programme no longer asks for (COACH-08).
+ */
+export async function supersedeStalePlans(
+  db: DbOrTx,
+  userId: string,
+  occurrenceId: string,
+  currentRevisionId: string,
+): Promise<void> {
+  await db
+    .update(sessionPlans)
+    .set({ status: "superseded" })
+    .where(
+      and(
+        eq(sessionPlans.userId, userId),
+        eq(sessionPlans.occurrenceId, occurrenceId),
+        eq(sessionPlans.status, "active"),
+        ne(sessionPlans.occurrenceRevisionId, currentRevisionId),
+      ),
+    );
+}
+
 /** The plan waiting for one slot, if any. */
 export async function activePlanForSlot(
   db: DbOrTx,
@@ -1555,6 +1791,8 @@ export async function activePlanForSlot(
         eq(sessionPlans.cycleIndex, ref.cycleIndex),
         eq(sessionPlans.dayIndex, ref.dayIndex),
         eq(sessionPlans.status, "active"),
+        // An endurance preparation answers for an occurrence, not for a slot of the cycle.
+        isNull(sessionPlans.occurrenceId),
       ),
     )
     .limit(1);
@@ -1596,8 +1834,12 @@ export async function releasePlan(db: DbOrTx, userId: string, sessionId: string)
       ),
     )
     .limit(1);
-  if (!taken) return;
-  const waiting = await activePlanForSlot(db, userId, taken.programId, taken);
+  if (!taken || taken.programId === null || taken.cycleIndex === null || taken.dayIndex === null)
+    return;
+  const waiting = await activePlanForSlot(db, userId, taken.programId, {
+    cycleIndex: taken.cycleIndex,
+    dayIndex: taken.dayIndex,
+  });
   await db
     .update(sessionPlans)
     .set(
@@ -2040,6 +2282,9 @@ export async function carryPlansToRevision(
         eq(sessionPlans.userId, userId),
         eq(sessionPlans.programId, input.fromProgramId),
         eq(sessionPlans.status, "active"),
+        // Endurance preparations are carried by their occurrence's own lineage, not by the
+        // strength day this walks (plan §8.4).
+        isNull(sessionPlans.occurrenceId),
       ),
     );
   if (plans.length === 0) return;
@@ -2079,6 +2324,7 @@ export async function carryPlansToRevision(
   const newRunByOccurrence = new Map(newRuns.map((run) => [`${run.week}:${run.day}`, run.id]));
 
   for (const plan of plans) {
+    if (plan.dayIndex === null || plan.gymId === null) continue;
     const programDayId = dayByIndex.get(plan.dayIndex);
     const exercises = programDayId
       ? plan.exercises.flatMap((entry) => {

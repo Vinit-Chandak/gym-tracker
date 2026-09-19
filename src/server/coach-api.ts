@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
   profiles,
@@ -22,13 +22,38 @@ import {
   readWorkouts,
 } from "@/server/repositories/training-data";
 import { parseDateRange } from "@/server/validation/date-range";
+import { todayInTimeZone } from "@/domain/program-calendar";
+import {
+  ApiRequestError,
+  programmeRepresentableInV1,
+  v2Activities,
+  v2Program,
+  v2Summary,
+} from "@/server/coach-api-v2";
 
 const headers = {
   "Cache-Control": "private, no-store",
   Vary: "Authorization",
   "X-Content-Type-Options": "nosniff",
 };
-const json = (data: unknown, status = 200) => Response.json(data, { status, headers });
+
+/**
+ * What a v1 response says about its own future (plan §8.6).
+ *
+ * Headers, not new JSON fields: a strict v1 consumer parses a fixed shape, and adding a key
+ * to the body to announce a deprecation is itself the breaking change the deprecation is
+ * warning about. `Sunset` is advisory until the compatibility window's dates are recorded at
+ * cutover; the link points at the documentation rather than at v2's JSON, because a client
+ * should read before it switches.
+ */
+const V1_COMPATIBILITY = {
+  Deprecation: "true",
+  Link: '</docs/coach-api.md>; rel="deprecation"; type="text/markdown"',
+  "X-Coach-Api-Supported-Sports": "workout, run",
+};
+
+const json = (data: unknown, status = 200, extra: Record<string, string> = {}) =>
+  Response.json(data, { status, headers: { ...headers, ...extra } });
 const paging = z.object({
   page: z.coerce.number().int().min(0).max(10000).default(0),
   limit: z.coerce.number().int().min(1).max(100).default(50),
@@ -98,6 +123,47 @@ async function currentProgram(db: DbOrTx, userId: string) {
   };
 }
 
+/**
+ * Whether version 1 has been retired on this database.
+ *
+ * Asked of the schema rather than of a flag or a marker, because retirement is not a
+ * preference somebody can toggle back: v1 reads the raw run table, and after the contraction
+ * that table is gone. `to_regclass` answers in one round trip, needs no policy of its own,
+ * and cannot disagree with reality the way a cached flag can. Before the contraction it is
+ * false and every v1 path answers exactly as it always did.
+ */
+async function legacyApiRetired(tx: DbOrTx): Promise<boolean> {
+  const result = await tx.execute(sql`select to_regclass('public.runs') is null as retired`);
+  const rows = Array.isArray(result) ? result : ((result as { rows?: unknown[] }).rows ?? []);
+  return (rows[0] as { retired?: boolean } | undefined)?.retired === true;
+}
+
+/**
+ * The v2 surface, under the same token and the same read-only transaction.
+ *
+ * Separate from v1 in every respect that matters to a consumer: its own paths, its own
+ * `version` in the body, its own cursors. Nothing here changes what a v1 path returns.
+ */
+async function handleV2(
+  tx: DbOrTx,
+  userId: string,
+  endpoint: string,
+  params: URLSearchParams,
+  timeZone: string,
+): Promise<Response> {
+  const today = todayInTimeZone(timeZone, new Date());
+  try {
+    if (endpoint === "activities") return json(await v2Activities(tx, userId, params, today));
+    if (endpoint === "summary") return json(await v2Summary(tx, userId, params, today));
+    if (endpoint === "program/current") return json(await v2Program(tx, userId, today));
+    return json({ error: "Unknown v2 endpoint.", version: 2 }, 404);
+  } catch (error) {
+    if (error instanceof ApiRequestError)
+      return json({ error: error.detail, version: 2 }, error.status);
+    throw error;
+  }
+}
+
 export async function handleCoachRequest(
   db: Db,
   request: Request,
@@ -144,25 +210,74 @@ export async function handleCoachRequest(
           generatedAt: new Date().toISOString(),
         };
         const endpoint = path.join("/");
-        if (endpoint === "program/current")
-          return json({ ...meta, program: await currentProgram(tx, userId) });
+        if (endpoint.startsWith("v2/"))
+          return await handleV2(tx, userId, endpoint.slice(3), params, profile.timeZone);
+        /**
+         * Version 1 after its window has run (plan §8.6, AT-API-06).
+         *
+         * `410 Gone` with somewhere to go, not a redirect: a JSON client handed an HTML page
+         * or a v2 body it did not ask for cannot tell what happened, and a permanent status
+         * is the only one that says "this will not come back". The contraction marker is what
+         * decides, so the answer changes when the operator retires it and not before.
+         */
+        if (await legacyApiRetired(tx))
+          return json(
+            {
+              error: "gone",
+              detail:
+                "Version 1 of this API has been retired after its compatibility window. Read /api/coach/v2/activities and /api/coach/v2/summary; see docs/coach-api.md.",
+              version: 1,
+              upgradeTo: "/api/coach/v2/activities",
+            },
+            410,
+            V1_COMPATIBILITY,
+          );
+        if (endpoint === "program/current") {
+          // A programme with a ride or a swim in it has no v1 shape. Saying so is the whole
+          // point: half a programme presented as the programme cannot be detected downstream.
+          const representable = await programmeRepresentableInV1(tx, userId);
+          if (!representable.ok)
+            return json(
+              {
+                error: "upgrade_required",
+                detail: `This programme includes ${representable.sports.join(" and ")}, which version 1 cannot describe. Read /api/coach/v2/program/current.`,
+                version: 1,
+                upgradeTo: "/api/coach/v2/program/current",
+              },
+              409,
+              V1_COMPATIBILITY,
+            );
+          return json(
+            { ...meta, program: await currentProgram(tx, userId) },
+            200,
+            V1_COMPATIBILITY,
+          );
+        }
         if (endpoint === "workouts") {
           const result = await readWorkouts(tx, userId, range, pagination.page, pagination.limit);
-          return json({ ...meta, ...pagination, ...result });
+          return json({ ...meta, ...pagination, ...result }, 200, V1_COMPATIBILITY);
         }
         if (endpoint === "running")
-          return json({
-            ...meta,
-            ...pagination,
-            ...(await readRuns(tx, userId, range, pagination.page, pagination.limit)),
-          });
+          return json(
+            {
+              ...meta,
+              ...pagination,
+              ...(await readRuns(tx, userId, range, pagination.page, pagination.limit)),
+            },
+            200,
+            V1_COMPATIBILITY,
+          );
         if (endpoint === "summary") {
           const data = await readTrainingData(tx, userId, range);
-          return json({
-            ...meta,
-            summary: trainingAnalytics(data, profile.timeZone, range.from, range.to),
-            adherence: liftingAdherence(await getSchedule(tx, userId)),
-          });
+          return json(
+            {
+              ...meta,
+              summary: trainingAnalytics(data, profile.timeZone, range.from, range.to),
+              adherence: liftingAdherence(await getSchedule(tx, userId)),
+            },
+            200,
+            V1_COMPATIBILITY,
+          );
         }
         if (endpoint === "recovery") {
           const { workouts, hasMore } = await readWorkouts(

@@ -8,7 +8,9 @@ import { formatDateRange, formatDateTime, formatRunKm } from "@/lib/format";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { listGyms } from "@/server/repositories/gyms";
+import { listActivityPage } from "@/server/repositories/activity-analytics";
 import { readHistory } from "@/server/repositories/history";
+import { multisportRollout } from "@/lib/multisport-rollout";
 import { parseDateRangeOrDefault } from "@/server/validation/date-range";
 import { HistoryView, type HistoryItem } from "./history-view";
 
@@ -30,13 +32,30 @@ export default async function HistoryPage(props: PageProps<"/history">) {
     },
     profile.timeZone,
   );
-  const data = await withUser(getDb(), user.id, async (tx) => {
-    const [training, gyms] = await Promise.all([
-      readHistory(tx, user.id, range),
-      listGyms(tx, user.id),
-    ]);
-    return { training, gyms };
-  });
+  const rollout = multisportRollout();
+  const data = await withUser(
+    getDb(),
+    user.id,
+    async (tx) => {
+      const [training, gyms] = await Promise.all([
+        readHistory(tx, user.id, range),
+        listGyms(tx, user.id),
+      ]);
+      // Cycling and swimming have no legacy table to read, so they come from the canonical
+      // one — and only where it is the authority. Before the switch there is nothing there
+      // for an athlete to be missing (§10.1).
+      const endurance = rollout.canonicalWrites
+        ? await listActivityPage(tx, user.id, {
+            sports: ["cycling", "swimming"],
+            from: range.from,
+            to: range.to,
+            limit: 100,
+          })
+        : { items: [], nextCursor: null };
+      return { training, gyms, endurance };
+    },
+    { readOnly: true },
+  );
   const items: HistoryItem[] = [
     ...data.training.workouts.map((w) => ({
       id: w.id,
@@ -67,6 +86,27 @@ export default async function HistoryPage(props: PageProps<"/history">) {
       exercises: [],
       recovery: readings([["RPE", r.rpe]]),
     })),
+    ...data.endurance.items.map((activity) => ({
+      id: activity.id,
+      kind: activity.sport as "cycling" | "swimming",
+      date: activity.startedAt.toISOString(),
+      title:
+        activity.distanceMetres === null
+          ? activity.sport === "cycling"
+            ? "Ride"
+            : "Swim"
+          : `${activity.sport === "cycling" ? "Ride" : "Swim"} · ${formatRunKm(activity.distanceMetres)} km`,
+      subtitle: formatDateTime(activity.startedAt, profile.timeZone),
+      href: `/training/activities/${activity.id}` as const,
+      // An unrecorded duration says so rather than reading as zero minutes.
+      meta:
+        activity.durationMs === null ? "" : formatDuration(Math.round(activity.durationMs / 1000)),
+      gymId: null,
+      exercises: [],
+      recovery: readings([
+        ["RPE", activity.effortStatus === "reported" ? activity.effortValue : null],
+      ]),
+    })),
     ...data.training.recovery.map((r) => ({
       id: r.id,
       kind: "recovery" as const,
@@ -93,9 +133,10 @@ export default async function HistoryPage(props: PageProps<"/history">) {
             {rangeError}
           </p>
         )}
-        {data.training.truncated && (
+        {(data.training.truncated || data.endurance.nextCursor !== null) && (
           <p role="status" className="text-sm text-warning">
-            Showing the newest 500 workouts and runs. Narrow the dates to see every entry.
+            Showing the newest records only. Narrow the dates to see every entry; the totals on
+            Progress cover the whole period whatever this list shows.
           </p>
         )}
         <HistoryView

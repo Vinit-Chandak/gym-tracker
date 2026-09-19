@@ -193,6 +193,7 @@ export function formatActivityMetric(
     case "active_days":
     case "records":
     case "runs":
+    case "sessions":
       return value.toLocaleString("en-GB");
     case "distance":
       return formatTotalKm(value);

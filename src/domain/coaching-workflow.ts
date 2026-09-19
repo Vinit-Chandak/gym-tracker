@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { ACTIVITY_SPORTS, ENDURANCE_SPORTS } from "./activity";
+import { endurancePrescriptionSchema } from "./activity-prescription";
 import { programBlueprintSchema } from "./program-blueprint";
 import {
   coachPlanSchema,
@@ -24,6 +26,20 @@ export const COACH_CONTRACT_VERSION = 4;
  * disagree with. This constant ships in the same checkout as the skill, so comparing the two
  * names a stale clone before an attempt is spent discovering it.
  */
+/**
+ * Contract versions this server still accepts from a worker.
+ *
+ * One, for now: v3 cannot name an occurrence, so there is no target it can describe that the
+ * server can honestly act on. The list exists rather than a bare equality because a future
+ * additive version may be accepted alongside this one, and the negotiation should then be a
+ * data change rather than a code change (plan §8.5).
+ */
+export const SUPPORTED_CONTRACT_VERSIONS: readonly number[] = [COACH_CONTRACT_VERSION];
+
+export function isSupportedContract(version: number): boolean {
+  return SUPPORTED_CONTRACT_VERSIONS.includes(version);
+}
+
 export function contractSkew(served: number): string | null {
   if (served === COACH_CONTRACT_VERSION) return null;
   const stale = served > COACH_CONTRACT_VERSION;
@@ -64,6 +80,40 @@ export const COACH_TEXT_FILE_TYPES = ["text/plain", "text/markdown", "text/csv"]
 
 const weekday = z.number().int().min(1).max(7);
 const optionalText = (max: number) => z.string().trim().max(max).default("");
+
+/**
+ * Intake version 2 (plan §8.1).
+ *
+ * Version 1 asked about lifting, and asked about running as an afterthought bolted to it.
+ * Neither shape fits somebody who only swims. So the sport-specific answers move into a list
+ * with one entry per sport the athlete actually confirmed, and the v1 fields stay exactly
+ * where they were: an intake saved last year still parses, and its running answers still
+ * mean what they meant (MIG-02).
+ *
+ * The list is consent, not a menu. A sport appears here because the athlete confirmed it; the
+ * coach may suggest one, and suggesting is not including (COACH-01).
+ */
+export const INTAKE_VERSION = 2;
+
+export const sportIntakeSchema = z.object({
+  sport: z.enum(ACTIVITY_SPORTS),
+  experience: z
+    .enum(["beginner", "intermediate", "experienced", "returning", "unknown"])
+    .default("unknown"),
+  /** Sessions a week in this sport. Null leaves the choice to the coach, as v1 did. */
+  sessionsPerWeek: z.number().int().min(0).max(14).nullable().default(null),
+  preferredDays: z
+    .array(weekday)
+    .max(7)
+    .default([])
+    .refine((days) => new Set(days).size === days.length, "Choose each weekday once."),
+  minutesPerSession: z.number().int().min(5).max(600).nullable().default(null),
+  /** Where they can do it: a pool, a turbo trainer, a park. Their words, not a taxonomy. */
+  access: optionalText(600),
+  /** Anything they want the coach to know about this sport specifically. */
+  notes: optionalText(1000),
+});
+export type SportIntake = z.infer<typeof sportIntakeSchema>;
 
 /**
  * What the athlete answers before the coach writes them a programme.
@@ -145,6 +195,23 @@ export const coachIntakeSchema = z.object({
     )
     .max(MAX_CLARIFICATIONS)
     .default([]),
+  /**
+   * The sports this programme is for, each with its own answers (SCOPE-02, ONBOARD-02).
+   *
+   * Empty means a v1 intake, which is read exactly as it always was: lifting, plus running
+   * where `runsPerWeek` says so. Nothing is inferred into this list from those fields, because
+   * an inferred sport is a sport nobody confirmed.
+   */
+  sports: z
+    .array(sportIntakeSchema)
+    .max(ACTIVITY_SPORTS.length)
+    .default([])
+    .refine(
+      (entries) => new Set(entries.map((entry) => entry.sport)).size === entries.length,
+      "Answer for each sport once.",
+    ),
+  /** Total minutes a week across every sport, when the athlete gave one. */
+  weeklyMinutes: z.number().int().min(10).max(5000).nullable().default(null),
   prompt: optionalText(16000),
   attachmentIds: z.array(z.uuid()).max(MAX_REQUEST_FILES).default([]),
 });
@@ -200,7 +267,22 @@ export const jobTargetSchema = z.object({
   programId: z.uuid().nullable().default(null),
   cycleIndex: z.number().int().min(1).nullable().default(null),
   dayIndex: z.number().int().min(1).nullable().default(null),
+  /**
+   * The gym, where one is needed. A swim needs a pool, not a gym, and requiring one would
+   * have meant inventing a dummy location for an athlete who never lifts (SCOPE-02).
+   */
   gymId: z.uuid().nullable().default(null),
+  /**
+   * The exact occurrence this preparation is for, and the revision it was written against.
+   *
+   * A day and a weekday cannot name a session once two rides can share a Tuesday, so an
+   * endurance preparation names an identity instead. The revision travels with it: a job
+   * queued against one prescription may not be answered against a newer one (SCHED-02,
+   * COACH-08).
+   */
+  occurrenceId: z.uuid().nullable().default(null),
+  occurrenceRevisionId: z.uuid().nullable().default(null),
+  sport: z.enum(ACTIVITY_SPORTS).nullable().default(null),
   batchDate: z.iso.date().nullable().default(null),
   reviewStart: z.iso.datetime().nullable().default(null),
   reviewEnd: z.iso.datetime().nullable().default(null),
@@ -216,27 +298,98 @@ export const jobTargetSchema = z.object({
 });
 export type JobTarget = z.infer<typeof jobTargetSchema>;
 
-/** Opening plans refer to draft positions, not database IDs that do not exist yet. */
-export const openingPlanSchema = z.object({
-  dayIndex: z.number().int().min(1).max(31),
-  gymId: z.uuid(),
+/**
+ * An endurance session in an opening plan, before any of it exists in the database.
+ *
+ * A draft's occurrences have local ids — `run-1-3-0` — and only become real UUIDs in the
+ * activation transaction. A plan written for one therefore points at the local id, and the
+ * activation resolves it; nothing here may name a UUID, because there is nothing to name yet
+ * (plan §8.2 item 2).
+ */
+export const openingOccurrencePlanSchema = z.object({
+  localOccurrenceId: z.string().min(1).max(64),
+  sport: z.enum(ENDURANCE_SPORTS),
   summary: z.string().trim().min(1).max(PLAN_LIMITS.summary),
-  sportSummaries: sportSummariesSchema.optional(),
-  warmup: z
-    .array(z.string().trim().min(1).max(PLAN_LIMITS.warmupLine))
-    .max(PLAN_LIMITS.warmupLines)
-    .default([]),
-  exercises: z
-    .array(
-      planExerciseSchema.omit({ slotId: true }).extend({
-        orderIndex: z.number().int().min(1).max(30).nullable().default(null),
-      }),
-    )
-    .max(PLAN_LIMITS.exercises)
-    .default([]),
-  run: planRunSchema.omit({ programRunId: true }).nullable().default(null),
+  prescription: endurancePrescriptionSchema.nullable().default(null),
+  note: z.string().trim().max(PLAN_LIMITS.note).default(""),
 });
+export type OpeningOccurrencePlan = z.infer<typeof openingOccurrencePlanSchema>;
+
+/** Opening plans refer to draft positions, not database IDs that do not exist yet. */
+export const openingPlanSchema = z
+  .object({
+    /** The strength day this opens on. Null for a programme with no lifting in it at all. */
+    dayIndex: z.number().int().min(1).max(31).nullable().default(null),
+    /** A strength opening plan needs a gym; an endurance-only one does not (SCOPE-02). */
+    gymId: z.uuid().nullable().default(null),
+    summary: z.string().trim().min(1).max(PLAN_LIMITS.summary),
+    sportSummaries: sportSummariesSchema.optional(),
+    warmup: z
+      .array(z.string().trim().min(1).max(PLAN_LIMITS.warmupLine))
+      .max(PLAN_LIMITS.warmupLines)
+      .default([]),
+    exercises: z
+      .array(
+        planExerciseSchema.omit({ slotId: true }).extend({
+          orderIndex: z.number().int().min(1).max(30).nullable().default(null),
+        }),
+      )
+      .max(PLAN_LIMITS.exercises)
+      .default([]),
+    run: planRunSchema.omit({ programRunId: true }).nullable().default(null),
+    /**
+     * The endurance work in the opening week, one entry per draft occurrence. A programme with
+     * no lifting at all has only these, which is the point: a swimmer's first week is a real
+     * opening plan and not an empty one (SCOPE-02).
+     */
+    occurrences: z
+      .array(openingOccurrencePlanSchema)
+      .max(PLAN_LIMITS.enduranceOccurrences)
+      .default([])
+      .refine(
+        (entries) =>
+          new Set(entries.map((entry) => entry.localOccurrenceId)).size === entries.length,
+        "Plan each occurrence once.",
+      ),
+  })
+  .superRefine((plan, ctx) => {
+    // Lifting still needs somewhere with machines in it, and a day of the cycle to be on.
+    // Nothing about that changed; what changed is that a plan without lifting no longer has
+    // to invent them (SCOPE-02).
+    if (plan.exercises.length > 0 || plan.run !== null) {
+      if (plan.dayIndex === null)
+        ctx.addIssue({
+          code: "custom",
+          message: "Say which day of the cycle this opening session is.",
+          path: ["dayIndex"],
+        });
+      if (plan.exercises.length > 0 && plan.gymId === null)
+        ctx.addIssue({
+          code: "custom",
+          message: "An opening session with exercises needs the gym its machines are at.",
+          path: ["gymId"],
+        });
+    }
+  });
 export type OpeningPlan = z.infer<typeof openingPlanSchema>;
+
+/**
+ * What a programme review says about one sport (plan §8.2 item 7).
+ *
+ * Every included sport gets one of these, whether or not anything changed and whether or not
+ * there was much to read. Sparse evidence produces a hold with a reason; it never produces
+ * silence, because a sport missing from the list is indistinguishable from a sport the review
+ * forgot about (COACH-02).
+ */
+export const sportCoverageSchema = z.object({
+  sport: z.enum(ACTIVITY_SPORTS),
+  decision: z.enum(["changed", "unchanged", "hold", "question"]),
+  reason: z.string().trim().max(1000).default(""),
+  sourceIds: z.array(z.string().trim().min(1).max(200)).max(50).default([]),
+  /** Whether the actuals read could honestly be compared with one another (§9.1). */
+  comparable: z.boolean().default(false),
+});
+export type SportCoverageEntry = z.infer<typeof sportCoverageSchema>;
 
 const explanation = {
   rationale: z.string().trim().min(1).max(3000),
@@ -253,6 +406,8 @@ const explanation = {
    * separate from `memory` and the server refuses a result that leaves an ask unanswered.
    */
   requests: requestPatchSchema.optional(),
+  /** One entry per included sport, on a programme review. Checked, not taken on trust. */
+  coverage: z.array(sportCoverageSchema).max(ACTIVITY_SPORTS.length).default([]),
 };
 export const coachJobResultSchema = z.discriminatedUnion("outcome", [
   z.object({

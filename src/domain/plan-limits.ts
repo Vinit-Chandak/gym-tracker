@@ -8,4 +8,6 @@ export const PLAN_LIMITS = {
   sets: 12,
   memo: 2500,
   restSeconds: 1200,
+  /** Endurance occurrences one preparation may cover: a busy day, not a whole block. */
+  enduranceOccurrences: 8,
 } as const;

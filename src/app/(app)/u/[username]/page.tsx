@@ -42,6 +42,10 @@ export const metadata: Metadata = { title: "Person" };
 const TILES: Record<TrainingSport, readonly ActivityMetric[]> = {
   workout: ["workouts", "working_sets", "volume"],
   run: ["runs", "distance", "time", "best_pace"],
+  // Participation, and nothing that claims a performance: a shared ride does not say how
+  // fast it was, because indoors, outdoors and assisted are not one another (SOCIAL-01).
+  cycle: ["sessions", "active_days", "time", "distance"],
+  swim: ["sessions", "active_days", "time", "distance"],
 };
 
 /**

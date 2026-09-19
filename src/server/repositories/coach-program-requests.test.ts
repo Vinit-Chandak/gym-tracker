@@ -140,6 +140,7 @@ async function training() {
         ],
       },
       rationale: "Matches the confirmed goal.",
+      coverage: [{ sport: "strength", decision: "unchanged", reason: "" }],
       evidence: [],
       uncertainties: [],
     }),
@@ -233,6 +234,7 @@ it("gives two asks in one note two separate outcomes", async () => {
       blueprint: revised,
       openingPlan: null,
       rationale: "Direct core work goes in; the curl variation needs one answer first.",
+      coverage: [{ sport: "strength", decision: "unchanged", reason: "" }],
       evidence: [],
       uncertainties: [],
       requests: {
@@ -310,6 +312,7 @@ it("refuses a review that leaves a supplied ask without a decision", async () =>
       acceptCoachJobResult(tx, a.user.id, first.job.id, first.attemptId, {
         outcome: "no_change",
         rationale: "Nothing to change this week.",
+        coverage: [{ sport: "strength", decision: "unchanged", reason: "" }],
         evidence: [],
         uncertainties: [],
         requests: {
@@ -341,6 +344,7 @@ it("refuses a proposal claiming a change the blueprint does not contain", async 
         blueprint: revised,
         openingPlan: null,
         rationale: "Adding the curls.",
+        coverage: [{ sport: "strength", decision: "unchanged", reason: "" }],
         evidence: [],
         uncertainties: [],
         requests: {
@@ -373,6 +377,7 @@ it("refuses a quote the athlete did not write, and a decision on somebody else's
   const invented = {
     outcome: "no_change" as const,
     rationale: "Nothing to change.",
+    coverage: [{ sport: "strength", decision: "unchanged", reason: "" }],
     evidence: [],
     uncertainties: [],
     requests: {
@@ -498,6 +503,7 @@ it("lets a session job find an ask but never decide one", async () => {
     acceptCoachJobResult(tx, a.user.id, prep!.job.id, claim!.attemptId!, {
       outcome: "no_change",
       rationale: "The prepared opening session still fits.",
+      coverage: [{ sport: "strength", decision: "unchanged", reason: "" }],
       evidence: [],
       uncertainties: [],
       requests: { open, decisions: [] },
@@ -579,6 +585,7 @@ it("shows a change every ask its own review answered, not only the ones it propo
       blueprint: revised,
       openingPlan: null,
       rationale: "The curls go in; the core work needs one answer.",
+      coverage: [{ sport: "strength", decision: "unchanged", reason: "" }],
       evidence: [],
       uncertainties: [],
       requests: {
@@ -661,6 +668,7 @@ it("reviews for a waiting request without consuming the scheduled review", async
     acceptCoachJobResult(tx, a.user.id, review!.id, claim!.attemptId!, {
       outcome: "no_change",
       rationale: "Your programme already covers this on the training day.",
+      coverage: [{ sport: "strength", decision: "unchanged", reason: "" }],
       evidence: [],
       uncertainties: [],
       requests: {
@@ -723,6 +731,7 @@ it("gives the athlete one review of their own a week, and answers their asks wit
     acceptCoachJobResult(tx, a.user.id, asked.job.id, claim!.attemptId!, {
       outcome: "no_change",
       rationale: "The training day already carries it.",
+      coverage: [{ sport: "strength", decision: "unchanged", reason: "" }],
       evidence: [],
       uncertainties: [],
       requests: {
@@ -793,6 +802,7 @@ it("keeps an ask saved after the input snapshot for the next daily run", async (
     acceptCoachJobResult(tx, a.user.id, job.id, attemptId, {
       outcome: "no_change",
       rationale: "Holding the programme for another week.",
+      coverage: [{ sport: "strength", decision: "unchanged", reason: "" }],
       evidence: [],
       uncertainties: [],
       requests: {
@@ -873,6 +883,7 @@ it("leaves no draft to apply when a review changes nothing", async () => {
       blueprint: structuredClone(current!.blueprint),
       openingPlan: null,
       rationale: "Everything is progressing; nothing needs to change.",
+      coverage: [{ sport: "strength", decision: "unchanged", reason: "" }],
       evidence: [],
       uncertainties: [],
     }),
@@ -954,6 +965,7 @@ it("keeps one athlete's asks out of another's job", async () => {
       acceptCoachJobResult(tx, mine.user.id, job.id, attemptId, {
         outcome: "no_change",
         rationale: "Nothing to change.",
+        coverage: [{ sport: "strength", decision: "unchanged", reason: "" }],
         evidence: [],
         uncertainties: [],
         requests: {
