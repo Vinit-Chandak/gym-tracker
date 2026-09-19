@@ -1,19 +1,23 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { afterAll, beforeAll, expect, it } from "vitest";
 
 import {
   coachAttemptDiagnostics,
   coachJobs,
+  coachNoteReviews,
   coachNotes,
   coachPreferences,
   coachProgramRequests,
   coachRequestDecisions,
   coachWeeklyReviews,
+  exercises,
   gyms,
   profiles,
   programDrafts,
+  workoutExercises,
+  workoutSessions,
 } from "@/db/schema";
 import { seedReferenceData } from "@/db/seed/reference";
 import { STRENGTH_AESTHETICS_HYBRID_8WK } from "@/db/seed/data/program";
@@ -819,4 +823,76 @@ it("carries a queued note forward once, however often the backfill is run", asyn
     state: "waiting",
     quote: "Please add some direct calf work.",
   });
+});
+
+/**
+ * The same backfill, over the notes written while training.
+ *
+ * These live on rows the athlete's log owns, so the receipt beside them names its source as
+ * `workout:<uuid>` or `exercise:<uuid>` and the backfill has to read the id back out. The
+ * first version guarded each cast with a prefix test in the same ON clause and assumed the
+ * two ran in order; Postgres promises no such thing, and a workout row reached the exercise
+ * join's cast, which handed it a uuid with its first character missing. It got as far as a
+ * production deploy because nothing here had ever created one of these rows.
+ */
+it("carries a training note forward from either kind of source", async () => {
+  const a = await training();
+  const session = await as(a, (tx) =>
+    tx
+      .insert(workoutSessions)
+      .values({
+        userId: a.user.id,
+        gymId: a.gym.id,
+        startedAt: new Date(),
+        completedAt: new Date(),
+        notes: "Knee felt fine today; can we add a second hinge?",
+      })
+      .returning({ id: workoutSessions.id }),
+  );
+  const [exercise] = await as(a, (tx) => tx.select({ id: exercises.id }).from(exercises).limit(1));
+  const slot = await as(a, (tx) =>
+    tx
+      .insert(workoutExercises)
+      .values({
+        userId: a.user.id,
+        workoutSessionId: session[0]!.id,
+        exerciseId: exercise!.id,
+        orderIndex: 1,
+        notes: "This machine does not fit me. Something else for calves?",
+      })
+      .returning({ id: workoutExercises.id }),
+  );
+  const sources = [`workout:${session[0]!.id}`, `exercise:${slot[0]!.id}`];
+  await as(a, (tx) =>
+    tx.insert(coachNoteReviews).values(
+      sources.map((sourceId) => ({
+        userId: a.user.id,
+        sourceId,
+        disposition: "queued_for_review" as const,
+        detail: "Waiting for your programme review.",
+        reviewedAt: new Date(),
+      })),
+    ),
+  );
+  const backfill = readFileSync(
+    join(process.cwd(), "src/db/migrations/0024_coach_program_requests.sql"),
+    "utf8",
+  )
+    .split("--> statement-breakpoint")
+    .map((statement) => statement.trim())
+    .filter((statement) => statement.includes('INSERT INTO "coach_program_requests"'));
+  for (const pass of [1, 2])
+    for (const statement of backfill) {
+      void pass;
+      await t.db.execute(sql.raw(statement));
+    }
+  const carried = await as(a, (tx) =>
+    tx.select().from(coachProgramRequests).where(inArray(coachProgramRequests.sourceId, sources)),
+  );
+  expect(carried).toHaveLength(2);
+  expect(carried.map((request) => request.quote).sort((x, y) => x.localeCompare(y))).toEqual([
+    "Knee felt fine today; can we add a second hinge?",
+    "This machine does not fit me. Something else for calves?",
+  ]);
+  expect(carried.every((request) => request.state === "waiting")).toBe(true);
 });
