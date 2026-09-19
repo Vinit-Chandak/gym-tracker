@@ -233,7 +233,7 @@ describe("storing a plan", () => {
 
     const second = await store(planFor(ctx, "Second plan"));
     const active = await withUser(t.db, alice.id, (tx) =>
-      activePlanForSlot(tx, alice.id, first.programId, { cycleIndex: 1, dayIndex: 1 }),
+      activePlanForSlot(tx, alice.id, first.programId!, { cycleIndex: 1, dayIndex: 1 }),
     );
     expect(active?.id).toBe(second.id);
     const [old] = await withUser(t.db, alice.id, (tx) =>

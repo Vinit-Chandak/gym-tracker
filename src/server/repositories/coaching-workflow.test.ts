@@ -580,6 +580,9 @@ it("routes an unsupported weekly increase to review, preserves position and queu
     rationale: "One additional set based on completed evidence.",
     evidence: [],
     uncertainties: [],
+    coverage: [
+      { sport: "strength", decision: "changed", reason: "One set added on completed evidence." },
+    ],
   };
   expect(
     await as(a, (tx) => acceptCoachJobResult(tx, a.user.id, job.id, claim!.attemptId!, output)),
@@ -646,6 +649,9 @@ it("requires review for structural changes and leaves the active programme intac
       blueprint: revised,
       openingPlan: null,
       rationale: "Proposed schedule change for your review.",
+      coverage: [
+        { sport: "strength", decision: "changed", reason: "Proposed a new split for review." },
+      ],
     }),
   );
   expect((await as(a, (tx) => getSchedule(tx, a.user.id)))?.program.id).toBe(active.programId);
@@ -1320,6 +1326,9 @@ it("pauses generation independently and routes automatic revisions to review dur
         rationale: "Add one set to future training.",
         evidence: [],
         uncertainties: [],
+        coverage: [
+          { sport: "strength", decision: "changed", reason: "One set added to future training." },
+        ],
       }),
     );
     expect(accepted.accepted).toBe(true);

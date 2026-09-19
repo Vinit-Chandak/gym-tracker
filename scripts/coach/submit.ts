@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { coachPlanSchema } from "../../src/domain/session-plan";
 import { PLAN_TRIGGERS } from "../../src/domain/types";
-import { api, args, fail, ServiceError } from "./client";
+import { api, args, assertLegacyWritesAllowed, fail, ServiceError } from "./client";
 
 /**
  * Checks a plan file the way the server will, then stores it.
@@ -57,10 +57,12 @@ const body = {
   routineSessionUrl: process.env.CLAUDE_CODE_SESSION_URL ?? null,
 };
 
-api<{ plan: { id: string; slot: { cycleIndex: number; dayIndex: number }; exercises: number } }>(
-  `users/${user}/plans`,
-  { method: "POST", body },
-)
+assertLegacyWritesAllowed()
+  .then(() =>
+    api<{
+      plan: { id: string; slot: { cycleIndex: number; dayIndex: number }; exercises: number };
+    }>(`users/${user}/plans`, { method: "POST", body }),
+  )
   .then((result) => {
     console.log(
       `Stored plan ${result.plan.id} for slot ${result.plan.slot.cycleIndex}:${result.plan.slot.dayIndex} with ${result.plan.exercises} exercises.`,

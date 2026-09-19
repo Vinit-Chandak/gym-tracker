@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { z } from "zod";
 
 import { programPatchSchema } from "../../src/domain/program-patch";
-import { api, args, fail, ServiceError } from "./client";
+import { ServiceError, api, args, assertLegacyWritesAllowed, fail } from "./client";
 
 /**
  * Proposes a change to the programme itself, for the athlete to approve.
@@ -38,10 +38,13 @@ if (!parsed.success) {
   process.exit(1);
 }
 
-api<{ proposal: { id: string } }>(`users/${user}/proposals`, {
-  method: "POST",
-  body: parsed.data,
-})
+assertLegacyWritesAllowed()
+  .then(() =>
+    api<{ proposal: { id: string } }>(`users/${user}/proposals`, {
+      method: "POST",
+      body: parsed.data,
+    }),
+  )
   .then((result) => console.log(`Proposed change ${result.proposal.id}, waiting on the athlete.`))
   .catch((error: unknown) => {
     if (error instanceof ServiceError && error.status === 422) {

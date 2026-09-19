@@ -9,6 +9,7 @@ import {
   exercises,
   programDays,
   programDrafts,
+  profiles,
   programExercises,
   programRuns,
   programSlotEvents,
@@ -25,8 +26,11 @@ import {
 import { assessProgramChange } from "@/domain/program-change";
 import { openingPlanSchema, type OpeningPlan } from "@/domain/coaching-workflow";
 import { reviewWeekdayFor } from "@/domain/coach-cadence";
+import { todayInTimeZone } from "@/domain/program-calendar";
+import { multisportRollout } from "@/lib/multisport-rollout";
 import { sharedWarmupProtocols } from "@/server/queries/reference";
 import { libraryAtGym, nextTrainingSlot, storePlan } from "./coach-plans";
+import { materialiseOccurrences, occurrencesFromBlueprint } from "./program-occurrences";
 import { markRequestsApplied } from "./coach-program-requests";
 import { assertNoOpenWorkout, CoachingError, sourceRevision } from "./coaching-state";
 import { createProgramFromBlueprint, readProgramBlueprint } from "./programs";
@@ -188,22 +192,44 @@ export async function validateOpeningPlan(
   const first = [...blueprint.days]
     .sort((a, b) => a.dayIndex - b.dayIndex)
     .find((d) => d.includesLifting || d.includesRun);
-  if (!first || first.dayIndex !== opening.dayIndex)
+  // A programme with no lifting and no running day has nothing here to check against. Its
+  // opening work is endurance occurrences, which the draft's own blueprint already validated
+  // and the activation resolves to real ids (plan §8.2 item 2).
+  if (!first) {
+    if (opening.exercises.length > 0 || opening.run !== null)
+      throw new CoachingError(
+        "This programme has no training day for an opening lifting or running session.",
+        422,
+      );
+    if (opening.occurrences.length === 0)
+      throw new CoachingError("The opening plan needs at least one session in it.", 422);
+    return;
+  }
+  if (first.dayIndex !== opening.dayIndex)
     throw new CoachingError("The opening session must be for the first training day.", 422);
   if (first.includesRun !== (opening.run !== null))
     throw new CoachingError(
       "The opening session must include exactly the running component planned for its day.",
       422,
     );
+  if (opening.gymId === null) {
+    if (opening.exercises.length > 0)
+      throw new CoachingError(
+        "An opening session with exercises needs the gym its machines are at.",
+        422,
+      );
+    return;
+  }
+  const openingGymId = opening.gymId;
   const [library, machines, options] = await Promise.all([
-    libraryAtGym(db, userId, opening.gymId),
+    libraryAtGym(db, userId, openingGymId),
     db
       .select()
       .from(equipmentInstances)
       .where(
         and(
           eq(equipmentInstances.userId, userId),
-          eq(equipmentInstances.gymId, opening.gymId),
+          eq(equipmentInstances.gymId, openingGymId),
           eq(equipmentInstances.isActive, true),
         ),
       ),
@@ -478,6 +504,29 @@ export async function activateProgramDraft(
       );
   if (draft.openingPlan && input.transition === "new_block")
     await storeOpeningPlan(db, userId, created.id, draft.openingPlan);
+  // The endurance half of the approved programme becomes real occurrences, each with its own
+  // identity and its own immutable prescription (plan §8.2 item 2). Off until the canonical
+  // writer is the authority: before that, programRuns is still what the app reads.
+  if (multisportRollout().canonicalWrites) {
+    const [athlete] = await db
+      .select({ timeZone: profiles.timeZone })
+      .from(profiles)
+      .where(eq(profiles.id, userId))
+      .limit(1);
+    const zone = athlete?.timeZone ?? "UTC";
+    await materialiseOccurrences(db, userId, {
+      programId: created.id,
+      familyId: created.familyId,
+      blueprint: occurrencesFromBlueprint(blueprint, {
+        familyId: created.familyId,
+        startDate,
+        schedulingTimeZone: zone,
+      }),
+      schedulingZone: zone,
+      today: todayInTimeZone(zone, new Date()),
+      transition: input.transition,
+    });
+  }
   if (priorBlueprint && !input.automatic) {
     // Athlete-approved revisions also start a new evidence cycle for affected targets.
     const changes: CoachingChangeRecord[] = [];
@@ -560,6 +609,10 @@ async function moveReviewToARestDay(db: DbOrTx, userId: string, blueprint: Progr
 
 async function storeOpeningPlan(db: DbOrTx, userId: string, programId: string, raw: OpeningPlan) {
   const opening = openingPlanSchema.parse(raw);
+  // Endurance-only opening plans carry no strength slot to store against; their occurrences
+  // are prepared by the daily job once the programme's occurrences exist.
+  if (opening.dayIndex === null || opening.gymId === null) return;
+  const openingGymId = opening.gymId;
   const schedule = await getSchedule(db, userId);
   const next = schedule ? nextTrainingSlot(schedule) : null;
   if (!next || next.dayIndex !== opening.dayIndex)
@@ -595,7 +648,7 @@ async function storeOpeningPlan(db: DbOrTx, userId: string, programId: string, r
   });
   await storePlan(db, userId, {
     slot: next,
-    gymId: opening.gymId,
+    gymId: openingGymId,
     trigger: "nightly",
     strict: true,
     plan: {

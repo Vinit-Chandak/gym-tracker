@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { ActivityPlan } from "@/components/activities/activity-plan";
 import { OccurrenceActions } from "@/components/activities/occurrence-actions";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
@@ -17,6 +18,7 @@ import { todayInTimeZone } from "@/domain/program-calendar";
 import { multisportRollout } from "@/lib/multisport-rollout";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
+import { activePlanForOccurrence } from "@/server/repositories/coach-plans";
 import { getOccurrence } from "@/server/repositories/occurrences";
 import { requireUuid } from "@/server/validation/params";
 
@@ -34,16 +36,25 @@ export default async function OccurrencePage(
   if (!multisportRollout().sharedNavigation) notFound();
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
-  const occurrence = await withUser(
+  const { occurrence, plan } = await withUser(
     getDb(),
     user.id,
-    (tx) => getOccurrence(tx, user.id, occurrenceId),
+    async (tx) => ({
+      occurrence: await getOccurrence(tx, user.id, occurrenceId),
+      plan: await activePlanForOccurrence(tx, user.id, occurrenceId),
+    }),
     { readOnly: true },
   );
   if (!occurrence) notFound();
   const today = todayInTimeZone(profile.timeZone);
   const late = isOverdue(occurrence, occurrence.resolution, today);
   const totals = occurrence.prescription ? prescriptionTotals(occurrence.prescription) : null;
+  // The preparation is only this session's if it was written against the revision in force;
+  // a plan pinned to an older one describes a target the programme has since changed (§8.4).
+  const prepared =
+    plan && plan.occurrenceRevisionId === occurrence.revisionId
+      ? (plan.endurance[0] ?? null)
+      : null;
 
   return (
     <>
@@ -80,6 +91,15 @@ export default async function OccurrencePage(
               </p>
             )}
         </Card>
+
+        {occurrence.resolution.kind !== "logged" && (
+          <ActivityPlan
+            sport={occurrence.sport}
+            prescription={prepared?.prescription ?? occurrence.prescription}
+            preparation={prepared ? { summary: prepared.summary, note: prepared.note } : null}
+            preparedByCoach={prepared !== null}
+          />
+        )}
 
         {occurrence.resolution.kind === "logged" ? (
           <Card>

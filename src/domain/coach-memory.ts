@@ -6,13 +6,33 @@ export const MEMORY_LIMITS = {
   characters: 40_000,
   itemCharacters: 2000,
 } as const;
+/**
+ * Memory envelope version 2 (plan §8.1).
+ *
+ * `activity` is the canonical source prefix; `run` and `workout` are the ones history already
+ * wrote and keep working, resolved through the migration map rather than rewritten. A memo
+ * item saved a year ago is not re-dated, re-sourced or re-confirmed by the conversion —
+ * converting evidence does not make it fresh (COACH-09).
+ */
+export const MEMORY_VERSION = 2;
+
+const EVIDENCE_PREFIXES = [
+  "activity",
+  "workout",
+  "exercise",
+  "run",
+  "recovery",
+  "attachment",
+  "intake",
+  "job",
+  "note",
+] as const;
+
 export const evidenceIdSchema = z.string().refine((value) => {
   const [prefix, id, extra] = value.split(":");
   return (
     extra === undefined &&
-    ["workout", "exercise", "run", "recovery", "attachment", "intake", "job", "note"].includes(
-      prefix ?? "",
-    ) &&
+    (EVIDENCE_PREFIXES as readonly string[]).includes(prefix ?? "") &&
     z.uuid().safeParse(id).success
   );
 }, "Use a source type followed by its UUID.");
@@ -27,7 +47,14 @@ export const memoryItemSchema = z.object({
   category: z.enum(["preference", "trend", "observation", "experiment", "decision"]),
   text: z.string().trim().min(1).max(MEMORY_LIMITS.itemCharacters),
   status: z.enum(["confirmed", "reported", "observation", "hypothesis"]),
-  sport: z.enum(["general", "workout", "run"]).optional(),
+  /**
+   * Which sport the item is about. `workout` and `run` are the names v1 wrote and keep, so an
+   * item saved before cycling existed still reads correctly; the canonical four are the names
+   * new items use (COACH-09).
+   */
+  sport: z
+    .enum(["general", "workout", "run", "strength", "running", "cycling", "swimming"])
+    .optional(),
   sourceIds: z.array(evidenceIdSchema).max(10).default([]),
   /** Direct athlete words, distinguished from the coach's interpretation. */
   sourceQuote: sourceQuoteSchema.optional(),
@@ -45,7 +72,7 @@ export type MemoryItem = MemoryItemInput & { origin: "athlete" | "coach"; update
  * same. Confirmed intake answers are athlete text too, but they are a brief rather than a
  * message, so they may be quoted and never used to overturn a later statement.
  */
-const ATHLETE_TEXT_PREFIXES = ["note", "workout", "exercise"] as const;
+const ATHLETE_TEXT_PREFIXES = ["note", "workout", "exercise", "activity"] as const;
 export const isAthleteTextSource = (sourceId: string) =>
   ATHLETE_TEXT_PREFIXES.some((prefix) => sourceId.startsWith(`${prefix}:`));
 

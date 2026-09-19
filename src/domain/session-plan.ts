@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { ENDURANCE_SPORTS } from "./activity";
+import { endurancePrescriptionSchema } from "./activity-prescription";
 import { PLAN_LIMITS } from "./plan-limits";
 import type { TargetSet } from "./progression";
 import { SET_LIMITS } from "./sets";
@@ -55,6 +57,34 @@ export const planRunSchema = z.object({
   programRunId: z.uuid().nullable().default(null),
 });
 
+/**
+ * A prepared endurance session, version 2 (plan §8.1).
+ *
+ * Version 1 could hold one run, identified by the programme run it fulfilled. That cannot
+ * carry a Wednesday with two rides on it, and it cannot carry a swim at all. So a preparation
+ * now names exactly one occurrence and the exact prescription revision it was written
+ * against: two same-day swims are two preparations, and a revision arriving afterwards cannot
+ * silently become the target of a plan written before it (SCHED-02, COACH-08).
+ *
+ * The prescription here is what the coach asks for on the day. It is a target, never an
+ * actual: nothing in it prefills a measurement, and the athlete's own numbers are entered
+ * against it rather than derived from it (ACTUAL-01).
+ */
+export const SESSION_PLAN_VERSION = 2;
+
+export const plannedOccurrenceSchema = z.object({
+  occurrenceId: z.uuid(),
+  /** The revision on screen when this was written. A newer one supersedes the preparation. */
+  occurrenceRevisionId: z.uuid(),
+  sport: z.enum(ENDURANCE_SPORTS),
+  /** One or two sentences for the card; the prescription carries the numbers. */
+  summary: z.string().trim().min(1).max(PLAN_LIMITS.summary),
+  /** What to do today, in full. Null keeps the programme's own approved prescription. */
+  prescription: endurancePrescriptionSchema.nullable().default(null),
+  note: z.string().trim().max(PLAN_LIMITS.note).default(""),
+});
+export type PlannedOccurrence = z.output<typeof plannedOccurrenceSchema>;
+
 export const planExerciseSchema = z.object({
   /** The programme slot this entry is for; null adds an exercise the day did not plan. */
   slotId: z.uuid().nullable().default(null),
@@ -74,10 +104,18 @@ export const planExerciseSchema = z.object({
   perSide: z.boolean().nullable().default(null),
 });
 
-/** Text has an explicit destination; older combined summaries stay in programme context. */
+/**
+ * Text has an explicit destination; older combined summaries stay in programme context.
+ *
+ * `workout` and `run` are the names the stored rows and the v1 API have always used, and they
+ * keep them. Cycling and swimming are new keys rather than a renaming, so a summary written a
+ * year ago still lands on the screen it was written for (COACH-09).
+ */
 export const sportSummariesSchema = z.object({
   workout: z.string().trim().min(1).max(PLAN_LIMITS.summary).optional(),
   run: z.string().trim().min(1).max(PLAN_LIMITS.summary).optional(),
+  cycling: z.string().trim().min(1).max(PLAN_LIMITS.summary).optional(),
+  swimming: z.string().trim().min(1).max(PLAN_LIMITS.summary).optional(),
 });
 
 export const coachPlanSchema = z
@@ -91,15 +129,25 @@ export const coachPlanSchema = z
       .max(PLAN_LIMITS.warmupLines)
       .default([]),
     exercises: z.array(planExerciseSchema).max(PLAN_LIMITS.exercises).default([]),
-    /** The run, on a day that runs. */
+    /** The run, on a day that runs. Retained for the strength-day contract it came from. */
     run: planRunSchema.nullable().default(null),
+    /**
+     * The endurance occurrences this preparation covers. One entry per occurrence; a day with
+     * two rides is two entries, each naming its own identity, and neither may appear twice.
+     */
+    endurance: z.array(plannedOccurrenceSchema).max(PLAN_LIMITS.enduranceOccurrences).default([]),
     /** The athlete's memo, rewritten after planning; omitted leaves the memo unchanged. */
     memo: z.string().trim().max(PLAN_LIMITS.memo).optional(),
   })
-  .refine((plan) => plan.exercises.length > 0 || plan.run !== null, {
-    message: "A plan needs at least one exercise, or a run.",
+  .refine((plan) => plan.exercises.length > 0 || plan.run !== null || plan.endurance.length > 0, {
+    message: "A plan needs at least one exercise, a run, or an endurance session.",
     path: ["exercises"],
-  });
+  })
+  .refine(
+    (plan) =>
+      new Set(plan.endurance.map((entry) => entry.occurrenceId)).size === plan.endurance.length,
+    { message: "Each occurrence is prepared once.", path: ["endurance"] },
+  );
 
 export type PlanSet = z.output<typeof planSetSchema>;
 export type PlanExercise = z.output<typeof planExerciseSchema>;
@@ -120,6 +168,9 @@ export type StoredPlanExercise = PlanExercise & {
 
 /** A plan run as stored. The programme run is kept only when it is really in the programme. */
 export type StoredPlanRun = PlanRun;
+
+/** A prepared endurance session as stored, with the sport it was written for. */
+export type StoredPlannedOccurrence = PlannedOccurrence;
 
 /** "25 min · 4 km · RPE 3": the run in one line. */
 export function runPlanLine(run: PlanRun): string {
