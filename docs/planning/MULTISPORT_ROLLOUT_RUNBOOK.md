@@ -45,6 +45,19 @@ recorded here rather than left to be discovered:
   text (`program_runs.stop_rule`), which is what the running prescription contract carries.
   No symptom column is re-created, and nothing is migrated from a table that is already gone.
 
+### What each phase left behind
+
+| Phase | Result | Suite after it |
+| --- | --- | --- |
+| P0 | Audit, fixtures and this runbook. No schema change. | 128 files, 827 tests |
+| P1 | Typed sport, effort, measurements, prescriptions, occurrences, legacy decoders. | 128 files, 893 tests |
+| P2 | Migration 0026, the canonical tables, the backfill and reconciliation. | 130 files, 924 tests |
+| P3 | One save/edit/delete boundary; running parity; strength parents. | 134 files, 965 tests |
+| P4 | Shared navigation, `/training` routes, per-sport forms, templates, scheduling. | 138 files, 1,002 tests |
+
+Every run was `npm test` against PGlite with the real migrations applied, plus `npm run lint`,
+`npm run format:check` and `npm run typecheck`. No network database was contacted.
+
 ## 2. Factual gates (OP-01 – OP-06)
 
 All six remain **unresolved**. They need a deployed environment, which this work has no access
@@ -99,14 +112,32 @@ endurance occurrence per planned run, and the split of logged versus legacy-comp
 resolutions. Strength keeps its own sequence projection and gets no occurrence rows (plan
 §2.3); the backfill creates none for it.
 
-## 4. Ordered rollout (plan §10.4)
+## 4. The capability gate
+
+`src/lib/multisport-rollout.ts`. Everything new is off unless an environment says otherwise,
+and the gate refuses combinations the rollout order forbids.
+
+| Variable | What it turns on |
+| --- | --- |
+| `MULTISPORT_CANONICAL_WRITES` | Canonical activities become the authority for new writes: the save boundary, the strength parent, the activity routes |
+| `MULTISPORT_SHARED_NAV` | The Training tab, the `/training` routes, the sports step in setup, and the redirects from `/runs` and `/profile/programme` |
+| `MULTISPORT_NEW_SPORTS` | Cycling and swimming. **Refused unless canonical writes are on**, whatever the environment says — there would be nowhere to record them |
+| `MULTISPORT_ROLLOUT` | All three at once |
+
+Accepted values are `true`, `on` and `1`. Anything else is off, including `yes`.
+
+With every switch off the app behaves exactly as it did: Runs is the second tab, `/runs` is
+the running product, and the canonical tables sit there holding the backfill's projection
+without being read for anything an athlete sees.
+
+## 5. Ordered rollout (plan §10.4)
 
 Not authorised here. Recorded so the order is fixed before anybody is under time pressure.
 
 1. Resolve OP-01–06; take a private backup; rehearse a restore; record deployed app, worker
    and schema versions and every legitimate v1 client.
-2. Deploy M1 (additive) and the bridge app. Legacy tables stay authoritative. No new sport is
-   exposed. `MULTISPORT_ROLLOUT` stays off.
+2. Deploy M1 (additive) and the bridge app with every switch in §4 off. Legacy tables stay
+   authoritative and no new sport is exposed.
 3. Run the audit, then the backfill, against a restored copy. Iterate until the reconciliation
    report passes. Only then run it against production.
 4. Exercise all four sports in isolated staging, including an open strength session, an old
@@ -115,13 +146,14 @@ Not authorised here. Recorded so the order is fixed before anybody is under time
    active strength sessions finish; never force-finish or discard one.
 6. Reject old mutation versions, run the final delta backfill and reconciliation, apply M2.
    Abort before the switch if any required equality fails.
-7. Switch canonical writers/readers, deploy the compatible app and worker, resume writes.
-   Record the first canonical write marker.
+7. Turn on `MULTISPORT_CANONICAL_WRITES` and `MULTISPORT_SHARED_NAV`, deploy the compatible
+   app and worker, resume writes, then enable `MULTISPORT_NEW_SPORTS` once the coaching side
+   is ready for them. Record the first canonical write marker.
 8. Monitor ownership errors, receipts and conflicts, orphan counts, coach coverage, version
    errors and aggregate drift. Reconcile again after the first cohort.
 9. Complete the compatibility windows, then M3.
 
-## 5. Compatibility windows
+## 6. Compatibility windows
 
 - UI aliases (`/runs`, `/profile/programme`, `/profile/routines`): **at least 90 days** after
   cutover. Review at day 90; removal needs 30 consecutive days with no legitimate legacy usage
@@ -130,7 +162,7 @@ Not authorised here. Recorded so the order is fixed before anybody is under time
   documented 410, never a redirect to HTML or to v2.
 - Each window starts at cutover, not at implementation. Record the dates here when they start.
 
-## 6. Rollback
+## 7. Rollback
 
 Before the first canonical write: stop, return to the bridge, keep the additive tables for
 investigation. Legacy is still authoritative, so nothing has to be squeezed into an old shape.
