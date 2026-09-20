@@ -89,15 +89,32 @@ describe("noise-aware exercise evidence", () => {
     expect(
       summarizeExerciseEvidence(p, history([5, 5, 5, 10, 10, 10], null)).declineCandidate,
     ).toBe(false);
+  });
+
+  it("compares an effort nobody labelled, and keeps saying nobody labelled it", () => {
+    // `effortReported` is false by default on every row written before the app recorded the
+    // answer, so it marks unknown provenance rather than a number copied from the target.
+    // Excluding it meant an exercise stayed on insufficient evidence for as long as its
+    // history was old, however plainly the loads and reps had earned the next step.
     const legacy = history([12, 12]);
     legacy.forEach((item) => {
       item.sets = item.sets.map((set) => ({ ...set, effortReported: false }));
     });
     expect(summarizeExerciseEvidence(p, legacy)).toMatchObject({
-      progressionReady: false,
-      effortCoverage: { known: 0, total: 2 },
+      progressionReady: true,
+      effortCoverage: { known: 2, confirmed: 0, total: 2 },
     });
     expect(legacy[0]!.sets[0]!.rir).toBe(2);
+    // An effort that was never entered is still nothing to compare: unknown provenance and
+    // a missing number are different failures, and only the first one was overstated.
+    const missing = history([12, 12], null);
+    missing.forEach((item) => {
+      item.sets = item.sets.map((set) => ({ ...set, effortReported: false }));
+    });
+    expect(summarizeExerciseEvidence(p, missing)).toMatchObject({
+      progressionReady: false,
+      effortCoverage: { known: 0, confirmed: 0, total: 2 },
+    });
   });
   it("needs complete working sets and two distinct local dates", () => {
     const two = history([12, 12]);

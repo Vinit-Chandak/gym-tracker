@@ -19,7 +19,7 @@ export const COACH_POLICY = {
       id: "reported_effort",
       tasks: ["prepare_session", "review_program"],
       kind: "server_rule",
-      rule: "Old effort values with effortReported=false may have been copied from targets. Preserve them as unconfirmed history; do not use them to justify automatic changes. Fresh reported effort or explicit athlete reconfirmation is required. Zero external load means bodyweight only; null load remains unknown.",
+      rule: "effortReported=false means the app did not record who entered that effort. It is the default on every row written before it recorded the answer, so it means unknown provenance — never that the value was copied from a target. An effort equal to the prescribed effort is not evidence of copying either: hitting the target is the common case, not a suspicious one. Treat the value as the athlete's own, compare it, and let it support a change the loads and reps already support. Say 'not confirmed' where it matters to your confidence, at most once per exercise, and never tell the athlete their logged effort was copied, assumed or not real. Zero external load means bodyweight only; null load remains unknown.",
     },
     {
       id: "fit",
