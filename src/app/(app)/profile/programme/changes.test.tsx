@@ -109,7 +109,7 @@ it("keeps a review in the history once its change has an outcome", () => {
             id: "review-1",
             when: "Sat 19 Sept, 20:15",
             outcome: "proposal",
-            rationale: "Two direct core slots added.",
+            summary: "Two direct core slots added.",
             draftId: DRAFT,
           },
         ],

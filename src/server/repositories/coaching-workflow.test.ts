@@ -135,6 +135,7 @@ async function request(a: Athlete) {
 }
 const result = (a: Athlete) => ({
   outcome: "program",
+  headline: "A six-day block built around your confirmed training time.",
   blueprint,
   openingPlan: {
     dayIndex: 1,
@@ -575,6 +576,7 @@ it("routes an unsupported weekly increase to review, preserves position and queu
   const claim = await as(a, (tx) => claimCoachJob(tx, a.user.id, job.id));
   const output = {
     outcome: "program",
+    headline: "One more set on the press.",
     blueprint: revised,
     openingPlan: null,
     rationale: "One additional set based on completed evidence.",
@@ -646,6 +648,7 @@ it("requires review for structural changes and leaves the active programme intac
   await as(a, (tx) =>
     acceptCoachJobResult(tx, a.user.id, job.id, claim!.attemptId!, {
       outcome: "program",
+      headline: "Moves your press day to Wednesday.",
       blueprint: revised,
       openingPlan: null,
       rationale: "Proposed schedule change for your review.",
@@ -1321,6 +1324,7 @@ it("pauses generation independently and routes automatic revisions to review dur
     const accepted = await as(a, (tx) =>
       acceptCoachJobResult(tx, a.user.id, job.id, claim!.attemptId!, {
         outcome: "program",
+        headline: "One more set on future training.",
         blueprint: revised,
         openingPlan: null,
         rationale: "Add one set to future training.",

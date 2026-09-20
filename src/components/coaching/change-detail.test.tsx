@@ -64,8 +64,11 @@ const props = (overrides: Partial<ChangeDetailProps> = {}): ChangeDetailProps =>
   status: "ready",
   name: "Block",
   when: "19 September 2026, 04:12",
-  rationale: "One extra set on the curl.",
+  headline: "One extra set on the curl.",
+  rationale:
+    "One extra set on the curl, because the last three weeks all hit the top of the range at the prescribed effort and nothing in the session reports rose.",
   uncertainties: [],
+  gateReasons: [],
   diff: diffPrograms(base, structuredClone(base)),
   names: { "barbell-curl": "Barbell curl" },
   canContinue: true,
@@ -89,20 +92,12 @@ it("offers approve, revisions and decline on a real change, and never a second p
   expect(screen.queryByText(/Compare current and proposed/)).toBeNull();
 });
 
-it("gives a no-change review a reason and request outcomes, with nothing to apply", () => {
+it("gives a no-change review its reason, with nothing to apply", () => {
   render(
     <ChangeDetail
       {...props({
+        headline: "",
         rationale: "Everything is progressing; nothing needs to change.",
-        requests: [
-          {
-            id: "33333333-3333-4333-8333-333333333333",
-            summary: "Add Bayesian cable curls",
-            quote: "Can I have Bayesian cable curls?",
-            state: "not_recommended",
-            detail: "Your cable station has no adjustable low pulley for this variation.",
-          },
-        ],
       })}
     />,
   );
@@ -110,9 +105,87 @@ it("gives a no-change review a reason and request outcomes, with nothing to appl
   expect(screen.getAllByText("No programme changes")).toHaveLength(1);
   expect(screen.getByText(/nothing needs to change/)).toBeTruthy();
   expect(screen.getByText(/Your programme stays as it is/)).toBeTruthy();
-  expect(screen.getByText("Add Bayesian cable curls")).toBeTruthy();
-  expect(screen.getByText(/no adjustable low pulley/)).toBeTruthy();
   expect(screen.queryByRole("button", { name: /Approve|Use these changes/ })).toBeNull();
+});
+
+it("opens with the one line, and folds the reasoning behind it", () => {
+  const next = structuredClone(base);
+  next.days[0]!.exercises[0]!.sets = 3;
+  render(<ChangeDetail {...props({ diff: diffPrograms(base, next) })} />);
+  const headline = screen.getByText("One extra set on the curl.");
+  // The explanation is reachable, but it is not what the screen opens with: it sits inside a
+  // closed disclosure, and the headline outside it does not.
+  expect(headline.closest("details")).toBeNull();
+  const why = screen.getByText(/nothing in the session reports rose/).closest("details");
+  expect(why?.open).toBe(false);
+  expect(why?.textContent).toContain("Why this");
+});
+
+it("tags each changed line with the ask that produced it, and the rest as the coach's", () => {
+  const next = structuredClone(base);
+  next.days[0]!.exercises[0]!.sets = 3;
+  next.days[0]!.exercises.push({
+    exerciseSlug: "cable-crunch",
+    sets: 3,
+    reps: [10, 15],
+    rir: [1, 2],
+    rest: [60, 90],
+  });
+  const diff = diffPrograms(base, next);
+  const added = diff.days
+    .flatMap((day) => day.operations)
+    .find((operation) => operation.kind === "added");
+  render(
+    <ChangeDetail
+      {...props({
+        diff,
+        requests: [
+          {
+            id: "33333333-3333-4333-8333-333333333333",
+            summary: "More direct core work",
+            quote: "more core",
+            state: "proposed",
+            detail: "A cable crunch on the upper day.",
+            changeRefs: [added!.id],
+          },
+        ],
+      })}
+    />,
+  );
+  // The athlete's own words on the line they caused; everything else is the coach's call.
+  expect(screen.getByText("“more core”")).toBeTruthy();
+  expect(screen.getByText("Coach")).toBeTruthy();
+  // Their words name the ask at the top too — but the summary and the outcome prose, which
+  // the request list already carries in full, are not reprinted here.
+  expect(screen.getByText(/Answers “more core”/)).toBeTruthy();
+  expect(screen.queryByText("More direct core work")).toBeNull();
+  expect(screen.queryByText(/A cable crunch on the upper day/)).toBeNull();
+});
+
+it("says why approval is needed without printing the guardrail's own words", () => {
+  const next = structuredClone(base);
+  next.days[0]!.exercises.push({
+    exerciseSlug: "cable-crunch",
+    sets: 3,
+    reps: [10, 15],
+    rir: [1, 2],
+    rest: [60, 90],
+  });
+  render(
+    <ChangeDetail
+      {...props({
+        diff: diffPrograms(base, next),
+        gateReasons: [
+          "Adding or removing exercise slots needs review.",
+          "A new slot needs review.",
+        ],
+      })}
+    />,
+  );
+  expect(screen.getByText(/Adds or removes an exercise, so it needs your approval/)).toBeTruthy();
+  // The findings themselves are an audit trail. One of them repeated per slot is not a
+  // sentence anybody reads, and it is not the coach doubting its own proposal.
+  expect(screen.queryByText(/A new slot needs review/)).toBeNull();
 });
 
 it("says a structural change starts a new block rather than offering a choice", () => {
