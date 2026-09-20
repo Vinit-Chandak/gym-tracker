@@ -1,11 +1,11 @@
 import type { Route } from "next";
 import {
+  BarChart,
   CalendarDays,
   Dumbbell,
   Footprints,
-  type AppIcon,
-  TrendingUp,
   User,
+  type AppIcon,
 } from "@/components/ui/icons";
 
 export type NavItem = {
@@ -32,7 +32,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/today", label: "Today", icon: Dumbbell },
   { href: "/training", label: "Training", icon: Footprints },
   { href: "/history", label: "History", icon: CalendarDays },
-  { href: "/progress", label: "Progress", icon: TrendingUp },
+  { href: "/progress", label: "Progress", icon: BarChart },
   { href: "/profile", label: "Profile", icon: User },
 ];
 

@@ -6,7 +6,7 @@ import { BarbellIcon } from "@phosphor-icons/react/dist/ssr/Barbell";
 import { BookOpenIcon } from "@phosphor-icons/react/dist/ssr/BookOpen";
 import { BrainIcon } from "@phosphor-icons/react/dist/ssr/Brain";
 import { CalendarDotsIcon } from "@phosphor-icons/react/dist/ssr/CalendarDots";
-import { ChartLineUpIcon } from "@phosphor-icons/react/dist/ssr/ChartLineUp";
+import { ChartBarIcon } from "@phosphor-icons/react/dist/ssr/ChartBar";
 import { CaretDownIcon } from "@phosphor-icons/react/dist/ssr/CaretDown";
 import { CaretLeftIcon } from "@phosphor-icons/react/dist/ssr/CaretLeft";
 import { CaretRightIcon } from "@phosphor-icons/react/dist/ssr/CaretRight";
@@ -76,6 +76,16 @@ function duotone(Icon: PhosphorIcon): AppIcon {
 export const AiCoach = /* @__PURE__ */ duotone(BrainIcon);
 export const ArrowRight = /* @__PURE__ */ duotone(ArrowRightIcon);
 export const ArrowsDownUp = /* @__PURE__ */ duotone(ArrowsDownUpIcon);
+/**
+ * Progress. Bars, after a rising arrow and then a line chart in a frame.
+ *
+ * At the size the navigation draws it, a hairline is the whole problem: the arrow alone
+ * floated in the top of its box, and the framed line spent most of its ink on axes that read
+ * as a box rather than as a chart, leaving the tab visibly lighter than the barbell and the
+ * calendar it sits between. Bars are filled shapes, so they survive 26px, and the direction
+ * is in the silhouette instead of in an arrowhead three pixels wide.
+ */
+export const BarChart = /* @__PURE__ */ duotone(ChartBarIcon);
 export const BookOpen = /* @__PURE__ */ duotone(BookOpenIcon);
 export const CalendarDays = /* @__PURE__ */ duotone(CalendarDotsIcon);
 export const Check = /* @__PURE__ */ duotone(CheckIcon);
@@ -109,12 +119,6 @@ export const SlidersHorizontal = /* @__PURE__ */ duotone(SlidersHorizontalIcon);
 export const SunMoon = /* @__PURE__ */ duotone(CircleHalfIcon);
 export const Timer = /* @__PURE__ */ duotone(TimerIcon);
 export const Trash = /* @__PURE__ */ duotone(TrashIcon);
-/**
- * Progress. A chart with its axes rather than a bare rising arrow: the arrow alone floated
- * in the top of its box, leaving a gap between it and the caption that no other tab had,
- * and said nothing about being a chart.
- */
-export const TrendingUp = /* @__PURE__ */ duotone(ChartLineUpIcon);
 /** Leaderboard: the cup, which needs no explaining. */
 export const Trophy = /* @__PURE__ */ duotone(TrophyIcon);
 export const User = /* @__PURE__ */ duotone(UserIcon);
