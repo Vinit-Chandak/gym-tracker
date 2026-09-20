@@ -3,6 +3,12 @@ import { drizzle } from "drizzle-orm/postgres-js";
 
 import { getMigrationDatabaseUrl } from "../lib/env";
 import {
+  backfillMultisport,
+  formatReconciliation,
+  MULTISPORT_BACKFILL,
+  reconcileMultisport,
+} from "./backfill-multisport";
+import {
   backfillSharedStats,
   hasBackfillRun,
   SHARED_STATS_BACKFILL,
@@ -20,10 +26,15 @@ import { seedReferenceData } from "./seed/reference";
  * until they are seeded. Both are corrected here, before the build produces anything.
  *
  * Neither step touches a single row a user owns: migrations change structure, and the seed
- * upserts shared rows by slug. The one exception is a named one-off backfill, run the first
- * time a deploy finds it has not run and recorded so it never runs unasked again: it writes
- * derived rows (the friends' shared stats) that the app would have written itself had the
- * tables existed at the time.
+ * upserts shared rows by slug. The exceptions are the named one-off backfills, each run the
+ * first time a deploy finds it has not run and recorded so it never runs unasked again. They
+ * write derived rows — the friends' shared stats, and the canonical activity beside every run
+ * and session — that the app would have written itself had the tables existed at the time.
+ *
+ * The multisport one belongs here rather than in an operator's hands. A migration that adds
+ * the tables and a deploy that does not populate them leaves an athlete looking at an empty
+ * History and concluding the release lost their training. The two halves are one change, so
+ * they ship together.
  */
 
 /**
@@ -85,8 +96,47 @@ async function main(): Promise<void> {
           `${backfill.readings} body weight readings`,
       );
     }
+    await deployMultisportBackfill(db);
   } finally {
     await client.end();
+  }
+}
+
+/**
+ * The canonical parent beside every legacy run and session (plan §10.2).
+ *
+ * Additive and resumable: it skips what the ledger says it already wrote, so a second deploy
+ * over the same data writes nothing. It marks itself done only after a complete pass, which is
+ * why the check above is enough to keep it from running on every build.
+ *
+ * Two outcomes leave the marker unwritten on purpose, and neither stops the build. An account
+ * the audit blocked has two records disagreeing about the same fact, and a person has to say
+ * which is right; refusing to deploy over that would take the whole application down for one
+ * duplicated planned run. A reconciliation that does not balance means some legacy rows have
+ * no canonical parent yet — history reads short, not wrong. Both retry on the next deploy, and
+ * both say so loudly enough to be found in the build log.
+ */
+async function deployMultisportBackfill(db: Parameters<typeof backfillMultisport>[0]) {
+  if (await hasBackfillRun(db, MULTISPORT_BACKFILL)) {
+    console.log("  multisport backfill already ran; skipped");
+    return;
+  }
+  const summary = await backfillMultisport(db);
+  console.log(
+    `  multisport backfilled: ${summary.accounts} accounts, ${summary.runActivities} runs ` +
+      `and ${summary.strengthActivities} sessions given a canonical activity, ` +
+      `${summary.occurrences} occurrences, ` +
+      `${summary.resolutions + summary.legacyResolutions} resolutions`,
+  );
+  if (summary.blockedAccounts > 0)
+    console.warn(
+      `  ${summary.blockedAccounts} account(s) held back by a blocking audit issue. ` +
+        "Run `npm run db:audit:multisport`, resolve them, and the next deploy tries again.",
+    );
+  const reconciliation = await reconcileMultisport(db);
+  if (!reconciliation.ok) {
+    console.warn("  multisport reconciliation does not balance; the backfill is not marked done:");
+    console.warn(formatReconciliation(reconciliation));
   }
 }
 
