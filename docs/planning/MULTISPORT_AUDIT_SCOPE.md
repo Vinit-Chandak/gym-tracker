@@ -184,6 +184,27 @@ code disagree and an auditor reading only the plan will call it a defect.
 
 ---
 
+## 4a. Audited, and what it found
+
+Walked on a local stack — real PostgreSQL, migrations 0026–0029, the three seeded accounts,
+the backfill run twice — with every screen driven in Chromium at 390 px and 1280 px. What
+held up, and what did not, is in [the coaching audit's sibling](../coaching-audit.md) format:
+
+**Held up.** Strength regression: the canonical parent opens `in_progress` with the session's
+own start and date, closes `completed` with real elapsed time, and is deleted on discard.
+Occurrence identity: created → logged → log_deleted, disposition back to `pending`, one
+activity per occurrence enforced. The backfill: idempotent on a second run, 39 activities and
+48 occurrences from 28 sessions and 11 runs, reconciling rather than duplicating what
+`sessions.ts` already wrote. Compatibility aliases: all five resolve or refuse, and a bogus
+`?planned=` renders `LegacyUnavailable` rather than another target. Ownership: a foreign
+activity and its edit screen are both `notFound`.
+
+**Fixed.** A settled occurrence claiming not to exist; the scheduled views counting only
+standalone work while saying "Scheduled"; four raw ISO dates; `?sport=` meaning different
+things on `/training` and `/u/<username>`; `legacySportOf`/`sportOfLegacy` answering for two
+sports out of four; `scripts/dev/seed-people.ts` leaving canonical parents at seed time; the
+audit tool citing deleted OP gates.
+
 ## 5. Suggested audit priorities
 
 1. **Strength regression** (`AT-REG-*`) — the specialised logger is the thing users would

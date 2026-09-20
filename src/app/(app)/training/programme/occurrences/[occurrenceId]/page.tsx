@@ -20,6 +20,7 @@ import { getRequestProfile } from "@/server/queries/request-profile";
 import { activePlanForOccurrence } from "@/server/repositories/coach-plans";
 import { getOccurrence } from "@/server/repositories/occurrences";
 import { requireUuid } from "@/server/validation/params";
+import { formatIsoDate } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Scheduled session" };
 
@@ -58,7 +59,7 @@ export default async function OccurrencePage(
     <>
       <PageHeader
         title={ACTIVITY_SPORT_LABELS[occurrence.sport]}
-        meta={occurrence.scheduledOn}
+        meta={formatIsoDate(occurrence.scheduledOn)}
         backHref="/training/programme"
       />
       <PageContent>
@@ -101,7 +102,9 @@ export default async function OccurrencePage(
 
         {occurrence.resolution.kind === "logged" ? (
           <Card>
-            <p className="text-sm text-ink-muted">Logged on {occurrence.resolution.occurredOn}.</p>
+            <p className="text-sm text-ink-muted">
+              Logged on {formatIsoDate(occurrence.resolution.occurredOn)}.
+            </p>
             <Link
               href={`/training/activities/${occurrence.resolution.activityId}`}
               className="text-sm text-accent"

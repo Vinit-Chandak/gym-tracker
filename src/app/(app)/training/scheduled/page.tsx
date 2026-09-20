@@ -16,6 +16,7 @@ import { todayInTimeZone } from "@/domain/program-calendar";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { standaloneSchedule, type ScheduledOccurrence } from "@/server/repositories/occurrences";
+import { formatIsoDate } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Scheduled" };
 
@@ -32,7 +33,7 @@ function OccurrenceRow({ occurrence, late }: { occurrence: ScheduledOccurrence; 
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs font-medium tracking-wide text-ink-muted uppercase">
-            {ACTIVITY_SPORT_LABELS[occurrence.sport]} · {occurrence.scheduledOn}
+            {ACTIVITY_SPORT_LABELS[occurrence.sport]} · {formatIsoDate(occurrence.scheduledOn)}
           </p>
           <h2 className="mt-1 text-base font-medium [overflow-wrap:anywhere]">
             {occurrence.prescription
@@ -74,14 +75,14 @@ export default async function ScheduledPage() {
 
   return (
     <>
-      <PageHeader title="Scheduled" backHref="/training" />
+      <PageHeader title="Scheduled on their own" backHref="/training" />
       <PageContent>
         <Section title="Upcoming">
           {upcoming.length === 0 ? (
             <EmptyState
               icon={CalendarDays}
-              title="Nothing scheduled"
-              description="Put a session on the calendar and it will wait here for you."
+              title="Nothing scheduled on its own"
+              description="Sessions you put on the calendar yourself wait here. Your programme's own sessions are under Programme, and today's are on Today."
               action={
                 <LinkButton href="/training/schedule" variant="secondary">
                   Schedule an activity
