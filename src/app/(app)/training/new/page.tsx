@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { CyclingForm } from "@/components/activities/cycling-form";
 import { OccurrenceSettled } from "@/components/activities/occurrence-settled";
@@ -7,25 +7,16 @@ import { RunningForm } from "@/components/activities/running-form";
 import { SwimmingForm } from "@/components/activities/swimming-form";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
-import { LinkButton } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Section } from "@/components/ui/section";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
-import {
-  ACTIVITY_SPORT_LABELS,
-  ENDURANCE_SPORTS,
-  isActivitySport,
-  isEnduranceSport,
-  type EnduranceSport,
-} from "@/domain/activity";
+import { isActivitySport, isEnduranceSport, type EnduranceSport } from "@/domain/activity";
 import { describePrescription } from "@/domain/activity-prescription";
 import { toDateTimeLocal } from "@/lib/time";
 import { saveActivityAction } from "@/server/actions/activities";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { getOccurrence } from "@/server/repositories/occurrences";
-import { enabledSportsFor, unitsFor } from "@/server/repositories/sport-preferences";
+import { unitsFor } from "@/server/repositories/sport-preferences";
 
 export const metadata: Metadata = { title: "Log an activity" };
 
@@ -69,39 +60,10 @@ export default async function NewActivityPage(props: PageProps<"/training/new">)
       ? requested
       : null;
 
-  if (!sport) {
-    // The chooser, with the sports this account actually trains offered first (§3.1).
-    const preferred = await withUser(getDb(), user.id, (tx) => enabledSportsFor(tx, user.id), {
-      readOnly: true,
-    });
-    const ordered = [...ENDURANCE_SPORTS].sort(
-      (a, b) => Number(preferred.includes(b)) - Number(preferred.includes(a)),
-    );
-    return (
-      <>
-        <PageHeader title="Log an activity" backHref="/training" />
-        <PageContent>
-          <Section title="What did you do?">
-            <Card>
-              {ordered.map((item) => (
-                <LinkButton
-                  key={item}
-                  href={`/training/new?sport=${item}`}
-                  variant="secondary"
-                  className="w-full"
-                >
-                  {ACTIVITY_SPORT_LABELS[item]}
-                </LinkButton>
-              ))}
-              <p className="text-sm text-ink-muted">
-                Lifting has its own logger, started from Today or from a gym.
-              </p>
-            </Card>
-          </Section>
-        </PageContent>
-      </>
-    );
-  }
+  // No sport and no occurrence means somebody reached this URL directly: the sports are
+  // offered on Training itself now, so this sends them there rather than asking the same
+  // question on a screen of its own.
+  if (!sport) redirect("/training");
 
   const units = await withUser(getDb(), user.id, (tx) => unitsFor(tx, user.id, sport), {
     readOnly: true,

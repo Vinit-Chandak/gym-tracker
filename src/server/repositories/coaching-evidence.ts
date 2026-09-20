@@ -194,7 +194,7 @@ export async function readCoachingEvidence(
           validReferences.has(id) &&
           point?.value === saved.reference.values[index] &&
           point.validUnit &&
-          point.effortKnown &&
+          point.effortPresent &&
           point.load === initial.comparison.load &&
           JSON.stringify(point.loadProfile) ===
             JSON.stringify(initial.observations[0]?.loadProfile) &&

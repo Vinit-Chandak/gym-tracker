@@ -135,11 +135,21 @@ export function summarizeExerciseEvidence(
           : NaN,
     );
     const complete = selected.length === p.sets;
-    const effortKnown =
-      complete &&
-      selected.every((set) => set.effortReported !== false && effortOf(set, p) !== null);
+    /**
+     * Whether there is an effort number to compare at all, and whether the app recorded that
+     * the athlete entered it.
+     *
+     * These are two different facts and were one. `effortReported` is false by default on
+     * every row written before the app recorded the answer, so it means "nobody wrote down
+     * where this came from" — not "this was copied from the target". Treating the two as the
+     * same excluded a real logged RIR from every comparison, which left an exercise on
+     * insufficient evidence for as long as its history was old, and the athlete reading that
+     * the effort they remember giving had been copied from the prescription.
+     */
+    const effortPresent = complete && selected.every((set) => effortOf(set, p) !== null);
+    const effortConfirmed = effortPresent && selected.every((set) => set.effortReported !== false);
     const effortFits =
-      effortKnown &&
+      effortPresent &&
       selected.every((set) =>
         p.prescriptionType === "reps" ? set.rir! >= (p.rirMin ?? 2) : (set.rpe ?? 11) <= 8,
       );
@@ -154,7 +164,8 @@ export function summarizeExerciseEvidence(
       effort,
       validUnit: validUnit && !loadProfile.some(Number.isNaN),
       complete,
-      effortKnown,
+      effortPresent,
+      effortConfirmed,
       attained:
         maximum != null &&
         complete &&
@@ -175,7 +186,7 @@ export function summarizeExerciseEvidence(
           point.value !== null &&
           point.value > 0 &&
           point.validUnit &&
-          point.effortKnown &&
+          point.effortPresent &&
           (p.prescriptionType !== "reps" || point.load !== null) &&
           point.effort !== null &&
           latest.effort !== null &&
@@ -229,9 +240,12 @@ export function summarizeExerciseEvidence(
     threshold === null || baseline === null
       ? []
       : recent.filter((point) => point.value! < baseline * (1 - threshold));
+  // A decline reads the same comparison as a progression and is held to the same bar. An
+  // effort the athlete entered is evidence in either direction; one nobody labelled is not
+  // suddenly worth less because the conclusion points down.
   const declineCandidate =
     !!latest &&
-    latest.effortKnown &&
+    latest.effortPresent &&
     latest.belowMinimum &&
     recent.length === 3 &&
     low.length >= 2 &&
@@ -277,8 +291,12 @@ export function summarizeExerciseEvidence(
         unit: p.unit,
       })) ?? [],
     matchingCount: matching.length,
+    // What can be compared, and how much of it the athlete is on record as having entered.
+    // The coach needs the second number to say how confident a change is, never to claim the
+    // first was fabricated.
     effortCoverage: {
-      known: points.filter((point) => point.effortKnown).length,
+      known: points.filter((point) => point.effortPresent).length,
+      confirmed: points.filter((point) => point.effortConfirmed).length,
       total: points.length,
     },
     baseline,

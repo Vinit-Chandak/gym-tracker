@@ -233,16 +233,38 @@ it("permits a supported small home step and rejects an infeasible or excessive j
     ).rejects.toThrow(/lasting set-count/);
   });
 });
-it("retains legacy RIR values but excludes them from automatic evidence", async () => {
+it("compares a logged RIR nobody labelled, and still reports it as unconfirmed", async () => {
   const a = await fixture();
   await a.as(async (db) => {
     await db.update(setLogs).set({ effortReported: false }).where(eq(setLogs.userId, a.user.id));
     const evidence = await readCoachingEvidence(db, a.user.id, a.program.id, now);
-    expect(evidence.exerciseTrends[0]?.effortCoverage.known).toBe(0);
-    expect(evidence.exerciseTrends[0]?.latestSets[0]?.rir).toBe(2);
+    const trend = evidence.exerciseTrends[0];
+    // `effortReported` is false by default on every row written before the app recorded the
+    // answer, so it says nobody wrote down where the number came from — not that it was
+    // copied from the target. The number is the athlete's, and it is compared.
+    expect(trend?.effortCoverage.known).toBe(6);
+    // The provenance is still reported, so the coach can temper how confident it sounds.
+    expect(trend?.effortCoverage.confirmed).toBe(0);
+    expect(trend?.latestSets[0]?.rir).toBe(2);
+    // The same progression the confirmed history earns, earned by the same numbers. Holding
+    // it back taught the athlete that the effort they remember giving did not count.
+    const changes = await assessSessionEvidence(
+      db,
+      a.user.id,
+      a.target,
+      a.output(52.5, 8),
+      evidence,
+      new Set(a.ids.slice(0, 2)),
+    );
+    expect(changes[0]).toMatchObject({
+      kind: "progression",
+      before: { load: 50 },
+      after: { load: 52.5 },
+    });
+    // Provenance was the only gate lifted. Every limit on the size of the jump still holds.
     await expect(
-      assessSessionEvidence(db, a.user.id, a.target, a.output(52.5, 8), evidence, new Set(a.ids)),
-    ).rejects.toThrow(/not supported/);
+      assessSessionEvidence(db, a.user.id, a.target, a.output(55, 8), evidence, new Set(a.ids)),
+    ).rejects.toThrow(/automatic limit/);
   });
 });
 it("does not stack nominally small weekly set increases beyond the original program", async () => {

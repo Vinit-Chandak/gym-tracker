@@ -8,5 +8,7 @@ import { redirect } from "next/navigation";
  * same information now lives, rather than to a second Runs screen that would drift from it.
  */
 export default async function RunsPage() {
-  redirect("/training?sport=running");
+  // Training no longer carries a sport filter — the one control that set it asked the same
+  // question the log screen then asked again — so the alias lands on the surface itself.
+  redirect("/training");
 }
