@@ -33,6 +33,7 @@ import {
   plannedOccurrences,
   occurrenceVersions,
   activities,
+  programs,
   runs,
   sessionPlans,
   setLogs,
@@ -843,6 +844,50 @@ export async function sessionTarget(
 }
 
 /**
+ * When this athlete's review interval starts, deriving and recording one if nothing has.
+ *
+ * Three call sites read this, and every one of them treated "no anchor" as "no review, ever":
+ * the dispatcher skipped the athlete, the request review returned null, and asking for one
+ * said the coach was off. An account that enabled the coach before the workflow existed has
+ * `ai_coach_enabled` true and no `consented_at` — the old switch wrote only the profile flag —
+ * so its programme was never reviewed and its requests waited on a run that was never queued.
+ *
+ * The coach being on is the fact; the missing timestamp is a gap in the record, not a reason
+ * to do nothing. Where one is missing it is reconstructed from the training the review would
+ * read — when the active programme started — and written down, so the cadence starts and this
+ * is computed once rather than on every pass.
+ */
+export async function reviewAnchor(
+  db: DbOrTx,
+  userId: string,
+  now = new Date(),
+): Promise<Date | null> {
+  const preference = await getCoachingPreferences(db, userId);
+  const recorded = preference?.reviewAnchorAt ?? preference?.consentedAt ?? null;
+  if (recorded) return recorded;
+  const active = await getActiveProgram(db, userId);
+  if (!active) return null;
+  const [program] = await db
+    .select({ createdAt: programs.createdAt })
+    .from(programs)
+    .where(and(eq(programs.userId, userId), eq(programs.id, active.id)))
+    .limit(1);
+  const started = active.startDate ? new Date(`${active.startDate}T00:00:00Z`) : null;
+  const derived =
+    started && Number.isFinite(started.getTime()) ? started : (program?.createdAt ?? now);
+  // Never in the future: an interval has to start before the boundary that ends it.
+  const consentedAt = derived < now ? derived : now;
+  await db
+    .insert(coachPreferences)
+    .values({ userId, mode: "coach", consentedAt })
+    .onConflictDoUpdate({
+      target: coachPreferences.userId,
+      set: { consentedAt, updatedAt: now },
+    });
+  return consentedAt;
+}
+
+/**
  * A programme review whose purpose is what the athlete asked for.
  *
  * The ordinary review runs on its cadence and reads the training week it owes them. This one
@@ -855,7 +900,7 @@ export async function enqueueRequestReview(db: DbOrTx, userId: string, now = new
   const active = await getActiveProgram(db, userId);
   if (!active) return null;
   const preference = await getCoachingPreferences(db, userId);
-  const anchor = preference?.reviewAnchorAt ?? preference?.consentedAt ?? null;
+  const anchor = await reviewAnchor(db, userId, now);
   const boundary = lastCoachBoundary(now);
   // An interval has to have somewhere to start; a request made since the last boundary is
   // heard at the next one.
@@ -1064,7 +1109,7 @@ export async function dispatchCoachPage(db: Db, after: string | null = null, now
         let result: Awaited<ReturnType<typeof enqueueCoachJob>> | null = null;
         // The last review's own end, or the moment coaching was switched on; there is no
         // missed-week backlog to replay, because one review reads everything since the last.
-        const anchor = preference?.reviewAnchorAt ?? preference?.consentedAt ?? null;
+        const anchor = await reviewAnchor(tx, athlete.id, now);
         if (anchor) {
           const standing = reviewStanding(anchor, boundary.at);
           // An interval has to have somewhere to start; a request made since the last
@@ -1289,9 +1334,9 @@ export async function requestProgramReview(db: DbOrTx, userId: string, now = new
       429,
     );
   const preference = await getCoachingPreferences(db, userId);
-  const anchor = preference?.reviewAnchorAt ?? preference?.consentedAt ?? null;
-  if (!anchor) throw new CoachingError("Switch the coach on before asking it for a review.");
-  if (anchor >= now) throw new CoachingError("There is nothing new to review yet.");
+  const anchor = await reviewAnchor(db, userId, now);
+  if (!anchor || anchor >= now)
+    throw new CoachingError("There is nothing to review yet. Train a session first.");
   return enqueueCoachJob(db, userId, {
     kind: "review_program",
     // Scheduled work, so the review is handed the asks it is meant to answer; the purpose

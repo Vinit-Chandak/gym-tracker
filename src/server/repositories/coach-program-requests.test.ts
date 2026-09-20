@@ -47,6 +47,7 @@ import {
   enqueueDailySession,
   requestGymChange,
   requestProgramReview,
+  reviewAnchor,
 } from "./coaching-jobs";
 import { activateProgramDraft, getProgramDraft } from "./program-drafts";
 import { readProgramBlueprint } from "./programs";
@@ -757,6 +758,84 @@ it("gives the athlete one review of their own a week, and answers their asks wit
     athleteReviewStatus(tx, a.user.id, new Date(Date.now() + 8 * 86_400_000)),
   );
   expect(later.canAsk).toBe(true);
+});
+
+it("reviews an account that switched the coach on before the workflow existed", async () => {
+  const a = await training();
+  await as(a, (tx) =>
+    tx.update(profiles).set({ aiCoachEnabled: true }).where(eq(profiles.id, a.user.id)),
+  );
+  // The old switch wrote the profile flag and nothing else, so nothing records when coaching
+  // started — which every caller read as "no review, ever".
+  await as(a, (tx) =>
+    tx
+      .update(coachPreferences)
+      .set({ consentedAt: null, reviewAnchorAt: null })
+      .where(eq(coachPreferences.userId, a.user.id)),
+  );
+  const noteId = await noteFrom(a);
+  await as(a, (tx) =>
+    tx.insert(coachProgramRequests).values({
+      id: crypto.randomUUID(),
+      userId: a.user.id,
+      sourceId: `note:${noteId}`,
+      quote: "more direct core work",
+      summary: "More direct core work",
+      state: "waiting",
+    }),
+  );
+
+  // The interval is reconstructed from the training a first review would read, and written
+  // down, so the cadence starts rather than skipping this athlete again tomorrow.
+  const derived = await as(a, (tx) => reviewAnchor(tx, a.user.id));
+  expect(derived).not.toBeNull();
+  const [preference] = await as(a, (tx) =>
+    tx.select().from(coachPreferences).where(eq(coachPreferences.userId, a.user.id)),
+  );
+  expect(preference?.consentedAt?.toISOString()).toBe(derived!.toISOString());
+  expect(derived!.getTime()).toBeLessThan(Date.now());
+
+  const asked = await as(a, (tx) => requestProgramReview(tx, a.user.id));
+  expect(asked.created).toBe(true);
+  expect(asked.job.target.reviewStart).toBe(derived!.toISOString());
+});
+
+it("stops skipping such an account on the daily dispatch", async () => {
+  const a = await training();
+  await as(a, (tx) =>
+    tx.update(profiles).set({ aiCoachEnabled: true }).where(eq(profiles.id, a.user.id)),
+  );
+  await as(a, (tx) =>
+    tx
+      .update(coachPreferences)
+      .set({ consentedAt: null, reviewAnchorAt: null })
+      .where(eq(coachPreferences.userId, a.user.id)),
+  );
+  // The reported symptom: an ask sitting on "waiting for the next daily coach run" while no
+  // run that could decide it was ever queued, because the athlete had no interval to read.
+  const noteId = await noteFrom(a);
+  await as(a, (tx) =>
+    tx.insert(coachProgramRequests).values({
+      id: crypto.randomUUID(),
+      userId: a.user.id,
+      sourceId: `note:${noteId}`,
+      quote: "more direct core work",
+      summary: "More direct core work",
+      state: "waiting",
+    }),
+  );
+  for (let after: string | null = null; ;) {
+    const page: Awaited<ReturnType<typeof dispatchCoachPage>> = await dispatchCoachPage(
+      t.db,
+      after,
+    );
+    if (!page.nextCursor) break;
+    after = page.nextCursor;
+  }
+  const review = (await as(a, (tx) => tx.select().from(coachJobs))).find(
+    (job) => job.kind === "review_program",
+  );
+  expect(review?.target.purpose).toBe("requests");
 });
 
 it("will not review while a workout is open", async () => {
