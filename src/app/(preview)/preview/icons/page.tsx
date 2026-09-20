@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/shell/page-header";
 import Link from "@/components/ui/app-link";
 import {
   AiCoach,
+  BarChart,
   BookOpen,
   CalendarDays,
   Check,
@@ -31,7 +32,6 @@ import {
   SunMoon,
   Timer,
   Trash,
-  TrendingUp,
   User,
   type AppIcon,
 } from "@/components/ui/icons";
@@ -47,7 +47,7 @@ const SYMBOLS: readonly [string, AppIcon][] = [
   ["Today", Dumbbell],
   ["Runs", Footprints],
   ["History", CalendarDays],
-  ["Progress", TrendingUp],
+  ["Progress", BarChart],
   ["Settings", Settings],
   ["Profile", User],
   ["Programme", ClipboardList],
