@@ -6,6 +6,7 @@ import { RequestReview, type ReviewAvailability } from "./request-review";
 import { RequestList, type RequestView } from "@/components/coaching/request-list";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Disclosure } from "@/components/ui/disclosure";
 import { LinkRow, List } from "@/components/ui/link-row";
 import { Section } from "@/components/ui/section";
 import { coachWeeklyReviews, programDrafts } from "@/db/schema";
@@ -22,12 +23,20 @@ import { athleteReviewStatus } from "@/server/repositories/coaching-jobs";
 import { listOpenProposals } from "@/server/repositories/program-revisions";
 import { readProgramBlueprint } from "@/server/repositories/programs";
 
+/** Asks the athlete has to act on: approve the change, or answer the question. */
+const NEEDS_ATHLETE: readonly RequestView["state"][] = ["proposed", "needs_answer"];
+
 /**
  * Everything the coach has changed, proposed or answered, in one place.
  *
  * It holds no programme of its own. Each row says what is different and links to the change
  * that explains it, so the full programme stays in Cycle and is read once rather than
  * reprinted under every review.
+ *
+ * One change is listed once. A proposal used to appear three times over — as a draft waiting
+ * on the athlete, as the outcome of the ask that produced it, and again as a review that
+ * proposed something — all three opening the same screen. The ask speaks for its own change
+ * wherever there is one, and the other two stand down while it does.
  */
 export async function loadProgrammeChanges(db: DbOrTx, userId: string, timeZone: string) {
   const [drafts, legacy, open, settled, reviews, reviewStatus] = await Promise.all([
@@ -50,9 +59,17 @@ export async function loadProgrammeChanges(db: DbOrTx, userId: string, timeZone:
       .limit(8),
     athleteReviewStatus(db, userId),
   ]);
+  // A change an open ask already carries is that ask's to show: it comes with the athlete's
+  // own words and the outcome they were given, which a bare draft row cannot say.
+  const spokenFor = new Set(
+    open.filter((request) => request.state === "proposed" && request.draftId).map((r) => r.draftId),
+  );
+  const stillOpen = new Set(drafts.map((draft) => draft.id));
   // Only a draft written against a programme is a change; one with no base is a new
   // programme, and it stays with the saved work that produced it.
-  const changes = drafts.filter((draft) => draft.baseProgramId !== null);
+  const changes = drafts.filter(
+    (draft) => draft.baseProgramId !== null && !spokenFor.has(draft.id),
+  );
   const summaries = await Promise.all(
     changes.map(async (draft) => {
       const base = await readProgramBlueprint(db, userId, draft.baseProgramId!);
@@ -78,6 +95,7 @@ export async function loadProgrammeChanges(db: DbOrTx, userId: string, timeZone:
     when: formatDateTime(request.createdAt, timeZone),
     draftId: request.draftId,
   });
+  const requests = open.filter((request) => NEEDS_ATHLETE.includes(request.state));
   return {
     changes: summaries,
     legacy: legacy.map((proposal) => ({
@@ -88,19 +106,22 @@ export async function loadProgrammeChanges(db: DbOrTx, userId: string, timeZone:
       createdAt: formatDateTime(proposal.createdAt, timeZone),
       fromCoach: proposal.source === "ai",
     })),
-    requests: open.map(toView),
+    requests: requests.map(toView),
+    /** Open asks nobody is waiting on the athlete for: saved, sent back, or parked. */
+    withCoach: open.filter((request) => !NEEDS_ATHLETE.includes(request.state)).map(toView),
     settled: settled.map(toView),
-    reviews: reviews.map((review) => ({
-      id: review.id,
-      when: formatDateTime(review.periodEnd, timeZone),
-      outcome: review.outcome,
-      rationale: review.rationale,
-      draftId: review.draftId,
-    })),
-    waiting:
-      summaries.length +
-      legacy.length +
-      open.filter((request) => request.state === "needs_answer").length,
+    // A review that proposed a change the athlete has not decided yet is that change's row,
+    // one section up. It joins the history once it has an outcome.
+    reviews: reviews
+      .filter((review) => !(review.draftId && stillOpen.has(review.draftId)))
+      .map((review) => ({
+        id: review.id,
+        when: formatDateTime(review.periodEnd, timeZone),
+        outcome: review.outcome,
+        rationale: review.rationale,
+        draftId: review.draftId,
+      })),
+    waiting: summaries.length + legacy.length + requests.length,
     review: {
       // Only the server that can start the coach offers to; elsewhere the card would promise
       // something no tap could deliver.
@@ -136,6 +157,7 @@ export function ProgrammeChanges({
     !data.changes.length &&
     !data.legacy.length &&
     !data.requests.length &&
+    !data.withCoach.length &&
     !data.settled.length &&
     !data.reviews.length;
   if (nothing)
@@ -152,8 +174,19 @@ export function ProgrammeChanges({
     );
   return (
     <div className="space-y-6">
-      {(data.changes.length > 0 || data.legacy.length > 0) && (
-        <Section title="Waiting for you">
+      {(data.requests.length > 0 ||
+        data.changes.length > 0 ||
+        data.legacy.length > 0 ||
+        data.withCoach.length > 0) && (
+        <Section
+          title="Waiting for you"
+          info="What you asked for and what became of it, beside any change the coach proposed on its own. Asks are assessed at the next daily coach run: you get a proposal to approve, a specific question, or a reason — never silence. Once you have approved, declined or sent one back, it leaves this list until there is something new to decide."
+        >
+          {/* The athlete's own asks first: each carries their words and the outcome it was
+              given, which is the one thing a change screen cannot say for itself. */}
+          {data.requests.length > 0 && <RequestList requests={data.requests} base={base} />}
+
+          {/* Changes nobody asked for — a scheduled review, or the athlete's own edit. */}
           {data.changes.length > 0 && (
             <List>
               {data.changes.map((change) => (
@@ -176,15 +209,14 @@ export function ProgrammeChanges({
             </List>
           )}
           {data.legacy.length > 0 && <Proposals proposals={data.legacy} />}
-        </Section>
-      )}
 
-      {data.requests.length > 0 && (
-        <Section
-          title="What you asked for"
-          info="Requests are assessed at the next daily coach run. You get a proposal to approve, a specific question, or a reason — never silence."
-        >
-          <RequestList requests={data.requests} base={base} />
+          {/* Folded, not dropped: an ask waiting on the next coach run is not lost, but it
+              needs nothing from the athlete and should not compete with what does. */}
+          {data.withCoach.length > 0 && (
+            <Disclosure summary="With the coach" meta={`${data.withCoach.length}`}>
+              <RequestList requests={data.withCoach} base={base} />
+            </Disclosure>
+          )}
         </Section>
       )}
 
