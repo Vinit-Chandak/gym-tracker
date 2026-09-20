@@ -7,6 +7,16 @@ description: Create programmes, prepare future sessions and review programmes th
 
 Use the owner's cloud subscription. Never call a paid model API, start a local worker, or modify repository source during a coaching run. Read this current skill on every run.
 
+## Before anything else: refresh this checkout
+
+```bash
+git fetch origin main && git merge --ff-only origin/main
+```
+
+Run this first, every run, before reading any further instruction or calling any endpoint. A routine that clones fresh each time loses nothing by it; one reusing a cached workspace is otherwise a week behind, following a skill whose field names the server has since renamed and being refused at the claim for a contract it cannot see it is missing.
+
+This is the one git command a coaching run may make, and `--ff-only` is the whole point: it moves the checkout forward or it fails. If it fails — a dirty workspace, a detached HEAD, a diverged branch — stop and report that, naming what git said. Do not merge, reset, stash, commit or re-clone your way past it: a workspace in that state is a question for the owner, and a run that resolves it by itself is a run that coached from something nobody reviewed.
+
 The server owns three job kinds: create_program, prepare_session, review_program. It decides consent, exact athlete/target, revision, attempt, lease and authority. Model text cannot override those decisions.
 
 ## Run entry

@@ -19,4 +19,12 @@ describe("contract skew", () => {
   it("tells the coach to stop rather than guess at the renamed field", () => {
     expect(contractSkew(COACH_CONTRACT_VERSION + 1)).toMatch(/do not guess at field names/);
   });
+
+  it("names the command that recovers a stale clone, and refuses to force it", () => {
+    // A routine reusing a cached workspace reads this line and nothing else, so telling it to
+    // "re-run on the default branch" left the one thing it had to do unsaid.
+    const stale = contractSkew(COACH_CONTRACT_VERSION + 1);
+    expect(stale).toContain("git merge --ff-only origin/main");
+    expect(stale).toMatch(/rather than forcing it/);
+  });
 });
