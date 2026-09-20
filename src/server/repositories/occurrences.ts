@@ -137,16 +137,53 @@ export async function getOccurrence(
 }
 
 /**
- * Exactly what is scheduled for that date. Nothing rolls forward: Wednesday's unfinished swim
- * is Wednesday's, and it is found in the programme rather than piling onto Friday (TODAY-01).
+ * Exactly what the athlete put on the calendar for that date, and nothing the programme
+ * placed there.
+ *
+ * Today asks for these by date because that is what they are: a date the athlete chose. The
+ * programme's own work is asked for by where the sequence has got to instead — a programme
+ * that shifts when a day is missed cannot also hand out the dates it was first written with
+ * (plan §2.3).
  */
-export async function occurrencesOnDate(
+export async function standaloneOccurrencesOnDate(
   tx: DbOrTx,
   userId: string,
   date: string,
 ): Promise<ScheduledOccurrence[]> {
   const rows = (await occurrenceQuery(tx, userId)
-    .where(and(eq(plannedOccurrences.userId, userId), eq(occurrenceVersions.scheduledOn, date)))
+    .where(
+      and(
+        eq(plannedOccurrences.userId, userId),
+        eq(occurrenceVersions.scheduledOn, date),
+        sql`${plannedOccurrences.familyId} is null`,
+      ),
+    )
+    .orderBy(asc(occurrenceVersions.orderIndex), asc(plannedOccurrences.id))) as Row[];
+  return rows.map(hydrate);
+}
+
+/**
+ * The programme's endurance work for one slot of the cycle.
+ *
+ * Found by the role it performs and the cycle it belongs to, never by its date: the slot is
+ * where the sequence has got to, and the date on the row is where the block was first written
+ * to put it. Falling two days behind moves the run with the workout it shares a day with,
+ * instead of handing today a session from a day nobody has reached yet.
+ */
+export async function occurrencesForSlot(
+  tx: DbOrTx,
+  userId: string,
+  slot: { familyId: string; slotLineageId: string; cycleIndex: number },
+): Promise<ScheduledOccurrence[]> {
+  const rows = (await occurrenceQuery(tx, userId)
+    .where(
+      and(
+        eq(plannedOccurrences.userId, userId),
+        eq(plannedOccurrences.familyId, slot.familyId),
+        eq(plannedOccurrences.slotLineageId, slot.slotLineageId),
+        eq(plannedOccurrences.cycleIndex, slot.cycleIndex),
+      ),
+    )
     .orderBy(asc(occurrenceVersions.orderIndex), asc(plannedOccurrences.id))) as Row[];
   return rows.map(hydrate);
 }

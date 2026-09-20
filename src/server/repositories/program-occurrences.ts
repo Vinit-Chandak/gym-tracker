@@ -11,6 +11,7 @@ import {
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import type { EndurancePrescription } from "@/domain/activity-prescription";
+import { weekdayLineage } from "@/domain/legacy-multisport";
 import { blueprintV1ToV2, type ProgramBlueprintV2 } from "@/domain/program-blueprint-v2";
 import type { ProgramBlueprint } from "@/domain/program-blueprint";
 import { supersedeStalePlans } from "./coach-plans";
@@ -28,6 +29,13 @@ import { supersedeStalePlans } from "./coach-plans";
  * Strength is deliberately absent. Its sequence is projected by `domain/schedule.ts` from the
  * cycle and the events, it shifts when a day is missed, and nothing here competes with that
  * (plan §2.3). The backfill writes no strength occurrence either, for the same reason.
+ *
+ * The dates written here are where the block was first placed, not a second schedule running
+ * beside that sequence. They are what adherence counts against and what the programme view
+ * lays out; they are not what Today offers. Today asks for the slot the sequence has reached
+ * — by lineage and cycle, never by date — because a programme whose strength half shifts and
+ * whose endurance half does not is two programmes, and it showed an athlete two days behind a
+ * run from a day they had not got to.
  *
  * A revision carries occurrences forward by lineage rather than recreating them. Work that is
  * completed, started or claimed is frozen: its prescription is what was actually on screen,
@@ -57,20 +65,6 @@ async function ensureFamily(tx: DbOrTx, userId: string, familyId: string): Promi
     .insert(programFamilies)
     .values({ id: familyId, userId })
     .onConflictDoNothing({ target: programFamilies.id });
-}
-
-/**
- * The lineage a weekday's endurance work belongs to, derived from the family so that two
- * versions of one programme agree without storing a second registry. Same derivation the
- * backfill uses, so a migrated programme and a freshly activated one produce the same ids.
- */
-export function weekdayLineage(familyId: string, dayOfWeek: number): string {
-  const hex = familyId.replace(/-/g, "");
-  const tail = (Number.parseInt(hex.slice(-4), 16) ^ (dayOfWeek * 7919)) & 0xffff;
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(
-    20,
-    28,
-  )}${tail.toString(16).padStart(4, "0")}`;
 }
 
 /** An occurrence that already exists in this family, with what has become of it. */

@@ -14,12 +14,13 @@ import {
   ClaimLostError,
   getOccurrence,
   holdsClaim,
-  occurrencesOnDate,
+  occurrencesForSlot,
   OccurrenceNotFoundError,
   programmeOccurrences,
   reopenOccurrence,
   rescheduleOccurrence,
   skipOccurrence,
+  standaloneOccurrencesOnDate,
   standaloneSchedule,
 } from "./occurrences";
 
@@ -84,27 +85,107 @@ const run = (origin = AD_HOC_ORIGIN) => ({
 });
 
 describe("what is on a day", () => {
-  /** AT-SCHED-03: Wednesday's unfinished work is not on Friday. */
-  it("takes only what is dated that day", async () => {
+  /** The slot an occurrence belongs to, as the backfill and activation both key it. */
+  async function slotOf(userId: string, occurrenceId: string) {
+    const [row] = await t.db
+      .select({
+        familyId: plannedOccurrences.familyId,
+        slotLineageId: plannedOccurrences.slotLineageId,
+        cycleIndex: plannedOccurrences.cycleIndex,
+      })
+      .from(plannedOccurrences)
+      .where(and(eq(plannedOccurrences.userId, userId), eq(plannedOccurrences.id, occurrenceId)));
+    return {
+      familyId: row!.familyId!,
+      slotLineageId: row!.slotLineageId!,
+      cycleIndex: row!.cycleIndex!,
+    };
+  }
+
+  /** One session the athlete put on the calendar themselves, on the date given. */
+  async function scheduleStandalone(userId: string, scheduledOn: string) {
+    return withUser(t.db, userId, async (tx) => {
+      const [occurrence] = await tx
+        .insert(plannedOccurrences)
+        .values({ userId, sport: "swimming", originalScheduledOn: scheduledOn })
+        .returning({ id: plannedOccurrences.id });
+      const [version] = await tx
+        .insert(occurrenceVersions)
+        .values({
+          occurrenceId: occurrence!.id,
+          userId,
+          sport: "swimming",
+          scheduledOn,
+          schedulingZone: "Asia/Kolkata",
+        })
+        .returning({ id: occurrenceVersions.id });
+      await tx
+        .update(plannedOccurrences)
+        .set({ currentRevisionId: version!.id })
+        .where(eq(plannedOccurrences.id, occurrence!.id));
+      return occurrence!.id;
+    });
+  }
+
+  /**
+   * TODAY-01: Today asks for the programme's work by where the sequence has got to, so a
+   * date query must not hand it back as well. It did, and an athlete two days behind was
+   * shown a run belonging to a day they had not reached — the programme dated every session
+   * when the block was written, and only the strength half ever shifts.
+   */
+  it("keeps the programme's own sessions out of what is dated today", async () => {
     const account = await seeded("day@example.test");
     const all = await occurrences(account.userId);
     const first = all[0]!;
+    const mine = await scheduleStandalone(account.userId, first.scheduledOn);
 
-    const onItsDay = await withUser(
+    const dated = await withUser(
       t.db,
       account.userId,
-      (tx) => occurrencesOnDate(tx, account.userId, first.scheduledOn),
+      (tx) => standaloneOccurrencesOnDate(tx, account.userId, first.scheduledOn),
       { readOnly: true },
     );
-    expect(onItsDay.map((occurrence) => occurrence.id)).toContain(first.id);
+    expect(dated.map((occurrence) => occurrence.id)).toEqual([mine]);
+    expect(dated.every((occurrence) => occurrence.familyId === null)).toBe(true);
 
     const later = await withUser(
       t.db,
       account.userId,
-      (tx) => occurrencesOnDate(tx, account.userId, "2026-09-30"),
+      (tx) => standaloneOccurrencesOnDate(tx, account.userId, "2026-09-30"),
       { readOnly: true },
     );
     expect(later).toEqual([]);
+  });
+
+  /** The programme's endurance is found by the role and cycle it belongs to, not by its date. */
+  it("finds a programme session by its slot, wherever it has been moved to", async () => {
+    const account = await seeded("slot@example.test");
+    const all = await occurrences(account.userId);
+    const first = all[0]!;
+    const slot = await slotOf(account.userId, first.id);
+
+    const found = await withUser(
+      t.db,
+      account.userId,
+      (tx) => occurrencesForSlot(tx, account.userId, slot),
+      { readOnly: true },
+    );
+    expect(found.map((occurrence) => occurrence.id)).toContain(first.id);
+
+    // Moving it changes its date and nothing about which day of the cycle it answers for.
+    await withUser(t.db, account.userId, (tx) =>
+      rescheduleOccurrence(tx, account.userId, first.id, "2026-12-01"),
+    );
+    const afterMove = await withUser(
+      t.db,
+      account.userId,
+      (tx) => occurrencesForSlot(tx, account.userId, slot),
+      { readOnly: true },
+    );
+    expect(afterMove.map((occurrence) => occurrence.id)).toContain(first.id);
+    expect(afterMove.find((occurrence) => occurrence.id === first.id)?.scheduledOn).toBe(
+      "2026-12-01",
+    );
   });
 
   it("reports a programme's sessions with what became of each", async () => {

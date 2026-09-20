@@ -188,6 +188,23 @@ export function legacyPlannedDate(startDate: string, weekIndex: number, dayOfWee
 }
 
 /**
+ * The lineage a weekday's endurance work belongs to, derived from the programme family.
+ *
+ * Two versions of one programme agree on it without storing a second registry, and the
+ * backfill and a fresh activation produce the same ids for the same weekday. It lives here,
+ * beside the date arithmetic it is keyed with, because three callers need it and a private
+ * copy in each is how they would drift apart.
+ */
+export function weekdayLineage(familyId: string, dayOfWeek: number): string {
+  const hex = familyId.replace(/-/g, "");
+  const tail = (Number.parseInt(hex.slice(-4), 16) ^ (dayOfWeek * 7919)) & 0xffff;
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(
+    20,
+    28,
+  )}${tail.toString(16).padStart(4, "0")}`;
+}
+
+/**
  * Deterministic identity for a canonical row derived from a legacy source.
  *
  * A run keeps its own UUID wherever that id is free, so stored links, evidence and bookmarks

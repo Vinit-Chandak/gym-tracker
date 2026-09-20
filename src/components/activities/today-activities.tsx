@@ -3,22 +3,20 @@ import { Badge } from "@/components/ui/badge";
 import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Disclosure } from "@/components/ui/disclosure";
-import { Section } from "@/components/ui/section";
 import { ACTIVITY_SPORT_LABELS } from "@/domain/activity";
 import { describePrescription } from "@/domain/activity-prescription";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
 
 /**
- * Today's scheduled endurance work (plan §2.3).
+ * One scheduled session on Today, whatever put it there (plan §2.3).
  *
- * Exactly what is dated today, each card with its own state and its own action. Two swims on
- * one day are two cards. Nothing earlier appears here: a Wednesday swim that was not done is
- * still Wednesday's, and it is found in the programme rather than piling onto Friday
- * (TODAY-01). Ad hoc work never appears at all — it was not scheduled, so there is nothing
- * here for it to be the answer to.
+ * Two sources meet on this card and neither is allowed to pretend to be the other. Work the
+ * athlete put on the calendar is here because it is dated today. The programme's own endurance
+ * is here because the sequence has reached the day it belongs to — never because its original
+ * date happens to be today, which is what showed a run from a day nobody had got to yet
+ * (TODAY-01). The caller decides which it is asking for; the card only says so.
  *
- * Strength keeps its own card, drawn by Today from its own flexible sequence. These sit
- * beside it without touching it.
+ * Strength keeps its own card, drawn by Today from the same sequence. These sit beside it.
  */
 
 function line(occurrence: ScheduledOccurrence): string {
@@ -26,7 +24,14 @@ function line(occurrence: ScheduledOccurrence): string {
   return ACTIVITY_SPORT_LABELS[occurrence.sport];
 }
 
-function OccurrenceCard({ occurrence }: { occurrence: ScheduledOccurrence }) {
+export function OccurrenceCard({
+  occurrence,
+  meta,
+}: {
+  occurrence: ScheduledOccurrence;
+  /** Where this came from, when that is not obvious — the programme day it belongs to. */
+  meta?: string | null;
+}) {
   const logged = occurrence.resolution.kind === "logged";
   return (
     <Card>
@@ -36,6 +41,7 @@ function OccurrenceCard({ occurrence }: { occurrence: ScheduledOccurrence }) {
             {ACTIVITY_SPORT_LABELS[occurrence.sport]}
           </p>
           <h2 className="mt-1 text-lg font-medium [overflow-wrap:anywhere]">{line(occurrence)}</h2>
+          {meta && <p className="mt-1.5 text-sm [overflow-wrap:anywhere] text-ink-muted">{meta}</p>}
           {occurrence.scheduledLocalTime && (
             <p className="mt-1.5 text-sm text-ink-muted tabular-nums">
               {occurrence.scheduledLocalTime.slice(0, 5)}
@@ -64,25 +70,40 @@ function OccurrenceCard({ occurrence }: { occurrence: ScheduledOccurrence }) {
   );
 }
 
-export function TodayActivities({ occurrences }: { occurrences: readonly ScheduledOccurrence[] }) {
+/**
+ * What is already answered, out of the way but not gone. Today is about what is left to do,
+ * and a run logged at seven this morning is not that — but it is still the proof the day was
+ * trained, so it stays one tap away rather than disappearing until History.
+ */
+export function CompletedOccurrences({
+  occurrences,
+}: {
+  occurrences: readonly ScheduledOccurrence[];
+}) {
   if (occurrences.length === 0) return null;
-  const outstanding = occurrences.filter((occurrence) => occurrence.resolution.kind !== "logged");
-  const done = occurrences.filter((occurrence) => occurrence.resolution.kind === "logged");
-
   return (
-    <Section title="Scheduled today">
-      {outstanding.map((occurrence) => (
-        <OccurrenceCard key={occurrence.id} occurrence={occurrence} />
-      ))}
-      {done.length > 0 && (
-        <Disclosure summary="Completed" meta={`${done.length}`}>
-          <div className="space-y-3">
-            {done.map((occurrence) => (
-              <OccurrenceCard key={occurrence.id} occurrence={occurrence} />
-            ))}
-          </div>
-        </Disclosure>
-      )}
-    </Section>
+    <Disclosure summary="Completed" meta={`${occurrences.length}`}>
+      <div className="space-y-3">
+        {occurrences.map((occurrence) => (
+          <OccurrenceCard key={occurrence.id} occurrence={occurrence} />
+        ))}
+      </div>
+    </Disclosure>
   );
+}
+
+/**
+ * Still owed an answer and able to take one: what Today puts on the page.
+ *
+ * `loggable` rather than "not logged", so a session the programme withdrew is not offered
+ * with a button that leads to a page explaining it was withdrawn. Work nobody can answer any
+ * more is not today's business; it is in the programme, with what became of it.
+ */
+export function isOutstanding(occurrence: ScheduledOccurrence): boolean {
+  return occurrence.loggable;
+}
+
+/** Answered by a log. Kept on the day it belongs to, behind the disclosure. */
+export function isAnswered(occurrence: ScheduledOccurrence): boolean {
+  return occurrence.resolution.kind === "logged";
 }
