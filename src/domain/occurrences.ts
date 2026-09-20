@@ -160,22 +160,6 @@ export function adherenceBySport(
   return out;
 }
 
-/**
- * Today's scheduled endurance work: exactly what is dated today.
- *
- * Nothing rolls forward. A Wednesday swim that was not done is still Wednesday's, and it is
- * found in the programme rather than piling onto Friday (TODAY-01). Strength's own projection
- * is computed by the existing sequence and added to this list by the caller.
- */
-export function occurrencesOn<T extends Pick<Occurrence, "scheduledOn" | "orderIndex" | "id">>(
-  occurrences: readonly T[],
-  date: string,
-): T[] {
-  return occurrences
-    .filter((occurrence) => occurrence.scheduledOn === date)
-    .sort((a, b) => a.orderIndex - b.orderIndex || (a.id < b.id ? -1 : 1));
-}
-
 /** Upcoming and earlier standalone work, for the schedule view that owns it (SCHED-08). */
 export function splitByDate<T extends Pick<Occurrence, "scheduledOn">>(
   occurrences: readonly T[],

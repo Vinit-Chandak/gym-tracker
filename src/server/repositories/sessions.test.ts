@@ -6,7 +6,7 @@ import { seedReferenceData } from "@/db/seed/reference";
 import { seedTestUserData } from "@/db/test/fixtures";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
-import { nextPendingSlot, suggestion } from "@/domain/schedule";
+import { nextPendingSlot, partStatus, suggestion } from "@/domain/schedule";
 
 import { createEquipment } from "./equipment";
 import { listGyms } from "./gyms";
@@ -276,7 +276,7 @@ describe("planned session lifecycle", () => {
     );
     const runDay = await withUser(t.db, user.id, (tx) => getTodayPlan(tx, user.id, TZ));
     expect(runDay?.suggestedDay?.name).toBe("Easy Run + Arms");
-    expect(runDay?.runTarget).not.toBeNull();
+    expect(runDay?.suggestedDay?.includesRun).toBe(true);
 
     await withUser(t.db, user.id, (tx) =>
       recordSlotEvent(
@@ -293,8 +293,10 @@ describe("planned session lifecycle", () => {
     const afterWorkout = await withUser(t.db, user.id, (tx) => getTodayPlan(tx, user.id, TZ));
     expect(afterWorkout?.suggestedDay?.name).toBe("Easy Run + Arms");
     expect(afterWorkout?.sessionStatus).toBe("completed");
-    expect(afterWorkout?.runStatus).toBe("pending");
-    expect(afterWorkout?.runTarget).not.toBeNull();
+    // The run half is answered by the sequence itself rather than by a copy on the plan, so
+    // that is where it is read: the day is still owed a run, and so is still the day.
+    const owing = await withUser(t.db, user.id, (tx) => getSchedule(tx, user.id));
+    expect(partStatus(owing!.state, { cycleIndex: 1, dayIndex: 3 }, "run")).toBe("pending");
 
     await withUser(t.db, user.id, (tx) =>
       recordSlotEvent(

@@ -275,22 +275,6 @@ export async function recordSlotEvent(
 }
 
 /**
- * Undoes the run part a given run completed. Deleting or re-linking a run has to give the day
- * back, or the programme would count a run that no longer exists.
- */
-export async function clearRunSlotEvent(db: DbOrTx, userId: string, runId: string): Promise<void> {
-  await db
-    .delete(programSlotEvents)
-    .where(
-      and(
-        eq(programSlotEvents.userId, userId),
-        eq(programSlotEvents.part, "run"),
-        eq(programSlotEvents.runId, runId),
-      ),
-    );
-}
-
-/**
  * Takes back the skip on a slot's session, so the day can be trained after all.
  *
  * Picking a skipped day from "Train another day" trains the occurrence the list showed, which
@@ -547,16 +531,12 @@ export type TodayPlan = {
   suggestedExercises: PlannedExercisePreview[];
   /** The training day offered when the suggested slot is a rest day. */
   nextTrainingDay: (ScheduleDay & { cycleIndex: number }) | null;
-  runTarget: RunTarget | null;
   /**
-   * The two halves of the offered day, answered separately. The lifting session and the run
-   * are different tasks that happen to share a date, so Today shows one card per part and the
-   * day only moves on once both have been answered.
+   * The lifting half of the offered day. The run half is not here: it is answered by its own
+   * occurrence, which Today reads directly, and a second copy of that fact projected through
+   * this type only went stale (plan §2.3).
    */
   sessionStatus: SlotStatus | "pending";
-  runStatus: SlotStatus | "pending";
-  /** The run that completed this day's run, when one did. */
-  loggedRunId: string | null;
   /** Every day of the current cycle with its status, for "choose another day". */
   cycleDays: DayStatus[];
 };
@@ -575,16 +555,7 @@ export async function getTodayPlan(
   const suggestedDay = next
     ? (schedule.days.find((d) => d.dayIndex === next.slot.dayIndex) ?? null)
     : null;
-  // The day's exercises and its run target only need the schedule, so they are read together.
-  const [suggestedExercises, runTarget, loggedRunId] = await Promise.all([
-    suggestedDay ? listDayExercises(db, suggestedDay.id) : Promise.resolve([]),
-    next && suggestedDay?.includesRun
-      ? getRunTarget(db, schedule.program.id, next.slot.cycleIndex, suggestedDay.dayOfWeek ?? 0)
-      : Promise.resolve(null),
-    next && suggestedDay?.includesRun
-      ? completedRunIdFor(db, schedule.program.id, next.slot)
-      : Promise.resolve(null),
-  ]);
+  const suggestedExercises = suggestedDay ? await listDayExercises(db, suggestedDay.id) : [];
   const nextTrainingRef = next?.nextTrainingSlot ?? null;
   const nextTrainingDay = nextTrainingRef
     ? (schedule.days.find((d) => d.dayIndex === nextTrainingRef.dayIndex) ?? null)
@@ -615,48 +586,9 @@ export async function getTodayPlan(
       nextTrainingDay && nextTrainingRef
         ? { ...nextTrainingDay, cycleIndex: nextTrainingRef.cycleIndex }
         : null,
-    runTarget,
     sessionStatus: next ? partStatus(state, next.slot, "session") : "pending",
-    runStatus: next ? partStatus(state, next.slot, "run") : "pending",
-    loggedRunId,
     cycleDays,
   };
-}
-
-/** The run that answered a slot's run part, if one did. */
-export async function completedRunIdFor(
-  db: DbOrTx,
-  programId: string,
-  ref: SlotRef,
-): Promise<string | null> {
-  const [row] = await db
-    .select({ runId: programSlotEvents.runId })
-    .from(programSlotEvents)
-    .where(
-      and(
-        eq(programSlotEvents.programId, programId),
-        eq(programSlotEvents.cycleIndex, ref.cycleIndex),
-        eq(programSlotEvents.dayIndex, ref.dayIndex),
-        eq(programSlotEvents.part, "run"),
-      ),
-    )
-    .limit(1);
-  return row?.runId ?? null;
-}
-
-/**
- * The slot a planned run belongs to: its week is the cycle, and the day of the cycle that
- * runs on its weekday is the day. Null when the programme has no running day on that weekday,
- * which is how a run logged against a stale plan simply records nothing.
- */
-export function slotForPlannedRun(
-  schedule: Schedule,
-  planned: { weekIndex: number; dayOfWeek: number },
-): SlotRef | null {
-  const day = schedule.days.find(
-    (candidate) => candidate.includesRun && candidate.dayOfWeek === planned.dayOfWeek,
-  );
-  return day ? { cycleIndex: planned.weekIndex, dayIndex: day.dayIndex } : null;
 }
 
 export type ProgramDayPlan = {

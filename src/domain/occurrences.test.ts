@@ -5,7 +5,6 @@ import {
   adherenceCounts,
   canLog,
   isOverdue,
-  occurrencesOn,
   resolveOccurrence,
   splitByDate,
   type LinkedActivity,
@@ -70,23 +69,6 @@ describe("what answers for an occurrence", () => {
 });
 
 describe("what is on a day", () => {
-  /** AT-SCHED-01 and AT-NAV-02: today's list is today's, in a stable order. */
-  it("takes exactly the occurrences dated that day, ordered", () => {
-    const list = [
-      occurrence({ id: "swim", scheduledOn: "2026-09-18", orderIndex: 1 }),
-      occurrence({ id: "run-a", sport: "running", scheduledOn: "2026-09-18", orderIndex: 0 }),
-      occurrence({ id: "run-b", sport: "running", scheduledOn: "2026-09-18", orderIndex: 0 }),
-      occurrence({ id: "earlier", scheduledOn: "2026-09-16" }),
-    ];
-    expect(occurrencesOn(list, "2026-09-18").map((item) => item.id)).toEqual([
-      "run-a",
-      "run-b",
-      "swim",
-    ]);
-    // AT-SCHED-03: Wednesday's unfinished swim is not on Friday.
-    expect(occurrencesOn(list, "2026-09-18").some((item) => item.id === "earlier")).toBe(false);
-  });
-
   it("splits standalone work into upcoming and earlier", () => {
     const { upcoming, earlier } = splitByDate(
       [
