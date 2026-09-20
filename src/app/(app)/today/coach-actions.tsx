@@ -120,8 +120,8 @@ export function CoachRequestPanel({
     <div className="space-y-4">
       {workflow && (
         <p className="text-sm text-ink-muted">
-          Daily preparation is automatic. Use this when you are training at a different gym for your
-          next session.
+          Daily preparation is automatic. Use this to prepare your next session again — at a
+          different gym, or at this one after something has changed.
         </p>
       )}
       <ul className="space-y-2" aria-label="Gym">

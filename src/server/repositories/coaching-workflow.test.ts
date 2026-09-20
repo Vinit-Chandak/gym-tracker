@@ -660,7 +660,7 @@ it("requires review for structural changes and leaves the active programme intac
   expect((await as(a, (tx) => getSchedule(tx, a.user.id)))?.program.id).toBe(active.programId);
   expect((await as(a, (tx) => tx.select().from(coachWeeklyReviews)))[0]?.outcome).toBe("proposal");
 });
-it("treats a same-gym request as a no-op and supersedes an older changed-gym request", async () => {
+it("prepares the gym already chosen, and supersedes an older changed-gym request", async () => {
   const a = await athlete();
   const { draft } = await generated(a);
   await as(a, (tx) =>
@@ -670,17 +670,17 @@ it("treats a same-gym request as a no-op and supersedes an older changed-gym req
       transition: "new_block",
     }),
   );
-  expect(await as(a, (tx) => requestGymChange(tx, a.user.id, a.gym.id))).toEqual({
-    job: null,
-    created: false,
-  });
   const [other] = await as(a, (tx) =>
     tx.insert(gyms).values({ userId: a.user.id, name: "Other gym", slug: "other" }).returning(),
   );
   const first = await as(a, (tx) => requestGymChange(tx, a.user.id, other!.id));
   const claimed = await as(a, (tx) => claimCoachJob(tx, a.user.id, first.job!.id));
   expect(claimed).toBeTruthy();
+  // Asking for the gym already chosen is a re-plan, not a no-op: the machines, the history
+  // and the notes it reads can all have moved since the last run.
   const second = await as(a, (tx) => requestGymChange(tx, a.user.id, a.gym.id));
+  expect(second.created).toBe(true);
+  expect(second.job.target.gymId).toBe(a.gym.id);
   expect(second.job!.target.intentId).not.toBe(first.job!.target.intentId);
   expect(
     (await as(a, (tx) => tx.select().from(coachJobs).where(eq(coachJobs.id, first.job!.id))))[0]
@@ -1241,11 +1241,9 @@ it("shares three explicit requests across creation and gym changes, and resets b
     tx.insert(gyms).values({ userId: a.user.id, name: "Other gym", slug: "other" }).returning(),
   );
   await as(a, (tx) => requestGymChange(tx, a.user.id, other!.id));
-  await as(a, (tx) => requestGymChange(tx, a.user.id, a.gym.id));
-  expect(await as(a, (tx) => requestGymChange(tx, a.user.id, a.gym.id))).toEqual({
-    job: null,
-    created: false,
-  });
+  // The gym already chosen spends an ask like any other: re-preparing costs the coach
+  // exactly what changing gym costs it, so it is bounded by the same three.
+  expect((await as(a, (tx) => requestGymChange(tx, a.user.id, a.gym.id))).created).toBe(true);
   await expect(request(a)).rejects.toThrow(/share three/);
   await expect(as(a, (tx) => requestGymChange(tx, a.user.id, other!.id))).rejects.toThrow(
     /share three/,

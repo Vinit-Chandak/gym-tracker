@@ -141,8 +141,8 @@ export async function answerCoachQuestionsAction(
  *
  * The cadence reviews about once a week on a day the athlete rested, which is right until
  * something changes — a new gym, a week away, a run of sessions that went nothing like the
- * plan. This starts that same review against the same evidence, once a week each. Whatever it
- * proposes still waits for approval.
+ * plan. This starts that same review against the same evidence, within a fixed allowance over
+ * a rolling window. Whatever it proposes still waits for approval.
  */
 export async function requestProgramReviewAction() {
   if (

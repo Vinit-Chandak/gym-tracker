@@ -125,13 +125,7 @@ export async function requestCoachPlanAction(gymId: string, reason: string): Pro
       const result = await withUser(getDb(), user.id, (tx) =>
         requestGymChange(tx, user.id, parsed.data.gymId, parsed.data.reason),
       );
-      if (!result.job)
-        return {
-          ok: false,
-          error:
-            "This is already the gym selected for your next session. Daily preparation runs at 04:00 India time; no extra run is needed.",
-        };
-      if (result.created) after(() => dispatchCoachJob(getDb(), user.id, result.job!.id));
+      if (result.created) after(() => dispatchCoachJob(getDb(), user.id, result.job.id));
       revalidatePath("/today");
       return { ok: true };
     } catch (error) {

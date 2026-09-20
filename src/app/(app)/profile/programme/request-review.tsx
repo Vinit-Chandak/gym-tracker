@@ -14,7 +14,7 @@ export type ReviewAvailability = {
   canAsk: boolean;
   /** A review is already queued or running, so asking again would only duplicate it. */
   running: boolean;
-  /** The day they may ask again, already formatted, when this week's is spent. */
+  /** The day they may ask again, already formatted, when the allowance is spent. */
   nextOn: string | null;
 };
 
@@ -22,8 +22,9 @@ export type ReviewAvailability = {
  * Asking for a review, and being told whether you can.
  *
  * The coach reviews on its own cadence — about once a week, on a day the athlete rested —
- * which is right until something changes that will not wait for it. One a week each, and the
- * card says which of the three states it is in rather than offering a button that refuses.
+ * which is right until something changes that will not wait for it. A fixed allowance over a
+ * rolling window on top of that, and the card says which of the three states it is in rather
+ * than offering a button that refuses.
  */
 export function RequestReview({ availability }: { availability: ReviewAvailability }) {
   const router = useRouter();
@@ -51,7 +52,7 @@ export function RequestReview({ availability }: { availability: ReviewAvailabili
           ? "The coach is reviewing your programme. What it proposes appears here for you to approve."
           : availability.canAsk
             ? "The coach reviews your programme about once a week. Ask now if something has changed."
-            : `You have asked for a review this week. You can ask again from ${availability.nextOn}; the weekly review runs either way.`}
+            : `You have used your review requests for now. You can ask again from ${availability.nextOn}; the weekly review runs either way.`}
       </p>
       {!sent && !availability.running && (
         <Button

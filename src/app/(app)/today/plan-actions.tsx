@@ -126,7 +126,9 @@ export function MoreOptions({
   };
   const coachRow = coach && !coach.pending;
   const coachLabel = coach?.workflow
-    ? "Prepare for a different gym"
+    ? coach.hasPlan
+      ? "Prepare this session again"
+      : "Prepare this session"
     : coach?.hasPlan
       ? "Re-plan with the coach"
       : "Ask the coach for a plan";
