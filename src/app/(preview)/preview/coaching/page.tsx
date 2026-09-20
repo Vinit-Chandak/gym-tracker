@@ -154,6 +154,7 @@ const CHANGE_BASE: ProgramBlueprint = {
     },
   ],
 };
+/** Computed once, so the preview can tag a changed line with the ask that produced it. */
 const CHANGE_PROPOSED: ProgramBlueprint = {
   ...CHANGE_BASE,
   weeks: 8,
@@ -200,6 +201,25 @@ const CHANGE_PROPOSED: ProgramBlueprint = {
     },
   ],
 };
+
+const CHANGE_DIFF = diffPrograms(CHANGE_BASE, CHANGE_PROPOSED);
+const EMPTY_CHANGE = diffPrograms(CHANGE_BASE, CHANGE_BASE);
+/**
+ * The operations the curl ask produced, found rather than hard-coded.
+ *
+ * A real decision names these IDs itself and the server refuses one that names an operation
+ * the diff does not contain, so the preview derives them the same way rather than drifting.
+ */
+const CURL_OPERATION_IDS = CHANGE_DIFF.days
+  .flatMap((day) => day.operations)
+  .filter(
+    (operation) =>
+      (operation.kind === "added" ||
+        operation.kind === "replaced" ||
+        operation.kind === "retargeted") &&
+      operation.to.exerciseSlug === "cable-curl",
+  )
+  .map((operation) => operation.id);
 
 /** Synthetic visual fixtures only; the preview layout disables these routes in production. */
 export default async function CoachingPreview({
@@ -299,6 +319,8 @@ export default async function CoachingPreview({
               baseProgramId: null,
               sourceRevision: 1,
               revision: 1,
+              headline: "Your first draft, built around the time you said you have.",
+              gateReasons: [],
               rationale:
                 "A draft for your available training time. Review and edit the exercises and targets before starting.",
               uncertainties: [
@@ -324,9 +346,11 @@ export default async function CoachingPreview({
             status="ready"
             name="Example personal programme"
             when="19 September 2026, 04:12"
+            headline="Swaps your barbell curl for a cable curl and adds a cable crunch."
             rationale="Bayesian cable curls go in on your upper day. Core work needs one answer before I can place it."
             uncertainties={[]}
-            diff={diffPrograms(CHANGE_BASE, view === "unchanged" ? CHANGE_BASE : CHANGE_PROPOSED)}
+            gateReasons={["A new slot needs review."]}
+            diff={view === "unchanged" ? EMPTY_CHANGE : CHANGE_DIFF}
             names={Object.fromEntries(EXERCISES.map((e) => [e.slug, e.name]))}
             canContinue={false}
             requests={[
@@ -339,14 +363,10 @@ export default async function CoachingPreview({
                   view === "unchanged"
                     ? "Your cable station has no adjustable low pulley, so this variation is not set up at your gym."
                     : "Added to Upper, in place of the barbell curl.",
+                changeRefs: CURL_OPERATION_IDS,
               },
-              {
-                id: `${ID.slice(0, 35)}3`,
-                summary: "More direct core work",
-                quote: "and more direct core work please",
-                state: "needs_answer",
-                detail: "Which day has the most time to spare for two extra sets?",
-              },
+              // The same run also had a question about core work. It is answered on the list
+              // that has a box for it, so it is not reprinted here.
             ]}
             today="2026-09-19"
             base="/profile/programme"

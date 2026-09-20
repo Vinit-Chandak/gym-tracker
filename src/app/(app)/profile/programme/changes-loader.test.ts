@@ -60,7 +60,9 @@ beforeAll(async () => {
         blueprint: STRENGTH_AESTHETICS_HYBRID_8WK,
         baseProgramId: programId,
         sourceRevision: 1,
-        rationale: "Two direct core slots added.",
+        headline: "Doubles your direct core work: 4 → 8 sets a week.",
+        rationale:
+          "You currently have two direct core slots a week — the cable crunch on Lower A and the side plank on Upper B's easy-run day — which came to four direct sets across the last eleven days.",
       })
       .returning({ id: programDrafts.id });
     draftId = draft!.id;
@@ -132,4 +134,7 @@ it("returns the change and its review once the ask no longer speaks for it", asy
   expect(after.changes).toEqual([]);
   expect(after.reviews.map((review) => review.outcome)).toEqual(["proposal"]);
   expect(after.waiting).toBe(0);
+  // The history row carries the draft's one line, not the reasoning the coach is fed back.
+  expect(after.reviews[0]!.summary).toBe("Doubles your direct core work: 4 → 8 sets a week.");
+  expect(after.reviews[0]!.summary).not.toContain("eleven days");
 });

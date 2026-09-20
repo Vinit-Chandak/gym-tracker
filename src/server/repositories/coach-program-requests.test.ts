@@ -125,6 +125,7 @@ async function training() {
   const accepted = await as(a, (tx) =>
     acceptCoachJobResult(tx, a.user.id, job.id, claim!.attemptId!, {
       outcome: "program",
+      headline: "A block built around your confirmed training time.",
       blueprint,
       openingPlan: {
         dayIndex: 1,
@@ -232,6 +233,7 @@ it("gives two asks in one note two separate outcomes", async () => {
   const accepted = await as(a, (tx) =>
     acceptCoachJobResult(tx, a.user.id, job.id, attemptId, {
       outcome: "program",
+      headline: "Adds direct core work; the curl variation needs one answer.",
       blueprint: revised,
       openingPlan: null,
       rationale: "Direct core work goes in; the curl variation needs one answer first.",
@@ -342,6 +344,7 @@ it("refuses a proposal claiming a change the blueprint does not contain", async 
     as(a, (tx) =>
       acceptCoachJobResult(tx, a.user.id, job.id, attemptId, {
         outcome: "program",
+        headline: "Adds the curls to your upper day.",
         blueprint: revised,
         openingPlan: null,
         rationale: "Adding the curls.",
@@ -583,6 +586,7 @@ it("shows a change every ask its own review answered, not only the ones it propo
   const accepted = await as(a, (tx) =>
     acceptCoachJobResult(tx, a.user.id, job.id, attemptId, {
       outcome: "program",
+      headline: "Adds the curls; the core work needs one answer.",
       blueprint: revised,
       openingPlan: null,
       rationale: "The curls go in; the core work needs one answer.",
@@ -959,6 +963,7 @@ it("leaves no draft to apply when a review changes nothing", async () => {
   await as(a, (tx) =>
     acceptCoachJobResult(tx, a.user.id, job.id, attemptId, {
       outcome: "program",
+      headline: "Nothing changes this week.",
       blueprint: structuredClone(current!.blueprint),
       openingPlan: null,
       rationale: "Everything is progressing; nothing needs to change.",

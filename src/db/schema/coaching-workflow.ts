@@ -166,8 +166,21 @@ export const programDrafts = pgTable(
     baseProgramId: uuid("base_program_id").references(() => programs.id, { onDelete: "set null" }),
     sourceRevision: bigint("source_revision", { mode: "number" }).notNull(),
     revision: integer("revision").notNull().default(1),
+    /** One line saying what this change does, in the athlete's terms. Shown; never truncated. */
+    headline: text("headline").notNull().default(""),
     rationale: text("rationale").notNull().default(""),
     uncertainties: jsonb("uncertainties")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    /**
+     * Why the server would not apply this on its own, in its own words.
+     *
+     * Kept apart from `uncertainties`, which is the coach's. These are guardrail findings —
+     * "a new slot needs review", once per slot — and printing them beside a coach's caveat
+     * told the athlete that the coach was unsure about something the policy simply gates.
+     */
+    gateReasons: jsonb("gate_reasons")
       .$type<string[]>()
       .notNull()
       .default(sql`'[]'::jsonb`),

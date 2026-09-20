@@ -496,6 +496,7 @@ export async function acceptCoachJobResult(
         intakeId: job.intakeId,
         baseProgramId: job.target.programId,
         sourceRevision: job.sourceRevision!,
+        headline: result.headline,
         rationale: result.rationale,
         uncertainties: result.uncertainties,
       })
@@ -542,10 +543,13 @@ export async function acceptCoachJobResult(
         programBefore = current.blueprint;
       } else {
         reviewOutcome = "proposal";
+        // The coach's caveats and the server's gate are two different statements, and they
+        // are kept in two different columns. Merged, "a new slot needs review" — emitted once
+        // per added slot — read to the athlete as the coach doubting its own proposal.
         await db
           .update(programDrafts)
           .set({
-            uncertainties: [...result.uncertainties, ...assessment.reasons]
+            gateReasons: [...new Set(assessment.reasons)]
               .slice(0, 20)
               .map((text) => text.slice(0, 500)),
           })
