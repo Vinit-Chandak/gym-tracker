@@ -82,6 +82,7 @@ export const EQUIPMENT_TYPES: readonly EquipmentTypeSeed[] = [
   type("preacher_curl_machine", "Preacher curl machine", "machine", "selectorized", 54),
   type("biceps_curl_machine", "Biceps curl machine", "machine", "selectorized", 55),
   type("triceps_extension_machine", "Triceps extension machine", "machine", "selectorized", 56),
+  type("wrist_curl_machine", "Wrist curl machine", "machine", "selectorized", 57),
 
   // --- Machines: legs -------------------------------------------------------------------------
   type("leg_press_45", "45° leg press", "machine", "plate_loaded", 60),
