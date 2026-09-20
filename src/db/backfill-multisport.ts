@@ -193,6 +193,16 @@ export async function backfillMultisport(
     summary.preferences += await backfillSportPreferences(db, account);
   }
 
+  // Recorded only for a complete pass: every account, nothing held back, nothing rehearsed.
+  // A deploy reads this to decide whether to run at all, so a partial pass must not claim to
+  // be the whole one — an account skipped over a blocking issue has to be tried again once
+  // the issue is resolved, and a marker written now is how it would never be.
+  if (!dryRun && !userId && summary.blockedAccounts === 0)
+    await db.execute(
+      sql`insert into public.data_backfills (name) values (${MULTISPORT_BACKFILL})
+          on conflict (name) do update set completed_at = now()`,
+    );
+
   return summary;
 }
 

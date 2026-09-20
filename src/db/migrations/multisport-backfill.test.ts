@@ -216,6 +216,48 @@ describe("a mixed account", () => {
   });
 });
 
+/**
+ * The marker a deploy reads to decide whether to run this at all.
+ *
+ * It has to mean "every account is done", because that is the question the build asks. A pass
+ * that skipped an account over a blocking issue, a rehearsal, or a single-account support run
+ * are all partial — marking any of them done is how the accounts left behind never get a
+ * second chance.
+ */
+describe("the completion marker", () => {
+  const marked = async () => (await countOf("data_backfills", "name = 'multisport_canonical_v1'")) > 0;
+
+  it("records a complete pass, so the next deploy skips it", async () => {
+    await seeded("complete@example.test");
+    expect(await marked()).toBe(false);
+
+    const summary = await backfillMultisport(t.db);
+
+    expect(summary.blockedAccounts).toBe(0);
+    expect(await marked()).toBe(true);
+  });
+
+  it("does not record a pass that held an account back", async () => {
+    const blocked = await seeded("held@example.test");
+    await seedDuplicatePlannedRun(t.db, blocked, blocked.programRunIds[0]!);
+    await seeded("fine@example.test");
+
+    const summary = await backfillMultisport(t.db);
+
+    expect(summary).toMatchObject({ accounts: 1, blockedAccounts: 1 });
+    expect(await marked()).toBe(false);
+  });
+
+  it("does not record a single-account run, nor a dry one", async () => {
+    const account = await seeded("one@example.test");
+    await backfillMultisport(t.db, { userId: account.userId });
+    expect(await marked()).toBe(false);
+
+    await backfillMultisport(t.db, { dryRun: true });
+    expect(await marked()).toBe(false);
+  });
+});
+
 /** AT-MIG-08: running it again, or after an interruption, changes nothing. */
 describe("running it twice", () => {
   it("adds no rows and changes no totals", async () => {

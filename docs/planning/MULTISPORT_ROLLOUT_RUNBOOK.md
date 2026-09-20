@@ -28,17 +28,32 @@ covered them. Sections 4 to 7 of this runbook went with them. If this applicatio
 serve real accounts and a comparable migration is needed again, the plan's §10.4 still
 describes the order and the git history still holds the implementation.
 
-## 0a. The one command an operator runs
+## 0a. There is no command an operator runs
+
+The backfill runs itself, in `db:deploy`, which `vercel.json` already runs as part of the
+build — beside the migrations that create the tables it populates and the shared-stats
+backfill that has worked this way since it was written. Leaving it to a person was the last
+piece of cutover thinking in here: a migration that adds the tables and a deploy that does not
+fill them leaves an athlete looking at an empty History, concluding the release lost their
+training, and being right about what they can see. The two halves are one change.
+
+It is additive, resumable and idempotent, and it marks itself done in `data_backfills` only
+after a complete pass — every account, nothing held back, nothing rehearsed. Later deploys
+read that marker and skip it, so the cost is one query per build forever after.
+
+Two outcomes leave it unmarked, and neither fails the build:
+
+| Outcome | Why the build still ships | What happens next |
+| --- | --- | --- |
+| An account held back by a blocking audit issue (§3) | Two of that account's records disagree about one fact. Taking the whole application down over one duplicated planned run is worse than the delay. | `npm run db:audit:multisport`, resolve it, and the next deploy tries again |
+| Reconciliation does not balance | Some legacy rows have no canonical parent yet. History reads short, not wrong. | The report is printed in the build log; the next deploy retries |
+
+Both commands remain, for looking before a deploy rather than after:
 
 ```
 npm run db:audit:multisport        # read-only inventory; exit code 1 when something blocks
-npm run db:backfill:multisport     # then the backfill, once
+npm run db:backfill:multisport     # the same pass, by hand, against MIGRATION_DATABASE_URL
 ```
-
-The backfill is idempotent and reconciles itself; running it twice writes nothing the second
-time. Until it has run, existing runs and workouts have no canonical parent and so do not
-appear in the shared Training and History surfaces. Everything logged after it is written
-canonically from the start.
 
 ## 1. Implementation baseline (P0)
 
@@ -102,7 +117,7 @@ passing local suite (AT-REL-01), and the backfill is the one irreversible thing 
 - **A backup you have restored.** Not a backup you have. The backfill is additive and
   reconciles itself, but an untested restore is not a rollback plan.
 - **The audit's answer, read by a person.** `npm run db:audit:multisport` against a restored
-  copy, before the same command against the real one. Its blocking categories (§3) are cases
+  copy, before the deploy runs the backfill against the real one. Its blocking categories (§3) are cases
   where two records disagree about the same fact, and guessing which is right is how the wrong
   run gets attached to the wrong plan.
 
@@ -125,7 +140,8 @@ work, and `{ detail: true }` adds owner and source identifiers — that form is 
 private report and does not leave the audit environment. Neither form reads notes, symptoms or
 measurements.
 
-Blocking categories stop the backfill until a person resolves them:
+Blocking categories hold an account back until a person resolves them. The rest of the
+backfill proceeds; the held account is retried on the next deploy:
 
 | Category | Why it blocks |
 | --- | --- |
