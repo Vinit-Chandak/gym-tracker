@@ -45,7 +45,7 @@ export const metadata: Metadata = { title: "Preview · Phosphor icons" };
 
 const SYMBOLS: readonly [string, AppIcon][] = [
   ["Today", Dumbbell],
-  ["Runs", Footprints],
+  ["Training", Footprints],
   ["History", CalendarDays],
   ["Progress", BarChart],
   ["Settings", Settings],
