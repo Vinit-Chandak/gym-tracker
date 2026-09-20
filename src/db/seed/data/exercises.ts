@@ -4562,4 +4562,22 @@ export const EXERCISES: readonly ExerciseSeed[] = [
       "A fixed V-bar overhead keeps both arms on one path, so the load is easier to add to than with a rope. Elbows tucked and still.",
     equipment: ["cable_station", "functional_trainer"],
   },
+  {
+    slug: "cable-serratus-punch",
+    name: "Cable serratus punch",
+    category: "hypertrophy",
+    modality: "cable",
+    movementPattern: "horizontal_push",
+    primaryMuscles: ["chest"],
+    secondaryMuscles: ["front_delts"],
+    loadPortability: "equipment_specific",
+    defaultRepMin: 12,
+    defaultRepMax: 20,
+    defaultRir: 2,
+    defaultRestSeconds: 60,
+    defaultLoadIncrement: null,
+    formNotes:
+      "The arm starts straight at chest height and stays straight: the range is the shoulder blade travelling forward around the ribs, not the elbow. Serratus work rather than a press, filed under chest because the library has no serratus group.",
+    equipment: ["cable_station", "functional_trainer", "resistance_bands"],
+  },
 ];
