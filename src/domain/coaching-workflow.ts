@@ -56,7 +56,7 @@ export function contractSkew(served: number): string | null {
     " Stop and report the skew; do not guess at field names."
   );
 }
-export const COACH_POLICY_VERSION = "2026-09-19.1";
+export const COACH_POLICY_VERSION = "2026-09-20.1";
 export const JOB_KINDS = ["create_program", "prepare_session", "review_program"] as const;
 export const JOB_STATUSES = [
   "queued",

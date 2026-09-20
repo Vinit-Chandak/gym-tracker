@@ -94,11 +94,14 @@ function Operation({
   icon: Icon,
   label,
   tone = "plain",
+  reason,
   children,
 }: {
   icon: AppIcon;
   label: string;
   tone?: Tone;
+  /** Who this line is for, shown under it and aligned with it rather than with the row. */
+  reason?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -125,6 +128,7 @@ function Operation({
           {label}
         </p>
         <div className="mt-1 min-w-0">{children}</div>
+        {reason && <div className="mt-1.5 min-w-0 text-sm text-ink-muted">{reason}</div>}
       </div>
     </li>
   );
@@ -140,10 +144,11 @@ function OperationRow({
   reason?: ReactNode;
 }) {
   const body = (() => {
+    const op = { reason };
     switch (operation.kind) {
       case "added":
         return (
-          <Operation icon={Plus} label="Added" tone="added">
+          <Operation icon={Plus} label="Added" tone="added" {...op}>
             <Side
               tone="added"
               name={nameOf(names, operation.to.exerciseSlug)}
@@ -153,7 +158,7 @@ function OperationRow({
         );
       case "removed":
         return (
-          <Operation icon={Minus} label="Removed" tone="removed">
+          <Operation icon={Minus} label="Removed" tone="removed" {...op}>
             <Side
               tone="removed"
               name={nameOf(names, operation.from.exerciseSlug)}
@@ -163,7 +168,7 @@ function OperationRow({
         );
       case "replaced":
         return (
-          <Operation icon={ArrowRight} label="Replaced">
+          <Operation icon={ArrowRight} label="Replaced" {...op}>
             {/* Stacked on a phone, side by side once there is room for both names. */}
             <div className="grid items-center gap-2 sm:grid-cols-[1fr_auto_1fr]">
               <Side
@@ -186,7 +191,7 @@ function OperationRow({
         );
       case "retargeted":
         return (
-          <Operation icon={SlidersHorizontal} label="Target changed">
+          <Operation icon={SlidersHorizontal} label="Target changed" {...op}>
             <p className="font-medium [overflow-wrap:anywhere]">
               {nameOf(names, operation.to.exerciseSlug)}
             </p>
@@ -195,7 +200,7 @@ function OperationRow({
         );
       case "reordered":
         return (
-          <Operation icon={ArrowsDownUp} label="Moved">
+          <Operation icon={ArrowsDownUp} label="Moved" {...op}>
             <p className="font-medium [overflow-wrap:anywhere]">
               {nameOf(names, operation.to.exerciseSlug)}
             </p>
@@ -206,7 +211,7 @@ function OperationRow({
         );
       case "moved_out":
         return (
-          <Operation icon={ArrowRight} label="Moved to another day">
+          <Operation icon={ArrowRight} label="Moved to another day" {...op}>
             <p className="font-medium [overflow-wrap:anywhere]">
               {nameOf(names, operation.to.exerciseSlug)}
             </p>
@@ -218,7 +223,7 @@ function OperationRow({
         );
       case "moved_in":
         return (
-          <Operation icon={ArrowRight} label="Moved here">
+          <Operation icon={ArrowRight} label="Moved here" {...op}>
             <p className="font-medium [overflow-wrap:anywhere]">
               {nameOf(names, operation.to.exerciseSlug)}
             </p>
@@ -234,6 +239,7 @@ function OperationRow({
             icon={Footprints}
             label={`Run added · week ${operation.weekIndex}`}
             tone="added"
+            {...op}
           >
             <Side tone="added" name={operation.to} />
           </Operation>
@@ -244,25 +250,20 @@ function OperationRow({
             icon={Footprints}
             label={`Run removed · week ${operation.weekIndex}`}
             tone="removed"
+            {...op}
           >
             <Side tone="removed" name={operation.from} />
           </Operation>
         );
       case "run_changed":
         return (
-          <Operation icon={Footprints} label={`Run changed · week ${operation.weekIndex}`}>
+          <Operation icon={Footprints} label={`Run changed · week ${operation.weekIndex}`} {...op}>
             <FieldLines fields={operation.fields} />
           </Operation>
         );
     }
   })();
-  if (!reason) return body;
-  return (
-    <>
-      {body}
-      <li className="pb-3 pl-9 text-sm [overflow-wrap:anywhere] text-ink-muted">{reason}</li>
-    </>
-  );
+  return body;
 }
 
 const DAY_STATUS: Record<DayDiff["status"], string | null> = {

@@ -133,6 +133,15 @@ it("links a cross-day move from both ends and names the reason beside it", () =>
   expect(screen.getByText("Moved here")).toBeTruthy();
   expect(screen.getByText("Now on Lower")).toBeTruthy();
   expect(screen.getByText("Was on Upper")).toBeTruthy();
-  expect(screen.getAllByText("You asked for a shorter upper day.")).toHaveLength(2);
+  const reasons = screen.getAllByText("You asked for a shorter upper day.");
+  expect(reasons).toHaveLength(2);
+  // The reason belongs to its operation, inside the same row. As a sibling list item it
+  // collected the ruled list's own divider and an indent that lined up with nothing.
+  for (const reason of reasons) {
+    const row = reason.closest("li");
+    expect(row).not.toBeNull();
+    expect(row!.textContent).toContain("Overhead press");
+    expect(reason.tagName).not.toBe("LI");
+  }
   expect(screen.getByText(/next unstarted session/)).toBeTruthy();
 });

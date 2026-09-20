@@ -13,7 +13,7 @@
  * docs/planning/COACH_TRAINING_REFERENCE.md is the editorial source; update both together and
  * bump the version when the text changes.
  */
-export const COACH_TRAINING_REFERENCE_VERSION = "2026-09-19.1";
+export const COACH_TRAINING_REFERENCE_VERSION = "2026-09-20.1";
 
 export const COACH_TRAINING_REFERENCE = `# Coach training reference
 
@@ -42,7 +42,8 @@ reference document must not overwrite current athlete records.
   This guidance does not prescribe running or aerobic training.
 - Effort: use a suitable target RIR for rep work. Demanding sets support hypertrophy,
   particularly with lighter loads, but failure on every set is unnecessary. No universal exact
-  RIR optimum is established. Compare actual reported effort, not effort copied from targets.
+  RIR optimum is established. Compare the effort actually logged; matching the prescribed effort is
+  the ordinary outcome of a well-set target, not a sign the number was copied from it.
 - Volume: roughly 10 weekly sets per muscle is a planning anchor, not a minimum everyone must
   reach. Some people progress with less. More volume can help with diminishing returns; adjust
   to performance, recovery and available time. Account for direct and overlapping work.

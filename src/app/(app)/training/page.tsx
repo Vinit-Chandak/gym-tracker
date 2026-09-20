@@ -1,27 +1,20 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Section } from "@/components/ui/section";
-import { SegmentedLinks } from "@/components/ui/segmented-links";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
-import {
-  ACTIVITY_SPORT_LABELS,
-  ACTIVITY_SPORTS,
-  isActivitySport,
-  type ActivitySport,
-} from "@/domain/activity";
+import { ACTIVITY_SPORT_LABELS, ENDURANCE_SPORTS } from "@/domain/activity";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { requireUser } from "@/server/auth";
 import { getActiveSession } from "@/server/queries/active-session";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { listTemplates } from "@/server/repositories/activity-templates";
 import { standaloneSchedule } from "@/server/repositories/occurrences";
-import { getSchedule } from "@/server/repositories/schedule";
+import { enabledSportsFor } from "@/server/repositories/sport-preferences";
 
 export const metadata: Metadata = { title: "Training" };
 
@@ -32,13 +25,7 @@ export const metadata: Metadata = { title: "Training" };
  * schedule something, open the programme or pick up work you left unfinished. What actually
  * happened lives in History; what is scheduled for today lives on Today.
  */
-export default async function TrainingPage(props: PageProps<"/training">) {
-  const search = await props.searchParams;
-  const requested = typeof search.sport === "string" ? search.sport : null;
-  // An unknown sport filter is refused rather than quietly ignored (AT-NAV-06).
-  if (requested && !isActivitySport(requested)) notFound();
-  const filter: ActivitySport | null = requested && isActivitySport(requested) ? requested : null;
-
+export default async function TrainingPage() {
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
   const today = todayInTimeZone(profile.timeZone);
@@ -48,13 +35,17 @@ export default async function TrainingPage(props: PageProps<"/training">) {
       getDb(),
       user.id,
       async (tx) => ({
-        schedule: await getSchedule(tx, user.id),
-        templates: await listTemplates(tx, user.id, { sport: filterEndurance(filter) }),
+        templates: await listTemplates(tx, user.id, {}),
         standalone: await standaloneSchedule(tx, user.id, today),
+        // The sports this account actually trains are offered first, as the chooser did.
+        preferred: await enabledSportsFor(tx, user.id),
       }),
       { readOnly: true },
     ),
   ]);
+  const ordered = [...ENDURANCE_SPORTS].sort(
+    (a, b) => Number(data.preferred.includes(b)) - Number(data.preferred.includes(a)),
+  );
   const upcoming = data.standalone.upcoming.length;
   const earlier = data.standalone.earlier.filter(
     (occurrence) => occurrence.resolution.kind === "incomplete",
@@ -62,22 +53,8 @@ export default async function TrainingPage(props: PageProps<"/training">) {
 
   return (
     <>
-      <PageHeader title="Training" meta={filter ? ACTIVITY_SPORT_LABELS[filter] : undefined} />
+      <PageHeader title="Training" />
       <PageContent>
-        <Section title="Sport">
-          <SegmentedLinks
-            label="Sport"
-            options={[
-              { href: "/training", label: "All", current: filter === null },
-              ...ACTIVITY_SPORTS.map((sport) => ({
-                href: `/training?sport=${sport}`,
-                label: ACTIVITY_SPORT_LABELS[sport],
-                current: filter === sport,
-              })),
-            ]}
-          />
-        </Section>
-
         {inProgress && (
           <Section title="Unfinished">
             <Card>
@@ -95,16 +72,20 @@ export default async function TrainingPage(props: PageProps<"/training">) {
           </Section>
         )}
 
+        {/* The sport is the first thing logging needs, so it is asked once, here. A filter
+            above and a chooser on the next screen were the same question in two places. */}
         <Section title="Log or schedule">
           <Card>
-            <LinkButton
-              href={
-                filter && filter !== "strength" ? `/training/new?sport=${filter}` : "/training/new"
-              }
-              className="w-full"
-            >
-              Log an activity
-            </LinkButton>
+            <div className="action-row">
+              {ordered.map((sport) => (
+                <LinkButton key={sport} href={`/training/new?sport=${sport}`} className="w-full">
+                  {ACTIVITY_SPORT_LABELS[sport]}
+                </LinkButton>
+              ))}
+            </div>
+            <p className="text-sm text-ink-muted">
+              Lifting has its own logger, started from Today or from a gym.
+            </p>
             <LinkButton href="/training/schedule" variant="secondary" className="w-full">
               Schedule an activity
             </LinkButton>
@@ -128,21 +109,8 @@ export default async function TrainingPage(props: PageProps<"/training">) {
               Sessions you put on the calendar yourself. Your programme&apos;s own sessions are
               under Programme.
             </p>
-            <LinkButton href="/training/scheduled" variant="ghost" className="w-full">
+            <LinkButton href="/training/scheduled" variant="secondary" className="w-full">
               Upcoming and earlier
-            </LinkButton>
-          </Card>
-        </Section>
-
-        <Section title="Programme">
-          <Card>
-            <p className="text-sm text-ink-muted">
-              {data.schedule
-                ? data.schedule.program.name
-                : "No active programme. One can hold several weeks across every sport you train."}
-            </p>
-            <LinkButton href="/training/programme" variant="secondary" className="w-full">
-              {data.schedule ? "Open the programme" : "Create a programme"}
             </LinkButton>
           </Card>
         </Section>
@@ -153,7 +121,7 @@ export default async function TrainingPage(props: PageProps<"/training">) {
               {data.templates.length} saved session
               {data.templates.length === 1 ? "" : "s"}
             </p>
-            <LinkButton href="/training/templates" variant="ghost" className="w-full">
+            <LinkButton href="/training/templates" variant="secondary" className="w-full">
               Templates
             </LinkButton>
           </Card>
@@ -161,9 +129,4 @@ export default async function TrainingPage(props: PageProps<"/training">) {
       </PageContent>
     </>
   );
-}
-
-/** Templates are endurance-only; a strength filter simply has none of its own here. */
-function filterEndurance(sport: ActivitySport | null) {
-  return sport && sport !== "strength" ? sport : undefined;
 }
