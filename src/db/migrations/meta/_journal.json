@@ -218,6 +218,13 @@
       "when": 1789891147742,
       "tag": "0030_change_headline",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1789891148742,
+      "tag": "0031_activity_trigger_definer",
+      "breakpoints": true
     }
   ]
 }

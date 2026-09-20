@@ -1,7 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, expect, it } from "vitest";
 
-import { profiles, workoutSessions } from "@/db/schema";
+import { activities, profiles, workoutSessions } from "@/db/schema";
 import { seedReferenceData } from "@/db/seed/reference";
 import { seedTestUserData } from "@/db/test/fixtures";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
@@ -97,4 +97,81 @@ it("deletes an account that has trained, gym and workout together", async () => 
   expect(left).toEqual([]);
   const profile = await t.db.select().from(profiles).where(eq(profiles.id, user.id));
   expect(profile).toEqual([]);
+});
+
+/**
+ * Every trigger function that reads a table runs as its owner.
+ *
+ * Account deletion failed in production with "permission denied for table activities" at
+ * COMMIT: Auth deletes `auth.users` as `supabase_auth_admin`, the cascade removes a workout
+ * session, and the deferred trigger on it reads `public.activities` to see whether its parent
+ * survived the same transaction. `assert_activity_detail` was the one function in this schema
+ * reading a table without `SECURITY DEFINER` — `activity_detail_count`, which it calls two
+ * lines further down, already had it.
+ *
+ * The privilege chain that produced it cannot be built here: the cascade hands the trigger an
+ * elevated context of its own, so the delete below succeeds either way. This asserts the
+ * property that makes the question moot instead, which is the thing that was actually wrong.
+ */
+it("runs every table-reading trigger function as its owner", async () => {
+  const rows = await t.db.execute<{ name: string; secdef: boolean }>(sql`
+    select p.proname as name, p.prosecdef as secdef
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.prorettype = 'pg_catalog.trigger'::regtype
+      and p.prosrc ~* '(from|join)\\s+public\\.'
+    order by 1
+  `);
+  expect(rows.rows.length).toBeGreaterThan(0);
+  expect(rows.rows.filter((row) => !row.secdef).map((row) => row.name)).toEqual([]);
+});
+
+/**
+ * Deletion through `auth.users`, which is the edge the app actually deletes from.
+ *
+ * Every other test here deletes the profile directly, so none of them fires the deferred
+ * constraint triggers the cascade reaches on the way out — and it was one of those that
+ * failed in production. This does not reproduce the privilege failure (see above), but it
+ * does prove the cascade completes with those triggers firing and the account fully gone.
+ */
+it("deletes an account through auth, with the cascade triggers firing", async () => {
+  await t.client.exec(`
+    do $$
+    begin
+      if not exists (select 1 from pg_roles where rolname = 'supabase_auth_admin') then
+        create role supabase_auth_admin nologin;
+      end if;
+    end $$;
+    grant usage on schema auth to supabase_auth_admin;
+    grant select, delete on auth.users to supabase_auth_admin;
+  `);
+  const user = await t.createAuthUser("auth-deleting@example.test");
+  await withUser(t.db, user.id, (tx) => seedTestUserData(tx, user));
+  const gyms = await withUser(t.db, user.id, (tx) => listGyms(tx, user.id));
+  const gymId = gyms.find((gym) => gym.slug === "anytime-fitness")?.id ?? "";
+  await withUser(t.db, user.id, (tx) => startAdHocSession(tx, user.id, { gymId }));
+  // The trigger only has something to say when the account owns an activity and its detail.
+  const owned = await t.db.select().from(activities).where(eq(activities.userId, user.id));
+  expect(owned.length).toBeGreaterThan(0);
+
+  // No grant on public anywhere in here: that is the whole point of the reproduction.
+  // The role is set for the session, not the transaction: a deferred constraint trigger
+  // fires during COMMIT, and `SET LOCAL` is already undone by then — which is exactly how a
+  // first attempt at this test passed against the broken function.
+  await t.client.exec(`set role supabase_auth_admin;`);
+  try {
+    await t.client.exec(`
+      begin;
+      delete from auth.users where id = '${user.id}';
+      commit;
+    `);
+  } finally {
+    await t.client.exec(`reset role;`);
+  }
+
+  const profile = await t.db.select().from(profiles).where(eq(profiles.id, user.id));
+  expect(profile).toEqual([]);
+  const left = await t.db.select().from(activities).where(eq(activities.userId, user.id));
+  expect(left).toEqual([]);
 });
