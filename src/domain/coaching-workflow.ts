@@ -49,7 +49,9 @@ export function contractSkew(served: number): string | null {
   return (
     `Contract version ${served} from the coach service, ${COACH_CONTRACT_VERSION} in this checkout. ` +
     (stale
-      ? "This routine is running a stale clone, so its skill describes fields the server no longer accepts. Re-run it on the repository's default branch."
+      ? "This routine is running a stale clone, so its skill describes fields the server no longer accepts. " +
+        "Refresh it with `git fetch origin main && git merge --ff-only origin/main` and run again; " +
+        "if that does not fast-forward, report what git said rather than forcing it."
       : "This checkout is ahead of the deployed app. Wait for the deployment to finish.") +
     " Stop and report the skew; do not guess at field names."
   );
