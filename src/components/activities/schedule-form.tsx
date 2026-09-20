@@ -58,7 +58,10 @@ export function ScheduleForm({
               columns={sports.length}
             />
           </Field>
-          <div className="grid grid-cols-2 gap-2">
+          {/* Side by side only once both fit. A date and a time sharing a 320px row leaves
+              each of them narrower than the value it has to show, which is the same call
+              the other date pairs in the app make. */}
+          <div className="grid gap-3 min-[420px]:grid-cols-2">
             <Field label="Date" error={state.fieldErrors?.scheduledOn}>
               <Input
                 name="scheduledOn"

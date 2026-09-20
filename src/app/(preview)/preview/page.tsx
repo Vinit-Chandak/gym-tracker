@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 
 import { TodayView } from "@/app/(app)/today/today-view";
+import { endurancePrescriptionSchema, PRESCRIPTION_VERSION } from "@/domain/activity-prescription";
+import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
 import type { TodayPlan } from "@/server/repositories/schedule";
 
 import { PreviewShell } from "../preview-shell";
@@ -142,6 +144,34 @@ function plan(overrides: Partial<TodayPlan> = {}): TodayPlan {
   };
 }
 
+/**
+ * The run of that day, as the programme holds it.
+ *
+ * Today asks for this by the slot the sequence is offering, so the preview supplies it the
+ * same way rather than by a date. Without it there is no run on the screen, and this page
+ * exists to show a day that lifts and runs.
+ */
+const RUN_OCCURRENCE: ScheduledOccurrence = {
+  id: "00000000-0000-4000-8000-000000000005",
+  sport: "running",
+  disposition: "pending",
+  scheduledOn: "2026-09-11",
+  scheduledLocalTime: null,
+  orderIndex: 0,
+  revisionId: "00000000-0000-4000-8000-000000000006",
+  prescription: endurancePrescriptionSchema.parse({
+    prescriptionVersion: PRESCRIPTION_VERSION,
+    sport: "running",
+    sessionTargets: { durationMs: [25 * 60_000, 30 * 60_000] },
+    running: { paceNote: "Talk-test; slower than push pace" },
+  }),
+  familyId: PROGRAM.familyId,
+  originalWeekIndex: 1,
+  originalScheduledOn: "2026-09-11",
+  resolution: { kind: "incomplete" },
+  loggable: true,
+};
+
 /** The workout of that day, open. Its card becomes Resume; the run card is untouched. */
 const OPEN_SESSION = {
   id: "00000000-0000-4000-8000-000000000004",
@@ -173,6 +203,7 @@ export default async function TodayPreviewPage(props: PageProps<"/preview">) {
         plan={state === "done" ? plan() : plan({ sessionStatus: "pending" })}
         inProgress={state === "training" ? OPEN_SESSION : null}
         restProtocol={null}
+        programmeOccurrences={[RUN_OCCURRENCE]}
       />
     </PreviewShell>
   );

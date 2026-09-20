@@ -2,7 +2,11 @@ import { config as loadEnv } from "dotenv";
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 
-import { legacyProgramRunToPrescription, legacyPlannedDate } from "../domain/legacy-multisport";
+import {
+  legacyProgramRunToPrescription,
+  legacyPlannedDate,
+  weekdayLineage,
+} from "../domain/legacy-multisport";
 import { getMigrationDatabaseUrl } from "../lib/env";
 import { auditMultisport } from "./multisport-audit";
 import { createMigrationClient, describeTarget } from "./migrate";
@@ -656,16 +660,6 @@ async function backfillSportPreferences(db: DbOrTx, account: Account): Promise<n
     .onConflictDoNothing()
     .returning({ sport: userSportPreferences.sport });
   return inserted.length;
-}
-
-/** Stable per family and weekday, so re-running the backfill reuses the same role. */
-function weekdayLineage(familyId: string, dayOfWeek: number): string {
-  const hex = familyId.replace(/-/g, "");
-  const tail = (Number.parseInt(hex.slice(-4), 16) ^ (dayOfWeek * 7919)) & 0xffff;
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(
-    20,
-    28,
-  )}${tail.toString(16).padStart(4, "0")}`;
 }
 
 function localDate(instant: Date, timeZone: string): string {

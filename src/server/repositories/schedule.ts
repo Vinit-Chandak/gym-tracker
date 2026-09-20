@@ -2,6 +2,8 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 
 import { exercises, programExercises, programRuns, programSlotEvents, programs } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
+import { weekdayLineage } from "@/domain/legacy-multisport";
+import type { OccurrenceDisposition } from "@/domain/occurrences";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import {
   allSlots,
@@ -11,6 +13,7 @@ import {
   pendingParts,
   progress,
   projectedEndDate,
+  runEventsFromOccurrences,
   sessionsBehind,
   slotFor,
   slotParts,
@@ -19,9 +22,11 @@ import {
   type Progress,
   type ScheduleState,
   type SlotEvent,
+  type SlotOccurrence,
   type SlotRef,
   type SlotStatus,
   type Suggestion,
+  withDerivedRunEvents,
 } from "@/domain/schedule";
 import type { PrescriptionType, SlotPart } from "@/domain/types";
 import { sharedWarmupProtocols } from "@/server/queries/reference";
@@ -122,6 +127,24 @@ export async function getSchedule(db: DbOrTx, userId: string): Promise<Schedule 
         ))
         from program_slot_events e where e.program_id = programs.id
       ), '[]'::json)`,
+      // The programme's own endurance work, as the sequence needs to read it: which slot of
+      // the cycle it belongs to and whether anything still owes an answer. Joined here rather
+      // than fetched after, so the day a running slot completes costs no extra round trip.
+      enduranceOccurrences: sql<EnduranceRow[]>`coalesce((
+        select json_agg(json_build_object(
+          'cycleIndex', o.cycle_index,
+          'slotLineageId', o.slot_lineage_id,
+          'disposition', o.disposition,
+          'logged', (a.id is not null)
+        ))
+        from planned_occurrences o
+        left join activities a
+          on a.occurrence_id = o.id and a.user_id = o.user_id
+        where o.user_id = programs.user_id
+          and o.family_id = programs.family_id
+          and o.cycle_index is not null
+          and o.slot_lineage_id is not null
+      ), '[]'::json)`,
     })
     .from(programs)
     .where(and(eq(programs.userId, userId), eq(programs.status, "active")))
@@ -150,9 +173,60 @@ export async function getSchedule(db: DbOrTx, userId: string): Promise<Schedule 
       })),
       cycles: program.weeks,
       startDayIndex: program.startDayIndex,
-      events: row.events,
+      events: withDerivedRunEvents(
+        row.events,
+        runEventsFromOccurrences(
+          slotOccurrences(program.familyId, row.days, row.enduranceOccurrences),
+        ),
+      ),
     },
   };
+}
+
+/** One programme occurrence as the schedule query returns it. */
+type EnduranceRow = {
+  cycleIndex: number;
+  slotLineageId: string;
+  disposition: OccurrenceDisposition;
+  logged: boolean;
+};
+
+/**
+ * Which slot of the cycle each endurance occurrence belongs to.
+ *
+ * An occurrence names its lineage and its cycle, never a day of the cycle, because a lineage
+ * outlives the version that placed it. The lineage is derived from the family and the weekday
+ * — by activation and by the backfill alike — so the day it belongs to is the day of the
+ * cycle that falls on the same weekday. A lineage no current day answers for (a running day
+ * a revision took out, say) belongs to no slot and is left out rather than guessed at.
+ */
+function slotOccurrences(
+  familyId: string,
+  days: readonly ScheduleDay[],
+  rows: readonly EnduranceRow[],
+): SlotOccurrence[] {
+  const dayOfLineage = new Map<string, number>();
+  for (const day of days) {
+    if (day.dayOfWeek === null) continue;
+    dayOfLineage.set(weekdayLineage(familyId, day.dayOfWeek), day.dayIndex);
+  }
+  return rows.flatMap((row) => {
+    const dayIndex = dayOfLineage.get(row.slotLineageId);
+    if (dayIndex === undefined) return [];
+    return [
+      {
+        cycleIndex: row.cycleIndex,
+        dayIndex,
+        // Same rule as `resolveOccurrence`: the linked activity decides, and a row nobody has
+        // answered yet is owed however long ago it was scheduled for.
+        outcome: row.logged
+          ? ("logged" as const)
+          : row.disposition === "pending"
+            ? ("incomplete" as const)
+            : row.disposition,
+      },
+    ];
+  });
 }
 
 /**

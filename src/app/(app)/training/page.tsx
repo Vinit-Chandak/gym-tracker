@@ -3,10 +3,10 @@ import { notFound } from "next/navigation";
 
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
-import Link from "@/components/ui/app-link";
 import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Section } from "@/components/ui/section";
+import { SegmentedLinks } from "@/components/ui/segmented-links";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import {
@@ -65,25 +65,17 @@ export default async function TrainingPage(props: PageProps<"/training">) {
       <PageHeader title="Training" meta={filter ? ACTIVITY_SPORT_LABELS[filter] : undefined} />
       <PageContent>
         <Section title="Sport">
-          <Card>
-            <div className="flex flex-wrap gap-2">
-              <Link
-                href="/training"
-                className={filter === null ? "text-sm text-accent" : "text-sm text-ink-muted"}
-              >
-                All
-              </Link>
-              {ACTIVITY_SPORTS.map((sport) => (
-                <Link
-                  key={sport}
-                  href={`/training?sport=${sport}`}
-                  className={filter === sport ? "text-sm text-accent" : "text-sm text-ink-muted"}
-                >
-                  {ACTIVITY_SPORT_LABELS[sport]}
-                </Link>
-              ))}
-            </div>
-          </Card>
+          <SegmentedLinks
+            label="Sport"
+            options={[
+              { href: "/training", label: "All", current: filter === null },
+              ...ACTIVITY_SPORTS.map((sport) => ({
+                href: `/training?sport=${sport}`,
+                label: ACTIVITY_SPORT_LABELS[sport],
+                current: filter === sport,
+              })),
+            ]}
+          />
         </Section>
 
         {inProgress && (

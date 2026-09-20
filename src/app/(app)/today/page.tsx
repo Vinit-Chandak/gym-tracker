@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import { PageContent } from "@/components/shell/page-content";
-import { LinkButton } from "@/components/ui/button";
 
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
+import { weekdayLineage } from "@/domain/legacy-multisport";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { LOAD_UNIT_LABELS } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
@@ -13,9 +12,8 @@ import { getRequestProfile } from "@/server/queries/request-profile";
 import { todayCoachState } from "@/server/repositories/coach-plans";
 import { todayWorkflowState } from "@/server/repositories/coaching-today";
 import { listGyms } from "@/server/repositories/gyms";
-import { occurrencesOnDate } from "@/server/repositories/occurrences";
+import { occurrencesForSlot, standaloneOccurrencesOnDate } from "@/server/repositories/occurrences";
 import { getTodayPlan } from "@/server/repositories/schedule";
-import { TodayActivities } from "@/components/activities/today-activities";
 
 import { TodayView } from "./today-view";
 
@@ -54,40 +52,43 @@ export default async function TodayPage() {
               gymId: gyms.find((gym) => gym.isActive && gym.isDefault)?.id ?? null,
             })
           : null;
-      // Today's scheduled endurance work, and only today's: nothing rolls forward, and the
-      // strength projection below is left to its own sequence (plan §2.3).
-      const scheduled = await occurrencesOnDate(tx, user.id, todayInTimeZone(profile.timeZone));
-      return { profile, gyms, plan, restProtocol, coach, scheduled };
+      // The two things that can be due today, each asked for the way it is scheduled.
+      //
+      // The programme's endurance belongs to the slot the sequence is offering, not to a
+      // date: a block written eight weeks ago dated every run in advance, and an athlete two
+      // days behind would otherwise be handed a session from a day they have not reached
+      // (plan §2.3). Standalone work is asked for by date, because a date is exactly what the
+      // athlete chose when they put it on the calendar. Neither rolls forward.
+      const [standalone, programme] = await Promise.all([
+        standaloneOccurrencesOnDate(tx, user.id, todayInTimeZone(profile.timeZone)),
+        plan?.suggestion && plan.suggestedDay?.dayOfWeek != null
+          ? occurrencesForSlot(tx, user.id, {
+              familyId: plan.program.familyId,
+              slotLineageId: weekdayLineage(plan.program.familyId, plan.suggestedDay.dayOfWeek),
+              cycleIndex: plan.suggestion.slot.cycleIndex,
+            })
+          : Promise.resolve([]),
+      ]);
+      return { profile, gyms, plan, restProtocol, coach, standalone, programme };
     }),
   ]);
-  const { profile, gyms, plan, restProtocol, coach, scheduled } = data;
+  const { profile, gyms, plan, restProtocol, coach, standalone, programme } = data;
 
   return (
-    <>
-      <TodayView
-        today={plan?.today ?? todayInTimeZone(profile.timeZone)}
-        timeZone={profile.timeZone}
-        // Only active gyms can be trained at, so only they can be chosen between.
-        gyms={gyms
-          .filter((gym) => gym.isActive)
-          .map((gym) => ({ id: gym.id, name: gym.name, kind: gym.kind, isDefault: gym.isDefault }))}
-        plan={plan}
-        inProgress={inProgress}
-        restProtocol={restProtocol}
-        coach={coach}
-        unit={LOAD_UNIT_LABELS[profile.preferredUnit]}
-      />
-      <PageContent>
-        <TodayActivities occurrences={scheduled} />
-        <LinkButton href="/training/templates" variant="secondary">
-          Saved routines
-        </LinkButton>
-        {!plan && (
-          <LinkButton href="/training/programme" variant="ghost">
-            Create a programme
-          </LinkButton>
-        )}
-      </PageContent>
-    </>
+    <TodayView
+      today={plan?.today ?? todayInTimeZone(profile.timeZone)}
+      timeZone={profile.timeZone}
+      // Only active gyms can be trained at, so only they can be chosen between.
+      gyms={gyms
+        .filter((gym) => gym.isActive)
+        .map((gym) => ({ id: gym.id, name: gym.name, kind: gym.kind, isDefault: gym.isDefault }))}
+      plan={plan}
+      inProgress={inProgress}
+      restProtocol={restProtocol}
+      coach={coach}
+      unit={LOAD_UNIT_LABELS[profile.preferredUnit]}
+      programmeOccurrences={programme}
+      standaloneOccurrences={standalone}
+    />
   );
 }

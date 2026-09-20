@@ -142,12 +142,20 @@
   }
 
   /*
-   * iOS puts a native widget inside a date field and sizes the field to that widget,
+   * iOS puts a native widget inside a date or time field and sizes the field to that widget,
    * ignoring the width the layout gave it: two side by side then overlap, and the first
-   * one's value disappears under the second. Dropping the native appearance hands the
-   * width back to the grid, so a date field measures the same on iOS as on Android.
+   * one's value disappears under the second. An empty time field is the worst of them — it
+   * measures itself against `--:-- --`, so it ran off the right-hand edge of the screen
+   * rather than merely crowding its neighbour. Dropping the native appearance hands the
+   * width back to the grid, so these fields measure the same on iOS as on Android.
+   *
+   * Both types, not just the one that was noticed: they are the same widget underneath, and
+   * fixing them one at a time is why the time field was still overflowing. `datetime-local`
+   * is left alone deliberately — it is given a row to itself everywhere it is used, so it has
+   * the room these two were fighting over.
    */
-  input[type="date"] {
+  input[type="date"],
+  input[type="time"] {
     appearance: none;
     -webkit-appearance: none;
     /*
@@ -165,7 +173,8 @@
   }
 
   /* Safari centres the value inside that widget and pads it; line it up with other fields. */
-  input[type="date"]::-webkit-date-and-time-value {
+  input[type="date"]::-webkit-date-and-time-value,
+  input[type="time"]::-webkit-date-and-time-value {
     margin: 0;
     text-align: left;
   }

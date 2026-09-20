@@ -1,23 +1,28 @@
-import { ChevronRight } from "@/components/ui/icons";
 import type { ReactNode } from "react";
 
+import {
+  CompletedOccurrences,
+  isAnswered,
+  isOutstanding,
+  OccurrenceCard,
+} from "@/components/activities/today-activities";
 import { CoachPlanList, coachPlanSummary } from "@/components/coach-plan";
 import { PlannedExerciseList, planSummary } from "@/components/planned-exercises";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { Wordmark } from "@/components/shell/wordmark";
-import Link from "@/components/ui/app-link";
 import { Badge } from "@/components/ui/badge";
 import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Disclosure } from "@/components/ui/disclosure";
 import { InfoTip } from "@/components/ui/info-tip";
-import { ProgressBar } from "@/components/ui/progress-bar";
+import { Section } from "@/components/ui/section";
 import { summaryForSport } from "@/domain/sport-scope";
 import type { SlotStatus } from "@/domain/schedule";
 import type { WarmupDrill } from "@/domain/types";
 import { formatDateTime, formatIsoWeekdayDay, formatTime } from "@/lib/format";
 import type { TodayCoachState } from "@/server/repositories/coach-plans";
+import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
 import type { SessionSummary } from "@/server/repositories/sessions";
 import type { ScheduleDay, TodayPlan } from "@/server/repositories/schedule";
 
@@ -109,6 +114,10 @@ export type TodayViewProps = {
   coach?: TodayCoachState | null;
   /** The label for loads the coach writes without a machine, e.g. "kg". */
   unit?: string;
+  /** The programme's endurance work for the slot being offered — by sequence, not by date. */
+  programmeOccurrences?: readonly ScheduledOccurrence[];
+  /** What the athlete put on the calendar for today, which is dated today by definition. */
+  standaloneOccurrences?: readonly ScheduledOccurrence[];
 };
 
 /**
@@ -176,6 +185,8 @@ export function TodayView({
   restProtocol,
   coach = null,
   unit = "kg",
+  programmeOccurrences = [],
+  standaloneOccurrences = [],
 }: TodayViewProps) {
   const defaultGym =
     gyms.find((gym) => (coach?.selectedGymId ? gym.id === coach.selectedGymId : gym.isDefault)) ??
@@ -206,6 +217,15 @@ export function TodayView({
   // session, or another day started early — is its own thing and gets its own card.
   const openHere = inProgress !== null && day !== null && inProgress.programDayId === day.id;
   const openElsewhere = inProgress !== null && !openHere;
+
+  // Everything due today in one list, whatever scheduled it: the day's workout, the
+  // programme's own endurance for that same day, and whatever the athlete put on the
+  // calendar. What is still owed is on the page; what is already answered is one tap
+  // behind it, so the top of Today is only ever what is left to do.
+  const scheduled = [...programmeOccurrences, ...standaloneOccurrences];
+  const outstanding = scheduled.filter(isOutstanding);
+  const completed = scheduled.filter(isAnswered);
+  const programmeIds = new Set(programmeOccurrences.map((occurrence) => occurrence.id));
 
   return (
     <>
@@ -248,221 +268,210 @@ export function TodayView({
           </Card>
         )}
 
-        {!plan ? (
-          <Card>
-            <h2 className="text-lg font-medium">No programme</h2>
-            <LinkButton href="/profile/programme" size="lg" className="w-full">
-              Choose a programme
-            </LinkButton>
-            <StartAdHocButton gymId={defaultGym?.id ?? null} />
-          </Card>
-        ) : !plan.suggestion || !day ? (
-          <Card>
-            <CardHead
-              eyebrow="Programme complete"
-              title={plan.program.name}
-              subtitle={`${plan.progress.total} programme days`}
-            />
-            <LinkButton href="/profile/programme" size="lg" className="w-full">
-              Plan the next block
-            </LinkButton>
-            <StartAdHocButton gymId={defaultGym?.id ?? null} />
-          </Card>
-        ) : (
-          <>
-            {/* The workout. Nothing on this card is about the run. */}
-            {day.includesLifting && (
-              <Card>
-                {/* With a coach plan the card's line is the coach's sentence; what the day is
+        {/* What today asks for, at the top, whatever put it there. */}
+        <Section title="Today">
+          {!plan ? (
+            <Card>
+              <h2 className="text-lg font-medium">No programme</h2>
+              <LinkButton href="/profile/programme" size="lg" className="w-full">
+                Choose a programme
+              </LinkButton>
+              <StartAdHocButton gymId={defaultGym?.id ?? null} />
+            </Card>
+          ) : !plan.suggestion || !day ? (
+            <Card>
+              <CardHead
+                eyebrow="Programme complete"
+                title={plan.program.name}
+                subtitle={`${plan.progress.total} programme days`}
+              />
+              <LinkButton href="/profile/programme" size="lg" className="w-full">
+                Plan the next block
+              </LinkButton>
+              <StartAdHocButton gymId={defaultGym?.id ?? null} />
+            </Card>
+          ) : (
+            <>
+              {/* The workout. Nothing on this card is about the run. */}
+              {day.includesLifting && (
+                <Card>
+                  {/* With a coach plan the card's line is the coach's sentence; what the day is
                     and costs moves behind the tip, so nothing the programme says is lost. */}
-                <CardHead
-                  eyebrow={position}
-                  title={day.name}
-                  subtitle={
-                    coachPlan
-                      ? summaryForSport(coachPlan, "workout")
-                      : day.includesRun
-                        ? planSummary(plan.suggestedExercises)
-                        : daySubtitle(day)
-                  }
-                  note={
-                    day.includesRun
-                      ? null
-                      : coachPlan
-                        ? [daySubtitle(day), dayNote(day)].filter(Boolean).join(" · ") || null
-                        : dayNote(day)
-                  }
-                  badge={
-                    <span className="flex shrink-0 flex-wrap justify-end gap-1">
-                      {coachPlan && <Badge tone="accent">Coach</Badge>}
-                      {sessionStatus === "pending" ? standing : TASK_BADGE[sessionStatus]}
-                    </span>
-                  }
-                />
-                {openHere && inProgress ? (
-                  <>
-                    <LinkButton
-                      href={`/workouts/${inProgress.id}`}
-                      size="lg"
-                      className="w-full"
-                      aria-label={`Resume session: ${day.name}`}
-                    >
-                      Resume session
-                    </LinkButton>
-                    <p className="text-sm text-ink-muted tabular-nums">
-                      Started {formatDateTime(inProgress.startedAt, timeZone)} ·{" "}
-                      {inProgress.gymName} · {inProgress.setCount}{" "}
-                      {inProgress.setCount === 1 ? "set" : "sets"}
-                    </p>
-                    {inProgress.setCount === 0 && (
-                      <DiscardSessionButton sessionId={inProgress.id} />
-                    )}
-                  </>
-                ) : sessionStatus === "completed" ? (
-                  <DoneNote>Workout logged. Nothing left to do here today.</DoneNote>
-                ) : sessionStatus === "skipped" ? (
-                  <DoneNote>Workout skipped.</DoneNote>
-                ) : (
-                  <>
-                    <StartPlannedButton
-                      gymId={defaultGym?.id ?? null}
-                      programDayId={day.id}
-                      dayIndex={day.dayIndex}
-                      label="Start workout"
-                      dayName={day.name}
-                    />
-                    {defaultGym === null && (
-                      <p className="text-sm text-ink-muted">Choose a gym above to start.</p>
-                    )}
-                  </>
-                )}
-                {coach && (
-                  <CoachStatus
-                    coach={coach}
-                    gymName={defaultGym?.name ?? null}
-                    gyms={gyms}
-                    timeZone={timeZone}
+                  <CardHead
+                    eyebrow={position}
+                    title={day.name}
+                    subtitle={
+                      coachPlan
+                        ? summaryForSport(coachPlan, "workout")
+                        : day.includesRun
+                          ? planSummary(plan.suggestedExercises)
+                          : daySubtitle(day)
+                    }
+                    note={
+                      day.includesRun
+                        ? null
+                        : coachPlan
+                          ? [daySubtitle(day), dayNote(day)].filter(Boolean).join(" · ") || null
+                          : dayNote(day)
+                    }
+                    badge={
+                      <span className="flex shrink-0 flex-wrap justify-end gap-1">
+                        {coachPlan && <Badge tone="accent">Coach</Badge>}
+                        {sessionStatus === "pending" ? standing : TASK_BADGE[sessionStatus]}
+                      </span>
+                    }
                   />
-                )}
-                {coachPlan ? (
-                  <Disclosure
-                    summary="The plan"
-                    meta={coachPlanSummary(coachPlan.exercises, plan.suggestedExercises)}
-                    variant="footer"
-                  >
-                    <CoachPlanList
-                      entries={coachPlan.exercises}
-                      planned={plan.suggestedExercises}
-                      unit={unit}
-                      warnings={coachPlan.warnings}
+                  {openHere && inProgress ? (
+                    <>
+                      <LinkButton
+                        href={`/workouts/${inProgress.id}`}
+                        size="lg"
+                        className="w-full"
+                        aria-label={`Resume session: ${day.name}`}
+                      >
+                        Resume session
+                      </LinkButton>
+                      <p className="text-sm text-ink-muted tabular-nums">
+                        Started {formatDateTime(inProgress.startedAt, timeZone)} ·{" "}
+                        {inProgress.gymName} · {inProgress.setCount}{" "}
+                        {inProgress.setCount === 1 ? "set" : "sets"}
+                      </p>
+                      {inProgress.setCount === 0 && (
+                        <DiscardSessionButton sessionId={inProgress.id} />
+                      )}
+                    </>
+                  ) : sessionStatus === "completed" ? (
+                    <DoneNote>Workout logged. Nothing left to do here today.</DoneNote>
+                  ) : sessionStatus === "skipped" ? (
+                    <DoneNote>Workout skipped.</DoneNote>
+                  ) : (
+                    <>
+                      <StartPlannedButton
+                        gymId={defaultGym?.id ?? null}
+                        programDayId={day.id}
+                        dayIndex={day.dayIndex}
+                        label="Start workout"
+                        dayName={day.name}
+                      />
+                      {defaultGym === null && (
+                        <p className="text-sm text-ink-muted">Choose a gym above to start.</p>
+                      )}
+                    </>
+                  )}
+                  {coach && (
+                    <CoachStatus
+                      coach={coach}
+                      gymName={defaultGym?.name ?? null}
+                      gyms={gyms}
+                      timeZone={timeZone}
                     />
-                  </Disclosure>
-                ) : (
-                  plan.suggestedExercises.length > 0 && (
+                  )}
+                  {coachPlan ? (
                     <Disclosure
                       summary="The plan"
-                      meta={planSummary(plan.suggestedExercises)}
+                      meta={coachPlanSummary(coachPlan.exercises, plan.suggestedExercises)}
                       variant="footer"
                     >
-                      <PlannedExerciseList exercises={plan.suggestedExercises} />
+                      <CoachPlanList
+                        entries={coachPlan.exercises}
+                        planned={plan.suggestedExercises}
+                        unit={unit}
+                        warnings={coachPlan.warnings}
+                      />
                     </Disclosure>
-                  )
-                )}
-              </Card>
-            )}
+                  ) : (
+                    plan.suggestedExercises.length > 0 && (
+                      <Disclosure
+                        summary="The plan"
+                        meta={planSummary(plan.suggestedExercises)}
+                        variant="footer"
+                      >
+                        <PlannedExerciseList exercises={plan.suggestedExercises} />
+                      </Disclosure>
+                    )
+                  )}
+                </Card>
+              )}
 
-            {!day.includesLifting && !restDay && (
-              <Card>
-                <h2 className="text-lg font-medium">No workout planned for this day</h2>
-                <StartAdHocButton gymId={defaultGym?.id ?? null} />
-              </Card>
-            )}
+              {!day.includesLifting && !restDay && (
+                <Card>
+                  <h2 className="text-lg font-medium">No workout planned for this day</h2>
+                  <StartAdHocButton gymId={defaultGym?.id ?? null} />
+                </Card>
+              )}
 
-            {/* A day that neither lifts nor runs: rest, mobility, and one tick. */}
-            {restDay && (
-              <Card>
-                <CardHead
-                  eyebrow={position}
-                  title={day.name}
-                  subtitle={daySubtitle(day)}
-                  note={dayNote(day)}
-                  badge={sessionStatus === "pending" ? standing : TASK_BADGE[sessionStatus]}
-                />
-                {sessionStatus === "pending" && (
-                  <CompleteRestButton dayIndex={day.dayIndex} label="Mark rest day done" />
-                )}
-                {/* Resting is the suggestion, not a rule: the next lifting day stays one
-                    tap away rather than only through "Train another day". */}
-                {plan.nextTrainingDay && (
-                  <StartPlannedButton
-                    gymId={defaultGym?.id ?? null}
-                    programDayId={plan.nextTrainingDay.id}
-                    dayIndex={plan.nextTrainingDay.dayIndex}
-                    variant="secondary"
-                    label={`Start ${plan.nextTrainingDay.name} instead`}
+              {/* A day that neither lifts nor runs: rest, mobility, and one tick. */}
+              {restDay && (
+                <Card>
+                  <CardHead
+                    eyebrow={position}
+                    title={day.name}
+                    subtitle={daySubtitle(day)}
+                    note={dayNote(day)}
+                    badge={sessionStatus === "pending" ? standing : TASK_BADGE[sessionStatus]}
                   />
-                )}
-                {restProtocol && (
-                  <Disclosure
-                    summary={restProtocol.name}
-                    meta={`${restProtocol.drills.length} drills`}
-                    variant="footer"
-                  >
-                    <DrillList drills={restProtocol.drills} />
-                  </Disclosure>
-                )}
-              </Card>
-            )}
+                  {sessionStatus === "pending" && (
+                    <CompleteRestButton dayIndex={day.dayIndex} label="Mark rest day done" />
+                  )}
+                  {/* Resting is the suggestion, not a rule: the next lifting day stays one
+                    tap away rather than only through "Train another day". */}
+                  {plan.nextTrainingDay && (
+                    <StartPlannedButton
+                      gymId={defaultGym?.id ?? null}
+                      programDayId={plan.nextTrainingDay.id}
+                      dayIndex={plan.nextTrainingDay.dayIndex}
+                      variant="secondary"
+                      label={`Start ${plan.nextTrainingDay.name} instead`}
+                    />
+                  )}
+                  {restProtocol && (
+                    <Disclosure
+                      summary={restProtocol.name}
+                      meta={`${restProtocol.drills.length} drills`}
+                      variant="footer"
+                    >
+                      <DrillList drills={restProtocol.drills} />
+                    </Disclosure>
+                  )}
+                </Card>
+              )}
+            </>
+          )}
 
-            {/* Everything that is not the day's own decision, one tap behind one control. */}
-            <MoreOptions
-              gymId={defaultGym?.id ?? null}
-              skip={
-                day.includesLifting && sessionStatus === "pending"
-                  ? { dayIndex: day.dayIndex, dayName: day.name }
-                  : null
-              }
-              coach={
-                coach
-                  ? {
-                      gyms: coachGyms,
-                      requestsLeft: coach.requestsLeft,
-                      pending: coach.pending !== null,
-                      hasPlan: coach.plan !== null,
-                      workflow: coach.workflow,
-                    }
-                  : null
-              }
+          {/* The rest of what is due: the programme's own endurance for the day being
+            offered, then whatever the athlete scheduled for today. A programme session
+            says which day it belongs to, so a run never arrives unexplained. */}
+          {outstanding.map((occurrence) => (
+            <OccurrenceCard
+              key={occurrence.id}
+              occurrence={occurrence}
+              meta={programmeIds.has(occurrence.id) && day ? `Part of ${day.name}` : null}
             />
-          </>
-        )}
+          ))}
+          <CompletedOccurrences occurrences={completed} />
+        </Section>
 
-        {/* The programme in a sentence, and the way into all of it. */}
-        {plan && (
-          <Link
-            href="/profile/programme"
-            className="block box space-y-2 panel-padding transition-colors duration-[var(--ov-duration-feedback)] active:bg-surface-raised"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-xs font-medium tracking-wide text-ink-muted uppercase">
-                  Programme
-                </p>
-                <p className="mt-1 font-medium [overflow-wrap:anywhere]">{plan.program.name}</p>
-              </div>
-              <ChevronRight className="mt-0.5 shrink-0 text-ink-subtle" aria-hidden />
-            </div>
-            <ProgressBar
-              value={plan.progress.completed}
-              max={plan.progress.total}
-              label={`${plan.progress.completed} of ${plan.progress.total} programme days done`}
-            />
-            <p className="text-xs text-ink-muted tabular-nums">
-              {plan.progress.completed} of {plan.progress.total} programme days ·{" "}
-              {plan.progress.remaining} to go
-              {plan.progress.skipped > 0 && ` · ${plan.progress.skipped} skipped`}
-            </p>
-          </Link>
+        {/* Everything that is not the day's own decision, one tap behind one control. */}
+        {plan && plan.suggestion && day && (
+          <MoreOptions
+            gymId={defaultGym?.id ?? null}
+            skip={
+              day.includesLifting && sessionStatus === "pending"
+                ? { dayIndex: day.dayIndex, dayName: day.name }
+                : null
+            }
+            coach={
+              coach
+                ? {
+                    gyms: coachGyms,
+                    requestsLeft: coach.requestsLeft,
+                    pending: coach.pending !== null,
+                    hasPlan: coach.plan !== null,
+                    workflow: coach.workflow,
+                  }
+                : null
+            }
+          />
         )}
       </PageContent>
     </>

@@ -205,6 +205,32 @@ things on `/training` and `/u/<username>`; `legacySportOf`/`sportOfLegacy` answe
 sports out of four; `scripts/dev/seed-people.ts` leaving canonical parents at seed time; the
 audit tool citing deleted OP gates.
 
+## 4b. A second pass, from the phone
+
+Four things the walk above did not catch, found on a real device against a real programme
+ten days in.
+
+**The programme had two clocks.** Today offered `Lower B`, which has no run, and showed a
+30-minute run beside it. Both halves were right about themselves: the strength sequence
+shifts when a day is missed (§2.3), while endurance was materialised onto fixed dates at
+activation — week plus weekday from the start date — and never moves. Two days behind is
+enough for the calendar to hand out a day the athlete has not reached. Today now asks for the
+programme's endurance by the slot the sequence has got to; only work the athlete scheduled
+themselves is asked for by date.
+
+**No day that lifts and runs could complete.** #41 deleted `saveRunAction` and with it
+`linkRunToProgramme`, the only writer of a slot's `run` event, and nothing replaced it. Since
+that commit the sequence held on the first running day of every programme. The run half is
+derived from its occurrence now, so settling the occurrence is what answers the day — one
+place rather than the five paths that can settle one.
+
+**Today was two stacked content blocks**, with the programme card and a Saved routines
+shortcut below what the day actually asked for. Everything due is in one section at the top.
+
+**`input[type="time"]` ran off the right-hand edge.** `globals.css` had dropped the native
+appearance for `date` and never for `time`; an empty time field measures itself against
+`--:-- --`. Both are handled now.
+
 ## 5. Suggested audit priorities
 
 1. **Strength regression** (`AT-REG-*`) — the specialised logger is the thing users would

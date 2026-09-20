@@ -6,12 +6,15 @@ import {
   pendingParts,
   progress,
   projectedEndDate,
+  runEventsFromOccurrences,
   sessionsBehind,
   slotParts,
   slotStatus,
   suggestion,
+  withDerivedRunEvents,
   type ScheduleState,
   type SlotEvent,
+  type SlotOccurrence,
 } from "./schedule";
 import type { SlotPart } from "./types";
 
@@ -183,5 +186,77 @@ describe("shift scheduling", () => {
     expect(projectedEndDate(state(), "2026-09-08")).toBe("2026-11-01");
     // One missed day pushes the end to 2 November.
     expect(projectedEndDate(state(done(1, 2)), "2026-09-10")).toBe("2026-11-02");
+  });
+});
+
+describe("endurance answers the day it belongs to", () => {
+  const occurrence = (
+    cycleIndex: number,
+    dayIndex: number,
+    outcome: SlotOccurrence["outcome"],
+  ): SlotOccurrence => ({ cycleIndex, dayIndex, outcome });
+
+  it("a logged run answers the run half of its day", () => {
+    expect(runEventsFromOccurrences([occurrence(2, 3, "logged")])).toEqual([
+      { cycleIndex: 2, dayIndex: 3, part: "run", status: "completed" },
+    ]);
+  });
+
+  it("a run nobody has answered yet leaves the day owing it", () => {
+    expect(runEventsFromOccurrences([occurrence(2, 3, "incomplete")])).toEqual([]);
+  });
+
+  it("holds the day until every session it asks for is answered", () => {
+    const two = [occurrence(2, 3, "logged"), occurrence(2, 3, "incomplete")];
+    expect(runEventsFromOccurrences(two)).toEqual([]);
+  });
+
+  it("counts a skipped run as skipped, and a logged one alongside it as done", () => {
+    expect(runEventsFromOccurrences([occurrence(1, 6, "skipped")])).toEqual([
+      { cycleIndex: 1, dayIndex: 6, part: "run", status: "skipped" },
+    ]);
+    expect(
+      runEventsFromOccurrences([occurrence(1, 6, "skipped"), occurrence(1, 6, "logged")]),
+    ).toEqual([{ cycleIndex: 1, dayIndex: 6, part: "run", status: "completed" }]);
+  });
+
+  it("asks nothing of work the programme itself withdrew", () => {
+    expect(runEventsFromOccurrences([occurrence(3, 3, "cancelled")])).toEqual([
+      { cycleIndex: 3, dayIndex: 3, part: "run", status: "completed" },
+    ]);
+  });
+
+  it("keeps the answer somebody gave by hand", () => {
+    const recorded: SlotEvent[] = [{ cycleIndex: 2, dayIndex: 3, part: "run", status: "skipped" }];
+    const derived: SlotEvent[] = [
+      { cycleIndex: 2, dayIndex: 3, part: "run", status: "completed" },
+      { cycleIndex: 2, dayIndex: 6, part: "run", status: "completed" },
+    ];
+    expect(withDerivedRunEvents(recorded, derived)).toEqual([
+      { cycleIndex: 2, dayIndex: 3, part: "run", status: "skipped" },
+      { cycleIndex: 2, dayIndex: 6, part: "run", status: "completed" },
+    ]);
+  });
+
+  /**
+   * The sequence must move past a running day once the run is logged. Without the derived
+   * event nothing ever answered the run half, so every running day held the programme where
+   * it stood and Today went on offering a day the athlete had already trained.
+   */
+  it("lets the sequence move past a day that lifts and runs", () => {
+    const lifted: SlotEvent[] = [
+      { cycleIndex: 1, dayIndex: 3, part: "session", status: "completed" },
+    ];
+    const stalled = state([...done(1, 2), ...lifted]);
+    expect(nextPendingSlot(stalled)).toEqual({ cycleIndex: 1, dayIndex: 3 });
+
+    const ran = state(
+      withDerivedRunEvents(
+        [...done(1, 2), ...lifted],
+        runEventsFromOccurrences([occurrence(1, 3, "logged")]),
+      ),
+    );
+    expect(slotStatus(ran, { cycleIndex: 1, dayIndex: 3 })).toBe("completed");
+    expect(nextPendingSlot(ran)).toEqual({ cycleIndex: 1, dayIndex: 4 });
   });
 });

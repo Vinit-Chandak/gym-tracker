@@ -43,6 +43,78 @@ export type ScheduleState = {
   events: readonly SlotEvent[];
 };
 
+/**
+ * What became of one of the programme's own endurance occurrences.
+ *
+ * The same five answers `resolveOccurrence` gives, named here so the sequence can read them
+ * without depending on how an occurrence is stored.
+ */
+export type EnduranceOutcome =
+  "logged" | "skipped" | "cancelled" | "legacy_completed" | "incomplete";
+
+export type SlotOccurrence = {
+  cycleIndex: number;
+  dayIndex: number;
+  outcome: EnduranceOutcome;
+};
+
+/**
+ * The `run` events the programme's endurance occurrences imply.
+ *
+ * A day that runs asks for two answers, and this is what gives it the second one. The
+ * occurrence is the only place an endurance session is answered — logging one settles it,
+ * skipping one skips it, a revision may cancel it — so deriving the part from the occurrence
+ * is what keeps the two from disagreeing. Writing a second copy into `program_slot_events`
+ * from each of the five paths that can settle an occurrence is how they came to disagree
+ * before: #41 removed the one writer that did it and every running day stopped completing.
+ *
+ * A slot is answered only once nothing it asks for is still owed. Several occurrences on one
+ * day are one answer between them: two of three swims logged is not a day that ran. Work the
+ * programme itself withdrew asks for nothing, so a slot left holding only cancellations
+ * counts as answered rather than as the athlete's failure — and a skip only outranks a
+ * cancellation, never a log.
+ */
+export function runEventsFromOccurrences(occurrences: readonly SlotOccurrence[]): SlotEvent[] {
+  const bySlot = new Map<string, EnduranceOutcome[]>();
+  for (const occurrence of occurrences) {
+    const slot = `${occurrence.cycleIndex}:${occurrence.dayIndex}`;
+    const outcomes = bySlot.get(slot);
+    if (outcomes) outcomes.push(occurrence.outcome);
+    else bySlot.set(slot, [occurrence.outcome]);
+  }
+  const events: SlotEvent[] = [];
+  for (const [slot, outcomes] of bySlot) {
+    if (outcomes.includes("incomplete")) continue;
+    const [cycleIndex, dayIndex] = slot.split(":").map(Number) as [number, number];
+    const done = outcomes.some((outcome) => outcome === "logged" || outcome === "legacy_completed");
+    events.push({
+      cycleIndex,
+      dayIndex,
+      part: "run",
+      status: done || !outcomes.includes("skipped") ? "completed" : "skipped",
+    });
+  }
+  return events;
+}
+
+/**
+ * The events of a programme, with the derived endurance answers filled in behind the recorded
+ * ones. A slot somebody answered by hand — skipping the run from Today, say — keeps that
+ * answer: what was decided outranks what can be worked out.
+ */
+export function withDerivedRunEvents(
+  recorded: readonly SlotEvent[],
+  derived: readonly SlotEvent[],
+): SlotEvent[] {
+  const answered = new Set(
+    recorded.filter((event) => event.part === "run").map((e) => `${e.cycleIndex}:${e.dayIndex}`),
+  );
+  return [
+    ...recorded,
+    ...derived.filter((event) => !answered.has(`${event.cycleIndex}:${event.dayIndex}`)),
+  ];
+}
+
 /** Rest/mobility slots need no session and never block the sequence. */
 export function isRestSlot(slot: ProgramSlot): boolean {
   return !slot.includesLifting && !slot.includesRun;
