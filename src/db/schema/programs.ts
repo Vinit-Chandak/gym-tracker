@@ -298,7 +298,11 @@ export const programSlotEvents = pgTable(
     status: slotEventStatusEnum("status").notNull(),
     /** Set when the slot was completed by a logged session. */
     workoutSessionId: uuid("workout_session_id"),
-    /** Set when the `run` part was completed by a logged run. */
+    /**
+     * Historical only. It recorded the run that completed a `run` part, back when that part
+     * was written by hand; the part is derived from the occurrence now, so nothing reads or
+     * writes this. Kept rather than dropped because the rows it explains are still here.
+     */
     runId: uuid("run_id"),
     occurredOn: date("occurred_on").notNull(),
     note: text("note"),
