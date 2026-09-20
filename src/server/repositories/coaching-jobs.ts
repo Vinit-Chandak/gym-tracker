@@ -1243,11 +1243,33 @@ export async function queuedCoachJobs(db: Db, now = new Date()) {
     .limit(50);
 }
 
-/** How often an athlete may ask for a review of their own, on top of the cadence. */
-export const ATHLETE_REVIEW_INTERVAL_DAYS = 7;
+/**
+ * How many reviews an athlete may ask for themselves, on top of the cadence, and the window
+ * that allowance is counted over.
+ *
+ * A quota over a rolling window rather than a wait between asks, because the two stop being
+ * the same thing above one: "five a week" is five asks in any seven days, not one every
+ * thirty-four hours. At a limit of one the two are identical, which is what makes going back
+ * a matter of changing this number and nothing else.
+ *
+ * Temporarily five while the coach is being exercised. It is meant to return to one.
+ */
+export const ATHLETE_REVIEW_WINDOW_DAYS = 7;
+export const ATHLETE_REVIEWS_PER_WINDOW = 5;
 
 /** The `coach_jobs.dedupe_key` prefix that marks a review the athlete asked for. */
 const ASKED_REVIEW_PREFIX = "review:asked:";
+
+/**
+ * The key one ask claims. Minute precision, not the local date: a date allowed exactly one
+ * asked review per day, which silently capped the allowance below whatever it was set to and
+ * returned the earlier job instead of running a second review. A minute still absorbs the
+ * double tap it is there for, and the queued-or-running check above is what actually stops
+ * two reviews being in flight at once.
+ */
+function askedReviewKey(now: Date): string {
+  return `${ASKED_REVIEW_PREFIX}${now.toISOString().slice(0, 16)}`;
+}
 
 /**
  * Whether the athlete may ask for a review now, and when they may next.
@@ -1257,7 +1279,10 @@ const ASKED_REVIEW_PREFIX = "review:asked:";
  * gym, or come back from a week away, should not have to guess whether tapping does anything.
  */
 export async function athleteReviewStatus(db: DbOrTx, userId: string, now = new Date()) {
-  const [last] = await db
+  const windowMs = ATHLETE_REVIEW_WINDOW_DAYS * 86_400_000;
+  // Only the asks still inside the window can hold the next one back; anything older has
+  // already fallen out of the allowance and is read as history rather than as a block.
+  const recent = await db
     .select({ createdAt: coachJobs.createdAt })
     .from(coachJobs)
     .where(
@@ -1265,10 +1290,11 @@ export async function athleteReviewStatus(db: DbOrTx, userId: string, now = new 
         eq(coachJobs.userId, userId),
         eq(coachJobs.kind, "review_program"),
         like(coachJobs.dedupeKey, `${ASKED_REVIEW_PREFIX}%`),
+        gte(coachJobs.createdAt, new Date(now.getTime() - windowMs)),
       ),
     )
     .orderBy(desc(coachJobs.createdAt))
-    .limit(1);
+    .limit(ATHLETE_REVIEWS_PER_WINDOW);
   const [running] = await db
     .select({ id: coachJobs.id })
     .from(coachJobs)
@@ -1280,9 +1306,11 @@ export async function athleteReviewStatus(db: DbOrTx, userId: string, now = new 
       ),
     )
     .limit(1);
-  const nextAt = last
-    ? new Date(last.createdAt.getTime() + ATHLETE_REVIEW_INTERVAL_DAYS * 86_400_000)
-    : null;
+  // Spent only once the window is full. The next ask is free when its oldest member ages
+  // out, so the date offered is that one's, not the most recent ask's.
+  const spent = recent.length >= ATHLETE_REVIEWS_PER_WINDOW;
+  const oldestHeld = recent[recent.length - 1];
+  const nextAt = spent && oldestHeld ? new Date(oldestHeld.createdAt.getTime() + windowMs) : null;
   return {
     /** A review is already queued or running; asking again would only duplicate it. */
     running: Boolean(running),
@@ -1301,11 +1329,12 @@ export async function athleteReviewStatus(db: DbOrTx, userId: string, now = new 
  * them is still read by the review that owes it, and nothing this produces is applied without
  * their approval.
  *
- * One a week each. A review already queued is returned as it is rather than duplicated — the
- * athlete gets the review they asked for either way.
+ * A fixed allowance over a rolling window, currently five in seven days. A review already
+ * queued is returned as it is rather than duplicated — the athlete gets the review they asked
+ * for either way.
  */
 export async function requestProgramReview(db: DbOrTx, userId: string, now = new Date()) {
-  const profile = await assertCoachEnabled(db, userId);
+  await assertCoachEnabled(db, userId);
   // The coach will not claim anything while a workout is open, so a review asked for now
   // would sit in the queue rather than run. Say so, in the terms of what was asked.
   const [open] = await db
@@ -1334,7 +1363,7 @@ export async function requestProgramReview(db: DbOrTx, userId: string, now = new
   }
   if (!status.canAsk)
     throw new CoachingError(
-      "You have already asked for a review this week. The coach reviews your programme on its own schedule too.",
+      `You have asked for ${ATHLETE_REVIEWS_PER_WINDOW} reviews in the last ${ATHLETE_REVIEW_WINDOW_DAYS} days. The coach reviews your programme on its own schedule too.`,
       429,
     );
   const preference = await getCoachingPreferences(db, userId);
@@ -1346,7 +1375,7 @@ export async function requestProgramReview(db: DbOrTx, userId: string, now = new
     // Scheduled work, so the review is handed the asks it is meant to answer; the purpose
     // below is what keeps it from consuming the cadence's own review.
     trigger: "weekly",
-    dedupeKey: `${ASKED_REVIEW_PREFIX}${todayInTimeZone(profile.timeZone, now)}`,
+    dedupeKey: askedReviewKey(now),
     intakeId: preference?.intakeId,
     target: {
       programId: active.id,
@@ -1358,7 +1387,18 @@ export async function requestProgramReview(db: DbOrTx, userId: string, now = new
   });
 }
 
-/** A durable last choice wins for the exact upcoming occurrence. Same gym is a no-op. */
+/**
+ * Prepares the next programme session for a gym, whichever gym that is.
+ *
+ * The chosen gym used to have to differ from the one already selected, on the reasoning that
+ * re-preparing for the same gym asks for what you already have. It does not: the plan is
+ * built from the session, the machines and the history as they stood when it ran, and any of
+ * those can have moved since — a machine taken out, a session logged, a note left for the
+ * coach. Asking again for the same gym is a re-plan, and it costs an ask exactly as a change
+ * of gym does, so the daily allowance still bounds how often the coach runs.
+ *
+ * A durable last choice wins for the exact upcoming occurrence.
+ */
 export async function requestGymChange(
   db: DbOrTx,
   userId: string,
@@ -1374,7 +1414,6 @@ export async function requestGymChange(
     .from(gyms)
     .where(and(eq(gyms.userId, userId), eq(gyms.id, gymId), eq(gyms.isActive, true)));
   if (!gym) throw new CoachingError("Choose one of your active training locations.", 422);
-  if (target.gymId === gymId) return { job: null, created: false };
   const boundary = lastCoachBoundary();
   const today = todayInTimeZone(profile.timeZone);
   await assertCoachRequestAllowance(db, userId, profile.timeZone);

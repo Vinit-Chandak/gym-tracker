@@ -24,7 +24,7 @@ import { STRENGTH_AESTHETICS_HYBRID_8WK } from "@/db/seed/data/program";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
 import { lastCoachBoundary } from "@/domain/coach-cadence";
-import { coachIntakeSchema } from "@/domain/coaching-workflow";
+import { coachIntakeSchema, jobTargetSchema } from "@/domain/coaching-workflow";
 import type { ProgramBlueprint } from "@/domain/program-blueprint";
 import { COACH_TRAINING_REFERENCE_VERSION } from "@/domain/coach-training-reference";
 import { confirmIntake, saveIntake } from "./coach-intakes";
@@ -41,6 +41,8 @@ import { coachJobContext } from "./coaching-context";
 import {
   acceptCoachJobResult,
   athleteReviewStatus,
+  ATHLETE_REVIEW_WINDOW_DAYS,
+  ATHLETE_REVIEWS_PER_WINDOW,
   claimCoachJob,
   dispatchCoachPage,
   enqueueCoachJob,
@@ -696,7 +698,7 @@ it("reviews for a waiting request without consuming the scheduled review", async
   expect(await as(a, (tx) => listOpenRequests(tx, a.user.id))).toEqual([]);
 });
 
-it("gives the athlete one review of their own a week, and answers their asks with it", async () => {
+it("gives the athlete an allowance of reviews of their own, and answers their asks with it", async () => {
   const a = await training();
   await as(a, (tx) =>
     tx.update(profiles).set({ aiCoachEnabled: true }).where(eq(profiles.id, a.user.id)),
@@ -751,15 +753,39 @@ it("gives the athlete one review of their own a week, and answers their asks wit
       },
     }),
   );
+  // One ask does not spend the allowance: that is the whole difference between a quota and
+  // a wait between asks, and at a limit of one the two would be the same thing.
   const after = await as(a, (tx) => athleteReviewStatus(tx, a.user.id));
-  expect(after).toMatchObject({ canAsk: false, running: false });
-  expect(after.nextAt).not.toBeNull();
-  await expect(as(a, (tx) => requestProgramReview(tx, a.user.id))).rejects.toThrow(
-    /already asked for a review this week/i,
+  expect(after).toMatchObject({ canAsk: true, running: false, nextAt: null });
+
+  // Fill the rest of the window. Written directly because what is being tested here is the
+  // counting, not another four round trips through the coach.
+  const spend = ATHLETE_REVIEWS_PER_WINDOW - 1;
+  await as(a, (tx) =>
+    tx.insert(coachJobs).values(
+      Array.from({ length: spend }, (_unused, index) => ({
+        userId: a.user.id,
+        kind: "review_program" as const,
+        trigger: "weekly" as const,
+        dedupeKey: `review:asked:filler-${index}`,
+        status: "succeeded" as const,
+        target: jobTargetSchema.parse({}),
+      })),
+    ),
   );
-  // A week on, they may ask again.
+  const spent = await as(a, (tx) => athleteReviewStatus(tx, a.user.id));
+  expect(spent).toMatchObject({ canAsk: false, running: false });
+  expect(spent.nextAt).not.toBeNull();
+  await expect(as(a, (tx) => requestProgramReview(tx, a.user.id))).rejects.toThrow(
+    new RegExp(`asked for ${ATHLETE_REVIEWS_PER_WINDOW} reviews`, "i"),
+  );
+  // Once the window has rolled past them, they may ask again.
   const later = await as(a, (tx) =>
-    athleteReviewStatus(tx, a.user.id, new Date(Date.now() + 8 * 86_400_000)),
+    athleteReviewStatus(
+      tx,
+      a.user.id,
+      new Date(Date.now() + (ATHLETE_REVIEW_WINDOW_DAYS + 1) * 86_400_000),
+    ),
   );
   expect(later.canAsk).toBe(true);
 });
