@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { CyclingForm } from "@/components/activities/cycling-form";
+import { OccurrenceSettled } from "@/components/activities/occurrence-settled";
 import { RunningForm } from "@/components/activities/running-form";
 import { SwimmingForm } from "@/components/activities/swimming-form";
 import { PageContent } from "@/components/shell/page-content";
@@ -52,7 +53,11 @@ export default async function NewActivityPage(props: PageProps<"/training/new">)
         readOnly: true,
       })
     : null;
-  if (occurrenceId && (!occurrence || !occurrence.loggable)) notFound();
+  // Missing or foreign is genuinely "no such thing". An occurrence this account owns that
+  // is already logged or cancelled is refused too, but saying it does not exist would be a
+  // lie about their own session; it is told what became of it instead.
+  if (occurrenceId && !occurrence) notFound();
+  if (occurrence && !occurrence.loggable) return <OccurrenceSettled occurrence={occurrence} />;
 
   const requested = single(search.sport);
   if (requested && !(isActivitySport(requested) && isEnduranceSport(requested))) notFound();

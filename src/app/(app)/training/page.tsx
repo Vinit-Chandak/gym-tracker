@@ -123,11 +123,18 @@ export default async function TrainingPage(props: PageProps<"/training">) {
           </Card>
         </Section>
 
-        <Section title="Scheduled">
+        {/* One-off work only. The programme's own sessions have their own section below, and
+            counting them here would say "0 upcoming" to somebody whose Today screen is
+            showing them a run to do. */}
+        <Section title="Scheduled on their own">
           <Card>
             <p className="text-sm text-ink-muted tabular-nums">
               {upcoming} upcoming
               {earlier > 0 ? ` · ${earlier} still to do from earlier` : ""}
+            </p>
+            <p className="text-sm text-ink-muted">
+              Sessions you put on the calendar yourself. Your programme&apos;s own sessions are
+              under Programme.
             </p>
             <LinkButton href="/training/scheduled" variant="ghost" className="w-full">
               Upcoming and earlier

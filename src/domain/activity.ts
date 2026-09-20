@@ -33,25 +33,41 @@ export function isEnduranceSport(sport: ActivitySport): sport is EnduranceSport 
   return sport !== "strength";
 }
 
-/** The legacy discriminator for a sport, or null where the old model had no name for it. */
-export function legacySportOf(sport: ActivitySport): TrainingSport | null {
-  if (sport === "strength") return "workout";
-  if (sport === "running") return "run";
-  return null;
+/**
+ * The shared-stats name for a sport, and back again.
+ *
+ * The two vocabularies exist because the `training_sport` enum kept the names it shipped
+ * with — `workout` and `run` — rather than breaking every reader of the shared tables at
+ * once. Both directions are total over all four sports, and this is the only place either
+ * translation is written (plan §9.2): a second copy elsewhere is how `cycle` came to be
+ * spelled out by hand at a call site while this pair still answered for two sports.
+ */
+const LEGACY_OF: Record<ActivitySport, TrainingSport> = {
+  strength: "workout",
+  running: "run",
+  cycling: "cycle",
+  swimming: "swim",
+};
+const CANONICAL_OF: Record<TrainingSport, ActivitySport> = {
+  workout: "strength",
+  run: "running",
+  cycle: "cycling",
+  swim: "swimming",
+};
+
+export function legacySportOf(sport: ActivitySport): TrainingSport {
+  return LEGACY_OF[sport];
 }
 
-/** The canonical name of a legacy discriminator. Total: the old enum had only two values. */
 export function sportOfLegacy(sport: TrainingSport): ActivitySport {
-  return sport === "workout" ? "strength" : "running";
+  return CANONICAL_OF[sport];
 }
 
-/** Old social filters still arrive as `workout`/`run`; unknown text is not guessed at. */
+/** Either vocabulary is accepted from a URL; unknown text is not guessed at. */
 export function sportFromParam(value: string | null | undefined): ActivitySport | null {
   if (!value) return null;
   if (isActivitySport(value)) return value;
-  if (value === "workout") return "strength";
-  if (value === "run") return "running";
-  return null;
+  return value in CANONICAL_OF ? CANONICAL_OF[value as TrainingSport] : null;
 }
 
 /** A parent exists while a strength session is open; endurance is only ever saved complete. */

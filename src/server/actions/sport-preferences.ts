@@ -64,7 +64,7 @@ export async function setSportSharingAction(sport: ActivitySport, share: boolean
   const user = await requireUser();
   if (!ACTIVITY_SPORTS.includes(sport) || typeof share !== "boolean")
     throw new Error("Not a sport preference");
-  const legacy = legacySportOf(sport) ?? (sport === "cycling" ? "cycle" : "swim");
+  const legacy = legacySportOf(sport);
   await withUser(getDb(), user.id, async (tx) => {
     await setSportPreference(tx, user.id, sport, { shareStats: share });
     if (!share) await deleteSportStats(tx, user.id, legacy);

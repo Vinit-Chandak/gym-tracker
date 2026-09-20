@@ -32,15 +32,30 @@ describe("effort provenance", () => {
   });
 });
 
+describe("sport names from a URL", () => {
+  it("accepts either vocabulary, and guesses at neither", () => {
+    expect(sportFromParam("running")).toBe("running");
+    expect(sportFromParam("run")).toBe("running");
+    expect(sportFromParam("cycle")).toBe("cycling");
+    expect(sportFromParam("swim")).toBe("swimming");
+    expect(sportFromParam("workout")).toBe("strength");
+    expect(sportFromParam("rowing")).toBeNull();
+    expect(sportFromParam(undefined)).toBeNull();
+  });
+});
+
 describe("sport names", () => {
   it("maps to and from the legacy discriminators without renaming stored history", () => {
     expect(legacySportOf("strength")).toBe("workout");
     expect(legacySportOf("running")).toBe("run");
-    // The old enum has no name for these, which is why the mapping is explicit.
-    expect(legacySportOf("cycling")).toBeNull();
-    expect(legacySportOf("swimming")).toBeNull();
+    // `cycle` and `swim` joined the enum with this release, so both directions answer for
+    // all four sports: a mapping that covered two silently called a ride a run.
+    expect(legacySportOf("cycling")).toBe("cycle");
+    expect(legacySportOf("swimming")).toBe("swim");
     expect(sportOfLegacy("workout")).toBe("strength");
     expect(sportOfLegacy("run")).toBe("running");
+    expect(sportOfLegacy("cycle")).toBe("cycling");
+    expect(sportOfLegacy("swim")).toBe("swimming");
   });
 
   /** AT-NAV-06: an unknown sport is refused rather than falling back to a familiar one. */

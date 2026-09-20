@@ -24,10 +24,11 @@ import postgres from "postgres";
 
 import { backfillSharedStats } from "@/db/backfill-shared-stats";
 import * as schema from "@/db/schema";
-import { exercises, profiles, workoutSessions } from "@/db/schema";
+import { activities, exercises, profiles, workoutSessions } from "@/db/schema";
 import { seedTestUserData } from "@/db/test/fixtures";
 import type { DbOrTx } from "@/db/types";
 import { withUser } from "@/db/with-user";
+import { todayInTimeZone } from "@/domain/program-calendar";
 import { recordBodyWeight } from "@/server/repositories/body-weight";
 import { acceptFollow, requestFollow } from "@/server/repositories/follows";
 import { listGyms } from "@/server/repositories/gyms";
@@ -298,15 +299,24 @@ async function main(): Promise<void> {
           await finishSession(tx, who, sessionId, { notes: null, bodyWeightKg: null });
           return sessionId;
         });
-        // Finishing stamps "now"; the session belongs to the day it is meant for.
+        // Finishing stamps "now"; the session belongs to the day it is meant for. The
+        // canonical activity the session opened is moved with it: leaving it at seed time
+        // put every workout on one day with a duration of milliseconds, which is what
+        // Progress and the per-sport totals actually read.
         const startedAt = at(workout.daysAgo);
+        const completedAt = new Date(startedAt.getTime() + workout.minutes * 60_000);
         await db
           .update(workoutSessions)
+          .set({ startedAt, completedAt })
+          .where(eq(workoutSessions.id, sessionId));
+        await db
+          .update(activities)
           .set({
             startedAt,
-            completedAt: new Date(startedAt.getTime() + workout.minutes * 60_000),
+            occurredOn: todayInTimeZone(TZ, startedAt),
+            durationMs: workout.minutes * 60_000,
           })
-          .where(eq(workoutSessions.id, sessionId));
+          .where(eq(activities.id, sessionId));
         await db.execute(
           sql`update set_logs set completed_at = ${startedAt.toISOString()}::timestamptz, created_at = ${startedAt.toISOString()}::timestamptz
               where workout_exercise_id in

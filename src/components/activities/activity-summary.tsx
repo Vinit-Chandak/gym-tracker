@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { DetailList } from "@/components/ui/detail-list";
 import { formatDuration, formatPace } from "@/domain/pace";
-import { formatRunKm, formatSharedLoad } from "@/lib/format";
+import { formatIsoDate, formatRunKm, formatSharedLoad } from "@/lib/format";
 import type { BodyLoadUnit } from "@/domain/types";
 import { SPORT_LABELS, type TrainingSport } from "@/domain/sport-scope";
 import type { SharedActivityDetail } from "@/server/repositories/shared-stats";
@@ -32,7 +32,9 @@ export function ActivitySummary({
         {SPORT_LABELS[activity.sport as TrainingSport]}
       </p>
       <h1 className="mt-1 text-lg font-medium [overflow-wrap:anywhere]">{activity.title}</h1>
-      <p className="mt-1 text-sm text-ink-muted tabular-nums">{activity.occurredOn}</p>
+      <p className="mt-1 text-sm text-ink-muted tabular-nums">
+        {formatIsoDate(activity.occurredOn)}
+      </p>
       <div className="mt-3">
         <DetailList entries={entries(activity, unit)} />
       </div>

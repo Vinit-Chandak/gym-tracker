@@ -424,8 +424,8 @@ export function formatAudit(audit: MultisportAudit): string {
     ),
     "",
     audit.blocked
-      ? "Result: BLOCKED. Resolve the blocking issues before the backfill or cutover gates."
-      : "Result: no blocking issues. Deployment still depends on OP-01 and OP-03 to OP-06.",
+      ? "Result: BLOCKED. Resolve the blocking issues; the backfill holds these accounts back."
+      : "Result: no blocking issues. The backfill runs itself as part of db:deploy.",
   ];
   return lines.join("\n");
 }
