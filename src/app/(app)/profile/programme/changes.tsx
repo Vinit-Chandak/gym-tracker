@@ -51,9 +51,20 @@ export async function loadProgrammeChanges(db: DbOrTx, userId: string, timeZone:
     listOpenProposals(db, userId),
     listOpenRequests(db, userId),
     listSettledRequests(db, userId),
+    // The review's own `rationale` is the coach's memory of what it decided and is fed back
+    // to it in full; the athlete gets the draft's one-line headline instead, and the draft
+    // itself one tap away. A review with no draft has only its reason, so it keeps it.
     db
-      .select()
+      .select({
+        id: coachWeeklyReviews.id,
+        periodEnd: coachWeeklyReviews.periodEnd,
+        outcome: coachWeeklyReviews.outcome,
+        rationale: coachWeeklyReviews.rationale,
+        draftId: coachWeeklyReviews.draftId,
+        headline: programDrafts.headline,
+      })
       .from(coachWeeklyReviews)
+      .leftJoin(programDrafts, eq(programDrafts.id, coachWeeklyReviews.draftId))
       .where(eq(coachWeeklyReviews.userId, userId))
       .orderBy(desc(coachWeeklyReviews.periodEnd))
       .limit(8),
@@ -118,7 +129,7 @@ export async function loadProgrammeChanges(db: DbOrTx, userId: string, timeZone:
         id: review.id,
         when: formatDateTime(review.periodEnd, timeZone),
         outcome: review.outcome,
-        rationale: review.rationale,
+        summary: review.headline || review.rationale,
         draftId: review.draftId,
       })),
     waiting: summaries.length + legacy.length + requests.length,
@@ -239,7 +250,7 @@ export function ProgrammeChanges({
                     <LinkRow
                       href={`${base}/drafts/${review.draftId}` as Route}
                       title={REVIEW_HEADLINE[review.outcome] ?? "Review"}
-                      subtitle={review.rationale}
+                      subtitle={review.summary}
                       meta={review.when.split(",")[0]}
                     />
                   </li>
@@ -247,7 +258,7 @@ export function ProgrammeChanges({
                   <li key={review.id} className="space-y-1 p-4">
                     <p className="font-medium">{REVIEW_HEADLINE[review.outcome] ?? "Review"}</p>
                     <p className="text-sm [overflow-wrap:anywhere] text-ink-muted">
-                      {review.rationale}
+                      {review.summary}
                     </p>
                     <p className="text-xs text-ink-muted tabular-nums">{review.when}</p>
                   </li>

@@ -12,7 +12,7 @@ import { PLAN_LIMITS } from "./plan-limits";
 import { memoryPatchSchema, sourceQuoteSchema } from "./coach-memory";
 import { requestPatchSchema } from "./program-request";
 
-export const COACH_CONTRACT_VERSION = 4;
+export const COACH_CONTRACT_VERSION = 5;
 
 /**
  * Whether the server is serving a contract this checkout was written against.
@@ -29,10 +29,13 @@ export const COACH_CONTRACT_VERSION = 4;
 /**
  * Contract versions this server still accepts from a worker.
  *
- * One, for now: v3 cannot name an occurrence, so there is no target it can describe that the
- * server can honestly act on. The list exists rather than a bare equality because a future
- * additive version may be accepted alongside this one, and the negotiation should then be a
- * data change rather than a code change (plan §8.5).
+ * One, for now. v4 has no `headline` on a programme result, and the field is required rather
+ * than optional precisely so a change screen always has a line to open with; accepting v4
+ * beside it would mean drafts that silently have none. A worker on a stale clone is turned
+ * away before it claims, rather than after it has computed a whole programme. The list
+ * exists rather than a bare equality because a future additive version may be accepted
+ * alongside this one, and the negotiation should then be a data change rather than a code
+ * change (plan §8.5).
  */
 export const SUPPORTED_CONTRACT_VERSIONS: readonly number[] = [COACH_CONTRACT_VERSION];
 
@@ -391,6 +394,9 @@ export const sportCoverageSchema = z.object({
 });
 export type SportCoverageEntry = z.infer<typeof sportCoverageSchema>;
 
+/** One sentence, not a paragraph: long enough to be specific, too short to reason in. */
+export const HEADLINE_LIMIT = 140;
+
 const explanation = {
   rationale: z.string().trim().min(1).max(3000),
   evidence: z.array(z.string().trim().min(1).max(200)).max(50).default([]),
@@ -414,6 +420,15 @@ export const coachJobResultSchema = z.discriminatedUnion("outcome", [
     outcome: z.literal("program"),
     blueprint: programBlueprintSchema,
     openingPlan: openingPlanSchema.nullable().default(null),
+    /**
+     * What this change does, in one sentence the athlete would say themselves.
+     *
+     * The screen shows this and folds `rationale` away behind it. Without it the app had
+     * only the long explanation to print, so every change screen opened with several
+     * paragraphs of reasoning above the six lines that had actually changed. Short is the
+     * point: "Doubles your direct core work: 4 → 8 sets a week, on 4 days instead of 2."
+     */
+    headline: z.string().trim().min(1).max(HEADLINE_LIMIT),
     ...explanation,
   }),
   z.object({ outcome: z.literal("session"), plan: coachPlanSchema, ...explanation }),

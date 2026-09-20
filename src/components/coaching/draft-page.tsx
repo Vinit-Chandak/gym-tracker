@@ -104,18 +104,26 @@ export async function ProgrammeDraftPage({
           status={data.draft.status}
           name={data.draft.blueprint.name}
           when={formatDateTime(data.draft.createdAt, profile.timeZone)}
+          headline={data.draft.headline}
           rationale={data.draft.rationale}
           uncertainties={data.draft.uncertainties}
+          gateReasons={data.draft.gateReasons}
           diff={diffPrograms(data.currentBlueprint, data.draft.blueprint)}
           names={Object.fromEntries(data.library.map((exercise) => [exercise.slug, exercise.name]))}
           canContinue={data.canContinue}
-          requests={data.requests.map((request) => ({
-            id: request.id,
-            summary: request.summary,
-            quote: request.quote,
-            state: request.state,
-            detail: request.detail,
-          }))}
+          // Only the asks this change actually answers. The same run may have asked a question
+          // about a different ask, and that one is answered on the list it has a box on, not
+          // reprinted on a screen whose only buttons approve or decline a programme.
+          requests={data.requests
+            .filter((request) => request.draftId === data.draft.id)
+            .map((request) => ({
+              id: request.id,
+              summary: request.summary,
+              quote: request.quote,
+              state: request.state,
+              detail: request.detail,
+              changeRefs: request.changeRefs,
+            }))}
           today={today}
           base={base}
           stale={data.stale}

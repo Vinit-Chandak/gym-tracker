@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 
@@ -8,10 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button, LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { SpeechTextarea } from "@/components/ui/dictation";
+import { Disclosure } from "@/components/ui/disclosure";
 import { Field, Input } from "@/components/ui/input";
 import { PLAN_LIMITS } from "@/domain/session-plan";
 import type { ProgramDiff } from "@/domain/program-diff";
-import { REQUEST_STATE_LABELS, type RequestState } from "@/domain/program-request";
+import type { RequestState } from "@/domain/program-request";
 import {
   activateProgramDraftAction,
   declineProgramChangeAction,
@@ -29,6 +30,8 @@ export type ChangeRequestOutcome = {
   quote: string;
   state: RequestState;
   detail: string;
+  /** Diff operation IDs this ask produced, checked against the diff when it was decided. */
+  changeRefs: readonly string[];
 };
 
 export type ChangeDetailProps = {
@@ -39,13 +42,17 @@ export type ChangeDetailProps = {
   status: "editing" | "ready" | "activated" | "rejected" | "superseded";
   name: string;
   when: string;
+  /** One line saying what this change does. Older drafts have none; then the diff speaks. */
+  headline: string;
   rationale: string;
   uncertainties: readonly string[];
+  /** Why the server would not apply this itself. Summarised in a line, never printed raw. */
+  gateReasons: readonly string[];
   diff: ProgramDiff;
   names: Readonly<Record<string, string>>;
   /** Whether the change can continue the running block, or has to start a new one. */
   canContinue: boolean;
-  /** The athlete's own asks this change answers, with the outcome each one was given. */
+  /** The athlete's own asks this change answers. Asks it does not answer are not shown. */
   requests: readonly ChangeRequestOutcome[];
   today: string;
   base: "/welcome/programme" | "/profile/programme";
@@ -61,13 +68,41 @@ const STATUS_NOTE: Record<ChangeDetailProps["status"], string | null> = {
   superseded: "A later review replaced this change. Nothing here is waiting on you.",
 };
 
+/** Operations that change what exists, rather than what an existing slot prescribes. */
+const SLOT_COUNT_CHANGED = new Set(["added", "removed", "run_added", "run_removed"]);
+
+/**
+ * Why this needs a decision at all, in one line rather than in the guardrail's own words.
+ *
+ * The server records a finding per slot — "a new slot needs review", twice for two slots —
+ * which is an audit trail, not a sentence anybody wants to read above their programme.
+ */
+function gateLine(diff: ProgramDiff, gateReasons: readonly string[]): string | null {
+  if (!gateReasons.length) return null;
+  const slots = diff.days
+    .flatMap((day) => day.operations)
+    .filter((operation) => SLOT_COUNT_CHANGED.has(operation.kind)).length;
+  if (slots > 0)
+    return `Adds or removes ${slots === 1 ? "an exercise" : "exercises"}, so it needs your approval rather than applying on its own.`;
+  return "This is a bigger change than the coach may apply on its own, so it needs your approval.";
+}
+
+/** The athlete's own words, short enough to sit on a line of the diff. */
+function shortQuote(quote: string): string {
+  const clean = quote.trim();
+  if (clean.length <= 48) return clean;
+  return `${clean.slice(0, 45).trimEnd()}…`;
+}
+
 /**
  * One change to the programme, as a decision the athlete can actually take.
  *
- * What is on this screen is the difference and the reasons for it. The programme itself is in
- * Cycle, one tap away, and printing it again here only made the six changed lines harder to
- * find. Approving applies the whole reviewed set; asking for revisions hands it back with the
- * athlete's own words attached, to be reworked at the next daily coach run.
+ * What is on this screen is the difference and the one line that says what it does. The
+ * programme itself is in Cycle, the reasoning is folded away behind it, and each ask this
+ * change answers is a tag on the lines it produced rather than a paragraph repeating them —
+ * the screen used to state the same change in prose, again as an outcome, and again as a
+ * diff. Approving applies the whole reviewed set; asking for revisions hands it back with
+ * the athlete's own words attached, to be reworked at the next daily coach run.
  */
 export function ChangeDetail(props: ChangeDetailProps) {
   const router = useRouter();
@@ -83,6 +118,30 @@ export function ChangeDetail(props: ChangeDetailProps) {
   const [error, setError] = useState<string | null>(null);
   const open = props.status === "editing" || props.status === "ready";
   const coach = props.author === "coach";
+  const gate = gateLine(props.diff, props.gateReasons);
+  const why = props.rationale || props.uncertainties.length > 0;
+
+  /**
+   * Which ask produced each changed line, from the operation IDs the decision named.
+   *
+   * Only when at least one line is attributable: on a review nobody asked for, marking every
+   * row "Coach" distinguishes it from nothing at all.
+   */
+  const attributed = new Map<string, string>();
+  for (const request of props.requests)
+    for (const ref of request.changeRefs) attributed.set(ref, shortQuote(request.quote));
+  const operations = props.diff.days.flatMap((day) => day.operations);
+  const tags: Record<string, ReactNode> = {};
+  // A re-reviewed draft can carry refs naming operations this diff no longer has. Tagging
+  // then labels every line "Coach" and says the opposite of what happened, so it is the
+  // lines that match, not the refs that exist, that decide whether to tag at all.
+  if (operations.some((operation) => attributed.has(operation.id)))
+    for (const operation of operations)
+      tags[operation.id] = attributed.has(operation.id) ? (
+        <Badge tone="accent">“{attributed.get(operation.id)}”</Badge>
+      ) : (
+        <Badge>Coach</Badge>
+      );
 
   const run = async (work: () => Promise<{ ok: boolean; error?: string }>, done?: () => void) => {
     setBusy(true);
@@ -106,22 +165,17 @@ export function ChangeDetail(props: ChangeDetailProps) {
         <p className="text-sm text-ink-muted tabular-nums">
           {props.when} · {props.name}
         </p>
-        {props.rationale && (
-          <p className="text-sm [overflow-wrap:anywhere] whitespace-pre-wrap">{props.rationale}</p>
+        {/* What it does, in one line. The reasoning that produced it is folded away below. */}
+        {props.headline && <p className="[overflow-wrap:anywhere]">{props.headline}</p>}
+        {props.requests.length > 0 && (
+          <p className="text-sm [overflow-wrap:anywhere] text-ink-muted">
+            Answers {props.requests.map((request) => `“${request.quote}”`).join(" · ")}
+          </p>
         )}
         {props.diff.empty && (
           <p className="text-sm text-ink-muted">
             Your programme stays as it is. Nothing you have logged changes.
           </p>
-        )}
-        {props.uncertainties.length > 0 && (
-          <ul className="list-disc space-y-1 pl-5 text-sm text-ink-muted">
-            {props.uncertainties.map((line, index) => (
-              <li key={index} className="[overflow-wrap:anywhere]">
-                {line}
-              </li>
-            ))}
-          </ul>
         )}
         {STATUS_NOTE[props.status] && (
           <p className="text-sm text-ink-muted">{STATUS_NOTE[props.status]}</p>
@@ -133,24 +187,27 @@ export function ChangeDetail(props: ChangeDetailProps) {
         >
           See the full programme
         </LinkButton>
-      </Card>
-
-      {props.requests.length > 0 && (
-        <Card>
-          <h2 className="font-medium">What you asked for</h2>
-          <ul className="ruled-list">
-            {props.requests.map((request) => (
-              <li key={request.id} className="space-y-1 py-3 first:pt-0 last:pb-0">
-                <p className="font-medium [overflow-wrap:anywhere]">{request.summary}</p>
-                <p className="text-sm [overflow-wrap:anywhere] text-ink-muted">
-                  {REQUEST_STATE_LABELS[request.state]}
-                  {request.detail ? ` — ${request.detail}` : ""}
+        {why && (
+          <Disclosure summary="Why this" variant="footer">
+            <div className="space-y-3">
+              {props.rationale && (
+                <p className="text-sm [overflow-wrap:anywhere] whitespace-pre-wrap">
+                  {props.rationale}
                 </p>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
+              )}
+              {props.uncertainties.length > 0 && (
+                <ul className="list-disc space-y-1 pl-5 text-sm text-ink-muted">
+                  {props.uncertainties.map((line, index) => (
+                    <li key={index} className="[overflow-wrap:anywhere]">
+                      {line}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </Disclosure>
+        )}
+      </Card>
 
       {/* Nothing differs, so there is nothing to draw: the heading above has already said so,
           and a second box repeating it is the duplication this screen exists to remove. */}
@@ -158,6 +215,7 @@ export function ChangeDetail(props: ChangeDetailProps) {
         <ProgramDiffView
           diff={props.diff}
           names={props.names}
+          reasons={tags}
           effectiveScope={
             transition === "continue"
               ? "Takes effect from your next unstarted session. Workouts you have already logged keep what they were prescribed."
@@ -169,6 +227,7 @@ export function ChangeDetail(props: ChangeDetailProps) {
       {open && !props.diff.empty && (
         <Card>
           <h2 className="font-medium">{coach ? "Your decision" : "Use these changes"}</h2>
+          {gate && <p className="text-sm text-ink-muted">{gate}</p>}
           {needsCheck && (
             <>
               <p className="text-sm text-ink-muted">
