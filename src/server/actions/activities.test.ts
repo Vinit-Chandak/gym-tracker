@@ -44,7 +44,7 @@ beforeEach(() => {
 /** LOG-03: an answer is required, and "not sure" is one of the two answers. */
 it("requires an effort answer and accepts Not sure as one", async () => {
   const missing = await saveActivityAction(null, {}, runningForm({ effort: "" }));
-  expect(missing.fieldErrors?.effort).toMatch(/1 to 10|Not sure/);
+  expect(missing.fieldErrors?.effort).toMatch(/1 to 5|Not sure/);
   expect(mocks.getDb).not.toHaveBeenCalled();
 
   mocks.getDb.mockImplementation(() => {
@@ -56,7 +56,17 @@ it("requires an effort answer and accepts Not sure as one", async () => {
 });
 
 it("refuses an effort outside the scale", async () => {
-  const state = await saveActivityAction(null, {}, runningForm({ effort: "11" }));
+  const state = await saveActivityAction(null, {}, runningForm({ effort: "6" }));
+  expect(state.fieldErrors?.effort).toBeDefined();
+  expect(mocks.getDb).not.toHaveBeenCalled();
+});
+
+/**
+ * The scale has five steps, so a half step is a stale client rather than a finer answer.
+ * Rounding it here would file a report the athlete never made.
+ */
+it("refuses an effort between the steps", async () => {
+  const state = await saveActivityAction(null, {}, runningForm({ effort: "2.5" }));
   expect(state.fieldErrors?.effort).toBeDefined();
   expect(mocks.getDb).not.toHaveBeenCalled();
 });

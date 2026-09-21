@@ -112,17 +112,19 @@ const baseFields = {
     (value) => (typeof value === "string" ? value.trim() : ""),
     z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/, { error: "Enter the date and time." }),
   ),
-  /** 1–10, or the explicit "not sure" that LOG-03 requires as its own answer. */
+  /** 1–5, or the explicit "not sure" that LOG-03 requires as its own answer. */
   effort: z.preprocess(
     (value) => (typeof value === "string" ? value.trim() : ""),
     z.string().refine(
       (value) => {
         if (value === "unsure") return true;
-        if (!/^\d+(\.\d)?$/.test(value)) return false;
+        // Five whole steps: a posted "2.5" is a client that has not been reloaded, not a
+        // finer answer, and rounding it here would invent a report nobody made.
+        if (!/^\d+$/.test(value)) return false;
         const number = Number(value);
         return number >= EFFORT.min && number <= EFFORT.max;
       },
-      { error: "Rate the effort from 1 to 10, or choose Not sure." },
+      { error: `Rate the effort from ${EFFORT.min} to ${EFFORT.max}, or choose Not sure.` },
     ),
   ),
   outcome: z.enum(["logged", "ended_early"]).default("logged"),

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { ENDURANCE_SPORTS } from "./activity";
+import { EFFORT } from "./activity-limits";
 import { endurancePrescriptionSchema } from "./activity-prescription";
 import { PLAN_LIMITS } from "./plan-limits";
 import type { TargetSet } from "./progression";
@@ -47,7 +48,8 @@ export const planRunSchema = z.object({
   mode: z.enum(RUN_MODES).default("outdoor"),
   durationMinutes: z.number().int().min(1).max(600).nullable().default(null),
   distanceKm: z.number().min(0.1).max(100).nullable().default(null),
-  rpe: z.number().min(1).max(10).nullable().default(null),
+  /** The run's effort, out of five like the programme's and like the athlete's answer. */
+  rpe: z.number().min(1).max(EFFORT.max).nullable().default(null),
   /** How it should feel, in one line. */
   paceNote: z.string().trim().max(PLAN_LIMITS.note).default(""),
   /** When to cut it short, which is what guards a niggle. */
@@ -177,7 +179,7 @@ export function runPlanLine(run: PlanRun): string {
   const parts = [
     run.durationMinutes === null ? null : `${run.durationMinutes} min`,
     run.distanceKm === null ? null : `${run.distanceKm} km`,
-    run.rpe === null ? null : `RPE ${run.rpe}`,
+    run.rpe === null ? null : `Effort ${run.rpe}`,
   ].filter(Boolean);
   return parts.length > 0 ? parts.join(" · ") : "Easy run";
 }

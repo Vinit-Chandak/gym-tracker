@@ -31,13 +31,13 @@ export const COACH_POLICY = {
       id: "effort",
       tasks: ["create_program", "prepare_session", "review_program"],
       kind: "coaching_principle",
-      rule: "Require actual RIR after rep working sets and actual RPE after timed/distance sets and runs. Warmups are optional. Never copy target effort into actual logs or turn historical missing effort into zero. Unknown starting loads require calibration with feasible equipment.",
+      rule: "Require actual RIR after rep working sets and actual RPE after timed/distance sets and runs. Warmups are optional. Never copy target effort into actual logs or turn historical missing effort into zero. Unknown starting loads require calibration with feasible equipment. Two scales, and they are not interchangeable: a strength set's RPE and RIR are still out of ten, while every endurance effort — the run effort you prescribe, and the effort the athlete reports on a run, ride or swim — is out of five, where 1 is very easy and 5 is maximal. Prescribe runs on that five-step scale; read a reported endurance effort against it and never against ten. An endurance activity carries the scale it was written on in its effort.scale; a reported value from before the change was rescaled to match, so the whole history reads out of five.",
     },
     {
       id: "running",
       tasks: ["create_program", "prepare_session", "review_program"],
       kind: "coaching_principle",
-      rule: "Use recent frequency, longest run, gaps, symptoms and session distance/duration together. Compare the same scheduled role and mode. Lasting running reductions require athlete review; RPE alone does not establish decline. Check distance and duration independently. The weekly 10% rule is not a safety guarantee. Do not invent missing pace or automatically prioritize strength over running. A run's stopRule is when this runner should cut this run short, in their own terms: the niggle their history shows, the effort not to exceed, the week they are coming back from. One line, written for them, or left empty when nothing specific applies.",
+      rule: "Use recent frequency, longest run, gaps, symptoms and session distance/duration together. Compare the same scheduled role and mode. Lasting running reductions require athlete review; effort alone does not establish decline. Check distance and duration independently. The weekly 10% rule is not a safety guarantee. Do not invent missing pace or automatically prioritize strength over running. A run's stopRule is when this runner should cut this run short, in their own terms: the niggle their history shows, the effort not to exceed, the week they are coming back from. One line, written for them, or left empty when nothing specific applies.",
     },
     {
       id: "requests",

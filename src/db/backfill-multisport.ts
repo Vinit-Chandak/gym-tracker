@@ -2,6 +2,7 @@ import { config as loadEnv } from "dotenv";
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 
+import { effortOnCurrentScale } from "../domain/activity";
 import {
   cycleSlotLineage,
   legacyProgramRunToPrescription,
@@ -257,7 +258,8 @@ async function backfillRuns(db: Db, account: Account, chunkSize: number): Promis
             timeZoneSource: "legacy_profile_snapshot",
             occurredOn: localDate(row.startedAt, account.timeZone),
             durationMs: row.durationSeconds * 1000,
-            effortValue: row.rpe,
+            // `runs.rpe` is still written out of ten; the canonical column is out of five.
+            effortValue: row.rpe === null ? null : effortOnCurrentScale(row.rpe),
             effortStatus:
               row.rpe === null ? "unknown" : row.effortReported ? "reported" : "legacy_unconfirmed",
             notes: row.notes,
@@ -794,13 +796,17 @@ export async function reconcileMultisport(
         join public.activities a on a.id = r.id
         where a.duration_ms <> r.duration_seconds * 1000${scope("r.user_id")}`,
   );
+  // The value is compared through the same rescale 0033 applied, not raw: `runs.rpe` keeps
+  // the tens it was written in, and the canonical column holds fives. Comparing them
+  // directly would report drift on every correctly migrated run.
   const effortDrift = await value(
     sql`select count(*)::int as value from public.runs r
         join public.activities a on a.id = r.id
         where a.effort_status <> (case when r.rpe is null then 'unknown'
                                        when r.effort_reported then 'reported'
                                        else 'legacy_unconfirmed' end)::effort_status
-           or a.effort_value is distinct from r.rpe${scope("r.user_id")}`,
+           or a.effort_value is distinct from
+              (case when r.rpe is null then null else greatest(1, floor(r.rpe / 2)) end)${scope("r.user_id")}`,
   );
   const invented = await value(
     sql`select count(*)::int as value from public.occurrence_events e

@@ -105,8 +105,10 @@ export default async function HistoryPage(props: PageProps<"/history">) {
         activity.durationMs === null ? "" : formatDuration(Math.round(activity.durationMs / 1000)),
       gymId: null,
       exercises: [],
+      // "Effort", not "RPE": the legacy runs above still read out of ten and these read out
+      // of five, and one label over two scales is worse than no label at all.
       recovery: readings([
-        ["RPE", activity.effortStatus === "reported" ? activity.effortValue : null],
+        ["Effort", activity.effortStatus === "reported" ? activity.effortValue : null],
       ]),
     })),
     ...data.training.recovery.map((r) => ({

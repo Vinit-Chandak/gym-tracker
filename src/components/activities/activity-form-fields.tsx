@@ -7,7 +7,7 @@ import { Disclosure } from "@/components/ui/disclosure";
 import { Field, Input, Textarea } from "@/components/ui/input";
 import { Section } from "@/components/ui/section";
 import { SegmentedControl } from "@/components/ui/segmented-control";
-import { TEXT_LIMITS } from "@/domain/activity-limits";
+import { EFFORT, TEXT_LIMITS } from "@/domain/activity-limits";
 import type { FormState } from "@/server/validation/form";
 
 /**
@@ -27,9 +27,15 @@ export function useFormValues(state: FormState, initial: ActivityFormValues) {
   return (key: string): string => state.values?.[key] ?? initial[key] ?? "";
 }
 
-/** 1 to 10, or the answer that says the athlete does not know. */
+/**
+ * 1 to 5, or the answer that says the athlete does not know.
+ *
+ * Five steps and "Not sure" make six pills, which is one row on a phone. The scale came down
+ * from ten because ten asked for a precision nobody reports consistently: nothing was gained
+ * by offering a 6 and a 7 that the same run could honestly be given either of.
+ */
 const EFFORT_OPTIONS = [
-  ...Array.from({ length: 10 }, (_, index) => ({
+  ...Array.from({ length: EFFORT.max }, (_, index) => ({
     value: String(index + 1),
     label: String(index + 1),
   })),
@@ -80,12 +86,17 @@ export function DistanceField({
   );
 }
 
+/**
+ * The label is hidden because every caller puts this in a section already headed "Effort",
+ * and the screen was printing the word twice, one line above the other.
+ */
 export function EffortField({ value, error }: { value: string; error?: string }) {
   return (
     <Field
       group
+      labelHidden
       label="Effort"
-      hint="How hard it actually felt, 1 very easy to 10 maximal. Not sure is an answer."
+      hint="How hard it actually felt, 1 very easy to 5 maximal. Not sure is an answer."
       error={error}
     >
       <SegmentedControl
@@ -93,7 +104,7 @@ export function EffortField({ value, error }: { value: string; error?: string })
         aria-label="Effort"
         options={EFFORT_OPTIONS}
         defaultValue={value}
-        columns={6}
+        columns={EFFORT_OPTIONS.length}
       />
     </Field>
   );

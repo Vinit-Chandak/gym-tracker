@@ -393,7 +393,7 @@ describe("effort ranges", () => {
           sessionTargets: {
             durationMs: [30 * MINUTE, 30 * MINUTE],
             distanceMetres: null,
-            effort: [3, 4],
+            effort: [2, 3],
           },
           nodes: [
             {
@@ -402,14 +402,14 @@ describe("effort ranges", () => {
               phase: "work",
               action: "run",
               target: { kind: "duration", ms: [MINUTE, MINUTE] },
-              effort: [7, 8],
+              effort: [4, 5],
               stroke: null,
               notes: null,
             },
           ],
         }),
       ),
-    ).toEqual([3, 8]);
+    ).toEqual([2, 5]);
   });
 
   it("returns nothing when no effort was prescribed", () => {

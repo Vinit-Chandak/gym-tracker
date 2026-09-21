@@ -96,7 +96,7 @@ describe("coach plan contract", () => {
   it("describes a run in one line", () => {
     const run = (input: Record<string, unknown>) =>
       runPlanLine(coachPlanSchema.parse({ ...base, run: input }).run!);
-    expect(run({ durationMinutes: 25, distanceKm: 4, rpe: 3 })).toBe("25 min · 4 km · RPE 3");
+    expect(run({ durationMinutes: 25, distanceKm: 4, rpe: 3 })).toBe("25 min · 4 km · Effort 3");
     expect(run({ durationMinutes: 30 })).toBe("30 min");
     expect(run({})).toBe("Easy run");
   });
