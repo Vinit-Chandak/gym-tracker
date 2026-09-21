@@ -160,6 +160,19 @@ export function adherenceBySport(
   return out;
 }
 
+/**
+ * The work still owed, out of a set of occurrences.
+ *
+ * A date on the calendar is not an obligation: an occurrence that was logged, skipped or
+ * cancelled has had its answer, whether that date has come round yet or not. Counting by date
+ * alone is what told somebody who had just finished today's run that they still had one to do.
+ */
+export function outstanding<T extends { resolution: OccurrenceResolution }>(
+  occurrences: readonly T[],
+): T[] {
+  return occurrences.filter((occurrence) => occurrence.resolution.kind === "incomplete");
+}
+
 /** Upcoming and earlier standalone work, for the schedule view that owns it (SCHED-08). */
 export function splitByDate<T extends Pick<Occurrence, "scheduledOn">>(
   occurrences: readonly T[],

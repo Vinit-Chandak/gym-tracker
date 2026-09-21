@@ -151,8 +151,10 @@ export function trainingAnalytics(data: TrainingData, timeZone: string, from: st
       });
     }
   }
+  // Bucketed on the date frozen on the activity rather than one recomputed from the instant:
+  // moving time zone should not slide last month's runs into a neighbouring week.
   for (const run of data.runs) {
-    const week = weeks.get(weekStart(todayInTimeZone(timeZone, run.startedAt)));
+    const week = weeks.get(weekStart(run.occurredOn));
     if (week) {
       week.runs++;
       week.runKm += run.distanceMeters / 1000;
@@ -185,7 +187,7 @@ export function trainingAnalytics(data: TrainingData, timeZone: string, from: st
     .sort((a, b) => a.date.localeCompare(b.date));
   const trainingDays = new Set([
     ...finished.map((w) => todayInTimeZone(timeZone, w.startedAt)),
-    ...data.runs.map((r) => todayInTimeZone(timeZone, r.startedAt)),
+    ...data.runs.map((r) => r.occurredOn),
   ]);
   return {
     workouts: finished.length,
@@ -202,9 +204,9 @@ export function trainingAnalytics(data: TrainingData, timeZone: string, from: st
     pace: [...data.runs]
       .sort((a, b) => a.startedAt.getTime() - b.startedAt.getTime())
       .map((r) => ({
-        date: todayInTimeZone(timeZone, r.startedAt),
+        date: r.occurredOn,
         value: r.averagePaceSecondsPerKm === null ? null : round(r.averagePaceSecondsPerKm / 60),
-        mode: r.mode,
+        mode: r.environment,
       })),
     truncated: data.truncated,
   };

@@ -4,7 +4,7 @@ import { gyms, programDays, workoutSessions } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import type { DateRange } from "@/server/validation/date-range";
 
-import { readRecovery, readRuns, TRAINING_RECORD_LIMIT } from "./training-data";
+import { readRecovery, readRunActivities, TRAINING_RECORD_LIMIT } from "./training-data";
 
 type HistoryExercise = {
   exerciseId: string;
@@ -66,7 +66,7 @@ export async function readHistoryWorkouts(
 export async function readHistory(db: DbOrTx, userId: string, range: DateRange) {
   const [workouts, runs, recovery] = await Promise.all([
     readHistoryWorkouts(db, userId, range),
-    readRuns(db, userId, range),
+    readRunActivities(db, userId, range),
     readRecovery(db, userId, range),
   ]);
   return {

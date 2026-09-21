@@ -1,17 +1,21 @@
 import { and, asc, desc, eq, exists, gte, inArray, isNotNull, lt, lte, sql } from "drizzle-orm";
 
 import {
+  activities,
   dailyRecovery,
   equipmentInstances,
   exercises,
   gyms,
   programDays,
+  runningActivityDetails,
   runs,
   setLogs,
   workoutExercises,
   workoutSessions,
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
+import { effortFromStorage, type Effort, type RunningEnvironment } from "@/domain/activity";
+import { paceSecondsPerKm } from "@/domain/pace";
 import type { DateRange } from "@/server/validation/date-range";
 
 export const TRAINING_RECORD_LIMIT = 500;
@@ -161,6 +165,14 @@ export async function readWorkouts(
   };
 }
 
+/**
+ * The raw `runs` table, which nothing has written to since the multisport cutover.
+ *
+ * Kept for the two readers that mean the old rows specifically: version 1 of the coach API,
+ * whose compatibility window promises those exact records, and the shared-stats backfill,
+ * which is keyed by their identifiers. Everything an athlete sees reads
+ * `readRunActivities` below instead.
+ */
 export async function readRuns(
   db: DbOrTx,
   userId: string,
@@ -180,6 +192,99 @@ export async function readRuns(
   return { hasMore: records.length > limit, runs: records.slice(0, limit) };
 }
 
+/** A run as every screen an athlete looks at reads one. */
+export type RunActivity = {
+  id: string;
+  startedAt: Date;
+  /** The local date it happened on, frozen when it was saved (plan §6.3). */
+  occurredOn: string;
+  /** Outdoor or treadmill: what the old `mode` is called on the canonical row. */
+  environment: RunningEnvironment;
+  durationSeconds: number;
+  distanceMeters: number;
+  averagePaceSecondsPerKm: number | null;
+  /** The number and how far it can be trusted; a migrated one stays unconfirmed (LOG-03). */
+  effort: Effort;
+  surface: string | null;
+  title: string | null;
+  notes: string | null;
+  /** Where a migrated run said it started from. A run logged since records no gym. */
+  gymId: string | null;
+};
+
+/**
+ * Runs, from the canonical activity that holds every sport (plan §6.3).
+ *
+ * Nothing has written to `runs` since the cutover — the logger writes an activity and its
+ * running detail, as it does for a ride or a swim — so a screen still reading the old table
+ * shows an account its migrated history and nothing at all that it has logged since. That is
+ * the whole of the bug this replaces: the run was saved, and History and Progress were
+ * looking somewhere it had never been written. The backfill gave every legacy run a canonical
+ * activity carrying its own identifier, so this one reader answers for both eras.
+ *
+ * The window is the athlete's own dates against the local date frozen on the activity, the
+ * same comparison the other sports make. The old reader compared instants against
+ * `started_at`, which quietly asks a different question once a profile's zone has moved.
+ */
+export async function readRunActivities(
+  db: DbOrTx,
+  userId: string,
+  range: DateRange,
+  page = 0,
+  limit = TRAINING_RECORD_LIMIT,
+): Promise<{ runs: RunActivity[]; hasMore: boolean }> {
+  const records = await db
+    .select({
+      id: activities.id,
+      startedAt: activities.startedAt,
+      occurredOn: activities.occurredOn,
+      durationMs: activities.durationMs,
+      effortValue: activities.effortValue,
+      effortStatus: activities.effortStatus,
+      title: activities.title,
+      notes: activities.notes,
+      environment: runningActivityDetails.environment,
+      distanceMetres: runningActivityDetails.distanceMetres,
+      surface: runningActivityDetails.surface,
+      gymId: runningActivityDetails.legacyGymId,
+    })
+    .from(activities)
+    .innerJoin(runningActivityDetails, eq(runningActivityDetails.activityId, activities.id))
+    .where(
+      and(
+        eq(activities.userId, userId),
+        eq(activities.sport, "running"),
+        eq(activities.status, "completed"),
+        gte(activities.occurredOn, range.from),
+        lte(activities.occurredOn, range.to),
+      ),
+    )
+    .orderBy(desc(activities.startedAt), desc(activities.id))
+    .limit(limit + 1)
+    .offset(page * limit);
+  return {
+    hasMore: records.length > limit,
+    runs: records.slice(0, limit).map((row) => {
+      // A completed endurance activity always carries a duration; the database says so.
+      const durationSeconds = Math.round((row.durationMs ?? 0) / 1000);
+      return {
+        id: row.id,
+        startedAt: row.startedAt,
+        occurredOn: row.occurredOn,
+        environment: row.environment,
+        durationSeconds,
+        distanceMeters: row.distanceMetres,
+        averagePaceSecondsPerKm: paceSecondsPerKm(row.distanceMetres, durationSeconds),
+        effort: effortFromStorage(row.effortValue, row.effortStatus),
+        surface: row.surface,
+        title: row.title,
+        notes: row.notes,
+        gymId: row.gymId,
+      };
+    }),
+  };
+}
+
 export async function readRecovery(db: DbOrTx, userId: string, range: DateRange) {
   return db
     .select()
@@ -197,7 +302,7 @@ export async function readRecovery(db: DbOrTx, userId: string, range: DateRange)
 export async function readTrainingData(db: DbOrTx, userId: string, range: DateRange) {
   const [workouts, runData, recovery] = await Promise.all([
     readWorkouts(db, userId, range),
-    readRuns(db, userId, range),
+    readRunActivities(db, userId, range),
     readRecovery(db, userId, range),
   ]);
   return {
