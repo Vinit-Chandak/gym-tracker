@@ -1,15 +1,34 @@
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { activities, gyms, profiles, runningActivityDetails } from "@/db/schema";
+import { backfillMultisport } from "@/db/backfill-multisport";
+import {
+  activities,
+  gyms,
+  occurrenceVersions,
+  plannedOccurrences,
+  profiles,
+  runningActivityDetails,
+} from "@/db/schema";
+import { seedLegacyAccount, type LegacyAccount } from "@/db/test/multisport-fixtures";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
-import { AD_HOC_ORIGIN, reportedEffort, UNKNOWN_EFFORT } from "@/domain/activity";
+import {
+  AD_HOC_ORIGIN,
+  plannedOrigin,
+  reportedEffort,
+  UNKNOWN_EFFORT,
+  type LogOrigin,
+} from "@/domain/activity";
 import { nativeDistance } from "@/domain/activity-metrics";
 import { trainingAnalytics } from "@/domain/analytics";
+import { outstanding } from "@/domain/occurrences";
+import { fromDateTimeLocal } from "@/lib/time";
 import { parseDateRange } from "@/server/validation/date-range";
+import { readActivityTotals } from "./activity-analytics";
 import { createActivity, type SaveActivityInput } from "./activities";
 import { readHistory } from "./history";
+import { standaloneSchedule } from "./occurrences";
 import { readRunActivities, readTrainingData } from "./training-data";
 
 /**
@@ -49,11 +68,13 @@ function run(
     durationMs?: number;
     environment?: "outdoor" | "treadmill";
     effort?: SaveActivityInput["effort"];
+    origin?: LogOrigin;
   } = {},
 ): SaveActivityInput {
+  const occurredOn = overrides.occurredOn ?? "2026-09-08";
   return {
     submissionKey: crypto.randomUUID(),
-    origin: AD_HOC_ORIGIN,
+    origin: overrides.origin ?? AD_HOC_ORIGIN,
     actual: {
       sport: "running",
       environment: overrides.environment ?? "outdoor",
@@ -66,10 +87,13 @@ function run(
       maxHeartRate: null,
       cadenceStepsPerMinute: null,
     },
-    startedAt: overrides.startedAt ?? new Date("2026-09-08T10:30:00Z"),
+    // A save derives the local date from the instant, so a fixture that states one states
+    // both. Passing `startedAt` on its own is how the tests below put the two out of step
+    // deliberately.
+    startedAt: overrides.startedAt ?? fromDateTimeLocal(`${occurredOn}T06:30`, ZONE)!,
     recordedTimeZone: ZONE,
     timeZoneSource: "profile_at_entry",
-    occurredOn: overrides.occurredOn ?? "2026-09-08",
+    occurredOn,
     effort: overrides.effort ?? reportedEffort(6),
     outcome: "logged",
     title: null,
@@ -198,5 +222,142 @@ describe("the runs an athlete's own screens read", () => {
     );
     expect(page.runs).toHaveLength(2);
     expect(page.hasMore).toBe(true);
+  });
+});
+
+/**
+ * The same journey a real account took, seeded rather than asserted about.
+ *
+ * `seedLegacyAccount` writes what the database held before the cutover — a mixed programme,
+ * a planned run, an ad hoc treadmill run whose RPE nobody confirmed, a finished session —
+ * and `backfillMultisport` is the pass every production build runs over it. Only then is a
+ * run logged the way the app logs one today. Anything these two eras disagree about is a
+ * disagreement an athlete would see on their own screens.
+ */
+describe("an account that trained before the cutover and logged a run today", () => {
+  const TODAY = "2026-09-21";
+
+  async function migrated(): Promise<LegacyAccount> {
+    const user = await t.createAuthUser("cutover@example.test");
+    const account = await seedLegacyAccount(t.db, user);
+    const summary = await backfillMultisport(t.db, { userId: account.userId });
+    // Nothing held back: a blocked account would leave its runs unmigrated, and every
+    // assertion below about migrated history would then be vacuously true.
+    expect(summary).toMatchObject({ accounts: 1, blockedAccounts: 0, runActivities: 2 });
+    return account;
+  }
+
+  /** What `scheduleActivityAction` writes when you put a session on the calendar yourself. */
+  async function scheduleStandaloneRun(userId: string, scheduledOn: string): Promise<string> {
+    return withUser(t.db, userId, async (tx) => {
+      const [occurrence] = await tx
+        .insert(plannedOccurrences)
+        .values({ userId, sport: "running", familyId: null, disposition: "pending" })
+        .returning({ id: plannedOccurrences.id });
+      const [version] = await tx
+        .insert(occurrenceVersions)
+        .values({
+          occurrenceId: occurrence!.id,
+          userId,
+          sport: "running",
+          scheduledOn,
+          schedulingZone: ZONE,
+        })
+        .returning({ id: occurrenceVersions.id });
+      await tx
+        .update(plannedOccurrences)
+        .set({ currentRevisionId: version!.id })
+        .where(eq(plannedOccurrences.id, occurrence!.id));
+      return occurrence!.id;
+    });
+  }
+
+  it("keeps every run the backfill migrated and adds the one logged since", async () => {
+    const account = await migrated();
+    await withUser(t.db, account.userId, (tx) =>
+      createActivity(tx, account.userId, run({ occurredOn: TODAY, km: 3.5 })),
+    );
+
+    const history = await withUser(t.db, account.userId, (tx) =>
+      readHistory(tx, account.userId, range),
+    );
+
+    expect(history.runs.map((r) => r.occurredOn)).toEqual([TODAY, "2026-09-11", "2026-09-09"]);
+    // The migrated pair arrive with their own provenance, not flattened into the new one.
+    expect(history.runs[1]).toMatchObject({
+      environment: "treadmill",
+      distanceMeters: 4000,
+      effort: { status: "legacy_unconfirmed", value: 5 },
+    });
+    expect(history.runs[2]).toMatchObject({
+      environment: "outdoor",
+      distanceMeters: 5000,
+      effort: { status: "reported", value: 4 },
+      notes: "Felt easy.",
+    });
+    // Its id survived migration, so a link written before the cutover still opens it.
+    expect(history.runs[2]?.id).toBe(account.runIds[0]);
+    // The session the same fixture finished is still there beside them.
+    expect(history.workouts).toHaveLength(1);
+  });
+
+  it("gives Progress one answer about how many runs there were, not two", async () => {
+    const account = await migrated();
+    await withUser(t.db, account.userId, (tx) =>
+      createActivity(tx, account.userId, run({ occurredOn: TODAY, km: 3.5 })),
+    );
+
+    const [data, totals] = await withUser(t.db, account.userId, (tx) =>
+      Promise.all([
+        readTrainingData(tx, account.userId, range),
+        readActivityTotals(tx, account.userId, { from: range.from, to: range.to }),
+      ]),
+    );
+    const progress = trainingAnalytics(data, ZONE, range.from, range.to);
+    const bySport = totals.bySport.find((total) => total.sport === "running")!;
+
+    // The Runs tile and the By sport card, which is the pair that disagreed on screen.
+    expect(progress.runs).toBe(3);
+    expect(bySport.count).toBe(3);
+    expect(bySport.distanceMetres).toBe(12500);
+    expect(progress.weeks.reduce((km, week) => km + week.runKm, 0)).toBe(12.5);
+    expect(progress.pace.map((point) => point.mode)).toEqual(["outdoor", "treadmill", "outdoor"]);
+    // A day with a run and nothing else still counts once, across both eras.
+    expect(progress.trainingDays).toBe(4);
+  });
+
+  it("stops owing a session you scheduled yourself once you log it", async () => {
+    const account = await migrated();
+    const occurrenceId = await scheduleStandaloneRun(account.userId, TODAY);
+
+    const before = await withUser(t.db, account.userId, (tx) =>
+      standaloneSchedule(tx, account.userId, TODAY),
+    );
+    expect(outstanding(before.upcoming)).toHaveLength(1);
+    // The programme's own four runs are not standalone and are counted by neither number.
+    expect(before.upcoming.every((occurrence) => occurrence.familyId === null)).toBe(true);
+
+    const revisionId = before.upcoming[0]!.revisionId;
+    const logged = await withUser(t.db, account.userId, (tx) =>
+      createActivity(
+        tx,
+        account.userId,
+        run({ occurredOn: TODAY, km: 3.5, origin: plannedOrigin(occurrenceId, revisionId) }),
+      ),
+    );
+
+    const after = await withUser(t.db, account.userId, (tx) =>
+      standaloneSchedule(tx, account.userId, TODAY),
+    );
+    // Still on the calendar, and no longer work the Training tab asks for.
+    expect(after.upcoming).toHaveLength(1);
+    expect(after.upcoming[0]?.resolution).toMatchObject({ kind: "logged", activityId: logged.id });
+    expect(outstanding(after.upcoming)).toHaveLength(0);
+    expect(outstanding(after.earlier)).toHaveLength(0);
+
+    const history = await withUser(t.db, account.userId, (tx) =>
+      readHistory(tx, account.userId, range),
+    );
+    expect(history.runs.map((r) => r.id)).toContain(logged.id);
   });
 });
