@@ -232,6 +232,13 @@
       "when": 1789966592565,
       "tag": "0032_cycle_day_index",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1790052992565,
+      "tag": "0033_effort_one_to_five",
+      "breakpoints": true
     }
   ]
 }

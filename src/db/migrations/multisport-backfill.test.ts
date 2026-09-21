@@ -95,7 +95,9 @@ describe("a mixed account", () => {
       .select({ status: activities.effortStatus, value: activities.effortValue })
       .from(activities)
       .where(eq(activities.id, account.runIds[1]!));
-    expect(adHoc).toEqual({ status: "legacy_unconfirmed", value: 5 });
+    // Provenance untouched; the number itself arrives on the five-step scale, since the
+    // canonical column is out of five and `runs.rpe` is still out of ten.
+    expect(adHoc).toEqual({ status: "legacy_unconfirmed", value: 2 });
   });
 
   it("adds the strength parent without touching the session's own rows", async () => {

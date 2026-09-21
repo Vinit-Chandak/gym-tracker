@@ -19,12 +19,27 @@ type FieldProps = {
   hint?: string;
   /** Several choices share a label; each radio keeps its own label. */
   group?: boolean;
+  /**
+   * Keep the label for screen readers but not on screen, for a field that is its own section:
+   * the section heading already says the name, and printing it twice is a stutter. A hidden
+   * label takes its `info` tip with it, so a field that needs the tip keeps its label.
+   */
+  labelHidden?: boolean;
   info?: ReactNode;
   htmlFor?: string;
 };
 
 /** Keep help and errors out of the control's name, and never nest radio labels. */
-export function Field({ label, children, error, hint, info, htmlFor, group }: FieldProps) {
+export function Field({
+  label,
+  children,
+  error,
+  hint,
+  info,
+  htmlFor,
+  group,
+  labelHidden,
+}: FieldProps) {
   const generatedId = useId();
   const controls = Children.toArray(children);
   const control = controls.find(
@@ -40,7 +55,11 @@ export function Field({ label, children, error, hint, info, htmlFor, group }: Fi
 
   return (
     <div className="min-w-0 space-y-1.5" data-field-error={error ? "true" : undefined}>
-      <div className="flex items-center gap-1 text-sm font-medium text-ink-muted">
+      <div
+        className={
+          labelHidden ? "sr-only" : "flex items-center gap-1 text-sm font-medium text-ink-muted"
+        }
+      >
         {group ? text : <label htmlFor={controlId}>{text}</label>}
         {info && <InfoTip label={`About ${label.toLowerCase()}`}>{info}</InfoTip>}
       </div>

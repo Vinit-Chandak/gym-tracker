@@ -38,7 +38,24 @@ export const CONFIRM_ABOVE: Record<EnduranceSport, { distanceMetres: number; dur
     swimming: { distanceMetres: 20_000, durationMs: 12 * HOUR },
   };
 
-export const EFFORT: Bound = { min: 1, max: 10 };
+/**
+ * The athlete's own reported effort, 1 to 5.
+ *
+ * It was 1–10 until the scale was found to ask for a precision nobody has: the difference
+ * between a 6 and a 7 was never reported consistently, so five steps say what ten pretended
+ * to. Stored values from the old scale were halved once, by migration 0033, so the column
+ * carries one meaning and not two.
+ */
+export const EFFORT: Bound = { min: 1, max: 5 };
+
+/**
+ * What a plan may *ask* for, which is a different question and still 1–10.
+ *
+ * A target is written by a coach against the RPE vocabulary they already use, and may
+ * legitimately start at zero — the old programme sheet did. Halving it would rewrite
+ * instructions nobody re-issued, so prescriptions keep their own scale and their own bound.
+ */
+export const PRESCRIBED_EFFORT: Bound = { min: 0, max: 10 };
 export const HEART_RATE: Bound = { min: 20, max: 300 };
 export const RUNNING_CADENCE: Bound = { min: 0, max: 400 };
 export const CYCLING_CADENCE: Bound = { min: 0, max: 300 };
@@ -52,7 +69,8 @@ export const STROKE_COUNT: Bound = { min: 0, max: 1_000_000 };
 
 /** How much precision an entered measurement may carry before it is refused, not rounded. */
 export const DECIMALS = {
-  effort: 1,
+  /** Five whole steps, so a reported effort carries no fraction. */
+  effort: 0,
   heartRate: 0,
   power: 1,
   cadence: 1,

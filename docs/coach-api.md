@@ -71,6 +71,13 @@ so two activities recorded at the same instant cannot straddle a page boundary; 
 defaults to 50 and may not exceed 100. `sport` takes a comma-separated list of `strength`,
 `running`, `cycling` and `swimming` — an unknown name is a 400, not an empty list.
 
+Each activity's `effort` carries `value`, `status` and the `scale` the value is written on:
+`{ min: 1, max: 5 }`. It was `{ min: 1, max: 10 }` until migration 0033 rescaled every stored
+value, so read the bounds rather than assuming the RPE out of ten that the strength sets still
+use. `status` is `reported`, `unknown` or `legacy_unconfirmed`, and only `reported` is the
+athlete's own word — `unknown` means they answered "Not sure", which is an answer and not a
+missing one.
+
 `summary` aggregates in SQL over the whole stated period and says so in `coverage`. Its
 `period` is inclusive at both ends, defaults to the last 28 local days, and may not exceed
 366 days per request; longer exports are paged. The totals carry `unknownDistances` and

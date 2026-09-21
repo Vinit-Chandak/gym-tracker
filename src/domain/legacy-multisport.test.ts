@@ -69,15 +69,18 @@ describe("a raw run as an activity", () => {
     expect(western.occurredOn).toBe("2026-09-08");
   });
 
-  /** AT-LOG-11: an unconfirmed rating is never promoted by a conversion. */
+  /**
+   * AT-LOG-11: an unconfirmed rating is never promoted by a conversion. The number moves onto
+   * the five-step scale — `runs.rpe` still holds tens — and the provenance does not move.
+   */
   it("carries the effort with its provenance", () => {
     expect(legacyRunToActivity(run(), { timeZone: "UTC" }).effort).toEqual({
       status: "legacy_unconfirmed",
-      value: 5,
+      value: 2,
     });
     expect(legacyRunToActivity(run({ effortReported: true }), { timeZone: "UTC" }).effort).toEqual({
       status: "reported",
-      value: 5,
+      value: 2,
     });
     expect(legacyRunToActivity(run({ rpe: null }), { timeZone: "UTC" }).effort).toEqual({
       status: "unknown",

@@ -12,6 +12,7 @@ import {
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import { ACTIVITY_SPORTS, type ActivitySport } from "@/domain/activity";
+import { EFFORT } from "@/domain/activity-limits";
 import { resolveOccurrence } from "@/domain/occurrences";
 import {
   InvalidCursorError,
@@ -263,7 +264,14 @@ export async function v2Activities(
       startedAt: item.startedAt.toISOString(),
       occurredOn: item.occurredOn,
       durationMs: item.durationMs,
-      effort: { value: item.effortValue, status: item.effortStatus },
+      // The scale travels with the number. It was ten steps until migration 0033 and is
+      // five now, and a reader that assumes the RPE it is used to would read every run as
+      // half as hard as it was.
+      effort: {
+        value: item.effortValue,
+        status: item.effortStatus,
+        scale: { min: EFFORT.min, max: EFFORT.max },
+      },
       title: item.title,
       occurrenceId: item.occurrenceId,
       performedRevisionId: item.performedRevisionId,

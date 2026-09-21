@@ -123,7 +123,7 @@ export type ActivityResourceKind = (typeof ACTIVITY_RESOURCE_KINDS)[number];
 /**
  * Effort, and how much the number can be trusted.
  *
- * A new endurance log answers 1–10 or "Not sure"; there is no third option and no default.
+ * A new endurance log answers 1–5 or "Not sure"; there is no third option and no default.
  * `legacy_unconfirmed` is the third state history left behind: a number that may have been a
  * coach's target rather than the athlete's report. It is preserved, shown as unconfirmed, and
  * never promoted to reported without somebody actually saying so (LOG-03).
@@ -149,10 +149,34 @@ export function effortFromStorage(value: number | null, status: EffortStatus): E
   return UNKNOWN_EFFORT;
 }
 
-/** A run's `rpe` and `effort_reported` pair, read without changing what it means. */
+/**
+ * A number written on the old ten-step scale, on the five-step scale that replaced it.
+ *
+ * The same arithmetic migration 0033 ran over `activities.effort_value`, kept here because
+ * the legacy `runs.rpe` column still holds tens and anything still reading it has to say
+ * fives. floor(x / 2), with the floor of the scale held at 1: 1→1, 2–3→1, 4–5→2, 6–7→3,
+ * 8–9→4, 10→5. Halving alone sends a 1 to a 0, which is not an effort anybody reported.
+ *
+ * It is one-way: 2 and 3 both arrive at 1. The tens stay in `runs.rpe` for anyone who needs
+ * the original, and are not reconstructable from what this returns.
+ */
+export function effortOnCurrentScale(value: number): number {
+  return Math.max(1, Math.floor(value / 2));
+}
+
+/**
+ * A run's `rpe` and `effort_reported` pair, read without changing what it says.
+ *
+ * The scale is the one thing converted, and it has to be: the pair was written in tens and
+ * every reader now works in fives. Provenance is untouched — an unconfirmed number stays
+ * unconfirmed, and no absent number acquires a value.
+ */
 export function legacyEffort(value: number | null, reported: boolean): Effort {
   if (value === null) return UNKNOWN_EFFORT;
-  return reported ? { status: "reported", value } : { status: "legacy_unconfirmed", value };
+  const rescaled = effortOnCurrentScale(value);
+  return reported
+    ? { status: "reported", value: rescaled }
+    : { status: "legacy_unconfirmed", value: rescaled };
 }
 
 /** Only a reported number may be used as evidence of how hard the session actually was. */
@@ -160,10 +184,18 @@ export function isConfirmedEffort(effort: Effort): effort is { status: "reported
   return effort.status === "reported";
 }
 
+/**
+ * Out of five, matching `EFFORT` in activity-limits — written out rather than imported back,
+ * because that module reads this one and one denominator is not worth a cycle.
+ *
+ * Every stored value reads against the same denominator, because migration 0033 put every
+ * stored value on the same scale. An unconfirmed number was rescaled too: it is still not
+ * the athlete's word, but it is no longer a number out of a different ten.
+ */
 export function describeEffort(effort: Effort): string {
-  if (effort.status === "reported") return `${effort.value}/10`;
+  if (effort.status === "reported") return `${effort.value}/5`;
   if (effort.status === "legacy_unconfirmed")
-    return effort.value === null ? "Not recorded" : `${effort.value}/10 (unconfirmed)`;
+    return effort.value === null ? "Not recorded" : `${effort.value}/5 (unconfirmed)`;
   return "Not sure";
 }
 
