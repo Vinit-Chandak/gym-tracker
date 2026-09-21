@@ -209,7 +209,7 @@ export function assessWeeklyEvidence(
       next.rpe.some((value, index) => value < old.rpe[index]!);
     if (reduction)
       reasons.push(
-        `Run ${next.dayOfWeek}: lasting reductions need review of repeated symptoms, recovery and performance; RPE alone cannot establish decline.`,
+        `Run ${next.dayOfWeek}: lasting reductions need review of repeated symptoms, recovery and performance; effort alone cannot establish decline.`,
       );
     const fresh = freshSources(
       evidence,
@@ -677,7 +677,7 @@ export async function assessSessionEvidence(
   if (result.plan.run)
     try {
       const run = result.plan.run;
-      if (run.rpe === null) plan.stop("Include target RPE for the run.");
+      if (run.rpe === null) plan.stop("Include the target effort for the run, out of five.");
       const runPrescription = context.slot.runTarget;
       if (
         runPrescription &&

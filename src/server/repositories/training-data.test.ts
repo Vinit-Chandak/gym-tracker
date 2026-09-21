@@ -94,7 +94,7 @@ function run(
     recordedTimeZone: ZONE,
     timeZoneSource: "profile_at_entry",
     occurredOn,
-    effort: overrides.effort ?? reportedEffort(6),
+    effort: overrides.effort ?? reportedEffort(3),
     outcome: "logged",
     title: null,
     notes: null,
@@ -116,7 +116,7 @@ describe("the runs an athlete's own screens read", () => {
       durationSeconds: 1800,
       distanceMeters: 5000,
       averagePaceSecondsPerKm: 360,
-      effort: { status: "reported", value: 6 },
+      effort: { status: "reported", value: 3 },
     });
 
     const progress = trainingAnalytics(data, ZONE, range.from, range.to);
@@ -284,15 +284,18 @@ describe("an account that trained before the cutover and logged a run today", ()
 
     expect(history.runs.map((r) => r.occurredOn)).toEqual([TODAY, "2026-09-11", "2026-09-09"]);
     // The migrated pair arrive with their own provenance, not flattened into the new one.
+    // Their numbers move, though: `runs.rpe` was written out of ten and the canonical column
+    // is out of five, so the seeded 5 and 4 arrive as 2 and 2. Provenance is what the
+    // migration must not touch, and does not.
     expect(history.runs[1]).toMatchObject({
       environment: "treadmill",
       distanceMeters: 4000,
-      effort: { status: "legacy_unconfirmed", value: 5 },
+      effort: { status: "legacy_unconfirmed", value: 2 },
     });
     expect(history.runs[2]).toMatchObject({
       environment: "outdoor",
       distanceMeters: 5000,
-      effort: { status: "reported", value: 4 },
+      effort: { status: "reported", value: 2 },
       notes: "Felt easy.",
     });
     // Its id survived migration, so a link written before the cutover still opens it.
