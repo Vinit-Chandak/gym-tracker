@@ -34,6 +34,14 @@ UPDATE "activities"
 SET "effort_value" = greatest(1, floor("effort_value" / 2)),
     "updated_at" = now()
 WHERE "effort_value" IS NOT NULL;--> statement-breakpoint
+-- The whole file runs in one transaction, and `activities` carries a deferred constraint
+-- trigger — `activities_detail_present`, AFTER UPDATE FOR EACH ROW since 0026. The rescale
+-- above therefore leaves one pending trigger event per rewritten row, and Postgres refuses
+-- to ALTER a table that has any: "cannot ALTER TABLE because it has pending trigger events".
+-- Firing them here empties the queue so the check can be put back. Nothing can fail at this
+-- point that was not already failing: the rescale touched one column, and the trigger asks
+-- only that every activity still have exactly one typed detail.
+SET CONSTRAINTS ALL IMMEDIATE;--> statement-breakpoint
 ALTER TABLE "activities" ADD CONSTRAINT "activities_effort_chk" CHECK ((effort_status = 'reported' and effort_value is not null and effort_value between 1 and 5)
         or (effort_status = 'unknown' and effort_value is null)
         or effort_status = 'legacy_unconfirmed');

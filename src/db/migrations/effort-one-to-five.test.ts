@@ -36,10 +36,26 @@ async function backToTheOldScale(): Promise<void> {
   await t.client.exec(CONSTRAINT_0026);
 }
 
+/**
+ * All of it in one transaction, because that is the only way it ever runs.
+ *
+ * Drizzle's migrator wraps a file in a single transaction, and statement-at-a-time is a
+ * different thing entirely: `activities` carries a deferred constraint trigger, so the
+ * rescale below queues one pending event per row and Postgres refuses to ALTER a table that
+ * has any. Run apart, each statement commits and the trigger fires in between, and the
+ * failure this test exists to catch cannot happen.
+ */
 async function runMigration(): Promise<void> {
   const file = await readFile("src/db/migrations/0033_effort_one_to_five.sql", "utf8");
-  for (const statement of file.split("--> statement-breakpoint")) {
-    await t.client.exec(statement.trim());
+  await t.client.exec("BEGIN");
+  try {
+    for (const statement of file.split("--> statement-breakpoint")) {
+      await t.client.exec(statement.trim());
+    }
+    await t.client.exec("COMMIT");
+  } catch (error) {
+    await t.client.exec("ROLLBACK");
+    throw error;
   }
 }
 
