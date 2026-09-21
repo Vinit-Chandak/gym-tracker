@@ -34,7 +34,6 @@ import {
   occurrenceVersions,
   activities,
   programs,
-  runs,
   sessionPlans,
   setLogs,
   workoutExercises,
@@ -1080,12 +1079,22 @@ async function trainedOn(
     )
     .limit(1);
   if (set) return true;
-  const [run] = await db
-    .select({ id: runs.id })
-    .from(runs)
-    .where(and(eq(runs.userId, userId), gte(runs.startedAt, from), lt(runs.startedAt, to)))
+  // Any sport counts as having trained, so this asks the canonical table rather than the
+  // retired one: a day spent running, riding or swimming is not a day the athlete rested.
+  const [activity] = await db
+    .select({ id: activities.id })
+    .from(activities)
+    .where(
+      and(
+        eq(activities.userId, userId),
+        eq(activities.status, "completed"),
+        ne(activities.sport, "strength"),
+        gte(activities.startedAt, from),
+        lt(activities.startedAt, to),
+      ),
+    )
     .limit(1);
-  return Boolean(run);
+  return Boolean(activity);
 }
 
 /** Stable keyset paging: the caller drains pages; there is no silent 500-athlete ceiling. */

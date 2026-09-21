@@ -10,7 +10,6 @@ import {
   equipmentTypes,
   gyms,
   profiles,
-  runs,
   programDrafts,
   programs,
   sessionPlans,
@@ -21,6 +20,7 @@ import {
 } from "@/db/schema";
 import { seedReferenceData } from "@/db/seed/reference";
 import { STRENGTH_AESTHETICS_HYBRID_8WK } from "@/db/seed/data/program";
+import { logTestRun } from "@/db/test/fixtures";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
 import { coachIntakeSchema, MAX_COACH_FILE_BYTES } from "@/domain/coaching-workflow";
@@ -821,13 +821,7 @@ async function reviewing() {
       ),
     ran: (at: Date) =>
       as(a, (tx) =>
-        tx.insert(runs).values({
-          userId: a.user.id,
-          mode: "outdoor",
-          startedAt: at,
-          durationSeconds: 1800,
-          distanceMeters: 5000,
-        }),
+        logTestRun(tx, a.user.id, { startedAt: at, durationSeconds: 1800, distanceMeters: 5000 }),
       ),
     /** A session on this day. `work` decides whether anything was actually lifted in it. */
     trained: async (at: Date, work: "working" | "warmup") => {

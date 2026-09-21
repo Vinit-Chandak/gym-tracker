@@ -9,8 +9,17 @@ import {
 } from "@/db/schema";
 import { STRENGTH_AESTHETICS_HYBRID_8WK } from "@/db/seed/data/program";
 import type { DbOrTx } from "@/db/types";
+import {
+  AD_HOC_ORIGIN,
+  legacyEffort,
+  type LogOrigin,
+  type RunningEnvironment,
+} from "@/domain/activity";
+import { nativeDistance } from "@/domain/activity-metrics";
+import { todayInTimeZone } from "@/domain/program-calendar";
 import type { GymKind, LoadUnit, ResistanceMode } from "@/domain/types";
 import { ensureProfile } from "@/server/queries/profile";
+import { createActivity } from "@/server/repositories/activities";
 import { createProgramFromBlueprint } from "@/server/repositories/programs";
 
 /**
@@ -153,4 +162,59 @@ export async function seedTestUserData(
     startDate: options.startDate ?? FIXTURE_START_DATE,
   });
   return { gymIdBySlug, programId: program.id, created: true };
+}
+
+/**
+ * A run, logged the way the app logs one.
+ *
+ * Fixtures used to insert straight into `runs`, which nothing has written to since the
+ * multisport cutover. A test seeding a row no code path can produce proves only that a
+ * reader nobody uses still reads it, which is how History, Progress and the coach all came
+ * to be reading the wrong table with a green suite. This writes the canonical activity and
+ * its running detail, and takes the old row's `rpe`/`effortReported` pair so a number
+ * nobody confirmed stays unconfirmed rather than being promoted (LOG-03).
+ */
+export async function logTestRun(
+  db: DbOrTx,
+  userId: string,
+  run: {
+    startedAt: Date;
+    durationSeconds: number;
+    distanceMeters: number;
+    /** Defaults to the local date of `startedAt` in `timeZone`. */
+    occurredOn?: string;
+    timeZone?: string;
+    environment?: RunningEnvironment;
+    rpe?: number | null;
+    effortReported?: boolean;
+    notes?: string | null;
+    origin?: LogOrigin;
+  },
+): Promise<{ id: string }> {
+  const timeZone = run.timeZone ?? "UTC";
+  const { id } = await createActivity(db, userId, {
+    submissionKey: crypto.randomUUID(),
+    origin: run.origin ?? AD_HOC_ORIGIN,
+    actual: {
+      sport: "running",
+      environment: run.environment ?? "outdoor",
+      distance: nativeDistance(run.distanceMeters, "m"),
+      durationMs: run.durationSeconds * 1000,
+      surface: null,
+      elevationGainMetres: null,
+      treadmillInclinePercent: null,
+      averageHeartRate: null,
+      maxHeartRate: null,
+      cadenceStepsPerMinute: null,
+    },
+    startedAt: run.startedAt,
+    recordedTimeZone: timeZone,
+    timeZoneSource: "profile_at_entry",
+    occurredOn: run.occurredOn ?? todayInTimeZone(timeZone, run.startedAt),
+    effort: legacyEffort(run.rpe ?? null, run.effortReported ?? false),
+    outcome: "logged",
+    title: null,
+    notes: run.notes ?? null,
+  });
+  return { id };
 }

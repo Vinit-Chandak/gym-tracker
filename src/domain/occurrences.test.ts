@@ -6,6 +6,7 @@ import {
   canLog,
   isOverdue,
   resolveOccurrence,
+  outstanding,
   splitByDate,
   type LinkedActivity,
   type Occurrence,
@@ -80,6 +81,23 @@ describe("what is on a day", () => {
     );
     expect(upcoming.map((item) => item.id)).toEqual(["b", "a"]);
     expect(earlier.map((item) => item.id)).toEqual(["c"]);
+  });
+
+  /** SCHED-08: "upcoming" counts what is owed, not what is on the calendar. */
+  it("stops owing a session the moment it is logged, however it is dated", () => {
+    const entries = [
+      { id: "logged-today", resolution: resolveOccurrence(occurrence(), logged) },
+      {
+        id: "skipped",
+        resolution: resolveOccurrence(occurrence({ disposition: "skipped" }), null),
+      },
+      {
+        id: "cancelled",
+        resolution: resolveOccurrence(occurrence({ disposition: "cancelled" }), null),
+      },
+      { id: "still-to-do", resolution: resolveOccurrence(occurrence(), null) },
+    ];
+    expect(outstanding(entries).map((entry) => entry.id)).toEqual(["still-to-do"]);
   });
 });
 

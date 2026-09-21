@@ -11,7 +11,7 @@ import {
   sessionPlans,
 } from "@/db/schema";
 import { seedReferenceData } from "@/db/seed/reference";
-import { seedTestUserData } from "@/db/test/fixtures";
+import { logTestRun, seedTestUserData } from "@/db/test/fixtures";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
 import type { ProgramPatch } from "@/domain/program-patch";
@@ -28,7 +28,6 @@ import {
   rejectProposal,
 } from "./program-revisions";
 import { readProgramBlueprint } from "./programs";
-import { createRun } from "./runs";
 import { getSchedule, recordSlotEvent } from "./schedule";
 import {
   discardSession,
@@ -335,14 +334,12 @@ describe("approving a change", () => {
     // The run half of the day is already answered, so this plan is only about the lifting.
     if (context.slot.includesRun) {
       const logged = await as((tx) =>
-        createRun(tx, user.id, {
-          mode: "outdoor",
+        logTestRun(tx, user.id, {
           startedAt: new Date(),
           durationSeconds: 1200,
           distanceMeters: 3000,
           rpe: 3,
-          programRunId: null,
-          notes: null,
+          effortReported: true,
         }),
       );
       await as((tx) =>
@@ -397,14 +394,12 @@ describe("approving a change", () => {
     const mixed = schedule!.days.find((day) => day.includesRun && day.includesLifting)!;
     const ref = { cycleIndex: 1, dayIndex: mixed.dayIndex };
     const logged = await as((tx) =>
-      createRun(tx, user.id, {
-        mode: "outdoor",
+      logTestRun(tx, user.id, {
         startedAt: new Date(),
         durationSeconds: 1500,
         distanceMeters: 4000,
         rpe: 3,
-        programRunId: null,
-        notes: null,
+        effortReported: true,
       }),
     );
     // The two halves of the day are answered separately and each leaves its own event.

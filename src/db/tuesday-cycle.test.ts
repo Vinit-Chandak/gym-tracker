@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { and, eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { getTodayPlan } from "@/server/repositories/schedule";
-import { plannedRunsForCurrentCycle } from "@/server/repositories/runs";
+import { plannedRunsForCurrentCycle } from "@/server/repositories/planned-runs";
 import {
   gyms,
   programDays,
@@ -99,7 +99,7 @@ it("versions the unused starter plan, preserves prescriptions and activates Lowe
     tx.select().from(programExerciseFallbacks),
   );
   expect(allFallbacks).toHaveLength(beforeFallbacks.length * 2);
-  const runs = await withUser(t.db, user.id, (tx) => plannedRunsForCurrentCycle(tx, user.id, []));
+  const runs = await withUser(t.db, user.id, (tx) => plannedRunsForCurrentCycle(tx, user.id));
   expect(runs?.planned.map((r) => [r.dayOfWeek, r.durationMinMinutes])).toEqual([
     [4, 20],
     [7, 25],

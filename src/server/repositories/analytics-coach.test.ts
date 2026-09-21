@@ -6,17 +6,19 @@ import {
   equipmentInstances,
   exercises,
   profiles,
-  runs,
   workoutSessions,
 } from "@/db/schema";
 import { seedReferenceData } from "@/db/seed/reference";
 import { seedTestUserData } from "@/db/test/fixtures";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
+import { AD_HOC_ORIGIN, UNKNOWN_EFFORT } from "@/domain/activity";
+import { nativeDistance } from "@/domain/activity-metrics";
 import { estimated1RM, liftingAdherence, trainingAnalytics } from "@/domain/analytics";
 import { handleCoachRequest } from "@/server/coach-api";
 import { comparableHistory, sessionHistories } from "@/server/queries/comparable";
 import { parseDateRange } from "@/server/validation/date-range";
+import { createActivity } from "./activities";
 import {
   authenticateCoachToken,
   createCoachToken,
@@ -116,12 +118,32 @@ beforeAll(async () => {
       }
       await finishSession(tx, alice.id, session.sessionId, { notes: null, bodyWeightKg: null });
     }
-    await tx.insert(runs).values({
-      userId: alice.id,
-      mode: "outdoor",
+    // Logged the way the logger logs it: a canonical activity and its running detail. The
+    // `runs` table has taken no write since the cutover, so a fixture that wrote one would be
+    // describing a database state the app can no longer produce.
+    await createActivity(tx, alice.id, {
+      submissionKey: crypto.randomUUID(),
+      origin: AD_HOC_ORIGIN,
+      actual: {
+        sport: "running",
+        environment: "outdoor",
+        distance: nativeDistance(5, "km"),
+        durationMs: 1_800_000,
+        surface: null,
+        elevationGainMetres: null,
+        treadmillInclinePercent: null,
+        averageHeartRate: null,
+        maxHeartRate: null,
+        cadenceStepsPerMinute: null,
+      },
       startedAt: new Date("2026-09-08T00:00:00Z"),
-      durationSeconds: 1800,
-      distanceMeters: 5000,
+      recordedTimeZone: "Asia/Kolkata",
+      timeZoneSource: "profile_at_entry",
+      occurredOn: "2026-09-08",
+      effort: UNKNOWN_EFFORT,
+      outcome: "logged",
+      title: null,
+      notes: null,
     });
     await tx
       .insert(dailyRecovery)

@@ -3,6 +3,7 @@ import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
+import type { Effort } from "@/domain/activity";
 import { formatDuration, formatPace } from "@/domain/pace";
 import { formatDateRange, formatDateTime, formatRunKm } from "@/lib/format";
 import { requireUser } from "@/server/auth";
@@ -19,6 +20,12 @@ function readings(values: [string, number | null, string?][]) {
     .filter(([, value]) => value !== null)
     .map(([label, value, unit]) => `${label} ${value}${unit ? ` ${unit}` : ""}`)
     .join(" · ");
+}
+/** A run's effort, said to be unconfirmed where it is a migrated number nobody stood by. */
+function runEffort(effort: Effort) {
+  if (effort.status === "reported") return `RPE ${effort.value}`;
+  if (effort.value === null) return "";
+  return `RPE ${effort.value} (unconfirmed)`;
 }
 export default async function HistoryPage(props: PageProps<"/history">) {
   const user = await requireUser(),
@@ -39,8 +46,8 @@ export default async function HistoryPage(props: PageProps<"/history">) {
         readHistory(tx, user.id, range),
         listGyms(tx, user.id),
       ]);
-      // Cycling and swimming have no legacy table to read, so they come from the canonical
-      // one.
+      // Runs are already in `training`, read from this same canonical table by a reader that
+      // also hands back their pace and the gym a migrated one named. These two need neither.
       const endurance = await listActivityPage(tx, user.id, {
         sports: ["cycling", "swimming"],
         from: range.from,
@@ -73,13 +80,13 @@ export default async function HistoryPage(props: PageProps<"/history">) {
       id: r.id,
       kind: "run" as const,
       date: r.startedAt.toISOString(),
-      title: `${r.mode === "treadmill" ? "Treadmill" : "Outdoor"} · ${formatRunKm(r.distanceMeters)} km`,
+      title: `${r.environment === "treadmill" ? "Treadmill" : "Outdoor"} · ${formatRunKm(r.distanceMeters)} km`,
       subtitle: formatDateTime(r.startedAt, profile.timeZone),
-      href: `/runs/${r.id}` as const,
+      href: `/training/activities/${r.id}` as const,
       meta: `${formatDuration(r.durationSeconds)} · ${formatPace(r.averagePaceSecondsPerKm)}/km`,
       gymId: r.gymId,
       exercises: [],
-      recovery: readings([["RPE", r.rpe]]),
+      recovery: runEffort(r.effort),
     })),
     ...data.endurance.items.map((activity) => ({
       id: activity.id,

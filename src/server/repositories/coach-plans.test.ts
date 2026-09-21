@@ -37,8 +37,8 @@ import {
   voidPlanForSlot,
 } from "./coach-plans";
 import { listGyms } from "./gyms";
+import { logTestRun } from "@/db/test/fixtures";
 import { createProgramFromBlueprint } from "./programs";
-import { createRun } from "./runs";
 import { getSchedule, recordSlotEvent } from "./schedule";
 import { discardSession, finishSession, getSessionDetail, startPlannedSession } from "./sessions";
 
@@ -696,14 +696,12 @@ describe("a day that lifts and runs", () => {
         [5, 24],
         [2, 25],
       ] as const) {
-        await createRun(tx, alice.id, {
-          mode: "outdoor",
+        await logTestRun(tx, alice.id, {
           startedAt: new Date(Date.now() - days * 24 * 60 * 60 * 1000),
           durationSeconds: minutes * 60,
           distanceMeters: minutes * 150,
           rpe: 3,
-          programRunId: null,
-          notes: null,
+          effortReported: true,
         });
       }
     });
@@ -1042,14 +1040,12 @@ describe("a day that runs", () => {
     // Once the run has been logged there is nothing left to say about it, and the same plan
     // stands: the two halves of the day are answered separately.
     const logged = await withUser(t.db, dana.id, (tx) =>
-      createRun(tx, dana.id, {
-        mode: "outdoor",
+      logTestRun(tx, dana.id, {
         startedAt: new Date(),
         durationSeconds: 1500,
         distanceMeters: 4000,
         rpe: 3,
-        programRunId: null,
-        notes: null,
+        effortReported: true,
       }),
     );
     await withUser(t.db, dana.id, (tx) =>

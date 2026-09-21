@@ -16,7 +16,6 @@ import { exerciseAvailability, gymAvailability } from "../src/server/repositorie
 import { readMuscleVolume } from "../src/server/repositories/muscle-volume";
 import { readTrainingData, readWorkouts } from "../src/server/repositories/training-data";
 import { readHistory, readHistoryWorkouts } from "../src/server/repositories/history";
-import { getRunsOverview } from "../src/server/repositories/runs";
 import { getSchedule } from "../src/server/repositories/schedule";
 import { listBodyWeights } from "../src/server/repositories/body-weight";
 import { trainingAnalytics } from "../src/domain/analytics";
@@ -76,10 +75,6 @@ async function main() {
       ],
       ["Today plan", () => withUser(db, user.id, (tx) => getTodayPlan(tx, user.id, user.timeZone))],
       ["Gym list", () => withUser(db, user.id, (tx) => listGyms(tx, user.id))],
-      [
-        "Runs overview",
-        () => withUser(db, user.id, (tx) => getRunsOverview(tx, user.id, user.timeZone)),
-      ],
       [
         "History: full training read",
         () => withUser(db, user.id, (tx) => readTrainingData(tx, user.id, range)),
