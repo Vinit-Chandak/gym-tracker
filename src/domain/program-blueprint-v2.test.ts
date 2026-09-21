@@ -48,7 +48,7 @@ const v1 = (overrides: Partial<ProgramBlueprint> = {}): ProgramBlueprint =>
         comment: "Easy week.",
       },
       { weekIndex: 2, dayOfWeek: 3, duration: [30, 40], rpe: [3, 5] },
-      { weekIndex: 2, dayOfWeek: 6, duration: [40, 50], rpe: [4, 6] },
+      { weekIndex: 2, dayOfWeek: 6, duration: [40, 50], rpe: [4, 5] },
     ],
     ...overrides,
   });

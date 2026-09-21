@@ -78,6 +78,11 @@ use. `status` is `reported`, `unknown` or `legacy_unconfirmed`, and only `report
 athlete's own word — `unknown` means they answered "Not sure", which is an answer and not a
 missing one.
 
+A prescription's `effort` — the session target and each step's — is written on the same five
+steps, so what a plan asked for and what the athlete answered can be read against each other.
+Zero is the exception and means nothing was asked, not an effort of none. A strength set's
+`rpe` and `rir` are a different question and are still out of ten.
+
 `summary` aggregates in SQL over the whole stated period and says so in `coverage`. Its
 `period` is inclusive at both ends, defaults to the last 28 local days, and may not exceed
 366 days per request; longer exports are paged. The totals carry `unknownDistances` and

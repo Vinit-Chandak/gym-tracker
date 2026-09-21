@@ -145,7 +145,7 @@ export function DraftPreview({
                   .map((r) => (
                     <li key={r.weekIndex}>
                       Week {r.weekIndex}: {r.distanceKm ? `${span(r.distanceKm)} km · ` : ""}
-                      {span(r.duration)} minutes · RPE {span(r.rpe)}
+                      {span(r.duration)} minutes · Effort {span(r.rpe)}
                       <p className="text-ink-muted">
                         {r.paceNote} {r.stopRule}
                       </p>
@@ -195,8 +195,10 @@ export function DraftPreview({
               {current.openingPlan.run.distanceKm !== null
                 ? ` · ${current.openingPlan.run.distanceKm} km`
                 : ""}
-              {current.openingPlan.run.rpe !== null ? ` · RPE ${current.openingPlan.run.rpe}` : ""}.{" "}
-              {current.openingPlan.run.paceNote} {current.openingPlan.run.stopRule}
+              {current.openingPlan.run.rpe !== null
+                ? ` · Effort ${current.openingPlan.run.rpe}`
+                : ""}
+              . {current.openingPlan.run.paceNote} {current.openingPlan.run.stopRule}
             </p>
           )}
           <p className="text-xs text-ink-muted">

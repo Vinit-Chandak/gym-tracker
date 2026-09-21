@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { PRESCRIBED_EFFORT } from "./activity-limits";
 import { PRESCRIPTION_TYPES } from "./types";
 
 /**
@@ -128,7 +129,13 @@ export const blueprintRunSchema = z.object({
   )
     .pipe(z.tuple([z.number().min(0.1).max(100), z.number().min(0.1).max(100)]))
     .optional(),
-  rpe: range(z.number("Give every run week its effort.").min(0).max(10)),
+  /** Out of five since 0034, matching what the athlete is asked to report. */
+  rpe: range(
+    z
+      .number("Give every run week its effort, out of five.")
+      .min(PRESCRIBED_EFFORT.min)
+      .max(PRESCRIBED_EFFORT.max),
+  ),
   paceNote: z.string().max(300).default(""),
   progressionNote: z.string().max(300).default(""),
   /**

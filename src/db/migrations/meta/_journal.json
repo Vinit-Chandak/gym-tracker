@@ -239,6 +239,13 @@
       "when": 1790052992565,
       "tag": "0033_effort_one_to_five",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1790139392565,
+      "tag": "0034_prescribed_effort_out_of_five",
+      "breakpoints": true
     }
   ]
 }

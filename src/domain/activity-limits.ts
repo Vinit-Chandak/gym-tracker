@@ -49,13 +49,16 @@ export const CONFIRM_ABOVE: Record<EnduranceSport, { distanceMetres: number; dur
 export const EFFORT: Bound = { min: 1, max: 5 };
 
 /**
- * What a plan may *ask* for, which is a different question and still 1–10.
+ * What a plan may *ask* for: the same five steps, with zero kept as "not asked".
  *
- * A target is written by a coach against the RPE vocabulary they already use, and may
- * legitimately start at zero — the old programme sheet did. Halving it would rewrite
- * instructions nobody re-issued, so prescriptions keep their own scale and their own bound.
+ * A separate bound from `EFFORT` because the questions differ at the bottom, not at the top.
+ * A target legitimately reads zero — the old programme sheet wrote one, and a run with no
+ * prescribed effort is stored as a zero rather than a null by `programs.ts` — while an
+ * athlete's own report starts at 1. The ceilings match on purpose: a plan that asks out of
+ * ten beside a form that answers out of five is two scales wearing one word, and the whole
+ * point of asking is that the answer can be read against it.
  */
-export const PRESCRIBED_EFFORT: Bound = { min: 0, max: 10 };
+export const PRESCRIBED_EFFORT: Bound = { min: 0, max: 5 };
 export const HEART_RATE: Bound = { min: 20, max: 300 };
 export const RUNNING_CADENCE: Bound = { min: 0, max: 400 };
 export const CYCLING_CADENCE: Bound = { min: 0, max: 300 };
