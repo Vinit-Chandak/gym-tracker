@@ -8,13 +8,13 @@ import {
   programDays,
   programExercises,
   programRuns,
-  runs,
   sessionPlans,
   setLogs,
   workoutExercises,
   workoutSessions,
 } from "@/db/schema";
 import { seedReferenceData } from "@/db/seed/reference";
+import { logTestRun } from "@/db/test/fixtures";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
 import { parseProgramBlueprint } from "@/domain/program-blueprint";
@@ -158,15 +158,13 @@ beforeAll(async () => {
         },
       ]),
     );
-    await tx.insert(runs).values(
-      dates.map((startedAt) => ({
-        userId: athleteId,
+    for (const startedAt of dates)
+      await logTestRun(tx, athleteId, {
         startedAt,
-        mode: "outdoor" as const,
         durationSeconds: 1200,
         distanceMeters: 3000,
-      })),
-    );
+        timeZone: TZ,
+      });
   });
   await withUser(t.db, otherId, async (tx) => {
     const [gym] = await tx
@@ -199,12 +197,11 @@ beforeAll(async () => {
       weight: 50,
       reps: 6,
     });
-    await tx.insert(runs).values({
-      userId: otherId,
+    await logTestRun(tx, otherId, {
       startedAt: session!.startedAt,
-      mode: "outdoor",
       durationSeconds: 900,
       distanceMeters: 2000,
+      timeZone: TZ,
     });
   });
 });
@@ -395,18 +392,16 @@ describe("coaching evidence cutoff", () => {
         })),
       );
       // Future entries must not crowd the one real run out of the bounded narrative sample.
-      await tx.insert(runs).values(
-        [
-          new Date(NOW.getTime() - 3_600_000),
-          ...Array.from({ length: 41 }, (_, i) => new Date(NOW.getTime() + i * 60_000)),
-        ].map((startedAt) => ({
-          userId,
+      for (const startedAt of [
+        new Date(NOW.getTime() - 3_600_000),
+        ...Array.from({ length: 41 }, (_, i) => new Date(NOW.getTime() + i * 60_000)),
+      ])
+        await logTestRun(tx, userId, {
           startedAt,
-          mode: "outdoor" as const,
           durationSeconds: 600,
           distanceMeters: 1000,
-        })),
-      );
+          timeZone: TZ,
+        });
     });
   });
 

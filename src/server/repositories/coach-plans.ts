@@ -18,7 +18,6 @@ import {
   programDays,
   programExercises,
   programRuns,
-  runs as runLogs,
   sessionPlans,
   setLogs,
   workoutExercises,
@@ -78,7 +77,7 @@ import { getGym, listGyms } from "./gyms";
 import { getRunTarget, getSchedule, type Schedule, type ScheduleDay } from "./schedule";
 import { applyRule } from "./progression-rule";
 import { readCoachingChanges } from "./coaching-changes";
-import { readRecovery, readWorkouts } from "./training-data";
+import { readRecovery, readRunActivitiesBetween, readWorkouts } from "./training-data";
 import { readWeeklyTrainingVolume } from "./training-volume";
 
 /*
@@ -640,12 +639,7 @@ export async function planningContext(
       completedBy: snapshot,
     }),
     // A bounded narrative sample only; full workload is aggregated separately below.
-    db
-      .select()
-      .from(runLogs)
-      .where(and(eq(runLogs.userId, userId), lt(runLogs.startedAt, snapshot)))
-      .orderBy(desc(runLogs.startedAt), desc(runLogs.id))
-      .limit(41),
+    readRunActivitiesBetween(db, userId, { end: snapshot }, { order: "desc", limit: 41 }),
     readRecovery(db, userId, recentRange),
     libraryAtGym(db, userId, gym.id),
     recentPlanOutcomes(db, userId, PLAN_REVIEW_DEPTH),
@@ -801,13 +795,15 @@ export async function planningContext(
   const state = progress(schedule.state);
   const runHistory = runRows.slice(0, 40).map((run) => ({
     startedAt: run.startedAt.toISOString(),
-    startedOn: todayInTimeZone(profile.timeZone, run.startedAt),
-    mode: run.mode,
+    // The date frozen on the activity, not one recomputed from the instant it began.
+    startedOn: run.occurredOn,
+    mode: run.environment,
     // What was logged, not a tenth of a kilometre: the coach reads these to judge one run.
     distanceKm: Math.round(run.distanceMeters / 10) / 100,
     durationMinutes: Math.round(run.durationSeconds / 60),
     paceSecondsPerKm: run.averagePaceSecondsPerKm,
-    rpe: run.rpe,
+    rpe: run.effort.value,
+    effortReported: run.effort.status === "reported",
     programRunId: run.programRunId,
     notes: run.notes,
   }));
@@ -914,9 +910,7 @@ export async function planningContext(
       from: recentRange.from,
       to: recentRange.to,
       workoutsHasMore: recent.hasMore,
-      runsHasMore:
-        runRows.length > 40 &&
-        todayInTimeZone(profile.timeZone, runRows[40]!.startedAt) >= recentRange.from,
+      runsHasMore: runRows.length > 40 && runRows[40]!.occurredOn >= recentRange.from,
       workouts: recent.workouts.map((w) => ({
         startedAt: w.startedAt.toISOString(),
         completedAt: w.completedAt?.toISOString() ?? null,
@@ -1495,12 +1489,7 @@ async function reviewStoredPlan(
         )
       : Promise.resolve([]),
     input.run
-      ? db
-          .select({ durationSeconds: runLogs.durationSeconds })
-          .from(runLogs)
-          .where(eq(runLogs.userId, userId))
-          .orderBy(desc(runLogs.startedAt))
-          .limit(1)
+      ? readRunActivitiesBetween(db, userId, {}, { order: "desc", limit: 1 })
       : Promise.resolve([]),
   ]);
   const review: ReviewExercise[] = doing.map((entry, index) => {

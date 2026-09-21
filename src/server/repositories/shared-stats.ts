@@ -379,18 +379,6 @@ export async function deleteSportStats(
     .where(and(eq(sharedSessionStats.userId, userId), eq(sharedSessionStats.sport, sport)));
 }
 
-export async function deleteRunStats(tx: DbOrTx, userId: string, runId: string): Promise<void> {
-  await tx
-    .delete(sharedSessionStats)
-    .where(
-      and(
-        eq(sharedSessionStats.userId, userId),
-        eq(sharedSessionStats.sport, "run"),
-        eq(sharedSessionStats.sourceId, runId),
-      ),
-    );
-}
-
 /** The latest reading, as the one row a follower who also shares may see. */
 export async function writeBodyWeight(
   tx: DbOrTx,

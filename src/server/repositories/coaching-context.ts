@@ -5,7 +5,8 @@ import {
   equipmentInstances,
   exercises,
   programDrafts,
-  runs,
+  activities,
+  runningActivityDetails,
   setLogs,
   workoutExercises,
   workoutSessions,
@@ -36,9 +37,41 @@ import { listCoachAttachments } from "./coach-attachments";
 import { listGyms } from "./gyms";
 import { getSchedule } from "./schedule";
 import { readProgramBlueprint } from "./programs";
-import { readRuns, readRecovery, readWorkouts } from "./training-data";
+import {
+  readRunActivitiesBetween,
+  readRecovery,
+  readWorkouts,
+  type RunActivity,
+} from "./training-data";
 import { readWeeklyTrainingVolume } from "./training-volume";
 import { readCoachingEvidence } from "./coaching-evidence";
+
+/**
+ * A run as the coach's narrative context has always listed one.
+ *
+ * The retired row's names are kept — `mode`, `rpe`, `effortReported` — because prompts and a
+ * memo written against them are still in service. The effort's provenance travels beside them
+ * instead of being flattened into the number, so an RPE nobody confirmed still says so and
+ * cannot be read as the athlete's own report (LOG-03).
+ */
+function coachRunView(run: RunActivity) {
+  return {
+    id: run.id,
+    startedAt: run.startedAt,
+    occurredOn: run.occurredOn,
+    mode: run.environment,
+    durationSeconds: run.durationSeconds,
+    distanceMeters: run.distanceMeters,
+    averagePaceSecondsPerKm: run.averagePaceSecondsPerKm,
+    rpe: run.effort.value,
+    effortReported: run.effort.status === "reported",
+    effortStatus: run.effort.status,
+    surface: run.surface,
+    notes: run.notes,
+    occurrenceId: run.occurrenceId,
+    programRunId: run.programRunId,
+  };
+}
 
 /** Full interval aggregates are independent of the bounded narrative evidence below. */
 export async function trainingPeriodSummary(db: DbOrTx, userId: string, start: Date, end: Date) {
@@ -68,17 +101,30 @@ export async function trainingPeriodSummary(db: DbOrTx, userId: string, start: D
         ),
       )
       .groupBy(exercises.id),
+    // Whole seconds, as the retired table stored them, from the milliseconds the canonical
+    // one does. The interval, the fields and their units are unchanged; only the source is.
     db
       .select({
         count: count(),
-        seconds: sum(runs.durationSeconds),
-        meters: sum(runs.distanceMeters),
-        longestMeters: max(runs.distanceMeters),
-        knownDistances: sql<number>`count(${runs.distanceMeters})`.mapWith(Number),
-        knownDurations: sql<number>`count(${runs.durationSeconds})`.mapWith(Number),
+        seconds: sum(sql`round(${activities.durationMs} / 1000.0)`),
+        meters: sum(runningActivityDetails.distanceMetres),
+        longestMeters: max(runningActivityDetails.distanceMetres),
+        knownDistances: sql<number>`count(${runningActivityDetails.distanceMetres})`.mapWith(
+          Number,
+        ),
+        knownDurations: sql<number>`count(${activities.durationMs})`.mapWith(Number),
       })
-      .from(runs)
-      .where(and(eq(runs.userId, userId), gte(runs.startedAt, start), lt(runs.startedAt, end))),
+      .from(activities)
+      .innerJoin(runningActivityDetails, eq(runningActivityDetails.activityId, activities.id))
+      .where(
+        and(
+          eq(activities.userId, userId),
+          eq(activities.sport, "running"),
+          eq(activities.status, "completed"),
+          gte(activities.startedAt, start),
+          lt(activities.startedAt, end),
+        ),
+      ),
     db
       .select({
         completed:
@@ -169,7 +215,13 @@ export async function coachJobContext(
     job.target.programId ? readProgramBlueprint(db, userId, job.target.programId) : null,
     getSchedule(db, userId),
     readWorkouts(db, userId, range, 0, 40),
-    readRuns(db, userId, range, 0, 60),
+    // The newest sixty, and whether there were more: what `readRuns` answered here before.
+    readRunActivitiesBetween(
+      db,
+      userId,
+      { start: range.start, end: range.end },
+      { order: "desc", limit: 61 },
+    ).then((rows) => ({ hasMore: rows.length > 60, runs: rows.slice(0, 60).map(coachRunView) })),
     readRecovery(db, userId, range),
     readWeeklyTrainingVolume(db, userId, profile.timeZone, evidenceEnd, 8),
     db

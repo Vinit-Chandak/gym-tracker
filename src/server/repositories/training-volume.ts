@@ -1,6 +1,13 @@
 import { and, count, eq, gte, isNotNull, lt, lte, ne, sql, sum } from "drizzle-orm";
 
-import { exercises, runs, setLogs, workoutExercises, workoutSessions } from "@/db/schema";
+import {
+  activities,
+  exercises,
+  runningActivityDetails,
+  setLogs,
+  workoutExercises,
+  workoutSessions,
+} from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import { addExerciseVolume, emptyMuscleVolume, type MuscleVolume } from "@/domain/muscle-volume";
 import { addDays, todayInTimeZone } from "@/domain/program-calendar";
@@ -29,7 +36,7 @@ export async function readWeeklyTrainingVolume(
       "week_start",
     );
   const runWeek =
-    sql<string>`to_char(date_trunc('week', ${runs.startedAt} at time zone ${timeZone}), 'YYYY-MM-DD')`.as(
+    sql<string>`to_char(date_trunc('week', ${activities.startedAt} at time zone ${timeZone}), 'YYYY-MM-DD')`.as(
       "week_start",
     );
   const workoutRange = and(
@@ -60,19 +67,23 @@ export async function readWeeklyTrainingVolume(
         ),
       )
       .groupBy(sql`week_start`, exercises.id),
+    // Same weeks, same units, read from the table runs are actually written to.
     db
       .select({
         weekStart: runWeek,
         runs: count(),
-        seconds: sum(runs.durationSeconds),
-        meters: sum(runs.distanceMeters),
+        seconds: sum(sql`round(${activities.durationMs} / 1000.0)`),
+        meters: sum(runningActivityDetails.distanceMetres),
       })
-      .from(runs)
+      .from(activities)
+      .innerJoin(runningActivityDetails, eq(runningActivityDetails.activityId, activities.id))
       .where(
         and(
-          eq(runs.userId, userId),
-          gte(runs.startedAt, range.start),
-          lt(runs.startedAt, snapshot),
+          eq(activities.userId, userId),
+          eq(activities.sport, "running"),
+          eq(activities.status, "completed"),
+          gte(activities.startedAt, range.start),
+          lt(activities.startedAt, snapshot),
         ),
       )
       .groupBy(sql`week_start`),

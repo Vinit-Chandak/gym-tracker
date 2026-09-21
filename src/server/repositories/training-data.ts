@@ -8,7 +8,6 @@ import {
   gyms,
   programDays,
   runningActivityDetails,
-  runs,
   setLogs,
   workoutExercises,
   workoutSessions,
@@ -165,33 +164,6 @@ export async function readWorkouts(
   };
 }
 
-/**
- * The raw `runs` table, which nothing has written to since the multisport cutover.
- *
- * Kept for the two readers that mean the old rows specifically: version 1 of the coach API,
- * whose compatibility window promises those exact records, and the shared-stats backfill,
- * which is keyed by their identifiers. Everything an athlete sees reads
- * `readRunActivities` below instead.
- */
-export async function readRuns(
-  db: DbOrTx,
-  userId: string,
-  range: DateRange,
-  page = 0,
-  limit = TRAINING_RECORD_LIMIT,
-) {
-  const records = await db
-    .select()
-    .from(runs)
-    .where(
-      and(eq(runs.userId, userId), gte(runs.startedAt, range.start), lt(runs.startedAt, range.end)),
-    )
-    .orderBy(desc(runs.startedAt), desc(runs.id))
-    .limit(limit + 1)
-    .offset(page * limit);
-  return { hasMore: records.length > limit, runs: records.slice(0, limit) };
-}
-
 /** A run as every screen an athlete looks at reads one. */
 export type RunActivity = {
   id: string;
@@ -210,7 +182,63 @@ export type RunActivity = {
   notes: string | null;
   /** Where a migrated run said it started from. A run logged since records no gym. */
   gymId: string | null;
+  /** The scheduled session this answered for, or null when it answered for nothing. */
+  occurrenceId: string | null;
+  /** The planned run a migrated run fulfilled, kept from the old row (§10.2). */
+  programRunId: string | null;
 };
+
+/** One select shape and one mapping, so both windows below read the same run. */
+const RUN_COLUMNS = {
+  id: activities.id,
+  startedAt: activities.startedAt,
+  occurredOn: activities.occurredOn,
+  durationMs: activities.durationMs,
+  effortValue: activities.effortValue,
+  effortStatus: activities.effortStatus,
+  title: activities.title,
+  notes: activities.notes,
+  occurrenceId: activities.occurrenceId,
+  environment: runningActivityDetails.environment,
+  distanceMetres: runningActivityDetails.distanceMetres,
+  surface: runningActivityDetails.surface,
+  gymId: runningActivityDetails.legacyGymId,
+  programRunId: runningActivityDetails.legacyProgramRunId,
+};
+
+type RunRow = {
+  [K in keyof typeof RUN_COLUMNS]: (typeof RUN_COLUMNS)[K] extends { _: { data: infer T } }
+    ? T
+    : never;
+};
+
+function toRunActivity(row: RunRow): RunActivity {
+  // A completed endurance activity always carries a duration; the database says so.
+  const durationSeconds = Math.round((row.durationMs ?? 0) / 1000);
+  return {
+    id: row.id,
+    startedAt: row.startedAt,
+    occurredOn: row.occurredOn,
+    environment: row.environment,
+    durationSeconds,
+    distanceMeters: row.distanceMetres,
+    averagePaceSecondsPerKm: paceSecondsPerKm(row.distanceMetres, durationSeconds),
+    effort: effortFromStorage(row.effortValue, row.effortStatus),
+    surface: row.surface,
+    title: row.title,
+    notes: row.notes,
+    gymId: row.gymId,
+    occurrenceId: row.occurrenceId,
+    programRunId: row.programRunId,
+  };
+}
+
+const isCompletedRun = (userId: string) =>
+  and(
+    eq(activities.userId, userId),
+    eq(activities.sport, "running"),
+    eq(activities.status, "completed"),
+  );
 
 /**
  * Runs, from the canonical activity that holds every sport (plan §6.3).
@@ -233,56 +261,61 @@ export async function readRunActivities(
   page = 0,
   limit = TRAINING_RECORD_LIMIT,
 ): Promise<{ runs: RunActivity[]; hasMore: boolean }> {
-  const records = await db
-    .select({
-      id: activities.id,
-      startedAt: activities.startedAt,
-      occurredOn: activities.occurredOn,
-      durationMs: activities.durationMs,
-      effortValue: activities.effortValue,
-      effortStatus: activities.effortStatus,
-      title: activities.title,
-      notes: activities.notes,
-      environment: runningActivityDetails.environment,
-      distanceMetres: runningActivityDetails.distanceMetres,
-      surface: runningActivityDetails.surface,
-      gymId: runningActivityDetails.legacyGymId,
-    })
+  const records = (await db
+    .select(RUN_COLUMNS)
     .from(activities)
     .innerJoin(runningActivityDetails, eq(runningActivityDetails.activityId, activities.id))
     .where(
       and(
-        eq(activities.userId, userId),
-        eq(activities.sport, "running"),
-        eq(activities.status, "completed"),
+        isCompletedRun(userId),
         gte(activities.occurredOn, range.from),
         lte(activities.occurredOn, range.to),
       ),
     )
     .orderBy(desc(activities.startedAt), desc(activities.id))
     .limit(limit + 1)
-    .offset(page * limit);
+    .offset(page * limit)) as RunRow[];
   return {
     hasMore: records.length > limit,
-    runs: records.slice(0, limit).map((row) => {
-      // A completed endurance activity always carries a duration; the database says so.
-      const durationSeconds = Math.round((row.durationMs ?? 0) / 1000);
-      return {
-        id: row.id,
-        startedAt: row.startedAt,
-        occurredOn: row.occurredOn,
-        environment: row.environment,
-        durationSeconds,
-        distanceMeters: row.distanceMetres,
-        averagePaceSecondsPerKm: paceSecondsPerKm(row.distanceMetres, durationSeconds),
-        effort: effortFromStorage(row.effortValue, row.effortStatus),
-        surface: row.surface,
-        title: row.title,
-        notes: row.notes,
-        gymId: row.gymId,
-      };
-    }),
+    runs: records.slice(0, limit).map(toRunActivity),
   };
+}
+
+/**
+ * The same runs over a window of instants, for the coach.
+ *
+ * Every coach reader asked `runs` for a half-open span of `started_at`, and this keeps that
+ * question exactly — the change is which table answers it, not what was asked. The screens
+ * read whole local days instead, because that is the calendar an athlete filters by; a
+ * coaching period is a span between two moments and stays one.
+ */
+export async function readRunActivitiesBetween(
+  db: DbOrTx,
+  userId: string,
+  /** Half-open, and each edge is optional: an omitted one means no bound on that side. */
+  window: { start?: Date; end?: Date },
+  options: { order?: "asc" | "desc"; limit?: number } = {},
+): Promise<RunActivity[]> {
+  const newestFirst = options.order === "desc";
+  const query = db
+    .select(RUN_COLUMNS)
+    .from(activities)
+    .innerJoin(runningActivityDetails, eq(runningActivityDetails.activityId, activities.id))
+    .where(
+      and(
+        isCompletedRun(userId),
+        window.start ? gte(activities.startedAt, window.start) : undefined,
+        window.end ? lt(activities.startedAt, window.end) : undefined,
+      ),
+    )
+    .orderBy(
+      newestFirst ? desc(activities.startedAt) : asc(activities.startedAt),
+      newestFirst ? desc(activities.id) : asc(activities.id),
+    );
+  const records = (await (options.limit === undefined
+    ? query
+    : query.limit(options.limit))) as RunRow[];
+  return records.map(toRunActivity);
 }
 
 export async function readRecovery(db: DbOrTx, userId: string, range: DateRange) {
