@@ -31,6 +31,7 @@ import {
   validateCitedEvidence,
 } from "./coaching-guardrails";
 import { existingEvidenceIds, readCoachMemory, updateCoachMemory } from "./coach-memory";
+import { CoachingError } from "./coaching-state";
 import { planningContext } from "./coach-plans";
 import { ensureProfile } from "@/server/queries/profile";
 import { sharedExercises } from "@/server/queries/reference";
@@ -564,5 +565,89 @@ it("keeps memo provenance private, invalidates removed sources and detects compe
     await expect(validateCitedEvidence(db, other.user.id, output)).rejects.toThrow(
       /other athletes/,
     );
+  });
+});
+
+/**
+ * A worker gets two corrections inside its lease, and a refusal that names one fault at a
+ * time spends them on discovery rather than on the fix. A real run lost a session this way:
+ * three rejections, three different reasons, budget gone, nothing prepared.
+ */
+it("names every independent fault in one refusal, not the first one found", async () => {
+  const a = await fixture();
+  await a.as(async (db) => {
+    const evidence = await readCoachingEvidence(db, a.user.id, a.program.id, now);
+    const context = await planningContext(db, a.user.id, { gymId: a.home.id });
+    if (context.reason !== null) throw new Error(context.reason);
+    const result = coachJobResultSchema.parse({
+      outcome: "session",
+      adjustment: "normal",
+      rationale: "Two exercises, three faults between them.",
+      evidence: a.ids.slice(0, 2),
+      plan: {
+        summary: "Home training",
+        exercises: [
+          {
+            // Two sets where the programme asks for four, at a load far above the baseline.
+            slotId: context.exercises[0]!.slotId,
+            exerciseSlug: context.exercises[0]!.planned.slug,
+            equipmentInstanceId: a.machine.id,
+            sets: [1, 2].map(() => ({ weight: 57.5, reps: 12, rir: 2 })),
+          },
+          {
+            // And three where it asks for six.
+            slotId: context.exercises[1]!.slotId,
+            exerciseSlug: context.exercises[1]!.planned.slug,
+            equipmentInstanceId: null,
+            sets: [1, 2, 3].map(() => ({ reps: 12, rir: 2 })),
+          },
+        ],
+      },
+    });
+    if (result.outcome !== "session") throw new Error("Unexpected result");
+
+    const refusal = await assessSessionEvidence(
+      db,
+      a.user.id,
+      a.target,
+      result,
+      evidence,
+      new Set(a.ids.slice(0, 2)),
+    ).catch((error: unknown) => error);
+
+    expect(refusal).toBeInstanceOf(CoachingError);
+    const error = refusal as CoachingError;
+    expect(error.status).toBe(422);
+    // Both exercises are named, and the set count and the load are named separately.
+    expect(error.issues.filter((issue) => issue.startsWith("goblet-squat")).length).toBeGreaterThan(
+      1,
+    );
+    expect(error.issues.some((issue) => issue.startsWith("bodyweight-squat"))).toBe(true);
+    // `message` stays the first of them, so a reader that only reads that is unchanged.
+    expect(error.message).toBe(error.issues[0]);
+  });
+});
+
+/**
+ * A refusal that ends the assessment still carries exactly one issue, so the response for it
+ * is the same one every existing reader already handles.
+ */
+it("carries one issue when one refusal ends the assessment", async () => {
+  const a = await fixture();
+  await a.as(async (db) => {
+    const evidence = await readCoachingEvidence(db, a.user.id, a.program.id, now);
+    const output = a.output(50, 12);
+    (output.plan as { memo?: string }).memo = "Not the coach's to write here.";
+    const refusal = (await assessSessionEvidence(
+      db,
+      a.user.id,
+      a.target,
+      output,
+      evidence,
+      new Set(a.ids.slice(0, 2)),
+    ).catch((error: unknown) => error)) as CoachingError;
+    expect(refusal).toBeInstanceOf(CoachingError);
+    expect(refusal.issues).toEqual([refusal.message]);
+    expect(refusal.message).toMatch(/structured memory patch/);
   });
 });

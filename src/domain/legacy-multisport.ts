@@ -188,16 +188,43 @@ export function legacyPlannedDate(startDate: string, weekIndex: number, dayOfWee
 }
 
 /**
- * The lineage a weekday's endurance work belongs to, derived from the programme family.
+ * The lineage of the endurance work at one position in the cycle, derived from the family.
  *
  * Two versions of one programme agree on it without storing a second registry, and the
- * backfill and a fresh activation produce the same ids for the same weekday. It lives here,
+ * backfill and a fresh activation produce the same ids for the same slot. It lives here,
  * beside the date arithmetic it is keyed with, because three callers need it and a private
  * copy in each is how they would drift apart.
+ *
+ * It is keyed on the day's position in the cycle, and it used to be keyed on the weekday the
+ * day usually falls on. A weekday is not an identity here: the cycle is a sequence, a cycle
+ * longer than seven days must repeat weekdays, and nothing ever stopped a lifting day from
+ * sharing a weekday with a running one. When that happened this was the only thing joining an
+ * occurrence to a slot, so Today offered a run on a day the programme says has no run — and
+ * the sequence could never accept an answer for it, because a day that does not run asks for
+ * no run. The salt differs from the weekday derivation on purpose: a row that migration 0032
+ * has not re-keyed can never be mistaken for one it has.
  */
-export function weekdayLineage(familyId: string, dayOfWeek: number): string {
+export function cycleSlotLineage(familyId: string, dayIndex: number): string {
+  return lineage(familyId, dayIndex * 39193);
+}
+
+/**
+ * The lineage of endurance work that belongs to no slot of the cycle.
+ *
+ * A legacy programme could plan a run on a weekday no running day falls on, and that work is
+ * still the athlete's: it keeps an identity so a revision carries it forward rather than
+ * duplicating it, and it keeps `cycle_day_index` null so no day offers it. The salt is the one
+ * the weekday derivation always used, which is what lets migration 0032 leave these rows
+ * exactly as it found them.
+ */
+export function unattachedEnduranceLineage(familyId: string, dayOfWeek: number): string {
+  return lineage(familyId, dayOfWeek * 7919);
+}
+
+/** The family's id with its last four hex digits replaced by a salted discriminator. */
+function lineage(familyId: string, salt: number): string {
   const hex = familyId.replace(/-/g, "");
-  const tail = (Number.parseInt(hex.slice(-4), 16) ^ (dayOfWeek * 7919)) & 0xffff;
+  const tail = (Number.parseInt(hex.slice(-4), 16) ^ salt) & 0xffff;
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(
     20,
     28,

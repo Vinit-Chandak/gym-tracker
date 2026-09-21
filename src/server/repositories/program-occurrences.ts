@@ -11,7 +11,7 @@ import {
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import type { EndurancePrescription } from "@/domain/activity-prescription";
-import { weekdayLineage } from "@/domain/legacy-multisport";
+import { cycleSlotLineage, unattachedEnduranceLineage } from "@/domain/legacy-multisport";
 import { blueprintV1ToV2, type ProgramBlueprintV2 } from "@/domain/program-blueprint-v2";
 import type { ProgramBlueprint } from "@/domain/program-blueprint";
 import { supersedeStalePlans } from "./coach-plans";
@@ -33,9 +33,15 @@ import { supersedeStalePlans } from "./coach-plans";
  * The dates written here are where the block was first placed, not a second schedule running
  * beside that sequence. They are what adherence counts against and what the programme view
  * lays out; they are not what Today offers. Today asks for the slot the sequence has reached
- * — by lineage and cycle, never by date — because a programme whose strength half shifts and
+ * — by cycle and cycle day, never by date — because a programme whose strength half shifts and
  * whose endurance half does not is two programmes, and it showed an athlete two days behind a
  * run from a day they had not got to.
+ *
+ * Which slot that is, is written down here, in `cycle_day_index`. It used to be recomputed
+ * from the weekday by every reader, and a weekday is not an identity: the cycle is a sequence,
+ * a cycle longer than a week must repeat weekdays, and a lifting day could always share one
+ * with a running day. Work whose weekday answers to no running day is written with no slot at
+ * all rather than pushed onto whichever day happens to share the date.
  *
  * A revision carries occurrences forward by lineage rather than recreating them. Work that is
  * completed, started or claimed is frozen: its prescription is what was actually on screen,
@@ -71,6 +77,7 @@ async function ensureFamily(tx: DbOrTx, userId: string, familyId: string): Promi
 type ExistingOccurrence = {
   id: string;
   slotLineageId: string | null;
+  cycleDayIndex: number | null;
   cycleIndex: number | null;
   disposition: string;
   currentRevisionId: string | null;
@@ -89,6 +96,7 @@ async function existingOccurrences(
     .select({
       id: plannedOccurrences.id,
       slotLineageId: plannedOccurrences.slotLineageId,
+      cycleDayIndex: plannedOccurrences.cycleDayIndex,
       cycleIndex: plannedOccurrences.cycleIndex,
       disposition: plannedOccurrences.disposition,
       currentRevisionId: plannedOccurrences.currentRevisionId,
@@ -125,7 +133,23 @@ function frozen(occurrence: ExistingOccurrence, today: string): boolean {
   if (occurrence.activityId !== null) return true;
   if (occurrence.disposition === "legacy_completed") return true;
   if (occurrence.scheduledOn !== null && occurrence.scheduledOn < today) return true;
+  // A skip is not history: logging it undoes it, and what it then asks for should be what the
+  // current programme asks for, so a future skipped occurrence is still revised.
   return false;
+}
+
+/**
+ * Whether somebody has already settled this occurrence.
+ *
+ * Deliberately not `frozen`. Being in the past freezes what an occurrence *says* — nobody
+ * gets to rewrite a prescription somebody already trained against — but it settles nothing:
+ * a run nobody ever logged or skipped is still owed however long ago it was scheduled for
+ * (SCHED-04). Withdrawing work the programme no longer contains has to read this rather than
+ * `frozen`, or a pending occurrence dated before today survives every revision that removes
+ * it, for good, and the sequence hands it out again the next time it reaches that slot.
+ */
+function answered(occurrence: ExistingOccurrence): boolean {
+  return occurrence.activityId !== null || occurrence.disposition !== "pending";
 }
 
 /** The occurrences a v2 blueprint asks for, keyed the way an existing row can be matched. */
@@ -200,6 +224,15 @@ export async function materialiseOccurrences(
         current.scheduledOn === occurrence.scheduledOn &&
         JSON.stringify(current.prescription) === JSON.stringify(occurrence.prescription);
       if (unchanged) {
+        // The slot it belongs to is not part of what it asks for, so correcting one the
+        // migration could not place is not a revision and writes no new version.
+        if (current.cycleDayIndex !== occurrence.cycleDayIndex)
+          await tx
+            .update(plannedOccurrences)
+            .set({ cycleDayIndex: occurrence.cycleDayIndex, updatedAt: new Date() })
+            .where(
+              and(eq(plannedOccurrences.id, current.id), eq(plannedOccurrences.userId, userId)),
+            );
         counts.carried++;
         continue;
       }
@@ -219,7 +252,11 @@ export async function materialiseOccurrences(
         .returning({ id: occurrenceVersions.id });
       await tx
         .update(plannedOccurrences)
-        .set({ currentRevisionId: revision!.id, updatedAt: new Date() })
+        .set({
+          currentRevisionId: revision!.id,
+          cycleDayIndex: occurrence.cycleDayIndex,
+          updatedAt: new Date(),
+        })
         .where(and(eq(plannedOccurrences.id, current.id), eq(plannedOccurrences.userId, userId)));
       await tx.insert(occurrenceEvents).values({
         userId,
@@ -242,6 +279,7 @@ export async function materialiseOccurrences(
         sport: occurrence.sport,
         familyId: input.familyId,
         slotLineageId: occurrence.slotLineageId,
+        cycleDayIndex: occurrence.cycleDayIndex,
         cycleIndex: occurrence.weekIndex,
         disposition: "pending",
         originalWeekIndex: occurrence.weekIndex,
@@ -278,17 +316,23 @@ export async function materialiseOccurrences(
   }
 
   /**
-   * Future work the new version no longer asks for is cancelled, not deleted.
+   * Work the new version no longer asks for is cancelled, not deleted.
    *
    * A cancelled occurrence is visibly withdrawn rather than silently gone: it keeps its
    * identity, its history and its place in the record, and adherence counts it apart from
-   * work the athlete actually missed (§9.1). Anything already answered or already past is
-   * left alone entirely.
+   * work the athlete actually missed (§9.1). Anything somebody already settled is left alone
+   * entirely — logged, skipped, resolved by the migration.
+   *
+   * What is *not* left alone is a pending occurrence dated before today. This used to skip
+   * everything `frozen`, which counts the past as untouchable, and the past is exactly where
+   * an abandoned occurrence ends up: an athlete behind their programme is being offered slots
+   * whose original dates have gone by. Such a row survived every revision that removed it and
+   * the sequence handed it out again on reaching its slot — a run from a block nobody trains
+   * any more, unanswerable and permanent. Being late is not being answered (SCHED-04).
    */
   for (const occurrence of existing) {
     if (seen.has(occurrence.id)) continue;
-    if (occurrence.disposition !== "pending") continue;
-    if (frozen(occurrence, input.today)) continue;
+    if (answered(occurrence)) continue;
     await tx
       .update(plannedOccurrences)
       .set({ disposition: "cancelled", updatedAt: new Date() })
@@ -310,23 +354,36 @@ export async function materialiseOccurrences(
  *
  * The conversion needs the dates a v1 blueprint does not carry, which is why it takes the
  * start date and the zone. Lineage is derived from the family rather than minted, so the same
- * Wednesday run keeps the same role across versions and across the migration.
+ * easy run keeps the same role across versions and across the migration.
+ *
+ * It is derived from the slot of the cycle the run belongs to. Work whose weekday answers to
+ * no running day belongs to no slot, and keeps an identity in a namespace of its own so a
+ * revision still carries it forward without any day ever claiming it.
  */
 export function occurrencesFromBlueprint(
   blueprint: ProgramBlueprint,
   context: { familyId: string; startDate: string; schedulingTimeZone: string },
 ): ProgramBlueprintV2 {
-  const { blueprint: v2, lineageByWeekday } = blueprintV1ToV2(blueprint, {
+  const {
+    blueprint: v2,
+    lineageByWeekday,
+    cycleDayByWeekday,
+  } = blueprintV1ToV2(blueprint, {
     startDate: context.startDate,
     schedulingTimeZone: context.schedulingTimeZone,
   });
   // Re-key the minted lineage onto the family's stable derivation, so a revision of the same
   // programme matches the occurrences the previous version wrote.
   const stable = new Map(
-    [...lineageByWeekday.entries()].map(([dayOfWeek, minted]) => [
-      minted,
-      weekdayLineage(context.familyId, dayOfWeek),
-    ]),
+    [...lineageByWeekday.entries()].map(([dayOfWeek, minted]) => {
+      const dayIndex = cycleDayByWeekday.get(dayOfWeek);
+      return [
+        minted,
+        dayIndex === undefined
+          ? unattachedEnduranceLineage(context.familyId, dayOfWeek)
+          : cycleSlotLineage(context.familyId, dayIndex),
+      ] as const;
+    }),
   );
   return {
     ...v2,

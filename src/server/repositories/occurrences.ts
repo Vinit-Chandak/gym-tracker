@@ -165,22 +165,28 @@ export async function standaloneOccurrencesOnDate(
 /**
  * The programme's endurance work for one slot of the cycle.
  *
- * Found by the role it performs and the cycle it belongs to, never by its date: the slot is
- * where the sequence has got to, and the date on the row is where the block was first written
- * to put it. Falling two days behind moves the run with the workout it shares a day with,
- * instead of handing today a session from a day nobody has reached yet.
+ * Found by the slot of the cycle it belongs to and the cycle it is in, never by its date: the
+ * slot is where the sequence has got to, and the date on the row is where the block was first
+ * written to put it. Falling two days behind moves the run with the workout it shares a day
+ * with, instead of handing today a session from a day nobody has reached yet.
+ *
+ * `cycleDayIndex` is read from the row rather than worked out from the offered day's weekday.
+ * A weekday identifies nothing here — a lifting day can share one with a running day, and a
+ * cycle longer than a week must repeat them — and while this asked by weekday it answered a
+ * pull-up day with somebody's easy run. An occurrence that belongs to no slot is returned by
+ * no slot.
  */
 export async function occurrencesForSlot(
   tx: DbOrTx,
   userId: string,
-  slot: { familyId: string; slotLineageId: string; cycleIndex: number },
+  slot: { familyId: string; cycleDayIndex: number; cycleIndex: number },
 ): Promise<ScheduledOccurrence[]> {
   const rows = (await occurrenceQuery(tx, userId)
     .where(
       and(
         eq(plannedOccurrences.userId, userId),
         eq(plannedOccurrences.familyId, slot.familyId),
-        eq(plannedOccurrences.slotLineageId, slot.slotLineageId),
+        eq(plannedOccurrences.cycleDayIndex, slot.cycleDayIndex),
         eq(plannedOccurrences.cycleIndex, slot.cycleIndex),
       ),
     )

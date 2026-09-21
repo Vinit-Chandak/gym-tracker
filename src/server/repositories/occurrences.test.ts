@@ -90,14 +90,14 @@ describe("what is on a day", () => {
     const [row] = await t.db
       .select({
         familyId: plannedOccurrences.familyId,
-        slotLineageId: plannedOccurrences.slotLineageId,
+        cycleDayIndex: plannedOccurrences.cycleDayIndex,
         cycleIndex: plannedOccurrences.cycleIndex,
       })
       .from(plannedOccurrences)
       .where(and(eq(plannedOccurrences.userId, userId), eq(plannedOccurrences.id, occurrenceId)));
     return {
       familyId: row!.familyId!,
-      slotLineageId: row!.slotLineageId!,
+      cycleDayIndex: row!.cycleDayIndex!,
       cycleIndex: row!.cycleIndex!,
     };
   }
@@ -157,7 +157,7 @@ describe("what is on a day", () => {
     expect(later).toEqual([]);
   });
 
-  /** The programme's endurance is found by the role and cycle it belongs to, not by its date. */
+  /** The programme's endurance is found by the slot and cycle it belongs to, not by its date. */
   it("finds a programme session by its slot, wherever it has been moved to", async () => {
     const account = await seeded("slot@example.test");
     const all = await occurrences(account.userId);
@@ -186,6 +186,56 @@ describe("what is on a day", () => {
     expect(afterMove.find((occurrence) => occurrence.id === first.id)?.scheduledOn).toBe(
       "2026-12-01",
     );
+  });
+
+  /**
+   * The old model let a run be planned on a weekday no running day falls on. That work is
+   * still the athlete's and keeps its row, but it belongs to no slot of the cycle — and the
+   * day that merely shares its weekday is emphatically not its slot. Asking by weekday is
+   * what handed a pull-up day somebody's easy run.
+   */
+  it("gives a slot none of the work that belongs to no slot", async () => {
+    const account = await seeded("unattached@example.test");
+    const rows = await t.db
+      .select({
+        id: plannedOccurrences.id,
+        cycleDayIndex: plannedOccurrences.cycleDayIndex,
+        cycleIndex: plannedOccurrences.cycleIndex,
+        scheduledOn: occurrenceVersions.scheduledOn,
+      })
+      .from(plannedOccurrences)
+      .innerJoin(
+        occurrenceVersions,
+        eq(occurrenceVersions.id, plannedOccurrences.currentRevisionId),
+      )
+      .where(eq(plannedOccurrences.userId, account.userId))
+      .orderBy(asc(occurrenceVersions.scheduledOn));
+
+    // The Wednesday runs answer to `Upper A`; the Saturday runs answer to nothing.
+    expect(rows.filter((row) => row.cycleDayIndex === 2)).toHaveLength(2);
+    const unattached = rows.filter((row) => row.cycleDayIndex === null);
+    expect(unattached).toHaveLength(2);
+
+    const [family] = await t.db
+      .select({ familyId: plannedOccurrences.familyId })
+      .from(plannedOccurrences)
+      .where(eq(plannedOccurrences.userId, account.userId))
+      .limit(1);
+    for (const dayIndex of [1, 2, 3]) {
+      const found = await withUser(
+        t.db,
+        account.userId,
+        (tx) =>
+          occurrencesForSlot(tx, account.userId, {
+            familyId: family!.familyId!,
+            cycleDayIndex: dayIndex,
+            cycleIndex: 1,
+          }),
+        { readOnly: true },
+      );
+      for (const occurrence of found)
+        expect(unattached.map((row) => row.id)).not.toContain(occurrence.id);
+    }
   });
 
   it("reports a programme's sessions with what became of each", async () => {

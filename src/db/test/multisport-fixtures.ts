@@ -53,6 +53,17 @@ export type LegacySeedOptions = {
 
 const DAY_NAMES = ["Lower A", "Upper A", "Rest"];
 
+/**
+ * The weekday each day of the cycle usually falls on.
+ *
+ * `Upper A` is on Wednesday because that is the day the fixture's Wednesday run is logged
+ * against, and the completion event below says so: a running day whose weekday no planned run
+ * falls on was a contradiction in the fixture, not a property of the old model. The Saturday
+ * run still answers to no day at all, which is a real legacy shape and the one the backfill
+ * has to carry without inventing a slot for it.
+ */
+const DAY_WEEKDAYS = [1, 3, 5];
+
 /** A mixed programme, some logged work, and the events that resolved it. */
 export async function seedLegacyAccount(
   db: DbOrTx,
@@ -107,7 +118,7 @@ export async function seedLegacyAccount(
       programId,
       dayIndex: index + 1,
       name,
-      dayOfWeek: index + 1,
+      dayOfWeek: DAY_WEEKDAYS[index]!,
       includesLifting: name !== "Rest",
       includesRun: index === 1,
     })),

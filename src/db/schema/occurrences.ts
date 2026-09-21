@@ -67,6 +67,17 @@ export const plannedOccurrences = pgTable(
     familyId: uuid("family_id"),
     /** The training role this performs, stable across programme versions. */
     slotLineageId: uuid("slot_lineage_id"),
+    /**
+     * Which slot of the cycle this belongs to, 1-based, matching `program_days.day_index`.
+     *
+     * The join between the strength sequence and the programme's own endurance, stored rather
+     * than derived. It used to be recomputed from the weekday by every reader, which is not an
+     * identity — two days can share a weekday and a cycle longer than a week must — so an
+     * occurrence could be handed to a day that asks for nothing of the kind. Null means the
+     * occurrence belongs to no slot of the current cycle: legacy work whose weekday never had
+     * a running day, and work a revision has left behind. It is offered by no day.
+     */
+    cycleDayIndex: integer("cycle_day_index"),
     cycleIndex: integer("cycle_index"),
     disposition: occurrenceDispositionEnum("disposition").notNull().default("pending"),
     /** The revision in force. Set after the first version row exists, in the same transaction. */
@@ -90,6 +101,13 @@ export const plannedOccurrences = pgTable(
       t.slotLineageId,
       t.cycleIndex,
     ),
+    // How Today asks for the work of the slot the sequence has reached.
+    index("planned_occurrences_cycle_slot_idx").on(
+      t.userId,
+      t.familyId,
+      t.cycleIndex,
+      t.cycleDayIndex,
+    ),
     foreignKey({
       name: "planned_occurrences_family_fk",
       columns: [t.userId, t.familyId],
@@ -98,7 +116,7 @@ export const plannedOccurrences = pgTable(
     check(
       "planned_occurrences_programme_chk",
       sql`(family_id is not null) or (slot_lineage_id is null and cycle_index is null
-            and original_week_index is null)`,
+            and cycle_day_index is null and original_week_index is null)`,
     ),
     ...serverWritePolicies("planned_occurrences"),
   ],

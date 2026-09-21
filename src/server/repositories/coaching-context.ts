@@ -199,17 +199,33 @@ export async function coachJobContext(
     ),
     readCoachingEvidence(db, userId, job.target.programId, evidenceEnd),
   ]);
-  const gymId = job.target.gymId ?? intake?.answers.gymId ?? null;
-  const [catalogue, equipment] = gymId
+  /**
+   * The location this job's context describes.
+   *
+   * A session preparation names its gym, and a first programme takes the one the athlete
+   * confirmed at intake. A weekly review names neither, and with no confirmed intake behind
+   * it that used to leave both `catalogue` and `equipment` empty: the review was asked to
+   * judge a programme while being told the athlete owns no equipment and can perform no
+   * exercise, which is not sparse context but wrong context — and nothing said so, because an
+   * empty list reads exactly like a gym with nothing in it. The athlete's default active gym
+   * answers for them when the job does not, which is the same gym Today trains them at.
+   */
+  const targetGymId = job.target.gymId ?? intake?.answers.gymId ?? null;
+  const equipmentGymId =
+    targetGymId ??
+    locations.find((gym) => gym.isActive && gym.isDefault)?.id ??
+    locations.find((gym) => gym.isActive && gym.kind === "gym")?.id ??
+    null;
+  const [catalogue, equipment] = equipmentGymId
     ? await Promise.all([
-        libraryAtGym(db, userId, gymId),
+        libraryAtGym(db, userId, equipmentGymId),
         db
           .select()
           .from(equipmentInstances)
           .where(
             and(
               eq(equipmentInstances.userId, userId),
-              eq(equipmentInstances.gymId, gymId),
+              eq(equipmentInstances.gymId, equipmentGymId),
               eq(equipmentInstances.isActive, true),
             ),
           ),
@@ -226,7 +242,7 @@ export async function coachJobContext(
       : null;
   const nextSession =
     job.kind === "prepare_session"
-      ? await planningContext(db, userId, { gymId: gymId ?? undefined })
+      ? await planningContext(db, userId, { gymId: targetGymId ?? undefined })
       : null;
   // A proposal the athlete can no longer approve is not an answer, so those asks go back on
   // the list before this attempt is told what it owes an outcome.
@@ -315,6 +331,12 @@ export async function coachJobContext(
         ? attachments.filter((file) => intake?.answers.attachmentIds.includes(file.id))
         : attachments,
     locations: locations.filter((g) => g.isActive),
+    /**
+     * The location `equipment` and `catalogue` describe. It is the job's own gym where the
+     * job names one, and the athlete's default otherwise — a weekly review names none, and it
+     * still has to know what the athlete can actually train on.
+     */
+    equipmentGymId,
     equipment,
     catalogue,
     warmups,

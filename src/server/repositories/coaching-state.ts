@@ -3,12 +3,26 @@ import { coachPreferences, coachSourceRevisions, profiles, workoutSessions } fro
 import type { DbOrTx } from "@/db/types";
 
 export class CoachingError extends Error {
+  /**
+   * Every problem this result has, where the check that raised it could find more than one.
+   *
+   * A worker gets two corrections per lease, and the guardrails used to stop at the first
+   * thing they disliked: a session with three independent faults could not be fixed inside
+   * that budget however well the worker corrected each one, because it only ever learnt about
+   * them one at a time. It spent its attempts discovering the list. A check that can see the
+   * whole list says the whole list, and `message` stays the first of them so every existing
+   * reader keeps working.
+   */
+  readonly issues: readonly string[];
+
   constructor(
     message: string,
     readonly status = 409,
+    issues: readonly string[] = [],
   ) {
     super(message);
     this.name = "CoachingError";
+    this.issues = issues.length > 0 ? issues : [message];
   }
 }
 export async function sourceRevision(db: DbOrTx, userId: string): Promise<number> {

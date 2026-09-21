@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
-import { weekdayLineage } from "@/domain/legacy-multisport";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { LOAD_UNIT_LABELS } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
@@ -57,14 +56,17 @@ export default async function TodayPage() {
       // The programme's endurance belongs to the slot the sequence is offering, not to a
       // date: a block written eight weeks ago dated every run in advance, and an athlete two
       // days behind would otherwise be handed a session from a day they have not reached
-      // (plan §2.3). Standalone work is asked for by date, because a date is exactly what the
-      // athlete chose when they put it on the calendar. Neither rolls forward.
+      // (plan §2.3). The slot is the day's position in the cycle, which is what an occurrence
+      // records; asking by the weekday that day usually falls on is what put a run belonging
+      // to one day on the card of another. Standalone work is asked for by date, because a
+      // date is exactly what the athlete chose when they put it on the calendar. Neither
+      // rolls forward.
       const [standalone, programme] = await Promise.all([
         standaloneOccurrencesOnDate(tx, user.id, todayInTimeZone(profile.timeZone)),
-        plan?.suggestion && plan.suggestedDay?.dayOfWeek != null
+        plan?.suggestion && plan.suggestedDay
           ? occurrencesForSlot(tx, user.id, {
               familyId: plan.program.familyId,
-              slotLineageId: weekdayLineage(plan.program.familyId, plan.suggestedDay.dayOfWeek),
+              cycleDayIndex: plan.suggestedDay.dayIndex,
               cycleIndex: plan.suggestion.slot.cycleIndex,
             })
           : Promise.resolve([]),

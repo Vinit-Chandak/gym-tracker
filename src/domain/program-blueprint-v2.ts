@@ -50,6 +50,19 @@ export const blueprintOccurrenceSchema = z.object({
   localId: z.string().min(1).max(64),
   slotLineageId: z.uuid(),
   weekIndex: z.number().int().min(1).max(BLUEPRINT_LIMITS.weeks.max),
+  /**
+   * The slot of the cycle this performance belongs to, 1-based, or null when it belongs to
+   * none. Null is a real answer, not a missing one: legacy programmes planned runs by weekday
+   * and some of those weekdays never had a running day, and that work is still the athlete's
+   * — it simply is not part of any day's sequence, so no day offers it.
+   */
+  cycleDayIndex: z
+    .number()
+    .int()
+    .min(1)
+    .max(BLUEPRINT_LIMITS.strengthSlots)
+    .nullable()
+    .default(null),
   scheduledOn: isoDate,
   /** Optional; a time of day orders a card, it does not imply live recording. */
   scheduledLocalTime: z
@@ -149,7 +162,53 @@ export type BlueprintConversion = {
   blueprint: ProgramBlueprintV2;
   /** Lineage minted for each weekday the old programme ran on, so revisions keep the role. */
   lineageByWeekday: Map<number, string>;
+  /** The cycle slot each of those weekdays resolved to; absent where none carries a run. */
+  cycleDayByWeekday: Map<number, number>;
 };
+
+/**
+ * The slot of the cycle a planned run belongs to, from the weekday the old row named.
+ *
+ * A v1 run says "week 3, Wednesday", which names a position in the cycle only through the
+ * day that runs on that weekday. Only a day carrying endurance can answer for one — a lifting
+ * day that happens to share the weekday is not the run's day, and treating it as one is how a
+ * 30-minute run came to be offered under a pull-up session. Where two running days share a
+ * weekday the earlier slot wins, deterministically, and `runningDaysNeedDistinctWeekdays`
+ * refuses that programme before it is ever written.
+ */
+export function cycleDayForRunWeekday(
+  days: readonly { dayIndex: number; dayOfWeek: number; includesRun: boolean }[],
+  dayOfWeek: number,
+): number | null {
+  const matches = days
+    .filter((day) => day.includesRun && day.dayOfWeek === dayOfWeek)
+    .sort((a, b) => a.dayIndex - b.dayIndex);
+  return matches[0]?.dayIndex ?? null;
+}
+
+/**
+ * Why a programme's endurance half cannot be placed in its cycle, if it cannot.
+ *
+ * Checked wherever a programme is written rather than in the blueprint schema, because the
+ * schema also parses programmes that already exist: a stored block that breaks this has to
+ * stay readable so it can be inspected, reviewed and corrected, and a parse that threw would
+ * take the coach, the diff and the change screen down with it. New work is held to the rule;
+ * old work is diagnosed, never hidden.
+ *
+ * Both halves matter. A run whose weekday no running day falls on has nowhere in the sequence
+ * to live, and a weekday two running days share offers it two places. Only with both settled
+ * does `cycleDayForRunWeekday` answer, and answer once.
+ */
+export function enduranceCycleIssues(blueprint: ProgramBlueprint): string[] {
+  const issues: string[] = [];
+  const runningDays = blueprint.days.filter((day) => day.includesRun);
+  const weekdays = new Set(runningDays.map((day) => day.dayOfWeek));
+  if (weekdays.size !== runningDays.length) issues.push("Running days need distinct weekdays.");
+  for (const dayOfWeek of new Set(blueprint.runs.map((run) => run.dayOfWeek)))
+    if (!weekdays.has(dayOfWeek))
+      issues.push("A running prescription needs a matching running day.");
+  return [...new Set(issues)];
+}
 
 /**
  * A v1 blueprint read as v2.
@@ -179,10 +238,17 @@ export function blueprintV1ToV2(
     };
   });
 
+  const cycleDayByWeekday = new Map<number, number>();
+  for (const dayOfWeek of lineageByWeekday.keys()) {
+    const dayIndex = cycleDayForRunWeekday(blueprint.days, dayOfWeek);
+    if (dayIndex !== null) cycleDayByWeekday.set(dayOfWeek, dayIndex);
+  }
+
   const occurrences = blueprint.runs.map((run, index) => ({
     localId: `run-${run.weekIndex}-${run.dayOfWeek}-${index}`,
     slotLineageId: lineageByWeekday.get(run.dayOfWeek)!,
     weekIndex: run.weekIndex,
+    cycleDayIndex: cycleDayByWeekday.get(run.dayOfWeek) ?? null,
     scheduledOn: legacyPlannedDate(context.startDate, run.weekIndex, run.dayOfWeek),
     scheduledLocalTime: null,
     orderIndex: 0,
@@ -203,7 +269,7 @@ export function blueprintV1ToV2(
     occurrences,
     legacy: { sourceVersion: "blueprint:v1", payload: blueprint },
   });
-  return { blueprint: parsed, lineageByWeekday };
+  return { blueprint: parsed, lineageByWeekday, cycleDayByWeekday };
 }
 
 function prescriptionForRun(run: ProgramBlueprint["runs"][number]) {

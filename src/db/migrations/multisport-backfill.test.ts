@@ -170,10 +170,12 @@ describe("a mixed account", () => {
   /** AT-MIG-06: a completion with no raw run stays a resolution, not an invented activity. */
   it("records migration 0011's source-less completion without fabricating a run", async () => {
     const account = await seeded("legacy@example.test");
+    // Week two's Wednesday run: the day of the cycle that actually runs, in a week nothing
+    // was logged for. A completion on a day that carries no run answers for nothing.
     await seedLegacyCompletionWithoutRun(t.db, account, {
-      cycleIndex: 1,
-      dayIndex: 3,
-      occurredOn: "2026-09-12",
+      cycleIndex: 2,
+      dayIndex: 2,
+      occurredOn: "2026-09-16",
     });
 
     const summary = await backfillMultisport(t.db, { userId: account.userId });
