@@ -19,6 +19,7 @@ import {
   programBlueprintSchema,
   type ProgramBlueprint,
 } from "@/domain/program-blueprint";
+import { enduranceCycleIssues } from "@/domain/program-blueprint-v2";
 import {
   resetReferenceCache,
   sharedEquipmentTypes,
@@ -124,6 +125,13 @@ export async function createProgramFromBlueprint(
   blueprint: ProgramBlueprint,
   options: CreateProgramOptions,
 ): Promise<CreatedProgram> {
+  // Every programme anybody trains on is written here — a template, an import, a coach's
+  // draft — so this is where the endurance half is held to being placeable in the cycle. A
+  // run nobody's running day answers for would become an occurrence with no slot, offered by
+  // no day and quietly absent from the programme the athlete reads.
+  const issues = enduranceCycleIssues(blueprint);
+  if (issues.length > 0)
+    throw new Error(`This programme's runs do not fit its days: ${issues.join(" ")}`);
   const familyId = options.familyId ?? crypto.randomUUID();
   const [{ exerciseIdBySlug, typeIdBySlug, warmupIdBySlug }, [previous]] = await Promise.all([
     referenceIds(db, blueprint, userId),

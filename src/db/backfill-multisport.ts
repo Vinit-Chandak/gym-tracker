@@ -3,10 +3,12 @@ import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 
 import {
+  cycleSlotLineage,
   legacyProgramRunToPrescription,
   legacyPlannedDate,
-  weekdayLineage,
+  unattachedEnduranceLineage,
 } from "../domain/legacy-multisport";
+import { cycleDayForRunWeekday } from "../domain/program-blueprint-v2";
 import { getMigrationDatabaseUrl } from "../lib/env";
 import { auditMultisport } from "./multisport-audit";
 import { createMigrationClient, describeTarget } from "./migrate";
@@ -377,6 +379,33 @@ async function backfillOccurrences(
     .where(eq(programRuns.userId, account.id))
     .orderBy(asc(programRuns.weekIndex), asc(programRuns.dayOfWeek));
 
+  // Which slot of each programme's cycle a weekday's runs belong to. The old model named a
+  // weekday and nothing else, so this is the only join there has ever been — but only a day
+  // that actually runs can answer for one. A weekday with no running day leaves the work
+  // unattached rather than handing it to whichever other day happens to share the date.
+  const daysByProgram = new Map<
+    string,
+    { dayIndex: number; dayOfWeek: number; includesRun: boolean }[]
+  >();
+  for (const programId of new Set(rows.map(({ program }) => program.id))) {
+    const days = await db
+      .select({
+        dayIndex: schema.programDays.dayIndex,
+        dayOfWeek: schema.programDays.dayOfWeek,
+        includesRun: schema.programDays.includesRun,
+      })
+      .from(schema.programDays)
+      .where(eq(schema.programDays.programId, programId));
+    daysByProgram.set(
+      programId,
+      days.flatMap((day) =>
+        day.dayOfWeek === null
+          ? []
+          : [{ dayIndex: day.dayIndex, dayOfWeek: day.dayOfWeek, includesRun: day.includesRun }],
+      ),
+    );
+  }
+
   let occurrences = 0;
   let revisions = 0;
   for (const { planned, program } of rows) {
@@ -407,14 +436,29 @@ async function backfillOccurrences(
       stopRule: planned.stopRule,
       comment: planned.comment,
     });
+    const cycleDayIndex = cycleDayForRunWeekday(
+      daysByProgram.get(program.id) ?? [],
+      planned.dayOfWeek,
+    );
+    if (cycleDayIndex === null)
+      await recordIssue(db, account.id, {
+        category: "planned_run_without_running_day",
+        sourceKind: "program_runs",
+        sourceId: planned.id,
+      });
     const [occurrence] = await db
       .insert(plannedOccurrences)
       .values({
         userId: account.id,
         sport: "running",
         familyId: program.familyId,
-        // The weekday the old row named is the role it played every week.
-        slotLineageId: weekdayLineage(program.familyId, planned.dayOfWeek),
+        // The slot the old row's weekday answers to is the role it played every week; a
+        // weekday no running day falls on keeps an identity of its own and no slot.
+        slotLineageId:
+          cycleDayIndex === null
+            ? unattachedEnduranceLineage(program.familyId, planned.dayOfWeek)
+            : cycleSlotLineage(program.familyId, cycleDayIndex),
+        cycleDayIndex,
         cycleIndex: planned.weekIndex,
         disposition: "pending",
         originalWeekIndex: planned.weekIndex,

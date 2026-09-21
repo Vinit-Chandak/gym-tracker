@@ -188,7 +188,16 @@ export async function handleCoachWorkflow(
   } catch (error) {
     if (error instanceof z.ZodError)
       return json({ error: "Invalid coaching request.", issues: error.issues }, 422);
-    if (error instanceof CoachingError) return json({ error: error.message }, error.status);
+    // A validation refusal names everything wrong with the result, not just the first thing
+    // found: a worker with two corrections to spend cannot use them on a list it is shown one
+    // entry at a time. `error` stays the first issue for readers that only read that.
+    if (error instanceof CoachingError)
+      return json(
+        error.issues.length > 1
+          ? { error: error.message, issues: error.issues }
+          : { error: error.message },
+        error.status,
+      );
     if (error instanceof PlanValidationError)
       return json({ error: error.message, issues: error.issues }, 422);
     throw error;

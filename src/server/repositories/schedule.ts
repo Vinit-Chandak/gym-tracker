@@ -2,7 +2,6 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 
 import { exercises, programExercises, programRuns, programSlotEvents, programs } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
-import { weekdayLineage } from "@/domain/legacy-multisport";
 import type { OccurrenceDisposition } from "@/domain/occurrences";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import {
@@ -133,7 +132,7 @@ export async function getSchedule(db: DbOrTx, userId: string): Promise<Schedule 
       enduranceOccurrences: sql<EnduranceRow[]>`coalesce((
         select json_agg(json_build_object(
           'cycleIndex', o.cycle_index,
-          'slotLineageId', o.slot_lineage_id,
+          'cycleDayIndex', o.cycle_day_index,
           'disposition', o.disposition,
           'logged', (a.id is not null)
         ))
@@ -143,7 +142,7 @@ export async function getSchedule(db: DbOrTx, userId: string): Promise<Schedule 
         where o.user_id = programs.user_id
           and o.family_id = programs.family_id
           and o.cycle_index is not null
-          and o.slot_lineage_id is not null
+          and o.cycle_day_index is not null
       ), '[]'::json)`,
     })
     .from(programs)
@@ -175,9 +174,7 @@ export async function getSchedule(db: DbOrTx, userId: string): Promise<Schedule 
       startDayIndex: program.startDayIndex,
       events: withDerivedRunEvents(
         row.events,
-        runEventsFromOccurrences(
-          slotOccurrences(program.familyId, row.days, row.enduranceOccurrences),
-        ),
+        runEventsFromOccurrences(slotOccurrences(row.days, row.enduranceOccurrences)),
       ),
     },
   };
@@ -186,7 +183,7 @@ export async function getSchedule(db: DbOrTx, userId: string): Promise<Schedule 
 /** One programme occurrence as the schedule query returns it. */
 type EnduranceRow = {
   cycleIndex: number;
-  slotLineageId: string;
+  cycleDayIndex: number;
   disposition: OccurrenceDisposition;
   logged: boolean;
 };
@@ -194,29 +191,23 @@ type EnduranceRow = {
 /**
  * Which slot of the cycle each endurance occurrence belongs to.
  *
- * An occurrence names its lineage and its cycle, never a day of the cycle, because a lineage
- * outlives the version that placed it. The lineage is derived from the family and the weekday
- * — by activation and by the backfill alike — so the day it belongs to is the day of the
- * cycle that falls on the same weekday. A lineage no current day answers for (a running day
- * a revision took out, say) belongs to no slot and is left out rather than guessed at.
+ * The occurrence says so itself. This used to work it out from the weekday its lineage was
+ * derived from, which meant a slot answered for any occurrence that shared its weekday —
+ * including a run belonging to a different day of the cycle entirely. A row naming a slot the
+ * current cycle no longer has (a running day a revision took out, say) belongs to no slot and
+ * is left out rather than guessed at.
  */
 function slotOccurrences(
-  familyId: string,
   days: readonly ScheduleDay[],
   rows: readonly EnduranceRow[],
 ): SlotOccurrence[] {
-  const dayOfLineage = new Map<string, number>();
-  for (const day of days) {
-    if (day.dayOfWeek === null) continue;
-    dayOfLineage.set(weekdayLineage(familyId, day.dayOfWeek), day.dayIndex);
-  }
+  const inCycle = new Set(days.map((day) => day.dayIndex));
   return rows.flatMap((row) => {
-    const dayIndex = dayOfLineage.get(row.slotLineageId);
-    if (dayIndex === undefined) return [];
+    if (!inCycle.has(row.cycleDayIndex)) return [];
     return [
       {
         cycleIndex: row.cycleIndex,
-        dayIndex,
+        dayIndex: row.cycleDayIndex,
         // Same rule as `resolveOccurrence`: the linked activity decides, and a row nobody has
         // answered yet is owed however long ago it was scheduled for.
         outcome: row.logged

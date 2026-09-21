@@ -23,6 +23,7 @@ import {
   blueprintExerciseSlugs,
   type ProgramBlueprint,
 } from "@/domain/program-blueprint";
+import { enduranceCycleIssues } from "@/domain/program-blueprint-v2";
 import { assessProgramChange } from "@/domain/program-change";
 import { openingPlanSchema, type OpeningPlan } from "@/domain/coaching-workflow";
 import { reviewWeekdayFor } from "@/domain/coach-cadence";
@@ -144,12 +145,11 @@ export async function validateBlueprintForAthlete(
         422,
       );
   }
-  for (const run of blueprint.runs)
-    if (!blueprint.days.some((d) => d.includesRun && d.dayOfWeek === run.dayOfWeek))
-      throw new CoachingError("A running prescription needs a matching running day.", 422);
+  // One definition of what makes a programme's runs placeable in its cycle, shared with the
+  // write itself: the coach is told here, in its own terms, before anything is stored.
+  const cycleIssues = enduranceCycleIssues(blueprint);
+  if (cycleIssues.length > 0) throw new CoachingError(cycleIssues.join(" "), 422);
   const runningDays = blueprint.days.filter((d) => d.includesRun);
-  if (new Set(runningDays.map((d) => d.dayOfWeek)).size !== runningDays.length)
-    throw new CoachingError("Running days need distinct weekdays.", 422);
   for (const day of runningDays)
     for (let week = 1; week <= blueprint.weeks; week++)
       if (!blueprint.runs.some((r) => r.weekIndex === week && r.dayOfWeek === day.dayOfWeek))

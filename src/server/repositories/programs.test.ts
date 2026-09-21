@@ -144,8 +144,10 @@ describe("a run's distance", () => {
       slug: `distance-${distanceKm?.join("-") ?? "none"}`,
       runs: [
         {
+          // Weekday 4 is `Easy Run + Arms`, the day of the cycle that actually runs. A run
+          // on any other weekday belongs to no day of this programme and is refused.
           weekIndex: 1,
-          dayOfWeek: 3,
+          dayOfWeek: 4,
           duration: [25, 40],
           ...(distanceKm ? { distanceKm } : {}),
           rpe: [3, 5],
