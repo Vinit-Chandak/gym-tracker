@@ -27,10 +27,18 @@ afterEach(async () => {
   await t.close();
 });
 
+/** One transaction, because the migrator wraps a file in one. See 0033's test for why. */
 async function runMigration(): Promise<void> {
   const file = await readFile("src/db/migrations/0034_prescribed_effort_out_of_five.sql", "utf8");
-  for (const statement of file.split("--> statement-breakpoint")) {
-    await t.client.exec(statement.trim());
+  await t.client.exec("BEGIN");
+  try {
+    for (const statement of file.split("--> statement-breakpoint")) {
+      await t.client.exec(statement.trim());
+    }
+    await t.client.exec("COMMIT");
+  } catch (error) {
+    await t.client.exec("ROLLBACK");
+    throw error;
   }
 }
 
