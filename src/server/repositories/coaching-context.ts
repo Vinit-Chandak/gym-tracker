@@ -12,6 +12,7 @@ import {
   workoutSessions,
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
+import { EFFORT } from "@/domain/activity-limits";
 import { COACH_POLICY } from "@/domain/coach-policy";
 import {
   COACH_TRAINING_REFERENCE,
@@ -53,6 +54,11 @@ import { readCoachingEvidence } from "./coaching-evidence";
  * memo written against them are still in service. The effort's provenance travels beside them
  * instead of being flattened into the number, so an RPE nobody confirmed still says so and
  * cannot be read as the athlete's own report (LOG-03).
+ *
+ * The name outlived its scale. `rpe` is out of five since 0033, like every endurance effort
+ * and unlike a strength set's, so `effortScale` is stated rather than left to a reader who
+ * knows what RPE has always meant. A number half the size of the one a prompt was written
+ * against is the kind of thing that reads as an easy week rather than as a changed unit.
  */
 function coachRunView(run: RunActivity) {
   return {
@@ -64,6 +70,7 @@ function coachRunView(run: RunActivity) {
     distanceMeters: run.distanceMeters,
     averagePaceSecondsPerKm: run.averagePaceSecondsPerKm,
     rpe: run.effort.value,
+    effortScale: { min: EFFORT.min, max: EFFORT.max },
     effortReported: run.effort.status === "reported",
     effortStatus: run.effort.status,
     surface: run.surface,

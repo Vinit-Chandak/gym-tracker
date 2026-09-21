@@ -174,7 +174,7 @@ export type StoredPlanRun = PlanRun;
 /** A prepared endurance session as stored, with the sport it was written for. */
 export type StoredPlannedOccurrence = PlannedOccurrence;
 
-/** "25 min · 4 km · RPE 3": the run in one line. */
+/** "25 min · 4 km · Effort 3": the run in one line. */
 export function runPlanLine(run: PlanRun): string {
   const parts = [
     run.durationMinutes === null ? null : `${run.durationMinutes} min`,

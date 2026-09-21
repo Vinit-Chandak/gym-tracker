@@ -21,11 +21,17 @@ function readings(values: [string, number | null, string?][]) {
     .map(([label, value, unit]) => `${label} ${value}${unit ? ` ${unit}` : ""}`)
     .join(" · ");
 }
-/** A run's effort, said to be unconfirmed where it is a migrated number nobody stood by. */
+/**
+ * A run's effort, said to be unconfirmed where it is a migrated number nobody stood by.
+ *
+ * "Effort", not "RPE", and for the same reason the rides and swims below say it: this reads
+ * out of five like every other endurance effort, while a strength set's RPE is still out of
+ * ten. One word over two scales is what the five-step change was undoing.
+ */
 function runEffort(effort: Effort) {
-  if (effort.status === "reported") return `RPE ${effort.value}`;
+  if (effort.status === "reported") return `Effort ${effort.value}`;
   if (effort.value === null) return "";
-  return `RPE ${effort.value} (unconfirmed)`;
+  return `Effort ${effort.value} (unconfirmed)`;
 }
 export default async function HistoryPage(props: PageProps<"/history">) {
   const user = await requireUser(),
@@ -105,8 +111,6 @@ export default async function HistoryPage(props: PageProps<"/history">) {
         activity.durationMs === null ? "" : formatDuration(Math.round(activity.durationMs / 1000)),
       gymId: null,
       exercises: [],
-      // "Effort", not "RPE": the legacy runs above still read out of ten and these read out
-      // of five, and one label over two scales is worse than no label at all.
       recovery: readings([
         ["Effort", activity.effortStatus === "reported" ? activity.effortValue : null],
       ]),

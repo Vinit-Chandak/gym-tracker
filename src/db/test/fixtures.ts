@@ -11,7 +11,8 @@ import { STRENGTH_AESTHETICS_HYBRID_8WK } from "@/db/seed/data/program";
 import type { DbOrTx } from "@/db/types";
 import {
   AD_HOC_ORIGIN,
-  legacyEffort,
+  UNKNOWN_EFFORT,
+  type Effort,
   type LogOrigin,
   type RunningEnvironment,
 } from "@/domain/activity";
@@ -174,6 +175,12 @@ export async function seedTestUserData(
  * its running detail, and takes the old row's `rpe`/`effortReported` pair so a number
  * nobody confirmed stays unconfirmed rather than being promoted (LOG-03).
  */
+/** The provenance the legacy pair carries, with the number taken as already current. */
+function effortOf(value: number | null, reported: boolean): Effort {
+  if (value === null) return UNKNOWN_EFFORT;
+  return reported ? { status: "reported", value } : { status: "legacy_unconfirmed", value };
+}
+
 export async function logTestRun(
   db: DbOrTx,
   userId: string,
@@ -211,7 +218,10 @@ export async function logTestRun(
     recordedTimeZone: timeZone,
     timeZoneSource: "profile_at_entry",
     occurredOn: run.occurredOn ?? todayInTimeZone(timeZone, run.startedAt),
-    effort: legacyEffort(run.rpe ?? null, run.effortReported ?? false),
+    // Not `legacyEffort`: that decodes a number written in the old tens, and this writes a
+    // canonical run directly. `rpe` here is already on the current scale, so routing it
+    // through the decoder would halve every effort a test asked for.
+    effort: effortOf(run.rpe ?? null, run.effortReported ?? false),
     outcome: "logged",
     title: null,
     notes: run.notes ?? null,
