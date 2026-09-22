@@ -103,7 +103,9 @@ export default async function PersonPage(props: PageProps<"/u/[username]">) {
 
   return (
     <>
-      <PageHeader title={name} backHref="/profile/friends" />
+      {/* Back where you came from: your own page is opened from the Profile tab's card,
+          anybody else's from the people lists on Friends. */}
+      <PageHeader title={name} backHref={relation ? "/profile/friends" : "/profile"} />
       <PageContent>
         <PersonCard person={person} counts={person}>
           {relation ? (

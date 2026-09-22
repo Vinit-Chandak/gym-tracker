@@ -60,11 +60,14 @@ export default async function ProfilePage() {
       <PageContent>
         {/* The header card is what a friend sees of you (ADR 0026). The warning is said here
             rather than only behind the link: a detail nobody knows is missing is a detail
-            nobody adds. */}
+            nobody adds. The avatar and the name open the page itself, which is where that
+            claim can be checked; it used to be reachable only by finding yourself in
+            somebody else's followers. */}
         <PersonCard
           person={profile}
           counts={counts}
           countsLinkToFriends
+          href={`/u/${profile.username}`}
           warning={missing.length > 0 ? `Add your ${listSentence(missing)}` : undefined}
         >
           <LinkButton href="/profile/edit" variant="secondary" size="sm" className="w-full">
