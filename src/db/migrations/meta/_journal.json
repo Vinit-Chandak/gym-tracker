@@ -246,6 +246,13 @@
       "when": 1790139392565,
       "tag": "0034_prescribed_effort_out_of_five",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1790051828680,
+      "tag": "0035_coach_job_attempt_budget",
+      "breakpoints": true
     }
   ]
 }

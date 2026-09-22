@@ -43,6 +43,8 @@ import {
   dispatchCoachPage,
   enqueueDailySession,
   queuedCoachJobs,
+  reconcileCoachJobs,
+  requeueCoachJob,
 } from "./coaching-jobs";
 import { coachJobContext } from "./coaching-context";
 import {
@@ -1456,4 +1458,120 @@ it("leaves the running to the coach when the athlete did not say", async () => {
     }),
   );
   expect(accepted.accepted).toBe(true);
+});
+
+/**
+ * Drives a job to the terminal `failed` state the way the server really gets there: three
+ * attempts, each abandoned by letting its lease run out.
+ */
+async function exhaust(a: Athlete, jobId: string) {
+  let clock = Date.now();
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await as(a, (tx) => claimCoachJob(tx, a.user.id, jobId, new Date(clock)));
+    await as(a, (tx) =>
+      tx
+        .update(coachJobs)
+        .set({ leaseUntil: new Date(clock - 1000) })
+        .where(eq(coachJobs.id, jobId)),
+    );
+    // Reconciling returns it to the queue behind a one-minute backoff, so the next claim has
+    // to happen past that — which is exactly what the real queue does between batches.
+    await as(a, (tx) => reconcileCoachJobs(tx, a.user.id, new Date(clock)));
+    clock += 65_000;
+  }
+  return clock;
+}
+
+/**
+ * The failed row is the tombstone: it holds the dedupe key, so the work cannot be re-queued.
+ * This is why a requeue has to exist at all — nothing else can reach the job again.
+ */
+it("cannot re-enqueue a failed job, because its dedupe key is still taken", async () => {
+  const a = await athlete();
+  const { job } = await request(a);
+  const key = (await as(a, (tx) => getCoachJob(tx, a.user.id, job.id)))!.dedupeKey;
+  await exhaust(a, job.id);
+  expect((await as(a, (tx) => getCoachJob(tx, a.user.id, job.id)))?.status).toBe("failed");
+
+  const again = await as(a, (tx) =>
+    enqueueCoachJob(tx, a.user.id, {
+      kind: "create_program",
+      trigger: "onboarding",
+      dedupeKey: key,
+      target: { programId: null },
+    }),
+  );
+  expect(again.created).toBe(false);
+  expect(again.job.id).toBe(job.id);
+});
+
+/**
+ * The trap this design exists to avoid: 0015's receipt trigger writes one row per
+ * `(job_id, attempts)` under a unique index, so a requeue that rewound `attempts` would make
+ * the next claim collide with a receipt already written and the job would be unclaimable for
+ * good. The budget moves instead, and the counter keeps climbing.
+ */
+it("requeues a failed job into a claimable one, numbering its receipts onward", async () => {
+  const a = await athlete();
+  const { job } = await request(a);
+  const clock = await exhaust(a, job.id);
+  expect((await as(a, (tx) => getCoachJob(tx, a.user.id, job.id)))?.attempts).toBe(3);
+
+  const requeued = await as(a, (tx) =>
+    requeueCoachJob(tx, a.user.id, job.id, new Date(clock + 1000)),
+  );
+  expect(requeued).toMatchObject({ status: "queued", attempts: 3, attemptBudget: 6 });
+  expect(requeued?.attemptId).toBeNull();
+  expect(requeued?.completedAt).toBeNull();
+
+  // The due queue offers it again: `attempts < attempt_budget` now, where it was not before.
+  const due = await queuedCoachJobs(t.db, new Date(clock + 2000));
+  expect(due.map((entry) => entry.id)).toContain(job.id);
+
+  // And the claim goes through — the receipt it writes is number four, not a repeat of one.
+  const claim = await as(a, (tx) => claimCoachJob(tx, a.user.id, job.id, new Date(clock + 2000)));
+  expect(claim?.attempts).toBe(4);
+  const receipts = await as(a, (tx) =>
+    tx.select().from(coachJobAttempts).where(eq(coachJobAttempts.jobId, job.id)),
+  );
+  expect(receipts.map((entry) => entry.number).sort()).toEqual([1, 2, 3, 4]);
+});
+
+/** A completed effect is never applied twice: `where status = 'failed'` simply misses. */
+it("refuses to requeue a job that already succeeded, or one being worked on", async () => {
+  const a = await athlete();
+  const { job } = await request(a);
+  const claim = await as(a, (tx) => claimCoachJob(tx, a.user.id, job.id));
+  // Claimed: a live attempt is not yanked out from under its worker.
+  expect(await as(a, (tx) => requeueCoachJob(tx, a.user.id, job.id))).toBeNull();
+
+  expect(
+    await as(a, (tx) => acceptCoachJobResult(tx, a.user.id, job.id, claim!.attemptId!, result(a))),
+  ).toMatchObject({ accepted: true });
+  expect((await as(a, (tx) => getCoachJob(tx, a.user.id, job.id)))?.status).toBe("succeeded");
+  // Succeeded: the programme draft it wrote must not be written a second time.
+  expect(await as(a, (tx) => requeueCoachJob(tx, a.user.id, job.id))).toBeNull();
+  expect((await as(a, (tx) => getCoachJob(tx, a.user.id, job.id)))?.status).toBe("succeeded");
+});
+
+/** Two requeues racing: the compare-and-swap means exactly one of them moves the row. */
+it("requeues a failed job once, however many times it is asked", async () => {
+  const a = await athlete();
+  const { job } = await request(a);
+  const clock = await exhaust(a, job.id);
+  const first = await as(a, (tx) => requeueCoachJob(tx, a.user.id, job.id, new Date(clock)));
+  const second = await as(a, (tx) => requeueCoachJob(tx, a.user.id, job.id, new Date(clock)));
+  expect(first).not.toBeNull();
+  expect(second).toBeNull();
+  expect((await as(a, (tx) => getCoachJob(tx, a.user.id, job.id)))?.attemptBudget).toBe(6);
+});
+
+/** Another athlete's failed job is not this athlete's to revive. */
+it("will not requeue a job belonging to someone else", async () => {
+  const a = await athlete();
+  const b = await athlete();
+  const { job } = await request(a);
+  await exhaust(a, job.id);
+  expect(await as(b, (tx) => requeueCoachJob(tx, b.user.id, job.id))).toBeNull();
+  expect((await as(a, (tx) => getCoachJob(tx, a.user.id, job.id)))?.status).toBe("failed");
 });

@@ -25,6 +25,7 @@
     "db:audit:multisport": "tsx src/db/multisport-audit.ts",
     "db:audit:schedule": "tsx src/db/programme-schedule-audit.ts",
     "db:reset:coach-allowance": "tsx src/db/reset-coach-allowance.ts",
+    "db:requeue:coach-jobs": "tsx src/db/requeue-coach-jobs.ts",
     "db:backfill:multisport": "tsx src/db/backfill-multisport.ts",
     "db:studio": "drizzle-kit studio",
     "icons": "node scripts/render-icons.mjs"
