@@ -161,7 +161,7 @@ export async function handleCoachWorkflow(
             job.leaseUntil <= new Date()
           )
             throw new CoachingError("This is not the current live attempt.");
-          const retry = body.retryable && job.attempts < 3;
+          const retry = body.retryable && job.attempts < job.attemptBudget;
           await tx
             .update(coachJobs)
             .set({

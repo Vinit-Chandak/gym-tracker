@@ -200,14 +200,14 @@ export async function reconcileCoachJobs(db: DbOrTx, userId: string, now = new D
     await db
       .update(coachJobs)
       .set({
-        status: job.attempts < MAX_JOB_ATTEMPTS ? "queued" : "failed",
+        status: job.attempts < job.attemptBudget ? "queued" : "failed",
         leaseUntil: null,
         nextAttemptAt: new Date(now.getTime() + 60_000),
         error:
-          job.attempts < MAX_JOB_ATTEMPTS
+          job.attempts < job.attemptBudget
             ? "The coach timed out. This request is saved for another attempt."
             : "The coach could not finish after three attempts. Your answers are saved; you can retry.",
-        completedAt: job.attempts < MAX_JOB_ATTEMPTS ? null : now,
+        completedAt: job.attempts < job.attemptBudget ? null : now,
       })
       .where(
         and(
@@ -223,7 +223,7 @@ export async function claimCoachJob(db: DbOrTx, userId: string, id: string, now 
   await reconcileCoachJobs(db, userId, now);
   const job = await getCoachJob(db, userId, id);
   if (!job || job.status !== "queued" || job.nextAttemptAt > now) return null;
-  if (job.attempts >= MAX_JOB_ATTEMPTS) return null;
+  if (job.attempts >= job.attemptBudget) return null;
   const [otherClaim] = await db
     .select({ id: coachJobs.id })
     .from(coachJobs)
@@ -283,6 +283,63 @@ export async function claimCoachJob(db: DbOrTx, userId: string, id: string, now 
     .where(and(eq(coachJobs.id, id), eq(coachJobs.userId, userId), eq(coachJobs.status, "queued")))
     .returning();
   return claimed ?? null;
+}
+
+/**
+ * Sends a job that failed back to the queue, once.
+ *
+ * A failed job keeps its row forever, and that row keeps its `dedupe_key`. Since
+ * `enqueueCoachJob` inserts with `onConflictDoNothing` against `unique (user_id, dedupe_key)`,
+ * the record of the failure is itself what stops the work ever being queued again: the next
+ * dispatch does not retry that occurrence, it silently declines to create anything. So a
+ * failure that was the server's fault — a validation bug, a bad deploy — strands the session
+ * permanently, and nothing in the product can reach it.
+ *
+ * The fix is to revive the row, never to mint a second one. A `…:retry:2` dedupe key would
+ * move "one job per target" out of the unique index and into convention, and the index is the
+ * only reason two workers cannot prepare the same session twice.
+ *
+ * `where status = 'failed'` is the whole of the concurrency argument, and it is a
+ * compare-and-swap rather than a read followed by a write:
+ *
+ * - two requeues at once — one updates a row, the other matches none and gets null;
+ * - a `claimed` job — no match, so a live attempt cannot be yanked out from under its worker;
+ * - a `succeeded` job — no match, so an effect that has already been applied is never applied
+ *   a second time. `acceptCoachJobResult` writes the effect and the status in one transaction,
+ *   which is what makes `failed` mean "nothing was applied" and therefore safe to retry;
+ * - a `superseded` job — no match. The target moved on, and the fresh dedupe key its
+ *   replacement carries is the right way back, not this.
+ *
+ * `attempts` is deliberately left where it is: it is the number the receipt trigger writes
+ * into `coach_job_attempts (job_id, number)`, and rewinding it makes the next claim collide
+ * with a receipt already written. The budget moves instead.
+ */
+export async function requeueCoachJob(
+  db: DbOrTx,
+  userId: string,
+  id: string,
+  now = new Date(),
+): Promise<CoachJob | null> {
+  const [requeued] = await db
+    .update(coachJobs)
+    .set({
+      status: "queued",
+      // A fresh budget on top of what it has already spent, so the counter stays monotonic.
+      attemptBudget: sql`${coachJobs.attempts} + ${MAX_JOB_ATTEMPTS}`,
+      // The worker that failed may still be holding the old attempt id; retire it so nothing
+      // from the abandoned attempt can submit into the new one.
+      attemptId: null,
+      leaseUntil: null,
+      completedAt: null,
+      nextAttemptAt: now,
+      error: null,
+      // A digest left behind would let a genuine new result be mistaken for a replay.
+      result: null,
+      resultDigest: null,
+    })
+    .where(and(eq(coachJobs.id, id), eq(coachJobs.userId, userId), eq(coachJobs.status, "failed")))
+    .returning();
+  return requeued ?? null;
 }
 
 export async function supersedeJob(db: DbOrTx, job: CoachJob, reason: string, now = new Date()) {
@@ -381,8 +438,8 @@ export async function acceptCoachJobResult(
     await db
       .update(coachJobs)
       .set({
-        status: job.attempts < MAX_JOB_ATTEMPTS ? "queued" : "failed",
-        completedAt: job.attempts < MAX_JOB_ATTEMPTS ? null : now,
+        status: job.attempts < job.attemptBudget ? "queued" : "failed",
+        completedAt: job.attempts < job.attemptBudget ? null : now,
         leaseUntil: null,
         error: result.reason,
         nextAttemptAt: new Date(now.getTime() + 60 * 60_000),
@@ -1202,7 +1259,7 @@ export async function queuedCoachJobs(db: Db, now = new Date()) {
       and(
         eq(profiles.aiCoachEnabled, true),
         eq(coachJobs.status, "queued"),
-        lt(coachJobs.attempts, MAX_JOB_ATTEMPTS),
+        lt(coachJobs.attempts, coachJobs.attemptBudget),
         lte(coachJobs.nextAttemptAt, now),
         notExists(
           db
