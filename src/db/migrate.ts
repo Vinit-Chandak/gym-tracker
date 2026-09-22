@@ -1,10 +1,13 @@
 import { config as loadEnv } from "dotenv";
+import { readFile } from "node:fs/promises";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
 
 import { getMigrationDatabaseUrl } from "../lib/env";
+import { assertDatabaseSchema, assertMigrationOrder } from "./migration-safety";
+import * as schema from "./schema";
 
 export const MIGRATIONS_FOLDER = "src/db/migrations";
 
@@ -47,10 +50,13 @@ export function describeTarget(url: string): string {
  * Safe to call repeatedly: already-applied migrations are skipped.
  */
 export async function runMigrations(client: ReturnType<typeof createMigrationClient>) {
-  const db = drizzle(client);
+  const journal = JSON.parse(await readFile(`${MIGRATIONS_FOLDER}/meta/_journal.json`, "utf8"));
+  assertMigrationOrder(journal.entries);
+  const db = drizzle(client, { schema });
   await db.execute(sql`select pg_advisory_lock(${MIGRATION_LOCK_KEY})`);
   try {
     await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
+    await assertDatabaseSchema(db);
   } finally {
     await db.execute(sql`select pg_advisory_unlock(${MIGRATION_LOCK_KEY})`);
   }
