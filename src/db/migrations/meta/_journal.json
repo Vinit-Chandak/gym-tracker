@@ -253,6 +253,13 @@
       "when": 1790051828680,
       "tag": "0035_coach_job_attempt_budget",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1790139393565,
+      "tag": "0036_repair_coach_attempt_budget",
+      "breakpoints": true
     }
   ]
 }
