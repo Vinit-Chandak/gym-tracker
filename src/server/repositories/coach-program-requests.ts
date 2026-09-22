@@ -525,14 +525,29 @@ export async function answerProgramRequest(
   const [request] = await db
     .select()
     .from(coachProgramRequests)
-    .where(and(eq(coachProgramRequests.id, requestId), eq(coachProgramRequests.userId, userId)));
+    .where(and(eq(coachProgramRequests.id, requestId), eq(coachProgramRequests.userId, userId)))
+    .for("update");
   if (!request) throw new CoachingError("That request is no longer waiting for an answer.", 404);
+  const [saved] = await db
+    .select()
+    .from(coachNotes)
+    .where(and(eq(coachNotes.id, noteId), eq(coachNotes.userId, userId)));
+  if (saved) {
+    // A dropped response must be retryable, but a reused key must never silently drop a
+    // different answer or attach an existing, unrelated note to this question.
+    if (saved.requestId === requestId && saved.text === answer) return { requestId };
+    throw new CoachingError(
+      "This answer changed after it was saved. Reload before answering again.",
+    );
+  }
   if (request.state !== "needs_answer")
     throw new CoachingError("The coach is not waiting on an answer for this request.");
-  await db
+  const inserted = await db
     .insert(coachNotes)
     .values({ id: noteId, userId, text: answer, requestId, createdAt: now })
-    .onConflictDoNothing({ target: coachNotes.id });
+    .onConflictDoNothing({ target: coachNotes.id })
+    .returning({ id: coachNotes.id });
+  if (!inserted.length) throw new CoachingError("Could not save this answer. Reload and retry.");
   await db
     .update(coachProgramRequests)
     .set({ state: "waiting", detail: "Your answer is saved for the next daily coach run." })
@@ -567,7 +582,7 @@ export async function withdrawProgramRequest(
       and(
         eq(coachProgramRequests.id, requestId),
         eq(coachProgramRequests.userId, userId),
-        inArray(coachProgramRequests.state, [...OPEN_REQUEST_STATES]),
+        inArray(coachProgramRequests.state, ["waiting", "needs_answer", "deferred"]),
       ),
     )
     .returning({ id: coachProgramRequests.id });

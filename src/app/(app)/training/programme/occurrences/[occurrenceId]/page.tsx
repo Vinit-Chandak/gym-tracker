@@ -85,8 +85,8 @@ export default async function OccurrencePage(
           {occurrence.originalScheduledOn &&
             occurrence.originalScheduledOn !== occurrence.scheduledOn && (
               <p className="text-sm text-ink-muted">
-                Moved from {occurrence.originalScheduledOn}. Adherence still counts against that
-                week.
+                Moved from {formatIsoDate(occurrence.originalScheduledOn)}. Adherence still counts
+                against that week.
               </p>
             )}
         </Card>

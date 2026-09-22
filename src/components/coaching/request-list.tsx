@@ -68,7 +68,7 @@ export function RequestList({
 function RequestRow({ request, base }: { request: RequestView; base: string }) {
   const router = useRouter();
   const [answer, setAnswer] = useState("");
-  const [noteId] = useState(() => crypto.randomUUID());
+  const [noteId, setNoteId] = useState(() => crypto.randomUUID());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // A proposal already has its own decision — approve, revise or decline — on the change it
@@ -129,9 +129,16 @@ function RequestRow({ request, base }: { request: RequestView; base: string }) {
             className="flex w-full"
             disabled={busy || answer.trim().length === 0}
             onClick={() =>
-              act(() =>
-                coachingAction(() => answerProgramRequestAction(request.id, answer, noteId)),
-              )
+              act(async () => {
+                const result = await coachingAction(() =>
+                  answerProgramRequestAction(request.id, answer, noteId),
+                );
+                if (result.ok) {
+                  setAnswer("");
+                  setNoteId(crypto.randomUUID());
+                }
+                return result;
+              })
             }
           >
             {busy ? "Sending…" : "Send answer"}

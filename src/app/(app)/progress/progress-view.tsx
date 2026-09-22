@@ -22,8 +22,10 @@ import { ProgressBar } from "@/components/ui/progress-bar";
 import type { PerformanceSeries, Point } from "@/domain/analytics";
 import type { MuscleVolume } from "@/domain/muscle-volume";
 import type { BodyLoadUnit, MuscleGroup } from "@/domain/types";
+import type { RecoveryReading } from "@/domain/recovery";
 import { formatDateRange, formatMinutes } from "@/lib/format";
 import { MUSCLE_LABELS } from "@/lib/labels";
+import { RecoveryProgress } from "./recovery-progress";
 
 /**
  * The body map carries an anatomical outline and every muscle region as path data, and only
@@ -81,14 +83,7 @@ type Props = {
   sportTotals: readonly SportTotal[] | null;
   adherence: Adherence | null;
   weeks: Week[];
-  recovery: {
-    date: string;
-    sleep: number | null;
-    quality: number | null;
-    energy: number | null;
-    fatigue: number | null;
-    soreness: number | null;
-  }[];
+  recovery: RecoveryReading[];
   pace: { date: string; value: number | null; mode: string }[];
   options: SeriesOption[];
   body: { from: string; to: string; volume: MuscleVolume; totalSets: number };
@@ -115,15 +110,6 @@ const RUN_METRICS = [
   { value: "pace", label: "Pace" },
 ] as const;
 type RunMetric = (typeof RUN_METRICS)[number]["value"];
-
-const RECOVERY_METRICS = [
-  { value: "sleep", label: "Sleep" },
-  { value: "quality", label: "Quality" },
-  { value: "energy", label: "Energy" },
-  { value: "fatigue", label: "Fatigue" },
-  { value: "soreness", label: "Soreness" },
-] as const;
-type RecoveryMetric = (typeof RECOVERY_METRICS)[number]["value"];
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
@@ -152,11 +138,16 @@ export function ProgressView({
   const params = useSearchParams();
   const [pending, startTransition] = useTransition();
 
-  const [tab, setTab] = useState<Tab>("overview");
+  const tab: Tab = TABS.find((item) => item.value === params.get("view"))?.value ?? "overview";
+  const chooseView = (key: "view" | "recovery", value: string) => {
+    const next = new URLSearchParams(params.toString());
+    next.set(key, value);
+    // Local view state belongs in the URL so filters, reload and Back preserve it.
+    window.history.replaceState(null, "", `/progress?${next}`);
+  };
   const [metric, setMetric] = useState<StrengthMetric>("load");
   const [runMetric, setRunMetric] = useState<RunMetric>("distance");
   const [paceMode, setPaceMode] = useState("outdoor");
-  const [recoveryMetric, setRecoveryMetric] = useState<RecoveryMetric>("sleep");
 
   // Every group is present now that volume is a full record, so offer only trained ones.
   const muscles = useMemo(
@@ -212,7 +203,7 @@ export function ProgressView({
         label="Progress section"
         options={TABS}
         value={tab}
-        onChange={setTab}
+        onChange={(value) => chooseView("view", value)}
         action={
           <FilterSheet title="Filters" summary={formatDateRange(range.from, range.to)}>
             {(close) => <DateRangeFields from={range.from} to={range.to} onApplied={close} />}
@@ -474,28 +465,11 @@ export function ProgressView({
         )}
 
         {tab === "recovery" && (
-          <Card>
-            <SegmentedControl
-              name="recovery-metric"
-              aria-label="Recovery measurement"
-              options={RECOVERY_METRICS}
-              value={recoveryMetric}
-              onChange={setRecoveryMetric}
-              columns={5}
-            />
-            <Chart
-              title={RECOVERY_METRICS.find((m) => m.value === recoveryMetric)!.label}
-              unit={recoveryMetric === "sleep" ? "hours" : "1–5"}
-              series={[
-                {
-                  name: "Reading",
-                  color: SERIES_COLORS.lifting,
-                  points: recovery.map((r) => ({ date: r.date, value: r[recoveryMetric] })),
-                },
-              ]}
-              note="From workout check-ins and daily recovery entries. A missing reading leaves a gap."
-            />
-          </Card>
+          <RecoveryProgress
+            readings={recovery}
+            selected={params.get("recovery")}
+            onSelect={(metric) => chooseView("recovery", metric)}
+          />
         )}
 
         {tab === "body" && (

@@ -219,11 +219,18 @@ const ISSUE_QUERIES: readonly IssueQuery[] = [
     rows: (userId) => sql`
       select s.user_id, 'shared_session_stats' as source, s.id::text as id, s.source_id::text as related_id
       from public.shared_session_stats s
-      where (s.sport = 'run'
+      where not exists (
+        select 1 from public.activities a
+        where a.id = coalesce(s.activity_id, s.source_id) and a.user_id = s.user_id
+          and a.sport::text = case s.sport::text
+            when 'run' then 'running' when 'workout' then 'strength'
+            when 'cycle' then 'cycling' when 'swim' then 'swimming' end)
+        and ((s.sport = 'run'
               and not exists (select 1 from public.runs r where r.id = s.source_id and r.user_id = s.user_id))
          or (s.sport = 'workout'
               and not exists (select 1 from public.workout_sessions w
                               where w.id = s.source_id and w.user_id = s.user_id))
+         or s.sport in ('cycle', 'swim'))
         ${owner(userId, sql.raw("s.user_id"))}`,
   },
   {

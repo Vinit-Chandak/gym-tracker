@@ -267,7 +267,7 @@ export function SpeechTextarea({
 }: {
   value: string;
   onChange: (value: string) => void;
-  /** What this box is for, for the mic's accessible name: "your brief". */
+  /** Names the mic and, when no visible Field label is attached, the textarea. */
   label: string;
   id?: string;
   rows?: number;
@@ -295,6 +295,7 @@ export function SpeechTextarea({
           aria-describedby={describedBy}
           aria-invalid={invalid}
           aria-labelledby={labelledBy}
+          aria-label={id || labelledBy ? undefined : label}
           rows={rows}
           maxLength={maxLength}
           placeholder={placeholder}

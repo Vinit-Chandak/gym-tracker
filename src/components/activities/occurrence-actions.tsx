@@ -12,6 +12,7 @@ import {
   skipOccurrenceAction,
 } from "@/server/actions/occurrences";
 import { INITIAL_FORM_STATE } from "@/server/validation/form";
+import { attempted, keepsFormOnDisconnect, OFFLINE_SUBMIT_MESSAGE } from "@/lib/offline-submit";
 
 /**
  * Skipping, undoing a skip, and moving one session (plan §7).
@@ -32,7 +33,7 @@ export function OccurrenceActions({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [moveState, moveAction] = useActionState(
-    rescheduleOccurrenceAction.bind(null, occurrenceId),
+    keepsFormOnDisconnect(rescheduleOccurrenceAction.bind(null, occurrenceId)),
     INITIAL_FORM_STATE,
   );
 
@@ -46,10 +47,15 @@ export function OccurrenceActions({
           onClick={() => {
             setError(null);
             startTransition(async () => {
-              const result = skipped
-                ? await reopenOccurrenceAction(occurrenceId)
-                : await skipOccurrenceAction(occurrenceId);
-              if (!result.ok) setError(result.error);
+              const attempt = await attempted(
+                () =>
+                  skipped
+                    ? reopenOccurrenceAction(occurrenceId)
+                    : skipOccurrenceAction(occurrenceId),
+                OFFLINE_SUBMIT_MESSAGE,
+              );
+              if (!attempt.ok) setError(attempt.message);
+              else if (!attempt.value.ok) setError(attempt.value.error);
             });
           }}
         >

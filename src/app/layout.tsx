@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { AppearanceSync } from "@/components/shell/appearance-sync";
+import { PwaProvider } from "@/components/shell/pwa-provider";
+import { NavigationHistory } from "@/components/shell/back-link";
 
 import { APP_DESCRIPTION, APP_NAME } from "@/lib/app";
 import { APPEARANCE_INIT_SCRIPT, CANVAS_DARK, CANVAS_LIGHT } from "@/lib/appearance";
@@ -63,7 +65,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             explicit Light or Dark choice is in place before anything is painted. */}
         <script dangerouslySetInnerHTML={{ __html: APPEARANCE_INIT_SCRIPT }} />
         <AppearanceSync />
-        {children}
+        <NavigationHistory />
+        <PwaProvider>{children}</PwaProvider>
       </body>
     </html>
   );

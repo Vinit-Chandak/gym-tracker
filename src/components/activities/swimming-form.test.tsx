@@ -72,6 +72,21 @@ it("offers no lengths at all in open water", () => {
   expect(screen.getByRole("radio", { name: "Enter distance" })).toBeTruthy();
 });
 
+it("preserves a known pool when correcting a manually measured swim", () => {
+  const { container } = swim({
+    distanceMethod: "manual",
+    distanceValue: "500",
+    poolLengthValue: "25",
+    poolLengthUnit: "yd",
+  });
+  const form = container.querySelector("form")!;
+  expect(new FormData(form).get("poolLengthValue")).toBe("25");
+  expect(new FormData(form).get("poolLengthUnit")).toBe("yd");
+
+  fireEvent.click(screen.getByRole("radio", { name: "Open water" }));
+  expect(new FormData(form).has("poolLengthValue")).toBe(false);
+});
+
 it("drops back to a real choice when the swim moves to open water", () => {
   swim({ distanceMethod: "lengths", poolLengthValue: "25", lengths: "16" });
   expect(screen.getByRole("textbox", { name: "Lengths" })).toBeTruthy();

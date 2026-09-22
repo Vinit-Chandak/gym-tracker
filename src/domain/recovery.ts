@@ -14,6 +14,15 @@ export type CheckIn = {
   soreness: number | null;
 };
 
+/** One actual response, kept distinct when someone checks in more than once in a day. */
+export type RecoveryReading = CheckIn & {
+  id: string;
+  date: string;
+  recordedAt: string;
+  source: "workout" | "daily";
+  sessionId: string | null;
+};
+
 export type RecoveryWarningCode = "short_sleep" | "low_readiness";
 
 export type RecoveryWarning = {

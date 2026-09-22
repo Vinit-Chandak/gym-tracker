@@ -331,11 +331,13 @@ function fieldErrorsOf(error: unknown): Record<string, string> | undefined {
 }
 
 /** Creates an activity, or corrects the one named by `activityId`, then opens it. */
+export type SaveActivityState = FormState & { savedActivityId?: string };
+
 export async function saveActivityAction(
   activityId: string | null,
   _previous: FormState,
   formData: FormData,
-): Promise<FormState> {
+): Promise<SaveActivityState> {
   const user = await requireUser();
   const parsed = parseForm(activitySchema, formData);
   if (!parsed.success) return parsed.state;
@@ -398,7 +400,8 @@ export async function saveActivityAction(
     activityId: result.id,
     occurrenceId: result.occurrenceId,
   });
-  redirect(`/training/activities/${result.id}`);
+  // The client clears only the acknowledged local draft before opening the saved record.
+  return { savedActivityId: result.id };
 }
 
 export type DeleteActivityResult = { ok: true } | { ok: false; error: string };

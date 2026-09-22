@@ -73,7 +73,7 @@ export async function reopenOccurrenceAction(occurrenceId: string): Promise<Occu
 const rescheduleSchema = z.object({
   scheduledOn: z.preprocess(
     (value) => (typeof value === "string" ? value.trim() : ""),
-    z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { error: "Choose a date." }),
+    z.iso.date({ error: "Choose a valid date." }),
   ),
 });
 
@@ -100,13 +100,13 @@ const scheduleSchema = z.object({
   sport: z.enum(ENDURANCE_SPORTS),
   scheduledOn: z.preprocess(
     (value) => (typeof value === "string" ? value.trim() : ""),
-    z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { error: "Choose a date." }),
+    z.iso.date({ error: "Choose a valid date." }),
   ),
   scheduledLocalTime: z.preprocess(
     (value) => (typeof value === "string" && value.trim() !== "" ? value.trim() : null),
     z
       .string()
-      .regex(/^\d{2}:\d{2}$/, { error: "Enter a time as HH:MM." })
+      .regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/, { error: "Enter a time as HH:MM." })
       .nullable(),
   ),
   templateId: z.preprocess(
