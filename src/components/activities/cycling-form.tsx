@@ -90,6 +90,8 @@ export function CyclingForm({
   return (
     <form action={formAction} className="space-y-[var(--section-gap)]">
       <input type="hidden" name="sport" value="cycling" />
+      <input type="hidden" name="outcome" value={values("outcome") || "logged"} />
+      <input type="hidden" name="resourceId" value={values("resourceId")} />
       <ActivityIdentityFields
         submissionKey={submissionKey}
         occurrence={occurrence}

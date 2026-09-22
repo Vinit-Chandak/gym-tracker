@@ -12,6 +12,8 @@
 
 # testing
 /coverage
+/output/flow-audit/
+/output/audit-*.txt
 
 # next.js
 /.next/

@@ -27,6 +27,14 @@ export function CoachJobStatus({
 }) {
   const router = useRouter();
   const pending = job.status === "queued" || job.status === "claimed";
+  const successLabel = draftId
+    ? "Your programme draft is ready"
+    : job.kind === "prepare_session"
+      ? "Your session preparation is complete"
+      : job.result?.outcome === "no_change"
+        ? "Your programme stays as it is"
+        : "Your programme review is complete";
+  const rationale = job.result && "rationale" in job.result ? job.result.rationale : null;
   const questions =
     job.status === "needs_input" && job.result?.outcome === "needs_input"
       ? job.result.questions
@@ -48,8 +56,11 @@ export function CoachJobStatus({
   return (
     <Card>
       <h1 className="text-xl font-medium" role="status">
-        {LABELS[job.status]}
+        {job.status === "succeeded" ? successLabel : LABELS[job.status]}
       </h1>
+      {job.status === "succeeded" && !draftId && rationale && (
+        <p className="text-sm text-ink-muted">{rationale}</p>
+      )}
       {pending && (
         <p className="text-sm text-ink-muted">
           You can leave this screen. Your answers and files are saved, and the draft will appear
@@ -73,7 +84,7 @@ export function CoachJobStatus({
           Review the draft
         </LinkButton>
       )}
-      {!pending && !draftId && (
+      {!pending && !draftId && job.status !== "succeeded" && (
         <LinkButton
           href={`${base}/create` as Route}
           variant={questions ? "secondary" : "primary"}

@@ -21,8 +21,8 @@ export default async function DeleteAccountPage() {
         {/* The one screen that says what it means in full: what goes is irreversible. */}
         <Card>
           <p className="text-sm">
-            Permanently removes your gyms, machines, programmes, sessions, sets, runs and tokens.
-            Nothing is exported first.
+            Permanently removes your gyms, machines, programmes, sessions, sets, activities and
+            tokens. Nothing is exported first.
           </p>
           {!removesSignIn && (
             <p className="text-sm text-ink-muted">

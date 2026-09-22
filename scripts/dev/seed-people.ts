@@ -19,7 +19,7 @@
  */
 import { randomBytes, randomUUID, scryptSync } from "node:crypto";
 
-import { eq, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
@@ -45,6 +45,9 @@ import {
 
 const DATABASE_URL =
   process.env.SEED_DATABASE_URL ?? "postgres://postgres:postgres@localhost:5432/overload_dev";
+if (!["localhost", "127.0.0.1", "[::1]"].includes(new URL(DATABASE_URL).hostname)) {
+  throw new Error("Development accounts may only be seeded into a local database.");
+}
 const TZ = "Asia/Kolkata";
 const PASSWORD = "password123";
 
@@ -217,7 +220,7 @@ const hashPassword = (password: string) => {
 /** `daysAgo` days before now, at 7 pm in the account's zone (a plausible gym hour). */
 function at(daysAgo: number, hour = 19): Date {
   const date = new Date();
-  date.setUTCHours(hour - 5, 30 - 30, 0, 0); // 19:00 IST is 13:30 UTC
+  date.setUTCHours(hour - 6, 30, 0, 0); // 19:00 IST is 13:30 UTC
   date.setUTCDate(date.getUTCDate() - daysAgo);
   return date;
 }
@@ -233,6 +236,7 @@ async function main(): Promise<void> {
   try {
     const ids: Record<keyof typeof PEOPLE, string> = { vinit: "", shreyash: "", priya: "" };
     let created = 0;
+    const createdIds = new Set<string>();
     for (const [key, person] of Object.entries(PEOPLE) as [keyof typeof PEOPLE, Person][]) {
       const [existing] = await client`select id from auth.users where email = ${person.email}`;
       if (existing) {
@@ -255,6 +259,7 @@ async function main(): Promise<void> {
         .where(eq(profiles.id, id));
       await as(id)((tx) => seedTestUserData(tx, { id, email: person.email }));
       ids[key] = id;
+      createdIds.add(id);
       created++;
     }
     if (created === 0) {
@@ -275,6 +280,7 @@ async function main(): Promise<void> {
     };
 
     async function train(who: string, workouts: Workout[]): Promise<void> {
+      if (!createdIds.has(who)) return;
       const gyms = await as(who)((tx) => listGyms(tx, who));
       const gymId = gyms.find((g) => g.slug === "anytime-fitness")!.id;
       for (const workout of workouts) {
@@ -335,6 +341,7 @@ async function main(): Promise<void> {
      * the canonical table now.
      */
     async function jog(who: string, runs: Run[]): Promise<number> {
+      if (!createdIds.has(who)) return 0;
       for (const run of runs) {
         const startedAt = at(run.daysAgo, 6);
         await as(who)((tx) =>
@@ -371,6 +378,7 @@ async function main(): Promise<void> {
     }
 
     async function weigh(who: string, readings: { daysAgo: number; kg: number }[]) {
+      if (!createdIds.has(who)) return;
       for (const reading of readings) {
         const day = at(reading.daysAgo, 7).toISOString().slice(0, 10);
         await as(who)((tx) => recordBodyWeight(tx, who, { measuredOn: day, weightKg: reading.kg }));
@@ -394,13 +402,15 @@ async function main(): Promise<void> {
 
     // The shared rows were written at finish time with today's date; derive them again from
     // the back-dated sessions, exactly as the production backfill does.
-    await db.delete(schema.sharedSessionStats);
-    await db.delete(schema.sharedExerciseStats);
+    await db
+      .delete(schema.sharedSessionStats)
+      .where(inArray(schema.sharedSessionStats.userId, [...createdIds]));
+    await db
+      .delete(schema.sharedExerciseStats)
+      .where(inArray(schema.sharedExerciseStats.userId, [...createdIds]));
     const summary = await backfillSharedStats(db);
 
-    // Runs come after that wholesale re-derivation, not before it. Saving one writes its own
-    // shared row from the day it names, and the backfill above re-derives runs from the
-    // retired table, which has none: written earlier, they would simply have been deleted.
+    // Saving a run writes both its canonical activity and shared row from its recorded day.
     const runCount = (await jog(ids.vinit, VINIT_RUNS)) + (await jog(ids.priya, PRIYA_RUNS));
     console.log(
       `Seeded ${created} accounts (password "${PASSWORD}"): ${summary.workouts} workouts, ${runCount} runs, ${summary.readings} body-weight readings.`,

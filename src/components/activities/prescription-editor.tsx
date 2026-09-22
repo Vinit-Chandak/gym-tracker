@@ -10,6 +10,7 @@ import { Section } from "@/components/ui/section";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { ACTIVITY_SPORT_LABELS, type EnduranceSport } from "@/domain/activity";
 import { TEXT_LIMITS } from "@/domain/activity-limits";
+import { keepsFormOnDisconnect } from "@/lib/offline-submit";
 import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
 
 /**
@@ -60,10 +61,13 @@ export function PrescriptionEditor({
   initial: TemplateFormValues;
   submitLabel: string;
 }) {
-  const [state, formAction] = useActionState(action, INITIAL_FORM_STATE);
+  const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
   const value = (key: string): string => state.values?.[key] ?? initial[key] ?? "";
   const [stepKind, setStepKind] = useState(() => value("stepTargetKind") || "none");
-  const units = DISTANCE_UNITS[sport];
+  const [selectedSport, setSelectedSport] = useState(sport);
+  const units = DISTANCE_UNITS[selectedSport];
+  const initialUnit = (key: string) =>
+    units.some((unit) => unit.value === value(key)) ? value(key) : units[0]!.value;
 
   return (
     <form action={formAction} className="space-y-[var(--section-gap)]">
@@ -80,7 +84,8 @@ export function PrescriptionEditor({
                   value: item,
                   label: ACTIVITY_SPORT_LABELS[item],
                 }))}
-                defaultValue={value("sport") || sport}
+                value={selectedSport}
+                onChange={setSelectedSport}
                 columns={sports.length}
               />
             </Field>
@@ -136,10 +141,11 @@ export function PrescriptionEditor({
             </Field>
             <Field group label="Unit">
               <SegmentedControl
+                key={`distance-${selectedSport}`}
                 name="distanceUnit"
                 aria-label="Distance unit"
                 options={units}
-                defaultValue={value("distanceUnit") || units[0]!.value}
+                defaultValue={initialUnit("distanceUnit")}
                 columns={units.length}
               />
             </Field>
@@ -216,10 +222,11 @@ export function PrescriptionEditor({
                     </Field>
                     <Field group label="Unit">
                       <SegmentedControl
+                        key={`step-${selectedSport}`}
                         name="stepDistanceUnit"
                         aria-label="Repetition unit"
                         options={units}
-                        defaultValue={value("stepDistanceUnit") || units[0]!.value}
+                        defaultValue={initialUnit("stepDistanceUnit")}
                         columns={units.length}
                       />
                     </Field>

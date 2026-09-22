@@ -6,6 +6,13 @@
     "dev": "next dev",
     "dev:auth": "node scripts/dev/auth-stub.mjs",
     "dev:seed": "tsx scripts/dev/seed-people.ts",
+    "audit:setup": "node scripts/dev/audit.mjs setup",
+    "audit:auth": "node scripts/dev/audit.mjs auth",
+    "audit:build": "node scripts/dev/audit.mjs build",
+    "audit:start": "node scripts/dev/audit.mjs start",
+    "audit:screens": "node scripts/dev/audit-browser.mjs",
+    "audit:flows": "node scripts/dev/audit-flows.mjs",
+    "audit:db": "node scripts/dev/audit.mjs verify-db",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
@@ -45,7 +52,9 @@
     "zod": "^4.5.4"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@electric-sql/pglite": "^0.5.8",
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4",
     "@testing-library/react": "^16.3.3",
     "@types/node": "^22.20.1",

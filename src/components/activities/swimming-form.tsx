@@ -116,6 +116,8 @@ export function SwimmingForm({
   return (
     <form action={formAction} className="space-y-[var(--section-gap)]">
       <input type="hidden" name="sport" value="swimming" />
+      <input type="hidden" name="outcome" value={values("outcome") || "logged"} />
+      <input type="hidden" name="resourceId" value={values("resourceId")} />
       <ActivityIdentityFields
         submissionKey={submissionKey}
         occurrence={occurrence}
@@ -245,6 +247,13 @@ export function SwimmingForm({
                   {poolUnit === "yd" ? ` · ${formatDistance(derivedMetres, "m", 2)}` : ""}
                 </p>
               )}
+            </>
+          )}
+
+          {environment === "pool" && method !== "lengths" && (
+            <>
+              <input type="hidden" name="poolLengthValue" value={poolLength} />
+              <input type="hidden" name="poolLengthUnit" value={poolUnit} />
             </>
           )}
 

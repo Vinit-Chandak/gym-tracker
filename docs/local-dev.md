@@ -4,6 +4,26 @@ Everything the app needs — Postgres, sign-in, the shared library, three accoun
 training — on this machine, so `next dev` never touches the hosted project. Two long-running
 processes and a one-time database setup.
 
+## Six-account multisport audit
+
+For the complete current release, use the isolated audit runner instead of hand-editing local
+environment files. It creates `overload_audit`, applies migrations/backfills, and seeds six
+accounts with all four sports, scheduled sessions, templates, coaching outcomes and empty states:
+
+```sh
+npm ci
+npx playwright install chromium webkit
+npm run audit:setup
+npm run audit:build
+npm run audit:auth   # keep running in terminal 1
+npm run audit:start  # keep running in terminal 2; http://localhost:3100
+```
+
+Then run `npm run audit:screens`, `npm run audit:flows` and `npm run audit:db`.
+The runner selects only loopback services, leaves `.env.local` untouched and disables external
+coach dispatch. Accounts, configuration and coverage are documented in the
+[22 September flow audit](audits/2026-09-22-flow-audit.md).
+
 ## What stands in for Supabase
 
 | Hosted                        | Local                                                                                     |
@@ -78,17 +98,16 @@ Sign-up on `/signup` works too and makes a fresh account with an empty history.
 
 ## Phone-sized checks without a phone
 
-The Playwright browsers already on this machine (`~/AppData/Local/ms-playwright`) match
-`playwright-core@1.53`. From any scratch directory:
+Install the browser versions matching the repository's Playwright dependency:
 
 ```sh
-npm init -y && npm install playwright-core@1.53.0
+npx playwright install chromium webkit
 ```
 
-then a short script with `devices["iPhone 13"]` or `devices["Pixel 7"]` for the context, sign in
-through `/login`, and `page.screenshot({ fullPage: true })` per route. Check
-`document.documentElement.scrollWidth > clientWidth` on each page: the app should never scroll
-sideways at 320 px.
+`npm run audit:screens` checks the seeded audit app with iPhone 13, Pixel 7, narrow 320 px and
+desktop contexts. It records screenshots, page errors and overflow; Android scans also run Axe.
+`npm run audit:flows` exercises mutations, navigation, drafts, scheduling and PWA behavior in
+Chromium and WebKit. These commands require the audit stack and fixture manifest above.
 
 ## Coaching screens
 

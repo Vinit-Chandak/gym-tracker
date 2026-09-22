@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 import { deleteActivityAction } from "@/server/actions/activities";
+import { attempted, OFFLINE_SUBMIT_MESSAGE } from "@/lib/offline-submit";
 
 /**
  * Deleting says what it will take with it before it takes it: the log, what a follower can
@@ -39,8 +40,12 @@ export function DeleteActivityButton({
             return;
           }
           startTransition(async () => {
-            const result = await deleteActivityAction(activityId);
-            if (result && !result.ok) setError(result.error);
+            const attempt = await attempted(
+              () => deleteActivityAction(activityId),
+              OFFLINE_SUBMIT_MESSAGE,
+            );
+            if (!attempt.ok) setError(attempt.message);
+            else if (attempt.value && !attempt.value.ok) setError(attempt.value.error);
           });
         }}
       >

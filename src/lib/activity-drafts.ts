@@ -106,10 +106,25 @@ function isDraft(value: unknown): value is ActivityDraft {
     draft.schemaVersion === DRAFT_SCHEMA_VERSION &&
     typeof draft.draftId === "string" &&
     typeof draft.userId === "string" &&
+    ["running", "cycling", "swimming"].includes(draft.sport ?? "") &&
     typeof draft.submissionKey === "string" &&
     typeof draft.values === "object" &&
     draft.values !== null &&
-    typeof draft.updatedAt === "string"
+    !Array.isArray(draft.values) &&
+    Object.values(draft.values).every((value) => typeof value === "string") &&
+    (draft.occurrence === null ||
+      (typeof draft.occurrence === "object" &&
+        typeof draft.occurrence.id === "string" &&
+        typeof draft.occurrence.revisionId === "string" &&
+        (draft.occurrence.draftToken === null ||
+          typeof draft.occurrence.draftToken === "string"))) &&
+    (draft.activityId === null || typeof draft.activityId === "string") &&
+    (draft.expectedRevision === null ||
+      (Number.isInteger(draft.expectedRevision) && (draft.expectedRevision ?? -1) >= 0)) &&
+    Array.isArray(draft.dirtyFields) &&
+    draft.dirtyFields.every((field) => typeof field === "string") &&
+    typeof draft.updatedAt === "string" &&
+    Number.isFinite(Date.parse(draft.updatedAt))
   );
 }
 
@@ -128,7 +143,7 @@ export function readDrafts(store: DraftStore, userId: string): ReadDraftsResult 
       quarantined.push(key);
       continue;
     }
-    if (!isDraft(parsed)) {
+    if (!isDraft(parsed) || parsed.userId !== userId || draftKey(userId, parsed.draftId) !== key) {
       quarantine(store, key, raw);
       quarantined.push(key);
       continue;

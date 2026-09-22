@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 
-import { CyclingForm } from "@/components/activities/cycling-form";
+import { ActivityEditor } from "@/components/activities/activity-editor";
 import { OccurrenceSettled } from "@/components/activities/occurrence-settled";
-import { RunningForm } from "@/components/activities/running-form";
-import { SwimmingForm } from "@/components/activities/swimming-form";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { getDb } from "@/db/client";
@@ -17,6 +15,7 @@ import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { getOccurrence } from "@/server/repositories/occurrences";
 import { unitsFor } from "@/server/repositories/sport-preferences";
+import { requireUuid } from "@/server/validation/params";
 
 export const metadata: Metadata = { title: "Log an activity" };
 
@@ -39,6 +38,8 @@ export default async function NewActivityPage(props: PageProps<"/training/new">)
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
   const occurrenceId = single(search.occurrence);
+  if (search.occurrence !== undefined && !occurrenceId) notFound();
+  if (occurrenceId) requireUuid(occurrenceId);
   const occurrence = occurrenceId
     ? await withUser(getDb(), user.id, (tx) => getOccurrence(tx, user.id, occurrenceId), {
         readOnly: true,
@@ -104,21 +105,17 @@ export default async function NewActivityPage(props: PageProps<"/training/new">)
     <>
       <PageHeader title={`Log a ${sportNoun(sport)}`} backHref="/training" />
       <PageContent>
-        {sport === "running" && (
-          <RunningForm {...shared} initial={{ ...initial, environment: "outdoor" }} />
-        )}
-        {sport === "cycling" && (
-          <CyclingForm
-            {...shared}
-            initial={{ ...initial, environment: "outdoor", assistance: "unknown" }}
-          />
-        )}
-        {sport === "swimming" && (
-          <SwimmingForm
-            {...shared}
-            initial={{ ...initial, environment: "pool", distanceMethod: "unknown" }}
-          />
-        )}
+        <ActivityEditor
+          {...shared}
+          userId={user.id}
+          sport={sport}
+          initial={{
+            ...initial,
+            environment: sport === "swimming" ? "pool" : "outdoor",
+            assistance: "unknown",
+            distanceMethod: "unknown",
+          }}
+        />
       </PageContent>
     </>
   );

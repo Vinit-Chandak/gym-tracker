@@ -82,6 +82,7 @@ export function RunningForm({
   return (
     <form action={formAction} className="space-y-[var(--section-gap)]">
       <input type="hidden" name="sport" value="running" />
+      <input type="hidden" name="outcome" value={values("outcome") || "logged"} />
       <ActivityIdentityFields
         submissionKey={submissionKey}
         occurrence={occurrence}

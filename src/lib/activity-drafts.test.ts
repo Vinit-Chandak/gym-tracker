@@ -143,6 +143,26 @@ describe("limits", () => {
 });
 
 describe("what it will not interpret", () => {
+  it.each([
+    { dirtyFields: undefined },
+    { values: { minutes: 30 } },
+    { sport: "strength" },
+    { occurrence: {} },
+    { expectedRevision: -1 },
+    { updatedAt: "not a date" },
+    { userId: BOB },
+    { draftId: "another-draft" },
+  ])("quarantines malformed or misfiled input: %j", (invalid) => {
+    const store = memoryStore();
+    const original = draft(ALICE);
+    const key = draftKey(ALICE, original.draftId);
+    const raw = JSON.stringify({ ...original, ...invalid });
+    store.setItem(key, raw);
+
+    expect(readDrafts(store, ALICE)).toEqual({ drafts: [], quarantined: [key] });
+    expect(readQuarantined(store, ALICE)[0]!.raw).toBe(raw);
+  });
+
   /** AT-LIFE-06: an unreadable draft is set aside with its text, not silently parsed. */
   it("quarantines corrupt and unknown-version drafts", () => {
     const store = memoryStore();

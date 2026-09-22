@@ -36,6 +36,7 @@ import {
   hasActionableRequests,
   listOpenRequests,
   listRequestsForDraft,
+  withdrawProgramRequest,
 } from "./coach-program-requests";
 import { expireCoachDiagnostics, recordAttemptDiagnostics } from "./coach-diagnostics";
 import { coachJobContext } from "./coaching-context";
@@ -991,6 +992,62 @@ it("resumes the same request from an answer, without starting a run", async () =
   );
   expect(note?.text).toContain("right down to the floor");
   expect((await as(a, (tx) => tx.select().from(coachJobs))).length).toBe(before);
+});
+
+it("retries the same answer once, refuses key reuse, and does not withdraw a proposed change", async () => {
+  const a = await training();
+  const source = await noteFrom(a);
+  const id = crypto.randomUUID();
+  const key = crypto.randomUUID();
+  await as(a, (tx) =>
+    tx.insert(coachProgramRequests).values({
+      id,
+      userId: a.user.id,
+      sourceId: `note:${source}`,
+      quote: "More core",
+      summary: "More core",
+      state: "needs_answer",
+    }),
+  );
+  const answer = () => as(a, (tx) => answerProgramRequest(tx, a.user.id, id, "Tuesday", key));
+  await answer();
+  await answer();
+  expect(
+    await as(a, (tx) => tx.select().from(coachNotes).where(eq(coachNotes.requestId, id))),
+  ).toHaveLength(1);
+  expect(
+    await as(a, (tx) =>
+      tx.select().from(coachRequestDecisions).where(eq(coachRequestDecisions.requestId, id)),
+    ),
+  ).toHaveLength(1);
+  await as(a, (tx) =>
+    tx
+      .update(coachProgramRequests)
+      .set({ state: "needs_answer" })
+      .where(eq(coachProgramRequests.id, id)),
+  );
+  await expect(
+    as(a, (tx) => answerProgramRequest(tx, a.user.id, id, "Friday", key)),
+  ).rejects.toThrow(/changed after/);
+  await expect(
+    as(a, (tx) => answerProgramRequest(tx, a.user.id, id, "Friday", source)),
+  ).rejects.toThrow(/changed after/);
+  expect(
+    (
+      await as(a, (tx) =>
+        tx.select().from(coachProgramRequests).where(eq(coachProgramRequests.id, id)),
+      )
+    )[0]?.state,
+  ).toBe("needs_answer");
+  await as(a, (tx) =>
+    tx
+      .update(coachProgramRequests)
+      .set({ state: "proposed" })
+      .where(eq(coachProgramRequests.id, id)),
+  );
+  await expect(as(a, (tx) => withdrawProgramRequest(tx, a.user.id, id))).rejects.toThrow(
+    /already settled/,
+  );
 });
 
 it("leaves no draft to apply when a review changes nothing", async () => {
