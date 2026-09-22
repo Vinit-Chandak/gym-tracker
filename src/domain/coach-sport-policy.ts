@@ -1,5 +1,6 @@
 import type { ActivitySport, EnduranceSport } from "./activity";
 import { expandSteps, type EndurancePrescription } from "./activity-prescription";
+import { jsonEqual } from "./json-equal";
 import { TRAINING_POLICY } from "./training-evidence";
 
 /**
@@ -50,7 +51,16 @@ export type SportChangeAssessment = {
 
 type Range = readonly [number, number];
 
-const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+/**
+ * Content equality, not encoding equality.
+ *
+ * The approved prescription comes out of a `jsonb` column and the proposed one out of the
+ * schema, and those two disagree about what order an object's keys go in. Comparing them by
+ * `JSON.stringify` reported every running block as rewritten — including one echoed back
+ * verbatim — and refused the preparation as a proposal the athlete had to read. See
+ * `jsonEqual`.
+ */
+const same = jsonEqual;
 
 /**
  * Whether a proposed range stays inside what was approved.

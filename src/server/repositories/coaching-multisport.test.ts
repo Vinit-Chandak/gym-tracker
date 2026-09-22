@@ -48,13 +48,23 @@ afterAll(async () => {
 function prescription(
   sport: EnduranceSport,
   durationMs: [number, number] = [30 * MINUTE, 40 * MINUTE],
+  running: Record<string, string | null> | null = null,
 ): EndurancePrescription {
   return endurancePrescriptionSchema.parse({
     prescriptionVersion: 1,
     sport,
     sessionTargets: { durationMs, distanceMetres: null, effort: null },
+    running,
   });
 }
+
+/** The four pieces of running prose an approved run carries. */
+const RUNNING_GUIDANCE = {
+  paceNote: "Conversational",
+  progressionNote: null,
+  symptomStopRule: "Stop if the shin complains.",
+  note: null,
+};
 
 async function athlete() {
   const user = await t.createAuthUser(`${crypto.randomUUID()}@example.test`);
@@ -75,7 +85,13 @@ async function schedule(
   a: Athlete,
   familyId: string,
   programId: string,
-  entries: readonly { sport: EnduranceSport; date: string; week: number; order?: number }[],
+  entries: readonly {
+    sport: EnduranceSport;
+    date: string;
+    week: number;
+    order?: number;
+    running?: Record<string, string | null>;
+  }[],
 ) {
   const lineageBySport = new Map<EnduranceSport, string>();
   for (const entry of entries)
@@ -111,7 +127,7 @@ async function schedule(
           scheduledOn: entry.date,
           scheduledLocalTime: null,
           orderIndex: entry.order ?? index,
-          prescription: prescription(entry.sport),
+          prescription: prescription(entry.sport, undefined, entry.running ?? null),
         })),
       },
     }),
@@ -338,6 +354,77 @@ it("stores a preparation inside the approved range and refuses one outside it", 
   ).rejects.toThrow(PlanValidationError);
 });
 
+/**
+ * COACH-05: an approved running block read back is not an edit to it.
+ *
+ * The approved prescription arrives from a `jsonb` column, which sorts an object's keys, and
+ * the coach's arrives from the schema, which orders them as it declares them. Compared as
+ * strings the two never matched, so every preparation of a run carrying pace, progression or
+ * a stop rule was refused as a proposal — including one that echoed the block back verbatim.
+ * There was no payload that could pass, so the occurrence simply went unprepared.
+ */
+it("prepares a run inside its range without rewriting the approved running block", async () => {
+  const a = await athlete();
+  const created = await programme(a);
+  const [occurrence] = await schedule(a, created.familyId, created.id, [
+    { sport: "running", date: "2026-09-21", week: 2, running: RUNNING_GUIDANCE },
+  ]);
+
+  // What the coach reads back is the stored prescription, key order and all.
+  const [stored] = await as(a, (tx) =>
+    tx
+      .select({ prescription: occurrenceVersions.prescription })
+      .from(occurrenceVersions)
+      .where(eq(occurrenceVersions.id, occurrence!.revisionId!)),
+  );
+  expect(stored!.prescription!.running).toEqual(RUNNING_GUIDANCE);
+
+  const narrowed = {
+    ...stored!.prescription!,
+    sessionTargets: {
+      ...stored!.prescription!.sessionTargets,
+      durationMs: [35 * MINUTE, 35 * MINUTE] as [number, number],
+    },
+  };
+  await as(a, (tx) =>
+    storeOccurrencePlan(tx, a.id, {
+      occurrenceId: occurrence!.id,
+      occurrenceRevisionId: occurrence!.revisionId!,
+      trigger: "nightly",
+      entry: entry(occurrence!, { prescription: narrowed }),
+    }),
+  );
+  const plan = await as(a, (tx) => activePlanForOccurrence(tx, a.id, occurrence!.id));
+  expect(plan?.endurance[0]?.prescription?.sessionTargets.durationMs).toEqual([
+    35 * MINUTE,
+    35 * MINUTE,
+  ]);
+  expect(plan?.endurance[0]?.prescription?.running).toEqual(RUNNING_GUIDANCE);
+});
+
+/** The rule itself stands: the guidance is the athlete's, and rewriting it is theirs to read. */
+it("refuses a preparation that rewrites the approved stop rule", async () => {
+  const a = await athlete();
+  const created = await programme(a);
+  const [occurrence] = await schedule(a, created.familyId, created.id, [
+    { sport: "running", date: "2026-09-21", week: 2, running: RUNNING_GUIDANCE },
+  ]);
+  const rewritten = prescription("running", [30 * MINUTE, 40 * MINUTE], {
+    ...RUNNING_GUIDANCE,
+    symptomStopRule: "Push through it.",
+  });
+  await expect(
+    as(a, (tx) =>
+      storeOccurrencePlan(tx, a.id, {
+        occurrenceId: occurrence!.id,
+        occurrenceRevisionId: occurrence!.revisionId!,
+        trigger: "nightly",
+        entry: entry(occurrence!, { prescription: rewritten }),
+      }),
+    ),
+  ).rejects.toThrow(PlanValidationError);
+});
+
 /** AT-LIFE-08 / §8.4: a target the athlete is logging against is not moved underneath them. */
 it("refuses to prepare an occurrence the athlete has claimed", async () => {
   const a = await athlete();
@@ -435,6 +522,85 @@ it("reads the programme's own sports, including its occurrences", async () => {
   ]);
   const sports = await as(a, (tx) => programmeSports(tx, a.id, created.id));
   expect([...sports].sort()).toEqual(["cycling", "strength", "swimming"]);
+});
+
+/**
+ * §8.4: re-materialising a programme that did not change is not a revision of it.
+ *
+ * The stored prescription and the blueprint's were compared as strings, so a run carrying any
+ * running prose read as changed every single time — the keys came back from `jsonb` in a
+ * different order. Each rescale therefore wrote a pointless new revision and superseded the
+ * preparation waiting on it, quietly throwing away work the athlete was about to be shown.
+ */
+it("carries an unchanged run rather than revising it, keeping its preparation", async () => {
+  const a = await athlete();
+  const created = await programme(a);
+  const [occurrence] = await schedule(a, created.familyId, created.id, [
+    { sport: "running", date: "2026-09-23", week: 2, running: RUNNING_GUIDANCE },
+  ]);
+  await as(a, (tx) =>
+    storeOccurrencePlan(tx, a.id, {
+      occurrenceId: occurrence!.id,
+      occurrenceRevisionId: occurrence!.revisionId!,
+      trigger: "nightly",
+      entry: entry(occurrence!),
+    }),
+  );
+  const lineage = await as(a, (tx) =>
+    tx
+      .select({ lineageId: plannedOccurrences.slotLineageId })
+      .from(plannedOccurrences)
+      .where(eq(plannedOccurrences.id, occurrence!.id)),
+  );
+  const lineageId = lineage[0]!.lineageId!;
+
+  const identical = prescription("running", [30 * MINUTE, 40 * MINUTE], RUNNING_GUIDANCE);
+  const counts = await as(a, (tx) =>
+    materialiseOccurrences(tx, a.id, {
+      programId: created.id,
+      familyId: created.familyId,
+      schedulingZone: "UTC",
+      today: "2026-09-19",
+      transition: "continue",
+      blueprint: {
+        blueprintVersion: 2,
+        slug: "multisport",
+        name: "Multisport",
+        notes: "",
+        startDate: "2026-09-14",
+        schedulingTimeZone: "UTC",
+        weeks: 4,
+        strengthCycle: null,
+        legacy: null,
+        enduranceSlots: [{ lineageId, sport: "running", name: "Run", prescription: identical }],
+        occurrences: [
+          {
+            localId: "local-0",
+            slotLineageId: lineageId,
+            weekIndex: 2,
+            cycleDayIndex: null,
+            scheduledOn: "2026-09-23",
+            scheduledLocalTime: null,
+            orderIndex: 0,
+            prescription: identical,
+          },
+        ],
+      },
+    }),
+  );
+  expect(counts.revised).toBe(0);
+  expect(counts.carried).toBe(1);
+
+  // Same revision, and the preparation written against it is still the athlete's card.
+  const [row] = await as(a, (tx) =>
+    tx
+      .select({ revisionId: plannedOccurrences.currentRevisionId })
+      .from(plannedOccurrences)
+      .where(eq(plannedOccurrences.id, occurrence!.id)),
+  );
+  expect(row!.revisionId).toBe(occurrence!.revisionId);
+  const plan = await as(a, (tx) => activePlanForOccurrence(tx, a.id, occurrence!.id));
+  expect(plan).not.toBeNull();
 });
 
 /** AT-SCHED-09: a revision keeps identity, freezes the past and cancels withdrawn work. */
