@@ -109,6 +109,14 @@ desktop contexts. It records screenshots, page errors and overflow; Android scan
 `npm run audit:flows` exercises mutations, navigation, drafts, scheduling and PWA behavior in
 Chromium and WebKit. These commands require the audit stack and fixture manifest above.
 
+`npm run audit:recovery` exercises the real check-in form and all five recovery charts:
+complete/partial answers, edits, workout completion, date filters, reload and Back, plus
+light/dark accessibility and 320 px layouts. Run once normally and once with
+`AUDIT_DEVICE=iphone` (in PowerShell, `$env:AUDIT_DEVICE = "iphone"`). It uses the local
+Alex and Sam accounts, creates and finishes workouts, and can create Sam's first gym.
+Newly seeded training histories also include complete, energy-only and skipped check-ins;
+rerunning setup leaves existing accounts and their readings intact.
+
 ## Coaching screens
 
 The three accounts have training but no coaching: no proposal to approve, no requests, no

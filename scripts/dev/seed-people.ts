@@ -40,6 +40,7 @@ import {
   addExerciseToSession,
   finishSession,
   logSet,
+  saveCheckIn,
   startAdHocSession,
 } from "@/server/repositories/sessions";
 
@@ -283,9 +284,19 @@ async function main(): Promise<void> {
       if (!createdIds.has(who)) return;
       const gyms = await as(who)((tx) => listGyms(tx, who));
       const gymId = gyms.find((g) => g.slug === "anytime-fitness")!.id;
-      for (const workout of workouts) {
+      for (const [index, workout] of workouts.entries()) {
         const sessionId = await as(who)(async (tx) => {
           const { sessionId } = await startAdHocSession(tx, who, { gymId });
+          // Include complete, partial and skipped answers so Recovery has real trends
+          // and missing values to audit, saved through the same boundary as the form.
+          if (index % 4 !== 3)
+            await saveCheckIn(tx, who, sessionId, {
+              sleepHours: index % 4 === 1 ? null : 6.5 + (index % 3) * 0.5,
+              sleepQuality: index % 4 === 1 ? null : 3 + (index % 3),
+              energy: 2 + (index % 4),
+              fatigue: index % 4 === 1 ? null : 1 + (index % 3),
+              soreness: index % 4 === 1 ? null : 2 + (index % 2),
+            });
           for (const slot of workout.slots) {
             const { workoutExerciseId } = await addExerciseToSession(tx, who, sessionId, {
               exerciseId: exerciseId(slot.slug),

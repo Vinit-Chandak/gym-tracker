@@ -119,6 +119,7 @@ Keep `npm run audit:auth` and `npm run audit:start` running in two terminals, th
 ```sh
 npm run audit:screens
 npm run audit:flows
+npm run audit:recovery
 npm run audit:db
 npm test
 npm run lint
@@ -169,7 +170,8 @@ the cached offline page. Offline draft restoration was also exercised in WebKit.
 
 ## Evidence and remaining release checks
 
-The full Vitest suite passed **1,217 tests in 164 files**. The production build, TypeScript
+The full Vitest suite passed **1,227 tests in 166 files**, including the recovery follow-up.
+The production build, TypeScript
 checking, ESLint and Prettier passed. Text line endings are pinned to LF for consistent
 Windows/Unix formatting checks. Multisport database reconciliation and programme
 schedule invariants reported no findings. The final coach-status narrowing change also
@@ -200,6 +202,48 @@ The previously documented shipped route/API differences in
 Changes/routine editors and programme creation aliases retain their current routes, and the
 legacy API compatibility shape remains. This audit did not reintroduce the removed rollout
 flags or invent a compatibility expiry policy.
+
+## Recovery check-in follow-up
+
+The reported Recovery screen was investigated with local accounts as requested. A regression
+test reproduced a rendering failure: when a chart first mounted with no readings, it never
+attached its size observer after a different metric supplied readings. The values table could
+contain the saved answer while the graph remained absent. The observer now attaches when data
+appears, including repeated empty/populated transitions. A single observation gets one date
+label, and subjective scores use their actual 1–5 scale.
+
+Progress previously derived recovery from the exercise-history sample, which is limited to
+500 workouts. It now reads saved workout check-ins and daily recovery entries directly for
+the requested range. This includes unfinished workouts, preserves missing answers and zero
+hours, keeps multiple same-day check-ins separate, and retains account-local date boundaries
+and row-level ownership. The save path itself successfully persisted all five fields locally;
+this is not a claim that absent historical production answers have been reconstructed.
+
+The Recovery view now has readable metric cards, latest values, range averages based only on
+recorded answers, a graph with an accessible values table, and recent check-ins linking to their
+workouts. It initially selects a measure with data. Specific empty measures and entirely empty
+ranges explain what is missing. The selected Progress section and recovery measure live in
+the URL, so filters, refresh and Back preserve the view.
+
+`npm run audit:recovery` passed **11 checks in Android Chromium and the same 11 in iPhone
+WebKit** against a local production build. Real form submissions verified complete and
+energy-only check-ins, each graph's exact saved value, editing without losing other answers,
+unfinished/finished persistence, invalid-input rejection, empty-range filtering, refresh,
+source-workout Back navigation, and no browser runtime errors. Light/dark scans at phone and
+320 px widths found no remaining overflow or Axe violations after layout/colour transitions
+settled. All five Progress sections also passed a separate selection-and-reload check.
+
+The database tests cover same-day sources, inclusive local-date edges, isolation from other
+accounts and a reading behind 501 newer blank workouts. Component tests preserve decimal
+sleep values, real zero versus missing answers, averages and empty-to-populated rendering.
+All 11 focused tests passed after the final UI refinements.
+
+The seed now saves complete, partial and skipped check-ins through the normal repository.
+A fresh `overload_audit_recovery` database retained six users and the original fixture counts,
+with 22 energy readings and 14 readings for each other recovery measure across the three
+established athletes. Existing-account setup remains non-destructive. Browser results and
+screenshots are in `output/flow-audit/recovery-*`; build/test logs are in
+`output/audit-recovery-*.txt`. These checks use browser emulation, not physical phones.
 
 ## Commit appendix
 

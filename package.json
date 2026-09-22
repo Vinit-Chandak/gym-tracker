@@ -12,6 +12,7 @@
     "audit:start": "node scripts/dev/audit.mjs start",
     "audit:screens": "node scripts/dev/audit-browser.mjs",
     "audit:flows": "node scripts/dev/audit-flows.mjs",
+    "audit:recovery": "node scripts/dev/audit-recovery.mjs",
     "audit:db": "node scripts/dev/audit.mjs verify-db",
     "build": "next build",
     "start": "next start",

@@ -14,6 +14,7 @@ import { listBodyWeights } from "@/server/repositories/body-weight";
 import { getSchedule } from "@/server/repositories/schedule";
 import { readTrainingData } from "@/server/repositories/training-data";
 import { readMuscleVolume } from "@/server/repositories/muscle-volume";
+import { readRecoveryHistory } from "@/server/repositories/recovery-history";
 import { parseDateRangeOrDefault, parseWeekRangeOrDefault } from "@/server/validation/date-range";
 import { ProgressView } from "./progress-view";
 
@@ -38,15 +39,19 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
   const bodyFrom = bodyRange.from;
   const bodyTo = bodyRange.to;
 
-  const [training, schedule, body, bodyWeights, totals] = await withUser(getDb(), user.id, (tx) =>
-    Promise.all([
-      readTrainingData(tx, user.id, range),
-      getSchedule(tx, user.id),
-      readMuscleVolume(tx, user.id, bodyRange),
-      listBodyWeights(tx, user.id, range),
-      // Complete per-sport totals, from the canonical tables every sport is written to.
-      readActivityTotals(tx, user.id, { from: range.from, to: range.to }),
-    ]),
+  const [training, schedule, body, bodyWeights, totals, recovery] = await withUser(
+    getDb(),
+    user.id,
+    (tx) =>
+      Promise.all([
+        readTrainingData(tx, user.id, range),
+        getSchedule(tx, user.id),
+        readMuscleVolume(tx, user.id, bodyRange),
+        listBodyWeights(tx, user.id, range),
+        // Complete per-sport totals, from the canonical tables every sport is written to.
+        readActivityTotals(tx, user.id, { from: range.from, to: range.to }),
+        readRecoveryHistory(tx, user.id, range, profile.timeZone),
+      ]),
   );
   const preferredUnit = profile.preferredUnit === "lb" ? "lb" : "kg";
   const sportTotals =
@@ -94,16 +99,7 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
           sportTotals={sportTotals}
           adherence={liftingAdherence(schedule)}
           weeks={analytics.weeks}
-          recovery={analytics.recovery.map(
-            ({ date, sleep, quality, energy, fatigue, soreness }) => ({
-              date,
-              sleep,
-              quality,
-              energy,
-              fatigue,
-              soreness,
-            }),
-          )}
+          recovery={recovery}
           pace={analytics.pace}
           options={options}
           selected={selected}
