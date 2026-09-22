@@ -16,6 +16,7 @@ import {
   gyms,
   profiles,
   programDrafts,
+  programs,
   workoutExercises,
   workoutSessions,
 } from "@/db/schema";
@@ -840,6 +841,16 @@ it("stops skipping such an account on the daily dispatch", async () => {
       .update(coachPreferences)
       .set({ consentedAt: null, reviewAnchorAt: null })
       .where(eq(coachPreferences.userId, a.user.id)),
+  );
+  // With both columns null the anchor is derived from the programme's start date, and that
+  // date has to be read against the same clock the dispatch runs on. `training()` starts its
+  // programme on a fixed calendar date, so once real time drifted a week past it the derived
+  // anchor was old enough that the ordinary cadence came due, and the review this test is
+  // about was correctly queued as `scheduled` instead. Start the programme three days ago and
+  // the derived path is still the one under test, on any day it is ever run.
+  const startedOn = new Date(Date.now() - 3 * 86_400_000).toISOString().slice(0, 10);
+  await as(a, (tx) =>
+    tx.update(programs).set({ startDate: startedOn }).where(eq(programs.id, a.programId)),
   );
   // The reported symptom: an ask sitting on "waiting for the next daily coach run" while no
   // run that could decide it was ever queued, because the athlete had no interval to read.
