@@ -11,6 +11,7 @@ import {
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import type { EndurancePrescription } from "@/domain/activity-prescription";
+import { jsonEqual } from "@/domain/json-equal";
 import { cycleSlotLineage, unattachedEnduranceLineage } from "@/domain/legacy-multisport";
 import { blueprintV1ToV2, type ProgramBlueprintV2 } from "@/domain/program-blueprint-v2";
 import type { ProgramBlueprint } from "@/domain/program-blueprint";
@@ -220,9 +221,13 @@ export async function materialiseOccurrences(
         counts.frozen++;
         continue;
       }
+      // The stored prescription comes out of `jsonb`, which reorders an object's keys, and the
+      // blueprint's comes out of the schema, which orders them as it declares them. Compared as
+      // strings the two never matched, so every rescale wrote a fresh revision of an unchanged
+      // session and superseded the preparation waiting on it. Compare the content (`jsonEqual`).
       const unchanged =
         current.scheduledOn === occurrence.scheduledOn &&
-        JSON.stringify(current.prescription) === JSON.stringify(occurrence.prescription);
+        jsonEqual(current.prescription, occurrence.prescription);
       if (unchanged) {
         // The slot it belongs to is not part of what it asks for, so correcting one the
         // migration could not place is not a revision and writes no new version.
