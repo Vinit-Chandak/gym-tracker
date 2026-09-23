@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { equipmentTypes, exercises, programExercises } from "@/db/schema";
+import { equipmentTypes, exercises, programExercises, workoutSessions } from "@/db/schema";
 import { seedReferenceData } from "@/db/seed/reference";
 import { seedTestUserData } from "@/db/test/fixtures";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
@@ -627,7 +627,6 @@ describe("progression suggestions", () => {
       saveCheckIn(tx, pUser.id, first.sessionId, {
         sleepHours: 7,
         sleepQuality: 4,
-        energy: 4,
         fatigue: 2,
         soreness: 2,
       }),
@@ -642,7 +641,6 @@ describe("progression suggestions", () => {
       saveCheckIn(tx, pUser.id, second.sessionId, {
         sleepHours: 5,
         sleepQuality: 3,
-        energy: 1,
         fatigue: 5,
         soreness: 2,
       }),
@@ -651,8 +649,26 @@ describe("progression suggestions", () => {
       getSessionDetail(tx, pUser.id, second.sessionId),
     );
     expect(detail?.warnings.map((w) => w.code)).toEqual(["short_sleep", "low_readiness"]);
-    expect(detail?.warnings[1]?.title).toBe("Worst score on energy, fatigue");
+    expect(detail?.warnings[1]?.title).toBe("Worst score on fatigue");
     await discard(second.sessionId);
+  });
+
+  it("keeps an energy answer given before the question was retired, through an edit", async () => {
+    const { sessionId } = await startUpperA(5);
+    // Written the way the check-in wrote it while it still asked.
+    await withUser(t.db, pUser.id, (tx) =>
+      tx.update(workoutSessions).set({ energy: 1 }).where(eq(workoutSessions.id, sessionId)),
+    );
+    // Even a caller that still sends one cannot write it, to a value or to blank.
+    const stale = { sleepHours: 7, sleepQuality: 4, fatigue: 2, soreness: 2, energy: 5 };
+    await withUser(t.db, pUser.id, (tx) => saveCheckIn(tx, pUser.id, sessionId, stale));
+    const detail = await withUser(t.db, pUser.id, (tx) =>
+      getSessionDetail(tx, pUser.id, sessionId),
+    );
+    expect(detail).toMatchObject({ energy: 1, fatigue: 2, sleepHours: 7 });
+    // An answer given is still an answer: the flat day it reported still warns.
+    expect(detail?.warnings.map((w) => w.title)).toEqual(["Worst score on energy"]);
+    await discard(sessionId);
   });
 });
 

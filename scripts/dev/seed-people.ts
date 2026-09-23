@@ -293,8 +293,9 @@ async function main(): Promise<void> {
             await saveCheckIn(tx, who, sessionId, {
               sleepHours: index % 4 === 1 ? null : 6.5 + (index % 3) * 0.5,
               sleepQuality: index % 4 === 1 ? null : 3 + (index % 3),
-              energy: 2 + (index % 4),
-              fatigue: index % 4 === 1 ? null : 1 + (index % 3),
+              // The partial check-in answers fatigue alone, as it answered energy alone before
+              // energy stopped being asked.
+              fatigue: 1 + (index % 3),
               soreness: index % 4 === 1 ? null : 2 + (index % 2),
             });
           for (const slot of workout.slots) {

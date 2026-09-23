@@ -17,7 +17,6 @@ type Props = {
   initial: {
     sleepHours: string;
     sleepQuality: string;
-    energy: string;
     fatigue: string;
     soreness: string;
   };
@@ -27,6 +26,10 @@ type Props = {
  * Pre-session recovery questionnaire. Every reading is optional, and left blank it stays
  * unknown rather than becoming a zero — the recovery rules distinguish the two, and a
  * fabricated reading would speak for somebody who said nothing.
+ *
+ * Energy is not asked. It was fatigue asked again the other way up — 1 flat to 5 fired up
+ * beside 1 fresh to 5 wrecked — and the two answers contradicted each other as often as
+ * not. How you feel is now two scales that read the same way: 1 is fine, 5 is the worst.
  */
 export function CheckInForm({ action, initial }: Props) {
   const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
@@ -62,19 +65,6 @@ export function CheckInForm({ action, initial }: Props) {
 
       <Section title="How you feel">
         <Card>
-          <Field
-            group
-            label="Energy"
-            hint="1 = flat, 5 = fired up"
-            error={state.fieldErrors?.energy}
-          >
-            <SegmentedControl
-              name="energy"
-              options={FIVE}
-              defaultValue={value("energy")}
-              columns={5}
-            />
-          </Field>
           <Field
             group
             label="General fatigue"

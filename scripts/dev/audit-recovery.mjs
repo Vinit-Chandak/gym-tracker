@@ -25,14 +25,14 @@ const sql = postgres(database, { max: 1 });
 const results = [],
   pageErrors = [];
 page.on("pageerror", (error) => pageErrors.push(error.message));
+// Energy is not asked any more; `energy` is read below only to show that nothing writes it.
 const metrics = {
   sleepHours: "Sleep",
   sleepQuality: "Sleep quality",
-  energy: "Energy",
   fatigue: "Fatigue",
   soreness: "Soreness",
 };
-const full = { sleepHours: 7.25, sleepQuality: 4, energy: 5, fatigue: 2, soreness: 1 };
+const full = { sleepHours: 7.25, sleepQuality: 4, fatigue: 2, soreness: 1 };
 const path = () => new URL(page.url()).pathname;
 const go = (route) => page.goto(route, { waitUntil: "networkidle" });
 const choose = (name, value) =>
@@ -128,15 +128,17 @@ try {
   await login("alex");
   const id = await start("alex");
   await check(
-    "All five answers save through the check-in form before workout completion",
+    "All four answers save through the check-in form before workout completion",
     async () => {
+      await go(`/workouts/${id}/check-in`);
+      await expect(page.locator('[name="energy"]')).toHaveCount(0);
       await submit(id, full);
       const [saved] =
         await sql`select sleep_hours, sleep_quality, energy, fatigue, soreness, completed_at from workout_sessions where id=${id}`;
       expect(saved).toMatchObject({
         sleep_hours: "7.25",
         sleep_quality: 4,
-        energy: 5,
+        energy: null,
         fatigue: 2,
         soreness: 1,
         completed_at: null,
@@ -147,6 +149,7 @@ try {
     "Every metric shows the exact saved value in its graph and accessible table",
     async () => {
       await recovery();
+      await expect(page.getByRole("radio", { name: "Energy", exact: true })).toHaveCount(0);
       for (const [key, value] of Object.entries(full)) {
         await metric(key);
         await expect(
@@ -157,42 +160,57 @@ try {
     },
   );
   await check(
-    "Editing energy updates the same check-in without clearing the other answers",
+    "Editing fatigue updates the same check-in without clearing the other answers",
     async () => {
-      await submit(id, { energy: 4 });
+      await submit(id, { fatigue: 4 });
       const [saved] =
         await sql`select sleep_hours, sleep_quality, energy, fatigue, soreness from workout_sessions where id=${id}`;
       expect(saved).toEqual({
         sleep_hours: "7.25",
         sleep_quality: 4,
-        energy: 4,
-        fatigue: 2,
+        energy: null,
+        fatigue: 4,
         soreness: 1,
       });
       await recovery();
-      await metric("energy");
+      await metric("fatigue");
       await expect((await values()).first()).toHaveText("4");
+    },
+  );
+  await check(
+    "An energy answer given before the question was retired survives an edit",
+    async () => {
+      // Written the way the check-in wrote it while it still asked, then edited through the
+      // form that no longer does.
+      await sql`update workout_sessions set energy = 2 where id=${id}`;
+      await submit(id, { soreness: 2 });
+      const [saved] =
+        await sql`select energy, fatigue, soreness from workout_sessions where id=${id}`;
+      expect(saved).toEqual({ energy: 2, fatigue: 4, soreness: 2 });
+      await recovery();
+      await metric("fatigue");
     },
   );
   await check("Recovery selection survives refresh and Back from its source workout", async () => {
     const returnTo = page.url();
     await page.reload({ waitUntil: "networkidle" });
-    await expect(page.getByRole("radio", { name: "Energy", exact: true })).toBeChecked();
+    await expect(page.getByRole("radio", { name: "Fatigue", exact: true })).toBeChecked();
     await page.locator(`main a[href="/workouts/${id}"]`).click();
     await page.waitForURL(`**/workouts/${id}`);
     await page.getByRole("link", { name: /^Back/ }).click();
     await expect(page).toHaveURL(returnTo);
-    await expect(page.getByRole("img", { name: /^Energy,/ })).toBeVisible();
+    await expect(page.getByRole("img", { name: /^Fatigue,/ })).toBeVisible();
   });
   await check("Completing the workout retains every check-in value and chart", async () => {
     await finish(id);
     const [saved] =
-      await sql`select energy, sleep_hours, completed_at from workout_sessions where id=${id}`;
+      await sql`select energy, fatigue, sleep_hours, completed_at from workout_sessions where id=${id}`;
     expect(saved.completed_at).not.toBeNull();
-    expect(saved.energy).toBe(4);
+    expect(saved.energy).toBe(2);
+    expect(saved.fatigue).toBe(4);
     expect(saved.sleep_hours).toBe("7.25");
     await recovery();
-    await metric("energy");
+    await metric("fatigue");
     await expect((await values()).first()).toHaveText("4");
   });
   await check(
@@ -206,8 +224,8 @@ try {
       await expect(page.getByText("No check-ins in this range")).toBeVisible();
       const from = new Date(Date.now() - 80 * 86_400_000).toISOString().slice(0, 10);
       await dates(from, current);
-      await expect(page.getByRole("radio", { name: "Energy", exact: true })).toBeChecked();
-      await expect(page.getByRole("img", { name: /^Energy,/ })).toBeVisible();
+      await expect(page.getByRole("radio", { name: "Fatigue", exact: true })).toBeChecked();
+      await expect(page.getByRole("img", { name: /^Fatigue,/ })).toBeVisible();
     },
   );
   await check(
@@ -266,43 +284,43 @@ try {
   }
   const partialId = await start("sam");
   await check(
-    "An energy-only check-in leaves optional answers null and opens a populated graph",
+    "A fatigue-only check-in leaves optional answers null and opens a populated graph",
     async () => {
-      await submit(partialId, { energy: 4 });
+      await submit(partialId, { fatigue: 4 });
       const [saved] =
         await sql`select sleep_hours, sleep_quality, energy, fatigue, soreness from workout_sessions where id=${partialId}`;
       expect(saved).toEqual({
         sleep_hours: null,
         sleep_quality: null,
-        energy: 4,
-        fatigue: null,
+        energy: null,
+        fatigue: 4,
         soreness: null,
       });
       await recovery();
-      await expect(page.getByRole("radio", { name: "Energy", exact: true })).toBeChecked();
-      await expect(page.getByRole("img", { name: /^Energy,/ })).toBeVisible();
+      await expect(page.getByRole("radio", { name: "Fatigue", exact: true })).toBeChecked();
+      await expect(page.getByRole("img", { name: /^Fatigue,/ })).toBeVisible();
     },
   );
   await check(
-    "Switching from unanswered sleep back to energy draws the graph, including after reload",
+    "Switching from unanswered sleep back to fatigue draws the graph, including after reload",
     async () => {
       await metric("sleepHours");
       await expect(page.getByText(/Sleep was not recorded/)).toBeVisible();
-      await metric("energy");
-      await expect(page.getByRole("img", { name: /^Energy,/ })).toBeVisible();
+      await metric("fatigue");
+      await expect(page.getByRole("img", { name: /^Fatigue,/ })).toBeVisible();
       await page.reload({ waitUntil: "networkidle" });
-      await expect(page.getByRole("img", { name: /^Energy,/ })).toBeVisible();
+      await expect(page.getByRole("img", { name: /^Fatigue,/ })).toBeVisible();
       expect(await (await values()).allTextContents()).not.toContain("0");
     },
   );
-  await check("Invalid hours cannot erase a previously saved energy reading", async () => {
+  await check("Invalid hours cannot erase a previously saved fatigue reading", async () => {
     await go(`/workouts/${partialId}/check-in`);
     await page.locator('[name="sleepHours"]').fill("25");
     await page.getByRole("button", { name: "Save and start", exact: true }).click();
     await expect(page.getByText("Enter a value from 0 to 24.")).toBeVisible();
     expect(
-      (await sql`select sleep_hours, energy from workout_sessions where id=${partialId}`)[0],
-    ).toEqual({ sleep_hours: null, energy: 4 });
+      (await sql`select sleep_hours, fatigue from workout_sessions where id=${partialId}`)[0],
+    ).toEqual({ sleep_hours: null, fatigue: 4 });
     await page.locator('[name="sleepHours"]').fill("");
     await page.getByRole("button", { name: "Save and start", exact: true }).click();
     await page.waitForURL(`**/workouts/${partialId}`);

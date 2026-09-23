@@ -46,6 +46,11 @@ export const workoutSessions = pgTable(
     bodyWeightKg: numeric("body_weight_kg", { precision: 5, scale: 2, mode: "number" }),
     sleepHours: numeric("sleep_hours", { precision: 4, scale: 2, mode: "number" }),
     sleepQuality: integer("sleep_quality"),
+    /**
+     * No longer asked: it was fatigue on a reversed scale. Kept, not dropped, because the
+     * answers already given are real — the coach's evidence and context still read them — and
+     * the check-in never writes it, so an edit cannot blank one (docs/check-in.md).
+     */
     energy: integer("energy"),
     fatigue: integer("fatigue"),
     soreness: integer("soreness"),

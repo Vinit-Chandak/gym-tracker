@@ -437,6 +437,6 @@ export async function coachJobContext(
           : "Explicit asks this attempt must decide. Give each one exactly one decision in requests.decisions, and open any further ask you find in the athlete's notes in requests.open. Anything saved after this snapshot waits for the next daily run.",
     },
     dataMeaning:
-      "The intake's recentTraining is the athlete's own account of what they lift, in prose and approximate: treat it as a starting estimate to be corrected from logged sets, never as a completed workout. Reports can be removed and require the job-scoped download endpoint. Narrative history is bounded with hasMore; aggregate intervals cover all saved records. Unknown equipment load conventions and measurements must stay unknown.",
+      "The intake's recentTraining is the athlete's own account of what they lift, in prose and approximate: treat it as a starting estimate to be corrected from logged sets, never as a completed workout. Reports can be removed and require the job-scoped download endpoint. Narrative history is bounded with hasMore; aggregate intervals cover all saved records. Unknown equipment load conventions and measurements must stay unknown. Check-ins no longer ask for energy, which was fatigue on a reversed scale (1 flat, 5 fired up); only check-ins saved before that change carry it. A null energy is not a skipped question: fatigue (1 fresh, 5 wrecked) is how run-down the athlete says they are.",
   };
 }

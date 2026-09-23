@@ -309,6 +309,9 @@ export async function readCoachingEvidence(
   const sevenDayRuns = running.filter(
     (run) => run.startedAt.getTime() >= end.getTime() - 7 * 86_400_000,
   );
+  // Energy is no longer asked. A check-in from before then still carries it, and a low one is
+  // still the report it was; fatigue at 4 or more is that report on the scale that replaced
+  // it. Nothing new fills energy, so its clause falls out of use as those check-ins age.
   const hasReadinessReason = (record: {
     fatigue: number | null;
     energy: number | null;

@@ -11,8 +11,8 @@ import { finishSession, saveCheckIn, startAdHocSession } from "./sessions";
 
 const zone = "Asia/Kolkata";
 const day = parseDateRange({ from: "2026-09-22", to: "2026-09-22" }, zone);
-const full = { sleepHours: 7.25, sleepQuality: 4, energy: 5, fatigue: 2, soreness: 1 };
-const partial = { sleepHours: 0, sleepQuality: null, energy: 3, fatigue: null, soreness: null };
+const full = { sleepHours: 7.25, sleepQuality: 4, fatigue: 2, soreness: 1 };
+const partial = { sleepHours: 0, sleepQuality: null, fatigue: 3, soreness: null };
 let t: TestDatabase, alice: { id: string; email: string }, bob: { id: string; email: string };
 let gymId: string, sessionId: string;
 
@@ -35,7 +35,7 @@ afterAll(async () => {
   await t.close();
 });
 
-it("reads all five saved answers before finishing, edits the same reading, and retains it after finishing", async () => {
+it("reads every saved answer before finishing, edits the same reading, and retains it after finishing", async () => {
   const read = () => withUser(t.db, alice.id, (tx) => readRecoveryHistory(tx, alice.id, day, zone));
   expect(await read()).toEqual([]);
   await withUser(t.db, alice.id, (tx) => saveCheckIn(tx, alice.id, sessionId, full));
@@ -81,9 +81,15 @@ it("uses inclusive account-local dates, keeps same-day sources separate, and ign
   );
   expect(result).toHaveLength(3);
   expect(result.every((reading) => reading.date === day.from)).toBe(true);
+  // An energy saved before the check-in stopped asking it is read as it always was.
   expect(
-    result.filter((reading) => reading.source === "workout").map((reading) => reading.energy),
-  ).toEqual([3, 4]);
+    result
+      .filter((reading) => reading.source === "workout")
+      .map((reading) => [reading.energy, reading.fatigue]),
+  ).toEqual([
+    [null, 3],
+    [4, null],
+  ]);
   expect(result.find((reading) => reading.source === "daily")).toMatchObject({
     sleepHours: 8,
     sleepQuality: 5,

@@ -213,10 +213,11 @@ const optionalNumber = (min: number, max: number, integer: boolean) =>
       .nullable(),
   );
 
+// No energy: the check-in no longer asks it, and leaving it out of the write is what keeps an
+// answer given before then from being blanked by an edit.
 const checkInSchema = z.object({
   sleepHours: optionalNumber(0, 24, false),
   sleepQuality: optionalNumber(1, 5, true),
-  energy: optionalNumber(1, 5, true),
   fatigue: optionalNumber(1, 5, true),
   soreness: optionalNumber(1, 5, true),
 });

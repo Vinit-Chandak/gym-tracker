@@ -26,7 +26,7 @@ uncached JSON; TLS is provided by the deployment.
 | `/api/coach/workouts`              | Sessions (including unfinished ones), gym, prescribed day, check-in, actual exercise slots, machine identity and raw sets                                         |
 | `/api/coach/exercises/:id/history` | Exercise metadata and performances, session completion timestamp, gym, equipment and raw sets                                                                     |
 | `/api/coach/running`               | Raw runs, distance, duration, derived pace, mode, RPE and symptoms                                                                                                |
-| `/api/coach/recovery`              | Daily recovery and workout check-ins: sleep, quality, energy, fatigue and soreness                                                                                |
+| `/api/coach/recovery`              | Daily recovery and workout check-ins: sleep, quality, fatigue and soreness; `energy` only on check-ins saved before the check-in stopped asking it                |
 | `/api/coach/program/current`       | Current immutable programme version, days, exercise prescriptions, fallbacks, warm-ups and running targets; `null` when no programme is active                    |
 
 Every response includes `version: 1`, `timeZone`, `from`, `to` and `generatedAt`. Dates are
