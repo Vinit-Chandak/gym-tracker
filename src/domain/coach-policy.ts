@@ -11,7 +11,7 @@ import { COACH_POLICY_VERSION } from "./coaching-workflow";
  */
 export const COACH_POLICY = {
   version: COACH_POLICY_VERSION,
-  reviewedOn: "2026-09-19",
+  reviewedOn: "2026-09-23",
   scope:
     "General strength, muscle, basic running and hybrid training. Population evidence is not an individualized optimum.",
   rules: [
@@ -61,7 +61,7 @@ export const COACH_POLICY = {
       id: "evidence",
       tasks: ["create_program", "prepare_session", "review_program"],
       kind: "coaching_principle",
-      rule: "Separate completed logs, the athlete's self-reported training, estimates and missing data. Compare matching exercise/measurement/load convention and the same machine when load is not portable. Retain timestamps, units and source IDs. Primary sets plus half secondary credit is an accounting heuristic, not a measured biological dose.",
+      rule: "Separate completed logs, the athlete's self-reported training, estimates and missing data. Compare matching exercise and measurement, and the same machine when load is not portable: a stack's numbers compare with themselves and with no other machine. Retain timestamps, units and source IDs. Primary sets plus half secondary credit is an accounting heuristic, not a measured biological dose.",
     },
     {
       id: "windows_and_confirmation",
@@ -73,7 +73,7 @@ export const COACH_POLICY = {
       id: "bounded_changes",
       tasks: ["prepare_session", "review_program"],
       kind: "engineering_default",
-      rule: "Load steps up: at most +5% or one real increment of that equipment, whichever is larger, so the only step a light lift has is never forbidden; 14-day cumulative the same way from +10%. Load steps down keep the plain -10% and -15%: where no small enough cut exists, hold and send a genuine decline to review. Weekly sets: at most one set and 25% per exercise, 20% total, including cumulative changes. Rep targets go up by at most two inside the prescribed range, or straight to the top of the range when the last two comparable sessions attained it at the prescribed effort; they come down one rep at a time and only on the confirmed decline test. Time/distance steps at most 10%. Runs: at most 10% for each of duration and distance, with a 14-day cumulative check and a 30-day longest-distance check. These are initial review thresholds, not research-proven optima or injury guarantees. Match dose and effort targets to the athlete's goal when writing the programme; do not treat these ceilings as the place to express a goal. At home use confirmed availableLoads and loadConvention; an infeasible jump means hold or propose a feasible variation.",
+      rule: "A load step is one real step on that same machine, read from the slot's machine.steps: harder and easier from each load last used. On a pin or cable stack a step is `known` (a weight that exists on it), `learned` (the gap between the two nearest known weights carried one further, a guess until lifted) or null (nobody knows; hold the load, progress reps, or leave the load to the athlete). Plates and free weights step by their typed increment. On an assisted machine (machine.assisted) a lower number is harder: less help is the progression and more help the cut. Steps harder: at most +5% or one real step, whichever is larger, so the only step a lift has is never forbidden; 14-day cumulative the same way from +10%. Steps easier keep the plain -10% and -15%: where no small enough cut exists, hold and send a genuine decline to review. Weekly sets: at most one set and 25% per exercise, 20% total, including cumulative changes. Rep targets go up by at most two inside the prescribed range, or straight to the top of the range when the last two comparable sessions attained it at the prescribed effort; they come down one rep at a time and only on the confirmed decline test. Time/distance steps at most 10%. Runs: at most 10% for each of duration and distance, with a 14-day cumulative check and a 30-day longest-distance check. These are initial review thresholds, not research-proven optima or injury guarantees. Match dose and effort targets to the athlete's goal when writing the programme; do not treat these ceilings as the place to express a goal. At home only a `known` load will do; an unknown or infeasible step means hold or propose a feasible variation.",
     },
     {
       id: "temporary",

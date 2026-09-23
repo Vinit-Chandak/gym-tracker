@@ -13,6 +13,7 @@ import { canConvertLoad, convertLoad, setInUnit } from "@/lib/units";
 
 import type { programExercises } from "@/db/schema";
 import { summarizeExerciseEvidence, TRAINING_POLICY } from "@/domain/training-evidence";
+import { difficultyChange, harderAllowance, type LoadLadder } from "@/domain/load-steps";
 import { todayInTimeZone } from "@/domain/program-calendar";
 
 export type RuleInput = {
@@ -33,9 +34,9 @@ export type RuleInput = {
     id: string;
     unit: LoadUnit;
     loadIncrement: number | null;
-    availableLoads?: number[];
-    loadConvention?: string;
   } | null;
+  /** The machine's loads (ADR 0028); null or absent steps by the increment alone. */
+  ladder?: LoadLadder | null;
   locationKind?: string;
   timeZone?: string;
   preferredUnit?: "kg" | "lb";
@@ -127,18 +128,10 @@ export function applyRule(input: RuleInput): RuleOutcome {
       (rule && "loadIncrement" in rule ? rule.loadIncrement : null) ?? input.planned?.loadIncrement;
     if (increment != null) prescription.loadIncrement = convertLoad(increment, "kg", unit);
   }
+  const ladder = input.equipment ? (input.ladder ?? null) : null;
   if (prescription) {
-    prescription.availableLoads = input.equipment?.availableLoads;
-    prescription.requireConfirmedLoads = input.locationKind === "home";
-    if (prescription.requireConfirmedLoads && input.equipment?.loadConvention === "unknown")
-      prescription.availableLoads = [];
-    if (
-      input.equipment &&
-      ["assistance", "stack_label"].includes(input.equipment.loadConvention ?? "")
-    ) {
-      prescription.requireConfirmedLoads = true;
-      prescription.availableLoads = [];
-    }
+    prescription.ladder = ladder;
+    prescription.requireKnownLoads = input.locationKind === "home";
   }
   const evidenceHistory = basisHistory.map((h) => ({
     ...h,
@@ -179,7 +172,8 @@ export function applyRule(input: RuleInput): RuleOutcome {
         old?.weight != null &&
         old.weight > 0 &&
         set.weight != null &&
-        set.weight / old.weight - 1 > TRAINING_POLICY.maxCumulativeLoadIncrease + 1e-9
+        difficultyChange(ladder, old.weight, set.weight) >
+          harderAllowance(TRAINING_POLICY.maxCumulativeLoadIncrease, old.weight, ladder) + 1e-9
       );
     })
   )
