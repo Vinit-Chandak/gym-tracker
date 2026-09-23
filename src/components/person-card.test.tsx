@@ -27,7 +27,7 @@ it("opens your own page from the avatar and the name on your Profile card", () =
   expect(avatar?.getAttribute("tabindex")).toBe("-1");
   // The counts stay links of their own, and no link sits inside another.
   expect(screen.getByRole("link", { name: "3 followers" }).getAttribute("href")).toBe(
-    "/profile/friends?people=followers",
+    "/profile/friends/people?people=followers",
   );
   expect(container.querySelector("a a")).toBeNull();
 });

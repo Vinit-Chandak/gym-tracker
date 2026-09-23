@@ -11,7 +11,7 @@ export type PersonCounts = { followers: number; following: number };
  * The header card: what a friend sees of a person (ADR 0026), and the same card on your own
  * Profile tab. Avatar, name, handle, the two counts, then whatever the screen puts under it:
  * Edit profile on your tab, the follow button on someone else's page. On your own tab the
- * counts open the matching list on the Friends page; on anyone else's they are plain.
+ * counts open the matching list on the People page; on anyone else's they are plain.
  *
  * Given an `href`, the avatar and the name lead there: on your tab, to the page a follower
  * sees. The counts stay links of their own beside it, never inside it.
@@ -73,13 +73,13 @@ export function PersonCard<T extends string>({
             {countsLinkToFriends ? (
               <>
                 <Link
-                  href="/profile/friends?people=followers"
+                  href="/profile/friends/people?people=followers"
                   className="underline-offset-2 hover:underline"
                 >
                   {followers}
                 </Link>
                 <Link
-                  href="/profile/friends?people=following"
+                  href="/profile/friends/people?people=following"
                   className="underline-offset-2 hover:underline"
                 >
                   {following}

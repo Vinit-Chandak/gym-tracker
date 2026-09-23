@@ -2,7 +2,6 @@ import { and, count, desc, eq, gte, isNotNull, lt, lte, max, ne, sql, sum } from
 import {
   coachIntakes,
   coachWeeklyReviews,
-  equipmentInstances,
   exercises,
   programDrafts,
   activities,
@@ -33,7 +32,7 @@ import {
   getCoachingPreferences,
   sourceRevision,
 } from "./coaching-state";
-import { getCoachMemo, libraryAtGym, planningContext } from "./coach-plans";
+import { getCoachMemo, planningContext } from "./coach-plans";
 import { listCoachAttachments } from "./coach-attachments";
 import { listGyms } from "./gyms";
 import { getSchedule } from "./schedule";
@@ -259,15 +258,13 @@ export async function coachJobContext(
     readCoachingEvidence(db, userId, job.target.programId, evidenceEnd),
   ]);
   /**
-   * The location this job's context describes.
+   * The location this job's lookups default to (ADR 0029).
    *
    * A session preparation names its gym, and a first programme takes the one the athlete
-   * confirmed at intake. A weekly review names neither, and with no confirmed intake behind
-   * it that used to leave both `catalogue` and `equipment` empty: the review was asked to
-   * judge a programme while being told the athlete owns no equipment and can perform no
-   * exercise, which is not sparse context but wrong context — and nothing said so, because an
-   * empty list reads exactly like a gym with nothing in it. The athlete's default active gym
-   * answers for them when the job does not, which is the same gym Today trains them at.
+   * confirmed at intake. A weekly review names neither, and the athlete's default active gym
+   * answers for them, which is the same gym Today trains them at. The library and the
+   * machines are not sent: the coach looks up what it needs, at this location or any other
+   * one in `locations`, while it works.
    */
   const targetGymId = job.target.gymId ?? intake?.answers.gymId ?? null;
   const equipmentGymId =
@@ -275,21 +272,6 @@ export async function coachJobContext(
     locations.find((gym) => gym.isActive && gym.isDefault)?.id ??
     locations.find((gym) => gym.isActive && gym.kind === "gym")?.id ??
     null;
-  const [catalogue, equipment] = equipmentGymId
-    ? await Promise.all([
-        libraryAtGym(db, userId, equipmentGymId),
-        db
-          .select()
-          .from(equipmentInstances)
-          .where(
-            and(
-              eq(equipmentInstances.userId, userId),
-              eq(equipmentInstances.gymId, equipmentGymId),
-              eq(equipmentInstances.isActive, true),
-            ),
-          ),
-      ])
-    : [[], []];
   const period =
     job.target.reviewStart && job.target.reviewEnd
       ? await trainingPeriodSummary(
@@ -299,10 +281,19 @@ export async function coachJobContext(
           new Date(job.target.reviewEnd),
         )
       : null;
-  const nextSession =
+  const planning =
     job.kind === "prepare_session"
       ? await planningContext(db, userId, { gymId: targetGymId ?? undefined })
       : null;
+  // Each slot already names its machine and its next loads; the library and the gym's
+  // machine list are lookups (ADR 0029), not a second copy of what the context left out.
+  const nextSession =
+    planning && planning.reason === null
+      ? (({ library: _library, gym, ...rest }) => ({
+          ...rest,
+          gym: (({ machines: _machines, ...place }) => place)(gym),
+        }))(planning)
+      : planning;
   // A proposal the athlete can no longer approve is not an answer, so those asks go back on
   // the list before this attempt is told what it owes an outcome.
   await reopenOrphanedRequests(db, userId, now);
@@ -391,13 +382,16 @@ export async function coachJobContext(
         : attachments,
     locations: locations.filter((g) => g.isActive),
     /**
-     * The location `equipment` and `catalogue` describe. It is the job's own gym where the
-     * job names one, and the athlete's default otherwise — a weekly review names none, and it
-     * still has to know what the athlete can actually train on.
+     * The location to look things up at: the job's own gym where it names one, the athlete's
+     * default otherwise — a weekly review names none, and it still has to know what the
+     * athlete can actually train on. Null only when the athlete has no active location.
      */
     equipmentGymId,
-    equipment,
-    catalogue,
+    lookups: {
+      meaning:
+        "The exercise library and each location's machines are not in this context. Look them up while you work, with this job's attempt: `workflow.ts exercises` searches the shared library and the athlete's own exercises by the athlete's own words (and by muscle or pattern), with availability at a location when you pass --gym; `workflow.ts machines --gym` lists a location's machines with their known loads. Search before you ask the athlete what an exercise is called, and before you say one is missing. An empty search means the library has no match, never that the athlete has no exercises.",
+      defaultGymId: equipmentGymId,
+    },
     warmups,
     program,
     nextSession,

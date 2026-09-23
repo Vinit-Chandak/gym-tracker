@@ -5,10 +5,12 @@ import type { CoachJobResult, JobTarget } from "@/domain/coaching-workflow";
 import type { ProgramBlueprint } from "@/domain/program-blueprint";
 import { isAthleteTextSource, type AthleteSource } from "@/domain/coach-memory";
 import { assessProgramChange, type ExerciseMuscleReference } from "@/domain/program-change";
-import { TRAINING_POLICY, upwardLoadAllowance } from "@/domain/training-evidence";
+import { TRAINING_POLICY } from "@/domain/training-evidence";
+import { difficultyChange, harderAllowance } from "@/domain/load-steps";
 import type { CoachingEvidence } from "./coaching-evidence";
 import { athleteMemorySources, existingEvidenceIds } from "./coach-memory";
 import { planningContext } from "./coach-plans";
+import { loadLadders } from "./load-ladders";
 import { CoachingError } from "./coaching-state";
 import { canConvertLoad, convertLoad } from "@/lib/units";
 
@@ -289,6 +291,17 @@ export async function assessSessionEvidence(
     .select()
     .from(equipmentInstances)
     .where(and(eq(equipmentInstances.userId, userId), eq(equipmentInstances.gymId, target.gymId!)));
+  // Each named machine's loads (ADR 0028): what a step is on it, and which way is harder.
+  const ladders = await loadLadders(
+    db,
+    userId,
+    result.plan.exercises.flatMap((entry) =>
+      entry.equipmentInstanceId &&
+      locations.some((machine) => machine.id === entry.equipmentInstanceId)
+        ? [entry.equipmentInstanceId]
+        : [],
+    ),
+  );
   const intakes = await db
     .select()
     .from(coachIntakes)
@@ -422,6 +435,9 @@ export async function assessSessionEvidence(
           set.weight === null ? [] : [{ index, load: set.weight }],
         );
       const baselineLoad = baselineLoads[0]?.load ?? trend?.comparison.load;
+      const ladder = entry.equipmentInstanceId
+        ? (ladders.get(entry.equipmentInstanceId) ?? null)
+        : null;
       const proposedLoads: { index: number; load: number }[] = [];
       const baselineTargets: number[] = [],
         proposedTargets: number[] = [];
@@ -480,7 +496,11 @@ export async function assessSessionEvidence(
           const setBaseline =
             baselineLoads.find((item) => item.index === index)?.load ?? baselineLoad;
           const loadIncreases =
-            set.weight != null && setBaseline != null && set.weight > setBaseline + 0.05;
+            set.weight != null &&
+            setBaseline != null &&
+            setBaseline > 0 &&
+            Math.abs(set.weight - setBaseline) >= 0.05 &&
+            difficultyChange(ladder, setBaseline, set.weight) > 0;
           if (
             !equipmentChange &&
             value !== null &&
@@ -525,18 +545,16 @@ export async function assessSessionEvidence(
             continue;
           }
           proposedLoads.push({ index, load: set.weight });
-          const machine = locations.find((item) => item.id === entry.equipmentInstanceId);
           const sameLoad = setBaseline != null && Math.abs(set.weight - setBaseline) < 0.05;
+          // At home only a load known to exist on that equipment will do: listed, or lifted.
           if (
             context.gym.kind === "home" &&
             set.weight > 0 &&
             !sameLoad &&
-            (!machine ||
-              machine.loadConvention === "unknown" ||
-              !machine.availableLoads.includes(set.weight))
+            !ladder?.known.some((load) => Math.abs(load - set.weight!) < 0.005)
           )
             plan.note(
-              `${entry.exerciseSlug}: confirm this available home load and its convention, or use an unknown-load calibration target.`,
+              `${entry.exerciseSlug}: use a load this home equipment is known to have, or an unknown-load calibration target.`,
             );
           if (setBaseline == null || setBaseline <= 0) {
             if (set.weight === 0) continue;
@@ -547,23 +565,16 @@ export async function assessSessionEvidence(
             continue;
           }
           if (sameLoad) continue;
-          if (
-            machine &&
-            ["assistance", "stack_label", "unknown"].includes(machine.loadConvention) &&
-            !temporary
-          )
-            plan.note(
-              `${entry.exerciseSlug}: this load convention needs calibration or review before automatic load changes.`,
-            );
-          const delta = set.weight / setBaseline - 1;
+          // Positive is harder. On an assisted machine that is less help, so a step down the
+          // number is the progression and a step up it is the cut (ADR 0028).
+          const delta = difficultyChange(ladder, setBaseline, set.weight);
           if (temporary && delta > 0)
-            plan.note("A temporary recovery adjustment cannot increase load.");
-          // The percentage or one real increment of this machine, whichever is larger, so the only
-          // step a light lift has is never the step that is forbidden.
+            plan.note("A temporary recovery adjustment cannot make the load harder.");
+          // The percentage or one real step of this machine, whichever is larger, so the only
+          // step a lift has is never the step that is forbidden.
           if (
             !temporary &&
-            (delta >
-              upwardLoadAllowance(TRAINING_POLICY.maxLoadIncrease, setBaseline, machine) + 1e-9 ||
+            (delta > harderAllowance(TRAINING_POLICY.maxLoadIncrease, setBaseline, ladder) + 1e-9 ||
               delta < -TRAINING_POLICY.maxLoadReduction - 1e-9)
           )
             plan.note(
@@ -582,14 +593,10 @@ export async function assessSessionEvidence(
             .at(-1);
           const originalLoad = originalPerformance?.loadProfile[index];
           if (!temporary && originalLoad != null && originalLoad > 0) {
-            const totalChange = set.weight / originalLoad - 1;
+            const totalChange = difficultyChange(ladder, originalLoad, set.weight);
             if (
               totalChange >
-                upwardLoadAllowance(
-                  TRAINING_POLICY.maxCumulativeLoadIncrease,
-                  originalLoad,
-                  machine,
-                ) +
+                harderAllowance(TRAINING_POLICY.maxCumulativeLoadIncrease, originalLoad, ladder) +
                   1e-9 ||
               totalChange < -TRAINING_POLICY.maxCumulativeLoadReduction - 1e-9
             )
@@ -615,11 +622,10 @@ export async function assessSessionEvidence(
           const original = earliest?.before.loads?.find((item) => item.index === index);
           if (!temporary && original && original.load > 0) {
             const from = convertLoad(original.load, earliest!.unit!, unit);
-            const cumulative = set.weight / from - 1;
+            const cumulative = difficultyChange(ladder, from, set.weight);
             if (
               cumulative >
-                upwardLoadAllowance(TRAINING_POLICY.maxCumulativeLoadIncrease, from, machine) +
-                  1e-9 ||
+                harderAllowance(TRAINING_POLICY.maxCumulativeLoadIncrease, from, ladder) + 1e-9 ||
               cumulative < -TRAINING_POLICY.maxCumulativeLoadReduction - 1e-9
             )
               plan.note(
@@ -642,7 +648,9 @@ export async function assessSessionEvidence(
             ? "temporary"
             : count < p.sets ||
                 reducedTarget ||
-                (changedLoad !== undefined && changedLoad < (baselineLoad ?? 0))
+                (changedLoad !== undefined &&
+                  (baselineLoad ?? 0) > 0 &&
+                  difficultyChange(ladder, baselineLoad!, changedLoad) < 0)
               ? "reduction"
               : "progression",
           unit,

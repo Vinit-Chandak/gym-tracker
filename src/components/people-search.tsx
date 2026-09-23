@@ -16,7 +16,14 @@ export const PEOPLE_SEARCH_DELAY_MS = 350;
  * button in the state that applies. A query with `@` is an exact email; anything else is the
  * start of a username or of a word in a name. Results are an action's reply, kept here.
  */
-export function PeopleSearch({ autoFocus = false }: { autoFocus?: boolean }) {
+export function PeopleSearch({
+  autoFocus = false,
+  labelHidden = false,
+}: {
+  autoFocus?: boolean;
+  /** For a page whose title already says "Find people". */
+  labelHidden?: boolean;
+}) {
   const [query, setQuery] = useState("");
   const [answer, setAnswer] = useState<{ query: string; people: PersonResult[] } | null>(null);
   const trimmed = query.trim();
@@ -39,7 +46,7 @@ export function PeopleSearch({ autoFocus = false }: { autoFocus?: boolean }) {
 
   return (
     <div className="space-y-3">
-      <Field label="Find people" hint="Username or email.">
+      <Field label="Find people" hint="Username or email." labelHidden={labelHidden}>
         <Input
           type="search"
           name="query"

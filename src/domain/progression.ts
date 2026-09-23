@@ -1,4 +1,5 @@
 import type { LoadUnit, PrescriptionType, ProgressionRule, SetType } from "./types";
+import { difficultyChange, stepEasier, stepHarder, type LoadLadder } from "./load-steps";
 import {
   summarizeExerciseEvidence,
   TRAINING_POLICY,
@@ -45,9 +46,24 @@ export type Prescription = {
   /** Smallest load jump for this exercise on this equipment, already resolved. */
   loadIncrement: number;
   unit: LoadUnit;
-  availableLoads?: readonly number[];
-  requireConfirmedLoads?: boolean;
+  /**
+   * The machine's loads (ADR 0028). Absent for free weights and bodyweight, which step by
+   * `loadIncrement`; a stack steps along what has been lifted on it.
+   */
+  ladder?: Omit<LoadLadder, "increment"> | null;
+  /** At home only a load known to exist may be prescribed, never a step worked out. */
+  requireKnownLoads?: boolean;
 };
+
+/** The ladder the engine steps along: the machine's, or the plain increment. */
+export function prescriptionLadder(prescription: Prescription): LoadLadder {
+  return {
+    known: prescription.ladder?.known ?? [],
+    stack: prescription.ladder?.stack ?? false,
+    assisted: prescription.ladder?.assisted ?? false,
+    increment: prescription.loadIncrement > 0 ? prescription.loadIncrement : null,
+  };
+}
 
 export type PerformedSet = {
   setIndex: number;
@@ -343,34 +359,45 @@ export function suggestNext(
       ),
     };
   if (candidate.kind === "increase" || candidate.kind === "reduce") {
-    const direction = candidate.kind === "increase" ? 1 : -1;
+    // One real step along the machine's own loads: the next stop on a stack, the typed jump
+    // on plates and free weights. Every working set moves one stop from where it was, so a
+    // pyramid stays a pyramid, and an assisted machine gets harder by giving less help.
+    const harder = candidate.kind === "increase";
+    const ladder = prescriptionLadder(prescription);
+    let unknown = false;
+    let tooFar = false;
     const targetSets = candidate.sets.map((set) => {
       const old = working.find((item) => item.setIndex === set.setIndex);
-      if (!old || old.weight == null || old.weight <= 0) return set;
-      const loads = [...(prescription.availableLoads ?? [])].sort((a, b) => a - b);
-      const selectable =
-        direction > 0
-          ? loads.find((load) => load > old.weight!)
-          : loads.filter((load) => load < old.weight!).pop();
-      return selectable === undefined ? set : { ...set, weight: selectable };
+      if (!old) return set;
+      if (old.weight == null || old.weight <= 0) {
+        unknown = true;
+        return set;
+      }
+      const step = harder ? stepHarder(ladder, old.weight) : stepEasier(ladder, old.weight);
+      if (!step || (prescription.requireKnownLoads && step.source !== "known")) {
+        unknown = true;
+        return set;
+      }
+      if (
+        !harder &&
+        -difficultyChange(ladder, old.weight, step.load) > TRAINING_POLICY.maxLoadReduction + 1e-9
+      )
+        tooFar = true;
+      return { ...set, weight: step.load };
     });
-    const invalid = targetSets.some((set) => {
-      const old = working.find((item) => item.setIndex === set.setIndex);
-      if (!old) return false;
-      if (old.weight == null || old.weight <= 0 || set.weight == null) return true;
-      const relative = Math.abs(set.weight / old.weight - 1);
-      return (
-        relative >
-          (direction > 0 ? TRAINING_POLICY.maxLoadIncrease : TRAINING_POLICY.maxLoadReduction) +
-            1e-9 ||
-        (!!prescription.requireConfirmedLoads &&
-          !(prescription.availableLoads ?? []).includes(set.weight))
-      );
-    });
-    if (invalid)
+    if (unknown)
       return hold(
-        "Keep the current load; the next available jump needs review.",
-        "Confirm available weights and the load convention. Progress reps within the range or review a feasible variation.",
+        prescription.requireKnownLoads
+          ? "Keep the current load; the next one is not a weight you have listed for this machine."
+          : "Keep the current load; the next weight on this machine is not known yet.",
+        prescription.ladder?.stack
+          ? "Enter the next weight up under the exercise once your sets are done, or add reps within the range."
+          : "Add reps within the range, or list the weights this equipment has.",
+      );
+    if (tooFar)
+      return hold(
+        "Keep the current load; the next lighter step is more than the automatic cut.",
+        "Repeat the planned range; a larger reduction needs a coach review.",
       );
     candidate = { ...candidate, sets: targetSets };
   }

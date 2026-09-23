@@ -47,6 +47,7 @@ import {
   requeueCoachJob,
 } from "./coaching-jobs";
 import { coachJobContext } from "./coaching-context";
+import { assertLiveAttempt, lookupExercises } from "./coach-lookups";
 import {
   activateProgramDraft,
   getProgramDraft,
@@ -358,7 +359,23 @@ it.each(["bodyweight-squat", "goblet-squat"])(
     expect(next.exercises[0]!.slotId).toBeTruthy();
     expect(next.exercises[0]!.atThisGym.status).toBe("direct");
     expect(next.exercises[0]!.atThisGym.machine?.id ?? null).toBe(equipmentInstanceId);
-    expect(ctx.catalogue.find((e) => e.slug === "high-bar-squat")?.available).toBe(false);
+    // The library and the machines are looked up by the live attempt, not sent (ADR 0029).
+    expect("catalogue" in ctx || "equipment" in ctx).toBe(false);
+    expect("library" in next || "machines" in next.gym).toBe(false);
+    expect(ctx.lookups.defaultGymId).toBe(a.gym.id);
+    const found = await as(a, async (tx) => {
+      await assertLiveAttempt(tx, a.user.id, prep!.job.id, claim!.attemptId!);
+      return lookupExercises(tx, a.user.id, {
+        q: "high bar squats",
+        gymId: a.gym.id,
+        limit: 5,
+        offset: 0,
+      });
+    });
+    expect(found.items[0]).toMatchObject({ slug: "high-bar-squat", available: false });
+    await expect(
+      as(a, (tx) => assertLiveAttempt(tx, a.user.id, prep!.job.id, crypto.randomUUID())),
+    ).rejects.toThrow(/current claimed attempt/);
     const plan = {
       summary: "Continue the home programme.",
       exercises: [

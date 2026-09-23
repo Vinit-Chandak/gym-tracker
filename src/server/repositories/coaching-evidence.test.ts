@@ -224,7 +224,7 @@ it("permits a supported small home step and rejects an infeasible or excessive j
     });
     await expect(
       assessSessionEvidence(db, a.user.id, a.target, a.output(51, 8), evidence, new Set(a.ids)),
-    ).rejects.toThrow(/available home load/);
+    ).rejects.toThrow(/known to have/);
     await expect(
       assessSessionEvidence(db, a.user.id, a.target, a.output(55, 8), evidence, new Set(a.ids)),
     ).rejects.toThrow(/automatic limit/);

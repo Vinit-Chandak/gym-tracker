@@ -34,6 +34,7 @@ import {
   skipExerciseAction,
 } from "@/server/actions/sessions";
 
+import { NextLoad, nextLoadQuestion } from "./next-load";
 import { SetGrid } from "./set-grid";
 import { SetOptions } from "./set-options";
 import { useSetRows, type RowState } from "./use-set-rows";
@@ -239,6 +240,21 @@ export function ExerciseLogger({
   const optionsRow = sets.rows.find((row) => row.setIndex === optionsFor) ?? null;
   const suggestion = suggestionHeadline(exercise, unit);
   const prescription = prescriptionLine(exercise);
+  // Once this exercise's working sets are in, a stack whose next stop nobody knows asks for
+  // it under the sets (ADR 0028); nothing is asked mid-exercise or of plates.
+  const loggedWorking = sets.loggedSets.filter((set) => WORKING_SET_TYPES.has(set.setType));
+  const workingDone =
+    completed ||
+    (!sets.dirty &&
+      loggedWorking.length > 0 &&
+      loggedWorking.length >= (exercise.planned?.sets ?? 1));
+  const nextLoad =
+    !readOnly && !skipped && measure === "reps" && workingDone
+      ? nextLoadQuestion(
+          exercise.equipment?.ladder,
+          loggedWorking.map((set) => set.weight),
+        )
+      : null;
   const plannedName = exercise.planned?.plannedExerciseName;
   const substituted = plannedName !== undefined && plannedName !== exercise.exercise.name;
 
@@ -460,6 +476,17 @@ export function ExerciseLogger({
               />
             ) : (
               <SetTable sets={sets.loggedSets} unitLabel={unitLabel} />
+            )}
+
+            {nextLoad && exercise.equipment && (
+              <NextLoad
+                key={`${exercise.equipment.id}:${nextLoad.from}`}
+                equipmentInstanceId={exercise.equipment.id}
+                from={nextLoad.from}
+                guess={nextLoad.guess}
+                unitLabel={unit}
+                assisted={exercise.equipment.ladder?.assisted ?? false}
+              />
             )}
 
             {message && (
