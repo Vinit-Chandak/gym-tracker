@@ -18,7 +18,6 @@ import { Field } from "@/components/ui/input";
 import { SectionSelect } from "@/components/ui/section-select";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select } from "@/components/ui/select";
-import { ProgressBar } from "@/components/ui/progress-bar";
 import type { PerformanceSeries, Point } from "@/domain/analytics";
 import type { MuscleVolume } from "@/domain/muscle-volume";
 import type { BodyLoadUnit, MuscleGroup } from "@/domain/types";
@@ -60,19 +59,10 @@ export type SportTotal = {
   unknownDistances: number;
 };
 
-export type Adherence = {
-  name: string;
-  total: number;
-  completed: number;
-  skipped: number;
-  remaining: number;
-  completionRate: number | null;
-};
-
 type Props = {
   /** The range every trend on this screen is drawn over; the filter sheet changes it. */
   range: { from: string; to: string };
-  summary: { workouts: number; runs: number; trainingDays: number; truncated: boolean };
+  summary: { workouts: number; trainingDays: number; truncated: boolean };
   /**
    * Per-sport totals over the whole range, computed in SQL (plan §9.1).
    *
@@ -81,7 +71,6 @@ type Props = {
    * caps rather than instead of them: a list is a sample and a total is a total.
    */
   sportTotals: readonly SportTotal[] | null;
-  adherence: Adherence | null;
   weeks: Week[];
   recovery: RecoveryReading[];
   pace: { date: string; value: number | null; mode: string }[];
@@ -124,7 +113,6 @@ export function ProgressView({
   range,
   summary,
   sportTotals,
-  adherence,
   weeks,
   recovery,
   pace,
@@ -218,9 +206,10 @@ export function ProgressView({
       >
         {tab === "overview" && (
           <>
-            <dl className="grid box grid-cols-3 gap-2 px-2 py-3">
+            {/* Runs, rides and swims are counted by sport below, so the headline keeps to the
+                two numbers nothing else on the screen says. */}
+            <dl className="grid box grid-cols-2 gap-2 px-2 py-3">
               <Stat label="Workouts" value={String(summary.workouts)} />
-              <Stat label="Runs" value={String(summary.runs)} />
               <Stat label="Active days" value={String(summary.trainingDays)} />
             </dl>
 
@@ -273,30 +262,6 @@ export function ProgressView({
                       </li>
                     ))}
                 </ul>
-              </Card>
-            )}
-
-            {adherence && (
-              <Card>
-                <div>
-                  <h2 className="text-base font-medium">Programme adherence</h2>
-                  <p className="mt-1 text-sm text-ink-muted">{adherence.name}</p>
-                </div>
-                <p className="flex flex-wrap items-baseline gap-x-2 tabular-nums">
-                  <span className="text-lg font-medium">
-                    {adherence.completed}
-                    <span className="font-normal text-ink-muted"> / {adherence.total}</span>
-                  </span>
-                  <span className="text-sm text-ink-muted">sessions</span>
-                </p>
-                <ProgressBar
-                  value={adherence.completed}
-                  max={adherence.total}
-                  label={`${adherence.completed} of ${adherence.total} sessions complete`}
-                />
-                <p className="text-xs text-ink-muted">
-                  {adherence.remaining} remaining · {adherence.skipped} skipped
-                </p>
               </Card>
             )}
 
