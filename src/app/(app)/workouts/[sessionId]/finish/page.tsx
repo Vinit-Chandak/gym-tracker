@@ -113,6 +113,10 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
           initialBodyWeight={
             session.bodyWeightKg === null ? "" : String(fromKilograms(session.bodyWeightKg, unit))
           }
+          // The profile's weight is always the newest reading (ADR 0020), so no query of its own.
+          lastBodyWeight={
+            profile.bodyWeightKg === null ? "" : String(fromKilograms(profile.bodyWeightKg, unit))
+          }
         />
       </PageContent>
     </>
