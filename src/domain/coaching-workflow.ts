@@ -12,7 +12,7 @@ import { PLAN_LIMITS } from "./plan-limits";
 import { memoryPatchSchema, sourceQuoteSchema } from "./coach-memory";
 import { requestPatchSchema } from "./program-request";
 
-export const COACH_CONTRACT_VERSION = 5;
+export const COACH_CONTRACT_VERSION = 6;
 
 /**
  * Whether the server is serving a contract this checkout was written against.

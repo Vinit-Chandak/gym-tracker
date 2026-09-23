@@ -1010,10 +1010,12 @@ export async function planningContext(
 
 export type PlanningContext = Awaited<ReturnType<typeof planningContext>>;
 
-type LibraryEntry = {
+export type LibraryEntry = {
   id: string;
   slug: string;
   name: string;
+  /** One the athlete created, rather than the shared library's. */
+  own: boolean;
   modality: (typeof exercises.$inferSelect)["modality"];
   movementPattern: string;
   primaryMuscles: (typeof exercises.$inferSelect)["primaryMuscles"];
@@ -1102,6 +1104,7 @@ export async function libraryAtGym(
       id: e.id,
       slug: e.slug,
       name: e.name,
+      own: e.userId !== null,
       modality: e.modality,
       movementPattern: e.movementPattern,
       primaryMuscles: e.primaryMuscles,
