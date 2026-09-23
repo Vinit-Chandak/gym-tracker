@@ -24,7 +24,7 @@ export function ShortcutTile<T extends string>({
   return (
     <Link
       href={href}
-      className="flex min-h-14 box items-center gap-2.5 px-3 py-2 transition-colors duration-[var(--ov-duration-feedback)] active:bg-surface-raised"
+      className="flex h-full min-h-14 box items-center gap-2.5 px-3 py-2 transition-colors duration-[var(--ov-duration-feedback)] active:bg-surface-raised"
     >
       <Icon scale="row" className="text-accent" aria-hidden />
       <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
