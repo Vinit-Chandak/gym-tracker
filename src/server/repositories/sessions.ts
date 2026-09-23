@@ -23,6 +23,7 @@ import {
   type CheckIn,
   type RecoveryWarning,
 } from "@/domain/recovery";
+import type { LoadLadder } from "@/domain/load-steps";
 import type { LoadUnit, SetType, WarmupDrill } from "@/domain/types";
 import { sessionHistories, type ComparablePerformance } from "@/server/queries/comparable";
 import { getWarmupProtocol } from "@/server/queries/reference";
@@ -33,6 +34,7 @@ import { closeStrengthParent, discardStrengthParent, openStrengthParent } from "
 import { decideExercisesAtGym, resolvePlannedDay, type ExerciseDecision } from "./availability";
 import { getGym } from "./gyms";
 import { consumePlan, planForSession, releasePlan } from "./coach-plans";
+import { loadLadders } from "./load-ladders";
 import { applyRule } from "./progression-rule";
 import { readCoachingChanges } from "./coaching-changes";
 import { writeSessionStats } from "./shared-stats";
@@ -307,7 +309,13 @@ export type SessionExercise = {
     /** What RIR means for this movement, in its own words; null falls back to the general one. */
     rirNote: string | null;
   };
-  equipment: { id: string; name: string; unit: LoadUnit } | null;
+  equipment: {
+    id: string;
+    name: string;
+    unit: LoadUnit;
+    /** What is known about this machine's loads, for the Next up box (ADR 0028). */
+    ladder: LoadLadder | null;
+  } | null;
   planned: {
     programExerciseId: string | null;
     plannedExerciseName: string;
@@ -456,8 +464,6 @@ export async function getSessionDetail(
           name: equipmentInstances.name,
           unit: equipmentInstances.unit,
           loadIncrement: equipmentInstances.loadIncrement,
-          availableLoads: equipmentInstances.availableLoads,
-          loadConvention: equipmentInstances.loadConvention,
         },
         planned: programExercises,
         plannedExerciseName: plannedExercise.name,
@@ -529,7 +535,7 @@ export async function getSessionDetail(
       )
     : [];
   // History and machine decisions depend on the slots but not on each other.
-  const [histories, decisions, coachingChanges] = await Promise.all([
+  const [histories, decisions, coachingChanges, ladders] = await Promise.all([
     includeGuidance
       ? sessionHistories(
           db,
@@ -557,6 +563,11 @@ export async function getSessionDetail(
     includeGuidance
       ? readCoachingChanges(db, userId, session.session.startedAt)
       : Promise.resolve([]),
+    loadLadders(
+      db,
+      userId,
+      rows.flatMap((row) => (row.equipment?.id ? [row.equipment.id] : [])),
+    ),
   ]);
   const exerciseDetails: SessionExercise[] = [];
   for (const [index, row] of rows.entries()) {
@@ -571,6 +582,7 @@ export async function getSessionDetail(
       planned: row.planned ?? saved,
       exercise: row.exercise,
       equipment: row.equipment?.id ? row.equipment : null,
+      ladder: row.equipment?.id ? ladders.get(row.equipment.id) : null,
       preferredUnit: options.preferredUnit ?? (profile?.preferredUnit === "lb" ? "lb" : "kg"),
       slotLineageId: row.planned?.lineageId ?? null,
       history: histories[index]?.history ?? [],
@@ -618,7 +630,12 @@ export async function getSessionDetail(
         rirNote: row.exercise.rirNote,
       },
       equipment: row.equipment?.id
-        ? { id: row.equipment.id, name: row.equipment.name, unit: row.equipment.unit }
+        ? {
+            id: row.equipment.id,
+            name: row.equipment.name,
+            unit: row.equipment.unit,
+            ladder: ladders.get(row.equipment.id) ?? null,
+          }
         : null,
       planned: row.planned
         ? {

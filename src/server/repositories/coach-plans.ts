@@ -60,6 +60,8 @@ import {
 } from "@/domain/session-plan";
 import { assessSportChange } from "@/domain/coach-sport-policy";
 import { formatSet, weightStepFor } from "@/domain/sets";
+import { stepsFrom } from "@/domain/load-steps";
+import { workingSets } from "@/domain/progression";
 import type {
   CoachRequestInitiator,
   CoachRequestStatus,
@@ -75,6 +77,7 @@ import { parseDateRange } from "@/server/validation/date-range";
 import { resolvePlannedDay } from "./availability";
 import { getGym, listGyms } from "./gyms";
 import { getRunTarget, getSchedule, type Schedule, type ScheduleDay } from "./schedule";
+import { loadLadders } from "./load-ladders";
 import { applyRule } from "./progression-rule";
 import { readCoachingChanges } from "./coaching-changes";
 import { readRecovery, readRunActivitiesBetween, readWorkouts } from "./training-data";
@@ -601,8 +604,6 @@ export async function planningContext(
         name: equipmentInstances.name,
         type: equipmentTypes.name,
         typeSlug: equipmentTypes.slug,
-        availableLoads: equipmentInstances.availableLoads,
-        loadConvention: equipmentInstances.loadConvention,
         unit: equipmentInstances.unit,
         loadIncrement: equipmentInstances.loadIncrement,
         notes: equipmentInstances.notes,
@@ -648,29 +649,39 @@ export async function planningContext(
   ]);
   if (!resolved) return { reason: "no_gym" as const };
 
-  // Comparable history for what will actually be done: the resolved exercise on the resolved machine.
-  const histories = await sessionHistories(
-    db,
-    resolved.map((item) => {
-      const r = item.decision.resolution;
-      const exerciseId = r.status === "fallback" ? r.exercise.id : item.exercise.id;
-      const row = planned.find((p) => p.exercise.id === exerciseId)?.exercise;
-      return {
-        userId,
-        exerciseId,
-        loadPortability:
-          row?.loadPortability ??
-          library.find((e) => e.id === exerciseId)?.loadPortability ??
-          "global",
-        equipmentInstanceId:
-          r.status === "direct" || r.status === "fallback"
-            ? (r.equipmentInstance?.id ?? null)
-            : null,
-        before: snapshot,
-        limit: HISTORY_DEPTH,
-      };
-    }),
-  );
+  // Comparable history for what will actually be done: the resolved exercise on the resolved
+  // machine, and each machine's ladder (ADR 0028), which only depends on which machines those are.
+  const slotMachineIds = resolved.flatMap((item) => {
+    const r = item.decision.resolution;
+    return (r.status === "direct" || r.status === "fallback") && r.equipmentInstance
+      ? [r.equipmentInstance.id]
+      : [];
+  });
+  const [histories, ladders] = await Promise.all([
+    sessionHistories(
+      db,
+      resolved.map((item) => {
+        const r = item.decision.resolution;
+        const exerciseId = r.status === "fallback" ? r.exercise.id : item.exercise.id;
+        const row = planned.find((p) => p.exercise.id === exerciseId)?.exercise;
+        return {
+          userId,
+          exerciseId,
+          loadPortability:
+            row?.loadPortability ??
+            library.find((e) => e.id === exerciseId)?.loadPortability ??
+            "global",
+          equipmentInstanceId:
+            r.status === "direct" || r.status === "fallback"
+              ? (r.equipmentInstance?.id ?? null)
+              : null,
+          before: snapshot,
+          limit: HISTORY_DEPTH,
+        };
+      }),
+    ),
+    loadLadders(db, userId, slotMachineIds),
+  ]);
 
   const slots = resolved.map((item, index) => {
     const plannedRow = planned.find((p) => p.prescription.id === item.programExerciseId);
@@ -684,6 +695,7 @@ export async function planningContext(
         ? machines.find((m) => m.id === r.equipmentInstance?.id)
         : undefined;
     const history = histories[index]?.history ?? [];
+    const ladder = machine ? (ladders.get(machine.id) ?? null) : null;
     const rule = plannedRow
       ? applyRule({
           asOf: snapshot,
@@ -705,14 +717,9 @@ export async function planningContext(
             defaultRir: plannedRow.exercise.defaultRir,
           },
           equipment: machine
-            ? {
-                id: machine.id,
-                unit: machine.unit,
-                loadIncrement: machine.loadIncrement,
-                availableLoads: machine.availableLoads,
-                loadConvention: machine.loadConvention,
-              }
+            ? { id: machine.id, unit: machine.unit, loadIncrement: machine.loadIncrement }
             : null,
+          ladder,
           preferredUnit: profile.preferredUnit === "lb" ? "lb" : "kg",
           slotLineageId: plannedRow.prescription.lineageId,
           history,
@@ -752,7 +759,27 @@ export async function planningContext(
         status: r.status,
         exerciseSlug: resolvedExercise?.slug ?? null,
         exerciseName: item.decision.resolvedExerciseName,
-        machine: machine ? { id: machine.id, name: machine.name, unit: machine.unit } : null,
+        machine: machine
+          ? {
+              id: machine.id,
+              name: machine.name,
+              unit: machine.unit,
+              /** Help given rather than load lifted: a lower number is harder. */
+              assisted: ladder?.assisted ?? false,
+              /**
+               * The next load harder and easier from each load last used on this machine for
+               * this slot (ADR 0028). `known` exists on the machine; `learned` is the gap
+               * between the two nearest stops carried one further, a guess until lifted;
+               * `increment` is the typed jump; null means nobody knows yet.
+               */
+              steps: ladder
+                ? stepsFrom(
+                    ladder,
+                    workingSets(rule?.basisPerformance?.sets ?? []).map((set) => set.weight),
+                  )
+                : [],
+            }
+          : null,
         missing: item.decision.missingTypes.map((t) => t.name),
         fallbacks: item.decision.fallbackOptions
           .filter((f) => f.available)
@@ -897,8 +924,6 @@ export async function planningContext(
         name: m.name,
         type: m.type,
         unit: m.unit,
-        availableLoads: m.availableLoads,
-        loadConvention: m.loadConvention,
         loadIncrement: m.loadIncrement,
         notes: m.notes,
       })),
@@ -985,10 +1010,12 @@ export async function planningContext(
 
 export type PlanningContext = Awaited<ReturnType<typeof planningContext>>;
 
-type LibraryEntry = {
+export type LibraryEntry = {
   id: string;
   slug: string;
   name: string;
+  /** One the athlete created, rather than the shared library's. */
+  own: boolean;
   modality: (typeof exercises.$inferSelect)["modality"];
   movementPattern: string;
   primaryMuscles: (typeof exercises.$inferSelect)["primaryMuscles"];
@@ -1077,6 +1104,7 @@ export async function libraryAtGym(
       id: e.id,
       slug: e.slug,
       name: e.name,
+      own: e.userId !== null,
       modality: e.modality,
       movementPattern: e.movementPattern,
       primaryMuscles: e.primaryMuscles,

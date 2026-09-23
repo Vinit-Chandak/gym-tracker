@@ -18,7 +18,8 @@ import {
 /**
  * Following (ADR 0026). Each of these names the other person by id, checks it is one, acts as
  * the signed-in user under RLS, and refreshes every screen that shows the relationship: the
- * Profile tab (counts and the request badge), the Friends page, and every person's page.
+ * Profile tab (counts and the request badge), the Friends and People pages, and every
+ * person's page.
  */
 
 function personId(value: unknown): string {
@@ -30,6 +31,7 @@ function personId(value: unknown): string {
 function followsChanged(): void {
   revalidatePath("/profile");
   revalidatePath("/profile/friends");
+  revalidatePath("/profile/friends/people");
   revalidatePath("/u/[username]", "page");
 }
 

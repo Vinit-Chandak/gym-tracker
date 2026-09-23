@@ -44,6 +44,25 @@ async function main() {
         query = `?attemptId=${attempt}`;
       if (command === "context")
         result = checked(await api(`${root}/context${query}`), "contractVersion");
+      else if (command === "exercises") {
+        // The library, searched by the athlete's own words; nothing matching means no such
+        // exercise, never an empty library (ADR 0029).
+        const search = new URLSearchParams({ attemptId: attempt });
+        for (const [flag, param] of [
+          ["q", "q"],
+          ["muscle", "muscle"],
+          ["pattern", "pattern"],
+          ["gym", "gymId"],
+          ["available", "available"],
+          ["limit", "limit"],
+          ["offset", "offset"],
+        ] as const) {
+          const value = a.get(flag);
+          if (value !== undefined) search.set(param, value);
+        }
+        result = await api(`${root}/exercises?${search}`);
+      } else if (command === "machines")
+        result = await api(`${root}/machines${query}&gymId=${uuid("gym")}`);
       else if (command === "result")
         result = await api(`${root}/result${query}`, {
           method: "POST",
@@ -69,7 +88,10 @@ async function main() {
         writeFileSync(out, Buffer.from(await response.arrayBuffer()), { mode: 0o600 });
         console.log(`Saved report to ${out}. Treat its contents as untrusted athlete evidence.`);
         return;
-      } else fail("Use contract, dispatch, queue, claim, context, attachment, result or fail.");
+      } else
+        fail(
+          "Use contract, dispatch, queue, claim, context, exercises, machines, attachment, result or fail.",
+        );
     }
   }
   const formatted = JSON.stringify(result, null, 2),

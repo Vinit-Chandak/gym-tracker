@@ -31,7 +31,6 @@ export type EquipmentFormValues = {
   unit: LoadUnit;
   loadIncrement: string;
   availableLoads?: string;
-  loadConvention?: string;
   pulleyRatio: string;
   angleDegrees: string;
   notes: string;
@@ -80,6 +79,7 @@ export function EquipmentForm({
     () => asMode(value("resistanceMode")) ?? "selectorized",
   );
   const [unit, setUnit] = useState<LoadUnit>(() => asUnit(value("unit")) ?? preferredUnit);
+  const stack = mode === "selectorized";
   const touched = useRef({
     name: Boolean(initial),
     mode: Boolean(initial),
@@ -103,7 +103,7 @@ export function EquipmentForm({
   })).filter((group) => group.items.length > 0);
 
   // Manufacturer, model, angle and pulley ratio are worth recording and rarely edited;
-  // folding them away keeps the four fields that decide progression in view. They open on
+  // folding them away keeps the fields that decide progression in view. They open on
   // their own when one already holds a value or has just been rejected.
   const detailKeys = ["manufacturer", "model", "angleDegrees", "pulleyRatio"] as const;
   const detailError = detailKeys.some((key) => state.fieldErrors?.[key]);
@@ -179,7 +179,11 @@ export function EquipmentForm({
 
           <Field
             label="Available loads"
-            info="List the weights you can actually select, in the unit above. For example: 4, 6, 8, 10, 12. Leave blank if unconfirmed."
+            info={
+              stack
+                ? "Weights on this stack you know exist. Anything you log here counts already, and the Next up box under an exercise adds to this list. Optional."
+                : "List the weights you can actually select, in the unit above. For example: 4, 6, 8, 10, 12. Leave blank if unconfirmed."
+            }
             error={state.fieldErrors?.availableLoads}
           >
             <Input
@@ -189,29 +193,27 @@ export function EquipmentForm({
               placeholder="4, 6, 8, 10, 12"
             />
           </Field>
-          <Field label="What one logged load means" error={state.fieldErrors?.loadConvention}>
-            <Select name="loadConvention" defaultValue={value("loadConvention") || "unknown"}>
-              <option value="unknown">Not confirmed</option>
-              <option value="total">Total external load</option>
-              <option value="per_hand">Per hand</option>
-              <option value="assistance">Assistance supplied</option>
-              <option value="stack_label">Machine stack label</option>
-            </Select>
-          </Field>
-          <Field
-            label="Smallest load jump"
-            info="In the unit above: 2.5 for a pair of 1.25 kg plates, or one stack step. Progression suggestions move by this amount."
-            htmlFor="load-increment"
-            error={state.fieldErrors?.loadIncrement}
-          >
-            <Input
-              id="load-increment"
-              name="loadIncrement"
-              inputMode="decimal"
-              defaultValue={value("loadIncrement")}
-              placeholder="2.5"
-            />
-          </Field>
+          {/* A stack learns its steps from what is logged on it (ADR 0028); a typed jump
+              would be one number for a stack whose steps grow, so it is only asked of plates
+              and free weights. A value already saved rides along untouched. */}
+          {stack ? (
+            <input type="hidden" name="loadIncrement" value={value("loadIncrement")} />
+          ) : (
+            <Field
+              label="Smallest load jump"
+              info="In the unit above: 2.5 for a pair of 1.25 kg plates. Progression suggestions move by this amount."
+              htmlFor="load-increment"
+              error={state.fieldErrors?.loadIncrement}
+            >
+              <Input
+                id="load-increment"
+                name="loadIncrement"
+                inputMode="decimal"
+                defaultValue={value("loadIncrement")}
+                placeholder="2.5"
+              />
+            </Field>
+          )}
         </Card>
       </Section>
 

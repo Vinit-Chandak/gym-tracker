@@ -205,6 +205,10 @@ export async function readCoachingEvidence(
     equipmentId: string | null;
     prescription: Prescription;
     history: Map<string, EvidencePerformance>;
+    /**
+     * Only part of the retained reference's identity now (ADR 0028): the column is no longer
+     * edited or shown to the coach, and keeping it in the hash keeps references already saved.
+     */
     convention: string;
   };
   const groups = new Map<string, Group>();
@@ -298,7 +302,6 @@ export async function readCoachingEvidence(
       slug: group.slug,
       lineageId: group.lineageId,
       equipmentId: group.equipmentId,
-      convention: group.convention,
       ...summarizeExerciseEvidence(group.prescription, history, reference),
     };
   });
