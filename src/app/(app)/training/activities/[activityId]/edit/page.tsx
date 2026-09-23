@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/shell/page-header";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { activityFormValues } from "@/lib/activity-form-values";
+import { ORIGIN_PARAM, originQuery, parseOrigin } from "@/lib/nav";
 import { toDateTimeLocal } from "@/lib/time";
 import { saveActivityAction } from "@/server/actions/activities";
 import { requireUser } from "@/server/auth";
@@ -22,6 +23,7 @@ export default async function EditActivityPage(
 ) {
   const { activityId } = await props.params;
   requireUuid(activityId);
+  const origin = parseOrigin((await props.searchParams)[ORIGIN_PARAM]);
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
   const activity = await withUser(getDb(), user.id, (tx) => getActivity(tx, user.id, activityId), {
@@ -32,12 +34,16 @@ export default async function EditActivityPage(
   const noun = actual.sport === "running" ? "run" : actual.sport === "cycling" ? "ride" : "swim";
   return (
     <>
-      <PageHeader title={`Correct the ${noun}`} backHref={`/training/activities/${activityId}`} />
+      <PageHeader
+        title={`Correct the ${noun}`}
+        backHref={`/training/activities/${activityId}${originQuery(origin)}`}
+      />
       <PageContent>
         <ActivityEditor
           userId={user.id}
           sport={actual.sport}
           activityId={activityId}
+          origin={origin}
           action={saveActivityAction.bind(null, activityId)}
           submissionKey={crypto.randomUUID()}
           occurrence={
