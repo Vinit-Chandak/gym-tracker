@@ -153,7 +153,7 @@ src/
     migrations/                 generated SQL + the hand-written auth bridge
     seed/                       shared reference data, programme templates, seed CLI
     test/                       PGlite database and the populated-account fixture
-    client.ts, with-user.ts     postgres.js client; RLS-enforcing transaction wrapper
+    client.ts, with-user.ts     node-postgres client; RLS-enforcing transaction wrapper
   domain/                       pure rules: blueprints, equipment resolution, pace, calendar
   server/                       auth helpers, server actions, repositories, validation
   components/                   shell, ui primitives
