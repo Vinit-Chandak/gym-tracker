@@ -8,8 +8,10 @@ as a PNG under this folder with the name below; the README links them from here.
 | File                       | Screen                             | State to capture                                                          |
 | -------------------------- | ---------------------------------- | ------------------------------------------------------------------------- |
 | `profile.png`              | Profile tab                        | Header card with counts, Friends row with a request badge                 |
-| `friends.png`              | Profile › Friends                  | Leaderboard and Compare cards, a request, search, People, recent activity |
-| `friends-empty.png`        | Profile › Friends, new account     | Only the two cards and the search field                                   |
+| `friends.png`              | Profile › Friends                  | The four tiles, People with a request badge, recent activity              |
+| `friends-empty.png`        | Profile › Friends, new account     | Only the four tiles                                                       |
+| `people.png`               | Profile › Friends › People         | A request, then Following / Followers                                     |
+| `find-people.png`          | Profile › Friends › Find people    | The focused field and a result with its follow button                     |
 | `person.png`               | `/u/username`, a friend who shares | Follow button, sport and period controls, tiles, split, records, Compare  |
 | `person-hidden.png`        | `/u/username`, not yet following   | The one line and its info tip                                             |
 | `compare.png`              | `/u/username/compare`              | Both splits on the radar, the stats rows, exercises in common             |

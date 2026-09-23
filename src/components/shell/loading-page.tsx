@@ -10,9 +10,20 @@ export function LoadingPage({
   title = "Loading",
   /** Reserves the section picker and its filters, so rows do not jump up on arrival. */
   controls = false,
+  /** Reserves a two-by-two grid of shortcut tiles above the rows. */
+  tiles = false,
+  /** Reserves one full-width two-way control above the rows. */
+  segmented = false,
+  /** Reserves a box holding one text field, for a page that is a search. */
+  field = false,
+  rows = 5,
 }: {
   title?: string;
   controls?: boolean;
+  tiles?: boolean;
+  segmented?: boolean;
+  field?: boolean;
+  rows?: number;
 }) {
   return (
     <>
@@ -26,17 +37,40 @@ export function LoadingPage({
               <div className="h-11 w-24 rounded-control bg-surface-raised" />
             </div>
           )}
-          <ul aria-hidden="true" className="box-rows motion-safe:animate-pulse">
-            {[0, 1, 2, 3, 4].map((i) => (
-              <li key={i} className="flex min-h-14 items-center gap-3 px-4 py-3">
-                <div className="min-w-0 flex-1 space-y-2">
-                  <div className="h-4 w-2/5 rounded-control bg-surface-raised" />
-                  <div className="h-3 w-3/5 rounded-control bg-surface-raised" />
+          {tiles && (
+            <div aria-hidden="true" className="grid grid-cols-2 gap-3 motion-safe:animate-pulse">
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} className="flex min-h-14 box items-center gap-2.5 px-3">
+                  <div className="size-5 shrink-0 rounded-control bg-surface-raised" />
+                  <div className="h-4 w-3/5 rounded-control bg-surface-raised" />
                 </div>
-                <div className="size-5 shrink-0 rounded-control bg-surface-raised" />
-              </li>
-            ))}
-          </ul>
+              ))}
+            </div>
+          )}
+          {segmented && (
+            <div
+              aria-hidden="true"
+              className="h-11 rounded-control bg-surface-raised motion-safe:animate-pulse"
+            />
+          )}
+          {field && (
+            <div aria-hidden="true" className="box panel-padding motion-safe:animate-pulse">
+              <div className="h-11 rounded-control bg-surface-raised" />
+            </div>
+          )}
+          {rows > 0 && (
+            <ul aria-hidden="true" className="box-rows motion-safe:animate-pulse">
+              {Array.from({ length: rows }, (_, i) => i).map((i) => (
+                <li key={i} className="flex min-h-14 items-center gap-3 px-4 py-3">
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="h-4 w-2/5 rounded-control bg-surface-raised" />
+                    <div className="h-3 w-3/5 rounded-control bg-surface-raised" />
+                  </div>
+                  <div className="size-5 shrink-0 rounded-control bg-surface-raised" />
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </PageContent>
     </>

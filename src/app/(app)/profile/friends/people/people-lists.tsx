@@ -11,14 +11,14 @@ import { SegmentedControl } from "@/components/ui/segmented-control";
 import { attempted } from "@/lib/offline-submit";
 import { removeFollowerAction, unfollowAction } from "@/server/actions/follows";
 
-import type { PeopleTab } from "./people-tabs";
+import type { PeopleTab } from "../people-tabs";
 
 type ListedPerson = Person & { id: string };
 
 const OFFLINE = "Could not save. Check your connection and try again.";
 
 /**
- * The People box (plan §3.4): Following and Followers behind one two-way control, the choice
+ * The People page (ADR 0027): Following and Followers behind one two-way control, the choice
  * carried in the URL so the header card's counts and a refresh land on the right list. Each
  * row opens the person's page; the quiet control at its end ends the relationship, after
  * asking in a sheet.
@@ -37,7 +37,9 @@ export function PeopleLists({
   const [, startNavigation] = useTransition();
   const choose = (next: PeopleTab) => {
     setTab(next);
-    startNavigation(() => router.replace(`/profile/friends?people=${next}`, { scroll: false }));
+    startNavigation(() =>
+      router.replace(`/profile/friends/people?people=${next}`, { scroll: false }),
+    );
   };
   const people = tab === "following" ? following : followers;
 
