@@ -4,14 +4,13 @@ import { PageHeader } from "@/components/shell/page-header";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { ACTIVITY_SPORT_LABELS } from "@/domain/activity";
-import { liftingAdherence, trainingAnalytics } from "@/domain/analytics";
+import { trainingAnalytics } from "@/domain/analytics";
 import { readActivityTotals } from "@/server/repositories/activity-analytics";
 import { formatDateRange } from "@/lib/format";
 import { fromKilograms } from "@/lib/units";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { listBodyWeights } from "@/server/repositories/body-weight";
-import { getSchedule } from "@/server/repositories/schedule";
 import { readTrainingData } from "@/server/repositories/training-data";
 import { readMuscleVolume } from "@/server/repositories/muscle-volume";
 import { readRecoveryHistory } from "@/server/repositories/recovery-history";
@@ -39,19 +38,15 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
   const bodyFrom = bodyRange.from;
   const bodyTo = bodyRange.to;
 
-  const [training, schedule, body, bodyWeights, totals, recovery] = await withUser(
-    getDb(),
-    user.id,
-    (tx) =>
-      Promise.all([
-        readTrainingData(tx, user.id, range),
-        getSchedule(tx, user.id),
-        readMuscleVolume(tx, user.id, bodyRange),
-        listBodyWeights(tx, user.id, range),
-        // Complete per-sport totals, from the canonical tables every sport is written to.
-        readActivityTotals(tx, user.id, { from: range.from, to: range.to }),
-        readRecoveryHistory(tx, user.id, range, profile.timeZone),
-      ]),
+  const [training, body, bodyWeights, totals, recovery] = await withUser(getDb(), user.id, (tx) =>
+    Promise.all([
+      readTrainingData(tx, user.id, range),
+      readMuscleVolume(tx, user.id, bodyRange),
+      listBodyWeights(tx, user.id, range),
+      // Complete per-sport totals, from the canonical tables every sport is written to.
+      readActivityTotals(tx, user.id, { from: range.from, to: range.to }),
+      readRecoveryHistory(tx, user.id, range, profile.timeZone),
+    ]),
   );
   const preferredUnit = profile.preferredUnit === "lb" ? "lb" : "kg";
   const sportTotals =
@@ -92,12 +87,10 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
           range={range}
           summary={{
             workouts: analytics.workouts,
-            runs: analytics.runs,
             trainingDays: analytics.trainingDays,
             truncated: analytics.truncated,
           }}
           sportTotals={sportTotals}
-          adherence={liftingAdherence(schedule)}
           weeks={analytics.weeks}
           recovery={recovery}
           pace={analytics.pace}

@@ -152,7 +152,7 @@ One date range governs the current view where applicable; Body retains its weekl
 
 | Tab      | Required content and controls                                                                                                                                                 |
 | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Overview | Workout/run/active-day counts, programme adherence where applicable, weekly lifting/running activity                                                                          |
+| Overview | Workout and active-day counts, totals by sport, weekly lifting/running activity; programme adherence lives on the Programme pages only                                        |
 | Strength | Explicit exercise selector; separate machine selector when multiple comparable series exist; load, reps, volume, RIR, e1RM; latest/change; muscle selection and weekly volume |
 | Running  | Distance, duration, pace and distinct outdoor/treadmill pace context                                                                                                          |
 | Recovery | Sleep, back, left-shin and right-shin observations with gaps for missing entries                                                                                              |
