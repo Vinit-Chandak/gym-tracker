@@ -62,7 +62,8 @@ export type SportTotal = {
 type Props = {
   /** The range every trend on this screen is drawn over; the filter sheet changes it. */
   range: { from: string; to: string };
-  summary: { workouts: number; trainingDays: number; truncated: boolean };
+  /** The narrative lists hit their cap, so the charts are drawn from a sample. */
+  truncated: boolean;
   /**
    * Per-sport totals over the whole range, computed in SQL (plan §9.1).
    *
@@ -100,18 +101,9 @@ const RUN_METRICS = [
 ] as const;
 type RunMetric = (typeof RUN_METRICS)[number]["value"];
 
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="min-w-0 py-1 text-center">
-      <dt className="text-xs text-ink-muted">{label}</dt>
-      <dd className="mt-1 text-xl tabular-nums">{value}</dd>
-    </div>
-  );
-}
-
 export function ProgressView({
   range,
-  summary,
+  truncated,
   sportTotals,
   weeks,
   recovery,
@@ -206,24 +198,19 @@ export function ProgressView({
       >
         {tab === "overview" && (
           <>
-            {/* Runs, rides and swims are counted by sport below, so the headline keeps to the
-                two numbers nothing else on the screen says. */}
-            <dl className="grid box grid-cols-2 gap-2 px-2 py-3">
-              <Stat label="Workouts" value={String(summary.workouts)} />
-              <Stat label="Active days" value={String(summary.trainingDays)} />
-            </dl>
-
-            {summary.truncated && (
+            {/* The training totals are the overview's headline: every sport's sessions, days,
+                time and distance, so no separate count card repeats them above. */}
+            {truncated && (
               <p role="status" className="text-sm text-warning">
-                Over 500 workouts or runs in this range; the charts below draw a sample. The totals
-                by sport are complete.
+                Over 500 workouts or runs in this range; the charts below draw a sample. The
+                training totals are complete.
               </p>
             )}
 
             {sportTotals && sportTotals.some((total) => total.count > 0) && (
               <Card>
                 <div className="flex items-center justify-between gap-3">
-                  <h2 className="text-base font-medium">By sport</h2>
+                  <h2 className="text-base font-medium">Training totals</h2>
                   <InfoTip label="What these totals count">
                     Every activity in this range, counted in full rather than sampled. Recorded
                     training time, not unique wall-clock time — overlapping sessions are counted

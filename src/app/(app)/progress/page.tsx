@@ -85,11 +85,7 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
         )}
         <ProgressView
           range={range}
-          summary={{
-            workouts: analytics.workouts,
-            trainingDays: analytics.trainingDays,
-            truncated: analytics.truncated,
-          }}
+          truncated={analytics.truncated}
           sportTotals={sportTotals}
           weeks={analytics.weeks}
           recovery={recovery}
