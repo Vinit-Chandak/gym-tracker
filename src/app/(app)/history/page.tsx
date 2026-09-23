@@ -16,6 +16,14 @@ import { parseDateRangeOrDefault } from "@/server/validation/date-range";
 import { HistoryView, type HistoryItem } from "./history-view";
 
 export const metadata: Metadata = { title: "History" };
+
+/**
+ * Coming back to this tab within a minute shows what it showed, without asking the server
+ * (ADR 0030). Any change made in the app clears that copy at once; only a change made
+ * elsewhere, on another device or by the coach, can take up to the minute to appear.
+ */
+export const unstable_dynamicStaleTime = 60;
+
 function readings(values: [string, number | null, string?][]) {
   return values
     .filter(([, value]) => value !== null)

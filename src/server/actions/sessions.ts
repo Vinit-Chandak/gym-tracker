@@ -77,6 +77,12 @@ function revalidateSession(sessionId?: string): void {
  * until the whole route was left and come back to. `refresh` is the right tool rather than
  * `revalidatePath`: this data is read per request behind Row Level Security, so there is no
  * cache entry to invalidate, only a stale render to replace.
+ *
+ * It is also all a set needs to reach the other tabs. A refresh makes the browser drop the
+ * screens it holds (the tabs keep theirs for a minute, ADR 0030), so Today, History and
+ * Progress are read again when next opened. `revalidatePath` would additionally throw away
+ * every prefetched loading screen: on the workout screen that was ten requests after every set
+ * to fetch the navigation's five again.
  */
 function refreshSession(): void {
   refresh();
@@ -291,8 +297,8 @@ export async function logSetAction(input: unknown): Promise<LogSetResult> {
   if (effortIssue) return { ok: false, error: effortIssue };
   try {
     const set = await withUser(getDb(), user.id, (tx) => logSet(tx, user.id, parsed.data));
-    // The set count on Today, History and Progress comes from this row too.
-    revalidateSession();
+    // The set count on Today, History and Progress comes from this row too; the refresh also
+    // drops the browser's copies of those screens, so they are read again when next opened.
     refreshSession();
     return { ok: true, set: { ...set, completedAt: set.completedAt.toISOString() } };
   } catch (error) {
@@ -307,7 +313,6 @@ export async function deleteSetAction(
   const user = await requireUser();
   try {
     await withUser(getDb(), user.id, (tx) => deleteSet(tx, user.id, workoutExerciseId, setIndex));
-    revalidateSession();
     refreshSession();
     return { ok: true };
   } catch (error) {

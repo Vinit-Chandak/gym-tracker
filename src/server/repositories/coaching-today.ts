@@ -6,16 +6,21 @@ import { reconcileCoachJobs, sessionTarget } from "./coaching-jobs";
 import { fromDateTimeLocal } from "@/lib/time";
 import { todayInTimeZone } from "@/domain/program-calendar";
 
-/** Adapt durable jobs to Today's existing plan renderer without creating legacy requests. */
+/**
+ * Adapt durable jobs to Today's existing plan renderer without creating legacy requests. Today
+ * passes the schedule and gyms it has already read, so the job target is worked out from them
+ * rather than from a second read of each.
+ */
 export async function todayWorkflowState(
   db: DbOrTx,
   userId: string,
   input: Parameters<typeof todayCoachState>[2],
+  known?: Parameters<typeof sessionTarget>[3],
 ): Promise<TodayCoachState> {
   await reconcileCoachJobs(db, userId);
   const since = fromDateTimeLocal(`${todayInTimeZone(input.timeZone)}T00:00`, input.timeZone)!;
   const [target, jobs] = await Promise.all([
-    sessionTarget(db, userId),
+    sessionTarget(db, userId, null, known),
     db
       .select()
       .from(coachJobs)

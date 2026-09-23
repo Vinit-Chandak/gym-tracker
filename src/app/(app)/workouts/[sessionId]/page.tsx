@@ -23,20 +23,33 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
   requireUuid(sessionId);
   const user = await requireUser();
   const requestProfile = await getRequestProfile(user.id, user.email);
-  const found = await withUser(getDb(), user.id, async (tx) => {
-    const profile = requestProfile;
-    const detail = await getSessionDetail(tx, user.id, sessionId, {
-      restTimerEnabled: profile.restTimerEnabled,
-      preferredUnit: profile.preferredUnit === "lb" ? "lb" : "kg",
-    });
-    if (!detail) return null;
-    // The records were decided when the session finished; an open session has none yet.
-    const records = detail.completedAt ? await readSessionRecords(tx, user.id, sessionId) : [];
-    return {
-      session: toSessionVM(detail, profile.timeZone, profile.preferredUnit === "lb" ? "lb" : "kg"),
-      records,
-    };
-  });
+  // Only reads, so no athlete lock: this also renders after every set is saved, beside the
+  // shell's own read of the open session.
+  const found = await withUser(
+    getDb(),
+    user.id,
+    async (tx) => {
+      const profile = requestProfile;
+      // All three come from the request's profile, so the detail read never fetches it again.
+      const detail = await getSessionDetail(tx, user.id, sessionId, {
+        restTimerEnabled: profile.restTimerEnabled,
+        preferredUnit: profile.preferredUnit === "lb" ? "lb" : "kg",
+        timeZone: profile.timeZone,
+      });
+      if (!detail) return null;
+      // The records were decided when the session finished; an open session has none yet.
+      const records = detail.completedAt ? await readSessionRecords(tx, user.id, sessionId) : [];
+      return {
+        session: toSessionVM(
+          detail,
+          profile.timeZone,
+          profile.preferredUnit === "lb" ? "lb" : "kg",
+        ),
+        records,
+      };
+    },
+    { readOnly: true },
+  );
   if (!found) notFound();
   const { session: data, records } = found;
 

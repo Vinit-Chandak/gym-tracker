@@ -3,7 +3,7 @@ import { cache } from "react";
 
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
-import { ensureProfile, type Profile } from "./profile";
+import { ensureProfile, profileNeedsWrite, readProfile, type Profile } from "./profile";
 import { ProfileCache } from "./profile-cache";
 
 /** How long one server instance may reuse a profile row it has read. */
@@ -26,6 +26,22 @@ async function lastProfileChange(): Promise<number> {
 }
 
 /**
+ * Reads the profile without the athlete lock. Almost every request finds the row as it should
+ * be; only a missing profile, or an empty name the sign-in can fill, takes the write path.
+ */
+async function loadProfile(user: {
+  id: string;
+  email: string | null;
+  displayName?: string | null;
+}): Promise<Profile> {
+  const stored = await withUser(getDb(), user.id, (tx) => readProfile(tx, user.id), {
+    readOnly: true,
+  });
+  if (stored && !profileNeedsWrite(stored, user.displayName)) return stored;
+  return withUser(getDb(), user.id, (tx) => ensureProfile(tx, user));
+}
+
+/**
  * The signed-in account's profile. React's cache shares one read across the layout and the page
  * of a render; the process-wide cache in `profile-cache.ts` spares the database altogether for a
  * minute per account.
@@ -33,7 +49,7 @@ async function lastProfileChange(): Promise<number> {
 export const getRequestProfile = cache(
   async (id: string, email: string | null, displayName?: string | null): Promise<Profile> => {
     return profiles.read(id, await lastProfileChange(), () =>
-      withUser(getDb(), id, (tx) => ensureProfile(tx, { id, email, displayName })),
+      loadProfile({ id, email, displayName }),
     );
   },
 );

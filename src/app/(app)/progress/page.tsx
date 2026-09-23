@@ -18,6 +18,14 @@ import { parseDateRangeOrDefault, parseWeekRangeOrDefault } from "@/server/valid
 import { ProgressView } from "./progress-view";
 
 export const metadata: Metadata = { title: "Progress" };
+
+/**
+ * Coming back to this tab within a minute shows what it showed, without asking the server
+ * (ADR 0030). Any change made in the app clears that copy at once; only a change made
+ * elsewhere, on another device or by the coach, can take up to the minute to appear.
+ */
+export const unstable_dynamicStaleTime = 60;
+
 export default async function ProgressPage(props: PageProps<"/progress">) {
   const user = await requireUser(),
     params = await props.searchParams;
@@ -38,15 +46,19 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
   const bodyFrom = bodyRange.from;
   const bodyTo = bodyRange.to;
 
-  const [training, body, bodyWeights, totals, recovery] = await withUser(getDb(), user.id, (tx) =>
-    Promise.all([
-      readTrainingData(tx, user.id, range),
-      readMuscleVolume(tx, user.id, bodyRange),
-      listBodyWeights(tx, user.id, range),
-      // Complete per-sport totals, from the canonical tables every sport is written to.
-      readActivityTotals(tx, user.id, { from: range.from, to: range.to }),
-      readRecoveryHistory(tx, user.id, range, profile.timeZone),
-    ]),
+  const [training, body, bodyWeights, totals, recovery] = await withUser(
+    getDb(),
+    user.id,
+    (tx) =>
+      Promise.all([
+        readTrainingData(tx, user.id, range),
+        readMuscleVolume(tx, user.id, bodyRange),
+        listBodyWeights(tx, user.id, range),
+        // Complete per-sport totals, from the canonical tables every sport is written to.
+        readActivityTotals(tx, user.id, { from: range.from, to: range.to }),
+        readRecoveryHistory(tx, user.id, range, profile.timeZone),
+      ]),
+    { readOnly: true },
   );
   const preferredUnit = profile.preferredUnit === "lb" ? "lb" : "kg";
   const sportTotals =

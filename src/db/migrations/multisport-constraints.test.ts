@@ -2,6 +2,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { backfillMultisport } from "@/db/backfill-multisport";
+import { postgresErrorCode } from "@/db/errors";
 import {
   activities,
   activitySubmissionReceipts,
@@ -343,6 +344,22 @@ describe("row level security", () => {
       booleanResult(await tx.execute(sql`select public.server_write() as value`)),
     );
     expect(writing).toBe(true);
+  });
+
+  it("refuses a write in a read-only transaction before any policy is consulted", async () => {
+    const owner = await account("readonly-write@example.test");
+    const error = await withUser(
+      t.db,
+      owner.userId,
+      (tx) => tx.insert(activities).values(activityValues(owner.userId)),
+      { readOnly: true },
+    ).then(
+      () => null,
+      (failure: unknown) => failure,
+    );
+    // 25006: read_only_sql_transaction. The mode is set inside the claims statement (ADR 0030).
+    expect(postgresErrorCode(error)).toBe("25006");
+    expect(await t.db.select().from(activities)).toHaveLength(0);
   });
 
   it("does not leak the marker to the next transaction on the same connection", async () => {

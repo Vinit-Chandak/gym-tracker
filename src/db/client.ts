@@ -1,7 +1,8 @@
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
-import { getDatabaseUrl } from "../lib/env";
+import { getDatabaseUrl, perfLogEnabled } from "../lib/env";
+import { queryCounter } from "./perf";
 import * as schema from "./schema";
 
 export type AppDatabase = PostgresJsDatabase<typeof schema>;
@@ -31,7 +32,8 @@ export function createDatabase(url: string, options: { max?: number } = {}): App
     connect_timeout: 10,
     ...(needsSsl(url) ? { ssl: "require" as const } : {}),
   });
-  return drizzle(client, { schema });
+  // Counting statements costs a callback per query, so it is wired in only while timing.
+  return drizzle(client, { schema, ...(perfLogEnabled() ? { logger: queryCounter } : {}) });
 }
 
 const globalForDb = globalThis as unknown as { __appDatabase?: AppDatabase };

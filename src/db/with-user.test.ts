@@ -1,7 +1,11 @@
+import type { SQL } from "drizzle-orm";
+import { PgDialect } from "drizzle-orm/pg-core";
 import { describe, expect, it, vi } from "vitest";
 
 import type { Db, Tx } from "./types";
 import { isConnectionError, withUser } from "./with-user";
+
+const dialect = new PgDialect();
 
 function connectionError(code: string): Error {
   return Object.assign(new Error(`write ${code}`), { code });
@@ -80,5 +84,32 @@ describe("withUser", () => {
       return null;
     });
     expect(order).toEqual(["claims", "athlete lock", "work"]);
+  });
+
+  it("makes a read-only transaction read-only in the claims statement, without the lock", async () => {
+    const { db, tx } = fakeDb([null]);
+    const statements: string[] = [];
+    (tx.execute as ReturnType<typeof vi.fn>).mockImplementation(async (query: SQL) => {
+      statements.push(dialect.sqlToQuery(query).sql);
+      return [];
+    });
+    await withUser(db, "user-1", async () => null, { readOnly: true });
+    // One statement before the caller's work, where a separate SET TRANSACTION was another.
+    expect(statements).toHaveLength(1);
+    expect(statements[0]).toContain("set_config('transaction_read_only', 'on', true)");
+    expect(db.transaction).toHaveBeenCalledWith(expect.any(Function));
+  });
+
+  it("leaves a writing transaction's access mode as the database has it", async () => {
+    const { db, tx } = fakeDb([null]);
+    const statements: string[] = [];
+    (tx.execute as ReturnType<typeof vi.fn>).mockImplementation(async (query: SQL) => {
+      statements.push(dialect.sqlToQuery(query).sql);
+      return [];
+    });
+    await withUser(db, "user-1", async () => null);
+    expect(statements).toHaveLength(2);
+    expect(statements[0]).not.toContain("transaction_read_only");
+    expect(statements[1]).toContain("for update");
   });
 });
