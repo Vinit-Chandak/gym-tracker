@@ -12,10 +12,10 @@ import { perfLogEnabled } from "../lib/env";
  *
  * - `begin`: waiting for a pooled connection plus `BEGIN`. A new connection (TCP, TLS and the
  *   password exchange) shows up here.
- * - `setup`: the claims statement. The driver describes a parameterised statement before running
- *   it, which costs two network round trips, so half of `setup` is the app↔database round trip.
- * - `queries`: statements sent through Drizzle, the claims and lock included; `BEGIN` and
- *   `COMMIT` are not.
+ * - `setup`: the claims statement, one network round trip and almost no work, so it is close to
+ *   the app↔database round trip itself.
+ * - `queries`: every statement the transaction sent: `BEGIN`, the claims, the lock for a write,
+ *   its own queries and `COMMIT`.
  *
  * The first transaction an instance runs also says how long ago the process started, which
  * separates a cold start from a slow query.

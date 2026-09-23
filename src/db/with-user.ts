@@ -4,8 +4,8 @@ import { markBegin, timeSetup, timeTransaction } from "./perf";
 import type { Db, Tx } from "./types";
 
 /**
- * Error codes for a connection that died underneath us rather than a failed query: the driver's
- * own codes plus the socket-level ones Node reports.
+ * Error codes for a connection that died underneath us rather than a failed query: postgres.js's
+ * own codes (the scripts still use it) plus the socket-level ones Node reports.
  */
 const CONNECTION_ERROR_CODES = new Set([
   "CONNECTION_CLOSED",
@@ -16,12 +16,23 @@ const CONNECTION_ERROR_CODES = new Set([
   "ETIMEDOUT",
 ]);
 
+/**
+ * node-postgres, which the app runs on, says the same things with a message and no code: the
+ * server or pooler closed the connection, or a query was sent on one that had already failed.
+ */
+const CONNECTION_ERROR_MESSAGES = new Set([
+  "Connection terminated unexpectedly",
+  "Connection terminated",
+  "Client has encountered a connection error and is not queryable",
+]);
+
 /** Whether an error (or any error it wraps) says the database connection was lost. */
 export function isConnectionError(error: unknown): boolean {
   let current: unknown = error;
   while (current instanceof Error) {
     const code = (current as { code?: unknown }).code;
     if (typeof code === "string" && CONNECTION_ERROR_CODES.has(code)) return true;
+    if (CONNECTION_ERROR_MESSAGES.has(current.message)) return true;
     current = current.cause;
   }
   return false;
@@ -38,11 +49,10 @@ export function isConnectionError(error: unknown): boolean {
  * connection error before any of `fn` has run, it is retried once on a fresh connection. Nothing
  * of the caller's work is ever repeated.
  *
- * Every statement here is a network round trip, two for a parameterised one (ADR 0030), so the
- * setup is kept to the claims statement plus, for a write, the athlete lock. A read-only
- * transaction is made read-only inside the claims statement rather than by a separate
- * `SET TRANSACTION`: going read-only is allowed at any point in a transaction, and every later
- * write is refused exactly as before.
+ * Every statement here is a network round trip (ADR 0030), so the setup is kept to the claims
+ * statement plus, for a write, the athlete lock. A read-only transaction is made read-only
+ * inside the claims statement rather than by a separate `SET TRANSACTION`: going read-only is
+ * allowed at any point in a transaction, and every later write is refused exactly as before.
  */
 export async function withUser<T>(
   db: Db,
