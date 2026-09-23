@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { RefreshWhenSetsChange } from "@/components/refresh-when-sets-change";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { todayInTimeZone } from "@/domain/program-calendar";
@@ -8,6 +9,7 @@ import { requireUser } from "@/server/auth";
 import { getActiveSession } from "@/server/queries/active-session";
 import { getWarmupProtocol } from "@/server/queries/reference";
 import { getRequestProfile } from "@/server/queries/request-profile";
+import { seenSetChanges } from "@/server/queries/set-changes";
 import { todayCoachState } from "@/server/repositories/coach-plans";
 import { todayWorkflowState } from "@/server/repositories/coaching-today";
 import { listGyms } from "@/server/repositories/gyms";
@@ -20,7 +22,8 @@ export const metadata: Metadata = { title: "Today" };
 
 /**
  * Coming back to this tab within a minute shows what it showed, without asking the server
- * (ADR 0030). Any change made in the app clears that copy at once; only a change made
+ * (ADR 0030). Any change made in the app clears that copy at once, except a set, which has the
+ * copy fetched again as it is shown (the open workout's card counts them); only a change made
  * elsewhere, on another device or by the coach, can take up to the minute to appear.
  */
 export const unstable_dynamicStaleTime = 60;
@@ -28,6 +31,7 @@ export const unstable_dynamicStaleTime = 60;
 export default async function TodayPage() {
   const user = await requireUser();
   const requestProfile = await getRequestProfile(user.id, user.email);
+  const seen = await seenSetChanges();
   // The active session comes from the shared per-request read the resume strip also uses,
   // so Today and the shell agree on one session without asking the database twice.
   const [inProgress, data] = await Promise.all([
@@ -87,20 +91,23 @@ export default async function TodayPage() {
   const { profile, gyms, plan, restProtocol, coach, standalone, programme } = data;
 
   return (
-    <TodayView
-      today={plan?.today ?? todayInTimeZone(profile.timeZone)}
-      timeZone={profile.timeZone}
-      // Only active gyms can be trained at, so only they can be chosen between.
-      gyms={gyms
-        .filter((gym) => gym.isActive)
-        .map((gym) => ({ id: gym.id, name: gym.name, kind: gym.kind, isDefault: gym.isDefault }))}
-      plan={plan}
-      inProgress={inProgress}
-      restProtocol={restProtocol}
-      coach={coach}
-      unit={LOAD_UNIT_LABELS[profile.preferredUnit]}
-      programmeOccurrences={programme}
-      standaloneOccurrences={standalone}
-    />
+    <>
+      <RefreshWhenSetsChange seen={seen} />
+      <TodayView
+        today={plan?.today ?? todayInTimeZone(profile.timeZone)}
+        timeZone={profile.timeZone}
+        // Only active gyms can be trained at, so only they can be chosen between.
+        gyms={gyms
+          .filter((gym) => gym.isActive)
+          .map((gym) => ({ id: gym.id, name: gym.name, kind: gym.kind, isDefault: gym.isDefault }))}
+        plan={plan}
+        inProgress={inProgress}
+        restProtocol={restProtocol}
+        coach={coach}
+        unit={LOAD_UNIT_LABELS[profile.preferredUnit]}
+        programmeOccurrences={programme}
+        standaloneOccurrences={standalone}
+      />
+    </>
   );
 }

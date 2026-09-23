@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { RefreshWhenSetsChange } from "@/components/refresh-when-sets-change";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { getDb } from "@/db/client";
@@ -10,6 +11,7 @@ import { formatDateRange } from "@/lib/format";
 import { fromKilograms } from "@/lib/units";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
+import { seenSetChanges } from "@/server/queries/set-changes";
 import { listBodyWeights } from "@/server/repositories/body-weight";
 import { readTrainingData } from "@/server/repositories/training-data";
 import { readMuscleVolume } from "@/server/repositories/muscle-volume";
@@ -21,7 +23,8 @@ export const metadata: Metadata = { title: "Progress" };
 
 /**
  * Coming back to this tab within a minute shows what it showed, without asking the server
- * (ADR 0030). Any change made in the app clears that copy at once; only a change made
+ * (ADR 0030). Any change made in the app clears that copy at once, except a set, which has the
+ * copy fetched again as it is shown (the open workout counts here); only a change made
  * elsewhere, on another device or by the coach, can take up to the minute to appear.
  */
 export const unstable_dynamicStaleTime = 60;
@@ -30,6 +33,7 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
   const user = await requireUser(),
     params = await props.searchParams;
   const profile = await getRequestProfile(user.id, user.email);
+  const seen = await seenSetChanges();
   const { range, error: rangeError } = parseDateRangeOrDefault(
     {
       from: typeof params.from === "string" ? params.from : undefined,
@@ -88,6 +92,7 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
 
   return (
     <>
+      <RefreshWhenSetsChange seen={seen} />
       <PageHeader title="Progress" meta={formatDateRange(range.from, range.to)} />
       <PageContent>
         {(rangeError || weekError) && (

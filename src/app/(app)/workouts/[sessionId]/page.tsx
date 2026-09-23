@@ -9,6 +9,7 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
+import { seenSetChanges } from "@/server/queries/set-changes";
 import { getSessionDetail } from "@/server/repositories/sessions";
 import { readSessionRecords } from "@/server/repositories/shared-stats";
 import { requireUuid } from "@/server/validation/params";
@@ -23,8 +24,10 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
   requireUuid(sessionId);
   const user = await requireUser();
   const requestProfile = await getRequestProfile(user.id, user.email);
-  // Only reads, so no athlete lock: this also renders after every set is saved, beside the
-  // shell's own read of the open session.
+  // The sets saved after this render are added by the browser, which knows which ones it holds.
+  const seen = await seenSetChanges();
+  // Only reads, so no athlete lock: this also renders after every change to an exercise, beside
+  // the shell's own read of the open session.
   const found = await withUser(
     getDb(),
     user.id,
@@ -73,6 +76,7 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
         <WorkoutView
           key={`${viewKey}:${data.completedAt ?? "open"}:${data.preferredUnit}`}
           session={data}
+          seenSetChanges={seen}
           userId={user.id}
         />
       </PageContent>

@@ -3,7 +3,8 @@ import { beforeEach, expect, it, vi } from "vitest";
 /**
  * What each action tells the browser to throw away (ADR 0030). The tabs keep their screens for a
  * minute, so an action that changes what a tab shows must clear that copy; one that only
- * refreshes must not also discard every prefetched loading screen.
+ * refreshes must not also discard every prefetched loading screen. A set does neither: the
+ * browser takes it from the reply (`lib/set-changes.ts`).
  */
 const USER = "00000000-0000-4000-8000-000000000001";
 const mocks = vi.hoisted(() => ({
@@ -21,7 +22,8 @@ vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath, refresh: mo
 vi.mock("next/navigation", () => ({ redirect: vi.fn(), unstable_rethrow: vi.fn() }));
 
 import { startRoutineAction } from "./manual-training";
-import { deleteSetAction, logSetAction } from "./sessions";
+import { refreshScreenAction } from "./refresh";
+import { deleteSetAction, logSetAction, setExerciseCompletedAction } from "./sessions";
 
 beforeEach(() => vi.resetAllMocks());
 
@@ -40,7 +42,7 @@ const set = {
   completedAt: new Date("2026-09-23T10:00:00Z"),
 };
 
-it("re-renders the workout after a set without discarding prefetched screens", async () => {
+it("saves a set without rendering the workout again or discarding any screen", async () => {
   mocks.withUser.mockResolvedValue(set);
   const result = await logSetAction({
     effortInputVersion: 2,
@@ -52,8 +54,11 @@ it("re-renders the workout after a set without discarding prefetched screens", a
     rir: 2,
     durationSeconds: null,
   });
-  expect(result).toMatchObject({ ok: true });
-  expect(mocks.refresh).toHaveBeenCalledTimes(1);
+  expect(result).toEqual({
+    ok: true,
+    set: { ...set, completedAt: "2026-09-23T10:00:00.000Z" },
+  });
+  expect(mocks.refresh).not.toHaveBeenCalled();
   expect(mocks.revalidatePath).not.toHaveBeenCalled();
 });
 
@@ -62,6 +67,21 @@ it("does the same when a set is deleted", async () => {
   await expect(deleteSetAction("00000000-0000-4000-8000-000000000002", 1)).resolves.toEqual({
     ok: true,
   });
+  expect(mocks.refresh).not.toHaveBeenCalled();
+  expect(mocks.revalidatePath).not.toHaveBeenCalled();
+});
+
+it("still re-renders the workout when an exercise changes, keeping prefetched screens", async () => {
+  mocks.withUser.mockResolvedValue(undefined);
+  await expect(
+    setExerciseCompletedAction("00000000-0000-4000-8000-000000000002", true),
+  ).resolves.toEqual({ ok: true });
+  expect(mocks.refresh).toHaveBeenCalledTimes(1);
+  expect(mocks.revalidatePath).not.toHaveBeenCalled();
+});
+
+it("renders a screen shown from an older copy again, keeping prefetched screens", async () => {
+  await refreshScreenAction();
   expect(mocks.refresh).toHaveBeenCalledTimes(1);
   expect(mocks.revalidatePath).not.toHaveBeenCalled();
 });

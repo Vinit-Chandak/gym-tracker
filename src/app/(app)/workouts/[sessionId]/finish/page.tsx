@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 
+import { RefreshWhenSetsChange } from "@/components/refresh-when-sets-change";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { List } from "@/components/ui/link-row";
@@ -13,6 +14,7 @@ import { fromKilograms, setInUnit } from "@/lib/units";
 import { LOAD_UNIT_LABELS } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
+import { seenSetChanges } from "@/server/queries/set-changes";
 import { getSessionDetail } from "@/server/repositories/sessions";
 import { requireUuid } from "@/server/validation/params";
 
@@ -24,6 +26,8 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
   const { sessionId } = await props.params;
   requireUuid(sessionId);
   const user = await requireUser();
+  // Forward, after Back, brings this screen back as it was; a set saved meanwhile refetches it.
+  const seen = await seenSetChanges();
   const [profile, session] = await Promise.all([
     getRequestProfile(user.id, user.email),
     withUser(getDb(), user.id, (tx) =>
@@ -41,6 +45,7 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
 
   return (
     <>
+      <RefreshWhenSetsChange seen={seen} />
       <PageHeader
         title="Finish session"
         meta={`${session.day?.name ?? "Ad hoc session"} · ${session.gym.name}`}

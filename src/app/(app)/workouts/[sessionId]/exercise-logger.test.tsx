@@ -490,3 +490,24 @@ it("does not confirm an older saved effort rating when only the load is edited",
   await screen.findByText(/Review and re-enter actual RIR/);
   expect(actions.log).not.toHaveBeenCalled();
 });
+
+it("leaves a row being typed into alone when the saved sets change underneath it", async () => {
+  const props = {
+    session,
+    userId: "user",
+    readOnly: false,
+    onBack: () => {},
+    onDirtyChange: () => {},
+    onLogged: () => {},
+  };
+  const view = render(<ExerciseLogger {...props} exercise={exercise} />);
+  fireEvent.change(screen.getByRole("textbox", { name: "Set 1 reps" }), { target: { value: "5" } });
+  // Another set of the exercise saved: the sets change while set 1 is still being entered.
+  view.rerender(
+    <ExerciseLogger {...props} exercise={{ ...exercise, sets: [{ ...saved, setIndex: 2 }] }} />,
+  );
+  await act(async () => {});
+  expect(screen.queryByText("Unsaved draft restored. Review and retry saving.")).toBeNull();
+  expect((screen.getByRole("textbox", { name: "Set 1 reps" }) as HTMLInputElement).value).toBe("5");
+  expect(localStorage.getItem(draftKey(context))).toContain('"reps":"5"');
+});
