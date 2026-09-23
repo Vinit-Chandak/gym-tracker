@@ -20,6 +20,7 @@ import {
 import { formatDuration } from "@/domain/pace";
 import { formatDistance } from "@/lib/distance-units";
 import { formatDateTime } from "@/lib/format";
+import { ORIGIN_PARAM, originQuery, parseOrigin } from "@/lib/nav";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { getActivity } from "@/server/repositories/activities";
@@ -48,6 +49,8 @@ function Stat({ label, value }: { label: string; value: string }) {
 export default async function ActivityPage(props: PageProps<"/training/activities/[activityId]">) {
   const { activityId } = await props.params;
   requireUuid(activityId);
+  // Passed on to the correction, so the tab it was opened from stays selected through it.
+  const origin = parseOrigin((await props.searchParams)[ORIGIN_PARAM]);
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
   const activity = await withUser(getDb(), user.id, (tx) => getActivity(tx, user.id, activityId), {
@@ -124,7 +127,7 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
 
         <div className="space-y-2">
           <LinkButton
-            href={`/training/activities/${activity.id}/edit`}
+            href={`/training/activities/${activity.id}/edit${originQuery(origin)}`}
             variant="ghost"
             className="w-full"
           >

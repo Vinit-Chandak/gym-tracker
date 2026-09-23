@@ -38,7 +38,6 @@ export default async function CheckInPage(props: PageProps<"/workouts/[sessionId
           initial={{
             sleepHours: str(session.sleepHours),
             sleepQuality: str(session.sleepQuality),
-            energy: str(session.energy),
             fatigue: str(session.fatigue),
             soreness: str(session.soreness),
           }}

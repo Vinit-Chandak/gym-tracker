@@ -34,34 +34,51 @@ const reading = (overrides: Partial<RecoveryReading>): RecoveryReading => ({
   ...overrides,
 });
 
-it("opens a recorded measure when only energy was answered, and allows an explicit empty measure", () => {
+it("opens a recorded measure when only fatigue was answered, and allows an explicit empty measure", () => {
   const onSelect = vi.fn();
-  const readings = [reading({ energy: 4 })];
+  const readings = [reading({ fatigue: 4 })];
   const view = render(<RecoveryProgress readings={readings} selected={null} onSelect={onSelect} />);
-  expect((screen.getByRole("radio", { name: "Energy" }) as HTMLInputElement).checked).toBe(true);
-  expect(screen.getByRole("img", { name: /Energy, 1 observations/ })).toBeTruthy();
+  expect((screen.getByRole("radio", { name: "Fatigue" }) as HTMLInputElement).checked).toBe(true);
+  expect(screen.getByRole("img", { name: /Fatigue, 1 observations/ })).toBeTruthy();
   fireEvent.click(screen.getByRole("radio", { name: "Sleep" }));
   expect(onSelect).toHaveBeenCalledWith("sleepHours");
   view.rerender(<RecoveryProgress readings={readings} selected="sleepHours" onSelect={onSelect} />);
   expect(screen.getByText(/Sleep was not recorded/)).toBeTruthy();
   expect(screen.queryByRole("img")).toBeNull();
-  view.rerender(<RecoveryProgress readings={readings} selected="energy" onSelect={onSelect} />);
-  expect(screen.getByRole("img", { name: /Energy, 1 observations/ })).toBeTruthy();
+  view.rerender(<RecoveryProgress readings={readings} selected="fatigue" onSelect={onSelect} />);
+  expect(screen.getByRole("img", { name: /Fatigue, 1 observations/ })).toBeTruthy();
+});
+
+it("no longer offers energy, and a link that still names it opens a measure that was recorded", () => {
+  render(
+    <RecoveryProgress
+      readings={[reading({ energy: 2, fatigue: 4 })]}
+      selected="energy"
+      onSelect={() => {}}
+    />,
+  );
+  expect(screen.getAllByRole("radio").map((radio) => radio.getAttribute("aria-label"))).toEqual([
+    "Sleep",
+    "Sleep quality",
+    "Fatigue",
+    "Soreness",
+  ]);
+  expect((screen.getByRole("radio", { name: "Fatigue" }) as HTMLInputElement).checked).toBe(true);
 });
 
 it("shows real latest values and averages without treating missing responses as zero", () => {
   render(
     <RecoveryProgress
       readings={[
-        reading({ id: "first", energy: 2 }),
-        reading({ id: "middle", energy: null, fatigue: 2 }),
-        reading({ id: "last", energy: 5, sessionId: "last" }),
+        reading({ id: "first", fatigue: 2 }),
+        reading({ id: "middle", fatigue: null, soreness: 2 }),
+        reading({ id: "last", fatigue: 5, sessionId: "last" }),
       ]}
-      selected="energy"
+      selected="fatigue"
       onSelect={() => {}}
     />,
   );
-  const summary = screen.getByLabelText("Energy summary");
+  const summary = screen.getByLabelText("Fatigue summary");
   expect(summary.textContent).toContain("Latest5 / 5");
   expect(summary.textContent).toContain("Range average3.5 / 5");
   expect(screen.getByText("2 readings")).toBeTruthy();
@@ -90,7 +107,7 @@ it("keeps zero hours and decimal sleep answers exact", () => {
 });
 
 it("explains an empty range without inventing scores", () => {
-  render(<RecoveryProgress readings={[]} selected="energy" onSelect={() => {}} />);
+  render(<RecoveryProgress readings={[]} selected="fatigue" onSelect={() => {}} />);
   expect(screen.getByText("No check-ins in this range")).toBeTruthy();
   expect(screen.getByRole("link", { name: "Go to Today" }).getAttribute("href")).toBe("/today");
   expect(screen.queryByRole("img")).toBeNull();

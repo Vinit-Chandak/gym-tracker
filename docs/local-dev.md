@@ -114,7 +114,7 @@ complete/partial answers, edits, workout completion, date filters, reload and Ba
 light/dark accessibility and 320 px layouts. Run once normally and once with
 `AUDIT_DEVICE=iphone` (in PowerShell, `$env:AUDIT_DEVICE = "iphone"`). It uses the local
 Alex and Sam accounts, creates and finishes workouts, and can create Sam's first gym.
-Newly seeded training histories also include complete, energy-only and skipped check-ins;
+Newly seeded training histories also include complete, fatigue-only and skipped check-ins;
 rerunning setup leaves existing accounts and their readings intact.
 
 ## Coaching screens

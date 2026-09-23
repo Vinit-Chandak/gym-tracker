@@ -10,6 +10,7 @@ import {
   saveDraft,
   type ActivityDraft,
 } from "@/lib/activity-drafts";
+import { originQuery, type NavOrigin } from "@/lib/nav";
 import { formValues, type FormState } from "@/server/validation/form";
 import type { SaveActivityState } from "@/server/actions/activities";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,8 @@ type Props = {
   action: (previous: FormState, form: FormData) => Promise<SaveActivityState>;
   submissionKey: string;
   activityId?: string;
+  /** The tab the corrected record was opened from, which the saved record reopens under. */
+  origin?: NavOrigin | null;
   expectedRevision?: number;
   occurrence?: { id: string; revisionId: string; planId?: string | null } | null;
   target?: { title: string; lines: string[] } | null;
@@ -123,7 +126,9 @@ function StoredEditor(props: Props) {
       } catch {
         /* Saving the activity succeeded even if storage is blocked. */
       }
-      router.replace(`/training/activities/${result.savedActivityId}`);
+      router.replace(
+        `/training/activities/${result.savedActivityId}${originQuery(props.origin ?? null)}`,
+      );
     }
     return result;
   };

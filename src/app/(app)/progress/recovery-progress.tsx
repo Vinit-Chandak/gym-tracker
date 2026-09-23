@@ -5,12 +5,14 @@ import { Card } from "@/components/ui/card";
 import { Chart, SERIES_COLORS } from "@/components/ui/chart";
 import type { RecoveryReading } from "@/domain/recovery";
 import { formatIsoDay } from "@/lib/format";
-import { cn } from "@/lib/utils";
 
+/**
+ * What the check-in asks. Energy is not charted: it is no longer asked, being fatigue the
+ * other way up, and a measure only older check-ins can fill would read as one that stopped.
+ */
 export const RECOVERY_METRICS = [
   { value: "sleepHours", label: "Sleep", unit: "h", hint: "Hours slept before training." },
   { value: "sleepQuality", label: "Sleep quality", unit: "/ 5", hint: "1 = poor · 5 = great" },
-  { value: "energy", label: "Energy", unit: "/ 5", hint: "1 = flat · 5 = fired up" },
   { value: "fatigue", label: "Fatigue", unit: "/ 5", hint: "1 = fresh · 5 = wrecked" },
   { value: "soreness", label: "Soreness", unit: "/ 5", hint: "1 = none · 5 = severe" },
 ] as const;
@@ -41,8 +43,8 @@ export function RecoveryProgress({
       <Card>
         <h2 className="text-lg font-medium">No check-ins in this range</h2>
         <p className="text-sm text-ink-muted">
-          Sleep, energy, fatigue and soreness appear here when you save a workout check-in, even
-          before you finish the workout. Blank answers stay blank.
+          Sleep, fatigue and soreness appear here when you save a workout check-in, even before you
+          finish the workout. Blank answers stay blank.
         </p>
         <p className="text-sm text-ink-muted">
           Try a wider date range, or add a check-in from your current workout.
@@ -64,18 +66,12 @@ export function RecoveryProgress({
       <div
         role="radiogroup"
         aria-label="Recovery measurement"
-        className="grid grid-cols-6 gap-2 sm:grid-cols-5"
+        className="grid grid-cols-2 gap-2 sm:grid-cols-4"
       >
         {RECOVERY_METRICS.map((item) => {
           const recent = readings.findLast((reading) => reading[item.value] !== null);
           return (
-            <label
-              key={item.value}
-              className={cn(
-                "relative min-w-0 sm:col-span-1",
-                item.value === "fatigue" || item.value === "soreness" ? "col-span-3" : "col-span-2",
-              )}
-            >
+            <label key={item.value} className="relative min-w-0">
               <input
                 type="radio"
                 name="recovery-metric"

@@ -14,13 +14,22 @@ import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
 type Props = {
   action: (previous: FormState, formData: FormData) => Promise<FormState>;
   initialBodyWeight: string;
+  /** The newest reading on record, in `unit`, or "" when there is none. */
+  lastBodyWeight: string;
   /** The account's unit. The weight is typed in it, and the action converts on the way in. */
   unit: BodyLoadUnit;
   userId: string;
   sessionId: string;
 };
 
-export function FinishForm({ action, initialBodyWeight, unit, userId, sessionId }: Props) {
+export function FinishForm({
+  action,
+  initialBodyWeight,
+  lastBodyWeight,
+  unit,
+  userId,
+  sessionId,
+}: Props) {
   const drafts = useSessionDrafts(userId, sessionId);
   const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
   return (
@@ -43,11 +52,14 @@ export function FinishForm({ action, initialBodyWeight, unit, userId, sessionId 
             error={state.fieldErrors?.bodyWeight}
           >
             <input type="hidden" name="unit" value={unit} />
+            {/* The last reading, greyed out, rather than a made-up example: someone who weighs
+                in daily is typing the day's small change against it. Left blank, nothing is
+                recorded — the placeholder is never submitted. */}
             <Input
               name="bodyWeight"
               inputMode="decimal"
               defaultValue={state.values?.bodyWeight ?? initialBodyWeight}
-              placeholder={unit === "kg" ? "74.5" : "164.2"}
+              placeholder={lastBodyWeight || undefined}
             />
           </Field>
         </Card>

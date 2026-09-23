@@ -6,6 +6,7 @@ import { withUser } from "@/db/with-user";
 import type { Effort } from "@/domain/activity";
 import { formatDuration, formatPace } from "@/domain/pace";
 import { formatDateRange, formatDateTime, formatRunKm } from "@/lib/format";
+import { originQuery } from "@/lib/nav";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { listGyms } from "@/server/repositories/gyms";
@@ -71,7 +72,8 @@ export default async function HistoryPage(props: PageProps<"/history">) {
       date: w.startedAt.toISOString(),
       title: w.dayName ?? "Ad hoc session",
       subtitle: `${formatDateTime(w.startedAt, profile.timeZone)} · ${w.gymName}`,
-      href: `/workouts/${w.id}` as const,
+      // Opened from here, the entry keeps History selected rather than the tab it lives under.
+      href: `/workouts/${w.id}${originQuery("history")}` as const,
       meta: `${w.setCount} ${w.setCount === 1 ? "set" : "sets"}`,
       gymId: w.gymId,
       exercises: w.exercises.map((e) => ({
@@ -88,7 +90,7 @@ export default async function HistoryPage(props: PageProps<"/history">) {
       date: r.startedAt.toISOString(),
       title: `${r.environment === "treadmill" ? "Treadmill" : "Outdoor"} · ${formatRunKm(r.distanceMeters)} km`,
       subtitle: formatDateTime(r.startedAt, profile.timeZone),
-      href: `/training/activities/${r.id}` as const,
+      href: `/training/activities/${r.id}${originQuery("history")}` as const,
       meta: `${formatDuration(r.durationSeconds)} · ${formatPace(r.averagePaceSecondsPerKm)}/km`,
       gymId: r.gymId,
       exercises: [],
@@ -105,7 +107,7 @@ export default async function HistoryPage(props: PageProps<"/history">) {
             : "Swim"
           : `${activity.sport === "cycling" ? "Ride" : "Swim"} · ${formatRunKm(activity.distanceMetres)} km`,
       subtitle: formatDateTime(activity.startedAt, profile.timeZone),
-      href: `/training/activities/${activity.id}` as const,
+      href: `/training/activities/${activity.id}${originQuery("history")}` as const,
       // An unrecorded duration says so rather than reading as zero minutes.
       meta:
         activity.durationMs === null ? "" : formatDuration(Math.round(activity.durationMs / 1000)),

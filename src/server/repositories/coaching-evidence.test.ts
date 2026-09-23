@@ -405,6 +405,26 @@ it("retains a temporary session's baseline and exposes it to the fallback rule",
   });
 });
 
+it("reads a low energy given before the question was retired as a recovery report, and fatigue the same way", async () => {
+  // Energy is no longer asked, but check-ins from before then keep it. While one is recent it
+  // supports a temporary reduction exactly as it did, and the fatigue that replaced it opens
+  // the same gate from the other end of its scale.
+  const a = await fixture();
+  await a.as(async (db) => {
+    const recent = a.ids[0]!;
+    const sessionId = recent.slice("workout:".length);
+    const acute = async (checkIn: { energy: number | null; fatigue: number | null }) => {
+      await db.update(workoutSessions).set(checkIn).where(eq(workoutSessions.id, sessionId));
+      const evidence = await readCoachingEvidence(db, a.user.id, a.program.id, now);
+      return evidence.acuteEvidenceIds.includes(recent);
+    };
+    expect(await acute({ energy: 2, fatigue: null })).toBe(true);
+    expect(await acute({ energy: null, fatigue: 4 })).toBe(true);
+    expect(await acute({ energy: 3, fatigue: 3 })).toBe(false);
+    expect(await acute({ energy: null, fatigue: null })).toBe(false);
+  });
+});
+
 it("uses a recent quoted Tell the coach report for a temporary adjustment, but rejects old or invented reports", async () => {
   const a = await fixture();
   await a.as(async (db) => {

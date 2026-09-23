@@ -1,5 +1,13 @@
 import { expect, it } from "vitest";
-import { isNavItemActive, NAV_ITEMS, originPath, parseOrigin, sectionLabel } from "./nav";
+import {
+  isNavItemActive,
+  NAV_ITEMS,
+  originPath,
+  originQuery,
+  parseOrigin,
+  sectionLabel,
+  type NavOrigin,
+} from "./nav";
 
 it.each([
   ["/today", "/today"],
@@ -67,4 +75,40 @@ it("accepts only the origins it knows, and never an arbitrary destination", () =
   expect(originPath(null)).toBe("/history");
   expect(originPath(null, "training")).toBe("/training");
   expect(originPath("programme")).toBe("/training/programme");
+});
+
+it.each<[string, NavOrigin, string]>([
+  // A finished workout opened from History is still in History, and so is its exercise.
+  ["/workouts/abc", "history", "/history"],
+  ["/training/activities/abc", "history", "/history"],
+  // Correcting a run opened from History does not move you to Training.
+  ["/training/activities/abc/edit", "history", "/history"],
+  ["/training/activities/abc", "programme", "/training"],
+  ["/workouts/abc", "shared", "/profile"],
+])("keeps %s under the tab its link names (%s)", (pathname, origin, expected) => {
+  expect(
+    NAV_ITEMS.filter(({ href }) => isNavItemActive(pathname, href, origin)).map(({ href }) => href),
+  ).toEqual([expected]);
+});
+
+it.each([
+  ["/today", "/today"],
+  ["/progress", "/progress"],
+  ["/profile/programme", "/profile"],
+  ["/exercises/bench", "/profile"],
+])("lets only a record take an origin, never %s", (pathname, expected) => {
+  expect(
+    NAV_ITEMS.filter(({ href }) => isNavItemActive(pathname, href, "history")).map(
+      ({ href }) => href,
+    ),
+  ).toEqual([expected]);
+});
+
+it("names an origin on a record's link that the record reads back", () => {
+  expect(originQuery("history")).toBe("?from=history");
+  expect(originQuery(null)).toBe("");
+  const query = new URLSearchParams(originQuery("history"));
+  expect(parseOrigin(query.get("from") ?? undefined)).toBe("history");
+  // History's own `from` is a date, which is no origin at all.
+  expect(parseOrigin("2026-09-01")).toBeNull();
 });

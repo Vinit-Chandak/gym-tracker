@@ -208,18 +208,26 @@ try {
   await check(
     "Back follows History → activity → editor, including reload and browser Forward",
     async () => {
+      // Opened from History, the record and its correction keep History selected (NAV-03).
+      const selectedTab = () =>
+        page
+          .getByRole("navigation", { name: "Primary" })
+          .locator('a[aria-current="page"]')
+          .innerText();
       await go("/history?kind=run");
-      await page.locator(`a[href="/training/activities/${ids.running}"]`).click();
-      await page.waitForURL(`**/training/activities/${ids.running}`);
+      await page.locator(`a[href="/training/activities/${ids.running}?from=history"]`).click();
+      await page.waitForURL(`**/training/activities/${ids.running}?from=history`);
+      expect(await selectedTab()).toBe("History");
       await page.getByRole("link", { name: "Correct this activity" }).click();
-      await page.waitForURL("**/edit");
+      await page.waitForURL("**/edit?from=history");
       await page.reload({ waitUntil: "networkidle" });
+      expect(await selectedTab()).toBe("History");
       await page.getByRole("link", { name: /^Back/ }).click();
-      await page.waitForURL(`**/training/activities/${ids.running}`);
+      await page.waitForURL(`**/training/activities/${ids.running}?from=history`);
       await page.getByRole("link", { name: /^Back/ }).click();
       await page.waitForURL("**/history?kind=run");
       await page.goForward();
-      await page.waitForURL(`**/training/activities/${ids.running}`);
+      await page.waitForURL(`**/training/activities/${ids.running}?from=history`);
       expect(await page.evaluate(() => history.state.overloadPreviousPage)).toBe(
         "/history?kind=run",
       );

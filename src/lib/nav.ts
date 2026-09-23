@@ -39,22 +39,38 @@ export const NAV_ITEMS: readonly NavItem[] = [
 /** Sections reached from Profile, which keep Profile selected while you are in them. */
 const UNDER_PROFILE = ["/exercises", "/gyms", "/u"];
 
+/**
+ * Records more than one tab opens: a workout, and a logged run, ride or swim. Each can say in
+ * its link which tab it was opened from, and that tab stays selected (NAV-03).
+ */
+const OPENED_FROM_ELSEWHERE = ["/workouts", "/training/activities"];
+
 const withinSection = (pathname: string, section: string) =>
   pathname === section || pathname.startsWith(`${section}/`);
 
 /**
  * Detail screens belong to the same primary section as their entry point.
  *
- * The strength logger is the exception that proves it: `/workouts/...` is opened from Today's
- * card, so it keeps Today selected. A shared activity route says where it belongs in its own
- * path, which is why Training does not have to be listed here.
+ * A record several tabs can open keeps the tab its link names: a finished workout opened from
+ * History is still in History, however far into it you go. The origin is read only on those
+ * records, so a tab's own screens ignore it — and History's date-range `from` never collides
+ * with it. Without one, the strength logger is Today's, since that is where its card is, and
+ * a shared activity route says where it belongs in its own path, which is why Training does
+ * not have to be listed here.
  */
-export function isNavItemActive(pathname: string, href: string): boolean {
-  const sectionPath = pathname.startsWith("/workouts/")
-    ? "/today"
-    : UNDER_PROFILE.some((section) => withinSection(pathname, section))
-      ? "/profile"
-      : pathname;
+export function isNavItemActive(
+  pathname: string,
+  href: string,
+  origin: NavOrigin | null = null,
+): boolean {
+  const sectionPath =
+    origin && OPENED_FROM_ELSEWHERE.some((section) => withinSection(pathname, section))
+      ? originPath(origin)
+      : pathname.startsWith("/workouts/")
+        ? "/today"
+        : UNDER_PROFILE.some((section) => withinSection(pathname, section))
+          ? "/profile"
+          : pathname;
   return withinSection(sectionPath, href);
 }
 
@@ -98,9 +114,17 @@ const ORIGIN_PATHS: Record<NavOrigin, string> = {
   shared: "/profile/friends",
 };
 
+/** The search parameter a record's link names its origin in. */
+export const ORIGIN_PARAM = "from";
+
 export function parseOrigin(value: string | string[] | undefined): NavOrigin | null {
   if (typeof value !== "string") return null;
   return (NAV_ORIGINS as readonly string[]).includes(value) ? (value as NavOrigin) : null;
+}
+
+/** What a link to a record appends to say where it is opened from; nothing without an origin. */
+export function originQuery(origin: NavOrigin | null): "" | `?${typeof ORIGIN_PARAM}=${NavOrigin}` {
+  return origin ? `?${ORIGIN_PARAM}=${origin}` : "";
 }
 
 /** The path a validated origin goes back to, or the default for a record of this kind. */

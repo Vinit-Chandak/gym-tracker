@@ -744,10 +744,13 @@ async function sessionIdOfExercise(
   return row.sessionId;
 }
 
+/**
+ * What the check-in asks. Energy is not among it: the column keeps the answers given before
+ * the question was retired, and a write that never names it is what leaves them in place.
+ */
 export type CheckInInput = {
   sleepHours: number | null;
   sleepQuality: number | null;
-  energy: number | null;
   fatigue: number | null;
   soreness: number | null;
 };
@@ -759,9 +762,15 @@ export async function saveCheckIn(
   input: CheckInInput,
 ): Promise<void> {
   await requireOpenSession(db, userId, sessionId);
+  // Named one by one rather than spread, so nothing a caller passes can reach `energy`.
   await db
     .update(workoutSessions)
-    .set(input)
+    .set({
+      sleepHours: input.sleepHours,
+      sleepQuality: input.sleepQuality,
+      fatigue: input.fatigue,
+      soreness: input.soreness,
+    })
     .where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.userId, userId)));
 }
 
