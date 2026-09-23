@@ -58,13 +58,15 @@ export default async function ProfilePage() {
           looks, who can get in, the app itself, and the way out. A row says only where it
           goes; everything behind it has its own page. */}
       <PageContent>
-        {/* The header card is what a friend sees of you (ADR 0026). The warning is said here
+        {/* The header card is what a friend sees of you (ADR 0026), and your avatar or name
+            opens the rest of it: your page as a follower sees it. The warning is said here
             rather than only behind the link: a detail nobody knows is missing is a detail
             nobody adds. */}
         <PersonCard
           person={profile}
           counts={counts}
           countsLinkToFriends
+          href={`/u/${profile.username}`}
           warning={missing.length > 0 ? `Add your ${listSentence(missing)}` : undefined}
         >
           <LinkButton href="/profile/edit" variant="secondary" size="sm" className="w-full">
