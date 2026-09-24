@@ -119,7 +119,10 @@ round trip between the app and the database.
    - Opening a connection gives up after ten seconds, as it did; waiting for a free one does
      not. pg's pool applies its own timeout to both, so it is set on each connection instead,
      where pg applies it to opening alone. A request queued behind five busy transactions
-     waits its turn, as it did with postgres.js.
+     waits its turn, as it did with postgres.js. Each connection's options are copied whole:
+     pg-pool makes the password in them non-enumerable, and a spread that left it behind
+     opened every connection without one, which only the run against a real Postgres showed.
+     A test now opens a connection through a real pool and checks what it carries.
    - Every transaction runs on a connection checked out for it and always released. Drizzle's
      own pool transaction sent `BEGIN` before the block that releases the connection, so each
      failure `withUser` retries would have leaked a pool slot. A connection left inside a
