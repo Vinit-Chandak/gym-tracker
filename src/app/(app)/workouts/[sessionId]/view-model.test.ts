@@ -114,7 +114,7 @@ async function save(workoutExerciseId: string, setIndex: number, values: Partial
     }),
   );
   changes.push({
-    count: changes.length + 1,
+    stamp: changes.length + 1,
     sessionId,
     workoutExerciseId,
     setIndex,
@@ -124,7 +124,7 @@ async function save(workoutExerciseId: string, setIndex: number, values: Partial
 
 async function remove(workoutExerciseId: string, setIndex: number) {
   await as((tx) => deleteSet(tx, userId, workoutExerciseId, setIndex));
-  changes.push({ count: changes.length + 1, sessionId, workoutExerciseId, setIndex, set: null });
+  changes.push({ stamp: changes.length + 1, sessionId, workoutExerciseId, setIndex, set: null });
 }
 
 it("shows after every save and delete exactly what a new render would", async () => {
@@ -155,7 +155,7 @@ it("adds only what a render did not hold, and nothing from another workout", asy
   const seen = changes.length;
   await save(slot.dumbbell, 2, { weight: 22.5, unit: "kg" });
   const elsewhere: SetChange = {
-    count: changes.length + 1,
+    stamp: changes.length + 1,
     sessionId: crypto.randomUUID(),
     workoutExerciseId: slot.dumbbell,
     setIndex: 1,

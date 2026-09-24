@@ -107,13 +107,21 @@ for (const [path, label] of [
   ["/history", "History"],
   ["/progress", "Progress"],
   ["/profile", "Profile"],
-  ["/today", "Today"],
-  ["/history", "History"],
 ]) {
   wanted = path;
   await nav(label).click();
   await settled(path);
 }
+// Signing in landed on Today, and the browser keeps a tab's screen for a minute, so a click on
+// it now would ask the server for nothing. A page loaded afresh starts with no screens kept.
+await page.goto("/training");
+await settled("/training");
+wanted = "/today";
+await nav("Today").click();
+await settled("/today");
+wanted = null;
+await nav("History").click();
+await settled("/history");
 const workout = page.locator('a[href^="/workouts/"]').first();
 wanted = new URL(await workout.evaluate((a) => a.href)).pathname;
 await workout.click();

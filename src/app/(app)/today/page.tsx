@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { RefreshWhenSetsChange } from "@/components/refresh-when-sets-change";
+import { FreshAfterSets } from "@/components/fresh-after-sets";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { todayInTimeZone } from "@/domain/program-calendar";
@@ -16,15 +16,16 @@ import { listGyms } from "@/server/repositories/gyms";
 import { occurrencesForSlot, standaloneOccurrencesOnDate } from "@/server/repositories/occurrences";
 import { getSchedule, getTodayPlan } from "@/server/repositories/schedule";
 
+import Loading from "./loading";
 import { TodayView } from "./today-view";
 
 export const metadata: Metadata = { title: "Today" };
 
 /**
  * Coming back to this tab within a minute shows what it showed, without asking the server
- * (ADR 0030). Any change made in the app clears that copy at once, except a set, which has the
- * copy fetched again as it is shown (the open workout's card counts them); only a change made
- * elsewhere, on another device or by the coach, can take up to the minute to appear.
+ * (ADR 0030). Any change made in the app clears that copy at once, except a set: a copy older
+ * than the latest set is rendered again before it is shown (the open workout's card counts them).
+ * Only a change made elsewhere, on another device or by the coach, can take up to the minute.
  */
 export const unstable_dynamicStaleTime = 60;
 
@@ -91,8 +92,7 @@ export default async function TodayPage() {
   const { profile, gyms, plan, restProtocol, coach, standalone, programme } = data;
 
   return (
-    <>
-      <RefreshWhenSetsChange seen={seen} />
+    <FreshAfterSets seen={seen} loading={<Loading />}>
       <TodayView
         today={plan?.today ?? todayInTimeZone(profile.timeZone)}
         timeZone={profile.timeZone}
@@ -108,6 +108,6 @@ export default async function TodayPage() {
         programmeOccurrences={programme}
         standaloneOccurrences={standalone}
       />
-    </>
+    </FreshAfterSets>
   );
 }

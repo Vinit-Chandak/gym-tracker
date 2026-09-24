@@ -52,23 +52,34 @@ round trip between the app and the database.
    with the set alone; nothing the browser holds is thrown away. Rendering the whole workout
    was most of every save: the detail read's statements, and the session sent back, dozens of
    times a workout. What the render kept right is kept right this way instead:
-   - The browser counts every set change it makes in a cookie, `overload-set-changes`, and
-     keeps the changes themselves in memory (`lib/set-changes.ts`). Every render that shows
-     the open workout's sets carries the count its request brought, so the browser knows
-     exactly which of its own changes a copy already holds.
+   - The browser stamps every set change it makes, keeps the latest stamp in a cookie,
+     `overload-set-changes`, and keeps the changes themselves in memory
+     (`lib/set-changes.ts`). Every render that shows the open workout's sets carries the stamp
+     its request brought, so the browser knows exactly which of its own changes a copy already
+     holds. A stamp is the time, raised above the last one. A count would start again from
+     one in a tab opened after the cookie was lost (Safari keeps a cookie set by a page for
+     seven days), and another tab's older changes would then look newer than every render
+     since.
    - The workout lays the changes its render has not seen over it (`withSetChanges`): the
      list, a reopened exercise and the page brought back by Back all show them. After every
      save and delete the result is tested to equal what a new render would show, unit
-     conversions and a stack's learned loads included. Applying a change a render already
-     holds changes nothing, so a render that raced a save is still right. The one thing it
-     cannot know is a load the render knew only from a set deleted here; that stop stays on
-     the stack's ladder until the next render.
-   - Today (its count of the open workout's sets, and the coach, who reads whether anything
-     was lifted today), Progress (which counts the open workout) and the finish screen are
-     rendered again when shown from a copy older than the latest set: once, through
-     `refreshScreenAction`, a refresh like the one every set used to make, which drops the
-     browser's copies of rendered screens but keeps its prefetched links. That also drops the
-     copy of the workout, so going Back to it afterwards fetches it again.
+     conversions and a stack's learned loads included; the set a save answers with is read
+     through the same list of columns as the render's own sets (`sessionSetColumns`), so the
+     two cannot drift apart. Applying a change a render already holds changes nothing, so a
+     render that raced a save is still right. The one thing it cannot know is a load the
+     render knew only from a set deleted here; that stop stays on the stack's ladder until the
+     next render.
+   - Today (its count of the open workout's sets, and the discard button it offers only while
+     there are none), Progress (which counts the open workout) and the finish screen are never
+     shown from a copy older than the latest set (`FreshAfterSets`). The screen's own loading
+     state stands in while it is rendered again, once, through `refreshScreenAction`: a
+     refresh like the one every set used to make, which drops the browser's copies of rendered
+     screens but keeps its prefetched links. So nothing on an older copy can be read or tapped.
+     The refresh also drops the copy of the workout, so going Back to it afterwards fetches it
+     again. Where it cannot be rendered again, offline say, the older copy is shown as it is.
+   - A test lists every page and server component that calls a read holding the open
+     workout's sets, and fails for one that neither takes part nor is recorded as showing none
+     of them (`set-change-pages.test.ts`).
    - Completing, skipping or substituting an exercise, the warm-up and supersets still render
      the workout again, as before.
 
@@ -105,12 +116,18 @@ round trip between the app and the database.
      transaction were queued by postgres.js; pg 8 queues them too but warns that it will stop.
    - A connection that fails while idle, or while checked out between two queries, no longer
      ends the process: pg reports both as error events, which are now handled.
+   - Opening a connection gives up after ten seconds, as it did; waiting for a free one does
+     not. pg's pool applies its own timeout to both, so it is set on each connection instead,
+     where pg applies it to opening alone. A request queued behind five busy transactions
+     waits its turn, as it did with postgres.js.
    - Every transaction runs on a connection checked out for it and always released. Drizzle's
      own pool transaction sent `BEGIN` before the block that releases the connection, so each
      failure `withUser` retries would have leaked a pool slot. A connection left inside a
      transaction is closed rather than reused.
-   - An error raised by `COMMIT` (a deferred constraint) reaches the caller as the server's
-     error, as postgres.js and PGlite threw it, not wrapped as "Failed query: commit".
+   - An error raised by `BEGIN`, `COMMIT` (a deferred constraint, say) or `ROLLBACK` reaches
+     the caller as the server's error, as postgres.js and PGlite threw it, not wrapped as
+     "Failed query: commit". A `ROLLBACK` that fails on a connection that died
+     mid-transaction is still the error that surfaces, as with postgres.js.
    - `withUser` recognises pg's lost-connection messages, so its one retry on a fresh
      connection still applies.
 
@@ -186,6 +203,8 @@ Statements per screen did not change; round trips are what fell.
 
 At 2 ms per round trip every first visit still took 385 to 410 ms, the loading screen's floor.
 Coming back to a tab within a minute still took about 55 ms with no request. The browser checks
-of decision 4 ran against this build: a set in the list, in a reopened exercise, on Back and
-Forward; Today, Progress and the finish screen each rendered again once when shown from an
-older copy, and never again after.
+of decision 4 ran against the final build: a set in the list, in a reopened exercise, on Back
+and Forward; Today, Progress and the finish screen each showed their loading state, never the
+older copy, while rendered again once, and never again after. The capture step of
+`npm run audit:latency` loads the app afresh before measuring Today: signing in lands there,
+and a minute on the tabs would otherwise leave no request of Today's to measure.

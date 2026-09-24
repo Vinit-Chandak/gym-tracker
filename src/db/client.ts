@@ -1,5 +1,14 @@
-import { DrizzleQueryError, type ExtractTablesWithRelations, type Logger } from "drizzle-orm";
-import { drizzle, NodePgSession, type NodePgDatabase } from "drizzle-orm/node-postgres";
+import {
+  DrizzleQueryError,
+  type ExtractTablesWithRelations,
+  type RelationalSchemaConfig,
+} from "drizzle-orm";
+import {
+  drizzle,
+  NodePgSession,
+  type NodePgDatabase,
+  type NodePgSessionOptions,
+} from "drizzle-orm/node-postgres";
 import type { PgDialect } from "drizzle-orm/pg-core";
 import pg from "pg";
 
@@ -82,6 +91,37 @@ export function serializeQueries(client: pg.ClientBase): void {
   }) as typeof client.query;
 }
 
+/** How long opening a connection may take: TCP, TLS and the password exchange. */
+export const CONNECT_TIMEOUT_MS = 10_000;
+
+/**
+ * A connection that gives up opening after `CONNECT_TIMEOUT_MS`.
+ *
+ * pg-pool applies its own `connectionTimeoutMillis` to waiting for a free connection as well as
+ * to opening one, so a request queued behind five busy transactions would fail after ten
+ * seconds. postgres.js limited only the opening, and a queued request waited its turn. The limit
+ * is set on each connection instead, where pg applies it to opening alone.
+ */
+class TimedClient extends pg.Client {
+  constructor(config?: pg.ClientConfig) {
+    super({ ...config, connectionTimeoutMillis: CONNECT_TIMEOUT_MS });
+  }
+}
+
+/** The pool's settings for a database URL: at most `max` connections, reused for a workout. */
+export function poolConfig(url: string, max = 5): pg.PoolConfig {
+  return {
+    ...connectionConfig(url),
+    Client: TimedClient,
+    max,
+    idleTimeoutMillis: IDLE_TIMEOUT_SECONDS * 1000,
+    // Probe idle sockets often enough that a dead one is closed before it is handed out.
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 30_000,
+    maxLifetimeSeconds: MAX_LIFETIME_SECONDS,
+  };
+}
+
 /**
  * Creates the app's Drizzle client on a node-postgres pool (ADR 0030).
  *
@@ -90,16 +130,7 @@ export function serializeQueries(client: pg.ClientBase): void {
  * and spent two. Statements stay unnamed, so nothing is prepared on a pooled server connection.
  */
 export function createDatabase(url: string, options: { max?: number } = {}): AppDatabase {
-  const pool = new pg.Pool({
-    ...connectionConfig(url),
-    max: options.max ?? 5,
-    idleTimeoutMillis: IDLE_TIMEOUT_SECONDS * 1000,
-    // Probe idle sockets often enough that a dead one is closed before it is handed out.
-    keepAlive: true,
-    keepAliveInitialDelayMillis: 30_000,
-    connectionTimeoutMillis: 10_000,
-    maxLifetimeSeconds: MAX_LIFETIME_SECONDS,
-  });
+  const pool = new pg.Pool(poolConfig(url, options.max));
   pool.on("connect", (client) => {
     // A connection can also fail while it is checked out, between two queries. pg reports that
     // as an 'error' event, and an event nobody listens for ends the process. The failing query
@@ -115,9 +146,12 @@ export function createDatabase(url: string, options: { max?: number } = {}): App
   // Counting statements costs a callback per query, so it is wired in only while timing.
   const logger = perfLogEnabled() ? queryCounter : undefined;
   const db = drizzle(pool, { schema, ...(logger ? { logger } : {}) });
-  releaseEveryTransaction(db, pool, logger);
+  releaseEveryTransaction(db, pool);
   return db;
 }
+
+/** The statements postgres.js and PGlite sent themselves, whose errors reached callers as is. */
+const TRANSACTION_CONTROL = /^(begin|commit|rollback)\b/;
 
 /**
  * Runs each transaction on a connection checked out here, and always gives it back.
@@ -126,22 +160,22 @@ export function createDatabase(url: string, options: { max?: number } = {}): App
  * connection that died while idle fails exactly there, which is the case `withUser` retries, and
  * it was never returned: after five of those the pool had nothing left to hand out. Here the
  * transaction runs on a session bound to one checked-out connection, with Drizzle's own begin,
- * commit and rollback, and the connection is released whatever happens. It goes back into the
- * pool only if the server says it is outside any transaction; otherwise it is closed. pg-pool
- * also closes any connection that has failed.
+ * commit and rollback and the database's own dialect and options, and the connection is released
+ * whatever happens. It goes back into the pool only if the server says it is outside any
+ * transaction; otherwise it is closed. pg-pool also closes any connection that has failed.
  *
- * A deferred constraint is checked by `COMMIT`. postgres.js, and PGlite in the tests, sent that
- * themselves and threw the server's error as it was; Drizzle sends it here as a query and wraps
- * the failure in "Failed query: commit". That wrapper is taken off, so the error a caller sees
- * is the one it always saw.
+ * postgres.js, and PGlite in the tests, sent `BEGIN`, `COMMIT` and `ROLLBACK` themselves and threw
+ * the server's error as it was: a deferred constraint failing at `COMMIT`, say. Drizzle sends them
+ * here as queries and wraps a failure in "Failed query: …". That wrapper is taken off, so the
+ * error a caller sees is the one it always saw. As before, a `ROLLBACK` that fails, on a
+ * connection that died mid-transaction, is the error that surfaces.
  */
-export function releaseEveryTransaction(db: AppDatabase, pool: pg.Pool, logger?: Logger): void {
-  // The database's own dialect, so a transaction builds its SQL exactly as every other query.
-  const { dialect } = db._.session as unknown as { dialect: PgDialect };
-  const relational = {
-    fullSchema: db._.fullSchema,
-    schema: db._.schema!,
-    tableNamesMap: db._.tableNamesMap,
+export function releaseEveryTransaction(db: AppDatabase, pool: pg.Pool): void {
+  // What Drizzle builds its own transaction session from, taken from the database's session.
+  const { dialect, schema, options } = db._.session as unknown as {
+    dialect: PgDialect;
+    schema: RelationalSchemaConfig<ExtractTablesWithRelations<Schema>>;
+    options: NodePgSessionOptions;
   };
   db._.session.transaction = async (transaction, config) => {
     const client = await pool.connect();
@@ -149,11 +183,13 @@ export function releaseEveryTransaction(db: AppDatabase, pool: pg.Pool, logger?:
       return await new NodePgSession<Schema, ExtractTablesWithRelations<Schema>>(
         client,
         dialect,
-        relational,
-        { logger },
+        schema,
+        options,
       ).transaction(transaction, config);
     } catch (error) {
-      throw error instanceof DrizzleQueryError && error.query === "commit" && error.cause
+      throw error instanceof DrizzleQueryError &&
+        TRANSACTION_CONTROL.test(error.query) &&
+        error.cause
         ? error.cause
         : error;
     } finally {

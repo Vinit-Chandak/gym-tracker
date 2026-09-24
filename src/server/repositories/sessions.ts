@@ -294,6 +294,26 @@ export type SessionSet = {
   completedAt: Date;
 };
 
+/**
+ * A set's columns, as the workout reads it and as a save answers with it. One list, so a set
+ * shown from the page's render and one laid over it from a save's reply (ADR 0030) always carry
+ * the same fields.
+ */
+const sessionSetColumns = {
+  id: setLogs.id,
+  setIndex: setLogs.setIndex,
+  setType: setLogs.setType,
+  weight: setLogs.weight,
+  unit: setLogs.unit,
+  reps: setLogs.reps,
+  rir: setLogs.rir,
+  rpe: setLogs.rpe,
+  effortReported: setLogs.effortReported,
+  durationSeconds: setLogs.durationSeconds,
+  distanceMeters: setLogs.distanceMeters,
+  completedAt: setLogs.completedAt,
+};
+
 export type SessionExercise = {
   id: string;
   orderIndex: number;
@@ -479,21 +499,7 @@ export async function getSessionDetail(
       .where(eq(workoutExercises.workoutSessionId, sessionId))
       .orderBy(asc(workoutExercises.orderIndex)),
     db
-      .select({
-        id: setLogs.id,
-        workoutExerciseId: setLogs.workoutExerciseId,
-        setIndex: setLogs.setIndex,
-        setType: setLogs.setType,
-        weight: setLogs.weight,
-        unit: setLogs.unit,
-        reps: setLogs.reps,
-        rir: setLogs.rir,
-        rpe: setLogs.rpe,
-        effortReported: setLogs.effortReported,
-        durationSeconds: setLogs.durationSeconds,
-        distanceMeters: setLogs.distanceMeters,
-        completedAt: setLogs.completedAt,
-      })
+      .select({ ...sessionSetColumns, workoutExerciseId: setLogs.workoutExerciseId })
       .from(setLogs)
       .innerJoin(workoutExercises, eq(workoutExercises.id, setLogs.workoutExerciseId))
       .where(eq(workoutExercises.workoutSessionId, sessionId))
@@ -830,7 +836,7 @@ export async function logSet(db: DbOrTx, userId: string, input: LogSetInput): Pr
       preferredUnit: profiles.preferredUnit,
       exerciseId: workoutExercises.exerciseId,
       equipmentInstanceId: workoutExercises.equipmentInstanceId,
-      existing: setLogs,
+      existing: sessionSetColumns,
     })
     .from(workoutExercises)
     .innerJoin(profiles, eq(profiles.id, workoutExercises.userId))
@@ -911,20 +917,7 @@ export async function logSet(db: DbOrTx, userId: string, input: LogSetInput): Pr
         completedAt: now,
       },
     })
-    .returning({
-      id: setLogs.id,
-      setIndex: setLogs.setIndex,
-      setType: setLogs.setType,
-      weight: setLogs.weight,
-      unit: setLogs.unit,
-      reps: setLogs.reps,
-      rir: setLogs.rir,
-      rpe: setLogs.rpe,
-      effortReported: setLogs.effortReported,
-      durationSeconds: setLogs.durationSeconds,
-      distanceMeters: setLogs.distanceMeters,
-      completedAt: setLogs.completedAt,
-    });
+    .returning(sessionSetColumns);
   if (!row) throw new Error("Set insert returned no row");
   return row;
 }

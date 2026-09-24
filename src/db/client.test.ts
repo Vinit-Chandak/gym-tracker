@@ -1,9 +1,15 @@
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
-import type pg from "pg";
+import pg from "pg";
 import { describe, expect, it, vi } from "vitest";
 
-import { connectionConfig, releaseEveryTransaction, serializeQueries } from "./client";
+import {
+  CONNECT_TIMEOUT_MS,
+  connectionConfig,
+  poolConfig,
+  releaseEveryTransaction,
+  serializeQueries,
+} from "./client";
 import * as schema from "./schema";
 import { isConnectionError } from "./with-user";
 
@@ -127,8 +133,26 @@ describe("transactions on the pool", () => {
     const lost = new Error("Connection terminated unexpectedly");
     const { db, release } = fakePool((text) => (text === "begin" ? lost : null));
     const failure = await db.transaction(async () => "never").catch((error: unknown) => error);
+    expect(failure).toBe(lost);
     expect(isConnectionError(failure)).toBe(true);
     expect(release).toHaveBeenCalledTimes(1);
+  });
+
+  it("throws what the server said when ROLLBACK fails on a dead connection, as before", async () => {
+    const lost = new Error("Client has encountered a connection error and is not queryable");
+    const { db } = fakePool((text) =>
+      text === "select 5"
+        ? new Error("Connection terminated unexpectedly")
+        : text === "rollback"
+          ? lost
+          : null,
+    );
+    const failure = await db
+      .transaction(async (tx) => {
+        await tx.execute(sql`select 5`);
+      })
+      .catch((error: unknown) => error);
+    expect(failure).toBe(lost);
   });
 
   it("rolls back and returns a working connection when the work fails", async () => {
@@ -169,6 +193,21 @@ describe("transactions on the pool", () => {
     ).rejects.toThrow();
     expect(release).toHaveBeenCalledTimes(1);
     expect(release.mock.calls[0]![0]).toBeInstanceOf(Error);
+  });
+});
+
+describe("the pool", () => {
+  it("limits opening a connection, never waiting for a free one", () => {
+    const config = poolConfig("postgres://u:p@db.example.com:6543/postgres");
+    // pg-pool would apply its own timeout to a request queued for a busy pool's connection too.
+    expect(config.connectionTimeoutMillis).toBeUndefined();
+    const Client = config.Client as unknown as new (c: pg.ClientConfig) => pg.Client;
+    const client = new Client({ host: "db.example.com" });
+    expect(client).toBeInstanceOf(pg.Client);
+    expect(
+      (client as unknown as { _connectionTimeoutMillis: number })._connectionTimeoutMillis,
+    ).toBe(CONNECT_TIMEOUT_MS);
+    expect(config.max).toBe(5);
   });
 });
 

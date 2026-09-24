@@ -82,9 +82,9 @@ function revalidateSession(sessionId?: string): void {
  * navigation's five again.
  *
  * A set, the one change made dozens of times a workout, is not worth a render of the whole
- * workout. The browser lays the sets it saved over the render it has and tells the server, in
- * a cookie, how many it has made; any other screen shown from a copy rendered before the latest
- * of them is rendered again (`lib/set-changes.ts`).
+ * workout. The browser lays the sets it saved over the render it has and stamps the latest in a
+ * cookie the server reads; any other screen shown from a copy rendered before it is rendered
+ * again, its loading screen standing in meanwhile (`lib/set-changes.ts`).
  */
 function refreshSession(): void {
   refresh();

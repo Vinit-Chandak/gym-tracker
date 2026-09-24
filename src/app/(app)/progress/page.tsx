@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { RefreshWhenSetsChange } from "@/components/refresh-when-sets-change";
+import { FreshAfterSets } from "@/components/fresh-after-sets";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { getDb } from "@/db/client";
@@ -17,15 +17,16 @@ import { readTrainingData } from "@/server/repositories/training-data";
 import { readMuscleVolume } from "@/server/repositories/muscle-volume";
 import { readRecoveryHistory } from "@/server/repositories/recovery-history";
 import { parseDateRangeOrDefault, parseWeekRangeOrDefault } from "@/server/validation/date-range";
+import Loading from "./loading";
 import { ProgressView } from "./progress-view";
 
 export const metadata: Metadata = { title: "Progress" };
 
 /**
  * Coming back to this tab within a minute shows what it showed, without asking the server
- * (ADR 0030). Any change made in the app clears that copy at once, except a set, which has the
- * copy fetched again as it is shown (the open workout counts here); only a change made
- * elsewhere, on another device or by the coach, can take up to the minute to appear.
+ * (ADR 0030). Any change made in the app clears that copy at once, except a set: a copy older
+ * than the latest set is rendered again before it is shown (the open workout counts here). Only
+ * a change made elsewhere, on another device or by the coach, can take up to the minute.
  */
 export const unstable_dynamicStaleTime = 60;
 
@@ -91,8 +92,7 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
   const selected = analytics.series.find((s) => s.id === wanted) ?? analytics.series[0] ?? null;
 
   return (
-    <>
-      <RefreshWhenSetsChange seen={seen} />
+    <FreshAfterSets seen={seen} loading={<Loading />}>
       <PageHeader title="Progress" meta={formatDateRange(range.from, range.to)} />
       <PageContent>
         {(rangeError || weekError) && (
@@ -119,6 +119,6 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
           }))}
         />
       </PageContent>
-    </>
+    </FreshAfterSets>
   );
 }
