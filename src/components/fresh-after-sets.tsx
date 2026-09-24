@@ -7,8 +7,19 @@ import { refreshScreenAction } from "@/server/actions/refresh";
 
 import { setChangesMade, subscribeToSetChanges } from "./set-changes";
 
-/** Copies rendered again, by address and stamp: each is asked for once, then settles. */
-const renderedAgain = new Map<string, "asked" | "settled">();
+/**
+ * How long after the refresh answers the new render may take to arrive before the older copy is
+ * shown anyway. The answer carries the new render and the router shows it moments later; this
+ * only matters if it never does.
+ */
+export const NEW_RENDER_GRACE_MS = 3000;
+
+/**
+ * Copies asked to be rendered again, by address and stamp. Each is asked for once: `asking` until
+ * the refresh answers, `answered` while the new render is on its way, and `settled` once the
+ * older copy is shown after all, because the refresh failed or its render never came.
+ */
+const renderedAgain = new Map<string, "asking" | "answered" | "settled">();
 const settleListeners = new Set<() => void>();
 
 function subscribeToSettled(listener: () => void) {
@@ -16,6 +27,11 @@ function subscribeToSettled(listener: () => void) {
   return () => {
     settleListeners.delete(listener);
   };
+}
+
+function settle(key: string) {
+  renderedAgain.set(key, "settled");
+  for (const listener of settleListeners) listener();
 }
 
 /**
@@ -53,16 +69,20 @@ export function FreshAfterSets({
 
   useEffect(() => {
     if (!older || renderedAgain.has(key)) return;
-    renderedAgain.set(key, "asked");
+    renderedAgain.set(key, "asking");
     startTransition(async () => {
       try {
         await refreshScreenAction();
       } catch {
         // Offline, the copy is shown as it is. Signed out, the router has already followed the
         // action's redirect to sign-in.
+        settle(key);
+        return;
       }
-      renderedAgain.set(key, "settled");
-      for (const listener of settleListeners) listener();
+      // The answer arrives before the router shows the new render it carries. Settling now would
+      // show the older copy in between, so it is shown only if the new render never comes.
+      renderedAgain.set(key, "answered");
+      setTimeout(() => settle(key), NEW_RENDER_GRACE_MS);
     });
   }, [key, older]);
 

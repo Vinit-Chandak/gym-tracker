@@ -12,7 +12,7 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(address.search),
 }));
 
-import { FreshAfterSets } from "./fresh-after-sets";
+import { FreshAfterSets, NEW_RENDER_GRACE_MS } from "./fresh-after-sets";
 import { recordSetChange, setChangesMade } from "./set-changes";
 
 afterEach(() => {
@@ -94,11 +94,14 @@ it("shows the loading state for an older copy while it is rendered again, then t
   expect(screen.queryByText("Screen")).toBeNull();
   expect(refresh).toHaveBeenCalledTimes(1);
 
-  // The refresh brings the screen rendered again, which has seen the change.
-  await act(async () => {
-    rerender(<Screen seen={made} />);
-    land();
-  });
+  // The refresh answers before the router shows the new render it carries: the older copy is
+  // not shown in between, even for a moment.
+  await act(async () => land());
+  screen.getByText("Loading");
+  expect(screen.queryByText("Screen")).toBeNull();
+
+  // The new render has seen the change.
+  rerender(<Screen seen={made} />);
   screen.getByText("Screen");
   expect(refresh).toHaveBeenCalledTimes(1);
 });
@@ -114,20 +117,28 @@ it("shows the older copy as it is when it cannot be rendered again", async () =>
 });
 
 it("renders one copy again once, never in a loop", async () => {
-  recordSetChange(change);
-  const older = setChangesMade() - 1;
-  const land = pendingRefresh();
-  render(<Screen seen={older} />);
-  // A second mount while the first refresh is on its way does not ask again.
-  render(<Screen seen={older} />);
-  expect(refresh).toHaveBeenCalledTimes(1);
+  vi.useFakeTimers({ toFake: ["setTimeout"] });
+  try {
+    recordSetChange(change);
+    const older = setChangesMade() - 1;
+    const land = pendingRefresh();
+    render(<Screen seen={older} />);
+    // A second mount while the first refresh is on its way does not ask again.
+    render(<Screen seen={older} />);
+    expect(refresh).toHaveBeenCalledTimes(1);
 
-  // Had the new render still predated the change, it is shown rather than fetched again.
-  await act(async () => land());
-  cleanup();
-  render(<Screen seen={older} />);
-  screen.getByText("Screen");
-  expect(refresh).toHaveBeenCalledTimes(1);
+    // Had the new render never come, the copy is shown once the wait is over, not fetched again.
+    await act(async () => land());
+    expect(screen.getAllByText("Loading")).toHaveLength(2);
+    act(() => vi.advanceTimersByTime(NEW_RENDER_GRACE_MS));
+    expect(screen.getAllByText("Screen")).toHaveLength(2);
+    cleanup();
+    render(<Screen seen={older} />);
+    screen.getByText("Screen");
+    expect(refresh).toHaveBeenCalledTimes(1);
+  } finally {
+    vi.useRealTimers();
+  }
 });
 
 it("renders each screen and each later change again on its own", async () => {

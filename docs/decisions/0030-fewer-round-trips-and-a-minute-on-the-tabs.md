@@ -75,8 +75,12 @@ round trip between the app and the database.
      state stands in while it is rendered again, once, through `refreshScreenAction`: a
      refresh like the one every set used to make, which drops the browser's copies of rendered
      screens but keeps its prefetched links. So nothing on an older copy can be read or tapped.
-     The refresh also drops the copy of the workout, so going Back to it afterwards fetches it
-     again. Where it cannot be rendered again, offline say, the older copy is shown as it is.
+     The loading state stays until the new render is shown: the refresh's answer arrives a
+     moment before the router shows the render it carries, and settling on the answer showed
+     the older copy for that moment, which the browser checks caught. The refresh also drops
+     the copy of the workout, so going Back to it afterwards fetches it again. Where the screen
+     cannot be rendered again, offline say, or its new render has not arrived three seconds
+     after the answer, the older copy is shown as it is.
    - A test lists every page and server component that calls a read holding the open
      workout's sets, and fails for one that neither takes part nor is recorded as showing none
      of them (`set-change-pages.test.ts`).
