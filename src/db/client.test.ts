@@ -197,17 +197,42 @@ describe("transactions on the pool", () => {
 });
 
 describe("the pool", () => {
-  it("limits opening a connection, never waiting for a free one", () => {
+  /** The connection a real pool opens for `url`, stopped before it reaches the network. */
+  async function opened(url: string): Promise<pg.Client> {
+    const pool = new pg.Pool(poolConfig(url));
+    const connect = vi
+      .spyOn(pg.Client.prototype, "connect")
+      .mockImplementation(((callback?: (error: Error) => void) =>
+        callback?.(new Error("no server here"))) as never);
+    try {
+      await expect(pool.connect()).rejects.toThrow("no server here");
+      expect(connect).toHaveBeenCalledTimes(1);
+      return connect.mock.contexts[0] as pg.Client;
+    } finally {
+      connect.mockRestore();
+      await pool.end();
+    }
+  }
+
+  it("opens each connection with the URL's password, which pg-pool keeps out of sight", async () => {
+    const client = await opened("postgres://app.user:s3cret@db.example.com:6543/postgres");
+    expect(client.password).toBe("s3cret");
+    expect(client.user).toBe("app.user");
+    expect(client.host).toBe("db.example.com");
+    expect(client.port).toBe(6543);
+    expect(client.database).toBe("postgres");
+  });
+
+  it("limits opening a connection, never waiting for a free one", async () => {
     const config = poolConfig("postgres://u:p@db.example.com:6543/postgres");
     // pg-pool would apply its own timeout to a request queued for a busy pool's connection too.
     expect(config.connectionTimeoutMillis).toBeUndefined();
-    const Client = config.Client as unknown as new (c: pg.ClientConfig) => pg.Client;
-    const client = new Client({ host: "db.example.com" });
+    expect(config.max).toBe(5);
+    const client = await opened("postgres://u:p@db.example.com:6543/postgres");
     expect(client).toBeInstanceOf(pg.Client);
     expect(
       (client as unknown as { _connectionTimeoutMillis: number })._connectionTimeoutMillis,
     ).toBe(CONNECT_TIMEOUT_MS);
-    expect(config.max).toBe(5);
   });
 });
 

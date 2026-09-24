@@ -101,10 +101,19 @@ export const CONNECT_TIMEOUT_MS = 10_000;
  * to opening one, so a request queued behind five busy transactions would fail after ten
  * seconds. postgres.js limited only the opening, and a queued request waited its turn. The limit
  * is set on each connection instead, where pg applies it to opening alone.
+ *
+ * pg-pool hands each connection its options with the password made non-enumerable, to keep it
+ * out of logs. A spread copies only enumerable properties and would open every connection
+ * without a password, so the options are copied property by property.
  */
 class TimedClient extends pg.Client {
-  constructor(config?: pg.ClientConfig) {
-    super({ ...config, connectionTimeoutMillis: CONNECT_TIMEOUT_MS });
+  constructor(config: pg.ClientConfig = {}) {
+    const options = Object.defineProperties(
+      {} as pg.ClientConfig,
+      Object.getOwnPropertyDescriptors(config),
+    );
+    options.connectionTimeoutMillis = CONNECT_TIMEOUT_MS;
+    super(options);
   }
 }
 
