@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { FreshAfterSets } from "@/components/fresh-after-sets";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { getDb } from "@/db/client";
@@ -10,18 +11,30 @@ import { formatDateRange } from "@/lib/format";
 import { fromKilograms } from "@/lib/units";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
+import { seenSetChanges } from "@/server/queries/set-changes";
 import { listBodyWeights } from "@/server/repositories/body-weight";
 import { readTrainingData } from "@/server/repositories/training-data";
 import { readMuscleVolume } from "@/server/repositories/muscle-volume";
 import { readRecoveryHistory } from "@/server/repositories/recovery-history";
 import { parseDateRangeOrDefault, parseWeekRangeOrDefault } from "@/server/validation/date-range";
+import Loading from "./loading";
 import { ProgressView } from "./progress-view";
 
 export const metadata: Metadata = { title: "Progress" };
+
+/**
+ * Coming back to this tab within a minute shows what it showed, without asking the server
+ * (ADR 0030). Any change made in the app clears that copy at once, except a set: a copy older
+ * than the latest set is rendered again before it is shown (the open workout counts here). Only
+ * a change made elsewhere, on another device or by the coach, can take up to the minute.
+ */
+export const unstable_dynamicStaleTime = 60;
+
 export default async function ProgressPage(props: PageProps<"/progress">) {
   const user = await requireUser(),
     params = await props.searchParams;
   const profile = await getRequestProfile(user.id, user.email);
+  const seen = await seenSetChanges();
   const { range, error: rangeError } = parseDateRangeOrDefault(
     {
       from: typeof params.from === "string" ? params.from : undefined,
@@ -38,15 +51,19 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
   const bodyFrom = bodyRange.from;
   const bodyTo = bodyRange.to;
 
-  const [training, body, bodyWeights, totals, recovery] = await withUser(getDb(), user.id, (tx) =>
-    Promise.all([
-      readTrainingData(tx, user.id, range),
-      readMuscleVolume(tx, user.id, bodyRange),
-      listBodyWeights(tx, user.id, range),
-      // Complete per-sport totals, from the canonical tables every sport is written to.
-      readActivityTotals(tx, user.id, { from: range.from, to: range.to }),
-      readRecoveryHistory(tx, user.id, range, profile.timeZone),
-    ]),
+  const [training, body, bodyWeights, totals, recovery] = await withUser(
+    getDb(),
+    user.id,
+    (tx) =>
+      Promise.all([
+        readTrainingData(tx, user.id, range),
+        readMuscleVolume(tx, user.id, bodyRange),
+        listBodyWeights(tx, user.id, range),
+        // Complete per-sport totals, from the canonical tables every sport is written to.
+        readActivityTotals(tx, user.id, { from: range.from, to: range.to }),
+        readRecoveryHistory(tx, user.id, range, profile.timeZone),
+      ]),
+    { readOnly: true },
   );
   const preferredUnit = profile.preferredUnit === "lb" ? "lb" : "kg";
   const sportTotals =
@@ -75,7 +92,7 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
   const selected = analytics.series.find((s) => s.id === wanted) ?? analytics.series[0] ?? null;
 
   return (
-    <>
+    <FreshAfterSets seen={seen} loading={<Loading />}>
       <PageHeader title="Progress" meta={formatDateRange(range.from, range.to)} />
       <PageContent>
         {(rangeError || weekError) && (
@@ -102,6 +119,6 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
           }))}
         />
       </PageContent>
-    </>
+    </FreshAfterSets>
   );
 }

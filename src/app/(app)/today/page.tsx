@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { FreshAfterSets } from "@/components/fresh-after-sets";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { todayInTimeZone } from "@/domain/program-calendar";
@@ -8,29 +9,40 @@ import { requireUser } from "@/server/auth";
 import { getActiveSession } from "@/server/queries/active-session";
 import { getWarmupProtocol } from "@/server/queries/reference";
 import { getRequestProfile } from "@/server/queries/request-profile";
+import { seenSetChanges } from "@/server/queries/set-changes";
 import { todayCoachState } from "@/server/repositories/coach-plans";
 import { todayWorkflowState } from "@/server/repositories/coaching-today";
 import { listGyms } from "@/server/repositories/gyms";
 import { occurrencesForSlot, standaloneOccurrencesOnDate } from "@/server/repositories/occurrences";
-import { getTodayPlan } from "@/server/repositories/schedule";
+import { getSchedule, getTodayPlan } from "@/server/repositories/schedule";
 
+import Loading from "./loading";
 import { TodayView } from "./today-view";
 
 export const metadata: Metadata = { title: "Today" };
 
+/**
+ * Coming back to this tab within a minute shows what it showed, without asking the server
+ * (ADR 0030). Any change made in the app clears that copy at once, except a set: a copy older
+ * than the latest set is rendered again before it is shown (the open workout's card counts them).
+ * Only a change made elsewhere, on another device or by the coach, can take up to the minute.
+ */
+export const unstable_dynamicStaleTime = 60;
+
 export default async function TodayPage() {
   const user = await requireUser();
   const requestProfile = await getRequestProfile(user.id, user.email);
+  const seen = await seenSetChanges();
   // The active session comes from the shared per-request read the resume strip also uses,
   // so Today and the shell agree on one session without asking the database twice.
   const [inProgress, data] = await Promise.all([
     getActiveSession(user.id),
     withUser(getDb(), user.id, async (tx) => {
       const profile = requestProfile;
-      const [gyms, plan] = await Promise.all([
-        listGyms(tx, user.id),
-        getTodayPlan(tx, user.id, profile.timeZone),
-      ]);
+      // Read once here and handed on: the coach's job target is worked out from the same
+      // schedule and gym list rather than reading each a second time.
+      const [gyms, schedule] = await Promise.all([listGyms(tx, user.id), getSchedule(tx, user.id)]);
+      const plan = await getTodayPlan(tx, user.id, profile.timeZone, schedule);
       const restProtocol =
         plan?.suggestedDay &&
         !plan.suggestedDay.includesLifting &&
@@ -39,18 +51,21 @@ export default async function TodayPage() {
           : null;
       // The coach speaks to the day it is offering, lifting or running, and only for an
       // athlete who has switched it on.
-      const coach =
+      const coachInput =
         profile.aiCoachEnabled && plan?.suggestion && plan.suggestedDay?.includesLifting
-          ? await (
-              process.env.COACH_WORKFLOW_ENABLED === "true" ? todayWorkflowState : todayCoachState
-            )(tx, user.id, {
+          ? {
               enabled: true,
               timeZone: profile.timeZone,
               programId: plan.program.id,
               ref: plan.suggestion.slot,
               gymId: gyms.find((gym) => gym.isActive && gym.isDefault)?.id ?? null,
-            })
+            }
           : null;
+      const coach = !coachInput
+        ? null
+        : process.env.COACH_WORKFLOW_ENABLED === "true"
+          ? await todayWorkflowState(tx, user.id, coachInput, { schedule, gyms })
+          : await todayCoachState(tx, user.id, coachInput);
       // The two things that can be due today, each asked for the way it is scheduled.
       //
       // The programme's endurance belongs to the slot the sequence is offering, not to a
@@ -77,20 +92,22 @@ export default async function TodayPage() {
   const { profile, gyms, plan, restProtocol, coach, standalone, programme } = data;
 
   return (
-    <TodayView
-      today={plan?.today ?? todayInTimeZone(profile.timeZone)}
-      timeZone={profile.timeZone}
-      // Only active gyms can be trained at, so only they can be chosen between.
-      gyms={gyms
-        .filter((gym) => gym.isActive)
-        .map((gym) => ({ id: gym.id, name: gym.name, kind: gym.kind, isDefault: gym.isDefault }))}
-      plan={plan}
-      inProgress={inProgress}
-      restProtocol={restProtocol}
-      coach={coach}
-      unit={LOAD_UNIT_LABELS[profile.preferredUnit]}
-      programmeOccurrences={programme}
-      standaloneOccurrences={standalone}
-    />
+    <FreshAfterSets seen={seen} loading={<Loading />}>
+      <TodayView
+        today={plan?.today ?? todayInTimeZone(profile.timeZone)}
+        timeZone={profile.timeZone}
+        // Only active gyms can be trained at, so only they can be chosen between.
+        gyms={gyms
+          .filter((gym) => gym.isActive)
+          .map((gym) => ({ id: gym.id, name: gym.name, kind: gym.kind, isDefault: gym.isDefault }))}
+        plan={plan}
+        inProgress={inProgress}
+        restProtocol={restProtocol}
+        coach={coach}
+        unit={LOAD_UNIT_LABELS[profile.preferredUnit]}
+        programmeOccurrences={programme}
+        standaloneOccurrences={standalone}
+      />
+    </FreshAfterSets>
   );
 }

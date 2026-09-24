@@ -18,6 +18,14 @@ export function isSupabaseConfigured(): boolean {
   return getSupabasePublicEnv() !== null;
 }
 
+/**
+ * Whether to log request timings (database transactions and the proxy's session check) to the
+ * server log. Off by default; set `PERF_LOG=1` while investigating latency (ADR 0030).
+ */
+export function perfLogEnabled(): boolean {
+  return process.env.PERF_LOG === "1";
+}
+
 /** Runtime connection string (transaction pooler on Supabase). Server-side only. */
 export function getDatabaseUrl(): string {
   const url = process.env.DATABASE_URL ?? process.env.POSTGRES_URL;

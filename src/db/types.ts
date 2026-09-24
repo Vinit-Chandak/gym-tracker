@@ -5,7 +5,10 @@ import type * as schema from "./schema";
 
 export type Schema = typeof schema;
 
-/** Any Drizzle Postgres database (postgres.js in the app, PGlite in tests). */
+/**
+ * Any Drizzle Postgres database: node-postgres in the app, PGlite in the tests and postgres.js in
+ * the scripts.
+ */
 export type Db = PgDatabase<PgQueryResultHKT, Schema>;
 export type Tx = PgTransaction<PgQueryResultHKT, Schema, ExtractTablesWithRelations<Schema>>;
 export type DbOrTx = Db | Tx;

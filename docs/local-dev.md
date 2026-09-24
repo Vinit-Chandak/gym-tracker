@@ -117,6 +117,20 @@ Alex and Sam accounts, creates and finishes workouts, and can create Sam's first
 Newly seeded training histories also include complete, fatigue-only and skipped check-ins;
 rerunning setup leaves existing accounts and their readings intact.
 
+## Latency: how screens scale with the database round trip
+
+`npm run audit:latency` measures each main screen's server time at several app↔database
+round-trip times, with the statements behind it (ADR 0030). Start the app so it talks to the
+script's proxy instead of straight to Postgres, then run it in a third terminal:
+
+```sh
+AUDIT_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:6543/overload_audit npm run audit:start
+npm run audit:latency   # LATENCY_RTTS=0,2,24 LATENCY_RUNS=5 by default
+```
+
+Run it before and after a change to the data layer: a screen that waits for fewer round trips
+in sequence grows more slowly with the round trip.
+
 ## Coaching screens
 
 The three accounts have training but no coaching: no proposal to approve, no requests, no

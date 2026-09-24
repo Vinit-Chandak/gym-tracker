@@ -20,6 +20,13 @@ import { enabledSportsFor } from "@/server/repositories/sport-preferences";
 export const metadata: Metadata = { title: "Training" };
 
 /**
+ * Coming back to this tab within a minute shows what it showed, without asking the server
+ * (ADR 0030). Any change made in the app clears that copy at once; only a change made
+ * elsewhere, on another device or by the coach, can take up to the minute to appear.
+ */
+export const unstable_dynamicStaleTime = 60;
+
+/**
  * Where training is entered and managed (plan §2.3).
  *
  * Not a second history and not a second Today. This is where you come to log something,

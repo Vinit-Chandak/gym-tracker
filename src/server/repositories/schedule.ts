@@ -532,13 +532,17 @@ export type TodayPlan = {
   cycleDays: DayStatus[];
 };
 
-/** Everything the Today screen needs to show the planned day. */
+/**
+ * Everything the Today screen needs to show the planned day. A caller that has already read the
+ * schedule in this transaction passes it, so it is not read twice.
+ */
 export async function getTodayPlan(
   db: DbOrTx,
   userId: string,
   timeZone: string,
+  knownSchedule?: Schedule | null,
 ): Promise<TodayPlan | null> {
-  const schedule = await getSchedule(db, userId);
+  const schedule = knownSchedule === undefined ? await getSchedule(db, userId) : knownSchedule;
   if (!schedule) return null;
   const today = todayInTimeZone(timeZone);
   const state = schedule.state;

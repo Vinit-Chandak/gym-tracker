@@ -183,7 +183,14 @@ export function nextTrainingSlot(schedule: Schedule): NextTrainingSlot | null {
  * including home or outdoor, then a gym or another active location if no default is set.
  */
 export async function planningGym(db: DbOrTx, userId: string) {
-  const active = (await listGyms(db, userId)).filter((g) => g.isActive);
+  return pickPlanningGym(await listGyms(db, userId));
+}
+
+/** `planningGym`'s choice, from a gym list the caller has already read. */
+export function pickPlanningGym<G extends { isActive: boolean; isDefault: boolean; kind: string }>(
+  gyms: readonly G[],
+): G | null {
+  const active = gyms.filter((g) => g.isActive);
   return (
     active.find((g) => g.isDefault) ?? active.find((g) => g.kind === "gym") ?? active[0] ?? null
   );

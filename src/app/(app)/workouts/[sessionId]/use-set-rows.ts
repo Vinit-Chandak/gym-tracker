@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 
+import { recordSetChange } from "@/components/set-changes";
 import type { LoadUnit, PrescriptionType, SetType } from "@/domain/types";
 import { EFFORT_INPUT_VERSION, effortError } from "@/domain/effort";
 import { canConvertLoad, convertLoad, setInUnit } from "@/lib/units";
@@ -221,6 +222,11 @@ export function useSetRows({ exercise, userId, sessionId, measure, unit, onLogge
         const byIndex = new Map(current.map((row) => [row.setIndex, row]));
         for (const draft of restored) {
           const row = byIndex.get(draft.setIndex) ?? emptyRow(draft.setIndex);
+          // An unsaved row is its draft, live: every edit and every save writes the draft as
+          // it changes the row. This runs again whenever the saved sets change, and restoring
+          // a row being typed into, or one on its way to the server, would only add a false
+          // "restored" warning to it.
+          if (row.dirty) continue;
           const from = draft.unit ?? unit;
           const convertible = canConvertLoad(from, unit);
           const weight =
@@ -406,6 +412,14 @@ export function useSetRows({ exercise, userId, sessionId, measure, unit, onLogge
       } catch {
         setStorageError(true);
       }
+      // The page is not rendered again for a set (ADR 0030): the list, a reopened exercise and
+      // this page brought back later learn of it from here.
+      recordSetChange({
+        sessionId,
+        workoutExerciseId: exercise.id,
+        setIndex: row.setIndex,
+        set: result.set,
+      });
     });
   };
 
@@ -431,6 +445,12 @@ export function useSetRows({ exercise, userId, sessionId, measure, unit, onLogge
         return remaining.length > 0 ? remaining : [emptyRow(1)];
       });
       forget(row.setIndex);
+      recordSetChange({
+        sessionId,
+        workoutExerciseId: exercise.id,
+        setIndex: row.setIndex,
+        set: null,
+      });
     });
   };
 

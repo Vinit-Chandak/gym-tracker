@@ -1,8 +1,9 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
+import { useSetChanges } from "@/components/set-changes";
 import { startRestTimer } from "@/components/shell/rest-timer";
 import { useSessionDrafts } from "@/components/use-session-drafts";
 
@@ -10,7 +11,7 @@ import { ExerciseLogger } from "./exercise-logger";
 import { SessionDetails } from "./session-details";
 import { SupersetSheet } from "./superset-sheet";
 import { WorkoutOverview } from "./workout-overview";
-import type { SessionVM } from "./view-model";
+import { withSetChanges, type SessionVM } from "./view-model";
 
 /** Which exercise is open, if any. A record's id, never a position in the array. */
 const EXERCISE_PARAM = "exercise";
@@ -22,8 +23,26 @@ const EXERCISE_PARAM = "exercise";
  * link all land on a real exercise. It moves through the History API rather than the
  * router, which keeps the change local — no navigation, and no second fetch of a session
  * the page already has.
+ *
+ * Saving a set does not render the page again either (ADR 0030). The sets saved and deleted
+ * here since the render are laid over it, so the list, a reopened exercise and this page
+ * brought back by Back all show them.
  */
-export function WorkoutView({ session, userId }: { session: SessionVM; userId: string }) {
+export function WorkoutView({
+  session: rendered,
+  seenSetChanges,
+  userId,
+}: {
+  session: SessionVM;
+  /** How many of this browser's set changes the render already held. */
+  seenSetChanges: number;
+  userId: string;
+}) {
+  const changes = useSetChanges();
+  const session = useMemo(
+    () => withSetChanges(rendered, changes, seenSetChanges),
+    [rendered, changes, seenSetChanges],
+  );
   const searchParams = useSearchParams();
   const readOnly = session.completedAt !== null;
 

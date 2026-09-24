@@ -64,7 +64,14 @@ import { lastCoachBoundary, reviewStanding, weeklyReviewPeriod } from "@/domain/
 import { diffOperationIds, diffPrograms } from "@/domain/program-diff";
 import { addDays, todayInTimeZone } from "@/domain/program-calendar";
 import { sharedExercises } from "@/server/queries/reference";
-import { nextTrainingSlot, planningGym, storeOccurrencePlan, storePlan } from "./coach-plans";
+import {
+  nextTrainingSlot,
+  pickPlanningGym,
+  planningGym,
+  storeOccurrencePlan,
+  storePlan,
+} from "./coach-plans";
+import type { GymListItem } from "./gyms";
 import { openOccurrencesBetween } from "./program-occurrences";
 import {
   assertCoachEnabled,
@@ -73,7 +80,7 @@ import {
   getCoachingPreferences,
   sourceRevision,
 } from "./coaching-state";
-import { getActiveProgram, getSchedule } from "./schedule";
+import { getActiveProgram, getSchedule, type Schedule } from "./schedule";
 import { readProgramBlueprint } from "./programs";
 import {
   activateProgramDraft,
@@ -872,8 +879,10 @@ export async function sessionTarget(
   db: DbOrTx,
   userId: string,
   batchDate: string | null = null,
+  /** What the caller has already read in this transaction (Today), so it is not read twice. */
+  known?: { schedule: Schedule | null; gyms: readonly GymListItem[] },
 ): Promise<JobTarget | null> {
-  const schedule = await getSchedule(db, userId);
+  const schedule = known ? known.schedule : await getSchedule(db, userId);
   const slot = schedule ? nextTrainingSlot(schedule) : null;
   if (!schedule || !slot) return null;
   const [intent] = await db
@@ -891,7 +900,10 @@ export async function sessionTarget(
     .select({ gymId: programDays.recommendedGymId })
     .from(programDays)
     .where(eq(programDays.id, slot.day.id));
-  const gymId = intent?.gymId ?? day?.gymId ?? (await planningGym(db, userId))?.id;
+  const gymId =
+    intent?.gymId ??
+    day?.gymId ??
+    (known ? pickPlanningGym(known.gyms) : await planningGym(db, userId))?.id;
   if (!gymId) return null;
   return jobTargetSchema.parse({
     programId: schedule.program.id,
