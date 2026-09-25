@@ -6,10 +6,13 @@ import type { ExerciseCategory, ExerciseModality, PrescriptionType, TrainingGoal
  *
  * The training reference says what the research supports — roughly 5–30 reps build muscle
  * when sets are hard, heavier work favours strength — and deliberately names no range for any
- * one exercise, because the research does not either. That left every range in a new
- * programme to the model's judgement on the night, different from one run to the next. This
- * is the missing middle: a practical default per role, inside what the reference supports,
- * that the coach starts from and departs from only for a reason it states.
+ * one exercise, because the research does not either. The library does: every shared exercise
+ * carries its own default range and reps in reserve, written for that movement — a Nordic curl
+ * at 4–8, a power clean at 2–5, a cable fly at 12–20. That is where a slot starts. The one
+ * place the athlete's goal moves it is the main barbell lifts, which are trained for strength
+ * or for size in genuinely different ranges; for those, and for an exercise the library gives
+ * no range, the role table below is the default. The coach departs from either only for a
+ * reason it states.
  *
  * These are defaults, not optima, and they are not a progression ladder. The bands are wide
  * enough to progress in — double progression needs room to add reps before a load step — and
@@ -137,11 +140,19 @@ const TRUNK_PATTERNS = new Set([
 const NOT_RESISTANCE = new Set(["mobility", "gait", "carry", "conditioning", "cycling", "jump"]);
 
 export type RoleInput = {
+  slug?: string;
   category: ExerciseCategory;
   modality: ExerciseModality;
   movementPattern: string;
   defaultPrescriptionType: PrescriptionType;
+  /** The library's own range for this exercise, where it has one. */
+  defaultRepMin?: number | null;
+  defaultRepMax?: number | null;
+  defaultRir?: number | null;
 };
+
+/** Flies and crossovers share a pressing or pulling pattern with compounds, but are not. */
+const FLY = /(^|-)(fly|flye|flyes|flies|crossover|pec-deck)(-|$)/;
 
 /** What kind of exercise this is, from what the library already records about it. */
 export function exerciseRole(exercise: RoleInput): ExerciseRole {
@@ -151,9 +162,15 @@ export function exerciseRole(exercise: RoleInput): ExerciseRole {
     exercise.category === "cardio" ||
     NOT_RESISTANCE.has(exercise.movementPattern)
   )
-    return exercise.movementPattern === "anti_rotation" ? "trunk" : "not_resistance";
+    // The library files loaded anti-rotation work (a cable Pallof press) beside the bodyweight
+    // drills (a bird dog); only the loaded kind is trained for reps.
+    return exercise.movementPattern === "anti_rotation" && exercise.modality !== "bodyweight"
+      ? "trunk"
+      : "not_resistance";
   if (TRUNK_PATTERNS.has(exercise.movementPattern)) return "trunk";
   if (SMALL_PATTERNS.has(exercise.movementPattern)) return "small_isolation";
+  if (exercise.slug && FLY.test(exercise.slug))
+    return /rear-delt|reverse/.test(exercise.slug) ? "small_isolation" : "isolation";
   if (COMPOUND_PATTERNS.has(exercise.movementPattern)) {
     if (exercise.modality === "barbell" && exercise.category === "strength") return "main_compound";
     if (["machine", "cable", "smith_machine"].includes(exercise.modality))
@@ -175,22 +192,51 @@ export type DefaultBand = {
   /** Null for work counted in seconds or metres, and for what is not resistance training. */
   reps: [number, number] | null;
   rir: [number, number] | null;
+  /** Where the range came from: the exercise's own library default, or its role's band. */
+  source: "exercise" | "role" | null;
 };
 
+/** The library's own range for an exercise, when it gives one. */
+function ownRange(exercise: RoleInput): [number, number] | null {
+  const { defaultRepMin: min, defaultRepMax: max } = exercise;
+  return min != null && max != null && min <= max ? [min, max] : null;
+}
+
+/** A single library RIR as a whole-rep range ending at it: 2 → 1–2. */
+function ownRir(exercise: RoleInput): [number, number] | null {
+  const rir = exercise.defaultRir;
+  if (rir == null) return null;
+  return [Math.max(0, Math.ceil(rir) - 1), Math.ceil(rir)];
+}
+
+const overlaps = (a: readonly [number, number], b: readonly [number, number]) =>
+  a[0] <= b[1] && b[0] <= a[1];
+
 /**
- * The band a slot of this exercise starts from.
+ * The range a slot of this exercise starts from.
  *
- * "Balanced" is how most people who want both train: the main lifts in the strength band,
- * everything else in the muscle band. A programme that puts strength first — as the athlete's
- * own does — gets that without having to say so exercise by exercise.
+ * The exercise's own library range, except on a main barbell lift, where the goal decides:
+ * "balanced" — how most people who want both train — and "strength" put the main lifts in the
+ * strength band, "muscle" in the muscle band. A lift the library keeps well clear of both, such
+ * as a power clean at 2–5, is not trained like a squat, and keeps its own range.
  */
 export function defaultBand(exercise: RoleInput, emphasis: BandEmphasis): DefaultBand {
   const role = exerciseRole(exercise);
   if (role === "timed_or_distance" || role === "not_resistance")
-    return { role, reps: null, rir: null };
+    return { role, reps: null, rir: null, source: null };
   const band = REP_BANDS[role];
-  const strength = emphasis === "strength" || (emphasis === "balanced" && role === "main_compound");
-  return { role, reps: strength ? band.strength : band.muscle, rir: band.rir };
+  const own = ownRange(exercise);
+  if (role === "main_compound") {
+    const reps = emphasis === "muscle" ? band.muscle : band.strength;
+    if (!own || overlaps(reps, own)) return { role, reps, rir: band.rir, source: "role" };
+  }
+  if (own) return { role, reps: own, rir: ownRir(exercise) ?? band.rir, source: "exercise" };
+  return {
+    role,
+    reps: emphasis === "strength" ? band.strength : band.muscle,
+    rir: band.rir,
+    source: "role",
+  };
 }
 
 /** How far a rep range sits outside a band, in reps at its nearer end; zero inside. */
@@ -228,6 +274,6 @@ export function repBandTable(emphasis: BandEmphasis) {
       rir: band.rir,
     })),
     meaning:
-      "Default rep ranges by exercise role for this athlete's goal. Start every new slot from its role's band (each exercise lookup names its role and band). Depart from it only for a reason you state in the rationale — the athlete's preference, a restriction, the machine's load step, or their logged history — and keep a rep range at least two reps wide outside the main lifts, so reps can build before a load step. These are practical defaults, not optima; the server's progression limits still apply.",
+      "Where a new slot's rep range starts. Each exercise lookup names its band: the exercise's own library range, except on the main barbell lifts, where this table's band for the athlete's goal applies (and for an exercise with no library range, its role's band here). Depart from it only for a reason you state in the rationale — the athlete's preference, a restriction, the machine's load step, or their logged history — and keep a rep range at least two reps wide outside the main lifts, so reps can build before a load step. These are practical defaults, not optima; the server's progression limits still apply.",
   };
 }

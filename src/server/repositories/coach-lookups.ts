@@ -84,10 +84,11 @@ function lookupRow(entry: LibraryEntry, gymChecked: boolean, emphasis: BandEmpha
       rir: entry.defaultRir,
     },
     /**
-     * The range a new slot of this exercise starts from, for this athlete's goal: its role's
-     * band from `repBands`. Depart from it only for a reason stated in the rationale.
+     * The range a new slot of this exercise starts from: its own library range, or on a main
+     * barbell lift the `repBands` band for this athlete's goal. Depart from it only for a
+     * reason stated in the rationale.
      */
-    band: { role: band.role, reps: band.reps, rir: band.rir },
+    band: { role: band.role, reps: band.reps, rir: band.rir, source: band.source },
     /** Null when no location was checked; otherwise whether it can be done there, and on what. */
     available: gymChecked ? entry.available : null,
     machine: gymChecked ? entry.machine : null,

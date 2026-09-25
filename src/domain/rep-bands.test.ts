@@ -53,9 +53,35 @@ describe("bands", () => {
     expect(defaultBand(squat, "strength").reps).toEqual([3, 6]);
     expect(defaultBand(squat, "balanced").reps).toEqual([3, 6]);
     expect(defaultBand(squat, "muscle").reps).toEqual([6, 10]);
-    // Accessories stay in the muscle band unless strength is the whole goal.
-    expect(defaultBand(bySlug("bayesian-cable-curl"), "balanced").reps).toEqual([10, 15]);
-    expect(defaultBand(bySlug("bayesian-cable-curl"), "strength").reps).toEqual([8, 12]);
+  });
+
+  it("starts everything else from the exercise's own library range", () => {
+    for (const emphasis of ["strength", "balanced", "muscle"] as const)
+      expect(defaultBand(bySlug("bayesian-cable-curl"), emphasis)).toMatchObject({
+        reps: [10, 15],
+        source: "exercise",
+      });
+    // The ranges a role alone got wrong: eccentric hamstrings, unloaded squats, flies.
+    expect(defaultBand(bySlug("nordic-hamstring-curl"), "balanced").reps).toEqual([4, 8]);
+    expect(defaultBand(bySlug("bodyweight-squat"), "strength").reps).toEqual([15, 25]);
+    expect(defaultBand(bySlug("single-arm-cable-fly"), "strength").reps).toEqual([12, 15]);
+    expect(exerciseRole(bySlug("incline-db-fly"))).toBe("isolation");
+    expect(exerciseRole(bySlug("incline-rear-delt-fly"))).toBe("small_isolation");
+    // A power clean is a barbell lift trained for speed, not for size.
+    expect(defaultBand(bySlug("power-clean"), "muscle").reps).toEqual([2, 5]);
+    // A bodyweight drill is not counted as trunk training; a loaded Pallof press is.
+    expect(defaultBand(bySlug("bird-dog"), "balanced").reps).toBeNull();
+    expect(defaultBand(bySlug("pallof-press"), "balanced")).toMatchObject({
+      role: "trunk",
+      reps: [10, 15],
+      rir: [1, 2],
+    });
+  });
+
+  it("falls back to the role's band for an exercise with no range of its own", () => {
+    const own = { ...bySlug("bayesian-cable-curl"), defaultRepMin: null, defaultRepMax: null };
+    expect(defaultBand(own, "balanced")).toMatchObject({ reps: [10, 15], source: "role" });
+    expect(defaultBand(own, "strength")).toMatchObject({ reps: [8, 12], source: "role" });
   });
 
   it("keeps every band inside what the training reference supports, and wide enough to build reps", () => {
