@@ -46,14 +46,16 @@ again after each change to show what the change bought.
   2. Merging each screen's statements into one or two statements that return JSON (the pattern
      `getSchedule` already uses).
   3. Changing `withUser` so the transaction setup shares a round trip with the work.
-- **Caveat: the size of the win depends on one production number nobody has measured** — the
-  round trip between the Vercel function and Supabase.
-  - At about 2 ms per round trip (app and database in one region), a 20-round-trip screen spends
-    ~40 ms in the database. First visits are then dominated by React's 300 ms minimum
-    loading-screen display (ADR 0030) and by cold starts, not by the database.
-  - At 20–30 ms per round trip (cross-region, or pooler overhead), the same screen spends
-    400–600 ms waiting, and this work is the main lever.
-  - `PERF_LOG=1` in production answers it in a day (see [Measure first](#measure-first)).
+- **Production answer (25 September, `PERF_LOG=1`): the database is not the main source of
+  latency.** One round trip from the Vercel function to Supabase takes about **2 ms**, so a
+  whole screen's database work is 10–50 ms. The delays the logs do show are elsewhere:
+  - a cold start of about 1.7 s;
+  - an 805 ms session refresh;
+  - bursts of up to about 90 prefetch requests at once, competing with the real tap.
+
+  See [Production measurement](#production-measurement-25-september) and the revised
+  [Suggested order](#suggested-order). Tier C is dropped, and tier B shrinks to the few changes
+  that also cut database CPU or payload.
 
 ## How this was measured
 
@@ -552,6 +554,9 @@ lock in the same message).
 
 ## What it adds up to
 
+Written before the production measurement. At the measured 2 ms per round trip, each column
+saves only about 2 ms per round trip removed; see [Suggested order](#suggested-order).
+
 Critical-path round trips for the heaviest screens (profile cache warm):
 
 | Screen                |                        Now | After A | After A + B | After A + B + C1 + C2 | With C3 |
@@ -568,51 +573,126 @@ Critical-path round trips for the heaviest screens (profile cache warm):
 
 "—" means that screen stays more than one statement after tier B, so C3 does not apply to it.
 
-## Measure first
+## Production measurement, 25 September
 
-The value of all of the above scales with the production round trip. Before starting tier B or C:
+About 45 minutes of use on the production deployment with `PERF_LOG=1`: 338 `[perf]` lines, 21
+of them database transactions. The export is partial (a page of the log view), but it is enough
+for the numbers below.
 
-1. Set `PERF_LOG=1` on the Vercel project for a day. Each transaction logs its `setup` time,
-   which is one round trip to the database and almost no work. The median of `setup` is the
-   number every estimate above multiplies by.
-2. Check the `x-vercel-id` response header on a few requests. It names the region the function
-   ran in; it should be `bom1`, next to the Supabase project.
-3. Confirm `SUPABASE_JWKS` is set in production. Without it, sessions are verified by a network
-   call to Supabase Auth on every request, in the proxy and again in the page. The earlier audit
-   could not confirm it.
-4. Log `x-vercel-id` and `cold uptime=` lines (already printed by `PERF_LOG`) to see how often a
-   tap lands on a cold instance. A cold start costs more than any number of round trips here.
+**The database round trip is about 2 ms.**
+
+- `setup` (one round trip, almost no work) was 1–3 ms on every warm transaction; the median is
+  2 ms. The single 12 ms reading came on a cold instance.
+- Transaction totals match that:
+
+  | Transaction         | Statements |     Time |
+  | ------------------- | ---------: | -------: |
+  | Set saves           |          7 | 12–20 ms |
+  | Training            |          4 |     9 ms |
+  | Templates           |          5 |    12 ms |
+  | History             |          8 |    32 ms |
+  | Profile → Programme |         17 | 35–48 ms |
+  | Starting a workout  |         13 |    57 ms |
+
+- So the function runs next to the database, and every round trip removed saves about 2 ms. A
+  16-round-trip screen spends about 35 ms in the database.
+- Tiers B and C would save tens of milliseconds per screen. That is not worth their risk or
+  effort.
+
+**What the logs show instead:**
+
+1. **Cold starts: about 1.7 s.**
+   - A transaction logged `cold uptime=1771ms`: the process started 1.8 s before its first
+     query could run.
+   - The first transactions on new instances also spent 32–41 ms opening a database connection.
+   - Two instances started within the window.
+   - A tap that lands on a cold instance waits longer than every round trip in the app added
+     together.
+2. **Session refresh: 805 ms.**
+   - `proxy /today auth=805ms cookies-changed` is the proxy renewing an expiring access token
+     through Supabase Auth, and the tap waits for it.
+   - It happens on the first request within 90 s of the token's expiry (one hour by default).
+     That makes it most likely when the app is opened after a break, which is also when a cold
+     start is likely.
+   - Every other session check took 1–2 ms (a few 14–36 ms on new instances), so `SUPABASE_JWKS`
+     is doing its job.
+3. **Prefetch bursts.**
+   - Opening the exercise library produced about 90 `/exercises/[id]` requests within about 1.5 s:
+     one prefetch per row as it enters the viewport. The equipment list and History's workout
+     list do the same on a smaller scale.
+   - Each is a function invocation that runs the proxy and renders a loading shell. They compete
+     for the same instance's CPU and its pool of five database connections.
+   - The one slow read in the sample, the workout screen at 158 ms for 11 statements (about 14 ms
+     each, against 2 ms elsewhere), ran while ten prefetches arrived in the same 100 ms.
+4. **Every action throws away the prefetched screens.**
+   - After starting a workout (`POST /today`), all five tabs were prefetched again, twice each.
+     That is `revalidatePath` evicting the browser's prefetch cache (D3).
+5. **Not visible in these logs: React's 300 ms loading floor.**
+   - React holds a loading screen for at least 300 ms once it has shown one (ADR 0030).
+   - At 2 ms per round trip, this, not the database, is what a first visit to a tab feels like.
+   - Only a screen already on the phone skips it: within the tabs' one-minute copy, or fully
+     prefetched.
 
 ## Suggested order
 
-1. **A1, A3, A5 and A6's open-session index.** A day or two, no shape changes, no product
-   decisions. Every screen loses 1–4 round trips, and pages stop queueing behind set saves.
-2. **A2 and A4** (after the decision below). Today, AI coach, Programme and the job page become
-   read-only, and the waterfalls go.
-3. **Measure production** as above, to decide how far to take B and C.
-4. **Tier B in order of traffic:** Today (B1), the workout (B7, B5), Progress (B11 with A5),
-   exercise detail (B6, B5), then the rest. Each one is checked, the way ADR 0030 checked the
-   driver change, by comparing old and new readers value by value on every seeded account, plus
-   an RLS test that another athlete's rows never appear.
-5. **C1 and C2**, tested through the real pooler. Then C3 for the tab screens.
-6. **D1–D4** as freshness decisions allow.
+Revised after the production measurement. Ordered by what a tap will feel.
+
+1. **Stop the prefetch bursts.**
+   - Set `prefetch={false}` on long lists: exercise library rows, equipment rows, History's
+     workout rows, friends lists. They can prefetch on touch instead, as `LinkRow` already
+     renders a link.
+   - Change `revalidatePath` to `refresh()` (D3), so an action no longer discards the tabs'
+     prefetched loading screens.
+   - Mechanical, no product change, and it takes the contention off the tap.
+2. **Put the five tabs on the phone before they are tapped.**
+   - Give the bottom navigation's links `prefetch={true}` (full prefetch, data included). Set
+     `experimental.staleTimes.static` to 60 s, so a prefetched tab is never older than today's
+     one-minute copy.
+   - A full prefetch runs the page's reads. At 2 ms per round trip that costs 10–50 ms of
+     database time per tab, and it removes the loading screen and its 300 ms floor from every
+     tab switch.
+   - **Prerequisite: A1 and A2.** A prefetch must not take the athlete lock or write, so Today
+     must become read-only first.
+   - Needs checking on a production build: that full prefetches of dynamic pages are refetched
+     when stale, and how many requests they add per screen.
+3. **Cold starts.**
+   - Check Vercel's **Settings → Functions**:
+     - **Fluid Compute** should be on, so one warm instance serves many requests.
+     - The function region should be `bom1`. The 2 ms `setup` suggests it is.
+   - Keep an instance warm with an external uptime check hitting the site every few minutes.
+     Vercel's free plan runs its own scheduled jobs only once a day.
+   - Then measure what the server bundle loads at startup. Coach and validation code loaded
+     lazily would shorten every cold start.
+4. **Session refresh.**
+   - Either raise the access-token lifetime in Supabase (**Authentication → Sessions / JWT
+     expiry**), or refresh the token in the background before it expires.
+   - A longer lifetime means fewer 800 ms waits. The cost: a signed-out or revoked session stays
+     usable on the server until its token expires, because sessions are verified locally.
+5. **Tier A, as hygiene.**
+   - A1 (read-only), A2 (no writes during page loads) and A4 (waterfalls) remove lock queueing
+     behind set saves, and are needed for step 2.
+   - A5 (unused reads) and A6 (indexes, shared-stats policy) cut database CPU, which grows with
+     history.
+   - The round trips they save are worth only a few milliseconds each.
+6. **Tier B only where it cuts work or payload, not round trips:**
+   - exercise detail's over-read (B6)
+   - Programme's blueprint N+1 (A5/B9)
+   - the exercise library's payload
+7. **Dropped: tier C (`withUser` transport) and the rest of tier B.** At 2 ms per round trip
+   they would save 2–30 ms per screen, for real risk to the row-level security code.
 
 ## Decisions needed
 
 1. **Coach tidy-up during page loads (A2).** Can Today, AI coach, Programme and the job page
    show an expired coach request or job as failed/queued without writing that to the database
-   during the render? The write would stay on claim and dispatch, and could be added to the
-   nightly job.
-2. **Changing `withUser` (tier C).** Is a change to how every transaction starts acceptable,
-   given it must be proven through Supavisor first?
-3. **Where merged queries live (tier B).** Inline Drizzle SQL next to the TypeScript types, as
-   `getSchedule` does (recommended), or Postgres functions?
-4. **Freshness (D1, D4).** How late may a change made on another device, or by the coach, show
-   up: a workout started on another phone, or a detail screen? Today's answer is one minute for
-   the profile and the tabs.
-5. **Progress and the open workout (D5).** May Progress count finished workouts only, so it
-   stops re-rendering after every set?
-6. **Production measurement.** Can `PERF_LOG=1` be switched on in production for a day?
+   during the render? The write would stay on claim and dispatch. This is a prerequisite for
+   step 2.
+2. **Full prefetch of the five tabs (step 2).** It adds server and database work: each tab is
+   read in the background about once a minute while the app is open. In return, tab switches
+   become instant.
+3. **Token lifetime (step 4).** Longer tokens mean fewer 800 ms refreshes. The cost is a longer
+   window in which a revoked session still works.
+4. **Freshness (D1, D4)** and **Progress and the open workout (D5)**, as before.
 
 ## Reproducing
 
