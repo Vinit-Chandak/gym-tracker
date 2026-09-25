@@ -16,7 +16,7 @@ export function MealView({
   today,
   meal,
   screen,
-  backHref = "/today/food",
+  backHref = "/food",
 }: {
   timeZone?: string;
   today: string;

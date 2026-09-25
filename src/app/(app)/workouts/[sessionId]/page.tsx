@@ -68,7 +68,7 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
       <PageHeader
         title={title}
         meta={`${data.gym.name}${data.cycleIndex ? ` · cycle ${data.cycleIndex}` : ""}`}
-        backHref={data.completedAt ? "/history" : "/today"}
+        backHref={data.completedAt ? "/progress/history" : "/today"}
       />
       <PageContent>
         {data.completedAt && <SessionRecordsCard records={records} unit={data.preferredUnit} />}

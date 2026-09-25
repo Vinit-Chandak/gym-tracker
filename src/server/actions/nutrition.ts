@@ -77,14 +77,13 @@ function invalid(error: z.ZodError): FoodActionResult {
 }
 
 /**
- * Every change here is shown on the Food screen, on the meal's own page and on Today's card. The
- * tabs prefetch their data, so a refresh alone can reuse an old Today snapshot: invalidate all
- * three after a successful write.
+ * Every change here is shown on the Food tab and on the meal's own page. The tabs prefetch their
+ * data, so a refresh alone can reuse an old Food snapshot: invalidate both after a successful
+ * write.
  */
 function refreshFood(): void {
-  revalidatePath("/today");
-  revalidatePath("/today/food");
-  revalidatePath("/today/food/[meal]", "page");
+  revalidatePath("/food");
+  revalidatePath("/food/[meal]", "page");
 }
 
 /**

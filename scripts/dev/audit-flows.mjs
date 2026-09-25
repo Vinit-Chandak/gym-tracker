@@ -15,7 +15,10 @@ if (
   throw new Error("Local audit only.");
 const fixtures = JSON.parse(await readFile("output/flow-audit/fixtures.json", "utf8"));
 const device = process.env.AUDIT_DEVICE ?? "android";
-const browser = await (device === "iphone" ? webkit : chromium).launch();
+// A machine whose browsers predate this Playwright can point at its own Chromium.
+const browser = await (device === "iphone" ? webkit : chromium).launch({
+  executablePath: device === "iphone" ? undefined : process.env.AUDIT_CHROMIUM_PATH,
+});
 const context = await browser.newContext({
   ...devices[device === "iphone" ? "iPhone 13" : "Pixel 7"],
   baseURL,
@@ -67,7 +70,7 @@ async function offlineNavigation() {
     await probe.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
     disconnected = true;
     proxy.closeAllConnections();
-    await probe.goto(`${origin}/history`, { waitUntil: "domcontentloaded" });
+    await probe.goto(`${origin}/progress/history`, { waitUntil: "domcontentloaded" });
     await expect(probe.getByText(/offline/i).first()).toBeVisible();
     await probe.screenshot({ path: `output/flow-audit/${device}-offline.png` });
     disconnected = false;
@@ -208,28 +211,29 @@ try {
   await check(
     "Back follows History → activity → editor, including reload and browser Forward",
     async () => {
-      // Opened from History, the record and its correction keep History selected (NAV-03).
+      // Opened from History, the record and its correction keep History's tab, Progress,
+      // selected (NAV-03, ADR 0034).
       const selectedTab = () =>
         page
           .getByRole("navigation", { name: "Primary" })
           .locator('a[aria-current="page"]')
           .innerText();
-      await go("/history?kind=run");
+      await go("/progress/history?kind=run");
       await page.locator(`a[href="/training/activities/${ids.running}?from=history"]`).click();
       await page.waitForURL(`**/training/activities/${ids.running}?from=history`);
-      expect(await selectedTab()).toBe("History");
+      expect(await selectedTab()).toBe("Progress");
       await page.getByRole("link", { name: "Correct this activity" }).click();
       await page.waitForURL("**/edit?from=history");
       await page.reload({ waitUntil: "networkidle" });
-      expect(await selectedTab()).toBe("History");
+      expect(await selectedTab()).toBe("Progress");
       await page.getByRole("link", { name: /^Back/ }).click();
       await page.waitForURL(`**/training/activities/${ids.running}?from=history`);
       await page.getByRole("link", { name: /^Back/ }).click();
-      await page.waitForURL("**/history?kind=run");
+      await page.waitForURL("**/progress/history?kind=run");
       await page.goForward();
       await page.waitForURL(`**/training/activities/${ids.running}?from=history`);
       expect(await page.evaluate(() => history.state.overloadPreviousPage)).toBe(
-        "/history?kind=run",
+        "/progress/history?kind=run",
       );
     },
   );
@@ -361,7 +365,7 @@ try {
       await go(`/training/activities/${ids.scheduled}`);
       await page.getByRole("button", { name: "Delete activity", exact: true }).click();
       await page.getByRole("button", { name: "Tap again to delete" }).click();
-      await page.waitForURL("**/history");
+      await page.waitForURL("**/progress/history");
       expect(await sql`select id from activities where id=${ids.scheduled}`).toHaveLength(0);
       await go(`/training/new?occurrence=${occurrence.id}`);
       await expect(page.getByRole("button", { name: "Save activity" })).toBeVisible();
@@ -481,11 +485,11 @@ try {
       if (device === "iphone") await offlineNavigation();
       else {
         await context.setOffline(true);
-        await page.goto("/history", { waitUntil: "domcontentloaded" });
+        await page.goto("/progress/history", { waitUntil: "domcontentloaded" });
         await expect(page.getByText(/offline/i).first()).toBeVisible();
         await context.setOffline(false);
         await page.reload({ waitUntil: "networkidle" });
-        await expect(page.getByRole("heading", { name: "History", exact: true })).toBeVisible();
+        await expect(page.getByRole("button", { name: "Progress section: History" })).toBeVisible();
       }
     },
   );

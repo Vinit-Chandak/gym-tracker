@@ -26,9 +26,11 @@ const action = { method: "POST", headers: { "next-action": "7f3a9c" } };
 
 it("sends a signed-out visitor to the sign-in screen, saying where they were going", async () => {
   signedOut();
-  const response = await run("https://overload.example/history");
+  const response = await run("https://overload.example/progress/history");
   expect(response.status).toBe(307);
-  expect(response.headers.get("location")).toBe("https://overload.example/login?next=%2Fhistory");
+  expect(response.headers.get("location")).toBe(
+    "https://overload.example/login?next=%2Fprogress%2Fhistory",
+  );
 });
 
 /**

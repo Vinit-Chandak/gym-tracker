@@ -93,7 +93,7 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
       <PageHeader
         title={activity.title ?? ACTIVITY_SPORT_LABELS[activity.sport]}
         meta={formatDateTime(activity.startedAt, profile.timeZone)}
-        backHref="/history"
+        backHref="/progress/history"
       />
       <PageContent>
         <Card>

@@ -12,13 +12,13 @@ import { readMealScreen } from "@/server/repositories/nutrition";
 
 import { MealView } from "./meal-view";
 
-export async function generateMetadata(props: PageProps<"/today/food/[meal]">): Promise<Metadata> {
+export async function generateMetadata(props: PageProps<"/food/[meal]">): Promise<Metadata> {
   const meal = mealFromSlug((await props.params).meal);
   return { title: meal ? MEAL_LABELS[meal] : "Food" };
 }
 
-/** One of the day's six meals: `/today/food/breakfast` to `/today/food/evening-snack`. */
-export default async function MealPage(props: PageProps<"/today/food/[meal]">) {
+/** One of the day's six meals: `/food/breakfast` to `/food/evening-snack`. */
+export default async function MealPage(props: PageProps<"/food/[meal]">) {
   const meal = mealFromSlug((await props.params).meal);
   if (!meal) notFound();
   const user = await requireUser();

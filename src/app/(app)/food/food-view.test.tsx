@@ -57,12 +57,12 @@ it("lists the day's six meals in the order they are eaten, each opening its own 
   view([]);
   const meals = within(screen.getByRole("list")).getAllByRole("link");
   expect(meals.map((link) => [text(link), link.getAttribute("href")])).toEqual([
-    ["Breakfast nothing yet", "/today/food/breakfast"],
-    ["Morning snack nothing yet", "/today/food/morning-snack"],
-    ["Lunch nothing yet", "/today/food/lunch"],
-    ["Afternoon snack nothing yet", "/today/food/afternoon-snack"],
-    ["Dinner nothing yet", "/today/food/dinner"],
-    ["Evening snack nothing yet", "/today/food/evening-snack"],
+    ["Breakfast nothing yet", "/food/breakfast"],
+    ["Morning snack nothing yet", "/food/morning-snack"],
+    ["Lunch nothing yet", "/food/lunch"],
+    ["Afternoon snack nothing yet", "/food/afternoon-snack"],
+    ["Dinner nothing yet", "/food/dinner"],
+    ["Evening snack nothing yet", "/food/evening-snack"],
   ]);
 });
 

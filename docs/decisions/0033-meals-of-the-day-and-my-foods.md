@@ -1,5 +1,9 @@
 # Meals of the day and My foods
 
+**Followed by [ADR 0034](0034-food-takes-the-history-tab.md):** Food became a tab of its own, at
+`/food`, in History's place, and Today no longer carries its card. The paths below are the new
+ones.
+
 Follows [0032](0032-food-behind-a-switch.md). The owner compared its food tracking with Samsung
 Health's and described the flow they had wanted from the start:
 
@@ -21,8 +25,8 @@ to be over-engineered. This record covers what changed and why.
    dinner and evening snack. Samsung lists the three meals and then the three snacks; in eating
    order, the Food screen reads like the day. A meal is not a row of its own: it is the entries
    that name it (`food_entries.meal`), so there is nothing to create, rename or empty out. Each
-   meal opens its own page, `/today/food/<meal>`, one level under the Food screen, whose back
-   control now says Food.
+   meal opens its own page, `/food/<meal>`, one level under the Food screen, whose back control
+   says Food.
 
 2. **My foods keeps every food logged.** A food (`foods`) is a name and what one portion holds:
    an amount and a unit, the kcal, and the carbohydrate, fat and protein when known. Names are
@@ -41,8 +45,8 @@ to be over-engineered. This record covers what changed and why.
    portion and figures as they were when it was logged, and how much was eaten. What an entry came
    to is worked out by `scaleFood`: each figure × amount ÷ portion, to the tenth. It is worked in
    whole numbers (tenths of a figure, hundredths of an amount) so the product is exact and an exact
-   half always rounds up. Nothing scaled is stored. Today's card and the Food screen add up the same
-   entries with the same function, so they cannot disagree. This has two consequences:
+   half always rounds up. Nothing scaled is stored. The Food screen and a meal's page add up the
+   same entries with the same function, so they cannot disagree. This has two consequences:
    - Changing an amount rescales from the copy exactly, however often it changes.
    - Correcting or deleting a food in My foods never rewrites a day already eaten. Deleting one
      only clears the entry's `food_id`, by a composite key that nulls nothing else.
@@ -100,7 +104,7 @@ reads:
 
 ## Validation
 
-- **Tests.** The food files hold 155 tests. They cover the scaling (exact tenths, halves, unknown
+- **Tests.** The food files hold 157 tests. They cover the scaling (exact tenths, halves, unknown
   macronutrients, decimal rounding), units and meals, matching a saved meal, and parsing with
   every error on its own field. The repository runs on PGlite with Row Level Security and the
   composite keys: copies surviving corrections and deletions, exact rescaling, recency, the
@@ -114,14 +118,14 @@ reads:
   foods were kept one per name, and the saved meal gained portions and its food link. The second
   run changed nothing.
 - **End to end.** `npm run audit:food` was rewritten for these flows and run on the audit stack:
-  a production build, PostgreSQL 16, the auth stand-in and Chromium. All 14 scenario groups
-  passed with no page errors. They cover availability, the six meals, a new food kept by being
-  logged (and refused without kcal), 200 g of oats from a food saved per 100 g, a meal starred
-  under a name and added to dinner, a changed portion unlighting the star, a corrected food
-  leaving eaten days alone, swipe removal, a retried add after a lost committed reply logging
-  once, and Today's card matching the database. Targets, account isolation, install and the
-  worker's cache boundaries are covered as before. WebKit was not available on the machine
-  that ran it.
+  a production build, PostgreSQL 16, the auth stand-in and Chromium. All 15 scenario groups
+  passed with no page errors, after the move to a tab of its own (ADR 0034). They cover
+  availability, the six meals, a new food kept by being logged (and refused without kcal), 200 g
+  of oats from a food saved per 100 g, a meal starred under a name and added to dinner, a changed
+  portion unlighting the star, a corrected food leaving eaten days alone, swipe removal, a retried
+  add after a lost committed reply logging once, and the Food screen matching the database.
+  Targets, account isolation, install and the worker's cache boundaries are covered as before.
+  WebKit was not available on the machine that ran it.
 - **Screens.** The meal page and both sheets were checked at 320×568, 390×844, 768×1024 and
   1440×900, at 200% text at 320×568 and 568×320, and at 390×300, in both palettes. Nothing scrolls
   sideways and every field and primary button can be reached. Axe finds nothing in either sheet in

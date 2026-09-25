@@ -34,7 +34,7 @@ export type SavedMealRecord = { id: string; name: string; items: LoggedFood[] };
 
 /**
  * A day: the targets, if any are set, what was eaten in each of its meals, and what that came to.
- * Today's card needs only the last; the Food screen draws all three.
+ * The Food screen draws all three.
  */
 export type FoodDay = {
   targets: NutritionTargets | null;

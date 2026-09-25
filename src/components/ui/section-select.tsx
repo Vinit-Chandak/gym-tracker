@@ -1,14 +1,26 @@
 "use client";
 
+import type { Route } from "next";
 import { Check, ChevronDown } from "@/components/ui/icons";
 import { useState, type ReactNode } from "react";
 
+import Link from "@/components/ui/app-link";
 import { cn } from "@/lib/utils";
 
 import { PRESSABLE_ROW_CLASS } from "./link-row";
 import { Sheet } from "./sheet";
 
-export type SectionOption<V extends string> = { value: V; label: string };
+export type SectionOption<V extends string> = {
+  value: V;
+  label: string;
+  /**
+   * For a section that is a page of its own: choosing it opens that page in this one's place.
+   * It is a link, so it can be opened in a new tab like any other.
+   */
+  href?: Route;
+  /** Loads that page whole once the list shows it, for one chosen often enough to be instant. */
+  prefetch?: boolean;
+};
 
 /**
  * One screen's sections behind a single control, with whatever belongs to the whole screen
@@ -31,7 +43,8 @@ export function SectionSelect<V extends string>({
   label: string;
   options: readonly SectionOption<V>[];
   value: V;
-  onChange: (value: V) => void;
+  /** Called with a section chosen in place; one with an `href` is navigated to instead. */
+  onChange?: (value: V) => void;
   /** A control belonging to the whole screen rather than to one section. */
   action?: ReactNode;
 }) {
@@ -61,21 +74,41 @@ export function SectionSelect<V extends string>({
         <ul className="min-w-0 ruled-list">
           {options.map((option) => {
             const selected = option.value === value;
+            const className = cn(PRESSABLE_ROW_CLASS, selected && "text-accent");
+            const content = (
+              <>
+                <span className="min-w-0 flex-1 font-medium">{option.label}</span>
+                {/* The tick, not colour alone, says which one you are looking at. */}
+                {selected && <Check className="shrink-0" aria-hidden />}
+              </>
+            );
             return (
               <li key={option.value}>
-                <button
-                  type="button"
-                  aria-current={selected ? "true" : undefined}
-                  onClick={() => {
-                    onChange(option.value);
-                    setOpen(false);
-                  }}
-                  className={cn(PRESSABLE_ROW_CLASS, selected && "text-accent")}
-                >
-                  <span className="min-w-0 flex-1 font-medium">{option.label}</span>
-                  {/* The tick, not colour alone, says which one you are looking at. */}
-                  {selected && <Check className="shrink-0" aria-hidden />}
-                </button>
+                {option.href && !selected ? (
+                  // Replaces this entry, as a section chosen in place does: Back leaves the
+                  // screen rather than stepping back through the sections looked at.
+                  <Link
+                    href={option.href}
+                    prefetch={option.prefetch}
+                    replace
+                    onClick={() => setOpen(false)}
+                    className={className}
+                  >
+                    {content}
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    aria-current={selected ? "true" : undefined}
+                    onClick={() => {
+                      if (!selected) onChange?.(option.value);
+                      setOpen(false);
+                    }}
+                    className={className}
+                  >
+                    {content}
+                  </button>
+                )}
               </li>
             );
           })}

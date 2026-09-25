@@ -1,7 +1,7 @@
 import type { Metadata, Route } from "next";
 
-import { FoodView } from "@/app/(app)/today/food/food-view";
-import { MealView } from "@/app/(app)/today/food/[meal]/meal-view";
+import { FoodView } from "@/app/(app)/food/food-view";
+import { MealView } from "@/app/(app)/food/[meal]/meal-view";
 import {
   addUp,
   eaten,
@@ -109,7 +109,7 @@ export default async function FoodPreviewPage(props: PageProps<"/preview/food">)
   if (meal) {
     const fresh = state === "new";
     return (
-      <PreviewShell tab="/today">
+      <PreviewShell tab="/food">
         <MealView
           today={TODAY}
           meal={meal}
@@ -132,7 +132,7 @@ export default async function FoodPreviewPage(props: PageProps<"/preview/food">)
     eaten: addUp(entries.map(eaten)),
   };
   return (
-    <PreviewShell tab="/today">
+    <PreviewShell tab="/food">
       <FoodView
         today={TODAY}
         day={day}

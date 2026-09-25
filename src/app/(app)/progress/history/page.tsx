@@ -18,7 +18,7 @@ import { HistoryView, type HistoryItem } from "./history-view";
 export const metadata: Metadata = { title: "History" };
 
 /**
- * Coming back to this tab within a minute shows what it showed, without asking the server
+ * Coming back to this section within a minute shows what it showed, without asking the server
  * (ADR 0030). Any change made in the app clears that copy at once; only a change made
  * elsewhere, on another device or by the coach, can take up to the minute to appear.
  */
@@ -42,7 +42,11 @@ function runEffort(effort: Effort) {
   if (effort.value === null) return "";
   return `Effort ${effort.value} (unconfirmed)`;
 }
-export default async function HistoryPage(props: PageProps<"/history">) {
+/**
+ * History, one of Progress's sections (ADR 0034): every workout, run, ride, swim and recovery
+ * reading in the range, newest first. It was a tab of its own until Food took its place.
+ */
+export default async function HistoryPage(props: PageProps<"/progress/history">) {
   const user = await requireUser(),
     params = await props.searchParams;
   const profile = await getRequestProfile(user.id, user.email);
@@ -80,7 +84,8 @@ export default async function HistoryPage(props: PageProps<"/history">) {
       date: w.startedAt.toISOString(),
       title: w.dayName ?? "Ad hoc session",
       subtitle: `${formatDateTime(w.startedAt, profile.timeZone)} · ${w.gymName}`,
-      // Opened from here, the entry keeps History selected rather than the tab it lives under.
+      // Opened from here, the entry keeps Progress selected rather than the tab it lives under,
+      // and goes back to History.
       href: `/workouts/${w.id}${originQuery("history")}` as const,
       meta: `${w.setCount} ${w.setCount === 1 ? "set" : "sets"}`,
       gymId: w.gymId,
@@ -144,23 +149,19 @@ export default async function HistoryPage(props: PageProps<"/history">) {
   ].sort((a, b) => b.date.localeCompare(a.date));
   return (
     <>
-      <PageHeader title="History" meta={formatDateRange(range.from, range.to)} />
+      {/* The tab's name, as on every other section of it; the picker below says which. */}
+      <PageHeader title="Progress" meta={formatDateRange(range.from, range.to)} />
       <PageContent>
         {rangeError && (
           <p role="alert" className="text-sm text-danger">
             {rangeError}
           </p>
         )}
-        {(data.training.truncated || data.endurance.nextCursor !== null) && (
-          <p role="status" className="text-sm text-warning">
-            Showing the newest records only. Narrow the dates to see every entry; the totals on
-            Progress cover the whole period whatever this list shows.
-          </p>
-        )}
         <HistoryView
           range={range}
           items={items}
           gyms={data.gyms.map((g) => ({ id: g.id, name: g.name }))}
+          truncated={data.training.truncated || data.endurance.nextCursor !== null}
         />
       </PageContent>
     </>

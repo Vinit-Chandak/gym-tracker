@@ -113,7 +113,7 @@ afterEach(() => {
 });
 
 it.each([undefined, "false", "someone-else@example.test"])(
-  "allows every food action with the retired flag set to %s, refreshing all three screens",
+  "allows every food action with the retired flag set to %s, refreshing both food screens",
   async (setting) => {
     vi.stubEnv("FOOD_TRACKING_ENABLED", setting);
     for (const result of [
@@ -134,10 +134,11 @@ it.each([undefined, "false", "someone-else@example.test"])(
     expect(mocks.logFood).toHaveBeenCalledTimes(2);
     const { logFood: _both, submitFoodOnce: _receipt, ...writes } = mocks;
     for (const write of Object.values(writes)) expect(write).toHaveBeenCalledOnce();
-    expect(revalidatePath).toHaveBeenCalledTimes(30);
-    expect(revalidatePath).toHaveBeenCalledWith("/today");
-    expect(revalidatePath).toHaveBeenCalledWith("/today/food");
-    expect(revalidatePath).toHaveBeenCalledWith("/today/food/[meal]", "page");
+    expect(revalidatePath).toHaveBeenCalledTimes(20);
+    expect(revalidatePath).toHaveBeenCalledWith("/food");
+    expect(revalidatePath).toHaveBeenCalledWith("/food/[meal]", "page");
+    // Food has a tab of its own, so nothing on Today changes with it.
+    expect(revalidatePath).not.toHaveBeenCalledWith("/today");
   },
 );
 
@@ -267,7 +268,7 @@ it("saves the targets from the form", async () => {
     proteinPerKg: 1.8,
     split: "body_weight",
   });
-  expect(revalidatePath).toHaveBeenCalledTimes(3);
+  expect(revalidatePath).toHaveBeenCalledTimes(2);
   mocks.saveNutritionTargets.mockRejectedValueOnce(new Error("down"));
   expect(await saveTargetsAction(INITIAL_FORM_STATE, targetsForm())).toEqual({
     formError: "Something went wrong. Please try again.",

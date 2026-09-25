@@ -127,11 +127,11 @@ need the Supabase values from `SETUP.md`.
 ## Looking at a change without deploying it
 
 Every real screen is behind sign-in and a database. `npm run dev` also serves `/preview` (the
-day's cards, including a day that both lifts and runs; `?food=on` adds the food card),
-`/preview/logging` (the set grid in each of its three measures) and `/preview/food` (the Food
-screen, with `?state=first|empty|over|noweight`, and a meal's page with `?meal=breakfast`, adding
-`&state=new` for an account with no foods yet) against made-up data, so the navigation, Today and
-logging can be seen on a phone before anything ships. These routes exist in development
+day's cards, including a day that both lifts and runs), `/preview/logging` (the set grid in each
+of its three measures) and `/preview/food` (the Food tab, with `?state=first|empty|over|noweight`,
+and a meal's page with `?meal=breakfast`, adding `&state=new` for an account with no foods yet)
+against made-up data, so the navigation, Today, logging and food can be seen on a phone before
+anything ships. These routes exist in development
 only; a production build does not have them.
 
 ## Project structure
@@ -144,7 +144,8 @@ src/
     auth/confirm/               where every emailed link lands
     (onboarding)/welcome/       the four first-run steps
     (app)/                      the five tabs behind the shared shell
-      today/ runs/ history/ progress/ profile/
+      today/ training/ food/ progress/ profile/
+      progress/history/           History, one of Progress's sections
       profile/friends/            friends, leaderboard, compare; profile/privacy/
       u/[username]/               a person's page and the head-to-head comparisons
       gyms/[gymId]/..., exercises/..., workouts/[sessionId]/...
@@ -201,9 +202,11 @@ is logged: its kcal and, if known, carbohydrate, fat and protein for a portion i
 (100 g, 250 ml, 1 scoop). Logging it again asks only how much, and the figures follow: 200 g of
 oats saved per 100 g is twice everything. A meal can be starred under a name and added to any
 meal again in one go. A daily target shows the day against a goal band, and carbohydrate, fat
-and protein against theirs. Available to every signed-in account through the **Food** card on
-Today, or directly at `/today/food`. See ADRs [0032](docs/decisions/0032-food-behind-a-switch.md)
-and [0033](docs/decisions/0033-meals-of-the-day-and-my-foods.md).
+and protein against theirs. Every signed-in account has it as the **Food** tab, where History
+used to be; History is now a section of **Progress**. See ADRs
+[0032](docs/decisions/0032-food-behind-a-switch.md),
+[0033](docs/decisions/0033-meals-of-the-day-and-my-foods.md) and
+[0034](docs/decisions/0034-food-takes-the-history-tab.md).
 
 Saving needs a connection. Retrying a save after a lost reply cannot log a food twice.
 Production deployments apply database migrations before building the app.

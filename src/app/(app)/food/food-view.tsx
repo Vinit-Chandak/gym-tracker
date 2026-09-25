@@ -29,7 +29,7 @@ export type FoodViewProps = {
   mealHref?: (meal: Meal) => Route;
 };
 
-const mealPage = (meal: Meal) => `/today/food/${mealSlug(meal)}` as Route;
+const mealPage = (meal: Meal) => `/food/${mealSlug(meal)}` as Route;
 
 /** One meal's row: its name, what went into it, and what that came to. */
 function MealRow({ meal, entries, href }: { meal: Meal; entries: EntryRecord[]; href: Route }) {
@@ -93,11 +93,11 @@ export function FoodView({
   return (
     <>
       {timeZone && <FoodDayRollover today={today} timeZone={timeZone} />}
-      <PageHeader title="Food" meta={formatIsoWeekdayDay(today)} backHref="/today" />
+      <PageHeader title="Food" meta={formatIsoWeekdayDay(today)} />
       <PageContent>
         {target ? (
           <Card>
-            <FoodSummary eaten={day.eaten} target={target} detail />
+            <FoodSummary eaten={day.eaten} target={target} />
           </Card>
         ) : (
           <Card>

@@ -97,10 +97,14 @@ async function settle() {
 }
 const dialog = () => page.getByRole("dialog");
 const myFoods = () => page.getByRole("list", { name: "My foods" });
+const tab = (label) =>
+  page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: label });
+const selectedTab = () =>
+  page.getByRole("navigation", { name: "Primary" }).locator('a[aria-current="page"]');
 async function openMeal(label, slug) {
-  await navigate("/today/food");
+  await navigate("/food");
   await page.getByRole("link", { name: new RegExp(`^${label}`) }).click();
-  await page.waitForURL(`**/today/food/${slug}`);
+  await page.waitForURL(`**/food/${slug}`);
   await expect(page.getByRole("heading", { name: label, exact: true })).toBeVisible();
 }
 async function submit(name) {
@@ -143,7 +147,7 @@ async function offlineNavigation() {
     await probe.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
     disconnected = true;
     proxy.closeAllConnections();
-    await probe.goto(`${origin}/today/food`, { waitUntil: "domcontentloaded" });
+    await probe.goto(`${origin}/food`, { waitUntil: "domcontentloaded" });
     await expect(probe.getByRole("heading", { name: "You’re offline" })).toBeVisible();
     await probe.screenshot({ path: `${dir}/offline.png` });
     disconnected = false;
@@ -158,16 +162,25 @@ async function offlineNavigation() {
 try {
   await check("food is available to every signed-in account without configuration", async () => {
     await login("alex");
-    await page.locator('a[href="/today/food"]').click();
+    await tab("Food").click();
     await expect(page.getByRole("heading", { name: "Food", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: /^Breakfast/ })).toBeVisible();
   });
   await login("sam");
-  await check("Today opens first-use food with the day's six meals, Today selected", async () => {
-    await page.locator('a[href="/today/food"]').click();
+  await check("the Food tab opens first-use food with the day's six meals", async () => {
+    await expect(page.getByRole("navigation", { name: "Primary" }).getByRole("link")).toHaveText([
+      "Today",
+      "Training",
+      "Food",
+      "Progress",
+      "Profile",
+    ]);
+    // Today no longer carries a food card: Food is its own tab (ADR 0034).
+    await expect(page.locator('main a[href^="/food"]')).toHaveCount(0);
+    await tab("Food").click();
     await expect(page.getByRole("heading", { name: "Set a daily target" })).toBeVisible();
-    await expect(page.locator('nav a[href="/today"]')).toHaveAttribute("aria-current", "page");
-    const meals = page.locator('a[href^="/today/food/"]');
+    await expect(selectedTab()).toHaveText("Food");
+    const meals = page.locator('main a[href^="/food/"]');
     await expect(meals).toHaveText([
       /^Breakfast/,
       /^Morning snack/,
@@ -310,7 +323,7 @@ try {
         };
       });
     } else {
-      await page.route("**/today/food/afternoon-snack", async (route) => {
+      await page.route("**/food/afternoon-snack", async (route) => {
         if (route.request().method() === "POST") {
           if (!lost) {
             lost = true;
@@ -324,21 +337,86 @@ try {
     if (engine !== "webkit") await expect.poll(() => lost).toBe(true);
     await expect(dialog().getByText(/Connection lost/)).toBeVisible();
     await expect.poll(async () => (await entries("afternoon_snack")).length).toBe(1);
-    await page.unroute("**/today/food/afternoon-snack");
+    await page.unroute("**/food/afternoon-snack");
     await submit("Add to Afternoon snack");
     expect((await entries("afternoon_snack")).length).toBe(1);
   });
-  await check("Today's card and the Food screen agree with the database", async () => {
-    const [{ kcal }] =
-      await sql`select coalesce(sum(round(kcal * amount / portion_amount, 1)), 0)::float8 as kcal
+  await check(
+    "the Food tab agrees with the database, and a meal's page keeps it selected",
+    async () => {
+      const [{ kcal }] =
+        await sql`select coalesce(sum(round(kcal * amount / portion_amount, 1)), 0)::float8 as kcal
       from food_entries where user_id=${user.id} and eaten_on = (
         select (now() at time zone time_zone)::date from profiles where id=${user.id})`;
-    const total = kcal.toLocaleString("en-GB", { maximumFractionDigits: 1 });
-    await navigate("/today/food");
-    await expect(page.getByText(`${total} / 2,400 kcal`, { exact: false })).toBeVisible();
-    await page.locator('nav a[href="/today"]').click();
-    await expect(page.locator('a[href="/today/food"]')).toContainText(total);
-  });
+      const total = kcal.toLocaleString("en-GB", { maximumFractionDigits: 1 });
+      await tab("Food").click();
+      await expect(page.getByText(`${total} / 2,400 kcal`, { exact: false })).toBeVisible();
+      await page.getByRole("link", { name: /^Lunch/ }).click();
+      await page.waitForURL("**/food/lunch");
+      await expect(selectedTab()).toHaveText("Food");
+      await page.getByRole("link", { name: "Back to Food" }).click();
+      await page.waitForURL(/\/food$/);
+    },
+  );
+  await check(
+    "History is a section of Progress, and the old paths land where they went",
+    async () => {
+      await navigate("/today/food/breakfast");
+      expect(new URL(page.url()).pathname).toBe("/food/breakfast");
+      await navigate("/today/food");
+      expect(new URL(page.url()).pathname).toBe("/food");
+      await navigate("/history?kind=workout");
+      expect(new URL(page.url()).pathname + new URL(page.url()).search).toBe(
+        "/progress/history?kind=workout",
+      );
+      await expect(selectedTab()).toHaveText("Progress");
+      await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
+      // The picker names the section; the filters beside it keep the kind from the old link.
+      await expect(page.getByRole("button", { name: "Progress section: History" })).toBeVisible();
+      await expect(page.getByRole("button", { name: /^Filters/ })).toContainText("1");
+      await page.getByRole("button", { name: "Progress section: History" }).click();
+      await dialog().getByRole("link", { name: "Strength", exact: true }).click();
+      await page.waitForURL("**/progress?kind=workout&view=strength");
+      await expect(page.getByRole("button", { name: "Progress section: Strength" })).toBeVisible();
+      // From the Progress page, History is loaded whole while the list is open, so choosing it
+      // sends no request of its own.
+      await tab("Today").click();
+      await page.waitForURL(/\/today$/);
+      await tab("Progress").click();
+      await page.waitForURL(/\/progress$/);
+      // The whole page arrives as one request without Next's prefetch header, after the one
+      // for its route that carries it.
+      const prefetched = page.waitForResponse((response) => {
+        const url = new URL(response.url());
+        return (
+          url.pathname === "/progress/history" &&
+          url.searchParams.has("_rsc") &&
+          !response.request().headers()["next-router-prefetch"]
+        );
+      });
+      await page.getByRole("button", { name: "Progress section: Overview" }).click();
+      await prefetched;
+      const requests = [];
+      const record = (request) => {
+        if (new URL(request.url()).pathname === "/progress/history") requests.push(request.url());
+      };
+      page.on("request", record);
+      // Timed from the tap, once the sheet has risen: Playwright waits for moving targets.
+      await settle();
+      const started = Date.now();
+      await dialog().getByRole("link", { name: "History", exact: true }).click();
+      await expect(page.getByRole("button", { name: "Progress section: History" })).toBeVisible();
+      const elapsed = Date.now() - started;
+      page.off("request", record);
+      expect(new URL(page.url()).pathname).toBe("/progress/history");
+      expect(requests).toEqual([]);
+      await expect(page.getByRole("status").filter({ hasText: /entr(y|ies)$/ })).toBeVisible();
+      console.log(`  History from Progress's picker: ${elapsed} ms, no request`);
+      // In Progress's place, as a section chosen in place is: Back leaves the tab.
+      await page.goBack();
+      await page.waitForURL(/\/today$/);
+    },
+  );
   await check("responsive layouts, 200% text, light/dark and accessible sheets", async () => {
     await openMeal("Breakfast", "breakfast");
     for (const [width, height, font] of [
@@ -409,18 +487,29 @@ try {
     }
     await page.setViewportSize({ width: 390, height: 844 });
     await page.evaluate(() => (document.documentElement.style.fontSize = "16px"));
-    await navigate("/today/food");
-    for (const scheme of ["light", "dark"]) {
-      await page.emulateMedia({ colorScheme: scheme });
-      await settle();
-      const axe = await new AxeBuilder({ page })
-        .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
-        .analyze();
-      expect(
-        axe.violations.map((v) => ({ id: v.id, nodes: v.nodes.map((n) => n.target) })),
-      ).toEqual([]);
-      await page.screenshot({ path: `${dir}/food-390-844-${scheme}.png`, fullPage: true });
+    for (const [path, name] of [
+      ["/food", "food"],
+      ["/progress/history", "history"],
+    ]) {
+      await navigate(path);
+      for (const scheme of ["light", "dark"]) {
+        await page.emulateMedia({ colorScheme: scheme });
+        await settle();
+        const axe = await new AxeBuilder({ page })
+          .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+          .analyze();
+        expect(
+          axe.violations.map((v) => ({ id: v.id, nodes: v.nodes.map((n) => n.target) })),
+        ).toEqual([]);
+        await page.screenshot({ path: `${dir}/${name}-390-844-${scheme}.png`, fullPage: true });
+      }
     }
+    // Progress's picker, with History among its sections.
+    await navigate("/progress");
+    await page.getByRole("button", { name: "Progress section: Overview" }).click();
+    await settle();
+    await page.screenshot({ path: `${dir}/progress-sections-390-844-dark.png` });
+    await dialog().getByRole("button", { name: "Close sheet" }).click();
   });
   await check(
     "missing body weight, profile changes, over-budget targets and isolation",
@@ -439,10 +528,10 @@ try {
           sameSite: "Lax",
         },
       ]);
-      await navigate("/today/food/breakfast");
+      await navigate("/food/breakfast");
       // Another account's foods are nobody else's.
       await expect(myFoods().getByRole("button", { name: /^Oats/ })).toHaveCount(0);
-      await navigate("/today/food");
+      await navigate("/food");
       await page.getByLabel("Daily target, kcal").fill("2400");
       await page.getByRole("button", { name: "Set target", exact: true }).click();
       await expect(page.getByText(/There is no body weight/)).toBeVisible();
@@ -453,7 +542,7 @@ try {
       await page.getByLabel("Training goal", { exact: true }).selectOption("get_stronger");
       await page.getByRole("button", { name: "Save", exact: true }).click();
       await expect(page.getByText("Profile saved", { exact: true })).toHaveCount(1);
-      await navigate("/today/food");
+      await navigate("/food");
       await page.locator("summary").filter({ hasText: "Targets" }).click();
       await expect(page.getByText("144 g at 80 kg", { exact: true })).toBeVisible();
       await page.getByLabel("Daily target, kcal").fill("500");
@@ -513,18 +602,18 @@ try {
         ).flat(),
       );
       expect(
-        keys.some(
-          (k) => k.startsWith("/today") || k.startsWith("/api/") || k.startsWith("/profile"),
+        keys.some((k) =>
+          ["/today", "/food", "/progress", "/api/", "/profile"].some((path) => k.startsWith(path)),
         ),
       ).toBe(false);
       if (engine === "chromium") {
         await page.waitForLoadState("networkidle");
         await context.setOffline(true);
-        await navigate("/today/food");
+        await navigate("/food");
         await expect(page.getByRole("heading", { name: "You’re offline" })).toBeVisible();
         await context.setOffline(false);
         await page.getByRole("link", { name: "Try again" }).click();
-        await expect(page.locator('a[href="/today/food"]')).toBeVisible();
+        await expect(tab("Food")).toBeVisible();
       } else await offlineNavigation();
     }
   });
