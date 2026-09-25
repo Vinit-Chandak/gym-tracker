@@ -46,6 +46,7 @@ export function RankList({
           <li key={row.key}>
             <Link
               href={`/u/${row.username}` as Route}
+              prefetch="intent"
               aria-current={mine ? "true" : undefined}
               className={cn(
                 PRESSABLE_ROW_CLASS,

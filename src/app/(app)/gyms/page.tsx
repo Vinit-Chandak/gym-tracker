@@ -35,7 +35,7 @@ function GymRows({ gyms, plain = false }: { gyms: GymListItem[]; plain?: boolean
 
 export default async function GymsPage() {
   const user = await requireUser();
-  const gyms = await withUser(getDb(), user.id, (tx) => listGyms(tx, user.id));
+  const gyms = await withUser(getDb(), user.id, (tx) => listGyms(tx, user.id), { readOnly: true });
   const active = gyms.filter((gym) => gym.isActive);
   const archived = gyms.filter((gym) => !gym.isActive);
 

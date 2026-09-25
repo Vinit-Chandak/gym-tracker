@@ -31,8 +31,11 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
   const seen = await seenSetChanges();
   const [profile, session] = await Promise.all([
     getRequestProfile(user.id, user.email),
-    withUser(getDb(), user.id, (tx) =>
-      getSessionDetail(tx, user.id, sessionId, { includeGuidance: false }),
+    withUser(
+      getDb(),
+      user.id,
+      (tx) => getSessionDetail(tx, user.id, sessionId, { includeGuidance: false }),
+      { readOnly: true },
     ),
   ]);
   const unit = profile.preferredUnit === "lb" ? "lb" : "kg";

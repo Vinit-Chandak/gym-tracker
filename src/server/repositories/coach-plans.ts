@@ -2007,6 +2007,21 @@ export async function reconcileExpiredCoachRequests(
   return expired.length;
 }
 
+/**
+ * A request as `reconcileExpiredCoachRequests` leaves it: still waiting past its timeout, it has
+ * failed. Screens read requests through this instead of writing the failure first, so rendering
+ * never takes the athlete lock. Nothing depends on the stored row changing sooner: a plan for an
+ * expired request is refused on its age (`storePlan`), and asking again reconciles first.
+ */
+export function asReconciledRequest<T extends CoachRequest>(request: T, now = new Date()): T {
+  if (
+    request.status !== "requested" ||
+    request.requestedAt.getTime() >= now.getTime() - REQUEST_TIMEOUT_MINUTES * 60_000
+  )
+    return request;
+  return { ...request, status: "failed", error: REQUEST_TIMEOUT_MESSAGE, completedAt: now };
+}
+
 /** A pending re-plan. Reconcile with the same instant before assembling current status. */
 export async function pendingRequest(
   db: DbOrTx,
@@ -2083,7 +2098,8 @@ export async function recentAttempts(
     .where(eq(coachRequests.userId, userId))
     .orderBy(desc(coachRequests.requestedAt))
     .limit(limit);
-  return rows.map((row) => ({ ...row.request, gymName: row.gymName }));
+  const now = new Date();
+  return rows.map((row) => ({ ...asReconciledRequest(row.request, now), gymName: row.gymName }));
 }
 
 /**
@@ -2147,6 +2163,8 @@ export type TodayCoachState = {
   requestsLeft: number;
   workflow?: boolean;
   selectedGymId?: string | null;
+  /** A coach job's lapsed attempt is shown here but not yet recorded; the page records it. */
+  expiredJobs?: boolean;
 };
 
 /** What Today shows about the coach for the suggested slot. */
@@ -2161,8 +2179,9 @@ export async function todayCoachState(
     gymId: string | null;
   },
 ): Promise<TodayCoachState> {
+  // Reads only. A request left waiting past its timeout is shown as the failure it will be
+  // recorded as (`asReconciledRequest`), so Today never takes the athlete lock to render.
   const now = new Date();
-  await reconcileExpiredCoachRequests(db, userId, now);
   const since = new Date(now.getTime() - REQUEST_TIMEOUT_MINUTES * 60_000);
   const dayStart = startOfToday(input.timeZone);
   const pendingFilter = and(
@@ -2170,15 +2189,21 @@ export async function todayCoachState(
     eq(coachRequests.status, "requested"),
     gte(coachRequests.requestedAt, since),
   );
+  // The latest outcome counts a request that has run out of time as one, as it will be recorded.
   const latestOutcome = db
     .select({ id: coachRequests.id })
     .from(coachRequests)
-    .where(and(eq(coachRequests.userId, userId), ne(coachRequests.status, "requested")))
+    .where(
+      and(
+        eq(coachRequests.userId, userId),
+        or(ne(coachRequests.status, "requested"), lt(coachRequests.requestedAt, since)),
+      ),
+    )
     .orderBy(desc(coachRequests.requestedAt))
     .limit(1);
   // One joined plan read and one bounded request read replace five statements. Requests
   // contain today's quota, any pending re-plan spanning midnight, and the latest outcome.
-  const [[planRow], requests] = await Promise.all([
+  const [[planRow], stored] = await Promise.all([
     db
       .select({ plan: sessionPlans, gymName: gyms.name })
       .from(sessionPlans)
@@ -2222,6 +2247,7 @@ export async function todayCoachState(
       )
       .orderBy(desc(coachRequests.requestedAt)),
   ]);
+  const requests = stored.map((request) => asReconciledRequest(request, now));
   const plan = planRow?.plan ?? null;
   const pending =
     requests.find(

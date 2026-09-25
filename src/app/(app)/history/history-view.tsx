@@ -220,6 +220,7 @@ export function HistoryView({
             <li key={item.id}>
               {item.href ? (
                 <LinkRow
+                  prefetch="intent"
                   href={item.href}
                   title={item.title}
                   subtitle={item.subtitle}

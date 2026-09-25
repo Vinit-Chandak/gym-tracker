@@ -5,7 +5,8 @@ import { Section } from "@/components/ui/section";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { requireProfiledUser } from "@/server/auth";
-import { listCoachJobs } from "@/server/repositories/coaching-jobs";
+import { tidyCoachJobsLater } from "@/server/coach-tidy";
+import { listCoachJobs, settleCoachJobs } from "@/server/repositories/coaching-jobs";
 
 /**
  * The two places you can change what the coach does, and the one thing it cannot do itself.
@@ -20,7 +21,10 @@ import { listCoachJobs } from "@/server/repositories/coaching-jobs";
 export async function CoachingActivity({ settings = false }: { settings?: boolean }) {
   if (process.env.COACH_WORKFLOW_ENABLED !== "true") return null;
   const user = await requireProfiledUser();
-  const jobs = await withUser(getDb(), user.id, (tx) => listCoachJobs(tx, user.id, 5));
+  const { jobs, expired } = settleCoachJobs(
+    await withUser(getDb(), user.id, (tx) => listCoachJobs(tx, user.id, 5), { readOnly: true }),
+  );
+  if (expired) tidyCoachJobsLater(user.id);
   const failed = jobs.find((job) => job.status === "failed");
   if (!settings && !failed) return null;
   return (

@@ -15,7 +15,6 @@ import {
   latestPlan,
   pendingRequest,
   recentAttempts,
-  reconcileExpiredCoachRequests,
 } from "@/server/repositories/coach-plans";
 import { listOpenRequests } from "@/server/repositories/coach-program-requests";
 
@@ -40,7 +39,8 @@ export default async function AiCoachSettingsPage() {
           attempts: [],
           requests: await listOpenRequests(tx, user.id),
         };
-      await reconcileExpiredCoachRequests(tx, user.id, now);
+      // Expired requests are shown as the failures they will be recorded as (`recentAttempts`),
+      // so this screen reads without the athlete lock.
       const [memo, plan, pending, attempts] = await Promise.all([
         getCoachMemo(tx, user.id),
         latestPlan(tx, user.id),
@@ -49,6 +49,7 @@ export default async function AiCoachSettingsPage() {
       ]);
       return { memo, plan, pending, attempts, requests: [] };
     },
+    { readOnly: true },
   );
   // Whether this server can hear from the coach and start it: owner-side setup facts.
   const configured = getCoachServiceToken() !== null;

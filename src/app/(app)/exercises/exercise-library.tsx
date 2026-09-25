@@ -22,6 +22,7 @@ function Rows({ items }: { items: ExerciseListItem[] }) {
       {items.map((exercise) => (
         <li key={exercise.id}>
           <LinkRow
+            prefetch="intent"
             href={`/exercises/${exercise.id}`}
             title={exercise.name}
             subtitle={subtitle(exercise)}

@@ -637,6 +637,13 @@ for the numbers below.
 
 Revised after the production measurement. Ordered by what a tap will feel.
 
+Steps 1, 2 and 5's read-only changes are done: see
+[ADR 0031](../decisions/0031-the-tabs-arrive-before-the-tap.md). Two changes from what is
+written below:
+
+- `revalidatePath` stays, because the prefetched tabs now carry data.
+- The screen-older-than-a-set refresh now also discards the prefetched tabs.
+
 1. **Stop the prefetch bursts.**
    - Set `prefetch={false}` on long lists: exercise library rows, equipment rows, History's
      workout rows, friends lists. They can prefetch on touch instead, as `LinkRow` already

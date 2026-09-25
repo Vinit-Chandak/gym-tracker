@@ -26,16 +26,21 @@ export default async function NewEquipmentPage(props: PageProps<"/gyms/[gymId]/e
   const returnTo = parseWorkoutReturn(single(search.session), single(search.exercise));
   const user = await requireUser();
   const requestProfile = await getRequestProfile(user.id, user.email);
-  const data = await withUser(getDb(), user.id, async (tx) => {
-    const [gym, types] = await Promise.all([getGym(tx, user.id, gymId), listEquipmentTypes(tx)]);
-    if (!gym) return null;
-    const profile = requestProfile;
-    return {
-      gym,
-      types,
-      preferredUnit: profile.preferredUnit === "lb" ? ("lb" as const) : ("kg" as const),
-    };
-  });
+  const data = await withUser(
+    getDb(),
+    user.id,
+    async (tx) => {
+      const [gym, types] = await Promise.all([getGym(tx, user.id, gymId), listEquipmentTypes(tx)]);
+      if (!gym) return null;
+      const profile = requestProfile;
+      return {
+        gym,
+        types,
+        preferredUnit: profile.preferredUnit === "lb" ? ("lb" as const) : ("kg" as const),
+      };
+    },
+    { readOnly: true },
+  );
   if (!data) notFound();
 
   return (
