@@ -1,12 +1,19 @@
-import { and, desc, eq, gte, inArray, isNotNull, or } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull, or, sql } from "drizzle-orm";
 
-import { coachNotes, programDrafts } from "@/db/schema";
+import {
+  coachNotes,
+  coachProgramRequests,
+  programChangeProposals,
+  programDrafts,
+  programs,
+} from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import type { ProgramBlueprint } from "@/domain/program-blueprint";
+import type { RequestPatch } from "@/domain/program-request";
 import { summariseProgramDiff, changeSummaryLine } from "@/domain/program-change-summary";
 import { changeFingerprints, diffPrograms, type ProgramDiff } from "@/domain/program-diff";
 import { progress } from "@/domain/schedule";
-import { exerciseRole, REP_BANDS, tooNarrowToProgress, type RoleInput } from "@/domain/rep-bands";
+import { defaultBand, tooNarrowToProgress, type RoleInput } from "@/domain/rep-bands";
 
 import { readProgramBlueprint } from "./programs";
 import { getSchedule } from "./schedule";
@@ -30,15 +37,19 @@ const DAY_MS = 86_400_000;
 
 export type PendingProposal = typeof programDrafts.$inferSelect;
 
-/** The coach proposal waiting on the athlete against this programme, if there is one. */
-export async function pendingCoachProposal(
+/**
+ * Every coach proposal waiting on the athlete against this programme, newest first.
+ *
+ * There should be one. Before this rule two could be written side by side, and a proposal
+ * that replaces the waiting one replaces all of them, so none is left behind.
+ */
+export async function openCoachProposals(
   db: DbOrTx,
   userId: string,
   programId: string | null | undefined,
-  exceptId?: string,
-): Promise<PendingProposal | null> {
-  if (!programId) return null;
-  const rows = await db
+): Promise<PendingProposal[]> {
+  if (!programId) return [];
+  return db
     .select()
     .from(programDrafts)
     .where(
@@ -50,7 +61,17 @@ export async function pendingCoachProposal(
       ),
     )
     .orderBy(desc(programDrafts.createdAt))
-    .limit(5);
+    .limit(10);
+}
+
+/** The coach proposal waiting on the athlete against this programme, if there is one. */
+export async function pendingCoachProposal(
+  db: DbOrTx,
+  userId: string,
+  programId: string | null | undefined,
+  exceptId?: string,
+): Promise<PendingProposal | null> {
+  const rows = await openCoachProposals(db, userId, programId);
   return rows.find((row) => row.id !== exceptId) ?? null;
 }
 
@@ -117,6 +138,9 @@ export async function declinedChanges(
     .where(
       and(
         eq(programDrafts.userId, userId),
+        // Only the coach's own proposals. Saying no to a whole replacement programme is not
+        // saying no to every slot it happened to drop or add.
+        eq(programDrafts.source, "weekly"),
         eq(programDrafts.closedAs, "declined"),
         gte(programDrafts.closedAt, since),
       ),
@@ -142,33 +166,109 @@ export async function declinedChanges(
 /**
  * Declined changes a proposal puts back, other than the ones the athlete has asked for again.
  *
- * `askedFor` are the operation IDs this result's own `proposed` decisions name: an explicit
- * new ask is the athlete changing their mind, and that is theirs to do at any time.
+ * `askedFor` maps each change ID this result's own `proposed` decisions name to when that ask
+ * was made. Asking again after saying no is the athlete changing their mind, which is theirs
+ * to do at any time. An ask made before the decline is not: it was already answered by it,
+ * and naming it cannot carry a declined change back in.
  */
 export function repeatedDeclines(
   diff: ProgramDiff,
   declined: readonly DeclinedChange[],
-  askedFor: ReadonlySet<string>,
+  askedFor: ReadonlyMap<string, Date>,
 ): { fingerprint: string; label: string; declinedAt: Date; until: Date }[] {
-  const asked = new Set<string>();
-  // Fingerprints of the operations an ask names, found by recomputing them one at a time.
-  for (const day of diff.days)
-    for (const operation of day.operations)
-      if (askedFor.has(operation.id))
-        for (const key of changeFingerprints({
-          ...diff,
-          program: [],
-          days: [{ ...day, fields: [], operations: [operation] }],
-        }).keys())
-          asked.add(key);
+  // Each change an ask names, fingerprinted on its own: its operation, a programme field, or
+  // a day's own fields and status.
+  const asked = new Map<string, Date>();
+  const mark = (part: ProgramDiff, at: Date) => {
+    for (const key of changeFingerprints(part).keys()) {
+      const known = asked.get(key);
+      if (!known || known < at) asked.set(key, at);
+    }
+  };
+  for (const field of diff.program) {
+    const at = askedFor.get(`program:${field.field}`);
+    if (at) mark({ ...diff, program: [field], days: [] }, at);
+  }
+  for (const day of diff.days) {
+    const dayAt = askedFor.get(`day:${day.key}`);
+    if (dayAt) mark({ ...diff, program: [], days: [{ ...day, operations: [] }] }, dayAt);
+    for (const operation of day.operations) {
+      const at = askedFor.get(operation.id);
+      if (at)
+        mark({ ...diff, program: [], days: [{ ...day, fields: [], operations: [operation] }] }, at);
+    }
+  }
   const hits: { fingerprint: string; label: string; declinedAt: Date; until: Date }[] = [];
-  const proposed = changeFingerprints(diff);
-  for (const [fingerprint, label] of proposed) {
-    if (asked.has(fingerprint)) continue;
+  for (const [fingerprint, label] of changeFingerprints(diff)) {
+    // The most recent decline of this change is the answer an ask has to come after.
     const match = declined.find((entry) => entry.changes.has(fingerprint));
-    if (match) hits.push({ fingerprint, label, declinedAt: match.declinedAt, until: match.until });
+    if (!match) continue;
+    const at = asked.get(fingerprint);
+    if (at && at > match.declinedAt) continue;
+    hits.push({ fingerprint, label, declinedAt: match.declinedAt, until: match.until });
   }
   return hits;
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * When each change a result's `proposed` decisions name was asked for.
+ *
+ * An ask is dated by the note it came from — when the athlete said it — and failing that by
+ * when the ask was opened. One this same result opens from a note it has just read is as new
+ * as that note.
+ */
+export async function askedAt(
+  db: DbOrTx,
+  userId: string,
+  patch: RequestPatch | null | undefined,
+  now = new Date(),
+): Promise<Map<string, Date>> {
+  const proposed = (patch?.decisions ?? []).filter((decision) => decision.state === "proposed");
+  if (!proposed.length) return new Map();
+  const opened = new Map((patch?.open ?? []).map((entry) => [entry.id, entry.sourceId]));
+  const known = proposed
+    .map((decision) => decision.requestId)
+    .filter((id) => !opened.has(id) && UUID.test(id));
+  const existing = known.length
+    ? await db
+        .select({
+          id: coachProgramRequests.id,
+          sourceId: coachProgramRequests.sourceId,
+          createdAt: coachProgramRequests.createdAt,
+        })
+        .from(coachProgramRequests)
+        .where(
+          and(eq(coachProgramRequests.userId, userId), inArray(coachProgramRequests.id, known)),
+        )
+    : [];
+  const sourceOf = (id: string) =>
+    opened.get(id) ?? existing.find((request) => request.id === id)?.sourceId;
+  const noteIds = proposed
+    .map((decision) => sourceOf(decision.requestId))
+    .filter((source): source is string => !!source?.startsWith("note:"))
+    .map((source) => source.slice("note:".length))
+    .filter((id) => UUID.test(id));
+  const notes = noteIds.length
+    ? await db
+        .select({ id: coachNotes.id, createdAt: coachNotes.createdAt })
+        .from(coachNotes)
+        .where(and(eq(coachNotes.userId, userId), inArray(coachNotes.id, noteIds)))
+    : [];
+  const when = new Map<string, Date>();
+  for (const decision of proposed) {
+    const source = sourceOf(decision.requestId);
+    const at =
+      notes.find((note) => `note:${note.id}` === source)?.createdAt ??
+      existing.find((request) => request.id === decision.requestId)?.createdAt ??
+      now;
+    for (const ref of decision.changeRefs) {
+      const earlier = when.get(ref);
+      if (!earlier || earlier < at) when.set(ref, at);
+    }
+  }
+  return when;
 }
 
 /**
@@ -224,7 +324,9 @@ export async function recentDecisionsForCoach(db: DbOrTx, userId: string, now = 
             : draft.closedAs === "outdated"
               ? "outdated"
               : "closed_when_programme_changed"
-          : (draft.closedAs ?? "declined");
+          : // Before 0037 a decline, a request for revisions and a discarded edit were all
+            // just "rejected"; which of them it was is not known, so it is not called a decline.
+            (draft.closedAs ?? "rejected");
     const decidedAt = draft.closedAt ?? draft.updatedAt;
     result.push({
       draftId: draft.id,
@@ -285,11 +387,39 @@ export function narrowRangeIssues(
       if (written && !written.has(`${day.dayIndex}:${index + 1}`)) return;
       const exercise = bySlug.get(slot.exerciseSlug);
       if (!exercise) return;
-      const role = exerciseRole(exercise);
-      if (tooNarrowToProgress(role, slot.reps))
+      const band = defaultBand(exercise, "balanced");
+      if (tooNarrowToProgress(band.role, slot.reps))
         issues.push(
-          `${exercise.name} on ${day.name}: ${slot.reps[0]}–${slot.reps[1]} reps leaves no room to add a rep before a load step. Use a range at least two reps wide (its default band is ${REP_BANDS[role as keyof typeof REP_BANDS]?.muscle.join("–") ?? "wider"}).`,
+          `${exercise.name} on ${day.name}: ${slot.reps[0]}–${slot.reps[1]} reps leaves no room to add a rep before a load step. Use a range at least two reps wide${band.reps ? ` (its default range is ${band.reps.join("–")})` : ""}.`,
         );
     });
   return issues;
+}
+
+/**
+ * How many things are waiting on the athlete: the Changes tab's own count, for a link to it
+ * from elsewhere. Open changes, older proposals still offered, and questions to answer — not
+ * asks that are with the coach, which need nothing from them.
+ */
+export async function countWaitingOnAthlete(db: DbOrTx, userId: string): Promise<number> {
+  const [row] = await db
+    .select({
+      changes: sql<number>`(select count(*) from ${programDrafts} where ${and(
+        eq(programDrafts.userId, userId),
+        inArray(programDrafts.status, ["editing", "ready"]),
+        isNotNull(programDrafts.baseProgramId),
+      )})`.mapWith(Number),
+      proposals:
+        sql<number>`(select count(*) from ${programChangeProposals} inner join ${programs} on ${eq(programs.id, programChangeProposals.programId)} where ${and(
+          eq(programChangeProposals.userId, userId),
+          eq(programChangeProposals.status, "proposed"),
+          eq(programs.status, "active"),
+        )})`.mapWith(Number),
+      questions: sql<number>`(select count(*) from ${coachProgramRequests} where ${and(
+        eq(coachProgramRequests.userId, userId),
+        eq(coachProgramRequests.state, "needs_answer"),
+      )})`.mapWith(Number),
+    })
+    .from(sql`(select 1) as one`);
+  return (row?.changes ?? 0) + (row?.proposals ?? 0) + (row?.questions ?? 0);
 }

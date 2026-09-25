@@ -83,23 +83,6 @@ export async function listRequestsForDraft(
     .orderBy(asc(coachProgramRequests.createdAt), asc(coachProgramRequests.id));
 }
 
-/** Recently settled asks, so an outcome does not vanish the moment it is given. */
-export async function listSettledRequests(db: DbOrTx, userId: string, limit = 10) {
-  return db
-    .select()
-    .from(coachProgramRequests)
-    .where(
-      and(
-        eq(coachProgramRequests.userId, userId),
-        sql`${coachProgramRequests.state} <> all(${sql.raw(
-          `array[${OPEN_REQUEST_STATES.map((state) => `'${state}'`).join(",")}]`,
-        )})`,
-      ),
-    )
-    .orderBy(desc(coachProgramRequests.updatedAt))
-    .limit(limit);
-}
-
 /** Whether the next daily run has an ask to answer, before any model is asked to look. */
 export async function hasActionableRequests(db: DbOrTx, userId: string, today: string) {
   const [row] = await db

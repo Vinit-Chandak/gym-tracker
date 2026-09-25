@@ -63,10 +63,12 @@ import {
   settleClosedDraftRequests,
 } from "./coach-program-requests";
 import {
+  askedAt,
   currentCycleFor,
   declinedChanges,
   keepFinishedWeeks,
   narrowRangeIssues,
+  openCoachProposals,
   pendingCoachProposal,
   repeatedDeclines,
 } from "./coach-proposals";
@@ -580,15 +582,10 @@ export async function acceptCoachJobResult(
         );
       // A change the athlete declined stays out of the next proposal until its cooldown is
       // over — unless they have asked for it again, which a proposed decision naming it says.
-      const askedFor = new Set(
-        (requestPatch?.decisions ?? [])
-          .filter((decision) => decision.state === "proposed")
-          .flatMap((decision) => decision.changeRefs),
-      );
       const repeats = repeatedDeclines(
         diffPrograms(reviewed.blueprint, blueprint),
         await declinedChanges(db, userId, now),
-        askedFor,
+        await askedAt(db, userId, requestPatch, now),
       );
       if (repeats.length)
         throw new CoachingError(
@@ -699,24 +696,22 @@ export async function acceptCoachJobResult(
           // One proposal waits at a time. This one was written with the waiting one in front
           // of it and takes its place; an ask the older one answered moves across when this
           // one makes exactly the same change, and goes back to the coach when it does not.
-          if (waiting) {
+          const successor = diffOperationSignatures(diffPrograms(current.blueprint, blueprint));
+          for (const replaced of await openCoachProposals(db, userId, job.target.programId)) {
+            if (replaced.id === draftId) continue;
             await db
               .update(programDrafts)
               .set({ status: "superseded", closedAs: "replaced", closedAt: now })
-              .where(eq(programDrafts.id, waiting.id));
+              .where(eq(programDrafts.id, replaced.id));
             await settleClosedDraftRequests(
               db,
               userId,
               {
-                draftId: waiting.id,
+                draftId: replaced.id,
                 signatures: diffOperationSignatures(
-                  diffPrograms(current.blueprint, waiting.blueprint),
+                  diffPrograms(current.blueprint, replaced.blueprint),
                 ),
-                successor: {
-                  draftId,
-                  state: "proposed",
-                  signatures: diffOperationSignatures(diffPrograms(current.blueprint, blueprint)),
-                },
+                successor: { draftId, state: "proposed", signatures: successor },
               },
               now,
             );
@@ -1069,13 +1064,14 @@ export async function reviewAnchor(
 }
 
 /**
- * A review already queued or running for this athlete, if there is one.
+ * A review already queued or running for this athlete's programme in this batch, if any.
  *
- * Two reviews in one batch read the same week and the same evidence, and the second used to
- * propose the first one's changes all over again beside it. Whoever wants a review while one
- * is waiting gets that one: it reads everything the second would have.
+ * Asking for a review while one is already waiting to run gets that one: it reads everything
+ * a second would have, and a second would only rewrite the first one's proposal. Only a
+ * review of the same programme for the same batch counts — an older one prepares its own
+ * batch's session when it finishes, and one of a programme since replaced is dropped at claim.
  */
-async function openReviewJob(db: DbOrTx, userId: string) {
+async function openReviewJob(db: DbOrTx, userId: string, programId: string, batchDate: string) {
   const [job] = await db
     .select()
     .from(coachJobs)
@@ -1084,6 +1080,8 @@ async function openReviewJob(db: DbOrTx, userId: string) {
         eq(coachJobs.userId, userId),
         eq(coachJobs.kind, "review_program"),
         inArray(coachJobs.status, [...pending]),
+        sql`${coachJobs.target} ->> 'programId' = ${programId}`,
+        sql`${coachJobs.target} ->> 'batchDate' = ${batchDate}`,
       ),
     )
     .orderBy(asc(coachJobs.createdAt))
@@ -1103,11 +1101,11 @@ async function openReviewJob(db: DbOrTx, userId: string) {
 export async function enqueueRequestReview(db: DbOrTx, userId: string, now = new Date()) {
   const active = await getActiveProgram(db, userId);
   if (!active) return null;
-  const waiting = await openReviewJob(db, userId);
+  const boundary = lastCoachBoundary(now);
+  const waiting = await openReviewJob(db, userId, active.id, boundary.date);
   if (waiting) return waiting;
   const preference = await getCoachingPreferences(db, userId);
   const anchor = await reviewAnchor(db, userId, now);
-  const boundary = lastCoachBoundary(now);
   // An interval has to have somewhere to start; a request made since the last boundary is
   // heard at the next one.
   if (!anchor || boundary.at <= anchor) return null;
@@ -1353,8 +1351,9 @@ export async function dispatchCoachPage(db: Db, after: string | null = null, now
                 athlete.id,
                 todayInTimeZone(athlete.timeZone, boundary.at),
               )));
-          if (scheduled || asked) result = await openReviewJob(tx, athlete.id);
-          if ((scheduled || asked) && !result) {
+          // A review queued earlier and not yet run is not reused here: it prepares its own
+          // batch's session when it finishes, so this batch would be left with none.
+          if (scheduled || asked) {
             const period = weeklyReviewPeriod(anchor, boundary.at);
             result = await enqueueCoachJob(tx, athlete.id, {
               kind: "review_program",

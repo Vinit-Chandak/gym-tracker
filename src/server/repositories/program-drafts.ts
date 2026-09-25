@@ -34,6 +34,7 @@ import { sharedWarmupProtocols } from "@/server/queries/reference";
 import { libraryAtGym, nextTrainingSlot, storePlan } from "./coach-plans";
 import { materialiseOccurrences, occurrencesFromBlueprint } from "./program-occurrences";
 import { markRequestsApplied, settleClosedDraftRequests } from "./coach-program-requests";
+import { currentCycleFor, keepFinishedWeeks } from "./coach-proposals";
 import { assertNoOpenWorkout, CoachingError, sourceRevision } from "./coaching-state";
 import { createProgramFromBlueprint, readProgramBlueprint } from "./programs";
 import { getActiveProgram, getSchedule } from "./schedule";
@@ -504,7 +505,7 @@ export async function activateProgramDraft(
   const active = await getActiveProgram(db, userId);
   if (draft.baseProgramId !== (active?.id ?? null))
     throw new CoachingError("Your active programme changed while this draft was waiting.");
-  const blueprint = await validateBlueprintForAthlete(db, userId, draft.blueprint);
+  let blueprint = await validateBlueprintForAthlete(db, userId, draft.blueprint);
   let priorBlueprint: ProgramBlueprint | null = null;
   let familyId: string | undefined,
     startDate = input.startDate,
@@ -519,6 +520,15 @@ export async function activateProgramDraft(
     )
       throw new CoachingError(
         "This changes the split or schedule. Start it as a new block after reviewing the new days.",
+      );
+    // A proposal written weeks ago may still rewrite weeks the athlete has since trained. The
+    // server keeps those as they were when the proposal is written; it keeps them again here,
+    // so what is approved is only ever what is still ahead — as the change screen showed it.
+    if (draft.source !== "manual")
+      blueprint = keepFinishedWeeks(
+        blueprint,
+        current.blueprint,
+        await currentCycleFor(db, userId, active.id),
       );
     const [original] = await db
       .select({ familyId: programs.familyId })
