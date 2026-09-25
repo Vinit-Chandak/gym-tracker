@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { TodayView } from "@/app/(app)/today/today-view";
 import { endurancePrescriptionSchema, PRESCRIPTION_VERSION } from "@/domain/activity-prescription";
+import { macroTargets } from "@/domain/nutrition";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
 import type { TodayPlan } from "@/server/repositories/schedule";
 
@@ -185,8 +186,9 @@ const OPEN_SESSION = {
 export default async function TodayPreviewPage(props: PageProps<"/preview">) {
   // The states of a day that lifts and runs. The default is the one the run used to
   // disappear in: workout finished, run still owed. `next` is the day offered after the one
-  // before it was finished today, which is up next rather than today's.
-  const { state } = await props.searchParams;
+  // before it was finished today, which is up next rather than today's. `food` adds the food
+  // card (ADR 0032): `on` for a day under way, `first` for an account with no target yet.
+  const { state, food } = await props.searchParams;
 
   return (
     <PreviewShell tab="/today">
@@ -208,6 +210,20 @@ export default async function TodayPreviewPage(props: PageProps<"/preview">) {
         inProgress={state === "training" ? OPEN_SESSION : null}
         restProtocol={null}
         programmeOccurrences={[RUN_OCCURRENCE]}
+        food={
+          food === "on" || food === "first"
+            ? {
+                eaten: { kcal: 1634.5, carbsG: 164, fatG: 60.5, proteinG: 88.8 },
+                target:
+                  food === "on"
+                    ? macroTargets(
+                        { dailyKcal: 2400, proteinPerKg: 1.8, split: "body_weight" },
+                        74.5,
+                      )
+                    : null,
+              }
+            : null
+        }
       />
     </PreviewShell>
   );

@@ -215,3 +215,16 @@ export function formatRelativeDay(isoDate: string, today: string): string {
   }
   return formatIsoWeekdayDay(isoDate);
 }
+
+/**
+ * "135": macro summaries in whole grams (ADR 0032), with thousands separated.
+ */
+export function formatFoodAmount(value: number): string {
+  // `+ 0` turns the -0 a small negative rounds to into 0.
+  return (Math.round(value) + 0).toLocaleString("en-GB");
+}
+
+/** Energy retains its stored precision so the displayed total agrees with the goal badge. */
+export function formatKcal(value: number): string {
+  return (Math.round(value * 10) / 10 + 0).toLocaleString("en-GB", { maximumFractionDigits: 1 });
+}

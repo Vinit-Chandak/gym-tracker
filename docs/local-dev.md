@@ -117,6 +117,37 @@ Alex and Sam accounts, creates and finishes workouts, and can create Sam's first
 Newly seeded training histories also include complete, fatigue-only and skipped check-ins;
 rerunning setup leaves existing accounts and their readings intact.
 
+## Food audit
+
+The food runner uses a dedicated local database and resets Sam's food fixtures. It also changes
+Vinit's local body weight and food targets to check the missing-weight flow. Run the two browser
+engines sequentially because they share these accounts. Use these PowerShell variables in each
+terminal before the corresponding commands:
+
+```powershell
+$env:AUDIT_DATABASE_URL = 'postgres://postgres:postgres@127.0.0.1:5432/overload_audit_food'
+$env:FOOD_TRACKING_ENABLED = 'sam@local.test,vinit@local.test'
+npm run audit:setup
+npm run audit:build
+npm run audit:auth   # terminal 1, keep running
+npm run audit:start  # terminal 2, keep running
+```
+
+In a third terminal with the same database variable:
+
+```powershell
+$env:AUDIT_PRODUCTION = 'true'
+npm run audit:food
+$env:AUDIT_BROWSER = 'webkit'
+npm run audit:food
+```
+
+This covers feature gating, targets, meal/star/edit/delete flows, recovery after disconnection
+and a lost save reply, original-day drafts, account isolation, responsive forms and PWA behavior.
+Results and screenshots go to `output/food-audit/`. The browsers are emulated; physical-device
+installation and keyboard behavior still need a device check. See the
+[food audit report](audits/2026-09-25-food-audit.md).
+
 ## Latency: how screens scale with the database round trip
 
 `npm run audit:latency` measures each main screen's server time at several app↔database

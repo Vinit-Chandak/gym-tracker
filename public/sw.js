@@ -3,8 +3,8 @@
  * workout is ever stored in the cache. Only two public, non-personal things are cached:
  * the offline guidance, and the build's own immutable assets.
  */
-const OFFLINE = "overload-offline-v2";
-const ASSETS = "overload-assets-v2";
+const OFFLINE = "overload-offline-v3";
+const ASSETS = "overload-assets-v3";
 const KEEP = [OFFLINE, ASSETS];
 
 self.addEventListener("install", (event) => {

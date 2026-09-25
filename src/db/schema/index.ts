@@ -17,3 +17,4 @@ export * from "./activity-templates";
 export * from "./occurrences";
 export * from "./sport-preferences";
 export * from "./multisport-migration";
+export * from "./nutrition";

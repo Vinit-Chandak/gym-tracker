@@ -7,6 +7,7 @@ import {
   OccurrenceCard,
 } from "@/components/activities/today-activities";
 import { CoachPlanList, coachPlanSummary } from "@/components/coach-plan";
+import { FoodCard } from "@/components/food/food-card";
 import { PlannedExerciseList, planSummary } from "@/components/planned-exercises";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
@@ -17,6 +18,7 @@ import { Card } from "@/components/ui/card";
 import { Disclosure } from "@/components/ui/disclosure";
 import { InfoTip } from "@/components/ui/info-tip";
 import { Section } from "@/components/ui/section";
+import type { FoodTotals, MacroTargets } from "@/domain/nutrition";
 import { writtenSummaryForSport } from "@/domain/sport-scope";
 import type { SlotStatus } from "@/domain/schedule";
 import type { WarmupDrill } from "@/domain/types";
@@ -118,6 +120,8 @@ export type TodayViewProps = {
   programmeOccurrences?: readonly ScheduledOccurrence[];
   /** What the athlete put on the calendar for today, which is dated today by definition. */
   standaloneOccurrences?: readonly ScheduledOccurrence[];
+  /** Today's food against its targets; null unless food tracking is switched on (ADR 0032). */
+  food?: { eaten: FoodTotals; target: MacroTargets | null } | null;
 };
 
 /**
@@ -189,6 +193,7 @@ export function TodayView({
   unit = "kg",
   programmeOccurrences = [],
   standaloneOccurrences = [],
+  food = null,
 }: TodayViewProps) {
   const defaultGym =
     gyms.find((gym) => (coach?.selectedGymId ? gym.id === coach.selectedGymId : gym.isDefault)) ??
@@ -508,6 +513,9 @@ export function TodayView({
             }
           />
         )}
+
+        {/* Food is not the day's training, so it comes after everything that is. */}
+        {food && <FoodCard eaten={food.eaten} target={food.target} />}
       </PageContent>
     </>
   );

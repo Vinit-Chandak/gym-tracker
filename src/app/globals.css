@@ -315,6 +315,10 @@
   padding-bottom: calc(var(--nav-reserve) + var(--session-chrome-height, 0px) + 1rem);
 }
 
+html:has(.app-content) {
+  scroll-padding-bottom: calc(var(--nav-reserve) + var(--session-chrome-height, 0px) + 1rem);
+}
+
 /*
  * An island, not a bar: the navigation floats clear of all four edges and the page runs
  * underneath it. Translucency plus a blur is what makes that readable — you can see there
@@ -519,6 +523,27 @@
   }
 }
 
+/* Short landscape screens need scrolling chrome so enlarged controls remain reachable. */
+@media (height < 30rem) and (width < 64rem) {
+  :root {
+    --nav-reserve: 0rem;
+  }
+  html {
+    scroll-padding-top: 1rem;
+  }
+  .page-header {
+    position: static;
+  }
+  .viewport-chrome:not(.viewport-chrome-session) {
+    position: static;
+  }
+  .viewport-chrome > .primary-nav {
+    position: relative;
+    inset: auto;
+    margin: 0 var(--page-gutter) max(0.5rem, env(safe-area-inset-bottom));
+  }
+}
+
 /* iPhone notch / home-indicator safe areas (requires viewport-fit=cover). */
 @utility pt-safe {
   padding-top: env(safe-area-inset-top);
@@ -621,11 +646,11 @@
 /* Bottom sheet on top of the native <dialog>. */
 dialog.sheet {
   position: fixed;
-  inset: auto 0 0 0;
+  inset: auto 0 var(--sheet-bottom, 0px) 0;
   margin: 0 auto;
   width: 100%;
   max-width: 32rem;
-  max-height: 90dvh;
+  max-height: var(--sheet-height, 90dvh);
   border: 0;
   padding: 0;
   background: transparent;
@@ -650,6 +675,27 @@ html:has(dialog.sheet[open])::-webkit-scrollbar {
  */
 dialog.sheet::backdrop {
   background: var(--ov-backdrop, rgb(0 0 0 / 0.64));
+}
+
+.sheet-with-footer {
+  display: flex;
+  flex-direction: column;
+  max-height: var(--sheet-height, 90dvh);
+}
+
+.sheet-panel {
+  padding-left: max(var(--panel-padding), env(safe-area-inset-left));
+  padding-right: max(var(--panel-padding), env(safe-area-inset-right));
+}
+
+.sheet-with-footer[data-compact="true"] {
+  display: block;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.sheet-with-footer[data-compact="true"] > .sheet-body {
+  overflow: visible;
 }
 
 /*

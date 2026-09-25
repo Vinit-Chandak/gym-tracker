@@ -33,12 +33,14 @@ import { ScalesIcon } from "@phosphor-icons/react/dist/ssr/Scales";
 import { SignOutIcon } from "@phosphor-icons/react/dist/ssr/SignOut";
 import { SlidersHorizontalIcon } from "@phosphor-icons/react/dist/ssr/SlidersHorizontal";
 import { SneakerMoveIcon } from "@phosphor-icons/react/dist/ssr/SneakerMove";
+import { StarIcon } from "@phosphor-icons/react/dist/ssr/Star";
 import { TimerIcon } from "@phosphor-icons/react/dist/ssr/Timer";
 import { TrashIcon } from "@phosphor-icons/react/dist/ssr/Trash";
 import { TrophyIcon } from "@phosphor-icons/react/dist/ssr/Trophy";
 import { UserIcon } from "@phosphor-icons/react/dist/ssr/User";
 import { UserPlusIcon } from "@phosphor-icons/react/dist/ssr/UserPlus";
 import { UsersIcon } from "@phosphor-icons/react/dist/ssr/Users";
+import { XIcon } from "@phosphor-icons/react/dist/ssr/X";
 import type { ComponentType } from "react";
 
 import { cn } from "@/lib/utils";
@@ -94,6 +96,8 @@ export const ChevronDown = /* @__PURE__ */ duotone(CaretDownIcon);
 export const ChevronLeft = /* @__PURE__ */ duotone(CaretLeftIcon);
 export const ChevronRight = /* @__PURE__ */ duotone(CaretRightIcon);
 export const ClipboardList = /* @__PURE__ */ duotone(ClipboardTextIcon);
+/** Removing one thing from a group of them, where a bin would say more than is meant. */
+export const Close = /* @__PURE__ */ duotone(XIcon);
 export const Download = /* @__PURE__ */ duotone(DownloadSimpleIcon);
 export const Dumbbell = /* @__PURE__ */ duotone(BarbellIcon);
 export const ExternalLink = /* @__PURE__ */ duotone(ArrowSquareOutIcon);
@@ -116,6 +120,8 @@ export const Scales = /* @__PURE__ */ duotone(ScalesIcon);
 export const Search = /* @__PURE__ */ duotone(MagnifyingGlassIcon);
 export const Settings = /* @__PURE__ */ duotone(GearSixIcon);
 export const SlidersHorizontal = /* @__PURE__ */ duotone(SlidersHorizontalIcon);
+/** A starred meal: one kept for adding again in one tap. */
+export const Star = /* @__PURE__ */ duotone(StarIcon);
 export const SunMoon = /* @__PURE__ */ duotone(CircleHalfIcon);
 export const Timer = /* @__PURE__ */ duotone(TimerIcon);
 export const Trash = /* @__PURE__ */ duotone(TrashIcon);

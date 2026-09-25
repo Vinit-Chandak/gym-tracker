@@ -267,6 +267,27 @@
       "when": 1790322636101,
       "tag": "0037_coaching_flow_review",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1790329173152,
+      "tag": "0038_food_tracking",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1790330000000,
+      "tag": "0039_resource_deletion",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1790330000001,
+      "tag": "0040_food_submission_receipts",
+      "breakpoints": true
     }
   ]
 }

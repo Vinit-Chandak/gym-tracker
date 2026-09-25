@@ -127,10 +127,11 @@ need the Supabase values from `SETUP.md`.
 ## Looking at a change without deploying it
 
 Every real screen is behind sign-in and a database. `npm run dev` also serves `/preview` (the
-day's cards, including a day that both lifts and runs) and `/preview/logging` (the set grid in
-each of its three measures) against made-up data, so the navigation, Today and logging can be
-seen on a phone before anything ships. These routes exist in development only; a production
-build does not have them.
+day's cards, including a day that both lifts and runs; `?food=on` adds the food card),
+`/preview/logging` (the set grid in each of its three measures) and `/preview/food` (the Food
+screen, with `?state=first|empty|over|noweight`) against made-up data, so the navigation, Today
+and logging can be seen on a phone before anything ships. These routes exist in development
+only; a production build does not have them.
 
 ## Project structure
 
@@ -191,6 +192,21 @@ Deploy to Vercel (see `SETUP.md`), then open the URL on the phone. **Profile →
 Chrome's install prompt on Android; on iPhone use Safari's **Share → Add to Home Screen**. The
 app launches standalone with safe-area padding.
 
+## Food (hidden until switched on)
+
+Calorie and macro tracking, entered by hand: a daily target, carbohydrate, fat and protein
+against it, meals made of foods, and starred meals that are logged again in one tap. It is built
+but hidden behind `FOOD_TRACKING_ENABLED`, which is off unless set to `true`, or to a list of
+account emails to try it on those alone. Switched on, Today gains a food card that opens
+**Today → Food**; switched off, nothing reads the tables and the screen does not exist. See
+[ADR 0032](docs/decisions/0032-food-behind-a-switch.md).
+
+Meal drafts stay on the device, scoped to the signed-in account, and can be resumed or discarded.
+Saving needs a connection; a resumed draft keeps its original day, shown above the form. Retrying
+a save after a lost reply cannot log the meal twice. Enable food only after the production deploy
+has applied migrations through **0040**. The [food audit](docs/audits/2026-09-25-food-audit.md)
+documents the checks and layout fixes.
+
 ## AI house coach
 
 Optionally, a Claude Code routine on the owner's Claude subscription plans everyone's next
@@ -204,5 +220,5 @@ Profile → AI coach; the owner
 sets it up once, as described in [`docs/coach-automation.md`](docs/coach-automation.md).
 
 See [Coach API](docs/coach-api.md) for token setup and endpoint details. Unsaved workout set rows
-are retained on the device for manual retry and removed after a confirmed save. Other forms
+and meal drafts are retained on the device for manual retry and removed after a confirmed save. Other forms
 require a connection. The offline screen explains how to reconnect; private pages are not cached.
