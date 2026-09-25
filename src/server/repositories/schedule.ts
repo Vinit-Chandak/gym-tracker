@@ -14,6 +14,7 @@ import {
   projectedEndDate,
   runEventsFromOccurrences,
   sessionsBehind,
+  slotFinishedOn,
   slotFor,
   slotParts,
   slotStatus,
@@ -122,7 +123,8 @@ export async function getSchedule(db: DbOrTx, userId: string): Promise<Schedule 
           'cycleIndex', e.cycle_index,
           'dayIndex', e.day_index,
           'part', e.part,
-          'status', e.status
+          'status', e.status,
+          'occurredOn', e.occurred_on
         ))
         from program_slot_events e where e.program_id = programs.id
       ), '[]'::json)`,
@@ -528,6 +530,11 @@ export type TodayPlan = {
    * this type only went stale (plan §2.3).
    */
   sessionStatus: SlotStatus | "pending";
+  /**
+   * The programme day finished today, when there is one: the day offered is then the next one,
+   * not today's.
+   */
+  finishedToday: ScheduleDay | null;
   /** Every day of the current cycle with its status, for "choose another day". */
   cycleDays: DayStatus[];
 };
@@ -568,6 +575,7 @@ export async function getTodayPlan(
     };
   });
   const startDate = schedule.program.startDate ?? today;
+  const finishedRef = slotFinishedOn(state, today);
   return {
     program: schedule.program,
     today,
@@ -582,6 +590,9 @@ export async function getTodayPlan(
         ? { ...nextTrainingDay, cycleIndex: nextTrainingRef.cycleIndex }
         : null,
     sessionStatus: next ? partStatus(state, next.slot, "session") : "pending",
+    finishedToday: finishedRef
+      ? (schedule.days.find((d) => d.dayIndex === finishedRef.dayIndex) ?? null)
+      : null,
     cycleDays,
   };
 }

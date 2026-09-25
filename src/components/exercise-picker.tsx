@@ -4,9 +4,8 @@ import { Search } from "@/components/ui/icons";
 import { useMemo, useState } from "react";
 
 import { Input } from "@/components/ui/input";
-import { groupByRegion } from "@/domain/muscles";
-import { matchesExerciseQuery } from "@/lib/exercise-search";
-import { BODY_REGION_LABELS, EXERCISE_MODALITY_LABELS, MUSCLE_LABELS } from "@/lib/labels";
+import { exerciseSections } from "@/lib/exercise-search";
+import { EXERCISE_MODALITY_LABELS, MUSCLE_LABELS } from "@/lib/labels";
 import type { ExerciseListItem } from "@/server/repositories/exercises";
 
 type ExercisePickerProps = {
@@ -19,18 +18,17 @@ type ExercisePickerProps = {
 };
 
 /**
- * Search first, then grouped results. The whole view is one scroll region, so a long
- * catalogue never becomes a list scrolling inside a sheet scrolling inside a page.
+ * Search first, then grouped results: by body region when nothing is typed, and by how well
+ * each exercise answers the search when something is, names first. The whole view is one
+ * scroll region, so a long catalogue never becomes a list scrolling inside a sheet scrolling
+ * inside a page.
  *
  * Nothing is filtered out for being unavailable at the current gym: an exercise you cannot
  * do here is still an exercise, and the machine question is asked separately.
  */
 export function ExercisePicker({ name, exercises, value, onChange, error }: ExercisePickerProps) {
   const [query, setQuery] = useState("");
-  const groups = useMemo(
-    () => groupByRegion(exercises.filter((e) => matchesExerciseQuery(e, query))),
-    [exercises, query],
-  );
+  const groups = useMemo(() => exerciseSections(exercises, query), [exercises, query]);
   const selected = exercises.find((e) => e.id === value);
 
   return (
@@ -81,9 +79,9 @@ export function ExercisePicker({ name, exercises, value, onChange, error }: Exer
         <p className="text-sm text-ink-muted">Nothing matches “{query}”.</p>
       ) : (
         groups.map((group) => (
-          <section key={group.region}>
+          <section key={group.key}>
             <h3 className="px-1 pb-1.5 text-xs font-medium tracking-wide text-ink-muted uppercase">
-              {BODY_REGION_LABELS[group.region]}
+              {group.title}
             </h3>
             <ul className="box-rows">
               {group.items.map((exercise) => (

@@ -35,6 +35,16 @@ const DAY: NonNullable<TodayPlan["suggestedDay"]> = {
   warmupProtocolId: null,
 };
 
+/** The day before it in the cycle, for the state where that one was finished today. */
+const PREVIOUS_DAY: NonNullable<TodayPlan["finishedToday"]> = {
+  ...DAY,
+  id: "00000000-0000-4000-8000-000000000007",
+  dayIndex: 2,
+  name: "Upper A",
+  focus: "Chest, back, shoulders",
+  includesRun: false,
+};
+
 const EXERCISES: TodayPlan["suggestedExercises"] = [
   {
     programExerciseId: "e1",
@@ -124,6 +134,7 @@ function plan(overrides: Partial<TodayPlan> = {}): TodayPlan {
     suggestedExercises: EXERCISES,
     nextTrainingDay: null,
     sessionStatus: "completed",
+    finishedToday: null,
     cycleDays: [],
     ...overrides,
   };
@@ -172,8 +183,9 @@ const OPEN_SESSION = {
 };
 
 export default async function TodayPreviewPage(props: PageProps<"/preview">) {
-  // The three states of a day that lifts and runs. The default is the one the run used to
-  // disappear in: workout finished, run still owed.
+  // The states of a day that lifts and runs. The default is the one the run used to
+  // disappear in: workout finished, run still owed. `next` is the day offered after the one
+  // before it was finished today, which is up next rather than today's.
   const { state } = await props.searchParams;
 
   return (
@@ -185,7 +197,14 @@ export default async function TodayPreviewPage(props: PageProps<"/preview">) {
           { id: "g1", name: "Anytime Fitness", kind: "gym", isDefault: true },
           { id: "g2", name: "Home", kind: "home", isDefault: false },
         ]}
-        plan={state === "done" ? plan() : plan({ sessionStatus: "pending" })}
+        plan={
+          state === "done"
+            ? plan()
+            : plan({
+                sessionStatus: "pending",
+                finishedToday: state === "next" ? PREVIOUS_DAY : null,
+              })
+        }
         inProgress={state === "training" ? OPEN_SESSION : null}
         restProtocol={null}
         programmeOccurrences={[RUN_OCCURRENCE]}
