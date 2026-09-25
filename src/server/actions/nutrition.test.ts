@@ -15,6 +15,15 @@ const mocks = vi.hoisted(() => ({
   logSavedMeal: vi.fn(),
   deleteSavedMeal: vi.fn(),
   saveNutritionTargets: vi.fn(),
+  submitFoodOnce: vi.fn(
+    async (
+      _db: unknown,
+      _user: string,
+      _key: string,
+      _payload: unknown,
+      write: () => Promise<unknown>,
+    ) => write(),
+  ),
 }));
 vi.mock("@/db/client", () => ({ getDb: () => ({}) }));
 vi.mock("@/db/with-user", () => ({
@@ -93,6 +102,35 @@ it("logs a new meal on today in the account's own time zone", async () => {
 it("rewrites the meal being edited rather than logging another", async () => {
   expect(await saveMealAction({ ...DRAFT, mealId: MEAL })).toEqual({ ok: true });
   expect(mocks.updateMeal).toHaveBeenCalledWith(expect.anything(), USER, MEAL, expect.anything());
+  expect(mocks.createMeal).not.toHaveBeenCalled();
+});
+
+it("keeps a resumed draft's original day and wraps the write in its retry receipt", async () => {
+  const key = "00000000-0000-4000-8000-000000000009";
+  expect(await saveMealAction({ ...DRAFT, eatenOn: "2026-09-25", submissionKey: key })).toEqual({
+    ok: true,
+  });
+  expect(mocks.submitFoodOnce).toHaveBeenCalledWith(
+    expect.anything(),
+    USER,
+    key,
+    expect.objectContaining({ eatenOn: "2026-09-25" }),
+    expect.any(Function),
+  );
+  expect(mocks.createMeal).toHaveBeenCalledWith(
+    expect.anything(),
+    USER,
+    "2026-09-25",
+    expect.anything(),
+  );
+});
+
+it("refuses invalid or future draft dates before writing", async () => {
+  expect((await saveMealAction({ ...DRAFT, eatenOn: "2026-02-31" })).ok).toBe(false);
+  expect(await saveMealAction({ ...DRAFT, eatenOn: "2026-09-27" })).toEqual({
+    ok: false,
+    error: "A meal cannot be logged for a future day.",
+  });
   expect(mocks.createMeal).not.toHaveBeenCalled();
 });
 

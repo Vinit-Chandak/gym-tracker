@@ -1,12 +1,19 @@
 "use client";
 
-import { useOptimistic, useState, useTransition } from "react";
+import { useOptimistic, useState, useTransition, useSyncExternalStore } from "react";
+import {
+  foodDraftSnapshot,
+  subscribeFoodDrafts,
+  removeFoodDraft,
+  notifyFoodDrafts,
+  type FoodLocalDraft,
+} from "@/lib/food-drafts";
 
 import { Button } from "@/components/ui/button";
 import { Plus, Star } from "@/components/ui/icons";
 import { Section } from "@/components/ui/section";
 import { SwipeRow } from "@/components/ui/swipe-row";
-import { formatFoodAmount } from "@/lib/format";
+import { formatFoodAmount, formatKcal } from "@/lib/format";
 import { attempted } from "@/lib/offline-submit";
 import { deleteMealAction } from "@/server/actions/nutrition";
 import type { MealRecord } from "@/server/repositories/nutrition";
@@ -32,14 +39,12 @@ function MealLine({ meal }: { meal: MealRecord }) {
     <>
       {/* The spaces between the parts are for the button's name, which a screen reader reads
           as one string; beside flex items they take no room on the screen. */}
-      <span className="flex items-baseline justify-between gap-3">
+      <span className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <span className="flex min-w-0 items-center gap-1.5 font-medium [overflow-wrap:anywhere]">
           {meal.name}{" "}
           {meal.savedMealId && <Star role="img" className="text-accent" aria-label="Starred" />}
         </span>{" "}
-        <span className="shrink-0 font-medium tabular-nums">
-          {formatFoodAmount(totals.kcal)} kcal
-        </span>
+        <span className="shrink-0 font-medium tabular-nums">{formatKcal(totals.kcal)} kcal</span>
       </span>{" "}
       {listsFoods(meal) && (
         <span className="mt-1 block space-y-0.5 text-sm text-ink-muted">
@@ -49,7 +54,7 @@ function MealLine({ meal }: { meal: MealRecord }) {
                 {item.name ?? `Food ${index + 1}`}
               </span>{" "}
               <span className="shrink-0 tabular-nums">
-                {formatFoodAmount(item.kcal)}
+                {formatKcal(item.kcal)}
                 <span className="sr-only"> kcal,</span>
               </span>
             </span>
@@ -71,10 +76,14 @@ function MealLine({ meal }: { meal: MealRecord }) {
  * by swiping it aside; the sheet it opens can delete it too, for anyone who does not swipe.
  */
 export function MealsPanel({
+  userId,
+  today,
   meals,
   suggestedName,
   primary = true,
 }: {
+  userId?: string;
+  today?: string;
   meals: readonly MealRecord[];
   suggestedName: string;
   /** Whether Add meal is the screen's primary action, which it is once a target is set. */
@@ -82,13 +91,33 @@ export function MealsPanel({
 }) {
   // A new key for every opening mounts the sheet afresh; closing keeps the key, so the dialog
   // is closed where it is and hands the focus back to whatever opened it.
-  const [sheet, setSheet] = useState<{ key: number; open: boolean; meal: MealRecord | null }>({
+  const drafts: FoodLocalDraft[] = JSON.parse(
+    useSyncExternalStore(
+      subscribeFoodDrafts,
+      () => foodDraftSnapshot(userId),
+      () => "[]",
+    ),
+  );
+  const [notice, setNotice] = useState("");
+  const [sheet, setSheet] = useState<{
+    key: number;
+    open: boolean;
+    meal: MealRecord | null;
+    draft?: FoodLocalDraft;
+  }>({
     key: 0,
     open: false,
     meal: null,
   });
-  const openSheet = (meal: MealRecord | null) =>
-    setSheet((current) => ({ key: current.key + 1, open: true, meal }));
+  const openSheet = (meal: MealRecord | null, draft?: FoodLocalDraft) =>
+    setSheet((current) => ({
+      key: current.key + 1,
+      open: true,
+      meal,
+      draft:
+        draft ??
+        drafts.find((d) => (meal ? d.mealId === meal.id : !d.mealId && d.eatenOn === today)),
+    }));
   const closeSheet = () => setSheet((current) => ({ ...current, open: false }));
 
   // A deleted meal leaves the list at once; if the delete does not go through it comes back.
@@ -111,6 +140,46 @@ export function MealsPanel({
 
   return (
     <Section title="Meals">
+      {drafts.length > 0 && (
+        <div className="box space-y-3 panel-padding">
+          <p className="text-sm text-ink-muted">Unsaved meals on this device</p>
+          {drafts.map((draft) => (
+            <div key={draft.submissionKey} className="space-y-2">
+              <p className="text-sm [overflow-wrap:anywhere]">
+                {draft.name || "Meal"} · {draft.eatenOn}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => openSheet(meals.find((m) => m.id === draft.mealId) ?? null, draft)}
+                >
+                  Resume draft
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    try {
+                      removeFoodDraft(localStorage, draft);
+                      notifyFoodDrafts();
+                    } catch {
+                      setNotice("Could not remove the draft from this device.");
+                    }
+                  }}
+                >
+                  Discard draft
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {notice && (
+        <p role="status" className="text-sm text-ink-muted">
+          {notice}
+        </p>
+      )}
       {shown.length === 0 ? (
         <p className="px-1 text-sm text-ink-muted">Nothing logged today.</p>
       ) : (
@@ -153,6 +222,10 @@ export function MealsPanel({
         open={sheet.open}
         meal={sheet.meal}
         suggestedName={suggestedName}
+        userId={userId}
+        today={today}
+        draft={sheet.draft}
+        onSaved={(date) => setNotice(`Meal saved for ${date}.`)}
         onClose={closeSheet}
       />
     </Section>

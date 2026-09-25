@@ -27,6 +27,8 @@ export default async function FoodPage() {
 
   return (
     <FoodView
+      userId={user.id}
+      timeZone={profile.timeZone}
       today={today}
       screen={screen}
       bodyWeightKg={profile.bodyWeightKg}

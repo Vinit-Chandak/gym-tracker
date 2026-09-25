@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 import { Button, buttonClassName } from "@/components/ui/button";
 import { Close } from "@/components/ui/icons";
 import { Section } from "@/components/ui/section";
-import { formatFoodAmount } from "@/lib/format";
+import { formatKcal } from "@/lib/format";
 import { attempted } from "@/lib/offline-submit";
 import { cn } from "@/lib/utils";
 import { deleteSavedMealAction, logSavedMealAction } from "@/server/actions/nutrition";
@@ -28,6 +28,7 @@ export function StarredMeals({ meals }: { meals: readonly StarredMeal[] }) {
     startTransition(async () => {
       setBusyId(meal.id);
       setError(null);
+      setSaid("");
       const outcome = await attempted(
         () => (removing ? deleteSavedMealAction(meal.id) : logSavedMealAction(meal.id)),
         `${meal.name} was not ${removing ? "unstarred" : "added"}. Check your connection and try again.`,
@@ -47,6 +48,7 @@ export function StarredMeals({ meals }: { meals: readonly StarredMeal[] }) {
           variant="ghost"
           size="sm"
           className="-my-2.5 text-accent"
+          disabled={pending}
           onClick={() => setEditing((current) => !current)}
         >
           {editing ? "Done" : "Edit"}
@@ -77,7 +79,7 @@ export function StarredMeals({ meals }: { meals: readonly StarredMeal[] }) {
                 <Close aria-hidden />
               ) : (
                 <span className="font-normal text-ink-muted tabular-nums">
-                  {formatFoodAmount(meal.kcal)} kcal
+                  {formatKcal(meal.kcal)} kcal
                 </span>
               )}
             </button>

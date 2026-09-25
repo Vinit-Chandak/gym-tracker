@@ -36,8 +36,11 @@ it("unstars a meal from Edit, and only from Edit", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Unstar Oats and milk" }));
   await waitFor(() => expect(deleteSavedMealAction).toHaveBeenCalledWith(MEALS[1]!.id));
   expect(logSavedMealAction).not.toHaveBeenCalled();
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Done" })).toHaveProperty("disabled", false),
+  );
   fireEvent.click(screen.getByRole("button", { name: "Done" }));
-  expect(screen.getByRole("button", { name: "Oats and milk 464 kcal" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Oats and milk 463.5 kcal" })).toBeTruthy();
 });
 
 it("says so when a meal could not be added", async () => {

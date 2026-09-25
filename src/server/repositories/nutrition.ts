@@ -1,6 +1,14 @@
 import { and, asc, eq, sql, type AnyColumn } from "drizzle-orm";
+import { createHash } from "node:crypto";
 
-import { mealItems, meals, nutritionTargets, profiles, savedMeals } from "@/db/schema";
+import {
+  foodSubmissionReceipts,
+  mealItems,
+  meals,
+  nutritionTargets,
+  profiles,
+  savedMeals,
+} from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import { addUp, type FoodItem, type FoodTotals, type NutritionTargets } from "@/domain/nutrition";
 
@@ -39,6 +47,44 @@ export class SavedMealNotFoundError extends Error {
   constructor() {
     super("That starred meal no longer exists.");
   }
+}
+
+export class FoodSubmissionConflictError extends Error {
+  constructor() {
+    super(
+      "This draft was already saved with different values. Close and reopen the saved meal before editing it. You can discard this local draft.",
+    );
+  }
+}
+
+/** Must run inside the same transaction as the write. A lost reply is safe to retry. */
+export async function submitFoodOnce(
+  db: DbOrTx,
+  userId: string,
+  key: string,
+  payload: unknown,
+  write: () => Promise<unknown>,
+): Promise<void> {
+  const payloadDigest = createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+  const inserted = await db
+    .insert(foodSubmissionReceipts)
+    .values({ userId, submissionKey: key, payloadDigest })
+    .onConflictDoNothing()
+    .returning({ key: foodSubmissionReceipts.submissionKey });
+  if (!inserted.length) {
+    const [receipt] = await db
+      .select()
+      .from(foodSubmissionReceipts)
+      .where(
+        and(
+          eq(foodSubmissionReceipts.userId, userId),
+          eq(foodSubmissionReceipts.submissionKey, key),
+        ),
+      );
+    if (receipt?.payloadDigest !== payloadDigest) throw new FoodSubmissionConflictError();
+    return;
+  }
+  await write();
 }
 
 const TARGET_COLUMNS = {
@@ -102,6 +148,9 @@ export async function readFoodScreen(
         eatenOn: meals.eatenOn,
         savedMealId: meals.savedMealId,
         item: {
+          // Drizzle detects an absent LEFT JOIN row from its first selected column.
+          // Names are optional; the non-null primary key must be that sentinel.
+          id: mealItems.id,
           name: mealItems.name,
           kcal: mealItems.kcal,
           carbsG: mealItems.carbsG,
@@ -128,7 +177,10 @@ export async function readFoodScreen(
       record = { ...meal, items: [], totals: addUp([]) };
       byId.set(meal.id, record);
     }
-    if (item) record.items.push(item);
+    if (item) {
+      const { id: _id, ...food } = item;
+      record.items.push(food);
+    }
   }
   for (const record of byId.values()) record.totals = addUp(record.items);
 
@@ -233,7 +285,8 @@ export async function updateMeal(
     .select({ savedMealId: meals.savedMealId })
     .from(meals)
     .where(and(eq(meals.userId, userId), eq(meals.id, mealId)))
-    .limit(1);
+    .limit(1)
+    .for("update");
   if (!meal) throw new MealNotFoundError();
 
   let savedMealId = meal.savedMealId;

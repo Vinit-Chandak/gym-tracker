@@ -8,6 +8,7 @@ import {
   jsonb,
   numeric,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -15,7 +16,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import type { FoodItem, MacroSplit } from "../../domain/nutrition";
-import { ownerPolicy, timestamps } from "./common";
+import { ownerPolicy, serverWritePolicies, timestamps } from "./common";
 import { profiles } from "./profiles";
 
 /*
@@ -28,6 +29,21 @@ const owner = () =>
   uuid("user_id")
     .notNull()
     .references(() => profiles.id, { onDelete: "cascade" });
+
+/** A committed save keeps its receipt even if the meal is later deleted. */
+export const foodSubmissionReceipts = pgTable(
+  "food_submission_receipts",
+  {
+    userId: owner(),
+    submissionKey: uuid("submission_key").notNull(),
+    payloadDigest: text("payload_digest").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.submissionKey] }),
+    ...serverWritePolicies("food_submission_receipts"),
+  ],
+).enableRLS();
 
 /**
  * What an account's eating is measured against: one row, written from the Food screen's targets.

@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import {
   MACRO_SPLITS,
+  DEFAULT_PROTEIN_PER_KG,
   NUTRITION_LIMITS,
   type FoodItem,
   type NutritionTargets,
@@ -45,7 +46,15 @@ export const targetsInputSchema = z
         message: `Enter a target between ${grouped(kcalLimits.min)} and ${grouped(kcalLimits.max)} kcal.`,
       });
     }
-    const protein = readNumber(values.proteinPerKg);
+    const enteredProtein = readNumber(values.proteinPerKg);
+    // A hidden, unused field must never make the fixed preset impossible to save.
+    const protein =
+      values.split === "fixed_55_25_20" &&
+      (typeof enteredProtein !== "number" ||
+        toTenth(enteredProtein) < proteinLimits.min ||
+        toTenth(enteredProtein) > proteinLimits.max)
+        ? DEFAULT_PROTEIN_PER_KG
+        : enteredProtein;
     if (protein === null || protein === "invalid") {
       ctx.addIssue({ code: "custom", path: ["proteinPerKg"], message: "Enter grams per kg." });
     } else if (toTenth(protein) < proteinLimits.min || toTenth(protein) > proteinLimits.max) {
@@ -70,6 +79,10 @@ export type FoodDraft = {
 
 /** What the sheet sends: every row as typed, so errors come back against the row they are on. */
 export type MealDraft = {
+  /** Stable across retries, including a reload or a lost server reply. */
+  submissionKey?: string;
+  /** Drafts retain the civil day on which they were opened. */
+  eatenOn?: string;
   /** Present when an existing meal is being edited. */
   mealId?: string;
   name: string;
@@ -91,6 +104,8 @@ export function isBlankFood(food: FoodDraft): boolean {
  */
 export const mealInputSchema = z
   .object({
+    submissionKey: z.uuid().optional(),
+    eatenOn: z.iso.date().optional(),
     mealId: z.uuid().optional(),
     name: z.string(),
     items: z
@@ -148,7 +163,14 @@ export const mealInputSchema = z
     }
 
     if (!valid || name === "" || name.length > NUTRITION_LIMITS.name) return z.NEVER;
-    return { mealId: meal.mealId, name, items, starred: meal.starred };
+    return {
+      mealId: meal.mealId,
+      name,
+      items,
+      starred: meal.starred,
+      ...(meal.submissionKey ? { submissionKey: meal.submissionKey } : {}),
+      ...(meal.eatenOn ? { eatenOn: meal.eatenOn } : {}),
+    };
   });
 
 export type MealInputParsed = z.output<typeof mealInputSchema>;

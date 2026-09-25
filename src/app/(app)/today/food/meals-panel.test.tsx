@@ -148,7 +148,7 @@ it("edits a meal: its foods and its star come with it, and it saves against its 
   render(<MealsPanel meals={[meal([PEANUT_BUTTER, MILK], STAR_ID)]} suggestedName="x" />);
   // The row shows the meal's foods and what they come to, and that it is starred.
   const row = screen.getByRole("button", { name: /^Afternoon meal 1/ });
-  expect(row.textContent).toContain("602 kcal");
+  expect(row.textContent).toContain("601.5 kcal");
   expect(row.textContent).toContain("Peanut butter, 75 g");
   expect(within(row).getByRole("img", { name: "Starred" })).toBeTruthy();
 

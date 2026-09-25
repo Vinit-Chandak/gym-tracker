@@ -100,13 +100,12 @@ export function macroTargets(targets: NutritionTargets, bodyWeightKg: number | n
 }
 
 /**
- * The goal band in whole kilocalories, rounded inwards: the least and the most a day can come to
- * and still meet its goal, as a count of whole kilocalories would show it.
+ * The goal band's exact ends, in tenths, matching both storage and the displayed kcal.
  */
 export function goalBand(dailyKcal: number): { low: number; high: number } {
   return {
-    low: Math.ceil((dailyKcal * 9) / 10),
-    high: Math.floor((dailyKcal * 11) / 10),
+    low: (dailyKcal * 9) / 10,
+    high: (dailyKcal * 11) / 10,
   };
 }
 

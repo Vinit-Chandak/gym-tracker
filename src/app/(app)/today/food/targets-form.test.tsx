@@ -21,6 +21,9 @@ it("works out the grams as the target is typed, protein from the body weight", (
   expect(screen.getByText("135 g at 75 kg")).toBeTruthy();
   fireEvent.change(field("Protein, g per kg of body weight"), { target: { value: "2" } });
   expect(screen.getByText("Carbs 300 g · Fat 67 g · Protein 150 g")).toBeTruthy();
+  fireEvent.change(field("Protein, g per kg of body weight"), { target: { value: "1.84" } });
+  expect(screen.getByText("Carbs 315 g · Fat 67 g · Protein 135 g")).toBeTruthy();
+  expect(screen.getByText("135 g at 75 kg")).toBeTruthy();
 });
 
 it("keeps protein per kilogram while the fixed split hides it", () => {

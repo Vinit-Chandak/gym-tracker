@@ -29,7 +29,8 @@ switched on. This record covers what was built and the rules it follows.
 
    Previews share the production database and do not migrate (SETUP.md §7). So a preview of this
    change works only with the switch off, and it must stay off anywhere until the production
-   deploy that carries 0038 has run.
+   deploy that carries the required migrations has run. The follow-up audit adds 0039 for
+   resource deletion and 0040 for retry receipts: enable this revision only after 0040.
 
 3. **Targets are one row; grams are worked out when they are shown.** `nutrition_targets` holds
    three things:
@@ -54,7 +55,8 @@ switched on. This record covers what was built and the rules it follows.
 4. **The goal is a band, both ends included.** A day meets its goal when its total is from
    0.9`t` to 1.1`t`. The comparison is done in tenths of a kilocalorie, because 0.9 has no exact
    binary form: 0.9 × 501 is 450.90000000000003, and a day of exactly 450.9 kcal meets its goal.
-   The band is written rounded inwards, to what a whole-kilocalorie total can reach. A day below
+   The band and energy totals show up to one decimal, so the visible total and badge agree even
+   at a fractional boundary. Macro summaries remain whole grams. A day below
    the band shows no badge, because a day still being eaten has not missed anything. A day
    inside it shows **Goal met**, and a day past it shows **Over**. The bar draws the band as a
    wash with a tick at each end, over the fill. It runs to 1.25`t`, and further when the day
@@ -94,12 +96,22 @@ switched on. This record covers what was built and the rules it follows.
      asks for a confirmation on top.
    - **The add-meal sheet** takes foods one at a time: a name and four numbers. `Sheet` gained an
      optional footer that stays in view while the foods scroll, holding the running totals, the
-     star and Save. A new meal is named from the account's own clock ("Afternoon meal 1", the
+     star and Save. At short viewport heights or large text sizes, the entire sheet scrolls so
+     both fields and Save remain reachable. A new meal is named from the account's own clock ("Afternoon meal 1", the
      next number up when the day already has one), so logging never waits on thinking of a
      name.
    - **Validation** runs on the server, as the app's other forms do. Errors come back against
      the row and field they concern. A lost connection keeps the sheet as it was, and blank rows
-     are passed over.
+     are passed over. Changed meal forms are kept in local storage under their account and
+     submission identities. Closing, navigating or reloading preserves them; successful saving
+     or explicit discarding clears them. Storage failures are explained in the sheet.
+   - **Offline drafts keep their original day.** The owner chose manual retry after reconnecting,
+     and the day on which the draft was opened even if midnight has passed. The date is shown
+     in the draft list and the sheet. An open Food screen refreshes at a day change when visible
+     and online, while an open meal sheet retains its date. There is no automatic background save.
+   - **An acknowledged retry cannot duplicate a meal.** Each sheet keeps a stable submission key;
+     a receipt and the mutation commit together. A matching retry is a no-op, even after deletion.
+     A changed payload under an already committed key is refused with recovery instructions.
 
 8. **What it costs Today.** With the switch on, one more statement runs inside Today's
    transaction. `readFoodDay` returns the targets and the day's sums in one row, anchored on the
@@ -110,10 +122,15 @@ switched on. This record covers what was built and the rules it follows.
 ## Not done, on purpose
 
 - No food database, barcode, photo or other lookup: entry is by hand.
-- Only today: no past days, no copying yesterday, no weekly view.
+- Only today's browsing: no past-day browser, copying yesterday, or weekly view. A recovered
+  draft can still save to its original day, as requested by the owner.
 - Food reaches nothing else. Friends, leaderboards, the coach and Progress see none of it.
 
 ## Validation
+
+The original implementation checks below are historical. The follow-up audit and its fixes,
+including rollout requirements, are recorded in the
+[25 September audit](../audits/2026-09-25-food-audit.md).
 
 - **Tests.** 93 new tests: the maths (the split, the band at its exact ends, adding up in
   tenths, meal names), the switch, parsing, the repository with Row Level Security and the

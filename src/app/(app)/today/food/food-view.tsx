@@ -11,8 +11,11 @@ import type { FoodScreen } from "@/server/repositories/nutrition";
 import { MealsPanel } from "./meals-panel";
 import { StarredMeals } from "./starred-meals";
 import { TargetsForm } from "./targets-form";
+import { FoodDayRollover } from "./day-rollover";
 
 export type FoodViewProps = {
+  userId?: string;
+  timeZone?: string;
   today: string;
   screen: FoodScreen;
   /** The newest body weight reading, which the protein target is worked out from. */
@@ -27,7 +30,15 @@ export type FoodViewProps = {
  * the way to add one, then the targets themselves. Until there is a target, setting one is what
  * the screen opens with.
  */
-export function FoodView({ today, screen, bodyWeightKg, unit, suggestedName }: FoodViewProps) {
+export function FoodView({
+  userId,
+  timeZone,
+  today,
+  screen,
+  bodyWeightKg,
+  unit,
+  suggestedName,
+}: FoodViewProps) {
   const target = screen.targets ? macroTargets(screen.targets, bodyWeightKg) : null;
   const eaten = addUp(screen.meals.flatMap((meal) => meal.items));
   // Targets that are not doing what they were set to do open themselves, so the reason is on
@@ -45,6 +56,7 @@ export function FoodView({ today, screen, bodyWeightKg, unit, suggestedName }: F
 
   return (
     <>
+      {timeZone && <FoodDayRollover today={today} timeZone={timeZone} />}
       <PageHeader title="Food" meta={formatIsoWeekdayDay(today)} backHref="/today" />
       <PageContent>
         {target ? (
@@ -69,7 +81,13 @@ export function FoodView({ today, screen, bodyWeightKg, unit, suggestedName }: F
         )}
 
         {/* Until there is a target, setting one is the screen's one primary action. */}
-        <MealsPanel meals={screen.meals} suggestedName={suggestedName} primary={target !== null} />
+        <MealsPanel
+          userId={userId}
+          today={today}
+          meals={screen.meals}
+          suggestedName={suggestedName}
+          primary={target !== null}
+        />
 
         {target && (
           <Disclosure

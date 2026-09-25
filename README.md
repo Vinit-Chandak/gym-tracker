@@ -201,6 +201,12 @@ account emails to try it on those alone. Switched on, Today gains a food card th
 **Today → Food**; switched off, nothing reads the tables and the screen does not exist. See
 [ADR 0032](docs/decisions/0032-food-behind-a-switch.md).
 
+Meal drafts stay on the device, scoped to the signed-in account, and can be resumed or discarded.
+Saving needs a connection; a resumed draft keeps its original day, shown above the form. Retrying
+a save after a lost reply cannot log the meal twice. Enable food only after the production deploy
+has applied migrations through **0040**. The [food audit](docs/audits/2026-09-25-food-audit.md)
+documents the checks and layout fixes.
+
 ## AI house coach
 
 Optionally, a Claude Code routine on the owner's Claude subscription plans everyone's next
@@ -214,5 +220,5 @@ Profile → AI coach; the owner
 sets it up once, as described in [`docs/coach-automation.md`](docs/coach-automation.md).
 
 See [Coach API](docs/coach-api.md) for token setup and endpoint details. Unsaved workout set rows
-are retained on the device for manual retry and removed after a confirmed save. Other forms
+and meal drafts are retained on the device for manual retry and removed after a confirmed save. Other forms
 require a connection. The offline screen explains how to reconnect; private pages are not cached.

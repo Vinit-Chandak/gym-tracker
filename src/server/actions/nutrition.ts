@@ -11,6 +11,8 @@ import { requireUser, type SessionUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import {
   createMeal,
+  FoodSubmissionConflictError,
+  submitFoodOnce,
   deleteMeal,
   deleteSavedMeal,
   logSavedMeal,
@@ -34,7 +36,11 @@ export type FoodActionResult =
 const SWITCHED_OFF = "Food tracking is not switched on for this account.";
 
 function describe(error: unknown): string {
-  if (error instanceof MealNotFoundError || error instanceof SavedMealNotFoundError) {
+  if (
+    error instanceof MealNotFoundError ||
+    error instanceof SavedMealNotFoundError ||
+    error instanceof FoodSubmissionConflictError
+  ) {
     return error.message;
   }
   return "Something went wrong. Please try again.";
@@ -88,14 +94,19 @@ export async function saveMealAction(draft: MealDraft): Promise<FoodActionResult
   if (!user) return { ok: false, error: SWITCHED_OFF };
   const parsed = mealInputSchema.safeParse(draft);
   if (!parsed.success) return { ok: false, fieldErrors: issuesByPath(parsed.error.issues) };
-  const { mealId, ...meal } = parsed.data;
+  const { mealId, submissionKey, eatenOn: draftDay, ...meal } = parsed.data;
   try {
-    if (mealId) {
-      await withUser(getDb(), user.id, (tx) => updateMeal(tx, user.id, mealId, meal));
-    } else {
-      const eatenOn = await today(user);
-      await withUser(getDb(), user.id, (tx) => createMeal(tx, user.id, eatenOn, meal));
-    }
+    const currentDay = await today(user);
+    const eatenOn = draftDay ?? currentDay;
+    if (eatenOn > currentDay)
+      return { ok: false, error: "A meal cannot be logged for a future day." };
+    await withUser(getDb(), user.id, async (tx) => {
+      const write = () =>
+        mealId ? updateMeal(tx, user.id, mealId, meal) : createMeal(tx, user.id, eatenOn, meal);
+      if (submissionKey)
+        await submitFoodOnce(tx, user.id, submissionKey, { mealId, eatenOn, ...meal }, write);
+      else await write();
+    });
   } catch (error) {
     return { ok: false, error: describe(error) };
   }

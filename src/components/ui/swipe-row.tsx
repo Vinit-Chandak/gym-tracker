@@ -88,6 +88,7 @@ export function SwipeRow({
       <button
         ref={actionButton}
         type="button"
+        disabled={disabled}
         inert={!revealed}
         aria-label={actionLabel}
         onClick={() => {
@@ -101,7 +102,7 @@ export function SwipeRow({
       <div
         data-swipe-row=""
         className={cn(
-          "relative touch-pan-y bg-surface",
+          "relative touch-pan-y touch-pinch-zoom bg-surface",
           !dragging &&
             "transition-transform duration-[var(--ov-duration-feedback)] ease-[var(--ov-ease-standard)]",
         )}

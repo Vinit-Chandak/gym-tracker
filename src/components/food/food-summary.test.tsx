@@ -17,6 +17,16 @@ const TARGET = macroTargets({ dailyKcal: 2400, proteinPerKg: 1.8, split: "body_w
 const eaten = (kcal: number): FoodTotals => ({ kcal, carbsG: 150, fatG: 50, proteinG: 90 });
 
 describe("the summary", () => {
+  it("shows exact kcal at the fractional edges of the goal band", () => {
+    const target = macroTargets(
+      { dailyKcal: 501, proteinPerKg: 1.8, split: "fixed_55_25_20" },
+      null,
+    );
+    render(<FoodSummary eaten={eaten(551.2)} target={target} detail />);
+    expect(screen.getByText("Over")).toBeTruthy();
+    expect(screen.getByText("50.2 kcal over target · Goal 450.9–551.1")).toBeTruthy();
+    expect(screen.getByRole("img").getAttribute("aria-label")).toContain("551.2 of 501 kcal");
+  });
   it("says nothing of the goal while the day is still under it", () => {
     render(<FoodSummary eaten={eaten(1200)} target={TARGET} detail />);
     expect(screen.queryByText("Goal met")).toBeNull();

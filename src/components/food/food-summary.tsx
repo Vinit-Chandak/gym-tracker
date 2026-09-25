@@ -8,7 +8,7 @@ import {
   type GoalStatus,
   type MacroTargets,
 } from "@/domain/nutrition";
-import { formatFoodAmount } from "@/lib/format";
+import { formatFoodAmount, formatKcal } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /** Under the band says nothing: a day still being eaten is not a day that missed its goal. */
@@ -40,7 +40,7 @@ export function GoalBar({ eaten, target }: { eaten: number; target: number }) {
   return (
     <div
       role="img"
-      aria-label={`${formatFoodAmount(eaten)} of ${formatFoodAmount(target)} kcal. The goal is met from ${formatFoodAmount(band.low)} to ${formatFoodAmount(band.high)} kcal.`}
+      aria-label={`${formatKcal(eaten)} of ${formatKcal(target)} kcal. The goal is met from ${formatKcal(band.low)} to ${formatKcal(band.high)} kcal.`}
       className="relative h-2.5 rounded-full bg-surface-raised"
     >
       <div
@@ -76,7 +76,7 @@ const MACROS = [
  */
 export function MacroBars({ eaten, target }: { eaten: FoodTotals; target: MacroTargets }) {
   return (
-    <dl className="grid grid-cols-3 gap-3">
+    <dl className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,7rem),1fr))] gap-3">
       {MACROS.map(({ key, label, fill }) => {
         const share =
           target[key] > 0 ? Math.min(1, eaten[key] / target[key]) : eaten[key] > 0 ? 1 : 0;
@@ -121,11 +121,10 @@ export function FoodSummary({
 }) {
   const status = goalStatus(eaten.kcal, target.kcal);
   const band = goalBand(target.kcal);
-  // From the rounded total, so what is left and what was eaten add up to the target as shown.
-  const left = target.kcal - Math.round(eaten.kcal);
+  const left = target.kcal - eaten.kcal;
   return (
     <div className="space-y-3">
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           {eyebrow && (
             <h2 className="mb-1 text-xs font-medium tracking-wide text-ink-muted uppercase">
@@ -133,10 +132,10 @@ export function FoodSummary({
             </h2>
           )}
           <p className="text-lg font-medium tabular-nums">
-            {formatFoodAmount(eaten.kcal)}
+            {formatKcal(eaten.kcal)}
             <span className="text-sm font-normal text-ink-muted">
               {" "}
-              / {formatFoodAmount(target.kcal)} kcal
+              / {formatKcal(target.kcal)} kcal
             </span>
           </p>
         </div>
@@ -150,10 +149,8 @@ export function FoodSummary({
       <GoalBar eaten={eaten.kcal} target={target.kcal} />
       {detail && (
         <p className="text-sm text-ink-muted tabular-nums">
-          {left >= 0
-            ? `${formatFoodAmount(left)} kcal left`
-            : `${formatFoodAmount(-left)} kcal over target`}
-          {` · Goal ${formatFoodAmount(band.low)}–${formatFoodAmount(band.high)}`}
+          {left >= 0 ? `${formatKcal(left)} kcal left` : `${formatKcal(-left)} kcal over target`}
+          {` · Goal ${formatKcal(band.low)}–${formatKcal(band.high)}`}
         </p>
       )}
       <MacroBars eaten={eaten} target={target} />

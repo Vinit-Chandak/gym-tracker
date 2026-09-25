@@ -9,6 +9,7 @@ import { ensureProfile } from "@/server/queries/profile";
 
 import {
   createMeal,
+  submitFoodOnce,
   deleteMeal,
   deleteSavedMeal,
   logSavedMeal,
@@ -64,6 +65,60 @@ beforeAll(async () => {
   for (const account of [user, other]) {
     await withUser(t.db, account.id, (tx) => ensureProfile(tx, account));
   }
+});
+
+it("retries a committed save without duplicating meals or stars, even after deletion", async () => {
+  const key = crypto.randomUUID();
+  const input = { name: "Receipt meal", items: [MILK], starred: true };
+  const save = () =>
+    as(user, (tx) =>
+      submitFoodOnce(tx, user.id, key, input, () => createMeal(tx, user.id, TODAY, input)),
+    );
+  await save();
+  await save();
+  const matching = (await as(user, (tx) => readFoodScreen(tx, user.id, TODAY))).meals.filter(
+    (m) => m.name === input.name,
+  );
+  expect(matching).toHaveLength(1);
+  await expect(
+    as(user, (tx) =>
+      submitFoodOnce(tx, user.id, key, { ...input, name: "Changed" }, () =>
+        createMeal(tx, user.id, TODAY, input),
+      ),
+    ),
+  ).rejects.toThrow(/already saved/);
+  await as(user, (tx) => deleteMeal(tx, user.id, matching[0]!.id));
+  await save();
+  expect(
+    (await as(user, (tx) => readFoodScreen(tx, user.id, TODAY))).meals.some(
+      (m) => m.name === input.name,
+    ),
+  ).toBe(false);
+  await as(user, (tx) => deleteSavedMeal(tx, user.id, matching[0]!.savedMealId!));
+});
+
+it("rolls the receipt back when the save fails and scopes keys to the account", async () => {
+  const key = crypto.randomUUID();
+  const input = { name: "Retry after rollback", items: [MILK], starred: false };
+  await expect(
+    as(user, (tx) =>
+      submitFoodOnce(tx, user.id, key, input, async () => {
+        throw new Error("write failed");
+      }),
+    ),
+  ).rejects.toThrow("write failed");
+  for (const account of [user, other])
+    await as(account, (tx) =>
+      submitFoodOnce(tx, account.id, key, input, () => createMeal(tx, account.id, TODAY, input)),
+    );
+  for (const account of [user, other])
+    expect(
+      (await as(account, (tx) => readFoodScreen(tx, account.id, TODAY))).meals.filter(
+        (m) => m.name === input.name,
+      ),
+    ).toHaveLength(1);
+  for (const account of [user, other])
+    await as(account, (tx) => tx.delete(meals).where(eq(meals.userId, account.id)));
 });
 
 afterAll(async () => {
@@ -148,6 +203,20 @@ describe("meals", () => {
     expect(day.eaten).toEqual({ kcal: 1501.5, carbsG: 27, fatG: 45.5, proteinG: 27.3 });
     const screen = await as(user, (tx) => readFoodScreen(tx, user.id, TODAY));
     expect(screen.meals.map((meal) => meal.name)).toEqual(["Afternoon meal 1", "Dinner out"]);
+    expect(screen.meals.find((meal) => meal.name === "Dinner out")).toMatchObject({
+      items: [TAKEAWAY],
+      totals: { kcal: 900 },
+    });
+  });
+
+  it("keeps an unnamed zero-kcal food editable instead of dropping the joined row", async () => {
+    const item = { ...TAKEAWAY, kcal: 0 };
+    const id = await as(user, (tx) =>
+      createMeal(tx, user.id, TODAY, { name: "Zero", items: [item], starred: false }),
+    );
+    const screen = await as(user, (tx) => readFoodScreen(tx, user.id, TODAY));
+    expect(screen.meals.find((meal) => meal.id === id)?.items).toEqual([item]);
+    await as(user, (tx) => deleteMeal(tx, user.id, id));
   });
 
   it("rewrites a meal's name and foods on the day it was eaten", async () => {

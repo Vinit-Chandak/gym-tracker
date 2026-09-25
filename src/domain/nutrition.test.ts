@@ -74,9 +74,9 @@ describe("the goal band", () => {
     expect(goalBand(2400)).toEqual({ low: 2160, high: 2640 });
   });
 
-  it("rounds inwards, to what a whole-kilocalorie count can reach", () => {
+  it("keeps fractional ends so the displayed band agrees with the goal check", () => {
     // 90% of 2,345 is 2,110.5 and 110% is 2,579.5.
-    expect(goalBand(2345)).toEqual({ low: 2111, high: 2579 });
+    expect(goalBand(2345)).toEqual({ low: 2110.5, high: 2579.5 });
   });
 
   it.each([

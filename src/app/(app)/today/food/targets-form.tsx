@@ -73,12 +73,23 @@ export function TargetsForm({
 
   const kcal = numberIn(dailyKcal);
   const perKg = numberIn(proteinPerKg);
+  const savedPerKg = Math.round((perKg ?? DEFAULT_PROTEIN_PER_KG) * 10) / 10;
   const preview =
     kcal !== null &&
     kcal >= NUTRITION_LIMITS.dailyKcal.min &&
     kcal <= NUTRITION_LIMITS.dailyKcal.max &&
-    perKg !== null
-      ? macroTargets({ dailyKcal: Math.round(kcal), proteinPerKg: perKg, split }, bodyWeightKg)
+    (split === "fixed_55_25_20" ||
+      (perKg !== null &&
+        perKg >= NUTRITION_LIMITS.proteinPerKg.min &&
+        perKg <= NUTRITION_LIMITS.proteinPerKg.max))
+      ? macroTargets(
+          {
+            dailyKcal: Math.round(kcal),
+            proteinPerKg: savedPerKg,
+            split,
+          },
+          bodyWeightKg,
+        )
       : null;
   const noWeight = split === "body_weight" && bodyWeightKg === null;
 
@@ -113,7 +124,7 @@ export function TargetsForm({
           error={state.fieldErrors?.proteinPerKg}
           hint={
             bodyWeightKg !== null && perKg !== null
-              ? `${formatFoodAmount(perKg * bodyWeightKg)} g at ${formatBodyWeight(bodyWeightKg, unit)}`
+              ? `${formatFoodAmount(savedPerKg * bodyWeightKg)} g at ${formatBodyWeight(bodyWeightKg, unit)}`
               : undefined
           }
         >

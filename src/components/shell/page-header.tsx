@@ -31,7 +31,7 @@ export function PageHeader<T extends string>({
   action,
 }: PageHeaderProps<T>) {
   return (
-    <header className="sticky top-0 z-30 border-b border-line bg-canvas pt-safe">
+    <header className="page-header sticky top-0 z-30 border-b border-line bg-canvas pt-safe">
       {backHref ? (
         <NestedBar
           title={title}
@@ -74,11 +74,11 @@ function NestedBar<T extends string>({
   action?: ReactNode;
 }) {
   return (
-    <div className="page-width flex min-h-[3.25rem] items-center gap-2 py-1">
+    <div className="page-width flex min-h-[3.25rem] flex-wrap items-center gap-2 py-1">
       <BackLink fallback={backHref} label={backLabel} />
-      <h1 className="min-w-0 truncate text-lg">{title}</h1>
-      <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
-        {meta && <p className="truncate text-sm text-ink-muted">{meta}</p>}
+      <h1 className="min-w-0 text-lg [overflow-wrap:anywhere]">{title}</h1>
+      <div className="flex min-w-0 flex-1 basis-[5.5rem] items-center justify-end gap-2">
+        {meta && <p className="text-sm text-ink-muted">{meta}</p>}
         {action}
       </div>
     </div>

@@ -32,6 +32,14 @@ function errorsOf(draft: MealDraft): Record<string, string> {
 }
 
 describe("targets", () => {
+  it.each(["", "0", "9", "invalid"])(
+    "accepts the fixed preset when hidden protein is %s",
+    (proteinPerKg) => {
+      expect(
+        targetsInputSchema.parse({ dailyKcal: "2400", split: "fixed_55_25_20", proteinPerKg }),
+      ).toEqual({ dailyKcal: 2400, split: "fixed_55_25_20", proteinPerKg: 1.8 });
+    },
+  );
   it("reads the target, the split and grams per kilogram", () => {
     const parsed = parseForm(
       targetsInputSchema,

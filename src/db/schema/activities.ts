@@ -235,6 +235,7 @@ export const cyclingActivityDetails = pgTable(
       foreignColumns: [activities.userId, activities.id, activities.sport],
     }).onDelete("cascade"),
     foreignKey({
+      // 0039 uses SET NULL (resource_id); Drizzle cannot express a column subset.
       name: "cycling_details_resource_fk",
       columns: [t.userId, t.resourceId],
       foreignColumns: [activityResources.userId, activityResources.id],
@@ -295,6 +296,8 @@ export const swimmingActivityDetails = pgTable(
       foreignColumns: [activities.userId, activities.id, activities.sport],
     }).onDelete("cascade"),
     foreignKey({
+      // Keep the owner and historical pool snapshot when the resource is deleted.
+      // 0039 uses SET NULL (resource_id); Drizzle cannot express a column subset.
       name: "swimming_details_resource_fk",
       columns: [t.userId, t.resourceId],
       foreignColumns: [activityResources.userId, activityResources.id],

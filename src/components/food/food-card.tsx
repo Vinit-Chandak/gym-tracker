@@ -1,7 +1,7 @@
 import Link from "@/components/ui/app-link";
 import { ChevronRight } from "@/components/ui/icons";
 import type { FoodTotals, MacroTargets } from "@/domain/nutrition";
-import { formatFoodAmount } from "@/lib/format";
+import { formatKcal } from "@/lib/format";
 
 import { FoodSummary } from "./food-summary";
 
@@ -25,7 +25,7 @@ export function FoodCard({ eaten, target }: { eaten: FoodTotals; target: MacroTa
             <p className="mt-1 text-lg font-medium">Set a daily target</p>
             {eaten.kcal > 0 && (
               <p className="mt-1.5 text-sm text-ink-muted tabular-nums">
-                {formatFoodAmount(eaten.kcal)} kcal logged today
+                {formatKcal(eaten.kcal)} kcal logged today
               </p>
             )}
           </div>
