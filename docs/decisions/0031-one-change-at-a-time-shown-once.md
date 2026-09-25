@@ -48,7 +48,11 @@ before the next load step.
    keep.
 4. **Approving applies the change to every remaining week, from the next unstarted session.**
    The only question left on the screen is a start date, and only for a change that has to
-   start a new block.
+   start a new block: new days, a new block length, a new run schedule or a new programme.
+   Moving an exercise to another day is not one of those. The slot keeps its lineage and
+   history, so the move is approved like any other change and continues the block. The one
+   cost falls in the cycle the athlete is in: if the old day is already done and the new one
+   is not, the exercise is trained twice that cycle; in the other order, once not at all.
 5. **A change is shown once.** `summariseProgramDiff` sits between the raw diff and the
    screen:
    - it hides programme notes;

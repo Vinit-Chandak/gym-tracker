@@ -12,11 +12,7 @@ export const WEEKLY_CHANGE_POLICY_VERSION = 2;
 
 export type ProgramChangeAuthority = "unchanged" | "automatic" | "review_required";
 export type StructuralChange =
-  | "program_identity"
-  | "block_length"
-  | "split_or_schedule"
-  | "run_schedule"
-  | "slot_moved_between_days";
+  "program_identity" | "block_length" | "split_or_schedule" | "run_schedule";
 
 export type ExerciseMuscleReference = {
   slug: string;
@@ -98,15 +94,15 @@ export function assessProgramChange(
         .map((exercise) => [exercise.lineageId!, day.dayIndex] as const),
     ),
   );
-  if (
-    after.days.some((day) =>
-      day.exercises.some((exercise) => {
-        const oldDay = exercise.lineageId ? oldSlotDays.get(exercise.lineageId) : undefined;
-        return oldDay !== undefined && oldDay !== day.dayIndex;
-      }),
-    )
-  )
-    structuralChanges.push("slot_moved_between_days");
+  // Moving an exercise to another day is the athlete's to approve, but it is not a new block:
+  // the slot keeps its lineage, and so its history, and the days stay what they were. It used
+  // to be structural, which made approving a single move restart the programme's cycles.
+  const movedBetweenDays = after.days.some((day) =>
+    day.exercises.some((exercise) => {
+      const oldDay = exercise.lineageId ? oldSlotDays.get(exercise.lineageId) : undefined;
+      return oldDay !== undefined && oldDay !== day.dayIndex;
+    }),
+  );
 
   const library = new Map(exerciseLibrary.map((exercise) => [exercise.slug, exercise]));
   const priorSlots = new Map(
@@ -127,6 +123,7 @@ export function assessProgramChange(
   const newTotal = nextSlots.reduce((sum, slot) => sum + slot.exercise.sets, 0);
   if (oldTotal > 0 && Math.abs(newTotal / oldTotal - 1) > TRAINING_POLICY.maxTotalSetChange + 1e-9)
     doseChanges.push("Total working sets change by more than 20%.");
+  if (movedBetweenDays) doseChanges.push("Moving an exercise to another day needs review.");
   if (priorSlots.size !== nextSlots.length)
     doseChanges.push("Adding or removing exercise slots needs review.");
   for (const { key, exercise: next } of nextSlots) {

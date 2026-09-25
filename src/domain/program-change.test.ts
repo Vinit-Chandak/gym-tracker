@@ -192,16 +192,19 @@ describe("weekly prescription authority", () => {
     },
   );
 
-  it("requires review when slot lineage moves between days even if the day labels stay unchanged", () => {
+  it("requires review when slot lineage moves between days, without starting a new block", () => {
     const before = blueprint();
     const after = structuredClone(before);
     [after.days[0]!.exercises, after.days[1]!.exercises] = [
       after.days[1]!.exercises,
       after.days[0]!.exercises,
     ];
-    expect(assessProgramChange(before, after, library).structuralChanges).toContain(
-      "slot_moved_between_days",
-    );
+    const assessment = assessProgramChange(before, after, library);
+    // Never applied on its own…
+    expect(assessment.authority).toBe("review_required");
+    expect(assessment.doseChanges).toContain("Moving an exercise to another day needs review.");
+    // …but the days are the same days, so approving it continues the block.
+    expect(assessment.structuralChanges).toEqual([]);
   });
 
   it("requires review when an edit removes the entire lifting part of a mixed day", () => {

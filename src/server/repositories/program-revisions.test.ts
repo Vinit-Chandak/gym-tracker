@@ -581,6 +581,26 @@ describe("approving a coach draft", () => {
     );
   }
 
+  it("continues the block when an exercise moves to another day", async () => {
+    const before = await activeProgram();
+    const current = await as((tx) => readProgramBlueprint(tx, user.id, before.id));
+    const lifting = current!.blueprint.days.filter((day) => day.exercises.length > 1);
+    const [from, to] = [lifting[0]!, lifting[1]!];
+    const moving = from.exercises[from.exercises.length - 1]!;
+    await approve((blueprint) => {
+      const source = blueprint.days.find((day) => day.dayIndex === from.dayIndex)!;
+      const target = blueprint.days.find((day) => day.dayIndex === to.dayIndex)!;
+      target.exercises.push(source.exercises.pop()!);
+    });
+    const after = await activeProgram();
+    // The same block, carried on: same family and start, a new version.
+    expect(after.id).not.toBe(before.id);
+    expect(after.familyId).toBe(before.familyId);
+    expect(after.startDate).toBe(before.startDate);
+    const moved = (await slots()).find((slot) => slot.lineageId === moving.lineageId);
+    expect(moved?.dayIndex).toBe(to.dayIndex);
+  });
+
   it("keeps the session the coach prepared, minus the slots the change rewrote", async () => {
     const context = await as((tx) => planningContext(tx, user.id, { gymId }));
     if (context.reason) throw new Error(context.reason);
