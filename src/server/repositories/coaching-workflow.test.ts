@@ -38,6 +38,7 @@ import {
   claimCoachJob,
   enqueueCoachJob,
   getCoachJob,
+  listCoachJobs,
   requestGymChange,
   requestProgramCreation,
   dispatchCoachPage,
@@ -45,6 +46,7 @@ import {
   queuedCoachJobs,
   reconcileCoachJobs,
   requeueCoachJob,
+  settleCoachJobs,
 } from "./coaching-jobs";
 import { coachJobContext } from "./coaching-context";
 import { assertLiveAttempt, lookupExercises } from "./coach-lookups";
@@ -501,6 +503,43 @@ it("reconciles an expired attempt and refuses its old token after reclaim", asyn
     as(a, (tx) => acceptCoachJobResult(tx, a.user.id, job.id, claim!.attemptId!, result(a))),
   ).rejects.toThrow(/current attempt/);
 });
+it.each([
+  ["another attempt left", 1, "queued"],
+  ["its attempts spent", 3, "failed"],
+] as const)(
+  "shows a lapsed attempt with %s as reconciling records it, without writing on read",
+  async (_, attempts, status) => {
+    const a = await athlete();
+    const { job } = await request(a);
+    await as(a, (tx) => claimCoachJob(tx, a.user.id, job.id));
+    await as(a, (tx) =>
+      tx
+        .update(coachJobs)
+        .set({ attempts, leaseUntil: new Date(Date.now() - 1000) })
+        .where(eq(coachJobs.id, job.id)),
+    );
+    const now = new Date();
+    // A screen reads in a read-only transaction: nothing here may write.
+    const stored = await withUser(t.db, a.user.id, (tx) => listCoachJobs(tx, a.user.id), {
+      readOnly: true,
+    });
+    const shown = settleCoachJobs(stored, now);
+    expect(shown.expired).toBe(true);
+    expect(shown.jobs[0]).toMatchObject({ id: job.id, status, leaseUntil: null });
+    expect((await as(a, (tx) => getCoachJob(tx, a.user.id, job.id)))?.status).toBe("claimed");
+    // What the screen showed is exactly what reconciling then records.
+    await as(a, (tx) => reconcileCoachJobs(tx, a.user.id, now));
+    const recorded = await as(a, (tx) => getCoachJob(tx, a.user.id, job.id));
+    expect(recorded).toMatchObject({
+      status: shown.jobs[0]!.status,
+      error: shown.jobs[0]!.error,
+      leaseUntil: null,
+      nextAttemptAt: shown.jobs[0]!.nextAttemptAt,
+      completedAt: shown.jobs[0]!.completedAt,
+    });
+    expect(settleCoachJobs([recorded!], now).expired).toBe(false);
+  },
+);
 it("protects reports and drafts across accounts, and removes reports from future access", async () => {
   const a = await athlete(),
     b = await athlete();

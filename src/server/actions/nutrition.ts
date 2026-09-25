@@ -1,6 +1,6 @@
 "use server";
 
-import { refresh } from "next/cache";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { getDb } from "@/db/client";
@@ -64,11 +64,12 @@ async function today(user: SessionUser): Promise<string> {
 
 /**
  * Every change here is shown on the Food screen, which is where it was made, and on Today's
- * card. `refresh` renders the screen again with the reply and drops the browser's copies of
- * the others, Today's minute included (ADR 0030), so the card is read again when next shown.
+ * card. The tabs now prefetch their data, so refresh alone can reuse an old Today snapshot.
+ * Invalidate both paths after a successful write to update Food and discard that prefetch.
  */
 function refreshFood(): void {
-  refresh();
+  revalidatePath("/today");
+  revalidatePath("/today/food");
 }
 
 export async function saveTargetsAction(

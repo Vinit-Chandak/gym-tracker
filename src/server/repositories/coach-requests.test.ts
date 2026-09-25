@@ -137,17 +137,21 @@ describe("what the athlete asked for", () => {
 });
 
 describe("durable request timeouts", () => {
-  it("persists a timeout and shows the failure on the same Today read", async () => {
+  it("shows a timeout as a failure on a read-only Today read, and records it on reconcile", async () => {
     const user = await athlete();
     const expired = await request(user, { requestedAt: new Date(NOW.getTime() - 16 * 60_000) });
-    const state = await withUser(t.db, user.id, (tx) =>
-      todayCoachState(tx, user.id, {
-        enabled: true,
-        timeZone: "Asia/Kolkata",
-        programId: user.programId,
-        ref: { cycleIndex: 1, dayIndex: 1 },
-        gymId: user.gymId,
-      }),
+    const state = await withUser(
+      t.db,
+      user.id,
+      (tx) =>
+        todayCoachState(tx, user.id, {
+          enabled: true,
+          timeZone: "Asia/Kolkata",
+          programId: user.programId,
+          ref: { cycleIndex: 1, dayIndex: 1 },
+          gymId: user.gymId,
+        }),
+      { readOnly: true },
     );
     expect(state.pending).toBeNull();
     expect(state.failure).toMatchObject({
@@ -156,8 +160,22 @@ describe("durable request timeouts", () => {
       error: REQUEST_TIMEOUT_MESSAGE,
       completedAt: NOW,
     });
-    const attempts = await withUser(t.db, user.id, (tx) => recentAttempts(tx, user.id));
+    const attempts = await withUser(t.db, user.id, (tx) => recentAttempts(tx, user.id), {
+      readOnly: true,
+    });
     expect(attempts[0]).toMatchObject({ id: expired.id, status: "failed", completedAt: NOW });
+    // Reading wrote nothing; reconciling records exactly what was shown.
+    expect(await withUser(t.db, user.id, (tx) => reconcileExpiredCoachRequests(tx, user.id))).toBe(
+      1,
+    );
+    const [stored] = await withUser(t.db, user.id, (tx) =>
+      tx.select().from(coachRequests).where(eq(coachRequests.id, expired.id)),
+    );
+    expect(stored).toMatchObject({
+      status: "failed",
+      error: REQUEST_TIMEOUT_MESSAGE,
+      completedAt: NOW,
+    });
     expect(await withUser(t.db, user.id, (tx) => reconcileExpiredCoachRequests(tx, user.id))).toBe(
       0,
     );

@@ -61,6 +61,12 @@ logs are under `output/food-audit/` and `output/food-audit-*`. They are not appl
 
 ## Deployment and limits
 
+Before merging, integration with `main` at `410bb84` preserved Today's read-only transaction
+and deferred coach-job cleanup. Because those changes prefetch complete tabs, successful food
+actions now revalidate both `/today` and `/today/food`; refreshing alone could reuse an older
+Today snapshot. The action tests assert both invalidations, and the production browser audit
+checks Today totals after meal changes.
+
 Keep `FOOD_TRACKING_ENABLED` off until the production deployment has applied migrations through
 **0040**, which adds the save receipts. Previews share production data and do not migrate it.
 The default remains off; disabled food routes/actions are refused and Today performs no food

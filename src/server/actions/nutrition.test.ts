@@ -1,4 +1,4 @@
-import { refresh } from "next/cache";
+import { revalidatePath } from "next/cache";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { INITIAL_FORM_STATE } from "@/server/validation/form";
@@ -39,7 +39,7 @@ vi.mock("@/server/repositories/nutrition", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/server/repositories/nutrition")>()),
   ...mocks,
 }));
-vi.mock("next/cache", () => ({ refresh: vi.fn() }));
+vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 import { MealNotFoundError } from "@/server/repositories/nutrition";
 
@@ -86,7 +86,7 @@ it("does nothing at all for an account the switch is off for", async () => {
   }
   expect((await saveTargetsAction(INITIAL_FORM_STATE, form)).formError).toMatch(/not switched on/);
   for (const write of Object.values(mocks)) expect(write).not.toHaveBeenCalled();
-  expect(refresh).not.toHaveBeenCalled();
+  expect(revalidatePath).not.toHaveBeenCalled();
 });
 
 it("logs a new meal on today in the account's own time zone", async () => {
@@ -96,7 +96,9 @@ it("logs a new meal on today in the account's own time zone", async () => {
     items: [{ name: "Milk", kcal: 160, carbsG: 12, fatG: 8, proteinG: 8.5 }],
     starred: true,
   });
-  expect(refresh).toHaveBeenCalledTimes(1);
+  expect(revalidatePath).toHaveBeenCalledTimes(2);
+  expect(revalidatePath).toHaveBeenCalledWith("/today");
+  expect(revalidatePath).toHaveBeenCalledWith("/today/food");
 });
 
 it("rewrites the meal being edited rather than logging another", async () => {
@@ -149,7 +151,7 @@ it("answers a mistake against its field, and a lost meal in words, keeping the s
     ok: false,
     error: "Something went wrong. Please try again.",
   });
-  expect(refresh).not.toHaveBeenCalled();
+  expect(revalidatePath).not.toHaveBeenCalled();
 });
 
 it("adds a starred meal to today in one call", async () => {
@@ -180,5 +182,7 @@ it("saves the targets from the form", async () => {
     proteinPerKg: 1.8,
     split: "body_weight",
   });
-  expect(refresh).toHaveBeenCalledTimes(1);
+  expect(revalidatePath).toHaveBeenCalledTimes(2);
+  expect(revalidatePath).toHaveBeenCalledWith("/today");
+  expect(revalidatePath).toHaveBeenCalledWith("/today/food");
 });

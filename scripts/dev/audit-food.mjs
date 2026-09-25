@@ -54,15 +54,25 @@ async function check(name, run) {
     await writeFile(`${dir}/results.json`, JSON.stringify({ results, pageErrors }, null, 2));
   }
 }
+// Complete the fully prefetched tabs before a test-driven document navigation or reload.
+// Otherwise WebKit reports the intentionally cancelled RSC loads as access-control errors.
+async function navigate(path, options = {}) {
+  if (page.url() !== "about:blank") await page.waitForLoadState("networkidle");
+  return page.goto(path, { ...options, waitUntil: "networkidle" });
+}
+async function reload() {
+  await page.waitForLoadState("networkidle");
+  return page.reload({ waitUntil: "networkidle" });
+}
 async function login(name) {
   if (page.url() !== "about:blank") {
     // Exercise the actual account switch; clearing cookies under in-flight prefetches
     // creates artificial auth failures that a normal sign-out avoids.
     await page.waitForLoadState("networkidle");
-    await page.goto("/profile", { waitUntil: "networkidle" });
+    await navigate("/profile", { waitUntil: "networkidle" });
     await page.getByRole("button", { name: "Sign out", exact: true }).click();
     await page.waitForURL("**/login");
-  } else await page.goto("/login", { waitUntil: "networkidle" });
+  } else await navigate("/login", { waitUntil: "networkidle" });
   await page.getByLabel("Email", { exact: true }).fill(`${name}@local.test`);
   await page.getByLabel("Password", { exact: true }).fill("password123");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
@@ -130,7 +140,7 @@ try {
   await check("flag off hides the Today card and food route", async () => {
     await login("alex");
     await expect(page.locator('a[href="/today/food"]')).toHaveCount(0);
-    await page.goto("/today/food");
+    await navigate("/today/food");
     await expect(page.getByText("Not found", { exact: true })).toBeVisible();
   });
   await login("sam");
@@ -192,11 +202,12 @@ try {
     async () => {
       await openNew("Offline lunch");
       await dialog().getByLabel("Food 1 kcal", { exact: true }).fill("500");
+      await page.waitForLoadState("networkidle");
       await context.setOffline(true);
       await dialog().getByRole("button", { name: "Save meal", exact: true }).click();
       await expect(dialog().getByText(/Connection lost/)).toBeVisible();
       await context.setOffline(false);
-      await page.reload();
+      await reload();
       await page.getByRole("button", { name: "Resume draft", exact: true }).click();
       await expect(dialog().getByLabel("Food 1 kcal", { exact: true })).toHaveValue("500");
       let lost = false;
@@ -231,7 +242,7 @@ try {
       await expect(dialog().getByText(/Connection lost/)).toBeVisible();
       await mealCount(2);
       await page.unroute("**/today/food");
-      await page.reload();
+      await reload();
       await page.getByRole("button", { name: "Resume draft", exact: true }).click();
       await save();
       await mealCount(2);
@@ -251,7 +262,7 @@ try {
       localStorage.setItem(key, JSON.stringify(draft));
       return draft.eatenOn;
     });
-    await page.reload();
+    await reload();
     await page.getByRole("button", { name: "Resume draft", exact: true }).click();
     await expect(dialog().getByText(`Logging for ${yesterday}`, { exact: true })).toBeVisible();
     await save();
@@ -360,7 +371,7 @@ try {
       await sql`update profiles set body_weight_kg=null where username='vinit'`;
       await sql`delete from nutrition_targets where user_id=(select id from profiles where username='vinit')`;
       await login("vinit");
-      await page.goto("/today/food");
+      await navigate("/today/food");
       await expect(page.getByText("Private draft", { exact: false })).toHaveCount(0);
       await page.getByLabel("Daily target, kcal").fill("2400");
       await page.getByRole("button", { name: "Set target", exact: true }).click();
@@ -372,7 +383,7 @@ try {
       await page.getByLabel("Training goal", { exact: true }).selectOption("get_stronger");
       await page.getByRole("button", { name: "Save", exact: true }).click();
       await expect(page.getByText("Profile saved", { exact: true })).toHaveCount(1);
-      await page.goto("/today/food");
+      await navigate("/today/food");
       await page.locator("summary").filter({ hasText: "Targets" }).click();
       await expect(page.getByText("144 g at 80 kg", { exact: true })).toBeVisible();
       await page.getByLabel("Daily target, kcal").fill("500");
@@ -383,10 +394,10 @@ try {
       await expect(page.locator("summary").filter({ hasText: "Targets" })).toContainText(
         "500 kcal",
       );
-      await page.reload();
+      await reload();
       await expect(page.getByText(/nothing left for carbs/)).toBeVisible();
       await login("sam");
-      await page.goto("/today/food");
+      await navigate("/today/food");
       await page.getByRole("button", { name: "Resume draft", exact: true }).click();
       await expect(dialog().getByLabel("Meal", { exact: true })).toHaveValue("Private draft");
       await dialog().getByRole("button", { name: "Close sheet" }).click();
@@ -397,7 +408,7 @@ try {
   await check(
     "install prompt survives navigation and manual instructions remain available",
     async () => {
-      await page.goto("/today", { waitUntil: "networkidle" });
+      await navigate("/today", { waitUntil: "networkidle" });
       await expect
         .poll(() =>
           page.evaluate(() => {
@@ -444,8 +455,9 @@ try {
         ),
       ).toBe(false);
       if (engine === "chromium") {
+        await page.waitForLoadState("networkidle");
         await context.setOffline(true);
-        await page.goto("/today/food");
+        await navigate("/today/food");
         await expect(page.getByRole("heading", { name: "You’re offline" })).toBeVisible();
         await context.setOffline(false);
         await page.getByRole("link", { name: "Try again" }).click();

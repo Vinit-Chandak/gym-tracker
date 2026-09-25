@@ -116,8 +116,11 @@ switched on. This record covers what was built and the rules it follows.
 8. **What it costs Today.** With the switch on, one more statement runs inside Today's
    transaction. `readFoodDay` returns the targets and the day's sums in one row, anchored on the
    profile. With the switch off, nothing extra runs. The Food screen is one read-only
-   transaction of three statements. Every change calls `refresh` (ADR 0030), so the copy of
-   Today that the browser keeps for a minute is dropped and the card is read again.
+   transaction of three statements. Every change revalidates `/today` and `/today/food`, so
+   the copy of Today that the browser keeps for a minute is dropped and the card is read again.
+   The tabs now prefetch complete data ([tab prefetch decision](0032-the-tabs-arrive-before-the-tap.md));
+   `refresh` alone would keep the stale prefetch. Today's food query stays inside its read-only
+   transaction, and remains absent when the switch is off.
 
 ## Not done, on purpose
 

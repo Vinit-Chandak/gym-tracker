@@ -61,7 +61,11 @@ export function ActivityRow({
   return (
     // The shared row's own id, never the activity's: a raw id names a private record, and a
     // link is a place where guessing one would be easiest (AT-PRIV-04).
-    <Link href={`/u/${person.username}/activities/${row.id}`} className={PRESSABLE_ROW_CLASS}>
+    <Link
+      href={`/u/${person.username}/activities/${row.id}`}
+      prefetch="intent"
+      className={PRESSABLE_ROW_CLASS}
+    >
       <Avatar username={person.username} displayName={person.displayName} size="row" />
       <span className="min-w-0 flex-1">
         <span className="flex flex-wrap items-baseline justify-between gap-x-2">

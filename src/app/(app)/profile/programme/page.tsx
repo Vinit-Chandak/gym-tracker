@@ -74,19 +74,24 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
   const requested = Array.isArray(params.view) ? params.view[0] : params.view;
   const view: ProgrammeView = PROGRAMME_VIEWS.find((value) => value === requested) ?? "cycle";
   const profile = await getRequestProfile(user.id, user.email);
-  const { overview, changes, archived } = await withUser(getDb(), user.id, async (tx) => {
-    const [overview, changes, archived] = await Promise.all([
-      getProgramOverview(tx, user.id, profile.timeZone),
-      loadProgrammeChanges(tx, user.id, profile.timeZone),
-      tx
-        .select({ id: programs.id, name: programs.name, version: programs.version })
-        .from(programs)
-        .where(and(eq(programs.userId, user.id), eq(programs.status, "archived")))
-        .orderBy(desc(programs.updatedAt))
-        .limit(20),
-    ]);
-    return { overview, changes, archived };
-  });
+  const { overview, changes, archived } = await withUser(
+    getDb(),
+    user.id,
+    async (tx) => {
+      const [overview, changes, archived] = await Promise.all([
+        getProgramOverview(tx, user.id, profile.timeZone),
+        loadProgrammeChanges(tx, user.id, profile.timeZone),
+        tx
+          .select({ id: programs.id, name: programs.name, version: programs.version })
+          .from(programs)
+          .where(and(eq(programs.userId, user.id), eq(programs.status, "archived")))
+          .orderBy(desc(programs.updatedAt))
+          .limit(20),
+      ]);
+      return { overview, changes, archived };
+    },
+    { readOnly: true },
+  );
   const templates = PROGRAM_TEMPLATES.map((template) => ({
     slug: template.slug,
     name: template.name,

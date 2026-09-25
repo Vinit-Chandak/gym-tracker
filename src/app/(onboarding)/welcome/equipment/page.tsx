@@ -19,10 +19,15 @@ export const metadata: Metadata = { title: "Machines at your gym" };
 export default async function WelcomeEquipmentPage(props: PageProps<"/welcome/equipment">) {
   const user = await requireProfiledUser();
   const { gym: gymParam } = await props.searchParams;
-  const { gyms, types } = await withUser(getDb(), user.id, async (tx) => ({
-    gyms: await listGyms(tx, user.id),
-    types: await listEquipmentTypes(tx),
-  }));
+  const { gyms, types } = await withUser(
+    getDb(),
+    user.id,
+    async (tx) => ({
+      gyms: await listGyms(tx, user.id),
+      types: await listEquipmentTypes(tx),
+    }),
+    { readOnly: true },
+  );
 
   // Landing here without a gym means the previous step was skipped or the link was stale.
   const gym =

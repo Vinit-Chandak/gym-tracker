@@ -15,6 +15,7 @@
     "audit:food": "node scripts/dev/audit-food.mjs",
     "audit:recovery": "node scripts/dev/audit-recovery.mjs",
     "audit:latency": "node scripts/dev/audit-latency.mjs",
+    "audit:db-screens": "node scripts/dev/audit-db-screens.mjs",
     "audit:db": "node scripts/dev/audit.mjs verify-db",
     "build": "next build",
     "start": "next start",

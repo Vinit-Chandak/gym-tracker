@@ -50,9 +50,18 @@ function NavItems({ pathname, origin }: { pathname: string; origin: NavOrigin | 
         const active = isNavItemActive(pathname, href, origin);
         return (
           <li key={href} className="min-w-0 flex-1 lg:flex-none">
-            {/* Partial prefetch warms the loading shell without fetching every tab's data. */}
+            {/*
+              Full prefetch: each tab's data is on the phone before it is tapped, so switching
+              tabs shows the screen at once instead of the loading screen, which React holds for
+              at least 300 ms. Production measured about 2 ms per database round trip, so a tab
+              read in the background costs tens of milliseconds (docs/audits/2026-09-25-db-round-trips.md).
+              A copy is used for at most `staleTimes.static` (next.config.ts), and any action that
+              revalidates discards it. The tab pages only read, so a prefetch never takes the
+              athlete lock.
+            */}
             <Link
               href={href}
+              prefetch
               aria-current={active ? "page" : undefined}
               className={cn("nav-link", active ? "text-accent" : "text-ink-muted hover:text-ink")}
             >

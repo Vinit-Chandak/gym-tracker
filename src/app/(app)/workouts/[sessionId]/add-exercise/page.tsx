@@ -22,21 +22,26 @@ export default async function AddExercisePage(
   const { sessionId } = await props.params;
   requireUuid(sessionId);
   const user = await requireUser();
-  const data = await withUser(getDb(), user.id, async (tx) => {
-    const session = await getSessionRecord(tx, user.id, sessionId);
-    if (!session) return null;
-    const [exercises, machines, machinesByExercise] = await Promise.all([
-      listExercises(tx),
-      listEquipmentForGym(tx, user.id, session.gymId),
-      machinesByExerciseAtGym(tx, user.id, session.gymId),
-    ]);
-    return {
-      session,
-      exercises: exercises.filter((e) => e.isActive),
-      machines: machines.filter((m) => m.isActive),
-      machinesByExercise,
-    };
-  });
+  const data = await withUser(
+    getDb(),
+    user.id,
+    async (tx) => {
+      const session = await getSessionRecord(tx, user.id, sessionId);
+      if (!session) return null;
+      const [exercises, machines, machinesByExercise] = await Promise.all([
+        listExercises(tx),
+        listEquipmentForGym(tx, user.id, session.gymId),
+        machinesByExerciseAtGym(tx, user.id, session.gymId),
+      ]);
+      return {
+        session,
+        exercises: exercises.filter((e) => e.isActive),
+        machines: machines.filter((m) => m.isActive),
+        machinesByExercise,
+      };
+    },
+    { readOnly: true },
+  );
   if (!data) notFound();
   if (data.session.completedAt) redirect(`/workouts/${sessionId}`);
 

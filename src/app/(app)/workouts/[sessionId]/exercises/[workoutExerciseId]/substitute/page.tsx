@@ -23,23 +23,28 @@ export default async function SubstitutePage(
   requireUuid(sessionId);
   requireUuid(workoutExerciseId);
   const user = await requireUser();
-  const data = await withUser(getDb(), user.id, async (tx) => {
-    const session = await getSessionDetail(tx, user.id, sessionId, { includeGuidance: false });
-    const slot = session?.exercises.find((e) => e.id === workoutExerciseId);
-    if (!session || !slot) return null;
-    const [exercises, machines, machinesByExercise] = await Promise.all([
-      listExercises(tx),
-      listEquipmentForGym(tx, user.id, session.gym.id),
-      machinesByExerciseAtGym(tx, user.id, session.gym.id),
-    ]);
-    return {
-      session,
-      slot,
-      exercises: exercises.filter((e) => e.isActive && e.id !== slot.exercise.id),
-      machines: machines.filter((m) => m.isActive),
-      machinesByExercise,
-    };
-  });
+  const data = await withUser(
+    getDb(),
+    user.id,
+    async (tx) => {
+      const session = await getSessionDetail(tx, user.id, sessionId, { includeGuidance: false });
+      const slot = session?.exercises.find((e) => e.id === workoutExerciseId);
+      if (!session || !slot) return null;
+      const [exercises, machines, machinesByExercise] = await Promise.all([
+        listExercises(tx),
+        listEquipmentForGym(tx, user.id, session.gym.id),
+        machinesByExerciseAtGym(tx, user.id, session.gym.id),
+      ]);
+      return {
+        session,
+        slot,
+        exercises: exercises.filter((e) => e.isActive && e.id !== slot.exercise.id),
+        machines: machines.filter((m) => m.isActive),
+        machinesByExercise,
+      };
+    },
+    { readOnly: true },
+  );
   if (!data) notFound();
   if (data.session.completedAt) redirect(`/workouts/${sessionId}`);
   const plannedExerciseId = data.slot.planned ? data.slot.exercise.id : null;

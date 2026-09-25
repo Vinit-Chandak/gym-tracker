@@ -119,8 +119,11 @@ export async function getCoachJob(db: DbOrTx, userId: string, id: string) {
     .where(and(eq(coachJobs.userId, userId), eq(coachJobs.id, id)));
   return job ?? null;
 }
+/**
+ * The latest jobs, as stored. A screen shows them through `settleCoachJobs`, so an attempt whose
+ * lease has run out reads as it will once `reconcileCoachJobs` has written it.
+ */
 export async function listCoachJobs(db: DbOrTx, userId: string, limit = 12) {
-  await reconcileCoachJobs(db, userId);
   return db
     .select()
     .from(coachJobs)
@@ -209,6 +212,44 @@ export async function requestProgramCreation(
   });
 }
 
+const RETRY_MESSAGE = "The coach timed out. This request is saved for another attempt.";
+const GIVE_UP_MESSAGE =
+  "The coach could not finish after three attempts. Your answers are saved; you can retry.";
+
+/** Whether an attempt's lease has run out while it still holds the job. */
+export function isExpiredClaim(job: CoachJob, now = new Date()): boolean {
+  return job.status === "claimed" && job.leaseUntil !== null && job.leaseUntil <= now;
+}
+
+/**
+ * A job as `reconcileCoachJobs` leaves it: an attempt whose lease has run out gives the job back
+ * for another try, or fails it once its attempts are spent. Anything else is returned as is.
+ */
+export function asReconciledJob(job: CoachJob, now = new Date()): CoachJob {
+  if (!isExpiredClaim(job, now)) return job;
+  const retry = job.attempts < job.attemptBudget;
+  return {
+    ...job,
+    status: retry ? "queued" : "failed",
+    leaseUntil: null,
+    nextAttemptAt: new Date(now.getTime() + 60_000),
+    error: retry ? RETRY_MESSAGE : GIVE_UP_MESSAGE,
+    completedAt: retry ? null : now,
+  };
+}
+
+/**
+ * Jobs as a screen shows them, without writing anything: rendering a page never takes the
+ * athlete lock. `expired` says whether any of them still waits for `reconcileCoachJobs` to
+ * record its timeout, which the page then asks for once it has answered (`coach-tidy.ts`).
+ */
+export function settleCoachJobs(jobs: CoachJob[], now = new Date()) {
+  return {
+    jobs: jobs.map((job) => asReconciledJob(job, now)),
+    expired: jobs.some((job) => isExpiredClaim(job, now)),
+  };
+}
+
 export async function reconcileCoachJobs(db: DbOrTx, userId: string, now = new Date()) {
   const expired = await db
     .select()
@@ -220,19 +261,11 @@ export async function reconcileCoachJobs(db: DbOrTx, userId: string, now = new D
         lte(coachJobs.leaseUntil, now),
       ),
     );
-  for (const job of expired)
+  for (const job of expired) {
+    const { status, leaseUntil, nextAttemptAt, error, completedAt } = asReconciledJob(job, now);
     await db
       .update(coachJobs)
-      .set({
-        status: job.attempts < job.attemptBudget ? "queued" : "failed",
-        leaseUntil: null,
-        nextAttemptAt: new Date(now.getTime() + 60_000),
-        error:
-          job.attempts < job.attemptBudget
-            ? "The coach timed out. This request is saved for another attempt."
-            : "The coach could not finish after three attempts. Your answers are saved; you can retry.",
-        completedAt: job.attempts < job.attemptBudget ? null : now,
-      })
+      .set({ status, leaseUntil, nextAttemptAt, error, completedAt })
       .where(
         and(
           eq(coachJobs.id, job.id),
@@ -240,6 +273,7 @@ export async function reconcileCoachJobs(db: DbOrTx, userId: string, now = new D
           eq(coachJobs.attemptId, job.attemptId!),
         ),
       );
+  }
 }
 
 export async function claimCoachJob(db: DbOrTx, userId: string, id: string, now = new Date()) {

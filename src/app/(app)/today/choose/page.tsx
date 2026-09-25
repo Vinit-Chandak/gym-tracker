@@ -23,22 +23,27 @@ export const metadata: Metadata = { title: "Choose a day" };
 export default async function ChooseDayPage() {
   const user = await requireUser();
   const requestProfile = await getRequestProfile(user.id, user.email);
-  const { plan, defaultGymId, exercisesByDay } = await withUser(getDb(), user.id, async (tx) => {
-    const profile = requestProfile;
-    const [plan, gyms] = await Promise.all([
-      getTodayPlan(tx, user.id, profile.timeZone),
-      listGyms(tx, user.id),
-    ]);
-    const exercisesByDay = await listExercisesByDay(
-      tx,
-      (plan?.cycleDays ?? []).filter(({ day }) => day.includesLifting).map(({ day }) => day.id),
-    );
-    return {
-      plan,
-      exercisesByDay,
-      defaultGymId: gyms.find((g) => g.isActive && g.isDefault)?.id ?? null,
-    };
-  });
+  const { plan, defaultGymId, exercisesByDay } = await withUser(
+    getDb(),
+    user.id,
+    async (tx) => {
+      const profile = requestProfile;
+      const [plan, gyms] = await Promise.all([
+        getTodayPlan(tx, user.id, profile.timeZone),
+        listGyms(tx, user.id),
+      ]);
+      const exercisesByDay = await listExercisesByDay(
+        tx,
+        (plan?.cycleDays ?? []).filter(({ day }) => day.includesLifting).map(({ day }) => day.id),
+      );
+      return {
+        plan,
+        exercisesByDay,
+        defaultGymId: gyms.find((g) => g.isActive && g.isDefault)?.id ?? null,
+      };
+    },
+    { readOnly: true },
+  );
 
   return (
     <>

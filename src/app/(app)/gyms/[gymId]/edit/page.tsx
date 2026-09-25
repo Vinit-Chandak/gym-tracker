@@ -19,7 +19,9 @@ export default async function EditGymPage(props: PageProps<"/gyms/[gymId]/edit">
   const { gymId } = await props.params;
   requireUuid(gymId);
   const user = await requireUser();
-  const gym = await withUser(getDb(), user.id, (tx) => getGym(tx, user.id, gymId));
+  const gym = await withUser(getDb(), user.id, (tx) => getGym(tx, user.id, gymId), {
+    readOnly: true,
+  });
   if (!gym) notFound();
 
   return (

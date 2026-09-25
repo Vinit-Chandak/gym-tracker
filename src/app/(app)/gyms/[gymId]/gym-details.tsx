@@ -55,6 +55,7 @@ function EquipmentRows({
       {items.map((item) => (
         <li key={item.id}>
           <LinkRow
+            prefetch="intent"
             href={`/gyms/${gymId}/equipment/${item.id}`}
             title={item.name}
             // Machines are usually named after their type, so only add it when it differs.

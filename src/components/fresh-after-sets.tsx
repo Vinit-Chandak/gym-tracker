@@ -41,8 +41,9 @@ function settle(key: string) {
  * back its own copy of them made before the latest set: for a minute on the tabs, and on Back.
  * Such a copy is not shown, so none of its numbers or buttons can be acted on. The screen's own
  * loading state stands in while the screen is rendered again, once, as it would while any screen
- * loads; `refreshScreenAction` keeps the browser's prefetched links, where `router.refresh()`
- * would throw them all away. A copy that cannot be rendered again, offline say, is shown as it is.
+ * loads, through `refreshScreenAction`, which also discards the prefetched tabs: they carry their
+ * data, so they can predate the set as well. A copy that cannot be rendered again, offline say, is
+ * shown as it is.
  */
 export function FreshAfterSets({
   seen,
