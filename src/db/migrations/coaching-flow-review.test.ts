@@ -8,7 +8,11 @@ import {
   coachPreferences,
   coachProgramRequests,
   coachRequestDecisions,
+  occurrenceEvents,
+  occurrenceVersions,
+  plannedOccurrences,
   programDrafts,
+  sessionPlans,
 } from "@/db/schema";
 import { STRENGTH_AESTHETICS_HYBRID_8WK } from "@/db/seed/data/program";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
@@ -162,3 +166,164 @@ it("closes an old proposal unanswered and gives its asks back to the coach", asy
     .where(eq(coachPreferences.userId, userId));
   expect(preference!.reviewRequestedAt).not.toBeNull();
 });
+
+/** A run prescription the way sessions were written before 0034: every effort out of ten. */
+function sessionOutOfTen(targetEffort: [number, number] | null) {
+  return {
+    prescriptionVersion: 1,
+    sport: "running",
+    structureSource: "authored",
+    title: null,
+    sessionTargets: { durationMs: [1_800_000, 2_100_000], distanceMetres: null, effort: targetEffort },
+    nodes: [
+      {
+        kind: "step",
+        id: "warm",
+        phase: "warmup",
+        action: "run",
+        target: { kind: "duration", ms: [300_000, 300_000] },
+        effort: null,
+        stroke: null,
+        notes: null,
+      },
+      {
+        kind: "repeat",
+        id: "strides",
+        repetitions: 4,
+        steps: [
+          {
+            kind: "step",
+            id: "stride",
+            phase: "main",
+            action: "run",
+            target: { kind: "duration", ms: [20_000, 20_000] },
+            effort: [6, 7],
+            stroke: null,
+            notes: null,
+          },
+        ],
+        restBetweenMs: 60_000,
+      },
+    ],
+    running: { paceNote: "Conversational", progressionNote: null, symptomStopRule: null, note: null },
+    instructions: null,
+    notes: null,
+    legacy: null,
+  } as unknown as typeof occurrenceVersions.$inferInsert.prescription;
+}
+
+const dayFromNow = (days: number) =>
+  new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
+
+/** A scheduled run with its versions in the order they were written; the last is current. */
+async function session(
+  userId: string,
+  versions: { createdAt: Date; scheduledOn: string; prescription: unknown }[],
+  disposition: "pending" | "cancelled" = "pending",
+) {
+  const [occurrence] = await t.db
+    .insert(plannedOccurrences)
+    .values({ userId, sport: "running", disposition })
+    .returning();
+  let current: { id: string } | undefined;
+  for (const version of versions)
+    [current] = await t.db
+      .insert(occurrenceVersions)
+      .values({
+        occurrenceId: occurrence!.id,
+        userId,
+        sport: "running",
+        scheduledOn: version.scheduledOn,
+        schedulingZone: "UTC",
+        prescription: version.prescription as typeof occurrenceVersions.$inferInsert.prescription,
+        createdAt: version.createdAt,
+      })
+      .returning({ id: occurrenceVersions.id });
+  await t.db
+    .update(plannedOccurrences)
+    .set({ currentRevisionId: current!.id })
+    .where(eq(plannedOccurrences.id, occurrence!.id));
+  return { id: occurrence!.id, revisionId: current!.id };
+}
+
+async function current(occurrenceId: string) {
+  const [row] = await t.db
+    .select({ revisionId: plannedOccurrences.currentRevisionId, prescription: occurrenceVersions.prescription })
+    .from(plannedOccurrences)
+    .innerJoin(occurrenceVersions, eq(occurrenceVersions.id, plannedOccurrences.currentRevisionId))
+    .where(eq(plannedOccurrences.id, occurrenceId));
+  return row!;
+}
+
+it("writes upcoming sessions still on the old scale again on five steps, and leaves history alone", async () => {
+  const userId = await athlete("sessions@example.test");
+  const upcoming = await session(userId, [
+    { createdAt: BEFORE, scheduledOn: dayFromNow(3), prescription: sessionOutOfTen([3, 4]) },
+  ]);
+  // Moved after 0034: the new version copies the old prescription word for word.
+  const moved = await session(userId, [
+    { createdAt: BEFORE, scheduledOn: dayFromNow(4), prescription: sessionOutOfTen([3, 4]) },
+    { createdAt: AFTER, scheduledOn: dayFromNow(5), prescription: sessionOutOfTen([3, 4]) },
+  ]);
+  const past = await session(userId, [
+    { createdAt: BEFORE, scheduledOn: dayFromNow(-3), prescription: sessionOutOfTen([3, 4]) },
+  ]);
+  const cancelled = await session(
+    userId,
+    [{ createdAt: BEFORE, scheduledOn: dayFromNow(6), prescription: sessionOutOfTen([3, 4]) }],
+    "cancelled",
+  );
+  // Written after 0034, so already out of five, even though its numbers look the same.
+  const fresh = await session(userId, [
+    { createdAt: AFTER, scheduledOn: dayFromNow(7), prescription: sessionOutOfTen([1, 2]) },
+  ]);
+  const [plan] = await t.db
+    .insert(sessionPlans)
+    .values({
+      userId,
+      sport: "running",
+      planVersion: 2,
+      occurrenceId: upcoming.id,
+      occurrenceRevisionId: upcoming.revisionId,
+      trigger: "nightly",
+      summary: "Run it as approved.",
+      exercises: [],
+    })
+    .returning();
+
+  await runMigration();
+
+  const revised = await current(upcoming.id);
+  expect(revised.revisionId).not.toBe(upcoming.revisionId);
+  const prescription = revised.prescription as unknown as ReturnType<typeof sessionOutOfTen> & {
+    sessionTargets: { effort: number[] };
+    nodes: { effort?: number[] | null; steps?: { effort: number[] }[] }[];
+  };
+  // 0034's map: 3–4 → 1–2, 6–7 → 3; an effort nobody set stays unset.
+  expect(prescription.sessionTargets.effort).toEqual([1, 2]);
+  expect(prescription.nodes[0]!.effort).toBeNull();
+  expect(prescription.nodes[1]!.steps![0]!.effort).toEqual([3, 3]);
+  // The version it replaced is history and says what it always said.
+  const [old] = await t.db
+    .select()
+    .from(occurrenceVersions)
+    .where(eq(occurrenceVersions.id, upcoming.revisionId));
+  expect((old!.prescription as unknown as { sessionTargets: { effort: number[] } }).sessionTargets.effort).toEqual([3, 4]);
+  // A preparation written against the old version no longer stands for the session.
+  const [withdrawn] = await t.db.select().from(sessionPlans).where(eq(sessionPlans.id, plan!.id));
+  expect(withdrawn!.status).toBe("superseded");
+  const events = await t.db
+    .select()
+    .from(occurrenceEvents)
+    .where(eq(occurrenceEvents.occurrenceId, upcoming.id));
+  expect(events.map((event) => [event.kind, event.actor])).toEqual([["revised", "migration"]]);
+
+  expect((await current(moved.id)).revisionId).not.toBe(moved.revisionId);
+  for (const untouched of [past, cancelled, fresh])
+    expect((await current(untouched.id)).revisionId).toBe(untouched.revisionId);
+
+  // Run again, it finds nothing left on the old scale.
+  await runMigration();
+  expect((await current(upcoming.id)).revisionId).toBe(revised.revisionId);
+});
+

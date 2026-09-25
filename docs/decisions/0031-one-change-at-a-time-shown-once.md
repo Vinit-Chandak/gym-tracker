@@ -69,6 +69,16 @@ before the next load step.
    proposals still pending from that time as `outdated` and returns their requests to the
    coach, whose next review proposes them again if they still apply. The template's easy runs
    are now 1–2 of 5, not 3–4.
+
+   0034 also left every scheduled session's own prescription on the old scale, intending the
+   next programme revision to rewrite it. Athletes who had approved nothing since still saw
+   "Effort 3–4" on next week's easy run. 0037 applies that revision now:
+   - It covers every session still ahead that is not logged or cancelled and whose
+     prescription is on the old scale, including one copied unchanged by a move.
+   - Each gets a new version with the effort halved.
+   - The old version is kept as history, and a coach preparation written against it is
+     withdrawn.
+
 8. **Rep ranges start from a role band.** `src/domain/rep-bands.ts` assigns each exercise a
    role:
    - main compound;
@@ -98,5 +108,5 @@ Anything it gets wrong under the new rules (a repeated decline, a narrow range) 
 with the issue named, and the attempt can correct it.
 
 Programmes created from the template after 0034 and before this change keep whatever run
-effort they were created with. 0037 corrects only blueprints written before 0034. A newer
+effort they were created with. 0037 corrects only what was written before 0034. A newer
 active programme is the athlete's own and is left for them, or the next review, to change.
