@@ -192,19 +192,18 @@ Deploy to Vercel (see `SETUP.md`), then open the URL on the phone. **Profile →
 Chrome's install prompt on Android; on iPhone use Safari's **Share → Add to Home Screen**. The
 app launches standalone with safe-area padding.
 
-## Food (hidden until switched on)
+## Food
 
 Calorie and macro tracking, entered by hand: a daily target, carbohydrate, fat and protein
-against it, meals made of foods, and starred meals that are logged again in one tap. It is built
-but hidden behind `FOOD_TRACKING_ENABLED`, which is off unless set to `true`, or to a list of
-account emails to try it on those alone. Switched on, Today gains a food card that opens
-**Today → Food**; switched off, nothing reads the tables and the screen does not exist. See
+against it, meals made of foods, and starred meals that are logged again in one tap. Available
+to every signed-in account through the **Food** card on Today, or directly at `/today/food`.
+No feature flag or email allowlist is required. See
 [ADR 0032](docs/decisions/0032-food-behind-a-switch.md).
 
 Meal drafts stay on the device, scoped to the signed-in account, and can be resumed or discarded.
 Saving needs a connection; a resumed draft keeps its original day, shown above the form. Retrying
-a save after a lost reply cannot log the meal twice. Enable food only after the production deploy
-has applied migrations through **0040**. The [food audit](docs/audits/2026-09-25-food-audit.md)
+a save after a lost reply cannot log the meal twice. Production deployments apply database
+migrations before building the app. The [food audit](docs/audits/2026-09-25-food-audit.md)
 documents the checks and layout fixes.
 
 ## AI house coach

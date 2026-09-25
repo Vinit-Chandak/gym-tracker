@@ -137,11 +137,11 @@ async function offlineNavigation() {
   }
 }
 try {
-  await check("flag off hides the Today card and food route", async () => {
+  await check("food is available to every signed-in account without configuration", async () => {
     await login("alex");
-    await expect(page.locator('a[href="/today/food"]')).toHaveCount(0);
-    await navigate("/today/food");
-    await expect(page.getByText("Not found", { exact: true })).toBeVisible();
+    await page.locator('a[href="/today/food"]').click();
+    await expect(page.getByRole("heading", { name: "Food", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Add meal", exact: true })).toBeVisible();
   });
   await login("sam");
   await check("Today opens first-use food and keeps Today selected", async () => {
@@ -371,6 +371,17 @@ try {
       await sql`update profiles set body_weight_kg=null where username='vinit'`;
       await sql`delete from nutrition_targets where user_id=(select id from profiles where username='vinit')`;
       await login("vinit");
+      // The fixture bypasses profile actions, so advance their cache version explicitly.
+      // Otherwise a preceding engine's profile can remain in the server's one-minute cache.
+      await context.addCookies([
+        {
+          name: "overload-profile-changed",
+          value: String(Date.now()),
+          url: baseURL,
+          httpOnly: true,
+          sameSite: "Lax",
+        },
+      ]);
       await navigate("/today/food");
       await expect(page.getByText("Private draft", { exact: false })).toHaveCount(0);
       await page.getByLabel("Daily target, kcal").fill("2400");

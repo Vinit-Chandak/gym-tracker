@@ -120,7 +120,7 @@ export type TodayViewProps = {
   programmeOccurrences?: readonly ScheduledOccurrence[];
   /** What the athlete put on the calendar for today, which is dated today by definition. */
   standaloneOccurrences?: readonly ScheduledOccurrence[];
-  /** Today's food against its targets; null unless food tracking is switched on (ADR 0032). */
+  /** Today's food against its targets; optional for standalone previews. */
   food?: { eaten: FoodTotals; target: MacroTargets | null } | null;
 };
 

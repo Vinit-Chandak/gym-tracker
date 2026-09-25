@@ -1,4 +1,10 @@
-# Food, behind a switch
+# Food
+
+**Rollout updated 25 September 2026:** the owner requested immediate availability for every
+signed-in account. The `FOOD_TRACKING_ENABLED` gate and email allowlist have been removed from
+Today, the Food route and all food actions. Existing values of that environment variable are
+ignored. Production deployments apply migrations before building the app; migrations through
+0040 shipped with PR #76. The original rollout decisions below are retained as history.
 
 The owner asked for calorie tracking: a daily target, and carbohydrate, fat and protein against
 it, entered by hand. Food goes into meals, a meal can be starred to add it again in one tap, and
@@ -113,14 +119,14 @@ switched on. This record covers what was built and the rules it follows.
      a receipt and the mutation commit together. A matching retry is a no-op, even after deletion.
      A changed payload under an already committed key is refused with recovery instructions.
 
-8. **What it costs Today.** With the switch on, one more statement runs inside Today's
+8. **What it costs Today.** One more statement runs inside Today's
    transaction. `readFoodDay` returns the targets and the day's sums in one row, anchored on the
-   profile. With the switch off, nothing extra runs. The Food screen is one read-only
+   profile. The Food screen is one read-only
    transaction of three statements. Every change revalidates `/today` and `/today/food`, so
    the copy of Today that the browser keeps for a minute is dropped and the card is read again.
    The tabs now prefetch complete data ([tab prefetch decision](0032-the-tabs-arrive-before-the-tap.md));
    `refresh` alone would keep the stale prefetch. Today's food query stays inside its read-only
-   transaction, and remains absent when the switch is off.
+   transaction.
 
 ## Not done, on purpose
 

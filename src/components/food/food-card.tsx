@@ -6,8 +6,8 @@ import { formatKcal } from "@/lib/format";
 import { FoodSummary } from "./food-summary";
 
 /**
- * Today's food, as one box that opens the Food screen (ADR 0032). Only on Today when food
- * tracking is switched on for the account; before a target is set it asks for one.
+ * Today's food, as one box that opens the Food screen (ADR 0032).
+ * Before a target is set it asks for one.
  */
 export function FoodCard({ eaten, target }: { eaten: FoodTotals; target: MacroTargets | null }) {
   const chevron = <ChevronRight className="text-ink-subtle" aria-hidden />;

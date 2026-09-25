@@ -5,7 +5,6 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { macroTargets } from "@/domain/nutrition";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import { foodTrackingEnabled } from "@/lib/env";
 import { LOAD_UNIT_LABELS } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
 import { tidyCoachJobsLater } from "@/server/coach-tidy";
@@ -37,9 +36,6 @@ export default async function TodayPage() {
   const user = await requireUser();
   const requestProfile = await getRequestProfile(user.id, user.email);
   const seen = await seenSetChanges();
-  // Food tracking is hidden unless switched on for this account (ADR 0032); off, Today reads
-  // exactly what it read before.
-  const food = foodTrackingEnabled(user.email);
   // The active session comes from the shared per-request read the resume strip also uses,
   // so Today and the shell agree on one session without asking the database twice.
   const [inProgress, data] = await Promise.all([
@@ -99,10 +95,7 @@ export default async function TodayPage() {
                 cycleIndex: plan.suggestion.slot.cycleIndex,
               })
             : Promise.resolve([]),
-          // One read-only statement when enabled; no food query when the flag is off.
-          food
-            ? readFoodDay(tx, user.id, todayInTimeZone(profile.timeZone))
-            : Promise.resolve(null),
+          readFoodDay(tx, user.id, todayInTimeZone(profile.timeZone)),
         ]);
         // What the coach prepared for each, where it did: the target to follow today.
         const [preparedStandalone, preparedProgramme] = await Promise.all([
@@ -142,13 +135,11 @@ export default async function TodayPage() {
         unit={LOAD_UNIT_LABELS[profile.preferredUnit]}
         programmeOccurrences={programme}
         standaloneOccurrences={standalone}
-        food={
-          foodDay && {
-            eaten: foodDay.eaten,
-            // Protein follows the newest body weight, so it is worked out now, not stored.
-            target: foodDay.targets ? macroTargets(foodDay.targets, profile.bodyWeightKg) : null,
-          }
-        }
+        food={{
+          eaten: foodDay.eaten,
+          // Protein follows the newest body weight, so it is worked out now, not stored.
+          target: foodDay.targets ? macroTargets(foodDay.targets, profile.bodyWeightKg) : null,
+        }}
       />
     </FreshAfterSets>
   );

@@ -59,7 +59,6 @@ const DRAFT: MealDraft = {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.stubEnv("FOOD_TRACKING_ENABLED", "eater@example.test");
   // 20:00 in UTC is already tomorrow in Kolkata, which is whose day it is.
   vi.useFakeTimers({ now: new Date("2026-09-25T20:00:00Z"), toFake: ["Date"] });
 });
@@ -69,25 +68,35 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-it("does nothing at all for an account the switch is off for", async () => {
-  vi.stubEnv("FOOD_TRACKING_ENABLED", "someone-else@example.test");
-  const form = new FormData();
-  form.set("dailyKcal", "2400");
-  for (const result of [
-    await saveMealAction(DRAFT),
-    await deleteMealAction(MEAL),
-    await logSavedMealAction(STAR),
-    await deleteSavedMealAction(STAR),
-  ]) {
-    expect(result).toEqual({
-      ok: false,
-      error: "Food tracking is not switched on for this account.",
-    });
-  }
-  expect((await saveTargetsAction(INITIAL_FORM_STATE, form)).formError).toMatch(/not switched on/);
-  for (const write of Object.values(mocks)) expect(write).not.toHaveBeenCalled();
-  expect(revalidatePath).not.toHaveBeenCalled();
-});
+it.each([undefined, "false", "someone-else@example.test"])(
+  "allows every food action with the retired flag set to %s",
+  async (setting) => {
+    vi.stubEnv("FOOD_TRACKING_ENABLED", setting);
+    const form = new FormData();
+    form.set("dailyKcal", "2400");
+    form.set("split", "body_weight");
+    form.set("proteinPerKg", "1.8");
+    for (const result of [
+      await saveMealAction(DRAFT),
+      await deleteMealAction(MEAL),
+      await logSavedMealAction(STAR),
+      await deleteSavedMealAction(STAR),
+    ]) {
+      expect(result).toEqual({ ok: true });
+    }
+    expect(await saveTargetsAction(INITIAL_FORM_STATE, form)).toEqual({});
+    for (const write of [
+      mocks.createMeal,
+      mocks.deleteMeal,
+      mocks.logSavedMeal,
+      mocks.deleteSavedMeal,
+      mocks.saveNutritionTargets,
+    ]) {
+      expect(write).toHaveBeenCalledOnce();
+    }
+    expect(revalidatePath).toHaveBeenCalledTimes(10);
+  },
+);
 
 it("logs a new meal on today in the account's own time zone", async () => {
   expect(await saveMealAction(DRAFT)).toEqual({ ok: true });

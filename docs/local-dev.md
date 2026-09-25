@@ -126,7 +126,6 @@ terminal before the corresponding commands:
 
 ```powershell
 $env:AUDIT_DATABASE_URL = 'postgres://postgres:postgres@127.0.0.1:5432/overload_audit_food'
-$env:FOOD_TRACKING_ENABLED = 'sam@local.test,vinit@local.test'
 npm run audit:setup
 npm run audit:build
 npm run audit:auth   # terminal 1, keep running

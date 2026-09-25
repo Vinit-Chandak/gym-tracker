@@ -20,8 +20,7 @@ import { ownerPolicy, serverWritePolicies, timestamps } from "./common";
 import { profiles } from "./profiles";
 
 /*
- * Food (ADR 0032). Built behind `FOOD_TRACKING_ENABLED`: the tables exist on every database the
- * migrations reach, and nothing reads or writes them until the switch is on for an account.
+ * Food (ADR 0032). Each account owns its targets, meals, starred meals and save receipts.
  * The bounds in the check constraints are `NUTRITION_LIMITS` in `domain/nutrition.ts`.
  */
 

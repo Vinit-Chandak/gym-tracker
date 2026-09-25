@@ -6,7 +6,6 @@ import { z } from "zod";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import { foodTrackingEnabled } from "@/lib/env";
 import { requireUser, type SessionUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import {
@@ -33,8 +32,6 @@ import {
 export type FoodActionResult =
   { ok: true } | { ok: false; error?: string; fieldErrors?: Record<string, string> };
 
-const SWITCHED_OFF = "Food tracking is not switched on for this account.";
-
 function describe(error: unknown): string {
   if (
     error instanceof MealNotFoundError ||
@@ -44,16 +41,6 @@ function describe(error: unknown): string {
     return error.message;
   }
   return "Something went wrong. Please try again.";
-}
-
-/**
- * The signed-in account, when food tracking is on for it (ADR 0032). Every action asks: an
- * action is reachable by a plain POST whether or not any screen offers it, and the switch has
- * to hold there too.
- */
-async function foodUser(): Promise<SessionUser | null> {
-  const user = await requireUser();
-  return foodTrackingEnabled(user.email) ? user : null;
 }
 
 /** The day a new meal is eaten on: today, on the account's own clock. */
@@ -76,8 +63,7 @@ export async function saveTargetsAction(
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const user = await foodUser();
-  if (!user) return { formError: SWITCHED_OFF, values: formValues(formData) };
+  const user = await requireUser();
   const parsed = parseForm(targetsInputSchema, formData);
   if (!parsed.success) return parsed.state;
   try {
@@ -91,8 +77,7 @@ export async function saveTargetsAction(
 
 /** Logs a new meal for today, or rewrites the one being edited. */
 export async function saveMealAction(draft: MealDraft): Promise<FoodActionResult> {
-  const user = await foodUser();
-  if (!user) return { ok: false, error: SWITCHED_OFF };
+  const user = await requireUser();
   const parsed = mealInputSchema.safeParse(draft);
   if (!parsed.success) return { ok: false, fieldErrors: issuesByPath(parsed.error.issues) };
   const { mealId, submissionKey, eatenOn: draftDay, ...meal } = parsed.data;
@@ -117,8 +102,7 @@ export async function saveMealAction(draft: MealDraft): Promise<FoodActionResult
 
 /** Deleting a meal that is already gone succeeds: gone is what was asked for. */
 export async function deleteMealAction(mealId: string): Promise<FoodActionResult> {
-  const user = await foodUser();
-  if (!user) return { ok: false, error: SWITCHED_OFF };
+  const user = await requireUser();
   if (!z.uuid().safeParse(mealId).success) return { ok: true };
   try {
     await withUser(getDb(), user.id, (tx) => deleteMeal(tx, user.id, mealId));
@@ -131,8 +115,7 @@ export async function deleteMealAction(mealId: string): Promise<FoodActionResult
 
 /** One tap on a starred meal: the same foods, logged as a meal of today's. */
 export async function logSavedMealAction(savedMealId: string): Promise<FoodActionResult> {
-  const user = await foodUser();
-  if (!user) return { ok: false, error: SWITCHED_OFF };
+  const user = await requireUser();
   if (!z.uuid().safeParse(savedMealId).success) {
     return { ok: false, error: new SavedMealNotFoundError().message };
   }
@@ -148,8 +131,7 @@ export async function logSavedMealAction(savedMealId: string): Promise<FoodActio
 
 /** Unstars a meal. Meals already logged from it stay as they are. */
 export async function deleteSavedMealAction(savedMealId: string): Promise<FoodActionResult> {
-  const user = await foodUser();
-  if (!user) return { ok: false, error: SWITCHED_OFF };
+  const user = await requireUser();
   if (!z.uuid().safeParse(savedMealId).success) return { ok: true };
   try {
     await withUser(getDb(), user.id, (tx) => deleteSavedMeal(tx, user.id, savedMealId));

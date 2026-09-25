@@ -67,10 +67,16 @@ actions now revalidate both `/today` and `/today/food`; refreshing alone could r
 Today snapshot. The action tests assert both invalidations, and the production browser audit
 checks Today totals after meal changes.
 
-Keep `FOOD_TRACKING_ENABLED` off until the production deployment has applied migrations through
-**0040**, which adds the save receipts. Previews share production data and do not migrate it.
-The default remains off; disabled food routes/actions are refused and Today performs no food
-query. Enable a named email allowlist before enabling everyone.
+After PR #76 was merged and its production deployment succeeded, the owner requested food
+tracking for everyone. The rollout gate was removed from Today, `/today/food` and all actions;
+`FOOD_TRACKING_ENABLED` is no longer read. Production deployments apply migrations before the
+build, including **0040** for save receipts. Previews still share production data and do not
+migrate it. The browser runner now checks availability for the previously excluded account.
+
+The gate-removal follow-up passed 76 focused tests, lint, formatting and a production build
+including TypeScript. With the obsolete flag explicitly set to `false`, all 14 browser scenario
+groups passed in each of Chromium and WebKit without page errors. Direct profile fixture resets
+also advance the profile cache version so sequential browser runs cannot reuse an old weight.
 
 These are automated Chromium/WebKit runs with Pixel 7/iPhone 13 browser emulation, varied
 viewports and text sizes, plus visual screenshot review. They do not prove physical

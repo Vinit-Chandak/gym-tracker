@@ -26,23 +26,6 @@ export function perfLogEnabled(): boolean {
   return process.env.PERF_LOG === "1";
 }
 
-/**
- * Whether food tracking is switched on for an account (ADR 0032). Built but hidden: off unless
- * `FOOD_TRACKING_ENABLED` is `true`, which turns it on for everyone, or a comma-separated list of
- * email addresses, which turns it on for those accounts alone, so it can be tried in production
- * by its owner before anyone else sees it. Server-side only, and read at request time: on Vercel
- * a change takes effect with the next deployment.
- */
-export function foodTrackingEnabled(email: string | null): boolean {
-  const setting = process.env.FOOD_TRACKING_ENABLED?.trim().toLowerCase() ?? "";
-  if (setting === "true") return true;
-  if (!email || !setting.includes("@")) return false;
-  return setting
-    .split(",")
-    .map((entry) => entry.trim())
-    .includes(email.trim().toLowerCase());
-}
-
 /** Runtime connection string (transaction pooler on Supabase). Server-side only. */
 export function getDatabaseUrl(): string {
   const url = process.env.DATABASE_URL ?? process.env.POSTGRES_URL;
