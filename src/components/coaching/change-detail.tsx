@@ -65,7 +65,8 @@ function shortQuote(quote: string): string {
  * week the athlete is in — and the lines an ask of theirs produced carry their own words.
  * Nothing else is restated: not the ask (the previous screen showed it), not that approval is
  * needed (the buttons say so), not when it applies (approving updates every week still to
- * come, immediately). The coach's reasoning is offered only for a change nobody asked for.
+ * come, immediately). The coach's reasoning is offered only when something in the change is
+ * the coach's own idea rather than an answer to an ask.
  */
 export function ChangeDetail(props: ChangeDetailProps) {
   const router = useRouter();
@@ -77,12 +78,23 @@ export function ChangeDetail(props: ChangeDetailProps) {
   const [error, setError] = useState<string | null>(null);
   const open = props.status === "editing" || props.status === "ready";
   const coach = props.author === "coach";
-  const asked = props.requests.length > 0;
-  const why = coach && !asked && (props.rationale || props.uncertainties.length > 0);
 
   const attributed = new Map<string, string>();
   for (const request of props.requests)
     for (const ref of request.changeRefs) attributed.set(ref, shortQuote(request.quote));
+  // The reasoning belongs to whatever the coach changed on its own. A change that only answers
+  // an ask needs none — the ask is the reason — but one that also cuts runs nobody asked about
+  // owes the athlete its why for those.
+  const unasked =
+    props.summary.program.length > 0 ||
+    props.summary.days.some(
+      (day) =>
+        ((day.fields.length > 0 || day.status !== "changed") &&
+          !attributed.has(`day:${day.key}`)) ||
+        day.operations.some((operation) => !attributed.has(operation.id)) ||
+        (day.runs?.ids.some((id) => !attributed.has(id)) ?? false),
+    );
+  const why = coach && unasked && (props.rationale || props.uncertainties.length > 0);
   const tags: Record<string, ReactNode> = {};
   for (const [id, quote] of attributed) tags[id] = <Badge tone="accent">“{quote}”</Badge>;
 

@@ -131,6 +131,29 @@ it("offers the coach's reasoning only for a change nobody asked for", () => {
   expect(screen.getByText("“more curl volume please”")).toBeTruthy();
 });
 
+it("still offers the reasoning for the part of a change nobody asked for", () => {
+  const next = structuredClone(base);
+  next.days[0]!.exercises[0]!.sets = 3;
+  next.days[0]!.exercises.push({
+    exerciseSlug: "cable-crunch",
+    sets: 2,
+    reps: [10, 15],
+    rir: [1, 2],
+    rest: [60, 75],
+  });
+  render(
+    <ChangeDetail
+      {...props({
+        summary: summariseProgramDiff(diffPrograms(base, next)),
+        names: { "barbell-curl": "Barbell curl", "cable-crunch": "Cable crunch" },
+        // The ask produced the curl's extra set; the crunch is the coach's own idea.
+        requests: [{ id: "r1", quote: "more curl volume please", changeRefs: [`slot:${CURL}`] }],
+      })}
+    />,
+  );
+  expect(screen.getByText("Why")).toBeTruthy();
+});
+
 it("tags only the lines an ask produced, and nothing as the coach's", () => {
   render(
     <ChangeDetail
