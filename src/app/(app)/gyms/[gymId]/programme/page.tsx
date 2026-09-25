@@ -40,7 +40,9 @@ export default async function GymProgrammePage(props: PageProps<"/gyms/[gymId]/p
   const { gymId } = await props.params;
   requireUuid(gymId);
   const user = await requireUser();
-  const data = await withUser(getDb(), user.id, (tx) => gymAvailability(tx, user.id, gymId));
+  const data = await withUser(getDb(), user.id, (tx) => gymAvailability(tx, user.id, gymId), {
+    readOnly: true,
+  });
   if (!data) notFound();
   const { gym, program, rows, summary } = data;
 

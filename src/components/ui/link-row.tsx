@@ -34,6 +34,8 @@ type LinkRowProps<T extends string> = {
   icon?: AppIcon;
   /** `danger` for a destination that destroys something, so the row says so before it is opened. */
   tone?: "default" | "danger";
+  /** `"intent"` for rows in long lists: prefetch on touch rather than on scrolling into view. */
+  prefetch?: "intent";
 };
 
 /** Tappable row with a chevron; at least 56px tall for gym use. */
@@ -45,10 +47,11 @@ export function LinkRow<T extends string>({
   meta,
   icon,
   tone = "default",
+  prefetch,
 }: LinkRowProps<T>) {
   const danger = tone === "danger";
   return (
-    <Link href={href} className={PRESSABLE_ROW_CLASS}>
+    <Link href={href} prefetch={prefetch} className={PRESSABLE_ROW_CLASS}>
       {icon && <RowIcon icon={icon} className={cn(danger && "text-danger")} />}
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">

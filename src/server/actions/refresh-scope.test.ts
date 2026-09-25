@@ -80,10 +80,11 @@ it("still re-renders the workout when an exercise changes, keeping prefetched sc
   expect(mocks.revalidatePath).not.toHaveBeenCalled();
 });
 
-it("renders a screen shown from an older copy again, keeping prefetched screens", async () => {
+it("renders a screen shown from an older copy again, discarding prefetched tabs", async () => {
+  // The tabs are prefetched with their data, so a prefetched copy can predate the set too.
   await refreshScreenAction();
-  expect(mocks.refresh).toHaveBeenCalledTimes(1);
-  expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  expect(mocks.revalidatePath).toHaveBeenCalledWith("/", "layout");
+  expect(mocks.refresh).not.toHaveBeenCalled();
 });
 
 it("clears Today and Training once a routine has started a workout", async () => {

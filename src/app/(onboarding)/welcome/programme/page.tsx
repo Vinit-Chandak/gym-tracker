@@ -5,12 +5,10 @@ import { SavedProgrammeWork } from "@/components/coaching/saved-work";
 import { ProgramTemplatePicker } from "@/components/program-template-picker";
 import { PageContent } from "@/components/shell/page-content";
 import { Card } from "@/components/ui/card";
-import { getDb } from "@/db/client";
 import { PROGRAM_TEMPLATES } from "@/db/seed/data/templates";
-import { withUser } from "@/db/with-user";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { requireProfiledUser } from "@/server/auth";
-import { ensureProfile } from "@/server/queries/profile";
+import { getRequestProfile } from "@/server/queries/request-profile";
 
 import { FinishSetupLink } from "../skip-link";
 import { Steps } from "../steps";
@@ -19,7 +17,8 @@ export const metadata: Metadata = { title: "Choose a programme" };
 
 export default async function WelcomeProgrammePage() {
   const user = await requireProfiledUser();
-  const profile = await withUser(getDb(), user.id, (tx) => ensureProfile(tx, user));
+  // The cached read: it writes only for a missing profile, where this used to lock every visit.
+  const profile = await getRequestProfile(user.id, user.email, user.displayName);
 
   return (
     <PageContent>

@@ -14,7 +14,7 @@ export const metadata: Metadata = { title: "Exercises" };
 
 export default async function ExercisesPage() {
   const user = await requireUser();
-  const exercises = await withUser(getDb(), user.id, (tx) => listExercises(tx));
+  const exercises = await withUser(getDb(), user.id, (tx) => listExercises(tx), { readOnly: true });
   return (
     <>
       <PageHeader title="Exercises" backHref="/profile" />

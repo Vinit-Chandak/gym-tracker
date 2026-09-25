@@ -1,11 +1,14 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 
 import { ActivityRow } from "@/app/(app)/profile/friends/activity-row";
 import type { ActivityRow as Activity } from "@/server/repositories/shared-stats";
 
 import { ExerciseBestsTiles, PeriodRecordsList, SessionRecordsCard } from "./records-card";
+
+// Rows in long lists prefetch on touch, through the router (app-link.tsx).
+vi.mock("next/navigation", () => ({ useRouter: () => ({ prefetch: vi.fn() }) }));
 
 afterEach(cleanup);
 

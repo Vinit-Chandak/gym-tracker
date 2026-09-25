@@ -2,7 +2,7 @@ import { and, desc, eq, gte, inArray, or } from "drizzle-orm";
 import { coachJobs } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import { todayCoachState, type TodayCoachState } from "./coach-plans";
-import { reconcileCoachJobs, sessionTarget } from "./coaching-jobs";
+import { sessionTarget, settleCoachJobs } from "./coaching-jobs";
 import { fromDateTimeLocal } from "@/lib/time";
 import { todayInTimeZone } from "@/domain/program-calendar";
 
@@ -17,9 +17,8 @@ export async function todayWorkflowState(
   input: Parameters<typeof todayCoachState>[2],
   known?: Parameters<typeof sessionTarget>[3],
 ): Promise<TodayCoachState> {
-  await reconcileCoachJobs(db, userId);
   const since = fromDateTimeLocal(`${todayInTimeZone(input.timeZone)}T00:00`, input.timeZone)!;
-  const [target, jobs] = await Promise.all([
+  const [target, stored] = await Promise.all([
     sessionTarget(db, userId, null, known),
     db
       .select()
@@ -32,6 +31,9 @@ export async function todayWorkflowState(
       )
       .orderBy(desc(coachJobs.createdAt)),
   ]);
+  // An attempt whose lease ran out is shown as it will be recorded; the page records it after
+  // answering (`tidyCoachJobsLater`), so reading Today never takes the athlete lock.
+  const { jobs, expired } = settleCoachJobs(stored);
   const selectedGymId =
     target?.programId === input.programId &&
     target.cycleIndex === input.ref.cycleIndex &&
@@ -52,6 +54,7 @@ export async function todayWorkflowState(
     ...state,
     workflow: true,
     selectedGymId,
+    expiredJobs: expired,
     pending: pending ? { gymId: pending.target.gymId, requestedAt: pending.createdAt } : null,
     failure: !pending && latest?.status === "failed" ? { error: latest.error } : null,
     requestsLeft: Math.max(

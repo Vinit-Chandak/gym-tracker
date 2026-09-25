@@ -165,6 +165,7 @@ export default async function ComparePage(props: PageProps<"/u/[username]/compar
                     {found.lifting.common.comparable.map((exercise) => (
                       <li key={exercise.id}>
                         <LinkRow
+                          prefetch="intent"
                           href={`/u/${them.username}/compare/${exercise.id}`}
                           title={exercise.name}
                           subtitle={BODY_REGION_LABELS[exercise.region]}

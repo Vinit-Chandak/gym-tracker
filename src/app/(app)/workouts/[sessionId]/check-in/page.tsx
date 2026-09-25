@@ -21,8 +21,11 @@ export default async function CheckInPage(props: PageProps<"/workouts/[sessionId
   const { sessionId } = await props.params;
   requireUuid(sessionId);
   const user = await requireUser();
-  const session = await withUser(getDb(), user.id, (tx) =>
-    getSessionRecord(tx, user.id, sessionId),
+  const session = await withUser(
+    getDb(),
+    user.id,
+    (tx) => getSessionRecord(tx, user.id, sessionId),
+    { readOnly: true },
   );
   if (!session) notFound();
   if (session.completedAt) redirect(`/workouts/${sessionId}`);

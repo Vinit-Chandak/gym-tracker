@@ -6,7 +6,8 @@ import { Section } from "@/components/ui/section";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { requireProfiledUser } from "@/server/auth";
-import { listCoachJobs } from "@/server/repositories/coaching-jobs";
+import { tidyCoachJobsLater } from "@/server/coach-tidy";
+import { listCoachJobs, settleCoachJobs } from "@/server/repositories/coaching-jobs";
 
 /**
  * The two places you can change what the coach does, and the one thing it cannot do itself.
@@ -28,7 +29,10 @@ export async function CoachingActivity({
 }) {
   if (process.env.COACH_WORKFLOW_ENABLED !== "true") return null;
   const user = await requireProfiledUser();
-  const jobs = await withUser(getDb(), user.id, (tx) => listCoachJobs(tx, user.id, 8));
+  const { jobs, expired } = settleCoachJobs(
+    await withUser(getDb(), user.id, (tx) => listCoachJobs(tx, user.id, 8), { readOnly: true }),
+  );
+  if (expired) tidyCoachJobsLater(user.id);
   // Only a failure that is still the latest word on that kind of work: once a later attempt at
   // the same thing has succeeded, the old failure is history, not something that needs you.
   const latest = new Map<string, (typeof jobs)[number]>();

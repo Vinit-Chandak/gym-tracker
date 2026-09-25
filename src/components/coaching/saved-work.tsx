@@ -5,9 +5,10 @@ import { Section } from "@/components/ui/section";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { requireProfiledUser } from "@/server/auth";
+import { tidyCoachJobsLater } from "@/server/coach-tidy";
 import { latestIntake } from "@/server/repositories/coach-intakes";
 import { listProgramDrafts } from "@/server/repositories/program-drafts";
-import { listCoachJobs } from "@/server/repositories/coaching-jobs";
+import { listCoachJobs, settleCoachJobs } from "@/server/repositories/coaching-jobs";
 
 /**
  * Everything half-finished, as a list of places to go back to.
@@ -19,13 +20,19 @@ import { listCoachJobs } from "@/server/repositories/coaching-jobs";
  */
 export async function SavedProgrammeWork({ onboarding = false }: { onboarding?: boolean }) {
   const user = await requireProfiledUser();
-  const [intake, drafts, jobs] = await withUser(getDb(), user.id, (tx) =>
-    Promise.all([
-      latestIntake(tx, user.id),
-      listProgramDrafts(tx, user.id),
-      listCoachJobs(tx, user.id),
-    ]),
+  const [intake, drafts, stored] = await withUser(
+    getDb(),
+    user.id,
+    (tx) =>
+      Promise.all([
+        latestIntake(tx, user.id),
+        listProgramDrafts(tx, user.id),
+        listCoachJobs(tx, user.id),
+      ]),
+    { readOnly: true },
   );
+  const { jobs, expired } = settleCoachJobs(stored);
+  if (expired) tidyCoachJobsLater(user.id);
   const base = onboarding ? "/welcome/programme" : "/profile/programme";
   // A draft written against a running programme is a change, not saved work: it lives under
   // Programme → Changes with the review that produced it, where it is read as a difference
