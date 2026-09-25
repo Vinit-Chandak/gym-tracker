@@ -419,7 +419,7 @@ it.each(["bodyweight-squat", "goblet-squat"])(
       }),
     );
     const detail = await as(a, (tx) => getSessionDetail(tx, a.user.id, second.sessionId));
-    expect(detail?.coachPlan?.summary).toBe("Follow the exercise targets below.");
+    expect(detail?.coachPlan?.summary).toBeNull();
     expect(detail?.exercises[0]?.suggestion?.kind).toBe("coach");
   },
 );

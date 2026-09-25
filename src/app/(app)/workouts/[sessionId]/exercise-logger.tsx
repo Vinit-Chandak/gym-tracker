@@ -147,13 +147,7 @@ function suggestionHeadline(exercise: ExerciseVM, unit: string) {
       const note = exercise.coachNote;
       return {
         kind,
-        text: note
-          ? target
-            ? `${target} · ${note}`
-            : note
-          : target
-            ? `Next: ${target}`
-            : "Coach plan",
+        text: note ? (target ? `${target} · ${note}` : note) : target ? `Next: ${target}` : "",
       };
     }
     case "increase":
@@ -370,7 +364,9 @@ export function ExerciseLogger({
                     <Badge tone={suggestionTone(suggestion.kind)}>
                       {SUGGESTION_KIND_LABELS[suggestion.kind]}
                     </Badge>
-                    <p className="min-w-0 text-sm font-medium">{suggestion.text}</p>
+                    {suggestion.text && (
+                      <p className="min-w-0 text-sm font-medium">{suggestion.text}</p>
+                    )}
                   </div>
                 )}
               </Card>
@@ -624,10 +620,12 @@ export function ExerciseLogger({
                 current recovery.
               </p>
             )}
-            {exercise.suggestion && (
+            {/* The coach's own note is already on the Log tab, beside its targets; here only
+                the rule's reasoning, and what the numbers were judged against, are new. */}
+            {exercise.suggestion && (exercise.suggestion.kind !== "coach" || exercise.basis) && (
               <Disclosure summary="Why this suggestion" variant="inline">
                 <div className="space-y-1 text-sm text-ink-muted">
-                  <p>{exercise.suggestion.reason}</p>
+                  {exercise.suggestion.kind !== "coach" && <p>{exercise.suggestion.reason}</p>}
                   {exercise.suggestion.advice && <p>{exercise.suggestion.advice}</p>}
                   {exercise.basis && (
                     <p>

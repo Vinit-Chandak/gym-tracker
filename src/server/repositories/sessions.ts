@@ -1,4 +1,4 @@
-import { summaryForSport } from "@/domain/sport-scope";
+import { writtenSummaryForSport } from "@/domain/sport-scope";
 import { and, asc, count, desc, eq, inArray, isNotNull, isNull, max, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { manualPrescription } from "@/domain/manual-prescription";
@@ -399,7 +399,8 @@ export type SessionDetail = {
   /** Recovery advice derived from the check-in; never changes a suggestion. */
   warnings: RecoveryWarning[];
   /** The coach plan this session started from, if any. */
-  coachPlan: { summary: string; warmup: string[]; generatedAt: string } | null;
+  /** `summary` is the coach's own line for the workout, or null when it wrote none. */
+  coachPlan: { summary: string | null; warmup: string[]; generatedAt: string } | null;
   exercises: SessionExercise[];
 };
 
@@ -715,7 +716,7 @@ export async function getSessionDetail(
     warnings,
     coachPlan: coachPlan
       ? {
-          summary: summaryForSport(coachPlan, "workout"),
+          summary: writtenSummaryForSport(coachPlan, "workout"),
           warmup: coachPlan.warmup,
           generatedAt: coachPlan.generatedAt.toISOString(),
         }

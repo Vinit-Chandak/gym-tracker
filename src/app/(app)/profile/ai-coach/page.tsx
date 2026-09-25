@@ -80,23 +80,6 @@ export default async function AiCoachSettingsPage() {
               : status
           }
           noteId={crypto.randomUUID()}
-          // Only what is waiting on the athlete is answered here; the rest of a request's
-          // life — the proposal, the reason, the date it comes back — lives with the change
-          // it belongs to, under Programme → Changes.
-          questions={requests
-            .filter((request) => request.state === "needs_answer")
-            .map((request) => ({
-              id: request.id,
-              summary: request.summary,
-              quote: request.quote,
-              state: request.state,
-              detail: request.detail,
-              condition: request.condition,
-              reconsiderAfter: request.reconsiderAfter,
-              when: formatDateTime(request.createdAt, profile.timeZone),
-              draftId: request.draftId,
-            }))}
-          openRequests={requests.length}
           notes={memo.notes.recent.map((note) => ({
             id: note.id,
             text: note.text,
@@ -126,7 +109,7 @@ export default async function AiCoachSettingsPage() {
             error: attempt.error,
           }))}
         >
-          <CoachingActivity settings />
+          <CoachingActivity settings waiting={requests.length} />
         </AiCoachSettings>
       </PageContent>
     </>

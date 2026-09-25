@@ -48,6 +48,20 @@ const DEFAULT_SUMMARY: Record<TrainingSport, string> = {
   swim: "Follow the swim targets below.",
 };
 
+/**
+ * The coach's own line for this sport, or null when it wrote none.
+ *
+ * A screen with something better to say than the generic fallback — the day's own focus on
+ * Today, nothing at all over a workout already on screen — asks for this instead. "Follow the
+ * exercise targets below" was shown above targets folded away, not below.
+ */
+export function writtenSummaryForSport(
+  plan: { sportSummaries?: Partial<Record<TrainingSport, string>> },
+  sport: TrainingSport,
+): string | null {
+  return plan.sportSummaries?.[sport] ?? null;
+}
+
 export function summaryForSport(
   plan: { sportSummaries?: Partial<Record<TrainingSport, string>> },
   sport: TrainingSport,

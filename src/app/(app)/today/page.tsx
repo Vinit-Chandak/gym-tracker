@@ -14,6 +14,7 @@ import { todayCoachState } from "@/server/repositories/coach-plans";
 import { todayWorkflowState } from "@/server/repositories/coaching-today";
 import { listGyms } from "@/server/repositories/gyms";
 import { occurrencesForSlot, standaloneOccurrencesOnDate } from "@/server/repositories/occurrences";
+import { withPreparedTargets } from "@/server/repositories/coach-plans";
 import { getSchedule, getTodayPlan } from "@/server/repositories/schedule";
 
 import Loading from "./loading";
@@ -86,7 +87,20 @@ export default async function TodayPage() {
             })
           : Promise.resolve([]),
       ]);
-      return { profile, gyms, plan, restProtocol, coach, standalone, programme };
+      // What the coach prepared for each, where it did: the target to follow today.
+      const [preparedStandalone, preparedProgramme] = await Promise.all([
+        withPreparedTargets(tx, user.id, standalone),
+        withPreparedTargets(tx, user.id, programme),
+      ]);
+      return {
+        profile,
+        gyms,
+        plan,
+        restProtocol,
+        coach,
+        standalone: preparedStandalone,
+        programme: preparedProgramme,
+      };
     }),
   ]);
   const { profile, gyms, plan, restProtocol, coach, standalone, programme } = data;

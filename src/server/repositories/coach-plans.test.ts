@@ -306,7 +306,8 @@ describe("a session that starts from a plan", () => {
       getSessionDetail(tx, alice.id, sessionId),
     );
     if (!detail) throw new Error("no detail");
-    expect(detail.coachPlan?.summary).toBe("Follow the exercise targets below.");
+    // The plan wrote no line of its own, so the workout shows none rather than a stock one.
+    expect(detail.coachPlan?.summary).toBeNull();
     expect(detail.coachPlan?.warmup).toEqual(["Bike 4 min", "Squat ramp 40×6, 50×3"]);
     expect(detail.exercises).toHaveLength(7);
 
