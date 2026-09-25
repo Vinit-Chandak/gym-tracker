@@ -488,8 +488,11 @@ The current implementation, not older planning prose, establishes the baseline d
 
 Added 19 September 2026 after review of the supplied exercise-evidence workbook. The user asked
 for a concise reference passed directly to the model, periodic updates, gradual improvement and
-minimal UI explanation. The reference is prepared; the integration and 30-day diagnostic
-retention below are recommendations for later implementation, not deployed behaviour.
+minimal UI explanation. Both have since shipped: the server supplies the reference to every job
+as `trainingReference`, and attempt receipts are kept for thirty days (see
+[coach-automation.md](../coach-automation.md)). Rep ranges now start from role-based bands rather
+than the reference's broad research ranges
+([ADR 0031](../decisions/0031-one-change-at-a-time-shown-once.md)).
 
 ### 9.1 One compact reference
 
