@@ -12,6 +12,7 @@ import { EXERCISES } from "@/db/seed/data/exercises";
 import { EQUIPMENT_TYPES } from "@/db/seed/data/equipment-types";
 import { WARMUP_PROTOCOLS } from "@/db/seed/data/warmups";
 import { diffPrograms } from "@/domain/program-diff";
+import { summariseProgramDiff } from "@/domain/program-change-summary";
 import type { ProgramBlueprint } from "@/domain/program-blueprint";
 import { PreviewShell } from "../../preview-shell";
 
@@ -327,6 +328,9 @@ export default async function CoachingPreview({
                 "Starting loads need calibration because no comparable training has been recorded.",
               ],
               activatedProgramId: null,
+              closedAs: null,
+              closedAt: null,
+              revisionNoteId: null,
               createdAt: new Date("2026-09-12"),
               updatedAt: new Date("2026-09-12"),
             }}
@@ -344,33 +348,22 @@ export default async function CoachingPreview({
             revision={2}
             author="coach"
             status="ready"
-            name="Example personal programme"
-            when="19 September 2026, 04:12"
+            outcome={null}
             headline="Swaps your barbell curl for a cable curl and adds a cable crunch."
             rationale="Bayesian cable curls go in on your upper day. Core work needs one answer before I can place it."
             uncertainties={[]}
-            gateReasons={["A new slot needs review."]}
-            diff={view === "unchanged" ? EMPTY_CHANGE : CHANGE_DIFF}
+            summary={summariseProgramDiff(view === "unchanged" ? EMPTY_CHANGE : CHANGE_DIFF)}
             names={Object.fromEntries(EXERCISES.map((e) => [e.slug, e.name]))}
             canContinue={false}
             requests={[
               {
                 id: `${ID.slice(0, 35)}2`,
-                summary: "Add Bayesian cable curls",
                 quote: "Can I have Bayesian cable curls?",
-                state: view === "unchanged" ? "not_recommended" : "proposed",
-                detail:
-                  view === "unchanged"
-                    ? "Your cable station has no adjustable low pulley, so this variation is not set up at your gym."
-                    : "Added to Upper, in place of the barbell curl.",
                 changeRefs: CURL_OPERATION_IDS,
               },
-              // The same run also had a question about core work. It is answered on the list
-              // that has a box for it, so it is not reprinted here.
             ]}
             today="2026-09-19"
             base="/profile/programme"
-            stale={false}
           />
         )}
         {view === "equipment" && (

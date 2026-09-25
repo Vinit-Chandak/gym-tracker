@@ -103,38 +103,54 @@ afterAll(async () => {
   await t?.close();
 });
 
-it("gives one change one row, and puts it under the ask that produced it", async () => {
+it("gives one proposal one row, carrying the words of the ask it answers", async () => {
   const data = await as((tx) => loadProgrammeChanges(tx, userId, "Europe/London"));
-  // The same proposal used to be a draft row, a request row and a review row at once, all
-  // three opening the same screen. The ask carries it; the other two stand down.
-  expect(data.changes).toEqual([]);
-  expect(data.reviews).toEqual([]);
-  expect(data.requests.map((request) => [request.summary, request.draftId])).toEqual([
-    ["More direct core work", draftId],
+  // One route in: not a draft row, a request row and a review row for the same change.
+  expect(data.proposals).toEqual([
+    {
+      id: draftId,
+      title: "Doubles your direct core work: 4 → 8 sets a week.",
+      fromCoach: true,
+      asks: ["more core"],
+    },
   ]);
+  expect(data.questions).toEqual([]);
 });
 
 it("folds an ask that is back with the coach out of what needs the athlete", async () => {
   const data = await as((tx) => loadProgrammeChanges(tx, userId, "Europe/London"));
-  expect(data.withCoach.map((request) => request.summary)).toEqual(["Add Bayesian cable curls"]);
+  expect(data.withCoach.map((request) => request.quote)).toEqual([
+    "Need to add Bayesian bicep curls",
+  ]);
   // The tab badge counts decisions, so an ask nobody is waiting on the athlete for is not one.
   expect(data.waiting).toBe(1);
 });
 
-it("returns the change and its review once the ask no longer speaks for it", async () => {
-  await as((tx) => tx.delete(coachProgramRequests));
-  const data = await as((tx) => loadProgrammeChanges(tx, userId, "Europe/London"));
-  expect(data.changes.map((change) => change.id)).toEqual([draftId]);
-  // Still the one route in: the review it came from waits until the change has an outcome.
-  expect(data.reviews).toEqual([]);
-  expect(data.waiting).toBe(1);
-
+it("moves a decided change into the history count rather than onto the tab", async () => {
   await as((tx) => tx.update(programDrafts).set({ status: "activated" }));
   const after = await as((tx) => loadProgrammeChanges(tx, userId, "Europe/London"));
-  expect(after.changes).toEqual([]);
-  expect(after.reviews.map((review) => review.outcome)).toEqual(["proposal"]);
+  expect(after.proposals).toEqual([]);
   expect(after.waiting).toBe(0);
-  // The history row carries the draft's one line, not the reasoning the coach is fed back.
-  expect(after.reviews[0]!.summary).toBe("Doubles your direct core work: 4 → 8 sets a week.");
-  expect(after.reviews[0]!.summary).not.toContain("eleven days");
+  expect(after.history.changes).toBe(1);
+  // An ask still marked proposed on a change that is no longer open is shown as back with the
+  // coach, not as something waiting on the athlete.
+  expect(after.withCoach.map((request) => request.state)).toEqual(["waiting", "waiting"]);
+});
+
+it("counts a settled ask in history, and an open one nowhere but the tab", async () => {
+  const before = await as((tx) => loadProgrammeChanges(tx, userId, "Europe/London"));
+  expect(before.history.requests).toBe(0);
+  await as((tx) =>
+    tx.insert(coachProgramRequests).values({
+      id: crypto.randomUUID(),
+      userId,
+      sourceId: `note:${crypto.randomUUID()}`,
+      quote: "swap the leg press",
+      summary: "Swap the leg press",
+      state: "applied",
+      detail: "",
+    }),
+  );
+  const after = await as((tx) => loadProgrammeChanges(tx, userId, "Europe/London"));
+  expect(after.history.requests).toBe(1);
 });

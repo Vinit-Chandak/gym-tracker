@@ -7,17 +7,40 @@ import { getDb } from "@/db/client";
 import { equipmentInstances, exercises } from "@/db/schema";
 import { withUser } from "@/db/with-user";
 import { assessProgramChange } from "@/domain/program-change";
+import { summariseProgramDiff } from "@/domain/program-change-summary";
 import { diffPrograms } from "@/domain/program-diff";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import { formatDateTime } from "@/lib/format";
+import { progress } from "@/domain/schedule";
+import { formatDay } from "@/lib/format";
 import { requireProfiledUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { listRequestsForDraft } from "@/server/repositories/coach-program-requests";
-import { getProgramDraft } from "@/server/repositories/program-drafts";
+import { getProgramDraft, type ProgramDraft } from "@/server/repositories/program-drafts";
 import { readProgramBlueprint } from "@/server/repositories/programs";
+import { getSchedule } from "@/server/repositories/schedule";
 import { sourceRevision } from "@/server/repositories/coaching-state";
 import { ChangeDetail } from "./change-detail";
 import { DraftPreview } from "./draft-preview";
+
+/** How a closed change ended, in the fewest words that are still true. */
+function outcomeLine(draft: ProgramDraft, timeZone: string): string | null {
+  const on = formatDay(draft.closedAt ?? draft.updatedAt, timeZone);
+  if (draft.status === "activated") return `Applied ${on}.`;
+  if (draft.status === "rejected")
+    return draft.closedAs === "revised"
+      ? `You asked for changes on ${on}.`
+      : draft.closedAs === "discarded"
+        ? `Discarded ${on}.`
+        : `You declined this on ${on}.`;
+  if (draft.status === "superseded")
+    return draft.closedAs === "replaced"
+      ? "A newer proposal took its place."
+      : draft.closedAs === "outdated"
+        ? // Closed by migration 0037: written while run effort was still out of ten.
+          "Closed unanswered: it was written for the old run-effort scale. The coach will propose again if it still holds."
+        : "No longer open: your programme changed first.";
+  return null;
+}
 
 /**
  * One programme change, or one first programme.
@@ -43,7 +66,8 @@ export async function ProgrammeDraftPage({
     async (tx) => {
       const draft = await getProgramDraft(tx, user.id, id);
       if (!draft) return null;
-      const [library, revision, current, machines, requests] = await Promise.all([
+      const open = draft.status === "editing" || draft.status === "ready";
+      const [library, revision, current, machines, requests, schedule] = await Promise.all([
         tx
           .select()
           .from(exercises)
@@ -55,12 +79,20 @@ export async function ProgrammeDraftPage({
           .from(equipmentInstances)
           .where(eq(equipmentInstances.userId, user.id)),
         listRequestsForDraft(tx, user.id, draft),
+        open && draft.baseProgramId ? getSchedule(tx, user.id) : null,
       ]);
+      // A change still waiting cannot touch a week already trained, so the difference starts
+      // at the cycle the athlete is in. A settled one is shown whole, as the record it is.
+      const fromWeek =
+        schedule && schedule.program.id === draft.baseProgramId
+          ? progress(schedule.state).currentCycle
+          : 1;
       return {
         draft,
         library,
         machines,
         requests,
+        fromWeek,
         currentBlueprint: current?.blueprint ?? null,
         stale: draft.sourceRevision !== revision,
         // Structural changes cannot continue the running block; the athlete is told so rather
@@ -95,38 +127,32 @@ export async function ProgrammeDraftPage({
     );
   return (
     <>
-      <PageHeader title="Programme changes" backHref={`${base}?view=changes`} />
+      <PageHeader title="Programme change" backHref={`${base}?view=changes`} />
       <PageContent>
         <ChangeDetail
           draftId={data.draft.id}
           revision={data.draft.revision}
           author={data.draft.source === "manual" ? "manual" : "coach"}
           status={data.draft.status}
-          name={data.draft.blueprint.name}
-          when={formatDateTime(data.draft.createdAt, profile.timeZone)}
+          outcome={outcomeLine(data.draft, profile.timeZone)}
           headline={data.draft.headline}
           rationale={data.draft.rationale}
           uncertainties={data.draft.uncertainties}
-          gateReasons={data.draft.gateReasons}
-          diff={diffPrograms(data.currentBlueprint, data.draft.blueprint)}
+          summary={summariseProgramDiff(diffPrograms(data.currentBlueprint, data.draft.blueprint), {
+            fromWeek: data.fromWeek,
+          })}
           names={Object.fromEntries(data.library.map((exercise) => [exercise.slug, exercise.name]))}
           canContinue={data.canContinue}
-          // Only the asks this change actually answers. The same run may have asked a question
-          // about a different ask, and that one is answered on the list it has a box on, not
-          // reprinted on a screen whose only buttons approve or decline a programme.
+          // Only the asks this change actually answers, to tag the lines they produced.
           requests={data.requests
             .filter((request) => request.draftId === data.draft.id)
             .map((request) => ({
               id: request.id,
-              summary: request.summary,
               quote: request.quote,
-              state: request.state,
-              detail: request.detail,
               changeRefs: request.changeRefs,
             }))}
           today={today}
           base={base}
-          stale={data.stale}
         />
       </PageContent>
     </>
