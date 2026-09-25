@@ -402,6 +402,36 @@ it("prepares a run inside its range without rewriting the approved running block
   expect(plan?.endurance[0]?.prescription?.running).toEqual(RUNNING_GUIDANCE);
 });
 
+/**
+ * Production, 25 September: every run preparation was refused on `prescription.running`,
+ * three times over, because the coach was never shown the approved block it was told to copy
+ * — only the programme's run row, whose fields are named differently. Leaving the guidance out
+ * now keeps it, which is the only thing a preparation could have meant by it.
+ */
+it("keeps the approved running block when a preparation leaves it out", async () => {
+  const a = await athlete();
+  const created = await programme(a);
+  const [occurrence] = await schedule(a, created.familyId, created.id, [
+    { sport: "running", date: "2026-09-21", week: 2, running: RUNNING_GUIDANCE },
+  ]);
+  const narrowed = prescription("running", [32 * MINUTE, 36 * MINUTE]);
+  expect(narrowed.running).toBeNull();
+  await as(a, (tx) =>
+    storeOccurrencePlan(tx, a.id, {
+      occurrenceId: occurrence!.id,
+      occurrenceRevisionId: occurrence!.revisionId!,
+      trigger: "nightly",
+      entry: entry(occurrence!, { prescription: narrowed }),
+    }),
+  );
+  const plan = await as(a, (tx) => activePlanForOccurrence(tx, a.id, occurrence!.id));
+  expect(plan?.endurance[0]?.prescription?.running).toEqual(RUNNING_GUIDANCE);
+  expect(plan?.endurance[0]?.prescription?.sessionTargets.durationMs).toEqual([
+    32 * MINUTE,
+    36 * MINUTE,
+  ]);
+});
+
 /** The rule itself stands: the guidance is the athlete's, and rewriting it is theirs to read. */
 it("refuses a preparation that rewrites the approved stop rule", async () => {
   const a = await athlete();

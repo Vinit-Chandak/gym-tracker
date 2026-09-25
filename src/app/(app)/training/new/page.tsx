@@ -14,6 +14,7 @@ import { saveActivityAction } from "@/server/actions/activities";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { getOccurrence } from "@/server/repositories/occurrences";
+import { withPreparedTargets } from "@/server/repositories/coach-plans";
 import { unitsFor } from "@/server/repositories/sport-preferences";
 import { requireUuid } from "@/server/validation/params";
 
@@ -41,9 +42,16 @@ export default async function NewActivityPage(props: PageProps<"/training/new">)
   if (search.occurrence !== undefined && !occurrenceId) notFound();
   if (occurrenceId) requireUuid(occurrenceId);
   const occurrence = occurrenceId
-    ? await withUser(getDb(), user.id, (tx) => getOccurrence(tx, user.id, occurrenceId), {
-        readOnly: true,
-      })
+    ? await withUser(
+        getDb(),
+        user.id,
+        async (tx) => {
+          const found = await getOccurrence(tx, user.id, occurrenceId);
+          // Logged against what the coach prepared for today, where it prepared something.
+          return found ? (await withPreparedTargets(tx, user.id, [found]))[0]! : null;
+        },
+        { readOnly: true },
+      )
     : null;
   // Missing or foreign is genuinely "no such thing". An occurrence this account owns that
   // is already logged or cancelled is refused too, but saying it does not exist would be a
@@ -71,7 +79,7 @@ export default async function NewActivityPage(props: PageProps<"/training/new">)
   });
   const target = occurrence?.prescription
     ? {
-        title: "The plan asked for",
+        title: occurrence.preparedByCoach ? "Your coach asked for" : "The plan asked for",
         lines: [
           describePrescription(occurrence.prescription),
           occurrence.prescription.running?.paceNote,

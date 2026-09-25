@@ -181,7 +181,9 @@ export function assessProgramChange(
       (old.duration.some(
         (value, i) => Math.abs(next.duration[i]! / value - 1) > TRAINING_POLICY.maxRunChange + 1e-9,
       ) ||
-        old.rpe.some((value, i) => Math.abs(next.rpe[i]! - value) > 1))
+        // Out of five, one step is easy becoming moderate, not a nudge: a run's prescribed
+        // effort never changes on its own. (Out of ten, ±1 was the small change it looked.)
+        old.rpe.some((value, i) => next.rpe[i]! !== value))
     )
       doseChanges.push(
         `Run ${next.weekIndex}/${next.dayOfWeek}: duration or effort exceeds the automatic limit.`,

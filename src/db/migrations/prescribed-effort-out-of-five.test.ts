@@ -115,8 +115,9 @@ it("is what keeps an existing programme readable under the new bound", () => {
   // is exactly what `programBlueprintFromRows` would hand the parser for an unmigrated row.
   expect(programBlueprintSchema.safeParse(withRunEffort([6, 7])).success).toBe(false);
   expect(programBlueprintSchema.safeParse(withRunEffort([3, 3])).success).toBe(true);
-  // The programme as shipped already asks within five, so the seed needs no rewriting.
+  // The programme as shipped asks within five, and means it: its easy runs are 1–2.
   expect(programBlueprintSchema.safeParse(STRENGTH_AESTHETICS_HYBRID_8WK).success).toBe(true);
+  expect(STRENGTH_AESTHETICS_HYBRID_8WK.runs.every((run) => run.rpe[1] <= 2)).toBe(true);
 });
 
 function withRunEffort(rpe: [number, number]) {

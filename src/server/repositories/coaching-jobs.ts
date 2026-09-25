@@ -20,6 +20,7 @@ import {
 } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import {
+  exercises,
   coachGymIntents,
   coachChangeRecords,
   coachIntakes,
@@ -56,12 +57,28 @@ import {
 } from "./coaching-guardrails";
 import { readCoachingEvidence, retainEvidenceBaselines } from "./coaching-evidence";
 import { updateCoachMemory } from "./coach-memory";
-import { applyRequestPatch, hasActionableRequests } from "./coach-program-requests";
+import {
+  applyRequestPatch,
+  hasActionableRequests,
+  settleClosedDraftRequests,
+} from "./coach-program-requests";
+import {
+  askedAt,
+  currentCycleFor,
+  declinedChanges,
+  keepFinishedWeeks,
+  narrowRangeIssues,
+  openCoachProposals,
+  pendingCoachProposal,
+  repeatedDeclines,
+} from "./coach-proposals";
 import { expireCoachDiagnostics, recordAttemptDiagnostics } from "./coach-diagnostics";
 import type { CoachingChangeRecord } from "@/db/schema";
-import type { ProgramBlueprint } from "@/domain/program-blueprint";
+import { programBlueprintSchema, type ProgramBlueprint } from "@/domain/program-blueprint";
 import { lastCoachBoundary, reviewStanding, weeklyReviewPeriod } from "@/domain/coach-cadence";
-import { diffOperationIds, diffPrograms } from "@/domain/program-diff";
+import { diffOperationIds, diffOperationSignatures, diffPrograms } from "@/domain/program-diff";
+import { jsonEqual } from "@/domain/json-equal";
+import { assessProgramChange } from "@/domain/program-change";
 import { addDays, todayInTimeZone } from "@/domain/program-calendar";
 import { sharedExercises } from "@/server/queries/reference";
 import {
@@ -534,7 +551,7 @@ export async function acceptCoachJobResult(
   /** Operation IDs of the actual blueprint difference, so a claimed change can be checked. */
   let changeOperationIds: Set<string> | null = null;
   if (result.outcome === "program") {
-    const blueprint = await validateBlueprintForAthlete(
+    let blueprint = await validateBlueprintForAthlete(
       db,
       userId,
       result.blueprint,
@@ -581,76 +598,159 @@ export async function acceptCoachJobResult(
       if (new Set(trainingDays.map((day) => day.dayOfWeek)).size !== trainingDays.length)
         throw new CoachingError("Use a distinct weekday for each confirmed training day.", 422);
     }
-    const [draft] = await db
-      .insert(programDrafts)
-      .values({
-        userId,
-        source: job.kind === "review_program" ? "weekly" : "ai",
-        status: "ready",
-        blueprint,
-        openingPlan: job.kind === "create_program" ? result.openingPlan : null,
-        jobId: job.id,
-        intakeId: job.intakeId,
-        baseProgramId: job.target.programId,
-        sourceRevision: job.sourceRevision!,
-        headline: result.headline,
-        rationale: result.rationale,
-        uncertainties: result.uncertainties,
-      })
-      .returning();
-    draftId = draft!.id;
-    if (job.kind === "review_program" && job.target.programId) {
-      const current = await readProgramBlueprint(db, userId, job.target.programId);
-      if (!current) throw new CoachingError("The reviewed programme is no longer available.");
-      const assessment = assessWeeklyEvidence(
-        current.blueprint,
-        blueprint,
-        trainingEvidence,
-        cited,
-        await sharedExercises(db),
-        now,
+    const reviewed =
+      job.kind === "review_program" && job.target.programId
+        ? await readProgramBlueprint(db, userId, job.target.programId)
+        : null;
+    if (job.kind === "review_program" && job.target.programId && !reviewed)
+      throw new CoachingError("The reviewed programme is no longer available.");
+    if (reviewed) {
+      // A week already trained is not part of any change: it is kept exactly as it was, so
+      // a proposal is only ever about what is still ahead. A new block starts its weeks
+      // again, so there is nothing finished to keep.
+      if (assessProgramChange(reviewed.blueprint, blueprint, []).structuralChanges.length === 0)
+        blueprint = keepFinishedWeeks(
+          blueprint,
+          reviewed.blueprint,
+          await currentCycleFor(db, userId, job.target.programId),
+        );
+      // A change the athlete declined stays out of the next proposal until its cooldown is
+      // over — unless they have asked for it again, which a proposed decision naming it says.
+      const repeats = repeatedDeclines(
+        diffPrograms(reviewed.blueprint, blueprint),
+        await declinedChanges(db, userId, now),
+        await askedAt(db, userId, requestPatch, now),
       );
-      changeOperationIds = diffOperationIds(diffPrograms(current.blueprint, blueprint));
-      if (assessment.authority === "unchanged") {
-        await db
-          .update(programDrafts)
-          .set({ status: "superseded" })
-          .where(eq(programDrafts.id, draftId));
-      } else if (
-        assessment.automatic &&
-        coachRollout().automaticReviews &&
-        !proposesRequest &&
-        job.target.purpose !== "requests"
-      ) {
-        // The athlete's own today, not the owner's: a review activated for someone in Los
-        // Angeles was being started on India's date, which is most of a day ahead of theirs.
-        const [athlete] = await db
-          .select({ timeZone: profiles.timeZone })
-          .from(profiles)
-          .where(eq(profiles.id, userId))
-          .limit(1);
-        await activateProgramDraft(db, userId, draftId, {
-          expectedRevision: draft!.revision,
-          startDate: todayInTimeZone(athlete?.timeZone ?? "UTC", now),
-          transition: "continue",
-          automatic: true,
-        });
-        reviewOutcome = "automatic";
-        acceptedChanges = assessment.changes;
-        programBefore = current.blueprint;
-      } else {
-        reviewOutcome = "proposal";
-        // The coach's caveats and the server's gate are two different statements, and they
-        // are kept in two different columns. Merged, "a new slot needs review" — emitted once
-        // per added slot — read to the athlete as the coach doubting its own proposal.
-        await db
-          .update(programDrafts)
-          .set({
-            gateReasons: [...new Set(assessment.reasons)]
-              .slice(0, 20)
-              .map((text) => text.slice(0, 500)),
-          })
-          .where(eq(programDrafts.id, draftId));
+      if (repeats.length)
+        throw new CoachingError(
+          `The athlete declined ${repeats.length === 1 ? "this change" : "these changes"} recently. Leave ${repeats.length === 1 ? "it" : "them"} out until the date given, unless they ask for ${repeats.length === 1 ? "it" : "them"} again.`,
+          422,
+          repeats.map(
+            (repeat) =>
+              `${repeat.label} — declined ${repeat.declinedAt.toISOString().slice(0, 10)}, not before ${repeat.until.toISOString().slice(0, 10)} (${repeat.fingerprint}).`,
+          ),
+        );
+    }
+    // Outside the main lifts, a new or changed rep range needs room to add reps before a load
+    // step: a zero-width 10–10 stalls double progression from the day it is written.
+    if (job.kind === "create_program" || reviewed) {
+      const [shared, own] = await Promise.all([
+        sharedExercises(db),
+        db.select().from(exercises).where(eq(exercises.userId, userId)),
+      ]);
+      const narrow = narrowRangeIssues(blueprint, reviewed?.blueprint ?? null, [...shared, ...own]);
+      if (narrow.length) throw new CoachingError(narrow[0]!, 422, narrow);
+    }
+    const waiting = reviewed ? await pendingCoachProposal(db, userId, job.target.programId) : null;
+    // Compared as content, not as a diff: a slot the waiting proposal adds has no lineage
+    // yet, so a diff between two copies of it reads as one removal and one addition.
+    if (
+      reviewed &&
+      waiting &&
+      jsonEqual(programBlueprintSchema.parse(waiting.blueprint), blueprint)
+    ) {
+      // The review arrived at exactly the proposal already waiting: that one stays, with its
+      // asks and its place on the athlete's list, and no second copy of it is written.
+      draftId = waiting.id;
+      changeOperationIds = diffOperationIds(diffPrograms(reviewed.blueprint, waiting.blueprint));
+      reviewOutcome = "proposal";
+    } else {
+      const [draft] = await db
+        .insert(programDrafts)
+        .values({
+          userId,
+          source: job.kind === "review_program" ? "weekly" : "ai",
+          status: "ready",
+          blueprint,
+          openingPlan: job.kind === "create_program" ? result.openingPlan : null,
+          jobId: job.id,
+          intakeId: job.intakeId,
+          baseProgramId: job.target.programId,
+          sourceRevision: job.sourceRevision!,
+          headline: result.headline,
+          rationale: result.rationale,
+          uncertainties: result.uncertainties,
+        })
+        .returning();
+      draftId = draft!.id;
+      if (reviewed) {
+        const current = reviewed;
+        const assessment = assessWeeklyEvidence(
+          current.blueprint,
+          blueprint,
+          trainingEvidence,
+          cited,
+          await sharedExercises(db),
+          now,
+        );
+        changeOperationIds = diffOperationIds(diffPrograms(current.blueprint, blueprint));
+        if (assessment.authority === "unchanged") {
+          await db
+            .update(programDrafts)
+            .set({ status: "superseded" })
+            .where(eq(programDrafts.id, draftId));
+        } else if (
+          assessment.automatic &&
+          coachRollout().automaticReviews &&
+          !proposesRequest &&
+          job.target.purpose !== "requests" &&
+          // Starting a programme closes every open proposal, and one is waiting on the
+          // athlete: applying a small change on its own would quietly throw theirs away.
+          !waiting
+        ) {
+          // The athlete's own today, not the owner's: a review activated for someone in Los
+          // Angeles was being started on India's date, which is most of a day ahead of theirs.
+          const [athlete] = await db
+            .select({ timeZone: profiles.timeZone })
+            .from(profiles)
+            .where(eq(profiles.id, userId))
+            .limit(1);
+          await activateProgramDraft(db, userId, draftId, {
+            expectedRevision: draft!.revision,
+            startDate: todayInTimeZone(athlete?.timeZone ?? "UTC", now),
+            transition: "continue",
+            automatic: true,
+          });
+          reviewOutcome = "automatic";
+          acceptedChanges = assessment.changes;
+          programBefore = current.blueprint;
+        } else {
+          reviewOutcome = "proposal";
+          // The coach's caveats and the server's gate are two different statements, and they
+          // are kept in two different columns. Merged, "a new slot needs review" — emitted
+          // once per added slot — read to the athlete as the coach doubting its own proposal.
+          await db
+            .update(programDrafts)
+            .set({
+              gateReasons: [...new Set(assessment.reasons)]
+                .slice(0, 20)
+                .map((text) => text.slice(0, 500)),
+            })
+            .where(eq(programDrafts.id, draftId));
+          // One proposal waits at a time. This one was written with the waiting one in front
+          // of it and takes its place; an ask the older one answered moves across when this
+          // one makes exactly the same change, and goes back to the coach when it does not.
+          const successor = diffOperationSignatures(diffPrograms(current.blueprint, blueprint));
+          for (const replaced of await openCoachProposals(db, userId, job.target.programId)) {
+            if (replaced.id === draftId) continue;
+            await db
+              .update(programDrafts)
+              .set({ status: "superseded", closedAs: "replaced", closedAt: now })
+              .where(eq(programDrafts.id, replaced.id));
+            await settleClosedDraftRequests(
+              db,
+              userId,
+              {
+                draftId: replaced.id,
+                signatures: diffOperationSignatures(
+                  diffPrograms(current.blueprint, replaced.blueprint),
+                ),
+                successor: { draftId, state: "proposed", signatures: successor },
+              },
+              now,
+            );
+          }
+        }
       }
     }
   }
@@ -775,9 +875,13 @@ export async function acceptCoachJobResult(
         // A run that only answered the athlete's requests has not read the training week the
         // scheduled review owes them, so it does not consume it: the anchor stays where it
         // was and the ordinary review still reads every day since the last one.
+        // Never backwards: an older review finishing after a newer one must not make the next
+        // one read a week that has already been read.
         ...(job.target.purpose === "requests"
           ? {}
-          : { reviewAnchorAt: new Date(job.target.reviewEnd) }),
+          : {
+              reviewAnchorAt: sql`greatest(coalesce(${coachPreferences.reviewAnchorAt}, ${new Date(job.target.reviewEnd).toISOString()}::timestamptz), ${new Date(job.target.reviewEnd).toISOString()}::timestamptz)`,
+            }),
         // Cleared only when nothing is still waiting. An ask saved after this attempt's
         // snapshot keeps the flag up, so it is heard at the next daily run instead of being
         // closed by a review that never saw it.
@@ -994,6 +1098,32 @@ export async function reviewAnchor(
 }
 
 /**
+ * A review already queued or running for this athlete's programme in this batch, if any.
+ *
+ * Asking for a review while one is already waiting to run gets that one: it reads everything
+ * a second would have, and a second would only rewrite the first one's proposal. Only a
+ * review of the same programme for the same batch counts — an older one prepares its own
+ * batch's session when it finishes, and one of a programme since replaced is dropped at claim.
+ */
+async function openReviewJob(db: DbOrTx, userId: string, programId: string, batchDate: string) {
+  const [job] = await db
+    .select()
+    .from(coachJobs)
+    .where(
+      and(
+        eq(coachJobs.userId, userId),
+        eq(coachJobs.kind, "review_program"),
+        inArray(coachJobs.status, [...pending]),
+        sql`${coachJobs.target} ->> 'programId' = ${programId}`,
+        sql`${coachJobs.target} ->> 'batchDate' = ${batchDate}`,
+      ),
+    )
+    .orderBy(asc(coachJobs.createdAt))
+    .limit(1);
+  return job ? { job, created: false } : null;
+}
+
+/**
  * A programme review whose purpose is what the athlete asked for.
  *
  * The ordinary review runs on its cadence and reads the training week it owes them. This one
@@ -1005,9 +1135,11 @@ export async function reviewAnchor(
 export async function enqueueRequestReview(db: DbOrTx, userId: string, now = new Date()) {
   const active = await getActiveProgram(db, userId);
   if (!active) return null;
+  const boundary = lastCoachBoundary(now);
+  const waiting = await openReviewJob(db, userId, active.id, boundary.date);
+  if (waiting) return waiting;
   const preference = await getCoachingPreferences(db, userId);
   const anchor = await reviewAnchor(db, userId, now);
-  const boundary = lastCoachBoundary(now);
   // An interval has to have somewhere to start; a request made since the last boundary is
   // heard at the next one.
   if (!anchor || boundary.at <= anchor) return null;
@@ -1253,6 +1385,8 @@ export async function dispatchCoachPage(db: Db, after: string | null = null, now
                 athlete.id,
                 todayInTimeZone(athlete.timeZone, boundary.at),
               )));
+          // A review queued earlier and not yet run is not reused here: it prepares its own
+          // batch's session when it finishes, so this batch would be left with none.
           if (scheduled || asked) {
             const period = weeklyReviewPeriod(anchor, boundary.at);
             result = await enqueueCoachJob(tx, athlete.id, {

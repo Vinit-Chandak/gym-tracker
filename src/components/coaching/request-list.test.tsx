@@ -21,13 +21,11 @@ afterEach(cleanup);
 
 const request = (overrides: Partial<RequestView>): RequestView => ({
   id: "00000000-0000-4000-8000-000000000001",
-  summary: "More direct core work",
   quote: "and more direct core work please",
   state: "waiting",
   detail: "",
   condition: "",
   reconsiderAfter: null,
-  when: "Wed 16 Sept, 17:14",
   draftId: null,
   ...overrides,
 });
@@ -73,26 +71,43 @@ it("uses a new answer key when the coach asks another question on the same reque
   expect(calls[0]![2]).not.toBe(calls[1]![2]);
 });
 
-it("gives a question a box to answer it in, and a proposal the change instead", () => {
+it("titles each ask with the athlete's own words and says only what it needs now", () => {
   render(
     <RequestList
       requests={[
         request({ state: "needs_answer", detail: "Which day has the most time?" }),
-        request({
-          id: "00000000-0000-4000-8000-000000000002",
-          summary: "Add Bayesian cable curls",
-          state: "proposed",
-          draftId: "00000000-0000-4000-8000-000000000009",
-        }),
+        request({ id: "00000000-0000-4000-8000-000000000002", quote: "Bayesian curls" }),
       ]}
     />,
   );
+  expect(screen.getByText("“and more direct core work please”")).toBeTruthy();
+  expect(screen.getByText("Which day has the most time?")).toBeTruthy();
   expect(screen.getByRole("button", { name: "Send answer" })).toBeTruthy();
-  expect(screen.getByText("Needs your answer")).toBeTruthy();
+  expect(screen.getByText("At the next coach run")).toBeTruthy();
+  // No status badge restating the heading, and no date stamped by the coach's run.
+  expect(screen.queryByText("Needs your answer")).toBeNull();
+  expect(screen.queryByText(/Asked /)).toBeNull();
+  expect(screen.getAllByRole("button", { name: "I no longer want this" })).toHaveLength(2);
+});
+
+it("says what a settled ask came to, with the change one tap away", () => {
+  render(
+    <RequestList
+      requests={[
+        request({
+          state: "applied",
+          outcome: "Doubles your direct core work.",
+          settledOn: "19 Sept",
+          draftId: "00000000-0000-4000-8000-000000000009",
+        }),
+        request({ id: "00000000-0000-4000-8000-000000000003", state: "withdrawn" }),
+      ]}
+    />,
+  );
+  expect(screen.getByText(/Done — Doubles your direct core work\./)).toBeTruthy();
+  expect(screen.getByText(/You withdrew it/)).toBeTruthy();
   expect(screen.getByRole("link", { name: "See the change" }).getAttribute("href")).toBe(
     "/profile/programme/drafts/00000000-0000-4000-8000-000000000009",
   );
-  // One question, one answer: a proposal is decided on its own change screen, so it offers no
-  // second way to say no here.
-  expect(screen.getAllByRole("button", { name: "I no longer want this" })).toHaveLength(1);
+  expect(screen.queryByRole("button", { name: "I no longer want this" })).toBeNull();
 });

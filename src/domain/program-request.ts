@@ -61,18 +61,6 @@ export const OPEN_REQUEST_STATES: readonly RequestState[] = [
   "deferred",
 ];
 
-export const REQUEST_STATE_LABELS: Record<RequestState, string> = {
-  waiting: "Waiting for the next daily coach run",
-  needs_answer: "Needs your answer",
-  proposed: "Awaiting your approval",
-  deferred: "Not yet",
-  not_recommended: "Not recommended",
-  already_satisfied: "Already in your programme",
-  applied: "Applied",
-  declined: "You declined this",
-  withdrawn: "Withdrawn",
-};
-
 /** Furthest ahead a deferral may be parked, matching the memo's own reassessment ceiling. */
 export const MAX_DEFERRAL_DAYS = 56;
 /** How many open requests one job is asked to decide; the rest wait, they are never lost. */
@@ -136,21 +124,4 @@ export function validateDeferral(reconsiderAfter: string, now: Date): void {
     throw new Error(
       `Set the reconsideration date after today and within ${MAX_DEFERRAL_DAYS} days.`,
     );
-}
-
-/** What the athlete sees beside their own words, in the shortest form that is still true. */
-export function requestStatusLine(request: {
-  state: RequestState;
-  detail: string;
-  condition: string;
-  reconsiderAfter: string | null;
-}): string {
-  const label = REQUEST_STATE_LABELS[request.state];
-  const extra =
-    request.state === "deferred"
-      ? [request.condition, request.reconsiderAfter ? `from ${request.reconsiderAfter}` : null]
-          .filter(Boolean)
-          .join(" · ")
-      : "";
-  return [label, request.detail, extra].filter(Boolean).join(" — ");
 }

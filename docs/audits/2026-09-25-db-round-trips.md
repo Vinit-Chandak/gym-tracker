@@ -638,7 +638,7 @@ for the numbers below.
 Revised after the production measurement. Ordered by what a tap will feel.
 
 Steps 1, 2 and 5's read-only changes are done: see
-[ADR 0031](../decisions/0031-the-tabs-arrive-before-the-tap.md). Two changes from what is
+[ADR 0032](../decisions/0032-the-tabs-arrive-before-the-tap.md). Two changes from what is
 written below:
 
 - `revalidatePath` stays, because the prefetched tabs now carry data.

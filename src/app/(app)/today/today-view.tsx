@@ -17,7 +17,7 @@ import { Card } from "@/components/ui/card";
 import { Disclosure } from "@/components/ui/disclosure";
 import { InfoTip } from "@/components/ui/info-tip";
 import { Section } from "@/components/ui/section";
-import { summaryForSport } from "@/domain/sport-scope";
+import { writtenSummaryForSport } from "@/domain/sport-scope";
 import type { SlotStatus } from "@/domain/schedule";
 import type { WarmupDrill } from "@/domain/types";
 import { formatDateTime, formatIsoWeekdayDay, formatTime } from "@/lib/format";
@@ -155,11 +155,13 @@ function CoachStatus({
       </p>
     );
   }
-  if (coach.failure) {
+  // Only when there is no plan to follow: a failure under a plan that is on screen said the
+  // opposite of what the screen showed. What went wrong is the coach owner's to read, on the
+  // AI coach page, not a line of the athlete's day.
+  if (coach.failure && !coach.plan) {
     return (
-      <p className="text-sm text-warning">
-        The coach&apos;s last planning attempt failed. {coach.failure.error ?? "It gave no reason."}{" "}
-        The programme&apos;s own targets apply.
+      <p className="text-sm text-ink-muted">
+        The coach could not prepare this session, so your programme&apos;s own targets apply.
       </p>
     );
   }
@@ -335,7 +337,7 @@ export function TodayView({
                     title={day.name}
                     subtitle={
                       coachPlan
-                        ? summaryForSport(coachPlan, "workout")
+                        ? (writtenSummaryForSport(coachPlan, "workout") ?? daySubtitle(day))
                         : day.includesRun
                           ? planSummary(plan.suggestedExercises)
                           : daySubtitle(day)

@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { warningsForSport, summaryForSport } from "./sport-scope";
+import { warningsForSport, summaryForSport, writtenSummaryForSport } from "./sport-scope";
 import { reviewPlan } from "./coach-review";
 import { planRunSchema } from "./session-plan";
 
@@ -24,4 +24,13 @@ it("uses the sport's summary and never guesses at legacy combined prose", () => 
   expect(summaryForSport(plan, "run")).toBe("Keep an easy pace.");
   expect(summaryForSport({}, "workout")).not.toContain("run");
   expect(summaryForSport({}, "run")).not.toContain("arms");
+});
+
+it("tells a written summary from the stock fallback", () => {
+  expect(
+    writtenSummaryForSport({ sportSummaries: { workout: "Keep the arm targets." } }, "workout"),
+  ).toBe("Keep the arm targets.");
+  // Nothing written is nothing to show: the screen decides what, if anything, stands in.
+  expect(writtenSummaryForSport({}, "workout")).toBeNull();
+  expect(writtenSummaryForSport({ sportSummaries: { run: "Easy." } }, "workout")).toBeNull();
 });

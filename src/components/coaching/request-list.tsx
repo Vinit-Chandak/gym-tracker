@@ -4,12 +4,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 
-import { Badge } from "@/components/ui/badge";
-import { Button, LinkButton } from "@/components/ui/button";
+import Link from "@/components/ui/app-link";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { SpeechTextarea } from "@/components/ui/dictation";
 import { PLAN_LIMITS } from "@/domain/session-plan";
-import { REQUEST_STATE_LABELS, type RequestState } from "@/domain/program-request";
+import type { RequestState } from "@/domain/program-request";
 import { formatIsoDay } from "@/lib/format";
 import {
   answerProgramRequestAction,
@@ -20,32 +20,47 @@ import { coachingAction } from "./client-action";
 
 export type RequestView = {
   id: string;
-  summary: string;
   quote: string;
   state: RequestState;
+  /** The coach's question, reason or outcome line; empty when the state says it all. */
   detail: string;
   condition: string;
   reconsiderAfter: string | null;
-  when: string;
-  /** The change this request is waiting on, when it produced one. */
+  /** The change this ask was answered with, when there is one to open. */
   draftId: string | null;
+  /** For a settled ask: what the change did, and when it was settled. */
+  outcome?: string | null;
+  settledOn?: string | null;
 };
 
-const TONE: Partial<Record<RequestState, "accent" | "success" | "warning" | "neutral">> = {
-  waiting: "neutral",
-  needs_answer: "warning",
-  proposed: "accent",
-  applied: "success",
+/** What a settled ask came to, in a word. */
+const SETTLED: Partial<Record<RequestState, string>> = {
+  applied: "Done",
+  declined: "You declined it",
+  withdrawn: "You withdrew it",
+  not_recommended: "Not recommended",
+  already_satisfied: "Already in your programme",
 };
+
+/** Where an ask that needs nothing from the athlete is. */
+function waitingLine(request: RequestView): string {
+  if (request.state === "deferred")
+    return [
+      request.reconsiderAfter ? `Back on ${formatIsoDay(request.reconsiderAfter)}` : "Later",
+      request.condition,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+  return "At the next coach run";
+}
 
 /**
- * What the athlete asked for, and what became of it.
+ * What the athlete asked for, in their own words, and what it needs from them now.
  *
- * A note used to come back marked "Reviewed by coach", which tells somebody who asked for
- * Bayesian curls precisely nothing. Every ask here carries its own outcome: waiting for the
- * next daily run, a question with a box to answer it in, a change to approve, a reason it is
- * not recommended, or a date it comes back. Their own words stay beside it so they can see
- * which ask is which.
+ * Their words are the title, because they recognise them. A question comes with the box to
+ * answer it in; an ask waiting on the coach says when it will be heard; a settled one says
+ * what it came to. Nothing is said twice: no status badge under a heading that already says
+ * it, no coach paraphrase of the ask above the ask, no date the coach's run stamped on it.
  */
 export function RequestList({
   requests,
@@ -71,8 +86,7 @@ function RequestRow({ request, base }: { request: RequestView; base: string }) {
   const [noteId, setNoteId] = useState(() => crypto.randomUUID());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // A proposal already has its own decision — approve, revise or decline — on the change it
-  // points at. Offering a second way to say no here would be two answers to one question.
+  const settled = SETTLED[request.state];
   const withdrawable = ["waiting", "needs_answer", "deferred"].includes(request.state);
 
   const act = async (work: () => Promise<{ ok: boolean; error?: string }>) => {
@@ -86,31 +100,24 @@ function RequestRow({ request, base }: { request: RequestView; base: string }) {
 
   return (
     <Card>
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <p className="min-w-0 font-medium [overflow-wrap:anywhere]">{request.summary}</p>
-        <Badge tone={TONE[request.state] ?? "neutral"}>{REQUEST_STATE_LABELS[request.state]}</Badge>
-      </div>
-      <p className="text-sm [overflow-wrap:anywhere] text-ink-muted">“{request.quote}”</p>
-      {request.detail && <p className="text-sm [overflow-wrap:anywhere]">{request.detail}</p>}
-      {request.state === "deferred" && (request.condition || request.reconsiderAfter) && (
-        <p className="text-sm text-ink-muted tabular-nums">
-          {[
-            request.condition,
-            request.reconsiderAfter && `Back on ${formatIsoDay(request.reconsiderAfter)}`,
-          ]
-            .filter(Boolean)
-            .join(" · ")}
+      <p className="font-medium [overflow-wrap:anywhere]">“{request.quote}”</p>
+      {settled ? (
+        <p className="text-sm [overflow-wrap:anywhere] text-ink-muted">
+          {[settled, request.outcome || request.detail].filter(Boolean).join(" — ")}
+          {request.settledOn && <span className="tabular-nums"> · {request.settledOn}</span>}
         </p>
+      ) : request.state === "needs_answer" ? (
+        request.detail && <p className="text-sm [overflow-wrap:anywhere]">{request.detail}</p>
+      ) : (
+        <p className="text-sm text-ink-muted tabular-nums">{waitingLine(request)}</p>
       )}
-      <p className="text-xs text-ink-muted tabular-nums">Asked {request.when}</p>
-      {request.state === "proposed" && request.draftId && (
-        <LinkButton
+      {settled && request.draftId && (
+        <Link
           href={`${base}/drafts/${request.draftId}` as Route}
-          className="flex w-full"
-          variant="secondary"
+          className="flex min-h-11 items-center text-sm text-accent underline-offset-4 hover:underline"
         >
           See the change
-        </LinkButton>
+        </Link>
       )}
       {request.state === "needs_answer" && (
         <div className="space-y-2">
@@ -122,9 +129,6 @@ function RequestRow({ request, base }: { request: RequestView; base: string }) {
             value={answer}
             onChange={setAnswer}
           />
-          <p className="text-xs text-ink-subtle">
-            Saved for the next daily coach run; it does not start one now.
-          </p>
           <Button
             className="flex w-full"
             disabled={busy || answer.trim().length === 0}

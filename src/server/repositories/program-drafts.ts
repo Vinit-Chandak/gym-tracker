@@ -3,6 +3,7 @@ import {
   coachChangeRecords,
   coachIntakes,
   coachJobs,
+  coachNotes,
   coachPreferences,
   equipmentInstances,
   exerciseEquipmentOptions,
@@ -25,13 +26,15 @@ import {
 } from "@/domain/program-blueprint";
 import { enduranceCycleIssues } from "@/domain/program-blueprint-v2";
 import { assessProgramChange } from "@/domain/program-change";
+import { diffOperationSignatures, diffPrograms } from "@/domain/program-diff";
 import { openingPlanSchema, type OpeningPlan } from "@/domain/coaching-workflow";
 import { reviewWeekdayFor } from "@/domain/coach-cadence";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { sharedWarmupProtocols } from "@/server/queries/reference";
 import { libraryAtGym, nextTrainingSlot, storePlan } from "./coach-plans";
 import { materialiseOccurrences, occurrencesFromBlueprint } from "./program-occurrences";
-import { markRequestsApplied } from "./coach-program-requests";
+import { markRequestsApplied, settleClosedDraftRequests } from "./coach-program-requests";
+import { currentCycleFor, keepFinishedWeeks } from "./coach-proposals";
 import { assertNoOpenWorkout, CoachingError, sourceRevision } from "./coaching-state";
 import { createProgramFromBlueprint, readProgramBlueprint } from "./programs";
 import { getActiveProgram, getSchedule } from "./schedule";
@@ -79,16 +82,25 @@ export async function archiveActiveProgram(db: DbOrTx, userId: string, programId
       leaseUntil: null,
     })
     .where(and(eq(coachJobs.userId, userId), inArray(coachJobs.status, ["queued", "claimed"])));
-  await db
+  const closed = await db
     .update(programDrafts)
-    .set({ status: "superseded" })
+    .set({ status: "superseded", closedAt: new Date() })
     .where(
       and(
         eq(programDrafts.userId, userId),
         eq(programDrafts.baseProgramId, programId),
         inArray(programDrafts.status, ["editing", "ready"]),
       ),
-    );
+    )
+    .returning({ id: programDrafts.id });
+  // Nothing replaces them: their asks go back to the coach rather than pointing at a
+  // proposal for a programme that no longer runs.
+  for (const draft of closed)
+    await settleClosedDraftRequests(db, userId, {
+      draftId: draft.id,
+      signatures: new Map(),
+      successor: null,
+    });
   await db
     .update(sessionPlans)
     .set({ status: "superseded" })
@@ -333,6 +345,51 @@ export async function listProgramDrafts(db: DbOrTx, userId: string) {
     .limit(20);
 }
 
+/**
+ * Closes an open draft without starting it, and records how.
+ *
+ * The three are different answers and the coach reads them differently: a decline is "not
+ * this", which it must not propose again for a while; a revision is "this, reworked", with
+ * the athlete's words attached; a discarded draft was the athlete's own edit. A revision also
+ * asks for the review that reworks it — without that, a proposal nobody asked for would be
+ * sent back and never looked at again.
+ */
+export async function closeProgramDraft(
+  db: DbOrTx,
+  userId: string,
+  id: string,
+  as: "declined" | "revised" | "discarded",
+  noteId: string | null = null,
+  now = new Date(),
+) {
+  const [closed] = await db
+    .update(programDrafts)
+    .set({ status: "rejected", closedAs: as, closedAt: now, revisionNoteId: noteId })
+    .where(
+      and(
+        eq(programDrafts.id, id),
+        eq(programDrafts.userId, userId),
+        inArray(programDrafts.status, ["editing", "ready"]),
+      ),
+    )
+    .returning({ id: programDrafts.id });
+  if (!closed) throw new CoachingError("That change is no longer waiting for an answer.");
+  if (as === "revised") {
+    if (noteId) {
+      const [note] = await db
+        .select({ id: coachNotes.id })
+        .from(coachNotes)
+        .where(and(eq(coachNotes.id, noteId), eq(coachNotes.userId, userId)));
+      if (!note) throw new CoachingError("Save what you would like changed first.");
+    }
+    await db
+      .update(coachPreferences)
+      .set({ reviewRequestedAt: now })
+      .where(eq(coachPreferences.userId, userId));
+  }
+  return closed;
+}
+
 export async function saveManualDraft(
   db: DbOrTx,
   userId: string,
@@ -448,7 +505,7 @@ export async function activateProgramDraft(
   const active = await getActiveProgram(db, userId);
   if (draft.baseProgramId !== (active?.id ?? null))
     throw new CoachingError("Your active programme changed while this draft was waiting.");
-  const blueprint = await validateBlueprintForAthlete(db, userId, draft.blueprint);
+  let blueprint = await validateBlueprintForAthlete(db, userId, draft.blueprint);
   let priorBlueprint: ProgramBlueprint | null = null;
   let familyId: string | undefined,
     startDate = input.startDate,
@@ -463,6 +520,15 @@ export async function activateProgramDraft(
     )
       throw new CoachingError(
         "This changes the split or schedule. Start it as a new block after reviewing the new days.",
+      );
+    // A proposal written weeks ago may still rewrite weeks the athlete has since trained. The
+    // server keeps those as they were when the proposal is written; it keeps them again here,
+    // so what is approved is only ever what is still ahead — as the change screen showed it.
+    if (draft.source !== "manual")
+      blueprint = keepFinishedWeeks(
+        blueprint,
+        current.blueprint,
+        await currentCycleFor(db, userId, active.id),
       );
     const [original] = await db
       .select({ familyId: programs.familyId })
@@ -568,16 +634,40 @@ export async function activateProgramDraft(
   // Applied is given here and nowhere else: a proposal that never activated has granted
   // nothing, and a session that happens to contain the exercise is not a programme change.
   await markRequestsApplied(db, userId, id);
+  const decidedAt = new Date();
   await db
     .update(programDrafts)
-    .set({ status: "activated", activatedProgramId: created.id })
+    .set({ status: "activated", activatedProgramId: created.id, closedAt: decidedAt })
     .where(eq(programDrafts.id, id));
-  await db
+  const others = await db
     .update(programDrafts)
-    .set({ status: "superseded" })
+    .set({ status: "superseded", closedAt: decidedAt })
     .where(
       and(eq(programDrafts.userId, userId), inArray(programDrafts.status, ["editing", "ready"])),
-    );
+    )
+    .returning({
+      id: programDrafts.id,
+      blueprint: programDrafts.blueprint,
+      baseProgramId: programDrafts.baseProgramId,
+    });
+  // The other proposals are not declined by this — the athlete never said no to them. An ask
+  // whose exact change the approved programme also makes is applied with it; the rest go
+  // back to the coach, rather than waiting on a proposal nobody can approve any more.
+  if (others.length) {
+    const baseline = active ? await readProgramBlueprint(db, userId, active.id) : null;
+    const approved = baseline
+      ? diffOperationSignatures(diffPrograms(baseline.blueprint, blueprint))
+      : new Map<string, string>();
+    for (const other of others)
+      await settleClosedDraftRequests(db, userId, {
+        draftId: other.id,
+        signatures:
+          baseline && other.baseProgramId === active?.id
+            ? diffOperationSignatures(diffPrograms(baseline.blueprint, other.blueprint))
+            : new Map(),
+        successor: { draftId: id, state: "applied", signatures: approved },
+      });
+  }
   return { programId: created.id, alreadyActivated: false };
 }
 

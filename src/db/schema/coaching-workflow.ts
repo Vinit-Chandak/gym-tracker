@@ -197,6 +197,19 @@ export const programDrafts = pgTable(
     activatedProgramId: uuid("activated_program_id").references(() => programs.id, {
       onDelete: "set null",
     }),
+    /**
+     * How a draft stopped being open, when it was not by being started.
+     *
+     * `rejected` alone could not tell the coach whether the athlete said no — which it must
+     * not propose again for a while — or asked for the same change reworked, which it must.
+     * `replaced` is a proposal a newer review built on and took the place of.
+     */
+    closedAs: text("closed_as").$type<
+      "declined" | "revised" | "discarded" | "replaced" | "outdated"
+    >(),
+    closedAt: instant("closed_at"),
+    /** What the athlete wrote when they asked for revisions, read beside the draft it revises. */
+    revisionNoteId: uuid("revision_note_id"),
     ...timestamps,
   },
   (t) => [

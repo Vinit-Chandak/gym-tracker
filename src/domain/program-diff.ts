@@ -129,7 +129,8 @@ function runSummary(run: BlueprintRun): string {
   return [
     run.distanceKm ? span(run.distanceKm, " km") : null,
     `${span(run.duration)} min`,
-    `RPE ${span(run.rpe)}`,
+    // Out of five since 0034, and asked for as "effort" everywhere else a run is.
+    `effort ${span(run.rpe)}`,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -290,7 +291,7 @@ function runFields(before: BlueprintRun, after: BlueprintRun): DiffField[] {
     before.distanceKm ? span(before.distanceKm, " km") : DASH,
     after.distanceKm ? span(after.distanceKm, " km") : DASH,
   );
-  push(fields, "rpe", "Effort (RPE)", span(before.rpe), span(after.rpe));
+  push(fields, "rpe", "Effort", span(before.rpe), span(after.rpe));
   push(fields, "paceNote", "Pace", text(before.paceNote) || DASH, text(after.paceNote) || DASH);
   push(
     fields,
@@ -687,4 +688,157 @@ export function programDiffSummary(diff: ProgramDiff): string {
   const days = diff.days.filter((day) => day.dayIndex !== null).length;
   const scope = days > 0 ? ` across ${days} ${days === 1 ? "day" : "days"}` : "";
   return `${parts.join(", ")}${scope}`;
+}
+
+/**
+ * Every operation's exact content, keyed by its ID.
+ *
+ * Two proposals written against the same base make the same change exactly when they share
+ * an ID and a signature. That is what lets an ask travel from a proposal to the one that took
+ * its place — or to the programme the athlete approved instead — without a model having to
+ * say so, and without an ask being called granted by a change that only resembles it.
+ */
+export function diffOperationSignatures(diff: ProgramDiff): Map<string, string> {
+  const signatures = new Map<string, string>();
+  for (const field of diff.program) signatures.set(`program:${field.field}`, JSON.stringify(field));
+  for (const day of diff.days) {
+    if (day.fields.length || day.status !== "changed")
+      signatures.set(`day:${day.key}`, JSON.stringify({ status: day.status, fields: day.fields }));
+    for (const operation of day.operations) {
+      // A cross-day move appears in both of its days as one operation; either half says it.
+      if (operation.kind === "moved_in") continue;
+      signatures.set(operation.id, JSON.stringify(operation));
+    }
+  }
+  return signatures;
+}
+
+/** The fields whose values are amounts, and so can move up or down. */
+const AMOUNTS = new Set([
+  "sets",
+  "target",
+  "rir",
+  "rest",
+  "weeks",
+  "duration",
+  "distanceKm",
+  "rpe",
+]);
+
+/**
+ * A formatted amount as the low and high end of its range, in one unit.
+ *
+ * Rest reads in seconds below two minutes and in minutes above, so "150–180 s" and "3 min" are
+ * put on seconds before they are compared. A change of measure — reps to seconds, which the
+ * diff writes with the measure in brackets — is not bigger or smaller, only different.
+ */
+function amount(value: string): [number, number] | null {
+  if (value.includes("(")) return null;
+  const numbers = value.match(/\d+(?:\.\d+)?/g);
+  if (!numbers || numbers.length > 2) return null;
+  const scale = /\bmin\b/.test(value) ? 60 : 1;
+  return [Number(numbers[0]) * scale, Number(numbers[numbers.length - 1]) * scale];
+}
+
+/**
+ * Which way an amount moved: "up" or "down" when both ends of its range moved that way (or
+ * held), "changed" when they split — a range widened or narrowed — or when it is not an amount.
+ */
+function direction(field: string, from: string, to: string): "up" | "down" | "changed" {
+  if (!AMOUNTS.has(field)) return "changed";
+  const before = amount(from);
+  const after = amount(to);
+  if (!before || !after) return "changed";
+  const [low, high] = [after[0] - before[0], after[1] - before[1]];
+  if (low >= 0 && high >= 0 && (low > 0 || high > 0)) return "up";
+  if (low <= 0 && high <= 0 && (low < 0 || high < 0)) return "down";
+  return "changed";
+}
+
+/**
+ * What a change is *about*, independent of its exact numbers and of the week it lands in.
+ *
+ * "Shorter Thursday runs" is one idea whether it is written 14–16 or 15–17 minutes, for weeks
+ * 3–8 or 4–8. A fingerprint names the thing changed and the way it moved, so a change the
+ * athlete declined is recognised when it comes back in slightly different words, and a
+ * change in the opposite direction is not mistaken for it. The coach's own description of
+ * the block is not a change anybody declines, so it has none.
+ */
+export function changeFingerprints(diff: ProgramDiff): Map<string, string> {
+  const prints = new Map<string, string>();
+  const note = (key: string, label: string) => {
+    if (!prints.has(key)) prints.set(key, label);
+  };
+  for (const field of diff.program)
+    if (field.field !== "notes" && field.field !== "slug")
+      note(
+        `program:${field.field}:${direction(field.field, field.from, field.to)}`,
+        `${field.label}: ${field.from} → ${field.to}`,
+      );
+  for (const day of diff.days) {
+    const where = day.name;
+    if (day.status !== "changed")
+      note(`day:${day.key}:${day.status}`, `${where}: day ${day.status}`);
+    for (const field of day.fields)
+      note(`day:${day.key}:${field.field}`, `${where}: ${field.label.toLowerCase()} changed`);
+    for (const operation of day.operations) {
+      switch (operation.kind) {
+        case "added":
+          note(
+            `add:${day.key}:${operation.to.exerciseSlug}`,
+            `${where}: add ${operation.to.exerciseSlug}`,
+          );
+          break;
+        case "removed":
+          note(
+            `remove:${operation.from.lineageId ?? `${day.key}:${operation.from.exerciseSlug}`}`,
+            `${where}: remove ${operation.from.exerciseSlug}`,
+          );
+          break;
+        case "replaced":
+          note(
+            `${operation.id}:exercise:${operation.to.exerciseSlug}`,
+            `${where}: ${operation.from.exerciseSlug} → ${operation.to.exerciseSlug}`,
+          );
+          for (const field of operation.fields)
+            note(
+              `${operation.id}:${field.field}:${direction(field.field, field.from, field.to)}`,
+              `${where}: ${field.label.toLowerCase()} ${field.from} → ${field.to}`,
+            );
+          break;
+        case "retargeted":
+        case "moved_out":
+          if (operation.kind === "moved_out")
+            note(
+              `${operation.id}:day:${operation.otherDayIndex}`,
+              `${where}: ${operation.to.exerciseSlug} moves to ${operation.otherDayName}`,
+            );
+          for (const field of operation.fields)
+            note(
+              `${operation.id}:${field.field}:${direction(field.field, field.from, field.to)}`,
+              `${operation.to.exerciseSlug}: ${field.label.toLowerCase()} ${field.from} → ${field.to}`,
+            );
+          break;
+        case "reordered":
+          note(`${operation.id}:order`, `${where}: ${operation.to.exerciseSlug} reordered`);
+          break;
+        case "run_added":
+          note(`run:${day.dayOfWeek ?? day.key}:added`, `${where}: runs added`);
+          break;
+        case "run_removed":
+          note(`run:${day.dayOfWeek ?? day.key}:removed`, `${where}: runs removed`);
+          break;
+        case "run_changed":
+          for (const field of operation.fields)
+            note(
+              `run:${day.dayOfWeek ?? day.key}:${field.field}:${direction(field.field, field.from, field.to)}`,
+              `${where} runs: ${field.label.toLowerCase()} ${field.from} → ${field.to}`,
+            );
+          break;
+        case "moved_in":
+          break;
+      }
+    }
+  }
+  return prints;
 }

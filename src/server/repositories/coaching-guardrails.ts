@@ -717,7 +717,9 @@ export async function assessSessionEvidence(
           item.mode === run.mode &&
           item.rpe !== null &&
           run.rpe !== null &&
-          Math.abs(item.rpe - run.rpe) <= 1,
+          // Five steps apart, 2 and 3 are an easy run and a moderate one: only the same
+          // reported effort compares. (±1 was written for the old ten-step scale.)
+          item.rpe === run.rpe,
       );
       const last = history[history.length - 1];
       const scope = `run:${context.slot.dayOfWeek}`;
