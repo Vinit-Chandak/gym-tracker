@@ -36,11 +36,12 @@ before the next load step.
    a proposal waits.
 2. **Decisions stay decided.** `program_drafts.closed_as` records how a proposal closed:
    declined, sent back for revisions (with the note), discarded, replaced, or outdated. The
-   coach reads this as `recentDecisions`. A declined change cannot be proposed again for
-   14 days, unless the athlete asks for it again. The server identifies a repeat by a
-   fingerprint that includes the direction of the change, so a run cut can come back as a run
-   cut only after 14 days, while a run increase is a different change. A request for revisions
-   brings the review forward.
+   coach reads this as `recentDecisions`. A declined coach proposal's changes cannot be
+   proposed again for 14 days, unless the athlete asks for them again: only an ask made after
+   the decline counts. The server identifies a repeat by a fingerprint that includes the
+   direction of the change, read from both ends of a range, so a run cut can come back as a
+   run cut only after 14 days, while a run increase is a different change. A request for
+   revisions brings the review forward.
 3. **Weeks already trained are not changed.** The review is told the current week
    (`programPosition`). For a change that continues the block, the server restores any earlier
    week a result touches. A new block starts its weeks again, so it has no finished weeks to
@@ -79,20 +80,17 @@ before the next load step.
    - The old version is kept as history, and a coach preparation written against it is
      withdrawn.
 
-8. **Rep ranges start from a role band.** `src/domain/rep-bands.ts` assigns each exercise a
-   role:
-   - main compound;
-   - free-weight compound;
-   - machine compound;
-   - isolation;
-   - small isolation;
-   - trunk.
-
-   Each role has a strength band and a muscle band (reps and RIR), chosen by the athlete's
-   goal. Each exercise lookup includes its band. A review sees how far each current slot is
-   from its band. Outside the main barbell lifts, the server refuses a new or changed rep
-   range narrower than two reps. The coach may depart from a band only for a reason it states.
-   The bands are versioned (`REP_BANDS_VERSION`) with the policy.
+8. **Rep ranges start from the exercise's own range.** Every shared exercise already carries
+   a curated default range and RIR in the library (a Nordic curl at 4–8, a cable fly at
+   12–20). A new slot starts there. `src/domain/rep-bands.ts` adds the one place the goal
+   moves it: the main barbell lifts take a strength or muscle band by the athlete's goal,
+   unless the library keeps the lift clear of it (a power clean at 2–5). The role table (main
+   compound, free-weight compound, machine compound, isolation, small isolation, trunk) is the
+   fallback for an exercise with no range of its own. Each exercise lookup includes its band
+   and where it came from, and a review sees how far each current slot is from its band.
+   Outside the main barbell lifts, the server refuses a new or changed rep range narrower than
+   two reps. The coach may depart from a band only for a reason it states. The table is
+   versioned (`REP_BANDS_VERSION`) with the policy.
 
 9. **Run preparation copies from the approved prescription.** A preparation receives the
    approved prescription as `occurrence.prescription`. If it leaves out the guidance text,
