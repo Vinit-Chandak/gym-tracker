@@ -28,7 +28,8 @@ export function OccurrenceCard({
   occurrence,
   meta,
 }: {
-  occurrence: ScheduledOccurrence;
+  /** `preparedByCoach` when the prescription is the coach's preparation for today. */
+  occurrence: ScheduledOccurrence & { preparedByCoach?: boolean };
   /** Where this came from, when that is not obvious — the programme day it belongs to. */
   meta?: string | null;
 }) {
@@ -48,7 +49,11 @@ export function OccurrenceCard({
             </p>
           )}
         </div>
-        {occurrence.disposition === "skipped" && <Badge tone="neutral">Skipped</Badge>}
+        {occurrence.disposition === "skipped" ? (
+          <Badge tone="neutral">Skipped</Badge>
+        ) : (
+          occurrence.preparedByCoach && <Badge tone="accent">Coach</Badge>
+        )}
       </div>
       {logged && occurrence.resolution.kind === "logged" ? (
         <Link

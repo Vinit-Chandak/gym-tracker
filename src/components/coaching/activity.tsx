@@ -1,5 +1,6 @@
 import { ClipboardList, SlidersHorizontal } from "@/components/ui/icons";
 import { Card } from "@/components/ui/card";
+import { Disclosure } from "@/components/ui/disclosure";
 import { LinkRow, List } from "@/components/ui/link-row";
 import { Section } from "@/components/ui/section";
 import { getDb } from "@/db/client";
@@ -17,11 +18,22 @@ import { listCoachJobs } from "@/server/repositories/coaching-jobs";
  * is left is a link to where a review actually lives, and a run that failed, which is the one
  * thing nothing else would tell them.
  */
-export async function CoachingActivity({ settings = false }: { settings?: boolean }) {
+export async function CoachingActivity({
+  settings = false,
+  waiting = 0,
+}: {
+  settings?: boolean;
+  /** What waits on the athlete — changes to answer, questions — as the Changes tab counts it. */
+  waiting?: number;
+}) {
   if (process.env.COACH_WORKFLOW_ENABLED !== "true") return null;
   const user = await requireProfiledUser();
-  const jobs = await withUser(getDb(), user.id, (tx) => listCoachJobs(tx, user.id, 5));
-  const failed = jobs.find((job) => job.status === "failed");
+  const jobs = await withUser(getDb(), user.id, (tx) => listCoachJobs(tx, user.id, 8));
+  // Only a failure that is still the latest word on that kind of work: once a later attempt at
+  // the same thing has succeeded, the old failure is history, not something that needs you.
+  const latest = new Map<string, (typeof jobs)[number]>();
+  for (const job of jobs) if (!latest.has(job.kind)) latest.set(job.kind, job);
+  const failed = [...latest.values()].find((job) => job.status === "failed");
   if (!settings && !failed) return null;
   return (
     <>
@@ -39,8 +51,8 @@ export async function CoachingActivity({ settings = false }: { settings?: boolea
               <LinkRow
                 href="/profile/programme?view=changes"
                 icon={ClipboardList}
-                title="Programme changes"
-                subtitle="What the coach has changed, proposed or answered"
+                title="Programme changes and requests"
+                meta={waiting > 0 ? `${waiting}` : undefined}
               />
             </li>
           </List>
@@ -51,12 +63,18 @@ export async function CoachingActivity({ settings = false }: { settings?: boolea
           <Card>
             <p className="text-sm">
               {failed.kind === "create_program"
-                ? "Your programme could not be created."
+                ? "Your programme could not be created. You can ask again."
                 : failed.kind === "review_program"
-                  ? "Your programme review could not finish."
-                  : "Your next session could not be prepared."}
+                  ? "The coach could not finish reviewing your programme."
+                  : "The coach could not prepare your next session. Your programme's own targets apply."}
             </p>
-            {failed.error && <p className="text-sm text-ink-muted">{failed.error}</p>}
+            {/* What went wrong, in the coach's words, for whoever runs the coach: folded, because
+                it is written for them and not for the athlete. */}
+            {failed.error && (
+              <Disclosure summary="Details" variant="footer">
+                <p className="text-sm [overflow-wrap:anywhere] text-ink-muted">{failed.error}</p>
+              </Disclosure>
+            )}
           </Card>
         </Section>
       )}

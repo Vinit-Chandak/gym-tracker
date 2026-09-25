@@ -26,95 +26,85 @@ afterEach(cleanup);
 const DRAFT = "00000000-0000-4000-8000-0000000000aa";
 
 const data = (overrides: Partial<ProgrammeChangesData> = {}): ProgrammeChangesData => ({
-  changes: [],
+  proposals: [],
   legacy: [],
-  requests: [],
+  questions: [],
   withCoach: [],
-  settled: [],
-  reviews: [],
+  recent: [],
+  history: { requests: 0, changes: 0 },
   waiting: 0,
-  review: { offered: false, canAsk: false, running: false, nextOn: null },
+  review: { offered: false, canAsk: false, running: false, nextOn: null, lastOn: null },
   ...overrides,
 });
 
-const request = (overrides: Partial<ProgrammeChangesData["requests"][number]> = {}) => ({
+const request = (overrides: Partial<ProgrammeChangesData["questions"][number]> = {}) => ({
   id: "00000000-0000-4000-8000-000000000001",
-  summary: "More direct core work",
   quote: "and more direct core work please",
-  state: "proposed" as const,
-  detail: "Two direct core slots added.",
+  state: "needs_answer" as const,
+  detail: "Which day has the most time?",
   condition: "",
   reconsiderAfter: null,
-  when: "Sat 19 Sept, 20:15",
-  draftId: DRAFT,
+  draftId: null,
   ...overrides,
 });
 
-const change = {
-  id: DRAFT,
-  name: "8-Week Strength + Aesthetics Hybrid",
-  when: "Sat 19 Sept, 20:15",
-  fromCoach: true,
-  summary: "2 added across 2 days",
-};
-
-it("lists a proposed change once, under the ask that produced it", () => {
-  // The loader drops a draft an open ask already speaks for, so the screen only ever draws
-  // one route into it. Anything else is the same change offered three times over.
-  render(<ProgrammeChanges data={data({ requests: [request()], waiting: 1 })} />);
-  expect(screen.getByText("More direct core work")).toBeTruthy();
-  expect(screen.queryByText("8-Week Strength + Aesthetics Hybrid")).toBeNull();
-  expect(
-    screen.getAllByRole("link", { name: "See the change" }).map((a) => a.getAttribute("href")),
-  ).toEqual([`/profile/programme/drafts/${DRAFT}`]);
-});
-
-it("still shows a change nobody asked for", () => {
-  render(<ProgrammeChanges data={data({ changes: [change], waiting: 1 })} />);
-  const link = screen.getByRole("link", { name: /8-Week Strength \+ Aesthetics Hybrid/ });
-  expect(link.getAttribute("href")).toBe(`/profile/programme/drafts/${DRAFT}`);
-});
-
-it("folds away asks that are back with the coach", () => {
+it("shows one proposal as one row: what it does, and the ask it answers", () => {
   render(
     <ProgrammeChanges
       data={data({
-        requests: [request({ state: "needs_answer", detail: "Which curl did you mean?" })],
+        proposals: [
+          {
+            id: DRAFT,
+            title: "Lower B's leg press falls back to the 45° machine at Anytime.",
+            fromCoach: true,
+            asks: ["anytime does not have horizontal leg press"],
+          },
+        ],
+        waiting: 1,
+      })}
+    />,
+  );
+  const row = screen.getByRole("link", { name: /falls back to the 45° machine/ });
+  expect(row.getAttribute("href")).toBe(`/profile/programme/drafts/${DRAFT}`);
+  expect(row.textContent).toContain("You asked: “anytime does not have horizontal leg press”");
+  // No badge under a heading that already says it waits for them, and no date.
+  expect(screen.queryByText("Awaiting your approval")).toBeNull();
+  expect(screen.queryByText(/Asked /)).toBeNull();
+});
+
+it("answers a question where it is asked, and folds what is back with the coach", () => {
+  render(
+    <ProgrammeChanges
+      data={data({
+        questions: [request()],
         withCoach: [
           request({
             id: "00000000-0000-4000-8000-000000000002",
-            summary: "Add Bayesian cable curls",
+            quote: "Bayesian curls",
             state: "waiting",
-            detail: "You asked for revisions.",
-            draftId: null,
+            detail: "",
           }),
         ],
         waiting: 1,
       })}
     />,
   );
-  // What needs the athlete is drawn; what is merely waiting on the next run is one row.
-  expect(screen.getByText("Needs your answer")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Send answer" })).toBeTruthy();
   const folded = screen.getByText("With the coach").closest("details");
   expect(folded?.open).toBe(false);
-  expect(folded?.textContent).toContain("Add Bayesian cable curls");
+  expect(folded?.textContent).toContain("Bayesian curls");
 });
 
-it("keeps a review in the history once its change has an outcome", () => {
-  render(
-    <ProgrammeChanges
-      data={data({
-        reviews: [
-          {
-            id: "review-1",
-            when: "Sat 19 Sept, 20:15",
-            outcome: "proposal",
-            summary: "Two direct core slots added.",
-            draftId: DRAFT,
-          },
-        ],
-      })}
-    />,
-  );
-  expect(screen.getByRole("link", { name: /A change was proposed/ })).toBeTruthy();
+it("keeps everything settled behind one row instead of printing it", () => {
+  render(<ProgrammeChanges data={data({ history: { requests: 2, changes: 1 } })} />);
+  const link = screen.getByRole("link", { name: /Past requests and changes/ });
+  expect(link.getAttribute("href")).toBe("/profile/programme/history");
+  expect(link.textContent).toContain("2 requests · 1 change");
+  expect(screen.queryByText("Settled requests")).toBeNull();
+  expect(screen.queryByText("Reviews")).toBeNull();
+});
+
+it("says nothing is waiting in one line when nothing is", () => {
+  render(<ProgrammeChanges data={data()} />);
+  expect(screen.getByText("Nothing is waiting for you.")).toBeTruthy();
 });

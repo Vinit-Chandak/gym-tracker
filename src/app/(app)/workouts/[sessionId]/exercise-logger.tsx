@@ -147,13 +147,7 @@ function suggestionHeadline(exercise: ExerciseVM, unit: string) {
       const note = exercise.coachNote;
       return {
         kind,
-        text: note
-          ? target
-            ? `${target} · ${note}`
-            : note
-          : target
-            ? `Next: ${target}`
-            : "Coach plan",
+        text: note ? (target ? `${target} · ${note}` : note) : target ? `Next: ${target}` : "",
       };
     }
     case "increase":
@@ -370,7 +364,9 @@ export function ExerciseLogger({
                     <Badge tone={suggestionTone(suggestion.kind)}>
                       {SUGGESTION_KIND_LABELS[suggestion.kind]}
                     </Badge>
-                    <p className="min-w-0 text-sm font-medium">{suggestion.text}</p>
+                    {suggestion.text && (
+                      <p className="min-w-0 text-sm font-medium">{suggestion.text}</p>
+                    )}
                   </div>
                 )}
               </Card>
@@ -624,23 +620,30 @@ export function ExerciseLogger({
                 current recovery.
               </p>
             )}
-            {exercise.suggestion && (
-              <Disclosure summary="Why this suggestion" variant="inline">
-                <div className="space-y-1 text-sm text-ink-muted">
-                  <p>{exercise.suggestion.reason}</p>
-                  {exercise.suggestion.advice && <p>{exercise.suggestion.advice}</p>}
-                  {exercise.basis && (
-                    <p>
-                      Based on{" "}
-                      {exercise.suggestion.basis === "other_equipment"
-                        ? `${exercise.basis.equipmentName ?? "another machine"} at ${exercise.basis.gymName}`
-                        : "this exercise"}
-                      , {formatDay(exercise.basis.performedAt, session.timeZone)}.
-                    </p>
-                  )}
-                </div>
-              </Disclosure>
-            )}
+            {/* While the exercise is being logged, the coach's own note is on the Log tab
+                beside its targets, so here only the rule's reasoning, and what the numbers were
+                judged against, are new. Once it is done the Log tab no longer shows it, and
+                this is where it stays. */}
+            {exercise.suggestion &&
+              (exercise.suggestion.kind !== "coach" || !editable || exercise.basis) && (
+                <Disclosure summary="Why this suggestion" variant="inline">
+                  <div className="space-y-1 text-sm text-ink-muted">
+                    {(exercise.suggestion.kind !== "coach" || !editable) && (
+                      <p>{exercise.suggestion.reason}</p>
+                    )}
+                    {exercise.suggestion.advice && <p>{exercise.suggestion.advice}</p>}
+                    {exercise.basis && (
+                      <p>
+                        Based on{" "}
+                        {exercise.suggestion.basis === "other_equipment"
+                          ? `${exercise.basis.equipmentName ?? "another machine"} at ${exercise.basis.gymName}`
+                          : "this exercise"}
+                        , {formatDay(exercise.basis.performedAt, session.timeZone)}.
+                      </p>
+                    )}
+                  </div>
+                </Disclosure>
+              )}
             {exercise.previous && <SetTable sets={exercise.previous.sets} unitLabel={unitLabel} />}
           </Card>
         )}
