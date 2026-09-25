@@ -86,7 +86,7 @@ export function ChangeDetail(props: ChangeDetailProps) {
   // an ask needs none — the ask is the reason — but one that also cuts runs nobody asked about
   // owes the athlete its why for those.
   const unasked =
-    props.summary.program.length > 0 ||
+    props.summary.program.some((field) => !attributed.has(`program:${field.field}`)) ||
     props.summary.days.some(
       (day) =>
         ((day.fields.length > 0 || day.status !== "changed") &&
@@ -111,9 +111,10 @@ export function ChangeDetail(props: ChangeDetailProps) {
   return (
     <div className="space-y-4">
       <Card>
-        <h1 className="min-w-0 text-lg font-medium [overflow-wrap:anywhere]">
+        {/* The page header is the h1; the change's own line is the next level down. */}
+        <h2 className="min-w-0 text-lg font-medium [overflow-wrap:anywhere]">
           {props.headline || (coach ? "The coach's changes" : "Your changes")}
-        </h1>
+        </h2>
         {props.outcome && <p className="text-sm text-ink-muted">{props.outcome}</p>}
         {why && (
           <Disclosure summary="Why" variant="footer">
@@ -139,12 +140,15 @@ export function ChangeDetail(props: ChangeDetailProps) {
 
       <ProgramDiffView summary={props.summary} names={props.names} reasons={tags} />
 
-      {open && !props.summary.empty && (
+      {/* Whatever is or is not printed above, an open change can always be answered: one that
+          only rewrites the description, or only weeks already behind, still has to be
+          approvable and dismissable, or it would sit on the Changes tab for good. */}
+      {open && (
         <Card>
           {!props.canContinue && (
             <>
               <p className="text-sm text-ink-muted">
-                This changes your split, so it starts a new block.
+                This changes the programme&apos;s structure, so it starts a new block.
               </p>
               <Field label="Start date">
                 <Input

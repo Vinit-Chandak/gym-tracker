@@ -106,16 +106,22 @@ export async function loadProgrammeChanges(db: DbOrTx, userId: string, timeZone:
   const proposals = await Promise.all(
     drafts.map(async (draft) => {
       const base = await readProgramBlueprint(db, userId, draft.baseProgramId!);
-      const summary = base
-        ? changeSummaryLine(
-            summariseProgramDiff(diffPrograms(base.blueprint, draft.blueprint), {
-              fromWeek: schedule?.program.id === draft.baseProgramId ? currentCycle : 1,
-            }),
-          )
-        : "Open to see what changes";
+      const summarised = base
+        ? summariseProgramDiff(diffPrograms(base.blueprint, draft.blueprint), {
+            fromWeek: schedule?.program.id === draft.baseProgramId ? currentCycle : 1,
+          })
+        : null;
+      // "No programme changes" is no name for a row that is waiting on an answer.
+      const summary =
+        summarised && (!summarised.empty || summarised.descriptionChanged)
+          ? changeSummaryLine(summarised)
+          : null;
       return {
         id: draft.id,
-        title: draft.headline || summary,
+        title:
+          draft.headline ||
+          summary ||
+          (draft.source === "manual" ? "Your edit" : "Open to see what changes"),
         fromCoach: draft.source !== "manual",
         asks: asks.get(draft.id) ?? [],
       };

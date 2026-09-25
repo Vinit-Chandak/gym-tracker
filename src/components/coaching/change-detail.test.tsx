@@ -182,12 +182,30 @@ it("says how a settled change ended, with nothing left to decide", () => {
   expect(screen.getByRole("link", { name: "See the full programme it made" })).toBeTruthy();
 });
 
-it("says the programme is unchanged rather than drawing an empty change", () => {
+it("says the programme is unchanged rather than drawing an empty change, and can still be answered", () => {
   render(
     <ChangeDetail
       {...props({ summary: summariseProgramDiff(diffPrograms(base, structuredClone(base))) })}
     />,
   );
   expect(screen.getByText("No programme changes")).toBeTruthy();
-  expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
+  // A change that only rewrites the description, or only weeks already behind, prints
+  // nothing here — but it is still open, so it can still be approved or declined.
+  expect(screen.getByRole("button", { name: "Approve" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Decline" })).toBeTruthy();
+});
+
+it("carries an ask's words onto a change to the programme itself", () => {
+  const next = { ...structuredClone(base), weeks: 10 };
+  render(
+    <ChangeDetail
+      {...props({
+        summary: summariseProgramDiff(diffPrograms(base, next)),
+        requests: [{ id: "r1", quote: "make it ten weeks", changeRefs: ["program:weeks"] }],
+      })}
+    />,
+  );
+  expect(screen.getByText("“make it ten weeks”")).toBeTruthy();
+  // It was asked for, so there is no reasoning to offer for it.
+  expect(screen.queryByText("Why")).toBeNull();
 });

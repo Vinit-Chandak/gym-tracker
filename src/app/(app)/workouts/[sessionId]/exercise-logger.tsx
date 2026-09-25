@@ -620,25 +620,30 @@ export function ExerciseLogger({
                 current recovery.
               </p>
             )}
-            {/* The coach's own note is already on the Log tab, beside its targets; here only
-                the rule's reasoning, and what the numbers were judged against, are new. */}
-            {exercise.suggestion && (exercise.suggestion.kind !== "coach" || exercise.basis) && (
-              <Disclosure summary="Why this suggestion" variant="inline">
-                <div className="space-y-1 text-sm text-ink-muted">
-                  {exercise.suggestion.kind !== "coach" && <p>{exercise.suggestion.reason}</p>}
-                  {exercise.suggestion.advice && <p>{exercise.suggestion.advice}</p>}
-                  {exercise.basis && (
-                    <p>
-                      Based on{" "}
-                      {exercise.suggestion.basis === "other_equipment"
-                        ? `${exercise.basis.equipmentName ?? "another machine"} at ${exercise.basis.gymName}`
-                        : "this exercise"}
-                      , {formatDay(exercise.basis.performedAt, session.timeZone)}.
-                    </p>
-                  )}
-                </div>
-              </Disclosure>
-            )}
+            {/* While the exercise is being logged, the coach's own note is on the Log tab
+                beside its targets, so here only the rule's reasoning, and what the numbers were
+                judged against, are new. Once it is done the Log tab no longer shows it, and
+                this is where it stays. */}
+            {exercise.suggestion &&
+              (exercise.suggestion.kind !== "coach" || !editable || exercise.basis) && (
+                <Disclosure summary="Why this suggestion" variant="inline">
+                  <div className="space-y-1 text-sm text-ink-muted">
+                    {(exercise.suggestion.kind !== "coach" || !editable) && (
+                      <p>{exercise.suggestion.reason}</p>
+                    )}
+                    {exercise.suggestion.advice && <p>{exercise.suggestion.advice}</p>}
+                    {exercise.basis && (
+                      <p>
+                        Based on{" "}
+                        {exercise.suggestion.basis === "other_equipment"
+                          ? `${exercise.basis.equipmentName ?? "another machine"} at ${exercise.basis.gymName}`
+                          : "this exercise"}
+                        , {formatDay(exercise.basis.performedAt, session.timeZone)}.
+                      </p>
+                    )}
+                  </div>
+                </Disclosure>
+              )}
             {exercise.previous && <SetTable sets={exercise.previous.sets} unitLabel={unitLabel} />}
           </Card>
         )}

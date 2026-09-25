@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/icons";
 import type { DayOperation, DiffField } from "@/domain/program-diff";
 import {
+  weeksLabel,
   type ChangeSummary,
   type DaySummary,
   type RunSummary,
@@ -281,8 +282,9 @@ function OperationRow({
  * them, because they are read on the run itself and are the long part.
  */
 function RunEntry({ runs, reason }: { runs: RunSummary; reason?: ReactNode }) {
-  const [first, last] = runs.weeks;
-  const label = first === last ? `Run · week ${first}` : `Runs · weeks ${first}–${last}`;
+  // The weeks it names are the weeks that change: "weeks 3–8", or "weeks 3, 5 and 7" when the
+  // weeks between are left as they were.
+  const label = `${runs.weeks.length === 1 ? "Run" : "Runs"} · ${weeksLabel(runs.weeks)}`;
   return (
     <Operation icon={Footprints} label={label} reason={reason}>
       {runs.lines.length > 0 ? (
@@ -322,6 +324,8 @@ function DayGroup({
   const weekday = day.dayOfWeek ? WEEKDAY_NAMES[day.dayOfWeek] : null;
   const status = DAY_STATUS[day.status];
   const runReason = day.runs?.ids.map((id) => reasons[id]).find(Boolean);
+  // A day added, removed or renamed for an ask carries the ask's words, as a slot does.
+  const dayReason = reasons[`day:${day.key}`];
   return (
     <Card>
       <div>
@@ -329,6 +333,7 @@ function DayGroup({
         <p className="mt-0.5 text-sm text-ink-muted">
           {[weekday, status].filter(Boolean).join(" · ") || "Changed"}
         </p>
+        {dayReason && <div className="mt-1.5">{dayReason}</div>}
       </div>
       {day.fields.length > 0 && <Lines lines={day.fields.map((field) => readable(field, names))} />}
       {(day.operations.length > 0 || day.runs) && (
@@ -373,12 +378,17 @@ export function ProgramDiffView({
         {emptyReason && <div className="text-sm [overflow-wrap:anywhere]">{emptyReason}</div>}
       </Card>
     );
+  // A longer block or a new name made for an ask: the ask's words, once, under the change.
+  const programReason = summary.program
+    .map((field) => reasons[`program:${field.field}`])
+    .find(Boolean);
   return (
     <div className="space-y-3">
       {summary.program.length > 0 && (
         <Card>
           <h3 className="font-medium">Programme</h3>
           <Lines lines={summary.program.map((field) => readable(field, names))} />
+          {programReason && <div>{programReason}</div>}
         </Card>
       )}
       {summary.days.map((day) => (

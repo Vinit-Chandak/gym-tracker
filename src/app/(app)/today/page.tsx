@@ -10,11 +10,10 @@ import { getActiveSession } from "@/server/queries/active-session";
 import { getWarmupProtocol } from "@/server/queries/reference";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { seenSetChanges } from "@/server/queries/set-changes";
-import { todayCoachState } from "@/server/repositories/coach-plans";
+import { todayCoachState, withPreparedTargets } from "@/server/repositories/coach-plans";
 import { todayWorkflowState } from "@/server/repositories/coaching-today";
 import { listGyms } from "@/server/repositories/gyms";
 import { occurrencesForSlot, standaloneOccurrencesOnDate } from "@/server/repositories/occurrences";
-import { withPreparedTargets } from "@/server/repositories/coach-plans";
 import { getSchedule, getTodayPlan } from "@/server/repositories/schedule";
 
 import Loading from "./loading";

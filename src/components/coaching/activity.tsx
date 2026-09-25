@@ -23,7 +23,7 @@ export async function CoachingActivity({
   waiting = 0,
 }: {
   settings?: boolean;
-  /** Asks and questions still open, so the one link to them can say how many. */
+  /** What waits on the athlete — changes to answer, questions — as the Changes tab counts it. */
   waiting?: number;
 }) {
   if (process.env.COACH_WORKFLOW_ENABLED !== "true") return null;

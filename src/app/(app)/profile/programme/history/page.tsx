@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, notInArray, sql } from "drizzle-orm";
 import type { Metadata, Route } from "next";
 
 import { RequestList } from "@/components/coaching/request-list";
@@ -47,7 +47,7 @@ function outcomeOf(draft: {
 export default async function ProgrammeHistoryPage() {
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
-  const { requests, changes, headlines } = await withUser(
+  const { requests, changes } = await withUser(
     getDb(),
     user.id,
     async (tx) => {
@@ -58,9 +58,7 @@ export default async function ProgrammeHistoryPage() {
           .where(
             and(
               eq(coachProgramRequests.userId, user.id),
-              sql`${coachProgramRequests.state} <> all(${sql.raw(
-                `array[${OPEN_REQUEST_STATES.map((state) => `'${state}'`).join(",")}]`,
-              )})`,
+              notInArray(coachProgramRequests.state, [...OPEN_REQUEST_STATES]),
             ),
           )
           .orderBy(desc(coachProgramRequests.updatedAt))
@@ -87,20 +85,10 @@ export default async function ProgrammeHistoryPage() {
           .orderBy(desc(programDrafts.updatedAt))
           .limit(20),
       ]);
-      const draftIds = [
-        ...new Set(requests.map((request) => request.draftId).filter((id): id is string => !!id)),
-      ];
-      const headlines = draftIds.length
-        ? await tx
-            .select({ id: programDrafts.id, headline: programDrafts.headline })
-            .from(programDrafts)
-            .where(and(eq(programDrafts.userId, user.id), inArray(programDrafts.id, draftIds)))
-        : [];
-      return { requests, changes, headlines };
+      return { requests, changes };
     },
     { readOnly: true },
   );
-  const headlineOf = new Map(headlines.map((row) => [row.id, row.headline]));
 
   return (
     <>
@@ -113,18 +101,15 @@ export default async function ProgrammeHistoryPage() {
                 id: request.id,
                 quote: request.quote,
                 state: request.state,
-                // A settled ask says what it came to: the change's own line when it was
-                // applied, the coach's reason when it was not recommended or already there.
+                // A settled ask says what it came to: done, with a link to the change (listed
+                // below with its own line), or the coach's reason when it was not recommended
+                // or already there.
                 detail: ["not_recommended", "already_satisfied"].includes(request.state)
                   ? request.detail
                   : "",
                 condition: request.condition,
                 reconsiderAfter: request.reconsiderAfter,
                 draftId: request.state === "applied" ? request.draftId : null,
-                outcome:
-                  request.state === "applied" && request.draftId
-                    ? headlineOf.get(request.draftId) || null
-                    : null,
                 settledOn: formatDay(request.resolvedAt ?? request.updatedAt, profile.timeZone),
               }))}
             />

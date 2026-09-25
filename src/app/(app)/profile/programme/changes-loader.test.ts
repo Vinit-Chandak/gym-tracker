@@ -8,6 +8,8 @@ import { seedTestUserData } from "@/db/test/fixtures";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
 
+import { countWaitingOnAthlete } from "@/server/repositories/coach-proposals";
+
 import { loadProgrammeChanges } from "./changes";
 
 // The loader is what decides which row speaks for a change; the components it sits beside are
@@ -124,6 +126,8 @@ it("folds an ask that is back with the coach out of what needs the athlete", asy
   ]);
   // The tab badge counts decisions, so an ask nobody is waiting on the athlete for is not one.
   expect(data.waiting).toBe(1);
+  // And the link to the tab from the AI coach page says the same number.
+  expect(await as((tx) => countWaitingOnAthlete(tx, userId))).toBe(1);
 });
 
 it("moves a decided change into the history count rather than onto the tab", async () => {

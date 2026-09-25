@@ -34,8 +34,8 @@ export type SummaryLine = {
 export type RunSummary = {
   /** Every diff operation this entry stands for, so a request tag can find it. */
   ids: string[];
-  /** First and last week the entry covers, once finished weeks are left out. */
-  weeks: [number, number];
+  /** Every week the entry covers, in order, once finished weeks are left out. */
+  weeks: number[];
   /** Targets: minutes, distance, effort, and weeks added or removed. */
   lines: SummaryLine[];
   /** Rewritten instructions — pace, progression, stop rule — shown folded. */
@@ -101,20 +101,20 @@ function acrossWeeks(
   }
   if (sameTo)
     return { field, label, from: sameFrom ? first.from : null, to: `${first.to}${partial}` };
-  const start = leadingNumber(first.to);
-  const end = leadingNumber(last.to);
-  const verb =
-    Number.isNaN(start) || Number.isNaN(end) || start === end
-      ? "then"
-      : end > start
-        ? "building to"
-        : "easing to";
   return {
     field,
     label,
     from: first.from,
-    to: `${first.to} in week ${first.week}, ${verb} ${last.to} by week ${last.week}`,
+    to: `${first.to} in week ${first.week}, ${progression(first.to, last.to)} ${last.to} by week ${last.week}`,
   };
+}
+
+/** How a target that differs week to week gets from its first value to its last. */
+function progression(first: string, last: string): string {
+  const start = leadingNumber(first);
+  const end = leadingNumber(last);
+  if (Number.isNaN(start) || Number.isNaN(end) || start === end) return "then";
+  return end > start ? "building to" : "easing to";
 }
 
 function summariseRuns(operations: readonly DayOperation[], fromWeek: number): RunSummary | null {
@@ -143,14 +143,25 @@ function summariseRuns(operations: readonly DayOperation[], fromWeek: number): R
     if (RUN_NUMERIC.has(field)) lines.push(line);
     else notes.push(line);
   }
-  const added = runs.filter((run) => run.kind === "run_added");
-  if (added.length)
+  const added = runs
+    .filter((run) => run.kind === "run_added")
+    .sort((a, b) => a.weekIndex - b.weekIndex);
+  if (added.length) {
+    // A new run that builds week to week is said as where it starts and where it ends up.
+    const first = added[0]!;
+    const last = added[added.length - 1]!;
+    const weeks = added.map((run) => run.weekIndex);
+    const gaps = weeks.some((week, index) => index > 0 && week !== weeks[index - 1]! + 1);
     lines.push({
       field: "added",
       label: "Runs added",
       from: null,
-      to: `${weeksLabel(added.map((run) => run.weekIndex))} · ${added[0]!.to}`,
+      to: added.every((run) => run.to === first.to)
+        ? `${weeksLabel(weeks)} · ${first.to}`
+        : // "In week 3 … by week 8" already says which weeks, unless some between are skipped.
+          `${gaps ? `${weeksLabel(weeks)} · ` : ""}${first.to} in week ${first.weekIndex}, ${progression(first.to, last.to)} ${last.to} by week ${last.weekIndex}`,
     });
+  }
   const removed = runs.filter((run) => run.kind === "run_removed");
   if (removed.length)
     lines.push({
@@ -163,7 +174,7 @@ function summariseRuns(operations: readonly DayOperation[], fromWeek: number): R
   lines.sort((a, b) => order.indexOf(a.field) - order.indexOf(b.field));
   return {
     ids: runs.map((run) => run.id),
-    weeks: [Math.min(...weeks), Math.max(...weeks)],
+    weeks: [...new Set(weeks)].sort((a, b) => a - b),
     lines,
     notes,
   };

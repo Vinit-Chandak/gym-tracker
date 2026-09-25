@@ -101,7 +101,7 @@ describe("runs, folded into one entry per run day", () => {
 
     expect(summary.days).toHaveLength(1);
     const runs = summary.days[0]!.runs!;
-    expect(runs.weeks).toEqual([3, 8]);
+    expect(runs.weeks).toEqual([3, 4, 5, 6, 7, 8]);
     expect(runs.ids).toHaveLength(6);
     expect(runs.lines).toEqual([
       {
@@ -158,6 +158,16 @@ describe("runs, folded into one entry per run day", () => {
     ]);
   });
 
+  it("names the weeks that change, not the span around them", () => {
+    const next = copy(base);
+    for (const entry of next.runs)
+      if ([3, 5, 7].includes(entry.weekIndex)) entry.duration = [60, 60];
+    const runs = summariseProgramDiff(diffPrograms(base, next), { fromWeek: 3 }).days[0]!.runs!;
+    // Weeks 4 and 6 are left as they were, so they are not in what the entry covers.
+    expect(runs.weeks).toEqual([3, 5, 7]);
+    expect(weeksLabel(runs.weeks)).toBe("weeks 3, 5 and 7");
+  });
+
   it("counts runs by the day they fall on in the list row", () => {
     const next = copy(base);
     shorterRuns(next);
@@ -188,7 +198,8 @@ describe("what the athlete does not need to review", () => {
         field: "added",
         label: "Runs added",
         from: null,
-        to: "weeks 9–10 · 65–70 min · effort 1–2",
+        // Each new week's own target, not the first one's repeated.
+        to: "65–70 min · effort 1–2 in week 9, building to 70–75 min · effort 1–2 by week 10",
       },
     ]);
   });
