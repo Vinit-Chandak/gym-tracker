@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   profiles,
   programChangeProposals,
+  programDrafts,
   programDays,
   programExercises,
   programs,
@@ -18,6 +19,8 @@ import type { ProgramPatch } from "@/domain/program-patch";
 import { comparableHistory } from "@/server/queries/comparable";
 
 import { planningContext, storePlan } from "./coach-plans";
+import { sourceRevision } from "./coaching-state";
+import { activateProgramDraft } from "./program-drafts";
 import { listGyms } from "./gyms";
 import {
   applyProposal,
@@ -541,5 +544,89 @@ describe("history across a revision", () => {
       .innerJoin(programDays, eq(programDays.id, programExercises.programDayId))
       .where(eq(programExercises.id, slotBefore!));
     expect(archived?.programId).not.toBe((await activeProgram()).id);
+  });
+});
+
+describe("approving a coach draft", () => {
+  /** A coach proposal for the active programme, written with `edit`, approved at once. */
+  async function approve(
+    edit: (
+      plan: NonNullable<Awaited<ReturnType<typeof readProgramBlueprint>>>["blueprint"],
+    ) => void,
+  ) {
+    const program = await activeProgram();
+    const current = await as((tx) => readProgramBlueprint(tx, user.id, program.id));
+    const blueprint = structuredClone(current!.blueprint);
+    edit(blueprint);
+    const [draft] = await as(async (tx) =>
+      tx
+        .insert(programDrafts)
+        .values({
+          userId: user.id,
+          source: "weekly",
+          status: "ready",
+          blueprint,
+          baseProgramId: program.id,
+          sourceRevision: await sourceRevision(tx, user.id),
+          headline: "A change.",
+        })
+        .returning(),
+    );
+    await as((tx) =>
+      activateProgramDraft(tx, user.id, draft!.id, {
+        expectedRevision: draft!.revision,
+        startDate: "2026-09-25",
+        transition: "continue",
+      }),
+    );
+  }
+
+  it("keeps the session the coach prepared, minus the slots the change rewrote", async () => {
+    const context = await as((tx) => planningContext(tx, user.id, { gymId }));
+    if (context.reason) throw new Error(context.reason);
+    const [first, second] = context.exercises;
+    if (!first?.lineageId || !second?.lineageId) throw new Error("slots must carry lineage");
+    const ref = { cycleIndex: context.slot.cycleIndex, dayIndex: context.slot.dayIndex };
+    const plan = await as((tx) =>
+      storePlan(tx, user.id, {
+        slot: ref,
+        gymId,
+        trigger: "nightly",
+        plan: {
+          summary: "Two lifts, prepared for today.",
+          exercises: [
+            { slotId: first.slotId, exerciseSlug: first.planned.slug, sets: [] },
+            { slotId: second.slotId, exerciseSlug: second.planned.slug, sets: [] },
+          ],
+        },
+      }),
+    );
+
+    // A change to another day leaves today's preparation whole, on the new version.
+    await approve((blueprint) => {
+      const other = blueprint.days.find(
+        (day) => day.dayIndex !== ref.dayIndex && day.exercises.length,
+      )!;
+      other.exercises[0]!.notes = "A cue for another day.";
+    });
+    const [kept] = await t.db.select().from(sessionPlans).where(eq(sessionPlans.id, plan.id));
+    expect(kept?.status).toBe("active");
+    expect(kept?.programId).toBe((await activeProgram()).id);
+    expect(kept?.exercises.map((entry) => entry.exerciseSlug)).toEqual([
+      first.planned.slug,
+      second.planned.slug,
+    ]);
+
+    // A change to one of today's slots — a fallback, here — sends only that slot back to the
+    // programme; the rest of what the coach prepared still stands.
+    await approve((blueprint) => {
+      const slot = blueprint.days
+        .flatMap((day) => day.exercises)
+        .find((exercise) => exercise.lineageId === first.lineageId)!;
+      slot.fallbacks = [{ exerciseSlug: "leg-press-45", rank: 1 }];
+    });
+    const [trimmed] = await t.db.select().from(sessionPlans).where(eq(sessionPlans.id, plan.id));
+    expect(trimmed?.status).toBe("active");
+    expect(trimmed?.exercises.map((entry) => entry.exerciseSlug)).toEqual([second.planned.slug]);
   });
 });
