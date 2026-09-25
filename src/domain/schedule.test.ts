@@ -8,6 +8,7 @@ import {
   projectedEndDate,
   runEventsFromOccurrences,
   sessionsBehind,
+  slotFinishedOn,
   slotParts,
   slotStatus,
   suggestion,
@@ -186,6 +187,48 @@ describe("shift scheduling", () => {
     expect(projectedEndDate(state(), "2026-09-08")).toBe("2026-11-01");
     // One missed day pushes the end to 2 November.
     expect(projectedEndDate(state(done(1, 2)), "2026-09-10")).toBe("2026-11-02");
+  });
+});
+
+describe("the day finished today", () => {
+  const on = (event: SlotEvent, occurredOn: string): SlotEvent => ({ ...event, occurredOn });
+
+  it("is the day whose workout was logged today, which moves Today on to the next", () => {
+    const events = [
+      on(part(1, 2, "session"), "2026-09-24"),
+      on(part(1, 4, "session"), "2026-09-25"),
+    ];
+    // Day 3 was skipped yesterday; day 4 was trained today and day 5 is what the sequence offers.
+    const withSkip = state([
+      ...events,
+      on(part(1, 3, "session", "skipped"), "2026-09-24"),
+      on(part(1, 3, "run", "skipped"), "2026-09-24"),
+    ]);
+    expect(slotFinishedOn(withSkip, "2026-09-25")).toEqual({ cycleIndex: 1, dayIndex: 4 });
+    expect(nextPendingSlot(withSkip)).toEqual({ cycleIndex: 1, dayIndex: 5 });
+    expect(slotFinishedOn(withSkip, "2026-09-26")).toBeNull();
+  });
+
+  it("is nothing while the day still owes its run, because Today is still on it", () => {
+    const workoutOnly = state([...done(1, 2), on(part(1, 3, "session"), "2026-09-25")]);
+    expect(slotFinishedOn(workoutOnly, "2026-09-25")).toBeNull();
+    const both = state([...done(1, 2), on(part(1, 3, "session"), "2026-09-25"), part(1, 3, "run")]);
+    expect(slotFinishedOn(both, "2026-09-25")).toEqual({ cycleIndex: 1, dayIndex: 3 });
+  });
+
+  it("is nothing for a day skipped today: the next one is still today's to train", () => {
+    const skipped = state([
+      ...done(1, 2),
+      on(part(1, 3, "session", "skipped"), "2026-09-25"),
+      on(part(1, 3, "run", "skipped"), "2026-09-25"),
+    ]);
+    expect(slotFinishedOn(skipped, "2026-09-25")).toBeNull();
+  });
+
+  it("counts a rest day marked done", () => {
+    const events = [1, 2, 3, 4, 5, 6].flatMap((day) => (day === 1 ? [] : done(1, day)));
+    const rested = state([...events, on(part(1, 7, "session"), "2026-09-25")]);
+    expect(slotFinishedOn(rested, "2026-09-25")).toEqual({ cycleIndex: 1, dayIndex: 7 });
   });
 });
 

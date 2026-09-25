@@ -227,6 +227,15 @@ export function TodayView({
   const completed = scheduled.filter(isAnswered);
   const programmeIds = new Set(programmeOccurrences.map((occurrence) => occurrence.id));
 
+  // Once today's programme day is done, the sequence offers the next one at once. It is still
+  // the next one, not today's: Today keeps what was finished and whatever else is dated today,
+  // and the day on offer, with its own endurance, moves under a heading of its own. A session
+  // already open for it is being trained today, so then it stays today's.
+  const finishedToday = plan?.suggestion && day && !openHere ? plan.finishedToday : null;
+  const isProgramme = (occurrence: ScheduledOccurrence) => programmeIds.has(occurrence.id);
+  // What the day on offer's section lists: everything, unless today has a section of its own.
+  const onOffer = (occurrence: ScheduledOccurrence) => !finishedToday || isProgramme(occurrence);
+
   return (
     <>
       <PageHeader title={<Wordmark />} meta={formatIsoWeekdayDay(today)} />
@@ -268,8 +277,32 @@ export function TodayView({
           </Card>
         )}
 
+        {finishedToday && (
+          <Section title="Today">
+            <Card>
+              <CardHead
+                title={finishedToday.name}
+                subtitle={
+                  finishedToday.includesLifting || finishedToday.includesRun
+                    ? "Done. Nothing left to do here today."
+                    : "Rest day done."
+                }
+                badge={TASK_BADGE.completed}
+              />
+            </Card>
+            {outstanding
+              .filter((occurrence) => !isProgramme(occurrence))
+              .map((occurrence) => (
+                <OccurrenceCard key={occurrence.id} occurrence={occurrence} />
+              ))}
+            <CompletedOccurrences
+              occurrences={completed.filter((occurrence) => !isProgramme(occurrence))}
+            />
+          </Section>
+        )}
+
         {/* What today asks for, at the top, whatever put it there. */}
-        <Section title="Today">
+        <Section title={finishedToday ? "Up next" : "Today"}>
           {!plan ? (
             <Card>
               <h2 className="text-lg font-medium">No programme</h2>
@@ -441,14 +474,14 @@ export function TodayView({
           {/* The rest of what is due: the programme's own endurance for the day being
             offered, then whatever the athlete scheduled for today. A programme session
             says which day it belongs to, so a run never arrives unexplained. */}
-          {outstanding.map((occurrence) => (
+          {outstanding.filter(onOffer).map((occurrence) => (
             <OccurrenceCard
               key={occurrence.id}
               occurrence={occurrence}
               meta={programmeIds.has(occurrence.id) && day ? `Part of ${day.name}` : null}
             />
           ))}
-          <CompletedOccurrences occurrences={completed} />
+          <CompletedOccurrences occurrences={completed.filter(onOffer)} />
         </Section>
 
         {/* Everything that is not the day's own decision, one tap behind one control. */}

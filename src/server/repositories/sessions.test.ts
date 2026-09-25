@@ -6,7 +6,7 @@ import { seedReferenceData } from "@/db/seed/reference";
 import { seedTestUserData } from "@/db/test/fixtures";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
-import { nextPendingSlot, partStatus, suggestion } from "@/domain/schedule";
+import { nextPendingSlot, partStatus, slotFinishedOn, suggestion } from "@/domain/schedule";
 
 import { createEquipment } from "./equipment";
 import { listGyms } from "./gyms";
@@ -113,6 +113,11 @@ describe("today plan", () => {
     const plan = await withUser(t.db, user.id, (tx) => getTodayPlan(tx, user.id, TZ));
     expect(plan?.suggestedDay?.name).toBe("Upper A");
     expect(plan?.suggestedDay?.dayOfWeek).toBe(3);
+    // Lower A was finished on another day, so Upper A is today's, not up next.
+    expect(plan?.finishedToday).toBeNull();
+    // The day it was finished on comes back with it, for the day it was finished on.
+    const after = await schedule();
+    expect(slotFinishedOn(after.state, "2026-09-08")).toEqual({ cycleIndex: 1, dayIndex: 1 });
   });
 });
 

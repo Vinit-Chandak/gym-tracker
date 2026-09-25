@@ -30,6 +30,11 @@ export type SlotEvent = {
   dayIndex: number;
   part: SlotPart;
   status: SlotStatus;
+  /**
+   * The athlete's calendar date it was answered on; absent for an answer derived rather than
+   * recorded.
+   */
+  occurredOn?: string;
 };
 
 export type SlotRef = { cycleIndex: number; dayIndex: number };
@@ -200,6 +205,29 @@ export function nextPendingSlot(state: ScheduleState): SlotRef | null {
     if (pendingParts(state, ref).length > 0) return ref;
   }
   return null;
+}
+
+/**
+ * The last day of the sequence finished on `date`: its workout (or its rest) done that day, and
+ * nothing else it asks for still owed. When there is one, the day Today offers is the one
+ * after it, which is up next rather than today's: the sequence moves on as soon as a day is
+ * done, but the calendar does not. A skip finishes nothing, so a day skipped this morning
+ * leaves the next one as today's.
+ */
+export function slotFinishedOn(state: ScheduleState, date: string): SlotRef | null {
+  let last: SlotRef | null = null;
+  for (const ref of allSlots(state)) {
+    const doneThatDay = state.events.some(
+      (event) =>
+        event.cycleIndex === ref.cycleIndex &&
+        event.dayIndex === ref.dayIndex &&
+        event.part === "session" &&
+        event.status === "completed" &&
+        event.occurredOn === date,
+    );
+    if (doneThatDay && pendingParts(state, ref).length === 0) last = ref;
+  }
+  return last;
 }
 
 export type Suggestion = {

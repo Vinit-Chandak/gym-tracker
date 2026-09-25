@@ -7,9 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { LinkRow, List } from "@/components/ui/link-row";
 import { Section } from "@/components/ui/section";
-import { groupByRegion } from "@/domain/muscles";
-import { matchesExerciseQuery } from "@/lib/exercise-search";
-import { BODY_REGION_LABELS, EXERCISE_MODALITY_LABELS, MUSCLE_LABELS } from "@/lib/labels";
+import { exerciseSections, matchesExerciseQuery } from "@/lib/exercise-search";
+import { EXERCISE_MODALITY_LABELS, MUSCLE_LABELS } from "@/lib/labels";
 import type { ExerciseListItem } from "@/server/repositories/exercises";
 
 function subtitle(exercise: ExerciseListItem): string {
@@ -34,14 +33,19 @@ function Rows({ items }: { items: ExerciseListItem[] }) {
   );
 }
 
-/** Search box plus the library grouped by muscle region. Filtering happens on the phone. */
+/**
+ * Search box plus the library grouped by muscle region, or ranked by the search once one is
+ * typed. Filtering happens on the phone.
+ */
 export function ExerciseLibrary({ exercises }: { exercises: ExerciseListItem[] }) {
   const [query, setQuery] = useState("");
   const { groups, excluded } = useMemo(() => {
-    const matching = exercises.filter((e) => matchesExerciseQuery(e, query));
     return {
-      groups: groupByRegion(matching.filter((e) => e.isActive)),
-      excluded: matching.filter((e) => !e.isActive),
+      groups: exerciseSections(
+        exercises.filter((e) => e.isActive),
+        query,
+      ),
+      excluded: exercises.filter((e) => !e.isActive && matchesExerciseQuery(e, query)),
     };
   }, [exercises, query]);
 
@@ -67,7 +71,7 @@ export function ExerciseLibrary({ exercises }: { exercises: ExerciseListItem[] }
       )}
 
       {groups.map((group) => (
-        <Section key={group.region} title={BODY_REGION_LABELS[group.region]}>
+        <Section key={group.key} title={group.title}>
           <Rows items={group.items} />
         </Section>
       ))}
