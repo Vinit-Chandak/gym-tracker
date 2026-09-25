@@ -11,7 +11,7 @@ import {
 } from "@/domain/program-patch";
 import type { ProposalSource } from "@/domain/types";
 
-import { carryPlansToRevision } from "./coach-plans";
+import { carryPlansToRevision, patchCarryChanges } from "./coach-plans";
 import { createProgramFromBlueprint, readProgramBlueprint } from "./programs";
 
 /**
@@ -258,7 +258,7 @@ export async function applyProposal(
   await carryPlansToRevision(db, userId, {
     fromProgramId: program.id,
     toProgramId: created.id,
-    patch: patch.data,
+    changes: patchCarryChanges(patch.data),
   });
 
   const now = new Date();

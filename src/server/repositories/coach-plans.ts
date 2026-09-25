@@ -34,6 +34,7 @@ import {
 } from "@/domain/coach-review";
 import { resolveExerciseAtGym } from "@/domain/equipment-resolution";
 import type { ProgramPatch } from "@/domain/program-patch";
+import type { ProgramDiff } from "@/domain/program-diff";
 import { addDays, todayInTimeZone } from "@/domain/program-calendar";
 import { volumeSpike } from "@/domain/running";
 import {
@@ -2356,6 +2357,51 @@ export async function plannedRunForToday(
 }
 
 /**
+ * What a programme change touched, as far as a waiting plan cares: the slots it rewrote, by
+ * lineage, and the runs it retargeted, by week and weekday (`"3:4"`).
+ */
+export type PlanCarryChanges = { lineages: ReadonlySet<string>; runs: ReadonlySet<string> };
+
+/** What a change proposal's patch touched. */
+export function patchCarryChanges(patch: ProgramPatch): PlanCarryChanges {
+  return {
+    lineages: new Set(
+      patch.operations.flatMap((operation) =>
+        "lineageId" in operation ? [operation.lineageId] : [],
+      ),
+    ),
+    runs: new Set(
+      patch.operations.flatMap((operation) =>
+        operation.op === "run" ? [`${operation.weekIndex}:${operation.dayOfWeek}`] : [],
+      ),
+    ),
+  };
+}
+
+/**
+ * What an approved blueprint changed against the one it replaces.
+ *
+ * Every slot an operation names — retargeted, swapped, moved or removed — is touched, whatever
+ * field it was: a slot whose fallback changed is one whose machine at this gym may have too.
+ * A slot only reordered keeps its targets, so its prepared entry still stands.
+ */
+export function diffCarryChanges(diff: ProgramDiff): PlanCarryChanges {
+  const lineages = new Set<string>();
+  const runs = new Set<string>();
+  for (const day of diff.days)
+    for (const operation of day.operations) {
+      if ("weekIndex" in operation) {
+        if (day.dayOfWeek !== null) runs.add(`${operation.weekIndex}:${day.dayOfWeek}`);
+        continue;
+      }
+      if (operation.kind === "reordered") continue;
+      if ("from" in operation && operation.from.lineageId) lineages.add(operation.from.lineageId);
+      if ("to" in operation && operation.to.lineageId) lineages.add(operation.to.lineageId);
+    }
+  return { lineages, runs };
+}
+
+/**
  * Moves the coach's waiting plans onto the version of the programme that has just replaced
  * theirs.
  *
@@ -2372,7 +2418,7 @@ export async function plannedRunForToday(
 export async function carryPlansToRevision(
   db: DbOrTx,
   userId: string,
-  input: { fromProgramId: string; toProgramId: string; patch: ProgramPatch },
+  input: { fromProgramId: string; toProgramId: string; changes: PlanCarryChanges },
 ): Promise<void> {
   const plans = await db
     .select()
@@ -2389,16 +2435,8 @@ export async function carryPlansToRevision(
     );
   if (plans.length === 0) return;
 
-  const changed = new Set(
-    input.patch.operations.flatMap((operation) =>
-      "lineageId" in operation ? [operation.lineageId] : [],
-    ),
-  );
-  const retargetedRuns = new Set(
-    input.patch.operations.flatMap((operation) =>
-      operation.op === "run" ? [`${operation.weekIndex}:${operation.dayOfWeek}`] : [],
-    ),
-  );
+  const changed = input.changes.lineages;
+  const retargetedRuns = input.changes.runs;
   const [days, slots, oldRuns, newRuns] = await Promise.all([
     db
       .select({ id: programDays.id, dayIndex: programDays.dayIndex })

@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, isNull, or } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, or } from "drizzle-orm";
 import {
   coachChangeRecords,
   coachIntakes,
@@ -31,7 +31,13 @@ import { openingPlanSchema, type OpeningPlan } from "@/domain/coaching-workflow"
 import { reviewWeekdayFor } from "@/domain/coach-cadence";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { sharedWarmupProtocols } from "@/server/queries/reference";
-import { libraryAtGym, nextTrainingSlot, storePlan } from "./coach-plans";
+import {
+  carryPlansToRevision,
+  diffCarryChanges,
+  libraryAtGym,
+  nextTrainingSlot,
+  storePlan,
+} from "./coach-plans";
 import { materialiseOccurrences, occurrencesFromBlueprint } from "./program-occurrences";
 import { markRequestsApplied, settleClosedDraftRequests } from "./coach-program-requests";
 import { currentCycleFor, keepFinishedWeeks } from "./coach-proposals";
@@ -556,6 +562,31 @@ export async function activateProgramDraft(
         })),
       );
   }
+  if (active && input.transition === "continue" && priorBlueprint) {
+    // The session the coach prepared for today is not a casualty of approving a change to
+    // another day. It moves onto the new version by slot lineage, as an applied proposal's
+    // does; only the slots and runs this change rewrote follow the new programme instead.
+    // Discarding it left Today without the coach's guidance until the next nightly run.
+    await carryPlansToRevision(db, userId, {
+      fromProgramId: active.id,
+      toProgramId: created.id,
+      changes: diffCarryChanges(diffPrograms(priorBlueprint, blueprint)),
+    });
+    // A run's preparation follows its occurrence, which the new version keeps. One whose
+    // occurrence this change revises is withdrawn below, when the revision is written.
+    await db
+      .update(sessionPlans)
+      .set({ programId: created.id })
+      .where(
+        and(
+          eq(sessionPlans.userId, userId),
+          eq(sessionPlans.programId, active.id),
+          eq(sessionPlans.status, "active"),
+          isNotNull(sessionPlans.occurrenceId),
+        ),
+      );
+  }
+  // A new block starts its sessions again, so nothing prepared for the old one carries over.
   if (active)
     await db
       .update(sessionPlans)
