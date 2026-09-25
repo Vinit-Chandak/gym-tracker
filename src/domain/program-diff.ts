@@ -713,14 +713,46 @@ export function diffOperationSignatures(diff: ProgramDiff): Map<string, string> 
   return signatures;
 }
 
-const leading = (value: string) => Number.parseFloat(value.replace(/^[^0-9]*/, ""));
+/** The fields whose values are amounts, and so can move up or down. */
+const AMOUNTS = new Set([
+  "sets",
+  "target",
+  "rir",
+  "rest",
+  "weeks",
+  "duration",
+  "distanceKm",
+  "rpe",
+]);
 
-/** Which way a formatted target moved: "up", "down", or "changed" when numbers do not tell. */
-function direction(from: string, to: string): "up" | "down" | "changed" {
-  const before = leading(from);
-  const after = leading(to);
-  if (Number.isNaN(before) || Number.isNaN(after) || before === after) return "changed";
-  return after > before ? "up" : "down";
+/**
+ * A formatted amount as the low and high end of its range, in one unit.
+ *
+ * Rest reads in seconds below two minutes and in minutes above, so "150–180 s" and "3 min" are
+ * put on seconds before they are compared. A change of measure — reps to seconds, which the
+ * diff writes with the measure in brackets — is not bigger or smaller, only different.
+ */
+function amount(value: string): [number, number] | null {
+  if (value.includes("(")) return null;
+  const numbers = value.match(/\d+(?:\.\d+)?/g);
+  if (!numbers || numbers.length > 2) return null;
+  const scale = /\bmin\b/.test(value) ? 60 : 1;
+  return [Number(numbers[0]) * scale, Number(numbers[numbers.length - 1]) * scale];
+}
+
+/**
+ * Which way an amount moved: "up" or "down" when both ends of its range moved that way (or
+ * held), "changed" when they split — a range widened or narrowed — or when it is not an amount.
+ */
+function direction(field: string, from: string, to: string): "up" | "down" | "changed" {
+  if (!AMOUNTS.has(field)) return "changed";
+  const before = amount(from);
+  const after = amount(to);
+  if (!before || !after) return "changed";
+  const [low, high] = [after[0] - before[0], after[1] - before[1]];
+  if (low >= 0 && high >= 0 && (low > 0 || high > 0)) return "up";
+  if (low <= 0 && high <= 0 && (low < 0 || high < 0)) return "down";
+  return "changed";
 }
 
 /**
@@ -740,7 +772,7 @@ export function changeFingerprints(diff: ProgramDiff): Map<string, string> {
   for (const field of diff.program)
     if (field.field !== "notes" && field.field !== "slug")
       note(
-        `program:${field.field}:${direction(field.from, field.to)}`,
+        `program:${field.field}:${direction(field.field, field.from, field.to)}`,
         `${field.label}: ${field.from} → ${field.to}`,
       );
   for (const day of diff.days) {
@@ -770,7 +802,7 @@ export function changeFingerprints(diff: ProgramDiff): Map<string, string> {
           );
           for (const field of operation.fields)
             note(
-              `${operation.id}:${field.field}:${direction(field.from, field.to)}`,
+              `${operation.id}:${field.field}:${direction(field.field, field.from, field.to)}`,
               `${where}: ${field.label.toLowerCase()} ${field.from} → ${field.to}`,
             );
           break;
@@ -783,7 +815,7 @@ export function changeFingerprints(diff: ProgramDiff): Map<string, string> {
             );
           for (const field of operation.fields)
             note(
-              `${operation.id}:${field.field}:${direction(field.from, field.to)}`,
+              `${operation.id}:${field.field}:${direction(field.field, field.from, field.to)}`,
               `${operation.to.exerciseSlug}: ${field.label.toLowerCase()} ${field.from} → ${field.to}`,
             );
           break;
@@ -799,7 +831,7 @@ export function changeFingerprints(diff: ProgramDiff): Map<string, string> {
         case "run_changed":
           for (const field of operation.fields)
             note(
-              `run:${day.dayOfWeek ?? day.key}:${field.field}:${direction(field.from, field.to)}`,
+              `run:${day.dayOfWeek ?? day.key}:${field.field}:${direction(field.field, field.from, field.to)}`,
               `${where} runs: ${field.label.toLowerCase()} ${field.from} → ${field.to}`,
             );
           break;
