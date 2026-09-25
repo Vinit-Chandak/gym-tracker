@@ -79,6 +79,22 @@ async function login(name) {
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.waitForURL("**/today");
 }
+/**
+ * Waits out the transitions a palette change starts. Controls cross-fade their colours, and a
+ * contrast check or screenshot taken mid-fade measures neither palette: the active tab dips
+ * below 2:1 halfway through a fade whose ends are 4.9:1 and 6:1.
+ */
+async function settle() {
+  await page.evaluate(async () => {
+    await new Promise(requestAnimationFrame);
+    await Promise.all(
+      document
+        .getAnimations()
+        .filter((animation) => animation.effect?.getTiming().iterations !== Infinity)
+        .map((animation) => animation.finished.catch(() => {})),
+    );
+  });
+}
 const dialog = () => page.getByRole("dialog");
 const myFoods = () => page.getByRole("list", { name: "My foods" });
 async function openMeal(label, slug) {
@@ -338,8 +354,7 @@ try {
       await page.evaluate((size) => (document.documentElement.style.fontSize = `${size}px`), font);
       for (const scheme of ["light", "dark"]) {
         await page.emulateMedia({ colorScheme: scheme });
-        // Rows ease their colours on a palette change; screenshot the settled page.
-        await page.waitForTimeout(400);
+        await settle();
         await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
         expect(
           await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),
@@ -366,6 +381,8 @@ try {
           ],
         ]) {
           await open();
+          // The sheet rises and fades in; measure it once it has arrived.
+          await settle();
           await dialog().getByLabel(field, { exact: true }).scrollIntoViewIfNeeded();
           await expect(dialog().getByLabel(field, { exact: true })).toBeInViewport();
           await dialog()
@@ -395,13 +412,9 @@ try {
     await navigate("/today/food");
     for (const scheme of ["light", "dark"]) {
       await page.emulateMedia({ colorScheme: scheme });
-      await page.waitForTimeout(400);
-      // The navigation island is translucent, so its active label's contrast depends on
-      // whatever page is scrolled beneath it; History shows the same finding. It is the
-      // shell's, not this screen's, and is left to the island's own audit.
+      await settle();
       const axe = await new AxeBuilder({ page })
         .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
-        .exclude(".primary-nav")
         .analyze();
       expect(
         axe.violations.map((v) => ({ id: v.id, nodes: v.nodes.map((n) => n.target) })),

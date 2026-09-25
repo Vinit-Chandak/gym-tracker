@@ -97,7 +97,10 @@ function SavedSwitch({
         () => save(next),
         "Could not save. Check your connection and try again.",
       );
-      if (!outcome.ok) setError(outcome.message);
+      // After an await, React no longer counts an update as the transition's own. Marking the
+      // error as one keeps it in the same render as the switch going back, not a frame ahead
+      // of it, so the message never sits beside a switch showing what was not saved.
+      if (!outcome.ok) startTransition(() => setError(outcome.message));
     });
   return (
     <div>

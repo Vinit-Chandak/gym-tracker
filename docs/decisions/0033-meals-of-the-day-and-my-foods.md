@@ -125,6 +125,10 @@ reads:
 - **Screens.** The meal page and both sheets were checked at 320×568, 390×844, 768×1024 and
   1440×900, at 200% text at 320×568 and 568×320, and at 390×300, in both palettes. Nothing scrolls
   sideways and every field and primary button can be reached. Axe finds nothing in either sheet in
-  either palette, or on the Food screen. The navigation island's active label was left out of
-  that scan: it is translucent, and its contrast varies with the page beneath it (3.8 to 4.4:1 on
-  History as well as Food). That finding predates this change and belongs to the shell.
+  either palette, or on the Food screen, navigation island included.
+- **Corrected: the island's active tab.** The first scans reported its label at 3.8 to 4.4:1 and
+  left the island out, blaming its translucency. That was wrong. A tab fades its colours for
+  120 ms when the palette changes, and the audit scanned inside that fade: sampled frame by
+  frame, the label passes through 1.7:1 between 4.9:1 in the light palette and 6:1 in the dark.
+  The audit now lets running transitions finish before it measures or takes a screenshot, and
+  scans the island with everything else. Nothing in the app changed.

@@ -103,9 +103,13 @@ export function MealEditor({
         () => deleteEntryAction(entry.id),
         `${entry.name} was not removed. Check your connection and try again.`,
       );
-      if (!outcome.ok) setError(outcome.message);
-      else if (!outcome.value.ok) setError(outcome.value.error ?? null);
-      else setSaid(`${entry.name} removed.`);
+      // After an await an update is no longer the transition's own: marked as one, the
+      // message arrives in the same render as the food coming back, not a frame ahead of it.
+      startTransition(() => {
+        if (!outcome.ok) setError(outcome.message);
+        else if (!outcome.value.ok) setError(outcome.value.error ?? null);
+        else setSaid(`${entry.name} removed.`);
+      });
     });
 
   const unstar = (saved: SavedMealRecord) =>
@@ -115,9 +119,11 @@ export function MealEditor({
         () => deleteSavedMealAction(saved.id),
         `${saved.name} was not unstarred. Check your connection and try again.`,
       );
-      if (!outcome.ok) setError(outcome.message);
-      else if (!outcome.value.ok) setError(outcome.value.error ?? null);
-      else setSaid(`${saved.name} unstarred.`);
+      startTransition(() => {
+        if (!outcome.ok) setError(outcome.message);
+        else if (!outcome.value.ok) setError(outcome.value.error ?? null);
+        else setSaid(`${saved.name} unstarred.`);
+      });
     });
 
   const search = query.trim().toLowerCase();
