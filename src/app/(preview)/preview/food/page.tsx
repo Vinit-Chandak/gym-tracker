@@ -1,94 +1,144 @@
-import type { Metadata } from "next";
+import type { Metadata, Route } from "next";
 
 import { FoodView } from "@/app/(app)/today/food/food-view";
-import { addUp, type FoodItem, type NutritionTargets } from "@/domain/nutrition";
-import type { FoodScreen, MealRecord } from "@/server/repositories/nutrition";
+import { MealView } from "@/app/(app)/today/food/[meal]/meal-view";
+import {
+  addUp,
+  eaten,
+  mealFromSlug,
+  mealSlug,
+  type Food,
+  type Meal,
+  type NutritionTargets,
+} from "@/domain/nutrition";
+import type {
+  EntryRecord,
+  FoodDay,
+  FoodRecord,
+  SavedMealRecord,
+} from "@/server/repositories/nutrition";
 
 import { PreviewShell } from "../../preview-shell";
 
 export const metadata: Metadata = { title: "Preview · Food" };
 
-const TARGETS: NutritionTargets = { dailyKcal: 2400, proteinPerKg: 1.8, split: "body_weight" };
+const TODAY = "2026-09-25";
+const TARGETS: NutritionTargets = { dailyKcal: 2300, proteinPerKg: 1.8, split: "body_weight" };
 
-const STAR_ID = "00000000-0000-4000-8000-0000000000f1";
+let ids = 0;
+const id = () => `00000000-0000-4000-8000-${String(++ids).padStart(12, "0")}`;
 
-function meal(
-  id: string,
+function food(
   name: string,
-  items: FoodItem[],
-  savedMealId: string | null = null,
-): MealRecord {
-  return { id, name, eatenOn: "2026-09-25", savedMealId, items, totals: addUp(items) };
+  portion: [number, Food["unit"]],
+  kcal: number,
+  macros: [number, number, number] | null = null,
+): FoodRecord {
+  const [carbsG, fatG, proteinG] = macros ?? [null, null, null];
+  return {
+    id: id(),
+    name,
+    portionAmount: portion[0],
+    unit: portion[1],
+    kcal,
+    carbsG,
+    fatG,
+    proteinG,
+  };
 }
 
-const MEALS: MealRecord[] = [
-  meal(
-    "00000000-0000-4000-8000-0000000000a1",
-    "Morning meal 1",
-    [
-      { name: "Oats, 80 g", kcal: 303, carbsG: 54, fatG: 5.5, proteinG: 10.5 },
-      { name: "Whey, 1 scoop", kcal: 120, carbsG: 3, fatG: 1.5, proteinG: 24 },
-      { name: "Milk, 250 ml", kcal: 160, carbsG: 12, fatG: 8, proteinG: 8.5 },
+const MILK = food("Milk", [100, "ml"], 52, [5, 2.5, 3.3]);
+const DRY_FRUITS = food("Morning dry fruits", [1, "serving"], 150, [9, 11, 4]);
+const WHEY = food("MuscleBlaze Biozyme whey", [1, "scoop"], 139, [5.6, 1.8, 25]);
+const OATS = food("Oats", [100, "g"], 389, [66.3, 6.9, 16.9]);
+const HOME_FOOD = food("Home food", [1, "serving"], 200);
+const CHICKPEA = food("Cooked chickpea", [100, "g"], 165, [27.4, 2.6, 8.9]);
+const FRUIT = food("Fruit", [1, "piece"], 60, [15, 0.2, 0.5]);
+const SHAKE = food("Amul protein blueberry shake", [200, "ml"], 138, [12, 3, 15]);
+const HIGH_PROTEIN_MILK = food("Amul high protein milk", [250, "ml"], 225, [20, 0.5, 35]);
+
+/** My foods, the most lately eaten first. */
+const FOODS = [FRUIT, CHICKPEA, HOME_FOOD, WHEY, DRY_FRUITS, MILK, OATS, HIGH_PROTEIN_MILK, SHAKE];
+
+function entry(meal: Meal, from: FoodRecord, amount: number): EntryRecord {
+  const { id: foodId, ...copy } = from;
+  return { id: id(), eatenOn: TODAY, meal, foodId, ...copy, amount };
+}
+
+const DAY: EntryRecord[] = [
+  entry("breakfast", MILK, 300),
+  entry("breakfast", DRY_FRUITS, 1),
+  entry("breakfast", WHEY, 1),
+  entry("lunch", HOME_FOOD, 2),
+  entry("lunch", CHICKPEA, 150),
+  entry("afternoon_snack", FRUIT, 1),
+];
+const DINNER_OUT = [entry("dinner", HOME_FOOD, 4), entry("dinner", OATS, 150)];
+
+const SAVED: SavedMealRecord[] = [
+  {
+    id: id(),
+    name: "Post-workout shake",
+    items: [
+      { ...WHEY, foodId: WHEY.id, amount: 1.5 },
+      { ...MILK, foodId: MILK.id, amount: 250 },
     ],
-    STAR_ID,
-  ),
-  meal("00000000-0000-4000-8000-0000000000a2", "Afternoon meal 1", [
-    { name: "Peanut butter, 75 g", kcal: 441.5, carbsG: 15, fatG: 37.5, proteinG: 18.8 },
-    { name: "Milk, 250 ml", kcal: 160, carbsG: 12, fatG: 8, proteinG: 8.5 },
-  ]),
-  // A guessed restaurant meal: one number and nothing else.
-  meal("00000000-0000-4000-8000-0000000000a3", "Dinner at the Thai place", [
-    { name: null, kcal: 1050, carbsG: null, fatG: null, proteinG: null },
-  ]),
+  },
+  {
+    id: id(),
+    name: "Usual breakfast",
+    items: DAY.filter((logged) => logged.meal === "breakfast").map(
+      ({ id: _id, eatenOn: _day, meal: _meal, ...logged }) => logged,
+    ),
+  },
 ];
 
-const SAVED: FoodScreen["savedMeals"] = [
-  {
-    id: STAR_ID,
-    name: "Morning meal 1",
-    items: MEALS[0]!.items,
-    totals: MEALS[0]!.totals,
-  },
-  {
-    id: "00000000-0000-4000-8000-0000000000f2",
-    name: "Protein shake",
-    items: [{ name: null, kcal: 280, carbsG: 15, fatG: 9.5, proteinG: 32.5 }],
-    totals: { kcal: 280, carbsG: 15, fatG: 9.5, proteinG: 32.5 },
-  },
-  {
-    id: "00000000-0000-4000-8000-0000000000f3",
-    name: "Chicken, rice and broccoli",
-    items: [{ name: null, kcal: 640, carbsG: 70, fatG: 12, proteinG: 55 }],
-    totals: { kcal: 640, carbsG: 70, fatG: 12, proteinG: 55 },
-  },
-];
+const previewMeal = (meal: Meal) => `/preview/food?meal=${mealSlug(meal)}` as Route;
 
 /**
- * The Food screen against made-up data (ADR 0032), in each of its states: `?state=first` has no
- * target yet, `empty` nothing eaten, `over` a day past its band, `noweight` an account with no
- * body weight to take protein from. The default is a day that has met its goal. Saving here
- * goes nowhere: there is no account behind it.
+ * The Food screen against made-up data (ADRs 0032, 0033), in each of its states: `?state=first`
+ * has no target yet, `empty` nothing eaten, `over` a day past its band, `noweight` an account with
+ * no body weight to take protein from. The default is a day under way. `?meal=breakfast` (or any
+ * other meal) is that meal's page, and `&state=new` shows it for an account with no foods yet.
+ * Saving here goes nowhere: there is no account behind it.
  */
 export default async function FoodPreviewPage(props: PageProps<"/preview/food">) {
-  const { state } = await props.searchParams;
-  const extra = meal("00000000-0000-4000-8000-0000000000a4", "Evening meal 1", [
-    { name: "Pizza, half", kcal: 1100, carbsG: 120, fatG: 45, proteinG: 48 },
-  ]);
-  const screen: FoodScreen = {
-    targets: state === "first" ? null : TARGETS,
-    meals:
-      state === "empty" || state === "first" ? [] : state === "over" ? [...MEALS, extra] : MEALS,
-    savedMeals: state === "first" ? [] : SAVED,
-  };
+  const { state, meal: slug } = await props.searchParams;
+  const meal = typeof slug === "string" ? mealFromSlug(slug) : null;
 
+  if (meal) {
+    const fresh = state === "new";
+    return (
+      <PreviewShell tab="/today">
+        <MealView
+          today={TODAY}
+          meal={meal}
+          backHref="/preview/food"
+          screen={{
+            entries: fresh ? [] : DAY.filter((logged) => logged.meal === meal),
+            foods: fresh ? [] : FOODS,
+            savedMeals: fresh ? [] : SAVED,
+          }}
+        />
+      </PreviewShell>
+    );
+  }
+
+  const entries =
+    state === "empty" || state === "first" ? [] : state === "over" ? [...DAY, ...DINNER_OUT] : DAY;
+  const day: FoodDay = {
+    targets: state === "first" ? null : TARGETS,
+    entries,
+    eaten: addUp(entries.map(eaten)),
+  };
   return (
     <PreviewShell tab="/today">
       <FoodView
-        today="2026-09-25"
-        screen={screen}
+        today={TODAY}
+        day={day}
         bodyWeightKg={state === "noweight" ? null : 74.5}
         unit="kg"
-        suggestedName="Evening meal 1"
+        mealHref={previewMeal}
       />
     </PreviewShell>
   );

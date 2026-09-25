@@ -1,12 +1,18 @@
 import { describe, expect, it } from "vitest";
 
+import type { z } from "zod";
+
 import { parseForm } from "./form";
 import {
+  createFoodSchema,
   issuesByPath,
-  mealInputSchema,
+  logFoodSchema,
+  logSavedMealSchema,
+  saveMealSchema,
   targetsInputSchema,
-  type FoodDraft,
-  type MealDraft,
+  updateEntrySchema,
+  updateFoodSchema,
+  type CreateFoodDraft,
 } from "./nutrition";
 
 function form(values: Record<string, string>): FormData {
@@ -15,19 +21,28 @@ function form(values: Record<string, string>): FormData {
   return data;
 }
 
-const BLANK: FoodDraft = { name: "", kcal: "", carbsG: "", fatG: "", proteinG: "" };
+const DAY = "2026-09-25";
+const ID = "00000000-0000-4000-8000-000000000001";
 
-function meal(items: Partial<FoodDraft>[], extra: Partial<MealDraft> = {}): MealDraft {
+/** A new food as its sheet sends it: everything typed, as typed. */
+function newFood(fields: Partial<CreateFoodDraft> = {}): CreateFoodDraft {
   return {
-    name: "Afternoon meal 1",
-    items: items.map((item) => ({ ...BLANK, ...item })),
-    starred: false,
-    ...extra,
+    eatenOn: DAY,
+    meal: "breakfast",
+    name: "Oats",
+    portionAmount: "100",
+    unit: "g",
+    kcal: "389",
+    carbsG: "",
+    fatG: "",
+    proteinG: "",
+    amount: "60",
+    ...fields,
   };
 }
 
-function errorsOf(draft: MealDraft): Record<string, string> {
-  const result = mealInputSchema.safeParse(draft);
+function errorsOf(schema: z.ZodType, input: unknown): Record<string, string> {
+  const result = schema.safeParse(input);
   return result.success ? {} : issuesByPath(result.error.issues);
 }
 
@@ -85,76 +100,144 @@ describe("targets", () => {
   });
 });
 
-describe("a meal", () => {
-  it("needs only the energy, so a guessed meal is one number", () => {
-    const parsed = mealInputSchema.parse(meal([{ kcal: "900" }]));
-    expect(parsed).toEqual({
-      mealId: undefined,
-      name: "Afternoon meal 1",
-      items: [{ name: null, kcal: 900, carbsG: null, fatG: null, proteinG: null }],
-      starred: false,
+describe("a new food", () => {
+  it("needs only a name, a portion and its energy", () => {
+    expect(createFoodSchema.parse(newFood())).toEqual({
+      submissionKey: undefined,
+      eatenOn: DAY,
+      meal: "breakfast",
+      food: {
+        name: "Oats",
+        portionAmount: 100,
+        unit: "g",
+        kcal: 389,
+        carbsG: null,
+        fatG: null,
+        proteinG: null,
+      },
+      amount: 60,
     });
   });
 
-  it("reads every field of a food, a decimal comma included, to the tenth", () => {
-    const parsed = mealInputSchema.parse(
-      meal(
-        [
-          {
-            name: " Peanut butter, 75 g ",
-            kcal: "441,54",
-            carbsG: "15",
-            fatG: "37.5",
-            proteinG: "18.75",
-          },
-        ],
-        { starred: true },
-      ),
+  it("reads every figure, a decimal comma included, figures to the tenth and amounts to the hundredth", () => {
+    const parsed = createFoodSchema.parse(
+      newFood({
+        name: "  Whey  ",
+        portionAmount: "1",
+        unit: "scoop",
+        kcal: "139,04",
+        carbsG: "5.64",
+        fatG: "1,8",
+        proteinG: "25",
+        amount: "1,255",
+        submissionKey: ID,
+      }),
     );
-    expect(parsed.items).toEqual([
-      { name: "Peanut butter, 75 g", kcal: 441.5, carbsG: 15, fatG: 37.5, proteinG: 18.8 },
-    ]);
-    expect(parsed.starred).toBe(true);
+    expect(parsed).toMatchObject({
+      submissionKey: ID,
+      food: {
+        name: "Whey",
+        portionAmount: 1,
+        unit: "scoop",
+        kcal: 139,
+        carbsG: 5.6,
+        fatG: 1.8,
+        proteinG: 25,
+      },
+      amount: 1.26,
+    });
   });
 
-  it("passes over rows left blank, and keeps the order of the rest", () => {
-    const parsed = mealInputSchema.parse(
-      meal([{ name: "Milk", kcal: "160" }, BLANK, { name: "Oats", kcal: "150" }, BLANK]),
-    );
-    expect(parsed.items.map((item) => item.name)).toEqual(["Milk", "Oats"]);
-  });
-
-  it("puts each error on the row and field it belongs to", () => {
+  it("says everything that is wrong at once, each against its own field", () => {
     expect(
       errorsOf(
-        meal([
-          { name: "Milk", kcal: "160" },
-          BLANK,
-          { name: "Toast" },
-          { kcal: "abc", proteinG: "2000" },
-        ]),
+        createFoodSchema,
+        newFood({
+          name: " ",
+          portionAmount: "",
+          unit: "bucket",
+          kcal: "",
+          carbsG: "abc",
+          proteinG: "2000",
+          amount: "0",
+        }),
       ),
     ).toEqual({
-      "items.2.kcal": "Enter the kcal.",
-      "items.3.kcal": "Enter a number.",
-      "items.3.proteinG": "At most 1,000 g.",
+      name: "Name this food.",
+      portionAmount: "Enter the portion.",
+      unit: "Choose a unit.",
+      kcal: "Enter the kcal.",
+      carbsG: "Enter a number.",
+      proteinG: "At most 1,000 g.",
+      amount: "Enter more than 0.",
     });
   });
 
-  it("asks for the energy on the first row when nothing was entered at all", () => {
-    expect(errorsOf(meal([BLANK]))).toEqual({ "items.0.kcal": "Enter the kcal." });
-    expect(errorsOf(meal([]))).toEqual({ "items.0.kcal": "Enter the kcal." });
+  it("keeps portions and amounts above nothing and within ten thousand", () => {
+    expect(errorsOf(createFoodSchema, newFood({ portionAmount: "0.004" }))).toEqual({
+      portionAmount: "Enter more than 0.",
+    });
+    expect(errorsOf(createFoodSchema, newFood({ amount: "10000.01", kcal: "20000" }))).toEqual({
+      amount: "At most 10,000.",
+      kcal: "At most 10,000 kcal.",
+    });
+    expect(errorsOf(createFoodSchema, newFood({ name: "x".repeat(81) }))).toEqual({
+      name: "Keep this under 80 characters.",
+    });
+  });
+});
+
+describe("logging and changing an amount", () => {
+  it("reads how much of a saved food was eaten", () => {
+    expect(
+      logFoodSchema.parse({ eatenOn: DAY, meal: "lunch", foodId: ID, amount: " 200 " }),
+    ).toEqual({ eatenOn: DAY, meal: "lunch", foodId: ID, amount: 200 });
+    expect(
+      errorsOf(logFoodSchema, { eatenOn: DAY, meal: "lunch", foodId: ID, amount: "" }),
+    ).toEqual({ amount: "Enter how much." });
+    expect(errorsOf(updateEntrySchema, { entryId: ID, amount: "a lot" })).toEqual({
+      amount: "Enter a number.",
+    });
+    expect(updateEntrySchema.parse({ entryId: ID, amount: "0.5" })).toEqual({
+      entryId: ID,
+      amount: 0.5,
+    });
   });
 
-  it("needs a name for the meal, and a real id for one being edited", () => {
-    expect(errorsOf(meal([{ kcal: "100" }], { name: "   " }))).toEqual({
+  it("refuses a meal, a day or an id that cannot be one", () => {
+    const base = { eatenOn: DAY, meal: "lunch", foodId: ID, amount: "1" };
+    for (const wrong of [{ meal: "brunch" }, { eatenOn: "2026-02-31" }, { foodId: "not-an-id" }]) {
+      expect(logFoodSchema.safeParse({ ...base, ...wrong }).success).toBe(false);
+    }
+    expect(
+      logSavedMealSchema.safeParse({ eatenOn: DAY, meal: "dinner", savedMealId: ID }).success,
+    ).toBe(true);
+    expect(
+      logSavedMealSchema.safeParse({ eatenOn: DAY, meal: "supper", savedMealId: ID }).success,
+    ).toBe(false);
+  });
+});
+
+describe("saving a meal and correcting a food", () => {
+  it("needs a name for the meal", () => {
+    expect(saveMealSchema.parse({ eatenOn: DAY, meal: "breakfast", name: " Usual " })).toEqual({
+      eatenOn: DAY,
+      meal: "breakfast",
+      name: "Usual",
+    });
+    expect(errorsOf(saveMealSchema, { eatenOn: DAY, meal: "breakfast", name: "" })).toEqual({
       name: "Name this meal.",
     });
-    expect(errorsOf(meal([{ kcal: "100" }], { mealId: "not-an-id" }))).toHaveProperty("mealId");
   });
 
-  it("refuses more foods than a meal holds", () => {
-    const many = Array.from({ length: 31 }, () => ({ kcal: "1" }));
-    expect(errorsOf(meal(many))).toEqual({ items: "A meal holds at most 30 foods." });
+  it("reads a correction the way it reads a new food", () => {
+    const { eatenOn: _day, meal: _meal, amount: _amount, ...fields } = newFood({ kcal: "379" });
+    expect(updateFoodSchema.parse({ foodId: ID, ...fields })).toEqual({
+      foodId: ID,
+      food: expect.objectContaining({ name: "Oats", kcal: 379 }),
+    });
+    expect(errorsOf(updateFoodSchema, { foodId: ID, ...fields, kcal: "" })).toEqual({
+      kcal: "Enter the kcal.",
+    });
   });
 });

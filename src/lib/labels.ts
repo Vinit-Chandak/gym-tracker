@@ -1,5 +1,6 @@
 import type { AvailabilityStatus } from "@/domain/equipment-resolution";
 import type { BodyRegion } from "@/domain/muscles";
+import type { FoodUnit, Meal } from "@/domain/nutrition";
 import type { SuggestionKind } from "@/domain/progression";
 import type {
   EquipmentCategory,
@@ -259,3 +260,41 @@ export const WEEKDAY_SHORT: readonly string[] = [
   "Sat",
   "Sun",
 ];
+
+/** The day's meals, as the Food screen names them (ADR 0033). */
+export const MEAL_LABELS: Record<Meal, string> = {
+  breakfast: "Breakfast",
+  morning_snack: "Morning snack",
+  lunch: "Lunch",
+  afternoon_snack: "Afternoon snack",
+  dinner: "Dinner",
+  evening_snack: "Evening snack",
+};
+
+/**
+ * A food's unit as written after its amount. Litres are a capital L, as on a milk carton, so
+ * "1 L" is never read as eleven.
+ */
+export const FOOD_UNIT_LABELS: Record<FoodUnit, string> = {
+  g: "g",
+  kg: "kg",
+  ml: "ml",
+  l: "L",
+  oz: "oz",
+  cup: "cup",
+  tbsp: "tbsp",
+  tsp: "tsp",
+  piece: "piece",
+  slice: "slice",
+  scoop: "scoop",
+  serving: "serving",
+};
+
+/** The units spelt as words, which take a plural: 2 slices, where 2 g stays 2 g. */
+export const FOOD_UNIT_PLURALS: Partial<Record<FoodUnit, string>> = {
+  cup: "cups",
+  piece: "pieces",
+  slice: "slices",
+  scoop: "scoops",
+  serving: "servings",
+};

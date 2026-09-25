@@ -92,8 +92,15 @@ const SECTION_LABELS: Record<string, string> = {
   u: "People",
 };
 
+/** A screen with a name of its own inside a section, which a back control names instead. */
+const PAGE_LABELS: Record<string, string> = {
+  // A meal's page goes back to the Food screen, not to Today.
+  "/today/food": "Food",
+};
+
 export function sectionLabel(path: string): string | undefined {
-  return SECTION_LABELS[path.split(/[?#]/)[0]!.split("/")[1] ?? ""];
+  const pathname = path.split(/[?#]/)[0]!;
+  return PAGE_LABELS[pathname] ?? SECTION_LABELS[pathname.split("/")[1] ?? ""];
 }
 
 /**

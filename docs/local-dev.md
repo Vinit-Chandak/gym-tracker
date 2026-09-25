@@ -141,9 +141,12 @@ $env:AUDIT_BROWSER = 'webkit'
 npm run audit:food
 ```
 
-This covers feature gating, targets, meal/star/edit/delete flows, recovery after disconnection
-and a lost save reply, original-day drafts, account isolation, responsive forms and PWA behavior.
-Results and screenshots go to `output/food-audit/`. The browsers are emulated; physical-device
+This covers availability, targets, the six meals, new foods kept by logging them, amounts that
+scale a saved food, starring a meal under a name and adding it to another, changed portions and
+corrected foods, swipe removal, a retried save after a lost reply, Today's totals, account
+isolation, responsive sheets with Axe, and PWA behavior (ADR 0033). Results and screenshots go to
+`output/food-audit/`. Where the installed browsers are older than this Playwright, point
+`AUDIT_CHROMIUM_PATH` at a Chromium executable. The browsers are emulated; physical-device
 installation and keyboard behavior still need a device check. See the
 [food audit report](audits/2026-09-25-food-audit.md).
 

@@ -35,6 +35,10 @@ it("names the section a detail screen was opened from", () => {
   expect(sectionLabel("/workouts/abc")).toBe("Workout");
   expect(sectionLabel("/profile")).toBe("Profile");
   expect(sectionLabel("/u/phani03")).toBe("People");
+  // The Food screen is a page of Today's with a name of its own; its meals are Today's too.
+  expect(sectionLabel("/today/food")).toBe("Food");
+  expect(sectionLabel("/today/food?from=today")).toBe("Food");
+  expect(sectionLabel("/today/food/breakfast")).toBe("Today");
 });
 
 it("has no section name for a path outside the primary sections", () => {
