@@ -1,11 +1,11 @@
 "use server";
 
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { z } from "zod";
 import { getDb } from "@/db/client";
-import { profiles, programDrafts } from "@/db/schema";
+import { profiles } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import { withUser } from "@/db/with-user";
 import { getCoachRoutine, getCoachServiceToken } from "@/lib/env";
@@ -14,6 +14,7 @@ import { PLAN_LIMITS } from "@/domain/session-plan";
 import { requireProfiledUser } from "@/server/auth";
 import { dispatchCoachJob } from "@/server/dispatch-coach-job";
 import { profileChanged } from "@/server/queries/request-profile";
+import { assessProgramChange } from "@/domain/program-change";
 import {
   answerCoachQuestions,
   confirmIntake,
@@ -22,14 +23,17 @@ import {
   setTrainingMode,
 } from "@/server/repositories/coach-intakes";
 import { requestProgramCreation, requestProgramReview } from "@/server/repositories/coaching-jobs";
-import { CoachingError } from "@/server/repositories/coaching-state";
+import { CoachingError, sourceRevision } from "@/server/repositories/coaching-state";
 import {
   activateProgramDraft,
   archiveActiveProgram,
+  closeProgramDraft,
   copyProgramToDraft,
+  getProgramDraft,
   refreshProgramDraft,
   saveManualDraft,
 } from "@/server/repositories/program-drafts";
+import { readProgramBlueprint } from "@/server/repositories/programs";
 import { removeCoachAttachment } from "@/server/repositories/coach-attachments";
 import { PlanValidationError, saveCoachNotes } from "@/server/repositories/coach-plans";
 import {
@@ -236,21 +240,58 @@ export async function activateProgramDraftAction(input: {
   return result;
 }
 export async function rejectProgramDraftAction(id: string) {
-  return mutate(async (tx, userId) => {
-    const rows = await tx
-      .update(programDrafts)
-      .set({ status: "rejected" })
-      .where(
-        and(
-          eq(programDrafts.id, z.uuid().parse(id)),
-          eq(programDrafts.userId, userId),
-          inArray(programDrafts.status, ["editing", "ready"]),
-        ),
-      )
-      .returning({ id: programDrafts.id });
-    if (!rows.length) throw new CoachingError("That draft is no longer waiting for review.");
-    return rows[0];
+  const result = await mutate((tx, userId) =>
+    closeProgramDraft(tx, userId, z.uuid().parse(id), "discarded"),
+  );
+  if (result.ok) revalidatePath("/profile/programme");
+  return result;
+}
+
+/**
+ * "Approve" on a change, in one tap.
+ *
+ * It used to take three: check the draft against current data, choose whether the change
+ * continues the block or starts a new one, then approve. The check is the server's to make,
+ * so it is made here, as part of approving; and whether a change can continue the running
+ * block is not a preference — a change to the split cannot, and anything else does, so every
+ * week still to come takes it from now. Only a change to the split asks for a start date.
+ */
+export async function approveProgramChangeAction(input: {
+  id: string;
+  revision: number;
+  startDate: string;
+}) {
+  const result = await mutate(async (tx, userId) => {
+    const parsed = z
+      .object({ id: z.uuid(), revision: z.number().int().positive(), startDate: z.iso.date() })
+      .parse(input);
+    let draft = await getProgramDraft(tx, userId, parsed.id);
+    if (!draft) throw new CoachingError("That change no longer exists.", 404);
+    if (draft.status === "editing" || draft.sourceRevision !== (await sourceRevision(tx, userId)))
+      draft = await refreshProgramDraft(tx, userId, draft.id, parsed.revision);
+    else if (draft.revision !== parsed.revision)
+      throw new CoachingError("This change was updated. Reload to see the latest version.");
+    const current = draft.baseProgramId
+      ? await readProgramBlueprint(tx, userId, draft.baseProgramId)
+      : null;
+    const transition =
+      current &&
+      assessProgramChange(current.blueprint, draft.blueprint, []).structuralChanges.length === 0
+        ? "continue"
+        : "new_block";
+    const activated = await activateProgramDraft(tx, userId, draft.id, {
+      expectedRevision: draft.revision,
+      startDate: parsed.startDate,
+      transition,
+    });
+    return { ...activated, userId };
   });
+  if (result.ok) {
+    await profileChanged(result.value.userId);
+    revalidatePath("/today");
+    revalidatePath("/profile/programme");
+  }
+  return result;
 }
 /**
  * "No thanks" on a reviewed set of changes.
@@ -262,20 +303,9 @@ export async function rejectProgramDraftAction(id: string) {
 export async function declineProgramChangeAction(id: string) {
   const result = await mutate(async (tx, userId) => {
     const draftId = z.uuid().parse(id);
-    const rows = await tx
-      .update(programDrafts)
-      .set({ status: "rejected" })
-      .where(
-        and(
-          eq(programDrafts.id, draftId),
-          eq(programDrafts.userId, userId),
-          inArray(programDrafts.status, ["editing", "ready"]),
-        ),
-      )
-      .returning({ id: programDrafts.id });
-    if (!rows.length) throw new CoachingError("That change is no longer waiting for an answer.");
-    await releaseRequestsForDraft(tx, userId, draftId, "declined", "You declined this change.");
-    return rows[0]!;
+    const closed = await closeProgramDraft(tx, userId, draftId, "declined");
+    await releaseRequestsForDraft(tx, userId, draftId, "declined", "");
+    return closed;
   });
   if (result.ok) revalidatePath("/profile/programme");
   return result;
@@ -298,27 +328,10 @@ export async function requestChangeRevisionsAction(id: string, notes: string, no
         notes: z.string().trim().min(1, "Say what you would like changed.").max(PLAN_LIMITS.memo),
       })
       .parse({ id, noteId, notes });
-    const rows = await tx
-      .update(programDrafts)
-      .set({ status: "rejected" })
-      .where(
-        and(
-          eq(programDrafts.id, parsed.id),
-          eq(programDrafts.userId, userId),
-          inArray(programDrafts.status, ["editing", "ready"]),
-        ),
-      )
-      .returning({ id: programDrafts.id });
-    if (!rows.length) throw new CoachingError("That change is no longer waiting for an answer.");
     await saveCoachNotes(tx, userId, parsed.notes, parsed.noteId);
-    await releaseRequestsForDraft(
-      tx,
-      userId,
-      parsed.id,
-      "waiting",
-      "You asked for revisions. The coach reworks this at its next daily run.",
-    );
-    return rows[0]!;
+    const closed = await closeProgramDraft(tx, userId, parsed.id, "revised", parsed.noteId);
+    await releaseRequestsForDraft(tx, userId, parsed.id, "waiting", "");
+    return closed;
   });
   if (result.ok) {
     revalidatePath("/profile/programme");

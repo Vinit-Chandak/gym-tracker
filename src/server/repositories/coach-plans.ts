@@ -59,6 +59,10 @@ import {
   type StoredPlanExercise,
 } from "@/domain/session-plan";
 import { assessSportChange } from "@/domain/coach-sport-policy";
+import {
+  endurancePrescriptionSchema,
+  type EndurancePrescription,
+} from "@/domain/activity-prescription";
 import { formatSet, weightStepFor } from "@/domain/sets";
 import { stepsFrom } from "@/domain/load-steps";
 import { workingSets } from "@/domain/progression";
@@ -1024,6 +1028,7 @@ export type LibraryEntry = {
   /** One the athlete created, rather than the shared library's. */
   own: boolean;
   modality: (typeof exercises.$inferSelect)["modality"];
+  category: (typeof exercises.$inferSelect)["category"];
   movementPattern: string;
   primaryMuscles: (typeof exercises.$inferSelect)["primaryMuscles"];
   loadPortability: (typeof exercises.$inferSelect)["loadPortability"];
@@ -1113,6 +1118,7 @@ export async function libraryAtGym(
       name: e.name,
       own: e.userId !== null,
       modality: e.modality,
+      category: e.category,
       movementPattern: e.movementPattern,
       primaryMuscles: e.primaryMuscles,
       loadPortability: e.loadPortability,
@@ -1681,6 +1687,17 @@ export async function storeOccurrencePlan(
   // The approved prescription is the authority. A preparation may choose inside it; anything
   // else is a proposal for the athlete, not a plan the coach may simply store (COACH-05).
   if (entry.prescription && target.prescription) {
+    // Guidance a preparation leaves out is guidance it keeps. A preparation cannot remove the
+    // approved pace, progression or stop rule — that would be refused as a proposal — so an
+    // empty one can only mean "unchanged". Refusing it instead failed every run preparation
+    // whose writer had not been shown the approved text to copy word for word.
+    const approved = endurancePrescriptionSchema.safeParse(target.prescription);
+    if (approved.success) {
+      if (entry.prescription.running === null) entry.prescription.running = approved.data.running;
+      if (entry.prescription.instructions === null)
+        entry.prescription.instructions = approved.data.instructions;
+      if (entry.prescription.notes === null) entry.prescription.notes = approved.data.notes;
+    }
     const assessment = assessSportChange(target.prescription, entry.prescription);
     if (assessment.authority === "review_required")
       throw new PlanValidationError(
@@ -1770,6 +1787,39 @@ export async function activePlansForOccurrences(
       ),
     );
   return new Map(rows.flatMap((row) => (row.occurrenceId ? [[row.occurrenceId, row]] : [])));
+}
+
+/**
+ * Occurrences with the coach's prepared target in place of the programme's, where it has one.
+ *
+ * A preparation chooses inside the approved range — 32–36 minutes out of 30–40 — and it is
+ * what the coach wants done today. Today's card and the log screen used to show the
+ * programme's range regardless, so a preparation reached the athlete only on the session's
+ * own page. Only a preparation written against the revision in force counts: one pinned to an
+ * older revision describes a target the programme has since changed.
+ */
+export async function withPreparedTargets<
+  T extends { id: string; revisionId: string; prescription: EndurancePrescription | null },
+>(
+  db: DbOrTx,
+  userId: string,
+  occurrences: readonly T[],
+): Promise<(T & { preparedByCoach: boolean })[]> {
+  const plans = await activePlansForOccurrences(
+    db,
+    userId,
+    occurrences.map((occurrence) => occurrence.id),
+  );
+  return occurrences.map((occurrence) => {
+    const plan = plans.get(occurrence.id);
+    const prepared =
+      plan && plan.occurrenceRevisionId === occurrence.revisionId
+        ? (plan.endurance[0]?.prescription ?? null)
+        : null;
+    return prepared
+      ? { ...occurrence, prescription: prepared, preparedByCoach: true }
+      : { ...occurrence, preparedByCoach: false };
+  });
 }
 
 /**

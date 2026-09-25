@@ -21,6 +21,9 @@ import { CoachingError } from "./coaching-state";
 
 export type ProgramRequest = typeof coachProgramRequests.$inferSelect;
 
+/** States in which an ask is the coach's to decide; anything else has been settled or handed to the athlete. */
+const COACH_OPEN_STATES = ["waiting", "deferred"] as const satisfies readonly RequestState[];
+
 /** A request waiting on the coach rather than on the athlete. */
 function actionable(today: string) {
   return or(
@@ -176,6 +179,28 @@ export async function claimRequestsForAttempt(
         )
         .orderBy(asc(coachNotes.createdAt))
     : [];
+  // What happened to each ask before, so a question the athlete answered arrives with the
+  // question, and an ask back from a closed proposal says why it is back.
+  const history = items.length
+    ? await db
+        .select({
+          requestId: coachRequestDecisions.requestId,
+          state: coachRequestDecisions.state,
+          detail: coachRequestDecisions.detail,
+          decidedAt: coachRequestDecisions.decidedAt,
+        })
+        .from(coachRequestDecisions)
+        .where(
+          and(
+            eq(coachRequestDecisions.userId, userId),
+            inArray(
+              coachRequestDecisions.requestId,
+              items.map((item) => item.id),
+            ),
+          ),
+        )
+        .orderBy(asc(coachRequestDecisions.decidedAt))
+    : [];
   return {
     items: items.map((item) => ({
       id: item.id,
@@ -191,6 +216,15 @@ export async function claimRequestsForAttempt(
       answers: answers
         .filter((answer) => answer.requestId === item.id)
         .map((answer) => ({ text: answer.text, at: answer.createdAt.toISOString() })),
+      /** Earlier outcomes of this ask, oldest first: the last few are enough to pick it up. */
+      history: history
+        .filter((entry) => entry.requestId === item.id)
+        .slice(-6)
+        .map((entry) => ({
+          state: entry.state,
+          detail: entry.detail,
+          at: entry.decidedAt.toISOString(),
+        })),
     })),
     hasMore: open.length > REQUESTS_PER_JOB,
   };
@@ -225,7 +259,7 @@ export async function applyRequestPatch(
   const patch: RequestPatch = requestPatchSchema.parse(input.patch ?? {});
   const { jobId, attemptId, now } = input;
 
-  const claimed = await db
+  const snapshot = await db
     .select()
     .from(coachProgramRequests)
     .where(
@@ -235,6 +269,15 @@ export async function applyRequestPatch(
         eq(coachProgramRequests.claimedAttemptId, attemptId),
       ),
     );
+  // Only asks still waiting on the coach are owed a decision. One the athlete withdrew while
+  // this run was working is theirs already: deciding it would bring it back from the dead,
+  // and refusing the whole result for it would punish the run for the athlete's own tap.
+  const claimed = snapshot.filter((request) =>
+    (COACH_OPEN_STATES as readonly RequestState[]).includes(request.state),
+  );
+  const settledMeanwhile = new Set(
+    snapshot.filter((request) => !claimed.includes(request)).map((request) => request.id),
+  );
 
   // Newly discovered asks. The quote has to be the athlete's own words from a source they
   // own, so a request cannot be invented on their behalf.
@@ -253,7 +296,7 @@ export async function applyRequestPatch(
           422,
         );
       }
-      await db
+      const [stored] = await db
         .insert(coachProgramRequests)
         .values({
           id: entry.id,
@@ -266,11 +309,11 @@ export async function applyRequestPatch(
           claimedJobId: jobId,
           claimedAttemptId: attemptId,
         })
-        .onConflictDoNothing({ target: coachProgramRequests.id });
-      const [stored] = await db
-        .select({ id: coachProgramRequests.id })
-        .from(coachProgramRequests)
-        .where(and(eq(coachProgramRequests.id, entry.id), eq(coachProgramRequests.userId, userId)));
+        .onConflictDoNothing({ target: coachProgramRequests.id })
+        .returning({ id: coachProgramRequests.id });
+      // An id that already exists — this athlete's or anyone's, which row security would hide
+      // from a lookup — is not a new ask. Accepting one of theirs let a result reopen, and
+      // then re-decide, a request they had already declined, withdrawn or had applied.
       if (!stored) throw new CoachingError("Use a fresh id for each request you open.", 422);
     }
   }
@@ -297,8 +340,9 @@ export async function applyRequestPatch(
     return { opened: patch.open.length, decided: 0, remaining: required.size };
   }
 
+  const decisions = patch.decisions.filter((decision) => !settledMeanwhile.has(decision.requestId));
   const seen = new Set<string>();
-  for (const decision of patch.decisions) {
+  for (const decision of decisions) {
     if (!required.has(decision.requestId))
       throw new CoachingError(
         "Decide only the requests supplied to this attempt, or ones you opened in this result.",
@@ -340,7 +384,7 @@ export async function applyRequestPatch(
       422,
     );
 
-  for (const decision of patch.decisions) {
+  for (const decision of decisions) {
     await db
       .update(coachProgramRequests)
       .set({
@@ -359,6 +403,7 @@ export async function applyRequestPatch(
         and(
           eq(coachProgramRequests.id, decision.requestId),
           eq(coachProgramRequests.userId, userId),
+          inArray(coachProgramRequests.state, [...COACH_OPEN_STATES]),
         ),
       );
     await db.insert(coachRequestDecisions).values({
@@ -377,7 +422,7 @@ export async function applyRequestPatch(
     .where(and(eq(coachProgramRequests.userId, userId), actionable(input.today)));
   return {
     opened: patch.open.length,
-    decided: patch.decisions.length,
+    decided: decisions.length,
     remaining: remaining.length,
   };
 }
@@ -394,9 +439,12 @@ export async function markRequestsApplied(
   draftId: string,
   now = new Date(),
 ) {
+  // The detail written when the change was proposed ("waiting for your approval") is not true
+  // once it is applied, and the change's own headline says what it did. The history row
+  // keeps the coach's words.
   const rows = await db
     .update(coachProgramRequests)
-    .set({ state: "applied", resolvedAt: now })
+    .set({ state: "applied", detail: "", resolvedAt: now })
     .where(
       and(
         eq(coachProgramRequests.userId, userId),
@@ -404,13 +452,13 @@ export async function markRequestsApplied(
         eq(coachProgramRequests.state, "proposed"),
       ),
     )
-    .returning({ id: coachProgramRequests.id, detail: coachProgramRequests.detail });
+    .returning({ id: coachProgramRequests.id });
   for (const row of rows)
     await db.insert(coachRequestDecisions).values({
       userId,
       requestId: row.id,
       state: "applied",
-      detail: row.detail,
+      detail: "",
       decidedAt: now,
     });
   return rows.length;
@@ -460,6 +508,93 @@ export async function releaseRequestsForDraft(
 }
 
 /**
+ * Asks whose proposal stopped being open without being approved itself.
+ *
+ * A proposal closes when the athlete approves another one, or when a newer review takes its
+ * place. Its asks are not declined by that — the athlete never said no to them — so each one
+ * follows the change it named: to the successor, when the successor makes exactly the same
+ * change (same operation, same content, against the same base), or back to the coach, when
+ * it does not. An ask is never called granted by a change that only resembles the one it was
+ * given, and never left pointing at a proposal nobody can approve.
+ */
+export async function settleClosedDraftRequests(
+  db: DbOrTx,
+  userId: string,
+  input: {
+    draftId: string;
+    /** The closed draft's own operations, from `diffOperationSignatures`. */
+    signatures: ReadonlyMap<string, string>;
+    successor: {
+      draftId: string;
+      /** `applied` when the athlete approved the successor, `proposed` when it replaces this one. */
+      state: "applied" | "proposed";
+      signatures: ReadonlyMap<string, string>;
+    } | null;
+  },
+  now = new Date(),
+) {
+  const rows = await db
+    .select()
+    .from(coachProgramRequests)
+    .where(
+      and(
+        eq(coachProgramRequests.userId, userId),
+        eq(coachProgramRequests.draftId, input.draftId),
+        eq(coachProgramRequests.state, "proposed"),
+      ),
+    );
+  let carried = 0;
+  for (const request of rows) {
+    const successor = input.successor;
+    const follows =
+      successor !== null &&
+      request.changeRefs.length > 0 &&
+      request.changeRefs.every((ref) => {
+        const mine = input.signatures.get(ref);
+        return mine !== undefined && mine === successor.signatures.get(ref);
+      });
+    if (follows) {
+      carried += 1;
+      await db
+        .update(coachProgramRequests)
+        .set({
+          state: successor.state,
+          draftId: successor.draftId,
+          detail: successor.state === "applied" ? "" : request.detail,
+          resolvedAt: resolvedNow(successor.state, now),
+        })
+        .where(
+          and(eq(coachProgramRequests.id, request.id), eq(coachProgramRequests.userId, userId)),
+        );
+      await db.insert(coachRequestDecisions).values({
+        userId,
+        requestId: request.id,
+        state: successor.state,
+        detail:
+          successor.state === "applied"
+            ? "Applied with the programme the athlete approved, which makes the same change."
+            : "Carried to the proposal that replaced its own, which makes the same change.",
+        changeRefs: request.changeRefs,
+        decidedAt: now,
+      });
+      continue;
+    }
+    await db
+      .update(coachProgramRequests)
+      .set({ state: "waiting", detail: "", draftId: null, changeRefs: [], resolvedAt: null })
+      .where(and(eq(coachProgramRequests.id, request.id), eq(coachProgramRequests.userId, userId)));
+    await db.insert(coachRequestDecisions).values({
+      userId,
+      requestId: request.id,
+      state: "waiting",
+      detail: "Its proposal closed without this change, so it is back for the next review.",
+      decidedAt: now,
+    });
+  }
+  return { carried, reopened: rows.length - carried };
+}
+
+/**
  * A proposal that no longer exists cannot be the answer to anything.
  *
  * A draft superseded by a newer review, or one whose programme moved on, would otherwise
@@ -480,13 +615,7 @@ export async function reopenOrphanedRequests(db: DbOrTx, userId: string, now = n
   if (!stale.length) return 0;
   await db
     .update(coachProgramRequests)
-    .set({
-      state: "waiting",
-      detail: "The change it was waiting on is no longer available.",
-      draftId: null,
-      changeRefs: [],
-      resolvedAt: null,
-    })
+    .set({ state: "waiting", detail: "", draftId: null, changeRefs: [], resolvedAt: null })
     .where(
       and(
         eq(coachProgramRequests.userId, userId),
@@ -501,7 +630,7 @@ export async function reopenOrphanedRequests(db: DbOrTx, userId: string, now = n
       userId,
       requestId: row.id,
       state: "waiting",
-      detail: "The change it was waiting on is no longer available.",
+      detail: "Its proposal is no longer open, so it is back for the next review.",
       decidedAt: now,
     });
   return stale.length;
@@ -550,7 +679,7 @@ export async function answerProgramRequest(
   if (!inserted.length) throw new CoachingError("Could not save this answer. Reload and retry.");
   await db
     .update(coachProgramRequests)
-    .set({ state: "waiting", detail: "Your answer is saved for the next daily coach run." })
+    .set({ state: "waiting" })
     .where(
       and(
         eq(coachProgramRequests.id, requestId),
@@ -577,7 +706,9 @@ export async function withdrawProgramRequest(
 ) {
   const rows = await db
     .update(coachProgramRequests)
-    .set({ state: "withdrawn", detail: "You withdrew this request.", resolvedAt: now })
+    // The claim a running review holds is left in place on purpose: it is how that review's
+    // decision is recognised as one about an ask the athlete has since settled, and ignored.
+    .set({ state: "withdrawn", detail: "", resolvedAt: now })
     .where(
       and(
         eq(coachProgramRequests.id, requestId),
@@ -591,7 +722,7 @@ export async function withdrawProgramRequest(
     userId,
     requestId,
     state: "withdrawn",
-    detail: "You withdrew this request.",
+    detail: "",
     decidedAt: now,
   });
   return rows[0]!;

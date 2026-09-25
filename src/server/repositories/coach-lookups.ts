@@ -1,8 +1,9 @@
 import { and, asc, eq } from "drizzle-orm";
 
-import { equipmentInstances, equipmentTypes, exercises } from "@/db/schema";
+import { equipmentInstances, equipmentTypes, exercises, profiles } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import { searchScore, searchWords } from "@/domain/exercise-search";
+import { bandEmphasis, defaultBand, type BandEmphasis } from "@/domain/rep-bands";
 import { sharedExercises } from "@/server/queries/reference";
 
 import { libraryAtGym, type LibraryEntry } from "./coach-plans";
@@ -64,7 +65,8 @@ export type ExerciseQuery = {
   offset: number;
 };
 
-function lookupRow(entry: LibraryEntry, gymChecked: boolean) {
+function lookupRow(entry: LibraryEntry, gymChecked: boolean, emphasis: BandEmphasis) {
+  const band = defaultBand(entry, emphasis);
   return {
     slug: entry.slug,
     name: entry.name,
@@ -81,6 +83,11 @@ function lookupRow(entry: LibraryEntry, gymChecked: boolean) {
       meters: [entry.defaultDistanceMinMeters, entry.defaultDistanceMaxMeters],
       rir: entry.defaultRir,
     },
+    /**
+     * The range a new slot of this exercise starts from, for this athlete's goal: its role's
+     * band from `repBands`. Depart from it only for a reason stated in the rationale.
+     */
+    band: { role: band.role, reps: band.reps, rir: band.rir },
     /** Null when no location was checked; otherwise whether it can be done there, and on what. */
     available: gymChecked ? entry.available : null,
     machine: gymChecked ? entry.machine : null,
@@ -101,6 +108,7 @@ async function unlocatedLibrary(db: DbOrTx, userId: string): Promise<LibraryEntr
       name: e.name,
       own: e.userId !== null,
       modality: e.modality,
+      category: e.category,
       movementPattern: e.movementPattern,
       primaryMuscles: e.primaryMuscles,
       loadPortability: e.loadPortability,
@@ -123,6 +131,12 @@ async function unlocatedLibrary(db: DbOrTx, userId: string): Promise<LibraryEntr
  */
 export async function lookupExercises(db: DbOrTx, userId: string, query: ExerciseQuery) {
   const gym = await ownGym(db, userId, query.gymId);
+  const [athlete] = await db
+    .select({ goal: profiles.trainingGoal })
+    .from(profiles)
+    .where(eq(profiles.id, userId))
+    .limit(1);
+  const emphasis = bandEmphasis(athlete?.goal);
   const library = gym ? await libraryAtGym(db, userId, gym.id) : await unlocatedLibrary(db, userId);
   const words = searchWords(query.q ?? "");
   const matching = library
@@ -143,7 +157,7 @@ export async function lookupExercises(db: DbOrTx, userId: string, query: Exercis
     query: query.q ?? null,
     total: matching.length,
     hasMore: query.offset + page.length < matching.length,
-    items: page.map((item) => lookupRow(item.entry, gym !== null)),
+    items: page.map((item) => lookupRow(item.entry, gym !== null, emphasis)),
     meaning:
       "The shared library and the athlete's own exercises. A query matches the athlete's own words forgivingly and ranks the closest names first; nothing matching means the library has no such exercise, not that the list failed. Use the slug in a plan.",
   };
