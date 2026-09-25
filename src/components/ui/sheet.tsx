@@ -2,11 +2,19 @@
 
 import { useEffect, useRef, type ReactNode } from "react";
 
+import { cn } from "@/lib/utils";
+
 type SheetProps = {
   open: boolean;
   onClose: () => void;
   title: string;
   children: ReactNode;
+  /**
+   * Kept in view under the content, which scrolls on its own above it: what a list being built
+   * adds up to, and the button that saves it. A sheet with a footer grows to the dialog's full
+   * height before its content scrolls, so the footer is never pushed off the screen.
+   */
+  footer?: ReactNode;
 };
 
 /**
@@ -14,7 +22,7 @@ type SheetProps = {
  * the control that opened it all come for free. Use it for a short decision that fits; a
  * long catalogue or a form belongs in a full-height view with one scroll region.
  */
-export function Sheet({ open, onClose, title, children }: SheetProps) {
+export function Sheet({ open, onClose, title, children, footer }: SheetProps) {
   const ref = useRef<HTMLDialogElement>(null);
   const panel = useRef<HTMLDivElement>(null);
 
@@ -47,11 +55,26 @@ export function Sheet({ open, onClose, title, children }: SheetProps) {
       <div
         ref={panel}
         tabIndex={-1}
-        className="sheet-panel rounded-t-sheet bg-surface panel-padding pb-[max(var(--panel-padding),env(safe-area-inset-bottom))] focus:outline-none"
+        className={cn(
+          "sheet-panel rounded-t-sheet bg-surface panel-padding pb-[max(var(--panel-padding),env(safe-area-inset-bottom))] focus:outline-none",
+          footer && "flex max-h-[90dvh] flex-col",
+        )}
       >
-        <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-line-strong" aria-hidden />
-        <h2 className="mb-3 text-lg font-medium">{title}</h2>
-        <div className="max-h-[70dvh] overflow-y-auto overscroll-contain">{children}</div>
+        <div className="mx-auto mb-3 h-1 w-10 shrink-0 rounded-full bg-line-strong" aria-hidden />
+        <h2 className="mb-3 shrink-0 text-lg font-medium">{title}</h2>
+        <div
+          className={cn(
+            "overflow-y-auto overscroll-contain",
+            footer ? "min-h-0 flex-1" : "max-h-[70dvh]",
+          )}
+        >
+          {children}
+        </div>
+        {footer && (
+          <div className="-mx-[var(--panel-padding)] mt-3 shrink-0 border-t border-line px-[var(--panel-padding)] pt-3">
+            {footer}
+          </div>
+        )}
       </div>
     </dialog>
   );

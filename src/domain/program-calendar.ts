@@ -60,3 +60,11 @@ export function todayInTimeZone(timeZone: string, now: Date = new Date()): strin
     day: "2-digit",
   }).format(now);
 }
+
+/** The hour on the clock in the given IANA time zone, 0–23. */
+export function hourInTimeZone(timeZone: string, now: Date = new Date()): number {
+  // `h23`, not `hour12: false`: some engines print midnight as "24" under the latter.
+  return Number(
+    dateTimeFormatter("en-GB", { timeZone, hour: "2-digit", hourCycle: "h23" }).format(now),
+  );
+}

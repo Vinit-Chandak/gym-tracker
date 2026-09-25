@@ -215,3 +215,12 @@ export function formatRelativeDay(isoDate: string, today: string): string {
   }
   return formatIsoWeekdayDay(isoDate);
 }
+
+/**
+ * "1,850": food energy in whole kilocalories, or grams of a macronutrient in whole grams (ADR
+ * 0032). Stored to the tenth, shown whole: a day read to a tenth of a gram is only noise.
+ */
+export function formatFoodAmount(value: number): string {
+  // `+ 0` turns the -0 a small negative rounds to into 0.
+  return (Math.round(value) + 0).toLocaleString("en-GB");
+}

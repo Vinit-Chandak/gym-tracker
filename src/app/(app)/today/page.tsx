@@ -3,7 +3,9 @@ import type { Metadata } from "next";
 import { FreshAfterSets } from "@/components/fresh-after-sets";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
+import { macroTargets } from "@/domain/nutrition";
 import { todayInTimeZone } from "@/domain/program-calendar";
+import { foodTrackingEnabled } from "@/lib/env";
 import { LOAD_UNIT_LABELS } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
 import { getActiveSession } from "@/server/queries/active-session";
@@ -13,6 +15,7 @@ import { seenSetChanges } from "@/server/queries/set-changes";
 import { todayCoachState, withPreparedTargets } from "@/server/repositories/coach-plans";
 import { todayWorkflowState } from "@/server/repositories/coaching-today";
 import { listGyms } from "@/server/repositories/gyms";
+import { readFoodDay } from "@/server/repositories/nutrition";
 import { occurrencesForSlot, standaloneOccurrencesOnDate } from "@/server/repositories/occurrences";
 import { getSchedule, getTodayPlan } from "@/server/repositories/schedule";
 
@@ -33,6 +36,9 @@ export default async function TodayPage() {
   const user = await requireUser();
   const requestProfile = await getRequestProfile(user.id, user.email);
   const seen = await seenSetChanges();
+  // Food tracking is hidden unless switched on for this account (ADR 0032); off, Today reads
+  // exactly what it read before.
+  const food = foodTrackingEnabled(user.email);
   // The active session comes from the shared per-request read the resume strip also uses,
   // so Today and the shell agree on one session without asking the database twice.
   const [inProgress, data] = await Promise.all([
@@ -76,7 +82,7 @@ export default async function TodayPage() {
       // to one day on the card of another. Standalone work is asked for by date, because a
       // date is exactly what the athlete chose when they put it on the calendar. Neither
       // rolls forward.
-      const [standalone, programme] = await Promise.all([
+      const [standalone, programme, foodDay] = await Promise.all([
         standaloneOccurrencesOnDate(tx, user.id, todayInTimeZone(profile.timeZone)),
         plan?.suggestion && plan.suggestedDay
           ? occurrencesForSlot(tx, user.id, {
@@ -85,6 +91,8 @@ export default async function TodayPage() {
               cycleIndex: plan.suggestion.slot.cycleIndex,
             })
           : Promise.resolve([]),
+        // One statement: the targets and what today's meals come to.
+        food ? readFoodDay(tx, user.id, todayInTimeZone(profile.timeZone)) : Promise.resolve(null),
       ]);
       // What the coach prepared for each, where it did: the target to follow today.
       const [preparedStandalone, preparedProgramme] = await Promise.all([
@@ -99,10 +107,11 @@ export default async function TodayPage() {
         coach,
         standalone: preparedStandalone,
         programme: preparedProgramme,
+        foodDay,
       };
     }),
   ]);
-  const { profile, gyms, plan, restProtocol, coach, standalone, programme } = data;
+  const { profile, gyms, plan, restProtocol, coach, standalone, programme, foodDay } = data;
 
   return (
     <FreshAfterSets seen={seen} loading={<Loading />}>
@@ -120,6 +129,13 @@ export default async function TodayPage() {
         unit={LOAD_UNIT_LABELS[profile.preferredUnit]}
         programmeOccurrences={programme}
         standaloneOccurrences={standalone}
+        food={
+          foodDay && {
+            eaten: foodDay.eaten,
+            // Protein follows the newest body weight, so it is worked out now, not stored.
+            target: foodDay.targets ? macroTargets(foodDay.targets, profile.bodyWeightKg) : null,
+          }
+        }
       />
     </FreshAfterSets>
   );
