@@ -9,7 +9,7 @@ const SIZE_CLASSES: Record<AvatarSize, string> = {
   row: "size-9 text-base",
   header: "size-16 text-2xl",
   /** Head to head: two of these fit a 320px screen with "VS" between. */
-  compare: "size-[5.5rem] text-4xl",
+  compare: "aspect-square w-[5.5rem] max-w-full text-4xl",
 };
 
 /**

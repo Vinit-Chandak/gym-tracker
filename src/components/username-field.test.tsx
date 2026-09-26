@@ -8,6 +8,7 @@ const { check } = vi.hoisted(() => ({ check: vi.fn() }));
 vi.mock("@/server/actions/people", () => ({
   checkUsernameAction: (candidate: string) => check(candidate),
 }));
+vi.mock("next/navigation", () => ({ unstable_rethrow: vi.fn() }));
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -71,5 +72,21 @@ it("shows the server's refusal until the field is edited again", async () => {
   type("vinit_c");
   await settle();
   expect(screen.queryByRole("alert")).toBeNull();
+  expect(screen.getByText("Available.")).toBeTruthy();
+});
+
+it("does not leave a failed availability request checking forever", async () => {
+  check.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+  render(<UsernameField />);
+  type("alex123");
+  await settle();
+  expect(screen.queryByText("Checking…")).toBeNull();
+  expect(
+    screen.getByText("Could not check availability. It will be checked when you save."),
+  ).toBeTruthy();
+  expect(field().value).toBe("alex123");
+  check.mockResolvedValueOnce("available");
+  type("alex1234");
+  await settle();
   expect(screen.getByText("Available.")).toBeTruthy();
 });

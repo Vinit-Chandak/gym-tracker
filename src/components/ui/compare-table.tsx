@@ -45,7 +45,7 @@ export function CompareTable({
   rows: CompareRow[];
 }) {
   return (
-    <table className="w-full table-fixed border-collapse text-sm">
+    <table className="w-full table-fixed border-collapse text-sm [overflow-wrap:anywhere]">
       {/* Fixed widths, so a long name or a wrapped line never squeezes the metric column to
           one word per line on a 320 px phone; the two value columns share what is left. */}
       <colgroup>
@@ -117,7 +117,7 @@ function Value({ side, leads }: { side: CompareSide; leads: boolean }) {
     <td className="py-3 pl-2 text-right align-top leading-tight tabular-nums">
       <span
         className={cn(
-          "block whitespace-nowrap",
+          "block",
           leads ? "font-semibold" : side.value ? "font-medium" : "text-ink-muted",
         )}
       >

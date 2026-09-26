@@ -70,7 +70,9 @@ export function SetOptions({
             </Select>
           </Field>
 
-          <div className="grid grid-cols-3 gap-2">
+          {/* Each number has two touch targets below it. Keep enough room for both as
+              text grows, and let the sheet scroll when the fields need separate rows. */}
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,5.5rem),1fr))] gap-2">
             <NumberField
               label={unitLabel}
               value={row.weight}

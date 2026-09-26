@@ -123,7 +123,12 @@ export function CyclingForm({
           <Field
             group
             label="Duration"
-            error={state.fieldErrors?.duration ?? state.fieldErrors?.minutes}
+            error={
+              state.fieldErrors?.duration ??
+              state.fieldErrors?.hours ??
+              state.fieldErrors?.minutes ??
+              state.fieldErrors?.seconds
+            }
           >
             <div className="grid grid-cols-3 gap-2">
               <Field label="Hours">
@@ -193,7 +198,15 @@ export function CyclingForm({
       </Section>
 
       <Section title="Details">
-        <MoreDetails>
+        <MoreDetails
+          hasErrors={[
+            "averagePowerWatts",
+            "averageCadenceRpm",
+            "elevationGainMetres",
+            "averageHeartRate",
+            "maxHeartRate",
+          ].some((field) => Boolean(state.fieldErrors?.[field]))}
+        >
           <div className="grid grid-cols-2 gap-2">
             <Field label="Average power W" error={state.fieldErrors?.averagePowerWatts}>
               <Input

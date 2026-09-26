@@ -5,7 +5,8 @@ import { useRouter, unstable_rethrow } from "next/navigation";
 import type { Route } from "next";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Field, Input, Textarea, INPUT_CLASS } from "@/components/ui/input";
+import { Field, Input, Textarea } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import {
   type BlueprintDay,
   type BlueprintExercise,
@@ -205,8 +206,7 @@ export function ProgramBuilder({
             />
           </Field>
           <Field label="Usual weekday">
-            <select
-              className={INPUT_CLASS}
+            <Select
               value={day.dayOfWeek || ""}
               onChange={(e) => {
                 const dayOfWeek = Number(e.target.value);
@@ -224,7 +224,7 @@ export function ProgramBuilder({
                   {name}
                 </option>
               ))}
-            </select>
+            </Select>
           </Field>
           <Field label="Focus">
             <Input
@@ -234,8 +234,7 @@ export function ProgramBuilder({
             />
           </Field>
           <Field label="Warm-up (optional)">
-            <select
-              className={INPUT_CLASS}
+            <Select
               value={day.warmupSlug}
               onChange={(e) => dayChange(d, { warmupSlug: e.target.value })}
             >
@@ -245,7 +244,7 @@ export function ProgramBuilder({
                   {w.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </Field>
           <Field label="Time available / notes">
             <Input
@@ -277,8 +276,7 @@ export function ProgramBuilder({
                   />
                 </Field>
                 <Field label="Count each set in">
-                  <select
-                    className={INPUT_CLASS}
+                  <Select
                     value={entry.reps ? "reps" : entry.duration ? "duration" : "distance"}
                     onChange={(event) => {
                       const measure = event.target.value;
@@ -292,7 +290,7 @@ export function ProgramBuilder({
                     <option value="reps">Reps</option>
                     <option value="duration">Seconds</option>
                     <option value="distance">Metres</option>
-                  </select>
+                  </Select>
                 </Field>
                 {(
                   [
@@ -409,7 +407,7 @@ export function ProgramBuilder({
                   runs: e.target.checked
                     ? [
                         ...plan.runs,
-                        ...Array.from({ length: plan.weeks }, (_, i) =>
+                        ...Array.from({ length: Math.max(0, Math.min(52, plan.weeks)) }, (_, i) =>
                           emptyRun(i + 1, day.dayOfWeek),
                         ),
                       ]
@@ -534,18 +532,14 @@ export function ProgramBuilder({
       {routines.length > 0 && (
         <Card>
           <Field label="Use a saved routine as a programme day">
-            <select
-              className={INPUT_CLASS}
-              value={routineId}
-              onChange={(event) => setRoutineId(event.target.value)}
-            >
+            <Select value={routineId} onChange={(event) => setRoutineId(event.target.value)}>
               <option value="">Choose a routine</option>
               {routines.map((routine) => (
                 <option key={routine.id} value={routine.id}>
                   {routine.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </Field>
           <Button
             variant="secondary"
@@ -657,10 +651,17 @@ function AddExercise({
   return (
     <div className="space-y-3 border-t border-line pt-3">
       <Field label="Find an exercise">
-        <Input type="search" value={query} onChange={(e) => setQuery(e.target.value)} />
+        <Input
+          type="search"
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setSlug("");
+          }}
+        />
       </Field>
       <Field label="Exercise to add">
-        <select className={INPUT_CLASS} value={slug} onChange={(e) => setSlug(e.target.value)}>
+        <Select value={slug} onChange={(e) => setSlug(e.target.value)}>
           <option value="">Choose an exercise</option>
           {library
             .filter((e) => e.name.toLowerCase().includes(query.toLowerCase()))
@@ -669,7 +670,7 @@ function AddExercise({
                 {e.name}
               </option>
             ))}
-        </select>
+        </Select>
       </Field>
       <Button
         variant="secondary"

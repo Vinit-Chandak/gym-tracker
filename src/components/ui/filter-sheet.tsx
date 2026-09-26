@@ -42,9 +42,9 @@ export function FilterSheet({
         onClick={() => setOpen(true)}
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={summary ? `${label}: ${summary}` : undefined}
+        aria-label={summary ? `${label}: ${summary}` : label}
         className={cn(
-          "flex min-h-11 shrink-0 items-center gap-1.5 rounded-control px-2 text-sm font-medium transition-colors duration-[var(--ov-duration-feedback)] active:bg-surface-raised",
+          "flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-control px-2 text-sm font-medium transition-colors duration-[var(--ov-duration-feedback)] active:bg-surface-raised",
           count > 0 ? "text-accent" : "text-ink-muted hover:text-ink",
         )}
       >

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useOptimistic, useState, useTransition } from "react";
 
 import { ConfirmSheet } from "@/components/confirm-sheet";
 import { PersonRow, type Person } from "@/components/person-row";
@@ -33,13 +33,13 @@ export function PeopleLists({
   initial: PeopleTab;
 }) {
   const router = useRouter();
-  const [tab, setTab] = useState<PeopleTab>(initial);
+  const [tab, setTab] = useOptimistic<PeopleTab>(initial);
   const [, startNavigation] = useTransition();
   const choose = (next: PeopleTab) => {
-    setTab(next);
-    startNavigation(() =>
-      router.replace(`/profile/friends/people?people=${next}`, { scroll: false }),
-    );
+    startNavigation(() => {
+      setTab(next);
+      router.replace(`/profile/friends/people?people=${next}`, { scroll: false });
+    });
   };
   const people = tab === "following" ? following : followers;
 

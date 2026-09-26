@@ -14,12 +14,16 @@ import { confirmIntake, saveIntake } from "@/server/repositories/coach-intakes";
 import { coachIntakeSchema, jobTargetSchema } from "@/domain/coaching-workflow";
 import { addExerciseToSession, startAdHocSession } from "@/server/repositories/sessions";
 import { seedAuditMultisport } from "./seed-audit-multisport";
+import { seedAuditHistory } from "./seed-audit-history";
+import { seedAuditBoundaries } from "./seed-audit-boundaries";
 
 const url = process.env.SEED_DATABASE_URL ?? "";
 const target = new URL(url);
 if (
   !["127.0.0.1", "localhost", "[::1]"].includes(target.hostname) ||
-  !target.pathname.startsWith("/overload_audit")
+  target.search !== "" ||
+  target.hash !== "" ||
+  !/^\/overload_audit(?:_[a-z0-9]+)*$/.test(target.pathname)
 )
   throw new Error("Use the isolated audit database.");
 const client = postgres(url, { max: 1, prepare: false });
@@ -85,6 +89,10 @@ async function main() {
         });
     }
 
+    // Set each sport's sharing choice before historical projections are written.
+    await seedAuditMultisport(db);
+    const history = await seedAuditHistory(db);
+    const boundariesAdded = await seedAuditBoundaries(db, history);
     for (const username of ["vinit", "shreyash", "priya"]) {
       const [person] = await db
         .select()
@@ -315,7 +323,27 @@ async function main() {
           .where(eq(schema.programDrafts.id, draft!.id));
       });
     }
-    await seedAuditMultisport(db);
+    // Adding the long-history fixture is a source change. Refresh only untouched ready audit
+    // proposals when this seed actually inserted history; later re-runs preserve interactions.
+    if (history.insertedMonths > 0 || boundariesAdded > 0) {
+      const drafts = await db
+        .select({ draft: schema.programDrafts })
+        .from(schema.programDrafts)
+        .innerJoin(schema.coachJobs, eq(schema.coachJobs.id, schema.programDrafts.jobId))
+        .where(
+          and(
+            eq(schema.coachJobs.dedupeKey, "audit:review"),
+            eq(schema.programDrafts.status, "ready"),
+          ),
+        );
+      for (const { draft } of drafts)
+        await withUser(db, draft.userId, async (tx) => {
+          await tx
+            .update(schema.programDrafts)
+            .set({ sourceRevision: await sourceRevision(tx, draft.userId) })
+            .where(eq(schema.programDrafts.id, draft.id));
+        });
+    }
     const people = await db
       .select({
         id: schema.profiles.id,
@@ -324,6 +352,8 @@ async function main() {
       })
       .from(schema.profiles);
     const inventory = {
+      history,
+      boundariesAdded,
       people,
       gyms: await db.select({ id: schema.gyms.id, userId: schema.gyms.userId }).from(schema.gyms),
       workouts: await db
@@ -384,6 +414,31 @@ async function main() {
           sport: schema.sharedSessionStats.sport,
         })
         .from(schema.sharedSessionStats),
+      workoutExercises: await db
+        .select({
+          id: schema.workoutExercises.id,
+          userId: schema.workoutExercises.userId,
+          workoutSessionId: schema.workoutExercises.workoutSessionId,
+        })
+        .from(schema.workoutExercises),
+      foods: await db
+        .select({ id: schema.foods.id, userId: schema.foods.userId, name: schema.foods.name })
+        .from(schema.foods),
+      savedMeals: await db
+        .select({
+          id: schema.savedMeals.id,
+          userId: schema.savedMeals.userId,
+          name: schema.savedMeals.name,
+        })
+        .from(schema.savedMeals),
+      resources: await db
+        .select({
+          id: schema.activityResources.id,
+          userId: schema.activityResources.userId,
+          kind: schema.activityResources.kind,
+          archivedAt: schema.activityResources.archivedAt,
+        })
+        .from(schema.activityResources),
     };
     const outputDirectory = process.env.AUDIT_OUTPUT_DIR ?? "output/flow-audit";
     await mkdir(outputDirectory, { recursive: true });

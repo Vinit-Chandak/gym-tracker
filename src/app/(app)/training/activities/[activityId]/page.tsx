@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
 import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { StatTile, StatTileRow } from "@/components/ui/stat-tile";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { ACTIVITY_SPORT_LABELS, describeEffort } from "@/domain/activity";
@@ -29,15 +30,6 @@ import { requireUuid } from "@/server/validation/params";
 import { DeleteActivityButton } from "./delete-button";
 
 export const metadata: Metadata = { title: "Activity" };
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="min-w-0 px-2 text-center">
-      <dt className="text-xs text-ink-subtle">{label}</dt>
-      <dd className="text-base font-medium tabular-nums">{value}</dd>
-    </div>
-  );
-}
 
 /**
  * One logged activity, whatever sport it is.
@@ -103,11 +95,11 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
               {activity.outcome === "ended_early" ? "Ended early" : "Logged"}
             </Badge>
           </div>
-          <dl className="grid grid-cols-4">
+          <StatTileRow>
             {stats.map((stat) => (
-              <Stat key={stat.label} label={stat.label} value={stat.value} />
+              <StatTile key={stat.label} label={stat.label} value={stat.value} />
             ))}
-          </dl>
+          </StatTileRow>
           {activity.origin.kind === "planned" && (
             <p className="text-sm text-ink-muted">This answered a scheduled session.</p>
           )}

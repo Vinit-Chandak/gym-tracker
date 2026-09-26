@@ -59,7 +59,7 @@ export function ExercisePicker({ name, exercises, value, onChange, error }: Exer
           <button
             type="button"
             onClick={() => onChange("")}
-            className="shrink-0 px-2 text-sm font-medium text-ink-muted"
+            className="min-h-11 shrink-0 px-2 text-sm font-medium text-ink-muted"
           >
             Clear
           </button>

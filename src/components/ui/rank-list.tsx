@@ -50,25 +50,28 @@ export function RankList({
               aria-current={mine ? "true" : undefined}
               className={cn(
                 PRESSABLE_ROW_CLASS,
+                "flex-wrap",
                 mine && "bg-accent-soft",
                 absent && "text-ink-muted",
               )}
             >
-              {/* Wide enough for two digits, so names start on one line whatever the rank. */}
-              <span className="w-6 shrink-0 text-right text-sm font-medium tabular-nums">
-                {row.rank ?? "—"}
-              </span>
-              <Avatar username={row.username} displayName={row.displayName} size="row" />
-              <span className="min-w-0 flex-1">
-                <span className="block font-medium [overflow-wrap:anywhere]">
-                  {mine ? "You" : row.displayName || row.username}
+              <span className="flex min-w-0 flex-[1_1_9rem] flex-wrap items-center gap-x-3 gap-y-1">
+                {/* Wide enough for two digits, so names start on one line whatever the rank. */}
+                <span className="w-6 shrink-0 text-right text-sm font-medium tabular-nums">
+                  {row.rank ?? "—"}
                 </span>
-                <span className="block text-sm [overflow-wrap:anywhere] text-ink-muted">
-                  @{row.username}
+                <Avatar username={row.username} displayName={row.displayName} size="row" />
+                <span className="min-w-0 flex-[1_1_3.5rem]">
+                  <span className="block font-medium [overflow-wrap:anywhere]">
+                    {mine ? "You" : row.displayName || row.username}
+                  </span>
+                  <span className="block text-sm [overflow-wrap:anywhere] text-ink-muted">
+                    @{row.username}
+                  </span>
                 </span>
               </span>
-              {/* A reserved column, so a long name wraps instead of pushing the number off. */}
-              <span className="max-w-[40%] shrink-0 text-right text-sm leading-tight tabular-nums">
+              {/* Values get their own line when the name and rank need the available width. */}
+              <span className="ml-auto max-w-full min-w-0 shrink-0 text-right text-sm leading-tight [overflow-wrap:anywhere] tabular-nums">
                 {row.value === null ? (
                   <span aria-label="No data">—</span>
                 ) : (

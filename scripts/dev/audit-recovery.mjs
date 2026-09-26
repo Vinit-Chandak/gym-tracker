@@ -2,6 +2,7 @@
 import { chromium, webkit, devices, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { mkdir, writeFile } from "node:fs/promises";
+import { randomBytes, randomUUID, scryptSync } from "node:crypto";
 import postgres from "postgres";
 
 const baseURL = process.env.AUDIT_BASE_URL ?? "http://localhost:3100";
@@ -10,21 +11,76 @@ const database =
 if (
   !["localhost", "127.0.0.1"].includes(new URL(baseURL).hostname) ||
   !["localhost", "127.0.0.1"].includes(new URL(database).hostname) ||
-  !/^\/overload_audit(?:_[a-z0-9]+)*$/.test(new URL(database).pathname)
+  !/^\/overload_audit(?:_[a-z0-9]+)*$/.test(new URL(database).pathname) ||
+  new URL(database).search ||
+  new URL(database).hash
 )
   throw new Error("Local audit only.");
 const device = process.env.AUDIT_DEVICE ?? "android";
+const output = process.env.AUDIT_OUTPUT_DIR ?? "output/flow-audit";
 const browser = await (device === "iphone" ? webkit : chromium).launch();
-const context = await browser.newContext({
-  ...devices[device === "iphone" ? "iPhone 13" : "Pixel 7"],
-  baseURL,
-});
-const page = await context.newPage();
-page.setDefaultTimeout(12_000);
+let context, page;
 const sql = postgres(database, { max: 1 });
 const results = [],
   pageErrors = [];
-page.on("pageerror", (error) => pageErrors.push(error.message));
+const accounts = [];
+let currentCheck = "setup";
+let network = { active: new Set(), changedAt: 0 };
+async function freshPage() {
+  if (context) {
+    await settleRequests();
+    await context.close();
+  }
+  context = await browser.newContext({
+    ...devices[device === "iphone" ? "iPhone 13" : "Pixel 7"],
+    baseURL,
+  });
+  page = await context.newPage();
+  page.setDefaultTimeout(12_000);
+  const currentPage = page;
+  currentPage.on("pageerror", (error) =>
+    pageErrors.push({ check: currentCheck, url: currentPage.url(), message: error.message }),
+  );
+  const currentNetwork = { active: new Set(), changedAt: 0 };
+  network = currentNetwork;
+  currentPage.on("request", (request) => {
+    currentNetwork.active.add(request);
+    currentNetwork.changedAt = Date.now();
+  });
+  const requestFinished = (request) => {
+    currentNetwork.active.delete(request);
+    currentNetwork.changedAt = Date.now();
+  };
+  currentPage.on("requestfinished", requestFinished);
+  currentPage.on("requestfailed", requestFinished);
+}
+async function settleRequests() {
+  const deadline = Date.now() + 20_000;
+  while (network.active.size || Date.now() - network.changedAt < 750) {
+    if (Date.now() > deadline)
+      throw new Error(
+        `Page requests did not settle: ${[...network.active].map((request) => request.url()).join(", ")}`,
+      );
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+}
+// Each metric scenario needs an empty history. Create only disposable accounts:
+// finishing an established persona's workout would invalidate the screen fixtures.
+async function createAccount(suffix, unit, timeZone) {
+  const id = randomUUID();
+  const username = `rec${device[0]}${Date.now().toString(36)}${suffix}`;
+  const salt = randomBytes(16).toString("hex");
+  const password = `${salt}:${scryptSync("password123", salt, 32).toString("hex")}`;
+  await sql`insert into auth.users (id, email, raw_user_meta_data, encrypted_password)
+    values (${id}, ${`${username}@local.test`},
+      ${sql.json({ username, display_name: `Recovery audit ${suffix}` })}, ${password})`;
+  accounts.push(id);
+  await sql`update profiles set onboarded_at=now(), preferred_unit=${unit}, time_zone=${timeZone}
+    where id=${id}`;
+  await sql`insert into gyms (user_id, name, slug, is_default)
+    values (${id}, 'Recovery audit gym', 'recovery-audit-gym', true)`;
+  return username;
+}
 // Energy is not asked any more; `energy` is read below only to show that nothing writes it.
 const metrics = {
   sleepHours: "Sleep",
@@ -34,10 +90,19 @@ const metrics = {
 };
 const full = { sleepHours: 7.25, sleepQuality: 4, fatigue: 2, soreness: 1 };
 const path = () => new URL(page.url()).pathname;
-const go = (route) => page.goto(route, { waitUntil: "networkidle" });
+const go = async (route) => {
+  await settleRequests();
+  if (page.url() !== "about:blank") await page.waitForLoadState("networkidle");
+  return page.goto(route, { waitUntil: "networkidle" });
+};
+const reload = async () => {
+  await settleRequests();
+  return page.reload({ waitUntil: "networkidle" });
+};
 const choose = (name, value) =>
   page.locator(`input[name="${name}"][value="${value}"]`).locator("..").click();
 async function check(name, work) {
+  currentCheck = name;
   try {
     await work();
     results.push({ name, passed: true });
@@ -54,16 +119,18 @@ async function check(name, work) {
         .catch(() => ""),
     });
     await page.screenshot({
-      path: `output/flow-audit/recovery-${device}-failure.png`,
+      path: `${output}/recovery-${device}-failure.png`,
       fullPage: true,
     });
     throw error;
   } finally {
-    await writeFile(`output/flow-audit/recovery-${device}.json`, JSON.stringify(results, null, 2));
+    await writeFile(`${output}/recovery-${device}.json`, JSON.stringify(results, null, 2));
   }
 }
 async function login(username) {
-  await context.clearCookies();
+  // Distinct browser storage keeps the two recovery histories independent too.
+  // Sign-out/account-switch behavior is covered by the account workflow suite.
+  await freshPage();
   await go("/login");
   await page.getByLabel("Email", { exact: true }).fill(`${username}@local.test`);
   await page.getByLabel("Password", { exact: true }).fill("password123");
@@ -123,13 +190,16 @@ async function finish(id) {
   await page.getByRole("button", { name: "Finish session", exact: true }).click();
   await page.waitForURL(`**/workouts/${id}`);
 }
-await mkdir("output/flow-audit", { recursive: true });
+await mkdir(output, { recursive: true });
 try {
-  await login("alex");
-  const id = await start("alex");
+  const fullAccount = await createAccount("full", "lb", "America/New_York");
+  const partialAccount = await createAccount("part", "kg", "Asia/Kolkata");
+  let id, partialId;
   await check(
     "All four answers save through the check-in form before workout completion",
     async () => {
+      await login(fullAccount);
+      id = await start(fullAccount);
       await go(`/workouts/${id}/check-in`);
       await expect(page.locator('[name="energy"]')).toHaveCount(0);
       await submit(id, full);
@@ -193,7 +263,7 @@ try {
   );
   await check("Recovery selection survives refresh and Back from its source workout", async () => {
     const returnTo = page.url();
-    await page.reload({ waitUntil: "networkidle" });
+    await reload();
     await expect(page.getByRole("radio", { name: "Fatigue", exact: true })).toBeChecked();
     await page.locator(`main a[href="/workouts/${id}"]`).click();
     await page.waitForURL(`**/workouts/${id}`);
@@ -220,7 +290,7 @@ try {
       await dates("2020-01-01", "2020-01-01");
       await expect(page.getByText("No check-ins in this range")).toBeVisible();
       await expect(page.getByRole("button", { name: "Progress section: Recovery" })).toBeVisible();
-      await page.reload({ waitUntil: "networkidle" });
+      await reload();
       await expect(page.getByText("No check-ins in this range")).toBeVisible();
       const from = new Date(Date.now() - 80 * 86_400_000).toISOString().slice(0, 10);
       await dates(from, current);
@@ -248,14 +318,21 @@ try {
           });
           // ResizeObserver applies the SVG's new measured width on the next render.
           await expect
-            .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), {
-              message: `${colorScheme} at ${width}px`,
-              timeout: 3000,
-            })
+            .poll(
+              () =>
+                page.evaluate(
+                  () =>
+                    document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+                ),
+              {
+                message: `${colorScheme} at ${width}px`,
+                timeout: 3000,
+              },
+            )
             .toBe(true);
           const violations = (await new AxeBuilder({ page }).analyze()).violations;
           await writeFile(
-            `output/flow-audit/recovery-${device}-${colorScheme}-${width}-axe.json`,
+            `${output}/recovery-${device}-${colorScheme}-${width}-axe.json`,
             JSON.stringify(violations, null, 2),
           );
           expect(
@@ -263,7 +340,7 @@ try {
             `${colorScheme} at ${width}px`,
           ).toEqual([]);
           await page.screenshot({
-            path: `output/flow-audit/recovery-${device}-${colorScheme}-${width}.png`,
+            path: `${output}/recovery-${device}-${colorScheme}-${width}.png`,
             fullPage: true,
           });
         }
@@ -271,21 +348,11 @@ try {
       await page.setViewportSize(original);
     },
   );
-  await login("sam");
-  const [gym] =
-    await sql`select g.id from gyms g join profiles p on p.id=g.user_id where p.username='sam' and g.is_active limit 1`;
-  if (!gym) {
-    await go("/gyms/new");
-    await page.getByLabel("Name", { exact: true }).fill("Recovery audit gym");
-    await page.getByRole("button", { name: "Create gym", exact: true }).click();
-    await page.waitForURL(
-      (url) => /^\/gyms\/[^/]+$/.test(url.pathname) && url.pathname !== "/gyms/new",
-    );
-  }
-  const partialId = await start("sam");
   await check(
     "A fatigue-only check-in leaves optional answers null and opens a populated graph",
     async () => {
+      await login(partialAccount);
+      partialId = await start(partialAccount);
       await submit(partialId, { fatigue: 4 });
       const [saved] =
         await sql`select sleep_hours, sleep_quality, energy, fatigue, soreness from workout_sessions where id=${partialId}`;
@@ -308,7 +375,7 @@ try {
       await expect(page.getByText(/Sleep was not recorded/)).toBeVisible();
       await metric("fatigue");
       await expect(page.getByRole("img", { name: /^Fatigue,/ })).toBeVisible();
-      await page.reload({ waitUntil: "networkidle" });
+      await reload();
       await expect(page.getByRole("img", { name: /^Fatigue,/ })).toBeVisible();
       expect(await (await values()).allTextContents()).not.toContain("0");
     },
@@ -331,5 +398,6 @@ try {
   });
 } finally {
   await browser.close();
+  for (const id of accounts) await sql`delete from auth.users where id=${id}`;
   await sql.end();
 }

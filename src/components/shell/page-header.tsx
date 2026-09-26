@@ -41,12 +41,16 @@ export function PageHeader<T extends string>({
           action={action}
         />
       ) : (
-        <div className="page-width flex min-h-[var(--header-height)] items-center gap-3 py-2.5">
-          <div className="flex min-w-0 flex-1 items-baseline justify-between gap-3">
+        <div className="page-width flex min-h-[var(--header-height)] flex-wrap items-center gap-3 py-2.5">
+          <div className="flex min-w-0 flex-1 flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
             <h1 className="min-w-0 text-xl [overflow-wrap:anywhere]">{title}</h1>
-            {meta && <p className="shrink-0 text-sm text-ink-muted tabular-nums">{meta}</p>}
+            {meta && (
+              <p className="min-w-0 text-sm [overflow-wrap:anywhere] text-ink-muted tabular-nums">
+                {meta}
+              </p>
+            )}
           </div>
-          {action && <div className="shrink-0">{action}</div>}
+          {action && <div className="max-w-full">{action}</div>}
         </div>
       )}
     </header>
@@ -78,7 +82,7 @@ function NestedBar<T extends string>({
       <BackLink fallback={backHref} label={backLabel} />
       <h1 className="min-w-0 text-lg [overflow-wrap:anywhere]">{title}</h1>
       <div className="flex min-w-0 flex-1 basis-[5.5rem] items-center justify-end gap-2">
-        {meta && <p className="text-sm text-ink-muted">{meta}</p>}
+        {meta && <p className="min-w-0 text-sm [overflow-wrap:anywhere] text-ink-muted">{meta}</p>}
         {action}
       </div>
     </div>

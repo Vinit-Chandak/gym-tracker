@@ -206,7 +206,7 @@ export type ActivityPage = {
   nextCursor: string | null;
 };
 
-const CURSOR = /^(\d+):([0-9a-f-]{36})$/i;
+const CURSOR = /^(-?\d+):([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 
 export function encodeCursor(item: { startedAt: Date; id: string }): string {
   return `${item.startedAt.getTime()}:${item.id}`;
@@ -217,7 +217,9 @@ export function decodeCursor(raw: string): { startedAt: Date; id: string } | nul
   if (!match) return null;
   const at = Number(match[1]);
   if (!Number.isSafeInteger(at)) return null;
-  return { startedAt: new Date(at), id: match[2]! };
+  const startedAt = new Date(at);
+  if (!Number.isFinite(startedAt.getTime())) return null;
+  return { startedAt, id: match[2]! };
 }
 
 /**

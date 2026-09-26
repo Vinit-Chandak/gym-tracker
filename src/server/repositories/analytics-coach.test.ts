@@ -228,6 +228,32 @@ describe("history and analytics", () => {
     expect(result.completed).toBe(0);
     expect(result.completionRate).toBeNull();
   });
+  it("counts the lifting half of a mixed day independently of its run", async () => {
+    const schedule = (await withUser(t.db, alice.id, (tx) => getSchedule(tx, alice.id)))!;
+    const dayIndex = schedule.days.find((day) => day.includesLifting)!.dayIndex;
+    schedule.state.slots = schedule.state.slots.map((slot) =>
+      slot.dayIndex === dayIndex ? { ...slot, includesRun: true } : slot,
+    );
+    for (const runStatus of [null, "completed", "skipped"] as const) {
+      schedule.state.events = [
+        { cycleIndex: 1, dayIndex, part: "session", status: "completed" },
+        ...(runStatus
+          ? [{ cycleIndex: 1, dayIndex, part: "run" as const, status: runStatus }]
+          : []),
+      ];
+      expect(liftingAdherence(schedule)).toMatchObject({
+        completed: 1,
+        skipped: 0,
+        remaining: 47,
+        completionRate: 100,
+      });
+    }
+    schedule.state.events = [
+      { cycleIndex: 1, dayIndex, part: "session", status: "skipped" },
+      { cycleIndex: 1, dayIndex, part: "run", status: "completed" },
+    ];
+    expect(liftingAdherence(schedule)).toMatchObject({ completed: 0, skipped: 1, remaining: 47 });
+  });
   it("estimates barbell and dumbbell maximums, never stack, bodyweight or high-rep ones", () => {
     expect(estimated1RM(60, 1, "barbell", "kg")).toBe(60);
     // A dumbbell load is taken as logged, not doubled per hand (ADR 0026).

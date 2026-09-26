@@ -20,7 +20,7 @@ type SegmentedControlProps<V extends string> = {
    * given until the record was deleted.
    */
   clearable?: boolean;
-  /** Force an exact number of columns. Omit and the row fits as many as the labels allow. */
+  /** Preferred number of columns; wraps when the touch targets no longer fit. */
   columns?: number;
   "aria-label"?: string;
   "aria-labelledby"?: string;
@@ -36,10 +36,9 @@ const MIN_PILL = "4.75rem";
  * Radio group rendered as large pills. Works without JavaScript because it is a real
  * radio input; the label is the tap target.
  *
- * The row wraps by measurement rather than at a guessed breakpoint: `auto-fit` packs in as
- * many pills as fit at `MIN_PILL` and puts the rest on the next line. A screen-width
- * breakpoint would have to be re-guessed every time a tab is added or renamed — which is
- * exactly what happened when Progress grew a fifth tab.
+ * Preferred columns share a row until each would be narrower than a touch target. Flex
+ * wrapping responds to the available space and enlarged text, including inside an auto-sized
+ * unit selector. Unspecified columns use the label-sized minimum instead.
  */
 export function SegmentedControl<V extends string>({
   name,
@@ -60,15 +59,19 @@ export function SegmentedControl<V extends string>({
       role="radiogroup"
       aria-label={ariaLabel}
       {...accessibility}
-      className="grid gap-1 rounded-control bg-surface-raised p-1"
-      style={{
-        gridTemplateColumns: columns
-          ? `repeat(${columns}, minmax(0, 1fr))`
-          : `repeat(auto-fit, minmax(${MIN_PILL}, 1fr))`,
-      }}
+      className="flex min-w-0 flex-wrap gap-1 rounded-control bg-surface-raised p-1"
     >
       {options.map((option) => (
-        <label key={option.value} className="relative">
+        <label
+          key={option.value}
+          className="relative flex-1"
+          style={{
+            flexBasis: columns
+              ? `calc((100% - ${(columns - 1) * 0.25}rem) / ${columns})`
+              : MIN_PILL,
+            minWidth: `min(100%, ${columns ? "var(--ov-target-min)" : MIN_PILL})`,
+          }}
+        >
           <input
             type="radio"
             name={name}
@@ -94,8 +97,9 @@ export function SegmentedControl<V extends string>({
               "peer-focus-visible:ring-2 peer-focus-visible:ring-focus",
             )}
           >
-            {/* Hyphenate a long word if it must wrap; never split it at an arbitrary letter. */}
-            <span className="min-w-0 text-center hyphens-auto">{option.label}</span>
+            <span className="min-w-0 text-center [overflow-wrap:anywhere] hyphens-auto">
+              {option.label}
+            </span>
           </span>
         </label>
       ))}

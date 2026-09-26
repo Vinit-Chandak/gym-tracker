@@ -1,5 +1,5 @@
 import { writtenSummaryForSport } from "@/domain/sport-scope";
-import { and, asc, count, desc, eq, inArray, isNotNull, isNull, max, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNotNull, isNull, max, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { manualPrescription } from "@/domain/manual-prescription";
 
@@ -33,6 +33,7 @@ import type { TrainingRecord } from "@/domain/records";
 import { closeStrengthParent, discardStrengthParent, openStrengthParent } from "./activities";
 import { decideExercisesAtGym, resolvePlannedDay, type ExerciseDecision } from "./availability";
 import { getGym } from "./gyms";
+import { machinesByExerciseAtGym } from "./equipment";
 import { consumePlan, planForSession, releasePlan } from "./coach-plans";
 import { loadLadders } from "./load-ladders";
 import { applyRule } from "./progression-rule";
@@ -727,7 +728,11 @@ export async function getSessionDetail(
 
 async function requireOpenSession(db: DbOrTx, userId: string, sessionId: string) {
   const [row] = await db
-    .select({ id: workoutSessions.id, completedAt: workoutSessions.completedAt })
+    .select({
+      id: workoutSessions.id,
+      gymId: workoutSessions.gymId,
+      completedAt: workoutSessions.completedAt,
+    })
     .from(workoutSessions)
     .where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.userId, userId)))
     .limit(1)
@@ -735,6 +740,44 @@ async function requireOpenSession(db: DbOrTx, userId: string, sessionId: string)
   if (!row) throw new SessionNotFoundError();
   if (row.completedAt) throw new SessionFinishedError();
   return row;
+}
+
+export class WorkoutSelectionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "WorkoutSelectionError";
+  }
+}
+
+/**
+ * Picker choices can become stale, and action arguments can be changed outside the picker.
+ * Foreign keys only prove an ID exists; they do not enforce its visibility under RLS or that
+ * a machine belongs to this gym and supports this movement.
+ */
+async function requireWorkoutSelection(
+  db: DbOrTx,
+  userId: string,
+  gymId: string,
+  input: { exerciseId: string; equipmentInstanceId: string | null },
+): Promise<void> {
+  const [exercise] = await db
+    .select({ id: exercises.id })
+    .from(exercises)
+    .where(
+      and(
+        eq(exercises.id, input.exerciseId),
+        eq(exercises.isActive, true),
+        or(isNull(exercises.userId), eq(exercises.userId, userId)),
+      ),
+    )
+    .limit(1);
+  if (!exercise) throw new WorkoutSelectionError("Choose an available exercise and try again.");
+  if (input.equipmentInstanceId) {
+    const compatible = await machinesByExerciseAtGym(db, userId, gymId);
+    if (!compatible[input.exerciseId]?.includes(input.equipmentInstanceId)) {
+      throw new WorkoutSelectionError("Choose an available machine for this exercise at this gym.");
+    }
+  }
 }
 
 async function sessionIdOfExercise(
@@ -928,9 +971,27 @@ export async function deleteSet(
   userId: string,
   workoutExerciseId: string,
   setIndex: number,
+  expectedCompletedAt?: string,
 ): Promise<void> {
   const sessionId = await sessionIdOfExercise(db, userId, workoutExerciseId);
   await requireOpenSession(db, userId, sessionId);
+  if (expectedCompletedAt !== undefined) {
+    const [saved] = await db
+      .select({ completedAt: setLogs.completedAt })
+      .from(setLogs)
+      .where(
+        and(
+          eq(setLogs.userId, userId),
+          eq(setLogs.workoutExerciseId, workoutExerciseId),
+          eq(setLogs.setIndex, setIndex),
+        ),
+      )
+      .limit(1);
+    // A retry after a successful delete is harmless. A newer replacement is another set,
+    // and the stale screen must not delete it without showing the athlete its saved values.
+    if (!saved) return;
+    if (saved.completedAt.toISOString() !== expectedCompletedAt) throw new SetConflictError();
+  }
   await db
     .delete(setLogs)
     .where(
@@ -991,12 +1052,13 @@ export async function substituteExercise(
   input: SubstituteInput,
 ): Promise<void> {
   const sessionId = await sessionIdOfExercise(db, userId, input.workoutExerciseId);
-  await requireOpenSession(db, userId, sessionId);
+  const session = await requireOpenSession(db, userId, sessionId);
   const [existing] = await db
     .select({ n: count() })
     .from(setLogs)
     .where(eq(setLogs.workoutExerciseId, input.workoutExerciseId));
   if ((existing?.n ?? 0) > 0) throw new ExerciseHasSetsError();
+  await requireWorkoutSelection(db, userId, session.gymId, input);
   await db
     .update(workoutExercises)
     .set({
@@ -1151,7 +1213,8 @@ export async function addExerciseToSession(
   sessionId: string,
   input: { exerciseId: string; equipmentInstanceId: string | null },
 ): Promise<{ workoutExerciseId: string }> {
-  await requireOpenSession(db, userId, sessionId);
+  const session = await requireOpenSession(db, userId, sessionId);
+  await requireWorkoutSelection(db, userId, session.gymId, input);
   const [last] = await db
     .select({ maxOrder: max(workoutExercises.orderIndex) })
     .from(workoutExercises)

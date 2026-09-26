@@ -3,6 +3,7 @@ import { chromium, webkit, devices, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import postgres from "postgres";
 import { mkdir, writeFile } from "node:fs/promises";
+import { randomBytes, randomUUID, scryptSync } from "node:crypto";
 import { createServer } from "node:http";
 import { Readable } from "node:stream";
 
@@ -13,7 +14,9 @@ const database =
 if (
   !["localhost", "127.0.0.1"].includes(new URL(baseURL).hostname) ||
   !["localhost", "127.0.0.1"].includes(new URL(database).hostname) ||
-  !/^\/overload_audit(?:_[a-z0-9]+)*$/.test(new URL(database).pathname)
+  !/^\/overload_audit(?:_[a-z0-9]+)*$/.test(new URL(database).pathname) ||
+  new URL(database).search ||
+  new URL(database).hash
 )
   throw new Error("Local audit only");
 const engine = process.env.AUDIT_BROWSER ?? "chromium";
@@ -21,23 +24,59 @@ const engine = process.env.AUDIT_BROWSER ?? "chromium";
 const browser = await (engine === "webkit" ? webkit : chromium).launch({
   executablePath: engine === "webkit" ? undefined : process.env.AUDIT_CHROMIUM_PATH,
 });
-const context = await browser.newContext({
-  ...devices[engine === "webkit" ? "iPhone 13" : "Pixel 7"],
-  baseURL,
-  viewport: { width: 390, height: 844 },
-  deviceScaleFactor: 1,
-  hasTouch: true,
-});
-const page = await context.newPage();
-page.setDefaultTimeout(15000);
+let context, page;
 const sql = postgres(database, { max: 1 });
 const results = [];
 const pageErrors = [];
-page.on("pageerror", (error) => pageErrors.push(error.message));
-const dir = `output/food-audit/${engine}`;
+let currentCheck = "setup";
+// Client transitions do not reset Playwright's document load state. Track their
+// requests too, so a later hard navigation cannot cancel a pending prefetch.
+let network = { active: new Set(), changedAt: 0 };
+async function freshPage() {
+  // These are independent account scenarios. In-flight prefetches from a finished
+  // scenario must not delay another account's setup or carry its browser state.
+  if (context) await context.close();
+  context = await browser.newContext({
+    ...devices[engine === "webkit" ? "iPhone 13" : "Pixel 7"],
+    baseURL,
+    viewport: { width: 390, height: 844 },
+    deviceScaleFactor: 1,
+    hasTouch: true,
+  });
+  page = await context.newPage();
+  page.setDefaultTimeout(15000);
+  const currentPage = page;
+  currentPage.on("pageerror", (error) =>
+    pageErrors.push({ check: currentCheck, url: currentPage.url(), message: error.message }),
+  );
+  const currentNetwork = { active: new Set(), changedAt: 0 };
+  network = currentNetwork;
+  currentPage.on("request", (request) => {
+    currentNetwork.active.add(request);
+    currentNetwork.changedAt = Date.now();
+  });
+  const requestFinished = (request) => {
+    currentNetwork.active.delete(request);
+    currentNetwork.changedAt = Date.now();
+  };
+  currentPage.on("requestfinished", requestFinished);
+  currentPage.on("requestfailed", requestFinished);
+}
+async function settleRequests() {
+  const deadline = Date.now() + 20_000;
+  while (network.active.size || Date.now() - network.changedAt < 750) {
+    if (Date.now() > deadline)
+      throw new Error(
+        `Page requests did not settle: ${[...network.active].map((request) => request.url()).join(", ")}`,
+      );
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+}
+const dir = `${process.env.AUDIT_OUTPUT_DIR ?? "output/food-audit"}/food-${engine}`;
 await mkdir(dir, { recursive: true });
 const [user] = await sql`select id from profiles where username='sam'`;
 if (!user) throw new Error("Run audit:setup first");
+let secondaryId;
 // Reset only nutrition fixtures belonging to the designated local test account.
 await sql`delete from food_entries where user_id=${user.id}`;
 await sql`delete from foods where user_id=${user.id}`;
@@ -46,6 +85,7 @@ await sql`delete from meals where user_id=${user.id}`;
 await sql`delete from nutrition_targets where user_id=${user.id}`;
 await sql`delete from food_submission_receipts where user_id=${user.id}`;
 async function check(name, run) {
+  currentCheck = name;
   try {
     await run();
     results.push({ name, passed: true });
@@ -62,18 +102,14 @@ async function check(name, run) {
 // Complete the fully prefetched tabs before a test-driven document navigation or reload.
 // Otherwise WebKit reports the intentionally cancelled RSC loads as access-control errors.
 async function navigate(path, options = {}) {
+  await settleRequests();
   if (page.url() !== "about:blank") await page.waitForLoadState("networkidle");
   return page.goto(path, { ...options, waitUntil: "networkidle" });
 }
 async function login(name) {
-  if (page.url() !== "about:blank") {
-    // Exercise the actual account switch; clearing cookies under in-flight prefetches
-    // creates artificial auth failures that a normal sign-out avoids.
-    await page.waitForLoadState("networkidle");
-    await navigate("/profile", { waitUntil: "networkidle" });
-    await page.getByRole("button", { name: "Sign out", exact: true }).click();
-    await page.waitForURL("**/login");
-  } else await navigate("/login", { waitUntil: "networkidle" });
+  // Sign-out and account switching have their own account workflow coverage.
+  await freshPage();
+  await navigate("/login", { waitUntil: "networkidle" });
   await page.getByLabel("Email", { exact: true }).fill(`${name}@local.test`);
   await page.getByLabel("Password", { exact: true }).fill("password123");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
@@ -222,6 +258,7 @@ try {
       fat_percent: 25,
       macro_split: "body_weight",
     });
+    await settleRequests();
     await page.goBack();
     await page.waitForURL(/\/today$/);
     await tab("Food").click();
@@ -343,6 +380,7 @@ try {
     await myFoods()
       .getByRole("button", { name: /^Milk 100 ml/ })
       .click();
+    await settleRequests();
     await page.waitForLoadState("networkidle");
     await context.setOffline(true);
     await dialog().getByRole("button", { name: "Add to Afternoon snack", exact: true }).click();
@@ -521,6 +559,7 @@ try {
       await expect(page.getByRole("status").filter({ hasText: /entr(y|ies)$/ })).toBeVisible();
       console.log(`  History from Progress's picker: ${elapsed} ms, no request`);
       // In Progress's place, as a section chosen in place is: Back leaves the tab.
+      await settleRequests();
       await page.goBack();
       await page.waitForURL(/\/today$/);
     },
@@ -543,7 +582,9 @@ try {
         await settle();
         await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
         expect(
-          await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),
+          await page.evaluate(
+            () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+          ),
         ).toBe(true);
         await page.screenshot({
           path: `${dir}/meal-${width}-${height}-${font}-${scheme}.png`,
@@ -566,12 +607,29 @@ try {
           await settle();
           await dialog().getByLabel(field, { exact: true }).scrollIntoViewIfNeeded();
           await expect(dialog().getByLabel(field, { exact: true })).toBeInViewport();
-          await dialog()
-            .getByRole("button", { name: primary, exact: true })
-            .scrollIntoViewIfNeeded();
-          await expect(
-            dialog().getByRole("button", { name: primary, exact: true }),
-          ).toBeInViewport();
+          const primaryControl = dialog().getByRole("button", { name: primary, exact: true });
+          if (height <= 320) {
+            // A compact sheet must settle instead of switching layouts every frame.
+            // WebKit previously moved this button hundreds of pixels while idle.
+            const positions = await primaryControl.evaluate(async (element) => {
+              const frames = [];
+              for (let frame = 0; frame < 12; frame++) {
+                await new Promise(requestAnimationFrame);
+                const { x, y, width, height } = element.getBoundingClientRect();
+                frames.push({ x, y, width, height });
+              }
+              return frames;
+            });
+            for (const dimension of ["x", "y", "width", "height"]) {
+              const values = positions.map((position) => position[dimension]);
+              expect(
+                Math.max(...values) - Math.min(...values),
+                `${name} ${primary}: stable ${dimension} at ${width}×${height}, ${font}px ${scheme}`,
+              ).toBeLessThanOrEqual(1);
+            }
+          }
+          await primaryControl.scrollIntoViewIfNeeded();
+          await expect(primaryControl).toBeInViewport();
           expect(await dialog().evaluate((d) => d.scrollWidth <= d.clientWidth + 1)).toBe(true);
           await page.screenshot({
             path: `${dir}/${name}-${width}-${height}-${font}-${scheme}.png`,
@@ -636,20 +694,17 @@ try {
   await check(
     "missing body weight, profile changes, over-budget targets and isolation",
     async () => {
-      await sql`update profiles set body_weight_kg=null where username='vinit'`;
-      await sql`delete from nutrition_targets where user_id=(select id from profiles where username='vinit')`;
-      await login("vinit");
-      // The fixture bypasses profile actions, so advance their cache version explicitly.
-      // Otherwise a preceding engine's profile can remain in the server's one-minute cache.
-      await context.addCookies([
-        {
-          name: "overload-profile-changed",
-          value: String(Date.now()),
-          url: baseURL,
-          httpOnly: true,
-          sameSite: "Lax",
-        },
-      ]);
+      // The established personas now have 56 months of food and weight. Keep their
+      // records intact while giving this scenario an actually empty second account.
+      secondaryId = randomUUID();
+      const username = `food${Date.now().toString(36)}${engine === "webkit" ? "w" : "c"}`;
+      const salt = randomBytes(16).toString("hex");
+      const password = `${salt}:${scryptSync("password123", salt, 32).toString("hex")}`;
+      await sql`insert into auth.users (id, email, raw_user_meta_data, encrypted_password)
+        values (${secondaryId}, ${`${username}@local.test`},
+          ${sql.json({ username, display_name: "Food audit second account" })}, ${password})`;
+      await sql`update profiles set onboarded_at=now() where id=${secondaryId}`;
+      await login(username);
       await navigate("/food/breakfast");
       // Another account's foods are nobody else's.
       await expect(myFoods().getByRole("button", { name: /^Oats/ })).toHaveCount(0);
@@ -683,6 +738,7 @@ try {
       await expect(
         page.getByRole("link", { name: /^Targets\s*Nothing left for carbs\s*500 kcal$/ }),
       ).toBeVisible();
+      await settleRequests();
       await page.reload({ waitUntil: "networkidle" });
       await expect(
         page.getByRole("link", { name: /^Targets Nothing left for carbs/ }),
@@ -743,6 +799,7 @@ try {
         ),
       ).toBe(false);
       if (engine === "chromium") {
+        await settleRequests();
         await page.waitForLoadState("networkidle");
         await context.setOffline(true);
         await navigate("/food");
@@ -755,8 +812,9 @@ try {
   });
   expect(pageErrors).toEqual([]);
 } finally {
-  await context.setOffline(false);
+  await context?.setOffline(false);
   await browser.close();
+  if (secondaryId) await sql`delete from auth.users where id=${secondaryId}`;
   await sql.end();
   await writeFile(`${dir}/results.json`, JSON.stringify({ results, pageErrors }, null, 2));
 }

@@ -3,7 +3,8 @@
 import { useActionState, useState } from "react";
 
 import { type ProfileFieldValues } from "@/components/profile-fields";
-import { Field, Input, INPUT_CLASS } from "@/components/ui/input";
+import { Field, Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { FormError, SubmitButton } from "@/components/ui/form";
 import { UsernameField } from "@/components/username-field";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
@@ -43,14 +44,13 @@ export function ProfileStepForm(values: ProfileFieldValues) {
         hint="What friends will find you by. You can change it later from your profile."
       />
       <Field label="Weight units">
-        <select
+        <Select
           name="preferredUnit"
-          className={INPUT_CLASS}
           defaultValue={state.values?.preferredUnit ?? values.preferredUnit}
         >
           <option value="kg">kg (kilograms)</option>
           <option value="lb">lb (pounds)</option>
-        </select>
+        </Select>
       </Field>
       <Field label="Time zone" error={state.fieldErrors?.timeZone}>
         <Input name="timeZone" defaultValue={state.values?.timeZone ?? zone} required />

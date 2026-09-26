@@ -187,9 +187,9 @@ export default async function PersonPage(props: PageProps<"/u/[username]">) {
               </Section>
             )}
             {relation && (
-              // The comparison opens on the sport being looked at.
+              // Keep the same sport and period when opening the comparison.
               <LinkButton
-                href={`/u/${person.username}/compare${sport === "run" ? "?sport=run" : ""}`}
+                href={`/u/${person.username}/compare?sport=${sport}&period=${period}`}
                 className="w-full"
               >
                 Compare

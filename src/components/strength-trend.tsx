@@ -4,9 +4,9 @@ import type { ReactNode } from "react";
 
 import { Chart, SERIES_COLORS } from "@/components/ui/chart";
 import { Headline } from "@/components/ui/headline";
-import { ChevronDown } from "@/components/ui/icons";
 import { InfoTip } from "@/components/ui/info-tip";
 import { SegmentedControl } from "@/components/ui/segmented-control";
+import { Select } from "@/components/ui/select";
 import type { PerformanceSeries } from "@/domain/analytics";
 import { LOAD_UNIT_LABELS } from "@/lib/labels";
 
@@ -43,26 +43,20 @@ function MachinePicker({
   onChange: (id: string) => void;
 }) {
   return (
-    <span className="relative inline-flex max-w-full min-w-0">
-      <select
-        aria-label="Machine"
-        value={value}
-        disabled={disabled}
-        onChange={(event) => onChange(event.target.value)}
-        className="min-h-8 w-full min-w-0 appearance-none truncate rounded-control bg-transparent py-1 pr-6 pl-2 text-xs font-medium text-ink-muted hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-50"
-      >
-        {entries.map((entry) => (
-          <option key={entry.id} value={entry.id}>
-            {entry.machine}
-            {entry.unit === "kg" ? "" : ` · ${LOAD_UNIT_LABELS[entry.unit]}`}
-          </option>
-        ))}
-      </select>
-      <ChevronDown
-        className="pointer-events-none absolute top-1/2 right-1.5 -translate-y-1/2 text-ink-subtle"
-        aria-hidden
-      />
-    </span>
+    <Select
+      aria-label="Machine"
+      value={value}
+      disabled={disabled}
+      onChange={(event) => onChange(event.target.value)}
+      wrapperClassName="max-w-full min-w-0"
+    >
+      {entries.map((entry) => (
+        <option key={entry.id} value={entry.id}>
+          {entry.machine}
+          {entry.unit === "kg" ? "" : ` · ${LOAD_UNIT_LABELS[entry.unit]}`}
+        </option>
+      ))}
+    </Select>
   );
 }
 

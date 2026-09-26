@@ -25,7 +25,7 @@ Progressive overload, one set at a time.
 1. **Sign up** with a name, a username, an email and a password (plus password reset, change
    and account deletion). The username is the handle friends find you by; a taken one is
    suffixed rather than refused, and it can be changed later.
-2. **A four-step welcome**: about you → first gym → tick the machines that gym has → pick a
+2. **A five-step welcome**: about you → sports → first gym → tick the machines that gym has → pick a
    programme template, or skip. Step one asks only for a name, username, time zone and units;
    height, weight, age and a training goal are asked for when a programme is created, and
    everything is editable afterwards in **Profile → Edit profile**.
@@ -44,8 +44,8 @@ new account has all of it on day one and adds only what its own gyms have. Nothi
 person.
 
 Each exercise says how it is counted — reps, seconds held, or metres covered — so a farmer's
-carry asks for a distance and a plank for a time, and each may carry its own note on what reps
-in reserve means for it.
+carry asks for a distance and a plank for a time. Rep-based sets record reps in reserve (RIR);
+timed sets and carries record perceived effort (RPE), including in completed workout history.
 
 - [`SETUP.md`](SETUP.md): the one-time steps to create the Supabase and Vercel projects.
 - [`docs/implementation-plan.md`](docs/implementation-plan.md): structure, phases and decisions.
@@ -93,6 +93,11 @@ other table keeps its owner-only policy.
 ## Local setup
 
 Requires Node.js 20.9 or newer (Node 22 recommended) and npm.
+
+For a separate local database, local authentication and six test accounts with 56 months of
+history, follow [the local audit setup](docs/audits/local-56-months.md). The
+[comprehensive audit report](docs/audits/2026-09-26-comprehensive-audit.md) records the fixes,
+screen coverage and verification commands.
 
 ```bash
 npm install

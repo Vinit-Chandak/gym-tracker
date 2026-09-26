@@ -122,7 +122,7 @@ export function PrescriptionEditor({
               />
             </Field>
           </div>
-          <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-[1fr_1fr_auto]">
             <Field label="Distance from" error={state.fieldErrors?.distanceMin}>
               <Input
                 name="distanceMin"
@@ -139,16 +139,18 @@ export function PrescriptionEditor({
                 placeholder="5"
               />
             </Field>
-            <Field group label="Unit">
-              <SegmentedControl
-                key={`distance-${selectedSport}`}
-                name="distanceUnit"
-                aria-label="Distance unit"
-                options={units}
-                defaultValue={initialUnit("distanceUnit")}
-                columns={units.length}
-              />
-            </Field>
+            <div className="col-span-full sm:col-span-1">
+              <Field group label="Unit">
+                <SegmentedControl
+                  key={`distance-${selectedSport}`}
+                  name="distanceUnit"
+                  aria-label="Distance unit"
+                  options={units}
+                  defaultValue={initialUnit("distanceUnit")}
+                  columns={units.length}
+                />
+              </Field>
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-2">
             <Field label="Effort from" hint="Optional" error={state.fieldErrors?.effortMin}>

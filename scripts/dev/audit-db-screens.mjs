@@ -34,7 +34,9 @@ const only = process.env.ONLY ? new RegExp(process.env.ONLY) : null;
 if (
   !["localhost", "127.0.0.1"].includes(new URL(baseURL).hostname) ||
   !["localhost", "127.0.0.1"].includes(target.hostname) ||
-  !/^\/overload_audit(?:_[a-z0-9]+)*$/.test(target.pathname)
+  !/^\/overload_audit(?:_[a-z0-9]+)*$/.test(target.pathname) ||
+  target.search ||
+  target.hash
 )
   throw new Error("Local audit only.");
 

@@ -5,7 +5,8 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 const baseURL = process.env.AUDIT_BASE_URL ?? "http://localhost:3100";
 if (!["localhost", "127.0.0.1"].includes(new URL(baseURL).hostname))
   throw new Error("Local audit only.");
-const fixtures = JSON.parse(await readFile("output/flow-audit/fixtures.json", "utf8"));
+const output = process.env.AUDIT_OUTPUT_DIR ?? "output/flow-audit";
+const fixtures = JSON.parse(await readFile(`${output}/fixtures.json`, "utf8"));
 const results = [];
 const user = (name) => fixtures.people.find((p) => p.username === name).id;
 const vinit = user("vinit"),
@@ -21,6 +22,19 @@ const exercise = fixtures.exercises.find((e) => e.slug === "barbell-bench-press"
 const activities = fixtures.activities.filter((a) => a.userId === vinit && a.sport !== "strength");
 const occurrences = fixtures.occurrences.filter((a) => a.userId === vinit);
 const templates = fixtures.templates.filter((a) => a.userId === vinit);
+// The app deliberately accepts at most one year per query. Walk the full seeded
+// history in supported windows, instead of accidentally auditing its fallback range.
+const historyWindows = [];
+if (fixtures.history) {
+  for (let from = fixtures.history.from; from <= fixtures.history.to;) {
+    const end = new Date(`${from}T00:00:00Z`);
+    end.setUTCDate(end.getUTCDate() + 364);
+    const to = [end.toISOString().slice(0, 10), fixtures.history.to].sort()[0];
+    historyWindows.push({ from, to });
+    end.setUTCDate(end.getUTCDate() + 1);
+    from = end.toISOString().slice(0, 10);
+  }
+}
 const routes = [
   "/today",
   "/today/choose",
@@ -29,11 +43,32 @@ const routes = [
   `/runs/${run}`,
   `/runs/${run}/edit`,
   "/food",
+  "/food/targets",
+  "/food/my-foods",
+  "/food/my-foods/meals/new",
+  ...[
+    "breakfast",
+    "morning-snack",
+    "lunch",
+    "afternoon-snack",
+    "evening-snack",
+    "dinner",
+    "late-night-snack",
+  ].map((meal) => `/food/${meal}`),
+  ...(fixtures.savedMeals ?? [])
+    .filter((meal) => meal.userId === vinit)
+    .map((meal) => `/food/my-foods/meals/${meal.id}`),
   "/progress/history",
   "/progress/history?kind=run",
   "/progress",
   "/progress?view=body",
   "/progress?view=running",
+  "/progress?view=strength",
+  "/progress?view=recovery",
+  ...historyWindows.flatMap(({ from, to }) => [
+    `/progress?from=${from}&to=${to}`,
+    `/progress/history?from=${from}&to=${to}`,
+  ]),
   "/profile",
   "/profile/edit",
   "/profile/privacy",
@@ -45,8 +80,10 @@ const routes = [
   "/profile/programme?view=changes",
   "/profile/programme/create",
   "/profile/programme/manual",
+  "/profile/programme/history",
   "/profile/routines",
   `/profile/programme/drafts/${draft}`,
+  `/profile/programme/drafts/${draft}/programme`,
   ...fixtures.jobs.filter((j) => j.userId === vinit).map((j) => `/profile/programme/jobs/${j.id}`),
   "/profile/friends",
   "/profile/friends/people",
@@ -117,6 +154,9 @@ for (const config of configurations.filter(
 )) {
   const theme = process.env.AUDIT_THEME === "dark" ? "dark" : "light";
   if (theme === "dark") config.name += "-dark";
+  const fontSize = Number(process.env.AUDIT_FONT_SIZE ?? 16);
+  if (fontSize !== 16) config.name += `-text${fontSize}`;
+  if (process.env.AUDIT_EXPAND_DETAILS === "true") config.name += "-expanded";
   // A machine whose browsers predate this Playwright can point at its own Chromium.
   const browser = await config.browser.launch({
     executablePath: config.browser === chromium ? process.env.AUDIT_CHROMIUM_PATH : undefined,
@@ -125,14 +165,56 @@ for (const config of configurations.filter(
   const page = await context.newPage();
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  const folder = `output/flow-audit/${config.name}`;
+  const network = { active: new Set(), changedAt: Date.now() };
+  page.on("request", (request) => {
+    network.active.add(request);
+    network.changedAt = Date.now();
+  });
+  const finished = (request) => {
+    network.active.delete(request);
+    network.changedAt = Date.now();
+  };
+  page.on("requestfinished", finished);
+  page.on("requestfailed", finished);
+  async function settle() {
+    if (page.url() === "about:blank") return;
+    // Enlarging text or expanding a disclosure changes which links are visible. Give
+    // intersection observers a frame, then let their prefetches finish before unloading.
+    await page.evaluate(async () => {
+      await document.fonts.ready;
+      await new Promise(requestAnimationFrame);
+      await new Promise(requestAnimationFrame);
+    });
+    const deadline = Date.now() + 20_000;
+    while (network.active.size || Date.now() - network.changedAt < 750) {
+      if (Date.now() > deadline) throw new Error("Page requests did not settle before navigation.");
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    await page.waitForLoadState("networkidle");
+  }
+  const folder = `${output}/${config.name}`;
   await mkdir(folder, { recursive: true });
   async function visit(route, persona, index) {
     if (process.env.AUDIT_ROUTE_FILTER && !new RegExp(process.env.AUDIT_ROUTE_FILTER).test(route))
       return;
     errors.length = 0;
     try {
+      // Let hydrated tab prefetches finish before replacing the document. WebKit
+      // otherwise reports our deliberately cancelled requests as runtime failures.
+      await settle();
+      const started = performance.now();
       const response = await page.goto(route, { waitUntil: "networkidle", timeout: 30_000 });
+      const durationMs = Math.round(performance.now() - started);
+      await page.evaluate(
+        ({ fontSize, expand }) => {
+          document.documentElement.style.fontSize = `${fontSize}px`;
+          if (expand)
+            document.querySelectorAll("details").forEach((detail) => {
+              detail.open = true;
+            });
+        },
+        { fontSize, expand: process.env.AUDIT_EXPAND_DETAILS === "true" },
+      );
       const fullPage = await page.evaluate(
         () => document.documentElement.scrollHeight * devicePixelRatio < 32000,
       );
@@ -147,7 +229,7 @@ for (const config of configurations.filter(
         overflowing: [...document.querySelectorAll("main *")]
           .filter((e) => {
             const r = e.getBoundingClientRect();
-            return r.width > 0 && r.right > window.innerWidth + 1;
+            return r.width > 0 && r.right > document.documentElement.clientWidth + 1;
           })
           .slice(0, 8)
           .map((e) => ({ tag: e.tagName, text: e.textContent?.slice(0, 100), class: e.className })),
@@ -169,6 +251,7 @@ for (const config of configurations.filter(
         route,
         url: page.url(),
         status: response.status(),
+        durationMs,
         ...data,
         errors: [...errors],
         accessibility,
@@ -184,7 +267,7 @@ for (const config of configurations.filter(
       console.log(`${config.name} ${route}: FAILED ${error.message.split("\n")[0]}`);
     }
     await writeFile(
-      `output/flow-audit/screens-${config.name}.json`,
+      `${output}/screens-${config.name}.json`,
       JSON.stringify(
         results.filter((r) => r.device === config.name),
         null,
@@ -193,6 +276,7 @@ for (const config of configurations.filter(
     );
   }
   async function login(persona) {
+    await settle();
     await context.clearCookies();
     await page.goto("/login");
     await page.getByLabel("Email", { exact: true }).fill(`${persona}@local.test`);
@@ -213,6 +297,10 @@ for (const config of configurations.filter(
             `/workouts/${active}/check-in`,
             `/workouts/${active}/finish`,
             `/workouts/${active}/add-exercise`,
+            ...(fixtures.workoutExercises ?? [])
+              .filter((exercise) => exercise.workoutSessionId === active)
+              .slice(0, 1)
+              .map((exercise) => `/workouts/${active}/exercises/${exercise.id}/substitute`),
             "/profile/edit",
             "/progress",
           ]
@@ -251,6 +339,6 @@ const failures = results.filter(
     result.accessibility?.length,
 );
 if (failures.length) {
-  console.error(`${failures.length} screen checks failed. See output/flow-audit/screens-*.json.`);
+  console.error(`${failures.length} screen checks failed. See ${output}/screens-*.json.`);
   process.exitCode = 1;
 }

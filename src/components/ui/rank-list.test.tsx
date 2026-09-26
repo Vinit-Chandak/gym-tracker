@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 
 import { rank } from "@/domain/leaderboard";
@@ -42,5 +42,5 @@ it("trails a person with nothing to rank, greyed, with a dash", () => {
   expect(last.className).toContain("text-ink-muted");
   expect(screen.getByLabelText("No data").textContent).toBe("—");
   // The rank column reads a dash too, not a number after the ranked rows.
-  expect(last.querySelector("span")!.textContent).toBe("—");
+  expect(within(last).getAllByText("—")).toHaveLength(2);
 });

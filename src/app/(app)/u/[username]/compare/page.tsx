@@ -50,8 +50,8 @@ function side(totals: PeriodTotals, metric: ActivityMetric, unit: BodyLoadUnit):
 /**
  * Head to head, overall (plan §3.10, §3.16): the two of you, then for lifting the shape of
  * each split, the period's numbers side by side with the difference under each, and the
- * comparable movements you both did, each leading to its own comparison; for running the
- * five run numbers, since a split and exercises in common do not apply. Everything is in
+ * comparable movements you both did, each leading to its own comparison; endurance sports
+ * show their own numbers, since a split and exercises in common do not apply. Everything is in
  * the viewer's unit.
  */
 export default async function ComparePage(props: PageProps<"/u/[username]/compare">) {
@@ -60,6 +60,7 @@ export default async function ComparePage(props: PageProps<"/u/[username]/compar
   const params = await props.searchParams;
   const sport = parseSport(params.sport);
   const period = parsePeriod(params.period);
+  const selection = `sport=${sport}&period=${period}`;
   const viewer = await getRequestProfile(user.id, user.email);
   const unit = viewer.preferredUnit === "lb" ? ("lb" as const) : ("kg" as const);
   const range = periodRange(period, viewer.timeZone);
@@ -75,7 +76,7 @@ export default async function ComparePage(props: PageProps<"/u/[username]/compar
         totals.get(head.me.id) ?? EMPTY_TOTALS,
         totals.get(head.them.id) ?? EMPTY_TOTALS,
       ] as const;
-      if (sport === "run") return { ...head, totals: pair, lifting: null };
+      if (sport !== "workout") return { ...head, totals: pair, lifting: null };
       const [mine, theirs, common] = await Promise.all([
         readMuscleSets(tx, head.me.id, range),
         readMuscleSets(tx, head.them.id, range),
@@ -94,7 +95,7 @@ export default async function ComparePage(props: PageProps<"/u/[username]/compar
     { readOnly: true },
   );
   if (found === null) notFound();
-  if (found === "self") redirect(`/u/${handle}`);
+  if (found === "self") redirect(`/u/${handle}?${selection}`);
   const { me, them } = found;
   const names: [string, string] = [
     me.displayName || me.username,
@@ -103,7 +104,7 @@ export default async function ComparePage(props: PageProps<"/u/[username]/compar
 
   return (
     <>
-      <PageHeader title="Compare" backHref={`/u/${them.username}`} />
+      <PageHeader title="Compare" backHref={`/u/${them.username}?${selection}`} />
       <PageContent>
         <CompareHeader a={me} b={them} />
         {!("totals" in found) ? (

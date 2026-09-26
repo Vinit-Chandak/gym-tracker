@@ -9,7 +9,7 @@ import { Field, Input } from "@/components/ui/input";
 import { PRESSABLE_ROW_CLASS } from "@/components/ui/link-row";
 import { Sheet } from "@/components/ui/sheet";
 import type { SlotPart } from "@/domain/types";
-import { keepsOutcomeOnDisconnect } from "@/lib/offline-submit";
+import { attempted, keepsOutcomeOnDisconnect } from "@/lib/offline-submit";
 import { cn } from "@/lib/utils";
 import {
   completeRestSlotAction,
@@ -23,6 +23,31 @@ import {
 import { CoachRequestPanel, type CoachGym } from "./coach-actions";
 
 const INITIAL: ActionResult = { ok: true };
+
+/** Keep Today and its open menu usable when the start request loses its connection. */
+function useStartSession() {
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const start = (action: () => Promise<unknown>) => {
+    setError(null);
+    startTransition(async () => {
+      const result = await attempted(
+        action,
+        "Could not start the session. Check your connection and try again.",
+      );
+      if (!result.ok) setError(result.message);
+    });
+  };
+  return { pending, error, start };
+}
+
+function StartError({ error }: { error: string | null }) {
+  return error ? (
+    <p role="alert" className="text-sm text-danger">
+      {error}
+    </p>
+  ) : null;
+}
 
 /** What More options needs to offer the coach: where it can plan, and whether it may today. */
 export type CoachOptions = {
@@ -58,40 +83,44 @@ export function StartPlannedButton({
    */
   dayName?: string;
 }) {
-  const [pending, startTransition] = useTransition();
+  const { pending, error, start } = useStartSession();
   return (
-    <Button
-      size="lg"
-      variant={variant}
-      aria-label={dayName ? `${label}: ${dayName}` : undefined}
-      className="w-full"
-      disabled={gymId === null || pending}
-      onClick={() => {
-        if (!gymId) return;
-        startTransition(() =>
-          startPlannedSessionAction(gymId, programDayId, dayIndex, fromCycleIndex),
-        );
-      }}
-    >
-      {pending ? "Starting…" : label}
-    </Button>
+    <>
+      <Button
+        size="lg"
+        variant={variant}
+        aria-label={dayName ? `${label}: ${dayName}` : undefined}
+        className="w-full"
+        disabled={gymId === null || pending}
+        onClick={() => {
+          if (!gymId) return;
+          start(() => startPlannedSessionAction(gymId, programDayId, dayIndex, fromCycleIndex));
+        }}
+      >
+        {pending ? "Starting…" : label}
+      </Button>
+      <StartError error={error} />
+    </>
   );
 }
 
 export function StartAdHocButton({ gymId }: { gymId: string | null }) {
-  const [pending, startTransition] = useTransition();
+  const { pending, error, start } = useStartSession();
   return (
-    <Button
-      variant="secondary"
-      className="w-full"
-      disabled={gymId === null || pending}
-      onClick={() => {
-        if (!gymId) return;
-        startTransition(() => startAdHocSessionAction(gymId));
-      }}
-    >
-      {pending ? "Starting…" : "Ad hoc session"}
-    </Button>
+    <>
+      <Button
+        variant="secondary"
+        className="w-full"
+        disabled={gymId === null || pending}
+        onClick={() => {
+          if (!gymId) return;
+          start(() => startAdHocSessionAction(gymId));
+        }}
+      >
+        {pending ? "Starting…" : "Ad hoc session"}
+      </Button>
+      <StartError error={error} />
+    </>
   );
 }
 
@@ -114,7 +143,7 @@ export function MoreOptions({
 }) {
   const [open, setOpen] = useState(false);
   const [asking, setAsking] = useState<"skip" | "coach" | null>(null);
-  const [pending, startTransition] = useTransition();
+  const { pending, error: startError, start } = useStartSession();
   // The workout half only: a day that also runs keeps its run, which is skipped on its own.
   const [state, formAction, skipping] = useActionState(
     keepsOutcomeOnDisconnect(skipSlotAction.bind(null, skip?.dayIndex ?? 0, "session")),
@@ -194,7 +223,7 @@ export function MoreOptions({
                 disabled={gymId === null || pending}
                 onClick={() => {
                   if (!gymId) return;
-                  startTransition(() => startAdHocSessionAction(gymId));
+                  start(() => startAdHocSessionAction(gymId));
                 }}
                 className={cn(PRESSABLE_ROW_CLASS, "disabled:opacity-45")}
               >
@@ -236,6 +265,7 @@ export function MoreOptions({
             )}
           </ul>
         )}
+        <StartError error={startError} />
       </Sheet>
     </>
   );

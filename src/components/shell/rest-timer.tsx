@@ -12,14 +12,24 @@ const LINGER_MS = 60_000;
 const storageKey = (sessionId: string) => `overload:rest-timer:${sessionId}`;
 
 const listeners = new Set<() => void>();
+// A full or blocked store must only remove persistence, never the countdown itself.
+const transientDeadlines = new Map<string, number | null>();
 
 function notify(): void {
   for (const listener of listeners) listener();
 }
 
 function readEndsAt(sessionId: string): number | null {
+  const key = storageKey(sessionId);
+  if (transientDeadlines.has(key)) {
+    const value = transientDeadlines.get(key);
+    if (value == null) return null;
+    if (value > Date.now() - LINGER_MS) return value;
+    transientDeadlines.delete(key);
+    return null;
+  }
   try {
-    const raw = localStorage.getItem(storageKey(sessionId));
+    const raw = localStorage.getItem(key);
     const value = raw ? Number(raw) : NaN;
     return Number.isFinite(value) && value > Date.now() - LINGER_MS ? value : null;
   } catch {
@@ -28,11 +38,13 @@ function readEndsAt(sessionId: string): number | null {
 }
 
 function writeEndsAt(sessionId: string, endsAt: number | null): void {
+  const key = storageKey(sessionId);
   try {
-    if (endsAt === null) localStorage.removeItem(storageKey(sessionId));
-    else localStorage.setItem(storageKey(sessionId), String(endsAt));
+    if (endsAt === null) localStorage.removeItem(key);
+    else localStorage.setItem(key, String(endsAt));
+    transientDeadlines.delete(key);
   } catch {
-    // Storage unavailable: the timer simply does not survive navigation.
+    transientDeadlines.set(key, endsAt);
   }
   notify();
 }
@@ -46,11 +58,16 @@ function readRemaining(sessionId: string): number | null {
 function subscribe(listener: () => void): () => void {
   listeners.add(listener);
   const interval = setInterval(listener, 1000);
-  window.addEventListener("storage", listener);
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === null) transientDeadlines.clear();
+    else transientDeadlines.delete(event.key);
+    listener();
+  };
+  window.addEventListener("storage", onStorage);
   return () => {
     listeners.delete(listener);
     clearInterval(interval);
-    window.removeEventListener("storage", listener);
+    window.removeEventListener("storage", onStorage);
   };
 }
 

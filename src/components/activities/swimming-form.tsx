@@ -155,7 +155,12 @@ export function SwimmingForm({
             group
             label="Elapsed time"
             hint="From getting in to getting out, rests included"
-            error={state.fieldErrors?.elapsed ?? state.fieldErrors?.minutes}
+            error={
+              state.fieldErrors?.elapsed ??
+              state.fieldErrors?.hours ??
+              state.fieldErrors?.minutes ??
+              state.fieldErrors?.seconds
+            }
           >
             <div className="grid grid-cols-3 gap-2">
               <Field label="Hours">
@@ -283,12 +288,26 @@ export function SwimmingForm({
       </Section>
 
       <Section title="Details">
-        <MoreDetails>
+        <MoreDetails
+          hasErrors={[
+            "activeMs",
+            "activeMinutes",
+            "activeSeconds",
+            "stroke",
+            "strokeCount",
+            "averageHeartRate",
+            "maxHeartRate",
+          ].some((field) => Boolean(state.fieldErrors?.[field]))}
+        >
           <Field
             group
             label="Swimming time"
             hint="Optional — the time actually swimming, without the rests"
-            error={state.fieldErrors?.activeMs}
+            error={
+              state.fieldErrors?.activeMs ??
+              state.fieldErrors?.activeMinutes ??
+              state.fieldErrors?.activeSeconds
+            }
           >
             <div className="grid grid-cols-2 gap-2">
               <Field label="Minutes">

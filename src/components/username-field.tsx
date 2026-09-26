@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { unstable_rethrow } from "next/navigation";
 
 import { Field, Input } from "@/components/ui/input";
 import { normaliseUsername, USERNAME_MAX_LENGTH, usernameProblem } from "@/domain/username";
@@ -17,6 +18,7 @@ type LiveState =
   | { kind: "invalid"; message: string }
   | { kind: "checking" }
   | { kind: "available" }
+  | { kind: "unavailable" }
   | { kind: "taken" };
 
 /**
@@ -45,7 +47,10 @@ export function UsernameField({
   const [value, setValue] = useState(defaultValue);
   const [edited, setEdited] = useState(false);
   /** The server's last answer, remembered with the name it was about. */
-  const [answer, setAnswer] = useState<{ candidate: string; result: UsernameCheck } | null>(null);
+  const [answer, setAnswer] = useState<{
+    candidate: string;
+    result: UsernameCheck | "unavailable";
+  } | null>(null);
   // A fresh refusal from the server outranks whatever the live check last said, until the
   // field is touched again.
   const [seenError, setSeenError] = useState(error);
@@ -62,8 +67,13 @@ export function UsernameField({
     if (!askServer) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
-      const result = await checkUsernameAction(candidate);
-      if (!cancelled) setAnswer({ candidate, result });
+      try {
+        const result = await checkUsernameAction(candidate);
+        if (!cancelled) setAnswer({ candidate, result });
+      } catch (error) {
+        unstable_rethrow(error);
+        if (!cancelled) setAnswer({ candidate, result: "unavailable" });
+      }
     }, USERNAME_CHECK_DELAY_MS);
     return () => {
       cancelled = true;
@@ -82,7 +92,11 @@ export function UsernameField({
             ? { kind: "checking" }
             : answer.result === "available"
               ? { kind: "available" }
-              : { kind: "taken" };
+              : answer.result === "unavailable"
+                ? { kind: "unavailable" }
+                : answer.result === "invalid"
+                  ? { kind: "invalid", message: RULES_HINT }
+                  : { kind: "taken" };
 
   const feedback = edited || !error ? liveFeedback(live, hint) : { error };
 
@@ -120,6 +134,8 @@ function liveFeedback(live: LiveState, hint: string): { error?: string; hint?: s
       return { hint: "Checking…" };
     case "available":
       return { hint: "Available." };
+    case "unavailable":
+      return { hint: "Could not check availability. It will be checked when you save." };
     case "taken":
       return { error: "That username is taken." };
   }

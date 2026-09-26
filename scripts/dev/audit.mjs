@@ -9,6 +9,8 @@ const database =
 const target = new URL(database);
 if (
   !["localhost", "127.0.0.1", "[::1]"].includes(target.hostname) ||
+  target.search !== "" ||
+  target.hash !== "" ||
   !/^\/overload_audit(?:_[a-z0-9]+)*$/.test(target.pathname)
 ) {
   throw new Error(
@@ -16,13 +18,20 @@ if (
   );
 }
 const port = process.env.AUDIT_PORT ?? "3100";
+const authPort = process.env.AUDIT_AUTH_PORT ?? "54321";
+for (const [name, value] of Object.entries({ AUDIT_PORT: port, AUDIT_AUTH_PORT: authPort })) {
+  if (!/^\d+$/.test(value) || Number(value) < 1 || Number(value) > 65535)
+    throw new Error(`${name} must be a port between 1 and 65535.`);
+}
 const env = {
   ...process.env,
+  AUDIT_BUILD: "true",
   DATABASE_URL: database,
   DIRECT_DATABASE_URL: database,
   SEED_DATABASE_URL: database,
   AUTH_STUB_DATABASE_URL: database,
-  NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321",
+  AUTH_STUB_PORT: authPort,
+  NEXT_PUBLIC_SUPABASE_URL: `http://127.0.0.1:${authPort}`,
   NEXT_PUBLIC_SUPABASE_ANON_KEY: "dev-anon-key",
   NEXT_PUBLIC_SITE_URL: `http://localhost:${port}`,
   SUPABASE_JWKS: "",
@@ -31,6 +40,7 @@ const env = {
   COACH_SERVICE_TOKEN: "local-audit-coach-service-token",
   COACH_ROUTINE_FIRE_URL: "",
   COACH_ROUTINE_FIRE_TOKEN: "",
+  AUDIT_OUTPUT_DIR: process.env.AUDIT_OUTPUT_DIR ?? "output/flow-audit",
 };
 function run(script, args = []) {
   return new Promise((resolve, reject) => {
@@ -83,14 +93,15 @@ switch (process.argv[2]) {
     await run(next, ["build"]);
     break;
   case "start":
-    await run(next, ["start", "--port", port]);
+    await run(next, ["start", "--hostname", "127.0.0.1", "--port", port]);
     break;
   case "dev":
-    await run(next, ["dev", "--port", port]);
+    await run(next, ["dev", "--hostname", "127.0.0.1", "--port", port]);
     break;
   case "verify-db":
     await run(tsx, ["src/db/multisport-audit.ts"]);
     await run(tsx, ["src/db/programme-schedule-audit.ts"]);
+    await run(tsx, ["scripts/dev/seed-audit-verify.ts"]);
     break;
   default:
     throw new Error("Use setup, seed, auth, build, start, dev, or verify-db.");

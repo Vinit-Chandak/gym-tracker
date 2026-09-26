@@ -128,6 +128,32 @@ it("refuses a submission key that is not one", async () => {
   expect(mocks.getDb).not.toHaveBeenCalled();
 });
 
+it.each([
+  ["hours", { hours: "-1", minutes: "90" }],
+  ["minutes", { hours: "1", minutes: "-1" }],
+  ["seconds", { minutes: "30", seconds: "-10" }],
+] as const)(
+  "refuses negative %s even when the combined duration is positive",
+  async (field, values) => {
+    const state = await saveActivityAction(null, {}, runningForm(values));
+    expect(state.fieldErrors?.[field]).toMatch(/zero or more/);
+    expect(mocks.getDb).not.toHaveBeenCalled();
+  },
+);
+
+it.each([
+  ["activeMinutes", { activeMinutes: "-1", activeSeconds: "120" }],
+  ["activeSeconds", { activeMinutes: "2", activeSeconds: "-10" }],
+] as const)("refuses negative swimming %s before combining the time", async (field, values) => {
+  const state = await saveActivityAction(
+    null,
+    {},
+    runningForm({ sport: "swimming", environment: "pool", distanceUnit: "m", ...values }),
+  );
+  expect(state.fieldErrors?.[field]).toMatch(/zero or more/);
+  expect(mocks.getDb).not.toHaveBeenCalled();
+});
+
 /** LINK-01: an occurrence is named in full or not at all; nothing is matched by date. */
 it("treats a half-named occurrence as an ad hoc log rather than guessing", async () => {
   mocks.getDb.mockImplementation(() => {

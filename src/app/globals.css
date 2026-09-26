@@ -142,6 +142,16 @@
     font-size: var(--ov-text-input);
   }
 
+  /* Fieldsets otherwise use a min-content width, even inside a narrow grid or card. */
+  fieldset {
+    min-width: 0;
+  }
+
+  legend {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
   /*
    * iOS puts a native widget inside a date or time field and sizes the field to that widget,
    * ignoring the width the layout gave it: two side by side then overlap, and the first
@@ -246,11 +256,12 @@
 }
 
 /*
- * A box: the grouping for anything that belongs together. Filled, rounded and without an
- * outline in either palette, so the lift between canvas and surface is the only edge.
+ * A box: the grouping for anything that belongs together. A shared hairline keeps its
+ * boundary visible in both palettes, including when it sits on another surface.
  */
 @utility box {
   min-width: 0;
+  border: 1px solid var(--ov-line);
   border-radius: var(--ov-radius-card);
   background: var(--ov-surface);
 }
@@ -288,6 +299,7 @@
  */
 @utility box-rows {
   min-width: 0;
+  border: 1px solid var(--ov-line);
   border-radius: var(--ov-radius-card);
   background: var(--ov-surface);
   :where(& > * + *) {
@@ -559,7 +571,7 @@ html:has(.app-content) {
  */
 @utility action-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 8.5rem), 1fr));
   gap: var(--ov-space-3);
 }
 
@@ -656,18 +668,18 @@ dialog.sheet {
   padding: 0;
   background: transparent;
   color: var(--ov-ink);
+  overflow: hidden;
+  overscroll-behavior: contain;
 }
 /*
- * A modal dialog already stops the page behind it from scrolling, but the scrollbar it
- * cannot use stays painted — over the backdrop and over the sheet itself. Hiding the track
- * rather than setting `overflow: hidden` keeps the page exactly where it was on closing.
+ * The native modal makes the page inert, but does not lock its scroll position. Lock the
+ * root while any sheet is open; closing a nested sheet keeps the underlying sheet locked.
+ * Overflow clipping preserves the page's scroll position when the sheet closes.
  */
-html:has(dialog.sheet[open]) {
-  scrollbar-width: none;
-}
-
-html:has(dialog.sheet[open])::-webkit-scrollbar {
-  display: none;
+html:has(dialog.sheet[open]),
+html:has(dialog.sheet[open]) body {
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 /*
@@ -678,24 +690,21 @@ dialog.sheet::backdrop {
   background: var(--ov-backdrop, rgb(0 0 0 / 0.64));
 }
 
-.sheet-with-footer {
+.sheet-panel {
   display: flex;
   flex-direction: column;
   max-height: var(--sheet-height, 90dvh);
-}
-
-.sheet-panel {
   padding-left: max(var(--panel-padding), env(safe-area-inset-left));
   padding-right: max(var(--panel-padding), env(safe-area-inset-right));
 }
 
-.sheet-with-footer[data-compact="true"] {
+.sheet-panel[data-compact="true"] {
   display: block;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
 
-.sheet-with-footer[data-compact="true"] > .sheet-body {
+.sheet-panel[data-compact="true"] > .sheet-body {
   overflow: visible;
 }
 

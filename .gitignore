@@ -18,6 +18,8 @@
 
 # next.js
 /.next/
+/.next-audit/
+/output/audit-56-months/
 /out/
 
 # production

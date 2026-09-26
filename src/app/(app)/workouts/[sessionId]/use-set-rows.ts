@@ -433,9 +433,12 @@ export function useSetRows({ exercise, userId, sessionId, measure, unit, onLogge
       );
       return;
     }
+    const expectedCompletedAt = row.logged.completedAt;
     update(row.setIndex, { saving: true });
     startTransition(async () => {
-      const result = await safeAction(() => deleteSetAction(exercise.id, row.setIndex));
+      const result = await safeAction(() =>
+        deleteSetAction(exercise.id, row.setIndex, expectedCompletedAt),
+      );
       if (!result.ok) {
         update(row.setIndex, { saving: false, error: result.error });
         return;
