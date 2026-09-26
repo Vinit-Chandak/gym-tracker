@@ -198,15 +198,18 @@ export function Chart({
             {note && <InfoTip label={`About ${title.toLowerCase()}`}>{note}</InfoTip>}
           </span>
           {multi && (
-            <ul className="flex gap-3">
+            <ul className="flex min-w-0 flex-wrap gap-x-3 gap-y-1">
               {series.map((s) => (
-                <li key={s.name} className="flex items-center gap-1.5 text-xs text-ink-muted">
+                <li
+                  key={s.name}
+                  className="flex min-w-0 items-center gap-1.5 text-xs text-ink-muted"
+                >
                   <span
-                    className="size-2.5 rounded-full"
+                    className="size-2.5 shrink-0 rounded-full"
                     style={{ background: s.color }}
                     aria-hidden
                   />
-                  {s.name}
+                  <span className="min-w-0 [overflow-wrap:anywhere]">{s.name}</span>
                 </li>
               ))}
             </ul>
@@ -373,7 +376,7 @@ export function Chart({
           {/* Several charts on one screen: a screen reader's list of controls tells them apart. */}
           <span className="sr-only"> for {title}</span>
         </summary>
-        <table className="w-full text-left tabular-nums">
+        <table className="w-full table-fixed text-left [overflow-wrap:anywhere] tabular-nums">
           <caption className="sr-only">{title} by date, newest first</caption>
           <thead>
             <tr className="text-ink-subtle">
@@ -393,7 +396,7 @@ export function Chart({
                 key={`${dates[i]}:${i}`}
                 className={cn("border-t border-line", active === i && "text-ink")}
               >
-                <th scope="row" className="py-1.5 font-normal whitespace-nowrap">
+                <th scope="row" className="py-1.5 font-normal">
                   {formatIsoDay(dates[i]!)}
                 </th>
                 {series.map((s) => (

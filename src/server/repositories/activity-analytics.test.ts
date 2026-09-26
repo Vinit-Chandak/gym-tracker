@@ -8,6 +8,7 @@ import { AD_HOC_ORIGIN, reportedEffort, UNKNOWN_EFFORT } from "@/domain/activity
 import { nativeDistance } from "@/domain/activity-metrics";
 import {
   decodeCursor,
+  encodeCursor,
   InvalidCursorError,
   listActivityPage,
   readActivityTotals,
@@ -286,12 +287,21 @@ describe("paging", () => {
 
   it("refuses a cursor it did not issue", async () => {
     const userId = await athlete("bad-cursor@example.test");
-    await expect(
-      withUser(t.db, userId, (tx) => listActivityPage(tx, userId, { cursor: "not-a-cursor" }), {
-        readOnly: true,
-      }),
-    ).rejects.toThrow(InvalidCursorError);
-    expect(decodeCursor("12:not-a-uuid")).toBeNull();
+    for (const cursor of [
+      "not-a-cursor",
+      "12:not-a-uuid",
+      `12:${"-".repeat(36)}`,
+      `9007199254740991:${userId}`,
+    ]) {
+      expect(decodeCursor(cursor)).toBeNull();
+      await expect(
+        withUser(t.db, userId, (tx) => listActivityPage(tx, userId, { cursor }), {
+          readOnly: true,
+        }),
+      ).rejects.toThrow(InvalidCursorError);
+    }
+    const historic = { startedAt: new Date("1969-12-31T12:00:00Z"), id: userId };
+    expect(decodeCursor(encodeCursor(historic))).toEqual(historic);
   });
 
   it("filters by sport without leaking the others", async () => {

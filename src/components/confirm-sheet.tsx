@@ -29,7 +29,7 @@ export function ConfirmSheet({
   onConfirm: () => void;
 }) {
   return (
-    <Sheet open={open} onClose={onClose} title={title}>
+    <Sheet open={open} onClose={onClose} title={title} dismissible={!pending}>
       <div className="space-y-4">
         <p className="text-sm text-ink-muted">{description}</p>
         {error && (

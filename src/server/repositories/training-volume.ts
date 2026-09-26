@@ -29,14 +29,17 @@ export async function readWeeklyTrainingVolume(
 ) {
   if (!Number.isInteger(weeks) || weeks < 1 || weeks > 52)
     throw new Error("Choose between one and 52 calendar weeks.");
-  const current = weekStart(todayInTimeZone(timeZone, snapshot));
+  const today = todayInTimeZone(timeZone, snapshot);
+  const current = weekStart(today);
   const range = parseDateRange({ from: addDays(current, -7 * (weeks - 1)), to: current }, timeZone);
   const workoutWeek =
     sql<string>`to_char(date_trunc('week', ${workoutSessions.startedAt} at time zone ${timeZone}), 'YYYY-MM-DD')`.as(
       "week_start",
     );
+  // A run keeps the local date recorded with it. Changing the profile zone must not move
+  // it across a week boundary or exclude it from the same window Progress still counts.
   const runWeek =
-    sql<string>`to_char(date_trunc('week', ${activities.startedAt} at time zone ${timeZone}), 'YYYY-MM-DD')`.as(
+    sql<string>`to_char(date_trunc('week', ${activities.occurredOn}::timestamp), 'YYYY-MM-DD')`.as(
       "week_start",
     );
   const workoutRange = and(
@@ -82,7 +85,8 @@ export async function readWeeklyTrainingVolume(
           eq(activities.userId, userId),
           eq(activities.sport, "running"),
           eq(activities.status, "completed"),
-          gte(activities.startedAt, range.start),
+          gte(activities.occurredOn, range.from),
+          lte(activities.occurredOn, today),
           lt(activities.startedAt, snapshot),
         ),
       )

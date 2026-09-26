@@ -70,8 +70,10 @@ export default async function LeaderboardPage(props: PageProps<"/profile/friends
   const user = await requireUser();
   const params = await props.searchParams;
   const sport = parseSport(params.sport);
-  // Running has no Exercise mode (§3.16): whatever the URL says, it is one board.
+  // Endurance sports have no Exercise mode: whatever the URL says, it is one board.
   const mode = sport === "workout" ? parseBoardMode(params.mode) : "activity";
+  const activityName =
+    sport === "workout" ? "workout" : sport === "run" ? "run" : sport === "cycle" ? "ride" : "swim";
   const activityMetric = parseActivityMetric(params.metric, sport);
   const period = parsePeriod(params.period);
   const viewer = await getRequestProfile(user.id, user.email);
@@ -159,11 +161,7 @@ export default async function LeaderboardPage(props: PageProps<"/profile/friends
             {board.kind === "activity" ? (
               <Section
                 title={ACTIVITY_METRIC_LABELS[activityMetric]}
-                info={
-                  sport === "workout"
-                    ? `The last ${PERIOD_LABELS[period]}, ending today. Equal values share a rank; someone with no workout in the period reads "—".`
-                    : `The last ${PERIOD_LABELS[period]}, ending today. Equal values share a rank; someone with no run in the period reads "—". Best pace is the fastest average pace over a run of at least 1 km, and a faster pace ranks higher.`
-                }
+                info={`The last ${PERIOD_LABELS[period]}, ending today. Equal values share a rank; someone with no ${activityName} in the period reads "—".${sport === "run" ? " Best pace is the fastest average pace over a run of at least 1 km, and a faster pace ranks higher." : ""}`}
               >
                 <RankList
                   rows={board.rows}

@@ -3,7 +3,7 @@ import type { Schedule } from "@/server/repositories/schedule";
 import { addDays, todayInTimeZone } from "./program-calendar";
 import { weekStart } from "./running";
 import { addExerciseVolume, emptyMuscleVolume, type MuscleVolume } from "./muscle-volume";
-import { allSlots, slotStatus } from "./schedule";
+import { allSlots, partStatus } from "./schedule";
 import type { LoadUnit } from "./types";
 
 export type Point = { date: string; value: number | null };
@@ -219,8 +219,12 @@ export function liftingAdherence(schedule: Schedule | null) {
     schedule.days.filter((d) => d.includesLifting).map((d) => d.dayIndex),
   );
   const slots = allSlots(schedule.state).filter((s) => liftingDays.has(s.dayIndex));
-  const completed = slots.filter((s) => slotStatus(schedule.state, s) === "completed").length;
-  const skipped = slots.filter((s) => slotStatus(schedule.state, s) === "skipped").length;
+  const completed = slots.filter(
+    (s) => partStatus(schedule.state, s, "session") === "completed",
+  ).length;
+  const skipped = slots.filter(
+    (s) => partStatus(schedule.state, s, "session") === "skipped",
+  ).length;
   return {
     name: schedule.program.name,
     total: slots.length,

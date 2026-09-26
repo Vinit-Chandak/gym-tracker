@@ -260,6 +260,16 @@ it("removes the last unsaved row from its set options without leaving a draft be
   expect((screen.getByRole("textbox", { name: "Set 1 reps" }) as HTMLInputElement).value).toBe("");
 });
 
+it("deletes only the version of a logged set that the athlete is looking at", async () => {
+  actions.remove.mockResolvedValueOnce({ ok: false, error: "This set changed on another device." });
+  renderLogger({ exercise: { sets: [saved] } });
+  fireEvent.click(screen.getByRole("button", { name: "Set 1 options" }));
+  fireEvent.click(screen.getByRole("button", { name: "Remove set 1" }));
+  await waitFor(() => expect(actions.remove).toHaveBeenCalledWith("slot", 1, saved.completedAt));
+  await screen.findByText("This set changed on another device.");
+  expect((screen.getByRole("textbox", { name: "Set 1 reps" }) as HTMLInputElement).value).toBe("5");
+});
+
 it("retains unmatched drafts for review when the workout was finished elsewhere", async () => {
   writeDraft(localStorage, context, {
     setIndex: 1,

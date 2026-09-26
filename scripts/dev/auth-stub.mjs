@@ -4,7 +4,8 @@
 // user document, the JWKS — and signs sessions with an ES256 key it keeps in the database, so
 // `getClaims()` verifies them exactly as it verifies production sessions. Accounts live in the
 // same `auth.users` table the test suite stubs (see src/db/test/pglite.ts), so the app's own
-// profile trigger runs on sign-up. Nothing here is reachable from a production build.
+// profile trigger runs on sign-up. The stub binds only to loopback and accepts only local
+// development/audit databases, including while testing the app's production build.
 //
 //   node scripts/dev/auth-stub.mjs            # listens on 127.0.0.1:54321
 //   AUTH_STUB_DATABASE_URL=... AUTH_STUB_PORT=...
@@ -16,12 +17,14 @@ import { createServer } from "node:http";
 import {
   createHash,
   createPrivateKey,
+  createPublicKey,
   generateKeyPairSync,
   randomBytes,
   randomUUID,
   scryptSync,
   sign,
   timingSafeEqual,
+  verify,
 } from "node:crypto";
 
 import postgres from "postgres";
@@ -29,6 +32,17 @@ import postgres from "postgres";
 const PORT = Number(process.env.AUTH_STUB_PORT ?? 54321);
 const DATABASE_URL =
   process.env.AUTH_STUB_DATABASE_URL ?? "postgres://postgres:postgres@localhost:5432/overload_dev";
+const target = new URL(DATABASE_URL);
+if (
+  !["localhost", "127.0.0.1", "[::1]"].includes(target.hostname) ||
+  target.search !== "" ||
+  target.hash !== "" ||
+  !/^\/overload_(?:dev|audit)(?:_[a-z0-9]+)*$/.test(target.pathname)
+) {
+  throw new Error("The auth stub requires a loopback overload_dev or overload_audit database.");
+}
+if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535)
+  throw new Error("AUTH_STUB_PORT must be a port between 1 and 65535.");
 const ISSUER = `http://127.0.0.1:${PORT}/auth/v1`;
 const ACCESS_TOKEN_SECONDS = 60 * 60;
 
@@ -71,9 +85,34 @@ function signJwt(privateKey, kid, payload) {
   return `${header}.${body}.${signature.toString("base64url")}`;
 }
 
-function decodeJwt(token) {
-  const [, body] = token.split(".");
-  return JSON.parse(Buffer.from(body, "base64url").toString());
+function verifyJwt(key, token) {
+  const [header, body, signature, extra] = token.split(".");
+  if (!header || !body || !signature || extra !== undefined) return null;
+  const parsedHeader = JSON.parse(Buffer.from(header, "base64url").toString());
+  if (parsedHeader.alg !== "ES256" || parsedHeader.kid !== key.publicJwk.kid) return null;
+  if (
+    !verify(
+      "sha256",
+      Buffer.from(`${header}.${body}`),
+      {
+        key: createPublicKey({ key: key.publicJwk, format: "jwk" }),
+        dsaEncoding: "ieee-p1363",
+      },
+      Buffer.from(signature, "base64url"),
+    )
+  )
+    return null;
+  const claims = JSON.parse(Buffer.from(body, "base64url").toString());
+  if (
+    claims.iss !== ISSUER ||
+    claims.aud !== "authenticated" ||
+    claims.role !== "authenticated" ||
+    typeof claims.exp !== "number" ||
+    claims.exp <= Date.now() / 1000 ||
+    typeof claims.sub !== "string"
+  )
+    return null;
+  return claims;
 }
 
 // --- Passwords ------------------------------------------------------------------------------
@@ -86,6 +125,7 @@ function hashPassword(password) {
 function verifyPassword(password, stored) {
   if (!stored) return false;
   const [salt, hash] = stored.split(":");
+  if (!salt || !/^[a-f0-9]{64}$/i.test(hash ?? "")) return false;
   return timingSafeEqual(scryptSync(password, salt, 32), Buffer.from(hash, "hex"));
 }
 
@@ -157,13 +197,13 @@ async function findUser(where) {
   return row ?? null;
 }
 
-async function userFromBearer(req) {
+async function userFromBearer(req, key) {
   const header = req.headers.authorization ?? "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : null;
   if (!token) return null;
   try {
-    const claims = decodeJwt(token);
-    if (!claims.sub || claims.exp <= Date.now() / 1000) return null;
+    const claims = verifyJwt(key, token);
+    if (!claims) return null;
     return findUser(sql`id = ${claims.sub}`);
   } catch {
     return null;
@@ -253,7 +293,7 @@ async function handle(req, res, key) {
   }
 
   if (req.method === "POST" && path === "/logout") {
-    const row = await userFromBearer(req);
+    const row = await userFromBearer(req, key);
     if (row && url.searchParams.get("scope") !== "others") {
       await sql`delete from auth.refresh_tokens where user_id = ${row.id}`;
     }
@@ -261,11 +301,13 @@ async function handle(req, res, key) {
   }
 
   if (path === "/user" && (req.method === "GET" || req.method === "PUT")) {
-    const row = await userFromBearer(req);
+    const row = await userFromBearer(req, key);
     if (!row) return fail(res, 401, "bad_jwt", "invalid JWT");
     if (req.method === "GET") return send(res, 200, userDocument(row));
     const body = await readJson(req);
     if (typeof body.password === "string") {
+      if (body.password.length < 6)
+        return fail(res, 422, "weak_password", "Password must contain at least 6 characters.");
       if (verifyPassword(body.password, row.encrypted_password)) {
         return fail(
           res,

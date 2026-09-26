@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useOptimistic, useTransition } from "react";
 
 import { Tabs } from "@/components/ui/tabs";
 
@@ -26,7 +26,7 @@ export function ProgrammeTabs({
   waiting: number;
 }) {
   const router = useRouter();
-  const [chosen, setChosen] = useState<ProgrammeView>(view);
+  const [chosen, setChosen] = useOptimistic<ProgrammeView>(view);
   const [, startNavigation] = useTransition();
   return (
     <Tabs
@@ -34,15 +34,15 @@ export function ProgrammeTabs({
       label="Programme"
       value={chosen}
       onChange={(next) => {
-        setChosen(next);
-        startNavigation(() =>
+        startNavigation(() => {
+          setChosen(next);
           router.replace(
             next === "changes"
               ? "/profile/programme?view=changes"
               : "/profile/programme?view=cycle",
             { scroll: false },
-          ),
-        );
+          );
+        });
       }}
       options={[
         { value: "cycle", label: "Cycle" },

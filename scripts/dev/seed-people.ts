@@ -46,8 +46,16 @@ import {
 
 const DATABASE_URL =
   process.env.SEED_DATABASE_URL ?? "postgres://postgres:postgres@localhost:5432/overload_dev";
-if (!["localhost", "127.0.0.1", "[::1]"].includes(new URL(DATABASE_URL).hostname)) {
-  throw new Error("Development accounts may only be seeded into a local database.");
+const target = new URL(DATABASE_URL);
+if (
+  !["localhost", "127.0.0.1", "[::1]"].includes(target.hostname) ||
+  target.search !== "" ||
+  target.hash !== "" ||
+  !/^\/overload_(?:dev|audit)(?:_[a-z0-9]+)*$/.test(target.pathname)
+) {
+  throw new Error(
+    "Development accounts require a loopback overload_dev or overload_audit database.",
+  );
 }
 const TZ = "Asia/Kolkata";
 const PASSWORD = "password123";

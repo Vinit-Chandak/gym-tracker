@@ -337,11 +337,26 @@ export async function rebuildSportStats(
   if (sport !== "cycling" && sport !== "swimming") return;
   const legacy = sport === "cycling" ? "cycle" : "swim";
   await deleteSportStats(tx, userId, legacy);
+  const [consent] = await tx
+    .select({ id: profiles.id })
+    .from(profiles)
+    .innerJoin(userSportPreferences, eq(userSportPreferences.userId, profiles.id))
+    .where(
+      and(
+        eq(profiles.id, userId),
+        eq(profiles.shareTraining, true),
+        eq(userSportPreferences.sport, sport),
+        eq(userSportPreferences.shareStats, true),
+      ),
+    )
+    .limit(1);
+  if (!consent) return;
   const details = sport === "cycling" ? cyclingActivityDetails : swimmingActivityDetails;
   const rows = await tx
     .select({
       id: activities.id,
       startedAt: activities.startedAt,
+      recordedTimeZone: activities.recordedTimeZone,
       durationMs: activities.durationMs,
       distanceMetres: sql<string | null>`coalesce(
         ${details.distanceMetres},
@@ -357,14 +372,32 @@ export async function rebuildSportStats(
         eq(activities.status, "completed"),
       ),
     );
-  for (const row of rows) {
-    if (row.durationMs === null) continue;
-    await writeEnduranceStats(tx, userId, legacy, {
-      id: row.id,
-      startedAt: row.startedAt,
-      durationSeconds: Math.round(row.durationMs / 1000),
-      distanceMeters: row.distanceMetres === null ? null : Number(row.distanceMetres),
-    });
+  const values = rows.flatMap((row) =>
+    row.durationMs === null
+      ? []
+      : [
+          {
+            ...enduranceStats(
+              legacy,
+              {
+                id: row.id,
+                startedAt: row.startedAt,
+                durationSeconds: Math.round(row.durationMs / 1000),
+                distanceMeters: row.distanceMetres === null ? null : Number(row.distanceMetres),
+              },
+              row.recordedTimeZone,
+            ),
+            userId,
+            activityId: row.id,
+            records: [],
+          },
+        ],
+  );
+  // Re-enabling sharing can cover years of training. The athlete's transaction lock keeps
+  // consent stable; check it once and insert bounded batches instead of three round trips
+  // per activity. No display limit may truncate the rebuilt history.
+  for (let start = 0; start < values.length; start += 250) {
+    await tx.insert(sharedSessionStats).values(values.slice(start, start + 250));
   }
 }
 

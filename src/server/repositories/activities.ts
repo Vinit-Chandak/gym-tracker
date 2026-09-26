@@ -558,6 +558,16 @@ export async function deleteActivity(
     .limit(1);
   if (!existing) throw new ActivityNotFoundError();
 
+  // Strength owns its own discard/finish rules and programme-slot events. Deleting its
+  // parent here would cascade through logged sets while leaving the programme marked done.
+  if (existing.sport === "strength")
+    throw new InvalidActualError([
+      {
+        field: "sport",
+        message: "Use the workout screen to finish or discard a strength session.",
+      },
+    ]);
+
   if (existing.occurrenceId) {
     await tx.insert(occurrenceEvents).values({
       userId,

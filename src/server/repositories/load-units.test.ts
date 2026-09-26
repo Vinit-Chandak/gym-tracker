@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { afterAll, beforeAll, expect, it } from "vitest";
+import { afterAll, beforeAll, expect, it, vi } from "vitest";
 
 import { toSessionVM } from "@/app/(app)/workouts/[sessionId]/view-model";
 import { exercises, profiles, workoutSessions } from "@/db/schema";
@@ -11,6 +11,7 @@ import { convertLoad } from "@/lib/units";
 import { listGyms } from "./gyms";
 import {
   addExerciseToSession,
+  deleteSet,
   finishSession,
   getSessionDetail,
   logSet,
@@ -111,4 +112,39 @@ it("does not treat a retry in a different unit as the same saved set", async () 
 
 it("never converts a stack number or plate count to kilograms", () => {
   expect(() => convertLoad(5, "stack_index", "kg")).toThrow();
+});
+
+it("a stale delete preserves another device's newer set, and a matching delete can be retried", async () => {
+  await withUser(t.db, user.id, async (tx) => {
+    const { sessionId } = await startAdHocSession(tx, user.id, { gymId });
+    const { workoutExerciseId } = await addExerciseToSession(tx, user.id, sessionId, {
+      exerciseId,
+      equipmentInstanceId: null,
+    });
+    const input = {
+      workoutExerciseId,
+      setIndex: 1,
+      setType: "working" as const,
+      weight: 40,
+      reps: 10,
+      rir: 2,
+      durationSeconds: null,
+    };
+    const first = await logSet(tx, user.id, input);
+    // Two saves within one clock millisecond must still receive distinct versions.
+    const clock = vi.spyOn(Date, "now").mockReturnValue(first.completedAt.getTime());
+    const corrected = await logSet(tx, user.id, { ...input, reps: 12 }).finally(() =>
+      clock.mockRestore(),
+    );
+    expect(corrected.completedAt.getTime()).toBeGreaterThan(first.completedAt.getTime());
+    await expect(
+      deleteSet(tx, user.id, workoutExerciseId, 1, first.completedAt.toISOString()),
+    ).rejects.toBeInstanceOf(SetConflictError);
+    const detail = await getSessionDetail(tx, user.id, sessionId);
+    expect(detail?.exercises[0]?.sets[0]?.reps).toBe(12);
+    await deleteSet(tx, user.id, workoutExerciseId, 1, corrected.completedAt.toISOString());
+    await deleteSet(tx, user.id, workoutExerciseId, 1, corrected.completedAt.toISOString());
+    const after = await getSessionDetail(tx, user.id, sessionId);
+    expect(after?.exercises[0]?.sets).toEqual([]);
+  });
 });

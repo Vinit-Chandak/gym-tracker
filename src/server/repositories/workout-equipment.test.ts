@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, expect, it } from "vitest";
 
-import { equipmentInstances, equipmentTypes, exercises } from "@/db/schema";
+import { equipmentInstances, equipmentTypes, exercises, gyms } from "@/db/schema";
 import { seedReferenceData } from "@/db/seed/reference";
 import { seedTestUserData } from "@/db/test/fixtures";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
@@ -14,6 +14,7 @@ import {
   getSessionDetail,
   logSet,
   startAdHocSession,
+  substituteExercise,
 } from "./sessions";
 import { registerWorkoutEquipment } from "./workout-equipment";
 
@@ -154,4 +155,91 @@ it("does not change the machine under logged sets or create one for a finished w
   expect(
     await t.db.select().from(equipmentInstances).where(eq(equipmentInstances.name, "Too late")),
   ).toHaveLength(0);
+});
+
+it("refuses foreign, wrong-gym, archived and incompatible machines when adding or substituting", async () => {
+  const target = await newSlot();
+  const stranger = await t.createAuthUser("foreign-equipment@example.test");
+  const [foreignGym] = await t.db
+    .insert(gyms)
+    .values({ userId: stranger.id, name: "Private gym", slug: "private-gym", kind: "gym" })
+    .returning();
+  const [treadmillType] = await t.db
+    .select()
+    .from(equipmentTypes)
+    .where(eq(equipmentTypes.slug, "treadmill"));
+  const machines = await t.db
+    .insert(equipmentInstances)
+    .values([
+      { ...input, userId: stranger.id, gymId: foreignGym!.id, name: "Foreign machine" },
+      { ...input, userId: user.id, gymId: otherGymId, name: "Wrong gym machine" },
+      { ...input, userId: user.id, gymId, name: "Archived machine", isActive: false },
+      {
+        ...input,
+        userId: user.id,
+        gymId,
+        name: "Incompatible machine",
+        equipmentTypeId: treadmillType!.id,
+      },
+    ])
+    .returning();
+
+  for (const machine of machines) {
+    const selection = { exerciseId, equipmentInstanceId: machine.id };
+    await expect(
+      withUser(t.db, user.id, (tx) =>
+        addExerciseToSession(tx, user.id, target.sessionId, selection),
+      ),
+    ).rejects.toThrow(/machine.*exercise.*gym/i);
+    await expect(
+      withUser(t.db, user.id, (tx) =>
+        substituteExercise(tx, user.id, {
+          ...selection,
+          workoutExerciseId: target.workoutExerciseId,
+          reason: null,
+        }),
+      ),
+    ).rejects.toThrow(/machine.*exercise.*gym/i);
+  }
+  const detail = await withUser(t.db, user.id, (tx) =>
+    getSessionDetail(tx, user.id, target.sessionId),
+  );
+  expect(detail?.exercises).toHaveLength(1);
+  expect(detail?.exercises[0]?.equipment).toBeNull();
+});
+
+it("refuses another account's custom exercise and an archived exercise", async () => {
+  const target = await newSlot();
+  const stranger = await t.createAuthUser("foreign-exercise@example.test");
+  const [original] = await t.db.select().from(exercises).where(eq(exercises.id, exerciseId));
+  const unavailable = await t.db
+    .insert(exercises)
+    .values([
+      { ...original!, id: undefined, userId: stranger.id, slug: "foreign-custom-exercise" },
+      {
+        ...original!,
+        id: undefined,
+        userId: user.id,
+        slug: "archived-custom-exercise",
+        isActive: false,
+      },
+    ])
+    .returning();
+  for (const exercise of unavailable) {
+    const selection = { exerciseId: exercise.id, equipmentInstanceId: null };
+    await expect(
+      withUser(t.db, user.id, (tx) =>
+        addExerciseToSession(tx, user.id, target.sessionId, selection),
+      ),
+    ).rejects.toThrow("Choose an available exercise");
+    await expect(
+      withUser(t.db, user.id, (tx) =>
+        substituteExercise(tx, user.id, {
+          ...selection,
+          workoutExerciseId: target.workoutExerciseId,
+          reason: null,
+        }),
+      ),
+    ).rejects.toThrow("Choose an available exercise");
+  }
 });

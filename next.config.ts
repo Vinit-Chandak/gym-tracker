@@ -7,6 +7,11 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // The local audit can run beside the normal app without replacing its build.
+  distDir: process.env.AUDIT_BUILD === "true" ? ".next-audit" : ".next",
+  typescript: {
+    tsconfigPath: process.env.AUDIT_BUILD === "true" ? "tsconfig.audit.json" : "tsconfig.json",
+  },
   reactStrictMode: true,
   poweredByHeader: false,
   typedRoutes: true,
@@ -28,6 +33,16 @@ const nextConfig: NextConfig = {
       { source: "/settings/:path*", destination: "/profile/:path*", permanent: true },
       { source: "/history", destination: "/progress/history", permanent: true },
       { source: "/today/food/:path*", destination: "/food/:path*", permanent: true },
+      // Resolve simple run aliases before the app shell streams. A client-side streamed
+      // redirect can race that shell's navigation prefetches in WebKit. Planned links and
+      // legacy run IDs still need the authenticated identifier lookup in their pages.
+      { source: "/runs", destination: "/training", permanent: false },
+      {
+        source: "/runs/new",
+        missing: [{ type: "query", key: "planned" }],
+        destination: "/training/new?sport=running",
+        permanent: false,
+      },
     ];
   },
   async headers() {

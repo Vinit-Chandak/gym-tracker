@@ -52,13 +52,24 @@ export function InfoTip({ label, children, className }: InfoTipProps) {
       if (!root.current?.contains(event.target as Node)) setOpen(false);
     };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") {
+        // Dismiss this note first; the same Escape must not also dismiss its parent sheet.
+        event.preventDefault();
+        event.stopPropagation();
+        setOpen(false);
+      }
+    };
+    const reposition = () => {
+      if (root.current)
+        setPlace(placeNote(root.current.getBoundingClientRect().left, window.innerWidth));
     };
     document.addEventListener("pointerdown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
+    window.addEventListener("resize", reposition);
     return () => {
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("resize", reposition);
     };
   }, [open]);
 

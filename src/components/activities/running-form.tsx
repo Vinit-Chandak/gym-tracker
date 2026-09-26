@@ -123,7 +123,12 @@ export function RunningForm({
           <Field
             group
             label="Duration"
-            error={state.fieldErrors?.duration ?? state.fieldErrors?.minutes}
+            error={
+              state.fieldErrors?.duration ??
+              state.fieldErrors?.hours ??
+              state.fieldErrors?.minutes ??
+              state.fieldErrors?.seconds
+            }
           >
             <div className="grid grid-cols-3 gap-2">
               <Field label="Hours">
@@ -171,7 +176,16 @@ export function RunningForm({
       </Section>
 
       <Section title="Details">
-        <MoreDetails>
+        <MoreDetails
+          hasErrors={[
+            "surface",
+            "elevationGainMetres",
+            "treadmillInclinePercent",
+            "cadenceStepsPerMinute",
+            "averageHeartRate",
+            "maxHeartRate",
+          ].some((field) => Boolean(state.fieldErrors?.[field]))}
+        >
           <Field label="Surface" hint="Optional" error={state.fieldErrors?.surface}>
             <Input name="surface" defaultValue={values("surface")} placeholder="Road, trail…" />
           </Field>

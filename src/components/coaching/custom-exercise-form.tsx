@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { Button } from "@/components/ui/button";
-import { Field, Input, Textarea, INPUT_CLASS } from "@/components/ui/input";
+import { Field, Input, Textarea } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import {
   EXERCISE_CATEGORIES,
   EXERCISE_MODALITIES,
@@ -57,83 +58,64 @@ export function CustomExerciseForm({
         <Input required maxLength={120} value={name} onChange={(e) => setName(e.target.value)} />
       </Field>
       <Field label="Category">
-        <select
-          className={INPUT_CLASS}
-          required
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-        >
+        <Select required value={category} onChange={(e) => setCategory(e.target.value)}>
           <option value="">Choose a category</option>
           {EXERCISE_CATEGORIES.map((value) => (
             <option key={value} value={value}>
               {EXERCISE_CATEGORY_LABELS[value]}
             </option>
           ))}
-        </select>
+        </Select>
       </Field>
       <Field label="Equipment / movement type">
-        <select
-          className={INPUT_CLASS}
-          required
-          value={modality}
-          onChange={(e) => setModality(e.target.value)}
-        >
+        <Select required value={modality} onChange={(e) => setModality(e.target.value)}>
           <option value="">Choose a type</option>
           {EXERCISE_MODALITIES.map((value) => (
             <option key={value} value={value}>
               {EXERCISE_MODALITY_LABELS[value]}
             </option>
           ))}
-        </select>
+        </Select>
       </Field>
       <Field label="How is one set measured?">
-        <select
-          className={INPUT_CLASS}
-          required
-          value={measurement}
-          onChange={(e) => setMeasurement(e.target.value)}
-        >
+        <Select required value={measurement} onChange={(e) => setMeasurement(e.target.value)}>
           <option value="">Choose a measure</option>
           {PRESCRIPTION_TYPES.map((value) => (
             <option key={value} value={value}>
               {value === "reps" ? "Reps" : value === "duration" ? "Seconds" : "Metres"}
             </option>
           ))}
-        </select>
+        </Select>
       </Field>
       <fieldset>
         <legend className="mb-2 text-sm text-ink-muted">
           Primary muscles (optional if unknown)
         </legend>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,max(7rem,45%)),1fr))] gap-2">
           {MUSCLE_GROUPS.map((m) => (
-            <label key={m} className="flex min-h-11 items-center gap-2">
+            <label key={m} className="flex min-h-11 min-w-0 items-center gap-2">
               <input
                 type="checkbox"
                 checked={muscles.includes(m)}
                 onChange={(e) =>
                   setMuscles(e.target.checked ? [...muscles, m] : muscles.filter((x) => x !== m))
                 }
-                className="size-5"
+                className="size-5 shrink-0"
               />
-              {MUSCLE_LABELS[m]}
+              <span className="min-w-0 [overflow-wrap:anywhere]">{MUSCLE_LABELS[m]}</span>
             </label>
           ))}
         </div>
       </fieldset>
       <Field label="Registered machine (required for machine exercises)">
-        <select
-          className={INPUT_CLASS}
-          value={equipment}
-          onChange={(e) => setEquipment(e.target.value)}
-        >
+        <Select value={equipment} onChange={(e) => setEquipment(e.target.value)}>
           <option value="">No registered machine</option>
           {machines.map((m) => (
             <option key={m.id} value={m.id}>
               {m.gymName}: {m.name}
             </option>
           ))}
-        </select>
+        </Select>
       </Field>
       <Field label="Form notes">
         <Textarea maxLength={2000} value={notes} onChange={(e) => setNotes(e.target.value)} />

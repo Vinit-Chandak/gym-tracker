@@ -96,14 +96,20 @@ const wholeNumber = (label: string) =>
     z.coerce
       .number({ error: `Enter ${label} as a whole number.` })
       .int({ error: `Enter ${label} as a whole number.` })
+      .min(0, { error: `Enter ${label} as zero or more.` })
       .nullable(),
   );
+
+const seconds = (label: string) =>
+  optionalNumber(label, 1).refine((value) => value === null || value >= 0, {
+    error: `Enter ${label} as zero or more.`,
+  });
 
 /** Hours, minutes and seconds as one duration. Whole seconds; swimming may add tenths. */
 const durationFields = z.object({
   hours: wholeNumber("the hours"),
   minutes: wholeNumber("the minutes"),
-  seconds: optionalNumber("the seconds", 1),
+  seconds: seconds("the seconds"),
 });
 
 const baseFields = {
@@ -188,7 +194,7 @@ const swimmingSchema = z.object({
   environment: z.enum(["pool", "open_water"]),
   ...durationFields.shape,
   activeMinutes: wholeNumber("the swimming minutes"),
-  activeSeconds: optionalNumber("the swimming seconds", 1),
+  activeSeconds: seconds("the swimming seconds"),
   distanceMethod: z.enum(["unknown", "manual", "lengths"]).default("unknown"),
   distanceValue: optionalNumber("the distance", DECIMALS.distance),
   distanceUnit: poolUnit,

@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { unstable_rethrow } from "next/navigation";
 
 import { FollowButton } from "@/components/follow-button";
 import { PersonRow } from "@/components/person-row";
 import { Field, Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { List } from "@/components/ui/link-row";
 import { searchPeopleAction, type PersonResult } from "@/server/actions/people";
 
@@ -25,24 +27,35 @@ export function PeopleSearch({
   labelHidden?: boolean;
 }) {
   const [query, setQuery] = useState("");
-  const [answer, setAnswer] = useState<{ query: string; people: PersonResult[] } | null>(null);
+  const [answer, setAnswer] = useState<{
+    query: string;
+    people: PersonResult[];
+    failed?: boolean;
+  } | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const trimmed = query.trim();
 
   useEffect(() => {
     if (trimmed === "") return;
     let cancelled = false;
     const timer = setTimeout(async () => {
-      const people = await searchPeopleAction(trimmed);
-      if (!cancelled) setAnswer({ query: trimmed, people });
+      try {
+        const people = await searchPeopleAction(trimmed);
+        if (!cancelled) setAnswer({ query: trimmed, people });
+      } catch (error) {
+        unstable_rethrow(error);
+        if (!cancelled) setAnswer({ query: trimmed, people: [], failed: true });
+      }
     }, PEOPLE_SEARCH_DELAY_MS);
     return () => {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [trimmed]);
+  }, [trimmed, attempt]);
 
   const searching = trimmed !== "" && answer?.query !== trimmed;
-  const results = trimmed !== "" && answer?.query === trimmed ? answer.people : null;
+  const failed = trimmed !== "" && answer?.query === trimmed && answer.failed;
+  const results = trimmed !== "" && answer?.query === trimmed && !failed ? answer.people : null;
 
   return (
     <div className="space-y-3">
@@ -63,6 +76,23 @@ export function PeopleSearch({
       <p className="sr-only" role="status">
         {searching ? "Searching" : results ? `${results.length} found` : ""}
       </p>
+      {failed && (
+        <div className="space-y-2">
+          <p role="alert" className="text-sm text-danger">
+            Could not load people. Please try again.
+          </p>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              setAnswer(null);
+              setAttempt((value) => value + 1);
+            }}
+          >
+            Retry search
+          </Button>
+        </div>
+      )}
       {results && results.length === 0 && (
         <p className="px-1 text-sm text-ink-muted">
           Nobody called that.

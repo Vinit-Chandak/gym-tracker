@@ -10,10 +10,13 @@ const database =
 if (
   !["localhost", "127.0.0.1"].includes(new URL(baseURL).hostname) ||
   !["localhost", "127.0.0.1"].includes(new URL(database).hostname) ||
-  !/^\/overload_audit(?:_[a-z0-9]+)*$/.test(new URL(database).pathname)
+  !/^\/overload_audit(?:_[a-z0-9]+)*$/.test(new URL(database).pathname) ||
+  new URL(database).search ||
+  new URL(database).hash
 )
   throw new Error("Local audit only.");
-const fixtures = JSON.parse(await readFile("output/flow-audit/fixtures.json", "utf8"));
+const output = process.env.AUDIT_OUTPUT_DIR ?? "output/flow-audit";
+const fixtures = JSON.parse(await readFile(`${output}/fixtures.json`, "utf8"));
 const device = process.env.AUDIT_DEVICE ?? "android";
 // A machine whose browsers predate this Playwright can point at its own Chromium.
 const browser = await (device === "iphone" ? webkit : chromium).launch({
@@ -72,7 +75,7 @@ async function offlineNavigation() {
     proxy.closeAllConnections();
     await probe.goto(`${origin}/progress/history`, { waitUntil: "domcontentloaded" });
     await expect(probe.getByText(/offline/i).first()).toBeVisible();
-    await probe.screenshot({ path: `output/flow-audit/${device}-offline.png` });
+    await probe.screenshot({ path: `${output}/${device}-offline.png` });
     disconnected = false;
     await probe.goto(`${origin}/login`, { waitUntil: "networkidle" });
     await expect(probe.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
@@ -117,13 +120,13 @@ async function check(name, work) {
     });
     console.log(`FAIL ${name}: ${error.message.split("\n")[0]}`);
     await page
-      .screenshot({ path: `output/flow-audit/flow-failure-${device}-${results.length}.png` })
+      .screenshot({ path: `${output}/flow-failure-${device}-${results.length}.png` })
       .catch(() => {});
     await context.setOffline(false);
   }
-  await writeFile(`output/flow-audit/flows-${device}.json`, JSON.stringify(results, null, 2));
+  await writeFile(`${output}/flows-${device}.json`, JSON.stringify(results, null, 2));
 }
-await mkdir("output/flow-audit", { recursive: true });
+await mkdir(output, { recursive: true });
 try {
   await login("sam");
   const ids = {};

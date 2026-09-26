@@ -148,7 +148,7 @@ export function RadarChart({ title, axes, series, format = percent, className }:
           {/* Several charts on one screen: a screen reader's list of controls tells them apart. */}
           <span className="sr-only"> for {title}</span>
         </summary>
-        <table className="w-full text-left tabular-nums">
+        <table className="w-full table-fixed text-left [overflow-wrap:anywhere] tabular-nums">
           <caption className="sr-only">{title} by axis</caption>
           <thead>
             <tr className="text-ink-subtle">
@@ -165,7 +165,7 @@ export function RadarChart({ title, axes, series, format = percent, className }:
           <tbody>
             {axes.map((axis, i) => (
               <tr key={axis} className="border-t border-line">
-                <th scope="row" className="py-1.5 font-normal whitespace-nowrap">
+                <th scope="row" className="py-1.5 font-normal">
                   {axis}
                 </th>
                 {series.map((s) => (

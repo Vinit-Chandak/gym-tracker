@@ -33,6 +33,27 @@ it("sends a signed-out visitor to the sign-in screen, saying where they were goi
   );
 });
 
+it.each([
+  "/training/new?sport=running",
+  "/training/new?occurrence=11111111-1111-4111-8111-111111111111",
+  "/runs/new?planned=11111111-1111-4111-8111-111111111111",
+  "/progress/history?kind=run&from=2026-09-01&to=2026-09-26",
+])("keeps the complete destination %s through sign-in", async (path) => {
+  signedOut();
+  const response = await run(`https://overload.example${path}`);
+  expect(response.status).toBe(307);
+  const login = new URL(response.headers.get("location")!);
+  expect(login.pathname).toBe("/login");
+  expect(login.searchParams.get("next")).toBe(path);
+});
+
+it("omits the prefetch cache key while keeping the requested sport", async () => {
+  signedOut();
+  const response = await run("https://overload.example/training/new?sport=running&_rsc=cache-key");
+  const login = new URL(response.headers.get("location")!);
+  expect(login.searchParams.get("next")).toBe("/training/new?sport=running");
+});
+
 /**
  * A Server Action authorises itself — every one of this app's begins with `requireUser()` —
  * so redirecting its POST here only replaces the reply React is waiting for with a page it

@@ -12,7 +12,7 @@ import { getDb } from "@/db/client";
 import { profiles } from "@/db/schema";
 import { withUser } from "@/db/with-user";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import { nextPendingSlot, partStatus, pendingParts } from "@/domain/schedule";
+import { isRestSlot, partStatus, pendingParts } from "@/domain/schedule";
 import { BODY_LOAD_UNITS, LOAD_UNITS, SET_TYPES, type SlotPart } from "@/domain/types";
 import { fromKilograms, toKilograms } from "@/lib/units";
 import { requireUser } from "@/server/auth";
@@ -45,6 +45,7 @@ import {
   SessionNotFoundError,
   setExerciseCompleted,
   SupersetGroupError,
+  WorkoutSelectionError,
   setWarmupCompleted,
   skipExercise,
   startAdHocSession,
@@ -94,6 +95,7 @@ function describe(error: unknown): string {
   if (error instanceof SessionFinishedError || error instanceof SessionHasSetsError)
     return error.message;
   if (error instanceof SupersetGroupError) return error.message;
+  if (error instanceof WorkoutSelectionError) return error.message;
   if (error instanceof ExerciseHasSetsError) return error.message;
   if (error instanceof SetConflictError) return error.message;
   if (error instanceof SessionNotFoundError) return "That session no longer exists.";
@@ -122,17 +124,18 @@ export async function startPlannedSessionAction(
     ]);
     if (open) return open.id;
     const today = todayInTimeZone(profile.timeZone);
-    if (!schedule) throw new SessionNotFoundError();
+    // An older tab can still name a day from the programme that was just replaced. Return
+    // to the current plan before advancing any rest days or creating a mismatched workout.
+    const day = schedule?.days.find((day) => day.id === programDayId && day.dayIndex === dayIndex);
+    if (!schedule || !day?.includesLifting) return null;
     const shown =
       fromCycleIndex !== undefined &&
       partStatus(schedule.state, { cycleIndex: fromCycleIndex, dayIndex }, "session") === "skipped"
         ? fromCycleIndex
         : null;
-    const cycleIndex =
-      shown ??
-      pendingCycleForDay(schedule.state, dayIndex) ??
-      nextPendingSlot(schedule.state)?.cycleIndex ??
-      schedule.state.cycles;
+    // A run still owed on a combined day must not make its completed lift pending again.
+    const cycleIndex = shown ?? pendingCycleForDay(schedule.state, dayIndex, "session");
+    if (cycleIndex === null) return null;
     if (shown !== null) {
       await reopenSkippedSession(tx, user.id, schedule.program.id, { cycleIndex, dayIndex });
     }
@@ -143,6 +146,10 @@ export async function startPlannedSessionAction(
     ]);
     return sessionId;
   });
+  if (!sessionId) {
+    revalidateSession();
+    redirect("/today");
+  }
   revalidateSession(sessionId);
   redirect(`/workouts/${sessionId}/check-in`);
 }
@@ -309,10 +316,13 @@ export async function logSetAction(input: unknown): Promise<LogSetResult> {
 export async function deleteSetAction(
   workoutExerciseId: string,
   setIndex: number,
+  expectedCompletedAt?: string,
 ): Promise<ActionResult> {
   const user = await requireUser();
   try {
-    await withUser(getDb(), user.id, (tx) => deleteSet(tx, user.id, workoutExerciseId, setIndex));
+    await withUser(getDb(), user.id, (tx) =>
+      deleteSet(tx, user.id, workoutExerciseId, setIndex, expectedCompletedAt),
+    );
     // As for a saved set, the browser takes the deletion from the reply (see refreshSession).
     return { ok: true };
   } catch (error) {
@@ -602,6 +612,8 @@ export async function completeRestSlotAction(dayIndex: number): Promise<ActionRe
       getSchedule(tx, user.id),
     ]);
     if (!schedule) return { ok: false, error: "No active programme." };
+    const day = schedule.state.slots.find((slot) => slot.dayIndex === dayIndex);
+    if (!day || !isRestSlot(day)) return { ok: false, error: "That day is not a rest day." };
     const cycleIndex = pendingCycleForDay(schedule.state, dayIndex, "session");
     if (cycleIndex === null) return { ok: false, error: "Nothing left to mark for that day." };
     await recordSlotEvent(

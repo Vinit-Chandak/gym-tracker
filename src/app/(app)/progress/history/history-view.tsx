@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams, type ReadonlyURLSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { Route } from "next";
 
 import { DateRangeFields } from "@/components/date-range-fields";
@@ -84,10 +84,11 @@ export function HistoryView({
   // URL is updated through the History API purely so that coming back from an entry
   // restores the same view, without that costing a fetch on every change.
   const searchParams = useSearchParams();
-  const [filters, setFilters] = useState<Filters>(() => fromSearch(searchParams));
+  // Next also updates useSearchParams for the native History API. Read the current URL
+  // every render so Back, deep links and a changed date range cannot leave stale filters.
+  const filters = fromSearch(searchParams);
 
   const apply = (next: Filters) => {
-    setFilters(next);
     const params = new URLSearchParams(window.location.search);
     for (const [key, param] of Object.entries(FILTER_PARAMS) as [keyof Filters, string][]) {
       if (next[key] && next[key] !== EMPTY[key]) params.set(param, next[key]);

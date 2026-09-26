@@ -142,9 +142,15 @@ export function NotesFields({
 }
 
 /** Optional summary metrics, folded away. A beginner never has to open this. */
-export function MoreDetails({ children }: { children: ReactNode }) {
+export function MoreDetails({
+  children,
+  hasErrors = false,
+}: {
+  children: ReactNode;
+  hasErrors?: boolean;
+}) {
   return (
-    <Disclosure summary="More details" meta="Optional">
+    <Disclosure summary="More details" meta="Optional" defaultOpen={hasErrors}>
       <div className="space-y-3">{children}</div>
     </Disclosure>
   );

@@ -7,6 +7,7 @@ import { InfoTip } from "./info-tip";
 type ControlProps = {
   id?: string;
   type?: string;
+  role?: string;
   "aria-describedby"?: string;
   "aria-labelledby"?: string;
   "aria-invalid"?: boolean;
@@ -51,7 +52,11 @@ export function Field({
     generatedId;
   const labelId = `${controlId}-label`;
   const feedbackId = `${controlId}-feedback`;
-  const text = <span id={labelId}>{label}</span>;
+  const text = (
+    <span id={labelId} className="min-w-0 [overflow-wrap:anywhere]">
+      {label}
+    </span>
+  );
 
   return (
     <div className="min-w-0 space-y-1.5" data-field-error={error ? "true" : undefined}>
@@ -60,13 +65,20 @@ export function Field({
           labelHidden ? "sr-only" : "flex items-center gap-1 text-sm font-medium text-ink-muted"
         }
       >
-        {group ? text : <label htmlFor={controlId}>{text}</label>}
+        {group ? (
+          text
+        ) : (
+          <label htmlFor={controlId} className="min-w-0">
+            {text}
+          </label>
+        )}
         {info && <InfoTip label={`About ${label.toLowerCase()}`}>{info}</InfoTip>}
       </div>
       {controls.map((child) => {
         if (child !== control || !isValidElement<ControlProps>(child)) return child;
         return cloneElement(child, {
           id: controlId,
+          ...(group && child.type === "div" ? { role: child.props.role ?? "group" } : {}),
           "aria-invalid": error ? true : undefined,
           "aria-labelledby": group ? labelId : child.props["aria-labelledby"],
           "aria-describedby":

@@ -89,7 +89,13 @@ export async function proxy(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.search = "";
-    if (pathname !== "/" && pathname !== "/today") url.searchParams.set("next", pathname);
+    if (pathname !== "/" && pathname !== "/today") {
+      // A sport or scheduled occurrence is part of the requested destination. Keep it
+      // through sign-in, but omit Next's prefetch cache key from the return URL.
+      const destination = request.nextUrl.clone();
+      destination.searchParams.delete("_rsc");
+      url.searchParams.set("next", `${pathname}${destination.search}`);
+    }
     return withCookies(response, NextResponse.redirect(url));
   }
   if (signedIn && isPublic) {

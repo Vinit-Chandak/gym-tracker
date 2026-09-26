@@ -546,7 +546,7 @@ export function ExerciseLogger({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="col-span-2"
+                    className="col-span-full"
                     onClick={() => setSkipOpen(true)}
                     disabled={pending || sets.dirty}
                   >

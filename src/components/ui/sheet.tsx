@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, type ReactNode } from "react";
 
-import { cn } from "@/lib/utils";
 import { Close } from "./icons";
 
 type SheetProps = {
@@ -48,14 +47,14 @@ export function Sheet({ open, onClose, title, children, footer, dismissible = tr
         parseFloat(getComputedStyle(content).paddingTop) +
         parseFloat(getComputedStyle(content).paddingBottom);
       const minimumBody = parseFloat(getComputedStyle(document.documentElement).fontSize) * 6;
-      // A tall footer must not shrink the fields to zero. Short screens use one scroll area.
+      // Tall titles and footers must not shrink the fields to zero. Short screens use one
+      // scroll area, including when a software keyboard leaves only a small visual viewport.
       content.dataset.compact = String(
-        Boolean(bottom.current) &&
-          bottom.current!.offsetHeight +
-            (heading.current?.offsetHeight ?? 0) +
-            padding +
-            minimumBody >
-            available,
+        (bottom.current?.offsetHeight ?? 0) +
+          (heading.current?.offsetHeight ?? 0) +
+          padding +
+          minimumBody >
+          available,
       );
     };
     resize();
@@ -93,7 +92,7 @@ export function Sheet({ open, onClose, title, children, footer, dismissible = tr
        * nobody chose. The panel takes the focus instead: the sheet is still announced and
        * Escape still closes it, and the first Tab goes to that same first row.
        */
-      panel.current?.focus();
+      panel.current?.focus({ preventScroll: true });
     } else if (!open && dialog.open) dialog.close();
   }, [open]);
 
@@ -102,9 +101,14 @@ export function Sheet({ open, onClose, title, children, footer, dismissible = tr
       ref={ref}
       className="sheet"
       aria-label={title}
-      onClose={onClose}
+      onClose={() => {
+        // A controlled close also emits the native event. Only notify the caller when
+        // the browser closed an open dialog, not a second time after its own close action.
+        if (open) onClose();
+      }}
       onCancel={(event) => {
-        if (!dismissible) event.preventDefault();
+        event.preventDefault();
+        if (dismissible) onClose();
       }}
       onClick={(event) => {
         // Clicks on the backdrop land on the dialog element itself.
@@ -114,12 +118,11 @@ export function Sheet({ open, onClose, title, children, footer, dismissible = tr
       <div
         ref={panel}
         tabIndex={-1}
-        className={cn(
-          "sheet-panel rounded-t-sheet bg-surface panel-padding pb-[max(var(--panel-padding),env(safe-area-inset-bottom))] focus:outline-none",
-          footer && "sheet-with-footer",
-        )}
+        className="sheet-panel rounded-t-sheet bg-surface panel-padding pb-[max(var(--panel-padding),env(safe-area-inset-bottom))] focus:outline-none"
       >
-        <div ref={heading} className="shrink-0">
+        {/* Contain child margins in both flex and compact block layouts. Otherwise the
+            measured header changes height as compact mode toggles and can oscillate. */}
+        <div ref={heading} className="flow-root shrink-0">
           <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-line-strong" aria-hidden />
           <div className="mb-3 flex items-center justify-between gap-3">
             <h2 className="min-w-0 text-lg font-medium [overflow-wrap:anywhere]">{title}</h2>
@@ -134,12 +137,7 @@ export function Sheet({ open, onClose, title, children, footer, dismissible = tr
             </button>
           </div>
         </div>
-        <div
-          className={cn(
-            "sheet-body overflow-y-auto overscroll-contain",
-            footer ? "min-h-0 flex-1" : "max-h-[70dvh]",
-          )}
-        >
+        <div className="sheet-body min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {children}
         </div>
         {footer && (

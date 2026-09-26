@@ -508,6 +508,10 @@ describe("the strength lifecycle", () => {
       .where(eq(workoutSessions.id, started.sessionId));
     expect(session).toMatchObject({ gymId: account.gymId, activityId: started.sessionId });
 
+    await expect(
+      withUser(t.db, account.userId, (tx) => deleteActivity(tx, account.userId, started.sessionId)),
+    ).rejects.toThrow("Use the workout screen");
+
     await withUser(t.db, account.userId, (tx) =>
       finishSession(tx, account.userId, started.sessionId, { notes: null, bodyWeightKg: null }),
     );
@@ -517,6 +521,13 @@ describe("the strength lifecycle", () => {
       .where(eq(activities.id, started.sessionId));
     expect(finished!.status).toBe("completed");
     expect(finished!.durationMs).toBeGreaterThan(0);
+
+    await expect(
+      withUser(t.db, account.userId, (tx) => deleteActivity(tx, account.userId, started.sessionId)),
+    ).rejects.toThrow("Use the workout screen");
+    expect(
+      await t.db.select().from(workoutSessions).where(eq(workoutSessions.id, started.sessionId)),
+    ).toHaveLength(1);
   });
 
   it("takes the parent with a discarded session and leaves nothing behind", async () => {

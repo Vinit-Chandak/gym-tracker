@@ -30,6 +30,7 @@ import { createActivity, type SaveActivityInput } from "./activities";
 import { readHistory } from "./history";
 import { standaloneSchedule } from "./occurrences";
 import { readRunActivities, readTrainingData } from "./training-data";
+import { readWeeklyTrainingVolume } from "./training-volume";
 
 /**
  * A run the athlete logged has to be a run the athlete can see.
@@ -195,6 +196,15 @@ describe("the runs an athlete's own screens read", () => {
     expect(moved.weeks.find((w) => w.date === "2026-09-07")?.runs).toBe(1);
     expect(moved.weeks.find((w) => w.date === "2026-08-31")?.runs).toBe(0);
     expect(moved.pace[0]?.date).toBe("2026-09-07");
+
+    const coachWeeks = await withUser(t.db, alice.id, (tx) =>
+      readWeeklyTrainingVolume(tx, alice.id, "UTC", new Date("2026-09-08T12:00:00Z"), 1),
+    );
+    expect(coachWeeks).toHaveLength(1);
+    expect(coachWeeks[0]).toMatchObject({
+      weekStart: "2026-09-07",
+      running: { runs: 1, km: 5, minutes: 30 },
+    });
   });
 
   it("leaves out a run outside the range and every run another account owns", async () => {

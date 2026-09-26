@@ -550,7 +550,7 @@ describe("complete coaching evidence", () => {
     );
   });
 
-  it("assigns programless training to the athlete's calendar week independently of the server zone", async () => {
+  it("keeps a programless run in its recorded week after the profile time zone changes", async () => {
     const local = await withUser(t.db, otherId, (tx) =>
       readWeeklyTrainingVolume(tx, otherId, TZ, NOW, 4),
     );
@@ -565,12 +565,14 @@ describe("complete coaching evidence", () => {
     expect(utc[0]).toMatchObject({
       weekStart: "2026-09-07",
       lifting: { totalSets: 0 },
-      running: { runs: 0 },
+      // The legacy strength row only has an instant; the run recorded Monday in TZ.
+      // Its date agrees with Progress even when the athlete later views it from UTC.
+      running: { runs: 1 },
     });
     expect(utc[1]).toMatchObject({
       weekStart: "2026-08-31",
       lifting: { totalSets: 1 },
-      running: { runs: 1 },
+      running: { runs: 0 },
     });
   });
 

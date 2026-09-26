@@ -107,9 +107,8 @@ export function Row({
 }
 
 /**
- * A box of rows. Rows are separated by one hairline that runs the full width of the box,
- * and the box adds no line of its own. `plain` drops the box for a list that already sits
- * inside one, such as the rows under an open disclosure or in a sheet.
+ * A box of rows with one outer boundary and one hairline between rows. `plain` drops the
+ * box for a list that already sits inside one, such as rows in a disclosure or sheet.
  */
 export function List({
   children,

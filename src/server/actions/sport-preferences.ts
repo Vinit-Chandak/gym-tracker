@@ -62,7 +62,9 @@ export async function chooseSportsAction(
  */
 export async function setSportSharingAction(sport: ActivitySport, share: boolean): Promise<void> {
   const user = await requireUser();
-  if (!ACTIVITY_SPORTS.includes(sport) || typeof share !== "boolean")
+  // Strength and running use the global control. Their projections are not rebuilt by
+  // this additional-sports endpoint, so accepting them here would erase their history.
+  if ((sport !== "cycling" && sport !== "swimming") || typeof share !== "boolean")
     throw new Error("Not a sport preference");
   const legacy = legacySportOf(sport);
   await withUser(getDb(), user.id, async (tx) => {

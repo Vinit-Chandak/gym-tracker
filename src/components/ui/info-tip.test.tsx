@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import { InfoTip, placeNote } from "./info-tip";
 
 afterEach(cleanup);
@@ -49,4 +49,26 @@ it("keeps the note inside the screen whichever edge its button is near", () => {
   expect(placeNote(40, 800)).toEqual({ left: 0, width: 288 });
   // A very narrow screen: the note shrinks to fit between the margins.
   expect(placeNote(100, 280)).toEqual({ left: 12 - 100, width: 256 });
+});
+
+it("consumes Escape so dismissing a note does not also close an enclosing dialog", () => {
+  renderTip();
+  fireEvent.click(screen.getByRole("button", { name: "About warm-ups" }));
+  expect(fireEvent.keyDown(document, { key: "Escape" })).toBe(false);
+  expect(screen.queryByRole("note")).toBeNull();
+});
+
+it("repositions an open note after rotating into a narrower viewport", () => {
+  renderTip();
+  const button = screen.getByRole("button", { name: "About warm-ups" });
+  vi.spyOn(button.parentElement!, "getBoundingClientRect").mockReturnValue({
+    left: 200,
+  } as DOMRect);
+  fireEvent.click(button);
+  const width = vi.spyOn(window, "innerWidth", "get").mockReturnValue(280);
+  fireEvent(window, new Event("resize"));
+  expect(screen.getByRole("note").style.width).toBe("256px");
+  expect(screen.getByRole("note").style.left).toBe("-188px");
+  width.mockRestore();
+  vi.restoreAllMocks();
 });

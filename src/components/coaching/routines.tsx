@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { Button, LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Field, Input, INPUT_CLASS } from "@/components/ui/input";
+import { Field, Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import type { SavedRoutineDay } from "@/domain/saved-routine";
 import { startRoutineAction, saveWorkoutRoutineAction } from "@/server/actions/manual-training";
 export function RoutineLibrary({
@@ -29,19 +30,19 @@ export function RoutineLibrary({
         sets stay in history.
       </p>
       <Field label="Where will you train?">
-        <select className={INPUT_CLASS} value={gymId} onChange={(e) => setGymId(e.target.value)}>
+        <Select value={gymId} onChange={(e) => setGymId(e.target.value)}>
           <option value="">Choose a location</option>
           {gyms.map((g) => (
             <option key={g.id} value={g.id}>
               {g.name}
             </option>
           ))}
-        </select>
+        </Select>
       </Field>
       {routines.map((routine) => (
         <Card key={routine.id}>
-          <h2 className="text-lg font-medium">{routine.name}</h2>
-          <ol className="space-y-2 text-sm">
+          <h2 className="text-lg font-medium [overflow-wrap:anywhere]">{routine.name}</h2>
+          <ol className="space-y-2 text-sm [overflow-wrap:anywhere]">
             {routine.day.exercises.map((entry, i) => (
               <li key={i}>
                 {library.find((e) => e.slug === entry.exerciseSlug)?.name ?? entry.exerciseSlug}

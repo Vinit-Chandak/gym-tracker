@@ -20,6 +20,7 @@ export type PreviousVM = {
     unit: SessionSet["unit"];
     reps: number | null;
     rir: number | null;
+    rpe?: number | null;
     durationSeconds: number | null;
     distanceMeters: number | null;
   }[];
