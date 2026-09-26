@@ -11,15 +11,24 @@ import { sanitizeNumberEntry } from "@/domain/sets";
 import { FOOD_UNIT_LABELS } from "@/lib/labels";
 import { attempted, OFFLINE_SUBMIT_MESSAGE } from "@/lib/offline-submit";
 import { cn } from "@/lib/utils";
-import { createFoodAction, deleteFoodAction, updateFoodAction } from "@/server/actions/nutrition";
+import {
+  createFoodAction,
+  createLibraryFoodAction,
+  deleteFoodAction,
+  updateFoodAction,
+} from "@/server/actions/nutrition";
 import type { FoodRecord } from "@/server/repositories/nutrition";
 import type { FoodDraft } from "@/server/validation/nutrition";
 
 import { AmountField, Preview, typedAmount } from "./amount-field";
 
-/** A new food, logged in a meal as it is made; or one in My foods, to correct or delete. */
+/**
+ * A new food, logged in a meal as it is made; a new food kept in My foods without being logged
+ * (ADR 0035); or one in My foods, to correct or delete.
+ */
 export type FoodSheetTarget =
   | { kind: "create"; name: string; eatenOn: string; meal: Meal; mealLabel: string }
+  | { kind: "library"; name: string }
   | { kind: "edit"; food: FoodRecord };
 
 const FIGURES = [
@@ -38,7 +47,7 @@ function figure(value: string): number | null {
 }
 
 function draftOf(target: FoodSheetTarget): FoodDraft {
-  if (target.kind === "create") {
+  if (target.kind !== "edit") {
     // Labels give their figures per 100 g, so that is where a new food starts.
     return {
       name: target.name,
@@ -64,9 +73,10 @@ function draftOf(target: FoodSheetTarget): FoodDraft {
 
 /**
  * A food's five numbers (ADR 0033): its name, a portion in a unit, and the energy and the three
- * macronutrients that portion holds, of which only the energy is needed. A new food is logged as
- * it is made, which is what keeps it in My foods, so the amount eaten is asked here too: it
- * follows the portion until it is changed, so a food entered as eaten needs no second number.
+ * macronutrients that portion holds, of which only the energy is needed. A new food made in a
+ * meal is logged as it is made, so the amount eaten is asked here too: it follows the portion
+ * until it is changed, so a food entered as eaten needs no second number. One made in My foods
+ * is only kept (ADR 0035), so nothing about eating it is asked.
  */
 export function FoodSheet({
   open,
@@ -119,7 +129,9 @@ export function FoodSheet({
                 ...fields,
                 amount,
               })
-            : updateFoodAction({ foodId: target.food.id, ...fields }),
+            : target.kind === "library"
+              ? createLibraryFoodAction({ submissionKey, ...fields })
+              : updateFoodAction({ foodId: target.food.id, ...fields }),
         OFFLINE_SUBMIT_MESSAGE,
       );
       if (!outcome.ok) {
@@ -129,7 +141,11 @@ export function FoodSheet({
       if (outcome.value.ok) {
         const name = fields.name.trim();
         onDone(
-          target.kind === "create" ? `${name} added to ${target.mealLabel}.` : `${name} saved.`,
+          target.kind === "create"
+            ? `${name} added to ${target.mealLabel}.`
+            : target.kind === "library"
+              ? `${name} saved to My foods.`
+              : `${name} saved.`,
           target.kind === "create",
         );
         onClose();
@@ -184,7 +200,7 @@ export function FoodSheet({
         if (!busy) onClose();
       }}
       dismissible={!busy}
-      title={creating ? "New food" : "Edit food"}
+      title={target.kind === "edit" ? "Edit food" : "New food"}
       footer={
         <div className="space-y-3">
           {creating && <Preview amounts={preview} />}

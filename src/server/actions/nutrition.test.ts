@@ -12,6 +12,8 @@ const KEY = "00000000-0000-4000-8000-000000000009";
 
 const mocks = vi.hoisted(() => ({
   logFood: vi.fn(),
+  createFood: vi.fn(),
+  saveLibraryMeal: vi.fn(),
   updateEntryAmount: vi.fn(),
   deleteEntry: vi.fn(),
   saveMeal: vi.fn(),
@@ -51,15 +53,19 @@ import {
   EmptyMealError,
   EntryNotFoundError,
   FoodNameTakenError,
+  SavedMealChangedError,
+  SavedMealNameTakenError,
 } from "@/server/repositories/nutrition";
 
 import {
   createFoodAction,
+  createLibraryFoodAction,
   deleteEntryAction,
   deleteFoodAction,
   deleteSavedMealAction,
   logFoodAction,
   logSavedMealAction,
+  saveLibraryMealAction,
   saveMealAction,
   saveTargetsAction,
   updateEntryAction,
@@ -97,8 +103,8 @@ const OATS = {
 function targetsForm(): FormData {
   const form = new FormData();
   form.set("dailyKcal", "2400");
-  form.set("split", "body_weight");
   form.set("proteinPerKg", "1.8");
+  form.set("fatPercent", "25");
   return form;
 }
 
@@ -113,7 +119,7 @@ afterEach(() => {
 });
 
 it.each([undefined, "false", "someone-else@example.test"])(
-  "allows every food action with the retired flag set to %s, refreshing both food screens",
+  "allows every food action with the retired flag set to %s, refreshing every food screen",
   async (setting) => {
     vi.stubEnv("FOOD_TRACKING_ENABLED", setting);
     for (const result of [
@@ -126,6 +132,8 @@ it.each([undefined, "false", "someone-else@example.test"])(
       await deleteSavedMealAction(SAVED),
       await updateFoodAction({ foodId: FOOD, ...FIELDS }),
       await deleteFoodAction(FOOD),
+      await createLibraryFoodAction({ submissionKey: KEY, ...FIELDS }),
+      await saveLibraryMealAction({ name: "Usual", items: [{ foodId: FOOD, amount: "80" }] }),
     ]) {
       expect(result).toEqual({ ok: true });
     }
@@ -134,9 +142,13 @@ it.each([undefined, "false", "someone-else@example.test"])(
     expect(mocks.logFood).toHaveBeenCalledTimes(2);
     const { logFood: _both, submitFoodOnce: _receipt, ...writes } = mocks;
     for (const write of Object.values(writes)) expect(write).toHaveBeenCalledOnce();
-    expect(revalidatePath).toHaveBeenCalledTimes(20);
+    // Twelve changes, each refreshing the five screens food is shown on.
+    expect(revalidatePath).toHaveBeenCalledTimes(60);
     expect(revalidatePath).toHaveBeenCalledWith("/food");
     expect(revalidatePath).toHaveBeenCalledWith("/food/[meal]", "page");
+    expect(revalidatePath).toHaveBeenCalledWith("/food/targets");
+    expect(revalidatePath).toHaveBeenCalledWith("/food/my-foods");
+    expect(revalidatePath).toHaveBeenCalledWith("/food/my-foods/meals/[id]", "page");
     // Food has a tab of its own, so nothing on Today changes with it.
     expect(revalidatePath).not.toHaveBeenCalledWith("/today");
   },
@@ -266,12 +278,77 @@ it("saves the targets from the form", async () => {
   expect(mocks.saveNutritionTargets).toHaveBeenCalledWith(expect.anything(), USER, {
     dailyKcal: 2400,
     proteinPerKg: 1.8,
-    split: "body_weight",
+    fatPercent: 25,
   });
-  expect(revalidatePath).toHaveBeenCalledTimes(2);
+  expect(revalidatePath).toHaveBeenCalledTimes(5);
   mocks.saveNutritionTargets.mockRejectedValueOnce(new Error("down"));
   expect(await saveTargetsAction(INITIAL_FORM_STATE, targetsForm())).toEqual({
     formError: "Something went wrong. Please try again.",
-    values: { dailyKcal: "2400", split: "body_weight", proteinPerKg: "1.8" },
+    values: { dailyKcal: "2400", proteinPerKg: "1.8", fatPercent: "25" },
   });
+});
+
+it("keeps a food in My foods without a day or a meal, once for a retried key", async () => {
+  expect(await createLibraryFoodAction({ submissionKey: KEY, ...FIELDS })).toEqual({ ok: true });
+  expect(mocks.createFood).toHaveBeenCalledWith(expect.anything(), USER, OATS);
+  expect(mocks.submitFoodOnce).toHaveBeenCalledWith(
+    expect.anything(),
+    USER,
+    KEY,
+    expect.objectContaining({ kind: "library-food" }),
+    expect.any(Function),
+  );
+  mocks.createFood.mockRejectedValueOnce(new FoodNameTakenError("Oats"));
+  expect(await createLibraryFoodAction({ ...FIELDS })).toEqual({
+    ok: false,
+    fieldErrors: { name: "You already have a food called Oats." },
+  });
+});
+
+it("saves a meal built in My foods, new with a receipt and changed without one", async () => {
+  const items = [
+    { foodId: FOOD, amount: "80" },
+    { keep: 0, amount: "1" },
+  ];
+  expect(await saveLibraryMealAction({ submissionKey: KEY, name: " Usual ", items })).toEqual({
+    ok: true,
+  });
+  expect(mocks.saveLibraryMeal).toHaveBeenLastCalledWith(expect.anything(), USER, {
+    id: undefined,
+    name: "Usual",
+    items: [
+      { foodId: FOOD, amount: 80 },
+      { keep: 0, amount: 1 },
+    ],
+  });
+  expect(mocks.submitFoodOnce).toHaveBeenCalledTimes(1);
+  expect(await saveLibraryMealAction({ savedMealId: SAVED, name: "Usual", items })).toEqual({
+    ok: true,
+  });
+  expect(mocks.saveLibraryMeal).toHaveBeenLastCalledWith(
+    expect.anything(),
+    USER,
+    expect.objectContaining({ id: SAVED }),
+  );
+  // A change to a meal that exists is the same change however often it is sent.
+  expect(mocks.submitFoodOnce).toHaveBeenCalledTimes(1);
+});
+
+it("says what stops a meal from being saved, against the name or in words", async () => {
+  expect(await saveLibraryMealAction({ name: "", items: [] })).toEqual({
+    ok: false,
+    fieldErrors: { name: "Name this meal.", items: "Add a food to this meal." },
+  });
+  mocks.saveLibraryMeal.mockRejectedValueOnce(new SavedMealNameTakenError("Usual"));
+  expect(
+    await saveLibraryMealAction({ name: "Usual", items: [{ foodId: FOOD, amount: "1" }] }),
+  ).toEqual({ ok: false, fieldErrors: { name: "You already have a meal called Usual." } });
+  mocks.saveLibraryMeal.mockRejectedValueOnce(new SavedMealChangedError());
+  expect(
+    await saveLibraryMealAction({
+      savedMealId: SAVED,
+      name: "Usual",
+      items: [{ keep: 4, amount: "1" }],
+    }),
+  ).toEqual({ ok: false, error: new SavedMealChangedError().message });
 });

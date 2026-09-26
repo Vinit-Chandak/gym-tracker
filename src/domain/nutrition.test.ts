@@ -2,11 +2,16 @@ import { describe, expect, it } from "vitest";
 
 import {
   addUp,
+  contributions,
+  DEFAULT_SPLIT,
   eaten,
+  GOAL_SPLITS,
   goalBand,
   goalStatus,
   KCAL_PER_GRAM,
+  macroState,
   macroTargets,
+  matchesSplit,
   mealFromSlug,
   MEALS,
   mealSlug,
@@ -15,13 +20,16 @@ import {
   roundTo,
   sameFoods,
   scaleFood,
+  splitFor,
+  splitTargets,
   toHundredth,
   type Food,
   type LoggedFood,
+  type Meal,
   type NutritionTargets,
 } from "./nutrition";
 
-const BY_WEIGHT: NutritionTargets = { dailyKcal: 2400, proteinPerKg: 1.8, split: "body_weight" };
+const TARGETS: NutritionTargets = { dailyKcal: 2400, proteinPerKg: 1.8, fatPercent: 25 };
 
 /** The energy the three macronutrients of a target stand for. */
 function energyOf(targets: { carbsG: number; fatG: number; proteinG: number }): number {
@@ -33,48 +41,101 @@ function energyOf(targets: { carbsG: number; fatG: number; proteinG: number }): 
 }
 
 describe("macro targets", () => {
-  it("takes protein from body weight, a quarter as fat, and the rest as carbohydrate", () => {
-    const targets = macroTargets(BY_WEIGHT, 75);
+  it("takes protein from body weight, fat as its share, and the rest as carbohydrate", () => {
+    const targets = macroTargets(TARGETS, 75, "build_muscle");
     expect(targets.proteinG).toBeCloseTo(135); // 1.8 g × 75 kg
     expect(targets.fatG).toBeCloseTo(600 / 9); // 25% of 2,400 kcal
     expect(targets.carbsG).toBeCloseTo((2400 - 600 - 540) / 4);
     expect(energyOf(targets)).toBeCloseTo(2400);
-    expect(targets).toMatchObject({ split: "body_weight", bodyWeightKg: 75, overBudget: false });
+    expect(targets).toMatchObject({ bodyWeightKg: 75, overBudget: false });
   });
 
   it("moves protein with the body weight, and carbohydrate with it", () => {
-    const lighter = macroTargets(BY_WEIGHT, 70);
-    const heavier = macroTargets(BY_WEIGHT, 80);
+    const lighter = macroTargets(TARGETS, 70, null);
+    const heavier = macroTargets(TARGETS, 80, null);
     expect(heavier.proteinG - lighter.proteinG).toBeCloseTo(18);
     expect(lighter.carbsG - heavier.carbsG).toBeCloseTo(18);
     expect(heavier.fatG).toBeCloseTo(lighter.fatG);
   });
 
-  it("follows the grams per kilogram the account chose", () => {
-    expect(macroTargets({ ...BY_WEIGHT, proteinPerKg: 2.2 }, 80).proteinG).toBeCloseTo(176);
+  it("follows the protein and fat the account chose", () => {
+    const targets = macroTargets({ ...TARGETS, proteinPerKg: 2.2, fatPercent: 30 }, 80, null);
+    expect(targets.proteinG).toBeCloseTo(176);
+    expect(targets.fatG).toBeCloseTo(80); // 30% of 2,400 kcal is 720 kcal
+    expect(energyOf(targets)).toBeCloseTo(2400);
   });
 
-  it("keeps 55/25/20 as a split of its own, whatever the body weight", () => {
-    const fixed = macroTargets({ ...BY_WEIGHT, split: "fixed_55_25_20" }, 75);
-    expect(fixed.carbsG).toBeCloseTo((2400 * 0.55) / 4);
-    expect(fixed.fatG).toBeCloseTo((2400 * 0.25) / 9);
-    expect(fixed.proteinG).toBeCloseTo((2400 * 0.2) / 4);
-    expect(energyOf(fixed)).toBeCloseTo(2400);
-    expect(fixed).toMatchObject({ split: "fixed_55_25_20", bodyWeightKg: null });
-  });
-
-  it("falls back to the fixed split when there is no body weight to work from", () => {
-    const targets = macroTargets(BY_WEIGHT, null);
-    expect(targets.split).toBe("fixed_55_25_20");
-    expect(targets.proteinG).toBeCloseTo(120);
+  it("takes protein as the goal's share of the target until there is a body weight", () => {
+    expect(macroTargets(TARGETS, null, "build_muscle")).toMatchObject({ bodyWeightKg: null });
+    expect(macroTargets(TARGETS, null, "build_muscle").proteinG).toBeCloseTo(120); // 20%
+    expect(macroTargets(TARGETS, null, "lose_fat").proteinG).toBeCloseTo(180); // 30%
+    expect(macroTargets(TARGETS, null, null).proteinG).toBeCloseTo(120);
+    expect(energyOf(macroTargets(TARGETS, null, "lose_fat"))).toBeCloseTo(2400);
   });
 
   it("never asks for negative carbohydrate, and says the target is too small instead", () => {
     // 2.2 g × 120 kg = 264 g of protein, 1,056 kcal, before fat takes its 25% of 1,200.
-    const targets = macroTargets({ dailyKcal: 1200, proteinPerKg: 2.2, split: "body_weight" }, 120);
+    const targets = macroTargets({ dailyKcal: 1200, proteinPerKg: 2.2, fatPercent: 25 }, 120, null);
     expect(targets.carbsG).toBe(0);
     expect(targets.proteinG).toBeCloseTo(264);
     expect(targets.overBudget).toBe(true);
+  });
+});
+
+describe("the goal's split", () => {
+  it("starts every goal from a split that adds up to the whole target", () => {
+    for (const split of Object.values(GOAL_SPLITS)) {
+      expect(split.carbs + split.fat + split.protein).toBeCloseTo(1);
+    }
+    expect(splitFor("build_muscle")).toEqual({ carbs: 0.55, fat: 0.25, protein: 0.2 });
+    expect(splitFor("get_stronger")).toEqual(splitFor("build_muscle"));
+    expect(splitFor("general_fitness")).toEqual(splitFor("build_muscle"));
+    expect(splitFor("lose_fat")).toEqual({ carbs: 0.45, fat: 0.25, protein: 0.3 });
+    expect(splitFor("endurance")).toEqual({ carbs: 0.6, fat: 0.2, protein: 0.2 });
+    expect(splitFor(null)).toEqual(DEFAULT_SPLIT);
+  });
+
+  it("puts the split's protein into grams per kilogram, to the tenth", () => {
+    // 20% of 2,700 kcal is 135 g; at 63.5 kg that is 2.13 g/kg, kept as 2.1.
+    expect(splitTargets(splitFor("build_muscle"), 2700, 63.5)).toEqual({
+      proteinPerKg: 2.1,
+      fatPercent: 25,
+    });
+    // 30% of 2,200 kcal is 165 g, 2.6 g/kg at 63.5 kg.
+    expect(splitTargets(splitFor("lose_fat"), 2200, 63.5)).toEqual({
+      proteinPerKg: 2.6,
+      fatPercent: 25,
+    });
+    expect(splitTargets(splitFor("endurance"), 2700, 63.5).fatPercent).toBe(20);
+  });
+
+  it("lands carbohydrate close to the split's own share", () => {
+    const start = splitTargets(splitFor("build_muscle"), 2700, 63.5);
+    const targets = macroTargets(
+      { dailyKcal: 2700, proteinPerKg: start.proteinPerKg!, fatPercent: start.fatPercent },
+      63.5,
+      "build_muscle",
+    );
+    expect((targets.carbsG * KCAL_PER_GRAM.carbs) / 2700).toBeCloseTo(0.55, 2);
+  });
+
+  it("keeps the protein it offers inside the bounds, and offers none without a weight", () => {
+    expect(splitTargets(splitFor("lose_fat"), 10_000, 40).proteinPerKg).toBe(4);
+    expect(splitTargets(splitFor("build_muscle"), 500, 150).proteinPerKg).toBe(0.5);
+    expect(splitTargets(splitFor("build_muscle"), 2700, null)).toEqual({
+      proteinPerKg: null,
+      fatPercent: 25,
+    });
+  });
+
+  it("knows when the targets already hold the split", () => {
+    const split = splitFor("build_muscle");
+    const held = { dailyKcal: 2700, proteinPerKg: 2.1, fatPercent: 25 };
+    expect(matchesSplit(held, split, 63.5)).toBe(true);
+    expect(matchesSplit({ ...held, proteinPerKg: 1.8 }, split, 63.5)).toBe(false);
+    expect(matchesSplit({ ...held, fatPercent: 30 }, split, 63.5)).toBe(false);
+    // With no weight, only fat can differ from the split.
+    expect(matchesSplit({ ...held, proteinPerKg: 1.8 }, split, null)).toBe(true);
   });
 });
 
@@ -254,5 +315,114 @@ describe("a saved meal matched", () => {
     expect(sameFoods([...saved, logged(MILK, 100)], saved)).toBe(false);
     expect(sameFoods([logged({ ...OATS, kcal: 379 }, 60), logged(MILK, 300)], saved)).toBe(false);
     expect(sameFoods([], [])).toBe(true);
+  });
+});
+
+describe("a macronutrient's bar", () => {
+  it("reads protein as a minimum, reached once the day holds it", () => {
+    expect(macroState("proteinG", 113, 114.3)).toBe("under");
+    expect(macroState("proteinG", 114, 114.3)).toBe("reached");
+    expect(macroState("proteinG", 140, 114.3)).toBe("reached");
+  });
+
+  it("reads carbohydrate and fat as limits, over only once the day passes them", () => {
+    expect(macroState("fatG", 75, 75)).toBe("under");
+    // 75.4 g shows as 75 g, so it is not over a 75 g target.
+    expect(macroState("fatG", 75.4, 75)).toBe("under");
+    expect(macroState("fatG", 75.6, 75)).toBe("over");
+    expect(macroState("carbsG", 400, 392)).toBe("over");
+    expect(macroState("carbsG", 5, 0)).toBe("over");
+  });
+});
+
+describe("what each food gave", () => {
+  const entry = (meal: Meal, food: Food, amount: number) => ({
+    ...food,
+    foodId: null,
+    amount,
+    meal,
+  });
+  const WHEY: Food = {
+    name: "Whey",
+    portionAmount: 1,
+    unit: "scoop",
+    kcal: 139,
+    carbsG: 5.6,
+    fatG: 1.8,
+    proteinG: 25,
+  };
+  const MILK: Food = {
+    name: "Milk",
+    portionAmount: 100,
+    unit: "ml",
+    kcal: 52,
+    carbsG: 5,
+    fatG: 2.5,
+    proteinG: 3.3,
+  };
+  const HOME: Food = {
+    name: "Home food",
+    portionAmount: 1,
+    unit: "serving",
+    kcal: 200,
+    carbsG: null,
+    fatG: null,
+    proteinG: null,
+  };
+  const OIL: Food = {
+    name: "Oil",
+    portionAmount: 1,
+    unit: "tbsp",
+    kcal: 120,
+    carbsG: 0,
+    fatG: 13.6,
+    proteinG: 0,
+  };
+
+  it("ranks the day's foods by what they gave, with their share of the day", () => {
+    const rows = contributions(
+      [entry("breakfast", MILK, 250), entry("breakfast", WHEY, 1), entry("lunch", OATS, 80)],
+      "proteinG",
+    );
+    expect(rows.map((row) => [row.name, row.grams])).toEqual([
+      ["Whey", 25],
+      ["Oats", 13.5],
+      ["Milk", 8.3],
+    ]);
+    // The shares are of the day's 46.8 g, and add up to all of it.
+    expect(rows.reduce((sum, row) => sum + (row.share ?? 0), 0)).toBeCloseTo(1);
+    expect(rows[0]!.share).toBeCloseTo(25 / 46.8);
+    expect(rows[0]).toMatchObject({ unit: "scoop", amount: 1, meals: ["breakfast"] });
+  });
+
+  it("adds up a food eaten in more than one meal, whatever its capitals", () => {
+    const rows = contributions(
+      [
+        entry("dinner", MILK, 200),
+        entry("breakfast", { ...MILK, name: "milk" }, 250),
+        entry("lunch", WHEY, 1),
+      ],
+      "proteinG",
+    );
+    expect(rows).toHaveLength(2);
+    expect(rows[1]).toMatchObject({ name: "Milk", amount: 450, meals: ["breakfast", "dinner"] });
+    // 6.6 g and 8.3 g, each as the day's total counts it.
+    expect(rows[1]!.grams).toBeCloseTo(14.9);
+  });
+
+  it("puts foods logged without the figure last, and leaves out foods that gave none", () => {
+    const rows = contributions(
+      [entry("lunch", HOME, 2), entry("lunch", OIL, 1), entry("breakfast", WHEY, 1)],
+      "proteinG",
+    );
+    expect(rows.map((row) => [row.name, row.grams, row.share])).toEqual([
+      ["Whey", 25, 1],
+      ["Home food", null, null],
+    ]);
+    expect(contributions([entry("lunch", OIL, 1)], "fatG")[0]).toMatchObject({ grams: 13.6 });
+  });
+
+  it("comes to nothing for nothing", () => {
+    expect(contributions([], "carbsG")).toEqual([]);
   });
 });

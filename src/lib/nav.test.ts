@@ -23,6 +23,10 @@ it.each([
   // A meal's page is the Food tab's; History is a section of Progress (ADR 0034).
   ["/food", "/food"],
   ["/food/breakfast", "/food"],
+  // So are My foods, a meal kept in it, and the targets (ADR 0035).
+  ["/food/my-foods", "/food"],
+  ["/food/my-foods/meals/new", "/food"],
+  ["/food/targets", "/food"],
   ["/progress/history", "/progress"],
 ])("keeps one primary destination selected for %s", (pathname, expected) => {
   expect(
@@ -41,6 +45,9 @@ it("names the section a detail screen was opened from", () => {
   expect(sectionLabel("/u/phani03")).toBe("People");
   // A meal's page goes back to the Food tab.
   expect(sectionLabel("/food")).toBe("Food");
+  // My foods is a screen of Food's with a name of its own (ADR 0035); Targets is Food's.
+  expect(sectionLabel("/food/my-foods")).toBe("My foods");
+  expect(sectionLabel("/food/targets")).toBe("Food");
   // History is a section of Progress with a page, and a name, of its own.
   expect(sectionLabel("/progress/history")).toBe("History");
   expect(sectionLabel("/progress/history?from=2026-09-01")).toBe("History");

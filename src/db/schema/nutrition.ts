@@ -9,6 +9,7 @@ import {
   numeric,
   pgTable,
   primaryKey,
+  smallint,
   text,
   timestamp,
   uniqueIndex,
@@ -20,14 +21,13 @@ import {
   MEALS,
   type FoodUnit,
   type LoggedFood,
-  type MacroSplit,
   type Meal,
 } from "../../domain/nutrition";
 import { ownerPolicy, serverWritePolicies, timestamps } from "./common";
 import { profiles } from "./profiles";
 
 /*
- * Food (ADRs 0032, 0033). Each account owns its targets, its foods, what it ate, its saved meals
+ * Food (ADRs 0032, 0033, 0035). Each account owns its targets, its foods, what it ate, its saved meals
  * and its save receipts. The bounds in the check constraints are `NUTRITION_LIMITS` in
  * `domain/nutrition.ts`, and the lists of units and meals are that module's own.
  */
@@ -76,7 +76,7 @@ export const foodSubmissionReceipts = pgTable(
 ).enableRLS();
 
 /**
- * What an account's eating is measured against: one row, written from the Food screen's targets.
+ * What an account's eating is measured against: one row, written from the Targets screen.
  * Grams are never stored. They are worked out from this row and the newest body weight each time
  * they are shown, so the protein target follows every new reading without anything rewriting it.
  */
@@ -91,7 +91,18 @@ export const nutritionTargets = pgTable(
     proteinPerKg: numeric("protein_per_kg", { precision: 3, scale: 1, mode: "number" })
       .notNull()
       .default(1.8),
-    macroSplit: text("macro_split").$type<MacroSplit>().notNull().default("body_weight"),
+    /** Fat's share of the day's energy, in whole percent (ADR 0035). */
+    fatPercent: smallint("fat_percent").notNull().default(25),
+    /**
+     * Legacy (ADR 0035): the split the account chose before targets started from the training
+     * goal. Migration 0042 moved every fixed split to protein per kilogram, and this deployment
+     * writes `body_weight` and reads nothing here. It stays while the previous deployment, which
+     * reads it, may still be serving; a later migration drops it.
+     */
+    macroSplit: text("macro_split")
+      .$type<"body_weight" | "fixed_55_25_20">()
+      .notNull()
+      .default("body_weight"),
     ...timestamps,
   },
   () => [
@@ -99,6 +110,7 @@ export const nutritionTargets = pgTable(
       "nutrition_targets_values_chk",
       sql`daily_kcal between 500 and 10000
         and protein_per_kg between 0.5 and 4
+        and fat_percent between 5 and 80
         and macro_split in ('body_weight', 'fixed_55_25_20')`,
     ),
     ownerPolicy("nutrition_targets"),

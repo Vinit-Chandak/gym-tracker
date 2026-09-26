@@ -27,6 +27,11 @@
   --ov-light-success: #285d40;
   --ov-light-warning: #7b510d;
   --ov-light-danger: #9b382e;
+  /*
+   * A macronutrient past its target (ADR 0035). Red rather than the error colour, which in the
+   * dark palette is a coral too close to the copper calorie bar; at least 4.5:1 on every surface.
+   */
+  --ov-light-over: #b4333d;
   --ov-light-focus: #1d6b80;
   --ov-light-series-1: #8b4c2f;
   --ov-light-series-2: #235f9b;
@@ -74,6 +79,7 @@
   --ov-dark-success: #99c7a7;
   --ov-dark-warning: #e8c181;
   --ov-dark-danger: #f0a18d;
+  --ov-dark-over: #f07575;
   --ov-dark-focus: #98cbd8;
   --ov-dark-series-1: #e1a483;
   --ov-dark-series-2: #8db9e6;

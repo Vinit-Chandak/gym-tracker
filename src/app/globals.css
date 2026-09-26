@@ -32,6 +32,7 @@
   --color-success: var(--ov-success);
   --color-warning: var(--ov-warning);
   --color-danger: var(--ov-danger);
+  --color-over: var(--ov-over);
   --color-focus: var(--ov-focus);
 
   /* Charts and the body map read these instead of hard-coding a mode's hex values. */

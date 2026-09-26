@@ -11,6 +11,7 @@ import { requireUser, type SessionUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import {
   AmountTooLargeError,
+  createFood,
   deleteEntry,
   deleteFood,
   deleteSavedMeal,
@@ -21,8 +22,11 @@ import {
   FoodSubmissionConflictError,
   logFood,
   logSavedMeal,
+  SavedMealChangedError,
+  SavedMealNameTakenError,
   SavedMealNotFoundError,
   SavedMealTooLargeError,
+  saveLibraryMeal,
   saveMeal,
   saveNutritionTargets,
   submitFoodOnce,
@@ -32,16 +36,20 @@ import {
 import { formValues, parseForm, type FormState } from "@/server/validation/form";
 import {
   createFoodSchema,
+  createLibraryFoodSchema,
   issuesByPath,
   logFoodSchema,
   logSavedMealSchema,
+  saveLibraryMealSchema,
   saveMealSchema,
   targetsInputSchema,
   updateEntrySchema,
   updateFoodSchema,
   type CreateFoodDraft,
+  type CreateLibraryFoodDraft,
   type LogFoodDraft,
   type LogSavedMealDraft,
+  type SaveLibraryMealDraft,
   type SaveMealDraft,
   type UpdateEntryDraft,
   type UpdateFoodDraft,
@@ -56,13 +64,14 @@ function describe(error: unknown): FoodActionResult {
   if (error instanceof AmountTooLargeError) {
     return { ok: false, fieldErrors: { amount: error.message } };
   }
-  if (error instanceof FoodNameTakenError) {
+  if (error instanceof FoodNameTakenError || error instanceof SavedMealNameTakenError) {
     return { ok: false, fieldErrors: { name: error.message } };
   }
   if (
     error instanceof FoodNotFoundError ||
     error instanceof EntryNotFoundError ||
     error instanceof SavedMealNotFoundError ||
+    error instanceof SavedMealChangedError ||
     error instanceof EmptyMealError ||
     error instanceof SavedMealTooLargeError ||
     error instanceof FoodSubmissionConflictError
@@ -77,13 +86,16 @@ function invalid(error: z.ZodError): FoodActionResult {
 }
 
 /**
- * Every change here is shown on the Food tab and on the meal's own page. The tabs prefetch their
- * data, so a refresh alone can reuse an old Food snapshot: invalidate both after a successful
- * write.
+ * Every change here is shown on the Food tab and on the screens under it: a meal's page, My foods,
+ * a meal in My foods and the targets. The tabs prefetch their data, so a refresh alone can reuse
+ * an old Food snapshot: invalidate them all after a successful write.
  */
 function refreshFood(): void {
   revalidatePath("/food");
   revalidatePath("/food/[meal]", "page");
+  revalidatePath("/food/targets");
+  revalidatePath("/food/my-foods");
+  revalidatePath("/food/my-foods/meals/[id]", "page");
 }
 
 /**
@@ -199,6 +211,37 @@ export async function deleteSavedMealAction(savedMealId: string): Promise<FoodAc
   const user = await requireUser();
   if (!z.uuid().safeParse(savedMealId).success) return { ok: true };
   return change(user, (tx) => deleteSavedMeal(tx, user.id, savedMealId));
+}
+
+/** Keeps a new food in My foods without logging it (ADR 0035). */
+export async function createLibraryFoodAction(
+  draft: CreateLibraryFoodDraft,
+): Promise<FoodActionResult> {
+  const user = await requireUser();
+  const parsed = createLibraryFoodSchema.safeParse(draft);
+  if (!parsed.success) return invalid(parsed.error);
+  const { submissionKey, food } = parsed.data;
+  return change(user, (tx) => createFood(tx, user.id, food), {
+    receipt: { key: submissionKey, payload: { kind: "library-food", ...parsed.data } },
+  });
+}
+
+/**
+ * Saves a meal built in My foods, new or changed (ADR 0035). A new one keeps a receipt, so a
+ * retry after a lost reply cannot save it twice; saving a changed one again is the same change.
+ */
+export async function saveLibraryMealAction(
+  draft: SaveLibraryMealDraft,
+): Promise<FoodActionResult> {
+  const user = await requireUser();
+  const parsed = saveLibraryMealSchema.safeParse(draft);
+  if (!parsed.success) return invalid(parsed.error);
+  const { submissionKey, savedMealId, name, items } = parsed.data;
+  return change(user, (tx) => saveLibraryMeal(tx, user.id, { id: savedMealId, name, items }), {
+    receipt: savedMealId
+      ? undefined
+      : { key: submissionKey, payload: { kind: "library-meal", ...parsed.data } },
+  });
 }
 
 /** Corrects a food in My foods, for what is logged from now on. */

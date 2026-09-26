@@ -142,7 +142,7 @@ function editor(screenData: Partial<MealScreen> = {}) {
 }
 
 const sheet = () => document.querySelector("dialog")!;
-const myFoods = () => within(screen.getByRole("list", { name: "My foods" }));
+const myFoods = () => within(screen.getByRole("list", { name: "Your foods and meals" }));
 const inSheet = () => within(sheet());
 const type = (label: string, value: string) =>
   fireEvent.change(inSheet().getByLabelText(label), { target: { value } });
@@ -237,7 +237,8 @@ it("puts a refused field's message on that field, and the caret in it", async ()
     fieldErrors: { name: "You already have a food called Oats.", kcal: "Enter the kcal." },
   });
   editor();
-  fireEvent.click(screen.getByRole("button", { name: "New food" }));
+  fireEvent.change(screen.getByRole("searchbox"), { target: { value: "granola" } });
+  fireEvent.click(screen.getByRole("button", { name: "New food “granola”" }));
   type("Name", "oats");
   fireEvent.click(inSheet().getByRole("button", { name: "Add to Breakfast" }));
   expect(await inSheet().findByText("You already have a food called Oats.")).toBeTruthy();
@@ -335,55 +336,46 @@ it("adds a saved meal to this meal, or deletes it, from what it holds", async ()
   await waitFor(() => expect(deleteSavedMealAction).toHaveBeenCalledWith(SHAKE.id));
 });
 
-it("searches foods by name, and saved meals by name or by what they hold", () => {
+it("searches foods by name, and saved meals by name or by what they hold, in one list", () => {
   editor();
+  // Everything in My foods is one list to add from, saved meals first; nothing is made here.
+  expect(myFoods().getAllByRole("button")).toHaveLength(5);
+  expect(screen.queryByRole("button", { name: /^New food/ })).toBeNull();
   const search = screen.getByRole("searchbox");
   fireEvent.change(search, { target: { value: "WHEY" } });
   expect(
     myFoods()
       .getAllByRole("button")
-      .map((button) => button.textContent),
-  ).toEqual(["New food", "Whey 1 scoop · 139 kcal"]);
-  expect(screen.getByRole("button", { name: /^Shake/ })).toBeTruthy();
-  expect(screen.getByRole("button", { name: /^Usual breakfast/ })).toBeTruthy();
+      .map((button) => button.textContent?.split(" ")[0]),
+  ).toEqual(["Shake", "Usual", "Whey"]);
   // A food that exists is found, not offered as a new one.
   fireEvent.change(search, { target: { value: "oats" } });
-  expect(screen.getByRole("button", { name: "New food" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: /^New food/ })).toBeNull();
   expect(screen.queryByRole("button", { name: /^Shake/ })).toBeNull();
+  // Only a search that finds nothing offers to make the food.
+  fireEvent.change(search, { target: { value: "granola" } });
+  expect(
+    myFoods()
+      .getAllByRole("button")
+      .map((button) => button.textContent),
+  ).toEqual(["New food “granola”"]);
 });
 
-it("corrects a food from its sheet, or removes it from My foods", async () => {
+it("leaves correcting a food to My foods: its sheet here only says how much", () => {
   editor();
   fireEvent.click(myFoods().getByRole("button", { name: /^Oats 100 g/ }));
-  fireEvent.click(inSheet().getByRole("button", { name: "Edit Oats" }));
-  expect(inSheet().getByRole("heading", { name: "Edit food" })).toBeTruthy();
-  expect(inSheet().queryByLabelText("Amount eaten")).toBeNull();
-  type("kcal", "379");
-  fireEvent.click(inSheet().getByRole("button", { name: "Save food" }));
-  await waitFor(() => expect(sheet().open).toBe(false));
-  expect(updateFoodAction).toHaveBeenCalledWith({
-    foodId: OATS.id,
-    name: "Oats",
-    portionAmount: "100",
-    unit: "g",
-    kcal: "379",
-    carbsG: "66.3",
-    fatG: "6.9",
-    proteinG: "16.9",
-  });
-
-  fireEvent.click(myFoods().getByRole("button", { name: /^Oats 100 g/ }));
-  fireEvent.click(inSheet().getByRole("button", { name: "Edit Oats" }));
-  fireEvent.click(inSheet().getByRole("button", { name: "Remove from My foods" }));
-  await waitFor(() => expect(deleteFoodAction).toHaveBeenCalledWith(OATS.id));
+  expect(inSheet().getByLabelText("Amount eaten")).toBeTruthy();
+  expect(inSheet().queryByRole("button", { name: /^Edit/ })).toBeNull();
+  expect(inSheet().queryByRole("button", { name: "Remove from My foods" })).toBeNull();
 });
 
-it("starts an account with no foods at New food, and says what the list will hold", () => {
+it("starts an account with nothing in My foods at New food, since nothing can be found", () => {
   editor({ entries: [], foods: [], savedMeals: [] });
-  expect(screen.queryByRole("searchbox")).toBeNull();
+  expect(screen.getByRole("searchbox")).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Star" })).toBeNull();
-  expect(screen.getByRole("button", { name: "New food" })).toBeTruthy();
   expect(
-    screen.getByText("Each food you log is kept here, to log again at any amount."),
-  ).toBeTruthy();
+    myFoods()
+      .getAllByRole("button")
+      .map((button) => button.textContent),
+  ).toEqual(["New food"]);
 });

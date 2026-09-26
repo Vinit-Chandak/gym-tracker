@@ -94,6 +94,8 @@ const PAGE_LABELS: Record<string, string> = {
   // History is a section of Progress with a page of its own, so what it opens goes back to it
   // by its own name.
   "/progress/history": "History",
+  // My foods is a screen of Food's (ADR 0035): a meal kept in it goes back to it by name.
+  "/food/my-foods": "My foods",
 };
 
 export function sectionLabel(path: string): string | undefined {

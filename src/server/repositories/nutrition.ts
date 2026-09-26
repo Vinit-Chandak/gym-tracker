@@ -32,22 +32,28 @@ export type EntryRecord = LoggedFood & { id: string; eatenOn: string; meal: Meal
 
 export type SavedMealRecord = { id: string; name: string; items: LoggedFood[] };
 
+/** How many foods and saved meals an account keeps in My foods, for the Food screen's row. */
+export type LibraryCount = { foods: number; meals: number };
+
 /**
  * A day: the targets, if any are set, what was eaten in each of its meals, and what that came to.
- * The Food screen draws all three.
+ * The Food screen draws all three, and says how much My foods holds.
  */
 export type FoodDay = {
   targets: NutritionTargets | null;
   entries: EntryRecord[];
   eaten: FoodTotals;
+  library: LibraryCount;
 };
 
-/** One meal's page: what is in it, and what can be added to it. */
-export type MealScreen = {
-  entries: EntryRecord[];
+/** My foods: every food and saved meal an account keeps (ADR 0035). */
+export type Library = {
   foods: FoodRecord[];
   savedMeals: SavedMealRecord[];
 };
+
+/** One meal's page: what is in it, and what can be added to it. */
+export type MealScreen = Library & { entries: EntryRecord[] };
 
 /** Where a food is being logged: a meal of a day. */
 export type MealOf = { eatenOn: string; meal: Meal };
@@ -79,6 +85,20 @@ export class EmptyMealError extends Error {
 export class SavedMealTooLargeError extends Error {
   constructor() {
     super(`A saved meal holds at most ${NUTRITION_LIMITS.itemsPerMeal} foods.`);
+  }
+}
+
+/** A meal built in My foods needs a name no other saved meal has, whatever its capitals. */
+export class SavedMealNameTakenError extends Error {
+  constructor(name: string) {
+    super(`You already have a meal called ${name}.`);
+  }
+}
+
+/** A food kept from a saved meal that has since changed under the page that was editing it. */
+export class SavedMealChangedError extends Error {
+  constructor() {
+    super("This meal changed since it was opened. Go back to My foods and open it again.");
   }
 }
 
@@ -144,7 +164,7 @@ export async function submitFoodOnce(
 const TARGET_COLUMNS = {
   dailyKcal: nutritionTargets.dailyKcal,
   proteinPerKg: nutritionTargets.proteinPerKg,
-  split: nutritionTargets.macroSplit,
+  fatPercent: nutritionTargets.fatPercent,
 };
 
 const FOOD_COLUMNS = {
@@ -178,14 +198,28 @@ const ENTRY_COLUMNS = {
 const ENTRY_ORDER = [asc(foodEntries.createdAt), asc(foodEntries.position), asc(foodEntries.id)];
 
 /**
- * A day's targets and everything eaten on it, in one statement: Today already waits on many.
+ * The foods eaten most lately first; a food saved in My foods and not eaten yet counts from when
+ * it was saved, so what was just made is near the top.
+ */
+const FOOD_ORDER = [
+  sql`coalesce(${foods.lastLoggedAt}, ${foods.createdAt}) desc`,
+  asc(sql`lower(${foods.name})`),
+];
+
+/**
+ * A day's targets, everything eaten on it and how much My foods holds, in one statement.
  *
  * Anchored on the account's own profile row, which always exists, so there is always a row to
  * read the targets from, whether or not anything was eaten.
  */
 export async function readFoodDay(db: DbOrTx, userId: string, eatenOn: string): Promise<FoodDay> {
   const rows = await db
-    .select({ ...TARGET_COLUMNS, entry: ENTRY_COLUMNS })
+    .select({
+      ...TARGET_COLUMNS,
+      foodCount: sql<number>`(select count(*)::int from ${foods} where ${foods.userId} = ${profiles.id})`,
+      mealCount: sql<number>`(select count(*)::int from ${savedMeals} where ${savedMeals.userId} = ${profiles.id})`,
+      entry: ENTRY_COLUMNS,
+    })
     .from(profiles)
     .leftJoin(nutritionTargets, eq(nutritionTargets.userId, profiles.id))
     .leftJoin(
@@ -196,11 +230,30 @@ export async function readFoodDay(db: DbOrTx, userId: string, eatenOn: string): 
     .orderBy(...ENTRY_ORDER);
   const [first] = rows;
   const targets =
-    first && first.dailyKcal !== null && first.proteinPerKg !== null && first.split !== null
-      ? { dailyKcal: first.dailyKcal, proteinPerKg: first.proteinPerKg, split: first.split }
+    first && first.dailyKcal !== null && first.proteinPerKg !== null && first.fatPercent !== null
+      ? {
+          dailyKcal: first.dailyKcal,
+          proteinPerKg: first.proteinPerKg,
+          fatPercent: first.fatPercent,
+        }
       : null;
   const entries = rows.flatMap(({ entry }) => (entry ? [entry] : []));
-  return { targets, entries, eaten: addUp(entries.map(eaten)) };
+  return {
+    targets,
+    entries,
+    eaten: addUp(entries.map(eaten)),
+    library: { foods: Number(first?.foodCount ?? 0), meals: Number(first?.mealCount ?? 0) },
+  };
+}
+
+/** The targets alone, for the Targets screen: null until the account has set some. */
+export async function readTargets(db: DbOrTx, userId: string): Promise<NutritionTargets | null> {
+  const [row] = await db
+    .select(TARGET_COLUMNS)
+    .from(nutritionTargets)
+    .where(eq(nutritionTargets.userId, userId))
+    .limit(1);
+  return row ?? null;
 }
 
 /**
@@ -224,13 +277,33 @@ function loggedFoods(items: readonly Partial<LoggedFood>[], mealName: string): L
   });
 }
 
-/** One meal of a day, with My foods (the most lately eaten first) and the saved meals. */
+/** My foods: the foods, the most lately eaten first, and the saved meals by name. */
+export async function readLibrary(db: DbOrTx, userId: string): Promise<Library> {
+  const [library, saved] = await Promise.all([
+    db
+      .select({ id: foods.id, ...FOOD_COLUMNS })
+      .from(foods)
+      .where(eq(foods.userId, userId))
+      .orderBy(...FOOD_ORDER),
+    db
+      .select({ id: savedMeals.id, name: savedMeals.name, items: savedMeals.items })
+      .from(savedMeals)
+      .where(eq(savedMeals.userId, userId))
+      .orderBy(asc(sql`lower(${savedMeals.name})`), asc(savedMeals.createdAt)),
+  ]);
+  return {
+    foods: library,
+    savedMeals: saved.map((row) => ({ ...row, items: loggedFoods(row.items, row.name) })),
+  };
+}
+
+/** One meal of a day, with everything in My foods that can be added to it. */
 export async function readMealScreen(
   db: DbOrTx,
   userId: string,
   { eatenOn, meal }: MealOf,
 ): Promise<MealScreen> {
-  const [entries, library, saved] = await Promise.all([
+  const [entries, library] = await Promise.all([
     db
       .select(ENTRY_COLUMNS)
       .from(foodEntries)
@@ -242,22 +315,23 @@ export async function readMealScreen(
         ),
       )
       .orderBy(...ENTRY_ORDER),
-    db
-      .select({ id: foods.id, ...FOOD_COLUMNS })
-      .from(foods)
-      .where(eq(foods.userId, userId))
-      .orderBy(sql`${foods.lastLoggedAt} desc nulls last`, asc(sql`lower(${foods.name})`)),
-    db
-      .select({ id: savedMeals.id, name: savedMeals.name, items: savedMeals.items })
-      .from(savedMeals)
-      .where(eq(savedMeals.userId, userId))
-      .orderBy(asc(sql`lower(${savedMeals.name})`), asc(savedMeals.createdAt)),
+    readLibrary(db, userId),
   ]);
-  return {
-    entries,
-    foods: library,
-    savedMeals: saved.map((row) => ({ ...row, items: loggedFoods(row.items, row.name) })),
-  };
+  return { entries, ...library };
+}
+
+/** One saved meal, as My foods edits it; null when it is not the account's or no longer exists. */
+export async function readSavedMeal(
+  db: DbOrTx,
+  userId: string,
+  savedMealId: string,
+): Promise<SavedMealRecord | null> {
+  const [row] = await db
+    .select({ id: savedMeals.id, name: savedMeals.name, items: savedMeals.items })
+    .from(savedMeals)
+    .where(and(eq(savedMeals.userId, userId), eq(savedMeals.id, savedMealId)))
+    .limit(1);
+  return row ? { ...row, items: loggedFoods(row.items, row.name) } : null;
 }
 
 export async function saveNutritionTargets(
@@ -268,7 +342,10 @@ export async function saveNutritionTargets(
   const values = {
     dailyKcal: targets.dailyKcal,
     proteinPerKg: targets.proteinPerKg,
-    macroSplit: targets.split,
+    fatPercent: targets.fatPercent,
+    // Read only by the previous deployment while it still serves: body weight is what these
+    // targets are, protein per kilogram, so it shows the same protein (ADR 0035).
+    macroSplit: "body_weight" as const,
   };
   await db
     .insert(nutritionTargets)
@@ -384,6 +461,22 @@ export async function logFood(
     .returning({ id: foodEntries.id });
   if (!entry) throw new Error("The food could not be logged.");
   return entry.id;
+}
+
+/**
+ * Keeps a new food in My foods without eating any of it (ADR 0035). Its recency starts from now,
+ * so it is near the top of the list it was just added to.
+ */
+export async function createFood(db: DbOrTx, userId: string, food: Food): Promise<string> {
+  await assertNameFree(db, userId, food.name);
+  const [created] = await naming(food.name, () =>
+    db
+      .insert(foods)
+      .values({ userId, ...food })
+      .returning({ id: foods.id }),
+  );
+  if (!created) throw new Error("The food could not be saved.");
+  return created.id;
 }
 
 /** Changes how much of a food was eaten. What it came to follows, from the entry's own copy. */
@@ -517,6 +610,95 @@ export async function logSavedMeal(
       ),
     );
   await touchFoods(db, userId, [...present]);
+}
+
+/**
+ * One food of a meal being built in My foods: a food from My foods at an amount, or one the saved
+ * meal already holds, by its place in it, kept as it was saved at a new amount.
+ */
+export type LibraryMealItem = { foodId: string; amount: number } | { keep: number; amount: number };
+
+/**
+ * Saves a meal built in My foods (ADR 0035): new, or `id` saved again with what it now holds.
+ *
+ * A food from My foods is copied as it stands, as logging it would be; a food the meal already
+ * held keeps the copy it was saved with, so a food corrected or deleted since is still what the
+ * meal adds. A name another saved meal has is refused rather than saved over, since here it is
+ * typed as the meal's own name, not chosen to bring another meal up to date.
+ */
+export async function saveLibraryMeal(
+  db: DbOrTx,
+  userId: string,
+  input: { id?: string; name: string; items: readonly LibraryMealItem[] },
+): Promise<string> {
+  if (input.items.length === 0) throw new EmptyMealError();
+  if (input.items.length > NUTRITION_LIMITS.itemsPerMeal) throw new SavedMealTooLargeError();
+
+  let held: LoggedFood[] = [];
+  if (input.id) {
+    const [existing] = await db
+      .select({ name: savedMeals.name, items: savedMeals.items })
+      .from(savedMeals)
+      .where(and(eq(savedMeals.userId, userId), eq(savedMeals.id, input.id)))
+      .limit(1)
+      .for("update");
+    if (!existing) throw new SavedMealNotFoundError();
+    held = loggedFoods(existing.items, existing.name);
+  }
+
+  const [taken] = await db
+    .select({ id: savedMeals.id })
+    .from(savedMeals)
+    .where(
+      and(
+        eq(savedMeals.userId, userId),
+        sql`lower(${savedMeals.name}) = lower(${input.name})`,
+        input.id ? ne(savedMeals.id, input.id) : undefined,
+      ),
+    )
+    .limit(1);
+  if (taken) throw new SavedMealNameTakenError(input.name);
+
+  const wanted = input.items.flatMap((item) => ("foodId" in item ? [item.foodId] : []));
+  const library = new Map(
+    (wanted.length === 0
+      ? []
+      : await db
+          .select({ id: foods.id, ...FOOD_COLUMNS })
+          .from(foods)
+          .where(and(eq(foods.userId, userId), inArray(foods.id, wanted)))
+    ).map(({ id, ...food }) => [id, food] as const),
+  );
+
+  const items: LoggedFood[] = input.items.map((item) => {
+    let copy: LoggedFood;
+    if ("foodId" in item) {
+      const food = library.get(item.foodId);
+      if (!food) throw new FoodNotFoundError();
+      copy = { ...food, foodId: item.foodId, amount: item.amount };
+    } else {
+      const kept = held[item.keep];
+      if (!kept) throw new SavedMealChangedError();
+      copy = { ...kept, amount: item.amount };
+    }
+    const tooMuch = overLimit(copy, item.amount);
+    if (tooMuch) throw new AmountTooLargeError(tooMuch);
+    return copy;
+  });
+
+  if (input.id) {
+    await db
+      .update(savedMeals)
+      .set({ name: input.name, items, updatedAt: new Date() })
+      .where(and(eq(savedMeals.userId, userId), eq(savedMeals.id, input.id)));
+    return input.id;
+  }
+  const [saved] = await db
+    .insert(savedMeals)
+    .values({ userId, name: input.name, items })
+    .returning({ id: savedMeals.id });
+  if (!saved) throw new Error("The meal could not be saved.");
+  return saved.id;
 }
 
 /** Deletes a saved meal. The meals it was added to keep their foods. */

@@ -4,8 +4,10 @@
 their one-sheet editor, the starred chips and the device drafts (decisions 5–7) gave way to six
 meals of the day, a food library with portions, and meals starred under a name. **And by
 [ADR 0034](0034-food-takes-the-history-tab.md):** Food is a tab of its own at `/food`, and Today's
-card is gone. Targets, the goal band and the receipts that make a retried save harmless stand as
-written here.
+card is gone. **And by [ADR 0035](0035-targets-from-the-goal-and-my-foods-of-its-own.md):**
+targets start from the profile's training goal, fat is a share the account sets, the fixed split
+is gone and the targets have a screen of their own (decisions 2 to 4). The goal band and the
+receipts that make a retried save harmless stand as written here.
 
 **Rollout updated 25 September 2026:** the owner requested immediate availability for every
 signed-in account. The `FOOD_TRACKING_ENABLED` gate and email allowlist have been removed from

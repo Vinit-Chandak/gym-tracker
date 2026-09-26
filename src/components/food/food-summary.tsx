@@ -8,8 +8,10 @@ import {
   type GoalStatus,
   type MacroTargets,
 } from "@/domain/nutrition";
-import { formatFoodAmount, formatKcal } from "@/lib/format";
+import { formatKcal } from "@/lib/format";
 import { cn } from "@/lib/utils";
+
+import { MacroBars, type EatenEntry } from "./macro-bars";
 
 /** Under the band says nothing: a day still being eaten is not a day that missed its goal. */
 const GOAL_BADGE: Record<GoalStatus, ReactNode> = {
@@ -64,47 +66,19 @@ export function GoalBar({ eaten, target }: { eaten: number; target: number }) {
   );
 }
 
-const MACROS = [
-  { key: "carbsG", label: "Carbs", fill: "bg-series-2" },
-  { key: "fatG", label: "Fat", fill: "bg-series-4" },
-  { key: "proteinG", label: "Protein", fill: "bg-series-3" },
-] as const;
-
-/**
- * Grams eaten against grams set, one thin bar each. The numbers are written above every bar, so
- * the bars are left out of the accessibility tree rather than read out a second time.
- */
-export function MacroBars({ eaten, target }: { eaten: FoodTotals; target: MacroTargets }) {
-  return (
-    <dl className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,7rem),1fr))] gap-3">
-      {MACROS.map(({ key, label, fill }) => {
-        const share =
-          target[key] > 0 ? Math.min(1, eaten[key] / target[key]) : eaten[key] > 0 ? 1 : 0;
-        return (
-          <div key={key} className="min-w-0">
-            <dt className="text-xs text-ink-muted">{label}</dt>
-            <dd className="mt-0.5 text-sm tabular-nums">
-              {formatFoodAmount(eaten[key])}
-              <span className="text-ink-muted"> / {formatFoodAmount(target[key])} g</span>
-            </dd>
-            <dd aria-hidden className="mt-1.5 h-1 overflow-hidden rounded-full bg-surface-raised">
-              <div
-                className={cn("h-full rounded-full", fill)}
-                style={{ width: `${share * 100}%` }}
-              />
-            </dd>
-          </div>
-        );
-      })}
-    </dl>
-  );
-}
-
 /**
  * What the day has come to against its targets, at the top of the Food screen: the energy against
- * the goal band, what is left, and each macronutrient.
+ * the goal band, what is left, and each macronutrient, each opening what the day's foods gave it.
  */
-export function FoodSummary({ eaten, target }: { eaten: FoodTotals; target: MacroTargets }) {
+export function FoodSummary({
+  eaten,
+  target,
+  entries,
+}: {
+  eaten: FoodTotals;
+  target: MacroTargets;
+  entries: readonly EatenEntry[];
+}) {
   const status = goalStatus(eaten.kcal, target.kcal);
   const band = goalBand(target.kcal);
   const left = target.kcal - eaten.kcal;
@@ -127,7 +101,7 @@ export function FoodSummary({ eaten, target }: { eaten: FoodTotals; target: Macr
         {left >= 0 ? `${formatKcal(left)} kcal left` : `${formatKcal(-left)} kcal over target`}
         {` · Goal ${formatKcal(band.low)}–${formatKcal(band.high)}`}
       </p>
-      <MacroBars eaten={eaten} target={target} />
+      <MacroBars eaten={eaten} target={target} entries={entries} />
     </div>
   );
 }

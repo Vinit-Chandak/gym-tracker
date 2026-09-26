@@ -9,19 +9,14 @@ import { formatKcal, formatMacros, formatPortion } from "@/lib/format";
 import { attempted, OFFLINE_SUBMIT_MESSAGE } from "@/lib/offline-submit";
 import { deleteEntryAction, logFoodAction, updateEntryAction } from "@/server/actions/nutrition";
 
-import { AmountField, Preview, typedAmount } from "./amount-field";
+import { AmountField, Preview, typedAmount } from "@/components/food/amount-field";
 
-/** What the sheet changes: a food from My foods logged in a meal, or an entry already there. */
+/**
+ * What the sheet changes: a food from My foods logged in a meal, or an entry already there. A
+ * food is corrected on My foods' own screen (ADR 0035), so nothing here opens it.
+ */
 export type PortionTarget =
-  | {
-      kind: "log";
-      foodId: string;
-      eatenOn: string;
-      meal: Meal;
-      mealLabel: string;
-      /** Opens the food itself, to correct it in My foods. */
-      onEditFood: () => void;
-    }
+  | { kind: "log"; foodId: string; eatenOn: string; meal: Meal; mealLabel: string }
   | { kind: "entry"; entryId: string };
 
 /**
@@ -156,25 +151,11 @@ export function PortionSheet({
           if (!busy) save();
         }}
       >
-        <div className="flex items-start justify-between gap-3">
-          <p className="min-w-0 text-sm text-ink-muted tabular-nums">
-            Per {formatPortion(food.portionAmount, food.unit)}
-            <br />
-            {formatKcal(food.kcal)} kcal{macros && ` · ${macros}`}
-          </p>
-          {target.kind === "log" && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="-my-2 shrink-0 text-accent"
-              disabled={busy}
-              aria-label={`Edit ${food.name}`}
-              onClick={target.onEditFood}
-            >
-              Edit
-            </Button>
-          )}
-        </div>
+        <p className="text-sm text-ink-muted tabular-nums">
+          Per {formatPortion(food.portionAmount, food.unit)}
+          <br />
+          {formatKcal(food.kcal)} kcal{macros && ` · ${macros}`}
+        </p>
         <AmountField
           label="Amount eaten"
           value={value}
