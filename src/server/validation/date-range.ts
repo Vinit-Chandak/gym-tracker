@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { addDays, daysBetween, todayInTimeZone } from "@/domain/program-calendar";
 import { fromDateTimeLocal } from "@/lib/time";
+import { weekStart } from "@/domain/running";
 
 export const civilDate = z.iso.date();
 export type DateRange = { from: string; to: string; start: Date; end: Date };
@@ -42,5 +43,21 @@ export function parseDateRangeOrDefault(
           ? error.message
           : "Choose a date range of up to one year, with From before To.",
     };
+  }
+}
+
+/** A shared/bookmarked chart link must not roll an invalid date into a different week. */
+export function parseWeekRangeOrDefault(input: unknown, timeZone: string, now = new Date()) {
+  const current = () => {
+    const from = weekStart(todayInTimeZone(timeZone, now));
+    return parseDateRange({ from, to: addDays(from, 6) }, timeZone, now);
+  };
+  if (input === undefined) return { range: current(), error: null };
+  try {
+    const day = civilDate.parse(input);
+    const from = weekStart(day);
+    return { range: parseDateRange({ from, to: addDays(from, 6) }, timeZone, now), error: null };
+  } catch {
+    return { range: current(), error: "That week is not a valid date. Showing this week instead." };
   }
 }

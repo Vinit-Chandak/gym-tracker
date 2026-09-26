@@ -2,11 +2,9 @@ import type { Metadata } from "next";
 
 import { PageContent } from "@/components/shell/page-content";
 import { Card } from "@/components/ui/card";
-import { getDb } from "@/db/client";
-import { withUser } from "@/db/with-user";
 import { APP_NAME } from "@/lib/app";
 import { requireUser } from "@/server/auth";
-import { ensureProfile } from "@/server/queries/profile";
+import { getRequestProfile } from "@/server/queries/request-profile";
 
 import { ProfileStepForm } from "./profile-step-form";
 import { Steps } from "./steps";
@@ -15,7 +13,8 @@ export const metadata: Metadata = { title: "Welcome" };
 
 export default async function WelcomePage() {
   const user = await requireUser();
-  const profile = await withUser(getDb(), user.id, (tx) => ensureProfile(tx, user));
+  // The cached read: it writes only for a missing profile, where this used to lock every visit.
+  const profile = await getRequestProfile(user.id, user.email, user.displayName);
 
   return (
     <PageContent>
@@ -24,7 +23,7 @@ export default async function WelcomePage() {
         <div>
           <h1 className="text-xl font-medium">Welcome to {APP_NAME}</h1>
           <p className="text-sm text-ink-muted">
-            Four short steps. Everything here can be changed later, from your profile.
+            A few short steps. Everything here can be changed later, from your profile.
           </p>
         </div>
         <ProfileStepForm

@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-import { getSupabasePublicEnv } from "@/lib/env";
+import { getSupabasePublicEnv, perfLogEnabled } from "@/lib/env";
 import { getClaimsOptions } from "@/lib/supabase/jwks";
 
 /** Reachable without a session. */
@@ -48,10 +48,12 @@ export async function proxy(request: NextRequest) {
   }
 
   let response = NextResponse.next({ request });
+  let cookiesChanged = false;
   const supabase = createServerClient(env.url, env.anonKey, {
     cookies: {
       getAll: () => request.cookies.getAll(),
       setAll: (cookiesToSet) => {
+        cookiesChanged = true;
         for (const { name, value } of cookiesToSet) request.cookies.set(name, value);
         response = NextResponse.next({ request });
         for (const { name, value, options } of cookiesToSet) {
@@ -63,7 +65,15 @@ export async function proxy(request: NextRequest) {
 
   // Verified locally against the project's signing keys; embedded keys spare cold instances a
   // fetch of the key set. Only a session about to expire costs a round trip, to refresh it.
+  const checkStarted = perfLogEnabled() ? performance.now() : null;
   const { data } = await supabase.auth.getClaims(undefined, getClaimsOptions());
+  if (checkStarted !== null) {
+    // A slow check with cookies changed is a session refresh; a slow one without is a key fetch
+    // or, on a project still signing with a shared secret, a call to Supabase Auth (ADR 0030).
+    console.log(
+      `[perf] proxy ${pathname} auth=${Math.round(performance.now() - checkStarted)}ms${cookiesChanged ? " cookies-changed" : ""}`,
+    );
+  }
   const signedIn = Boolean(data?.claims?.sub);
 
   if (isNeutral) return response;

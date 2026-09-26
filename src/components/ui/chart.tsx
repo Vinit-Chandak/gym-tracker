@@ -42,6 +42,8 @@ type ChartProps = {
    * and forcing zero flattens the trend, so lines default to the data's own range.
    */
   baseline?: "zero" | "auto";
+  /** Fixed bounds for a known rating scale, such as recovery's 1–5 scores. */
+  valueRange?: { min: number; max: number };
   format?: (value: number) => string;
   height?: number;
   /** Anything the reader needs to read the chart correctly; behind a tip, not under it. */
@@ -142,6 +144,7 @@ export function Chart({
   series,
   kind = "line",
   baseline,
+  valueRange,
   format = (v) => String(Math.round(v * 10) / 10),
   height = 200,
   note,
@@ -156,6 +159,14 @@ export function Chart({
   // Several charts share one screen, so the hatch each one defines needs its own name.
   const patternId = useId();
 
+  const dates = series[0]?.points.map((p) => p.date) ?? [];
+  const known = series.flatMap((s) =>
+    s.points.filter((p) => p.value !== null).map((p) => p.value!),
+  );
+  const empty = known.length === 0;
+
+  // An empty chart has no holder. Start observing when readings create one, and also
+  // when a date/metric change removes and later recreates it.
   useEffect(() => {
     const el = holder.current;
     if (!el) return;
@@ -164,19 +175,13 @@ export function Chart({
     });
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
-
-  const dates = series[0]?.points.map((p) => p.date) ?? [];
-  const known = series.flatMap((s) =>
-    s.points.filter((p) => p.value !== null).map((p) => p.value!),
-  );
-  const empty = known.length === 0;
+  }, [empty]);
 
   const plotW = Math.max(0, width - PAD.left - PAD.right);
   const plotH = height - PAD.top - PAD.bottom;
   const zeroBased = (baseline ?? (kind === "bar" ? "zero" : "auto")) === "zero";
-  const lo = zeroBased ? Math.min(0, ...known) : Math.min(...known);
-  const hi = Math.max(...known);
+  const lo = valueRange?.min ?? (zeroBased ? Math.min(0, ...known) : Math.min(...known));
+  const hi = valueRange?.max ?? Math.max(...known);
   const integral = known.every((v) => Number.isInteger(v));
   const ticks = niceTicks(lo, hi === lo ? lo + 1 : hi, 4, integral);
   // The ticks reach past the data at both ends, so the axis is exactly the plot.
@@ -430,9 +435,25 @@ export function Chart({
               dates[i] ? (
                 <text
                   key={`x:${i}`}
-                  x={i === 0 ? PAD.left : i === dates.length - 1 ? width - PAD.right : x(i)}
+                  x={
+                    dates.length === 1
+                      ? x(0)
+                      : i === 0
+                        ? PAD.left
+                        : i === dates.length - 1
+                          ? width - PAD.right
+                          : x(i)
+                  }
                   y={height - 6}
-                  textAnchor={i === 0 ? "start" : i === dates.length - 1 ? "end" : "middle"}
+                  textAnchor={
+                    dates.length === 1
+                      ? "middle"
+                      : i === 0
+                        ? "start"
+                        : i === dates.length - 1
+                          ? "end"
+                          : "middle"
+                  }
                   fontSize="10"
                   fill="var(--color-ink-subtle)"
                 >

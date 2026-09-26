@@ -25,7 +25,7 @@ import { formValues, type FormState } from "@/server/validation/form";
  * script to be usable at all.
  */
 export const OFFLINE_SUBMIT_MESSAGE =
-  "Connection lost. Nothing was saved, and what you typed is still here. Try again when connected.";
+  "Connection lost. We could not confirm the save. What you typed is still here; retry when connected.";
 
 type Action<S> = (state: S, form: FormData) => Promise<S>;
 

@@ -1,0 +1,2 @@
+# Keep text consistent with Prettier on Windows and Unix; binary files stay untouched.
+* text=auto eol=lf

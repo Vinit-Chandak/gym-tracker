@@ -5,6 +5,25 @@ import type { DbOrTx } from "@/db/types";
 
 export type Profile = typeof profiles.$inferSelect;
 
+/** The profile row as stored, or null. Only reads; `ensureProfile` is what writes. */
+export async function readProfile(db: DbOrTx, id: string): Promise<Profile | null> {
+  const [row] = await db.select().from(profiles).where(eq(profiles.id, id)).limit(1);
+  return row ?? null;
+}
+
+/** The name a sign-in carries, as a profile would store it. */
+function signInName(displayName?: string | null): string | null {
+  return displayName?.trim().slice(0, 80) || null;
+}
+
+/**
+ * Whether `ensureProfile` has anything to write for this account: no row yet, or an empty
+ * name the sign-in's own name can fill. Anything else is a plain read.
+ */
+export function profileNeedsWrite(existing: Profile | null, displayName?: string | null): boolean {
+  return existing === null || (!existing.displayName?.trim() && signInName(displayName) !== null);
+}
+
 /**
  * Returns the profile, creating it for users who signed up before the trigger existed. A
  * created row gets its username the way the trigger gives one: generated from the email, in
@@ -14,10 +33,10 @@ export async function ensureProfile(
   db: DbOrTx,
   user: { id: string; email: string | null; displayName?: string | null },
 ): Promise<Profile> {
-  const [existing] = await db.select().from(profiles).where(eq(profiles.id, user.id)).limit(1);
-  const displayName = user.displayName?.trim().slice(0, 80) || null;
+  const existing = await readProfile(db, user.id);
+  const displayName = signInName(user.displayName);
   if (existing) {
-    if (!existing.displayName?.trim() && displayName) {
+    if (profileNeedsWrite(existing, user.displayName)) {
       const [repaired] = await db
         .update(profiles)
         .set({ displayName })

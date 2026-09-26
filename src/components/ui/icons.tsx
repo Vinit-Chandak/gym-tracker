@@ -4,6 +4,7 @@ import { ArrowsDownUpIcon } from "@phosphor-icons/react/dist/ssr/ArrowsDownUp";
 import { ArrowSquareOutIcon } from "@phosphor-icons/react/dist/ssr/ArrowSquareOut";
 import { BarbellIcon } from "@phosphor-icons/react/dist/ssr/Barbell";
 import { BookOpenIcon } from "@phosphor-icons/react/dist/ssr/BookOpen";
+import { BowlFoodIcon } from "@phosphor-icons/react/dist/ssr/BowlFood";
 import { BrainIcon } from "@phosphor-icons/react/dist/ssr/Brain";
 import { CalendarDotsIcon } from "@phosphor-icons/react/dist/ssr/CalendarDots";
 import { ChartBarIcon } from "@phosphor-icons/react/dist/ssr/ChartBar";
@@ -33,12 +34,14 @@ import { ScalesIcon } from "@phosphor-icons/react/dist/ssr/Scales";
 import { SignOutIcon } from "@phosphor-icons/react/dist/ssr/SignOut";
 import { SlidersHorizontalIcon } from "@phosphor-icons/react/dist/ssr/SlidersHorizontal";
 import { SneakerMoveIcon } from "@phosphor-icons/react/dist/ssr/SneakerMove";
+import { StarIcon } from "@phosphor-icons/react/dist/ssr/Star";
 import { TimerIcon } from "@phosphor-icons/react/dist/ssr/Timer";
 import { TrashIcon } from "@phosphor-icons/react/dist/ssr/Trash";
 import { TrophyIcon } from "@phosphor-icons/react/dist/ssr/Trophy";
 import { UserIcon } from "@phosphor-icons/react/dist/ssr/User";
 import { UserPlusIcon } from "@phosphor-icons/react/dist/ssr/UserPlus";
 import { UsersIcon } from "@phosphor-icons/react/dist/ssr/Users";
+import { XIcon } from "@phosphor-icons/react/dist/ssr/X";
 import type { ComponentType } from "react";
 
 import { cn } from "@/lib/utils";
@@ -81,9 +84,9 @@ export const ArrowsDownUp = /* @__PURE__ */ duotone(ArrowsDownUpIcon);
  *
  * At the size the navigation draws it, a hairline is the whole problem: the arrow alone
  * floated in the top of its box, and the framed line spent most of its ink on axes that read
- * as a box rather than as a chart, leaving the tab visibly lighter than the barbell and the
- * calendar it sits between. Bars are filled shapes, so they survive 26px, and the direction
- * is in the silhouette instead of in an arrowhead three pixels wide.
+ * as a box rather than as a chart, leaving the tab visibly lighter than the glyphs beside it.
+ * Bars are filled shapes, so they survive 26px, and the direction is in the silhouette
+ * instead of in an arrowhead three pixels wide.
  */
 export const BarChart = /* @__PURE__ */ duotone(ChartBarIcon);
 export const BookOpen = /* @__PURE__ */ duotone(BookOpenIcon);
@@ -94,9 +97,17 @@ export const ChevronDown = /* @__PURE__ */ duotone(CaretDownIcon);
 export const ChevronLeft = /* @__PURE__ */ duotone(CaretLeftIcon);
 export const ChevronRight = /* @__PURE__ */ duotone(CaretRightIcon);
 export const ClipboardList = /* @__PURE__ */ duotone(ClipboardTextIcon);
+/** Removing one thing from a group of them, where a bin would say more than is meant. */
+export const Close = /* @__PURE__ */ duotone(XIcon);
 export const Download = /* @__PURE__ */ duotone(DownloadSimpleIcon);
 export const Dumbbell = /* @__PURE__ */ duotone(BarbellIcon);
 export const ExternalLink = /* @__PURE__ */ duotone(ArrowSquareOutIcon);
+/**
+ * Food: a filled bowl. A fork and knife says food as plainly, but it is drawn in hairlines that
+ * fade beside the barbell and the shoe at the navigation's size; the bowl is a filled shape, like
+ * the bars two tabs along, and says nothing about which meal it is.
+ */
+export const Food = /* @__PURE__ */ duotone(BowlFoodIcon);
 export const Footprints = /* @__PURE__ */ duotone(SneakerMoveIcon);
 export const Info = /* @__PURE__ */ duotone(InfoIcon);
 export const KeyRound = /* @__PURE__ */ duotone(KeyIcon);
@@ -116,6 +127,8 @@ export const Scales = /* @__PURE__ */ duotone(ScalesIcon);
 export const Search = /* @__PURE__ */ duotone(MagnifyingGlassIcon);
 export const Settings = /* @__PURE__ */ duotone(GearSixIcon);
 export const SlidersHorizontal = /* @__PURE__ */ duotone(SlidersHorizontalIcon);
+/** A starred meal: one kept for adding again in one tap. */
+export const Star = /* @__PURE__ */ duotone(StarIcon);
 export const SunMoon = /* @__PURE__ */ duotone(CircleHalfIcon);
 export const Timer = /* @__PURE__ */ duotone(TimerIcon);
 export const Trash = /* @__PURE__ */ duotone(TrashIcon);

@@ -5,6 +5,7 @@ import type { ComponentProps } from "react";
 
 import { OccurrenceSettled } from "./occurrence-settled";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
+vi.mock("next/navigation", () => ({ useRouter: () => ({ back: vi.fn() }) }));
 
 vi.mock("@/components/ui/app-link", () => ({
   default: (props: ComponentProps<"a">) => <a {...props} />,

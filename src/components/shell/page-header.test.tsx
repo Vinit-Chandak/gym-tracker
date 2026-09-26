@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 
 import { PageHeader } from "./page-header";
+
+vi.mock("next/navigation", () => ({ useRouter: () => ({ back: vi.fn() }) }));
 
 afterEach(cleanup);
 

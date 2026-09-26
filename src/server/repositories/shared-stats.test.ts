@@ -14,10 +14,13 @@ import {
   sharedSessionStats,
 } from "@/db/schema";
 import { seedReferenceData } from "@/db/seed/reference";
-import { seedTestUserData } from "@/db/test/fixtures";
+import { logTestRun, seedTestUserData } from "@/db/test/fixtures";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import type { DbOrTx } from "@/db/types";
 import { withUser } from "@/db/with-user";
+import { AD_HOC_ORIGIN } from "@/domain/activity";
+import { deleteActivity, getActivity, updateActivity } from "./activities";
+import { nativeDistance } from "@/domain/activity-metrics";
 import { performanceSeries } from "@/domain/analytics";
 import { LIFTING_METRICS, RUNNING_METRICS, type ActivityMetric } from "@/domain/leaderboard";
 import { convertLoad } from "@/lib/units";
@@ -26,7 +29,6 @@ import { loadCircle, rankCircle, rankExercise } from "@/server/queries/leaderboa
 import { recordBodyWeight } from "./body-weight";
 import { acceptFollow, requestFollow } from "./follows";
 import { listGyms } from "./gyms";
-import { createRun, deleteRun, updateRun, type RunInput } from "./runs";
 import { addExerciseToSession, finishSession, logSet, startAdHocSession } from "./sessions";
 import {
   canViewTraining,
@@ -117,13 +119,11 @@ async function train(
   });
 }
 
-const run = (over: Partial<RunInput> = {}): RunInput => ({
-  mode: "outdoor",
+type SeededRun = Parameters<typeof logTestRun>[2];
+const run = (over: Partial<SeededRun> = {}): SeededRun => ({
   startedAt: new Date("2026-09-10T01:00:00Z"),
   durationSeconds: 1690,
   distanceMeters: 5200,
-  rpe: null,
-  programRunId: null,
   notes: "sore",
   ...over,
 });
@@ -263,7 +263,7 @@ describe("finishing a workout", () => {
 
 describe("runs and body weight", () => {
   it("writes a run's row, rewrites it on edit and removes it on delete", async () => {
-    const { id } = await as(alice)((tx) => createRun(tx, alice, run()));
+    const { id } = await as(alice)((tx) => logTestRun(tx, alice, run()));
     const row = () =>
       as(alice)((tx) =>
         tx.select().from(sharedSessionStats).where(eq(sharedSessionStats.sourceId, id)),
@@ -276,9 +276,34 @@ describe("runs and body weight", () => {
       distanceMeters: 5200,
       paceSecondsPerKm: 325,
     });
-    await as(alice)((tx) => updateRun(tx, alice, id, run({ distanceMeters: 6000 })));
+    // A correction rewrites the shared row rather than leaving the old numbers standing.
+    const current = await as(alice)((tx) => getActivity(tx, alice, id));
+    if (!current || current.actual?.sport !== "running")
+      throw new Error("Seeded a run, got something else");
+    const actual = current.actual;
+    await as(alice)((tx) =>
+      updateActivity(
+        tx,
+        alice,
+        id,
+        {
+          submissionKey: crypto.randomUUID(),
+          origin: AD_HOC_ORIGIN,
+          actual: { ...actual, distance: nativeDistance(6000, "m") },
+          startedAt: current.startedAt,
+          recordedTimeZone: current.recordedTimeZone,
+          timeZoneSource: "profile_at_entry",
+          occurredOn: current.occurredOn,
+          effort: current.effort,
+          outcome: "logged",
+          title: null,
+          notes: "sore",
+        },
+        current.revision,
+      ),
+    );
     expect((await row())[0]).toMatchObject({ distanceMeters: 6000, paceSecondsPerKm: 281.7 });
-    await as(alice)((tx) => deleteRun(tx, alice, id));
+    await as(alice)((tx) => deleteActivity(tx, alice, id));
     expect(await row()).toEqual([]);
   });
 
@@ -583,9 +608,9 @@ describe("running", () => {
   it("sums a period's runs, takes the best pace only from runs of a kilometre or more", async () => {
     // Alice: a 5.2 km run and a faster 800 m one, which is not a pace. Bob: one 3 km run.
     // Carol: a 500 m jog, so she has a run but no best pace.
-    await as(alice)((tx) => createRun(tx, alice, run()));
+    await as(alice)((tx) => logTestRun(tx, alice, run()));
     await as(alice)((tx) =>
-      createRun(
+      logTestRun(
         tx,
         alice,
         run({
@@ -596,7 +621,7 @@ describe("running", () => {
       ),
     );
     await as(bob)((tx) =>
-      createRun(
+      logTestRun(
         tx,
         bob,
         run({
@@ -607,7 +632,7 @@ describe("running", () => {
       ),
     );
     await as(carol)((tx) =>
-      createRun(
+      logTestRun(
         tx,
         carol,
         run({

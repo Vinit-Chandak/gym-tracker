@@ -12,7 +12,7 @@ import { PLAN_LIMITS } from "./plan-limits";
 import { memoryPatchSchema, sourceQuoteSchema } from "./coach-memory";
 import { requestPatchSchema } from "./program-request";
 
-export const COACH_CONTRACT_VERSION = 5;
+export const COACH_CONTRACT_VERSION = 6;
 
 /**
  * Whether the server is serving a contract this checkout was written against.
@@ -56,7 +56,7 @@ export function contractSkew(served: number): string | null {
     " Stop and report the skew; do not guess at field names."
   );
 }
-export const COACH_POLICY_VERSION = "2026-09-20.1";
+export const COACH_POLICY_VERSION = "2026-09-25.1";
 export const JOB_KINDS = ["create_program", "prepare_session", "review_program"] as const;
 export const JOB_STATUSES = [
   "queued",

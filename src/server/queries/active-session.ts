@@ -11,7 +11,10 @@ import { getInProgressSession, type SessionSummary } from "@/server/repositories
  * and a page that needs the same session share one transaction rather than opening one
  * each. The server rule that allows only one unfinished session is unchanged and still
  * enforced where sessions are started; this is only the read.
+ *
+ * Read-only, so it takes no athlete lock: Today and Training run it beside their own
+ * transaction, and with the lock the two queued behind each other on the same profile row.
  */
 export const getActiveSession = cache(async (userId: string): Promise<SessionSummary | null> =>
-  withUser(getDb(), userId, (tx) => getInProgressSession(tx, userId)),
+  withUser(getDb(), userId, (tx) => getInProgressSession(tx, userId), { readOnly: true }),
 );

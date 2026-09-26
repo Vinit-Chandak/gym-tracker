@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { FormError, SubmitButton } from "@/components/ui/form";
 import { ACTIVITY_SPORT_LABELS, type ActivitySport } from "@/domain/activity";
 import { cn } from "@/lib/utils";
+import { keepsFormOnDisconnect } from "@/lib/offline-submit";
 import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
 
 /**
@@ -28,7 +29,7 @@ export function SportChoice({
   submitLabel: string;
   note?: string;
 }) {
-  const [state, formAction] = useActionState(action, INITIAL_FORM_STATE);
+  const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
   const [chosen, setChosen] = useState<ActivitySport[]>(() => [...enabled]);
 
   return (

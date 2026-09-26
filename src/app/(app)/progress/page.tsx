@@ -1,29 +1,45 @@
 import type { Metadata } from "next";
+import { FreshAfterSets } from "@/components/fresh-after-sets";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { ACTIVITY_SPORT_LABELS } from "@/domain/activity";
-import { liftingAdherence, trainingAnalytics } from "@/domain/analytics";
-import { readActivityTotals } from "@/server/repositories/activity-analytics";
-import { addDays, todayInTimeZone } from "@/domain/program-calendar";
+import { trainingAnalytics } from "@/domain/analytics";
 import { weekStart } from "@/domain/running";
+import { readActivityTotals } from "@/server/repositories/activity-analytics";
 import { formatDateRange } from "@/lib/format";
 import { fromKilograms } from "@/lib/units";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
+import { seenSetChanges } from "@/server/queries/set-changes";
 import { listBodyWeights } from "@/server/repositories/body-weight";
-import { getSchedule } from "@/server/repositories/schedule";
 import { readTrainingData } from "@/server/repositories/training-data";
 import { readMuscleVolume } from "@/server/repositories/muscle-volume";
-import { parseDateRange, parseDateRangeOrDefault } from "@/server/validation/date-range";
+import { readRecoveryHistory } from "@/server/repositories/recovery-history";
+import {
+  parseDateRange,
+  parseDateRangeOrDefault,
+  parseWeekRangeOrDefault,
+} from "@/server/validation/date-range";
+import Loading from "./loading";
 import { ProgressView } from "./progress-view";
 
 export const metadata: Metadata = { title: "Progress" };
+
+/**
+ * Coming back to this tab within a minute shows what it showed, without asking the server
+ * (ADR 0030). Any change made in the app clears that copy at once, except a set: a copy older
+ * than the latest set is rendered again before it is shown (the open workout counts here). Only
+ * a change made elsewhere, on another device or by the coach, can take up to the minute.
+ */
+export const unstable_dynamicStaleTime = 60;
+
 export default async function ProgressPage(props: PageProps<"/progress">) {
   const user = await requireUser(),
     params = await props.searchParams;
   const profile = await getRequestProfile(user.id, user.email);
+  const seen = await seenSetChanges();
   const { range: chosen, error: rangeError } = parseDateRangeOrDefault(
     {
       from: typeof params.from === "string" ? params.from : undefined,
@@ -51,23 +67,26 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
   })();
   // The body map steps a week at a time, independent of the trend range above, so it
   // reads its own Monday-Sunday window: the same week boundary the programme uses.
-  const asked =
-    typeof params.week === "string" && /^\d{4}-\d{2}-\d{2}$/.test(params.week)
-      ? params.week
-      : todayInTimeZone(profile.timeZone);
-  const bodyFrom = weekStart(asked);
-  const bodyTo = addDays(bodyFrom, 6);
-  const bodyRange = parseDateRange({ from: bodyFrom, to: bodyTo }, profile.timeZone);
+  const { range: bodyRange, error: weekError } = parseWeekRangeOrDefault(
+    params.week,
+    profile.timeZone,
+  );
+  const bodyFrom = bodyRange.from;
+  const bodyTo = bodyRange.to;
 
-  const [training, schedule, body, bodyWeights, totals] = await withUser(getDb(), user.id, (tx) =>
-    Promise.all([
-      readTrainingData(tx, user.id, range),
-      getSchedule(tx, user.id),
-      readMuscleVolume(tx, user.id, bodyRange),
-      listBodyWeights(tx, user.id, range),
-      // Complete per-sport totals, from the canonical tables every sport is written to.
-      readActivityTotals(tx, user.id, { from: range.from, to: range.to }),
-    ]),
+  const [training, body, bodyWeights, totals, recovery] = await withUser(
+    getDb(),
+    user.id,
+    (tx) =>
+      Promise.all([
+        readTrainingData(tx, user.id, range),
+        readMuscleVolume(tx, user.id, bodyRange),
+        listBodyWeights(tx, user.id, range),
+        // Complete per-sport totals, from the canonical tables every sport is written to.
+        readActivityTotals(tx, user.id, { from: range.from, to: range.to }),
+        readRecoveryHistory(tx, user.id, range, profile.timeZone),
+      ]),
+    { readOnly: true },
   );
   const preferredUnit = profile.preferredUnit === "lb" ? "lb" : "kg";
   const sportTotals =
@@ -96,35 +115,20 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
   const selected = analytics.series.find((s) => s.id === wanted) ?? analytics.series[0] ?? null;
 
   return (
-    <>
+    <FreshAfterSets seen={seen} loading={<Loading />}>
       <PageHeader title="Progress" meta={formatDateRange(range.from, range.to)} />
       <PageContent>
-        {rangeError && (
+        {(rangeError || weekError) && (
           <p role="alert" className="text-sm text-danger">
-            {rangeError}
+            {rangeError || weekError}
           </p>
         )}
         <ProgressView
           range={range}
-          summary={{
-            workouts: analytics.workouts,
-            runs: analytics.runs,
-            trainingDays: analytics.trainingDays,
-            truncated: analytics.truncated,
-          }}
+          truncated={analytics.truncated}
           sportTotals={sportTotals}
-          adherence={liftingAdherence(schedule)}
           weeks={analytics.weeks}
-          recovery={analytics.recovery.map(
-            ({ date, sleep, quality, energy, fatigue, soreness }) => ({
-              date,
-              sleep,
-              quality,
-              energy,
-              fatigue,
-              soreness,
-            }),
-          )}
+          recovery={recovery}
           pace={analytics.pace}
           options={options}
           selected={selected}
@@ -138,6 +142,6 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
           }))}
         />
       </PageContent>
-    </>
+    </FreshAfterSets>
   );
 }

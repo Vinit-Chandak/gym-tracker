@@ -15,9 +15,8 @@ import {
   latestPlan,
   pendingRequest,
   recentAttempts,
-  reconcileExpiredCoachRequests,
 } from "@/server/repositories/coach-plans";
-import { listOpenRequests } from "@/server/repositories/coach-program-requests";
+import { countWaitingOnAthlete } from "@/server/repositories/coach-proposals";
 
 import { AiCoachSettings } from "./ai-coach-settings";
 
@@ -27,7 +26,7 @@ export default async function AiCoachSettingsPage() {
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
   const workflow = process.env.COACH_WORKFLOW_ENABLED === "true";
-  const { memo, plan, pending, attempts, requests } = await withUser(
+  const { memo, plan, pending, attempts, waiting } = await withUser(
     getDb(),
     user.id,
     async (tx) => {
@@ -38,17 +37,19 @@ export default async function AiCoachSettingsPage() {
           plan: null,
           pending: null,
           attempts: [],
-          requests: await listOpenRequests(tx, user.id),
+          waiting: await countWaitingOnAthlete(tx, user.id),
         };
-      await reconcileExpiredCoachRequests(tx, user.id, now);
+      // Expired requests are shown as the failures they will be recorded as (`recentAttempts`),
+      // so this screen reads without the athlete lock.
       const [memo, plan, pending, attempts] = await Promise.all([
         getCoachMemo(tx, user.id),
         latestPlan(tx, user.id),
         pendingRequest(tx, user.id, now),
         recentAttempts(tx, user.id, 8),
       ]);
-      return { memo, plan, pending, attempts, requests: [] };
+      return { memo, plan, pending, attempts, waiting: 0 };
     },
+    { readOnly: true },
   );
   // Whether this server can hear from the coach and start it: owner-side setup facts.
   const configured = getCoachServiceToken() !== null;
@@ -80,23 +81,6 @@ export default async function AiCoachSettingsPage() {
               : status
           }
           noteId={crypto.randomUUID()}
-          // Only what is waiting on the athlete is answered here; the rest of a request's
-          // life — the proposal, the reason, the date it comes back — lives with the change
-          // it belongs to, under Programme → Changes.
-          questions={requests
-            .filter((request) => request.state === "needs_answer")
-            .map((request) => ({
-              id: request.id,
-              summary: request.summary,
-              quote: request.quote,
-              state: request.state,
-              detail: request.detail,
-              condition: request.condition,
-              reconsiderAfter: request.reconsiderAfter,
-              when: formatDateTime(request.createdAt, profile.timeZone),
-              draftId: request.draftId,
-            }))}
-          openRequests={requests.length}
           notes={memo.notes.recent.map((note) => ({
             id: note.id,
             text: note.text,
@@ -126,7 +110,7 @@ export default async function AiCoachSettingsPage() {
             error: attempt.error,
           }))}
         >
-          <CoachingActivity settings />
+          <CoachingActivity settings waiting={waiting} />
         </AiCoachSettings>
       </PageContent>
     </>

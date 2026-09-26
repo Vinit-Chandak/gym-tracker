@@ -38,9 +38,16 @@ export async function saveRoutineAction(name: string, day: unknown) {
   return run((tx, userId) => saveRoutine(tx, userId, name, day));
 }
 export async function startRoutineAction(id: string, gymId: string) {
-  return run((tx, userId) =>
+  const result = await run((tx, userId) =>
     startSavedRoutine(tx, userId, z.uuid().parse(id), z.uuid().parse(gymId)),
   );
+  // Today and Training show the workout now in progress, and the browser keeps both for a
+  // minute (ADR 0030); starting a planned day revalidates the same way.
+  if (result.ok) {
+    revalidatePath("/today");
+    revalidatePath("/training");
+  }
+  return result;
 }
 export async function saveWorkoutRoutineAction(sessionId: string, name: string) {
   return run((tx, userId) => routineFromWorkout(tx, userId, z.uuid().parse(sessionId), name));

@@ -1,9 +1,11 @@
 import type { ActivityMetric } from "@/domain/leaderboard";
+import type { FoodUnit } from "@/domain/nutrition";
 import { METRIC_UNIT, type SharedMetric } from "@/domain/shared-stats";
 import type { BodyLoadUnit } from "@/domain/types";
 
 import { formatDuration, formatPace } from "@/domain/pace";
 import { dateTimeFormatter } from "./date-time-format";
+import { FOOD_UNIT_LABELS, FOOD_UNIT_PLURALS } from "./labels";
 import { fromKilograms } from "./units";
 
 /**
@@ -214,4 +216,55 @@ export function formatRelativeDay(isoDate: string, today: string): string {
     if (isoDate === yesterday) return "Yesterday";
   }
   return formatIsoWeekdayDay(isoDate);
+}
+
+/**
+ * "135": macro summaries in whole grams (ADR 0032), with thousands separated.
+ */
+export function formatFoodAmount(value: number): string {
+  // `+ 0` turns the -0 a small negative rounds to into 0.
+  return (Math.round(value) + 0).toLocaleString("en-GB");
+}
+
+/** Energy retains its stored precision so the displayed total agrees with the goal badge. */
+export function formatKcal(value: number): string {
+  return (Math.round(value * 10) / 10 + 0).toLocaleString("en-GB", { maximumFractionDigits: 1 });
+}
+
+/** "1,000", "0.5", "1.25": a portion or an amount eaten, to the hundredth it is stored to. */
+export function formatAmount(value: number): string {
+  return (Math.round(value * 100) / 100 + 0).toLocaleString("en-GB", { maximumFractionDigits: 2 });
+}
+
+/**
+ * "55 / 25 / 20": a split as shares of carbohydrate, fat and protein, in whole percent (ADR
+ * 0035). The spaces do not break, so the three numbers never part company at the end of a line.
+ */
+export function formatSplit(split: { carbs: number; fat: number; protein: number }): string {
+  return [split.carbs, split.fat, split.protein]
+    .map((share) => String(Math.round(share * 100)))
+    .join("\u00a0/\u00a0");
+}
+
+/** "100 g", "1 scoop", "1.5 scoops": an amount of a food in its own unit (ADR 0033). */
+export function formatPortion(amount: number, unit: FoodUnit): string {
+  const plural = amount !== 1 ? FOOD_UNIT_PLURALS[unit] : undefined;
+  return `${formatAmount(amount)} ${plural ?? FOOD_UNIT_LABELS[unit]}`;
+}
+
+/** "Carbs 66 g · Fat 7 g · Protein 17 g", in whole grams, leaving out whatever is not known. */
+export function formatMacros(amounts: {
+  carbsG: number | null;
+  fatG: number | null;
+  proteinG: number | null;
+}): string {
+  return (
+    [
+      ["Carbs", amounts.carbsG],
+      ["Fat", amounts.fatG],
+      ["Protein", amounts.proteinG],
+    ] as const
+  )
+    .flatMap(([label, grams]) => (grams === null ? [] : [`${label} ${formatFoodAmount(grams)} g`]))
+    .join(" · ");
 }

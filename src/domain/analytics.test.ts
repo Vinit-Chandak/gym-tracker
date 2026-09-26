@@ -12,10 +12,12 @@ const withRuns = (days: readonly string[]): TrainingData =>
     workouts: [],
     runs: days.map((day) => ({
       startedAt: new Date(`${day}T07:00:00Z`),
+      // Weeks are bucketed on the date frozen on the run, not recomputed from the instant.
+      occurredOn: day,
       distanceMeters: 5000,
       durationSeconds: 1800,
       averagePaceSecondsPerKm: 360,
-      mode: "outdoor",
+      environment: "outdoor",
     })),
     recovery: [],
     truncated: false,

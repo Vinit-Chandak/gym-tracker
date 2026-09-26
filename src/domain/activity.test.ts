@@ -4,6 +4,7 @@ import {
   AD_HOC_ORIGIN,
   activityEvidenceId,
   describeEffort,
+  effortOnCurrentScale,
   isConfirmedEffort,
   legacyEffort,
   legacySportOf,
@@ -19,16 +20,27 @@ describe("effort provenance", () => {
   /** AT-LOG-11: a number nobody confirmed stays a number nobody confirmed. */
   it("keeps a legacy unconfirmed rating out of the reported state", () => {
     const legacy = legacyEffort(5, false);
-    expect(legacy).toEqual({ status: "legacy_unconfirmed", value: 5 });
+    expect(legacy).toEqual({ status: "legacy_unconfirmed", value: 2 });
     expect(isConfirmedEffort(legacy)).toBe(false);
-    expect(describeEffort(legacy)).toBe("5/10 (unconfirmed)");
+    expect(describeEffort(legacy)).toBe("2/5 (unconfirmed)");
   });
 
   it("distinguishes a reported rating, an explicit Not sure, and nothing at all", () => {
-    expect(legacyEffort(7, true)).toEqual({ status: "reported", value: 7 });
+    expect(legacyEffort(7, true)).toEqual({ status: "reported", value: 3 });
     expect(legacyEffort(null, true)).toEqual(UNKNOWN_EFFORT);
     expect(describeEffort(UNKNOWN_EFFORT)).toBe("Not sure");
     expect(describeEffort({ status: "legacy_unconfirmed", value: null })).toBe("Not recorded");
+  });
+
+  /** The same map migration 0033 ran, for the legacy tens still sitting in `runs.rpe`. */
+  it("reads a rating written out of ten as one out of five", () => {
+    expect([1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(effortOnCurrentScale)).toEqual([
+      1, 1, 1, 2, 2, 3, 3, 4, 4, 5,
+    ]);
+    // Halving alone would send a 1 to a 0, and "very easy" is not "no effort at all".
+    expect(effortOnCurrentScale(1)).toBe(1);
+    // The old column allowed a tenth; the new scale has no room for one.
+    expect(effortOnCurrentScale(7.5)).toBe(3);
   });
 });
 

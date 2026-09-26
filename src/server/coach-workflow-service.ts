@@ -11,6 +11,7 @@ import {
   SUPPORTED_CONTRACT_VERSIONS,
 } from "@/domain/coaching-workflow";
 import { getCoachAttachment } from "./repositories/coach-attachments";
+import { assertLiveAttempt, lookupExercises, lookupMachines } from "./repositories/coach-lookups";
 import { coachJobContext } from "./repositories/coaching-context";
 import {
   acceptCoachJobResult,
@@ -29,6 +30,21 @@ const headers = {
   "X-Content-Type-Options": "nosniff",
 };
 const json = (data: unknown, status = 200) => Response.json(data, { status, headers });
+
+const optional = (value: string | null) =>
+  value === null || value.trim() === "" ? undefined : value;
+const exerciseLookup = z.object({
+  q: z.string().trim().max(120).optional(),
+  muscle: z.string().trim().max(40).optional(),
+  pattern: z.string().trim().max(60).optional(),
+  gymId: z.uuid().nullable().default(null),
+  availableOnly: z
+    .enum(["true", "false"])
+    .optional()
+    .transform((value) => value === "true"),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  offset: z.coerce.number().int().min(0).max(10_000).default(0),
+});
 /** Called only after the existing coach service's constant-time bearer authentication. */
 export async function handleCoachWorkflow(
   db: Db,
@@ -116,6 +132,50 @@ export async function handleCoachWorkflow(
         headers: { ...headers, "Content-Type": "application/json" },
       });
     }
+    /**
+     * Lookups the live attempt makes while it works (ADR 0029): the exercise library searched
+     * by the athlete's own words, and the machines at one of their locations. Neither is in
+     * the context any more; both answer only the attempt holding the job's lease.
+     */
+    if (path.length === 5 && operation === "exercises" && method === "GET") {
+      const params = new URL(request.url).searchParams;
+      const query = exerciseLookup.parse({
+        q: optional(params.get("q")),
+        muscle: optional(params.get("muscle")),
+        pattern: optional(params.get("pattern")),
+        gymId: optional(params.get("gymId")) ?? null,
+        availableOnly: optional(params.get("available")),
+        limit: optional(params.get("limit")),
+        offset: optional(params.get("offset")),
+      });
+      return json(
+        await withUser(
+          db,
+          userId,
+          async (tx) => {
+            await assertCoachEnabled(tx, userId);
+            await assertLiveAttempt(tx, userId, id, attemptId);
+            return lookupExercises(tx, userId, query);
+          },
+          { readOnly: true },
+        ),
+      );
+    }
+    if (path.length === 5 && operation === "machines" && method === "GET") {
+      const gymId = z.uuid().parse(new URL(request.url).searchParams.get("gymId"));
+      return json(
+        await withUser(
+          db,
+          userId,
+          async (tx) => {
+            await assertCoachEnabled(tx, userId);
+            await assertLiveAttempt(tx, userId, id, attemptId);
+            return lookupMachines(tx, userId, gymId);
+          },
+          { readOnly: true },
+        ),
+      );
+    }
     if (path.length === 6 && operation === "attachments" && method === "GET") {
       const fileId = z.uuid().parse(path[5]);
       const file = await withUser(db, userId, async (tx) => {
@@ -161,7 +221,7 @@ export async function handleCoachWorkflow(
             job.leaseUntil <= new Date()
           )
             throw new CoachingError("This is not the current live attempt.");
-          const retry = body.retryable && job.attempts < 3;
+          const retry = body.retryable && job.attempts < job.attemptBudget;
           await tx
             .update(coachJobs)
             .set({

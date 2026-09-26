@@ -15,21 +15,22 @@ import { FilterSheet } from "@/components/ui/filter-sheet";
 import { Headline } from "@/components/ui/headline";
 import { InfoTip } from "@/components/ui/info-tip";
 import { Field } from "@/components/ui/input";
-import { SectionSelect } from "@/components/ui/section-select";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select } from "@/components/ui/select";
-import { ProgressBar } from "@/components/ui/progress-bar";
 import type { PerformanceSeries, Point } from "@/domain/analytics";
 import type { MuscleVolume } from "@/domain/muscle-volume";
 import type { BodyLoadUnit, MuscleGroup } from "@/domain/types";
 import { addDays as addIsoDays } from "@/domain/program-calendar";
+import type { RecoveryReading } from "@/domain/recovery";
 import { formatDateRange, formatIsoDay, formatMinutes } from "@/lib/format";
 import { MUSCLE_LABELS } from "@/lib/labels";
+import { pageSection, PROGRESS_SECTIONS, ProgressSections } from "./progress-sections";
+import { RecoveryProgress } from "./recovery-progress";
 
 /**
  * The body map carries an anatomical outline and every muscle region as path data, and only
- * one of five sections ever shows it. Loading it on demand keeps that weight out of the
- * bundle for the four sections that do not.
+ * one of the five sections drawn here ever shows it. Loading it on demand keeps that weight
+ * out of the bundle for the four that do not.
  */
 const BodyMap = dynamic(() => import("@/components/ui/body-map").then((m) => m.BodyMap), {
   loading: () => (
@@ -61,19 +62,11 @@ export type SportTotal = {
   unknownDistances: number;
 };
 
-export type Adherence = {
-  name: string;
-  total: number;
-  completed: number;
-  skipped: number;
-  remaining: number;
-  completionRate: number | null;
-};
-
 type Props = {
   /** The range every trend on this screen is drawn over; the filter sheet changes it. */
   range: { from: string; to: string };
-  summary: { workouts: number; runs: number; trainingDays: number; truncated: boolean };
+  /** The narrative lists hit their cap, so the charts are drawn from a sample. */
+  truncated: boolean;
   /**
    * Per-sport totals over the whole range, computed in SQL (plan §9.1).
    *
@@ -82,16 +75,8 @@ type Props = {
    * caps rather than instead of them: a list is a sample and a total is a total.
    */
   sportTotals: readonly SportTotal[] | null;
-  adherence: Adherence | null;
   weeks: Week[];
-  recovery: {
-    date: string;
-    sleep: number | null;
-    quality: number | null;
-    energy: number | null;
-    fatigue: number | null;
-    soreness: number | null;
-  }[];
+  recovery: RecoveryReading[];
   pace: { date: string; value: number | null; mode: string }[];
   options: SeriesOption[];
   body: { from: string; to: string; volume: MuscleVolume; totalSets: number };
@@ -103,15 +88,6 @@ type Props = {
   selected: PerformanceSeries | null;
 };
 
-const TABS = [
-  { value: "overview", label: "Overview" },
-  { value: "strength", label: "Strength" },
-  { value: "running", label: "Running" },
-  { value: "recovery", label: "Recovery" },
-  { value: "body", label: "Body" },
-] as const;
-type Tab = (typeof TABS)[number]["value"];
-
 const RUN_METRICS = [
   { value: "distance", label: "Distance" },
   { value: "duration", label: "Duration" },
@@ -119,29 +95,10 @@ const RUN_METRICS = [
 ] as const;
 type RunMetric = (typeof RUN_METRICS)[number]["value"];
 
-const RECOVERY_METRICS = [
-  { value: "sleep", label: "Sleep" },
-  { value: "quality", label: "Quality" },
-  { value: "energy", label: "Energy" },
-  { value: "fatigue", label: "Fatigue" },
-  { value: "soreness", label: "Soreness" },
-] as const;
-type RecoveryMetric = (typeof RECOVERY_METRICS)[number]["value"];
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="min-w-0 py-1 text-center">
-      <dt className="text-xs text-ink-muted">{label}</dt>
-      <dd className="mt-1 text-xl tabular-nums">{value}</dd>
-    </div>
-  );
-}
-
 export function ProgressView({
   range,
-  summary,
+  truncated,
   sportTotals,
-  adherence,
   weeks,
   recovery,
   pace,
@@ -155,11 +112,16 @@ export function ProgressView({
   const params = useSearchParams();
   const [pending, startTransition] = useTransition();
 
-  const [tab, setTab] = useState<Tab>("overview");
+  const tab = pageSection(params.get("view"));
+  const chooseView = (key: "view" | "recovery", value: string) => {
+    const next = new URLSearchParams(params.toString());
+    next.set(key, value);
+    // Local view state belongs in the URL so filters, reload and Back preserve it.
+    window.history.replaceState(null, "", `/progress?${next}`);
+  };
   const [metric, setMetric] = useState<StrengthMetric>("load");
   const [runMetric, setRunMetric] = useState<RunMetric>("distance");
   const [paceMode, setPaceMode] = useState("outdoor");
-  const [recoveryMetric, setRecoveryMetric] = useState<RecoveryMetric>("sleep");
 
   // Every group is present now that volume is a full record, so offer only trained ones.
   const muscles = useMemo(
@@ -224,11 +186,9 @@ export function ProgressView({
 
   return (
     <div className="page-stack">
-      <SectionSelect
-        label="Progress section"
-        options={TABS}
+      <ProgressSections
         value={tab}
-        onChange={setTab}
+        onChange={(section) => chooseView("view", section)}
         action={
           <FilterSheet title="Filters" summary={formatDateRange(range.from, range.to)}>
             {(close) => <DateRangeFields from={range.from} to={range.to} onApplied={close} />}
@@ -238,28 +198,24 @@ export function ProgressView({
 
       {/* Only the chosen section is mounted; the controls above it keep their state. */}
       <section
-        aria-label={TABS.find((option) => option.value === tab)!.label}
+        aria-label={PROGRESS_SECTIONS.find((option) => option.value === tab)!.label}
         className="page-stack min-w-0"
       >
         {tab === "overview" && (
           <>
-            <dl className="grid box grid-cols-3 gap-2 px-2 py-3">
-              <Stat label="Workouts" value={String(summary.workouts)} />
-              <Stat label="Runs" value={String(summary.runs)} />
-              <Stat label="Active days" value={String(summary.trainingDays)} />
-            </dl>
-
-            {summary.truncated && (
+            {/* The training totals are the overview's headline: every sport's sessions, days,
+                time and distance, so no separate count card repeats them above. */}
+            {truncated && (
               <p role="status" className="text-sm text-warning">
-                Over 500 workouts or runs in this range; the charts below draw a sample. The totals
-                by sport are complete.
+                Over 500 workouts or runs in this range; the charts below draw a sample. The
+                training totals are complete.
               </p>
             )}
 
             {sportTotals && sportTotals.some((total) => total.count > 0) && (
               <Card>
                 <div className="flex items-center justify-between gap-3">
-                  <h2 className="text-base font-medium">By sport</h2>
+                  <h2 className="text-base font-medium">Training totals</h2>
                   <InfoTip label="What these totals count">
                     Every activity in this range, counted in full rather than sampled. Recorded
                     training time, not unique wall-clock time — overlapping sessions are counted
@@ -298,30 +254,6 @@ export function ProgressView({
                       </li>
                     ))}
                 </ul>
-              </Card>
-            )}
-
-            {adherence && (
-              <Card>
-                <div>
-                  <h2 className="text-base font-medium">Programme adherence</h2>
-                  <p className="mt-1 text-sm text-ink-muted">{adherence.name}</p>
-                </div>
-                <p className="flex flex-wrap items-baseline gap-x-2 tabular-nums">
-                  <span className="text-lg font-medium">
-                    {adherence.completed}
-                    <span className="font-normal text-ink-muted"> / {adherence.total}</span>
-                  </span>
-                  <span className="text-sm text-ink-muted">sessions</span>
-                </p>
-                <ProgressBar
-                  value={adherence.completed}
-                  max={adherence.total}
-                  label={`${adherence.completed} of ${adherence.total} sessions complete`}
-                />
-                <p className="text-xs text-ink-muted">
-                  {adherence.remaining} remaining · {adherence.skipped} skipped
-                </p>
               </Card>
             )}
 
@@ -498,28 +430,11 @@ export function ProgressView({
         )}
 
         {tab === "recovery" && (
-          <Card>
-            <SegmentedControl
-              name="recovery-metric"
-              aria-label="Recovery measurement"
-              options={RECOVERY_METRICS}
-              value={recoveryMetric}
-              onChange={setRecoveryMetric}
-              columns={5}
-            />
-            <Chart
-              title={RECOVERY_METRICS.find((m) => m.value === recoveryMetric)!.label}
-              unit={recoveryMetric === "sleep" ? "hours" : "1–5"}
-              series={[
-                {
-                  name: "Reading",
-                  color: SERIES_COLORS.lifting,
-                  points: recovery.map((r) => ({ date: r.date, value: r[recoveryMetric] })),
-                },
-              ]}
-              note="From workout check-ins and daily recovery entries. A missing reading leaves a gap."
-            />
-          </Card>
+          <RecoveryProgress
+            readings={recovery}
+            selected={params.get("recovery")}
+            onSelect={(metric) => chooseView("recovery", metric)}
+          />
         )}
 
         {tab === "body" && (

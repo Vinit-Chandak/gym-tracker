@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import type { BlueprintDay, BlueprintExercise, ProgramBlueprint } from "./program-blueprint";
-import { diffPrograms, hasProgramChange, programDiffSummary } from "./program-diff";
+import {
+  changeFingerprints,
+  diffPrograms,
+  hasProgramChange,
+  programDiffSummary,
+} from "./program-diff";
 
 const LINEAGE = {
   squat: "11111111-1111-4111-8111-111111111111",
@@ -412,5 +417,47 @@ describe("summary", () => {
     expect(programDiffSummary(diffPrograms(base, next))).toBe(
       "1 added, 1 replacement across 2 days",
     );
+  });
+});
+
+describe("fingerprints", () => {
+  const keys = (after: ProgramBlueprint, before: ProgramBlueprint = base) => [
+    ...changeFingerprints(diffPrograms(before, after)).keys(),
+  ];
+  const withRun = (duration: [number, number]) =>
+    plan({
+      days: [
+        day({ dayIndex: 1, dayOfWeek: 4, name: "Run", includesLifting: false, includesRun: true }),
+      ],
+      runs: [
+        {
+          weekIndex: 1,
+          dayOfWeek: 4,
+          duration,
+          rpe: [1, 2],
+          paceNote: "",
+          progressionNote: "",
+          stopRule: "",
+        },
+      ],
+    });
+
+  it("reads a range by both ends, so a shorter top is a cut and a wider range is neither", () => {
+    expect(keys(withRun([30, 35]), withRun([30, 40]))).toEqual(["run:4:duration:down"]);
+    expect(keys(withRun([30, 45]), withRun([30, 40]))).toEqual(["run:4:duration:up"]);
+    const wider = copy(base);
+    wider.days[0]!.exercises[1]!.reps = [6, 15];
+    expect(keys(wider)).toEqual([`slot:${LINEAGE.curl}:target:changed`]);
+  });
+
+  it("compares rest in one unit across seconds and minutes", () => {
+    const from = copy(base);
+    from.days[0]!.exercises[1]!.rest = [150, 180];
+    const shorter = copy(from);
+    shorter.days[0]!.exercises[1]!.rest = [90, 110];
+    const longer = copy(from);
+    longer.days[0]!.exercises[1]!.rest = [180, 240];
+    expect(keys(shorter, from)).toEqual([`slot:${LINEAGE.curl}:rest:down`]);
+    expect(keys(longer, from)).toEqual([`slot:${LINEAGE.curl}:rest:up`]);
   });
 });

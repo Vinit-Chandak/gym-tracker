@@ -26,7 +26,7 @@ export async function usernameAvailable(db: DbOrTx, candidate: string): Promise<
   return rowsOf<{ ok: boolean }>(result)[0]?.ok === true;
 }
 
-/** postgres.js hands back the rows themselves; PGlite wraps them in `{ rows }`. */
+/** node-postgres and PGlite wrap the rows in `{ rows }`; postgres.js, in the scripts, does not. */
 function rowsOf<T>(result: unknown): T[] {
   if (Array.isArray(result)) return result as T[];
   return (result as { rows?: T[] }).rows ?? [];

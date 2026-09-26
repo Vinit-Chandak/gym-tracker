@@ -1,16 +1,13 @@
-import { ChevronLeft } from "@/components/ui/icons";
 import type { Route } from "next";
-import Link from "@/components/ui/app-link";
+import { BackLink } from "./back-link";
 import type { ReactNode } from "react";
-
-import { sectionLabel } from "@/lib/nav";
 
 type PageHeaderProps<T extends string> = {
   /** The screen's name. Today gives the app's own, as a `<Wordmark />`. */
   title: ReactNode;
   /** The date Today is, the range History and Progress are drawn over, the gym a form is for. */
   meta?: string;
-  /** Renders a back chevron linking here, named by where it goes. */
+  /** Fallback for a direct link; otherwise Back returns to the previous browser entry. */
   backHref?: Route<T>;
   /** What to call that destination, when the section it sits in is vaguer than the page. */
   backLabel?: string;
@@ -34,7 +31,7 @@ export function PageHeader<T extends string>({
   action,
 }: PageHeaderProps<T>) {
   return (
-    <header className="sticky top-0 z-30 border-b border-line bg-canvas pt-safe">
+    <header className="page-header sticky top-0 z-30 border-b border-line bg-canvas pt-safe">
       {backHref ? (
         <NestedBar
           title={title}
@@ -76,20 +73,12 @@ function NestedBar<T extends string>({
   backLabel?: string;
   action?: ReactNode;
 }) {
-  const destination = backLabel ?? sectionLabel(backHref) ?? "Back";
   return (
-    <div className="page-width flex min-h-[3.25rem] items-center gap-2 py-1">
-      <Link
-        href={backHref}
-        aria-label={destination === "Back" ? "Back" : `Back to ${destination}`}
-        className="-ml-1.5 flex min-w-0 flex-1 items-center gap-0.5 self-stretch rounded-control px-1.5 text-accent transition-colors duration-[var(--ov-duration-feedback)] ease-[var(--ov-ease-standard)] active:bg-surface-raised"
-      >
-        <ChevronLeft className="shrink-0" aria-hidden />
-        <span className="truncate text-sm">{destination}</span>
-      </Link>
-      <h1 className="min-w-0 truncate text-lg">{title}</h1>
-      <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
-        {meta && <p className="truncate text-sm text-ink-muted">{meta}</p>}
+    <div className="page-width flex min-h-[3.25rem] flex-wrap items-center gap-2 py-1">
+      <BackLink fallback={backHref} label={backLabel} />
+      <h1 className="min-w-0 text-lg [overflow-wrap:anywhere]">{title}</h1>
+      <div className="flex min-w-0 flex-1 basis-[5.5rem] items-center justify-end gap-2">
+        {meta && <p className="text-sm text-ink-muted">{meta}</p>}
         {action}
       </div>
     </div>

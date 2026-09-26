@@ -10,17 +10,23 @@ import {
   gyms,
   programDays,
   programExercises,
+  occurrenceVersions,
+  plannedOccurrences,
+  programFamilies,
   programRuns,
-  runs,
+  programs,
+  runningActivityDetails,
   setLogs,
   workoutExercises,
   workoutSessions,
 } from "@/db/schema";
 import { seedReferenceData } from "@/db/seed/reference";
 import { STRENGTH_AESTHETICS_HYBRID_8WK } from "@/db/seed/data/program";
+import { logTestRun } from "@/db/test/fixtures";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
 import type { DbOrTx } from "@/db/types";
+import { plannedOrigin } from "@/domain/activity";
 import { coachJobResultSchema, jobTargetSchema } from "@/domain/coaching-workflow";
 import { programBlueprintSchema } from "@/domain/program-blueprint";
 import { createProgramFromBlueprint, readProgramBlueprint } from "./programs";
@@ -218,7 +224,7 @@ it("permits a supported small home step and rejects an infeasible or excessive j
     });
     await expect(
       assessSessionEvidence(db, a.user.id, a.target, a.output(51, 8), evidence, new Set(a.ids)),
-    ).rejects.toThrow(/available home load/);
+    ).rejects.toThrow(/known to have/);
     await expect(
       assessSessionEvidence(db, a.user.id, a.target, a.output(55, 8), evidence, new Set(a.ids)),
     ).rejects.toThrow(/automatic limit/);
@@ -399,6 +405,26 @@ it("retains a temporary session's baseline and exposes it to the fallback rule",
   });
 });
 
+it("reads a low energy given before the question was retired as a recovery report, and fatigue the same way", async () => {
+  // Energy is no longer asked, but check-ins from before then keep it. While one is recent it
+  // supports a temporary reduction exactly as it did, and the fatigue that replaced it opens
+  // the same gate from the other end of its scale.
+  const a = await fixture();
+  await a.as(async (db) => {
+    const recent = a.ids[0]!;
+    const sessionId = recent.slice("workout:".length);
+    const acute = async (checkIn: { energy: number | null; fatigue: number | null }) => {
+      await db.update(workoutSessions).set(checkIn).where(eq(workoutSessions.id, sessionId));
+      const evidence = await readCoachingEvidence(db, a.user.id, a.program.id, now);
+      return evidence.acuteEvidenceIds.includes(recent);
+    };
+    expect(await acute({ energy: 2, fatigue: null })).toBe(true);
+    expect(await acute({ energy: null, fatigue: 4 })).toBe(true);
+    expect(await acute({ energy: 3, fatigue: 3 })).toBe(false);
+    expect(await acute({ energy: null, fatigue: null })).toBe(false);
+  });
+});
+
 it("uses a recent quoted Tell the coach report for a temporary adjustment, but rejects old or invented reports", async () => {
   const a = await fixture();
   await a.as(async (db) => {
@@ -463,20 +489,20 @@ it("checks run distance separately when duration is unchanged and preserves spar
       .where(eq(programRuns.programId, a.program.id));
     const runIds: string[] = [];
     for (const days of [4, 1]) {
-      const [run] = await db
-        .insert(runs)
-        .values({
-          userId: a.user.id,
-          programRunId: planned!.id,
-          mode: "outdoor",
-          startedAt: new Date(now.getTime() - days * 86_400_000),
-          distanceMeters: 5000,
-          durationSeconds: 1800,
-          rpe: 4,
-          effortReported: true,
-        })
-        .returning();
-      runIds.push(`run:${run!.id}`);
+      const { id } = await logTestRun(db, a.user.id, {
+        startedAt: new Date(now.getTime() - days * 86_400_000),
+        distanceMeters: 5000,
+        durationSeconds: 1800,
+        rpe: 4,
+        effortReported: true,
+      });
+      // The link the backfill leaves on a run that fulfilled a planned run, which is how
+      // the evidence still knows which day's prescription this one answers.
+      await db
+        .update(runningActivityDetails)
+        .set({ legacyProgramRunId: planned!.id })
+        .where(eq(runningActivityDetails.activityId, id));
+      runIds.push(`run:${id}`);
     }
     const evidence = await readCoachingEvidence(db, a.user.id, a.program.id, now);
     const output = a.output(50);
@@ -649,5 +675,94 @@ it("carries one issue when one refusal ends the assessment", async () => {
     expect(refusal).toBeInstanceOf(CoachingError);
     expect(refusal.issues).toEqual([refusal.message]);
     expect(refusal.message).toMatch(/structured memory patch/);
+  });
+});
+
+/**
+ * A run logged since the cutover answers an occurrence, not a `program_runs` row, and the
+ * guardrails still ask which day's prescription it speaks for. The slot of the cycle carries
+ * that — never the date, which is a weekday two days of one cycle may share (#57).
+ */
+it("finds the planned run behind a run logged against a programme occurrence", async () => {
+  const a = await fixture();
+  await a.as(async (db) => {
+    const [family] = await db
+      .select({ familyId: programs.familyId })
+      .from(programs)
+      .where(eq(programs.id, a.program.id));
+    const [day] = await db
+      .select({ dayIndex: programDays.dayIndex, dayOfWeek: programDays.dayOfWeek })
+      .from(programDays)
+      .where(and(eq(programDays.programId, a.program.id), eq(programDays.dayIndex, 1)));
+    const [planned] = await db
+      .select()
+      .from(programRuns)
+      .where(and(eq(programRuns.programId, a.program.id), eq(programRuns.weekIndex, 1)));
+
+    // The lineage registry the materialiser writes; occurrences key on it.
+    await db
+      .insert(programFamilies)
+      .values({ id: family!.familyId, userId: a.user.id })
+      .onConflictDoNothing();
+    const [occurrence] = await db
+      .insert(plannedOccurrences)
+      .values({
+        userId: a.user.id,
+        sport: "running",
+        familyId: family!.familyId,
+        cycleIndex: 1,
+        cycleDayIndex: day!.dayIndex,
+        disposition: "pending",
+      })
+      .returning({ id: plannedOccurrences.id });
+    const [version] = await db
+      .insert(occurrenceVersions)
+      .values({
+        occurrenceId: occurrence!.id,
+        userId: a.user.id,
+        sport: "running",
+        scheduledOn: "2026-09-08",
+        schedulingZone: "UTC",
+      })
+      .returning({ id: occurrenceVersions.id });
+    await db
+      .update(plannedOccurrences)
+      .set({ currentRevisionId: version!.id })
+      .where(eq(plannedOccurrences.id, occurrence!.id));
+
+    const logged = await logTestRun(db, a.user.id, {
+      startedAt: new Date(now.getTime() - 2 * 86_400_000),
+      distanceMeters: 5000,
+      durationSeconds: 1800,
+      rpe: 4,
+      effortReported: true,
+      origin: plannedOrigin(occurrence!.id, version!.id),
+    });
+
+    const evidence = await readCoachingEvidence(db, a.user.id, a.program.id, now);
+    const entry = evidence.running.history.find((run) => run.sourceId === `run:${logged.id}`);
+    expect(entry).toMatchObject({
+      dayOfWeek: day!.dayOfWeek,
+      programRunId: planned!.id,
+      effortReported: true,
+      rpe: 4,
+      mode: "outdoor",
+    });
+  });
+});
+
+/** An ad hoc run answers for no plan, and is offered to none: the old behaviour, kept. */
+it("leaves a run that answered for nothing without a planned day", async () => {
+  const a = await fixture();
+  await a.as(async (db) => {
+    const logged = await logTestRun(db, a.user.id, {
+      startedAt: new Date(now.getTime() - 2 * 86_400_000),
+      distanceMeters: 4000,
+      durationSeconds: 1500,
+    });
+    const evidence = await readCoachingEvidence(db, a.user.id, a.program.id, now);
+    expect(
+      evidence.running.history.find((run) => run.sourceId === `run:${logged.id}`),
+    ).toMatchObject({ dayOfWeek: null, programRunId: null, effortReported: false, rpe: null });
   });
 });

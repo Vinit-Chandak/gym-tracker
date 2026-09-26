@@ -1,4 +1,4 @@
-import { summaryForSport } from "@/domain/sport-scope";
+import { writtenSummaryForSport } from "@/domain/sport-scope";
 import { and, asc, count, desc, eq, inArray, isNotNull, isNull, max, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { manualPrescription } from "@/domain/manual-prescription";
@@ -23,6 +23,7 @@ import {
   type CheckIn,
   type RecoveryWarning,
 } from "@/domain/recovery";
+import type { LoadLadder } from "@/domain/load-steps";
 import type { LoadUnit, SetType, WarmupDrill } from "@/domain/types";
 import { sessionHistories, type ComparablePerformance } from "@/server/queries/comparable";
 import { getWarmupProtocol } from "@/server/queries/reference";
@@ -33,6 +34,7 @@ import { closeStrengthParent, discardStrengthParent, openStrengthParent } from "
 import { decideExercisesAtGym, resolvePlannedDay, type ExerciseDecision } from "./availability";
 import { getGym } from "./gyms";
 import { consumePlan, planForSession, releasePlan } from "./coach-plans";
+import { loadLadders } from "./load-ladders";
 import { applyRule } from "./progression-rule";
 import { readCoachingChanges } from "./coaching-changes";
 import { writeSessionStats } from "./shared-stats";
@@ -292,6 +294,26 @@ export type SessionSet = {
   completedAt: Date;
 };
 
+/**
+ * A set's columns, as the workout reads it and as a save answers with it. One list, so a set
+ * shown from the page's render and one laid over it from a save's reply (ADR 0030) always carry
+ * the same fields.
+ */
+const sessionSetColumns = {
+  id: setLogs.id,
+  setIndex: setLogs.setIndex,
+  setType: setLogs.setType,
+  weight: setLogs.weight,
+  unit: setLogs.unit,
+  reps: setLogs.reps,
+  rir: setLogs.rir,
+  rpe: setLogs.rpe,
+  effortReported: setLogs.effortReported,
+  durationSeconds: setLogs.durationSeconds,
+  distanceMeters: setLogs.distanceMeters,
+  completedAt: setLogs.completedAt,
+};
+
 export type SessionExercise = {
   id: string;
   orderIndex: number;
@@ -307,7 +329,13 @@ export type SessionExercise = {
     /** What RIR means for this movement, in its own words; null falls back to the general one. */
     rirNote: string | null;
   };
-  equipment: { id: string; name: string; unit: LoadUnit } | null;
+  equipment: {
+    id: string;
+    name: string;
+    unit: LoadUnit;
+    /** What is known about this machine's loads, for the Next up box (ADR 0028). */
+    ladder: LoadLadder | null;
+  } | null;
   planned: {
     programExerciseId: string | null;
     plannedExerciseName: string;
@@ -371,7 +399,8 @@ export type SessionDetail = {
   /** Recovery advice derived from the check-in; never changes a suggestion. */
   warnings: RecoveryWarning[];
   /** The coach plan this session started from, if any. */
-  coachPlan: { summary: string; warmup: string[]; generatedAt: string } | null;
+  /** `summary` is the coach's own line for the workout, or null when it wrote none. */
+  coachPlan: { summary: string | null; warmup: string[]; generatedAt: string } | null;
   exercises: SessionExercise[];
 };
 
@@ -456,8 +485,6 @@ export async function getSessionDetail(
           name: equipmentInstances.name,
           unit: equipmentInstances.unit,
           loadIncrement: equipmentInstances.loadIncrement,
-          availableLoads: equipmentInstances.availableLoads,
-          loadConvention: equipmentInstances.loadConvention,
         },
         planned: programExercises,
         plannedExerciseName: plannedExercise.name,
@@ -473,21 +500,7 @@ export async function getSessionDetail(
       .where(eq(workoutExercises.workoutSessionId, sessionId))
       .orderBy(asc(workoutExercises.orderIndex)),
     db
-      .select({
-        id: setLogs.id,
-        workoutExerciseId: setLogs.workoutExerciseId,
-        setIndex: setLogs.setIndex,
-        setType: setLogs.setType,
-        weight: setLogs.weight,
-        unit: setLogs.unit,
-        reps: setLogs.reps,
-        rir: setLogs.rir,
-        rpe: setLogs.rpe,
-        effortReported: setLogs.effortReported,
-        durationSeconds: setLogs.durationSeconds,
-        distanceMeters: setLogs.distanceMeters,
-        completedAt: setLogs.completedAt,
-      })
+      .select({ ...sessionSetColumns, workoutExerciseId: setLogs.workoutExerciseId })
       .from(setLogs)
       .innerJoin(workoutExercises, eq(workoutExercises.id, setLogs.workoutExerciseId))
       .where(eq(workoutExercises.workoutSessionId, sessionId))
@@ -529,7 +542,7 @@ export async function getSessionDetail(
       )
     : [];
   // History and machine decisions depend on the slots but not on each other.
-  const [histories, decisions, coachingChanges] = await Promise.all([
+  const [histories, decisions, coachingChanges, ladders] = await Promise.all([
     includeGuidance
       ? sessionHistories(
           db,
@@ -557,6 +570,11 @@ export async function getSessionDetail(
     includeGuidance
       ? readCoachingChanges(db, userId, session.session.startedAt)
       : Promise.resolve([]),
+    loadLadders(
+      db,
+      userId,
+      rows.flatMap((row) => (row.equipment?.id ? [row.equipment.id] : [])),
+    ),
   ]);
   const exerciseDetails: SessionExercise[] = [];
   for (const [index, row] of rows.entries()) {
@@ -571,6 +589,7 @@ export async function getSessionDetail(
       planned: row.planned ?? saved,
       exercise: row.exercise,
       equipment: row.equipment?.id ? row.equipment : null,
+      ladder: row.equipment?.id ? ladders.get(row.equipment.id) : null,
       preferredUnit: options.preferredUnit ?? (profile?.preferredUnit === "lb" ? "lb" : "kg"),
       slotLineageId: row.planned?.lineageId ?? null,
       history: histories[index]?.history ?? [],
@@ -618,7 +637,12 @@ export async function getSessionDetail(
         rirNote: row.exercise.rirNote,
       },
       equipment: row.equipment?.id
-        ? { id: row.equipment.id, name: row.equipment.name, unit: row.equipment.unit }
+        ? {
+            id: row.equipment.id,
+            name: row.equipment.name,
+            unit: row.equipment.unit,
+            ladder: ladders.get(row.equipment.id) ?? null,
+          }
         : null,
       planned: row.planned
         ? {
@@ -692,7 +716,7 @@ export async function getSessionDetail(
     warnings,
     coachPlan: coachPlan
       ? {
-          summary: summaryForSport(coachPlan, "workout"),
+          summary: writtenSummaryForSport(coachPlan, "workout"),
           warmup: coachPlan.warmup,
           generatedAt: coachPlan.generatedAt.toISOString(),
         }
@@ -727,10 +751,13 @@ async function sessionIdOfExercise(
   return row.sessionId;
 }
 
+/**
+ * What the check-in asks. Energy is not among it: the column keeps the answers given before
+ * the question was retired, and a write that never names it is what leaves them in place.
+ */
 export type CheckInInput = {
   sleepHours: number | null;
   sleepQuality: number | null;
-  energy: number | null;
   fatigue: number | null;
   soreness: number | null;
 };
@@ -742,9 +769,15 @@ export async function saveCheckIn(
   input: CheckInInput,
 ): Promise<void> {
   await requireOpenSession(db, userId, sessionId);
+  // Named one by one rather than spread, so nothing a caller passes can reach `energy`.
   await db
     .update(workoutSessions)
-    .set(input)
+    .set({
+      sleepHours: input.sleepHours,
+      sleepQuality: input.sleepQuality,
+      fatigue: input.fatigue,
+      soreness: input.soreness,
+    })
     .where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.userId, userId)));
 }
 
@@ -804,7 +837,7 @@ export async function logSet(db: DbOrTx, userId: string, input: LogSetInput): Pr
       preferredUnit: profiles.preferredUnit,
       exerciseId: workoutExercises.exerciseId,
       equipmentInstanceId: workoutExercises.equipmentInstanceId,
-      existing: setLogs,
+      existing: sessionSetColumns,
     })
     .from(workoutExercises)
     .innerJoin(profiles, eq(profiles.id, workoutExercises.userId))
@@ -885,20 +918,7 @@ export async function logSet(db: DbOrTx, userId: string, input: LogSetInput): Pr
         completedAt: now,
       },
     })
-    .returning({
-      id: setLogs.id,
-      setIndex: setLogs.setIndex,
-      setType: setLogs.setType,
-      weight: setLogs.weight,
-      unit: setLogs.unit,
-      reps: setLogs.reps,
-      rir: setLogs.rir,
-      rpe: setLogs.rpe,
-      effortReported: setLogs.effortReported,
-      durationSeconds: setLogs.durationSeconds,
-      distanceMeters: setLogs.distanceMeters,
-      completedAt: setLogs.completedAt,
-    });
+    .returning(sessionSetColumns);
   if (!row) throw new Error("Set insert returned no row");
   return row;
 }

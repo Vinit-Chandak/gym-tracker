@@ -12,6 +12,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import { MAX_JOB_ATTEMPTS } from "../../domain/coaching-workflow";
 import type {
   CoachIntake,
   CoachJobResult,
@@ -122,6 +123,15 @@ export const coachJobs = pgTable(
     sourceRevision: bigint("source_revision", { mode: "number" }),
     attemptId: uuid("attempt_id"),
     attempts: integer("attempts").notNull().default(0),
+    /**
+     * How many attempts this job may spend before it is failed for good.
+     *
+     * `attempts` only ever counts up, because the receipt trigger writes one
+     * `coach_job_attempts` row per `(job_id, attempts)` and that pair is unique. So a job sent
+     * back for another try cannot have its counter reset — it is given a bigger budget instead,
+     * which keeps every receipt it has already earned and says plainly that it was retried.
+     */
+    attemptBudget: integer("attempt_budget").notNull().default(MAX_JOB_ATTEMPTS),
     leaseUntil: instant("lease_until"),
     nextAttemptAt: instant("next_attempt_at").notNull().defaultNow(),
     dispatchStartedAt: instant("dispatch_started_at"),
@@ -187,6 +197,19 @@ export const programDrafts = pgTable(
     activatedProgramId: uuid("activated_program_id").references(() => programs.id, {
       onDelete: "set null",
     }),
+    /**
+     * How a draft stopped being open, when it was not by being started.
+     *
+     * `rejected` alone could not tell the coach whether the athlete said no — which it must
+     * not propose again for a while — or asked for the same change reworked, which it must.
+     * `replaced` is a proposal a newer review built on and took the place of.
+     */
+    closedAs: text("closed_as").$type<
+      "declined" | "revised" | "discarded" | "replaced" | "outdated"
+    >(),
+    closedAt: instant("closed_at"),
+    /** What the athlete wrote when they asked for revisions, read beside the draft it revises. */
+    revisionNoteId: uuid("revision_note_id"),
     ...timestamps,
   },
   (t) => [

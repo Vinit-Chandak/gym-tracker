@@ -88,9 +88,12 @@ export const activities = pgTable(
       .where(sql`occurrence_id is not null`),
     index("activities_user_started_idx").on(t.userId, t.startedAt.desc(), t.id.desc()),
     index("activities_user_sport_day_idx").on(t.userId, t.sport, t.occurredOn),
+    // 1–5 since migration 0033, which rescaled every stored value in the same statement that
+    // narrowed this. `legacy_unconfirmed` stays unbounded: those numbers were rescaled too,
+    // but they were never ours to bound, and a row outside the scale is still evidence.
     check(
       "activities_effort_chk",
-      sql`(effort_status = 'reported' and effort_value is not null and effort_value between 1 and 10)
+      sql`(effort_status = 'reported' and effort_value is not null and effort_value between 1 and 5)
         or (effort_status = 'unknown' and effort_value is null)
         or effort_status = 'legacy_unconfirmed'`,
     ),
@@ -232,6 +235,7 @@ export const cyclingActivityDetails = pgTable(
       foreignColumns: [activities.userId, activities.id, activities.sport],
     }).onDelete("cascade"),
     foreignKey({
+      // 0039 uses SET NULL (resource_id); Drizzle cannot express a column subset.
       name: "cycling_details_resource_fk",
       columns: [t.userId, t.resourceId],
       foreignColumns: [activityResources.userId, activityResources.id],
@@ -292,6 +296,8 @@ export const swimmingActivityDetails = pgTable(
       foreignColumns: [activities.userId, activities.id, activities.sport],
     }).onDelete("cascade"),
     foreignKey({
+      // Keep the owner and historical pool snapshot when the resource is deleted.
+      // 0039 uses SET NULL (resource_id); Drizzle cannot express a column subset.
       name: "swimming_details_resource_fk",
       columns: [t.userId, t.resourceId],
       foreignColumns: [activityResources.userId, activityResources.id],

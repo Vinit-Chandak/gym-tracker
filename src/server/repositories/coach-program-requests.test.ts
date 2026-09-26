@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { afterAll, beforeAll, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
   coachAttemptDiagnostics,
@@ -16,6 +16,7 @@ import {
   gyms,
   profiles,
   programDrafts,
+  programs,
   workoutExercises,
   workoutSessions,
 } from "@/db/schema";
@@ -35,6 +36,8 @@ import {
   hasActionableRequests,
   listOpenRequests,
   listRequestsForDraft,
+  releaseRequestsForDraft,
+  withdrawProgramRequest,
 } from "./coach-program-requests";
 import { expireCoachDiagnostics, recordAttemptDiagnostics } from "./coach-diagnostics";
 import { coachJobContext } from "./coaching-context";
@@ -48,10 +51,11 @@ import {
   enqueueCoachJob,
   enqueueDailySession,
   requestGymChange,
+  enqueueRequestReview,
   requestProgramReview,
   reviewAnchor,
 } from "./coaching-jobs";
-import { activateProgramDraft, getProgramDraft } from "./program-drafts";
+import { activateProgramDraft, closeProgramDraft, getProgramDraft } from "./program-drafts";
 import { readProgramBlueprint } from "./programs";
 
 let t: TestDatabase;
@@ -176,8 +180,14 @@ async function noteFrom(a: Training, text = NOTE) {
   return id;
 }
 
-async function reviewJob(a: Training, purpose: "scheduled" | "requests" = "scheduled") {
+async function reviewJob(
+  a: Training,
+  purpose: "scheduled" | "requests" = "scheduled",
+  /** Each review reads its own interval, so a second one in a test ends a little earlier. */
+  endsEarlierByMinutes = 0,
+) {
   const boundary = lastCoachBoundary();
+  const end = new Date(boundary.at.getTime() - endsEarlierByMinutes * 60_000);
   const { job } = await as(a, (tx) =>
     enqueueCoachJob(tx, a.user.id, {
       kind: "review_program",
@@ -187,8 +197,8 @@ async function reviewJob(a: Training, purpose: "scheduled" | "requests" = "sched
       target: {
         programId: a.programId,
         batchDate: boundary.date,
-        reviewStart: new Date(boundary.at.getTime() - 7 * 86_400_000).toISOString(),
-        reviewEnd: boundary.at.toISOString(),
+        reviewStart: new Date(end.getTime() - 7 * 86_400_000).toISOString(),
+        reviewEnd: end.toISOString(),
         purpose,
       },
     }),
@@ -841,6 +851,16 @@ it("stops skipping such an account on the daily dispatch", async () => {
       .set({ consentedAt: null, reviewAnchorAt: null })
       .where(eq(coachPreferences.userId, a.user.id)),
   );
+  // With both columns null the anchor is derived from the programme's start date, and that
+  // date has to be read against the same clock the dispatch runs on. `training()` starts its
+  // programme on a fixed calendar date, so once real time drifted a week past it the derived
+  // anchor was old enough that the ordinary cadence came due, and the review this test is
+  // about was correctly queued as `scheduled` instead. Start the programme three days ago and
+  // the derived path is still the one under test, on any day it is ever run.
+  const startedOn = new Date(Date.now() - 3 * 86_400_000).toISOString().slice(0, 10);
+  await as(a, (tx) =>
+    tx.update(programs).set({ startDate: startedOn }).where(eq(programs.id, a.programId)),
+  );
   // The reported symptom: an ask sitting on "waiting for the next daily coach run" while no
   // run that could decide it was ever queued, because the athlete had no interval to read.
   const noteId = await noteFrom(a);
@@ -980,6 +1000,62 @@ it("resumes the same request from an answer, without starting a run", async () =
   );
   expect(note?.text).toContain("right down to the floor");
   expect((await as(a, (tx) => tx.select().from(coachJobs))).length).toBe(before);
+});
+
+it("retries the same answer once, refuses key reuse, and does not withdraw a proposed change", async () => {
+  const a = await training();
+  const source = await noteFrom(a);
+  const id = crypto.randomUUID();
+  const key = crypto.randomUUID();
+  await as(a, (tx) =>
+    tx.insert(coachProgramRequests).values({
+      id,
+      userId: a.user.id,
+      sourceId: `note:${source}`,
+      quote: "More core",
+      summary: "More core",
+      state: "needs_answer",
+    }),
+  );
+  const answer = () => as(a, (tx) => answerProgramRequest(tx, a.user.id, id, "Tuesday", key));
+  await answer();
+  await answer();
+  expect(
+    await as(a, (tx) => tx.select().from(coachNotes).where(eq(coachNotes.requestId, id))),
+  ).toHaveLength(1);
+  expect(
+    await as(a, (tx) =>
+      tx.select().from(coachRequestDecisions).where(eq(coachRequestDecisions.requestId, id)),
+    ),
+  ).toHaveLength(1);
+  await as(a, (tx) =>
+    tx
+      .update(coachProgramRequests)
+      .set({ state: "needs_answer" })
+      .where(eq(coachProgramRequests.id, id)),
+  );
+  await expect(
+    as(a, (tx) => answerProgramRequest(tx, a.user.id, id, "Friday", key)),
+  ).rejects.toThrow(/changed after/);
+  await expect(
+    as(a, (tx) => answerProgramRequest(tx, a.user.id, id, "Friday", source)),
+  ).rejects.toThrow(/changed after/);
+  expect(
+    (
+      await as(a, (tx) =>
+        tx.select().from(coachProgramRequests).where(eq(coachProgramRequests.id, id)),
+      )
+    )[0]?.state,
+  ).toBe("needs_answer");
+  await as(a, (tx) =>
+    tx
+      .update(coachProgramRequests)
+      .set({ state: "proposed" })
+      .where(eq(coachProgramRequests.id, id)),
+  );
+  await expect(as(a, (tx) => withdrawProgramRequest(tx, a.user.id, id))).rejects.toThrow(
+    /already settled/,
+  );
 });
 
 it("leaves no draft to apply when a review changes nothing", async () => {
@@ -1201,4 +1277,382 @@ it("carries a training note forward from either kind of source", async () => {
     "This machine does not fit me. Something else for calves?",
   ]);
   expect(carried.every((request) => request.state === "waiting")).toBe(true);
+});
+
+/**
+ * A review that proposes the cable crunch for the athlete's "more direct core work", leaving
+ * the curls ask decided as a question: the shape the production account was in.
+ */
+async function proposeCrunch(a: Training) {
+  const noteId = await noteFrom(a);
+  const { job, attemptId } = await reviewJob(a);
+  const core = crypto.randomUUID();
+  const revised = await withAddedExercise(a);
+  const accepted = await as(a, (tx) =>
+    acceptCoachJobResult(tx, a.user.id, job.id, attemptId, {
+      outcome: "program",
+      headline: "Adds a cable crunch to your training day.",
+      blueprint: revised,
+      openingPlan: null,
+      rationale: "Direct core work, as asked.",
+      coverage: [{ sport: "strength", decision: "unchanged", reason: "" }],
+      evidence: [],
+      uncertainties: [],
+      requests: {
+        open: [
+          {
+            id: core,
+            sourceId: `note:${noteId}`,
+            quote: "more direct core work",
+            summary: "More direct core work",
+          },
+        ],
+        decisions: [
+          {
+            requestId: core,
+            state: "proposed",
+            detail: "Cable crunch added.",
+            changeRefs: ["add:1:2:cable-crunch"],
+          },
+        ],
+      },
+    }),
+  );
+  return { core, draftId: accepted.draftId!, revised, noteId };
+}
+
+const unchangedCoverage = [
+  { sport: "strength" as const, decision: "unchanged" as const, reason: "" },
+];
+
+describe("one proposal at a time", () => {
+  it("lets a later review build on the waiting proposal and take its place, ask and all", async () => {
+    const a = await training();
+    const first = await proposeCrunch(a);
+    const { job, attemptId, context } = await reviewJob(a, "scheduled", 5);
+    // The review is shown what is waiting, so it can build on it rather than beside it.
+    expect(context.pendingProposal?.draftId).toBe(first.draftId);
+    const onTop = structuredClone(first.revised);
+    onTop.days[0]!.exercises[0]!.notes = "Pause one second at the bottom.";
+    const accepted = await as(a, (tx) =>
+      acceptCoachJobResult(tx, a.user.id, job.id, attemptId, {
+        outcome: "program",
+        headline: "Adds a cable crunch and a pause cue for the squat.",
+        blueprint: onTop,
+        openingPlan: null,
+        rationale: "Builds on the waiting proposal.",
+        coverage: unchangedCoverage,
+        evidence: [],
+        uncertainties: [],
+      }),
+    );
+    const drafts = await as(a, (tx) =>
+      tx.select().from(programDrafts).where(eq(programDrafts.userId, a.user.id)),
+    );
+    const open = drafts.filter((draft) => draft.status === "ready");
+    expect(open.map((draft) => draft.id)).toEqual([accepted.draftId]);
+    expect(drafts.find((draft) => draft.id === first.draftId)).toMatchObject({
+      status: "superseded",
+      closedAs: "replaced",
+    });
+    // The newer proposal makes exactly the change the ask was given, so the ask moves with it.
+    const [request] = await as(a, (tx) =>
+      tx.select().from(coachProgramRequests).where(eq(coachProgramRequests.id, first.core)),
+    );
+    expect(request).toMatchObject({ state: "proposed", draftId: accepted.draftId });
+  });
+
+  it("gives an ask back to the coach when the newer proposal drops its change", async () => {
+    const a = await training();
+    const first = await proposeCrunch(a);
+    const { job, attemptId } = await reviewJob(a, "scheduled", 5);
+    const current = await as(a, (tx) => readProgramBlueprint(tx, a.user.id, a.programId));
+    const without = structuredClone(current!.blueprint);
+    without.days[0]!.exercises[0]!.notes = "Pause one second at the bottom.";
+    await as(a, (tx) =>
+      acceptCoachJobResult(tx, a.user.id, job.id, attemptId, {
+        outcome: "program",
+        headline: "A pause cue for the squat.",
+        blueprint: without,
+        openingPlan: null,
+        rationale: "Built on the active programme.",
+        coverage: unchangedCoverage,
+        evidence: [],
+        uncertainties: [],
+      }),
+    );
+    const [request] = await as(a, (tx) =>
+      tx.select().from(coachProgramRequests).where(eq(coachProgramRequests.id, first.core)),
+    );
+    expect(request).toMatchObject({ state: "waiting", draftId: null, changeRefs: [] });
+  });
+
+  it("keeps the waiting proposal when a review arrives at the same one", async () => {
+    const a = await training();
+    const first = await proposeCrunch(a);
+    const { job, attemptId } = await reviewJob(a, "scheduled", 5);
+    await as(a, (tx) =>
+      acceptCoachJobResult(tx, a.user.id, job.id, attemptId, {
+        outcome: "program",
+        headline: "Adds a cable crunch to your training day.",
+        blueprint: first.revised,
+        openingPlan: null,
+        rationale: "Nothing new since the waiting proposal.",
+        coverage: unchangedCoverage,
+        evidence: [],
+        uncertainties: [],
+      }),
+    );
+    const open = await as(a, (tx) =>
+      tx
+        .select()
+        .from(programDrafts)
+        .where(and(eq(programDrafts.userId, a.user.id), eq(programDrafts.status, "ready"))),
+    );
+    expect(open.map((draft) => draft.id)).toEqual([first.draftId]);
+    // No second copy is written, so none can surface later as a decision the athlete made.
+    const copies = await as(a, (tx) =>
+      tx.select().from(programDrafts).where(eq(programDrafts.jobId, job.id)),
+    );
+    expect(copies).toEqual([]);
+    const [request] = await as(a, (tx) =>
+      tx.select().from(coachProgramRequests).where(eq(coachProgramRequests.id, first.core)),
+    );
+    expect(request).toMatchObject({ state: "proposed", draftId: first.draftId });
+  });
+
+  it("applies another proposal's ask when the approved one makes the same change", async () => {
+    const a = await training();
+    const first = await proposeCrunch(a);
+    // A second open proposal from before this rule, making the same change for the same ask.
+    const [other] = await as(a, (tx) =>
+      tx
+        .insert(programDrafts)
+        .values({
+          userId: a.user.id,
+          source: "weekly",
+          status: "ready",
+          blueprint: first.revised,
+          baseProgramId: a.programId,
+          sourceRevision: 1,
+        })
+        .returning(),
+    );
+    const otherAsk = crypto.randomUUID();
+    await as(a, (tx) =>
+      tx.insert(coachProgramRequests).values({
+        id: otherAsk,
+        userId: a.user.id,
+        sourceId: `note:${first.noteId}`,
+        quote: "more direct core work",
+        summary: "Core",
+        state: "proposed",
+        draftId: other!.id,
+        changeRefs: ["add:1:2:cable-crunch"],
+      }),
+    );
+    const draft = await as(a, (tx) => getProgramDraft(tx, a.user.id, first.draftId));
+    await as(a, (tx) =>
+      activateProgramDraft(tx, a.user.id, draft!.id, {
+        expectedRevision: draft!.revision,
+        startDate: "2026-09-21",
+        transition: "continue",
+      }),
+    );
+    const [settled] = await as(a, (tx) =>
+      tx.select().from(coachProgramRequests).where(eq(coachProgramRequests.id, otherAsk)),
+    );
+    // Not left "awaiting approval" on a proposal nobody can approve any more.
+    expect(settled).toMatchObject({ state: "applied", draftId: first.draftId });
+  });
+});
+
+describe("a declined change stays declined for a while", () => {
+  it("refuses the same change again until the cooldown ends, unless the athlete asks again", async () => {
+    const a = await training();
+    const first = await proposeCrunch(a);
+    await as(a, async (tx) => {
+      await closeProgramDraft(tx, a.user.id, first.draftId, "declined");
+      await releaseRequestsForDraft(tx, a.user.id, first.draftId, "declined", "");
+    });
+    const again = await reviewJob(a, "scheduled", 5);
+    expect(
+      again.context.recentDecisions.find((entry) => entry.draftId === first.draftId),
+    ).toMatchObject({ outcome: "declined" });
+    const result = {
+      outcome: "program" as const,
+      headline: "Adds a cable crunch to your training day.",
+      blueprint: first.revised,
+      openingPlan: null,
+      rationale: "Core work.",
+      coverage: unchangedCoverage,
+      evidence: [],
+      uncertainties: [],
+    };
+    await expect(
+      as(a, (tx) => acceptCoachJobResult(tx, a.user.id, again.job.id, again.attemptId, result)),
+    ).rejects.toThrow(/declined/);
+    await as(a, (tx) =>
+      tx
+        .update(coachJobs)
+        .set({ status: "failed", leaseUntil: null })
+        .where(eq(coachJobs.id, again.job.id)),
+    );
+
+    // The athlete asking for it again is theirs to do at any time.
+    const noteId = await noteFrom(a, "Actually, please add the cable crunch after all.");
+    const asked = await reviewJob(a, "scheduled", 10);
+    const ask = crypto.randomUUID();
+    const accepted = await as(a, (tx) =>
+      acceptCoachJobResult(tx, a.user.id, asked.job.id, asked.attemptId, {
+        ...result,
+        requests: {
+          open: [
+            {
+              id: ask,
+              sourceId: `note:${noteId}`,
+              quote: "please add the cable crunch after all",
+              summary: "Add the cable crunch",
+            },
+          ],
+          decisions: [
+            {
+              requestId: ask,
+              state: "proposed",
+              detail: "Cable crunch added.",
+              changeRefs: ["add:1:2:cable-crunch"],
+            },
+          ],
+        },
+      }),
+    );
+    expect(accepted).toMatchObject({ accepted: true });
+  });
+
+  it("tells a decline from a request for revisions, and asks for the review a revision needs", async () => {
+    const a = await training();
+    const first = await proposeCrunch(a);
+    const noteId = crypto.randomUUID();
+    await as(a, async (tx) => {
+      await saveCoachNotes(tx, a.user.id, "Keep the crunch, but make it two sets.", noteId);
+      await closeProgramDraft(tx, a.user.id, first.draftId, "revised", noteId);
+    });
+    const [draft] = await as(a, (tx) =>
+      tx.select().from(programDrafts).where(eq(programDrafts.id, first.draftId)),
+    );
+    expect(draft).toMatchObject({
+      status: "rejected",
+      closedAs: "revised",
+      revisionNoteId: noteId,
+    });
+    const [preference] = await as(a, (tx) =>
+      tx.select().from(coachPreferences).where(eq(coachPreferences.userId, a.user.id)),
+    );
+    expect(preference!.reviewRequestedAt).not.toBeNull();
+    const { context } = await reviewJob(a, "scheduled", 5);
+    expect(context.recentDecisions.find((entry) => entry.draftId === first.draftId)).toMatchObject({
+      outcome: "revised",
+      revisionNote: "Keep the crunch, but make it two sets.",
+      doNotProposeAgainBefore: null,
+    });
+  });
+
+  it("tells an unanswered proposal closed as outdated from one the programme overtook", async () => {
+    const a = await training();
+    const first = await proposeCrunch(a);
+    // What migration 0037 does to a proposal written on the old run-effort scale.
+    await as(a, (tx) =>
+      tx
+        .update(programDrafts)
+        .set({ status: "superseded", closedAs: "outdated", closedAt: new Date() })
+        .where(eq(programDrafts.id, first.draftId)),
+    );
+    const { context } = await reviewJob(a, "scheduled", 5);
+    // Never answered, so nothing to hold back: the coach may propose it again if it holds.
+    expect(context.recentDecisions.find((entry) => entry.draftId === first.draftId)).toMatchObject({
+      outcome: "outdated",
+      doNotProposeAgainBefore: null,
+    });
+  });
+});
+
+describe("request integrity", () => {
+  it("refuses to open an ask under an id that already exists", async () => {
+    const a = await training();
+    const first = await proposeCrunch(a);
+    await as(a, async (tx) => {
+      await closeProgramDraft(tx, a.user.id, first.draftId, "declined");
+      await releaseRequestsForDraft(tx, a.user.id, first.draftId, "declined", "");
+    });
+    const { job, attemptId } = await reviewJob(a, "scheduled", 5);
+    await expect(
+      as(a, (tx) =>
+        acceptCoachJobResult(tx, a.user.id, job.id, attemptId, {
+          outcome: "no_change",
+          rationale: "Nothing to change.",
+          coverage: unchangedCoverage,
+          evidence: [],
+          uncertainties: [],
+          requests: {
+            open: [
+              {
+                id: first.core,
+                sourceId: `note:${first.noteId}`,
+                quote: "more direct core work",
+                summary: "More direct core work",
+              },
+            ],
+            decisions: [{ requestId: first.core, state: "not_recommended", detail: "Not now." }],
+          },
+        }),
+      ),
+    ).rejects.toThrow(/fresh id/);
+    const [request] = await as(a, (tx) =>
+      tx.select().from(coachProgramRequests).where(eq(coachProgramRequests.id, first.core)),
+    );
+    expect(request!.state).toBe("declined");
+  });
+
+  it("does not bring back an ask the athlete withdrew while the review was running", async () => {
+    const a = await training();
+    const noteId = await noteFrom(a);
+    const ask = crypto.randomUUID();
+    await as(a, (tx) =>
+      tx.insert(coachProgramRequests).values({
+        id: ask,
+        userId: a.user.id,
+        sourceId: `note:${noteId}`,
+        quote: "more direct core work",
+        summary: "Core",
+        state: "waiting",
+      }),
+    );
+    const { job, attemptId, context } = await reviewJob(a, "requests");
+    expect(context.requestsToAddress.items.map((item) => item.id)).toEqual([ask]);
+    await as(a, (tx) => withdrawProgramRequest(tx, a.user.id, ask));
+    const accepted = await as(a, (tx) =>
+      acceptCoachJobResult(tx, a.user.id, job.id, attemptId, {
+        outcome: "no_change",
+        rationale: "Core is covered.",
+        coverage: unchangedCoverage,
+        evidence: [],
+        uncertainties: [],
+        requests: {
+          decisions: [{ requestId: ask, state: "already_satisfied", detail: "Covered." }],
+        },
+      }),
+    );
+    expect(accepted).toMatchObject({ accepted: true });
+    const [request] = await as(a, (tx) =>
+      tx.select().from(coachProgramRequests).where(eq(coachProgramRequests.id, ask)),
+    );
+    expect(request!.state).toBe("withdrawn");
+  });
+
+  it("hands a waiting review to whoever asks for one instead of queueing a second", async () => {
+    const a = await training();
+    const asked = await as(a, (tx) => requestProgramReview(tx, a.user.id));
+    const daily = await as(a, (tx) => enqueueRequestReview(tx, a.user.id));
+    expect(daily?.job.id).toBe(asked.job.id);
+  });
 });

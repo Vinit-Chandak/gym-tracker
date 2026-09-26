@@ -18,7 +18,6 @@ import {
   programDays,
   programExercises,
   programRuns,
-  runs as runLogs,
   sessionPlans,
   setLogs,
   workoutExercises,
@@ -35,6 +34,7 @@ import {
 } from "@/domain/coach-review";
 import { resolveExerciseAtGym } from "@/domain/equipment-resolution";
 import type { ProgramPatch } from "@/domain/program-patch";
+import type { ProgramDiff } from "@/domain/program-diff";
 import { addDays, todayInTimeZone } from "@/domain/program-calendar";
 import { volumeSpike } from "@/domain/running";
 import {
@@ -60,7 +60,13 @@ import {
   type StoredPlanExercise,
 } from "@/domain/session-plan";
 import { assessSportChange } from "@/domain/coach-sport-policy";
+import {
+  endurancePrescriptionSchema,
+  type EndurancePrescription,
+} from "@/domain/activity-prescription";
 import { formatSet, weightStepFor } from "@/domain/sets";
+import { stepsFrom } from "@/domain/load-steps";
+import { workingSets } from "@/domain/progression";
 import type {
   CoachRequestInitiator,
   CoachRequestStatus,
@@ -76,9 +82,10 @@ import { parseDateRange } from "@/server/validation/date-range";
 import { resolvePlannedDay } from "./availability";
 import { getGym, listGyms } from "./gyms";
 import { getRunTarget, getSchedule, type Schedule, type ScheduleDay } from "./schedule";
+import { loadLadders } from "./load-ladders";
 import { applyRule } from "./progression-rule";
 import { readCoachingChanges } from "./coaching-changes";
-import { readRecovery, readWorkouts } from "./training-data";
+import { readRecovery, readRunActivitiesBetween, readWorkouts } from "./training-data";
 import { readWeeklyTrainingVolume } from "./training-volume";
 
 /*
@@ -181,7 +188,14 @@ export function nextTrainingSlot(schedule: Schedule): NextTrainingSlot | null {
  * including home or outdoor, then a gym or another active location if no default is set.
  */
 export async function planningGym(db: DbOrTx, userId: string) {
-  const active = (await listGyms(db, userId)).filter((g) => g.isActive);
+  return pickPlanningGym(await listGyms(db, userId));
+}
+
+/** `planningGym`'s choice, from a gym list the caller has already read. */
+export function pickPlanningGym<G extends { isActive: boolean; isDefault: boolean; kind: string }>(
+  gyms: readonly G[],
+): G | null {
+  const active = gyms.filter((g) => g.isActive);
   return (
     active.find((g) => g.isDefault) ?? active.find((g) => g.kind === "gym") ?? active[0] ?? null
   );
@@ -602,8 +616,6 @@ export async function planningContext(
         name: equipmentInstances.name,
         type: equipmentTypes.name,
         typeSlug: equipmentTypes.slug,
-        availableLoads: equipmentInstances.availableLoads,
-        loadConvention: equipmentInstances.loadConvention,
         unit: equipmentInstances.unit,
         loadIncrement: equipmentInstances.loadIncrement,
         notes: equipmentInstances.notes,
@@ -640,12 +652,7 @@ export async function planningContext(
       completedBy: snapshot,
     }),
     // A bounded narrative sample only; full workload is aggregated separately below.
-    db
-      .select()
-      .from(runLogs)
-      .where(and(eq(runLogs.userId, userId), lt(runLogs.startedAt, snapshot)))
-      .orderBy(desc(runLogs.startedAt), desc(runLogs.id))
-      .limit(41),
+    readRunActivitiesBetween(db, userId, { end: snapshot }, { order: "desc", limit: 41 }),
     readRecovery(db, userId, recentRange),
     libraryAtGym(db, userId, gym.id),
     recentPlanOutcomes(db, userId, PLAN_REVIEW_DEPTH),
@@ -654,29 +661,39 @@ export async function planningContext(
   ]);
   if (!resolved) return { reason: "no_gym" as const };
 
-  // Comparable history for what will actually be done: the resolved exercise on the resolved machine.
-  const histories = await sessionHistories(
-    db,
-    resolved.map((item) => {
-      const r = item.decision.resolution;
-      const exerciseId = r.status === "fallback" ? r.exercise.id : item.exercise.id;
-      const row = planned.find((p) => p.exercise.id === exerciseId)?.exercise;
-      return {
-        userId,
-        exerciseId,
-        loadPortability:
-          row?.loadPortability ??
-          library.find((e) => e.id === exerciseId)?.loadPortability ??
-          "global",
-        equipmentInstanceId:
-          r.status === "direct" || r.status === "fallback"
-            ? (r.equipmentInstance?.id ?? null)
-            : null,
-        before: snapshot,
-        limit: HISTORY_DEPTH,
-      };
-    }),
-  );
+  // Comparable history for what will actually be done: the resolved exercise on the resolved
+  // machine, and each machine's ladder (ADR 0028), which only depends on which machines those are.
+  const slotMachineIds = resolved.flatMap((item) => {
+    const r = item.decision.resolution;
+    return (r.status === "direct" || r.status === "fallback") && r.equipmentInstance
+      ? [r.equipmentInstance.id]
+      : [];
+  });
+  const [histories, ladders] = await Promise.all([
+    sessionHistories(
+      db,
+      resolved.map((item) => {
+        const r = item.decision.resolution;
+        const exerciseId = r.status === "fallback" ? r.exercise.id : item.exercise.id;
+        const row = planned.find((p) => p.exercise.id === exerciseId)?.exercise;
+        return {
+          userId,
+          exerciseId,
+          loadPortability:
+            row?.loadPortability ??
+            library.find((e) => e.id === exerciseId)?.loadPortability ??
+            "global",
+          equipmentInstanceId:
+            r.status === "direct" || r.status === "fallback"
+              ? (r.equipmentInstance?.id ?? null)
+              : null,
+          before: snapshot,
+          limit: HISTORY_DEPTH,
+        };
+      }),
+    ),
+    loadLadders(db, userId, slotMachineIds),
+  ]);
 
   const slots = resolved.map((item, index) => {
     const plannedRow = planned.find((p) => p.prescription.id === item.programExerciseId);
@@ -690,6 +707,7 @@ export async function planningContext(
         ? machines.find((m) => m.id === r.equipmentInstance?.id)
         : undefined;
     const history = histories[index]?.history ?? [];
+    const ladder = machine ? (ladders.get(machine.id) ?? null) : null;
     const rule = plannedRow
       ? applyRule({
           asOf: snapshot,
@@ -711,14 +729,9 @@ export async function planningContext(
             defaultRir: plannedRow.exercise.defaultRir,
           },
           equipment: machine
-            ? {
-                id: machine.id,
-                unit: machine.unit,
-                loadIncrement: machine.loadIncrement,
-                availableLoads: machine.availableLoads,
-                loadConvention: machine.loadConvention,
-              }
+            ? { id: machine.id, unit: machine.unit, loadIncrement: machine.loadIncrement }
             : null,
+          ladder,
           preferredUnit: profile.preferredUnit === "lb" ? "lb" : "kg",
           slotLineageId: plannedRow.prescription.lineageId,
           history,
@@ -758,7 +771,27 @@ export async function planningContext(
         status: r.status,
         exerciseSlug: resolvedExercise?.slug ?? null,
         exerciseName: item.decision.resolvedExerciseName,
-        machine: machine ? { id: machine.id, name: machine.name, unit: machine.unit } : null,
+        machine: machine
+          ? {
+              id: machine.id,
+              name: machine.name,
+              unit: machine.unit,
+              /** Help given rather than load lifted: a lower number is harder. */
+              assisted: ladder?.assisted ?? false,
+              /**
+               * The next load harder and easier from each load last used on this machine for
+               * this slot (ADR 0028). `known` exists on the machine; `learned` is the gap
+               * between the two nearest stops carried one further, a guess until lifted;
+               * `increment` is the typed jump; null means nobody knows yet.
+               */
+              steps: ladder
+                ? stepsFrom(
+                    ladder,
+                    workingSets(rule?.basisPerformance?.sets ?? []).map((set) => set.weight),
+                  )
+                : [],
+            }
+          : null,
         missing: item.decision.missingTypes.map((t) => t.name),
         fallbacks: item.decision.fallbackOptions
           .filter((f) => f.available)
@@ -801,13 +834,15 @@ export async function planningContext(
   const state = progress(schedule.state);
   const runHistory = runRows.slice(0, 40).map((run) => ({
     startedAt: run.startedAt.toISOString(),
-    startedOn: todayInTimeZone(profile.timeZone, run.startedAt),
-    mode: run.mode,
+    // The date frozen on the activity, not one recomputed from the instant it began.
+    startedOn: run.occurredOn,
+    mode: run.environment,
     // What was logged, not a tenth of a kilometre: the coach reads these to judge one run.
     distanceKm: Math.round(run.distanceMeters / 10) / 100,
     durationMinutes: Math.round(run.durationSeconds / 60),
     paceSecondsPerKm: run.averagePaceSecondsPerKm,
-    rpe: run.rpe,
+    rpe: run.effort.value,
+    effortReported: run.effort.status === "reported",
     programRunId: run.programRunId,
     notes: run.notes,
   }));
@@ -901,8 +936,6 @@ export async function planningContext(
         name: m.name,
         type: m.type,
         unit: m.unit,
-        availableLoads: m.availableLoads,
-        loadConvention: m.loadConvention,
         loadIncrement: m.loadIncrement,
         notes: m.notes,
       })),
@@ -914,9 +947,7 @@ export async function planningContext(
       from: recentRange.from,
       to: recentRange.to,
       workoutsHasMore: recent.hasMore,
-      runsHasMore:
-        runRows.length > 40 &&
-        todayInTimeZone(profile.timeZone, runRows[40]!.startedAt) >= recentRange.from,
+      runsHasMore: runRows.length > 40 && runRows[40]!.occurredOn >= recentRange.from,
       workouts: recent.workouts.map((w) => ({
         startedAt: w.startedAt.toISOString(),
         completedAt: w.completedAt?.toISOString() ?? null,
@@ -991,11 +1022,14 @@ export async function planningContext(
 
 export type PlanningContext = Awaited<ReturnType<typeof planningContext>>;
 
-type LibraryEntry = {
+export type LibraryEntry = {
   id: string;
   slug: string;
   name: string;
+  /** One the athlete created, rather than the shared library's. */
+  own: boolean;
   modality: (typeof exercises.$inferSelect)["modality"];
+  category: (typeof exercises.$inferSelect)["category"];
   movementPattern: string;
   primaryMuscles: (typeof exercises.$inferSelect)["primaryMuscles"];
   loadPortability: (typeof exercises.$inferSelect)["loadPortability"];
@@ -1083,7 +1117,9 @@ export async function libraryAtGym(
       id: e.id,
       slug: e.slug,
       name: e.name,
+      own: e.userId !== null,
       modality: e.modality,
+      category: e.category,
       movementPattern: e.movementPattern,
       primaryMuscles: e.primaryMuscles,
       loadPortability: e.loadPortability,
@@ -1495,12 +1531,7 @@ async function reviewStoredPlan(
         )
       : Promise.resolve([]),
     input.run
-      ? db
-          .select({ durationSeconds: runLogs.durationSeconds })
-          .from(runLogs)
-          .where(eq(runLogs.userId, userId))
-          .orderBy(desc(runLogs.startedAt))
-          .limit(1)
+      ? readRunActivitiesBetween(db, userId, {}, { order: "desc", limit: 1 })
       : Promise.resolve([]),
   ]);
   const review: ReviewExercise[] = doing.map((entry, index) => {
@@ -1657,6 +1688,17 @@ export async function storeOccurrencePlan(
   // The approved prescription is the authority. A preparation may choose inside it; anything
   // else is a proposal for the athlete, not a plan the coach may simply store (COACH-05).
   if (entry.prescription && target.prescription) {
+    // Guidance a preparation leaves out is guidance it keeps. A preparation cannot remove the
+    // approved pace, progression or stop rule — that would be refused as a proposal — so an
+    // empty one can only mean "unchanged". Refusing it instead failed every run preparation
+    // whose writer had not been shown the approved text to copy word for word.
+    const approved = endurancePrescriptionSchema.safeParse(target.prescription);
+    if (approved.success) {
+      if (entry.prescription.running === null) entry.prescription.running = approved.data.running;
+      if (entry.prescription.instructions === null)
+        entry.prescription.instructions = approved.data.instructions;
+      if (entry.prescription.notes === null) entry.prescription.notes = approved.data.notes;
+    }
     const assessment = assessSportChange(target.prescription, entry.prescription);
     if (assessment.authority === "review_required")
       throw new PlanValidationError(
@@ -1746,6 +1788,39 @@ export async function activePlansForOccurrences(
       ),
     );
   return new Map(rows.flatMap((row) => (row.occurrenceId ? [[row.occurrenceId, row]] : [])));
+}
+
+/**
+ * Occurrences with the coach's prepared target in place of the programme's, where it has one.
+ *
+ * A preparation chooses inside the approved range — 32–36 minutes out of 30–40 — and it is
+ * what the coach wants done today. Today's card and the log screen used to show the
+ * programme's range regardless, so a preparation reached the athlete only on the session's
+ * own page. Only a preparation written against the revision in force counts: one pinned to an
+ * older revision describes a target the programme has since changed.
+ */
+export async function withPreparedTargets<
+  T extends { id: string; revisionId: string; prescription: EndurancePrescription | null },
+>(
+  db: DbOrTx,
+  userId: string,
+  occurrences: readonly T[],
+): Promise<(T & { preparedByCoach: boolean })[]> {
+  const plans = await activePlansForOccurrences(
+    db,
+    userId,
+    occurrences.map((occurrence) => occurrence.id),
+  );
+  return occurrences.map((occurrence) => {
+    const plan = plans.get(occurrence.id);
+    const prepared =
+      plan && plan.occurrenceRevisionId === occurrence.revisionId
+        ? (plan.endurance[0]?.prescription ?? null)
+        : null;
+    return prepared
+      ? { ...occurrence, prescription: prepared, preparedByCoach: true }
+      : { ...occurrence, preparedByCoach: false };
+  });
 }
 
 /**
@@ -1983,6 +2058,21 @@ export async function reconcileExpiredCoachRequests(
   return expired.length;
 }
 
+/**
+ * A request as `reconcileExpiredCoachRequests` leaves it: still waiting past its timeout, it has
+ * failed. Screens read requests through this instead of writing the failure first, so rendering
+ * never takes the athlete lock. Nothing depends on the stored row changing sooner: a plan for an
+ * expired request is refused on its age (`storePlan`), and asking again reconciles first.
+ */
+export function asReconciledRequest<T extends CoachRequest>(request: T, now = new Date()): T {
+  if (
+    request.status !== "requested" ||
+    request.requestedAt.getTime() >= now.getTime() - REQUEST_TIMEOUT_MINUTES * 60_000
+  )
+    return request;
+  return { ...request, status: "failed", error: REQUEST_TIMEOUT_MESSAGE, completedAt: now };
+}
+
 /** A pending re-plan. Reconcile with the same instant before assembling current status. */
 export async function pendingRequest(
   db: DbOrTx,
@@ -2059,7 +2149,8 @@ export async function recentAttempts(
     .where(eq(coachRequests.userId, userId))
     .orderBy(desc(coachRequests.requestedAt))
     .limit(limit);
-  return rows.map((row) => ({ ...row.request, gymName: row.gymName }));
+  const now = new Date();
+  return rows.map((row) => ({ ...asReconciledRequest(row.request, now), gymName: row.gymName }));
 }
 
 /**
@@ -2123,6 +2214,8 @@ export type TodayCoachState = {
   requestsLeft: number;
   workflow?: boolean;
   selectedGymId?: string | null;
+  /** A coach job's lapsed attempt is shown here but not yet recorded; the page records it. */
+  expiredJobs?: boolean;
 };
 
 /** What Today shows about the coach for the suggested slot. */
@@ -2137,8 +2230,9 @@ export async function todayCoachState(
     gymId: string | null;
   },
 ): Promise<TodayCoachState> {
+  // Reads only. A request left waiting past its timeout is shown as the failure it will be
+  // recorded as (`asReconciledRequest`), so Today never takes the athlete lock to render.
   const now = new Date();
-  await reconcileExpiredCoachRequests(db, userId, now);
   const since = new Date(now.getTime() - REQUEST_TIMEOUT_MINUTES * 60_000);
   const dayStart = startOfToday(input.timeZone);
   const pendingFilter = and(
@@ -2146,15 +2240,21 @@ export async function todayCoachState(
     eq(coachRequests.status, "requested"),
     gte(coachRequests.requestedAt, since),
   );
+  // The latest outcome counts a request that has run out of time as one, as it will be recorded.
   const latestOutcome = db
     .select({ id: coachRequests.id })
     .from(coachRequests)
-    .where(and(eq(coachRequests.userId, userId), ne(coachRequests.status, "requested")))
+    .where(
+      and(
+        eq(coachRequests.userId, userId),
+        or(ne(coachRequests.status, "requested"), lt(coachRequests.requestedAt, since)),
+      ),
+    )
     .orderBy(desc(coachRequests.requestedAt))
     .limit(1);
   // One joined plan read and one bounded request read replace five statements. Requests
   // contain today's quota, any pending re-plan spanning midnight, and the latest outcome.
-  const [[planRow], requests] = await Promise.all([
+  const [[planRow], stored] = await Promise.all([
     db
       .select({ plan: sessionPlans, gymName: gyms.name })
       .from(sessionPlans)
@@ -2198,6 +2298,7 @@ export async function todayCoachState(
       )
       .orderBy(desc(coachRequests.requestedAt)),
   ]);
+  const requests = stored.map((request) => asReconciledRequest(request, now));
   const plan = planRow?.plan ?? null;
   const pending =
     requests.find(
@@ -2256,6 +2357,51 @@ export async function plannedRunForToday(
 }
 
 /**
+ * What a programme change touched, as far as a waiting plan cares: the slots it rewrote, by
+ * lineage, and the runs it retargeted, by week and weekday (`"3:4"`).
+ */
+export type PlanCarryChanges = { lineages: ReadonlySet<string>; runs: ReadonlySet<string> };
+
+/** What a change proposal's patch touched. */
+export function patchCarryChanges(patch: ProgramPatch): PlanCarryChanges {
+  return {
+    lineages: new Set(
+      patch.operations.flatMap((operation) =>
+        "lineageId" in operation ? [operation.lineageId] : [],
+      ),
+    ),
+    runs: new Set(
+      patch.operations.flatMap((operation) =>
+        operation.op === "run" ? [`${operation.weekIndex}:${operation.dayOfWeek}`] : [],
+      ),
+    ),
+  };
+}
+
+/**
+ * What an approved blueprint changed against the one it replaces.
+ *
+ * Every slot an operation names — retargeted, swapped, moved or removed — is touched, whatever
+ * field it was: a slot whose fallback changed is one whose machine at this gym may have too.
+ * A slot only reordered keeps its targets, so its prepared entry still stands.
+ */
+export function diffCarryChanges(diff: ProgramDiff): PlanCarryChanges {
+  const lineages = new Set<string>();
+  const runs = new Set<string>();
+  for (const day of diff.days)
+    for (const operation of day.operations) {
+      if ("weekIndex" in operation) {
+        if (day.dayOfWeek !== null) runs.add(`${operation.weekIndex}:${day.dayOfWeek}`);
+        continue;
+      }
+      if (operation.kind === "reordered") continue;
+      if ("from" in operation && operation.from.lineageId) lineages.add(operation.from.lineageId);
+      if ("to" in operation && operation.to.lineageId) lineages.add(operation.to.lineageId);
+    }
+  return { lineages, runs };
+}
+
+/**
  * Moves the coach's waiting plans onto the version of the programme that has just replaced
  * theirs.
  *
@@ -2272,7 +2418,7 @@ export async function plannedRunForToday(
 export async function carryPlansToRevision(
   db: DbOrTx,
   userId: string,
-  input: { fromProgramId: string; toProgramId: string; patch: ProgramPatch },
+  input: { fromProgramId: string; toProgramId: string; changes: PlanCarryChanges },
 ): Promise<void> {
   const plans = await db
     .select()
@@ -2289,16 +2435,8 @@ export async function carryPlansToRevision(
     );
   if (plans.length === 0) return;
 
-  const changed = new Set(
-    input.patch.operations.flatMap((operation) =>
-      "lineageId" in operation ? [operation.lineageId] : [],
-    ),
-  );
-  const retargetedRuns = new Set(
-    input.patch.operations.flatMap((operation) =>
-      operation.op === "run" ? [`${operation.weekIndex}:${operation.dayOfWeek}`] : [],
-    ),
-  );
+  const changed = input.changes.lineages;
+  const retargetedRuns = input.changes.runs;
   const [days, slots, oldRuns, newRuns] = await Promise.all([
     db
       .select({ id: programDays.id, dayIndex: programDays.dayIndex })

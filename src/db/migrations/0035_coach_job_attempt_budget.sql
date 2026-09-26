@@ -1,0 +1,15 @@
+-- A job that failed can be sent back for another try, without losing what it already spent.
+--
+-- `coach_jobs.attempts` counts up and is never reset, because 0015's receipt trigger writes
+-- one `coach_job_attempts` row per `(job_id, attempts)` and that pair is unique. Resetting the
+-- counter to hand a job a second life would therefore make the next claim collide with a
+-- receipt the first life already earned, and the job would become permanently unclaimable —
+-- refused inside a trigger, where nothing that reads the queue would explain why.
+--
+-- So the ceiling moves instead of the counter. Every job carries its own budget, three by
+-- default, which is the constant the code used to compare against. Requeueing raises it to
+-- `attempts + 3`: the receipts stay unique and complete, and the row still says how many
+-- attempts it has really had rather than pretending to be new.
+--
+-- Backfilled to 3 for every existing row, which is exactly what they were already allowed.
+ALTER TABLE "coach_jobs" ADD COLUMN "attempt_budget" integer DEFAULT 3 NOT NULL;

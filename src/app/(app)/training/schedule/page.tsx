@@ -34,14 +34,9 @@ export default async function SchedulePage(props: PageProps<"/training/schedule"
 
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
-  const templates = await withUser(
-    getDb(),
-    user.id,
-    (tx) => listTemplates(tx, user.id, { sport }),
-    {
-      readOnly: true,
-    },
-  );
+  const templates = await withUser(getDb(), user.id, (tx) => listTemplates(tx, user.id), {
+    readOnly: true,
+  });
 
   return (
     <>
@@ -53,6 +48,7 @@ export default async function SchedulePage(props: PageProps<"/training/schedule"
           sports={ENDURANCE_SPORTS}
           today={todayInTimeZone(profile.timeZone)}
           templates={templates.map((template) => ({
+            sport: template.sport,
             id: template.id,
             revisionId: template.revisionId,
             name: template.name,

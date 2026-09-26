@@ -12,11 +12,7 @@ export const WEEKLY_CHANGE_POLICY_VERSION = 2;
 
 export type ProgramChangeAuthority = "unchanged" | "automatic" | "review_required";
 export type StructuralChange =
-  | "program_identity"
-  | "block_length"
-  | "split_or_schedule"
-  | "run_schedule"
-  | "slot_moved_between_days";
+  "program_identity" | "block_length" | "split_or_schedule" | "run_schedule";
 
 export type ExerciseMuscleReference = {
   slug: string;
@@ -98,15 +94,15 @@ export function assessProgramChange(
         .map((exercise) => [exercise.lineageId!, day.dayIndex] as const),
     ),
   );
-  if (
-    after.days.some((day) =>
-      day.exercises.some((exercise) => {
-        const oldDay = exercise.lineageId ? oldSlotDays.get(exercise.lineageId) : undefined;
-        return oldDay !== undefined && oldDay !== day.dayIndex;
-      }),
-    )
-  )
-    structuralChanges.push("slot_moved_between_days");
+  // Moving an exercise to another day is the athlete's to approve, but it is not a new block:
+  // the slot keeps its lineage, and so its history, and the days stay what they were. It used
+  // to be structural, which made approving a single move restart the programme's cycles.
+  const movedBetweenDays = after.days.some((day) =>
+    day.exercises.some((exercise) => {
+      const oldDay = exercise.lineageId ? oldSlotDays.get(exercise.lineageId) : undefined;
+      return oldDay !== undefined && oldDay !== day.dayIndex;
+    }),
+  );
 
   const library = new Map(exerciseLibrary.map((exercise) => [exercise.slug, exercise]));
   const priorSlots = new Map(
@@ -127,6 +123,7 @@ export function assessProgramChange(
   const newTotal = nextSlots.reduce((sum, slot) => sum + slot.exercise.sets, 0);
   if (oldTotal > 0 && Math.abs(newTotal / oldTotal - 1) > TRAINING_POLICY.maxTotalSetChange + 1e-9)
     doseChanges.push("Total working sets change by more than 20%.");
+  if (movedBetweenDays) doseChanges.push("Moving an exercise to another day needs review.");
   if (priorSlots.size !== nextSlots.length)
     doseChanges.push("Adding or removing exercise slots needs review.");
   for (const { key, exercise: next } of nextSlots) {
@@ -181,7 +178,9 @@ export function assessProgramChange(
       (old.duration.some(
         (value, i) => Math.abs(next.duration[i]! / value - 1) > TRAINING_POLICY.maxRunChange + 1e-9,
       ) ||
-        old.rpe.some((value, i) => Math.abs(next.rpe[i]! - value) > 1))
+        // Out of five, one step is easy becoming moderate, not a nudge: a run's prescribed
+        // effort never changes on its own. (Out of ten, ±1 was the small change it looked.)
+        old.rpe.some((value, i) => next.rpe[i]! !== value))
     )
       doseChanges.push(
         `Run ${next.weekIndex}/${next.dayOfWeek}: duration or effort exceeds the automatic limit.`,

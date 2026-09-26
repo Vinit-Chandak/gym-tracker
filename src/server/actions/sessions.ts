@@ -60,23 +60,31 @@ export type ActionResult = { ok: true } | { ok: false; error: string };
 function revalidateSession(sessionId?: string): void {
   revalidatePath("/today");
   revalidatePath("/runs");
-  revalidatePath("/history");
   revalidatePath("/progress");
+  revalidatePath("/progress/history");
   revalidatePath("/profile");
   if (sessionId) revalidatePath(`/workouts/${sessionId}`);
 }
 
 /**
  * Re-renders the screen the action was called from and sends the new payload back with the
- * action's own reply.
+ * action's own reply. Used for every change to an exercise or the session, never for a set.
  *
  * The workout screen moves between its list and one exercise with `history.pushState`, not a
- * navigation, so nothing else ever refetches it: without this, sets logged and exercises
- * completed were written to the database but the list went on showing the render the page
- * arrived with — "Start" against an exercise that was done, and an empty grid on reopening it —
- * until the whole route was left and come back to. `refresh` is the right tool rather than
- * `revalidatePath`: this data is read per request behind Row Level Security, so there is no
- * cache entry to invalidate, only a stale render to replace.
+ * navigation, so nothing else ever refetches it: without this, an exercise completed was
+ * written to the database but the list went on showing the render the page arrived with —
+ * "Start" against an exercise that was done — until the whole route was left and come back to.
+ * `refresh` is the right tool rather than `revalidatePath`: this data is read per request
+ * behind Row Level Security, so there is no cache entry to invalidate, only a stale render to
+ * replace. A refresh also makes the browser drop the other screens it holds (the tabs keep
+ * theirs for a minute, ADR 0030), so they are read again when next opened. `revalidatePath`
+ * would additionally throw away every prefetched loading screen, ten requests to fetch the
+ * navigation's five again.
+ *
+ * A set, the one change made dozens of times a workout, is not worth a render of the whole
+ * workout. The browser lays the sets it saved over the render it has and stamps the latest in a
+ * cookie the server reads; any other screen shown from a copy rendered before it is rendered
+ * again, its loading screen standing in meanwhile (`lib/set-changes.ts`).
  */
 function refreshSession(): void {
   refresh();
@@ -213,10 +221,11 @@ const optionalNumber = (min: number, max: number, integer: boolean) =>
       .nullable(),
   );
 
+// No energy: the check-in no longer asks it, and leaving it out of the write is what keeps an
+// answer given before then from being blanked by an edit.
 const checkInSchema = z.object({
   sleepHours: optionalNumber(0, 24, false),
   sleepQuality: optionalNumber(1, 5, true),
-  energy: optionalNumber(1, 5, true),
   fatigue: optionalNumber(1, 5, true),
   soreness: optionalNumber(1, 5, true),
 });
@@ -290,9 +299,7 @@ export async function logSetAction(input: unknown): Promise<LogSetResult> {
   if (effortIssue) return { ok: false, error: effortIssue };
   try {
     const set = await withUser(getDb(), user.id, (tx) => logSet(tx, user.id, parsed.data));
-    // The set count on Today, History and Progress comes from this row too.
-    revalidateSession();
-    refreshSession();
+    // No render comes back with the set; the browser takes it from the reply (see refreshSession).
     return { ok: true, set: { ...set, completedAt: set.completedAt.toISOString() } };
   } catch (error) {
     return { ok: false, error: describe(error) };
@@ -306,8 +313,7 @@ export async function deleteSetAction(
   const user = await requireUser();
   try {
     await withUser(getDb(), user.id, (tx) => deleteSet(tx, user.id, workoutExerciseId, setIndex));
-    revalidateSession();
-    refreshSession();
+    // As for a saved set, the browser takes the deletion from the reply (see refreshSession).
     return { ok: true };
   } catch (error) {
     return { ok: false, error: describe(error) };

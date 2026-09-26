@@ -12,6 +12,9 @@
 
 # testing
 /coverage
+/output/flow-audit/
+/output/food-audit/
+/output/audit-*.txt
 
 # next.js
 /.next/

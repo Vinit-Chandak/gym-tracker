@@ -232,6 +232,83 @@
       "when": 1789966592565,
       "tag": "0032_cycle_day_index",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1790052992565,
+      "tag": "0033_effort_one_to_five",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1790139392565,
+      "tag": "0034_prescribed_effort_out_of_five",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1790051828680,
+      "tag": "0035_coach_job_attempt_budget",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1790139393565,
+      "tag": "0036_repair_coach_attempt_budget",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1790322636101,
+      "tag": "0037_coaching_flow_review",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1790329173152,
+      "tag": "0038_food_tracking",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1790330000000,
+      "tag": "0039_resource_deletion",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1790330000001,
+      "tag": "0040_food_submission_receipts",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1790359457724,
+      "tag": "0041_meals_of_the_day_and_my_foods",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1790413121098,
+      "tag": "0042_targets_from_the_training_goal",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1790426770468,
+      "tag": "0043_meals_in_eating_order",
+      "breakpoints": true
     }
   ]
 }

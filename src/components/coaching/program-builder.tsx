@@ -460,7 +460,7 @@ export function ProgramBuilder({
                           }
                         />
                         <RangeFields
-                          label="RPE"
+                          label="Effort"
                           value={run.rpe}
                           onChange={(rpe) =>
                             change({ runs: plan.runs.map((r) => (r === run ? { ...r, rpe } : r)) })

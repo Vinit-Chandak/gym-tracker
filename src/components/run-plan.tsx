@@ -15,7 +15,7 @@ export type RunTargets = {
   rpeMax?: number | null;
 };
 
-/** "5 km · 25–30 min · RPE 3–4": how far, how long, and how hard. */
+/** "5 km · 25–30 min · Effort 2": how far, how long, and how hard. */
 export function runSummary(run: RunTargets): string {
   const parts = [
     run.distanceMinKm === null
@@ -24,7 +24,7 @@ export function runSummary(run: RunTargets): string {
     rangeLabel(run.durationMinMinutes, run.durationMaxMinutes, " min"),
     run.rpeMin === null || run.rpeMin === undefined
       ? null
-      : `RPE ${rangeLabel(run.rpeMin, run.rpeMax ?? run.rpeMin)}`,
+      : `Effort ${rangeLabel(run.rpeMin, run.rpeMax ?? run.rpeMin)}`,
   ];
   return parts.filter(Boolean).join(" · ");
 }

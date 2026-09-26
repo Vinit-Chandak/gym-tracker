@@ -9,6 +9,7 @@ import { Section } from "@/components/ui/section";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select } from "@/components/ui/select";
 import { ACTIVITY_SPORT_LABELS, type ActivitySport } from "@/domain/activity";
+import { keepsFormOnDisconnect } from "@/lib/offline-submit";
 import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
 
 /**
@@ -19,6 +20,7 @@ import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
  */
 
 export type ScheduleTemplateOption = {
+  sport: ActivitySport;
   id: string;
   revisionId: string;
   name: string;
@@ -38,9 +40,11 @@ export function ScheduleForm({
   today: string;
   templates: readonly ScheduleTemplateOption[];
 }) {
-  const [state, formAction] = useActionState(action, INITIAL_FORM_STATE);
+  const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
+  const [selectedSport, setSelectedSport] = useState(sport);
   const [chosen, setChosen] = useState("");
-  const template = templates.find((item) => item.id === chosen) ?? null;
+  const matchingTemplates = templates.filter((item) => item.sport === selectedSport);
+  const template = matchingTemplates.find((item) => item.id === chosen) ?? null;
 
   return (
     <form action={formAction} className="space-y-[var(--section-gap)]">
@@ -54,7 +58,11 @@ export function ScheduleForm({
                 value: item,
                 label: ACTIVITY_SPORT_LABELS[item],
               }))}
-              defaultValue={state.values?.sport ?? sport}
+              value={selectedSport}
+              onChange={(next) => {
+                setSelectedSport(next);
+                setChosen("");
+              }}
               columns={sports.length}
             />
           </Field>
@@ -93,7 +101,7 @@ export function ScheduleForm({
               onChange={(event) => setChosen(event.target.value)}
             >
               <option value="">No targets — just the date</option>
-              {templates.map((item) => (
+              {matchingTemplates.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.name} · {item.summary}
                 </option>

@@ -9,16 +9,17 @@
  *   priya    @priya     runs most days, lifts a little; keeps body weight private;
  *                       has asked to follow vinit (pending)
  *
- * Every password is "password123". Training is written through the same repositories the
- * app uses, then back-dated and re-derived with the shared-stats backfill, so the shared rows
- * are exactly what finishing those sessions on those days would have produced. Safe to run
- * again: accounts that already exist are left alone.
+ * Every password is "password123". Training is written through the same repositories the app
+ * uses. A session has to be back-dated afterwards, because finishing one stamps "now", and
+ * its shared row is then re-derived with the shared-stats backfill so it says what finishing
+ * that session on that day would have said. A run names its own date as it is saved, so it
+ * needs neither. Safe to run again: accounts that already exist are left alone.
  *
  *   npm run dev:seed
  */
 import { randomBytes, randomUUID, scryptSync } from "node:crypto";
 
-import { eq, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
@@ -28,20 +29,26 @@ import { activities, exercises, profiles, workoutSessions } from "@/db/schema";
 import { seedTestUserData } from "@/db/test/fixtures";
 import type { DbOrTx } from "@/db/types";
 import { withUser } from "@/db/with-user";
+import { AD_HOC_ORIGIN, UNKNOWN_EFFORT } from "@/domain/activity";
+import { nativeDistance } from "@/domain/activity-metrics";
 import { todayInTimeZone } from "@/domain/program-calendar";
+import { createActivity } from "@/server/repositories/activities";
 import { recordBodyWeight } from "@/server/repositories/body-weight";
 import { acceptFollow, requestFollow } from "@/server/repositories/follows";
 import { listGyms } from "@/server/repositories/gyms";
-import { createRun } from "@/server/repositories/runs";
 import {
   addExerciseToSession,
   finishSession,
   logSet,
+  saveCheckIn,
   startAdHocSession,
 } from "@/server/repositories/sessions";
 
 const DATABASE_URL =
   process.env.SEED_DATABASE_URL ?? "postgres://postgres:postgres@localhost:5432/overload_dev";
+if (!["localhost", "127.0.0.1", "[::1]"].includes(new URL(DATABASE_URL).hostname)) {
+  throw new Error("Development accounts may only be seeded into a local database.");
+}
 const TZ = "Asia/Kolkata";
 const PASSWORD = "password123";
 
@@ -214,7 +221,7 @@ const hashPassword = (password: string) => {
 /** `daysAgo` days before now, at 7 pm in the account's zone (a plausible gym hour). */
 function at(daysAgo: number, hour = 19): Date {
   const date = new Date();
-  date.setUTCHours(hour - 5, 30 - 30, 0, 0); // 19:00 IST is 13:30 UTC
+  date.setUTCHours(hour - 6, 30, 0, 0); // 19:00 IST is 13:30 UTC
   date.setUTCDate(date.getUTCDate() - daysAgo);
   return date;
 }
@@ -230,6 +237,7 @@ async function main(): Promise<void> {
   try {
     const ids: Record<keyof typeof PEOPLE, string> = { vinit: "", shreyash: "", priya: "" };
     let created = 0;
+    const createdIds = new Set<string>();
     for (const [key, person] of Object.entries(PEOPLE) as [keyof typeof PEOPLE, Person][]) {
       const [existing] = await client`select id from auth.users where email = ${person.email}`;
       if (existing) {
@@ -252,6 +260,7 @@ async function main(): Promise<void> {
         .where(eq(profiles.id, id));
       await as(id)((tx) => seedTestUserData(tx, { id, email: person.email }));
       ids[key] = id;
+      createdIds.add(id);
       created++;
     }
     if (created === 0) {
@@ -272,11 +281,23 @@ async function main(): Promise<void> {
     };
 
     async function train(who: string, workouts: Workout[]): Promise<void> {
+      if (!createdIds.has(who)) return;
       const gyms = await as(who)((tx) => listGyms(tx, who));
       const gymId = gyms.find((g) => g.slug === "anytime-fitness")!.id;
-      for (const workout of workouts) {
+      for (const [index, workout] of workouts.entries()) {
         const sessionId = await as(who)(async (tx) => {
           const { sessionId } = await startAdHocSession(tx, who, { gymId });
+          // Include complete, partial and skipped answers so Recovery has real trends
+          // and missing values to audit, saved through the same boundary as the form.
+          if (index % 4 !== 3)
+            await saveCheckIn(tx, who, sessionId, {
+              sleepHours: index % 4 === 1 ? null : 6.5 + (index % 3) * 0.5,
+              sleepQuality: index % 4 === 1 ? null : 3 + (index % 3),
+              // The partial check-in answers fatigue alone, as it answered energy alone before
+              // energy stopped being asked.
+              fatigue: 1 + (index % 3),
+              soreness: index % 4 === 1 ? null : 2 + (index % 2),
+            });
           for (const slot of workout.slots) {
             const { workoutExerciseId } = await addExerciseToSession(tx, who, sessionId, {
               exerciseId: exerciseId(slot.slug),
@@ -325,23 +346,51 @@ async function main(): Promise<void> {
       }
     }
 
-    async function jog(who: string, runs: Run[]): Promise<void> {
+    /**
+     * A run, written the way the logger writes one: a canonical activity and its running
+     * detail. `createRun` still exists for the retired `runs` table, and a seed that used it
+     * handed a local stack training that History and Progress cannot see, because both read
+     * the canonical table now.
+     */
+    async function jog(who: string, runs: Run[]): Promise<number> {
+      if (!createdIds.has(who)) return 0;
       for (const run of runs) {
+        const startedAt = at(run.daysAgo, 6);
         await as(who)((tx) =>
-          createRun(tx, who, {
-            mode: "outdoor",
-            startedAt: at(run.daysAgo, 6),
-            durationSeconds: Math.round(run.minutes * 60),
-            distanceMeters: Math.round(run.km * 1000),
-            rpe: null,
-            programRunId: null,
+          createActivity(tx, who, {
+            submissionKey: randomUUID(),
+            origin: AD_HOC_ORIGIN,
+            actual: {
+              sport: "running",
+              environment: "outdoor",
+              // Kilometres, as somebody entering a run would type them.
+              distance: nativeDistance(run.km, "km"),
+              durationMs: Math.round(run.minutes * 60_000),
+              surface: null,
+              elevationGainMetres: null,
+              treadmillInclinePercent: null,
+              averageHeartRate: null,
+              maxHeartRate: null,
+              cadenceStepsPerMinute: null,
+            },
+            // The day it happened on is given here rather than patched afterwards, which is
+            // what the back-dated sessions above have to do.
+            startedAt,
+            recordedTimeZone: TZ,
+            timeZoneSource: "profile_at_entry",
+            occurredOn: todayInTimeZone(TZ, startedAt),
+            effort: UNKNOWN_EFFORT,
+            outcome: "logged",
+            title: null,
             notes: null,
           }),
         );
       }
+      return runs.length;
     }
 
     async function weigh(who: string, readings: { daysAgo: number; kg: number }[]) {
+      if (!createdIds.has(who)) return;
       for (const reading of readings) {
         const day = at(reading.daysAgo, 7).toISOString().slice(0, 10);
         await as(who)((tx) => recordBodyWeight(tx, who, { measuredOn: day, weightKg: reading.kg }));
@@ -351,8 +400,6 @@ async function main(): Promise<void> {
     await train(ids.vinit, VINIT_WORKOUTS);
     await train(ids.shreyash, SHREYASH_WORKOUTS);
     await train(ids.priya, PRIYA_WORKOUTS);
-    await jog(ids.vinit, VINIT_RUNS);
-    await jog(ids.priya, PRIYA_RUNS);
     await weigh(ids.vinit, BODY_WEIGHT.vinit);
     await weigh(ids.shreyash, BODY_WEIGHT.shreyash);
     await weigh(ids.priya, BODY_WEIGHT.priya);
@@ -367,11 +414,18 @@ async function main(): Promise<void> {
 
     // The shared rows were written at finish time with today's date; derive them again from
     // the back-dated sessions, exactly as the production backfill does.
-    await db.delete(schema.sharedSessionStats);
-    await db.delete(schema.sharedExerciseStats);
+    await db
+      .delete(schema.sharedSessionStats)
+      .where(inArray(schema.sharedSessionStats.userId, [...createdIds]));
+    await db
+      .delete(schema.sharedExerciseStats)
+      .where(inArray(schema.sharedExerciseStats.userId, [...createdIds]));
     const summary = await backfillSharedStats(db);
+
+    // Saving a run writes both its canonical activity and shared row from its recorded day.
+    const runCount = (await jog(ids.vinit, VINIT_RUNS)) + (await jog(ids.priya, PRIYA_RUNS));
     console.log(
-      `Seeded ${created} accounts (password "${PASSWORD}"): ${summary.workouts} workouts, ${summary.runs} runs, ${summary.readings} body-weight readings.`,
+      `Seeded ${created} accounts (password "${PASSWORD}"): ${summary.workouts} workouts, ${runCount} runs, ${summary.readings} body-weight readings.`,
     );
     for (const [key, person] of Object.entries(PEOPLE)) {
       console.log(

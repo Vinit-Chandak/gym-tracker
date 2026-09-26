@@ -11,7 +11,7 @@ import { COACH_POLICY_VERSION } from "./coaching-workflow";
  */
 export const COACH_POLICY = {
   version: COACH_POLICY_VERSION,
-  reviewedOn: "2026-09-19",
+  reviewedOn: "2026-09-25",
   scope:
     "General strength, muscle, basic running and hybrid training. Population evidence is not an individualized optimum.",
   rules: [
@@ -25,19 +25,19 @@ export const COACH_POLICY = {
       id: "fit",
       tasks: ["create_program", "review_program"],
       kind: "coaching_principle",
-      rule: "Match dose and exercise choice to confirmed goals, experience, time, equipment and restrictions. Do not copy the founder template or presume six training days. Prescribing detail is your judgement within the trainingReference; the limits below are the server's.",
+      rule: "Match dose and exercise choice to confirmed goals, experience, time, equipment and restrictions. Do not copy the founder template or presume six training days. Start every new slot's rep range and RIR from the band its exercise lookup names — the exercise's own library range, or on the main barbell lifts the repBands band for the athlete's goal; depart from the band only for a reason you state in the rationale — the athlete's preference, a restriction, the machine's load step, or their logged history. Outside the main barbell lifts a new or changed rep range must be at least two reps wide, so reps can build before a load step; the server refuses a narrower one. On a review, repBands.slots shows how far each current slot sits from its band: a slot far outside it with no reason is worth proposing to move, one step at a time, never as a surprise. The limits below are the server's.",
     },
     {
       id: "effort",
       tasks: ["create_program", "prepare_session", "review_program"],
       kind: "coaching_principle",
-      rule: "Require actual RIR after rep working sets and actual RPE after timed/distance sets and runs. Warmups are optional. Never copy target effort into actual logs or turn historical missing effort into zero. Unknown starting loads require calibration with feasible equipment.",
+      rule: "Require actual RIR after rep working sets and actual RPE after timed/distance sets and runs. Warmups are optional. Never copy target effort into actual logs or turn historical missing effort into zero. Unknown starting loads require calibration with feasible equipment. Two scales, and they are not interchangeable: a strength set's RPE and RIR are still out of ten, while every endurance effort — the run effort you prescribe, and the effort the athlete reports on a run, ride or swim — is out of five, where 1 is very easy and 5 is maximal. Prescribe runs on that five-step scale; read a reported endurance effort against it and never against ten. An endurance activity carries the scale it was written on in its effort.scale; a reported value from before the change was rescaled to match, so the whole history reads out of five.",
     },
     {
       id: "running",
       tasks: ["create_program", "prepare_session", "review_program"],
       kind: "coaching_principle",
-      rule: "Use recent frequency, longest run, gaps, symptoms and session distance/duration together. Compare the same scheduled role and mode. Lasting running reductions require athlete review; RPE alone does not establish decline. Check distance and duration independently. The weekly 10% rule is not a safety guarantee. Do not invent missing pace or automatically prioritize strength over running. A run's stopRule is when this runner should cut this run short, in their own terms: the niggle their history shows, the effort not to exceed, the week they are coming back from. One line, written for them, or left empty when nothing specific applies.",
+      rule: "Use recent frequency, longest run, gaps, symptoms and session distance/duration together. Compare the same scheduled role and mode. Lasting running reductions require athlete review; effort alone does not establish decline. Check distance and duration independently. The weekly 10% rule is not a safety guarantee. Do not invent missing pace or automatically prioritize strength over running. A run's stopRule is when this runner should cut this run short, in their own terms: the niggle their history shows, the effort not to exceed, the week they are coming back from. One line, written for them, or left empty when nothing specific applies. A run's prescribed effort is out of five and an easy run is 1–2; changing a run's prescribed effort always needs the athlete's approval, and runs compare as evidence only at the same reported effort. To prepare an endurance session read occurrence.prescription, the one the athlete approved: send prescription null to keep it, or send it whole with only a range narrowed; guidance you leave out is kept as approved.",
     },
     {
       id: "requests",
@@ -52,6 +52,12 @@ export const COACH_POLICY = {
       rule: "The server checks actual changes, supporting evidence, and 14-day cumulative decisions. Only supported changes within the versioned limits can activate automatically. Larger or structural changes, and anything answering an explicit athlete request, need athlete review. Permanent set-count changes belong in weekly review. Preserve confirmed goals, restrictions, schedule and slot lineage. No change is valid.",
     },
     {
+      id: "one_proposal",
+      tasks: ["review_program"],
+      kind: "server_rule",
+      rule: "One proposal waits for the athlete at a time. When pendingProposal is set, a programme result replaces it: start from pendingProposal.blueprint, keep its changes unless the evidence now says otherwise, and add only what is new; return no_change to leave it waiting as it is. An ask listed on it moves to your proposal when you keep exactly that change, and returns to the next review when you drop or alter it. While a proposal waits, nothing is applied automatically. A change the athlete declined (recentDecisions, outcome declined) is not proposed again before its doNotProposeAgainBefore date unless the athlete asks for it again in a new note; the server refuses it otherwise. A proposal they sent back with a revisionNote is reworked from that note at the next review. Weeks before programPosition.currentCycle are already trained: leave their runs as they are — for a change that continues the block the server keeps them unchanged either way — and write run changes for the weeks still ahead. The headline is the one line the athlete reads about the change: say what changes in their training, in their words, with no process ('this review is answering…', 'nothing activates until you approve it'). Keep the rationale to what an athlete asking 'why?' needs, in a few sentences; the change screen already prints every changed line.",
+    },
+    {
       id: "freeze",
       tasks: ["create_program", "prepare_session", "review_program"],
       kind: "server_rule",
@@ -61,7 +67,7 @@ export const COACH_POLICY = {
       id: "evidence",
       tasks: ["create_program", "prepare_session", "review_program"],
       kind: "coaching_principle",
-      rule: "Separate completed logs, the athlete's self-reported training, estimates and missing data. Compare matching exercise/measurement/load convention and the same machine when load is not portable. Retain timestamps, units and source IDs. Primary sets plus half secondary credit is an accounting heuristic, not a measured biological dose.",
+      rule: "Separate completed logs, the athlete's self-reported training, estimates and missing data. Compare matching exercise and measurement, and the same machine when load is not portable: a stack's numbers compare with themselves and with no other machine. Retain timestamps, units and source IDs. Primary sets plus half secondary credit is an accounting heuristic, not a measured biological dose.",
     },
     {
       id: "windows_and_confirmation",
@@ -73,7 +79,7 @@ export const COACH_POLICY = {
       id: "bounded_changes",
       tasks: ["prepare_session", "review_program"],
       kind: "engineering_default",
-      rule: "Load steps up: at most +5% or one real increment of that equipment, whichever is larger, so the only step a light lift has is never forbidden; 14-day cumulative the same way from +10%. Load steps down keep the plain -10% and -15%: where no small enough cut exists, hold and send a genuine decline to review. Weekly sets: at most one set and 25% per exercise, 20% total, including cumulative changes. Rep targets go up by at most two inside the prescribed range, or straight to the top of the range when the last two comparable sessions attained it at the prescribed effort; they come down one rep at a time and only on the confirmed decline test. Time/distance steps at most 10%. Runs: at most 10% for each of duration and distance, with a 14-day cumulative check and a 30-day longest-distance check. These are initial review thresholds, not research-proven optima or injury guarantees. Match dose and effort targets to the athlete's goal when writing the programme; do not treat these ceilings as the place to express a goal. At home use confirmed availableLoads and loadConvention; an infeasible jump means hold or propose a feasible variation.",
+      rule: "A load step is one real step on that same machine, read from the slot's machine.steps: harder and easier from each load last used. On a pin or cable stack a step is `known` (a weight that exists on it), `learned` (the gap between the two nearest known weights carried one further, a guess until lifted) or null (nobody knows; hold the load, progress reps, or leave the load to the athlete). Plates and free weights step by their typed increment. On an assisted machine (machine.assisted) a lower number is harder: less help is the progression and more help the cut. Steps harder: at most +5% or one real step, whichever is larger, so the only step a lift has is never forbidden; 14-day cumulative the same way from +10%. Steps easier keep the plain -10% and -15%: where no small enough cut exists, hold and send a genuine decline to review. Weekly sets: at most one set and 25% per exercise, 20% total, including cumulative changes. Rep targets go up by at most two inside the prescribed range, or straight to the top of the range when the last two comparable sessions attained it at the prescribed effort; they come down one rep at a time and only on the confirmed decline test. Time/distance steps at most 10%. Runs: at most 10% for each of duration and distance, with a 14-day cumulative check and a 30-day longest-distance check; a run's prescribed effort never changes automatically. These are initial review thresholds, not research-proven optima or injury guarantees. Match dose and effort targets to the athlete's goal when writing the programme; do not treat these ceilings as the place to express a goal. At home only a `known` load will do; an unknown or infeasible step means hold or propose a feasible variation.",
     },
     {
       id: "temporary",

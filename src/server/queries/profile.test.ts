@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { listSentence, missingProfileDetails } from "./profile";
+import { listSentence, missingProfileDetails, profileNeedsWrite, type Profile } from "./profile";
 
 const complete = {
   displayName: "Sam",
@@ -44,5 +44,25 @@ describe("list sentence", () => {
     expect(listSentence(["height", "date of birth", "training goal"])).toBe(
       "height, date of birth and training goal",
     );
+  });
+});
+
+describe("whether reading a profile has anything to write", () => {
+  const stored = { displayName: "Sam" } as Profile;
+
+  it("reads a complete profile without writing", () => {
+    expect(profileNeedsWrite(stored, "Samuel")).toBe(false);
+    expect(profileNeedsWrite(stored, null)).toBe(false);
+  });
+
+  it("writes when there is no profile yet", () => {
+    expect(profileNeedsWrite(null, null)).toBe(true);
+  });
+
+  it("writes only when an empty name has a sign-in name to take", () => {
+    expect(profileNeedsWrite({ displayName: "  " } as Profile, "Sam")).toBe(true);
+    expect(profileNeedsWrite({ displayName: null } as Profile, "Sam")).toBe(true);
+    expect(profileNeedsWrite({ displayName: null } as Profile, "   ")).toBe(false);
+    expect(profileNeedsWrite({ displayName: null } as Profile, undefined)).toBe(false);
   });
 });

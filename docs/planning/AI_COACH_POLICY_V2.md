@@ -20,7 +20,7 @@ Exercise comparisons keep program-slot lineage, exercise, equipment and load con
 
 The app still selects the next pending program occurrence; it is not necessarily tomorrow's calendar date. Home locations use the same slot IDs and per-exercise equipment resolution as gyms. One-off location intent, the active program, current equipment, actual history, recovery, running workload, preferences and confirmed restrictions inform the next plan.
 
-Within a repetition range, two complete comparable sessions at suitable effort can support adding one repetition. Load progression requires all prescribed working sets to reach the upper target twice with suitable RIR. The next physical load must be feasible. Home equipment now supports a confirmed list of available loads and their convention. A coarse dumbbell jump that exceeds the automatic limit means hold and review a feasible alternative; the coach cannot invent a lighter increment. Assistance and stack-label changes need review rather than treating the label as a simple physical load.
+Within a repetition range, two complete comparable sessions at suitable effort can support adding one repetition. Load progression requires all prescribed working sets to reach the upper target twice with suitable RIR, and moves one real step on the same machine ([ADR 0028](../decisions/0028-steps-learned-from-the-stack.md)). A pin or cable stack's steps are learned from the weights logged on it: the next stop anybody has used, or above the heaviest, the gap between the two heaviest carried once more. Plates and free weights step by their typed increment; home equipment only to a load known to exist. On an assisted machine less help is the progression. Where the next step is not known, the load holds and reps progress; the coach cannot invent a lighter or a heavier stop. The load convention no longer gates anything.
 
 One poor day does not lower the lasting plan. A temporary adjustment requires a cited recent recovery/symptom report or confirmed restriction and applies to that exact session only. Accepted decisions retain the pre-adjustment load. The fallback planner restores retained targets rather than ratcheting downward from the lighter workout. Current readiness still needs reassessment; retained targets are not clearance to train through symptoms.
 
@@ -49,8 +49,8 @@ These exact windows, matching tolerances, counts and thresholds are engineering 
 
 | Decision | Initial automatic limit |
 | --- | --- |
-| Rep working-set load | +5% or −10% per decision |
-| Load across 14 days | +10% or −15%, measured from the earlier retained load |
+| Rep working-set load | Harder: +5% or one real step of that machine, whichever is larger. Easier: −10% per decision |
+| Load across 14 days | Harder: +10% or one real step, whichever is larger. Easier: −15%. Measured from the earlier retained load |
 | Weekly exercise set count | At most one set and 25% per exercise |
 | Total program working sets | At most 20%; cumulative revisions also checked |
 | Daily rep target | One rep within the current range, supported by repeat performance |

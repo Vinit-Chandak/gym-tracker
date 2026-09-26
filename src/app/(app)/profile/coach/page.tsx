@@ -12,7 +12,9 @@ import { TokenManager } from "./token-manager";
 export const metadata: Metadata = { title: "Coach access" };
 export default async function CoachSettingsPage() {
   const user = await requireUser();
-  const tokens = await withUser(getDb(), user.id, (tx) => listCoachTokens(tx, user.id));
+  const tokens = await withUser(getDb(), user.id, (tx) => listCoachTokens(tx, user.id), {
+    readOnly: true,
+  });
   return (
     <>
       <PageHeader title="Coach access" backHref="/profile" />

@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   profiles,
   programChangeProposals,
+  programDrafts,
   programDays,
   programExercises,
   programs,
@@ -11,13 +12,15 @@ import {
   sessionPlans,
 } from "@/db/schema";
 import { seedReferenceData } from "@/db/seed/reference";
-import { seedTestUserData } from "@/db/test/fixtures";
+import { logTestRun, seedTestUserData } from "@/db/test/fixtures";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
 import type { ProgramPatch } from "@/domain/program-patch";
 import { comparableHistory } from "@/server/queries/comparable";
 
 import { planningContext, storePlan } from "./coach-plans";
+import { sourceRevision } from "./coaching-state";
+import { activateProgramDraft } from "./program-drafts";
 import { listGyms } from "./gyms";
 import {
   applyProposal,
@@ -28,7 +31,6 @@ import {
   rejectProposal,
 } from "./program-revisions";
 import { readProgramBlueprint } from "./programs";
-import { createRun } from "./runs";
 import { getSchedule, recordSlotEvent } from "./schedule";
 import {
   discardSession,
@@ -335,14 +337,12 @@ describe("approving a change", () => {
     // The run half of the day is already answered, so this plan is only about the lifting.
     if (context.slot.includesRun) {
       const logged = await as((tx) =>
-        createRun(tx, user.id, {
-          mode: "outdoor",
+        logTestRun(tx, user.id, {
           startedAt: new Date(),
           durationSeconds: 1200,
           distanceMeters: 3000,
           rpe: 3,
-          programRunId: null,
-          notes: null,
+          effortReported: true,
         }),
       );
       await as((tx) =>
@@ -397,14 +397,12 @@ describe("approving a change", () => {
     const mixed = schedule!.days.find((day) => day.includesRun && day.includesLifting)!;
     const ref = { cycleIndex: 1, dayIndex: mixed.dayIndex };
     const logged = await as((tx) =>
-      createRun(tx, user.id, {
-        mode: "outdoor",
+      logTestRun(tx, user.id, {
         startedAt: new Date(),
         durationSeconds: 1500,
         distanceMeters: 4000,
         rpe: 3,
-        programRunId: null,
-        notes: null,
+        effortReported: true,
       }),
     );
     // The two halves of the day are answered separately and each leaves its own event.
@@ -546,5 +544,109 @@ describe("history across a revision", () => {
       .innerJoin(programDays, eq(programDays.id, programExercises.programDayId))
       .where(eq(programExercises.id, slotBefore!));
     expect(archived?.programId).not.toBe((await activeProgram()).id);
+  });
+});
+
+describe("approving a coach draft", () => {
+  /** A coach proposal for the active programme, written with `edit`, approved at once. */
+  async function approve(
+    edit: (
+      plan: NonNullable<Awaited<ReturnType<typeof readProgramBlueprint>>>["blueprint"],
+    ) => void,
+  ) {
+    const program = await activeProgram();
+    const current = await as((tx) => readProgramBlueprint(tx, user.id, program.id));
+    const blueprint = structuredClone(current!.blueprint);
+    edit(blueprint);
+    const [draft] = await as(async (tx) =>
+      tx
+        .insert(programDrafts)
+        .values({
+          userId: user.id,
+          source: "weekly",
+          status: "ready",
+          blueprint,
+          baseProgramId: program.id,
+          sourceRevision: await sourceRevision(tx, user.id),
+          headline: "A change.",
+        })
+        .returning(),
+    );
+    await as((tx) =>
+      activateProgramDraft(tx, user.id, draft!.id, {
+        expectedRevision: draft!.revision,
+        startDate: "2026-09-25",
+        transition: "continue",
+      }),
+    );
+  }
+
+  it("continues the block when an exercise moves to another day", async () => {
+    const before = await activeProgram();
+    const current = await as((tx) => readProgramBlueprint(tx, user.id, before.id));
+    const lifting = current!.blueprint.days.filter((day) => day.exercises.length > 1);
+    const [from, to] = [lifting[0]!, lifting[1]!];
+    const moving = from.exercises[from.exercises.length - 1]!;
+    await approve((blueprint) => {
+      const source = blueprint.days.find((day) => day.dayIndex === from.dayIndex)!;
+      const target = blueprint.days.find((day) => day.dayIndex === to.dayIndex)!;
+      target.exercises.push(source.exercises.pop()!);
+    });
+    const after = await activeProgram();
+    // The same block, carried on: same family and start, a new version.
+    expect(after.id).not.toBe(before.id);
+    expect(after.familyId).toBe(before.familyId);
+    expect(after.startDate).toBe(before.startDate);
+    const moved = (await slots()).find((slot) => slot.lineageId === moving.lineageId);
+    expect(moved?.dayIndex).toBe(to.dayIndex);
+  });
+
+  it("keeps the session the coach prepared, minus the slots the change rewrote", async () => {
+    const context = await as((tx) => planningContext(tx, user.id, { gymId }));
+    if (context.reason) throw new Error(context.reason);
+    const [first, second] = context.exercises;
+    if (!first?.lineageId || !second?.lineageId) throw new Error("slots must carry lineage");
+    const ref = { cycleIndex: context.slot.cycleIndex, dayIndex: context.slot.dayIndex };
+    const plan = await as((tx) =>
+      storePlan(tx, user.id, {
+        slot: ref,
+        gymId,
+        trigger: "nightly",
+        plan: {
+          summary: "Two lifts, prepared for today.",
+          exercises: [
+            { slotId: first.slotId, exerciseSlug: first.planned.slug, sets: [] },
+            { slotId: second.slotId, exerciseSlug: second.planned.slug, sets: [] },
+          ],
+        },
+      }),
+    );
+
+    // A change to another day leaves today's preparation whole, on the new version.
+    await approve((blueprint) => {
+      const other = blueprint.days.find(
+        (day) => day.dayIndex !== ref.dayIndex && day.exercises.length,
+      )!;
+      other.exercises[0]!.notes = "A cue for another day.";
+    });
+    const [kept] = await t.db.select().from(sessionPlans).where(eq(sessionPlans.id, plan.id));
+    expect(kept?.status).toBe("active");
+    expect(kept?.programId).toBe((await activeProgram()).id);
+    expect(kept?.exercises.map((entry) => entry.exerciseSlug)).toEqual([
+      first.planned.slug,
+      second.planned.slug,
+    ]);
+
+    // A change to one of today's slots — a fallback, here — sends only that slot back to the
+    // programme; the rest of what the coach prepared still stands.
+    await approve((blueprint) => {
+      const slot = blueprint.days
+        .flatMap((day) => day.exercises)
+        .find((exercise) => exercise.lineageId === first.lineageId)!;
+      slot.fallbacks = [{ exerciseSlug: "leg-press-45", rank: 1 }];
+    });
+    const [trimmed] = await t.db.select().from(sessionPlans).where(eq(sessionPlans.id, plan.id));
+    expect(trimmed?.status).toBe("active");
+    expect(trimmed?.exercises.map((entry) => entry.exerciseSlug)).toEqual([second.planned.slug]);
   });
 });

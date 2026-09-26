@@ -33,6 +33,13 @@ import { SignOutRow } from "./sign-out-row";
 
 export const metadata: Metadata = { title: "Profile" };
 
+/**
+ * Coming back to this tab within a minute shows what it showed, without asking the server
+ * (ADR 0030). Any change made in the app clears that copy at once; only a change made
+ * elsewhere, on another device or by the coach, can take up to the minute to appear.
+ */
+export const unstable_dynamicStaleTime = 60;
+
 export default async function ProfilePage() {
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
@@ -58,13 +65,15 @@ export default async function ProfilePage() {
           looks, who can get in, the app itself, and the way out. A row says only where it
           goes; everything behind it has its own page. */}
       <PageContent>
-        {/* The header card is what a friend sees of you (ADR 0026). The warning is said here
+        {/* The header card is what a friend sees of you (ADR 0026), and your avatar or name
+            opens the rest of it: your page as a follower sees it. The warning is said here
             rather than only behind the link: a detail nobody knows is missing is a detail
             nobody adds. */}
         <PersonCard
           person={profile}
           counts={counts}
           countsLinkToFriends
+          href={`/u/${profile.username}`}
           warning={missing.length > 0 ? `Add your ${listSentence(missing)}` : undefined}
         >
           <LinkButton href="/profile/edit" variant="secondary" size="sm" className="w-full">

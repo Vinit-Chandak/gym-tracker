@@ -17,9 +17,10 @@ import { authenticateCoachToken } from "@/server/repositories/coach-tokens";
 import { getSchedule } from "@/server/repositories/schedule";
 import {
   readRecovery,
-  readRuns,
+  readRunActivities,
   readTrainingData,
   readWorkouts,
+  type RunActivity,
 } from "@/server/repositories/training-data";
 import { parseDateRange } from "@/server/validation/date-range";
 import { todayInTimeZone } from "@/domain/program-calendar";
@@ -36,6 +37,31 @@ const headers = {
   Vary: "Authorization",
   "X-Content-Type-Options": "nosniff",
 };
+
+/**
+ * A run in the shape version 1 has always served.
+ *
+ * The compatibility window promises a client these field names for another six months; it
+ * does not promise them a table that stopped being written to. The keys are the retired
+ * row's, including the `rpe`/`effortReported` pair that says whether the number was the
+ * athlete's own report, and the values come from the activity the run is actually stored as.
+ */
+function v1Run(run: RunActivity) {
+  return {
+    id: run.id,
+    startedAt: run.startedAt,
+    mode: run.environment,
+    durationSeconds: run.durationSeconds,
+    distanceMeters: run.distanceMeters,
+    averagePaceSecondsPerKm: run.averagePaceSecondsPerKm,
+    rpe: run.effort.value,
+    effortReported: run.effort.status === "reported",
+    surface: run.surface,
+    notes: run.notes,
+    gymId: run.gymId,
+    programRunId: run.programRunId,
+  };
+}
 
 /**
  * What a v1 response says about its own future (plan §8.6).
@@ -257,16 +283,20 @@ export async function handleCoachRequest(
           const result = await readWorkouts(tx, userId, range, pagination.page, pagination.limit);
           return json({ ...meta, ...pagination, ...result }, 200, V1_COMPATIBILITY);
         }
-        if (endpoint === "running")
+        if (endpoint === "running") {
+          const runData = await readRunActivities(
+            tx,
+            userId,
+            range,
+            pagination.page,
+            pagination.limit,
+          );
           return json(
-            {
-              ...meta,
-              ...pagination,
-              ...(await readRuns(tx, userId, range, pagination.page, pagination.limit)),
-            },
+            { ...meta, ...pagination, hasMore: runData.hasMore, runs: runData.runs.map(v1Run) },
             200,
             V1_COMPATIBILITY,
           );
+        }
         if (endpoint === "summary") {
           const data = await readTrainingData(tx, userId, range);
           return json(
@@ -287,7 +317,13 @@ export async function handleCoachRequest(
             pagination.page,
             pagination.limit,
           );
-          const runData = await readRuns(tx, userId, range, pagination.page, pagination.limit);
+          const runData = await readRunActivities(
+            tx,
+            userId,
+            range,
+            pagination.page,
+            pagination.limit,
+          );
           return json({
             ...meta,
             ...pagination,

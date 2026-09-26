@@ -46,6 +46,7 @@ export function PersonRow<T extends string>({
       {link ? (
         <Link
           href={href ?? (`/u/${person.username}` as Route)}
+          prefetch="intent"
           className="-my-3 -ml-4 flex min-h-14 min-w-0 flex-1 items-center gap-3 py-3 pl-4 focus-visible:-outline-offset-2"
         >
           {body}

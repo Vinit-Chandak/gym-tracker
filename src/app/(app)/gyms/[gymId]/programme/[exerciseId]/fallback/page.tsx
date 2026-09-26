@@ -24,25 +24,30 @@ export default async function GymFallbackPage(
   requireUuid(gymId);
   requireUuid(exerciseId);
   const user = await requireUser();
-  const data = await withUser(getDb(), user.id, async (tx) => {
-    const [gym, exercise] = await Promise.all([
-      getGym(tx, user.id, gymId),
-      getExercise(tx, user.id, exerciseId),
-    ]);
-    if (!gym || !exercise) return null;
-    const [all, machines, compatibleMachines] = await Promise.all([
-      listExercises(tx),
-      listEquipmentForGym(tx, user.id, gymId),
-      machinesByExerciseAtGym(tx, user.id, gymId),
-    ]);
-    return {
-      gym,
-      exercise,
-      exercises: all.filter((e) => e.isActive && e.id !== exerciseId),
-      machines: machines.filter((m) => m.isActive).map((m) => ({ id: m.id, name: m.name })),
-      compatibleMachines,
-    };
-  });
+  const data = await withUser(
+    getDb(),
+    user.id,
+    async (tx) => {
+      const [gym, exercise] = await Promise.all([
+        getGym(tx, user.id, gymId),
+        getExercise(tx, user.id, exerciseId),
+      ]);
+      if (!gym || !exercise) return null;
+      const [all, machines, compatibleMachines] = await Promise.all([
+        listExercises(tx),
+        listEquipmentForGym(tx, user.id, gymId),
+        machinesByExerciseAtGym(tx, user.id, gymId),
+      ]);
+      return {
+        gym,
+        exercise,
+        exercises: all.filter((e) => e.isActive && e.id !== exerciseId),
+        machines: machines.filter((m) => m.isActive).map((m) => ({ id: m.id, name: m.name })),
+        compatibleMachines,
+      };
+    },
+    { readOnly: true },
+  );
   if (!data) notFound();
 
   return (

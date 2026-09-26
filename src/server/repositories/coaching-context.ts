@@ -1,16 +1,19 @@
 import { and, count, desc, eq, gte, isNotNull, lt, lte, max, ne, sql, sum } from "drizzle-orm";
 import {
   coachIntakes,
+  coachProgramRequests,
   coachWeeklyReviews,
-  equipmentInstances,
   exercises,
-  programDrafts,
-  runs,
+  occurrenceVersions,
+  plannedOccurrences,
+  activities,
+  runningActivityDetails,
   setLogs,
   workoutExercises,
   workoutSessions,
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
+import { EFFORT } from "@/domain/activity-limits";
 import { COACH_POLICY } from "@/domain/coach-policy";
 import {
   COACH_TRAINING_REFERENCE,
@@ -31,14 +34,62 @@ import {
   getCoachingPreferences,
   sourceRevision,
 } from "./coaching-state";
-import { getCoachMemo, libraryAtGym, planningContext } from "./coach-plans";
+import { getCoachMemo, planningContext } from "./coach-plans";
 import { listCoachAttachments } from "./coach-attachments";
 import { listGyms } from "./gyms";
 import { getSchedule } from "./schedule";
 import { readProgramBlueprint } from "./programs";
-import { readRuns, readRecovery, readWorkouts } from "./training-data";
+import {
+  readRunActivitiesBetween,
+  readRecovery,
+  readWorkouts,
+  type RunActivity,
+} from "./training-data";
 import { readWeeklyTrainingVolume } from "./training-volume";
 import { readCoachingEvidence } from "./coaching-evidence";
+import {
+  currentCycleFor,
+  DECLINE_COOLDOWN_DAYS,
+  pendingCoachProposal,
+  recentDecisionsForCoach,
+} from "./coach-proposals";
+import { summariseProgramDiff, changeSummaryLine } from "@/domain/program-change-summary";
+import { changeFingerprints, diffPrograms } from "@/domain/program-diff";
+import { bandDistance, bandEmphasis, defaultBand, repBandTable } from "@/domain/rep-bands";
+import { sharedExercises } from "@/server/queries/reference";
+
+/**
+ * A run as the coach's narrative context has always listed one.
+ *
+ * The retired row's names are kept — `mode`, `rpe`, `effortReported` — because prompts and a
+ * memo written against them are still in service. The effort's provenance travels beside them
+ * instead of being flattened into the number, so an RPE nobody confirmed still says so and
+ * cannot be read as the athlete's own report (LOG-03).
+ *
+ * The name outlived its scale. `rpe` is out of five since 0033, like every endurance effort
+ * and unlike a strength set's, so `effortScale` is stated rather than left to a reader who
+ * knows what RPE has always meant. A number half the size of the one a prompt was written
+ * against is the kind of thing that reads as an easy week rather than as a changed unit.
+ */
+function coachRunView(run: RunActivity) {
+  return {
+    id: run.id,
+    startedAt: run.startedAt,
+    occurredOn: run.occurredOn,
+    mode: run.environment,
+    durationSeconds: run.durationSeconds,
+    distanceMeters: run.distanceMeters,
+    averagePaceSecondsPerKm: run.averagePaceSecondsPerKm,
+    rpe: run.effort.value,
+    effortScale: { min: EFFORT.min, max: EFFORT.max },
+    effortReported: run.effort.status === "reported",
+    effortStatus: run.effort.status,
+    surface: run.surface,
+    notes: run.notes,
+    occurrenceId: run.occurrenceId,
+    programRunId: run.programRunId,
+  };
+}
 
 /** Full interval aggregates are independent of the bounded narrative evidence below. */
 export async function trainingPeriodSummary(db: DbOrTx, userId: string, start: Date, end: Date) {
@@ -68,17 +119,30 @@ export async function trainingPeriodSummary(db: DbOrTx, userId: string, start: D
         ),
       )
       .groupBy(exercises.id),
+    // Whole seconds, as the retired table stored them, from the milliseconds the canonical
+    // one does. The interval, the fields and their units are unchanged; only the source is.
     db
       .select({
         count: count(),
-        seconds: sum(runs.durationSeconds),
-        meters: sum(runs.distanceMeters),
-        longestMeters: max(runs.distanceMeters),
-        knownDistances: sql<number>`count(${runs.distanceMeters})`.mapWith(Number),
-        knownDurations: sql<number>`count(${runs.durationSeconds})`.mapWith(Number),
+        seconds: sum(sql`round(${activities.durationMs} / 1000.0)`),
+        meters: sum(runningActivityDetails.distanceMetres),
+        longestMeters: max(runningActivityDetails.distanceMetres),
+        knownDistances: sql<number>`count(${runningActivityDetails.distanceMetres})`.mapWith(
+          Number,
+        ),
+        knownDurations: sql<number>`count(${activities.durationMs})`.mapWith(Number),
       })
-      .from(runs)
-      .where(and(eq(runs.userId, userId), gte(runs.startedAt, start), lt(runs.startedAt, end))),
+      .from(activities)
+      .innerJoin(runningActivityDetails, eq(runningActivityDetails.activityId, activities.id))
+      .where(
+        and(
+          eq(activities.userId, userId),
+          eq(activities.sport, "running"),
+          eq(activities.status, "completed"),
+          gte(activities.startedAt, start),
+          lt(activities.startedAt, end),
+        ),
+      ),
     db
       .select({
         completed:
@@ -169,7 +233,13 @@ export async function coachJobContext(
     job.target.programId ? readProgramBlueprint(db, userId, job.target.programId) : null,
     getSchedule(db, userId),
     readWorkouts(db, userId, range, 0, 40),
-    readRuns(db, userId, range, 0, 60),
+    // The newest sixty, and whether there were more: what `readRuns` answered here before.
+    readRunActivitiesBetween(
+      db,
+      userId,
+      { start: range.start, end: range.end },
+      { order: "desc", limit: 61 },
+    ).then((rows) => ({ hasMore: rows.length > 60, runs: rows.slice(0, 60).map(coachRunView) })),
     readRecovery(db, userId, range),
     readWeeklyTrainingVolume(db, userId, profile.timeZone, evidenceEnd, 8),
     db
@@ -178,18 +248,7 @@ export async function coachJobContext(
       .where(eq(coachWeeklyReviews.userId, userId))
       .orderBy(desc(coachWeeklyReviews.periodEnd))
       .limit(8),
-    db
-      .select({
-        id: programDrafts.id,
-        status: programDrafts.status,
-        name: sql<string>`${programDrafts.blueprint}->>'name'`,
-        rationale: programDrafts.rationale,
-        createdAt: programDrafts.createdAt,
-      })
-      .from(programDrafts)
-      .where(eq(programDrafts.userId, userId))
-      .orderBy(desc(programDrafts.createdAt))
-      .limit(20),
+    recentDecisionsForCoach(db, userId, now),
     getCoachingPreferences(db, userId),
     trainingPeriodSummary(
       db,
@@ -200,15 +259,13 @@ export async function coachJobContext(
     readCoachingEvidence(db, userId, job.target.programId, evidenceEnd),
   ]);
   /**
-   * The location this job's context describes.
+   * The location this job's lookups default to (ADR 0029).
    *
    * A session preparation names its gym, and a first programme takes the one the athlete
-   * confirmed at intake. A weekly review names neither, and with no confirmed intake behind
-   * it that used to leave both `catalogue` and `equipment` empty: the review was asked to
-   * judge a programme while being told the athlete owns no equipment and can perform no
-   * exercise, which is not sparse context but wrong context — and nothing said so, because an
-   * empty list reads exactly like a gym with nothing in it. The athlete's default active gym
-   * answers for them when the job does not, which is the same gym Today trains them at.
+   * confirmed at intake. A weekly review names neither, and the athlete's default active gym
+   * answers for them, which is the same gym Today trains them at. The library and the
+   * machines are not sent: the coach looks up what it needs, at this location or any other
+   * one in `locations`, while it works.
    */
   const targetGymId = job.target.gymId ?? intake?.answers.gymId ?? null;
   const equipmentGymId =
@@ -216,21 +273,6 @@ export async function coachJobContext(
     locations.find((gym) => gym.isActive && gym.isDefault)?.id ??
     locations.find((gym) => gym.isActive && gym.kind === "gym")?.id ??
     null;
-  const [catalogue, equipment] = equipmentGymId
-    ? await Promise.all([
-        libraryAtGym(db, userId, equipmentGymId),
-        db
-          .select()
-          .from(equipmentInstances)
-          .where(
-            and(
-              eq(equipmentInstances.userId, userId),
-              eq(equipmentInstances.gymId, equipmentGymId),
-              eq(equipmentInstances.isActive, true),
-            ),
-          ),
-      ])
-    : [[], []];
   const period =
     job.target.reviewStart && job.target.reviewEnd
       ? await trainingPeriodSummary(
@@ -240,13 +282,34 @@ export async function coachJobContext(
           new Date(job.target.reviewEnd),
         )
       : null;
-  const nextSession =
+  const planning =
     job.kind === "prepare_session"
       ? await planningContext(db, userId, { gymId: targetGymId ?? undefined })
       : null;
+  // Each slot already names its machine and its next loads; the library and the gym's
+  // machine list are lookups (ADR 0029), not a second copy of what the context left out.
+  const nextSession =
+    planning && planning.reason === null
+      ? (({ library: _library, gym, ...rest }) => ({
+          ...rest,
+          gym: (({ machines: _machines, ...place }) => place)(gym),
+        }))(planning)
+      : planning;
   // A proposal the athlete can no longer approve is not an answer, so those asks go back on
   // the list before this attempt is told what it owes an outcome.
   await reopenOrphanedRequests(db, userId, now);
+  const emphasis = bandEmphasis(profile.trainingGoal);
+  const slotBands =
+    job.kind === "review_program" && program
+      ? await currentSlotBands(db, userId, program.blueprint, emphasis)
+      : null;
+  const [pendingProposal, currentCycle, occurrence] = await Promise.all([
+    job.kind === "review_program" && program
+      ? pendingProposalView(db, userId, job.target.programId!, program.blueprint)
+      : null,
+    currentCycleFor(db, userId, job.target.programId),
+    job.target.occurrenceId ? occurrenceTarget(db, userId, job.target.occurrenceId) : null,
+  ]);
   // Explicit requests are assessed by the scheduled daily work and by nothing else. An
   // on-demand gym change, or a fresh programme, is not the athlete asking for that hearing,
   // and handing it the list would make any tap on Today a trigger for a programme decision.
@@ -266,6 +329,11 @@ export async function coachJobContext(
       meaning:
         "General guidance. Server permissions, the policy's numeric limits and this athlete's records outrank it. A broad research range is not an exercise's default target band.",
     },
+    /**
+     * Where a rep range starts: a default band per exercise role, for this athlete's goal.
+     * Each exercise lookup names its role and band; a review also gets every current slot's.
+     */
+    repBands: { ...repBandTable(emphasis), slots: slotBands },
     policy: {
       ...COACH_POLICY,
       rules: COACH_POLICY.rules.filter((rule) =>
@@ -332,15 +400,43 @@ export async function coachJobContext(
         : attachments,
     locations: locations.filter((g) => g.isActive),
     /**
-     * The location `equipment` and `catalogue` describe. It is the job's own gym where the
-     * job names one, and the athlete's default otherwise — a weekly review names none, and it
-     * still has to know what the athlete can actually train on.
+     * The location to look things up at: the job's own gym where it names one, the athlete's
+     * default otherwise — a weekly review names none, and it still has to know what the
+     * athlete can actually train on. Null only when the athlete has no active location.
      */
     equipmentGymId,
-    equipment,
-    catalogue,
+    lookups: {
+      meaning:
+        "The exercise library and each location's machines are not in this context. Look them up while you work, with this job's attempt: `workflow.ts exercises` searches the shared library and the athlete's own exercises by the athlete's own words (and by muscle or pattern), with availability at a location when you pass --gym; `workflow.ts machines --gym` lists a location's machines with their known loads. Search before you ask the athlete what an exercise is called, and before you say one is missing. An empty search means the library has no match, never that the athlete has no exercises.",
+      defaultGymId: equipmentGymId,
+    },
     warmups,
     program,
+    /**
+     * Where the athlete is in the programme. Weeks before `currentCycle` are finished: a
+     * proposal cannot change them, and the server keeps their runs exactly as they were.
+     */
+    programPosition: program
+      ? {
+          currentCycle,
+          weeks: program.blueprint.weeks,
+          meaning:
+            "One cycle is one pass through the programme's days; run weeks are numbered by cycle. Weeks before currentCycle are already trained: leave them as they are.",
+        }
+      : null,
+    /**
+     * The coach proposal already waiting for the athlete, if there is one. A programme result
+     * replaces it, so build on it: start from its blueprint, keep what still holds, and add
+     * only what is new. Return no_change to leave it as it is.
+     */
+    pendingProposal,
+    /**
+     * The one scheduled session an endurance preparation is for, with the prescription the
+     * athlete approved. A preparation chooses inside it and carries its instructions over
+     * unchanged; this is the text to copy, not the programme's run row, whose fields are named
+     * differently.
+     */
+    occurrence,
     nextSession,
     pendingComponents:
       schedule && job.target.cycleIndex && job.target.dayIndex
@@ -362,7 +458,12 @@ export async function coachJobContext(
     lastThirtyDays: thirtyDayEvidence,
     recovery,
     reviews,
-    decisions,
+    /**
+     * What the athlete decided about recent proposals — approved, declined, sent back with a
+     * note, or replaced — with what each one changed. A declined change is not proposed again
+     * before `doNotProposeAgainBefore` unless the athlete asks for it; the server refuses it.
+     */
+    recentDecisions: decisions,
     /**
      * What the athlete asked for and has not had an answer to. Kept apart from the memo on
      * purpose: remembering a preference is not the same as proposing, applying or declining
@@ -378,6 +479,102 @@ export async function coachJobContext(
           : "Explicit asks this attempt must decide. Give each one exactly one decision in requests.decisions, and open any further ask you find in the athlete's notes in requests.open. Anything saved after this snapshot waits for the next daily run.",
     },
     dataMeaning:
-      "The intake's recentTraining is the athlete's own account of what they lift, in prose and approximate: treat it as a starting estimate to be corrected from logged sets, never as a completed workout. Reports can be removed and require the job-scoped download endpoint. Narrative history is bounded with hasMore; aggregate intervals cover all saved records. Unknown equipment load conventions and measurements must stay unknown.",
+      "The intake's recentTraining is the athlete's own account of what they lift, in prose and approximate: treat it as a starting estimate to be corrected from logged sets, never as a completed workout. Reports can be removed and require the job-scoped download endpoint. Narrative history is bounded with hasMore; aggregate intervals cover all saved records. Unknown equipment load conventions and measurements must stay unknown. Check-ins no longer ask for energy, which was fatigue on a reversed scale (1 flat, 5 fired up); only check-ins saved before that change carry it. A null energy is not a skipped question: fatigue (1 fresh, 5 wrecked) is how run-down the athlete says they are.",
   };
+}
+
+/** The waiting coach proposal, as the coach needs it to build on rather than beside it. */
+async function pendingProposalView(
+  db: DbOrTx,
+  userId: string,
+  programId: string,
+  active: import("@/domain/program-blueprint").ProgramBlueprint,
+) {
+  const draft = await pendingCoachProposal(db, userId, programId);
+  if (!draft) return null;
+  const diff = diffPrograms(active, draft.blueprint);
+  const requests = await db
+    .select({
+      id: coachProgramRequests.id,
+      quote: coachProgramRequests.quote,
+      summary: coachProgramRequests.summary,
+      changeRefs: coachProgramRequests.changeRefs,
+    })
+    .from(coachProgramRequests)
+    .where(
+      and(
+        eq(coachProgramRequests.userId, userId),
+        eq(coachProgramRequests.draftId, draft.id),
+        eq(coachProgramRequests.state, "proposed"),
+      ),
+    );
+  return {
+    draftId: draft.id,
+    createdAt: draft.createdAt.toISOString(),
+    headline: draft.headline,
+    summary: changeSummaryLine(summariseProgramDiff(diff)),
+    changes: [...changeFingerprints(diff)].map(([fingerprint, label]) => ({ fingerprint, label })),
+    blueprint: draft.blueprint,
+    requests,
+    meaning: `Not yet approved. A programme result replaces it: start from this blueprint, keep its changes unless the evidence now says otherwise, and add only what is new. An ask listed here moves to your proposal when it makes exactly the same change; drop or alter that change and the ask comes back to the next review. Return no_change to leave it waiting as it is. A declined change stays out for ${DECLINE_COOLDOWN_DAYS} days.`,
+  };
+}
+
+/** The occurrence an endurance preparation is for, with the prescription the athlete approved. */
+async function occurrenceTarget(db: DbOrTx, userId: string, occurrenceId: string) {
+  const [row] = await db
+    .select({
+      id: plannedOccurrences.id,
+      sport: plannedOccurrences.sport,
+      revisionId: plannedOccurrences.currentRevisionId,
+      scheduledOn: occurrenceVersions.scheduledOn,
+      prescription: occurrenceVersions.prescription,
+    })
+    .from(plannedOccurrences)
+    .innerJoin(
+      occurrenceVersions,
+      and(
+        eq(occurrenceVersions.id, plannedOccurrences.currentRevisionId),
+        eq(occurrenceVersions.userId, plannedOccurrences.userId),
+      ),
+    )
+    .where(and(eq(plannedOccurrences.userId, userId), eq(plannedOccurrences.id, occurrenceId)))
+    .limit(1);
+  if (!row) return null;
+  return {
+    ...row,
+    meaning:
+      "The approved prescription. Send prescription: null to keep it exactly; to narrow a range, send the whole prescription with only that range changed. Its running, instructions and notes are the athlete's approved guidance: if you omit them they are kept as they are.",
+  };
+}
+
+/** Every rep slot of the programme beside the band its role starts from, and how far off it sits. */
+async function currentSlotBands(
+  db: DbOrTx,
+  userId: string,
+  plan: import("@/domain/program-blueprint").ProgramBlueprint,
+  emphasis: ReturnType<typeof bandEmphasis>,
+) {
+  const [shared, own] = await Promise.all([
+    sharedExercises(db),
+    db.select().from(exercises).where(eq(exercises.userId, userId)),
+  ]);
+  const bySlug = new Map([...shared, ...own].map((exercise) => [exercise.slug, exercise]));
+  return plan.days.flatMap((day) =>
+    day.exercises
+      .filter((slot) => slot.reps)
+      .map((slot) => {
+        const exercise = bySlug.get(slot.exerciseSlug);
+        const band = exercise ? defaultBand(exercise, emphasis) : null;
+        return {
+          day: day.name,
+          exerciseSlug: slot.exerciseSlug,
+          lineageId: slot.lineageId ?? null,
+          reps: slot.reps!,
+          role: band?.role ?? null,
+          band: band?.reps ?? null,
+          repsOutsideBand: band?.reps ? bandDistance(slot.reps!, band.reps) : null,
+        };
+      }),
+  );
 }

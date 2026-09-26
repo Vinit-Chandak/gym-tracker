@@ -9,6 +9,10 @@ import {
   seedLegacyCompletionWithoutRun,
 } from "@/db/test/multisport-fixtures";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
+import { withUser } from "@/db/with-user";
+import { createActivity } from "@/server/repositories/activities";
+import { AD_HOC_ORIGIN, UNKNOWN_EFFORT } from "@/domain/activity";
+import { nativeDistance } from "@/domain/activity-metrics";
 
 /**
  * AT-BASE-02 and the audit half of AT-MIG: the inventory has to see what is there, name the
@@ -25,6 +29,48 @@ afterEach(async () => {
 });
 
 describe("a clean mixed account", () => {
+  it("accepts runs written only to the canonical tables and scopes missing sources to their owner", async () => {
+    const user = await t.createAuthUser("canonical@example.test");
+    const other = await t.createAuthUser("orphan-elsewhere@example.test");
+    await seedLegacyAccount(t.db, user);
+    const orphan = await seedLegacyAccount(t.db, other);
+    await t.db.execute(sql`delete from public.runs where id = ${orphan.runIds[0]!}`);
+    await withUser(t.db, user.id, (tx) =>
+      createActivity(tx, user.id, {
+        submissionKey: crypto.randomUUID(),
+        origin: AD_HOC_ORIGIN,
+        startedAt: new Date("2026-09-22T06:00:00Z"),
+        recordedTimeZone: "UTC",
+        timeZoneSource: "profile_at_entry",
+        occurredOn: "2026-09-22",
+        effort: UNKNOWN_EFFORT,
+        outcome: "logged",
+        title: null,
+        notes: null,
+        actual: {
+          sport: "running",
+          environment: "outdoor",
+          distance: nativeDistance(5, "km"),
+          durationMs: 1800000,
+          surface: null,
+          elevationGainMetres: null,
+          treadmillInclinePercent: null,
+          averageHeartRate: null,
+          maxHeartRate: null,
+          cadenceStepsPerMinute: null,
+        },
+      }),
+    );
+    const audit = await auditMultisport(t.db, { userId: user.id });
+    expect(
+      audit.issues.find((issue) => issue.category === "shared_stat_missing_source"),
+    ).toBeUndefined();
+    const all = await auditMultisport(t.db);
+    expect(all.issues.find((issue) => issue.category === "shared_stat_missing_source")?.count).toBe(
+      1,
+    );
+  });
+
   it("counts the legacy sources and projects what the backfill would write", async () => {
     const user = await t.createAuthUser("clean@example.test");
     const account = await seedLegacyAccount(t.db, user);

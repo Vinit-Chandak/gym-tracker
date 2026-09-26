@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { z } from "zod";
 
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
@@ -22,6 +23,7 @@ import {
   setEquipmentActive,
   updateEquipment,
 } from "@/server/repositories/equipment";
+import { confirmMachineLoad } from "@/server/repositories/load-ladders";
 import { formValues, parseForm, type FormState } from "@/server/validation/form";
 import { equipmentInputSchema } from "@/server/validation/gyms";
 import { workoutReturnPath, type WorkoutReturn } from "@/server/validation/params";
@@ -117,4 +119,28 @@ export async function setEquipmentActiveAction(
   await withUser(getDb(), user.id, (tx) => setEquipmentActive(tx, user.id, equipmentId, isActive));
   revalidateGym(gymId);
   revalidatePath(`/gyms/${gymId}/equipment/${equipmentId}`);
+}
+
+const machineLoadSchema = z.object({
+  equipmentInstanceId: z.uuid(),
+  load: z.number().positive().max(2000),
+});
+
+/**
+ * The Next up box under an exercise (ADR 0028): a weight the athlete says exists on this
+ * machine, kept with the loads already listed on it, so the step above their heaviest is
+ * known rather than guessed from here on.
+ */
+export async function confirmMachineLoadAction(
+  equipmentInstanceId: string,
+  load: number,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const user = await requireUser();
+  const parsed = machineLoadSchema.safeParse({ equipmentInstanceId, load });
+  if (!parsed.success) return { ok: false, error: "Enter a weight above zero." };
+  const saved = await withUser(getDb(), user.id, (tx) =>
+    confirmMachineLoad(tx, user.id, parsed.data.equipmentInstanceId, parsed.data.load),
+  );
+  if (!saved) return { ok: false, error: "This machine is no longer yours to edit." };
+  return { ok: true };
 }

@@ -4,7 +4,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 
 import { getMigrationDatabaseUrl } from "../lib/env";
 import {
-  readRuns,
+  readRunActivities,
   readWorkouts,
   TRAINING_RECORD_LIMIT,
 } from "../server/repositories/training-data";
@@ -23,7 +23,9 @@ import type { DbOrTx } from "./types";
  *
  * Walks every account's finished workouts and runs, oldest first, and writes each one's
  * shared row with the same functions `finishSession` and the run writes use, so a record
- * set two years ago is detected against what came before it. Upserts on the unique keys:
+ * set two years ago is detected against what came before it. Runs come from the canonical
+ * activity, which holds the migrated ones under their own identifiers and every run logged
+ * since; the retired table would answer for only half of them. Upserts on the unique keys:
  * running it twice changes nothing, and running it after more sessions have been finished
  * only rewrites rows to the same values. Also seeds each account's shared body weight from
  * its newest reading. Runs as the migration role, so it reads every account; nothing here
@@ -79,7 +81,7 @@ export async function backfillSharedStats(db: DbOrTx): Promise<BackfillSummary> 
       summary.workouts++;
     }
     for (let page = 0; ; page++) {
-      const batch = await readRuns(db, account.id, ALL_TIME, page);
+      const batch = await readRunActivities(db, account.id, ALL_TIME, page);
       for (const run of batch.runs) {
         await writeRunStats(db, account.id, run, account.timeZone);
         summary.runs++;
@@ -104,7 +106,7 @@ export async function backfillSharedStats(db: DbOrTx): Promise<BackfillSummary> 
   return summary;
 }
 
-/** Every run there is: `readRuns` wants a window, and this one has no edges. */
+/** Every run there is: the reader wants a window, and this one has no edges. */
 const ALL_TIME = {
   from: "0001-01-01",
   to: "9999-12-31",

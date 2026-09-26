@@ -61,7 +61,7 @@ export function Disclosure({
     >
       <summary
         className={cn(
-          "flex list-none items-center gap-2 font-medium",
+          "flex list-none flex-wrap items-center gap-2 font-medium",
           variant === "box" && "min-h-14 rounded-card px-4 py-3",
           variant === "inline" && "min-h-11 py-2 text-sm",
           variant === "footer" &&
@@ -72,8 +72,12 @@ export function Disclosure({
           className="shrink-0 text-ink-subtle transition-transform duration-[var(--ov-duration-feedback)] group-open:rotate-180"
           aria-hidden
         />
-        <span className="min-w-0 flex-1">{summary}</span>
-        {meta && <span className="shrink-0 text-xs text-ink-muted tabular-nums">{meta}</span>}
+        <span className="min-w-0 flex-auto [overflow-wrap:anywhere]">{summary}</span>
+        {meta && (
+          <span className="ml-auto max-w-full text-xs [overflow-wrap:anywhere] text-ink-muted tabular-nums">
+            {meta}
+          </span>
+        )}
       </summary>
       <div
         className={cn(

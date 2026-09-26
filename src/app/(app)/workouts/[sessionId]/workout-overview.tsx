@@ -221,7 +221,7 @@ export function WorkoutOverview({
 
       {/* The coach's sentence for the session, one slim box: the same shape as the gym row
           on Today, so it reads as context rather than as another decision. */}
-      {session.coachPlan && (
+      {session.coachPlan?.summary && (
         <div className="flex box items-center gap-2 px-3 py-2.5">
           <AiCoach className="shrink-0 text-accent" aria-hidden />
           <p className="min-w-0 text-sm [overflow-wrap:anywhere]">{session.coachPlan.summary}</p>

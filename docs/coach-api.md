@@ -26,7 +26,7 @@ uncached JSON; TLS is provided by the deployment.
 | `/api/coach/workouts`              | Sessions (including unfinished ones), gym, prescribed day, check-in, actual exercise slots, machine identity and raw sets                                         |
 | `/api/coach/exercises/:id/history` | Exercise metadata and performances, session completion timestamp, gym, equipment and raw sets                                                                     |
 | `/api/coach/running`               | Raw runs, distance, duration, derived pace, mode, RPE and symptoms                                                                                                |
-| `/api/coach/recovery`              | Daily recovery and workout check-ins: sleep, quality, energy, fatigue and soreness                                                                                |
+| `/api/coach/recovery`              | Daily recovery and workout check-ins: sleep, quality, fatigue and soreness; `energy` only on check-ins saved before the check-in stopped asking it                |
 | `/api/coach/program/current`       | Current immutable programme version, days, exercise prescriptions, fallbacks, warm-ups and running targets; `null` when no programme is active                    |
 
 Every response includes `version: 1`, `timeZone`, `from`, `to` and `generatedAt`. Dates are
@@ -70,6 +70,18 @@ Responses carry `version: 2`. `activities` pages by `cursor` rather than by `pag
 so two activities recorded at the same instant cannot straddle a page boundary; `limit`
 defaults to 50 and may not exceed 100. `sport` takes a comma-separated list of `strength`,
 `running`, `cycling` and `swimming` — an unknown name is a 400, not an empty list.
+
+Each activity's `effort` carries `value`, `status` and the `scale` the value is written on:
+`{ min: 1, max: 5 }`. It was `{ min: 1, max: 10 }` until migration 0033 rescaled every stored
+value, so read the bounds rather than assuming the RPE out of ten that the strength sets still
+use. `status` is `reported`, `unknown` or `legacy_unconfirmed`, and only `reported` is the
+athlete's own word — `unknown` means they answered "Not sure", which is an answer and not a
+missing one.
+
+A prescription's `effort` — the session target and each step's — is written on the same five
+steps, so what a plan asked for and what the athlete answered can be read against each other.
+Zero is the exception and means nothing was asked, not an effort of none. A strength set's
+`rpe` and `rir` are a different question and are still out of ten.
 
 `summary` aggregates in SQL over the whole stated period and says so in `coverage`. Its
 `period` is inclusive at both ends, defaults to the last 28 local days, and may not exceed

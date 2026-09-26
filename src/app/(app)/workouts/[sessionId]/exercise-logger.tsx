@@ -34,6 +34,7 @@ import {
   skipExerciseAction,
 } from "@/server/actions/sessions";
 
+import { NextLoad, nextLoadQuestion } from "./next-load";
 import { SetGrid } from "./set-grid";
 import { SetOptions } from "./set-options";
 import { useSetRows, type RowState } from "./use-set-rows";
@@ -146,13 +147,7 @@ function suggestionHeadline(exercise: ExerciseVM, unit: string) {
       const note = exercise.coachNote;
       return {
         kind,
-        text: note
-          ? target
-            ? `${target} · ${note}`
-            : note
-          : target
-            ? `Next: ${target}`
-            : "Coach plan",
+        text: note ? (target ? `${target} · ${note}` : note) : target ? `Next: ${target}` : "",
       };
     }
     case "increase":
@@ -239,6 +234,21 @@ export function ExerciseLogger({
   const optionsRow = sets.rows.find((row) => row.setIndex === optionsFor) ?? null;
   const suggestion = suggestionHeadline(exercise, unit);
   const prescription = prescriptionLine(exercise);
+  // Once this exercise's working sets are in, a stack whose next stop nobody knows asks for
+  // it under the sets (ADR 0028); nothing is asked mid-exercise or of plates.
+  const loggedWorking = sets.loggedSets.filter((set) => WORKING_SET_TYPES.has(set.setType));
+  const workingDone =
+    completed ||
+    (!sets.dirty &&
+      loggedWorking.length > 0 &&
+      loggedWorking.length >= (exercise.planned?.sets ?? 1));
+  const nextLoad =
+    !readOnly && !skipped && measure === "reps" && workingDone
+      ? nextLoadQuestion(
+          exercise.equipment?.ladder,
+          loggedWorking.map((set) => set.weight),
+        )
+      : null;
   const plannedName = exercise.planned?.plannedExerciseName;
   const substituted = plannedName !== undefined && plannedName !== exercise.exercise.name;
 
@@ -354,7 +364,9 @@ export function ExerciseLogger({
                     <Badge tone={suggestionTone(suggestion.kind)}>
                       {SUGGESTION_KIND_LABELS[suggestion.kind]}
                     </Badge>
-                    <p className="min-w-0 text-sm font-medium">{suggestion.text}</p>
+                    {suggestion.text && (
+                      <p className="min-w-0 text-sm font-medium">{suggestion.text}</p>
+                    )}
                   </div>
                 )}
               </Card>
@@ -460,6 +472,17 @@ export function ExerciseLogger({
               />
             ) : (
               <SetTable sets={sets.loggedSets} unitLabel={unitLabel} />
+            )}
+
+            {nextLoad && exercise.equipment && (
+              <NextLoad
+                key={`${exercise.equipment.id}:${nextLoad.from}`}
+                equipmentInstanceId={exercise.equipment.id}
+                from={nextLoad.from}
+                guess={nextLoad.guess}
+                unitLabel={unit}
+                assisted={exercise.equipment.ladder?.assisted ?? false}
+              />
             )}
 
             {message && (
@@ -597,23 +620,30 @@ export function ExerciseLogger({
                 current recovery.
               </p>
             )}
-            {exercise.suggestion && (
-              <Disclosure summary="Why this suggestion" variant="inline">
-                <div className="space-y-1 text-sm text-ink-muted">
-                  <p>{exercise.suggestion.reason}</p>
-                  {exercise.suggestion.advice && <p>{exercise.suggestion.advice}</p>}
-                  {exercise.basis && (
-                    <p>
-                      Based on{" "}
-                      {exercise.suggestion.basis === "other_equipment"
-                        ? `${exercise.basis.equipmentName ?? "another machine"} at ${exercise.basis.gymName}`
-                        : "this exercise"}
-                      , {formatDay(exercise.basis.performedAt, session.timeZone)}.
-                    </p>
-                  )}
-                </div>
-              </Disclosure>
-            )}
+            {/* While the exercise is being logged, the coach's own note is on the Log tab
+                beside its targets, so here only the rule's reasoning, and what the numbers were
+                judged against, are new. Once it is done the Log tab no longer shows it, and
+                this is where it stays. */}
+            {exercise.suggestion &&
+              (exercise.suggestion.kind !== "coach" || !editable || exercise.basis) && (
+                <Disclosure summary="Why this suggestion" variant="inline">
+                  <div className="space-y-1 text-sm text-ink-muted">
+                    {(exercise.suggestion.kind !== "coach" || !editable) && (
+                      <p>{exercise.suggestion.reason}</p>
+                    )}
+                    {exercise.suggestion.advice && <p>{exercise.suggestion.advice}</p>}
+                    {exercise.basis && (
+                      <p>
+                        Based on{" "}
+                        {exercise.suggestion.basis === "other_equipment"
+                          ? `${exercise.basis.equipmentName ?? "another machine"} at ${exercise.basis.gymName}`
+                          : "this exercise"}
+                        , {formatDay(exercise.basis.performedAt, session.timeZone)}.
+                      </p>
+                    )}
+                  </div>
+                </Disclosure>
+              )}
             {exercise.previous && <SetTable sets={exercise.previous.sets} unitLabel={unitLabel} />}
           </Card>
         )}

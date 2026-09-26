@@ -8,8 +8,7 @@ import { Card } from "@/components/ui/card";
 import { FormError, SubmitButton } from "@/components/ui/form";
 import { InfoTip } from "@/components/ui/info-tip";
 import { Field, Textarea } from "@/components/ui/input";
-import { LinkRow, List, Row } from "@/components/ui/link-row";
-import { RequestList, type RequestView } from "@/components/coaching/request-list";
+import { List, Row } from "@/components/ui/link-row";
 import { Section } from "@/components/ui/section";
 import { Switch } from "@/components/ui/switch";
 import { PLAN_LIMITS } from "@/domain/plan-limits";
@@ -42,10 +41,6 @@ type Props = {
   overviewUpdatedAt: string | null;
   /** What the coach has tried lately, so a night it could not plan is not simply silence. */
   attempts: CoachAttempt[];
-  /** Requests waiting on one specific answer, asked and answered in the same place. */
-  questions?: RequestView[];
-  /** How many asks are open in total, so the link to the rest can say so. */
-  openRequests?: number;
   /** Coaching links, and anything the coach has concluded lately. */
   children?: ReactNode;
 };
@@ -63,8 +58,6 @@ export function AiCoachSettings({
   overview,
   overviewUpdatedAt,
   attempts,
-  questions = [],
-  openRequests = 0,
   children,
 }: Props) {
   const [pending, startTransition] = useTransition();
@@ -88,7 +81,9 @@ export function AiCoachSettings({
         () => setAiCoachEnabledAction(next),
         "Could not save. Check your connection and try again.",
       );
-      if (!outcome.ok) setError(outcome.message);
+      // As in the privacy switches: after an await an update is no longer the transition's
+      // own, so the error is marked as one to arrive with the switch going back.
+      if (!outcome.ok) startTransition(() => setError(outcome.message));
     });
 
   return (
@@ -135,54 +130,31 @@ export function AiCoachSettings({
 
       {children}
 
-      {questions.length > 0 && (
-        <Section
-          title="The coach has asked you something"
-          info="One question, answered here. Your answer is read at the next daily coach run, which then proposes a change or explains why it cannot."
-        >
-          <RequestList requests={questions} />
-        </Section>
-      )}
-
-      {openRequests > questions.length && (
-        <List>
-          <li>
-            <LinkRow
-              href="/profile/programme?view=changes"
-              title="What you asked for"
-              subtitle="Outcomes, proposals and anything still waiting"
-              meta={`${openRequests}`}
-            />
-          </li>
-        </List>
-      )}
-
       <Section
         title="What the coach knows"
-        info="The coach maintains this memo from your notes and training. It keeps useful preferences, recurring trends, exercise observations and ongoing experiments, up to 3,000 words. To add or correct something, use Tell the coach below."
+        info="What the coach keeps from your notes and training. To add or correct something, tell the coach below."
       >
         <Card>
           {overview ? (
-            <p className="text-sm [overflow-wrap:anywhere] whitespace-pre-line">{overview}</p>
+            <ul className="list-disc space-y-1.5 pl-5 text-sm">
+              {memoLines(overview).map((line, index) => (
+                <li key={index} className="[overflow-wrap:anywhere]">
+                  {line}
+                </li>
+              ))}
+            </ul>
           ) : (
-            <p className="text-sm text-ink-muted">
-              No memo yet. Tell the coach something below; it will remember useful details when it
-              next reviews your training.
-            </p>
+            <p className="text-sm text-ink-muted">Nothing yet.</p>
           )}
           {overviewUpdatedAt && (
             <p className="text-xs text-ink-muted tabular-nums">Updated {overviewUpdatedAt}</p>
           )}
         </Card>
-        <p className="text-sm text-ink-muted">
-          Your profile, goals, programme answers and training history are read separately. They do
-          not all need to appear in this memo.
-        </p>
       </Section>
 
       <Section
         title="Tell the coach"
-        info="Share a preference, a change, or a correction to something remembered. Notes are read at the next daily coach run: lasting details go in the memo, and anything you have asked the programme to do gets its own outcome under Programme → Changes. Notes you leave on a finished session or on a single exercise reach it the same way."
+        info="Read at the next daily coach run. Anything you ask the programme to do gets its answer under Programme → Changes."
       >
         <Card>
           <form key={noteId} action={formAction} className="space-y-4">
@@ -201,7 +173,7 @@ export function AiCoachSettings({
               Send note
             </SubmitButton>
             <p className="text-sm text-ink-muted" role="status">
-              {saved ? "Note saved. The coach reads it at its next daily run." : ""}
+              {saved ? "Saved." : ""}
             </p>
           </form>
         </Card>
@@ -211,7 +183,7 @@ export function AiCoachSettings({
               <li key={note.id} className="space-y-1 p-4">
                 <p className="text-sm [overflow-wrap:anywhere] whitespace-pre-line">{note.text}</p>
                 <p className="text-xs text-ink-muted">
-                  {note.when} · {note.outcome ?? "Waiting for the next daily coach run"}
+                  {note.when} · {note.outcome ?? "Not read yet"}
                 </p>
               </li>
             ))}
@@ -251,4 +223,19 @@ export function AiCoachSettings({
       )}
     </>
   );
+}
+
+/**
+ * The memo as a list, one fact a line.
+ *
+ * The stored overview prefixes each fact with its category — "preference: …", "trend: …" —
+ * which is how the coach files them and nothing an athlete needs to read.
+ */
+function memoLines(overview: string): string[] {
+  return overview
+    .split("\n")
+    .map((line) =>
+      line.replace(/^(preference|trend|observation|experiment|decision):\s*/i, "").trim(),
+    )
+    .filter(Boolean);
 }

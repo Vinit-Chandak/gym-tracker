@@ -10,7 +10,6 @@ import {
   equipmentTypes,
   gyms,
   profiles,
-  runs,
   programDrafts,
   programs,
   sessionPlans,
@@ -21,6 +20,7 @@ import {
 } from "@/db/schema";
 import { seedReferenceData } from "@/db/seed/reference";
 import { STRENGTH_AESTHETICS_HYBRID_8WK } from "@/db/seed/data/program";
+import { logTestRun } from "@/db/test/fixtures";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
 import { coachIntakeSchema, MAX_COACH_FILE_BYTES } from "@/domain/coaching-workflow";
@@ -38,13 +38,18 @@ import {
   claimCoachJob,
   enqueueCoachJob,
   getCoachJob,
+  listCoachJobs,
   requestGymChange,
   requestProgramCreation,
   dispatchCoachPage,
   enqueueDailySession,
   queuedCoachJobs,
+  reconcileCoachJobs,
+  requeueCoachJob,
+  settleCoachJobs,
 } from "./coaching-jobs";
 import { coachJobContext } from "./coaching-context";
+import { assertLiveAttempt, lookupExercises } from "./coach-lookups";
 import {
   activateProgramDraft,
   getProgramDraft,
@@ -356,7 +361,23 @@ it.each(["bodyweight-squat", "goblet-squat"])(
     expect(next.exercises[0]!.slotId).toBeTruthy();
     expect(next.exercises[0]!.atThisGym.status).toBe("direct");
     expect(next.exercises[0]!.atThisGym.machine?.id ?? null).toBe(equipmentInstanceId);
-    expect(ctx.catalogue.find((e) => e.slug === "high-bar-squat")?.available).toBe(false);
+    // The library and the machines are looked up by the live attempt, not sent (ADR 0029).
+    expect("catalogue" in ctx || "equipment" in ctx).toBe(false);
+    expect("library" in next || "machines" in next.gym).toBe(false);
+    expect(ctx.lookups.defaultGymId).toBe(a.gym.id);
+    const found = await as(a, async (tx) => {
+      await assertLiveAttempt(tx, a.user.id, prep!.job.id, claim!.attemptId!);
+      return lookupExercises(tx, a.user.id, {
+        q: "high bar squats",
+        gymId: a.gym.id,
+        limit: 5,
+        offset: 0,
+      });
+    });
+    expect(found.items[0]).toMatchObject({ slug: "high-bar-squat", available: false });
+    await expect(
+      as(a, (tx) => assertLiveAttempt(tx, a.user.id, prep!.job.id, crypto.randomUUID())),
+    ).rejects.toThrow(/current claimed attempt/);
     const plan = {
       summary: "Continue the home programme.",
       exercises: [
@@ -400,7 +421,7 @@ it.each(["bodyweight-squat", "goblet-squat"])(
       }),
     );
     const detail = await as(a, (tx) => getSessionDetail(tx, a.user.id, second.sessionId));
-    expect(detail?.coachPlan?.summary).toBe("Follow the exercise targets below.");
+    expect(detail?.coachPlan?.summary).toBeNull();
     expect(detail?.exercises[0]?.suggestion?.kind).toBe("coach");
   },
 );
@@ -482,6 +503,43 @@ it("reconciles an expired attempt and refuses its old token after reclaim", asyn
     as(a, (tx) => acceptCoachJobResult(tx, a.user.id, job.id, claim!.attemptId!, result(a))),
   ).rejects.toThrow(/current attempt/);
 });
+it.each([
+  ["another attempt left", 1, "queued"],
+  ["its attempts spent", 3, "failed"],
+] as const)(
+  "shows a lapsed attempt with %s as reconciling records it, without writing on read",
+  async (_, attempts, status) => {
+    const a = await athlete();
+    const { job } = await request(a);
+    await as(a, (tx) => claimCoachJob(tx, a.user.id, job.id));
+    await as(a, (tx) =>
+      tx
+        .update(coachJobs)
+        .set({ attempts, leaseUntil: new Date(Date.now() - 1000) })
+        .where(eq(coachJobs.id, job.id)),
+    );
+    const now = new Date();
+    // A screen reads in a read-only transaction: nothing here may write.
+    const stored = await withUser(t.db, a.user.id, (tx) => listCoachJobs(tx, a.user.id), {
+      readOnly: true,
+    });
+    const shown = settleCoachJobs(stored, now);
+    expect(shown.expired).toBe(true);
+    expect(shown.jobs[0]).toMatchObject({ id: job.id, status, leaseUntil: null });
+    expect((await as(a, (tx) => getCoachJob(tx, a.user.id, job.id)))?.status).toBe("claimed");
+    // What the screen showed is exactly what reconciling then records.
+    await as(a, (tx) => reconcileCoachJobs(tx, a.user.id, now));
+    const recorded = await as(a, (tx) => getCoachJob(tx, a.user.id, job.id));
+    expect(recorded).toMatchObject({
+      status: shown.jobs[0]!.status,
+      error: shown.jobs[0]!.error,
+      leaseUntil: null,
+      nextAttemptAt: shown.jobs[0]!.nextAttemptAt,
+      completedAt: shown.jobs[0]!.completedAt,
+    });
+    expect(settleCoachJobs([recorded!], now).expired).toBe(false);
+  },
+);
 it("protects reports and drafts across accounts, and removes reports from future access", async () => {
   const a = await athlete(),
     b = await athlete();
@@ -821,13 +879,7 @@ async function reviewing() {
       ),
     ran: (at: Date) =>
       as(a, (tx) =>
-        tx.insert(runs).values({
-          userId: a.user.id,
-          mode: "outdoor",
-          startedAt: at,
-          durationSeconds: 1800,
-          distanceMeters: 5000,
-        }),
+        logTestRun(tx, a.user.id, { startedAt: at, durationSeconds: 1800, distanceMeters: 5000 }),
       ),
     /** A session on this day. `work` decides whether anything was actually lifted in it. */
     trained: async (at: Date, work: "working" | "warmup") => {
@@ -1462,4 +1514,120 @@ it("leaves the running to the coach when the athlete did not say", async () => {
     }),
   );
   expect(accepted.accepted).toBe(true);
+});
+
+/**
+ * Drives a job to the terminal `failed` state the way the server really gets there: three
+ * attempts, each abandoned by letting its lease run out.
+ */
+async function exhaust(a: Athlete, jobId: string) {
+  let clock = Date.now();
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await as(a, (tx) => claimCoachJob(tx, a.user.id, jobId, new Date(clock)));
+    await as(a, (tx) =>
+      tx
+        .update(coachJobs)
+        .set({ leaseUntil: new Date(clock - 1000) })
+        .where(eq(coachJobs.id, jobId)),
+    );
+    // Reconciling returns it to the queue behind a one-minute backoff, so the next claim has
+    // to happen past that — which is exactly what the real queue does between batches.
+    await as(a, (tx) => reconcileCoachJobs(tx, a.user.id, new Date(clock)));
+    clock += 65_000;
+  }
+  return clock;
+}
+
+/**
+ * The failed row is the tombstone: it holds the dedupe key, so the work cannot be re-queued.
+ * This is why a requeue has to exist at all — nothing else can reach the job again.
+ */
+it("cannot re-enqueue a failed job, because its dedupe key is still taken", async () => {
+  const a = await athlete();
+  const { job } = await request(a);
+  const key = (await as(a, (tx) => getCoachJob(tx, a.user.id, job.id)))!.dedupeKey;
+  await exhaust(a, job.id);
+  expect((await as(a, (tx) => getCoachJob(tx, a.user.id, job.id)))?.status).toBe("failed");
+
+  const again = await as(a, (tx) =>
+    enqueueCoachJob(tx, a.user.id, {
+      kind: "create_program",
+      trigger: "onboarding",
+      dedupeKey: key,
+      target: { programId: null },
+    }),
+  );
+  expect(again.created).toBe(false);
+  expect(again.job.id).toBe(job.id);
+});
+
+/**
+ * The trap this design exists to avoid: 0015's receipt trigger writes one row per
+ * `(job_id, attempts)` under a unique index, so a requeue that rewound `attempts` would make
+ * the next claim collide with a receipt already written and the job would be unclaimable for
+ * good. The budget moves instead, and the counter keeps climbing.
+ */
+it("requeues a failed job into a claimable one, numbering its receipts onward", async () => {
+  const a = await athlete();
+  const { job } = await request(a);
+  const clock = await exhaust(a, job.id);
+  expect((await as(a, (tx) => getCoachJob(tx, a.user.id, job.id)))?.attempts).toBe(3);
+
+  const requeued = await as(a, (tx) =>
+    requeueCoachJob(tx, a.user.id, job.id, new Date(clock + 1000)),
+  );
+  expect(requeued).toMatchObject({ status: "queued", attempts: 3, attemptBudget: 6 });
+  expect(requeued?.attemptId).toBeNull();
+  expect(requeued?.completedAt).toBeNull();
+
+  // The due queue offers it again: `attempts < attempt_budget` now, where it was not before.
+  const due = await queuedCoachJobs(t.db, new Date(clock + 2000));
+  expect(due.map((entry) => entry.id)).toContain(job.id);
+
+  // And the claim goes through — the receipt it writes is number four, not a repeat of one.
+  const claim = await as(a, (tx) => claimCoachJob(tx, a.user.id, job.id, new Date(clock + 2000)));
+  expect(claim?.attempts).toBe(4);
+  const receipts = await as(a, (tx) =>
+    tx.select().from(coachJobAttempts).where(eq(coachJobAttempts.jobId, job.id)),
+  );
+  expect(receipts.map((entry) => entry.number).sort()).toEqual([1, 2, 3, 4]);
+});
+
+/** A completed effect is never applied twice: `where status = 'failed'` simply misses. */
+it("refuses to requeue a job that already succeeded, or one being worked on", async () => {
+  const a = await athlete();
+  const { job } = await request(a);
+  const claim = await as(a, (tx) => claimCoachJob(tx, a.user.id, job.id));
+  // Claimed: a live attempt is not yanked out from under its worker.
+  expect(await as(a, (tx) => requeueCoachJob(tx, a.user.id, job.id))).toBeNull();
+
+  expect(
+    await as(a, (tx) => acceptCoachJobResult(tx, a.user.id, job.id, claim!.attemptId!, result(a))),
+  ).toMatchObject({ accepted: true });
+  expect((await as(a, (tx) => getCoachJob(tx, a.user.id, job.id)))?.status).toBe("succeeded");
+  // Succeeded: the programme draft it wrote must not be written a second time.
+  expect(await as(a, (tx) => requeueCoachJob(tx, a.user.id, job.id))).toBeNull();
+  expect((await as(a, (tx) => getCoachJob(tx, a.user.id, job.id)))?.status).toBe("succeeded");
+});
+
+/** Two requeues racing: the compare-and-swap means exactly one of them moves the row. */
+it("requeues a failed job once, however many times it is asked", async () => {
+  const a = await athlete();
+  const { job } = await request(a);
+  const clock = await exhaust(a, job.id);
+  const first = await as(a, (tx) => requeueCoachJob(tx, a.user.id, job.id, new Date(clock)));
+  const second = await as(a, (tx) => requeueCoachJob(tx, a.user.id, job.id, new Date(clock)));
+  expect(first).not.toBeNull();
+  expect(second).toBeNull();
+  expect((await as(a, (tx) => getCoachJob(tx, a.user.id, job.id)))?.attemptBudget).toBe(6);
+});
+
+/** Another athlete's failed job is not this athlete's to revive. */
+it("will not requeue a job belonging to someone else", async () => {
+  const a = await athlete();
+  const b = await athlete();
+  const { job } = await request(a);
+  await exhaust(a, job.id);
+  expect(await as(b, (tx) => requeueCoachJob(tx, b.user.id, job.id))).toBeNull();
+  expect((await as(a, (tx) => getCoachJob(tx, a.user.id, job.id)))?.status).toBe("failed");
 });

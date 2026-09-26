@@ -6,6 +6,7 @@ import { List, Row } from "@/components/ui/link-row";
 import { Switch } from "@/components/ui/switch";
 import { attempted } from "@/lib/offline-submit";
 import { setPrivacyAction } from "@/server/actions/privacy";
+import { setSportSharingAction } from "@/server/actions/sport-preferences";
 import type { PrivacyKey } from "@/server/validation/privacy";
 
 export type PrivacyValues = Record<PrivacyKey, boolean>;
@@ -41,23 +42,49 @@ export function PrivacySwitches({ values }: { values: PrivacyValues }) {
     <List>
       {SWITCHES.map((row) => (
         <li key={row.setting}>
-          <PrivacySwitch {...row} enabled={values[row.setting]} />
+          <SavedSwitch
+            {...row}
+            enabled={values[row.setting]}
+            save={(next) => setPrivacyAction(row.setting, next)}
+          />
         </li>
       ))}
     </List>
   );
 }
 
-function PrivacySwitch({
-  setting,
+/** Additional sports require explicit consent as well as the global training switch. */
+export function SportSharingSwitches({
+  values,
+}: {
+  values: Record<"cycling" | "swimming", boolean>;
+}) {
+  return (
+    <List>
+      {(["cycling", "swimming"] as const).map((sport) => (
+        <li key={sport}>
+          <SavedSwitch
+            label={`Share ${sport} with followers`}
+            effect="Share the date, duration and known distance. Share training with followers must also be on."
+            enabled={values[sport]}
+            save={(next) => setSportSharingAction(sport, next)}
+          />
+        </li>
+      ))}
+    </List>
+  );
+}
+
+function SavedSwitch({
   label,
   effect,
   enabled,
+  save,
 }: {
-  setting: PrivacyKey;
   label: string;
   effect: string;
   enabled: boolean;
+  save: (next: boolean) => Promise<void>;
 }) {
   const [pending, startTransition] = useTransition();
   const [shown, show] = useOptimistic(enabled);
@@ -67,10 +94,13 @@ function PrivacySwitch({
       show(next);
       setError(null);
       const outcome = await attempted(
-        () => setPrivacyAction(setting, next),
+        () => save(next),
         "Could not save. Check your connection and try again.",
       );
-      if (!outcome.ok) setError(outcome.message);
+      // After an await, React no longer counts an update as the transition's own. Marking the
+      // error as one keeps it in the same render as the switch going back, not a frame ahead
+      // of it, so the message never sits beside a switch showing what was not saved.
+      if (!outcome.ok) startTransition(() => setError(outcome.message));
     });
   return (
     <div>

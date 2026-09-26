@@ -20,6 +20,7 @@ import {
 } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import {
+  exercises,
   coachGymIntents,
   coachChangeRecords,
   coachIntakes,
@@ -34,7 +35,6 @@ import {
   occurrenceVersions,
   activities,
   programs,
-  runs,
   sessionPlans,
   setLogs,
   workoutExercises,
@@ -57,15 +57,38 @@ import {
 } from "./coaching-guardrails";
 import { readCoachingEvidence, retainEvidenceBaselines } from "./coaching-evidence";
 import { updateCoachMemory } from "./coach-memory";
-import { applyRequestPatch, hasActionableRequests } from "./coach-program-requests";
+import {
+  applyRequestPatch,
+  hasActionableRequests,
+  settleClosedDraftRequests,
+} from "./coach-program-requests";
+import {
+  askedAt,
+  currentCycleFor,
+  declinedChanges,
+  keepFinishedWeeks,
+  narrowRangeIssues,
+  openCoachProposals,
+  pendingCoachProposal,
+  repeatedDeclines,
+} from "./coach-proposals";
 import { expireCoachDiagnostics, recordAttemptDiagnostics } from "./coach-diagnostics";
 import type { CoachingChangeRecord } from "@/db/schema";
-import type { ProgramBlueprint } from "@/domain/program-blueprint";
+import { programBlueprintSchema, type ProgramBlueprint } from "@/domain/program-blueprint";
 import { lastCoachBoundary, reviewStanding, weeklyReviewPeriod } from "@/domain/coach-cadence";
-import { diffOperationIds, diffPrograms } from "@/domain/program-diff";
+import { diffOperationIds, diffOperationSignatures, diffPrograms } from "@/domain/program-diff";
+import { jsonEqual } from "@/domain/json-equal";
+import { assessProgramChange } from "@/domain/program-change";
 import { addDays, todayInTimeZone } from "@/domain/program-calendar";
 import { sharedExercises } from "@/server/queries/reference";
-import { nextTrainingSlot, planningGym, storeOccurrencePlan, storePlan } from "./coach-plans";
+import {
+  nextTrainingSlot,
+  pickPlanningGym,
+  planningGym,
+  storeOccurrencePlan,
+  storePlan,
+} from "./coach-plans";
+import type { GymListItem } from "./gyms";
 import { openOccurrencesBetween } from "./program-occurrences";
 import {
   assertCoachEnabled,
@@ -74,7 +97,7 @@ import {
   getCoachingPreferences,
   sourceRevision,
 } from "./coaching-state";
-import { getActiveProgram, getSchedule } from "./schedule";
+import { getActiveProgram, getSchedule, type Schedule } from "./schedule";
 import { readProgramBlueprint } from "./programs";
 import {
   activateProgramDraft,
@@ -96,8 +119,11 @@ export async function getCoachJob(db: DbOrTx, userId: string, id: string) {
     .where(and(eq(coachJobs.userId, userId), eq(coachJobs.id, id)));
   return job ?? null;
 }
+/**
+ * The latest jobs, as stored. A screen shows them through `settleCoachJobs`, so an attempt whose
+ * lease has run out reads as it will once `reconcileCoachJobs` has written it.
+ */
 export async function listCoachJobs(db: DbOrTx, userId: string, limit = 12) {
-  await reconcileCoachJobs(db, userId);
   return db
     .select()
     .from(coachJobs)
@@ -186,6 +212,44 @@ export async function requestProgramCreation(
   });
 }
 
+const RETRY_MESSAGE = "The coach timed out. This request is saved for another attempt.";
+const GIVE_UP_MESSAGE =
+  "The coach could not finish after three attempts. Your answers are saved; you can retry.";
+
+/** Whether an attempt's lease has run out while it still holds the job. */
+export function isExpiredClaim(job: CoachJob, now = new Date()): boolean {
+  return job.status === "claimed" && job.leaseUntil !== null && job.leaseUntil <= now;
+}
+
+/**
+ * A job as `reconcileCoachJobs` leaves it: an attempt whose lease has run out gives the job back
+ * for another try, or fails it once its attempts are spent. Anything else is returned as is.
+ */
+export function asReconciledJob(job: CoachJob, now = new Date()): CoachJob {
+  if (!isExpiredClaim(job, now)) return job;
+  const retry = job.attempts < job.attemptBudget;
+  return {
+    ...job,
+    status: retry ? "queued" : "failed",
+    leaseUntil: null,
+    nextAttemptAt: new Date(now.getTime() + 60_000),
+    error: retry ? RETRY_MESSAGE : GIVE_UP_MESSAGE,
+    completedAt: retry ? null : now,
+  };
+}
+
+/**
+ * Jobs as a screen shows them, without writing anything: rendering a page never takes the
+ * athlete lock. `expired` says whether any of them still waits for `reconcileCoachJobs` to
+ * record its timeout, which the page then asks for once it has answered (`coach-tidy.ts`).
+ */
+export function settleCoachJobs(jobs: CoachJob[], now = new Date()) {
+  return {
+    jobs: jobs.map((job) => asReconciledJob(job, now)),
+    expired: jobs.some((job) => isExpiredClaim(job, now)),
+  };
+}
+
 export async function reconcileCoachJobs(db: DbOrTx, userId: string, now = new Date()) {
   const expired = await db
     .select()
@@ -197,19 +261,11 @@ export async function reconcileCoachJobs(db: DbOrTx, userId: string, now = new D
         lte(coachJobs.leaseUntil, now),
       ),
     );
-  for (const job of expired)
+  for (const job of expired) {
+    const { status, leaseUntil, nextAttemptAt, error, completedAt } = asReconciledJob(job, now);
     await db
       .update(coachJobs)
-      .set({
-        status: job.attempts < MAX_JOB_ATTEMPTS ? "queued" : "failed",
-        leaseUntil: null,
-        nextAttemptAt: new Date(now.getTime() + 60_000),
-        error:
-          job.attempts < MAX_JOB_ATTEMPTS
-            ? "The coach timed out. This request is saved for another attempt."
-            : "The coach could not finish after three attempts. Your answers are saved; you can retry.",
-        completedAt: job.attempts < MAX_JOB_ATTEMPTS ? null : now,
-      })
+      .set({ status, leaseUntil, nextAttemptAt, error, completedAt })
       .where(
         and(
           eq(coachJobs.id, job.id),
@@ -217,6 +273,7 @@ export async function reconcileCoachJobs(db: DbOrTx, userId: string, now = new D
           eq(coachJobs.attemptId, job.attemptId!),
         ),
       );
+  }
 }
 
 export async function claimCoachJob(db: DbOrTx, userId: string, id: string, now = new Date()) {
@@ -224,7 +281,7 @@ export async function claimCoachJob(db: DbOrTx, userId: string, id: string, now 
   await reconcileCoachJobs(db, userId, now);
   const job = await getCoachJob(db, userId, id);
   if (!job || job.status !== "queued" || job.nextAttemptAt > now) return null;
-  if (job.attempts >= MAX_JOB_ATTEMPTS) return null;
+  if (job.attempts >= job.attemptBudget) return null;
   const [otherClaim] = await db
     .select({ id: coachJobs.id })
     .from(coachJobs)
@@ -284,6 +341,63 @@ export async function claimCoachJob(db: DbOrTx, userId: string, id: string, now 
     .where(and(eq(coachJobs.id, id), eq(coachJobs.userId, userId), eq(coachJobs.status, "queued")))
     .returning();
   return claimed ?? null;
+}
+
+/**
+ * Sends a job that failed back to the queue, once.
+ *
+ * A failed job keeps its row forever, and that row keeps its `dedupe_key`. Since
+ * `enqueueCoachJob` inserts with `onConflictDoNothing` against `unique (user_id, dedupe_key)`,
+ * the record of the failure is itself what stops the work ever being queued again: the next
+ * dispatch does not retry that occurrence, it silently declines to create anything. So a
+ * failure that was the server's fault — a validation bug, a bad deploy — strands the session
+ * permanently, and nothing in the product can reach it.
+ *
+ * The fix is to revive the row, never to mint a second one. A `…:retry:2` dedupe key would
+ * move "one job per target" out of the unique index and into convention, and the index is the
+ * only reason two workers cannot prepare the same session twice.
+ *
+ * `where status = 'failed'` is the whole of the concurrency argument, and it is a
+ * compare-and-swap rather than a read followed by a write:
+ *
+ * - two requeues at once — one updates a row, the other matches none and gets null;
+ * - a `claimed` job — no match, so a live attempt cannot be yanked out from under its worker;
+ * - a `succeeded` job — no match, so an effect that has already been applied is never applied
+ *   a second time. `acceptCoachJobResult` writes the effect and the status in one transaction,
+ *   which is what makes `failed` mean "nothing was applied" and therefore safe to retry;
+ * - a `superseded` job — no match. The target moved on, and the fresh dedupe key its
+ *   replacement carries is the right way back, not this.
+ *
+ * `attempts` is deliberately left where it is: it is the number the receipt trigger writes
+ * into `coach_job_attempts (job_id, number)`, and rewinding it makes the next claim collide
+ * with a receipt already written. The budget moves instead.
+ */
+export async function requeueCoachJob(
+  db: DbOrTx,
+  userId: string,
+  id: string,
+  now = new Date(),
+): Promise<CoachJob | null> {
+  const [requeued] = await db
+    .update(coachJobs)
+    .set({
+      status: "queued",
+      // A fresh budget on top of what it has already spent, so the counter stays monotonic.
+      attemptBudget: sql`${coachJobs.attempts} + ${MAX_JOB_ATTEMPTS}`,
+      // The worker that failed may still be holding the old attempt id; retire it so nothing
+      // from the abandoned attempt can submit into the new one.
+      attemptId: null,
+      leaseUntil: null,
+      completedAt: null,
+      nextAttemptAt: now,
+      error: null,
+      // A digest left behind would let a genuine new result be mistaken for a replay.
+      result: null,
+      resultDigest: null,
+    })
+    .where(and(eq(coachJobs.id, id), eq(coachJobs.userId, userId), eq(coachJobs.status, "failed")))
+    .returning();
+  return requeued ?? null;
 }
 
 export async function supersedeJob(db: DbOrTx, job: CoachJob, reason: string, now = new Date()) {
@@ -382,8 +496,8 @@ export async function acceptCoachJobResult(
     await db
       .update(coachJobs)
       .set({
-        status: job.attempts < MAX_JOB_ATTEMPTS ? "queued" : "failed",
-        completedAt: job.attempts < MAX_JOB_ATTEMPTS ? null : now,
+        status: job.attempts < job.attemptBudget ? "queued" : "failed",
+        completedAt: job.attempts < job.attemptBudget ? null : now,
         leaseUntil: null,
         error: result.reason,
         nextAttemptAt: new Date(now.getTime() + 60 * 60_000),
@@ -437,7 +551,7 @@ export async function acceptCoachJobResult(
   /** Operation IDs of the actual blueprint difference, so a claimed change can be checked. */
   let changeOperationIds: Set<string> | null = null;
   if (result.outcome === "program") {
-    const blueprint = await validateBlueprintForAthlete(
+    let blueprint = await validateBlueprintForAthlete(
       db,
       userId,
       result.blueprint,
@@ -484,76 +598,159 @@ export async function acceptCoachJobResult(
       if (new Set(trainingDays.map((day) => day.dayOfWeek)).size !== trainingDays.length)
         throw new CoachingError("Use a distinct weekday for each confirmed training day.", 422);
     }
-    const [draft] = await db
-      .insert(programDrafts)
-      .values({
-        userId,
-        source: job.kind === "review_program" ? "weekly" : "ai",
-        status: "ready",
-        blueprint,
-        openingPlan: job.kind === "create_program" ? result.openingPlan : null,
-        jobId: job.id,
-        intakeId: job.intakeId,
-        baseProgramId: job.target.programId,
-        sourceRevision: job.sourceRevision!,
-        headline: result.headline,
-        rationale: result.rationale,
-        uncertainties: result.uncertainties,
-      })
-      .returning();
-    draftId = draft!.id;
-    if (job.kind === "review_program" && job.target.programId) {
-      const current = await readProgramBlueprint(db, userId, job.target.programId);
-      if (!current) throw new CoachingError("The reviewed programme is no longer available.");
-      const assessment = assessWeeklyEvidence(
-        current.blueprint,
-        blueprint,
-        trainingEvidence,
-        cited,
-        await sharedExercises(db),
-        now,
+    const reviewed =
+      job.kind === "review_program" && job.target.programId
+        ? await readProgramBlueprint(db, userId, job.target.programId)
+        : null;
+    if (job.kind === "review_program" && job.target.programId && !reviewed)
+      throw new CoachingError("The reviewed programme is no longer available.");
+    if (reviewed) {
+      // A week already trained is not part of any change: it is kept exactly as it was, so
+      // a proposal is only ever about what is still ahead. A new block starts its weeks
+      // again, so there is nothing finished to keep.
+      if (assessProgramChange(reviewed.blueprint, blueprint, []).structuralChanges.length === 0)
+        blueprint = keepFinishedWeeks(
+          blueprint,
+          reviewed.blueprint,
+          await currentCycleFor(db, userId, job.target.programId),
+        );
+      // A change the athlete declined stays out of the next proposal until its cooldown is
+      // over — unless they have asked for it again, which a proposed decision naming it says.
+      const repeats = repeatedDeclines(
+        diffPrograms(reviewed.blueprint, blueprint),
+        await declinedChanges(db, userId, now),
+        await askedAt(db, userId, requestPatch, now),
       );
-      changeOperationIds = diffOperationIds(diffPrograms(current.blueprint, blueprint));
-      if (assessment.authority === "unchanged") {
-        await db
-          .update(programDrafts)
-          .set({ status: "superseded" })
-          .where(eq(programDrafts.id, draftId));
-      } else if (
-        assessment.automatic &&
-        coachRollout().automaticReviews &&
-        !proposesRequest &&
-        job.target.purpose !== "requests"
-      ) {
-        // The athlete's own today, not the owner's: a review activated for someone in Los
-        // Angeles was being started on India's date, which is most of a day ahead of theirs.
-        const [athlete] = await db
-          .select({ timeZone: profiles.timeZone })
-          .from(profiles)
-          .where(eq(profiles.id, userId))
-          .limit(1);
-        await activateProgramDraft(db, userId, draftId, {
-          expectedRevision: draft!.revision,
-          startDate: todayInTimeZone(athlete?.timeZone ?? "UTC", now),
-          transition: "continue",
-          automatic: true,
-        });
-        reviewOutcome = "automatic";
-        acceptedChanges = assessment.changes;
-        programBefore = current.blueprint;
-      } else {
-        reviewOutcome = "proposal";
-        // The coach's caveats and the server's gate are two different statements, and they
-        // are kept in two different columns. Merged, "a new slot needs review" — emitted once
-        // per added slot — read to the athlete as the coach doubting its own proposal.
-        await db
-          .update(programDrafts)
-          .set({
-            gateReasons: [...new Set(assessment.reasons)]
-              .slice(0, 20)
-              .map((text) => text.slice(0, 500)),
-          })
-          .where(eq(programDrafts.id, draftId));
+      if (repeats.length)
+        throw new CoachingError(
+          `The athlete declined ${repeats.length === 1 ? "this change" : "these changes"} recently. Leave ${repeats.length === 1 ? "it" : "them"} out until the date given, unless they ask for ${repeats.length === 1 ? "it" : "them"} again.`,
+          422,
+          repeats.map(
+            (repeat) =>
+              `${repeat.label} — declined ${repeat.declinedAt.toISOString().slice(0, 10)}, not before ${repeat.until.toISOString().slice(0, 10)} (${repeat.fingerprint}).`,
+          ),
+        );
+    }
+    // Outside the main lifts, a new or changed rep range needs room to add reps before a load
+    // step: a zero-width 10–10 stalls double progression from the day it is written.
+    if (job.kind === "create_program" || reviewed) {
+      const [shared, own] = await Promise.all([
+        sharedExercises(db),
+        db.select().from(exercises).where(eq(exercises.userId, userId)),
+      ]);
+      const narrow = narrowRangeIssues(blueprint, reviewed?.blueprint ?? null, [...shared, ...own]);
+      if (narrow.length) throw new CoachingError(narrow[0]!, 422, narrow);
+    }
+    const waiting = reviewed ? await pendingCoachProposal(db, userId, job.target.programId) : null;
+    // Compared as content, not as a diff: a slot the waiting proposal adds has no lineage
+    // yet, so a diff between two copies of it reads as one removal and one addition.
+    if (
+      reviewed &&
+      waiting &&
+      jsonEqual(programBlueprintSchema.parse(waiting.blueprint), blueprint)
+    ) {
+      // The review arrived at exactly the proposal already waiting: that one stays, with its
+      // asks and its place on the athlete's list, and no second copy of it is written.
+      draftId = waiting.id;
+      changeOperationIds = diffOperationIds(diffPrograms(reviewed.blueprint, waiting.blueprint));
+      reviewOutcome = "proposal";
+    } else {
+      const [draft] = await db
+        .insert(programDrafts)
+        .values({
+          userId,
+          source: job.kind === "review_program" ? "weekly" : "ai",
+          status: "ready",
+          blueprint,
+          openingPlan: job.kind === "create_program" ? result.openingPlan : null,
+          jobId: job.id,
+          intakeId: job.intakeId,
+          baseProgramId: job.target.programId,
+          sourceRevision: job.sourceRevision!,
+          headline: result.headline,
+          rationale: result.rationale,
+          uncertainties: result.uncertainties,
+        })
+        .returning();
+      draftId = draft!.id;
+      if (reviewed) {
+        const current = reviewed;
+        const assessment = assessWeeklyEvidence(
+          current.blueprint,
+          blueprint,
+          trainingEvidence,
+          cited,
+          await sharedExercises(db),
+          now,
+        );
+        changeOperationIds = diffOperationIds(diffPrograms(current.blueprint, blueprint));
+        if (assessment.authority === "unchanged") {
+          await db
+            .update(programDrafts)
+            .set({ status: "superseded" })
+            .where(eq(programDrafts.id, draftId));
+        } else if (
+          assessment.automatic &&
+          coachRollout().automaticReviews &&
+          !proposesRequest &&
+          job.target.purpose !== "requests" &&
+          // Starting a programme closes every open proposal, and one is waiting on the
+          // athlete: applying a small change on its own would quietly throw theirs away.
+          !waiting
+        ) {
+          // The athlete's own today, not the owner's: a review activated for someone in Los
+          // Angeles was being started on India's date, which is most of a day ahead of theirs.
+          const [athlete] = await db
+            .select({ timeZone: profiles.timeZone })
+            .from(profiles)
+            .where(eq(profiles.id, userId))
+            .limit(1);
+          await activateProgramDraft(db, userId, draftId, {
+            expectedRevision: draft!.revision,
+            startDate: todayInTimeZone(athlete?.timeZone ?? "UTC", now),
+            transition: "continue",
+            automatic: true,
+          });
+          reviewOutcome = "automatic";
+          acceptedChanges = assessment.changes;
+          programBefore = current.blueprint;
+        } else {
+          reviewOutcome = "proposal";
+          // The coach's caveats and the server's gate are two different statements, and they
+          // are kept in two different columns. Merged, "a new slot needs review" — emitted
+          // once per added slot — read to the athlete as the coach doubting its own proposal.
+          await db
+            .update(programDrafts)
+            .set({
+              gateReasons: [...new Set(assessment.reasons)]
+                .slice(0, 20)
+                .map((text) => text.slice(0, 500)),
+            })
+            .where(eq(programDrafts.id, draftId));
+          // One proposal waits at a time. This one was written with the waiting one in front
+          // of it and takes its place; an ask the older one answered moves across when this
+          // one makes exactly the same change, and goes back to the coach when it does not.
+          const successor = diffOperationSignatures(diffPrograms(current.blueprint, blueprint));
+          for (const replaced of await openCoachProposals(db, userId, job.target.programId)) {
+            if (replaced.id === draftId) continue;
+            await db
+              .update(programDrafts)
+              .set({ status: "superseded", closedAs: "replaced", closedAt: now })
+              .where(eq(programDrafts.id, replaced.id));
+            await settleClosedDraftRequests(
+              db,
+              userId,
+              {
+                draftId: replaced.id,
+                signatures: diffOperationSignatures(
+                  diffPrograms(current.blueprint, replaced.blueprint),
+                ),
+                successor: { draftId, state: "proposed", signatures: successor },
+              },
+              now,
+            );
+          }
+        }
       }
     }
   }
@@ -678,9 +875,13 @@ export async function acceptCoachJobResult(
         // A run that only answered the athlete's requests has not read the training week the
         // scheduled review owes them, so it does not consume it: the anchor stays where it
         // was and the ordinary review still reads every day since the last one.
+        // Never backwards: an older review finishing after a newer one must not make the next
+        // one read a week that has already been read.
         ...(job.target.purpose === "requests"
           ? {}
-          : { reviewAnchorAt: new Date(job.target.reviewEnd) }),
+          : {
+              reviewAnchorAt: sql`greatest(coalesce(${coachPreferences.reviewAnchorAt}, ${new Date(job.target.reviewEnd).toISOString()}::timestamptz), ${new Date(job.target.reviewEnd).toISOString()}::timestamptz)`,
+            }),
         // Cleared only when nothing is still waiting. An ask saved after this attempt's
         // snapshot keeps the flag up, so it is heard at the next daily run instead of being
         // closed by a review that never saw it.
@@ -816,8 +1017,10 @@ export async function sessionTarget(
   db: DbOrTx,
   userId: string,
   batchDate: string | null = null,
+  /** What the caller has already read in this transaction (Today), so it is not read twice. */
+  known?: { schedule: Schedule | null; gyms: readonly GymListItem[] },
 ): Promise<JobTarget | null> {
-  const schedule = await getSchedule(db, userId);
+  const schedule = known ? known.schedule : await getSchedule(db, userId);
   const slot = schedule ? nextTrainingSlot(schedule) : null;
   if (!schedule || !slot) return null;
   const [intent] = await db
@@ -835,7 +1038,10 @@ export async function sessionTarget(
     .select({ gymId: programDays.recommendedGymId })
     .from(programDays)
     .where(eq(programDays.id, slot.day.id));
-  const gymId = intent?.gymId ?? day?.gymId ?? (await planningGym(db, userId))?.id;
+  const gymId =
+    intent?.gymId ??
+    day?.gymId ??
+    (known ? pickPlanningGym(known.gyms) : await planningGym(db, userId))?.id;
   if (!gymId) return null;
   return jobTargetSchema.parse({
     programId: schedule.program.id,
@@ -892,6 +1098,32 @@ export async function reviewAnchor(
 }
 
 /**
+ * A review already queued or running for this athlete's programme in this batch, if any.
+ *
+ * Asking for a review while one is already waiting to run gets that one: it reads everything
+ * a second would have, and a second would only rewrite the first one's proposal. Only a
+ * review of the same programme for the same batch counts — an older one prepares its own
+ * batch's session when it finishes, and one of a programme since replaced is dropped at claim.
+ */
+async function openReviewJob(db: DbOrTx, userId: string, programId: string, batchDate: string) {
+  const [job] = await db
+    .select()
+    .from(coachJobs)
+    .where(
+      and(
+        eq(coachJobs.userId, userId),
+        eq(coachJobs.kind, "review_program"),
+        inArray(coachJobs.status, [...pending]),
+        sql`${coachJobs.target} ->> 'programId' = ${programId}`,
+        sql`${coachJobs.target} ->> 'batchDate' = ${batchDate}`,
+      ),
+    )
+    .orderBy(asc(coachJobs.createdAt))
+    .limit(1);
+  return job ? { job, created: false } : null;
+}
+
+/**
  * A programme review whose purpose is what the athlete asked for.
  *
  * The ordinary review runs on its cadence and reads the training week it owes them. This one
@@ -903,9 +1135,11 @@ export async function reviewAnchor(
 export async function enqueueRequestReview(db: DbOrTx, userId: string, now = new Date()) {
   const active = await getActiveProgram(db, userId);
   if (!active) return null;
+  const boundary = lastCoachBoundary(now);
+  const waiting = await openReviewJob(db, userId, active.id, boundary.date);
+  if (waiting) return waiting;
   const preference = await getCoachingPreferences(db, userId);
   const anchor = await reviewAnchor(db, userId, now);
-  const boundary = lastCoachBoundary(now);
   // An interval has to have somewhere to start; a request made since the last boundary is
   // heard at the next one.
   if (!anchor || boundary.at <= anchor) return null;
@@ -1080,12 +1314,22 @@ async function trainedOn(
     )
     .limit(1);
   if (set) return true;
-  const [run] = await db
-    .select({ id: runs.id })
-    .from(runs)
-    .where(and(eq(runs.userId, userId), gte(runs.startedAt, from), lt(runs.startedAt, to)))
+  // Any sport counts as having trained, so this asks the canonical table rather than the
+  // retired one: a day spent running, riding or swimming is not a day the athlete rested.
+  const [activity] = await db
+    .select({ id: activities.id })
+    .from(activities)
+    .where(
+      and(
+        eq(activities.userId, userId),
+        eq(activities.status, "completed"),
+        ne(activities.sport, "strength"),
+        gte(activities.startedAt, from),
+        lt(activities.startedAt, to),
+      ),
+    )
     .limit(1);
-  return Boolean(run);
+  return Boolean(activity);
 }
 
 /** Stable keyset paging: the caller drains pages; there is no silent 500-athlete ceiling. */
@@ -1141,6 +1385,8 @@ export async function dispatchCoachPage(db: Db, after: string | null = null, now
                 athlete.id,
                 todayInTimeZone(athlete.timeZone, boundary.at),
               )));
+          // A review queued earlier and not yet run is not reused here: it prepares its own
+          // batch's session when it finishes, so this batch would be left with none.
           if (scheduled || asked) {
             const period = weeklyReviewPeriod(anchor, boundary.at);
             result = await enqueueCoachJob(tx, athlete.id, {
@@ -1193,7 +1439,7 @@ export async function queuedCoachJobs(db: Db, now = new Date()) {
       and(
         eq(profiles.aiCoachEnabled, true),
         eq(coachJobs.status, "queued"),
-        lt(coachJobs.attempts, MAX_JOB_ATTEMPTS),
+        lt(coachJobs.attempts, coachJobs.attemptBudget),
         lte(coachJobs.nextAttemptAt, now),
         notExists(
           db

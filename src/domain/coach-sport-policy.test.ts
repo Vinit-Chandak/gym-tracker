@@ -26,6 +26,76 @@ function prescription(
   });
 }
 
+/**
+ * A prescription as the database hands it back.
+ *
+ * Postgres `jsonb` stores an object's keys sorted by length and then bytewise rather than in
+ * the order they were written, so the approved prescription reaching the policy never has the
+ * key order the schema produced. Nothing about its content changes.
+ */
+function asStored<T>(value: T): T {
+  if (Array.isArray(value)) return value.map(asStored) as unknown as T;
+  if (value === null || typeof value !== "object") return value;
+  const entries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) =>
+    a.length === b.length ? (a < b ? -1 : a > b ? 1 : 0) : a.length - b.length,
+  );
+  return Object.fromEntries(entries.map(([key, item]) => [key, asStored(item)])) as T;
+}
+
+const RUNNING_GUIDANCE = {
+  paceNote: "Conversational",
+  progressionNote: null,
+  symptomStopRule: "Stop if the shin complains.",
+  note: null,
+};
+
+/**
+ * The approved running block is the athlete's, and reading it back must not look like editing
+ * it. Comparing the stored prescription with the parsed one by `JSON.stringify` refused every
+ * running preparation as a proposal — the key order differed, so the content never got a say —
+ * and no payload could satisfy it, because echoing the block verbatim failed too.
+ */
+describe("a prescription that has been through the database", () => {
+  it("reads an untouched running block as untouched", () => {
+    const approved = prescription("running", { running: RUNNING_GUIDANCE });
+    const assessment = assessSportChange(asStored(approved), approved);
+    expect(assessment.reasons).toEqual([]);
+    expect(assessment.authority).toBe("unchanged");
+  });
+
+  it("lets a run settle inside its approved range while keeping that block", () => {
+    const approved = prescription("running", { running: RUNNING_GUIDANCE });
+    const narrowed = prescription("running", {
+      running: RUNNING_GUIDANCE,
+      sessionTargets: {
+        durationMs: [35 * MINUTE, 35 * MINUTE],
+        distanceMetres: null,
+        effort: null,
+      },
+    });
+    const assessment = assessSportChange(asStored(approved), narrowed);
+    expect(assessment.reasons).toEqual([]);
+    expect(assessment.authority).toBe("automatic");
+  });
+
+  it("still holds a rewritten stop rule for the athlete to read", () => {
+    const approved = prescription("running", { running: RUNNING_GUIDANCE });
+    const rewritten = prescription("running", {
+      running: { ...RUNNING_GUIDANCE, symptomStopRule: "Push through it." },
+    });
+    const assessment = assessSportChange(asStored(approved), rewritten);
+    expect(assessment.authority).toBe("review_required");
+    expect(assessment.reasons.map((reason) => reason.path)).toEqual(["running"]);
+  });
+
+  it("still holds a running block that is dropped altogether", () => {
+    const approved = prescription("running", { running: RUNNING_GUIDANCE });
+    const assessment = assessSportChange(asStored(approved), prescription("running"));
+    expect(assessment.authority).toBe("review_required");
+    expect(assessment.reasons.map((reason) => reason.path)).toEqual(["running"]);
+  });
+});
+
 describe("bounded adjustment inside approved ranges", () => {
   /** AT-COACH-04: inside the approved envelope, the coach may act. */
   it("lets a ride settle anywhere inside the range the athlete approved", () => {
@@ -393,7 +463,7 @@ describe("effort ranges", () => {
           sessionTargets: {
             durationMs: [30 * MINUTE, 30 * MINUTE],
             distanceMetres: null,
-            effort: [3, 4],
+            effort: [2, 3],
           },
           nodes: [
             {
@@ -402,14 +472,14 @@ describe("effort ranges", () => {
               phase: "work",
               action: "run",
               target: { kind: "duration", ms: [MINUTE, MINUTE] },
-              effort: [7, 8],
+              effort: [4, 5],
               stroke: null,
               notes: null,
             },
           ],
         }),
       ),
-    ).toEqual([3, 8]);
+    ).toEqual([2, 5]);
   });
 
   it("returns nothing when no effort was prescribed", () => {

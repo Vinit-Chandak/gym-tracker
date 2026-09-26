@@ -3,8 +3,8 @@
  * workout is ever stored in the cache. Only two public, non-personal things are cached:
  * the offline guidance, and the build's own immutable assets.
  */
-const OFFLINE = "overload-offline-v1";
-const ASSETS = "overload-assets-v1";
+const OFFLINE = "overload-offline-v4";
+const ASSETS = "overload-assets-v3";
 const KEEP = [OFFLINE, ASSETS];
 
 self.addEventListener("install", (event) => {
@@ -31,7 +31,7 @@ self.addEventListener("activate", (event) => {
 
 /** Build output is content-hashed, so a hit is always the right file and never stale. */
 function isImmutableAsset(url) {
-  return url.pathname.startsWith("/_next/static/") || url.pathname.startsWith("/icons/");
+  return url.pathname.startsWith("/_next/static/");
 }
 
 self.addEventListener("fetch", (event) => {
@@ -44,7 +44,24 @@ self.addEventListener("fetch", (event) => {
   }
 
   const url = new URL(request.url);
-  if (url.origin !== self.location.origin || !isImmutableAsset(url)) return;
+  if (url.origin !== self.location.origin) return;
+  // Icon URLs are stable between releases: refresh online so an old logo is not pinned
+  // forever by cache-first. The public icon remains available without a connection.
+  if (url.pathname.startsWith("/icons/")) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            const copy = response.clone();
+            event.waitUntil(caches.open(ASSETS).then((cache) => cache.put(request, copy)));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request)),
+    );
+    return;
+  }
+  if (!isImmutableAsset(url)) return;
 
   // Cache-first: on a phone this is the difference between a cold start and an instant one.
   event.respondWith(
@@ -54,7 +71,7 @@ self.addEventListener("fetch", (event) => {
         fetch(request).then((response) => {
           if (response.ok) {
             const copy = response.clone();
-            caches.open(ASSETS).then((cache) => cache.put(request, copy));
+            event.waitUntil(caches.open(ASSETS).then((cache) => cache.put(request, copy)));
           }
           return response;
         }),

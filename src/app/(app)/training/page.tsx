@@ -8,6 +8,7 @@ import { Section } from "@/components/ui/section";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { ACTIVITY_SPORT_LABELS, ENDURANCE_SPORTS } from "@/domain/activity";
+import { outstanding } from "@/domain/occurrences";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { requireUser } from "@/server/auth";
 import { getActiveSession } from "@/server/queries/active-session";
@@ -17,6 +18,13 @@ import { standaloneSchedule } from "@/server/repositories/occurrences";
 import { enabledSportsFor } from "@/server/repositories/sport-preferences";
 
 export const metadata: Metadata = { title: "Training" };
+
+/**
+ * Coming back to this tab within a minute shows what it showed, without asking the server
+ * (ADR 0030). Any change made in the app clears that copy at once; only a change made
+ * elsewhere, on another device or by the coach, can take up to the minute to appear.
+ */
+export const unstable_dynamicStaleTime = 60;
 
 /**
  * Where training is entered and managed (plan §2.3).
@@ -46,10 +54,10 @@ export default async function TrainingPage() {
   const ordered = [...ENDURANCE_SPORTS].sort(
     (a, b) => Number(data.preferred.includes(b)) - Number(data.preferred.includes(a)),
   );
-  const upcoming = data.standalone.upcoming.length;
-  const earlier = data.standalone.earlier.filter(
-    (occurrence) => occurrence.resolution.kind === "incomplete",
-  ).length;
+  // Both counts are work still owed rather than rows on the calendar, so a session scheduled
+  // for today and then logged stops being counted the moment it is logged.
+  const upcoming = outstanding(data.standalone.upcoming).length;
+  const earlier = outstanding(data.standalone.earlier).length;
 
   return (
     <>

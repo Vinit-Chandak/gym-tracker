@@ -9,9 +9,19 @@ export const SHORT_SLEEP_HOURS = 6;
 export type CheckIn = {
   sleepHours: number | null;
   sleepQuality: number | null;
+  /** No longer asked: fatigue asked the other way up. Older check-ins keep it, and it counts. */
   energy: number | null;
   fatigue: number | null;
   soreness: number | null;
+};
+
+/** One actual response, kept distinct when someone checks in more than once in a day. */
+export type RecoveryReading = CheckIn & {
+  id: string;
+  date: string;
+  recordedAt: string;
+  source: "workout" | "daily";
+  sessionId: string | null;
 };
 
 export type RecoveryWarningCode = "short_sleep" | "low_readiness";

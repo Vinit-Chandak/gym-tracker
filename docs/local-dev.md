@@ -4,6 +4,26 @@ Everything the app needs — Postgres, sign-in, the shared library, three accoun
 training — on this machine, so `next dev` never touches the hosted project. Two long-running
 processes and a one-time database setup.
 
+## Six-account multisport audit
+
+For the complete current release, use the isolated audit runner instead of hand-editing local
+environment files. It creates `overload_audit`, applies migrations/backfills, and seeds six
+accounts with all four sports, scheduled sessions, templates, coaching outcomes and empty states:
+
+```sh
+npm ci
+npx playwright install chromium webkit
+npm run audit:setup
+npm run audit:build
+npm run audit:auth   # keep running in terminal 1
+npm run audit:start  # keep running in terminal 2; http://localhost:3100
+```
+
+Then run `npm run audit:screens`, `npm run audit:flows` and `npm run audit:db`.
+The runner selects only loopback services, leaves `.env.local` untouched and disables external
+coach dispatch. Accounts, configuration and coverage are documented in the
+[22 September flow audit](audits/2026-09-22-flow-audit.md).
+
 ## What stands in for Supabase
 
 | Hosted                        | Local                                                                                     |
@@ -78,17 +98,75 @@ Sign-up on `/signup` works too and makes a fresh account with an empty history.
 
 ## Phone-sized checks without a phone
 
-The Playwright browsers already on this machine (`~/AppData/Local/ms-playwright`) match
-`playwright-core@1.53`. From any scratch directory:
+Install the browser versions matching the repository's Playwright dependency:
 
 ```sh
-npm init -y && npm install playwright-core@1.53.0
+npx playwright install chromium webkit
 ```
 
-then a short script with `devices["iPhone 13"]` or `devices["Pixel 7"]` for the context, sign in
-through `/login`, and `page.screenshot({ fullPage: true })` per route. Check
-`document.documentElement.scrollWidth > clientWidth` on each page: the app should never scroll
-sideways at 320 px.
+`npm run audit:screens` checks the seeded audit app with iPhone 13, Pixel 7, narrow 320 px and
+desktop contexts. It records screenshots, page errors and overflow; Android scans also run Axe.
+`npm run audit:flows` exercises mutations, navigation, drafts, scheduling and PWA behavior in
+Chromium and WebKit. These commands require the audit stack and fixture manifest above. Where the
+installed browsers cannot be updated, both take `AUDIT_CHROMIUM_PATH`, as the food audit does.
+
+`npm run audit:recovery` exercises the real check-in form and all five recovery charts:
+complete/partial answers, edits, workout completion, date filters, reload and Back, plus
+light/dark accessibility and 320 px layouts. Run once normally and once with
+`AUDIT_DEVICE=iphone` (in PowerShell, `$env:AUDIT_DEVICE = "iphone"`). It uses the local
+Alex and Sam accounts, creates and finishes workouts, and can create Sam's first gym.
+Newly seeded training histories also include complete, fatigue-only and skipped check-ins;
+rerunning setup leaves existing accounts and their readings intact.
+
+## Food audit
+
+The food runner uses a dedicated local database and resets Sam's food fixtures. It also changes
+Vinit's local body weight and food targets to check the missing-weight flow. Run the two browser
+engines sequentially because they share these accounts. Use these PowerShell variables in each
+terminal before the corresponding commands:
+
+```powershell
+$env:AUDIT_DATABASE_URL = 'postgres://postgres:postgres@127.0.0.1:5432/overload_audit_food'
+npm run audit:setup
+npm run audit:build
+npm run audit:auth   # terminal 1, keep running
+npm run audit:start  # terminal 2, keep running
+```
+
+In a third terminal with the same database variable:
+
+```powershell
+$env:AUDIT_PRODUCTION = 'true'
+npm run audit:food
+$env:AUDIT_BROWSER = 'webkit'
+npm run audit:food
+```
+
+This covers availability, targets set on their own screen from the goal's split, the seven meals,
+new foods made from a meal's page through a search that finds nothing, amounts that scale a saved
+food, starring a meal under a name and adding it to another, changed portions and foods corrected
+in My foods, foods and meals kept in My foods without logging, a macronutrient's breakdown, swipe
+removal, a retried save after a lost reply, the Food tab's totals, History inside Progress and the
+old paths' redirects, account isolation, responsive sheets, the Food, Targets, My foods, New meal
+and History screens with Axe, and PWA behavior (ADRs 0033 to 0036). Results and screenshots go to
+`output/food-audit/`. Where the installed browsers are older than this Playwright, point
+`AUDIT_CHROMIUM_PATH` at a Chromium executable. The browsers are emulated; physical-device
+installation and keyboard behavior still need a device check. See the
+[food audit report](audits/2026-09-25-food-audit.md).
+
+## Latency: how screens scale with the database round trip
+
+`npm run audit:latency` measures each main screen's server time at several app↔database
+round-trip times, with the statements behind it (ADR 0030). Start the app so it talks to the
+script's proxy instead of straight to Postgres, then run it in a third terminal:
+
+```sh
+AUDIT_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:6543/overload_audit npm run audit:start
+npm run audit:latency   # LATENCY_RTTS=0,2,24 LATENCY_RUNS=5 by default
+```
+
+Run it before and after a change to the data layer: a screen that waits for fewer round trips
+in sequence grows more slowly with the round trip.
 
 ## Coaching screens
 

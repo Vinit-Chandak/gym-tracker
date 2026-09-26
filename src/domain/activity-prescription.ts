@@ -5,7 +5,7 @@ import type { EnduranceSport } from "./activity";
 import {
   DISTANCE_METRES,
   DURATION_MS,
-  EFFORT,
+  PRESCRIBED_EFFORT,
   PRESCRIPTION_LIMITS,
   TEXT_LIMITS,
 } from "./activity-limits";
@@ -53,9 +53,13 @@ const range = (schema: z.ZodNumber, label: string) =>
 
 const durationRange = range(z.number().int().min(0).max(DURATION_MS.max), "A duration range");
 const distanceRange = range(z.number().min(0).max(DISTANCE_METRES.cycling.max), "A distance range");
-// A target may legitimately be written from zero — the old programme sheet did — while an
-// athlete's own reported effort is always 1–10. These are different questions.
-const effortRange = range(z.number().min(0).max(EFFORT.max), "An effort range");
+// A target may legitimately be written from zero — the old programme sheet did — and it is
+// still written in RPE out of ten, while the athlete's own report is now 1–5. These are
+// different questions, so they keep different bounds: see `PRESCRIBED_EFFORT`.
+const effortRange = range(
+  z.number().min(PRESCRIBED_EFFORT.min).max(PRESCRIBED_EFFORT.max),
+  "An effort range",
+);
 
 const stepTargetSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("duration"), ms: durationRange }),

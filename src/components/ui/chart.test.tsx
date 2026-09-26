@@ -21,7 +21,56 @@ beforeAll(() => {
     },
   );
 });
+
+it("draws readings after switching from an empty metric without remounting", () => {
+  const view = render(
+    <Chart
+      title="Sleep"
+      unit="hours"
+      series={[{ name: "Check-in", color: "red", points: [{ date: "2026-09-22", value: null }] }]}
+    />,
+  );
+  expect(screen.queryByRole("img")).toBeNull();
+  view.rerender(
+    <Chart
+      title="Energy"
+      unit="1–5"
+      series={[{ name: "Check-in", color: "red", points: [{ date: "2026-09-22", value: 4 }] }]}
+    />,
+  );
+  expect(screen.getByRole("img", { name: /Energy, 1 observations/ })).toBeTruthy();
+  view.rerender(<Chart title="Energy" unit="1–5" series={[]} />);
+  expect(screen.queryByRole("img")).toBeNull();
+  view.rerender(
+    <Chart
+      title="Energy"
+      unit="1–5"
+      series={[{ name: "Check-in", color: "red", points: [{ date: "2026-09-22", value: 5 }] }]}
+    />,
+  );
+  expect(screen.getByRole("img", { name: /Energy, 1 observations/ })).toBeTruthy();
+});
 afterEach(cleanup);
+
+it("keeps recovery ratings on the 1–5 scale and labels a single date once", () => {
+  render(
+    <Chart
+      title="Energy"
+      unit="1–5"
+      valueRange={{ min: 1, max: 5 }}
+      series={[{ name: "Check-in", color: "red", points: [{ date: "2026-09-22", value: 4 }] }]}
+    />,
+  );
+  const svg = screen.getByRole("img");
+  expect([...svg.querySelectorAll("text")].map((node) => node.textContent)).toEqual([
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "22/9",
+  ]);
+});
 
 it("puts the same numbers in a table a screen reader can read, newest first", () => {
   render(

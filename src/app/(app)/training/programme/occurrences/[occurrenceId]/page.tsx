@@ -12,7 +12,7 @@ import { Card } from "@/components/ui/card";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { ACTIVITY_SPORT_LABELS } from "@/domain/activity";
-import { describePrescription, prescriptionTotals } from "@/domain/activity-prescription";
+import { describePrescription } from "@/domain/activity-prescription";
 import { isOverdue } from "@/domain/occurrences";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { requireUser } from "@/server/auth";
@@ -47,13 +47,15 @@ export default async function OccurrencePage(
   if (!occurrence) notFound();
   const today = todayInTimeZone(profile.timeZone);
   const late = isOverdue(occurrence, occurrence.resolution, today);
-  const totals = occurrence.prescription ? prescriptionTotals(occurrence.prescription) : null;
   // The preparation is only this session's if it was written against the revision in force;
   // a plan pinned to an older one describes a target the programme has since changed (§8.4).
   const prepared =
     plan && plan.occurrenceRevisionId === occurrence.revisionId
       ? (plan.endurance[0] ?? null)
       : null;
+  // One target on the page: the coach's, when it prepared this session inside the approved
+  // range, and the programme's otherwise. The two used to be printed one above the other.
+  const target = prepared?.prescription ?? occurrence.prescription;
 
   return (
     <>
@@ -66,27 +68,15 @@ export default async function OccurrencePage(
         <Card>
           <div className="flex items-start justify-between gap-3">
             <h2 className="text-lg font-medium">
-              {occurrence.prescription
-                ? describePrescription(occurrence.prescription)
-                : "No targets set"}
+              {target ? describePrescription(target) : "No targets set"}
             </h2>
             {late && <Badge tone="neutral">Not done</Badge>}
           </div>
-          {totals && totals.prescribedRestMs > 0 && (
-            <p className="text-sm text-ink-muted tabular-nums">
-              {totals.prescribedRestMs / 1000} seconds of planned rest between repetitions.
-            </p>
-          )}
-          {occurrence.prescription?.running?.symptomStopRule && (
-            <p className="text-sm text-ink-muted">
-              Stop if: {occurrence.prescription.running.symptomStopRule}
-            </p>
-          )}
           {occurrence.originalScheduledOn &&
             occurrence.originalScheduledOn !== occurrence.scheduledOn && (
               <p className="text-sm text-ink-muted">
-                Moved from {occurrence.originalScheduledOn}. Adherence still counts against that
-                week.
+                Moved from {formatIsoDate(occurrence.originalScheduledOn)}. Adherence still counts
+                against that week.
               </p>
             )}
         </Card>
@@ -94,7 +84,7 @@ export default async function OccurrencePage(
         {occurrence.resolution.kind !== "logged" && (
           <ActivityPlan
             sport={occurrence.sport}
-            prescription={prepared?.prescription ?? occurrence.prescription}
+            prescription={target}
             preparation={prepared ? { summary: prepared.summary, note: prepared.note } : null}
             preparedByCoach={prepared !== null}
           />
