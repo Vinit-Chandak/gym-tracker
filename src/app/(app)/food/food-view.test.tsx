@@ -3,6 +3,7 @@ import { cleanup, render, screen, within } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 
+import type { FoodDayTotal } from "@/domain/food-days";
 import { addUp, eaten, type Meal } from "@/domain/nutrition";
 import type { EntryRecord, FoodDay } from "@/server/repositories/nutrition";
 
@@ -14,6 +15,7 @@ vi.mock("@/components/ui/app-link", () => ({
   ),
 }));
 vi.mock("@/components/shell/back-link", () => ({ BackLink: () => null }));
+vi.mock("@/server/actions/nutrition", () => ({ readFoodMonthAction: vi.fn(async () => []) }));
 afterEach(cleanup);
 
 /** What a row reads as, the spaces kept for screen readers collapsed. */
@@ -43,11 +45,21 @@ function view(
     targets = true,
     library = { foods: 0, meals: 0 },
     bodyWeightKg = 75,
-  }: { targets?: boolean; library?: FoodDay["library"]; bodyWeightKg?: number | null } = {},
+    date,
+    days = [],
+  }: {
+    targets?: boolean;
+    library?: FoodDay["library"];
+    bodyWeightKg?: number | null;
+    date?: string;
+    days?: FoodDayTotal[];
+  } = {},
 ) {
   render(
     <FoodView
       today="2026-09-25"
+      date={date}
+      days={days}
       day={{
         targets: targets ? { dailyKcal: 2300, proteinPerKg: 1.8, fatPercent: 25 } : null,
         entries,
@@ -136,6 +148,7 @@ it("leads its links wherever the preview says", () => {
       bodyWeightKg={null}
       goal={null}
       links={{
+        base: "/preview/food",
         meal: (meal) => `/preview/food?meal=${meal}`,
         myFoods: "/preview/food?page=my-foods",
         targets: "/preview/food?page=targets",
@@ -150,4 +163,48 @@ it("leads its links wherever the preview says", () => {
   );
   // With no goal on the profile, targets start from 55 / 25 / 20.
   expect(screen.getByText(/^55\s\/\s25\s\/\s20$/)).toBeTruthy();
+});
+
+it("puts the last seven days under the header, ending on today, and the month above them", () => {
+  // Thursday met 2,300 kcal's band; Tuesday went past it; Wednesday stayed under it.
+  view([], {
+    days: [
+      { date: "2026-09-22", kcal: 2700 },
+      { date: "2026-09-23", kcal: 1200 },
+      { date: "2026-09-24", kcal: 2300 },
+    ],
+  });
+  expect(screen.getByRole("button", { name: "September, calendar" })).toBeTruthy();
+  const days = within(screen.getByRole("navigation", { name: "Days" }));
+  const newest = days.getAllByRole("list")[0]!;
+  expect(
+    within(newest)
+      .getAllByRole("link")
+      .map((link) => [link.getAttribute("aria-label"), link.getAttribute("href")]),
+  ).toEqual([
+    ["Saturday 19 September", "/food?day=2026-09-19"],
+    ["Sunday 20 September", "/food?day=2026-09-20"],
+    ["Monday 21 September", "/food?day=2026-09-21"],
+    ["Tuesday 22 September, over the goal", "/food?day=2026-09-22"],
+    ["Wednesday 23 September, food logged", "/food?day=2026-09-23"],
+    ["Thursday 24 September, goal met", "/food?day=2026-09-24"],
+    ["Friday 25 September, today", "/food"],
+  ]);
+  expect(days.getByRole("link", { current: "page" }).getAttribute("href")).toBe("/food");
+});
+
+it("opens a day before today with its meals on that day, and today still marked", () => {
+  view([entry("dinner", "Home food", 400)], { date: "2026-09-24" });
+  expect(screen.getByRole("link", { name: /^Dinner/ }).getAttribute("href")).toBe(
+    "/food/dinner?day=2026-09-24",
+  );
+  const days = within(screen.getByRole("navigation", { name: "Days" }));
+  expect(days.getByRole("link", { current: "page" }).getAttribute("aria-label")).toBe(
+    "Thursday 24 September",
+  );
+  expect(days.getByRole("link", { name: "Friday 25 September, today" })).toBeTruthy();
+  // My foods and the targets are the account's, not the day's, and open as ever.
+  expect(screen.getByRole("link", { name: /^My foods/ }).getAttribute("href")).toBe(
+    "/food/my-foods",
+  );
 });

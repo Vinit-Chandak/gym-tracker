@@ -47,17 +47,17 @@ function scrollBehaviour(): ScrollBehavior {
  * in one go, since leaving to make it would lose the meal.
  */
 export function MealEditor({
-  today,
+  date,
   meal,
   screen,
 }: {
-  /** The day the page is showing, which a sheet opened on it logs to. */
-  today: string;
+  /** The day the page is showing, today or one before it, which a sheet opened on it logs to. */
+  date: string;
   meal: Meal;
   screen: MealScreen;
 }) {
   const label = MEAL_LABELS[meal];
-  const place = { eatenOn: today, meal, mealLabel: label };
+  const place = { eatenOn: date, meal, mealLabel: label };
   const [query, setQuery] = useState("");
   const [said, setSaid] = useState("");
   const [error, setError] = useState<string | null>(null);

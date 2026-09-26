@@ -6,6 +6,7 @@ import { z } from "zod";
 import { getDb } from "@/db/client";
 import type { Tx } from "@/db/types";
 import { withUser } from "@/db/with-user";
+import { monthRange, type FoodDayTotal } from "@/domain/food-days";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { requireUser, type SessionUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
@@ -22,6 +23,7 @@ import {
   FoodSubmissionConflictError,
   logFood,
   logSavedMeal,
+  readFoodDays,
   SavedMealChangedError,
   SavedMealNameTakenError,
   SavedMealNotFoundError,
@@ -258,4 +260,17 @@ export async function deleteFoodAction(foodId: string): Promise<FoodActionResult
   const user = await requireUser();
   if (!z.uuid().safeParse(foodId).success) return { ok: true };
   return change(user, (tx) => deleteFood(tx, user.id, foodId));
+}
+
+/**
+ * The days of one month with food on them, for the Food tab's calendar as it turns to another
+ * month (ADR 0037). A read and not a change: nothing is revalidated, and anything that is not a
+ * month reads as a month with nothing in it.
+ */
+export async function readFoodMonthAction(month: string): Promise<FoodDayTotal[]> {
+  const user = await requireUser();
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return [];
+  return withUser(getDb(), user.id, (tx) => readFoodDays(tx, user.id, monthRange(month)), {
+    readOnly: true,
+  });
 }

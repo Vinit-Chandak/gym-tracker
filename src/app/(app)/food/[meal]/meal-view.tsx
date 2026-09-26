@@ -10,16 +10,22 @@ import type { MealScreen } from "@/server/repositories/nutrition";
 import { FoodDayRollover } from "../day-rollover";
 import { MealEditor } from "./meal-editor";
 
-/** A meal of the day's own page (ADR 0033), one level under the Food screen. */
+/**
+ * A meal of the day's own page (ADR 0033), one level under the Food screen. Its header names the
+ * day it adds to, which is today's or, opened from a day before it, that day's (ADR 0037).
+ */
 export function MealView({
   timeZone,
   today,
+  date = today,
   meal,
   screen,
   backHref = "/food",
 }: {
   timeZone?: string;
   today: string;
+  /** The day the meal is on, and what is added to it is logged on. */
+  date?: string;
   meal: Meal;
   screen: MealScreen;
   /** Where Back goes without a page before it: the Food screen, or its preview. */
@@ -28,9 +34,9 @@ export function MealView({
   return (
     <>
       {timeZone && <FoodDayRollover today={today} timeZone={timeZone} />}
-      <PageHeader title={MEAL_LABELS[meal]} meta={formatIsoWeekdayDay(today)} backHref={backHref} />
+      <PageHeader title={MEAL_LABELS[meal]} meta={formatIsoWeekdayDay(date)} backHref={backHref} />
       <PageContent>
-        <MealEditor today={today} meal={meal} screen={screen} />
+        <MealEditor date={date} meal={meal} screen={screen} />
       </PageContent>
     </>
   );

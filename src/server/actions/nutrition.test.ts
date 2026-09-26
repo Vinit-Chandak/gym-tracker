@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
   updateFood: vi.fn(),
   deleteFood: vi.fn(),
   saveNutritionTargets: vi.fn(),
+  readFoodDays: vi.fn(async () => [{ date: "2026-08-14", kcal: 2512.4 }]),
   submitFoodOnce: vi.fn(
     async (
       _db: unknown,
@@ -65,6 +66,7 @@ import {
   deleteSavedMealAction,
   logFoodAction,
   logSavedMealAction,
+  readFoodMonthAction,
   saveLibraryMealAction,
   saveMealAction,
   saveTargetsAction,
@@ -140,7 +142,8 @@ it.each([undefined, "false", "someone-else@example.test"])(
     expect(await saveTargetsAction(INITIAL_FORM_STATE, targetsForm())).toEqual({});
     // A food from My foods and a new one are both logged by `logFood`.
     expect(mocks.logFood).toHaveBeenCalledTimes(2);
-    const { logFood: _both, submitFoodOnce: _receipt, ...writes } = mocks;
+    // The calendar's read is not a change, and none of these reads it.
+    const { logFood: _both, submitFoodOnce: _receipt, readFoodDays: _read, ...writes } = mocks;
     for (const write of Object.values(writes)) expect(write).toHaveBeenCalledOnce();
     // Twelve changes, each refreshing the five screens food is shown on.
     expect(revalidatePath).toHaveBeenCalledTimes(60);
@@ -351,4 +354,20 @@ it("says what stops a meal from being saved, against the name or in words", asyn
       items: [{ keep: 4, amount: "1" }],
     }),
   ).toEqual({ ok: false, error: new SavedMealChangedError().message });
+});
+
+it("reads a whole month of days for the calendar, and changes nothing", async () => {
+  expect(await readFoodMonthAction("2026-08")).toEqual([{ date: "2026-08-14", kcal: 2512.4 }]);
+  expect(mocks.readFoodDays).toHaveBeenCalledWith({}, USER, {
+    from: "2026-08-01",
+    to: "2026-08-31",
+  });
+  expect(revalidatePath).not.toHaveBeenCalled();
+});
+
+it("reads nothing for what is not a month", async () => {
+  for (const month of ["2026-13", "2026-8", "", "2026-08-01"]) {
+    expect(await readFoodMonthAction(month)).toEqual([]);
+  }
+  expect(mocks.readFoodDays).not.toHaveBeenCalled();
 });

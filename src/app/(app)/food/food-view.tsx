@@ -1,5 +1,6 @@
 import type { Route } from "next";
 
+import { FoodCalendarButton, FoodWeekStrip } from "@/components/food/food-days";
 import { FoodSummary } from "@/components/food/food-summary";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
@@ -9,6 +10,7 @@ import { Card } from "@/components/ui/card";
 import { ChevronRight, Plus } from "@/components/ui/icons";
 import { LinkRow, List, PRESSABLE_ROW_CLASS } from "@/components/ui/link-row";
 import { Section } from "@/components/ui/section";
+import { stripRange, type FoodDayTotal } from "@/domain/food-days";
 import {
   addUp,
   eaten,
@@ -19,7 +21,7 @@ import {
   type Meal,
 } from "@/domain/nutrition";
 import type { TrainingGoal } from "@/domain/types";
-import { formatIsoWeekdayDay, formatKcal, formatSplit } from "@/lib/format";
+import { formatKcal, formatSplit } from "@/lib/format";
 import { MEAL_LABELS, TRAINING_GOAL_LABELS } from "@/lib/labels";
 import type { EntryRecord, FoodDay, LibraryCount } from "@/server/repositories/nutrition";
 
@@ -27,6 +29,8 @@ import { FoodDayRollover } from "./day-rollover";
 
 /** Where the screen's links lead: the app's own pages, or in the preview the previews of them. */
 export type FoodLinks = {
+  /** The Food screen itself, which a day before today opens on with its date (ADR 0037). */
+  base: Route;
   meal: (meal: Meal) => Route;
   myFoods: Route;
   targets: Route;
@@ -35,7 +39,11 @@ export type FoodLinks = {
 export type FoodViewProps = {
   timeZone?: string;
   today: string;
+  /** The day on screen: today, or any day before it (ADR 0037). */
+  date?: string;
   day: FoodDay;
+  /** Each day with food on it across the strip, which marks them. */
+  days?: readonly FoodDayTotal[];
   /** The newest body weight reading, which the protein target is worked out from. */
   bodyWeightKg: number | null;
   /** The profile's training goal, which chooses the split targets start from (ADR 0035). */
@@ -44,6 +52,7 @@ export type FoodViewProps = {
 };
 
 const APP_LINKS: FoodLinks = {
+  base: "/food",
   meal: (meal) => `/food/${mealSlug(meal)}` as Route,
   myFoods: "/food/my-foods",
   targets: "/food/targets",
@@ -89,19 +98,25 @@ function MealRow({ meal, entries, href }: { meal: Meal; entries: EntryRecord[]; 
 }
 
 /**
- * The Food screen (ADRs 0032 to 0036): the day against its targets, then the day's seven meals in
- * the order they are eaten, each opening a page to add to it, then My foods and the targets, each
- * a screen of its own. Until there is a target, asking for one is what the screen opens with.
+ * The Food screen (ADRs 0032 to 0037): the days under the header, then the day on screen against
+ * its targets, then its seven meals in the order they are eaten, each opening a page to add to it,
+ * then My foods and the targets, each a screen of its own. Until there is a target, asking for one
+ * is what the screen opens with. A day before today reads and changes exactly as today does.
  */
 export function FoodView({
   timeZone,
   today,
+  date = today,
   day,
+  days = [],
   bodyWeightKg,
   goal,
   links = APP_LINKS,
 }: FoodViewProps) {
   const target = day.targets ? macroTargets(day.targets, bodyWeightKg, goal) : null;
+  // A meal of a day before today is opened on that day, and Back from it returns there.
+  const onDate = (href: Route) => (date === today ? href : (`${href}?day=${date}` as Route));
+  const daysProps = { today, date, days, targetKcal: target?.kcal ?? null, base: links.base };
   const byMeal = new Map<Meal, EntryRecord[]>(MEALS.map((meal) => [meal, []]));
   for (const entry of day.entries) byMeal.get(entry.meal)?.push(entry);
   // Targets that cannot do what they are meant to say so on their row, where they are opened.
@@ -116,8 +131,12 @@ export function FoodView({
   return (
     <>
       {timeZone && <FoodDayRollover today={today} timeZone={timeZone} />}
-      <PageHeader title="Food" meta={formatIsoWeekdayDay(today)} />
+      <PageHeader
+        title="Food"
+        action={<FoodCalendarButton from={stripRange(today, date).from} {...daysProps} />}
+      />
       <PageContent>
+        <FoodWeekStrip {...daysProps} />
         {target ? (
           <Card>
             <FoodSummary eaten={day.eaten} target={target} entries={day.entries} />
@@ -145,7 +164,11 @@ export function FoodView({
           <ul className="box-rows" aria-label="Meals">
             {MEALS.map((meal) => (
               <li key={meal}>
-                <MealRow meal={meal} entries={byMeal.get(meal) ?? []} href={links.meal(meal)} />
+                <MealRow
+                  meal={meal}
+                  entries={byMeal.get(meal) ?? []}
+                  href={onDate(links.meal(meal))}
+                />
               </li>
             ))}
           </ul>

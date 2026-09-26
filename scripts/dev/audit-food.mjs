@@ -564,6 +564,67 @@ try {
       await page.waitForURL(/\/today$/);
     },
   );
+  await check(
+    "a day before today opens from the strip, and what is added lands on it",
+    async () => {
+      const [{ today, yesterday }] = await sql`select
+        (now() at time zone time_zone)::date::text as today,
+        ((now() at time zone time_zone)::date - 1)::text as yesterday
+      from profiles where id=${user.id}`;
+      const days = page.getByRole("navigation", { name: "Days" });
+      const onScreen = () => days.locator('a[aria-current="page"]');
+      await navigate("/food");
+      // The strip rests on today, with yesterday beside it (ADR 0037).
+      await expect(onScreen()).toHaveAttribute("href", "/food");
+      await expect(onScreen()).toHaveAccessibleName(/, today/);
+      await days.locator(`a[href="/food?day=${yesterday}"]`).click();
+      await page.waitForURL(`**/food?day=${yesterday}`);
+      await expect(onScreen()).toHaveAttribute("href", `/food?day=${yesterday}`);
+      // A meal of that day opens on it, names it, and logs to it.
+      await page.getByRole("link", { name: /^Evening snack/ }).click();
+      await page.waitForURL(`**/food/evening-snack?day=${yesterday}`);
+      const named = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "UTC",
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+      }).formatToParts(new Date(`${yesterday}T00:00:00Z`));
+      const part = (type) => named.find((p) => p.type === type).value;
+      await expect(page.locator("header")).toContainText(
+        `${part("weekday")} ${part("day")} ${part("month")}`,
+      );
+      await myFoods()
+        .getByRole("button", { name: /^Oats 100 g/ })
+        .click();
+      await submit("Add to Evening snack");
+      const [logged] = await sql`select eaten_on::text as day, name from food_entries
+      where user_id=${user.id} and meal='evening_snack' order by created_at desc limit 1`;
+      expect(logged).toEqual({ day: yesterday, name: "Oats" });
+      // Back returns to that day, which now shows the food and is marked in the strip.
+      await page.getByRole("link", { name: "Back to Food" }).click();
+      await page.waitForURL(`**/food?day=${yesterday}`);
+      await expect(page.getByRole("link", { name: /^Evening snack/ })).toContainText("Oats");
+      await expect(onScreen()).toHaveAccessibleName(/food logged|goal met|over the goal/);
+      // The calendar opens on the day on screen, and Today leads back.
+      await page.getByRole("button", { name: /, calendar$/ }).click();
+      await expect(dialog().locator('a[aria-current="page"]')).toHaveAttribute(
+        "href",
+        `/food?day=${yesterday}`,
+      );
+      await dialog().getByRole("link", { name: "Today", exact: true }).click();
+      await page.waitForURL(/\/food$/);
+      await expect(onScreen()).toHaveAttribute("href", "/food");
+      // Nothing is logged today by any of this.
+      const [{ todays }] = await sql`select count(*)::int as todays from food_entries
+      where user_id=${user.id} and meal='evening_snack' and eaten_on=${today}`;
+      expect(todays).toBe(0);
+      // A day still to come, or anything that is not a day, opens today.
+      await navigate("/food?day=2999-01-01");
+      await expect(onScreen()).toHaveAttribute("href", "/food");
+      await navigate("/food/dinner?day=not-a-day");
+      await expect(page.locator("header")).not.toContainText("not-a-day");
+    },
+  );
   await check("responsive layouts, 200% text, light/dark and accessible sheets", async () => {
     await openMeal("Breakfast", "breakfast");
     for (const [width, height, font] of [
@@ -682,6 +743,20 @@ try {
         axe.violations.map((v) => ({ id: v.id, nodes: v.nodes.map((n) => n.target) })),
       ).toEqual([]);
       await page.screenshot({ path: `${dir}/protein-sheet-390-844-${scheme}.png` });
+    }
+    await dialog().getByRole("button", { name: "Close sheet" }).click();
+    // The calendar behind the month, in both palettes, with Axe (ADR 0037).
+    await page.getByRole("button", { name: /, calendar$/ }).click();
+    for (const scheme of ["light", "dark"]) {
+      await page.emulateMedia({ colorScheme: scheme });
+      await settle();
+      const axe = await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+        .analyze();
+      expect(
+        axe.violations.map((v) => ({ id: v.id, nodes: v.nodes.map((n) => n.target) })),
+      ).toEqual([]);
+      await page.screenshot({ path: `${dir}/calendar-sheet-390-844-${scheme}.png` });
     }
     await dialog().getByRole("button", { name: "Close sheet" }).click();
     // Progress's picker, with History among its sections.

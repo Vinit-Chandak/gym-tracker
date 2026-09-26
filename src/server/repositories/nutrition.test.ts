@@ -20,6 +20,7 @@ import {
   logFood,
   logSavedMeal,
   readFoodDay,
+  readFoodDays,
   readLibrary,
   readMealScreen,
   readSavedMeal,
@@ -671,6 +672,41 @@ describe("a retried save", () => {
       const dinner = await as(account, (tx) => readMealScreen(tx, account.id, at("dinner")));
       expect(dinner.entries.filter((entry) => entry.name === "Retried milk")).toHaveLength(1);
     }
+  });
+});
+
+describe("days with food on them", () => {
+  // A month no other test logs in, so what is read is only what is logged here.
+  const JUNE = { from: "2025-06-01", to: "2025-06-30" };
+
+  it("adds each day up as its own screen does, and leaves out days with nothing", async () => {
+    // 45 g of oats is 175.05 kcal, which rounds up to the tenth here as it does on screen.
+    await as(user, (tx) =>
+      logFood(tx, user.id, at("breakfast", "2025-06-01"), { food: OATS, amount: 45 }),
+    );
+    await as(user, (tx) =>
+      logFood(tx, user.id, at("dinner", "2025-06-01"), { food: MILK, amount: 333 }),
+    );
+    await as(user, (tx) =>
+      logFood(tx, user.id, at("lunch", "2025-06-03"), { food: TAKEAWAY, amount: 1 }),
+    );
+    const first = await as(user, (tx) => readFoodDay(tx, user.id, "2025-06-01"));
+    expect(first.eaten.kcal).toBe(388.2);
+    expect(await as(user, (tx) => readFoodDays(tx, user.id, JUNE))).toEqual([
+      { date: "2025-06-01", kcal: 388.2 },
+      { date: "2025-06-03", kcal: 900 },
+    ]);
+  });
+
+  it("reads only the days asked for", async () => {
+    const days = (from: string, to: string) =>
+      as(user, (tx) => readFoodDays(tx, user.id, { from, to }));
+    expect(await days("2025-06-02", "2025-06-02")).toEqual([]);
+    expect((await days("2025-06-03", "2025-07-31")).map((day) => day.date)).toEqual(["2025-06-03"]);
+  });
+
+  it("never reads another account's days", async () => {
+    expect(await as(other, (tx) => readFoodDays(tx, user.id, JUNE))).toEqual([]);
   });
 });
 
