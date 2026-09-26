@@ -6,7 +6,16 @@ import { addExerciseVolume, emptyMuscleVolume, type MuscleVolume } from "./muscl
 import { allSlots, slotStatus } from "./schedule";
 import type { LoadUnit } from "./types";
 
-export type Point = { date: string; value: number | null };
+export type Point = {
+  date: string;
+  value: number | null;
+  /**
+   * The observation does not cover the same span as the ones beside it — a calendar week
+   * that is still running, most often. A chart draws it apart from the rest rather than
+   * inviting a comparison the number cannot carry.
+   */
+  partial?: boolean;
+};
 export type PerformanceSeries = {
   id: string;
   exerciseId: string;
@@ -115,19 +124,53 @@ export function performanceSeries(
   return [...series.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 
-/** Calendar weeks and raw measurement gaps are preserved; unrelated machines and units never mix. */
-export function trainingAnalytics(data: TrainingData, timeZone: string, from: string, to: string) {
-  const weeks = new Map<
-    string,
-    {
-      date: string;
-      workouts: number;
-      runs: number;
-      runKm: number;
-      runMinutes: number;
-      muscles: MuscleVolume;
-    }
-  >();
+/**
+ * Drops the weeks after the last one with training in it. Only the tail: a quiet week
+ * between two busy ones is a real zero and stays, because it says something.
+ */
+function trimEmptyTail(weeks: TrainingWeek[]): TrainingWeek[] {
+  let end = weeks.length;
+  while (end > 0 && weeks[end - 1]!.workouts === 0 && weeks[end - 1]!.runs === 0) end--;
+  return weeks.slice(0, end);
+}
+
+export type TrainingWeek = {
+  /** Monday of the week, in the account's time zone. */
+  date: string;
+  workouts: number;
+  runs: number;
+  runKm: number;
+  runMinutes: number;
+  muscles: MuscleVolume;
+  /**
+   * Some of the week's seven days lie outside the window, or have not happened yet. Its
+   * totals are real but they are not comparable with a whole week's, so a chart marks it.
+   */
+  partial: boolean;
+};
+
+/**
+ * Calendar weeks and raw measurement gaps are preserved; unrelated machines and units never mix.
+ *
+ * The weeks returned run from the one `from` falls in up to the last week with training in
+ * it — never to the week `to` falls in. A window ends on today by default, so carrying it to
+ * the end put a run of zeroes after the last session and made every weekly chart finish on
+ * the floor: six runs last week and nothing yet this Monday drew as a collapse rather than as
+ * a week that has not happened. What is dropped is only ever empty, so nothing is hidden.
+ */
+export function trainingAnalytics(
+  data: TrainingData,
+  timeZone: string,
+  from: string,
+  to: string,
+  now: Date = new Date(),
+) {
+  // A week is whole only once its Sunday is behind us and inside the window.
+  const lastWholeDay = (() => {
+    const today = todayInTimeZone(timeZone, now);
+    return to < today ? to : today;
+  })();
+  const weeks = new Map<string, TrainingWeek>();
   for (let date = weekStart(from); date <= to; date = addDays(date, 7))
     weeks.set(date, {
       date,
@@ -136,6 +179,7 @@ export function trainingAnalytics(data: TrainingData, timeZone: string, from: st
       runKm: 0,
       runMinutes: 0,
       muscles: emptyMuscleVolume(),
+      partial: date < from || addDays(date, 6) > lastWholeDay,
     });
   const finished = data.workouts.filter((w) => w.completedAt !== null);
   for (const workout of finished) {
@@ -194,7 +238,7 @@ export function trainingAnalytics(data: TrainingData, timeZone: string, from: st
     runs: data.runs.length,
     trainingDays: trainingDays.size,
     averageSleep: mean(recovery.map((r) => r.sleep)),
-    weeks: [...weeks.values()].map((w) => ({
+    weeks: trimEmptyTail([...weeks.values()]).map((w) => ({
       ...w,
       runKm: round(w.runKm),
       runMinutes: round(w.runMinutes),
