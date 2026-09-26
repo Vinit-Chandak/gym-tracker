@@ -89,7 +89,7 @@ function MealRow({ meal, entries, href }: { meal: Meal; entries: EntryRecord[]; 
 }
 
 /**
- * The Food screen (ADRs 0032 to 0035): the day against its targets, then the day's six meals in
+ * The Food screen (ADRs 0032 to 0036): the day against its targets, then the day's seven meals in
  * the order they are eaten, each opening a page to add to it, then My foods and the targets, each
  * a screen of its own. Until there is a target, asking for one is what the screen opens with.
  */

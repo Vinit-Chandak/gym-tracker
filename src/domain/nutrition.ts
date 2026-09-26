@@ -211,20 +211,24 @@ export function addUp(items: readonly FoodAmounts[]): FoodTotals {
   return { kcal: kcal / 10, carbsG: carbs / 10, fatG: fat / 10, proteinG: protein / 10 };
 }
 
-/** The day's meals, in the order they are eaten, so the list reads like the day. */
+/**
+ * The day's meals, in the order they are eaten, so the list reads like the day (ADR 0036): an
+ * evening snack comes before dinner, and a late-night snack after it.
+ */
 export const MEALS = [
   "breakfast",
   "morning_snack",
   "lunch",
   "afternoon_snack",
-  "dinner",
   "evening_snack",
+  "dinner",
+  "late_night_snack",
 ] as const;
 export type Meal = (typeof MEALS)[number];
 
-/** A meal as it appears in a URL: `morning-snack`. */
+/** A meal as it appears in a URL: `morning-snack`, `late-night-snack`. */
 export function mealSlug(meal: Meal): string {
-  return meal.replace("_", "-");
+  return meal.replaceAll("_", "-");
 }
 
 /** The meal a URL names, or null when it names none. */
@@ -391,12 +395,10 @@ export type Contribution = {
   meals: Meal[];
   /** Grams it gave; null when it was logged without that figure. */
   grams: number | null;
-  /** Its share of the day's total of that macronutrient, from 0 to 1; null with the grams. */
-  share: number | null;
 };
 
 /**
- * What each food eaten gave to one macronutrient, the most first (ADR 0035).
+ * What each food eaten gave to one macronutrient, the most first (ADRs 0035, 0036).
  *
  * The same food eaten in two meals is one row, added up. Foods logged without the figure come
  * last, since they are why a total may read low, and a food that gave none is left out. Summed
@@ -434,16 +436,14 @@ export function contributions(
     }
     groups.set(id, group);
   }
-  const counted = [...groups.values()].filter((group) => !group.known || group.tenths > 0);
-  const total = counted.reduce((sum, group) => sum + group.tenths, 0);
-  return counted
+  return [...groups.values()]
+    .filter((group) => !group.known || group.tenths > 0)
     .map((group) => ({
       name: group.name,
       unit: group.unit,
       amount: group.hundredths / 100,
       meals: MEALS.filter((meal) => group.meals.has(meal)),
       grams: group.known ? group.tenths / 10 : null,
-      share: group.known && total > 0 ? group.tenths / total : null,
     }))
     .sort((a, b) => (b.grams ?? -1) - (a.grams ?? -1) || a.name.localeCompare(b.name));
 }

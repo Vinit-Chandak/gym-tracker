@@ -69,20 +69,25 @@ const HOME: Food = {
   proteinG: null,
 };
 
+/** Text as it reads on the screen, one space between the parts of a row. */
+const read = (element: Element) => element.textContent?.replace(/\s+/g, " ").trim();
+
 describe("the summary", () => {
   it("shows exact kcal at the fractional edges of the goal band", () => {
     const target = macroTargets({ dailyKcal: 501, proteinPerKg: 1.8, fatPercent: 25 }, null, null);
     render(<FoodSummary eaten={eaten(551.2)} target={target} entries={[]} />);
-    expect(screen.getByText("Over")).toBeTruthy();
-    expect(screen.getByText("50.2 kcal over target · Goal 450.9–551.1")).toBeTruthy();
-    expect(screen.getByRole("img").getAttribute("aria-label")).toContain("551.2 of 501 kcal");
+    expect(screen.getByText("50.2 over")).toBeTruthy();
+    expect(screen.getByRole("img").getAttribute("aria-label")).toBe(
+      "551.2 of 501 kcal. The goal is met from 450.9 to 551.1 kcal.",
+    );
   });
 
-  it("says nothing of the goal while the day is still under it", () => {
+  it("says what is left beside the total while the day is under the goal", () => {
     render(<FoodSummary eaten={eaten(1200)} target={TARGET} entries={[]} />);
+    expect(read(document.body)).toMatch(/^1,200 \/ 2,400 kcal 1,200 left/);
     expect(screen.queryByText("Goal met")).toBeNull();
-    expect(screen.queryByText("Over")).toBeNull();
-    expect(screen.getByText("1,200 kcal left · Goal 2,160–2,640")).toBeTruthy();
+    // The band's ends are drawn on the bar, and named to a screen reader, but not written out.
+    expect(read(document.body)).not.toMatch(/Goal \d|2,160|2,640/);
     expect(
       screen.getByRole("img", {
         name: "1,200 of 2,400 kcal. The goal is met from 2,160 to 2,640 kcal.",
@@ -93,16 +98,17 @@ describe("the summary", () => {
   it("marks the goal met anywhere in the band, either side of the target", () => {
     render(<FoodSummary eaten={eaten(2160)} target={TARGET} entries={[]} />);
     expect(screen.getByText("Goal met")).toBeTruthy();
+    expect(read(document.body)).not.toContain("left");
     cleanup();
     render(<FoodSummary eaten={eaten(2500)} target={TARGET} entries={[]} />);
     expect(screen.getByText("Goal met")).toBeTruthy();
-    expect(screen.getByText("100 kcal over target · Goal 2,160–2,640")).toBeTruthy();
+    expect(read(document.body)).not.toMatch(/left|over/);
   });
 
   it("marks a day past the band as over, and by how much", () => {
     render(<FoodSummary eaten={eaten(2641)} target={TARGET} entries={[]} />);
-    expect(screen.getByText("Over")).toBeTruthy();
-    expect(screen.getByText("241 kcal over target · Goal 2,160–2,640")).toBeTruthy();
+    expect(screen.getByText("241 over")).toBeTruthy();
+    expect(screen.queryByText("Goal met")).toBeNull();
   });
 
   it("gives each macronutrient its grams against its target, in the split's order", () => {
@@ -128,17 +134,20 @@ describe("a macronutrient's bar", () => {
     const carbs = screen.getByRole("button", { name: "Carbs: 315 of 315 g" });
     const fat = screen.getByRole("button", { name: "Fat: 70 of 67 g, over" });
     const protein = screen.getByRole("button", { name: "Protein: 140 of 135 g, reached" });
-    // The bar is the last thing in each: its own colour at the target, red past it, green
-    // once protein is reached.
-    const fill = (button: HTMLElement) => button.lastElementChild!.firstElementChild!.className;
+    // Each row's bar: its own colour at the target, red past it, green once protein is reached.
+    const fill = (button: HTMLElement) =>
+      button.querySelector("span[aria-hidden] > span")!.className;
     expect(fill(carbs)).toContain("bg-series-2");
     expect(fill(fat)).toContain("bg-over");
     expect(fill(protein)).toContain("bg-success");
     expect(fat.querySelector(".text-over")).toBeTruthy();
     expect(carbs.querySelector(".text-over")).toBeNull();
+    // Reached protein gains a tick beside its name.
+    expect(protein.querySelectorAll("svg")).toHaveLength(2);
+    expect(carbs.querySelectorAll("svg")).toHaveLength(1);
   });
 
-  it("opens today's foods, ranked by what they gave, with each one's share", () => {
+  it("opens today's foods as plain rows, ranked by what they gave", () => {
     const entries = [
       entry("breakfast", MILK, 250),
       entry("breakfast", WHEY, 1),
@@ -150,14 +159,38 @@ describe("a macronutrient's bar", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: /^Protein:/ }));
     const sheet = screen.getByRole("dialog", { name: "Protein" });
-    expect(within(sheet).getByText("40 of 135 g · 95 g to go")).toBeTruthy();
+    expect(read(sheet)).toContain("40 g of 135 g 95 g to go");
     const rows = within(sheet).getAllByRole("listitem");
     // Milk twice is one row, added up; the food with no protein figure closes the list.
-    expect(rows.map((row) => row.textContent?.replace(/\s+/g, " ").trim())).toEqual([
-      "Whey Breakfast · 1 scoop 25 g 63%",
-      "Milk Breakfast, Dinner · 450 ml 15 g 37%",
-      "Home food Lunch · 2 servings —",
+    expect(rows.map(read)).toEqual([
+      "Whey Breakfast · 1 scoop 25 g",
+      "Milk Breakfast, Dinner · 450 ml 15 g",
+      "Home food Lunch · 2 servings — no figure",
     ]);
+    // Grams only: no share of the day, and one bar, at the top.
+    expect(sheet.textContent).not.toContain("%");
+    expect(sheet.querySelectorAll("span[aria-hidden] > span")).toHaveLength(1);
+  });
+
+  it("says where the day stands in words: left, to go, reached or over", () => {
+    render(
+      <FoodSummary
+        eaten={eaten(2300, { carbsG: 150, fatG: 70, proteinG: 140 })}
+        target={TARGET}
+        entries={[]}
+      />,
+    );
+    const standing = (name: string) => {
+      fireEvent.click(screen.getByRole("button", { name: new RegExp(`^${name}:`) }));
+      const sheet = screen.getByRole("dialog", { name });
+      const text = read(sheet.querySelector("p")!.parentElement!);
+      fireEvent.click(within(sheet).getByRole("button", { name: "Close sheet" }));
+      return text;
+    };
+    // Carbohydrate and fat are limits, so what remains of them is left; protein is still to go.
+    expect(standing("Carbs")).toBe("150 g of 315 g 165 g left");
+    expect(standing("Fat")).toBe("70 g of 67 g 3 g over");
+    expect(standing("Protein")).toBe("140 g of 135 g Reached");
   });
 
   it("says when there is nothing yet to rank", () => {

@@ -142,13 +142,13 @@ $env:AUDIT_BROWSER = 'webkit'
 npm run audit:food
 ```
 
-This covers availability, targets set on their own screen from the goal's split, the six meals,
+This covers availability, targets set on their own screen from the goal's split, the seven meals,
 new foods made from a meal's page through a search that finds nothing, amounts that scale a saved
 food, starring a meal under a name and adding it to another, changed portions and foods corrected
 in My foods, foods and meals kept in My foods without logging, a macronutrient's breakdown, swipe
 removal, a retried save after a lost reply, the Food tab's totals, History inside Progress and the
 old paths' redirects, account isolation, responsive sheets, the Food, Targets, My foods, New meal
-and History screens with Axe, and PWA behavior (ADRs 0033 to 0035). Results and screenshots go to
+and History screens with Axe, and PWA behavior (ADRs 0033 to 0036). Results and screenshots go to
 `output/food-audit/`. Where the installed browsers are older than this Playwright, point
 `AUDIT_CHROMIUM_PATH` at a Chromium executable. The browsers are emulated; physical-device
 installation and keyboard behavior still need a device check. See the

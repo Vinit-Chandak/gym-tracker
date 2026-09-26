@@ -197,8 +197,9 @@ app launches standalone with safe-area padding.
 
 ## Food
 
-Calorie and macro tracking, entered by hand. The day has six meals: breakfast, morning snack,
-lunch, afternoon snack, dinner and evening snack. **My foods** is a screen of its own: a food is
+Calorie and macro tracking, entered by hand. The day has seven meals, in the order they are
+eaten: breakfast, morning snack, lunch, afternoon snack, evening snack, dinner and late-night
+snack. **My foods** is a screen of its own: a food is
 its kcal and, if known, carbohydrate, fat and protein for a portion in a real unit (100 g, 250 ml,
 1 scoop), and a meal is a set of foods at amounts. Both are made there without logging anything,
 and added to any meal of the day from its page; a new food can also be made from a meal's page
@@ -213,8 +214,9 @@ fat turn red past their targets, and protein green once reached. Every signed-in
 as the **Food** tab, where History used to be; History is now a section of **Progress**. See ADRs
 [0032](docs/decisions/0032-food-behind-a-switch.md),
 [0033](docs/decisions/0033-meals-of-the-day-and-my-foods.md),
-[0034](docs/decisions/0034-food-takes-the-history-tab.md) and
-[0035](docs/decisions/0035-targets-from-the-goal-and-my-foods-of-its-own.md).
+[0034](docs/decisions/0034-food-takes-the-history-tab.md),
+[0035](docs/decisions/0035-targets-from-the-goal-and-my-foods-of-its-own.md) and
+[0036](docs/decisions/0036-meals-in-eating-order-and-a-calmer-food-card.md).
 
 Saving needs a connection. Retrying a save after a lost reply cannot log a food twice.
 Production deployments apply database migrations before building the app.
