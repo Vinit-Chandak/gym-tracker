@@ -1,9 +1,7 @@
 import { z } from "zod";
 
 import {
-  DEFAULT_PROTEIN_PER_KG,
   FOOD_UNITS,
-  MACRO_SPLITS,
   MEALS,
   NUTRITION_LIMITS,
   roundTo,
@@ -28,18 +26,21 @@ function readNumber(raw: string): number | null | "invalid" {
 const toTenth = (value: number): number => roundTo(value, 1);
 
 /**
- * The targets on the Food screen. Protein per kilogram is submitted with either split, from a
- * hidden field when the fixed split hides it, so switching back to body weight finds it as it
- * was left.
+ * The Targets screen (ADR 0035): the day's target, protein per kilogram of body weight, and fat
+ * as a share of the target. Carbohydrate is whatever energy is left, so nothing is asked of it.
  */
 export const targetsInputSchema = z
   .object({
     dailyKcal: z.preprocess(asString, z.string()),
-    split: z.enum(MACRO_SPLITS, { error: "Choose how to split it." }),
     proteinPerKg: z.preprocess(asString, z.string()),
+    fatPercent: z.preprocess(asString, z.string()),
   })
   .transform((values, ctx): NutritionTargets => {
-    const { dailyKcal: kcalLimits, proteinPerKg: proteinLimits } = NUTRITION_LIMITS;
+    const {
+      dailyKcal: kcalLimits,
+      proteinPerKg: proteinLimits,
+      fatPercent: fatLimits,
+    } = NUTRITION_LIMITS;
     const kcal = readNumber(values.dailyKcal);
     if (kcal === null || kcal === "invalid") {
       ctx.addIssue({ code: "custom", path: ["dailyKcal"], message: "Enter your daily target." });
@@ -50,15 +51,7 @@ export const targetsInputSchema = z
         message: `Enter a target between ${grouped(kcalLimits.min)} and ${grouped(kcalLimits.max)} kcal.`,
       });
     }
-    const enteredProtein = readNumber(values.proteinPerKg);
-    // A hidden, unused field must never make the fixed preset impossible to save.
-    const protein =
-      values.split === "fixed_55_25_20" &&
-      (typeof enteredProtein !== "number" ||
-        toTenth(enteredProtein) < proteinLimits.min ||
-        toTenth(enteredProtein) > proteinLimits.max)
-        ? DEFAULT_PROTEIN_PER_KG
-        : enteredProtein;
+    const protein = readNumber(values.proteinPerKg);
     if (protein === null || protein === "invalid") {
       ctx.addIssue({ code: "custom", path: ["proteinPerKg"], message: "Enter grams per kg." });
     } else if (toTenth(protein) < proteinLimits.min || toTenth(protein) > proteinLimits.max) {
@@ -68,8 +61,24 @@ export const targetsInputSchema = z
         message: `Enter between ${proteinLimits.min} and ${proteinLimits.max} g per kg.`,
       });
     }
-    if (typeof kcal !== "number" || typeof protein !== "number") return z.NEVER;
-    return { dailyKcal: Math.round(kcal), proteinPerKg: toTenth(protein), split: values.split };
+    const fat = readNumber(values.fatPercent);
+    if (fat === null || fat === "invalid") {
+      ctx.addIssue({ code: "custom", path: ["fatPercent"], message: "Enter fat's share." });
+    } else if (Math.round(fat) < fatLimits.min || Math.round(fat) > fatLimits.max) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["fatPercent"],
+        message: `Enter between ${fatLimits.min} and ${fatLimits.max}%.`,
+      });
+    }
+    if (typeof kcal !== "number" || typeof protein !== "number" || typeof fat !== "number") {
+      return z.NEVER;
+    }
+    return {
+      dailyKcal: Math.round(kcal),
+      proteinPerKg: toTenth(protein),
+      fatPercent: Math.round(fat),
+    };
   });
 
 /** A food's fields as typed in its sheet: what one portion of it holds. */
@@ -192,6 +201,57 @@ export const createFoodSchema = z
     return { submissionKey, eatenOn, meal, food, amount };
   });
 export type CreateFoodDraft = z.input<typeof createFoodSchema>;
+
+/** A new food kept in My foods without being logged (ADR 0035). */
+export const createLibraryFoodSchema = z
+  .object({ submissionKey: z.uuid().optional(), ...FOOD_DRAFT })
+  .transform((input, ctx) => {
+    const food = readFood(ctx, input);
+    if (!food) return z.NEVER;
+    return { submissionKey: input.submissionKey, food };
+  });
+export type CreateLibraryFoodDraft = z.input<typeof createLibraryFoodSchema>;
+
+/**
+ * A meal built in My foods (ADR 0035): its name and its foods, each a food from My foods or one
+ * the meal already held, at an amount. Errors come back against `name`, `items`, or an item's
+ * amount as `items.<n>.amount`.
+ */
+export const saveLibraryMealSchema = z
+  .object({
+    submissionKey: z.uuid().optional(),
+    savedMealId: z.uuid().optional(),
+    name: z.string(),
+    items: z.array(
+      z.union([
+        z.object({ foodId: z.uuid(), amount: z.string() }),
+        z.object({ keep: z.number().int().min(0), amount: z.string() }),
+      ]),
+    ),
+  })
+  .transform((input, ctx) => {
+    const name = readName(ctx, "name", input.name, "Name this meal.");
+    if (input.items.length === 0) fail(ctx, "items", "Add a food to this meal.");
+    else if (input.items.length > NUTRITION_LIMITS.itemsPerMeal) {
+      fail(ctx, "items", `A meal holds at most ${NUTRITION_LIMITS.itemsPerMeal} foods.`);
+    }
+    const items = input.items.map((item, index) => {
+      const amount = readAmount(ctx, `items.${index}.amount`, item.amount, "Enter how much.");
+      if (amount === null) return null;
+      return "foodId" in item ? { foodId: item.foodId, amount } : { keep: item.keep, amount };
+    });
+    if (name === null || items.some((item) => item === null) || input.items.length === 0) {
+      return z.NEVER;
+    }
+    if (input.items.length > NUTRITION_LIMITS.itemsPerMeal) return z.NEVER;
+    return {
+      submissionKey: input.submissionKey,
+      savedMealId: input.savedMealId,
+      name,
+      items: items.filter((item) => item !== null),
+    };
+  });
+export type SaveLibraryMealDraft = z.input<typeof saveLibraryMealSchema>;
 
 /** A correction to a food in My foods. */
 export const updateFoodSchema = z

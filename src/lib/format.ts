@@ -236,6 +236,16 @@ export function formatAmount(value: number): string {
   return (Math.round(value * 100) / 100 + 0).toLocaleString("en-GB", { maximumFractionDigits: 2 });
 }
 
+/**
+ * "55 / 25 / 20": a split as shares of carbohydrate, fat and protein, in whole percent (ADR
+ * 0035). The spaces do not break, so the three numbers never part company at the end of a line.
+ */
+export function formatSplit(split: { carbs: number; fat: number; protein: number }): string {
+  return [split.carbs, split.fat, split.protein]
+    .map((share) => String(Math.round(share * 100)))
+    .join("\u00a0/\u00a0");
+}
+
 /** "100 g", "1 scoop", "1.5 scoops": an amount of a food in its own unit (ADR 0033). */
 export function formatPortion(amount: number, unit: FoodUnit): string {
   const plural = amount !== 1 ? FOOD_UNIT_PLURALS[unit] : undefined;

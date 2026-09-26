@@ -4,6 +4,10 @@
 `/food`, in History's place, and Today no longer carries its card. The paths below are the new
 ones.
 
+**Superseded in part by [ADR 0035](0035-targets-from-the-goal-and-my-foods-of-its-own.md):** My foods
+is a screen of its own where foods and meals are made without logging, and a meal's page only
+adds from it (decisions 5 and 6). Starring, portions and copies stand as written here.
+
 Follows [0032](0032-food-behind-a-switch.md). The owner compared its food tracking with Samsung
 Health's and described the flow they had wanted from the start:
 

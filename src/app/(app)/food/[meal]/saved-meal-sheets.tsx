@@ -15,7 +15,7 @@ import {
 } from "@/server/actions/nutrition";
 import type { SavedMealRecord } from "@/server/repositories/nutrition";
 
-import { Preview } from "./amount-field";
+import { Preview } from "@/components/food/amount-field";
 
 type Place = { eatenOn: string; meal: Meal; mealLabel: string };
 

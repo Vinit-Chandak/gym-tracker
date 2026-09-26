@@ -32,7 +32,7 @@ export default async function FoodPage() {
       today={today}
       day={day}
       bodyWeightKg={profile.bodyWeightKg}
-      unit={profile.preferredUnit === "lb" ? "lb" : "kg"}
+      goal={profile.trainingGoal}
     />
   );
 }

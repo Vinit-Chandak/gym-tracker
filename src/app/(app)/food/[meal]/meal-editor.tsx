@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Plus, Search, Star } from "@/components/ui/icons";
 import { Input } from "@/components/ui/input";
 import { PRESSABLE_ROW_CLASS } from "@/components/ui/link-row";
-import { Section } from "@/components/ui/section";
 import { SwipeRow } from "@/components/ui/swipe-row";
 import { addUp, eaten, sameFoods, type Meal } from "@/domain/nutrition";
 import { formatKcal, formatMacros, formatPortion } from "@/lib/format";
@@ -21,7 +20,7 @@ import type {
   SavedMealRecord,
 } from "@/server/repositories/nutrition";
 
-import { FoodSheet } from "./food-sheet";
+import { FoodSheet } from "@/components/food/food-sheet";
 import { PortionSheet } from "./portion-sheet";
 import { SavedMealSheet, SaveMealSheet } from "./saved-meal-sheets";
 
@@ -30,7 +29,6 @@ type SheetView =
   | { kind: "log"; food: FoodRecord }
   | { kind: "entry"; entry: EntryRecord }
   | { kind: "create"; name: string }
-  | { kind: "edit"; food: FoodRecord }
   | { kind: "saved"; saved: SavedMealRecord }
   | { kind: "star" };
 
@@ -39,10 +37,14 @@ function scrollBehaviour(): ScrollBehavior {
 }
 
 /**
- * One meal of the day (ADR 0033): what is in it and what that comes to, the star that saves it,
- * and everything that can go into it, searched as it is typed. A food opens a sheet for how much
- * of it; a saved meal, for adding all of it. Tapping a food already in the meal changes its
- * amount, and swiping it aside takes it out, which its sheet can do too.
+ * One meal of the day (ADRs 0033, 0035): what is in it and what that comes to, the star that
+ * saves it, and everything in My foods that can go into it, searched as it is typed. A food opens
+ * a sheet for how much of it; a saved meal, for adding all of it. Tapping a food already in the
+ * meal changes its amount, and swiping it aside takes it out, which its sheet can do too.
+ *
+ * The page adds from My foods and does not manage it: foods are made, corrected and removed on
+ * My foods' own screen. Only a search that finds nothing offers a new food, made and added here
+ * in one go, since leaving to make it would lose the meal.
  */
 export function MealEditor({
   today,
@@ -134,10 +136,7 @@ export function MealEditor({
         (saved) => matches(saved.name) || saved.items.some((item) => matches(item.name)),
       )
     : screen.savedMeals;
-  // A search for a food that exists is not a name for a new one.
-  const newName = screen.foods.some((food) => food.name.toLowerCase() === search)
-    ? ""
-    : query.trim();
+  const nothingFound = foods.length === 0 && savedMeals.length === 0;
   const view = sheet.view;
 
   return (
@@ -210,97 +209,78 @@ export function MealEditor({
         </p>
       )}
 
-      <div className="space-y-5">
-        {(screen.foods.length > 0 || screen.savedMeals.length > 0) && (
-          <div className="relative">
-            <Search
-              className="absolute top-1/2 left-3 -translate-y-1/2 text-ink-subtle"
-              aria-hidden
-            />
-            <Input
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search your foods"
-              aria-label="Search your foods and saved meals"
-              className="pl-9"
-              autoCapitalize="none"
-              autoCorrect="off"
-              enterKeyHint="search"
-            />
-          </div>
-        )}
+      <div className="space-y-3">
+        <div className="relative">
+          <Search
+            className="absolute top-1/2 left-3 -translate-y-1/2 text-ink-subtle"
+            aria-hidden
+          />
+          <Input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search your foods"
+            aria-label="Search your foods and saved meals"
+            className="pl-9"
+            autoCapitalize="none"
+            autoCorrect="off"
+            enterKeyHint="search"
+          />
+        </div>
 
-        {savedMeals.length > 0 && (
-          <Section title="Saved meals">
-            <ul className="box-rows" aria-label="Saved meals">
-              {savedMeals.map((saved) => (
-                <li key={saved.id}>
-                  <button
-                    type="button"
-                    onClick={() => open({ kind: "saved", saved })}
-                    className={PRESSABLE_ROW_CLASS}
-                  >
-                    <Star className="shrink-0 text-accent" aria-hidden />
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-medium [overflow-wrap:anywhere]">
-                        {saved.name}
-                      </span>{" "}
-                      <span className="block text-sm [overflow-wrap:anywhere] text-ink-muted">
-                        {saved.items.map((item) => item.name).join(", ")}
-                      </span>
-                    </span>{" "}
-                    <span className="shrink-0 text-sm tabular-nums">
-                      {formatKcal(addUp(saved.items.map(eaten)).kcal)} kcal
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </Section>
-        )}
-
-        <Section
-          title="My foods"
-          info="Every food you log is kept here, the most recently eaten first. Tap one to say how much you had."
-        >
-          <ul className="box-rows" aria-label="My foods">
+        <ul className="box-rows" aria-label="Your foods and meals">
+          {savedMeals.map((saved) => (
+            <li key={saved.id}>
+              <button
+                type="button"
+                onClick={() => open({ kind: "saved", saved })}
+                className={PRESSABLE_ROW_CLASS}
+              >
+                <Star className="shrink-0 text-accent" aria-hidden />
+                <span className="min-w-0 flex-1">
+                  <span className="block font-medium [overflow-wrap:anywhere]">{saved.name}</span>{" "}
+                  <span className="block text-sm [overflow-wrap:anywhere] text-ink-muted">
+                    {saved.items.map((item) => item.name).join(", ")}
+                  </span>
+                </span>{" "}
+                <span className="shrink-0 text-sm tabular-nums">
+                  {formatKcal(addUp(saved.items.map(eaten)).kcal)} kcal
+                </span>
+              </button>
+            </li>
+          ))}
+          {foods.map((food) => (
+            <li key={food.id}>
+              <button
+                type="button"
+                onClick={() => open({ kind: "log", food })}
+                className={PRESSABLE_ROW_CLASS}
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block font-medium [overflow-wrap:anywhere]">{food.name}</span>{" "}
+                  <span className="block text-sm text-ink-muted tabular-nums">
+                    {formatPortion(food.portionAmount, food.unit)} · {formatKcal(food.kcal)} kcal
+                  </span>
+                </span>
+                <Plus className="shrink-0 text-accent" aria-hidden />
+              </button>
+            </li>
+          ))}
+          {nothingFound && (
             <li>
               <button
                 type="button"
-                onClick={() => open({ kind: "create", name: newName })}
+                onClick={() => open({ kind: "create", name: query.trim() })}
                 className={cn(PRESSABLE_ROW_CLASS, "font-medium text-accent")}
               >
                 <Plus className="shrink-0" aria-hidden />
                 <span className="min-w-0 [overflow-wrap:anywhere]">
-                  {newName ? `New food “${newName}”` : "New food"}
+                  {query.trim() ? `New food “${query.trim()}”` : "New food"}
                 </span>
               </button>
             </li>
-            {foods.map((food) => (
-              <li key={food.id}>
-                <button
-                  type="button"
-                  onClick={() => open({ kind: "log", food })}
-                  className={PRESSABLE_ROW_CLASS}
-                >
-                  <span className="min-w-0 flex-1">
-                    <span className="block font-medium [overflow-wrap:anywhere]">{food.name}</span>{" "}
-                    <span className="block text-sm text-ink-muted tabular-nums">
-                      {formatPortion(food.portionAmount, food.unit)} · {formatKcal(food.kcal)} kcal
-                    </span>
-                  </span>
-                  <Plus className="shrink-0 text-accent" aria-hidden />
-                </button>
-              </li>
-            ))}
-          </ul>
-          {screen.foods.length === 0 && (
-            <p className="px-1 text-sm text-ink-muted">
-              Each food you log is kept here, to log again at any amount.
-            </p>
           )}
-        </Section>
+        </ul>
       </div>
 
       <p aria-live="polite" className="sr-only">
@@ -314,12 +294,7 @@ export function MealEditor({
           onClose={close}
           food={view.food}
           amount={view.food.portionAmount}
-          target={{
-            kind: "log",
-            foodId: view.food.id,
-            ...place,
-            onEditFood: () => open({ kind: "edit", food: view.food }),
-          }}
+          target={{ kind: "log", foodId: view.food.id, ...place }}
           onDone={done}
         />
       )}
@@ -340,15 +315,6 @@ export function MealEditor({
           open={sheet.open}
           onClose={close}
           target={{ kind: "create", name: view.name, ...place }}
-          onDone={done}
-        />
-      )}
-      {view?.kind === "edit" && (
-        <FoodSheet
-          key={sheet.key}
-          open={sheet.open}
-          onClose={close}
-          target={{ kind: "edit", food: view.food }}
           onDone={done}
         />
       )}

@@ -9,6 +9,7 @@ import { ensureProfile } from "@/server/queries/profile";
 
 import {
   AmountTooLargeError,
+  createFood,
   deleteEntry,
   deleteFood,
   deleteSavedMeal,
@@ -19,9 +20,15 @@ import {
   logFood,
   logSavedMeal,
   readFoodDay,
+  readLibrary,
   readMealScreen,
+  readSavedMeal,
+  readTargets,
+  SavedMealChangedError,
+  SavedMealNameTakenError,
   SavedMealNotFoundError,
   SavedMealTooLargeError,
+  saveLibraryMeal,
   saveMeal,
   saveNutritionTargets,
   submitFoodOnce,
@@ -109,34 +116,34 @@ describe("targets", () => {
       targets: null,
       entries: [],
       eaten: { kcal: 0, carbsG: 0, fatG: 0, proteinG: 0 },
+      library: { foods: 0, meals: 0 },
     });
+    expect(await as(user, (tx) => readTargets(tx, user.id))).toBeNull();
   });
 
   it("keeps one row of targets per account, the last save winning", async () => {
-    for (const [dailyKcal, proteinPerKg] of [
-      [2400, 1.8],
-      [2500, 2.2],
+    for (const [dailyKcal, proteinPerKg, fatPercent] of [
+      [2400, 1.8, 25],
+      [2500, 2.2, 30],
     ] as const) {
       await as(user, (tx) =>
-        saveNutritionTargets(tx, user.id, { dailyKcal, proteinPerKg, split: "body_weight" }),
+        saveNutritionTargets(tx, user.id, { dailyKcal, proteinPerKg, fatPercent }),
       );
     }
     const day = await as(user, (tx) => readFoodDay(tx, user.id, TODAY));
-    expect(day.targets).toEqual({ dailyKcal: 2500, proteinPerKg: 2.2, split: "body_weight" });
+    expect(day.targets).toEqual({ dailyKcal: 2500, proteinPerKg: 2.2, fatPercent: 30 });
+    expect(await as(user, (tx) => readTargets(tx, user.id))).toEqual(day.targets);
   });
 
   it("refuses targets outside the bounds, where the data lives", async () => {
-    expect(
-      await failure(
-        as(user, (tx) =>
-          saveNutritionTargets(tx, user.id, {
-            dailyKcal: 100,
-            proteinPerKg: 1.8,
-            split: "body_weight",
-          }),
-        ),
-      ),
-    ).toMatch(/nutrition_targets_values_chk/);
+    for (const targets of [
+      { dailyKcal: 100, proteinPerKg: 1.8, fatPercent: 25 },
+      { dailyKcal: 2400, proteinPerKg: 1.8, fatPercent: 90 },
+    ]) {
+      expect(await failure(as(user, (tx) => saveNutritionTargets(tx, user.id, targets)))).toMatch(
+        /nutrition_targets_values_chk/,
+      );
+    }
   });
 });
 
@@ -459,6 +466,159 @@ describe("saved meals", () => {
       (await as(user, (tx) => readMealScreen(tx, user.id, at("breakfast", YESTERDAY)))).entries
         .length,
     ).toBeGreaterThan(0);
+  });
+});
+
+describe("My foods", () => {
+  const PANEER: Food = {
+    name: "Paneer",
+    portionAmount: 100,
+    unit: "g",
+    kcal: 265,
+    carbsG: 1.2,
+    fatG: 20.8,
+    proteinG: 18.3,
+  };
+  const RICE: Food = {
+    name: "Rice",
+    portionAmount: 100,
+    unit: "g",
+    kcal: 130,
+    carbsG: 28,
+    fatG: 0.3,
+    proteinG: 2.7,
+  };
+
+  it("keeps a food without logging any of it, near the top of the list", async () => {
+    const before = await as(user, (tx) => readFoodDay(tx, user.id, TODAY));
+    const id = await as(user, (tx) => createFood(tx, user.id, PANEER));
+    const library = await as(user, (tx) => readLibrary(tx, user.id));
+    expect(library.foods[0]).toEqual({ id, ...PANEER });
+    const after = await as(user, (tx) => readFoodDay(tx, user.id, TODAY));
+    expect(after.entries).toEqual(before.entries);
+    expect(after.library.foods).toBe(before.library.foods + 1);
+    await expect(
+      as(user, (tx) => createFood(tx, user.id, { ...PANEER, name: "PANEER" })),
+    ).rejects.toThrow(FoodNameTakenError);
+  });
+
+  it("builds a meal from My foods, each food copied at its amount", async () => {
+    const paneer = await foodId(user, "Paneer");
+    await as(user, (tx) => createFood(tx, user.id, RICE));
+    const rice = await foodId(user, "Rice");
+    const id = await as(user, (tx) =>
+      saveLibraryMeal(tx, user.id, {
+        name: "Paneer rice",
+        items: [
+          { foodId: rice, amount: 200 },
+          { foodId: paneer, amount: 150 },
+        ],
+      }),
+    );
+    const saved = await as(user, (tx) => readSavedMeal(tx, user.id, id));
+    expect(saved).toEqual({
+      id,
+      name: "Paneer rice",
+      items: [
+        { ...RICE, foodId: rice, amount: 200 },
+        { ...PANEER, foodId: paneer, amount: 150 },
+      ],
+    });
+    const day = await as(user, (tx) => readFoodDay(tx, user.id, TODAY));
+    expect(day.library.meals).toBeGreaterThan(0);
+  });
+
+  it("keeps the copies a meal already holds when it is changed, and copies what is added", async () => {
+    const [meal] = (await as(user, (tx) => readLibrary(tx, user.id))).savedMeals.filter(
+      (saved) => saved.name === "Paneer rice",
+    );
+    const paneer = await foodId(user, "Paneer");
+    // Paneer is corrected after the meal was saved: the meal keeps the paneer it held.
+    await as(user, (tx) => updateFood(tx, user.id, paneer, { ...PANEER, kcal: 300 }));
+    await as(user, (tx) =>
+      saveLibraryMeal(tx, user.id, {
+        id: meal!.id,
+        name: "Paneer rice bowl",
+        items: [
+          { keep: 1, amount: 100 },
+          { foodId: paneer, amount: 50 },
+        ],
+      }),
+    );
+    const saved = await as(user, (tx) => readSavedMeal(tx, user.id, meal!.id));
+    expect(saved?.name).toBe("Paneer rice bowl");
+    expect(saved?.items.map((item) => [item.name, item.kcal, item.amount])).toEqual([
+      ["Paneer", 265, 100],
+      ["Paneer", 300, 50],
+    ]);
+  });
+
+  it("refuses another meal's name, a food or a kept item that is gone, and nothing at all", async () => {
+    const rice = await foodId(user, "Rice");
+    const [meal] = (await as(user, (tx) => readLibrary(tx, user.id))).savedMeals.filter(
+      (saved) => saved.name === "Paneer rice bowl",
+    );
+    await as(user, (tx) =>
+      saveLibraryMeal(tx, user.id, { name: "Plain rice", items: [{ foodId: rice, amount: 150 }] }),
+    );
+    await expect(
+      as(user, (tx) =>
+        saveLibraryMeal(tx, user.id, {
+          id: meal!.id,
+          name: "PLAIN RICE",
+          items: [{ keep: 0, amount: 1 }],
+        }),
+      ),
+    ).rejects.toThrow(SavedMealNameTakenError);
+    await expect(
+      as(user, (tx) =>
+        saveLibraryMeal(tx, user.id, {
+          id: meal!.id,
+          name: "Bowl",
+          items: [{ keep: 9, amount: 1 }],
+        }),
+      ),
+    ).rejects.toThrow(SavedMealChangedError);
+    await expect(
+      as(user, (tx) =>
+        saveLibraryMeal(tx, user.id, {
+          name: "Ghost",
+          items: [{ foodId: "00000000-0000-4000-8000-000000000000", amount: 1 }],
+        }),
+      ),
+    ).rejects.toThrow(FoodNotFoundError);
+    await expect(
+      as(user, (tx) => saveLibraryMeal(tx, user.id, { name: "Empty", items: [] })),
+    ).rejects.toThrow(EmptyMealError);
+    await expect(
+      as(user, (tx) =>
+        saveLibraryMeal(tx, user.id, { name: "Heap", items: [{ foodId: rice, amount: 9000 }] }),
+      ),
+    ).rejects.toThrow(AmountTooLargeError);
+  });
+
+  it("is the account's own: another reads none of it and can change none of it", async () => {
+    const [meal] = (await as(user, (tx) => readLibrary(tx, user.id))).savedMeals;
+    expect(await as(other, (tx) => readSavedMeal(tx, user.id, meal!.id))).toBeNull();
+    expect(await as(other, (tx) => readLibrary(tx, user.id))).toEqual({
+      foods: [],
+      savedMeals: [],
+    });
+    await expect(
+      as(other, (tx) =>
+        saveLibraryMeal(tx, other.id, {
+          id: meal!.id,
+          name: "Mine",
+          items: [{ keep: 0, amount: 1 }],
+        }),
+      ),
+    ).rejects.toThrow(SavedMealNotFoundError);
+    const rice = await foodId(user, "Rice");
+    await expect(
+      as(other, (tx) =>
+        saveLibraryMeal(tx, other.id, { name: "Borrowed", items: [{ foodId: rice, amount: 1 }] }),
+      ),
+    ).rejects.toThrow(FoodNotFoundError);
   });
 });
 

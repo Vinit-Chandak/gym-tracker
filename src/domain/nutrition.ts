@@ -1,27 +1,44 @@
 /**
- * Food: what a day's eating is measured against, and how its meals add up (ADRs 0032, 0033).
+ * Food: what a day's eating is measured against, and how its meals add up (ADRs 0032, 0033,
+ * 0035).
  *
  * Pure rules, shared by the server and the browser, so a sheet's preview of what a portion holds
  * and the targets form's preview are worked out by the same functions as the screens they update.
  * Energy is in kilocalories and the three macronutrients in grams, everywhere.
  */
 
+import type { TrainingGoal } from "./types";
+
 /** Energy per gram: the Atwater factors every food label is calculated with. */
 export const KCAL_PER_GRAM = { carbs: 4, fat: 9, protein: 4 } as const;
 
-/**
- * How the day's target is shared out between the three macronutrients.
- *
- * `body_weight`: protein comes from body weight, fat is a quarter of the target, and carbohydrate
- * is whatever energy is left, so the three add up to the target. `fixed_55_25_20`: 55% of the
- * target's energy as carbohydrate, 25% as fat and 20% as protein, whatever anyone weighs.
- */
-export const MACRO_SPLITS = ["body_weight", "fixed_55_25_20"] as const;
-export type MacroSplit = (typeof MACRO_SPLITS)[number];
+/** Shares of a day's energy for carbohydrate, fat and protein, which add up to one. */
+export type MacroSplit = { carbs: number; fat: number; protein: number };
 
-export const FAT_SHARE = 0.25;
-export const FIXED_SPLIT = { carbs: 0.55, fat: 0.25, protein: 0.2 } as const;
+/**
+ * Where a new set of targets starts, by the training goal on the profile (ADR 0035). Only a
+ * starting point: the targets form fills protein and fat in from it, and both stay the
+ * account's own to change. Losing fat raises protein, since a deficit is when protein matters
+ * most; endurance gives carbohydrate the share running needs.
+ */
+export const GOAL_SPLITS: Record<TrainingGoal, MacroSplit> = {
+  build_muscle: { carbs: 0.55, fat: 0.25, protein: 0.2 },
+  get_stronger: { carbs: 0.55, fat: 0.25, protein: 0.2 },
+  general_fitness: { carbs: 0.55, fat: 0.25, protein: 0.2 },
+  lose_fat: { carbs: 0.45, fat: 0.25, protein: 0.3 },
+  endurance: { carbs: 0.6, fat: 0.2, protein: 0.2 },
+};
+
+/** The split an account with no training goal starts from. */
+export const DEFAULT_SPLIT: MacroSplit = GOAL_SPLITS.general_fitness;
+
+export function splitFor(goal: TrainingGoal | null): MacroSplit {
+  return goal ? GOAL_SPLITS[goal] : DEFAULT_SPLIT;
+}
+
+/** What a targets row holds until the account says otherwise, as the table's defaults do. */
 export const DEFAULT_PROTEIN_PER_KG = 1.8;
+export const DEFAULT_FAT_PERCENT = 25;
 
 /** The goal is met anywhere from 90% to 110% of the day's target, both ends included. */
 export const GOAL_BAND = { low: 0.9, high: 1.1 } as const;
@@ -33,6 +50,8 @@ export const GOAL_BAND = { low: 0.9, high: 1.1 } as const;
 export const NUTRITION_LIMITS = {
   dailyKcal: { min: 500, max: 10_000 },
   proteinPerKg: { min: 0.5, max: 4 },
+  /** Fat's share of the day's energy, in whole percent. */
+  fatPercent: { min: 5, max: 80 },
   /** One food, as a portion or as eaten: a whole takeaway fits. */
   itemKcal: 10_000,
   itemGrams: 1_000,
@@ -46,9 +65,10 @@ export const NUTRITION_LIMITS = {
 export type NutritionTargets = {
   /** The day's energy target: `t` in the goal band. */
   dailyKcal: number;
-  /** Grams of protein per kilogram of body weight, for the `body_weight` split. */
+  /** Grams of protein per kilogram of body weight. */
   proteinPerKg: number;
-  split: MacroSplit;
+  /** Fat's share of the day's energy, in whole percent. */
+  fatPercent: number;
 };
 
 export type MacroGrams = { carbsG: number; fatG: number; proteinG: number };
@@ -56,11 +76,9 @@ export type MacroGrams = { carbsG: number; fatG: number; proteinG: number };
 export type MacroTargets = MacroGrams & {
   kcal: number;
   /**
-   * The split actually applied. Protein cannot come from a body weight nobody has recorded, so
-   * an account without one is given the fixed split until it has one.
+   * The body weight protein was worked out from. Null when the account has none: protein is
+   * then the training goal's share of the target until it has one.
    */
-  split: MacroSplit;
-  /** The body weight protein was worked out from, when it was. */
   bodyWeightKg: number | null;
   /**
    * Protein and fat alone need more energy than the target holds. Carbohydrate is then nil
@@ -70,36 +88,68 @@ export type MacroTargets = MacroGrams & {
 };
 
 /**
- * Grams of each macronutrient for a day, from the targets and the newest body weight.
+ * Grams of each macronutrient for a day, from the targets and the newest body weight: protein
+ * per kilogram, fat as a share of the target, and carbohydrate whatever energy is left, so the
+ * three add up to the target.
  *
  * Nothing here is stored: protein is read from whatever the account weighs today, so it
  * follows every new reading without anything having to be recalculated.
  */
-export function macroTargets(targets: NutritionTargets, bodyWeightKg: number | null): MacroTargets {
+export function macroTargets(
+  targets: NutritionTargets,
+  bodyWeightKg: number | null,
+  goal: TrainingGoal | null,
+): MacroTargets {
   const kcal = targets.dailyKcal;
-  if (targets.split === "body_weight" && bodyWeightKg !== null && bodyWeightKg > 0) {
-    const proteinG = targets.proteinPerKg * bodyWeightKg;
-    const fatKcal = kcal * FAT_SHARE;
-    const carbsKcal = kcal - fatKcal - proteinG * KCAL_PER_GRAM.protein;
-    return {
-      kcal,
-      carbsG: Math.max(0, carbsKcal) / KCAL_PER_GRAM.carbs,
-      fatG: fatKcal / KCAL_PER_GRAM.fat,
-      proteinG,
-      split: "body_weight",
-      bodyWeightKg,
-      overBudget: carbsKcal < 0,
-    };
-  }
+  const weighed = bodyWeightKg !== null && bodyWeightKg > 0;
+  const proteinG = weighed
+    ? targets.proteinPerKg * bodyWeightKg
+    : (kcal * splitFor(goal).protein) / KCAL_PER_GRAM.protein;
+  const fatKcal = (kcal * targets.fatPercent) / 100;
+  const carbsKcal = kcal - fatKcal - proteinG * KCAL_PER_GRAM.protein;
   return {
     kcal,
-    carbsG: (kcal * FIXED_SPLIT.carbs) / KCAL_PER_GRAM.carbs,
-    fatG: (kcal * FIXED_SPLIT.fat) / KCAL_PER_GRAM.fat,
-    proteinG: (kcal * FIXED_SPLIT.protein) / KCAL_PER_GRAM.protein,
-    split: "fixed_55_25_20",
-    bodyWeightKg: null,
-    overBudget: false,
+    carbsG: Math.max(0, carbsKcal) / KCAL_PER_GRAM.carbs,
+    fatG: fatKcal / KCAL_PER_GRAM.fat,
+    proteinG,
+    bodyWeightKg: weighed ? bodyWeightKg : null,
+    overBudget: carbsKcal < 0,
   };
+}
+
+/**
+ * Protein and fat as a split puts them, for a target and a body weight: where a new targets form
+ * starts, and what its "Use 55 / 25 / 20" puts back. Protein is the split's share of the target
+ * in grams per kilogram, to the tenth it is stored to; with no weight to divide by there is
+ * none, and the protein field is left as it is.
+ */
+export function splitTargets(
+  split: MacroSplit,
+  dailyKcal: number,
+  bodyWeightKg: number | null,
+): { proteinPerKg: number | null; fatPercent: number } {
+  const { min, max } = NUTRITION_LIMITS.proteinPerKg;
+  const perKg =
+    bodyWeightKg !== null && bodyWeightKg > 0
+      ? roundTo((dailyKcal * split.protein) / KCAL_PER_GRAM.protein / bodyWeightKg, 1)
+      : null;
+  return {
+    proteinPerKg: perKg === null ? null : Math.min(max, Math.max(min, perKg)),
+    fatPercent: Math.round(split.fat * 100),
+  };
+}
+
+/** Whether targets already hold what a split puts there, so offering it would change nothing. */
+export function matchesSplit(
+  targets: NutritionTargets,
+  split: MacroSplit,
+  bodyWeightKg: number | null,
+): boolean {
+  const fromSplit = splitTargets(split, targets.dailyKcal, bodyWeightKg);
+  return (
+    targets.fatPercent === fromSplit.fatPercent &&
+    (fromSplit.proteinPerKg === null || targets.proteinPerKg === fromSplit.proteinPerKg)
+  );
 }
 
 /**
@@ -309,4 +359,91 @@ export function sameFoods(a: readonly LoggedFood[], b: readonly LoggedFood[]): b
   const left = a.map(key).sort();
   const right = b.map(key).sort();
   return left.every((value, index) => value === right[index]);
+}
+
+/** The three macronutrients, as the keys a total or a target holds them under. */
+export const MACRO_KEYS = ["carbsG", "fatG", "proteinG"] as const;
+export type MacroKey = (typeof MACRO_KEYS)[number];
+
+/**
+ * How a macronutrient's bar reads (ADR 0035). Protein is a minimum, reached once the day holds
+ * it. Carbohydrate and fat are limits, over once the day passes them.
+ */
+export type MacroState = "under" | "reached" | "over";
+
+/** Compared in the whole grams the screen shows, so "75 / 75 g" never reads as over. */
+export function macroState(key: MacroKey, eatenG: number, targetG: number): MacroState {
+  const eatenWhole = Math.round(eatenG);
+  const targetWhole = Math.round(targetG);
+  if (key === "proteinG") {
+    return targetWhole > 0 && eatenWhole >= targetWhole ? "reached" : "under";
+  }
+  return eatenWhole > targetWhole ? "over" : "under";
+}
+
+/** One food's part in a day's total of one macronutrient. */
+export type Contribution = {
+  name: string;
+  unit: FoodUnit;
+  /** How much of it was eaten across the day, in its own unit. */
+  amount: number;
+  /** The meals it was eaten in, in the order they are eaten. */
+  meals: Meal[];
+  /** Grams it gave; null when it was logged without that figure. */
+  grams: number | null;
+  /** Its share of the day's total of that macronutrient, from 0 to 1; null with the grams. */
+  share: number | null;
+};
+
+/**
+ * What each food eaten gave to one macronutrient, the most first (ADR 0035).
+ *
+ * The same food eaten in two meals is one row, added up. Foods logged without the figure come
+ * last, since they are why a total may read low, and a food that gave none is left out. Summed
+ * in tenths and hundredths, as the day's total is, so the rows add up to it exactly.
+ */
+export function contributions(
+  entries: readonly (LoggedFood & { meal: Meal })[],
+  key: MacroKey,
+): Contribution[] {
+  type Group = {
+    name: string;
+    unit: FoodUnit;
+    hundredths: number;
+    meals: Set<Meal>;
+    tenths: number;
+    known: boolean;
+  };
+  const groups = new Map<string, Group>();
+  for (const entry of entries) {
+    const id = `${entry.name.trim().toLowerCase()}\u0000${entry.unit}`;
+    const group = groups.get(id) ?? {
+      name: entry.name,
+      unit: entry.unit,
+      hundredths: 0,
+      meals: new Set<Meal>(),
+      tenths: 0,
+      known: false,
+    };
+    const grams = eaten(entry)[key];
+    group.hundredths += Math.round(entry.amount * 100);
+    group.meals.add(entry.meal);
+    if (grams !== null) {
+      group.tenths += Math.round(grams * 10);
+      group.known = true;
+    }
+    groups.set(id, group);
+  }
+  const counted = [...groups.values()].filter((group) => !group.known || group.tenths > 0);
+  const total = counted.reduce((sum, group) => sum + group.tenths, 0);
+  return counted
+    .map((group) => ({
+      name: group.name,
+      unit: group.unit,
+      amount: group.hundredths / 100,
+      meals: MEALS.filter((meal) => group.meals.has(meal)),
+      grams: group.known ? group.tenths / 10 : null,
+      share: group.known && total > 0 ? group.tenths / total : null,
+    }))
+    .sort((a, b) => (b.grams ?? -1) - (a.grams ?? -1) || a.name.localeCompare(b.name));
 }

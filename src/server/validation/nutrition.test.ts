@@ -5,9 +5,11 @@ import type { z } from "zod";
 import { parseForm } from "./form";
 import {
   createFoodSchema,
+  createLibraryFoodSchema,
   issuesByPath,
   logFoodSchema,
   logSavedMealSchema,
+  saveLibraryMealSchema,
   saveMealSchema,
   targetsInputSchema,
   updateEntrySchema,
@@ -47,56 +49,45 @@ function errorsOf(schema: z.ZodType, input: unknown): Record<string, string> {
 }
 
 describe("targets", () => {
-  it.each(["", "0", "9", "invalid"])(
-    "accepts the fixed preset when hidden protein is %s",
-    (proteinPerKg) => {
-      expect(
-        targetsInputSchema.parse({ dailyKcal: "2400", split: "fixed_55_25_20", proteinPerKg }),
-      ).toEqual({ dailyKcal: 2400, split: "fixed_55_25_20", proteinPerKg: 1.8 });
-    },
-  );
-  it("reads the target, the split and grams per kilogram", () => {
+  it("reads the target, grams of protein per kilogram and fat's share", () => {
     const parsed = parseForm(
       targetsInputSchema,
-      form({ dailyKcal: " 2400 ", split: "body_weight", proteinPerKg: "1,8" }),
+      form({ dailyKcal: " 2400 ", proteinPerKg: "1,8", fatPercent: "25" }),
     );
     expect(parsed).toEqual({
       success: true,
-      data: { dailyKcal: 2400, proteinPerKg: 1.8, split: "body_weight" },
+      data: { dailyKcal: 2400, proteinPerKg: 1.8, fatPercent: 25 },
     });
   });
 
-  it("keeps whole kilocalories and tenths of a gram", () => {
+  it("keeps whole kilocalories, tenths of a gram and whole percent", () => {
     const parsed = parseForm(
       targetsInputSchema,
-      form({ dailyKcal: "2399.6", split: "fixed_55_25_20", proteinPerKg: "2.04" }),
+      form({ dailyKcal: "2399.6", proteinPerKg: "2.04", fatPercent: "27.6" }),
     );
     expect(parsed.success && parsed.data).toEqual({
       dailyKcal: 2400,
       proteinPerKg: 2,
-      split: "fixed_55_25_20",
+      fatPercent: 28,
     });
   });
 
   it("says what is missing or out of bounds, against its own field", () => {
-    const missing = parseForm(targetsInputSchema, form({ split: "body_weight" }));
+    const missing = parseForm(targetsInputSchema, form({}));
     expect(!missing.success && missing.state.fieldErrors).toEqual({
       dailyKcal: "Enter your daily target.",
       proteinPerKg: "Enter grams per kg.",
+      fatPercent: "Enter fat's share.",
     });
     const bounds = parseForm(
       targetsInputSchema,
-      form({ dailyKcal: "20000", split: "body_weight", proteinPerKg: "9" }),
+      form({ dailyKcal: "20000", proteinPerKg: "9", fatPercent: "250" }),
     );
     expect(!bounds.success && bounds.state.fieldErrors).toEqual({
       dailyKcal: "Enter a target between 500 and 10,000 kcal.",
       proteinPerKg: "Enter between 0.5 and 4 g per kg.",
+      fatPercent: "Enter between 5 and 80%.",
     });
-    const split = parseForm(
-      targetsInputSchema,
-      form({ dailyKcal: "2400", split: "keto", proteinPerKg: "1.8" }),
-    );
-    expect(!split.success && split.state.fieldErrors?.split).toBe("Choose how to split it.");
   });
 });
 
@@ -239,5 +230,69 @@ describe("saving a meal and correcting a food", () => {
     expect(errorsOf(updateFoodSchema, { foodId: ID, ...fields, kcal: "" })).toEqual({
       kcal: "Enter the kcal.",
     });
+  });
+});
+
+describe("My foods", () => {
+  it("reads a food kept without logging it: no day, no meal, no amount", () => {
+    const { eatenOn: _day, meal: _meal, amount: _amount, ...fields } = newFood();
+    expect(createLibraryFoodSchema.parse({ submissionKey: ID, ...fields })).toEqual({
+      submissionKey: ID,
+      food: {
+        name: "Oats",
+        portionAmount: 100,
+        unit: "g",
+        kcal: 389,
+        carbsG: null,
+        fatG: null,
+        proteinG: null,
+      },
+    });
+    expect(errorsOf(createLibraryFoodSchema, { ...fields, name: " " })).toEqual({
+      name: "Name this food.",
+    });
+  });
+
+  it("reads a meal's foods, from My foods or kept from the meal, each at an amount", () => {
+    expect(
+      saveLibraryMealSchema.parse({
+        savedMealId: ID,
+        name: " Usual breakfast ",
+        items: [
+          { foodId: ID, amount: "80" },
+          { keep: 2, amount: "1,5" },
+        ],
+      }),
+    ).toEqual({
+      submissionKey: undefined,
+      savedMealId: ID,
+      name: "Usual breakfast",
+      items: [
+        { foodId: ID, amount: 80 },
+        { keep: 2, amount: 1.5 },
+      ],
+    });
+  });
+
+  it("says what is wrong with the name, the list and each amount, against each", () => {
+    expect(errorsOf(saveLibraryMealSchema, { name: "", items: [] })).toEqual({
+      name: "Name this meal.",
+      items: "Add a food to this meal.",
+    });
+    expect(
+      errorsOf(saveLibraryMealSchema, {
+        name: "Heap",
+        items: [
+          { foodId: ID, amount: "80" },
+          { foodId: ID, amount: "0" },
+        ],
+      }),
+    ).toEqual({ "items.1.amount": "Enter more than 0." });
+    expect(
+      errorsOf(saveLibraryMealSchema, {
+        name: "Too many",
+        items: Array.from({ length: 31 }, () => ({ foodId: ID, amount: "1" })),
+      }),
+    ).toEqual({ items: "A meal holds at most 30 foods." });
   });
 });
