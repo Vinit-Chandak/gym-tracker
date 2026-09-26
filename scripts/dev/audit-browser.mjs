@@ -46,9 +46,15 @@ const routes = [
   "/food/targets",
   "/food/my-foods",
   "/food/my-foods/meals/new",
-  ...["breakfast", "morning-snack", "lunch", "afternoon-snack", "dinner", "evening-snack"].map(
-    (meal) => `/food/${meal}`,
-  ),
+  ...[
+    "breakfast",
+    "morning-snack",
+    "lunch",
+    "afternoon-snack",
+    "evening-snack",
+    "dinner",
+    "late-night-snack",
+  ].map((meal) => `/food/${meal}`),
   ...(fixtures.savedMeals ?? [])
     .filter((meal) => meal.userId === vinit)
     .map((meal) => `/food/my-foods/meals/${meal.id}`),

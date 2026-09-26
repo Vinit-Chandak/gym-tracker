@@ -6,6 +6,7 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { ACTIVITY_SPORT_LABELS } from "@/domain/activity";
 import { trainingAnalytics } from "@/domain/analytics";
+import { weekStart } from "@/domain/running";
 import { readActivityTotals } from "@/server/repositories/activity-analytics";
 import { formatDateRange } from "@/lib/format";
 import { fromKilograms } from "@/lib/units";
@@ -16,7 +17,11 @@ import { listBodyWeights } from "@/server/repositories/body-weight";
 import { readTrainingData } from "@/server/repositories/training-data";
 import { readMuscleVolume } from "@/server/repositories/muscle-volume";
 import { readRecoveryHistory } from "@/server/repositories/recovery-history";
-import { parseDateRangeOrDefault, parseWeekRangeOrDefault } from "@/server/validation/date-range";
+import {
+  parseDateRange,
+  parseDateRangeOrDefault,
+  parseWeekRangeOrDefault,
+} from "@/server/validation/date-range";
 import Loading from "./loading";
 import { ProgressView } from "./progress-view";
 
@@ -35,13 +40,31 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
     params = await props.searchParams;
   const profile = await getRequestProfile(user.id, user.email);
   const seen = await seenSetChanges();
-  const { range, error: rangeError } = parseDateRangeOrDefault(
+  const { range: chosen, error: rangeError } = parseDateRangeOrDefault(
     {
       from: typeof params.from === "string" ? params.from : undefined,
       to: typeof params.to === "string" ? params.to : undefined,
     },
     profile.timeZone,
   );
+  /**
+   * One weekly column is comparable with the next only when both are whole weeks, so the
+   * window opens on the Monday of the week the chosen start falls in. Without it the first
+   * column counted whatever part of its week the range happened to include and drew short
+   * for a reason the chart never gave. The filter still takes any two dates; the header and
+   * the charts state the span they actually cover.
+   */
+  const range = (() => {
+    const monday = weekStart(chosen.from);
+    if (monday === chosen.from) return chosen;
+    try {
+      return parseDateRange({ from: monday, to: chosen.to }, profile.timeZone);
+    } catch {
+      // Reaching back to Monday can push a year-long window past the one-year cap. The
+      // window the reader asked for matters more than a whole opening column.
+      return chosen;
+    }
+  })();
   // The body map steps a week at a time, independent of the trend range above, so it
   // reads its own Monday-Sunday window: the same week boundary the programme uses.
   const { range: bodyRange, error: weekError } = parseWeekRangeOrDefault(

@@ -8,6 +8,9 @@ ones.
 is a screen of its own where foods and meals are made without logging, and a meal's page only
 adds from it (decisions 5 and 6). Starring, portions and copies stand as written here.
 
+**And by [ADR 0036](0036-meals-in-eating-order-and-a-calmer-food-card.md):** the day has seven
+meals, an evening snack before dinner and a late-night snack after it (decision 1).
+
 Follows [0032](0032-food-behind-a-switch.md). The owner compared its food tracking with Samsung
 Health's and described the flow they had wanted from the start:
 

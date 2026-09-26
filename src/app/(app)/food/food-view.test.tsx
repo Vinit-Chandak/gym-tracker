@@ -60,7 +60,7 @@ function view(
   );
 }
 
-it("lists the day's six meals in the order they are eaten, each opening its own page", () => {
+it("lists the day's seven meals in the order they are eaten, each opening its own page", () => {
   view([]);
   const meals = within(screen.getByRole("list", { name: "Meals" })).getAllByRole("link");
   expect(meals.map((link) => [text(link), link.getAttribute("href")])).toEqual([
@@ -68,8 +68,9 @@ it("lists the day's six meals in the order they are eaten, each opening its own 
     ["Morning snack nothing yet", "/food/morning-snack"],
     ["Lunch nothing yet", "/food/lunch"],
     ["Afternoon snack nothing yet", "/food/afternoon-snack"],
-    ["Dinner nothing yet", "/food/dinner"],
     ["Evening snack nothing yet", "/food/evening-snack"],
+    ["Dinner nothing yet", "/food/dinner"],
+    ["Late-night snack nothing yet", "/food/late-night-snack"],
   ]);
 });
 

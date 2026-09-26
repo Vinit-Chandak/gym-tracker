@@ -20,8 +20,9 @@ import { Select } from "@/components/ui/select";
 import type { PerformanceSeries, Point } from "@/domain/analytics";
 import type { MuscleVolume } from "@/domain/muscle-volume";
 import type { BodyLoadUnit, MuscleGroup } from "@/domain/types";
+import { addDays as addIsoDays } from "@/domain/program-calendar";
 import type { RecoveryReading } from "@/domain/recovery";
-import { formatDateRange, formatMinutes } from "@/lib/format";
+import { formatDateRange, formatIsoDay, formatMinutes } from "@/lib/format";
 import { MUSCLE_LABELS } from "@/lib/labels";
 import { pageSection, PROGRESS_SECTIONS, ProgressSections } from "./progress-sections";
 import { RecoveryProgress } from "./recovery-progress";
@@ -46,6 +47,8 @@ export type Week = {
   runKm: number;
   runMinutes: number;
   muscles: Record<MuscleGroup, number>;
+  /** The week is still running, so its totals are not a whole week's. */
+  partial: boolean;
 };
 
 export type SportTotal = {
@@ -164,9 +167,22 @@ export function ProgressView({
   const exerciseNames = [...byExercise.keys()];
   const machinesForExercise = selected ? (byExercise.get(selected.name) ?? []) : [];
 
-  const weekDates = weeks.map((w) => w.date);
   const asPoints = (pick: (w: Week) => number): Point[] =>
-    weeks.map((w) => ({ date: w.date, value: pick(w) }));
+    weeks.map((w) => ({ date: w.date, value: pick(w), partial: w.partial }));
+  /**
+   * What the weekly charts actually cover. They stop at the last week with training in it
+   * rather than at today, so the axis and the dates in the filter can differ by the weeks
+   * you have not trained in — worth one line above the chart rather than a mystery.
+   */
+  const lastWeek = weeks[weeks.length - 1];
+  const weeksNote = !lastWeek
+    ? null
+    : `${weeks.length} ${weeks.length === 1 ? "week" : "weeks"}${
+        // Naming the Monday of a week that has not finished would read as its end date.
+        lastWeek.partial
+          ? " · this week so far"
+          : ` to ${formatIsoDay(addIsoDays(lastWeek.date, 6))}`
+      }`;
 
   return (
     <div className="page-stack">
@@ -245,13 +261,16 @@ export function ProgressView({
               <div className="flex items-center justify-between gap-3">
                 <h2 className="text-base font-medium">Weekly sessions</h2>
                 <InfoTip label="About weekly sessions">
-                  Weeks run Monday to Sunday in your time zone. The first and last weeks of the
-                  range may be partial.
+                  Weeks run Monday to Sunday in your time zone. The chart ends at the last week you
+                  trained in, not at today, so it never finishes on an empty column. A week still
+                  running is drawn hatched: its total is not a whole week&rsquo;s yet.
                 </InfoTip>
               </div>
+              {weeksNote && <p className="text-sm text-ink-muted">{weeksNote}</p>}
               <Chart
                 title="Sessions"
                 unit="sessions"
+                kind="bar"
                 caption={false}
                 series={[
                   {
@@ -325,6 +344,7 @@ export function ProgressView({
                     ))}
                   </Select>
                 </Field>
+                {weeksNote && <p className="text-sm text-ink-muted">{weeksNote}</p>}
                 <Chart
                   title="Working sets"
                   unit="sets"
@@ -385,22 +405,26 @@ export function ProgressView({
                 />
               </>
             ) : (
-              <Chart
-                title={runMetric === "distance" ? "Weekly distance" : "Weekly duration"}
-                unit={runMetric === "distance" ? "km" : "min"}
-                series={[
-                  {
-                    name: "Runs",
-                    color: SERIES_COLORS.running,
-                    points: asPoints((w) => (runMetric === "distance" ? w.runKm : w.runMinutes)),
-                  } satisfies ChartSeries,
-                ]}
-                format={
-                  runMetric === "duration"
-                    ? (v) => (v >= 60 ? formatMinutes(v) : String(Math.round(v)))
-                    : undefined
-                }
-              />
+              <>
+                {weeksNote && <p className="text-sm text-ink-muted">{weeksNote}</p>}
+                <Chart
+                  title={runMetric === "distance" ? "Weekly distance" : "Weekly duration"}
+                  unit={runMetric === "distance" ? "km" : "min"}
+                  kind="bar"
+                  series={[
+                    {
+                      name: "Runs",
+                      color: SERIES_COLORS.running,
+                      points: asPoints((w) => (runMetric === "distance" ? w.runKm : w.runMinutes)),
+                    } satisfies ChartSeries,
+                  ]}
+                  format={
+                    runMetric === "duration"
+                      ? (v) => (v >= 60 ? formatMinutes(v) : String(Math.round(v)))
+                      : undefined
+                  }
+                />
+              </>
             )}
           </Card>
         )}
@@ -480,10 +504,6 @@ export function ProgressView({
               </div>
             </Card>
           </>
-        )}
-
-        {weekDates.length === 0 && (
-          <p className="text-sm text-ink-muted">No weeks fall inside this range.</p>
         )}
       </section>
     </div>

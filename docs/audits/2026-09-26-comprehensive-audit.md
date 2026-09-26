@@ -26,13 +26,13 @@ coverage even when the final month contains only one day.
 
 ## Screen and interaction coverage
 
-The screen audit opens 144 route/persona states per configuration. It includes:
+The initial screen audit opened 144 route/persona states per configuration. It includes:
 
 - Sign-in and all onboarding stages; Today, day selection and empty states.
 - Active/completed workouts, check-in, exercise logging, substitution and completion.
 - Running, cycling and swimming creation/correction, templates, scheduled occurrences and
   programme screens.
-- Food overview, all six meals, targets, saved foods and saved meal creation/editing.
+- Food overview, all meal screens, targets, saved foods and saved meal creation/editing.
 - Progress sections, recovery, charts, history and supported yearly windows covering the
   entire 56-month seed.
 - Profile, units, sports, privacy, password/deletion, gyms and equipment.
@@ -161,6 +161,14 @@ by Git. The scripts and this report are committed so the checks can be repeated.
 that create disposable account, programme, workout or recovery fixtures remove those accounts
 afterward. The activity and food suites intentionally exercise the initially empty Sam persona;
 use a fresh audit database for a pristine empty-state replay.
+
+## Integration with main
+
+Before merging the audit branch, `main` at `6f2fbad` was incorporated without conflicts. This
+retains the seven-meal nutrition model and weekly-chart updates added after the initial audit.
+The screen script now also includes `/food/late-night-snack`, bringing its full sweep to 145
+route/persona states. All 92 focused food, chart, nutrition, sheet and migration tests passed,
+and the combined production build passed. Further integration checks are recorded on the PR.
 
 ## Limits
 

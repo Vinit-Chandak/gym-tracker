@@ -1,5 +1,10 @@
 # Targets from the goal, and My foods of its own
 
+**Followed by [ADR 0036](0036-meals-in-eating-order-and-a-calmer-food-card.md):** a
+macronutrient's sheet lists its foods by grams alone, with no share of the day and no bar per
+food, and the card's macronutrients are rows, its goal range drawn on the bar and not written out
+(decisions 2 and 3 there). The colours of decision 8 stand as written here.
+
 Follows [0033](0033-meals-of-the-day-and-my-foods.md) and
 [0034](0034-food-takes-the-history-tab.md). The owner asked for four things:
 

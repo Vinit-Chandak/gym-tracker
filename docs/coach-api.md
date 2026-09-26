@@ -111,8 +111,12 @@ no legitimate use, and then answers `410` rather than redirecting.
 - Warm-up sets are excluded from performance series and weekly working sets. Each other set
   counts once for each primary muscle and half for each secondary muscle. These are weighted
   set counts, not measured muscle stimulus.
-- Chart weeks run Monday–Sunday in the account time zone; range-edge weeks may be partial.
-  These calendar weeks are distinct from repeating programme cycles and scheduled coach reviews.
+- Chart weeks run Monday–Sunday in the account time zone. The series ends at the last week with
+  training in it, not at the end of the range, so a window that runs to today does not trail a
+  run of zeroes. Any week not covered in full — the one the range opens part-way through, or one
+  that has not finished yet — carries `partial: true`; its totals are real but are not a whole
+  week's. These calendar weeks are distinct from repeating programme cycles and scheduled coach
+  reviews.
 - Estimated 1RM uses Epley only for loaded barbell sets with 1–10 reps and kg/lb units. One rep
   uses the actual load. This is an estimate, not a tested maximum.
 - Pace series distinguish outdoor and treadmill. Recovery source labels distinguish workout

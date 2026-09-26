@@ -269,21 +269,25 @@ describe("a portion scaled", () => {
 });
 
 describe("the day's meals", () => {
-  it("run in the order they are eaten", () => {
+  it("run in the order they are eaten, an evening snack before dinner", () => {
     expect(MEALS).toEqual([
       "breakfast",
       "morning_snack",
       "lunch",
       "afternoon_snack",
-      "dinner",
       "evening_snack",
+      "dinner",
+      "late_night_snack",
     ]);
   });
 
   it("go into a URL and come back out of it", () => {
     expect(mealSlug("morning_snack")).toBe("morning-snack");
+    // Every underscore, not only the first.
+    expect(mealSlug("late_night_snack")).toBe("late-night-snack");
     for (const meal of MEALS) expect(mealFromSlug(mealSlug(meal))).toBe(meal);
     expect(mealFromSlug("morning_snack")).toBeNull();
+    expect(mealFromSlug("late-night_snack")).toBeNull();
     expect(mealFromSlug("brunch")).toBeNull();
   });
 });
@@ -379,7 +383,7 @@ describe("what each food gave", () => {
     proteinG: 0,
   };
 
-  it("ranks the day's foods by what they gave, with their share of the day", () => {
+  it("ranks the day's foods by what they gave, adding up to the day's total", () => {
     const rows = contributions(
       [entry("breakfast", MILK, 250), entry("breakfast", WHEY, 1), entry("lunch", OATS, 80)],
       "proteinG",
@@ -389,9 +393,8 @@ describe("what each food gave", () => {
       ["Oats", 13.5],
       ["Milk", 8.3],
     ]);
-    // The shares are of the day's 46.8 g, and add up to all of it.
-    expect(rows.reduce((sum, row) => sum + (row.share ?? 0), 0)).toBeCloseTo(1);
-    expect(rows[0]!.share).toBeCloseTo(25 / 46.8);
+    // Summed as the day's total is, so the rows come to its 46.8 g.
+    expect(rows.reduce((sum, row) => sum + (row.grams ?? 0), 0)).toBeCloseTo(46.8);
     expect(rows[0]).toMatchObject({ unit: "scoop", amount: 1, meals: ["breakfast"] });
   });
 
@@ -415,9 +418,9 @@ describe("what each food gave", () => {
       [entry("lunch", HOME, 2), entry("lunch", OIL, 1), entry("breakfast", WHEY, 1)],
       "proteinG",
     );
-    expect(rows.map((row) => [row.name, row.grams, row.share])).toEqual([
-      ["Whey", 25, 1],
-      ["Home food", null, null],
+    expect(rows.map((row) => [row.name, row.grams])).toEqual([
+      ["Whey", 25],
+      ["Home food", null],
     ]);
     expect(contributions([entry("lunch", OIL, 1)], "fatG")[0]).toMatchObject({ grams: 13.6 });
   });

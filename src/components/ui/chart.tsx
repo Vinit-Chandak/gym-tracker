@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronDown } from "@/components/ui/icons";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import type { Point } from "@/domain/analytics";
 import { formatIsoDate, formatIsoDay } from "@/lib/format";
@@ -30,7 +30,12 @@ type ChartProps = {
   title: string;
   unit: string;
   series: readonly ChartSeries[];
-  /** Bars suit counts per week; lines suit a measurement tracked over time. */
+  /**
+   * Bars suit counts and totals per week: those are magnitudes, read as a length from zero,
+   * and a line drawn between two weekly totals claims the values in between were passed
+   * through. Lines suit a measurement tracked over time, where the shape is the point.
+   * Bars are also placed by slice and lines by date, which is the other half of the choice.
+   */
   kind?: "line" | "bar";
   /**
    * Bars encode magnitude by length and always start at zero. A line encodes change,
@@ -85,8 +90,12 @@ const PAD = { top: 10, right: 12, bottom: 22, left: 40 };
  * Round tick steps (1, 2, 2.5, 5, 10 x powers of ten) so axis labels read cleanly.
  * Counts drop the 2.5 step: on a 0-10 axis it yields 2.5 and 7.5, which round to
  * "3" and "8" and look like the axis is lying.
+ *
+ * The run always reaches past `max`. Stopping short of it leaves the tallest mark standing
+ * above every labelled line with nothing to read it against — twelve working sets over an
+ * axis that ended at ten — so the top tick is the top of the plot.
  */
-function niceTicks(min: number, max: number, count = 4, integral = false): number[] {
+export function niceTicks(min: number, max: number, count = 4, integral = false): number[] {
   if (!Number.isFinite(min) || !Number.isFinite(max)) return [0];
   if (min === max) return [min];
   const raw = (max - min) / count;
@@ -95,8 +104,33 @@ function niceTicks(min: number, max: number, count = 4, integral = false): numbe
   const step = steps.map((m) => m * magnitude).find((s) => s >= raw) ?? magnitude * 10;
   const start = Math.floor(min / step) * step;
   const ticks: number[] = [];
-  for (let t = start; t <= max + step / 2; t += step) ticks.push(Math.round(t * 1000) / 1000);
+  for (let t = start; ticks.length < 64; t += step) {
+    const value = Math.round(t * 1000) / 1000;
+    ticks.push(value);
+    if (value >= max) break;
+  }
   return ticks;
+}
+
+/** Day number for an ISO civil date, so a line can be spaced by real elapsed time. */
+const dayNumber = (iso: string) => Math.round(Date.parse(`${iso}T00:00:00Z`) / 86_400_000);
+
+/**
+ * Which observations get a date printed under them: walking left to right, one whenever
+ * there is room since the last, and the final one always — the end of a chart is the part
+ * a reader looks at first, and two labels across a quarter left everything between them
+ * unplaceable in time without hovering it.
+ */
+export function labelIndices(positions: readonly number[], minGap = 44): number[] {
+  const last = positions.length - 1;
+  if (last < 1) return positions.length ? [0] : [];
+  const picked = [0];
+  for (let i = 1; i < last; i++)
+    if (positions[i]! - positions[picked[picked.length - 1]!]! >= minGap) picked.push(i);
+  while (picked.length > 1 && positions[last]! - positions[picked[picked.length - 1]!]! < minGap)
+    picked.pop();
+  picked.push(last);
+  return picked;
 }
 
 const shortDate = (iso: string) => {
@@ -122,6 +156,8 @@ export function Chart({
   // make the first client render disagree with the server's HTML.
   const [width, setWidth] = useState(0);
   const [active, setActive] = useState<number | null>(null);
+  // Several charts share one screen, so the hatch each one defines needs its own name.
+  const patternId = useId();
 
   const dates = series[0]?.points.map((p) => p.date) ?? [];
   const known = series.flatMap((s) =>
@@ -148,26 +184,46 @@ export function Chart({
   const hi = valueRange?.max ?? Math.max(...known);
   const integral = known.every((v) => Number.isInteger(v));
   const ticks = niceTicks(lo, hi === lo ? lo + 1 : hi, 4, integral);
-  const yMin = Math.min(lo, ticks[0]!);
-  const yMax = Math.max(hi, ticks[ticks.length - 1]!);
+  // The ticks reach past the data at both ends, so the axis is exactly the plot.
+  const yMin = ticks[0]!;
+  const yMax = ticks[ticks.length - 1]!;
   const y = (v: number) => PAD.top + plotH - ((v - yMin) / (yMax - yMin || 1)) * plotH;
-  // Evenly spaced by observation: sessions are irregular, and real gaps would
-  // squash a busy fortnight into a sliver next to one lonely point.
-  const step = dates.length > 1 ? plotW / (dates.length - 1) : 0;
-  const x = (i: number) => PAD.left + (dates.length > 1 ? i * step : plotW / 2);
+
+  /**
+   * Bars own a slice of the axis and stand in the middle of it, so neither the first nor
+   * the last is half-drawn over the gutter it sits beside. A line is placed on the date
+   * itself: four weeks off has to occupy four weeks of the axis, or a lay-off reads with
+   * the same slope as a good week. The two never mix — bar dates are calendar weeks, which
+   * are evenly spaced anyway, so a band and a date axis agree there.
+   */
+  const band = dates.length > 0 ? plotW / dates.length : plotW;
+  const days = dates.map(dayNumber);
+  // Measured from the ends of the range rather than the ends of the array: every caller
+  // sorts, and one that did not would otherwise draw off the plot instead of merely
+  // zigzagging where its own data does.
+  const earliest = days.length ? Math.min(...days) : 0;
+  const span = dates.length > 1 ? Math.max(...days) - earliest : 0;
+  const x = (i: number) =>
+    kind === "bar"
+      ? PAD.left + (i + 0.5) * band
+      : span > 0
+        ? PAD.left + ((days[i]! - earliest) / span) * plotW
+        : PAD.left + plotW / 2;
+  const positions = dates.map((_, i) => x(i));
 
   const segments = (points: readonly Point[]) => chartSegments(points, bridgeGaps);
 
-  const onMove = useCallback(
-    (event: React.PointerEvent<SVGSVGElement>) => {
-      if (!plotW || dates.length === 0) return;
-      const box = event.currentTarget.getBoundingClientRect();
-      const local = event.clientX - box.left - PAD.left;
-      const index = Math.round(local / (step || plotW || 1));
-      setActive(Math.max(0, Math.min(dates.length - 1, index)));
-    },
-    [dates.length, plotW, step],
-  );
+  // Nearest observation to the pointer. Points are no longer a fixed step apart, so the
+  // index cannot be divided out of the offset; the hit area is whatever is closest, which
+  // is also what a dense stretch of sessions needs.
+  const onMove = (event: React.PointerEvent<SVGSVGElement>) => {
+    if (!plotW || dates.length === 0) return;
+    const local = event.clientX - event.currentTarget.getBoundingClientRect().left;
+    let nearest = 0;
+    for (let i = 1; i < positions.length; i++)
+      if (Math.abs(positions[i]! - local) < Math.abs(positions[nearest]! - local)) nearest = i;
+    setActive(nearest);
+  };
 
   if (empty) {
     return (
@@ -183,6 +239,25 @@ export function Chart({
   }
 
   const multi = series.length > 1;
+  const hasPartial = series.some((s) => s.points.some((p) => p.partial));
+  /** Marked wherever the numbers are read, not only where they are drawn. */
+  const partialAt = (i: number) => series.some((s) => s.points[i]?.partial);
+  // A group of bars fills its slice apart from the air either side, and the bars inside it
+  // are held apart by a 2px gap of surface rather than by a stroke drawn around each.
+  const groupWidth = Math.max(4, Math.min(34, band - 8));
+  const slot = Math.max(2, (groupWidth - 2 * (series.length - 1)) / series.length);
+  // The newest whole observation, for the figure printed over it. Only on a single run of
+  // bars: over a pair, or over a line that already has a headline above it, it is clutter.
+  // A bar that reaches the top tick leaves no room above itself, and the figure is in the
+  // tooltip and the table either way, so it is dropped rather than set over the fill.
+  const endCandidate =
+    kind === "bar" && series.length === 1
+      ? series[0]!.points.reduce((found, p, i) => (p.value !== null && !p.partial ? i : found), -1)
+      : -1;
+  const endIndex =
+    endCandidate >= 0 && y(series[0]!.points[endCandidate]!.value!) - 7 >= PAD.top + 1
+      ? endCandidate
+      : -1;
   // Indices into the ascending series, walked backwards, so the table reads latest first
   // while every lookup still points at the same observation the chart drew.
   const newestFirst = dates.map((_, i) => dates.length - 1 - i);
@@ -223,7 +298,7 @@ export function Chart({
             width={width}
             height={height}
             role="img"
-            aria-label={`${title}, ${known.length} observations. Values available in the table below.`}
+            aria-label={`${title}, ${known.length} observations${hasPartial ? ", the last of them still in progress" : ""}. Values available in the table below.`}
             className="touch-pan-y overflow-visible select-none"
             onPointerMove={onMove}
             onPointerDown={onMove}
@@ -252,19 +327,49 @@ export function Chart({
               </g>
             ))}
 
-            {series.map((s) =>
+            {hasPartial && (
+              <defs>
+                {series.map((s, si) => (
+                  /* 45 degrees, in the series' own colour on the surface: a part-week is
+                     told apart from a whole one without being given a second hue. */
+                  <pattern
+                    key={s.name}
+                    id={`${patternId}-${si}`}
+                    patternUnits="userSpaceOnUse"
+                    width="6"
+                    height="6"
+                    patternTransform="rotate(45)"
+                  >
+                    <rect width="6" height="6" fill="var(--color-surface)" />
+                    <line
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="6"
+                      stroke={s.color}
+                      strokeWidth="3"
+                      opacity="0.5"
+                    />
+                  </pattern>
+                ))}
+              </defs>
+            )}
+
+            {series.map((s, si) =>
               kind === "bar" ? (
                 <g key={s.name}>
                   {s.points.map((p, i) =>
                     p.value === null ? null : (
                       <rect
                         key={`${s.name}:${i}`}
-                        x={x(i) - Math.max(2, Math.min(14, step * 0.32))}
+                        x={x(i) - groupWidth / 2 + si * (slot + 2)}
                         y={y(p.value)}
-                        width={Math.max(4, Math.min(28, step * 0.64))}
+                        width={slot}
                         height={Math.max(0, y(yMin) - y(p.value))}
                         rx="3"
-                        fill={s.color}
+                        fill={p.partial ? `url(#${patternId}-${si})` : s.color}
+                        stroke={p.partial ? s.color : undefined}
+                        strokeWidth={p.partial ? 1 : undefined}
                         opacity={active === null || active === i ? 1 : 0.55}
                       />
                     ),
@@ -311,13 +416,47 @@ export function Chart({
               />
             )}
 
-            {(dates.length === 1 ? [0] : [0, dates.length - 1]).map((i, k) =>
+            {/*
+              The latest finished figure, printed once. A number on every mark goes unread,
+              and the one a reader came for is the one at the end of the line.
+            */}
+            {endIndex >= 0 && (
+              <text
+                x={x(endIndex)}
+                y={y(series[0]!.points[endIndex]!.value!) - 7}
+                textAnchor="middle"
+                fontSize="11"
+                fontWeight="600"
+                fill="var(--color-ink)"
+                className="tabular-nums"
+              >
+                {format(series[0]!.points[endIndex]!.value!)}
+              </text>
+            )}
+
+            {labelIndices(positions).map((i) =>
               dates[i] ? (
                 <text
-                  key={`${i}:${k}`}
-                  x={dates.length === 1 ? x(0) : k === 0 ? PAD.left : width - PAD.right}
+                  key={`x:${i}`}
+                  x={
+                    dates.length === 1
+                      ? x(0)
+                      : i === 0
+                        ? PAD.left
+                        : i === dates.length - 1
+                          ? width - PAD.right
+                          : x(i)
+                  }
                   y={height - 6}
-                  textAnchor={dates.length === 1 ? "middle" : k === 0 ? "start" : "end"}
+                  textAnchor={
+                    dates.length === 1
+                      ? "middle"
+                      : i === 0
+                        ? "start"
+                        : i === dates.length - 1
+                          ? "end"
+                          : "middle"
+                  }
                   fontSize="10"
                   fill="var(--color-ink-subtle)"
                 >
@@ -337,7 +476,10 @@ export function Chart({
               minWidth: 108,
             }}
           >
-            <p className="text-ink-subtle">{formatIsoDate(dates[active]!)}</p>
+            <p className="text-ink-subtle">
+              {formatIsoDate(dates[active]!)}
+              {partialAt(active) && " · so far"}
+            </p>
             {series.map((s) => (
               <p key={s.name} className="flex items-center gap-1.5 tabular-nums">
                 {multi && (
@@ -398,6 +540,7 @@ export function Chart({
               >
                 <th scope="row" className="py-1.5 font-normal">
                   {formatIsoDay(dates[i]!)}
+                  {partialAt(i) && <span className="text-ink-subtle"> · so far</span>}
                 </th>
                 {series.map((s) => (
                   <td key={s.name} className="py-1.5 text-right">
