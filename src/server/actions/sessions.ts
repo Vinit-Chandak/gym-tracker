@@ -60,8 +60,8 @@ export type ActionResult = { ok: true } | { ok: false; error: string };
 function revalidateSession(sessionId?: string): void {
   revalidatePath("/today");
   revalidatePath("/runs");
-  revalidatePath("/history");
   revalidatePath("/progress");
+  revalidatePath("/progress/history");
   revalidatePath("/profile");
   if (sessionId) revalidatePath(`/workouts/${sessionId}`);
 }

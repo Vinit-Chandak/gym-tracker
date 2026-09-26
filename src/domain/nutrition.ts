@@ -1,8 +1,8 @@
 /**
- * Food: what a day's eating is measured against, and how its meals add up (ADR 0032).
+ * Food: what a day's eating is measured against, and how its meals add up (ADRs 0032, 0033).
  *
- * Pure rules, shared by the server and the browser, so the add-meal sheet's running totals and
- * the targets form's preview are worked out by the same functions as the screens they update.
+ * Pure rules, shared by the server and the browser, so a sheet's preview of what a portion holds
+ * and the targets form's preview are worked out by the same functions as the screens they update.
  * Energy is in kilocalories and the three macronutrients in grams, everywhere.
  */
 
@@ -33,9 +33,12 @@ export const GOAL_BAND = { low: 0.9, high: 1.1 } as const;
 export const NUTRITION_LIMITS = {
   dailyKcal: { min: 500, max: 10_000 },
   proteinPerKg: { min: 0.5, max: 4 },
-  /** One food: a whole takeaway fits. */
+  /** One food, as a portion or as eaten: a whole takeaway fits. */
   itemKcal: 10_000,
   itemGrams: 1_000,
+  /** A portion, or an amount eaten, in the food's own unit: ten kilograms of anything. */
+  amount: 10_000,
+  /** The foods one saved meal holds. */
   itemsPerMeal: 30,
   name: 80,
 } as const;
@@ -126,7 +129,7 @@ export function goalStatus(eatenKcal: number, dailyKcal: number): GoalStatus {
   return "met";
 }
 
-/** One food as logged. Only the energy is required, so a guessed meal is one number. */
+/** What a food holds, or what an amount of it came to. Only the energy is always known. */
 export type FoodAmounts = {
   kcal: number;
   carbsG: number | null;
@@ -134,16 +137,11 @@ export type FoodAmounts = {
   proteinG: number | null;
 };
 
-/** One food in a meal: what it was called, if it was called anything, and what it held. */
-export type FoodItem = FoodAmounts & { name: string | null };
-
 export type FoodTotals = { kcal: number; carbsG: number; fatG: number; proteinG: number };
 
-export const NO_FOOD: FoodTotals = { kcal: 0, carbsG: 0, fatG: 0, proteinG: 0 };
-
 /**
- * Everything in a list added up. A macronutrient nobody entered counts as none, so a guessed
- * takeaway adds to the day's energy and nothing to its grams.
+ * Everything in a list added up. A macronutrient nobody entered counts as none, so a food saved
+ * with its energy alone adds to the day's energy and nothing to its grams.
  *
  * Summed in tenths, which is how the numbers are stored, so a column of 0.1 g entries adds up
  * to what it says rather than to 0.30000000000000004.
@@ -163,24 +161,152 @@ export function addUp(items: readonly FoodAmounts[]): FoodTotals {
   return { kcal: kcal / 10, carbsG: carbs / 10, fatG: fat / 10, proteinG: protein / 10 };
 }
 
-/** Morning, afternoon, evening or night, by the hour on the account's own clock. */
-export function partOfDay(hour: number): "Morning" | "Afternoon" | "Evening" | "Night" {
-  if (hour >= 4 && hour < 12) return "Morning";
-  if (hour >= 12 && hour < 17) return "Afternoon";
-  if (hour >= 17 && hour < 22) return "Evening";
-  return "Night";
+/** The day's meals, in the order they are eaten, so the list reads like the day. */
+export const MEALS = [
+  "breakfast",
+  "morning_snack",
+  "lunch",
+  "afternoon_snack",
+  "dinner",
+  "evening_snack",
+] as const;
+export type Meal = (typeof MEALS)[number];
+
+/** A meal as it appears in a URL: `morning-snack`. */
+export function mealSlug(meal: Meal): string {
+  return meal.replace("_", "-");
+}
+
+/** The meal a URL names, or null when it names none. */
+export function mealFromSlug(slug: string): Meal | null {
+  return MEALS.find((meal) => mealSlug(meal) === slug) ?? null;
 }
 
 /**
- * A name for a new meal, so logging one never starts with having to think of one: "Afternoon
- * meal 1", or the next number up when the day already has one. The highest number plus one,
- * not a count, so deleting the first of two never hands out a name that is still in use.
+ * What a food's portion is measured in. A food is always logged in its own unit, so nothing is
+ * ever converted: oats saved per 100 g are eaten in grams, a shake saved per scoop in scoops.
  */
-export function suggestMealName(existing: readonly string[], hour: number): string {
-  const prefix = `${partOfDay(hour)} meal `;
-  const numbers = existing
-    .filter((name) => name.toLowerCase().startsWith(prefix.toLowerCase()))
-    .map((name) => Number(name.slice(prefix.length)))
-    .filter((number) => Number.isInteger(number) && number > 0);
-  return `${prefix}${numbers.length > 0 ? Math.max(...numbers) + 1 : 1}`;
+export const FOOD_UNITS = [
+  "g",
+  "kg",
+  "ml",
+  "l",
+  "oz",
+  "cup",
+  "tbsp",
+  "tsp",
+  "piece",
+  "slice",
+  "scoop",
+  "serving",
+] as const;
+export type FoodUnit = (typeof FOOD_UNITS)[number];
+
+/**
+ * A food as it is kept in My foods: a name, and what one portion of it holds, e.g. 100 g of oats
+ * at 389 kcal. Only the portion and its energy are required; a macronutrient left out is unknown.
+ */
+export type Food = FoodAmounts & {
+  name: string;
+  portionAmount: number;
+  unit: FoodUnit;
+};
+
+/**
+ * A food as eaten: a copy of the food as it was when it was logged, the food it came from while
+ * that still exists, and how much of it, in the food's own unit. A copy, so that correcting a
+ * food in My foods never rewrites a day that has already been eaten.
+ */
+export type LoggedFood = Food & { foodId: string | null; amount: number };
+
+/**
+ * What an amount of a food holds: its portion's figures scaled by amount ÷ portion, each to the
+ * tenth.
+ *
+ * Worked in whole numbers, tenths of the figures and hundredths of the amounts, which is as
+ * finely as they are stored. The product is exact, and the one division is correctly rounded,
+ * so an exact half always rounds up and every screen that asks gets the same tenth.
+ */
+export function scaleFood(
+  food: Pick<Food, "portionAmount" | "kcal" | "carbsG" | "fatG" | "proteinG">,
+  amount: number,
+): FoodAmounts {
+  const portion = Math.round(food.portionAmount * 100);
+  const eaten = Math.round(amount * 100);
+  // A portion of nothing cannot be scaled; validation never stores one.
+  const scale = (value: number) =>
+    portion > 0 ? Math.round((Math.round(value * 10) * eaten) / portion) / 10 : value;
+  return {
+    kcal: scale(food.kcal),
+    carbsG: food.carbsG === null ? null : scale(food.carbsG),
+    fatG: food.fatG === null ? null : scale(food.fatG),
+    proteinG: food.proteinG === null ? null : scale(food.proteinG),
+  };
+}
+
+/** What a logged food came to. */
+export function eaten(food: LoggedFood): FoodAmounts {
+  return scaleFood(food, food.amount);
+}
+
+/**
+ * Which figure an amount of a food would take past the bounds for one food eaten, if any: a
+ * slipped finger typing 10000 g of something saved per gram, say.
+ */
+export function overLimit(
+  food: Pick<Food, "portionAmount" | "kcal" | "carbsG" | "fatG" | "proteinG">,
+  amount: number,
+): keyof FoodAmounts | null {
+  const scaled = scaleFood(food, amount);
+  if (scaled.kcal > NUTRITION_LIMITS.itemKcal) return "kcal";
+  for (const key of ["carbsG", "fatG", "proteinG"] as const) {
+    if ((scaled[key] ?? 0) > NUTRITION_LIMITS.itemGrams) return key;
+  }
+  return null;
+}
+
+/**
+ * Rounds a number as the decimal it was written as, the way Postgres stores it: 1.255 to the
+ * hundredth is 1.26, where multiplying by 100 first finds the binary number just under 125.5.
+ */
+export function roundTo(value: number, places: number): number {
+  const shifted = Math.round(Number(`${value}e${places}`));
+  const rounded = Number.isFinite(shifted)
+    ? shifted / 10 ** places
+    : Math.round(value * 10 ** places) / 10 ** places;
+  // `+ 0` turns the -0 a small negative rounds to into 0.
+  return rounded + 0;
+}
+
+/** An amount as stored: to the hundredth. */
+export const toHundredth = (value: number): number => roundTo(value, 2);
+
+/**
+ * The amounts one tap away when logging a food: half its portion, the portion, one and a half
+ * and two, which covers "a bit less", "the usual" and "double" without typing.
+ */
+export function quickAmounts(portionAmount: number): number[] {
+  return [0.5, 1, 1.5, 2].map((share) => toHundredth(portionAmount * share));
+}
+
+/**
+ * Whether two lists hold the same foods in the same amounts, in any order. A day's meal that does
+ * is that saved meal, which is what its star shows; change a portion and it is a meal of its own.
+ */
+export function sameFoods(a: readonly LoggedFood[], b: readonly LoggedFood[]): boolean {
+  if (a.length !== b.length) return false;
+  const key = (food: LoggedFood) =>
+    JSON.stringify([
+      food.name.trim().toLowerCase(),
+      food.unit,
+      food.portionAmount,
+      food.amount,
+      food.kcal,
+      food.carbsG,
+      food.fatG,
+      food.proteinG,
+    ]);
+  const left = a.map(key).sort();
+  const right = b.map(key).sort();
+  return left.every((value, index) => value === right[index]);
 }

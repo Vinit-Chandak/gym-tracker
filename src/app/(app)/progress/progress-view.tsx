@@ -15,7 +15,6 @@ import { FilterSheet } from "@/components/ui/filter-sheet";
 import { Headline } from "@/components/ui/headline";
 import { InfoTip } from "@/components/ui/info-tip";
 import { Field } from "@/components/ui/input";
-import { SectionSelect } from "@/components/ui/section-select";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select } from "@/components/ui/select";
 import type { PerformanceSeries, Point } from "@/domain/analytics";
@@ -24,12 +23,13 @@ import type { BodyLoadUnit, MuscleGroup } from "@/domain/types";
 import type { RecoveryReading } from "@/domain/recovery";
 import { formatDateRange, formatMinutes } from "@/lib/format";
 import { MUSCLE_LABELS } from "@/lib/labels";
+import { pageSection, PROGRESS_SECTIONS, ProgressSections } from "./progress-sections";
 import { RecoveryProgress } from "./recovery-progress";
 
 /**
  * The body map carries an anatomical outline and every muscle region as path data, and only
- * one of five sections ever shows it. Loading it on demand keeps that weight out of the
- * bundle for the four sections that do not.
+ * one of the five sections drawn here ever shows it. Loading it on demand keeps that weight
+ * out of the bundle for the four that do not.
  */
 const BodyMap = dynamic(() => import("@/components/ui/body-map").then((m) => m.BodyMap), {
   loading: () => (
@@ -85,15 +85,6 @@ type Props = {
   selected: PerformanceSeries | null;
 };
 
-const TABS = [
-  { value: "overview", label: "Overview" },
-  { value: "strength", label: "Strength" },
-  { value: "running", label: "Running" },
-  { value: "recovery", label: "Recovery" },
-  { value: "body", label: "Body" },
-] as const;
-type Tab = (typeof TABS)[number]["value"];
-
 const RUN_METRICS = [
   { value: "distance", label: "Distance" },
   { value: "duration", label: "Duration" },
@@ -118,7 +109,7 @@ export function ProgressView({
   const params = useSearchParams();
   const [pending, startTransition] = useTransition();
 
-  const tab: Tab = TABS.find((item) => item.value === params.get("view"))?.value ?? "overview";
+  const tab = pageSection(params.get("view"));
   const chooseView = (key: "view" | "recovery", value: string) => {
     const next = new URLSearchParams(params.toString());
     next.set(key, value);
@@ -179,11 +170,9 @@ export function ProgressView({
 
   return (
     <div className="page-stack">
-      <SectionSelect
-        label="Progress section"
-        options={TABS}
+      <ProgressSections
         value={tab}
-        onChange={(value) => chooseView("view", value)}
+        onChange={(section) => chooseView("view", section)}
         action={
           <FilterSheet title="Filters" summary={formatDateRange(range.from, range.to)}>
             {(close) => <DateRangeFields from={range.from} to={range.to} onApplied={close} />}
@@ -193,7 +182,7 @@ export function ProgressView({
 
       {/* Only the chosen section is mounted; the controls above it keep their state. */}
       <section
-        aria-label={TABS.find((option) => option.value === tab)!.label}
+        aria-label={PROGRESS_SECTIONS.find((option) => option.value === tab)!.label}
         className="page-stack min-w-0"
       >
         {tab === "overview" && (

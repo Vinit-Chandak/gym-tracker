@@ -2,10 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import {
   formatActivityMetric,
+  formatAmount,
   formatDateTime,
   formatIsoDate,
   formatIsoDay,
   formatIsoWeekdayDay,
+  formatMacros,
+  formatPortion,
   formatRunKm,
   formatTime,
 } from "./format";
@@ -55,4 +58,24 @@ it("writes a period's total by what it counts, in the reader's unit", () => {
   expect(formatActivityMetric("best_pace", 325, "kg")).toBe("5:25 /km");
   // One run keeps its logged distance; a total rounds to a tenth.
   expect(formatActivityMetric("longest_run", 5245, "kg")).toBe("5.25 km");
+});
+
+it("writes an amount of a food in its own unit, plural where the unit is a word", () => {
+  expect(formatPortion(100, "g")).toBe("100 g");
+  expect(formatPortion(1, "scoop")).toBe("1 scoop");
+  expect(formatPortion(1.5, "scoop")).toBe("1.5 scoops");
+  expect(formatPortion(0.5, "cup")).toBe("0.5 cups");
+  expect(formatPortion(2, "tbsp")).toBe("2 tbsp");
+  expect(formatPortion(1, "l")).toBe("1 L");
+  expect(formatPortion(1250, "ml")).toBe("1,250 ml");
+  expect(formatAmount(33.333)).toBe("33.33");
+  expect(formatAmount(-0.001)).toBe("0");
+});
+
+it("writes the macronutrients that are known, in whole grams", () => {
+  expect(formatMacros({ carbsG: 66.3, fatG: 6.9, proteinG: 16.9 })).toBe(
+    "Carbs 66 g · Fat 7 g · Protein 17 g",
+  );
+  expect(formatMacros({ carbsG: null, fatG: 0, proteinG: 25 })).toBe("Fat 0 g · Protein 25 g");
+  expect(formatMacros({ carbsG: null, fatG: null, proteinG: null })).toBe("");
 });

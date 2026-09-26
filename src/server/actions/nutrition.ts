@@ -4,59 +4,118 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { getDb } from "@/db/client";
+import type { Tx } from "@/db/types";
 import { withUser } from "@/db/with-user";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { requireUser, type SessionUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import {
-  createMeal,
-  FoodSubmissionConflictError,
-  submitFoodOnce,
-  deleteMeal,
+  AmountTooLargeError,
+  deleteEntry,
+  deleteFood,
   deleteSavedMeal,
+  EmptyMealError,
+  EntryNotFoundError,
+  FoodNameTakenError,
+  FoodNotFoundError,
+  FoodSubmissionConflictError,
+  logFood,
   logSavedMeal,
-  MealNotFoundError,
   SavedMealNotFoundError,
+  SavedMealTooLargeError,
+  saveMeal,
   saveNutritionTargets,
-  updateMeal,
+  submitFoodOnce,
+  updateEntryAmount,
+  updateFood,
 } from "@/server/repositories/nutrition";
 import { formValues, parseForm, type FormState } from "@/server/validation/form";
 import {
+  createFoodSchema,
   issuesByPath,
-  mealInputSchema,
+  logFoodSchema,
+  logSavedMealSchema,
+  saveMealSchema,
   targetsInputSchema,
-  type MealDraft,
+  updateEntrySchema,
+  updateFoodSchema,
+  type CreateFoodDraft,
+  type LogFoodDraft,
+  type LogSavedMealDraft,
+  type SaveMealDraft,
+  type UpdateEntryDraft,
+  type UpdateFoodDraft,
 } from "@/server/validation/nutrition";
 
-/** An outcome, and for a meal the messages to show against the fields they concern. */
+/** An outcome, and for a sheet the messages to show against the fields they concern. */
 export type FoodActionResult =
   { ok: true } | { ok: false; error?: string; fieldErrors?: Record<string, string> };
 
-function describe(error: unknown): string {
+function describe(error: unknown): FoodActionResult {
+  // What was typed is what is wrong: said against the field that holds it.
+  if (error instanceof AmountTooLargeError) {
+    return { ok: false, fieldErrors: { amount: error.message } };
+  }
+  if (error instanceof FoodNameTakenError) {
+    return { ok: false, fieldErrors: { name: error.message } };
+  }
   if (
-    error instanceof MealNotFoundError ||
+    error instanceof FoodNotFoundError ||
+    error instanceof EntryNotFoundError ||
     error instanceof SavedMealNotFoundError ||
+    error instanceof EmptyMealError ||
+    error instanceof SavedMealTooLargeError ||
     error instanceof FoodSubmissionConflictError
   ) {
-    return error.message;
+    return { ok: false, error: error.message };
   }
-  return "Something went wrong. Please try again.";
+  return { ok: false, error: "Something went wrong. Please try again." };
 }
 
-/** The day a new meal is eaten on: today, on the account's own clock. */
-async function today(user: SessionUser): Promise<string> {
-  const profile = await getRequestProfile(user.id, user.email);
-  return todayInTimeZone(profile.timeZone);
+function invalid(error: z.ZodError): FoodActionResult {
+  return { ok: false, fieldErrors: issuesByPath(error.issues) };
 }
 
 /**
- * Every change here is shown on the Food screen, which is where it was made, and on Today's
- * card. The tabs now prefetch their data, so refresh alone can reuse an old Today snapshot.
- * Invalidate both paths after a successful write to update Food and discard that prefetch.
+ * Every change here is shown on the Food tab and on the meal's own page. The tabs prefetch their
+ * data, so a refresh alone can reuse an old Food snapshot: invalidate both after a successful
+ * write.
  */
 function refreshFood(): void {
-  revalidatePath("/today");
-  revalidatePath("/today/food");
+  revalidatePath("/food");
+  revalidatePath("/food/[meal]", "page");
+}
+
+/**
+ * Runs one change for the signed-in account.
+ *
+ * `eatenOn` is the day the page was showing, which stays its day past midnight; a day that has
+ * not happened yet is refused. A `receipt` makes a retry after a lost reply harmless: a key
+ * already committed with the same payload is a no-op.
+ */
+async function change(
+  user: SessionUser,
+  run: (tx: Tx) => Promise<unknown>,
+  options: { eatenOn?: string; receipt?: { key?: string; payload: unknown } } = {},
+): Promise<FoodActionResult> {
+  try {
+    if (options.eatenOn) {
+      const profile = await getRequestProfile(user.id, user.email);
+      if (options.eatenOn > todayInTimeZone(profile.timeZone)) {
+        return { ok: false, error: "Food cannot be logged for a day that has not come yet." };
+      }
+    }
+    const receipt = options.receipt;
+    await withUser(getDb(), user.id, (tx) =>
+      receipt?.key
+        ? submitFoodOnce(tx, user.id, receipt.key, receipt.payload, () => run(tx))
+        : run(tx),
+    );
+  } catch (error) {
+    return describe(error);
+  }
+  refreshFood();
+  return { ok: true };
 }
 
 export async function saveTargetsAction(
@@ -66,78 +125,94 @@ export async function saveTargetsAction(
   const user = await requireUser();
   const parsed = parseForm(targetsInputSchema, formData);
   if (!parsed.success) return parsed.state;
-  try {
-    await withUser(getDb(), user.id, (tx) => saveNutritionTargets(tx, user.id, parsed.data));
-  } catch (error) {
-    return { formError: describe(error), values: formValues(formData) };
-  }
-  refreshFood();
+  const outcome = await change(user, (tx) => saveNutritionTargets(tx, user.id, parsed.data));
+  if (!outcome.ok) return { formError: outcome.error, values: formValues(formData) };
   return {};
 }
 
-/** Logs a new meal for today, or rewrites the one being edited. */
-export async function saveMealAction(draft: MealDraft): Promise<FoodActionResult> {
+/** Logs an amount of a food from My foods in a meal. */
+export async function logFoodAction(draft: LogFoodDraft): Promise<FoodActionResult> {
   const user = await requireUser();
-  const parsed = mealInputSchema.safeParse(draft);
-  if (!parsed.success) return { ok: false, fieldErrors: issuesByPath(parsed.error.issues) };
-  const { mealId, submissionKey, eatenOn: draftDay, ...meal } = parsed.data;
-  try {
-    const currentDay = await today(user);
-    const eatenOn = draftDay ?? currentDay;
-    if (eatenOn > currentDay)
-      return { ok: false, error: "A meal cannot be logged for a future day." };
-    await withUser(getDb(), user.id, async (tx) => {
-      const write = () =>
-        mealId ? updateMeal(tx, user.id, mealId, meal) : createMeal(tx, user.id, eatenOn, meal);
-      if (submissionKey)
-        await submitFoodOnce(tx, user.id, submissionKey, { mealId, eatenOn, ...meal }, write);
-      else await write();
-    });
-  } catch (error) {
-    return { ok: false, error: describe(error) };
-  }
-  refreshFood();
-  return { ok: true };
+  const parsed = logFoodSchema.safeParse(draft);
+  if (!parsed.success) return invalid(parsed.error);
+  const { submissionKey, eatenOn, meal, foodId, amount } = parsed.data;
+  return change(
+    user,
+    (tx) => logFood(tx, user.id, { eatenOn, meal }, { food: { id: foodId }, amount }),
+    { eatenOn, receipt: { key: submissionKey, payload: { kind: "log", ...parsed.data } } },
+  );
 }
 
-/** Deleting a meal that is already gone succeeds: gone is what was asked for. */
-export async function deleteMealAction(mealId: string): Promise<FoodActionResult> {
+/** Logs a new food in a meal, which is what keeps it in My foods. */
+export async function createFoodAction(draft: CreateFoodDraft): Promise<FoodActionResult> {
   const user = await requireUser();
-  if (!z.uuid().safeParse(mealId).success) return { ok: true };
-  try {
-    await withUser(getDb(), user.id, (tx) => deleteMeal(tx, user.id, mealId));
-  } catch (error) {
-    return { ok: false, error: describe(error) };
-  }
-  refreshFood();
-  return { ok: true };
+  const parsed = createFoodSchema.safeParse(draft);
+  if (!parsed.success) return invalid(parsed.error);
+  const { submissionKey, eatenOn, meal, food, amount } = parsed.data;
+  return change(user, (tx) => logFood(tx, user.id, { eatenOn, meal }, { food, amount }), {
+    eatenOn,
+    receipt: { key: submissionKey, payload: { kind: "create", ...parsed.data } },
+  });
 }
 
-/** One tap on a starred meal: the same foods, logged as a meal of today's. */
-export async function logSavedMealAction(savedMealId: string): Promise<FoodActionResult> {
+/** Changes how much of a food was eaten. */
+export async function updateEntryAction(draft: UpdateEntryDraft): Promise<FoodActionResult> {
   const user = await requireUser();
-  if (!z.uuid().safeParse(savedMealId).success) {
-    return { ok: false, error: new SavedMealNotFoundError().message };
-  }
-  try {
-    const eatenOn = await today(user);
-    await withUser(getDb(), user.id, (tx) => logSavedMeal(tx, user.id, savedMealId, eatenOn));
-  } catch (error) {
-    return { ok: false, error: describe(error) };
-  }
-  refreshFood();
-  return { ok: true };
+  const parsed = updateEntrySchema.safeParse(draft);
+  if (!parsed.success) return invalid(parsed.error);
+  const { entryId, amount } = parsed.data;
+  return change(user, (tx) => updateEntryAmount(tx, user.id, entryId, amount));
 }
 
-/** Unstars a meal. Meals already logged from it stay as they are. */
+/** Takes a food out of a meal. Taking out one already gone succeeds: gone is what was asked. */
+export async function deleteEntryAction(entryId: string): Promise<FoodActionResult> {
+  const user = await requireUser();
+  if (!z.uuid().safeParse(entryId).success) return { ok: true };
+  return change(user, (tx) => deleteEntry(tx, user.id, entryId));
+}
+
+/** Stars a meal: saves it as it stands, under a name, to be added again in one go. */
+export async function saveMealAction(draft: SaveMealDraft): Promise<FoodActionResult> {
+  const user = await requireUser();
+  const parsed = saveMealSchema.safeParse(draft);
+  if (!parsed.success) return invalid(parsed.error);
+  const { submissionKey, eatenOn, meal, name } = parsed.data;
+  return change(user, (tx) => saveMeal(tx, user.id, { eatenOn, meal }, name), {
+    receipt: { key: submissionKey, payload: { kind: "save", ...parsed.data } },
+  });
+}
+
+/** Adds a saved meal's foods to a meal. */
+export async function logSavedMealAction(draft: LogSavedMealDraft): Promise<FoodActionResult> {
+  const user = await requireUser();
+  const parsed = logSavedMealSchema.safeParse(draft);
+  if (!parsed.success) return { ok: false, error: new SavedMealNotFoundError().message };
+  const { submissionKey, eatenOn, meal, savedMealId } = parsed.data;
+  return change(user, (tx) => logSavedMeal(tx, user.id, savedMealId, { eatenOn, meal }), {
+    eatenOn,
+    receipt: { key: submissionKey, payload: { kind: "saved", ...parsed.data } },
+  });
+}
+
+/** Unstars a saved meal. The meals it was added to keep their foods. */
 export async function deleteSavedMealAction(savedMealId: string): Promise<FoodActionResult> {
   const user = await requireUser();
   if (!z.uuid().safeParse(savedMealId).success) return { ok: true };
-  try {
-    await withUser(getDb(), user.id, (tx) => deleteSavedMeal(tx, user.id, savedMealId));
-  } catch (error) {
-    return { ok: false, error: describe(error) };
-  }
-  refreshFood();
-  return { ok: true };
+  return change(user, (tx) => deleteSavedMeal(tx, user.id, savedMealId));
+}
+
+/** Corrects a food in My foods, for what is logged from now on. */
+export async function updateFoodAction(draft: UpdateFoodDraft): Promise<FoodActionResult> {
+  const user = await requireUser();
+  const parsed = updateFoodSchema.safeParse(draft);
+  if (!parsed.success) return invalid(parsed.error);
+  const { foodId, food } = parsed.data;
+  return change(user, (tx) => updateFood(tx, user.id, foodId, food));
+}
+
+/** Removes a food from My foods. What was logged from it stays. */
+export async function deleteFoodAction(foodId: string): Promise<FoodActionResult> {
+  const user = await requireUser();
+  if (!z.uuid().safeParse(foodId).success) return { ok: true };
+  return change(user, (tx) => deleteFood(tx, user.id, foodId));
 }

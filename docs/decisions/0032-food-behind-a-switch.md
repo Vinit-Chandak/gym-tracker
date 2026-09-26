@@ -1,5 +1,12 @@
 # Food
 
+**Superseded in part by [ADR 0033](0033-meals-of-the-day-and-my-foods.md):** freely named meals,
+their one-sheet editor, the starred chips and the device drafts (decisions 5–7) gave way to six
+meals of the day, a food library with portions, and meals starred under a name. **And by
+[ADR 0034](0034-food-takes-the-history-tab.md):** Food is a tab of its own at `/food`, and Today's
+card is gone. Targets, the goal band and the receipts that make a retried save harmless stand as
+written here.
+
 **Rollout updated 25 September 2026:** the owner requested immediate availability for every
 signed-in account. The `FOOD_TRACKING_ENABLED` gate and email allowlist have been removed from
 Today, the Food route and all food actions. Existing values of that environment variable are

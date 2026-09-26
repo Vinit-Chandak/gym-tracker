@@ -1,12 +1,5 @@
 import type { Route } from "next";
-import {
-  BarChart,
-  CalendarDays,
-  Dumbbell,
-  Footprints,
-  User,
-  type AppIcon,
-} from "@/components/ui/icons";
+import { BarChart, Dumbbell, Food, Footprints, User, type AppIcon } from "@/components/ui/icons";
 
 export type NavItem = {
   href: Route;
@@ -27,11 +20,15 @@ export type NavItem = {
  * The second tab was Runs, a product of its own for one sport. It is Training: where any
  * sport is logged, scheduled and planned, with the programme behind it (plan §2.3). Still
  * five tabs, and each still has one job.
+ *
+ * The third was History. It is Food (ADR 0034): meals are logged several times a day, and a
+ * card at the foot of Today put them a scroll away, while History is a look back, which is
+ * what Progress is for. History is one of Progress's sections now, and the island stays at five.
  */
 export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/today", label: "Today", icon: Dumbbell },
   { href: "/training", label: "Training", icon: Footprints },
-  { href: "/history", label: "History", icon: CalendarDays },
+  { href: "/food", label: "Food", icon: Food },
   { href: "/progress", label: "Progress", icon: BarChart },
   { href: "/profile", label: "Profile", icon: User },
 ];
@@ -52,7 +49,7 @@ const withinSection = (pathname: string, section: string) =>
  * Detail screens belong to the same primary section as their entry point.
  *
  * A record several tabs can open keeps the tab its link names: a finished workout opened from
- * History is still in History, however far into it you go. The origin is read only on those
+ * History keeps Progress selected, however far into it you go. The origin is read only on those
  * records, so a tab's own screens ignore it — and History's date-range `from` never collides
  * with it. Without one, the strength logger is Today's, since that is where its card is, and
  * a shared activity route says where it belongs in its own path, which is why Training does
@@ -83,7 +80,7 @@ const SECTION_LABELS: Record<string, string> = {
   today: "Today",
   training: "Training",
   runs: "Runs",
-  history: "History",
+  food: "Food",
   progress: "Progress",
   profile: "Profile",
   gyms: "Gyms",
@@ -92,8 +89,16 @@ const SECTION_LABELS: Record<string, string> = {
   u: "People",
 };
 
+/** A screen with a name of its own inside a section, which a back control names instead. */
+const PAGE_LABELS: Record<string, string> = {
+  // History is a section of Progress with a page of its own, so what it opens goes back to it
+  // by its own name.
+  "/progress/history": "History",
+};
+
 export function sectionLabel(path: string): string | undefined {
-  return SECTION_LABELS[path.split(/[?#]/)[0]!.split("/")[1] ?? ""];
+  const pathname = path.split(/[?#]/)[0]!;
+  return PAGE_LABELS[pathname] ?? SECTION_LABELS[pathname.split("/")[1] ?? ""];
 }
 
 /**
@@ -109,7 +114,7 @@ export type NavOrigin = (typeof NAV_ORIGINS)[number];
 const ORIGIN_PATHS: Record<NavOrigin, string> = {
   today: "/today",
   training: "/training",
-  history: "/history",
+  history: "/progress/history",
   programme: "/training/programme",
   shared: "/profile/friends",
 };

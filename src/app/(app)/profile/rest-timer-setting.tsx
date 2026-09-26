@@ -23,7 +23,9 @@ export function RestTimerSetting({ enabled }: { enabled: boolean }) {
         () => setRestTimerEnabledAction(next),
         "Could not save. Check your connection and try again.",
       );
-      if (!outcome.ok) setError(outcome.message);
+      // As in the privacy switches: after an await an update is no longer the transition's
+      // own, so the error is marked as one to arrive with the switch going back.
+      if (!outcome.ok) startTransition(() => setError(outcome.message));
     });
 
   return (

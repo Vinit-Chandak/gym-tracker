@@ -9,17 +9,17 @@ afterEach(() => {
 });
 
 it("keeps the exact previous route including history filters", () => {
-  window.history.replaceState({ __NA: true }, "", "/history?kind=cycling&from=2026-09-01");
+  window.history.replaceState({ __NA: true }, "", "/progress/history?kind=cycling&from=2026-09-01");
   stop = trackNavigationHistory();
   window.history.pushState({ __NA: true, tree: "next-state" }, "", "/training/activities/abc");
-  expect(previousAppPage()).toBe("/history?kind=cycling&from=2026-09-01");
+  expect(previousAppPage()).toBe("/progress/history?kind=cycling&from=2026-09-01");
   expect(window.history.state.tree).toBe("next-state");
   window.history.replaceState(
     { __NA: true, tree: "new-tree" },
     "",
     "/training/activities/abc?from=history",
   );
-  expect(previousAppPage()).toBe("/history?kind=cycling&from=2026-09-01");
+  expect(previousAppPage()).toBe("/progress/history?kind=cycling&from=2026-09-01");
   expect(window.history.state.tree).toBe("new-tree");
 });
 

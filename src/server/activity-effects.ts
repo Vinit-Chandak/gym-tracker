@@ -21,7 +21,7 @@ export type ActivityChange = {
 };
 
 /** The screens that read an athlete's own training, whatever the sport. */
-const OWNED_PATHS = ["/today", "/training", "/history", "/progress", "/profile"];
+const OWNED_PATHS = ["/today", "/training", "/progress", "/progress/history", "/profile"];
 
 /** Kept while the old Runs pages still resolve, so a bookmarked list is not stale either. */
 const COMPATIBILITY_PATHS = ["/runs", "/profile/programme"];

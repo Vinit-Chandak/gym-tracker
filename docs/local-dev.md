@@ -107,7 +107,8 @@ npx playwright install chromium webkit
 `npm run audit:screens` checks the seeded audit app with iPhone 13, Pixel 7, narrow 320 px and
 desktop contexts. It records screenshots, page errors and overflow; Android scans also run Axe.
 `npm run audit:flows` exercises mutations, navigation, drafts, scheduling and PWA behavior in
-Chromium and WebKit. These commands require the audit stack and fixture manifest above.
+Chromium and WebKit. These commands require the audit stack and fixture manifest above. Where the
+installed browsers cannot be updated, both take `AUDIT_CHROMIUM_PATH`, as the food audit does.
 
 `npm run audit:recovery` exercises the real check-in form and all five recovery charts:
 complete/partial answers, edits, workout completion, date filters, reload and Back, plus
@@ -141,9 +142,13 @@ $env:AUDIT_BROWSER = 'webkit'
 npm run audit:food
 ```
 
-This covers feature gating, targets, meal/star/edit/delete flows, recovery after disconnection
-and a lost save reply, original-day drafts, account isolation, responsive forms and PWA behavior.
-Results and screenshots go to `output/food-audit/`. The browsers are emulated; physical-device
+This covers availability, targets, the six meals, new foods kept by logging them, amounts that
+scale a saved food, starring a meal under a name and adding it to another, changed portions and
+corrected foods, swipe removal, a retried save after a lost reply, the Food tab's totals, History
+inside Progress and the old paths' redirects, account isolation, responsive sheets and the Food
+and History screens with Axe, and PWA behavior (ADRs 0033, 0034). Results and screenshots go to
+`output/food-audit/`. Where the installed browsers are older than this Playwright, point
+`AUDIT_CHROMIUM_PATH` at a Chromium executable. The browsers are emulated; physical-device
 installation and keyboard behavior still need a device check. See the
 [food audit report](audits/2026-09-25-food-audit.md).
 

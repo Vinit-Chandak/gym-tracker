@@ -17,7 +17,10 @@ if (
 )
   throw new Error("Local audit only");
 const engine = process.env.AUDIT_BROWSER ?? "chromium";
-const browser = await (engine === "webkit" ? webkit : chromium).launch();
+// A machine whose browsers predate this Playwright can point at its own Chromium.
+const browser = await (engine === "webkit" ? webkit : chromium).launch({
+  executablePath: engine === "webkit" ? undefined : process.env.AUDIT_CHROMIUM_PATH,
+});
 const context = await browser.newContext({
   ...devices[engine === "webkit" ? "iPhone 13" : "Pixel 7"],
   baseURL,
@@ -36,8 +39,10 @@ await mkdir(dir, { recursive: true });
 const [user] = await sql`select id from profiles where username='sam'`;
 if (!user) throw new Error("Run audit:setup first");
 // Reset only nutrition fixtures belonging to the designated local test account.
-await sql`delete from meals where user_id=${user.id}`;
+await sql`delete from food_entries where user_id=${user.id}`;
+await sql`delete from foods where user_id=${user.id}`;
 await sql`delete from saved_meals where user_id=${user.id}`;
+await sql`delete from meals where user_id=${user.id}`;
 await sql`delete from nutrition_targets where user_id=${user.id}`;
 await sql`delete from food_submission_receipts where user_id=${user.id}`;
 async function check(name, run) {
@@ -60,10 +65,6 @@ async function navigate(path, options = {}) {
   if (page.url() !== "about:blank") await page.waitForLoadState("networkidle");
   return page.goto(path, { ...options, waitUntil: "networkidle" });
 }
-async function reload() {
-  await page.waitForLoadState("networkidle");
-  return page.reload({ waitUntil: "networkidle" });
-}
 async function login(name) {
   if (page.url() !== "about:blank") {
     // Exercise the actual account switch; clearing cookies under in-flight prefetches
@@ -78,21 +79,44 @@ async function login(name) {
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.waitForURL("**/today");
 }
-const dialog = () => page.getByRole("dialog");
-async function openNew(name) {
-  await page.getByRole("button", { name: "Add meal", exact: true }).click();
-  await dialog().getByLabel("Meal", { exact: true }).fill(name);
+/**
+ * Waits out the transitions a palette change starts. Controls cross-fade their colours, and a
+ * contrast check or screenshot taken mid-fade measures neither palette: the active tab dips
+ * below 2:1 halfway through a fade whose ends are 4.9:1 and 6:1.
+ */
+async function settle() {
+  await page.evaluate(async () => {
+    await new Promise(requestAnimationFrame);
+    await Promise.all(
+      document
+        .getAnimations()
+        .filter((animation) => animation.effect?.getTiming().iterations !== Infinity)
+        .map((animation) => animation.finished.catch(() => {})),
+    );
+  });
 }
-async function save() {
-  await dialog().getByRole("button", { name: "Save meal", exact: true }).click();
+const dialog = () => page.getByRole("dialog");
+const myFoods = () => page.getByRole("list", { name: "My foods" });
+const tab = (label) =>
+  page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: label });
+const selectedTab = () =>
+  page.getByRole("navigation", { name: "Primary" }).locator('a[aria-current="page"]');
+async function openMeal(label, slug) {
+  await navigate("/food");
+  await page.getByRole("link", { name: new RegExp(`^${label}`) }).click();
+  await page.waitForURL(`**/food/${slug}`);
+  await expect(page.getByRole("heading", { name: label, exact: true })).toBeVisible();
+}
+async function submit(name) {
+  await dialog().getByRole("button", { name, exact: true }).click();
   await expect(dialog()).toBeHidden();
 }
-async function mealCount(count) {
-  await expect
-    .poll(async () =>
-      Number((await sql`select count(*) from meals where user_id=${user.id}`)[0].count),
-    )
-    .toBe(count);
+async function entries(meal) {
+  return sql`select name, amount::float8 as amount, unit, portion_amount::float8 as portion
+    from food_entries where user_id=${user.id} and meal=${meal} order by created_at, position`;
+}
+async function count(table) {
+  return Number((await sql`select count(*) from ${sql(table)} where user_id=${user.id}`)[0].count);
 }
 // WebKit may reject emulated offline navigation before the service worker runs.
 // Disconnect an actual loopback proxy to exercise its real network-failure path.
@@ -123,9 +147,8 @@ async function offlineNavigation() {
     await probe.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
     disconnected = true;
     proxy.closeAllConnections();
-    await probe.goto(`${origin}/today/food`, { waitUntil: "domcontentloaded" });
+    await probe.goto(`${origin}/food`, { waitUntil: "domcontentloaded" });
     await expect(probe.getByRole("heading", { name: "You’re offline" })).toBeVisible();
-    await expect(probe.getByText(/meal drafts/)).toBeVisible();
     await probe.screenshot({ path: `${dir}/offline.png` });
     disconnected = false;
     await probe.goto(`${origin}/login`, { waitUntil: "networkidle" });
@@ -139,15 +162,33 @@ async function offlineNavigation() {
 try {
   await check("food is available to every signed-in account without configuration", async () => {
     await login("alex");
-    await page.locator('a[href="/today/food"]').click();
+    await tab("Food").click();
     await expect(page.getByRole("heading", { name: "Food", exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Add meal", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: /^Breakfast/ })).toBeVisible();
   });
   await login("sam");
-  await check("Today opens first-use food and keeps Today selected", async () => {
-    await page.locator('a[href="/today/food"]').click();
+  await check("the Food tab opens first-use food with the day's six meals", async () => {
+    await expect(page.getByRole("navigation", { name: "Primary" }).getByRole("link")).toHaveText([
+      "Today",
+      "Training",
+      "Food",
+      "Progress",
+      "Profile",
+    ]);
+    // Today no longer carries a food card: Food is its own tab (ADR 0034).
+    await expect(page.locator('main a[href^="/food"]')).toHaveCount(0);
+    await tab("Food").click();
     await expect(page.getByRole("heading", { name: "Set a daily target" })).toBeVisible();
-    await expect(page.locator('nav a[href="/today"]')).toHaveAttribute("aria-current", "page");
+    await expect(selectedTab()).toHaveText("Food");
+    const meals = page.locator('main a[href^="/food/"]');
+    await expect(meals).toHaveText([
+      /^Breakfast/,
+      /^Morning snack/,
+      /^Lunch/,
+      /^Afternoon snack/,
+      /^Dinner/,
+      /^Evening snack/,
+    ]);
   });
   await check("hidden invalid protein does not block the fixed preset", async () => {
     await page.getByLabel("Daily target, kcal").fill("2400");
@@ -156,134 +197,228 @@ try {
     await page.getByRole("button", { name: "Set target", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Set a daily target" })).toHaveCount(0);
   });
-  await check("validation focuses missing kcal and preserves entered foods", async () => {
-    await openNew("Audit breakfast");
-    await dialog().getByLabel("Food 1 name", { exact: true }).fill("Oats");
-    await dialog().getByRole("button", { name: "Save meal" }).click();
+  await check("a new food asks for its kcal, then is kept by being logged", async () => {
+    await openMeal("Breakfast", "breakfast");
+    await myFoods().getByRole("button", { name: "New food", exact: true }).click();
+    await dialog().getByLabel("Name", { exact: true }).fill("Oats");
+    await dialog().getByRole("button", { name: "Add to Breakfast", exact: true }).click();
     await expect(dialog().getByText("Enter the kcal.", { exact: true })).toBeVisible();
-    await expect(dialog().getByLabel("Food 1 kcal", { exact: true })).toBeFocused();
-    await dialog().getByLabel("Food 1 kcal", { exact: true }).fill("400.5");
-    await dialog().getByLabel("Food 1 Protein g", { exact: true }).fill("20");
-    await dialog().getByRole("button", { name: "Add food" }).click();
-    await dialog().getByLabel("Food 2 name", { exact: true }).fill("Milk");
-    await dialog().getByLabel("Food 2 kcal", { exact: true }).fill("199.5");
-    await dialog().getByRole("button", { name: "Star", exact: true }).click();
-    await save();
-    await mealCount(1);
-  });
-  await check("star chips copy a meal and editing a day leaves the saved copy intact", async () => {
-    await page.getByRole("button", { name: "Audit breakfast 600 kcal", exact: true }).click();
-    await mealCount(2);
-    await page
-      .getByRole("button", { name: /^Audit breakfast Starred/ })
-      .first()
-      .click();
-    await dialog().getByLabel("Food 1 kcal", { exact: true }).fill("1960.5");
-    await save();
-    const [saved] = await sql`select items from saved_meals where user_id=${user.id}`;
-    expect(saved.items[0].kcal).toBe(400.5);
-    await expect(page.getByText("Over", { exact: true })).toBeVisible();
-  });
-  await check("delete in edit sheet updates the goal band and Today totals", async () => {
-    await page
-      .getByRole("button", { name: /^Audit breakfast Starred/ })
-      .last()
-      .click();
-    await dialog().getByRole("button", { name: "Delete meal", exact: true }).click();
-    await expect(dialog()).toBeHidden();
-    await mealCount(1);
-    await expect(page.getByText("Goal met", { exact: true })).toBeVisible();
-    await page.locator('nav a[href="/today"]').click();
-    await expect(page.locator('a[href="/today/food"]')).toContainText("2,160");
-    await page.locator('a[href="/today/food"]').click();
+    await expect(dialog().getByLabel("kcal", { exact: true })).toBeFocused();
+    await dialog().getByLabel("kcal", { exact: true }).fill("389");
+    await dialog().getByLabel("Carbs g", { exact: true }).fill("66.3");
+    await dialog().getByLabel("Fat g", { exact: true }).fill("6.9");
+    await dialog().getByLabel("Protein g", { exact: true }).fill("16.9");
+    await dialog().getByLabel("Amount eaten", { exact: true }).fill("60");
+    await expect(dialog()).toContainText("233.4 kcal");
+    await submit("Add to Breakfast");
+    expect(await entries("breakfast")).toEqual([
+      { name: "Oats", amount: 60, unit: "g", portion: 100 },
+    ]);
+    await expect(page.getByRole("button", { name: /^Oats 60 g 233\.4 kcal/ })).toBeVisible();
+    await myFoods().getByRole("button", { name: "New food", exact: true }).click();
+    await dialog().getByLabel("Name", { exact: true }).fill("Milk");
+    await dialog().getByLabel("Unit", { exact: true }).selectOption("ml");
+    await dialog().getByLabel("kcal", { exact: true }).fill("52");
+    await dialog().getByLabel("Amount eaten", { exact: true }).fill("300");
+    await submit("Add to Breakfast");
+    expect(await count("foods")).toBe(2);
   });
   await check(
-    "offline draft survives reload and saves exactly once after a lost reply",
+    "a food from My foods is logged at another amount, its figures following",
     async () => {
-      await openNew("Offline lunch");
-      await dialog().getByLabel("Food 1 kcal", { exact: true }).fill("500");
-      await page.waitForLoadState("networkidle");
-      await context.setOffline(true);
-      await dialog().getByRole("button", { name: "Save meal", exact: true }).click();
-      await expect(dialog().getByText(/Connection lost/)).toBeVisible();
-      await context.setOffline(false);
-      await reload();
-      await page.getByRole("button", { name: "Resume draft", exact: true }).click();
-      await expect(dialog().getByLabel("Food 1 kcal", { exact: true })).toHaveValue("500");
-      let lost = false;
-      if (engine === "webkit") {
-        // WebKit routing cannot intercept this service-worker-controlled request.
-        // Let the real server commit, then withhold its reply at the fetch boundary.
-        await page.evaluate(() => {
-          const original = window.fetch;
-          window.fetch = async function (...args) {
-            const response = await original.apply(this, args);
-            if (args[1]?.method === "POST") {
-              await response.arrayBuffer();
-              window.fetch = original;
-              throw new TypeError("Audit: committed save reply lost");
-            }
-            return response;
-          };
-        });
-      } else {
-        await page.route("**/today/food", async (route) => {
-          if (route.request().method() === "POST") {
-            if (!lost) {
-              lost = true;
-              await route.fetch();
-            }
-            await route.abort("failed");
-          } else await route.continue();
-        });
-      }
-      await dialog().getByRole("button", { name: "Save meal", exact: true }).click();
-      if (engine !== "webkit") await expect.poll(() => lost).toBe(true);
-      await expect(dialog().getByText(/Connection lost/)).toBeVisible();
-      await mealCount(2);
-      await page.unroute("**/today/food");
-      await reload();
-      await page.getByRole("button", { name: "Resume draft", exact: true }).click();
-      await save();
-      await mealCount(2);
-      await expect(page.getByRole("button", { name: "Resume draft" })).toHaveCount(0);
-      await page.waitForLoadState("networkidle");
+      await openMeal("Lunch", "lunch");
+      await myFoods()
+        .getByRole("button", { name: /^Oats 100 g/ })
+        .click();
+      await dialog().getByRole("button", { name: "200 g", exact: true }).click();
+      await expect(dialog()).toContainText("778 kcal");
+      await submit("Add to Lunch");
+      expect(await entries("lunch")).toEqual([
+        { name: "Oats", amount: 200, unit: "g", portion: 100 },
+      ]);
+      await expect(page.getByRole("button", { name: /^Oats 200 g 778 kcal/ })).toBeVisible();
     },
   );
-  await check("a resumed draft retains its original day", async () => {
-    await openNew("Yesterday dinner");
-    await dialog().getByLabel("Food 1 kcal", { exact: true }).fill("300");
-    const yesterday = await page.evaluate(() => {
-      const key = Object.keys(localStorage).find((k) => k.startsWith("overload:food-draft:"));
-      const draft = JSON.parse(localStorage.getItem(key));
-      const date = new Date(`${draft.eatenOn}T12:00:00Z`);
-      date.setUTCDate(date.getUTCDate() - 1);
-      draft.eatenOn = date.toISOString().slice(0, 10);
-      localStorage.setItem(key, JSON.stringify(draft));
-      return draft.eatenOn;
-    });
-    await reload();
-    await page.getByRole("button", { name: "Resume draft", exact: true }).click();
-    await expect(dialog().getByText(`Logging for ${yesterday}`, { exact: true })).toBeVisible();
-    await save();
-    const [meal] =
-      await sql`select eaten_on::text as day from meals where user_id=${user.id} and name='Yesterday dinner'`;
-    expect(meal.day).toBe(yesterday);
+  await check("a meal starred under a name is added to another meal as it was", async () => {
+    await openMeal("Breakfast", "breakfast");
+    await page.getByRole("button", { name: "Star", exact: true }).click();
+    await dialog().getByLabel("Name", { exact: true }).fill("Usual breakfast");
+    await submit("Save meal");
+    await expect(page.getByRole("button", { name: "Star", exact: true })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await expect(page.getByText("Saved as Usual breakfast", { exact: true })).toBeVisible();
+    await openMeal("Dinner", "dinner");
+    await page
+      .getByRole("list", { name: "Saved meals" })
+      .getByRole("button", { name: /^Usual breakfast/ })
+      .click();
+    await submit("Add to Dinner");
+    expect(await entries("dinner")).toEqual(await entries("breakfast"));
+    await expect(page.getByRole("button", { name: "Star", exact: true })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
-  await check("unstarring removes only the saved copy", async () => {
-    await page.getByRole("button", { name: "Edit", exact: true }).click();
-    await page.getByRole("button", { name: "Unstar Audit breakfast", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "Starred", exact: true })).toHaveCount(0);
-    await mealCount(3);
+  await check(
+    "a changed portion is a meal of its own; a corrected food leaves days alone",
+    async () => {
+      await page.getByRole("button", { name: /^Oats 60 g/ }).click();
+      await dialog().getByLabel("Amount eaten", { exact: true }).fill("80");
+      await submit("Save");
+      await expect(page.getByRole("button", { name: "Star", exact: true })).toHaveAttribute(
+        "aria-pressed",
+        "false",
+      );
+      await myFoods()
+        .getByRole("button", { name: /^Oats 100 g/ })
+        .click();
+      await dialog().getByRole("button", { name: "Edit Oats", exact: true }).click();
+      await dialog().getByLabel("kcal", { exact: true }).fill("379");
+      await submit("Save food");
+      const [saved] = await sql`select items from saved_meals where user_id=${user.id}`;
+      expect(saved.items.find((item) => item.name === "Oats").kcal).toBe(389);
+      const kcal = await sql`select distinct kcal::float8 as kcal from food_entries
+      where user_id=${user.id} and name='Oats'`;
+      expect(kcal).toEqual([{ kcal: 389 }]);
+    },
+  );
+  await check("swiping reveals Remove without opening or removing the food", async () => {
+    const row = page.getByRole("button", { name: /^Milk 300 ml/ });
+    const box = await row.boundingBox();
+    await page.mouse.move(box.x + box.width - 20, box.y + 20);
+    await page.mouse.down();
+    await page.mouse.move(box.x + 20, box.y + 20, { steps: 12 });
+    await page.mouse.up();
+    await expect(dialog()).toBeHidden();
+    expect((await entries("dinner")).length).toBe(2);
+    await page.getByRole("button", { name: "Remove Milk", exact: true }).click();
+    await expect.poll(async () => (await entries("dinner")).length).toBe(1);
   });
-  await check("responsive layouts, 200% text, light/dark and accessible forms", async () => {
-    await openNew("Long meal " + "x".repeat(70));
-    await dialog()
-      .getByLabel("Food 1 name", { exact: true })
-      .fill("Food" + "y".repeat(76));
-    await dialog().getByLabel("Food 1 kcal", { exact: true }).fill("10000");
-    await dialog().getByLabel("Food 1 Protein g", { exact: true }).fill("1000");
-    await save();
+  await check("a retried add after a lost reply logs the food exactly once", async () => {
+    await openMeal("Afternoon snack", "afternoon-snack");
+    await myFoods()
+      .getByRole("button", { name: /^Milk 100 ml/ })
+      .click();
+    await page.waitForLoadState("networkidle");
+    await context.setOffline(true);
+    await dialog().getByRole("button", { name: "Add to Afternoon snack", exact: true }).click();
+    await expect(dialog().getByText(/Connection lost/)).toBeVisible();
+    await context.setOffline(false);
+    let lost = false;
+    if (engine === "webkit") {
+      // WebKit routing cannot intercept this service-worker-controlled request.
+      // Let the real server commit, then withhold its reply at the fetch boundary.
+      await page.evaluate(() => {
+        const original = window.fetch;
+        window.fetch = async function (...args) {
+          const response = await original.apply(this, args);
+          if (args[1]?.method === "POST") {
+            await response.arrayBuffer();
+            window.fetch = original;
+            throw new TypeError("Audit: committed save reply lost");
+          }
+          return response;
+        };
+      });
+    } else {
+      await page.route("**/food/afternoon-snack", async (route) => {
+        if (route.request().method() === "POST") {
+          if (!lost) {
+            lost = true;
+            await route.fetch();
+          }
+          await route.abort("failed");
+        } else await route.continue();
+      });
+    }
+    await dialog().getByRole("button", { name: "Add to Afternoon snack", exact: true }).click();
+    if (engine !== "webkit") await expect.poll(() => lost).toBe(true);
+    await expect(dialog().getByText(/Connection lost/)).toBeVisible();
+    await expect.poll(async () => (await entries("afternoon_snack")).length).toBe(1);
+    await page.unroute("**/food/afternoon-snack");
+    await submit("Add to Afternoon snack");
+    expect((await entries("afternoon_snack")).length).toBe(1);
+  });
+  await check(
+    "the Food tab agrees with the database, and a meal's page keeps it selected",
+    async () => {
+      const [{ kcal }] =
+        await sql`select coalesce(sum(round(kcal * amount / portion_amount, 1)), 0)::float8 as kcal
+      from food_entries where user_id=${user.id} and eaten_on = (
+        select (now() at time zone time_zone)::date from profiles where id=${user.id})`;
+      const total = kcal.toLocaleString("en-GB", { maximumFractionDigits: 1 });
+      await tab("Food").click();
+      await expect(page.getByText(`${total} / 2,400 kcal`, { exact: false })).toBeVisible();
+      await page.getByRole("link", { name: /^Lunch/ }).click();
+      await page.waitForURL("**/food/lunch");
+      await expect(selectedTab()).toHaveText("Food");
+      await page.getByRole("link", { name: "Back to Food" }).click();
+      await page.waitForURL(/\/food$/);
+    },
+  );
+  await check(
+    "History is a section of Progress, and the old paths land where they went",
+    async () => {
+      await navigate("/today/food/breakfast");
+      expect(new URL(page.url()).pathname).toBe("/food/breakfast");
+      await navigate("/today/food");
+      expect(new URL(page.url()).pathname).toBe("/food");
+      await navigate("/history?kind=workout");
+      expect(new URL(page.url()).pathname + new URL(page.url()).search).toBe(
+        "/progress/history?kind=workout",
+      );
+      await expect(selectedTab()).toHaveText("Progress");
+      await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
+      // The picker names the section; the filters beside it keep the kind from the old link.
+      await expect(page.getByRole("button", { name: "Progress section: History" })).toBeVisible();
+      await expect(page.getByRole("button", { name: /^Filters/ })).toContainText("1");
+      await page.getByRole("button", { name: "Progress section: History" }).click();
+      await dialog().getByRole("link", { name: "Strength", exact: true }).click();
+      await page.waitForURL("**/progress?kind=workout&view=strength");
+      await expect(page.getByRole("button", { name: "Progress section: Strength" })).toBeVisible();
+      // From the Progress page, History is loaded whole while the list is open, so choosing it
+      // sends no request of its own.
+      await tab("Today").click();
+      await page.waitForURL(/\/today$/);
+      await tab("Progress").click();
+      await page.waitForURL(/\/progress$/);
+      // The whole page arrives as one request without Next's prefetch header, after the one
+      // for its route that carries it.
+      const prefetched = page.waitForResponse((response) => {
+        const url = new URL(response.url());
+        return (
+          url.pathname === "/progress/history" &&
+          url.searchParams.has("_rsc") &&
+          !response.request().headers()["next-router-prefetch"]
+        );
+      });
+      await page.getByRole("button", { name: "Progress section: Overview" }).click();
+      await prefetched;
+      const requests = [];
+      const record = (request) => {
+        if (new URL(request.url()).pathname === "/progress/history") requests.push(request.url());
+      };
+      page.on("request", record);
+      // Timed from the tap, once the sheet has risen: Playwright waits for moving targets.
+      await settle();
+      const started = Date.now();
+      await dialog().getByRole("link", { name: "History", exact: true }).click();
+      await expect(page.getByRole("button", { name: "Progress section: History" })).toBeVisible();
+      const elapsed = Date.now() - started;
+      page.off("request", record);
+      expect(new URL(page.url()).pathname).toBe("/progress/history");
+      expect(requests).toEqual([]);
+      await expect(page.getByRole("status").filter({ hasText: /entr(y|ies)$/ })).toBeVisible();
+      console.log(`  History from Progress's picker: ${elapsed} ms, no request`);
+      // In Progress's place, as a section chosen in place is: Back leaves the tab.
+      await page.goBack();
+      await page.waitForURL(/\/today$/);
+    },
+  );
+  await check("responsive layouts, 200% text, light/dark and accessible sheets", async () => {
+    await openMeal("Breakfast", "breakfast");
     for (const [width, height, font] of [
       [320, 568, 16],
       [390, 844, 16],
@@ -297,77 +432,88 @@ try {
       await page.evaluate((size) => (document.documentElement.style.fontSize = `${size}px`), font);
       for (const scheme of ["light", "dark"]) {
         await page.emulateMedia({ colorScheme: scheme });
+        await settle();
         await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
         expect(
           await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),
         ).toBe(true);
         await page.screenshot({
-          path: `${dir}/food-${width}-${height}-${font}-${scheme}.png`,
+          path: `${dir}/meal-${width}-${height}-${font}-${scheme}.png`,
           fullPage: true,
         });
-        await page.getByRole("button", { name: "Add meal", exact: true }).click();
-        await dialog().getByLabel("Food 1 kcal", { exact: true }).scrollIntoViewIfNeeded();
-        await expect(dialog().getByLabel("Food 1 kcal", { exact: true })).toBeInViewport();
-        await dialog()
-          .getByRole("button", { name: "Save meal", exact: true })
-          .scrollIntoViewIfNeeded();
-        await expect(
-          dialog().getByRole("button", { name: "Save meal", exact: true }),
-        ).toBeInViewport();
-        expect(await dialog().evaluate((d) => d.scrollWidth <= d.clientWidth + 1)).toBe(true);
-        await page.screenshot({ path: `${dir}/sheet-${width}-${height}-${font}-${scheme}.png` });
-        if (width === 390 && height === 844) {
-          const axe = await new AxeBuilder({ page })
-            .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
-            .analyze();
-          expect(
-            axe.violations.map((v) => ({ id: v.id, nodes: v.nodes.map((n) => n.target) })),
-          ).toEqual([]);
+        for (const [name, open, field, primary] of [
+          [
+            "portion",
+            () =>
+              myFoods()
+                .getByRole("button", { name: /^Oats 100 g/ })
+                .click(),
+            "Amount eaten",
+            "Add to Breakfast",
+          ],
+          [
+            "new-food",
+            () => myFoods().getByRole("button", { name: "New food", exact: true }).click(),
+            "kcal",
+            "Add to Breakfast",
+          ],
+        ]) {
+          await open();
+          // The sheet rises and fades in; measure it once it has arrived.
+          await settle();
+          await dialog().getByLabel(field, { exact: true }).scrollIntoViewIfNeeded();
+          await expect(dialog().getByLabel(field, { exact: true })).toBeInViewport();
+          await dialog()
+            .getByRole("button", { name: primary, exact: true })
+            .scrollIntoViewIfNeeded();
+          await expect(
+            dialog().getByRole("button", { name: primary, exact: true }),
+          ).toBeInViewport();
+          expect(await dialog().evaluate((d) => d.scrollWidth <= d.clientWidth + 1)).toBe(true);
+          await page.screenshot({
+            path: `${dir}/${name}-${width}-${height}-${font}-${scheme}.png`,
+          });
+          if (width === 390 && height === 844 && font === 16) {
+            const axe = await new AxeBuilder({ page })
+              .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+              .analyze();
+            expect(
+              axe.violations.map((v) => ({ id: v.id, nodes: v.nodes.map((n) => n.target) })),
+            ).toEqual([]);
+          }
+          await dialog().getByRole("button", { name: "Close sheet" }).click();
         }
-        await dialog().getByRole("button", { name: "Close sheet" }).click();
-        const targets = page.locator("summary").filter({ hasText: "Targets" });
-        await targets.click();
-        await expect(page.getByLabel("Daily target, kcal")).toBeVisible();
-        expect(
-          await targets.evaluate((summary) => {
-            const [label, meta] = [...summary.querySelectorAll(":scope > span")].map((n) =>
-              n.getBoundingClientRect(),
-            );
-            return !label || !meta || label.right <= meta.left + 1 || meta.top >= label.bottom - 1;
-          }),
-        ).toBe(true);
-        expect(
-          await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),
-        ).toBe(true);
-        await page.screenshot({
-          path: `${dir}/targets-${width}-${height}-${font}-${scheme}.png`,
-          fullPage: true,
-        });
-        await targets.click();
       }
     }
-  });
-  await check("swiping reveals deletion without opening or deleting the meal", async () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.evaluate(() => (document.documentElement.style.fontSize = "16px"));
-    const row = page.getByRole("button", { name: /^Offline lunch 500 kcal/ });
-    await row.scrollIntoViewIfNeeded();
-    const box = await row.boundingBox();
-    await page.mouse.move(box.x + box.width - 20, box.y + 20);
-    await page.mouse.down();
-    await page.mouse.move(box.x + 20, box.y + 20, { steps: 12 });
-    await page.mouse.up();
-    await expect(dialog()).toBeHidden();
-    await mealCount(4);
-    await page.getByRole("button", { name: "Delete Offline lunch", exact: true }).click();
-    await mealCount(3);
+    for (const [path, name] of [
+      ["/food", "food"],
+      ["/progress/history", "history"],
+    ]) {
+      await navigate(path);
+      for (const scheme of ["light", "dark"]) {
+        await page.emulateMedia({ colorScheme: scheme });
+        await settle();
+        const axe = await new AxeBuilder({ page })
+          .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+          .analyze();
+        expect(
+          axe.violations.map((v) => ({ id: v.id, nodes: v.nodes.map((n) => n.target) })),
+        ).toEqual([]);
+        await page.screenshot({ path: `${dir}/${name}-390-844-${scheme}.png`, fullPage: true });
+      }
+    }
+    // Progress's picker, with History among its sections.
+    await navigate("/progress");
+    await page.getByRole("button", { name: "Progress section: Overview" }).click();
+    await settle();
+    await page.screenshot({ path: `${dir}/progress-sections-390-844-dark.png` });
+    await dialog().getByRole("button", { name: "Close sheet" }).click();
   });
   await check(
-    "missing body weight, profile changes, over-budget targets and account draft isolation",
+    "missing body weight, profile changes, over-budget targets and isolation",
     async () => {
-      await openNew("Private draft");
-      await dialog().getByLabel("Food 1 kcal", { exact: true }).fill("100");
-      await dialog().getByRole("button", { name: "Close sheet" }).click();
       await sql`update profiles set body_weight_kg=null where username='vinit'`;
       await sql`delete from nutrition_targets where user_id=(select id from profiles where username='vinit')`;
       await login("vinit");
@@ -382,8 +528,10 @@ try {
           sameSite: "Lax",
         },
       ]);
-      await navigate("/today/food");
-      await expect(page.getByText("Private draft", { exact: false })).toHaveCount(0);
+      await navigate("/food/breakfast");
+      // Another account's foods are nobody else's.
+      await expect(myFoods().getByRole("button", { name: /^Oats/ })).toHaveCount(0);
+      await navigate("/food");
       await page.getByLabel("Daily target, kcal").fill("2400");
       await page.getByRole("button", { name: "Set target", exact: true }).click();
       await expect(page.getByText(/There is no body weight/)).toBeVisible();
@@ -394,7 +542,7 @@ try {
       await page.getByLabel("Training goal", { exact: true }).selectOption("get_stronger");
       await page.getByRole("button", { name: "Save", exact: true }).click();
       await expect(page.getByText("Profile saved", { exact: true })).toHaveCount(1);
-      await navigate("/today/food");
+      await navigate("/food");
       await page.locator("summary").filter({ hasText: "Targets" }).click();
       await expect(page.getByText("144 g at 80 kg", { exact: true })).toBeVisible();
       await page.getByLabel("Daily target, kcal").fill("500");
@@ -405,15 +553,8 @@ try {
       await expect(page.locator("summary").filter({ hasText: "Targets" })).toContainText(
         "500 kcal",
       );
-      await reload();
+      await page.reload({ waitUntil: "networkidle" });
       await expect(page.getByText(/nothing left for carbs/)).toBeVisible();
-      await login("sam");
-      await navigate("/today/food");
-      await page.getByRole("button", { name: "Resume draft", exact: true }).click();
-      await expect(dialog().getByLabel("Meal", { exact: true })).toHaveValue("Private draft");
-      await dialog().getByRole("button", { name: "Close sheet" }).click();
-      await page.getByRole("button", { name: "Discard draft", exact: true }).click();
-      await expect(page.getByRole("button", { name: "Resume draft" })).toHaveCount(0);
     },
   );
   await check(
@@ -461,18 +602,18 @@ try {
         ).flat(),
       );
       expect(
-        keys.some(
-          (k) => k.startsWith("/today") || k.startsWith("/api/") || k.startsWith("/profile"),
+        keys.some((k) =>
+          ["/today", "/food", "/progress", "/api/", "/profile"].some((path) => k.startsWith(path)),
         ),
       ).toBe(false);
       if (engine === "chromium") {
         await page.waitForLoadState("networkidle");
         await context.setOffline(true);
-        await navigate("/today/food");
+        await navigate("/food");
         await expect(page.getByRole("heading", { name: "You’re offline" })).toBeVisible();
         await context.setOffline(false);
         await page.getByRole("link", { name: "Try again" }).click();
-        await expect(page.locator('a[href="/today/food"]')).toBeVisible();
+        await expect(tab("Food")).toBeVisible();
       } else await offlineNavigation();
     }
   });

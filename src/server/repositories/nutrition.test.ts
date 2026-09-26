@@ -1,24 +1,32 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { mealItems, meals, savedMeals } from "@/db/schema";
+import { foodEntries, foods, savedMeals } from "@/db/schema";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
-import type { FoodItem } from "@/domain/nutrition";
+import { eaten, sameFoods, type Food, type Meal } from "@/domain/nutrition";
 import { ensureProfile } from "@/server/queries/profile";
 
 import {
-  createMeal,
-  submitFoodOnce,
-  deleteMeal,
+  AmountTooLargeError,
+  deleteEntry,
+  deleteFood,
   deleteSavedMeal,
+  EmptyMealError,
+  EntryNotFoundError,
+  FoodNameTakenError,
+  FoodNotFoundError,
+  logFood,
   logSavedMeal,
-  MealNotFoundError,
   readFoodDay,
-  readFoodScreen,
+  readMealScreen,
   SavedMealNotFoundError,
+  SavedMealTooLargeError,
+  saveMeal,
   saveNutritionTargets,
-  updateMeal,
+  submitFoodOnce,
+  updateEntryAmount,
+  updateFood,
 } from "./nutrition";
 
 let t: TestDatabase;
@@ -27,17 +35,36 @@ let other: { id: string; email: string };
 
 const TODAY = "2026-09-25";
 const YESTERDAY = "2026-09-24";
+const at = (meal: Meal, eatenOn = TODAY) => ({ eatenOn, meal });
 
-const PEANUT_BUTTER: FoodItem = {
-  name: "Peanut butter, 75 g",
-  kcal: 441.5,
-  carbsG: 15,
-  fatG: 37.5,
-  proteinG: 18.8,
+const OATS: Food = {
+  name: "Oats",
+  portionAmount: 100,
+  unit: "g",
+  kcal: 389,
+  carbsG: 66.3,
+  fatG: 6.9,
+  proteinG: 16.9,
 };
-const MILK: FoodItem = { name: "Milk, 250 ml", kcal: 160, carbsG: 12, fatG: 8, proteinG: 8.5 };
-/** A guessed takeaway: the energy and nothing else. */
-const TAKEAWAY: FoodItem = { name: null, kcal: 900, carbsG: null, fatG: null, proteinG: null };
+const MILK: Food = {
+  name: "Milk",
+  portionAmount: 250,
+  unit: "ml",
+  kcal: 160,
+  carbsG: 12,
+  fatG: 8,
+  proteinG: 8.5,
+};
+/** A guessed takeaway: one serving, its energy and nothing else. */
+const TAKEAWAY: Food = {
+  name: "Thai takeaway",
+  portionAmount: 1,
+  unit: "serving",
+  kcal: 900,
+  carbsG: null,
+  fatG: null,
+  proteinG: null,
+};
 
 /** Drizzle wraps driver errors ("Failed query: …"); the Postgres message sits in `cause`. */
 async function failure(promise: Promise<unknown>): Promise<string> {
@@ -58,6 +85,11 @@ async function failure(promise: Promise<unknown>): Promise<string> {
 const as = <T>(account: { id: string }, fn: Parameters<typeof withUser<T>>[2]) =>
   withUser(t.db, account.id, fn);
 
+const foodId = async (account: { id: string }, name: string) =>
+  (await as(account, (tx) => readMealScreen(tx, account.id, at("breakfast")))).foods.find(
+    (food) => food.name === name,
+  )!.id;
+
 beforeAll(async () => {
   t = await createTestDatabase();
   user = await t.createAuthUser("eater@example.test");
@@ -65,60 +97,6 @@ beforeAll(async () => {
   for (const account of [user, other]) {
     await withUser(t.db, account.id, (tx) => ensureProfile(tx, account));
   }
-});
-
-it("retries a committed save without duplicating meals or stars, even after deletion", async () => {
-  const key = crypto.randomUUID();
-  const input = { name: "Receipt meal", items: [MILK], starred: true };
-  const save = () =>
-    as(user, (tx) =>
-      submitFoodOnce(tx, user.id, key, input, () => createMeal(tx, user.id, TODAY, input)),
-    );
-  await save();
-  await save();
-  const matching = (await as(user, (tx) => readFoodScreen(tx, user.id, TODAY))).meals.filter(
-    (m) => m.name === input.name,
-  );
-  expect(matching).toHaveLength(1);
-  await expect(
-    as(user, (tx) =>
-      submitFoodOnce(tx, user.id, key, { ...input, name: "Changed" }, () =>
-        createMeal(tx, user.id, TODAY, input),
-      ),
-    ),
-  ).rejects.toThrow(/already saved/);
-  await as(user, (tx) => deleteMeal(tx, user.id, matching[0]!.id));
-  await save();
-  expect(
-    (await as(user, (tx) => readFoodScreen(tx, user.id, TODAY))).meals.some(
-      (m) => m.name === input.name,
-    ),
-  ).toBe(false);
-  await as(user, (tx) => deleteSavedMeal(tx, user.id, matching[0]!.savedMealId!));
-});
-
-it("rolls the receipt back when the save fails and scopes keys to the account", async () => {
-  const key = crypto.randomUUID();
-  const input = { name: "Retry after rollback", items: [MILK], starred: false };
-  await expect(
-    as(user, (tx) =>
-      submitFoodOnce(tx, user.id, key, input, async () => {
-        throw new Error("write failed");
-      }),
-    ),
-  ).rejects.toThrow("write failed");
-  for (const account of [user, other])
-    await as(account, (tx) =>
-      submitFoodOnce(tx, account.id, key, input, () => createMeal(tx, account.id, TODAY, input)),
-    );
-  for (const account of [user, other])
-    expect(
-      (await as(account, (tx) => readFoodScreen(tx, account.id, TODAY))).meals.filter(
-        (m) => m.name === input.name,
-      ),
-    ).toHaveLength(1);
-  for (const account of [user, other])
-    await as(account, (tx) => tx.delete(meals).where(eq(meals.userId, account.id)));
 });
 
 afterAll(async () => {
@@ -129,25 +107,20 @@ describe("targets", () => {
   it("reads nothing set and nothing eaten as exactly that", async () => {
     expect(await as(user, (tx) => readFoodDay(tx, user.id, TODAY))).toEqual({
       targets: null,
+      entries: [],
       eaten: { kcal: 0, carbsG: 0, fatG: 0, proteinG: 0 },
     });
   });
 
   it("keeps one row of targets per account, the last save winning", async () => {
-    await as(user, (tx) =>
-      saveNutritionTargets(tx, user.id, {
-        dailyKcal: 2400,
-        proteinPerKg: 1.8,
-        split: "body_weight",
-      }),
-    );
-    await as(user, (tx) =>
-      saveNutritionTargets(tx, user.id, {
-        dailyKcal: 2500,
-        proteinPerKg: 2.2,
-        split: "body_weight",
-      }),
-    );
+    for (const [dailyKcal, proteinPerKg] of [
+      [2400, 1.8],
+      [2500, 2.2],
+    ] as const) {
+      await as(user, (tx) =>
+        saveNutritionTargets(tx, user.id, { dailyKcal, proteinPerKg, split: "body_weight" }),
+      );
+    }
     const day = await as(user, (tx) => readFoodDay(tx, user.id, TODAY));
     expect(day.targets).toEqual({ dailyKcal: 2500, proteinPerKg: 2.2, split: "body_weight" });
   });
@@ -167,246 +140,451 @@ describe("targets", () => {
   });
 });
 
-describe("meals", () => {
-  let snackId: string;
-
-  it("logs a meal with its foods, in the order they were entered", async () => {
-    snackId = await as(user, (tx) =>
-      createMeal(tx, user.id, TODAY, {
-        name: "Afternoon meal 1",
-        items: [PEANUT_BUTTER, MILK],
-        starred: false,
-      }),
-    );
-    const screen = await as(user, (tx) => readFoodScreen(tx, user.id, TODAY));
-    expect(screen.meals).toEqual([
+describe("logging a food", () => {
+  it("saves a new food to My foods by logging it, at whatever amount was eaten", async () => {
+    await as(user, (tx) => logFood(tx, user.id, at("breakfast"), { food: OATS, amount: 60 }));
+    const screen = await as(user, (tx) => readMealScreen(tx, user.id, at("breakfast")));
+    expect(screen.foods).toEqual([{ id: expect.any(String), ...OATS }]);
+    expect(screen.entries).toEqual([
       {
-        id: snackId,
-        name: "Afternoon meal 1",
+        id: expect.any(String),
         eatenOn: TODAY,
-        savedMealId: null,
-        items: [PEANUT_BUTTER, MILK],
-        totals: { kcal: 601.5, carbsG: 27, fatG: 45.5, proteinG: 27.3 },
+        meal: "breakfast",
+        foodId: screen.foods[0]!.id,
+        ...OATS,
+        amount: 60,
       },
     ]);
+    // 60 g of a food saved per 100 g.
+    expect((await as(user, (tx) => readFoodDay(tx, user.id, TODAY))).eaten).toEqual({
+      kcal: 233.4,
+      carbsG: 39.8,
+      fatG: 4.1,
+      proteinG: 10.1,
+    });
+  });
+
+  it("logs a saved food at another amount, the food itself unchanged", async () => {
+    const id = await foodId(user, "Oats");
+    await as(user, (tx) => logFood(tx, user.id, at("lunch"), { food: { id }, amount: 200 }));
+    const lunch = await as(user, (tx) => readMealScreen(tx, user.id, at("lunch")));
+    expect(lunch.entries.map(eaten)).toEqual([
+      { kcal: 778, carbsG: 132.6, fatG: 13.8, proteinG: 33.8 },
+    ]);
+    expect(lunch.foods.find((food) => food.id === id)).toEqual({ id, ...OATS });
+    // Each meal holds only its own.
+    expect(
+      (await as(user, (tx) => readMealScreen(tx, user.id, at("breakfast")))).entries,
+    ).toHaveLength(1);
   });
 
   it("adds every meal of the day, and only that day, into its totals", async () => {
+    await as(user, (tx) => logFood(tx, user.id, at("dinner"), { food: TAKEAWAY, amount: 1 }));
     await as(user, (tx) =>
-      createMeal(tx, user.id, TODAY, { name: "Dinner out", items: [TAKEAWAY], starred: false }),
-    );
-    await as(user, (tx) =>
-      createMeal(tx, user.id, YESTERDAY, { name: "Yesterday", items: [MILK], starred: false }),
+      logFood(tx, user.id, at("dinner", YESTERDAY), { food: MILK, amount: 500 }),
     );
     const day = await as(user, (tx) => readFoodDay(tx, user.id, TODAY));
-    // The takeaway's macronutrients were never given, so it adds energy and no grams.
-    expect(day.eaten).toEqual({ kcal: 1501.5, carbsG: 27, fatG: 45.5, proteinG: 27.3 });
-    const screen = await as(user, (tx) => readFoodScreen(tx, user.id, TODAY));
-    expect(screen.meals.map((meal) => meal.name)).toEqual(["Afternoon meal 1", "Dinner out"]);
-    expect(screen.meals.find((meal) => meal.name === "Dinner out")).toMatchObject({
-      items: [TAKEAWAY],
-      totals: { kcal: 900 },
-    });
+    expect(day.entries.map((entry) => [entry.meal, entry.name])).toEqual([
+      ["breakfast", "Oats"],
+      ["lunch", "Oats"],
+      ["dinner", "Thai takeaway"],
+    ]);
+    // The takeaway's macronutrients were never given: energy, and no grams.
+    expect(day.eaten).toEqual({ kcal: 1911.4, carbsG: 172.4, fatG: 17.9, proteinG: 43.9 });
   });
 
-  it("keeps an unnamed zero-kcal food editable instead of dropping the joined row", async () => {
-    const item = { ...TAKEAWAY, kcal: 0 };
-    const id = await as(user, (tx) =>
-      createMeal(tx, user.id, TODAY, { name: "Zero", items: [item], starred: false }),
-    );
-    const screen = await as(user, (tx) => readFoodScreen(tx, user.id, TODAY));
-    expect(screen.meals.find((meal) => meal.id === id)?.items).toEqual([item]);
-    await as(user, (tx) => deleteMeal(tx, user.id, id));
-  });
-
-  it("rewrites a meal's name and foods on the day it was eaten", async () => {
+  it("lists My foods with the most lately eaten first", async () => {
+    const milk = await foodId(user, "Milk");
+    const names = async () =>
+      (await as(user, (tx) => readMealScreen(tx, user.id, at("breakfast")))).foods.map(
+        (food) => food.name,
+      );
+    const oats = await foodId(user, "Oats");
+    expect(await names()).toEqual(["Milk", "Thai takeaway", "Oats"]);
     await as(user, (tx) =>
-      updateMeal(tx, user.id, snackId, {
-        name: "Peanut butter toast",
-        items: [MILK, { ...PEANUT_BUTTER, kcal: 300 }],
-        starred: false,
-      }),
+      logFood(tx, user.id, at("breakfast"), { food: { id: oats }, amount: 1 }),
     );
-    const screen = await as(user, (tx) => readFoodScreen(tx, user.id, TODAY));
-    const snack = screen.meals.find((meal) => meal.id === snackId);
-    expect(snack).toMatchObject({
-      name: "Peanut butter toast",
-      eatenOn: TODAY,
-      items: [MILK, { ...PEANUT_BUTTER, kcal: 300 }],
-    });
-    // Still first: editing a meal does not move it down the day.
-    expect(screen.meals[0]?.id).toBe(snackId);
+    expect(await names()).toEqual(["Oats", "Milk", "Thai takeaway"]);
+    await as(user, (tx) =>
+      logFood(tx, user.id, at("evening_snack"), { food: { id: milk }, amount: 1 }),
+    );
+    expect(await names()).toEqual(["Milk", "Oats", "Thai takeaway"]);
   });
 
-  it("deletes a meal together with its foods, and treats a second delete as done", async () => {
-    const id = await as(user, (tx) =>
-      createMeal(tx, user.id, TODAY, { name: "Mistake", items: [MILK], starred: false }),
-    );
-    expect(await as(user, (tx) => deleteMeal(tx, user.id, id))).toBe(true);
-    expect(await as(user, (tx) => deleteMeal(tx, user.id, id))).toBe(false);
-    const left = await t.db.select().from(mealItems).where(eq(mealItems.mealId, id));
-    expect(left).toEqual([]);
+  it("refuses a second food of the same name, whatever its capitals", async () => {
+    await expect(
+      as(user, (tx) =>
+        logFood(tx, user.id, at("breakfast"), { food: { ...MILK, name: "MILK" }, amount: 1 }),
+      ),
+    ).rejects.toThrow(FoodNameTakenError);
+    // Even when two requests race past the check, the database says the same.
+    expect(
+      await failure(
+        as(user, (tx) => tx.insert(foods).values({ userId: user.id, ...MILK, name: "milk" })),
+      ),
+    ).toMatch(/foods_owner_name_uq/);
   });
 
-  it("refuses a food outside the bounds, where the data lives", async () => {
+  it("refuses an amount that comes to more than one food can, and writes nothing", async () => {
+    const before = (await as(user, (tx) => readFoodDay(tx, user.id, TODAY))).entries.length;
+    await expect(
+      as(user, (tx) =>
+        logFood(tx, user.id, at("lunch"), { food: { ...OATS, name: "Oat flour" }, amount: 5000 }),
+      ),
+    ).rejects.toThrow(AmountTooLargeError);
+    const oats = await foodId(user, "Oats");
+    await expect(
+      as(user, (tx) => logFood(tx, user.id, at("lunch"), { food: { id: oats }, amount: 5000 })),
+    ).rejects.toThrow("That comes to more than 10,000 kcal.");
+    expect((await as(user, (tx) => readFoodDay(tx, user.id, TODAY))).entries).toHaveLength(before);
+    const names = (await as(user, (tx) => readMealScreen(tx, user.id, at("lunch")))).foods;
+    expect(names.map((food) => food.name)).not.toContain("Oat flour");
+  });
+
+  it("refuses a food that is not the account's, and figures outside the bounds", async () => {
+    await expect(
+      as(user, (tx) =>
+        logFood(tx, user.id, at("lunch"), { food: { id: crypto.randomUUID() }, amount: 1 }),
+      ),
+    ).rejects.toThrow(FoodNotFoundError);
     expect(
       await failure(
         as(user, (tx) =>
-          createMeal(tx, user.id, TODAY, {
-            name: "Negative",
-            items: [{ ...MILK, kcal: -5 }],
-            starred: false,
+          logFood(tx, user.id, at("lunch"), {
+            food: { ...OATS, name: "Negative", kcal: -5 },
+            amount: 1,
           }),
         ),
       ),
-    ).toMatch(/meal_items_values_chk/);
+    ).toMatch(/foods_values_chk/);
+    expect(
+      await failure(
+        as(user, (tx) =>
+          logFood(tx, user.id, at("lunch"), {
+            food: { ...OATS, name: "Cups", unit: "bucket" as Food["unit"] },
+            amount: 1,
+          }),
+        ),
+      ),
+    ).toMatch(/foods_values_chk/);
   });
 });
 
-describe("starred meals", () => {
-  it("stars a copy of a meal when it is logged with the star on", async () => {
+describe("changing what was eaten", () => {
+  it("rescales an entry from its own copy, exactly, however often it changes", async () => {
+    const [entry] = (await as(user, (tx) => readMealScreen(tx, user.id, at("lunch")))).entries;
+    const lunch = async () =>
+      (await as(user, (tx) => readMealScreen(tx, user.id, at("lunch")))).entries.map(eaten);
+    for (const amount of [33, 150, 7.5]) {
+      await as(user, (tx) => updateEntryAmount(tx, user.id, entry!.id, amount));
+    }
+    await as(user, (tx) => updateEntryAmount(tx, user.id, entry!.id, 200));
+    expect(await lunch()).toEqual([{ kcal: 778, carbsG: 132.6, fatG: 13.8, proteinG: 33.8 }]);
+    await as(user, (tx) => updateEntryAmount(tx, user.id, entry!.id, 100));
+    expect(await lunch()).toEqual([{ kcal: 389, carbsG: 66.3, fatG: 6.9, proteinG: 16.9 }]);
+  });
+
+  it("refuses too much, and an entry that is gone", async () => {
+    const [entry] = (await as(user, (tx) => readMealScreen(tx, user.id, at("lunch")))).entries;
+    await expect(as(user, (tx) => updateEntryAmount(tx, user.id, entry!.id, 9000))).rejects.toThrow(
+      AmountTooLargeError,
+    );
+    await expect(
+      as(user, (tx) => updateEntryAmount(tx, user.id, crypto.randomUUID(), 10)),
+    ).rejects.toThrow(EntryNotFoundError);
+  });
+
+  it("takes a food out of a meal, and treats a second removal as done", async () => {
     const id = await as(user, (tx) =>
-      createMeal(tx, user.id, TODAY, {
-        name: "Protein shake",
-        items: [MILK, { name: "Whey, 1 scoop", kcal: 120, carbsG: 3, fatG: 1.5, proteinG: 24 }],
-        starred: true,
+      logFood(tx, user.id, at("morning_snack"), {
+        food: { ...TAKEAWAY, name: "Biscuit" },
+        amount: 2,
       }),
     );
-    const screen = await as(user, (tx) => readFoodScreen(tx, user.id, TODAY));
-    const shake = screen.meals.find((meal) => meal.id === id)!;
-    expect(screen.savedMeals).toEqual([
-      {
-        id: shake.savedMealId,
-        name: "Protein shake",
-        items: shake.items,
-        totals: shake.totals,
-      },
+    expect(await as(user, (tx) => deleteEntry(tx, user.id, id))).toBe(true);
+    expect(await as(user, (tx) => deleteEntry(tx, user.id, id))).toBe(false);
+    expect(
+      (await as(user, (tx) => readMealScreen(tx, user.id, at("morning_snack")))).entries,
+    ).toEqual([]);
+  });
+});
+
+describe("correcting My foods", () => {
+  it("changes what is logged from now on, never what was already eaten", async () => {
+    const id = await foodId(user, "Oats");
+    const before = await as(user, (tx) => readFoodDay(tx, user.id, TODAY));
+    await as(user, (tx) =>
+      updateFood(tx, user.id, id, { ...OATS, name: "Rolled oats", kcal: 379, carbsG: 60 }),
+    );
+    expect(await as(user, (tx) => readFoodDay(tx, user.id, TODAY))).toEqual(before);
+    await as(user, (tx) =>
+      logFood(tx, user.id, at("afternoon_snack"), { food: { id }, amount: 50 }),
+    );
+    const snack = await as(user, (tx) => readMealScreen(tx, user.id, at("afternoon_snack")));
+    expect(snack.entries.map((entry) => [entry.name, eaten(entry).kcal])).toEqual([
+      ["Rolled oats", 189.5],
     ]);
   });
 
-  it("adds a starred meal to a day as a meal of its own, pointing back at the star", async () => {
-    const [star] = (await as(user, (tx) => readFoodScreen(tx, user.id, TODAY))).savedMeals;
-    const id = await as(user, (tx) => logSavedMeal(tx, user.id, star!.id, YESTERDAY));
-    const yesterday = await as(user, (tx) => readFoodScreen(tx, user.id, YESTERDAY));
-    expect(yesterday.meals.find((meal) => meal.id === id)).toMatchObject({
-      name: "Protein shake",
-      savedMealId: star!.id,
-      items: star!.items,
+  it("refuses another food's name, and a food that is gone", async () => {
+    const id = await foodId(user, "Rolled oats");
+    await expect(
+      as(user, (tx) => updateFood(tx, user.id, id, { ...OATS, name: "milk" })),
+    ).rejects.toThrow("You already have a food called milk.");
+    // Its own name in other capitals is no clash.
+    await as(user, (tx) => updateFood(tx, user.id, id, { ...OATS, name: "Rolled Oats" }));
+    await expect(
+      as(user, (tx) => updateFood(tx, user.id, crypto.randomUUID(), OATS)),
+    ).rejects.toThrow(FoodNotFoundError);
+  });
+
+  it("deletes a food and keeps every entry logged from it, unlinked", async () => {
+    const id = await foodId(user, "Thai takeaway");
+    expect(await as(user, (tx) => deleteFood(tx, user.id, id))).toBe(true);
+    expect(await as(user, (tx) => deleteFood(tx, user.id, id))).toBe(false);
+    const dinner = await as(user, (tx) => readMealScreen(tx, user.id, at("dinner")));
+    expect(dinner.entries).toMatchObject([{ name: "Thai takeaway", foodId: null, kcal: 900 }]);
+    expect(dinner.foods.map((food) => food.name)).not.toContain("Thai takeaway");
+  });
+});
+
+describe("saved meals", () => {
+  it("saves a meal as it stands, with each food's amount", async () => {
+    await as(user, (tx) => saveMeal(tx, user.id, at("breakfast"), "Usual breakfast"));
+    const screen = await as(user, (tx) => readMealScreen(tx, user.id, at("breakfast")));
+    expect(screen.savedMeals).toEqual([
+      {
+        id: expect.any(String),
+        name: "Usual breakfast",
+        items: screen.entries.map(({ id: _id, eatenOn: _day, meal: _meal, ...food }) => food),
+      },
+    ]);
+    expect(sameFoods(screen.entries, screen.savedMeals[0]!.items)).toBe(true);
+  });
+
+  it("adds a saved meal to another meal and day, exactly as saved", async () => {
+    const [saved] = (await as(user, (tx) => readMealScreen(tx, user.id, at("breakfast"))))
+      .savedMeals;
+    await as(user, (tx) => logSavedMeal(tx, user.id, saved!.id, at("breakfast", YESTERDAY)));
+    const yesterday = await as(user, (tx) =>
+      readMealScreen(tx, user.id, at("breakfast", YESTERDAY)),
+    );
+    expect(sameFoods(yesterday.entries, saved!.items)).toBe(true);
+    // In the order they were saved.
+    expect(yesterday.entries.map((entry) => entry.amount)).toEqual(
+      saved!.items.map((item) => item.amount),
+    );
+  });
+
+  it("saves again under the same name, whatever its capitals, rather than twice", async () => {
+    const milk = await foodId(user, "Milk");
+    await as(user, (tx) =>
+      logFood(tx, user.id, at("breakfast"), { food: { id: milk }, amount: 300 }),
+    );
+    await as(user, (tx) => saveMeal(tx, user.id, at("breakfast"), "usual BREAKFAST"));
+    const screen = await as(user, (tx) => readMealScreen(tx, user.id, at("breakfast")));
+    expect(screen.savedMeals).toHaveLength(1);
+    expect(screen.savedMeals[0]).toMatchObject({ name: "usual BREAKFAST" });
+    expect(sameFoods(screen.entries, screen.savedMeals[0]!.items)).toBe(true);
+  });
+
+  it("keeps what it saved when its foods are corrected or deleted", async () => {
+    const [saved] = (await as(user, (tx) => readMealScreen(tx, user.id, at("breakfast"))))
+      .savedMeals;
+    const milk = await foodId(user, "Milk");
+    await as(user, (tx) => deleteFood(tx, user.id, milk));
+    await as(user, (tx) => logSavedMeal(tx, user.id, saved!.id, at("dinner", YESTERDAY)));
+    const dinner = await as(user, (tx) => readMealScreen(tx, user.id, at("dinner", YESTERDAY)));
+    const milkEntry = dinner.entries.find((entry) => entry.name === "Milk" && entry.amount === 300);
+    expect(milkEntry).toMatchObject({ foodId: null, kcal: 160, portionAmount: 250 });
+    expect(dinner.savedMeals[0]!.items).toEqual(saved!.items);
+  });
+
+  it("refuses to save a meal with nothing in it, or more than a saved meal holds", async () => {
+    await expect(
+      as(user, (tx) => saveMeal(tx, user.id, at("morning_snack"), "Nothing")),
+    ).rejects.toThrow(EmptyMealError);
+    for (let i = 0; i < 31; i++) {
+      await as(user, (tx) =>
+        tx.insert(foodEntries).values({
+          userId: user.id,
+          eatenOn: "2026-09-01",
+          meal: "lunch",
+          name: `Crumb ${i}`,
+          portionAmount: 1,
+          unit: "piece",
+          kcal: 1,
+          amount: 1,
+        }),
+      );
+    }
+    await expect(
+      as(user, (tx) => saveMeal(tx, user.id, at("lunch", "2026-09-01"), "Crumbs")),
+    ).rejects.toThrow(SavedMealTooLargeError);
+  });
+
+  it("reads a saved meal written the old way as one serving of each food", async () => {
+    const [legacy] = await as(user, (tx) =>
+      tx
+        .insert(savedMeals)
+        .values({
+          userId: user.id,
+          name: "Old shake",
+          items: [{ name: null, kcal: 280, carbsG: 15, fatG: null, proteinG: 32.5 }] as never,
+        })
+        .returning({ id: savedMeals.id }),
+    );
+    await as(user, (tx) => logSavedMeal(tx, user.id, legacy!.id, at("evening_snack")));
+    const snack = await as(user, (tx) => readMealScreen(tx, user.id, at("evening_snack")));
+    expect(snack.entries.at(-1)).toMatchObject({
+      name: "Old shake",
+      portionAmount: 1,
+      unit: "serving",
+      amount: 1,
+      kcal: 280,
+      foodId: null,
     });
+    await as(user, (tx) => deleteSavedMeal(tx, user.id, legacy!.id));
   });
 
-  it("never changes the starred copy when a meal logged from it is edited or deleted", async () => {
-    const [star] = (await as(user, (tx) => readFoodScreen(tx, user.id, TODAY))).savedMeals;
-    const id = await as(user, (tx) => logSavedMeal(tx, user.id, star!.id, TODAY));
-    await as(user, (tx) =>
-      updateMeal(tx, user.id, id, { name: "Half a shake", items: [MILK], starred: true }),
-    );
-    await as(user, (tx) => deleteMeal(tx, user.id, id));
-    const [after] = (await as(user, (tx) => readFoodScreen(tx, user.id, TODAY))).savedMeals;
-    expect(after).toEqual(star);
+  it("deletes a saved meal, leaving the meals it was added to", async () => {
+    const [saved] = (await as(user, (tx) => readMealScreen(tx, user.id, at("breakfast"))))
+      .savedMeals;
+    expect(await as(user, (tx) => deleteSavedMeal(tx, user.id, saved!.id))).toBe(true);
+    expect(await as(user, (tx) => deleteSavedMeal(tx, user.id, saved!.id))).toBe(false);
+    await expect(
+      as(user, (tx) => logSavedMeal(tx, user.id, saved!.id, at("lunch"))),
+    ).rejects.toThrow(SavedMealNotFoundError);
+    expect(
+      (await as(user, (tx) => readMealScreen(tx, user.id, at("breakfast", YESTERDAY)))).entries
+        .length,
+    ).toBeGreaterThan(0);
+  });
+});
+
+describe("a retried save", () => {
+  it("logs once, even after the entry it made was removed", async () => {
+    const key = crypto.randomUUID();
+    const input = { food: { ...OATS, name: "Receipt oats" }, amount: 40 };
+    const save = () =>
+      as(user, (tx) =>
+        submitFoodOnce(tx, user.id, key, input, () =>
+          logFood(tx, user.id, at("afternoon_snack"), input),
+        ),
+      );
+    const count = async () =>
+      (await as(user, (tx) => readMealScreen(tx, user.id, at("afternoon_snack")))).entries.filter(
+        (entry) => entry.name === "Receipt oats",
+      );
+    await save();
+    await save();
+    const [logged] = await count();
+    expect(await count()).toHaveLength(1);
+    await expect(
+      as(user, (tx) =>
+        submitFoodOnce(tx, user.id, key, { ...input, amount: 41 }, () =>
+          logFood(tx, user.id, at("afternoon_snack"), input),
+        ),
+      ),
+    ).rejects.toThrow(/already saved/);
+    await as(user, (tx) => deleteEntry(tx, user.id, logged!.id));
+    await save();
+    expect(await count()).toHaveLength(0);
   });
 
-  it("stars an existing meal as it now stands", async () => {
-    const id = await as(user, (tx) =>
-      createMeal(tx, user.id, TODAY, { name: "Oats", items: [MILK], starred: false }),
-    );
-    await as(user, (tx) =>
-      updateMeal(tx, user.id, id, { name: "Oats and milk", items: [MILK, MILK], starred: true }),
-    );
-    const screen = await as(user, (tx) => readFoodScreen(tx, user.id, TODAY));
-    const oats = screen.savedMeals.find((meal) => meal.name === "Oats and milk");
-    expect(oats?.items).toEqual([MILK, MILK]);
-    expect(screen.meals.find((meal) => meal.id === id)?.savedMealId).toBe(oats?.id);
-  });
-
-  it("unstarring deletes the copy and takes the star off every meal that had it", async () => {
-    const screen = await as(user, (tx) => readFoodScreen(tx, user.id, TODAY));
-    const shake = screen.meals.find((meal) => meal.name === "Protein shake")!;
-    const starId = shake.savedMealId!;
-    await as(user, (tx) =>
-      updateMeal(tx, user.id, shake.id, { name: shake.name, items: shake.items, starred: false }),
-    );
-    const today = await as(user, (tx) => readFoodScreen(tx, user.id, TODAY));
-    const yesterday = await as(user, (tx) => readFoodScreen(tx, user.id, YESTERDAY));
-    expect(today.savedMeals.map((meal) => meal.id)).not.toContain(starId);
-    // Yesterday's shake was added from the star: it keeps its foods and loses only the star.
-    const logged = yesterday.meals.find((meal) => meal.name === "Protein shake");
-    expect(logged).toMatchObject({ savedMealId: null, items: shake.items });
-    await expect(as(user, (tx) => logSavedMeal(tx, user.id, starId, TODAY))).rejects.toThrow(
-      SavedMealNotFoundError,
-    );
-  });
-
-  it("removes a starred meal directly, leaving the meals added from it", async () => {
-    const [oats] = (await as(user, (tx) => readFoodScreen(tx, user.id, TODAY))).savedMeals;
-    expect(await as(user, (tx) => deleteSavedMeal(tx, user.id, oats!.id))).toBe(true);
-    const screen = await as(user, (tx) => readFoodScreen(tx, user.id, TODAY));
-    expect(screen.savedMeals).toEqual([]);
-    expect(screen.meals.find((meal) => meal.name === "Oats and milk")?.savedMealId).toBeNull();
+  it("rolls the receipt back with a failed write, and scopes keys to the account", async () => {
+    const key = crypto.randomUUID();
+    const input = { food: { ...MILK, name: "Retried milk" }, amount: 250 };
+    await expect(
+      as(user, (tx) =>
+        submitFoodOnce(tx, user.id, key, input, async () => {
+          throw new Error("write failed");
+        }),
+      ),
+    ).rejects.toThrow("write failed");
+    for (const account of [user, other]) {
+      await as(account, (tx) =>
+        submitFoodOnce(tx, account.id, key, input, () =>
+          logFood(tx, account.id, at("dinner"), input),
+        ),
+      );
+      const dinner = await as(account, (tx) => readMealScreen(tx, account.id, at("dinner")));
+      expect(dinner.entries.filter((entry) => entry.name === "Retried milk")).toHaveLength(1);
+    }
   });
 });
 
 describe("another account", () => {
   it("sees none of it, and can change none of it", async () => {
-    const mine = await as(user, (tx) => readFoodScreen(tx, user.id, TODAY));
-    const mealId = mine.meals[0]!.id;
-    const starId = await as(user, (tx) =>
-      createMeal(tx, user.id, TODAY, { name: "Mine", items: [MILK], starred: true }).then(
-        async (id) =>
-          (await readFoodScreen(tx, user.id, TODAY)).meals.find((meal) => meal.id === id)!
-            .savedMealId!,
-      ),
-    );
+    const mine = await as(user, (tx) => readMealScreen(tx, user.id, at("breakfast")));
+    const entryId = mine.entries[0]!.id;
+    const oats = mine.foods.find((food) => food.name === "Rolled Oats")!;
+    await as(user, (tx) => saveMeal(tx, user.id, at("breakfast"), "Mine"));
+    const [star] = (await as(user, (tx) => readMealScreen(tx, user.id, at("breakfast"))))
+      .savedMeals;
 
     // Row Level Security, not the user_id filter, is what stops it: ask for theirs directly.
-    const seen = await as(other, (tx) => readFoodScreen(tx, user.id, TODAY));
-    expect(seen).toEqual({ targets: null, meals: [], savedMeals: [] });
-    expect((await as(other, (tx) => readFoodDay(tx, user.id, TODAY))).eaten.kcal).toBe(0);
+    expect(await as(other, (tx) => readMealScreen(tx, user.id, at("breakfast")))).toEqual({
+      entries: [],
+      foods: [],
+      savedMeals: [],
+    });
+    expect((await as(other, (tx) => readFoodDay(tx, user.id, TODAY))).entries).toEqual([]);
 
-    await expect(
-      as(other, (tx) =>
-        updateMeal(tx, user.id, mealId, { name: "x", items: [MILK], starred: false }),
-      ),
-    ).rejects.toThrow(MealNotFoundError);
-    expect(await as(other, (tx) => deleteMeal(tx, user.id, mealId))).toBe(false);
-    expect(await as(other, (tx) => deleteSavedMeal(tx, user.id, starId))).toBe(false);
-    await expect(as(other, (tx) => logSavedMeal(tx, other.id, starId, TODAY))).rejects.toThrow(
-      SavedMealNotFoundError,
+    await expect(as(other, (tx) => updateEntryAmount(tx, user.id, entryId, 1))).rejects.toThrow(
+      EntryNotFoundError,
     );
-    expect((await as(user, (tx) => readFoodScreen(tx, user.id, TODAY))).meals[0]?.id).toBe(mealId);
+    expect(await as(other, (tx) => deleteEntry(tx, user.id, entryId))).toBe(false);
+    await expect(
+      as(other, (tx) => updateFood(tx, user.id, oats.id, { ...OATS, name: "Theirs now" })),
+    ).rejects.toThrow(FoodNotFoundError);
+    expect(await as(other, (tx) => deleteFood(tx, user.id, oats.id))).toBe(false);
+    expect(await as(other, (tx) => deleteSavedMeal(tx, user.id, star!.id))).toBe(false);
+    await expect(
+      as(other, (tx) => logFood(tx, other.id, at("lunch"), { food: { id: oats.id }, amount: 1 })),
+    ).rejects.toThrow(FoodNotFoundError);
+    await expect(
+      as(other, (tx) => logSavedMeal(tx, other.id, star!.id, at("lunch"))),
+    ).rejects.toThrow(SavedMealNotFoundError);
+    // A name is only taken within one account.
+    await as(other, (tx) =>
+      logFood(tx, other.id, at("lunch"), { food: { ...OATS, name: "Rolled Oats" }, amount: 1 }),
+    );
+    expect(
+      (await as(user, (tx) => readMealScreen(tx, user.id, at("breakfast")))).entries[0]?.id,
+    ).toBe(entryId);
   });
 
-  it("cannot put a food into someone else's meal, or point a meal at their star", async () => {
-    const mine = await as(user, (tx) => readFoodScreen(tx, user.id, TODAY));
-    const mealId = mine.meals[0]!.id;
-    const starId = mine.savedMeals[0]!.id;
-    // Both rows would pass the owner policy, being the other account's own; the keys that name
-    // the owner alongside the meal are what refuse them.
+  it("cannot log someone else's food against their own meal", async () => {
+    const [theirs] = await t.db
+      .select({ id: foods.id })
+      .from(foods)
+      .where(and(eq(foods.userId, user.id), eq(foods.name, "Rolled Oats")));
+    // The row would pass the owner policy, being the other account's own; the key that names
+    // the owner alongside the food is what refuses it.
     expect(
       await failure(
         as(other, (tx) =>
-          tx.insert(mealItems).values({ userId: other.id, mealId, position: 9, kcal: 1 }),
+          tx.insert(foodEntries).values({
+            userId: other.id,
+            eatenOn: TODAY,
+            meal: "lunch",
+            foodId: theirs!.id,
+            ...OATS,
+            amount: 1,
+          }),
         ),
       ),
-    ).toMatch(/meal_items_meal_fk/);
-    expect(
-      await failure(
-        as(other, (tx) =>
-          tx
-            .insert(meals)
-            .values({ userId: other.id, eatenOn: TODAY, name: "Theirs", savedMealId: starId }),
-        ),
-      ),
-    ).toMatch(/meals_saved_meal_fk/);
+    ).toMatch(/food_entries_food_fk/);
   });
 
   it("goes with the account", async () => {
     await t.client.query("delete from auth.users where id = $1", [user.id]);
-    const counts = await t.db.execute<{ meals: number; items: number; saved: number }>(sql`
-      select (select count(*)::int from ${meals}) as meals,
-             (select count(*)::int from ${mealItems}) as items,
-             (select count(*)::int from ${savedMeals}) as saved
+    const counts = await t.db.execute<{ foods: number; entries: number; saved: number }>(sql`
+      select (select count(*)::int from ${foods} where user_id = ${user.id}) as foods,
+             (select count(*)::int from ${foodEntries} where user_id = ${user.id}) as entries,
+             (select count(*)::int from ${savedMeals} where user_id = ${user.id}) as saved
     `);
-    expect(counts.rows[0]).toEqual({ meals: 0, items: 0, saved: 0 });
+    expect(counts.rows[0]).toEqual({ foods: 0, entries: 0, saved: 0 });
   });
 });

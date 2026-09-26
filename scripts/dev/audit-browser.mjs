@@ -28,8 +28,9 @@ const routes = [
   "/runs/new",
   `/runs/${run}`,
   `/runs/${run}/edit`,
-  "/history",
-  "/history?kind=run",
+  "/food",
+  "/progress/history",
+  "/progress/history?kind=run",
   "/progress",
   "/progress?view=body",
   "/progress?view=running",
@@ -116,7 +117,10 @@ for (const config of configurations.filter(
 )) {
   const theme = process.env.AUDIT_THEME === "dark" ? "dark" : "light";
   if (theme === "dark") config.name += "-dark";
-  const browser = await config.browser.launch();
+  // A machine whose browsers predate this Playwright can point at its own Chromium.
+  const browser = await config.browser.launch({
+    executablePath: config.browser === chromium ? process.env.AUDIT_CHROMIUM_PATH : undefined,
+  });
   const context = await browser.newContext({ ...config.options, baseURL, colorScheme: theme });
   const page = await context.newPage();
   const errors = [];
@@ -216,7 +220,8 @@ for (const config of configurations.filter(
           ? [
               "/today",
               "/training",
-              "/history",
+              "/food",
+              "/progress/history",
               "/progress",
               "/profile/programme",
               "/gyms",

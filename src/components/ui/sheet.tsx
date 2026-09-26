@@ -122,7 +122,7 @@ export function Sheet({ open, onClose, title, children, footer, dismissible = tr
         <div ref={heading} className="shrink-0">
           <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-line-strong" aria-hidden />
           <div className="mb-3 flex items-center justify-between gap-3">
-            <h2 className="min-w-0 text-lg font-medium">{title}</h2>
+            <h2 className="min-w-0 text-lg font-medium [overflow-wrap:anywhere]">{title}</h2>
             <button
               type="button"
               aria-label="Close sheet"

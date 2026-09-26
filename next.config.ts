@@ -18,12 +18,16 @@ const nextConfig: NextConfig = {
   },
   // The Settings tab became Profile (ADR 0026). Bookmarks, the coach documentation and any
   // emailed link still say /settings; permanent redirects keep every one of them working.
-  // The edit form is the one path that did not move one-for-one.
+  // The edit form is the one path that did not move one-for-one. Food took History's tab and
+  // History moved into Progress (ADR 0034), so their old paths are kept the same way; a query,
+  // such as History's dates and filters, comes along.
   async redirects() {
     return [
       { source: "/settings", destination: "/profile", permanent: true },
       { source: "/settings/profile", destination: "/profile/edit", permanent: true },
       { source: "/settings/:path*", destination: "/profile/:path*", permanent: true },
+      { source: "/history", destination: "/progress/history", permanent: true },
+      { source: "/today/food/:path*", destination: "/food/:path*", permanent: true },
     ];
   },
   async headers() {

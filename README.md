@@ -127,10 +127,11 @@ need the Supabase values from `SETUP.md`.
 ## Looking at a change without deploying it
 
 Every real screen is behind sign-in and a database. `npm run dev` also serves `/preview` (the
-day's cards, including a day that both lifts and runs; `?food=on` adds the food card),
-`/preview/logging` (the set grid in each of its three measures) and `/preview/food` (the Food
-screen, with `?state=first|empty|over|noweight`) against made-up data, so the navigation, Today
-and logging can be seen on a phone before anything ships. These routes exist in development
+day's cards, including a day that both lifts and runs), `/preview/logging` (the set grid in each
+of its three measures) and `/preview/food` (the Food tab, with `?state=first|empty|over|noweight`,
+and a meal's page with `?meal=breakfast`, adding `&state=new` for an account with no foods yet)
+against made-up data, so the navigation, Today, logging and food can be seen on a phone before
+anything ships. These routes exist in development
 only; a production build does not have them.
 
 ## Project structure
@@ -143,7 +144,8 @@ src/
     auth/confirm/               where every emailed link lands
     (onboarding)/welcome/       the four first-run steps
     (app)/                      the five tabs behind the shared shell
-      today/ runs/ history/ progress/ profile/
+      today/ training/ food/ progress/ profile/
+      progress/history/           History, one of Progress's sections
       profile/friends/            friends, leaderboard, compare; profile/privacy/
       u/[username]/               a person's page and the head-to-head comparisons
       gyms/[gymId]/..., exercises/..., workouts/[sessionId]/...
@@ -194,17 +196,20 @@ app launches standalone with safe-area padding.
 
 ## Food
 
-Calorie and macro tracking, entered by hand: a daily target, carbohydrate, fat and protein
-against it, meals made of foods, and starred meals that are logged again in one tap. Available
-to every signed-in account through the **Food** card on Today, or directly at `/today/food`.
-No feature flag or email allowlist is required. See
-[ADR 0032](docs/decisions/0032-food-behind-a-switch.md).
+Calorie and macro tracking, entered by hand. The day has six meals: breakfast, morning snack,
+lunch, afternoon snack, dinner and evening snack. A food is kept in **My foods** the first time it
+is logged: its kcal and, if known, carbohydrate, fat and protein for a portion in a real unit
+(100 g, 250 ml, 1 scoop). Logging it again asks only how much, and the figures follow: 200 g of
+oats saved per 100 g is twice everything. A meal can be starred under a name and added to any
+meal again in one go. A daily target shows the day against a goal band, and carbohydrate, fat
+and protein against theirs. Every signed-in account has it as the **Food** tab, where History
+used to be; History is now a section of **Progress**. See ADRs
+[0032](docs/decisions/0032-food-behind-a-switch.md),
+[0033](docs/decisions/0033-meals-of-the-day-and-my-foods.md) and
+[0034](docs/decisions/0034-food-takes-the-history-tab.md).
 
-Meal drafts stay on the device, scoped to the signed-in account, and can be resumed or discarded.
-Saving needs a connection; a resumed draft keeps its original day, shown above the form. Retrying
-a save after a lost reply cannot log the meal twice. Production deployments apply database
-migrations before building the app. The [food audit](docs/audits/2026-09-25-food-audit.md)
-documents the checks and layout fixes.
+Saving needs a connection. Retrying a save after a lost reply cannot log a food twice.
+Production deployments apply database migrations before building the app.
 
 ## AI house coach
 
@@ -219,5 +224,5 @@ Profile → AI coach; the owner
 sets it up once, as described in [`docs/coach-automation.md`](docs/coach-automation.md).
 
 See [Coach API](docs/coach-api.md) for token setup and endpoint details. Unsaved workout set rows
-and meal drafts are retained on the device for manual retry and removed after a confirmed save. Other forms
+are retained on the device for manual retry and removed after a confirmed save. Other forms
 require a connection. The offline screen explains how to reconnect; private pages are not cached.

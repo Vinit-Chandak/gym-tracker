@@ -101,58 +101,32 @@ export function MacroBars({ eaten, target }: { eaten: FoodTotals; target: MacroT
 }
 
 /**
- * What the day has come to against its targets: Today's card and the top of the Food screen, the
- * same figures drawn the same way. `detail` adds what is left, and where the goal band runs.
+ * What the day has come to against its targets, at the top of the Food screen: the energy against
+ * the goal band, what is left, and each macronutrient.
  */
-export function FoodSummary({
-  eaten,
-  target,
-  eyebrow,
-  trailing,
-  detail = false,
-}: {
-  eaten: FoodTotals;
-  target: MacroTargets;
-  /** A heading above the figures, for a card that has no page title to stand under. */
-  eyebrow?: string;
-  /** Beside the goal's badge: the chevron of a card that opens somewhere. */
-  trailing?: ReactNode;
-  detail?: boolean;
-}) {
+export function FoodSummary({ eaten, target }: { eaten: FoodTotals; target: MacroTargets }) {
   const status = goalStatus(eaten.kcal, target.kcal);
   const band = goalBand(target.kcal);
   const left = target.kcal - eaten.kcal;
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          {eyebrow && (
-            <h2 className="mb-1 text-xs font-medium tracking-wide text-ink-muted uppercase">
-              {eyebrow}
-            </h2>
-          )}
-          <p className="text-lg font-medium tabular-nums">
-            {formatKcal(eaten.kcal)}
-            <span className="text-sm font-normal text-ink-muted">
-              {" "}
-              / {formatKcal(target.kcal)} kcal
-            </span>
-          </p>
-        </div>
-        {(GOAL_BADGE[status] || trailing) && (
-          <span className="flex shrink-0 items-center gap-1.5">
-            {GOAL_BADGE[status]}
-            {trailing}
+        <p className="min-w-0 text-lg font-medium tabular-nums">
+          {formatKcal(eaten.kcal)}
+          <span className="text-sm font-normal text-ink-muted">
+            {" "}
+            / {formatKcal(target.kcal)} kcal
           </span>
+        </p>
+        {GOAL_BADGE[status] && (
+          <span className="flex shrink-0 items-center">{GOAL_BADGE[status]}</span>
         )}
       </div>
       <GoalBar eaten={eaten.kcal} target={target.kcal} />
-      {detail && (
-        <p className="text-sm text-ink-muted tabular-nums">
-          {left >= 0 ? `${formatKcal(left)} kcal left` : `${formatKcal(-left)} kcal over target`}
-          {` · Goal ${formatKcal(band.low)}–${formatKcal(band.high)}`}
-        </p>
-      )}
+      <p className="text-sm text-ink-muted tabular-nums">
+        {left >= 0 ? `${formatKcal(left)} kcal left` : `${formatKcal(-left)} kcal over target`}
+        {` · Goal ${formatKcal(band.low)}–${formatKcal(band.high)}`}
+      </p>
       <MacroBars eaten={eaten} target={target} />
     </div>
   );

@@ -102,9 +102,17 @@ await page.waitForURL((url) => url.pathname === "/today");
 await settled("/today");
 const nav = (label) =>
   page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: label, exact: true });
+/** History is a section of Progress (ADR 0034), opened from its picker. */
+async function openHistory() {
+  await nav("Progress").click();
+  await settled("/progress");
+  await page.getByRole("button", { name: "Progress section: Overview" }).click();
+  await page.getByRole("dialog").getByRole("link", { name: "History", exact: true }).click();
+  await settled("/progress/history");
+}
 for (const [path, label] of [
   ["/training", "Training"],
-  ["/history", "History"],
+  ["/food", "Food"],
   ["/progress", "Progress"],
   ["/profile", "Profile"],
 ]) {
@@ -112,6 +120,8 @@ for (const [path, label] of [
   await nav(label).click();
   await settled(path);
 }
+wanted = "/progress/history";
+await openHistory();
 // Signing in landed on Today, and the browser keeps a tab's screen for a minute, so a click on
 // it now would ask the server for nothing. A page loaded afresh starts with no screens kept.
 await page.goto("/training");
@@ -120,8 +130,7 @@ wanted = "/today";
 await nav("Today").click();
 await settled("/today");
 wanted = null;
-await nav("History").click();
-await settled("/history");
+await openHistory();
 const workout = page.locator('a[href^="/workouts/"]').first();
 wanted = new URL(await workout.evaluate((a) => a.href)).pathname;
 await workout.click();

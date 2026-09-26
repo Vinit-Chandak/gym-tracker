@@ -19,6 +19,7 @@ import {
   Download,
   Dumbbell,
   ExternalLink,
+  Food,
   Footprints,
   Info,
   KeyRound,
@@ -48,8 +49,9 @@ export const metadata: Metadata = { title: "Preview · Phosphor icons" };
 const SYMBOLS: readonly [string, AppIcon][] = [
   ["Today", Dumbbell],
   ["Training", Footprints],
-  ["History", CalendarDays],
+  ["Food", Food],
   ["Progress", BarChart],
+  ["History", CalendarDays],
   ["Settings", Settings],
   ["Profile", User],
   ["Programme", ClipboardList],

@@ -426,5 +426,5 @@ export async function deleteActivityAction(activityId: string): Promise<DeleteAc
     activityId,
     occurrenceId: removed.occurrenceId,
   });
-  redirect("/history");
+  redirect("/progress/history");
 }
