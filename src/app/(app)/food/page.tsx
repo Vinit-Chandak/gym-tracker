@@ -2,10 +2,11 @@ import type { Metadata } from "next";
 
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
+import { foodDayFrom, stripRange } from "@/domain/food-days";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
-import { readFoodDay } from "@/server/repositories/nutrition";
+import { readFoodDay, readFoodDays } from "@/server/repositories/nutrition";
 
 import { FoodView } from "./food-view";
 
@@ -18,19 +19,30 @@ export const metadata: Metadata = { title: "Food" };
  */
 export const unstable_dynamicStaleTime = 60;
 
-export default async function FoodPage() {
+/** Today, or with `?day=` any day before it (ADR 0037), with the days in the strip marked. */
+export default async function FoodPage(props: PageProps<"/food">) {
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
   const today = todayInTimeZone(profile.timeZone);
-  const day = await withUser(getDb(), user.id, (tx) => readFoodDay(tx, user.id, today), {
-    readOnly: true,
-  });
+  const date = foodDayFrom((await props.searchParams).day, today);
+  const [day, days] = await withUser(
+    getDb(),
+    user.id,
+    (tx) =>
+      Promise.all([
+        readFoodDay(tx, user.id, date),
+        readFoodDays(tx, user.id, stripRange(today, date)),
+      ]),
+    { readOnly: true },
+  );
 
   return (
     <FoodView
       timeZone={profile.timeZone}
       today={today}
+      date={date}
       day={day}
+      days={days}
       bodyWeightKg={profile.bodyWeightKg}
       goal={profile.trainingGoal}
     />

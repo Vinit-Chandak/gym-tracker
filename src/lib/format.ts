@@ -90,6 +90,24 @@ export function formatIsoWeekdayDay(isoDate: string): string {
   return on ? `${on.weekday} ${on.day} ${on.month}` : isoDate;
 }
 
+/** "September", or "September 2025" outside `currentYear`: the month a calendar is turned to. */
+export function formatIsoMonth(month: string, currentYear?: string): string {
+  const on = isoParts(`${month}-01`, { month: "long", year: "numeric" });
+  if (!on) return month;
+  return month.slice(0, 4) === currentYear ? on.month : `${on.month} ${on.year}`;
+}
+
+/** "Saturday 26 September": a day named in full, as a calendar's day is read out. */
+export function formatIsoLongDay(isoDate: string): string {
+  const on = isoParts(isoDate, { weekday: "long", day: "numeric", month: "long" });
+  return on ? `${on.weekday} ${on.day} ${on.month}` : isoDate;
+}
+
+/** "M" for a Monday: the letter over a column of days. */
+export function formatIsoWeekdayLetter(isoDate: string): string {
+  return isoParts(isoDate, { weekday: "narrow" })?.weekday ?? "";
+}
+
 /** Compact date range, retaining both years when it crosses a year boundary. */
 export function formatDateRange(from: string, to: string): string {
   const format = (date: string, year: boolean) =>

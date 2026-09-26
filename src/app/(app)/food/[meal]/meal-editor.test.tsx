@@ -129,7 +129,7 @@ const SHAKE: SavedMealRecord = {
 function editor(screenData: Partial<MealScreen> = {}) {
   return render(
     <MealEditor
-      today={TODAY}
+      date={TODAY}
       meal="breakfast"
       screen={{
         entries: [MILK_300, WHEY_1],

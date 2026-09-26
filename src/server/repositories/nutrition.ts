@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, lte, ne, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 
 import { isUniqueViolation } from "@/db/errors";
@@ -11,6 +11,7 @@ import {
   savedMeals,
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
+import type { FoodDayTotal } from "@/domain/food-days";
 import {
   addUp,
   eaten,
@@ -244,6 +245,34 @@ export async function readFoodDay(db: DbOrTx, userId: string, eatenOn: string): 
     eaten: addUp(entries.map(eaten)),
     library: { foods: Number(first?.foodCount ?? 0), meals: Number(first?.mealCount ?? 0) },
   };
+}
+
+/**
+ * Each day in a range with food on it, and what its food came to (ADR 0037): the marks on the
+ * Food tab's strip and calendar. Every entry is rounded to the tenth before it is added, as
+ * `eaten` rounds it, so a day reads here exactly as its own screen totals it.
+ */
+export async function readFoodDays(
+  db: DbOrTx,
+  userId: string,
+  range: { from: string; to: string },
+): Promise<FoodDayTotal[]> {
+  const rows = await db
+    .select({
+      date: foodEntries.eatenOn,
+      kcal: sql<number>`sum(round(${foodEntries.kcal} * ${foodEntries.amount} / ${foodEntries.portionAmount}, 1))::float8`,
+    })
+    .from(foodEntries)
+    .where(
+      and(
+        eq(foodEntries.userId, userId),
+        gte(foodEntries.eatenOn, range.from),
+        lte(foodEntries.eatenOn, range.to),
+      ),
+    )
+    .groupBy(foodEntries.eatenOn)
+    .orderBy(asc(foodEntries.eatenOn));
+  return rows.map((row) => ({ date: row.date, kcal: Number(row.kcal) }));
 }
 
 /** The targets alone, for the Targets screen: null until the account has set some. */

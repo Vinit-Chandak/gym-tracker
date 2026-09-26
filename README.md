@@ -215,13 +215,19 @@ saved per 100 g is twice everything.
 fat as a share, with carbohydrate the rest, starting from a split the profile's training goal
 chooses (55 / 25 / 20 by default). The Food tab shows the day against a goal band and each
 macronutrient against its target; tapping one lists what today's foods gave it. Carbohydrate and
-fat turn red past their targets, and protein green once reached. Every signed-in account has it
+fat turn red past their targets, and protein green once reached.
+
+**Any day before today** opens from the strip of days under the Food header, or from the month
+calendar behind it, and is filled in or corrected exactly as today is: food eaten after midnight
+can still go on the day it belongs to. A dot under each day says whether it met the goal (green),
+went past it (amber) or was only logged. Every signed-in account has it
 as the **Food** tab, where History used to be; History is now a section of **Progress**. See ADRs
 [0032](docs/decisions/0032-food-behind-a-switch.md),
 [0033](docs/decisions/0033-meals-of-the-day-and-my-foods.md),
 [0034](docs/decisions/0034-food-takes-the-history-tab.md),
-[0035](docs/decisions/0035-targets-from-the-goal-and-my-foods-of-its-own.md) and
-[0036](docs/decisions/0036-meals-in-eating-order-and-a-calmer-food-card.md).
+[0035](docs/decisions/0035-targets-from-the-goal-and-my-foods-of-its-own.md),
+[0036](docs/decisions/0036-meals-in-eating-order-and-a-calmer-food-card.md) and
+[0037](docs/decisions/0037-any-day-on-the-food-tab.md).
 
 Saving needs a connection. Retrying a save after a lost reply cannot log a food twice.
 Production deployments apply database migrations before building the app.

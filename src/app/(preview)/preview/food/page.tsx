@@ -7,6 +7,7 @@ import { MyFoodsView } from "@/app/(app)/food/my-foods/my-foods-view";
 import { TargetsForm } from "@/app/(app)/food/targets/targets-form";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
+import { foodDayFrom, type FoodDayTotal } from "@/domain/food-days";
 import {
   addUp,
   eaten,
@@ -30,6 +31,23 @@ export const metadata: Metadata = { title: "Preview · Food" };
 
 const TODAY = "2026-09-25";
 const TARGETS: NutritionTargets = { dailyKcal: 2300, proteinPerKg: 1.8, fatPercent: 25 };
+/**
+ * The fortnight before today, for the strip's and calendar's marks: days that met 2,300 kcal's
+ * band (2,070 to 2,530), days past it, days under it, and days with nothing logged at all.
+ */
+const HISTORY: FoodDayTotal[] = [
+  { date: "2026-09-12", kcal: 2250 },
+  { date: "2026-09-13", kcal: 2710 },
+  { date: "2026-09-15", kcal: 1840 },
+  { date: "2026-09-16", kcal: 2310 },
+  { date: "2026-09-17", kcal: 2190 },
+  { date: "2026-09-18", kcal: 2640 },
+  { date: "2026-09-19", kcal: 2405 },
+  { date: "2026-09-21", kcal: 1990 },
+  { date: "2026-09-22", kcal: 2280 },
+  { date: "2026-09-23", kcal: 2350 },
+  { date: "2026-09-24", kcal: 2120 },
+];
 const WEIGHT = 74.5;
 
 let ids = 0;
@@ -123,15 +141,18 @@ const LIBRARY: Library = { foods: FOODS, savedMeals: SAVED };
 const EMPTY: Library = { foods: [], savedMeals: [] };
 
 const LINKS: FoodLinks = {
+  base: "/preview/food" as Route,
   meal: (meal) => `/preview/food?meal=${mealSlug(meal)}` as Route,
   myFoods: "/preview/food?page=my-foods" as Route,
   targets: "/preview/food?page=targets" as Route,
 };
 
 /**
- * The Food screens against made-up data (ADRs 0032 to 0035). Saving here goes nowhere: there is
+ * The Food screens against made-up data (ADRs 0032 to 0037). Saving here goes nowhere: there is
  * no account behind it.
  *
+ * - `?day=` opens a day before today in the strip and the calendar; its meals are the same
+ *   made-up day's.
  * - The Food screen, with `?state=` `first` (no target yet), `empty` (nothing eaten), `over` (a
  *   day past its band), `evening` (fat past its target, protein reached) or `noweight` (no body
  *   weight to take protein from). The default is a day under way.
@@ -142,7 +163,7 @@ const LINKS: FoodLinks = {
  * - `?page=meal` is a saved meal in My foods, and `&state=new` a new one.
  */
 export default async function FoodPreviewPage(props: PageProps<"/preview/food">) {
-  const { state, meal: slug, page } = await props.searchParams;
+  const { state, meal: slug, page, day: asked } = await props.searchParams;
   const meal = typeof slug === "string" ? mealFromSlug(slug) : null;
   const fresh = state === "new";
 
@@ -229,11 +250,18 @@ export default async function FoodPreviewPage(props: PageProps<"/preview/food">)
     eaten: addUp(entries.map(eaten)),
     library: state === "first" ? { foods: 0, meals: 0 } : { foods: FOODS.length, meals: 2 },
   };
+  // A new account has no days behind it; any other has the made-up fortnight, and today if eaten.
+  const days =
+    state === "first"
+      ? []
+      : [...HISTORY, ...(entries.length > 0 ? [{ date: TODAY, kcal: day.eaten.kcal }] : [])];
   return (
     <PreviewShell tab="/food">
       <FoodView
         today={TODAY}
+        date={foodDayFrom(asked, TODAY)}
         day={day}
+        days={days}
         bodyWeightKg={state === "noweight" ? null : WEIGHT}
         goal="build_muscle"
         links={LINKS}
