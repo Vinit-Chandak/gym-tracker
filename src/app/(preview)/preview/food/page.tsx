@@ -97,8 +97,8 @@ const DINNER_OUT = [entry("dinner", HOME_FOOD, 4), entry("dinner", OATS, 150)];
 const EVENING = [
   entry("dinner", PANEER, 200),
   entry("dinner", OATS, 50),
-  entry("evening_snack", HIGH_PROTEIN_MILK, 250),
-  entry("evening_snack", WHEY, 1),
+  entry("late_night_snack", HIGH_PROTEIN_MILK, 250),
+  entry("late_night_snack", WHEY, 1),
 ];
 
 const SAVED: SavedMealRecord[] = [

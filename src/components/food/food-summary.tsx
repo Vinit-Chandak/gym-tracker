@@ -1,5 +1,3 @@
-import type { ReactNode } from "react";
-
 import { Badge } from "@/components/ui/badge";
 import {
   goalBand,
@@ -12,13 +10,6 @@ import { formatKcal } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 import { MacroBars, type EatenEntry } from "./macro-bars";
-
-/** Under the band says nothing: a day still being eaten is not a day that missed its goal. */
-const GOAL_BADGE: Record<GoalStatus, ReactNode> = {
-  under: null,
-  met: <Badge tone="success">Goal met</Badge>,
-  over: <Badge tone="warning">Over</Badge>,
-};
 
 const GOAL_FILL: Record<GoalStatus, string> = {
   under: "bg-accent",
@@ -67,8 +58,25 @@ export function GoalBar({ eaten, target }: { eaten: number; target: number }) {
 }
 
 /**
- * What the day has come to against its targets, at the top of the Food screen: the energy against
- * the goal band, what is left, and each macronutrient, each opening what the day's foods gave it.
+ * Where the day stands, beside its total: what is left while under the band, that the goal is met
+ * once inside it, and by how much past it. A day still being eaten is not a day that missed its
+ * goal, so under the band reads as what is left and nothing more.
+ */
+function Standing({ status, left }: { status: GoalStatus; left: number }) {
+  if (status === "met") return <Badge tone="success">Goal met</Badge>;
+  if (status === "over") return <Badge tone="warning">{formatKcal(-left)} over</Badge>;
+  return (
+    <p className="shrink-0 text-sm text-ink-muted tabular-nums">
+      <span className="font-medium text-ink">{formatKcal(left)}</span> left
+    </p>
+  );
+}
+
+/**
+ * What the day has come to against its targets, at the top of the Food screen (ADR 0036): the
+ * energy against the goal band with where that leaves the day beside it, then a row for each
+ * macronutrient, each opening what the day's foods gave it. The band's ends are drawn on the bar
+ * and not written out, so the card holds only the numbers that move during the day.
  */
 export function FoodSummary({
   eaten,
@@ -79,28 +87,21 @@ export function FoodSummary({
   target: MacroTargets;
   entries: readonly EatenEntry[];
 }) {
-  const status = goalStatus(eaten.kcal, target.kcal);
-  const band = goalBand(target.kcal);
-  const left = target.kcal - eaten.kcal;
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <p className="min-w-0 text-lg font-medium tabular-nums">
-          {formatKcal(eaten.kcal)}
-          <span className="text-sm font-normal text-ink-muted">
-            {" "}
-            / {formatKcal(target.kcal)} kcal
-          </span>
-        </p>
-        {GOAL_BADGE[status] && (
-          <span className="flex shrink-0 items-center">{GOAL_BADGE[status]}</span>
-        )}
+    <div className="space-y-4">
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+          <p className="min-w-0 text-xl font-medium tabular-nums">
+            {formatKcal(eaten.kcal)}
+            <span className="text-sm font-normal text-ink-muted">
+              {" "}
+              / {formatKcal(target.kcal)} kcal
+            </span>
+          </p>{" "}
+          <Standing status={goalStatus(eaten.kcal, target.kcal)} left={target.kcal - eaten.kcal} />
+        </div>
+        <GoalBar eaten={eaten.kcal} target={target.kcal} />
       </div>
-      <GoalBar eaten={eaten.kcal} target={target.kcal} />
-      <p className="text-sm text-ink-muted tabular-nums">
-        {left >= 0 ? `${formatKcal(left)} kcal left` : `${formatKcal(-left)} kcal over target`}
-        {` · Goal ${formatKcal(band.low)}–${formatKcal(band.high)}`}
-      </p>
       <MacroBars eaten={eaten} target={target} entries={entries} />
     </div>
   );

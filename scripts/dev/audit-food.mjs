@@ -175,7 +175,7 @@ try {
     await expect(page.getByRole("link", { name: /^Breakfast/ })).toBeVisible();
   });
   await login("sam");
-  await check("the Food tab opens first-use food with the day's six meals", async () => {
+  await check("the Food tab opens first-use food with the day's seven meals", async () => {
     await expect(page.getByRole("navigation", { name: "Primary" }).getByRole("link")).toHaveText([
       "Today",
       "Training",
@@ -194,8 +194,9 @@ try {
       /^Morning snack/,
       /^Lunch/,
       /^Afternoon snack/,
-      /^Dinner/,
       /^Evening snack/,
+      /^Dinner/,
+      /^Late-night snack/,
     ]);
   });
   await check("targets are set on a screen of their own, from the goal's split", async () => {
@@ -419,13 +420,16 @@ try {
       ["Oats", 40],
     ]);
     expect(await count("food_entries")).toBe(before);
-    // And it goes into any meal of the day in one tap.
-    await openMeal("Evening snack", "evening-snack");
+    // And it goes into any meal of the day in one tap, the late-night snack included.
+    await openMeal("Late-night snack", "late-night-snack");
     await myFoods()
       .getByRole("button", { name: /^Rice bowl/ })
       .click();
-    await submit("Add to Evening snack");
-    expect((await entries("evening_snack")).map((entry) => entry.name)).toEqual(["Rice", "Oats"]);
+    await submit("Add to Late-night snack");
+    expect((await entries("late_night_snack")).map((entry) => entry.name)).toEqual([
+      "Rice",
+      "Oats",
+    ]);
   });
   await check("each macronutrient opens what today's foods gave it", async () => {
     await navigate("/food");
@@ -435,9 +439,15 @@ try {
     const rows = sheet.getByRole("list", { name: "Protein by food" }).getByRole("listitem");
     // Oats was eaten in four meals: one row, added up, and it gave the most.
     await expect(rows.first()).toContainText("Oats");
-    await expect(rows.first()).toContainText("Breakfast, Lunch, Dinner, Evening snack");
+    await expect(rows.first()).toContainText("Breakfast, Lunch, Dinner, Late-night snack");
     await expect(rows.filter({ hasText: "Milk" })).toContainText("—");
+    // Grams only: where the day stands is said in words at the top, and no food has a share.
+    await expect(sheet.getByText(/^\d+ g to go$|^Reached$/)).toBeVisible();
+    await expect(sheet).not.toContainText("%");
     await sheet.getByRole("button", { name: "Close sheet" }).click();
+    // The card says what is left beside its total, and no longer writes out the goal's range.
+    await expect(page.getByText(/^[\d,.]+ left$|^Goal met$|^[\d,.]+ over$/)).toBeVisible();
+    await expect(page.getByText(/Goal [\d,]+–/)).toHaveCount(0);
   });
   await check(
     "the Food tab agrees with the database, and a meal's page keeps it selected",

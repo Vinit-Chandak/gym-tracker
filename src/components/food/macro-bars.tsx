@@ -40,13 +40,21 @@ function grams(value: number): string {
   return value > 0 && Math.round(value) === 0 ? "<1" : formatFoodAmount(value);
 }
 
+/** How much of its bar a macronutrient fills, from 0 to 1. */
+function filled(eaten: number, target: number): number {
+  return target > 0 ? Math.min(1, eaten / target) : eaten > 0 ? 1 : 0;
+}
+
 export type EatenEntry = LoggedFood & { meal: Meal };
 
 /**
- * Grams eaten against grams set, one thin bar each, each opening what the day's foods gave to it
- * (ADR 0035). Carbohydrate and fat turn red past their targets; protein is a minimum, so reaching
- * it turns it green with a tick. The numbers are written above every bar, so the bars are left out
- * of the accessibility tree rather than read out a second time.
+ * Grams eaten against grams set, one row each (ADR 0036): the name, a bar, and the two numbers
+ * lined up on the right, each row opening what the day's foods gave to it. Carbohydrate and fat
+ * turn red past their targets; protein is a minimum, so reaching it turns it green with a tick.
+ * Where a row is too narrow for all four (a small phone, large text), the bar drops under the
+ * name and numbers, and the numbers under the name if they still do not fit. The numbers are
+ * written on every row, so the bars are left out of the accessibility tree rather than read out a
+ * second time.
  */
 export function MacroBars({
   eaten,
@@ -69,14 +77,12 @@ export function MacroBars({
 
   return (
     <>
-      <ul className="grid grid-cols-3 gap-2" aria-label="Carbs, fat and protein">
+      <ul className="@container" aria-label="Carbs, fat and protein">
         {MACROS.map(({ key, label, fill }) => {
           const state = macroState(key, eaten[key], target[key]);
-          const share =
-            target[key] > 0 ? Math.min(1, eaten[key] / target[key]) : eaten[key] > 0 ? 1 : 0;
           const stated = state === "over" ? ", over" : state === "reached" ? ", reached" : "";
           return (
-            <li key={key} className="min-w-0">
+            <li key={key}>
               <button
                 type="button"
                 aria-haspopup="dialog"
@@ -84,37 +90,48 @@ export function MacroBars({
                 onClick={() =>
                   setSheet((current) => ({ key: current.key + 1, open: true, macro: key }))
                 }
-                className="-m-1.5 block w-[calc(100%+0.75rem)] rounded-control p-1.5 text-left transition-colors duration-[var(--ov-duration-feedback)] active:bg-surface-raised"
+                className="-mx-2 grid min-h-10 w-[calc(100%+1rem)] grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 rounded-control px-2 py-2 text-left transition-colors duration-[var(--ov-duration-feedback)] active:bg-surface-raised @2xs:grid-cols-[4.5rem_minmax(0,1fr)_auto_auto] @2xs:py-1"
               >
-                <span className="flex items-center gap-0.5 text-xs text-ink-muted">
-                  {label}
-                  {state === "reached" ? (
-                    <Check style={SMALL_GLYPH} className="text-success" />
-                  ) : (
-                    <ChevronRight style={SMALL_GLYPH} className="text-ink-subtle" />
-                  )}
-                </span>
-                <span
-                  className={cn(
-                    "mt-0.5 block text-sm tabular-nums",
-                    state === "over" && "text-over",
-                  )}
-                >
-                  {grams(eaten[key])}
-                  <span className={state === "over" ? undefined : "text-ink-muted"}>
-                    {" "}
-                    / {formatFoodAmount(target[key])} g
+                {/* The name and the numbers share a line while both fit, and the numbers wrap
+                    under the name when they do not. On a row wide enough for the bar between
+                    them, they are cells of the row itself. */}
+                <span className="[grid-column:1] [grid-row:1] flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-0.5 @2xs:contents">
+                  <span className="flex items-center gap-1 text-sm text-ink-muted @2xs:[grid-column:1] @2xs:[grid-row:1]">
+                    {label}
+                    {state === "reached" && (
+                      <Check style={SMALL_GLYPH} className="shrink-0 text-success" />
+                    )}
+                  </span>
+                  <span
+                    className={cn(
+                      "ml-auto text-right text-sm tabular-nums @2xs:[grid-column:3] @2xs:[grid-row:1]",
+                      state === "over" && "text-over",
+                    )}
+                  >
+                    <span className="font-medium">{grams(eaten[key])}</span>{" "}
+                    <span
+                      className={cn(
+                        "whitespace-nowrap",
+                        state === "over" ? undefined : "text-ink-muted",
+                      )}
+                    >
+                      / {formatFoodAmount(target[key])} g
+                    </span>
                   </span>
                 </span>
                 <span
                   aria-hidden
-                  className="mt-1.5 block h-1 overflow-hidden rounded-full bg-surface-raised"
+                  className="[grid-column:1/-1] [grid-row:2] block h-1.5 overflow-hidden rounded-full bg-surface-raised @2xs:[grid-column:2] @2xs:[grid-row:1]"
                 >
                   <span
                     className={cn("block h-full rounded-full", STATE_FILL[state] ?? fill)}
-                    style={{ width: `${share * 100}%` }}
+                    style={{ width: `${filled(eaten[key], target[key]) * 100}%` }}
                   />
                 </span>
+                <ChevronRight
+                  style={SMALL_GLYPH}
+                  className="[grid-column:2] [grid-row:1] text-ink-subtle @2xs:[grid-column:4]"
+                />
               </button>
             </li>
           );
@@ -138,9 +155,10 @@ export function MacroBars({
 }
 
 /**
- * One macronutrient's day: what was eaten against what was set, then each food by how much of it
- * it gave, the most first, with its share of the day. A food eaten twice is one row; a food logged
- * without the figure closes the list with a dash, since it is why a total may read low.
+ * One macronutrient's day (ADR 0036): what was eaten against what was set, with the one bar and
+ * where that leaves the day in words, then each food by how much it gave, the most first, as rows
+ * like the rest of the app. A food eaten twice is one row; a food logged without the figure closes
+ * the list with a dash, since it is why a total may read low.
  */
 function MacroSheet({
   open,
@@ -162,58 +180,80 @@ function MacroSheet({
   entries: readonly EatenEntry[];
 }) {
   const rows = contributions(entries, macro);
-  const left = Math.round(target) - Math.round(eaten);
   const state = macroState(macro, eaten, target);
-  const against =
-    left > 0
-      ? ` · ${formatFoodAmount(left)} g to go`
-      : state === "over"
-        ? ` · ${-left} g over`
-        : "";
+  const left = Math.round(target) - Math.round(eaten);
+  // Protein is a minimum, so what is left of it is still to go; carbohydrate and fat are limits.
+  const standing =
+    state === "over"
+      ? `${-left} g over`
+      : state === "under" && left > 0
+        ? `${formatFoodAmount(left)} g ${macro === "proteinG" ? "to go" : "left"}`
+        : null;
   return (
     <Sheet open={open} onClose={onClose} title={label}>
-      <div className="space-y-2 pb-1">
-        <p className="text-sm text-ink-muted tabular-nums">
-          {grams(eaten)} of {formatFoodAmount(target)} g{against}
-        </p>
+      <div className="space-y-4 pb-1">
+        <div className="space-y-2.5">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <p className={cn("text-2xl font-medium tabular-nums", state === "over" && "text-over")}>
+              {grams(eaten)} g
+              <span
+                className={cn(
+                  "text-sm font-normal",
+                  state === "over" ? undefined : "text-ink-muted",
+                )}
+              >
+                {" "}
+                of {formatFoodAmount(target)} g
+              </span>
+            </p>{" "}
+            {state === "reached" ? (
+              <p className="flex items-center gap-1 text-sm text-success">
+                <Check style={SMALL_GLYPH} className="shrink-0" />
+                Reached
+              </p>
+            ) : (
+              standing && (
+                <p
+                  className={cn(
+                    "text-sm tabular-nums",
+                    state === "over" ? "text-over" : "text-ink-muted",
+                  )}
+                >
+                  {standing}
+                </p>
+              )
+            )}
+          </div>
+          <span aria-hidden className="block h-2 overflow-hidden rounded-full bg-surface-raised">
+            <span
+              className={cn("block h-full rounded-full", STATE_FILL[state] ?? fill)}
+              style={{ width: `${filled(eaten, target) * 100}%` }}
+            />
+          </span>
+        </div>
         {rows.length === 0 ? (
-          <p className="py-2 text-sm text-ink-muted">Nothing yet today.</p>
+          <p className="text-sm text-ink-muted">Nothing yet today.</p>
         ) : (
           <ul className="ruled-list" aria-label={`${label} by food`}>
             {rows.map((row) => (
               <li
                 key={`${row.name}-${row.unit}`}
-                className="flex items-baseline justify-between gap-3 py-2.5"
+                className="flex min-h-14 items-center gap-3 py-2.5"
               >
                 <span className="min-w-0 flex-1">
-                  <span className="block [overflow-wrap:anywhere]">{row.name}</span>{" "}
+                  <span className="block font-medium [overflow-wrap:anywhere]">{row.name}</span>{" "}
                   <span className="block text-sm text-ink-muted tabular-nums">
                     {row.meals.map((meal) => MEAL_LABELS[meal]).join(", ")} ·{" "}
-                    {formatPortion(row.amount, row.unit)}
+                    <span className="whitespace-nowrap">{formatPortion(row.amount, row.unit)}</span>
                   </span>
-                  {row.share !== null && (
-                    <span
-                      aria-hidden
-                      className="mt-1.5 block h-1 overflow-hidden rounded-full bg-surface-raised"
-                    >
-                      <span
-                        className={cn("block h-full rounded-full", fill)}
-                        style={{ width: `${row.share * 100}%` }}
-                      />
-                    </span>
-                  )}
                 </span>{" "}
                 {row.grams === null ? (
-                  <span className="shrink-0 text-ink-muted" aria-label="no figure">
-                    —
+                  <span className="shrink-0 text-ink-muted">
+                    <span aria-hidden>—</span>
+                    <span className="sr-only"> no figure</span>
                   </span>
                 ) : (
-                  <span className="shrink-0 text-right tabular-nums">
-                    <span className="block font-medium">{grams(row.grams)} g</span>{" "}
-                    <span className="block text-sm text-ink-muted">
-                      {Math.round((row.share ?? 0) * 100)}%
-                    </span>
-                  </span>
+                  <span className="shrink-0 font-medium tabular-nums">{grams(row.grams)} g</span>
                 )}
               </li>
             ))}

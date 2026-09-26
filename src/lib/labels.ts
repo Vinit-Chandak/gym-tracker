@@ -267,8 +267,9 @@ export const MEAL_LABELS: Record<Meal, string> = {
   morning_snack: "Morning snack",
   lunch: "Lunch",
   afternoon_snack: "Afternoon snack",
-  dinner: "Dinner",
   evening_snack: "Evening snack",
+  dinner: "Dinner",
+  late_night_snack: "Late-night snack",
 };
 
 /**
