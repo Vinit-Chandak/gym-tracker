@@ -98,6 +98,7 @@ function suggestionTone(kind: SuggestionKind): "neutral" | "accent" | "success" 
     case "increase":
       return "success";
     case "reduce":
+    case "revert":
     case "repeat":
       return "warning";
     case "hold":
@@ -157,6 +158,8 @@ function suggestionHeadline(exercise: ExerciseVM, unit: string) {
       };
     case "reduce":
       return { kind, text: `Drop to ${load(first?.weight)}` };
+    case "revert":
+      return { kind, text: `Back to ${load(first?.weight)}` };
     case "extend":
       return {
         kind,
@@ -469,6 +472,7 @@ export function ExerciseLogger({
                 onEdit={sets.editRow}
                 onSave={sets.logRow}
                 onOptions={(row) => setOptionsFor(row.setIndex)}
+                onUndoWarmup={sets.undoWarmup}
               />
             ) : (
               <SetTable sets={sets.loggedSets} unitLabel={unitLabel} />

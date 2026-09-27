@@ -13,7 +13,7 @@
  * docs/planning/COACH_TRAINING_REFERENCE.md is the editorial source; update both together and
  * bump the version when the text changes.
  */
-export const COACH_TRAINING_REFERENCE_VERSION = "2026-09-20.1";
+export const COACH_TRAINING_REFERENCE_VERSION = "2026-09-27.1";
 
 export const COACH_TRAINING_REFERENCE = `# Coach training reference
 
@@ -67,16 +67,27 @@ reference document must not overwrite current athlete records.
   Preserve a stable baseline long enough to assess progress instead of repeatedly moving the
   ceiling.
 - A practical double-progression option is to build reps within that band, then add the smallest
-  feasible load when all planned work sets reach its ceiling in two comparable sessions at the
-  intended effort. This is a coaching convention, not a proven optimal trigger. Historical
-  guidance based on exceeding a target is a different method; do not combine both as hurdles.
+  feasible load once the work shows it is ready: every planned work set with a rep to spare
+  beyond the band's ceiling at the intended effort (its reps plus reps in reserve) in one
+  session, or exactly at the ceiling in two comparable sessions. This is a coaching convention,
+  not a proven optimal trigger; the older habit of always waiting for two sessions was never
+  tested either. Historical guidance based on exceeding a target is a different method; do not
+  combine both as hurdles.
+- Reported reps in reserve are informative but tend to under-estimate by about a rep, less so
+  close to failure. When an athlete's steps keep finding less in hand than was reported, ask for
+  more than one rep to spare before a single session earns a step.
 - Load progression and repetition progression can both work. Use the selected method and the
   app's confirmation rules; one favourable study protocol does not mandate its exact increment.
 - Compare the same exercise, machine/setup, load convention, ROM, rest and intended effort.
   Incomplete work or missing effort cannot establish that all planned sets met the target.
   Confirmed symptoms or poor technique can override otherwise favourable rep counts.
-- After increasing load, use the chosen band and reported effort to calibrate the next target.
-  Do not assume identical reps will be maintained or invent an exact load-to-reps conversion.
+- After increasing load, ask each set for what the last session predicts at the new load, then
+  calibrate from the reported effort. A load-to-reps conversion is an estimate for one small
+  step, not a law. A step that misses the band twice in its first three sessions goes back to
+  the load before it, and is tried again after two sessions at the ceiling. Where the next step
+  is so coarse it would land below the band, build reps past the ceiling until it lands inside.
+- An estimated maximum from sets close to failure can follow a trend across load changes. It is
+  never a tested maximum or a target.
 - For fixed-load endurance goals, build reps or duration at that load; change resistance when
   the task calls for it. There is no universal endurance load-up cutoff.
 - Less assistance means greater difficulty on assisted pull-ups/dips. Bodyweight work can

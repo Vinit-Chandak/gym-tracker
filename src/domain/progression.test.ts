@@ -95,10 +95,12 @@ describe("double progression", () => {
     expect(suggestNext(accessory, all, "same_equipment").kind).toBe("hold");
     const s = confirmed(accessory, all, "same_equipment");
     expect(s.kind).toBe("increase");
+    // Each set is asked for what it should still have in hand at 42: 12 and 11 reps to failure
+    // at 40 are about 10 and 9 there, so 9 and 8 at 1 RIR — not the bottom of the range.
     expect(s.sets.map((x) => [x.weight, x.reps, x.rir])).toEqual([
-      [42, 6, 1],
-      [42, 6, 1],
-      [42, 6, 1],
+      [42, 9, 1],
+      [42, 8, 1],
+      [42, 8, 1],
     ]);
 
     const oneShort = [set(1, 40, 10, 2), set(2, 40, 10, 1), set(3, 40, 9, 1)];
@@ -171,6 +173,148 @@ describe("double progression", () => {
     );
     expect(s.kind).toBe("hold");
     expect(s.sets.map((x) => x.weight)).toEqual([0, null, 0]);
+  });
+});
+
+describe("reading what every set had in hand (ADR 0039)", () => {
+  // A bench slot: 3 × 3–5 at 2 RIR, 2.5 kg steps.
+  const bench: Prescription = {
+    ...accessory,
+    repMin: 3,
+    repMax: 5,
+    rirMin: 2,
+    rirMax: 3,
+    loadIncrement: 2.5,
+  };
+  const straight = (weight: number, reps: number, rir: number | null) =>
+    [1, 2, 3].map((index) => set(index, weight, reps, rir));
+  /** Sessions newest first, three days apart. */
+  const sessions = (...performances: PerformedSet[][]) =>
+    performances.map((sets, index) => ({
+      workoutExerciseId: `exercise-${index}`,
+      workoutSessionId: `session-${index}`,
+      performedAt: new Date(Date.UTC(2026, 8, 27 - 3 * index, 12)),
+      sets,
+    }));
+  const next = (
+    p: Prescription,
+    ...performances: PerformedSet[][]
+  ): ReturnType<typeof suggestNext> =>
+    suggestNext(p, performances[0]!, "exercise", sessions(...performances));
+  const targets = (s: ReturnType<typeof suggestNext>) =>
+    s.sets.map((x) => [x.weight, x.reps, x.rir]);
+
+  it("steps up after one session with a rep to spare at the top, at the reps it predicts", () => {
+    // 70 × 5 with 3 in reserve: 8 in hand against the 7 that 5 at 2 RIR needs.
+    const s = next(bench, straight(70, 5, 3));
+    expect(s.kind).toBe("increase");
+    expect(s.reason).toMatch(/rep to spare/);
+    // About 6.7 reps to failure at 72.5, so 4 at 2 RIR.
+    expect(targets(s)).toEqual([
+      [72.5, 4, 2],
+      [72.5, 4, 2],
+      [72.5, 4, 2],
+    ]);
+  });
+
+  it("steps up exactly on target only once it has been seen twice", () => {
+    const once = next(bench, straight(70, 5, 2));
+    expect(once).toMatchObject({ kind: "hold", advice: expect.stringMatching(/once more/) });
+    expect(targets(once)[0]).toEqual([70, 5, 2]);
+    const twice = next(bench, straight(70, 5, 2), straight(70, 5, 2));
+    expect(twice.kind).toBe("increase");
+    expect(twice.reason).toMatch(/two sessions running/);
+  });
+
+  it("holds inside the range and asks each set for what it had in hand", () => {
+    const s = next(accessory, [set(1, 40, 8, 3), set(2, 40, 8, 2), set(3, 40, 7, 1)]);
+    expect(s.kind).toBe("hold");
+    expect(s.reason).toMatch(/had in hand/);
+    // 8 with 3 in reserve is 10 at 1 RIR, 8 with 2 is 9, and 7 at the target stays 7.
+    expect(targets(s)).toEqual([
+      [40, 10, 1],
+      [40, 9, 1],
+      [40, 7, 1],
+    ]);
+    // Never past the top, however much one set had in hand: the hardest set decides the load.
+    expect(
+      targets(next(accessory, [set(1, 40, 9, 6), set(2, 40, 7, 1), set(3, 40, 7, 1)]))[0],
+    ).toEqual([40, 10, 1]);
+    // Nor at the next load: 15 reps to failure at 40 is about 12.9 at 42, still capped at 10.
+    expect(targets(next(accessory, straight(40, 9, 6)))[0]).toEqual([42, 10, 1]);
+  });
+
+  it("adds a rep once two sessions met the range with nothing left over", () => {
+    const once = next(accessory, straight(40, 8, 1));
+    expect(once.reason).toMatch(/reps build before load/);
+    expect(targets(once)[0]).toEqual([40, 8, 1]);
+    const twice = next(accessory, straight(40, 8, 1), straight(40, 8, 1));
+    expect(twice.reason).toMatch(/add one rep/);
+    expect(targets(twice)[0]).toEqual([40, 9, 1]);
+  });
+
+  it("goes back to the load that last worked when a step misses the range twice", () => {
+    const missed = straight(72.5, 2, 2);
+    const s = next(bench, missed, missed, straight(70, 5, 3));
+    expect(s.kind).toBe("revert");
+    expect(s.reason).toMatch(/72.5 kg missed the range twice: back to 70 kg/);
+    expect(targets(s)).toEqual([
+      [70, 5, 2],
+      [70, 5, 2],
+      [70, 5, 2],
+    ]);
+    // One miss is one bad day: the older rule holds the load.
+    const once = next(bench, missed, straight(70, 5, 3));
+    expect(once.kind).toBe("hold");
+    expect(targets(once)[0]?.[0]).toBe(72.5);
+    // Back at 70, a rep to spare once is how 72.5 was reached last time. It takes two now.
+    const back = next(bench, straight(70, 5, 3), missed, missed, straight(70, 5, 3));
+    expect(back).toMatchObject({ kind: "hold", reason: expect.stringMatching(/didn't hold/) });
+    expect(
+      next(bench, straight(70, 5, 3), straight(70, 5, 3), missed, missed, straight(70, 5, 3)).kind,
+    ).toBe("increase");
+  });
+
+  it("builds reps past the top where the next weight is too big a jump to land in the range", () => {
+    // 30 to 35 on this stack is a sixth of the load.
+    const curl: Prescription = {
+      ...accessory,
+      repMin: 8,
+      repMax: 12,
+      rirMin: 2,
+      ladder: { known: [30, 35], stack: true, assisted: false },
+    };
+    const s = next(curl, straight(30, 12, 3));
+    expect(s).toMatchObject({ kind: "hold", reason: expect.stringMatching(/big jump/) });
+    expect(s.advice).toMatch(/Build to 15 reps/);
+    expect(targets(s)[0]).toEqual([30, 13, 2]);
+    // 15 at 2 RIR there lands 35 inside the range.
+    expect(targets(next(curl, straight(30, 15, 2)))[0]).toEqual([35, 8, 2]);
+  });
+
+  it("never takes a step on a session an accepted change was already made on", () => {
+    const history = sessions(straight(70, 5, 3));
+    const s = suggestNext(bench, straight(70, 5, 3), "exercise", history, {
+      spent: new Set(["workout:session-0"]),
+    });
+    expect(s).toMatchObject({ kind: "hold", reason: expect.stringMatching(/already earned/) });
+  });
+
+  it("steps an assisted machine to less help, and bodyweight nowhere", () => {
+    const assisted: Prescription = {
+      ...accessory,
+      ladder: { known: [20, 25, 30], stack: true, assisted: true },
+    };
+    expect(targets(next(assisted, straight(25, 10, 3)))[0]).toEqual([20, 6, 1]);
+    const pushUp = next(accessory, straight(0, 10, 3));
+    expect(pushUp).toMatchObject({ kind: "hold", advice: expect.stringMatching(/Bodyweight/) });
+    expect(targets(pushUp)[0]).toEqual([0, 10, 1]);
+  });
+
+  it("keeps the older rule for a session without every set's reps in reserve", () => {
+    const s = next(bench, [set(1, 70, 5, 3), set(2, 70, 5, 3), set(3, 70, 5, null)]);
+    expect(s.kind).toBe("hold");
+    expect(s.reason).toMatch(/log RIR/i);
   });
 });
 

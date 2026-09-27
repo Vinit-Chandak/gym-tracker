@@ -5,24 +5,30 @@ import {
   coachEvidenceBaselines,
   dailyRecovery,
   equipmentInstances,
+  equipmentTypes,
   exercises,
   plannedOccurrences,
   profiles,
   programExercises,
   programDays,
   programRuns,
+  sessionPlans,
   setLogs,
   workoutExercises,
   workoutSessions,
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
-import type { Prescription } from "@/domain/progression";
+import { ASSISTED_EQUIPMENT_TYPES } from "@/domain/load-steps";
+import { WORKING_SET_TYPES, type Prescription } from "@/domain/progression";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import {
   summarizeExerciseEvidence,
   TRAINING_POLICY,
   type EvidencePerformance,
 } from "@/domain/training-evidence";
+import type { LoadUnit } from "@/domain/types";
+import { readPerformance } from "@/domain/warmup-ramp";
+import { canConvertLoad, convertLoad } from "@/lib/units";
 import { existingEvidenceIds } from "./coach-memory";
 import { prescriptionFor } from "./progression-rule";
 import { readRunActivitiesBetween, type RunActivity } from "./training-data";
@@ -137,6 +143,7 @@ export async function readCoachingEvidence(
         session: workoutSessions,
         exercise: exercises,
         equipment: equipmentInstances,
+        equipmentType: equipmentTypes.slug,
         set: setLogs,
         lineageId: programExercises.lineageId,
       })
@@ -145,6 +152,7 @@ export async function readCoachingEvidence(
       .innerJoin(exercises, eq(exercises.id, workoutExercises.exerciseId))
       .innerJoin(setLogs, eq(setLogs.workoutExerciseId, workoutExercises.id))
       .leftJoin(equipmentInstances, eq(equipmentInstances.id, workoutExercises.equipmentInstanceId))
+      .leftJoin(equipmentTypes, eq(equipmentTypes.id, equipmentInstances.equipmentTypeId))
       .leftJoin(
         programExercises,
         eq(programExercises.id, workoutExercises.plannedProgramExerciseId),
@@ -204,6 +212,8 @@ export async function readCoachingEvidence(
     lineageId: string | null;
     equipmentId: string | null;
     prescription: Prescription;
+    /** An assisted machine, where less help is the harder set. */
+    assisted: boolean;
     history: Map<string, EvidencePerformance>;
     /**
      * Only part of the retained reference's identity now (ADR 0028): the column is no longer
@@ -234,6 +244,7 @@ export async function readCoachingEvidence(
         lineageId: row.lineageId,
         equipmentId: row.workoutExercise.equipmentInstanceId,
         prescription,
+        assisted: ASSISTED_EQUIPMENT_TYPES.has(row.equipmentType ?? ""),
         history: new Map(),
         convention: row.equipment?.loadConvention ?? "exercise_log_convention",
       };
@@ -257,9 +268,32 @@ export async function readCoachingEvidence(
     userId,
     references.flatMap((r) => r.reference.sourceIds),
   );
+  const plans = await plannedWorkingLoads(
+    db,
+    userId,
+    rows.map(({ session }) => session.id),
+  );
   const exerciseTrends = [...groups.entries()].map(([identity, group]) => {
-    const history = [...group.history.values()];
-    const initial = summarizeExerciseEvidence(group.prescription, history);
+    // Each performance is read as it was trained (ADR 0038): the warm-up in front of the work as
+    // warm-ups, whatever they were logged as, a back-off after it as a back-off, and a load the
+    // session's own plan prescribed as working kept as the work.
+    const unit = group.prescription.unit;
+    const history = [...group.history.values()].map((performance) => ({
+      ...performance,
+      sets: readPerformance(performance.sets, {
+        assisted: group.assisted,
+        load: (set) => loadIn(set, unit),
+        planned: (plans.get(`${performance.workoutSessionId}:${group.exerciseId}`) ?? []).flatMap(
+          (target) => {
+            const load = loadIn(target, unit);
+            return load === null ? [] : [load];
+          },
+        ),
+      }),
+    }));
+    const initial = summarizeExerciseEvidence(group.prescription, history, null, {
+      assisted: group.assisted,
+    });
     const scope = createHash("sha256")
       .update(
         JSON.stringify([
@@ -302,7 +336,9 @@ export async function readCoachingEvidence(
       slug: group.slug,
       lineageId: group.lineageId,
       equipmentId: group.equipmentId,
-      ...summarizeExerciseEvidence(group.prescription, history, reference),
+      ...summarizeExerciseEvidence(group.prescription, history, reference, {
+        assisted: group.assisted,
+      }),
     };
   });
   const plannedRuns = await plannedRunsFor(db, userId, programId, running);
@@ -381,6 +417,44 @@ export async function readCoachingEvidence(
 }
 
 export type CoachingEvidence = Awaited<ReturnType<typeof readCoachingEvidence>>;
+
+/**
+ * The working loads each session's coach plan prescribed, by session and exercise: what the
+ * athlete was asked to lift that day. A session started without a plan has none.
+ */
+async function plannedWorkingLoads(db: DbOrTx, userId: string, sessionIds: readonly string[]) {
+  const out = new Map<string, { weight: number; unit: LoadUnit | null }[]>();
+  const ids = [...new Set(sessionIds)];
+  if (ids.length === 0) return out;
+  const plans = await db
+    .select({ sessionId: sessionPlans.workoutSessionId, exercises: sessionPlans.exercises })
+    .from(sessionPlans)
+    .where(
+      and(
+        eq(sessionPlans.userId, userId),
+        eq(sessionPlans.status, "consumed"),
+        inArray(sessionPlans.workoutSessionId, ids),
+      ),
+    );
+  for (const plan of plans)
+    for (const entry of plan.exercises) {
+      const key = `${plan.sessionId}:${entry.exerciseId}`;
+      const loads = entry.sets.flatMap((set) =>
+        WORKING_SET_TYPES.has(set.setType) && set.weight !== null
+          ? [{ weight: set.weight, unit: entry.unit ?? null }]
+          : [],
+      );
+      if (loads.length) out.set(key, [...(out.get(key) ?? []), ...loads]);
+    }
+  return out;
+}
+
+/** A logged load in the unit it is compared in, or null where it cannot be. */
+function loadIn(set: { weight: number | null; unit?: LoadUnit | null }, unit: LoadUnit) {
+  if (set.weight === null) return null;
+  const from = set.unit ?? unit;
+  return canConvertLoad(from, unit) ? convertLoad(set.weight, from, unit) : null;
+}
 
 export async function retainEvidenceBaselines(
   db: DbOrTx,

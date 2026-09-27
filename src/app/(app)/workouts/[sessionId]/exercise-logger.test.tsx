@@ -521,3 +521,126 @@ it("leaves a row being typed into alone when the saved sets change underneath it
   expect((screen.getByRole("textbox", { name: "Set 1 reps" }) as HTMLInputElement).value).toBe("5");
   expect(localStorage.getItem(draftKey(context))).toContain('"reps":"5"');
 });
+
+const benchSlot: NonNullable<ExerciseVM["planned"]> = {
+  programExerciseId: "planned",
+  plannedExerciseName: "Bench press",
+  sets: 3,
+  prescriptionType: "reps",
+  repMin: 3,
+  repMax: 5,
+  durationMinSeconds: null,
+  durationMaxSeconds: null,
+  distanceMinMeters: null,
+  distanceMaxMeters: null,
+  perSide: false,
+  rirMin: 2,
+  rirMax: 2,
+  restMinSeconds: 180,
+  restMaxSeconds: 240,
+  targetLoadNote: null,
+  progressionNotes: null,
+  keyCue: null,
+};
+const target = (
+  setIndex: number,
+  weight: number,
+  reps: number,
+  setType: SetVM["setType"] = "working",
+) => ({
+  setIndex,
+  setType,
+  weight,
+  reps,
+  rir: setType === "warmup" ? null : 2,
+  durationSeconds: null,
+  distanceMeters: null,
+});
+/** The rule holding 3 × 5 at 100 kg, with `ramp` in front of it as warm-up targets. */
+const holding = (ramp: ReturnType<typeof target>[] = []): Partial<ExerciseVM> => ({
+  planned: benchSlot,
+  suggestion: {
+    kind: "hold",
+    basis: "exercise",
+    reason: "Same weight",
+    advice: null,
+    loadIncrement: 2.5,
+    sets: [...ramp, ...[1, 2, 3].map((index) => target(ramp.length + index, 100, 5))],
+  },
+});
+
+it("offers the ramp in front of the work as warm-up rows, and the programme's sets after it", async () => {
+  actions.log.mockResolvedValue({ ok: true, set: { ...saved, setType: "warmup", weight: 40 } });
+  renderLogger({
+    exercise: holding([
+      target(1, 40, 8, "warmup"),
+      target(2, 57.5, 5, "warmup"),
+      target(3, 72.5, 3, "warmup"),
+    ]),
+  });
+  expect(screen.getByRole("button", { name: "Set 1 options, warm-up" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Set 3 options, warm-up" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Set 4 options" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Save set 6" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Save set 7" })).toBeNull();
+  // A warm-up row takes its targets, and no RIR, as it is.
+  fireEvent.click(screen.getByRole("button", { name: "Save set 1" }));
+  await waitFor(() => expect(actions.log).toHaveBeenCalledTimes(1));
+  expect(actions.log.mock.calls[0]?.[0]).toMatchObject({
+    setType: "warmup",
+    weight: 40,
+    reps: 8,
+    rir: null,
+  });
+});
+
+it("saves a light set with no RIR before the work as a warm-up, says so, and takes it back", async () => {
+  actions.log.mockResolvedValueOnce({
+    ok: true,
+    set: { ...saved, setType: "warmup", weight: 60, rir: null },
+  });
+  renderLogger({ exercise: holding() });
+  fireEvent.change(screen.getByRole("textbox", { name: "Set 1 load, kg" }), {
+    target: { value: "60" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Save set 1" }));
+  await waitFor(() => expect(actions.log).toHaveBeenCalledTimes(1));
+  expect(actions.log.mock.calls[0]?.[0]).toMatchObject({
+    setType: "warmup",
+    weight: 60,
+    rir: null,
+  });
+  await screen.findByText(/Saved as a warm-up/);
+
+  // It was a working set after all: back it goes, and it is saved again with its RIR.
+  fireEvent.click(screen.getByRole("button", { name: "Set 1 was a working set" }));
+  expect(screen.queryByText(/Saved as a warm-up/)).toBeNull();
+  fireEvent.change(screen.getByRole("textbox", { name: "Set 1 RIR" }), { target: { value: "3" } });
+  actions.log.mockResolvedValueOnce({ ok: true, set: { ...saved, weight: 60, rir: 3 } });
+  fireEvent.click(screen.getByRole("button", { name: "Update set 1" }));
+  await waitFor(() => expect(actions.log).toHaveBeenCalledTimes(2));
+  expect(actions.log.mock.calls[1]?.[0]).toMatchObject({ setType: "working", weight: 60, rir: 3 });
+});
+
+it("keeps a light set with its RIR, or one after the work has started, as a working set", async () => {
+  actions.log.mockResolvedValue({ ok: true, set: { ...saved, weight: 60, rir: 3 } });
+  renderLogger({ exercise: holding() });
+  // A lighter day on purpose is the athlete's to call.
+  fireEvent.change(screen.getByRole("textbox", { name: "Set 1 load, kg" }), {
+    target: { value: "60" },
+  });
+  fireEvent.change(screen.getByRole("textbox", { name: "Set 1 RIR" }), { target: { value: "3" } });
+  fireEvent.click(screen.getByRole("button", { name: "Save set 1" }));
+  await waitFor(() => expect(actions.log).toHaveBeenCalledTimes(1));
+  expect(actions.log.mock.calls[0]?.[0]).toMatchObject({ setType: "working", weight: 60 });
+  cleanup();
+
+  // After a set of the work, a light one is not the warm-up, and a working set needs its RIR.
+  renderLogger({ exercise: { ...holding(), sets: [{ ...saved, weight: 100 }] } });
+  fireEvent.change(screen.getByRole("textbox", { name: "Set 2 load, kg" }), {
+    target: { value: "60" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Save set 2" }));
+  await screen.findByText(/Enter RIR/);
+  expect(actions.log).toHaveBeenCalledTimes(1);
+});

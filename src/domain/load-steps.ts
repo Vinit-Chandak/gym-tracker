@@ -124,18 +124,29 @@ export function difficultyChange(ladder: LoadLadder | null, from: number, to: nu
 }
 
 /**
- * The largest step harder allowed at once, as a fraction of the load stepped from: the
- * percentage, or one real step of this machine, whichever is larger. A percentage on its own
- * freezes anything whose steps are coarse — the stop above 59 kg on a leg curl stack may be
- * 64 kg, an 8.5% jump — so the one step that physically exists is never the forbidden one.
+ * The largest step harder allowed, as a fraction of the load stepped from: the percentage, or
+ * `steps` real steps of this machine, whichever is larger. A percentage on its own freezes
+ * anything whose steps are coarse — the stop above 59 kg on a leg curl stack may be 64 kg, an
+ * 8.5% jump — so the step that physically exists is never the forbidden one. One step is what
+ * a single session may take; the 14-day limit allows two, so two sessions that each earned a
+ * step are not held on a machine where one step is already most of the percentage.
  * A step easier keeps the plain percentage: where no small enough cut exists, holding is the
  * safe answer and a real decline goes to review.
  */
-export function harderAllowance(limit: number, from: number, ladder: LoadLadder | null): number {
+export function harderAllowance(
+  limit: number,
+  from: number,
+  ladder: LoadLadder | null,
+  steps = 1,
+): number {
   if (!(from > 0) || !ladder) return limit;
-  const next = stepHarder(ladder, from);
-  if (!next) return limit;
-  return Math.max(limit, Math.abs(next.load / from - 1));
+  let load = from;
+  for (let step = 0; step < steps; step++) {
+    const next = stepHarder(ladder, load);
+    if (!next) break;
+    load = next.load;
+  }
+  return Math.max(limit, Math.abs(load / from - 1));
 }
 
 /**

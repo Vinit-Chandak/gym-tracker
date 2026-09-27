@@ -1,5 +1,6 @@
 import { comparisonScope } from "@/domain/comparable-history";
 import {
+  prescriptionLadder,
   suggestNext,
   workingSets,
   type Prescription,
@@ -15,6 +16,7 @@ import type { programExercises } from "@/db/schema";
 import { summarizeExerciseEvidence, TRAINING_POLICY } from "@/domain/training-evidence";
 import { difficultyChange, harderAllowance, type LoadLadder } from "@/domain/load-steps";
 import { todayInTimeZone } from "@/domain/program-calendar";
+import { readPerformance } from "@/domain/warmup-ramp";
 
 export type RuleInput = {
   asOf?: Date;
@@ -133,8 +135,21 @@ export function applyRule(input: RuleInput): RuleOutcome {
     prescription.ladder = ladder;
     prescription.requireKnownLoads = input.locationKind === "home";
   }
+  // A performance is read as it was trained, as the coach's evidence reads it (ADR 0038): the
+  // warm-up in front of the work as warm-ups, whatever they were logged as, and a back-off after
+  // it as a back-off. Only what the rule decides from is read this way; `previous` is returned
+  // as it was logged, because that is what the athlete is shown.
+  const asTrained = (performance: ComparablePerformance) =>
+    readPerformance(performance.sets, {
+      assisted: ladder?.assisted ?? false,
+      // A plan saved before units were recorded was written in the unit it is read in.
+      planned: (performance.planned ?? []).flatMap(({ weight, unit: from }) =>
+        canConvertLoad(from ?? unit, unit) ? [convertLoad(weight, from ?? unit, unit)] : [],
+      ),
+    });
   const evidenceHistory = basisHistory.map((h) => ({
     ...h,
+    sets: asTrained(h),
     performedOn: todayInTimeZone(input.timeZone ?? "Asia/Kolkata", h.performedAt),
   }));
   const decisions = (input.changes ?? []).flatMap((record) =>
@@ -154,8 +169,21 @@ export function applyRule(input: RuleInput): RuleOutcome {
           ),
       )
     : evidenceHistory;
+  // What an accepted change was already made on earns nothing twice. The engine still sees it,
+  // because a step that did not hold goes back to a load from before the change.
+  const spent = new Set(
+    evidenceHistory
+      .filter((h) => !freshHistory.includes(h))
+      .map((h) => `workout:${h.workoutSessionId}`),
+  );
   let suggestion = prescription
-    ? suggestNext(prescription, basisPerformance?.sets ?? null, basis, freshHistory)
+    ? suggestNext(
+        prescription,
+        basisPerformance ? asTrained(basisPerformance) : null,
+        basis,
+        freshHistory,
+        { full: evidenceHistory, spent },
+      )
     : null;
   const original = basisHistory
     .filter(
@@ -167,13 +195,19 @@ export function applyRule(input: RuleInput): RuleOutcome {
     original &&
     basisPerformance &&
     suggestion.sets.some((set) => {
-      const old = workingSets(original.sets).find((item) => item.setIndex === set.setIndex);
+      const old = workingSets(asTrained(original)).find((item) => item.setIndex === set.setIndex);
       return (
         old?.weight != null &&
         old.weight > 0 &&
         set.weight != null &&
         difficultyChange(ladder, old.weight, set.weight) >
-          harderAllowance(TRAINING_POLICY.maxCumulativeLoadIncrease, old.weight, ladder) + 1e-9
+          harderAllowance(
+            TRAINING_POLICY.maxCumulativeLoadIncrease,
+            old.weight,
+            prescriptionLadder(prescription!),
+            TRAINING_POLICY.maxCumulativeLoadSteps,
+          ) +
+            1e-9
       );
     })
   )
@@ -182,7 +216,10 @@ export function applyRule(input: RuleInput): RuleOutcome {
       kind: "hold",
       reason: "Combined load increases over 14 days need review.",
       advice: "Repeat the current load until the coach reviews the recent progression.",
-      sets: basisPerformance.sets.map((set) => ({ ...set, rir: prescription?.rirMin ?? null })),
+      sets: asTrained(basisPerformance).map((set) => ({
+        ...set,
+        rir: prescription?.rirMin ?? null,
+      })),
     };
   const lastLoadDecision = decisions
     .filter(
@@ -194,11 +231,22 @@ export function applyRule(input: RuleInput): RuleOutcome {
         (change.before.loads?.length || change.after.loads?.length),
     )
     .at(-1);
+  // The loads a decision set are where the next session starts: the ones it moved to, or the
+  // baseline a temporary session keeps. Only that next session. Once the athlete has trained
+  // since, the rule goes on from what they did, as it does everywhere else; otherwise any step
+  // the rule takes afterwards, up or back, would be pulled back to the decision's loads.
+  const since = lastLoadDecision
+    ? basisHistory.filter((h) => h.performedAt > lastLoadDecision.at).length
+    : 0;
   const referenceLoads =
     lastLoadDecision?.kind === "temporary"
-      ? lastLoadDecision.before.loads
-      : lastLoadDecision?.after.loads;
-  const currentWorking = workingSets(basisPerformance?.sets ?? []);
+      ? since <= 1
+        ? lastLoadDecision.before.loads
+        : undefined
+      : since === 0
+        ? lastLoadDecision?.after.loads
+        : undefined;
+  const currentWorking = basisPerformance ? workingSets(asTrained(basisPerformance)) : [];
   if (
     suggestion &&
     prescription &&
@@ -208,13 +256,16 @@ export function applyRule(input: RuleInput): RuleOutcome {
         convertLoad(load.load, lastLoadDecision!.unit!, unit),
     )
   ) {
+    const temporary = lastLoadDecision!.kind === "temporary";
     suggestion = {
       ...suggestion,
       kind: "hold",
-      reason:
-        "Return to the retained baseline after the temporary session; reassess current readiness.",
-      advice:
-        "A lighter session does not permanently lower the plan. Report current recovery before training.",
+      reason: temporary
+        ? "Return to the retained baseline after the temporary session; reassess current readiness."
+        : "Start from the loads the coach's last accepted change set.",
+      advice: temporary
+        ? "A lighter session does not permanently lower the plan. Report current recovery before training."
+        : "The rule goes on from what you log here.",
       sets: suggestion.sets.map((set) => {
         const index = currentWorking.findIndex((item) => item.setIndex === set.setIndex);
         const load = referenceLoads.find((item) => item.index === index);
@@ -235,7 +286,10 @@ export function applyRule(input: RuleInput): RuleOutcome {
       kind: "hold",
       reason: "Repeated decline needs a coach review against the retained reference.",
       advice: "Keep the baseline pending review; a recovery adjustment can still be temporary.",
-      sets: basisPerformance.sets.map((set) => ({ ...set, rir: prescription?.rirMin ?? null })),
+      sets: asTrained(basisPerformance).map((set) => ({
+        ...set,
+        rir: prescription?.rirMin ?? null,
+      })),
     };
   return {
     weightStep,

@@ -42,6 +42,12 @@ export type ComparablePerformance = {
   equipmentInstanceName: string | null;
   performedAt: Date;
   sets: ComparableSet[];
+  /**
+   * The working loads the coach's plan for that session prescribed for this exercise, in the
+   * plan's unit: what the athlete was asked to lift, so a pyramid it prescribed is read as work
+   * rather than as a warm-up (ADR 0038). Empty when the session had no plan.
+   */
+  planned?: { weight: number; unit: LoadUnit | null }[];
 };
 
 type PerformanceFilter = {
@@ -109,6 +115,20 @@ function performanceQuery(db: DbOrTx, filter: PerformanceFilter, requestIndex: n
           'distanceMeters', s.distance_meters
         ) order by s.set_index)
         from set_logs s where s.workout_exercise_id = workout_exercises.id
+      ), '[]'::json)`,
+      planned: sql<{ weight: number; unit: LoadUnit | null }[]>`coalesce((
+        select json_agg(json_build_object(
+          'weight', (planned_set->>'weight')::numeric,
+          'unit', planned_exercise->>'unit'
+        ))
+        from session_plans plan
+        cross join lateral jsonb_array_elements(plan.exercises) planned_exercise
+        cross join lateral jsonb_array_elements(planned_exercise->'sets') planned_set
+        where plan.workout_session_id = workout_sessions.id
+          and plan.status = 'consumed'
+          and planned_exercise->>'exerciseId' = workout_exercises.exercise_id::text
+          and coalesce(planned_set->>'setType', 'working') in ('working', 'amrap', 'failure')
+          and planned_set->>'weight' is not null
       ), '[]'::json)`,
     })
     .from(workoutExercises)

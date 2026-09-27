@@ -5,6 +5,7 @@ import { useEffect, useState, useTransition } from "react";
 import { recordSetChange } from "@/components/set-changes";
 import type { LoadUnit, PrescriptionType, SetType } from "@/domain/types";
 import { EFFORT_INPUT_VERSION, effortError } from "@/domain/effort";
+import { WORKING_SET_TYPES } from "@/domain/progression";
 import { canConvertLoad, convertLoad, setInUnit } from "@/lib/units";
 import {
   draftMatchesSet,
@@ -48,6 +49,10 @@ export type RowState = {
   saving: boolean;
   error: string | null;
   dirty: boolean;
+  /** The athlete picked this row's type, so nothing reads it as anything else. */
+  typeChosen?: boolean;
+  /** Saved as a warm-up although the row started as a working set; said under the row. */
+  autoWarmup?: boolean;
 };
 
 /** The unconfirmed prefill for one row: last session's numbers, or the rule's targets. */
@@ -98,20 +103,46 @@ function emptyRow(setIndex: number): RowState {
 
 function initialRows(exercise: ExerciseVM): RowState[] {
   const saved = exercise.sets.map(rowFromSet);
-  const coachTargets = exercise.suggestion?.kind === "coach" ? exercise.suggestion.sets : [];
+  const coach = exercise.suggestion?.kind === "coach";
+  const targets = [...(exercise.suggestion?.sets ?? [])].sort((a, b) => a.setIndex - b.setIndex);
+  // The warm-up in front of the work gets rows of its own, started as warm-ups: the ramp on the
+  // day's first lift, or the one logged there last time (ADR 0038). Then the work: every set the
+  // coach wrote, or the programme's working sets.
+  const lead = targets.findIndex((set) => set.setType !== "warmup");
+  const warmups = lead === -1 ? targets.length : lead;
   const target = Math.max(
-    coachTargets.length || (exercise.planned?.sets ?? 1),
+    coach
+      ? targets.length || (exercise.planned?.sets ?? 1)
+      : warmups + (exercise.planned?.sets ?? 1),
     Math.max(0, ...saved.map((r) => r.setIndex)) + (exercise.completedAt ? 0 : 1),
   );
   const rows: RowState[] = [];
-  for (let i = 1; i <= Math.min(MAX_SETS, target); i++)
+  for (let i = 1; i <= Math.min(MAX_SETS, target); i++) {
+    const planned = targets.find((set) => set.setIndex === i)?.setType;
     rows.push(
       saved.find((r) => r.setIndex === i) ?? {
         ...emptyRow(i),
-        setType: coachTargets.find((set) => set.setIndex === i)?.setType ?? "working",
+        setType: coach ? (planned ?? "working") : planned === "warmup" ? "warmup" : "working",
       },
     );
+  }
   return rows;
+}
+
+/** A set lighter than this share of the work, saved before any of it, is the warm-up. */
+const WARMUP_SHARE = 0.9;
+
+/**
+ * The load today's work starts at: this row's own working target, else the lightest working
+ * target, so every step of a pyramid the coach wrote is work. Null when nothing says.
+ */
+function workLoad(exercise: ExerciseVM, setIndex: number): number | null {
+  const work = (exercise.suggestion?.sets ?? []).filter(
+    (set) => WORKING_SET_TYPES.has(set.setType) && set.weight !== null && set.weight > 0,
+  );
+  const own = work.find((set) => set.setIndex === setIndex);
+  if (own) return own.weight;
+  return work.length > 0 ? Math.min(...work.map((set) => set.weight!)) : null;
 }
 
 type GhostSource = {
@@ -300,6 +331,8 @@ export function useSetRows({ exercise, userId, sessionId, measure, unit, onLogge
     const next = {
       ...row,
       ...patch,
+      // A type picked by hand is the athlete's word on what the set is.
+      ...(patch.setType !== undefined ? { typeChosen: true, autoWarmup: false } : {}),
       touched,
       effortVersion: touch === "rir" || touch === "rpe" ? EFFORT_INPUT_VERSION : row.effortVersion,
       dirty: true,
@@ -328,8 +361,36 @@ export function useSetRows({ exercise, userId, sessionId, measure, unit, onLogge
       update(row.setIndex, { error: MISSING_VALUE[measure] });
       return;
     }
+    // A set well under today's working load, saved with no RIR before any of the work, is the
+    // warm-up, whatever row it was typed into (ADR 0038). It is saved as one and said so under
+    // the row, with one tap back. With an RIR it stays a working set: that may be a lighter day
+    // on purpose, and the athlete's word is not rewritten.
+    const work = workLoad(exercise, row.setIndex);
+    const from = row.unit ?? unit;
+    const load =
+      weight === null || !canConvertLoad(from, unit) ? null : convertLoad(weight, from, unit);
+    const started = rows.some(
+      (other) =>
+        other.setIndex < row.setIndex &&
+        other.logged !== null &&
+        WORKING_SET_TYPES.has(other.logged.setType) &&
+        work !== null &&
+        (other.logged.weight ?? 0) >= work * WARMUP_SHARE - 1e-9,
+    );
+    const autoWarmup =
+      !row.logged &&
+      !row.typeChosen &&
+      row.setType === "working" &&
+      measure === "reps" &&
+      rir === null &&
+      !exercise.equipment?.ladder?.assisted &&
+      work !== null &&
+      load !== null &&
+      load < work * WARMUP_SHARE - 1e-9 &&
+      !started;
+    const setType: SetType = autoWarmup ? "warmup" : row.setType;
     const effortIssue = effortError({
-      setType: row.setType,
+      setType,
       reps,
       durationSeconds: duration,
       distanceMeters: distance,
@@ -340,7 +401,7 @@ export function useSetRows({ exercise, userId, sessionId, measure, unit, onLogge
       update(row.setIndex, { error: effortIssue });
       return;
     }
-    if (row.setType !== "warmup" && row.effortVersion !== EFFORT_INPUT_VERSION) {
+    if (setType !== "warmup" && row.effortVersion !== EFFORT_INPUT_VERSION) {
       update(row.setIndex, {
         error: `Review and re-enter actual ${measure === "reps" ? "RIR" : "RPE"} before saving this older entry.`,
       });
@@ -350,6 +411,8 @@ export function useSetRows({ exercise, userId, sessionId, measure, unit, onLogge
     // flight belongs to the next save, and must not be cleared by this one's answer.
     const submitted: RowState = {
       ...row,
+      setType,
+      autoWarmup,
       unit: row.unit ?? unit,
       weight: str(weight) ?? "",
       reps: str(reps === null ? null : Math.round(reps)) ?? "",
@@ -380,7 +443,7 @@ export function useSetRows({ exercise, userId, sessionId, measure, unit, onLogge
           expectedExerciseId: draftContext.exerciseId,
           expectedEquipmentInstanceId: draftContext.equipmentId,
           setIndex: row.setIndex,
-          setType: row.setType,
+          setType,
           weight,
           reps: reps === null ? null : Math.round(reps),
           rir,
@@ -396,7 +459,7 @@ export function useSetRows({ exercise, userId, sessionId, measure, unit, onLogge
       setRows((current) => {
         const next = current.map((r) =>
           r.setIndex === row.setIndex
-            ? { ...rowFromSet(setInUnit(result.set, unit)), saving: false }
+            ? { ...rowFromSet(setInUnit(result.set, unit)), saving: false, autoWarmup }
             : r,
         );
         const highest = Math.max(...next.map((r) => r.setIndex));
@@ -457,6 +520,9 @@ export function useSetRows({ exercise, userId, sessionId, measure, unit, onLogge
     });
   };
 
+  /** Puts a set saved as a warm-up back to a working set, to be saved again with its RIR. */
+  const undoWarmup = (row: RowState) => editRow(row, { setType: "working" });
+
   const addRow = () =>
     setRows((current) => [...current, emptyRow(Math.max(...current.map((r) => r.setIndex)) + 1)]);
 
@@ -476,6 +542,7 @@ export function useSetRows({ exercise, userId, sessionId, measure, unit, onLogge
     loggedSets: rows.filter((r) => r.logged).map((r) => r.logged as SetVM),
     ghost: (index: number) => ghostFor(exercise, rows, index),
     editRow,
+    undoWarmup,
     restore,
     logRow,
     removeRow,

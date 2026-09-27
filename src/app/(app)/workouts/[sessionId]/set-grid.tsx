@@ -75,6 +75,8 @@ type SetGridProps = {
   onEdit: (row: RowState, patch: Partial<RowState>, touch: DraftValueField) => void;
   onSave: (row: RowState) => void;
   onOptions: (row: RowState) => void;
+  /** Puts a set the logger saved as a warm-up back to a working set. */
+  onUndoWarmup?: (row: RowState) => void;
 };
 
 /** The third column: the field the exercise is actually counted in, and what bounds it. */
@@ -101,6 +103,7 @@ export function SetGrid({
   onEdit,
   onSave,
   onOptions,
+  onUndoWarmup,
 }: SetGridProps) {
   const middle = { ...MEASURE_FIELD[measure], label: MEASURE_COLUMN_LABELS[measure] };
   const effort = effortMetric(measure);
@@ -235,6 +238,24 @@ export function SetGrid({
               {row.error && (
                 <p role="alert" className="pt-1 text-xs text-danger">
                   {row.error}
+                </p>
+              )}
+              {row.autoWarmup && !row.error && row.setType === "warmup" && (
+                <p
+                  role="status"
+                  className="flex flex-wrap items-center gap-x-2 pt-1 text-xs text-ink-muted"
+                >
+                  Saved as a warm-up: well under today&apos;s working weight, with no RIR.
+                  {onUndoWarmup && (
+                    <button
+                      type="button"
+                      onClick={() => onUndoWarmup(row)}
+                      aria-label={`Set ${row.setIndex} was a working set`}
+                      className="-my-2 min-h-11 font-medium text-accent underline underline-offset-2"
+                    >
+                      Undo
+                    </button>
+                  )}
                 </p>
               )}
             </li>

@@ -5,8 +5,14 @@ import type { CoachJobResult, JobTarget } from "@/domain/coaching-workflow";
 import type { ProgramBlueprint } from "@/domain/program-blueprint";
 import { isAthleteTextSource, type AthleteSource } from "@/domain/coach-memory";
 import { assessProgramChange, type ExerciseMuscleReference } from "@/domain/program-change";
-import { TRAINING_POLICY } from "@/domain/training-evidence";
-import { difficultyChange, harderAllowance } from "@/domain/load-steps";
+import { repCeiling, repTarget, TRAINING_POLICY } from "@/domain/training-evidence";
+import {
+  difficultyChange,
+  harderAllowance,
+  stepHarder,
+  type LoadLadder,
+} from "@/domain/load-steps";
+import { WORKING_SET_TYPES } from "@/domain/progression";
 import type { CoachingEvidence } from "./coaching-evidence";
 import { athleteMemorySources, existingEvidenceIds } from "./coach-memory";
 import { planningContext } from "./coach-plans";
@@ -362,6 +368,9 @@ export async function assessSessionEvidence(
       const p = slot.prescription;
       const scope = slotScope(slot.lineageId);
       const sets = entry.sets.filter((set) => set.setType !== "warmup");
+      // Back-off and drop sets count towards the session's sets, but they are not the work: the
+      // plan's working sets are what is compared with the working sets last logged.
+      const work = sets.filter((set) => WORKING_SET_TYPES.has(set.setType));
       const count = entry.action === "drop" ? 0 : entry.sets.length ? sets.length : p.sets;
       plannedSets += p.sets;
       proposedSets += count;
@@ -406,26 +415,76 @@ export async function assessSessionEvidence(
         change.exerciseSlug === entry.exerciseSlug &&
         change.equipmentId === entry.equipmentInstanceId;
       const receipts = evidence.changes
-        .flatMap((record) => record.changes.filter(sameSetup))
+        .flatMap((record) =>
+          record.changes.filter(sameSetup).map((change) => ({ change, at: record.createdAt })),
+        )
         .reverse();
+      /**
+       * A change's loads and targets are the baseline until the athlete trains past them: the
+       * next session after a lasting change, the one lighter session after a temporary one. After
+       * that, what was logged is, as it is for the rule (ADR 0039). Otherwise a step the rule took
+       * since, up or back, would read as a jump from loads nobody has lifted for weeks.
+       */
+      const stillStands = ({ change, at }: (typeof receipts)[number]) => {
+        const since =
+          trend?.observations.filter((point) => new Date(point.performedAt) > at).length ?? 0;
+        return change.kind === "temporary" ? since <= 1 : since === 0;
+      };
       const unit =
         locations.find((item) => item.id === entry.equipmentInstanceId)?.unit ??
         trend?.loadUnit ??
         "kg";
-      const recent = receipts.find(
-        (change) =>
+      const withLoads = receipts.find(
+        ({ change }) =>
           (change.kind === "temporary"
             ? change.before.loads?.length
             : change.after.loads?.length) &&
           change.unit &&
           canConvertLoad(change.unit, unit),
       );
+      const recent = withLoads && stillStands(withLoads) ? withLoads.change : undefined;
       const retainedLoads = recent
         ? recent.kind === "temporary"
           ? recent.before.loads
           : recent.after.loads
         : undefined;
-      const baselineSets = trend?.latestSets.filter((set) => set.setType !== "warmup") ?? [];
+      const ladder = entry.equipmentInstanceId
+        ? (ladders.get(entry.equipmentInstanceId) ?? null)
+        : null;
+      // Free weights step by the typed jump, as the rule steps them; a machine by its own loads.
+      const steps: LoadLadder | null =
+        ladder ??
+        (slot.weightStep
+          ? { known: [], stack: false, assisted: false, increment: slot.weightStep }
+          : null);
+      const targetRir = p.rir[0] ?? 2;
+      /**
+       * The most reps a set at `load` may be asked for: the top of the range, or past it where the
+       * next step is so coarse that stepping at the top would land below the range (ADR 0039).
+       */
+      const ceilingAt = (load: number | null) =>
+        p.type !== "reps" || !p.reps
+          ? null
+          : repCeiling(
+              {
+                repMin: p.reps[0] ?? null,
+                repMax: p.reps[1] ?? null,
+                rirMin: p.rir[0] ?? null,
+                rule: p.progressionRule ?? null,
+              },
+              load,
+              load != null && load > 0 && steps ? (stepHarder(steps, load)?.load ?? null) : null,
+              steps?.assisted ?? false,
+            );
+      const latestId = trend?.observations[0]?.sourceId ?? null;
+      /** The sessions each change stands on, every one of which must be fresh and cited. */
+      const standsOn: string[][] = [];
+      // Set-count changes, and changes the older rule supports, need two new training dates.
+      let twoDates = count !== p.sets;
+      // The evidence reads each performance as it was trained (ADR 0038): the warm-up in front
+      // of the work, and a back-off after it, are not the sets the plan is compared with.
+      const baselineSets =
+        trend?.latestSets.filter((set) => WORKING_SET_TYPES.has(set.setType)) ?? [];
       const baselineLoads =
         retainedLoads?.map((item) => ({
           index: item.index,
@@ -435,16 +494,13 @@ export async function assessSessionEvidence(
           set.weight === null ? [] : [{ index, load: set.weight }],
         );
       const baselineLoad = baselineLoads[0]?.load ?? trend?.comparison.load;
-      const ladder = entry.equipmentInstanceId
-        ? (ladders.get(entry.equipmentInstanceId) ?? null)
-        : null;
       const proposedLoads: { index: number; load: number }[] = [];
       const baselineTargets: number[] = [],
         proposedTargets: number[] = [];
       let changedLoad: number | undefined;
       let changedTarget = false;
       let reducedTarget = false;
-      for (const [index, set] of sets.entries())
+      for (const [index, set] of work.entries())
         try {
           if (p.type === "reps" && set.rir === null)
             plan.stop(`${entry.exerciseSlug}: include a target RIR for working rep sets.`);
@@ -463,12 +519,38 @@ export async function assessSessionEvidence(
               : p.type === "duration"
                 ? set.durationSeconds
                 : set.distanceMeters;
+          const setBaseline =
+            baselineLoads.find((item) => item.index === index)?.load ?? baselineLoad;
+          const loadIncreases =
+            set.weight != null &&
+            setBaseline != null &&
+            setBaseline > 0 &&
+            Math.abs(set.weight - setBaseline) >= 0.05 &&
+            difficultyChange(ladder, setBaseline, set.weight) > 0;
+          // A step that missed the range twice in its first three sessions goes back to the load
+          // before it (ADR 0039): that load, for this set, is supported by the misses themselves.
+          const revertLoad = trend?.revert
+            ? (trend.revert.loads[index] ?? trend.revert.load)
+            : null;
+          const reverting =
+            !temporary &&
+            set.weight != null &&
+            revertLoad !== null &&
+            setBaseline != null &&
+            Math.abs(set.weight - setBaseline) >= 0.05 &&
+            Math.abs(set.weight - revertLoad) < 0.05;
+          // At the same load a set may build past the top where the next step is coarse.
+          const sameLoadAsBefore =
+            set.weight != null && setBaseline != null && Math.abs(set.weight - setBaseline) < 0.05;
+          const top =
+            range?.[1] != null && sameLoadAsBefore
+              ? Math.max(range[1], ceilingAt(setBaseline) ?? range[1])
+              : (range?.[1] ?? null);
           if (
             !equipmentChange &&
             value !== null &&
             range &&
-            ((!temporary && range[0] != null && value < range[0]) ||
-              (range[1] != null && value > range[1]))
+            ((!temporary && range[0] != null && value < range[0]) || (top != null && value > top))
           )
             plan.note(
               `${entry.exerciseSlug}: targets outside the program range need a program review.`,
@@ -480,9 +562,11 @@ export async function assessSessionEvidence(
               : p.type === "duration"
                 ? priorSet?.durationSeconds
                 : priorSet?.distanceMeters;
-          const retainedTarget = receipts.find(
-            (change) => change.before.targets?.length || change.after.targets?.length,
+          const withTargets = receipts.find(
+            ({ change }) => change.before.targets?.length || change.after.targets?.length,
           );
+          const retainedTarget =
+            withTargets && stillStands(withTargets) ? withTargets.change : undefined;
           const oldValue =
             (retainedTarget?.kind === "temporary"
               ? retainedTarget.before.targets
@@ -493,22 +577,24 @@ export async function assessSessionEvidence(
               : Math.min(range?.[1] ?? Infinity, Math.max(range?.[0] ?? 0, oldValue));
           if (targetBaseline !== null) baselineTargets.push(targetBaseline);
           if (value !== null) proposedTargets.push(value);
-          const setBaseline =
-            baselineLoads.find((item) => item.index === index)?.load ?? baselineLoad;
-          const loadIncreases =
-            set.weight != null &&
-            setBaseline != null &&
-            setBaseline > 0 &&
-            Math.abs(set.weight - setBaseline) >= 0.05 &&
-            difficultyChange(ladder, setBaseline, set.weight) > 0;
           if (
             !equipmentChange &&
             value !== null &&
             targetBaseline !== null &&
             value !== targetBaseline &&
-            !loadIncreases
+            !loadIncreases &&
+            !reverting
           ) {
             const delta = value - targetBaseline;
+            // What the set had in hand last time, at the target effort, is a target the latest
+            // session supports on its own (ADR 0039): 8 reps with 3 in reserve at a 2 RIR target
+            // is 9. Never past the top, or the ceiling a coarse next step sets.
+            const inHand =
+              p.type === "reps" && priorSet?.reps != null && priorSet.rir != null
+                ? repTarget(priorSet, targetRir, top ?? Infinity)
+                : null;
+            const fromCapacity =
+              !temporary && delta > 0 && inHand !== null && value <= inHand && latestId !== null;
             if (temporary && delta > 0)
               plan.note(
                 "A temporary recovery adjustment cannot increase reps, duration or distance.",
@@ -526,14 +612,17 @@ export async function assessSessionEvidence(
                   : trend?.progressionReady && range?.[1] != null
                     ? Math.max(1, range[1] - targetBaseline)
                     : TRAINING_POLICY.maxRepIncrease;
-            if (
-              !temporary &&
-              (Math.abs(delta) > step + 1e-9 ||
-                !(delta > 0 ? trend?.repeatedCompletion : trend?.declineCandidate))
-            )
-              plan.note(
-                `${entry.exerciseSlug}: target changes need repeated comparable evidence and a small step.`,
-              );
+            if (fromCapacity) standsOn.push([latestId]);
+            else if (!temporary) {
+              twoDates = true;
+              if (
+                Math.abs(delta) > step + 1e-9 ||
+                !(delta > 0 ? trend?.repeatedCompletion : trend?.declineCandidate)
+              )
+                plan.note(
+                  `${entry.exerciseSlug}: target changes need repeated comparable evidence and a small step.`,
+                );
+            }
             changedTarget = true;
             reducedTarget ||= delta < 0;
           }
@@ -545,7 +634,7 @@ export async function assessSessionEvidence(
             continue;
           }
           proposedLoads.push({ index, load: set.weight });
-          const sameLoad = setBaseline != null && Math.abs(set.weight - setBaseline) < 0.05;
+          const sameLoad = sameLoadAsBefore;
           // At home only a load known to exist on that equipment will do: listed, or lifted.
           if (
             context.gym.kind === "home" &&
@@ -568,19 +657,33 @@ export async function assessSessionEvidence(
           // Positive is harder. On an assisted machine that is less help, so a step down the
           // number is the progression and a step up it is the cut (ADR 0028).
           const delta = difficultyChange(ladder, setBaseline, set.weight);
-          if (temporary && delta > 0)
-            plan.note("A temporary recovery adjustment cannot make the load harder.");
+          const harderWhileRecovering = temporary && delta > 0;
           // The percentage or one real step of this machine, whichever is larger, so the only
-          // step a lift has is never the step that is forbidden.
-          if (
+          // step a lift has is never the step that is forbidden. Going back to the load before a
+          // step that did not hold is that same step, however coarse.
+          const beyondLimit =
             !temporary &&
-            (delta > harderAllowance(TRAINING_POLICY.maxLoadIncrease, setBaseline, ladder) + 1e-9 ||
-              delta < -TRAINING_POLICY.maxLoadReduction - 1e-9)
-          )
+            (delta > harderAllowance(TRAINING_POLICY.maxLoadIncrease, setBaseline, steps) + 1e-9 ||
+              (delta < -TRAINING_POLICY.maxLoadReduction - 1e-9 && !reverting));
+          // A step up stands on a rep to spare in the latest session, or on target in the two
+          // latest (ADR 0039); a cut on a confirmed decline, or on a step that did not hold.
+          const unsupported =
+            !temporary &&
+            !(delta > 0
+              ? trend?.loadReady || trend?.progressionReady
+              : trend?.declineCandidate || reverting);
+          if (!temporary && !unsupported) {
+            if (delta > 0 && trend?.loadReady) standsOn.push(trend.stepEvidenceIds);
+            else if (reverting) standsOn.push(trend!.revert!.evidenceIds);
+            else twoDates = true;
+          }
+          if (harderWhileRecovering)
+            plan.note("A temporary recovery adjustment cannot make the load harder.");
+          if (beyondLimit)
             plan.note(
               `${entry.exerciseSlug}: the load change exceeds the automatic limit and needs review.`,
             );
-          if (!temporary && !(delta > 0 ? trend?.progressionReady : trend?.declineCandidate))
+          if (unsupported)
             plan.note(
               `${entry.exerciseSlug}: the change is not supported by repeated comparable performance.`,
             );
@@ -596,7 +699,12 @@ export async function assessSessionEvidence(
             const totalChange = difficultyChange(ladder, originalLoad, set.weight);
             if (
               totalChange >
-                harderAllowance(TRAINING_POLICY.maxCumulativeLoadIncrease, originalLoad, ladder) +
+                harderAllowance(
+                  TRAINING_POLICY.maxCumulativeLoadIncrease,
+                  originalLoad,
+                  steps,
+                  TRAINING_POLICY.maxCumulativeLoadSteps,
+                ) +
                   1e-9 ||
               totalChange < -TRAINING_POLICY.maxCumulativeLoadReduction - 1e-9
             )
@@ -625,7 +733,13 @@ export async function assessSessionEvidence(
             const cumulative = difficultyChange(ladder, from, set.weight);
             if (
               cumulative >
-                harderAllowance(TRAINING_POLICY.maxCumulativeLoadIncrease, from, ladder) + 1e-9 ||
+                harderAllowance(
+                  TRAINING_POLICY.maxCumulativeLoadIncrease,
+                  from,
+                  steps,
+                  TRAINING_POLICY.maxCumulativeLoadSteps,
+                ) +
+                  1e-9 ||
               cumulative < -TRAINING_POLICY.maxCumulativeLoadReduction - 1e-9
             )
               plan.note(
@@ -636,11 +750,35 @@ export async function assessSessionEvidence(
         } catch (error) {
           if (!(error instanceof Fault)) throw error;
         }
+      // A back-off or drop set is lighter than the work by what it is. One written heavier than
+      // the work would be a load change under another name.
+      if (
+        baselineLoad != null &&
+        baselineLoad > 0 &&
+        sets.some(
+          (set) =>
+            !WORKING_SET_TYPES.has(set.setType) &&
+            set.weight != null &&
+            difficultyChange(ladder, baselineLoad, set.weight) > 1e-9,
+        )
+      )
+        plan.note(
+          `${entry.exerciseSlug}: back-off and drop sets cannot be heavier than the working sets.`,
+        );
       if (count !== p.sets || changedLoad !== undefined || changedTarget || equipmentChange) {
-        const fresh = freshSources(evidence, scope, cited, trend?.evidenceIds ?? []);
-        if (!temporary && !equipmentChange && fresh.days < 2)
+        const fresh = freshSources(evidence, scope, cited, [
+          ...(trend?.evidenceIds ?? []),
+          ...standsOn.flat(),
+        ]);
+        if (!temporary && !equipmentChange && (twoDates || standsOn.length === 0) && fresh.days < 2)
           plan.note(
             `${entry.exerciseSlug}: cite two new comparable training dates; the same evidence cannot justify another change.`,
+          );
+        // A change that stands on particular sessions needs exactly those, cited and unused.
+        const missing = [...new Set(standsOn.flat().filter((id) => !fresh.ids.includes(id)))];
+        if (!temporary && !equipmentChange && missing.length > 0)
+          plan.note(
+            `${entry.exerciseSlug}: this change stands on ${missing.join(", ")}; cite ${missing.length === 1 ? "it" : "them"}, and only evidence new since the last accepted change. The same evidence cannot justify another change.`,
           );
         changes.push({
           scope,
