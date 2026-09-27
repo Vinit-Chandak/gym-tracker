@@ -7,6 +7,7 @@ import { isAthleteTextSource, type AthleteSource } from "@/domain/coach-memory";
 import { assessProgramChange, type ExerciseMuscleReference } from "@/domain/program-change";
 import { TRAINING_POLICY } from "@/domain/training-evidence";
 import { difficultyChange, harderAllowance } from "@/domain/load-steps";
+import { easierInFront, rampLength } from "@/domain/warmup-ramp";
 import type { CoachingEvidence } from "./coaching-evidence";
 import { athleteMemorySources, existingEvidenceIds } from "./coach-memory";
 import { planningContext } from "./coach-plans";
@@ -67,6 +68,10 @@ function faults(): Faults {
   };
 }
 const slotScope = (lineageId: string) => `slot:${lineageId}`;
+/** A load as the athlete would write it: at most two decimals, and none that are zero. */
+const loadText = (load: number) => String(Math.round(load * 100) / 100);
+const loggedSet = (set: { weight: number | null; reps: number | null }, unit: string) =>
+  `${set.weight === null ? "an unknown load" : `${loadText(set.weight)} ${unit}`}${set.reps === null ? "" : ` × ${set.reps}`}`;
 
 function freshSources(
   evidence: CoachingEvidence,
@@ -425,7 +430,25 @@ export async function assessSessionEvidence(
           ? recent.before.loads
           : recent.after.loads
         : undefined;
-      const baselineSets = trend?.latestSets.filter((set) => set.setType !== "warmup") ?? [];
+      const ladder = entry.equipmentInstanceId
+        ? (ladders.get(entry.equipmentInstanceId) ?? null)
+        : null;
+      // The evidence already reads a warm-up ramp logged as working sets as the warm-up it was
+      // (ADR 0038). A plan that leads with warm-ups says how much more of what was logged in
+      // front of the work was the ramp: a ramp followed by fewer working sets than the slot
+      // prescribes, which the count alone cannot tell from a pyramid.
+      const logged = trend?.latestSets.filter((set) => set.setType !== "warmup") ?? [];
+      const leadingWarmups = entry.sets.findIndex((set) => set.setType !== "warmup");
+      const baselineSets = logged.slice(
+        rampLength(
+          logged.map((set) => set.weight),
+          p.sets,
+          {
+            assisted: ladder?.assisted,
+            declared: leadingWarmups === -1 ? entry.sets.length : leadingWarmups,
+          },
+        ),
+      );
       const baselineLoads =
         retainedLoads?.map((item) => ({
           index: item.index,
@@ -435,9 +458,15 @@ export async function assessSessionEvidence(
           set.weight === null ? [] : [{ index, load: set.weight }],
         );
       const baselineLoad = baselineLoads[0]?.load ?? trend?.comparison.load;
-      const ladder = entry.equipmentInstanceId
-        ? (ladders.get(entry.equipmentInstanceId) ?? null)
-        : null;
+      // Logged sets still lighter than the work behind them. A harder load refused against one of
+      // these was most likely refused against the athlete's warm-up, and the refusal says so.
+      const lighterInFront = retainedLoads
+        ? 0
+        : easierInFront(
+            baselineSets.map((set) => set.weight),
+            ladder?.assisted,
+          );
+      let againstRamp = false;
       const proposedLoads: { index: number; load: number }[] = [];
       const baselineTargets: number[] = [],
         proposedTargets: number[] = [];
@@ -568,22 +597,31 @@ export async function assessSessionEvidence(
           // Positive is harder. On an assisted machine that is less help, so a step down the
           // number is the progression and a step up it is the cut (ADR 0028).
           const delta = difficultyChange(ladder, setBaseline, set.weight);
-          if (temporary && delta > 0)
-            plan.note("A temporary recovery adjustment cannot make the load harder.");
+          const harderWhileRecovering = temporary && delta > 0;
           // The percentage or one real step of this machine, whichever is larger, so the only
           // step a lift has is never the step that is forbidden.
-          if (
+          const beyondLimit =
             !temporary &&
             (delta > harderAllowance(TRAINING_POLICY.maxLoadIncrease, setBaseline, ladder) + 1e-9 ||
-              delta < -TRAINING_POLICY.maxLoadReduction - 1e-9)
-          )
+              delta < -TRAINING_POLICY.maxLoadReduction - 1e-9);
+          const unsupported =
+            !temporary && !(delta > 0 ? trend?.progressionReady : trend?.declineCandidate);
+          if (harderWhileRecovering)
+            plan.note("A temporary recovery adjustment cannot make the load harder.");
+          if (beyondLimit)
             plan.note(
               `${entry.exerciseSlug}: the load change exceeds the automatic limit and needs review.`,
             );
-          if (!temporary && !(delta > 0 ? trend?.progressionReady : trend?.declineCandidate))
+          if (unsupported)
             plan.note(
               `${entry.exerciseSlug}: the change is not supported by repeated comparable performance.`,
             );
+          if (
+            delta > 0 &&
+            index < lighterInFront &&
+            (harderWhileRecovering || beyondLimit || unsupported)
+          )
+            againstRamp = true;
           const originalPerformance = trend?.observations
             .filter(
               (point) =>
@@ -636,6 +674,15 @@ export async function assessSessionEvidence(
         } catch (error) {
           if (!(error instanceof Fault)) throw error;
         }
+      if (againstRamp) {
+        const inFront = baselineSets.slice(0, lighterInFront);
+        const known = baselineSets.flatMap((set) => (set.weight === null ? [] : [set.weight]));
+        const work = ladder?.assisted ? Math.min(...known) : Math.max(...known);
+        const one = inFront.length === 1;
+        plan.note(
+          `${entry.exerciseSlug}: this plan is compared with ${inFront.map((set) => loggedSet(set, unit)).join(", ")}, logged as ${one ? "a working set" : "working sets"} in front of the ${loadText(work)} ${unit} work. If ${one ? "that was" : "those were"} the warm-up ramp, begin this exercise's sets with ${one ? "it as a warm-up" : "them as warm-ups"} at the logged ${one ? "load" : "loads"}, and its working sets are compared with that work instead.`,
+        );
+      }
       if (count !== p.sets || changedLoad !== undefined || changedTarget || equipmentChange) {
         const fresh = freshSources(evidence, scope, cited, trend?.evidenceIds ?? []);
         if (!temporary && !equipmentChange && fresh.days < 2)

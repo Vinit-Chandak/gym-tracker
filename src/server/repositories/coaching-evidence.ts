@@ -5,6 +5,7 @@ import {
   coachEvidenceBaselines,
   dailyRecovery,
   equipmentInstances,
+  equipmentTypes,
   exercises,
   plannedOccurrences,
   profiles,
@@ -16,6 +17,7 @@ import {
   workoutSessions,
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
+import { ASSISTED_EQUIPMENT_TYPES } from "@/domain/load-steps";
 import type { Prescription } from "@/domain/progression";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import {
@@ -23,6 +25,9 @@ import {
   TRAINING_POLICY,
   type EvidencePerformance,
 } from "@/domain/training-evidence";
+import type { LoadUnit } from "@/domain/types";
+import { readRampAsWarmups } from "@/domain/warmup-ramp";
+import { canConvertLoad, convertLoad } from "@/lib/units";
 import { existingEvidenceIds } from "./coach-memory";
 import { prescriptionFor } from "./progression-rule";
 import { readRunActivitiesBetween, type RunActivity } from "./training-data";
@@ -137,6 +142,7 @@ export async function readCoachingEvidence(
         session: workoutSessions,
         exercise: exercises,
         equipment: equipmentInstances,
+        equipmentType: equipmentTypes.slug,
         set: setLogs,
         lineageId: programExercises.lineageId,
       })
@@ -145,6 +151,7 @@ export async function readCoachingEvidence(
       .innerJoin(exercises, eq(exercises.id, workoutExercises.exerciseId))
       .innerJoin(setLogs, eq(setLogs.workoutExerciseId, workoutExercises.id))
       .leftJoin(equipmentInstances, eq(equipmentInstances.id, workoutExercises.equipmentInstanceId))
+      .leftJoin(equipmentTypes, eq(equipmentTypes.id, equipmentInstances.equipmentTypeId))
       .leftJoin(
         programExercises,
         eq(programExercises.id, workoutExercises.plannedProgramExerciseId),
@@ -204,6 +211,10 @@ export async function readCoachingEvidence(
     lineageId: string | null;
     equipmentId: string | null;
     prescription: Prescription;
+    /** A slot of the programme prescribes this, so it has a number of sets to be read against. */
+    planned: boolean;
+    /** An assisted machine, where less help is the harder set. */
+    assisted: boolean;
     history: Map<string, EvidencePerformance>;
     /**
      * Only part of the retained reference's identity now (ADR 0028): the column is no longer
@@ -234,6 +245,8 @@ export async function readCoachingEvidence(
         lineageId: row.lineageId,
         equipmentId: row.workoutExercise.equipmentInstanceId,
         prescription,
+        planned: slot !== undefined,
+        assisted: ASSISTED_EQUIPMENT_TYPES.has(row.equipmentType ?? ""),
         history: new Map(),
         convention: row.equipment?.loadConvention ?? "exercise_log_convention",
       };
@@ -258,7 +271,21 @@ export async function readCoachingEvidence(
     references.flatMap((r) => r.reference.sourceIds),
   );
   const exerciseTrends = [...groups.entries()].map(([identity, group]) => {
-    const history = [...group.history.values()];
+    // A warm-up ramp logged as working sets is read as the warm-up it was (ADR 0038). Only a
+    // slot prescribes a number of sets to read it against: an exercise nothing prescribes is
+    // read as it was logged.
+    const unit = group.prescription.unit;
+    const history = [...group.history.values()].map((performance) =>
+      group.planned
+        ? {
+            ...performance,
+            sets: readRampAsWarmups(performance.sets, group.prescription.sets, {
+              assisted: group.assisted,
+              load: (set) => loadIn(set, unit),
+            }),
+          }
+        : performance,
+    );
     const initial = summarizeExerciseEvidence(group.prescription, history);
     const scope = createHash("sha256")
       .update(
@@ -381,6 +408,13 @@ export async function readCoachingEvidence(
 }
 
 export type CoachingEvidence = Awaited<ReturnType<typeof readCoachingEvidence>>;
+
+/** A logged load in the unit it is compared in, or null where it cannot be. */
+function loadIn(set: { weight: number | null; unit?: LoadUnit | null }, unit: LoadUnit) {
+  if (set.weight === null) return null;
+  const from = set.unit ?? unit;
+  return canConvertLoad(from, unit) ? convertLoad(set.weight, from, unit) : null;
+}
 
 export async function retainEvidenceBaselines(
   db: DbOrTx,

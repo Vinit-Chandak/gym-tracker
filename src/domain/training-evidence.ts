@@ -1,5 +1,5 @@
 import type { PerformedSet, Prescription } from "./progression";
-import type { LoadUnit } from "./types";
+import type { LoadUnit, SetType } from "./types";
 import { canConvertLoad, convertLoad } from "@/lib/units";
 
 /** Versioned product limits to evaluate, not physiological optima or injury guarantees. */
@@ -30,7 +30,11 @@ export type EvidencePerformance = {
   performedAt: Date;
   /** Local date, when available. Same-day sets/bouts are one confirmation occasion. */
   performedOn?: string;
-  sets: readonly (PerformedSet & { unit?: LoadUnit })[];
+  /**
+   * `loggedAs` is set on a set read as something other than what it was logged as: a warm-up
+   * ramp logged as working sets, read as the warm-up it was (warmup-ramp.ts).
+   */
+  sets: readonly (PerformedSet & { unit?: LoadUnit; loggedAs?: SetType })[];
 };
 export type ReferenceEvidence = {
   values: number[];

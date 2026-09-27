@@ -15,6 +15,7 @@ import type { programExercises } from "@/db/schema";
 import { summarizeExerciseEvidence, TRAINING_POLICY } from "@/domain/training-evidence";
 import { difficultyChange, harderAllowance, type LoadLadder } from "@/domain/load-steps";
 import { todayInTimeZone } from "@/domain/program-calendar";
+import { readRampAsWarmups } from "@/domain/warmup-ramp";
 
 export type RuleInput = {
   asOf?: Date;
@@ -133,8 +134,17 @@ export function applyRule(input: RuleInput): RuleOutcome {
     prescription.ladder = ladder;
     prescription.requireKnownLoads = input.locationKind === "home";
   }
+  // A warm-up ramp logged as working sets is read as the warm-up it was, as the coach's evidence
+  // reads it (ADR 0038): against the slot's prescribed sets, so never for an exercise nothing
+  // prescribes. Only what the rule decides from is read this way; `previous` is returned as it
+  // was logged, because that is what the athlete is shown.
+  const asTrained = (sets: ComparablePerformance["sets"]) =>
+    input.planned
+      ? readRampAsWarmups(sets, input.planned.sets, { assisted: ladder?.assisted ?? false })
+      : sets;
   const evidenceHistory = basisHistory.map((h) => ({
     ...h,
+    sets: asTrained(h.sets),
     performedOn: todayInTimeZone(input.timeZone ?? "Asia/Kolkata", h.performedAt),
   }));
   const decisions = (input.changes ?? []).flatMap((record) =>
@@ -155,7 +165,12 @@ export function applyRule(input: RuleInput): RuleOutcome {
       )
     : evidenceHistory;
   let suggestion = prescription
-    ? suggestNext(prescription, basisPerformance?.sets ?? null, basis, freshHistory)
+    ? suggestNext(
+        prescription,
+        basisPerformance ? asTrained(basisPerformance.sets) : null,
+        basis,
+        freshHistory,
+      )
     : null;
   const original = basisHistory
     .filter(
@@ -167,7 +182,9 @@ export function applyRule(input: RuleInput): RuleOutcome {
     original &&
     basisPerformance &&
     suggestion.sets.some((set) => {
-      const old = workingSets(original.sets).find((item) => item.setIndex === set.setIndex);
+      const old = workingSets(asTrained(original.sets)).find(
+        (item) => item.setIndex === set.setIndex,
+      );
       return (
         old?.weight != null &&
         old.weight > 0 &&
@@ -182,7 +199,10 @@ export function applyRule(input: RuleInput): RuleOutcome {
       kind: "hold",
       reason: "Combined load increases over 14 days need review.",
       advice: "Repeat the current load until the coach reviews the recent progression.",
-      sets: basisPerformance.sets.map((set) => ({ ...set, rir: prescription?.rirMin ?? null })),
+      sets: asTrained(basisPerformance.sets).map((set) => ({
+        ...set,
+        rir: prescription?.rirMin ?? null,
+      })),
     };
   const lastLoadDecision = decisions
     .filter(
@@ -198,7 +218,7 @@ export function applyRule(input: RuleInput): RuleOutcome {
     lastLoadDecision?.kind === "temporary"
       ? lastLoadDecision.before.loads
       : lastLoadDecision?.after.loads;
-  const currentWorking = workingSets(basisPerformance?.sets ?? []);
+  const currentWorking = workingSets(asTrained(basisPerformance?.sets ?? []));
   if (
     suggestion &&
     prescription &&
@@ -235,7 +255,10 @@ export function applyRule(input: RuleInput): RuleOutcome {
       kind: "hold",
       reason: "Repeated decline needs a coach review against the retained reference.",
       advice: "Keep the baseline pending review; a recovery adjustment can still be temporary.",
-      sets: basisPerformance.sets.map((set) => ({ ...set, rir: prescription?.rirMin ?? null })),
+      sets: asTrained(basisPerformance.sets).map((set) => ({
+        ...set,
+        rir: prescription?.rirMin ?? null,
+      })),
     };
   return {
     weightStep,
