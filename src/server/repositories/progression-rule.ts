@@ -15,7 +15,7 @@ import type { programExercises } from "@/db/schema";
 import { summarizeExerciseEvidence, TRAINING_POLICY } from "@/domain/training-evidence";
 import { difficultyChange, harderAllowance, type LoadLadder } from "@/domain/load-steps";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import { readRampAsWarmups } from "@/domain/warmup-ramp";
+import { readPerformance } from "@/domain/warmup-ramp";
 
 export type RuleInput = {
   asOf?: Date;
@@ -134,17 +134,21 @@ export function applyRule(input: RuleInput): RuleOutcome {
     prescription.ladder = ladder;
     prescription.requireKnownLoads = input.locationKind === "home";
   }
-  // A warm-up ramp logged as working sets is read as the warm-up it was, as the coach's evidence
-  // reads it (ADR 0038): against the slot's prescribed sets, so never for an exercise nothing
-  // prescribes. Only what the rule decides from is read this way; `previous` is returned as it
-  // was logged, because that is what the athlete is shown.
-  const asTrained = (sets: ComparablePerformance["sets"]) =>
-    input.planned
-      ? readRampAsWarmups(sets, input.planned.sets, { assisted: ladder?.assisted ?? false })
-      : sets;
+  // A performance is read as it was trained, as the coach's evidence reads it (ADR 0038): the
+  // warm-up in front of the work as warm-ups, whatever they were logged as, and a back-off after
+  // it as a back-off. Only what the rule decides from is read this way; `previous` is returned
+  // as it was logged, because that is what the athlete is shown.
+  const asTrained = (performance: ComparablePerformance) =>
+    readPerformance(performance.sets, {
+      assisted: ladder?.assisted ?? false,
+      // A plan saved before units were recorded was written in the unit it is read in.
+      planned: (performance.planned ?? []).flatMap(({ weight, unit: from }) =>
+        canConvertLoad(from ?? unit, unit) ? [convertLoad(weight, from ?? unit, unit)] : [],
+      ),
+    });
   const evidenceHistory = basisHistory.map((h) => ({
     ...h,
-    sets: asTrained(h.sets),
+    sets: asTrained(h),
     performedOn: todayInTimeZone(input.timeZone ?? "Asia/Kolkata", h.performedAt),
   }));
   const decisions = (input.changes ?? []).flatMap((record) =>
@@ -167,7 +171,7 @@ export function applyRule(input: RuleInput): RuleOutcome {
   let suggestion = prescription
     ? suggestNext(
         prescription,
-        basisPerformance ? asTrained(basisPerformance.sets) : null,
+        basisPerformance ? asTrained(basisPerformance) : null,
         basis,
         freshHistory,
       )
@@ -182,9 +186,7 @@ export function applyRule(input: RuleInput): RuleOutcome {
     original &&
     basisPerformance &&
     suggestion.sets.some((set) => {
-      const old = workingSets(asTrained(original.sets)).find(
-        (item) => item.setIndex === set.setIndex,
-      );
+      const old = workingSets(asTrained(original)).find((item) => item.setIndex === set.setIndex);
       return (
         old?.weight != null &&
         old.weight > 0 &&
@@ -199,7 +201,7 @@ export function applyRule(input: RuleInput): RuleOutcome {
       kind: "hold",
       reason: "Combined load increases over 14 days need review.",
       advice: "Repeat the current load until the coach reviews the recent progression.",
-      sets: asTrained(basisPerformance.sets).map((set) => ({
+      sets: asTrained(basisPerformance).map((set) => ({
         ...set,
         rir: prescription?.rirMin ?? null,
       })),
@@ -218,7 +220,7 @@ export function applyRule(input: RuleInput): RuleOutcome {
     lastLoadDecision?.kind === "temporary"
       ? lastLoadDecision.before.loads
       : lastLoadDecision?.after.loads;
-  const currentWorking = workingSets(asTrained(basisPerformance?.sets ?? []));
+  const currentWorking = basisPerformance ? workingSets(asTrained(basisPerformance)) : [];
   if (
     suggestion &&
     prescription &&
@@ -255,7 +257,7 @@ export function applyRule(input: RuleInput): RuleOutcome {
       kind: "hold",
       reason: "Repeated decline needs a coach review against the retained reference.",
       advice: "Keep the baseline pending review; a recovery adjustment can still be temporary.",
-      sets: asTrained(basisPerformance.sets).map((set) => ({
+      sets: asTrained(basisPerformance).map((set) => ({
         ...set,
         rir: prescription?.rirMin ?? null,
       })),

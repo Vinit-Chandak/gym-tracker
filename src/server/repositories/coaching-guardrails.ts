@@ -7,7 +7,7 @@ import { isAthleteTextSource, type AthleteSource } from "@/domain/coach-memory";
 import { assessProgramChange, type ExerciseMuscleReference } from "@/domain/program-change";
 import { TRAINING_POLICY } from "@/domain/training-evidence";
 import { difficultyChange, harderAllowance } from "@/domain/load-steps";
-import { easierInFront, rampLength } from "@/domain/warmup-ramp";
+import { WORKING_SET_TYPES } from "@/domain/progression";
 import type { CoachingEvidence } from "./coaching-evidence";
 import { athleteMemorySources, existingEvidenceIds } from "./coach-memory";
 import { planningContext } from "./coach-plans";
@@ -68,10 +68,6 @@ function faults(): Faults {
   };
 }
 const slotScope = (lineageId: string) => `slot:${lineageId}`;
-/** A load as the athlete would write it: at most two decimals, and none that are zero. */
-const loadText = (load: number) => String(Math.round(load * 100) / 100);
-const loggedSet = (set: { weight: number | null; reps: number | null }, unit: string) =>
-  `${set.weight === null ? "an unknown load" : `${loadText(set.weight)} ${unit}`}${set.reps === null ? "" : ` × ${set.reps}`}`;
 
 function freshSources(
   evidence: CoachingEvidence,
@@ -367,6 +363,9 @@ export async function assessSessionEvidence(
       const p = slot.prescription;
       const scope = slotScope(slot.lineageId);
       const sets = entry.sets.filter((set) => set.setType !== "warmup");
+      // Back-off and drop sets count towards the session's sets, but they are not the work: the
+      // plan's working sets are what is compared with the working sets last logged.
+      const work = sets.filter((set) => WORKING_SET_TYPES.has(set.setType));
       const count = entry.action === "drop" ? 0 : entry.sets.length ? sets.length : p.sets;
       plannedSets += p.sets;
       proposedSets += count;
@@ -433,22 +432,10 @@ export async function assessSessionEvidence(
       const ladder = entry.equipmentInstanceId
         ? (ladders.get(entry.equipmentInstanceId) ?? null)
         : null;
-      // The evidence already reads a warm-up ramp logged as working sets as the warm-up it was
-      // (ADR 0038). A plan that leads with warm-ups says how much more of what was logged in
-      // front of the work was the ramp: a ramp followed by fewer working sets than the slot
-      // prescribes, which the count alone cannot tell from a pyramid.
-      const logged = trend?.latestSets.filter((set) => set.setType !== "warmup") ?? [];
-      const leadingWarmups = entry.sets.findIndex((set) => set.setType !== "warmup");
-      const baselineSets = logged.slice(
-        rampLength(
-          logged.map((set) => set.weight),
-          p.sets,
-          {
-            assisted: ladder?.assisted,
-            declared: leadingWarmups === -1 ? entry.sets.length : leadingWarmups,
-          },
-        ),
-      );
+      // The evidence reads each performance as it was trained (ADR 0038): the warm-up in front
+      // of the work, and a back-off after it, are not the sets the plan is compared with.
+      const baselineSets =
+        trend?.latestSets.filter((set) => WORKING_SET_TYPES.has(set.setType)) ?? [];
       const baselineLoads =
         retainedLoads?.map((item) => ({
           index: item.index,
@@ -458,22 +445,13 @@ export async function assessSessionEvidence(
           set.weight === null ? [] : [{ index, load: set.weight }],
         );
       const baselineLoad = baselineLoads[0]?.load ?? trend?.comparison.load;
-      // Logged sets still lighter than the work behind them. A harder load refused against one of
-      // these was most likely refused against the athlete's warm-up, and the refusal says so.
-      const lighterInFront = retainedLoads
-        ? 0
-        : easierInFront(
-            baselineSets.map((set) => set.weight),
-            ladder?.assisted,
-          );
-      let againstRamp = false;
       const proposedLoads: { index: number; load: number }[] = [];
       const baselineTargets: number[] = [],
         proposedTargets: number[] = [];
       let changedLoad: number | undefined;
       let changedTarget = false;
       let reducedTarget = false;
-      for (const [index, set] of sets.entries())
+      for (const [index, set] of work.entries())
         try {
           if (p.type === "reps" && set.rir === null)
             plan.stop(`${entry.exerciseSlug}: include a target RIR for working rep sets.`);
@@ -616,12 +594,6 @@ export async function assessSessionEvidence(
             plan.note(
               `${entry.exerciseSlug}: the change is not supported by repeated comparable performance.`,
             );
-          if (
-            delta > 0 &&
-            index < lighterInFront &&
-            (harderWhileRecovering || beyondLimit || unsupported)
-          )
-            againstRamp = true;
           const originalPerformance = trend?.observations
             .filter(
               (point) =>
@@ -674,15 +646,21 @@ export async function assessSessionEvidence(
         } catch (error) {
           if (!(error instanceof Fault)) throw error;
         }
-      if (againstRamp) {
-        const inFront = baselineSets.slice(0, lighterInFront);
-        const known = baselineSets.flatMap((set) => (set.weight === null ? [] : [set.weight]));
-        const work = ladder?.assisted ? Math.min(...known) : Math.max(...known);
-        const one = inFront.length === 1;
+      // A back-off or drop set is lighter than the work by what it is. One written heavier than
+      // the work would be a load change under another name.
+      if (
+        baselineLoad != null &&
+        baselineLoad > 0 &&
+        sets.some(
+          (set) =>
+            !WORKING_SET_TYPES.has(set.setType) &&
+            set.weight != null &&
+            difficultyChange(ladder, baselineLoad, set.weight) > 1e-9,
+        )
+      )
         plan.note(
-          `${entry.exerciseSlug}: this plan is compared with ${inFront.map((set) => loggedSet(set, unit)).join(", ")}, logged as ${one ? "a working set" : "working sets"} in front of the ${loadText(work)} ${unit} work. If ${one ? "that was" : "those were"} the warm-up ramp, begin this exercise's sets with ${one ? "it as a warm-up" : "them as warm-ups"} at the logged ${one ? "load" : "loads"}, and its working sets are compared with that work instead.`,
+          `${entry.exerciseSlug}: back-off and drop sets cannot be heavier than the working sets.`,
         );
-      }
       if (count !== p.sets || changedLoad !== undefined || changedTarget || equipmentChange) {
         const fresh = freshSources(evidence, scope, cited, trend?.evidenceIds ?? []);
         if (!temporary && !equipmentChange && fresh.days < 2)

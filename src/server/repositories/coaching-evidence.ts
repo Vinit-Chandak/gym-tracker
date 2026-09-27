@@ -12,13 +12,14 @@ import {
   programExercises,
   programDays,
   programRuns,
+  sessionPlans,
   setLogs,
   workoutExercises,
   workoutSessions,
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import { ASSISTED_EQUIPMENT_TYPES } from "@/domain/load-steps";
-import type { Prescription } from "@/domain/progression";
+import { WORKING_SET_TYPES, type Prescription } from "@/domain/progression";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import {
   summarizeExerciseEvidence,
@@ -26,7 +27,7 @@ import {
   type EvidencePerformance,
 } from "@/domain/training-evidence";
 import type { LoadUnit } from "@/domain/types";
-import { readRampAsWarmups } from "@/domain/warmup-ramp";
+import { readPerformance } from "@/domain/warmup-ramp";
 import { canConvertLoad, convertLoad } from "@/lib/units";
 import { existingEvidenceIds } from "./coach-memory";
 import { prescriptionFor } from "./progression-rule";
@@ -211,8 +212,6 @@ export async function readCoachingEvidence(
     lineageId: string | null;
     equipmentId: string | null;
     prescription: Prescription;
-    /** A slot of the programme prescribes this, so it has a number of sets to be read against. */
-    planned: boolean;
     /** An assisted machine, where less help is the harder set. */
     assisted: boolean;
     history: Map<string, EvidencePerformance>;
@@ -245,7 +244,6 @@ export async function readCoachingEvidence(
         lineageId: row.lineageId,
         equipmentId: row.workoutExercise.equipmentInstanceId,
         prescription,
-        planned: slot !== undefined,
         assisted: ASSISTED_EQUIPMENT_TYPES.has(row.equipmentType ?? ""),
         history: new Map(),
         convention: row.equipment?.loadConvention ?? "exercise_log_convention",
@@ -270,22 +268,29 @@ export async function readCoachingEvidence(
     userId,
     references.flatMap((r) => r.reference.sourceIds),
   );
+  const plans = await plannedWorkingLoads(
+    db,
+    userId,
+    rows.map(({ session }) => session.id),
+  );
   const exerciseTrends = [...groups.entries()].map(([identity, group]) => {
-    // A warm-up ramp logged as working sets is read as the warm-up it was (ADR 0038). Only a
-    // slot prescribes a number of sets to read it against: an exercise nothing prescribes is
-    // read as it was logged.
+    // Each performance is read as it was trained (ADR 0038): the warm-up in front of the work as
+    // warm-ups, whatever they were logged as, a back-off after it as a back-off, and a load the
+    // session's own plan prescribed as working kept as the work.
     const unit = group.prescription.unit;
-    const history = [...group.history.values()].map((performance) =>
-      group.planned
-        ? {
-            ...performance,
-            sets: readRampAsWarmups(performance.sets, group.prescription.sets, {
-              assisted: group.assisted,
-              load: (set) => loadIn(set, unit),
-            }),
-          }
-        : performance,
-    );
+    const history = [...group.history.values()].map((performance) => ({
+      ...performance,
+      sets: readPerformance(performance.sets, {
+        assisted: group.assisted,
+        load: (set) => loadIn(set, unit),
+        planned: (plans.get(`${performance.workoutSessionId}:${group.exerciseId}`) ?? []).flatMap(
+          (target) => {
+            const load = loadIn(target, unit);
+            return load === null ? [] : [load];
+          },
+        ),
+      }),
+    }));
     const initial = summarizeExerciseEvidence(group.prescription, history);
     const scope = createHash("sha256")
       .update(
@@ -408,6 +413,37 @@ export async function readCoachingEvidence(
 }
 
 export type CoachingEvidence = Awaited<ReturnType<typeof readCoachingEvidence>>;
+
+/**
+ * The working loads each session's coach plan prescribed, by session and exercise: what the
+ * athlete was asked to lift that day. A session started without a plan has none.
+ */
+async function plannedWorkingLoads(db: DbOrTx, userId: string, sessionIds: readonly string[]) {
+  const out = new Map<string, { weight: number; unit: LoadUnit | null }[]>();
+  const ids = [...new Set(sessionIds)];
+  if (ids.length === 0) return out;
+  const plans = await db
+    .select({ sessionId: sessionPlans.workoutSessionId, exercises: sessionPlans.exercises })
+    .from(sessionPlans)
+    .where(
+      and(
+        eq(sessionPlans.userId, userId),
+        eq(sessionPlans.status, "consumed"),
+        inArray(sessionPlans.workoutSessionId, ids),
+      ),
+    );
+  for (const plan of plans)
+    for (const entry of plan.exercises) {
+      const key = `${plan.sessionId}:${entry.exerciseId}`;
+      const loads = entry.sets.flatMap((set) =>
+        WORKING_SET_TYPES.has(set.setType) && set.weight !== null
+          ? [{ weight: set.weight, unit: entry.unit ?? null }]
+          : [],
+      );
+      if (loads.length) out.set(key, [...(out.get(key) ?? []), ...loads]);
+    }
+  return out;
+}
 
 /** A logged load in the unit it is compared in, or null where it cannot be. */
 function loadIn(set: { weight: number | null; unit?: LoadUnit | null }, unit: LoadUnit) {

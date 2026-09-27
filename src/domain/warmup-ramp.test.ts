@@ -1,120 +1,143 @@
 import { describe, expect, it } from "vitest";
 
 import type { PerformedSet } from "./progression";
-import { rampLength, readRampAsWarmups } from "./warmup-ramp";
+import { readPerformance } from "./warmup-ramp";
 
 /** The house warm-up's first compound ramp, and three sets of the work, on a 100 kg squat. */
 const RAMP = [40, 57.5, 72.5];
 const WORK = [100, 100, 100];
 
-describe("rampLength", () => {
-  it("reads the warm-up ramp in front of the prescribed working sets as the ramp", () => {
-    expect(rampLength([...RAMP, ...WORK], 3)).toBe(3);
-    // However long the ramp is, as long as the work is all there behind it.
-    expect(rampLength([20, 40, 60, 80, ...WORK], 3)).toBe(4);
-  });
+const logged = (weights: readonly (number | null)[], extra: Partial<PerformedSet>[] = []) =>
+  weights.map((weight, index): PerformedSet => ({
+    setIndex: index + 1,
+    setType: "working",
+    weight,
+    reps: 5,
+    rir: 2,
+    durationSeconds: null,
+    distanceMeters: null,
+    ...extra[index],
+  }));
+/** Each set as the rule reads it: W warm-up, B back-off, or the load of a working set. */
+const read = (sets: PerformedSet[], options: Parameters<typeof readPerformance>[1] = {}) =>
+  readPerformance(sets, options).map((set) =>
+    set.setType === "warmup"
+      ? `W${set.weight}`
+      : set.setType === "backoff"
+        ? `B${set.weight}`
+        : `${set.weight}`,
+  );
 
-  it("takes only as many sets as were logged beyond the prescription", () => {
-    // A ramp followed by two working sets where the slot asks for three reads, set for set,
-    // like a pyramid: the numbers alone only know that one set too many was logged.
-    expect(rampLength([...RAMP, 100, 100], 3)).toBe(2);
-  });
-
-  it("takes as many more as the plan leads with warm-ups, but never a set of the work", () => {
-    expect(rampLength([...RAMP, 100, 100], 3, { declared: 3 })).toBe(3);
-    expect(rampLength([...RAMP, 100, 100], 3, { declared: 5 })).toBe(3);
-    expect(rampLength([57.5, 100, 100], 3, { declared: 1 })).toBe(1);
-    expect(rampLength(WORK, 3, { declared: 2 })).toBe(0);
-  });
-
-  it("leaves straight sets, a pyramid of the prescribed length and a back-off as they were", () => {
-    expect(rampLength(WORK, 3)).toBe(0);
-    expect(rampLength([100, 100, 100, 100], 3)).toBe(0);
-    expect(rampLength([80, 90, 100], 3)).toBe(0);
-    expect(rampLength([100, 100, 100, 80], 3)).toBe(0);
-    // A ramp in front of a pyramid is still only the one set too many.
-    expect(rampLength([60, 80, 90, 100], 3)).toBe(1);
-  });
-
-  it("stops at a load nobody weighed, and reads no ramp without loads", () => {
-    expect(rampLength([null, 57.5, 72.5, ...WORK], 3)).toBe(0);
-    expect(rampLength([40, null, 72.5, ...WORK], 3)).toBe(1);
-    expect(rampLength([null, null, null, null], 3)).toBe(0);
-    expect(rampLength([], 3)).toBe(0);
-  });
-
-  it("reads bodyweight as the lightest load and treats a rounding difference as the same load", () => {
-    expect(rampLength([0, 0, 0, 0], 3)).toBe(0);
-    expect(rampLength([0, 10, 20, 20, 20], 3)).toBe(2);
-    // 220.46 lb is 99.998 kg: the same load, logged in another unit.
-    expect(rampLength([99.998, 100, 100, 100], 3)).toBe(0);
-  });
-
-  it("counts less help as harder on an assisted machine", () => {
-    expect(rampLength([50, 40, 30, 30, 30], 3, { assisted: true })).toBe(2);
-    expect(rampLength([30, 30, 30, 40], 3, { assisted: true })).toBe(0);
-    expect(rampLength([50, 40, 30, 30, 30], 3)).toBe(0);
-  });
-});
-
-describe("readRampAsWarmups", () => {
-  const logged = (weights: readonly (number | null)[], extra: Partial<PerformedSet>[] = []) =>
-    weights.map((weight, index): PerformedSet => ({
-      setIndex: index + 1,
-      setType: "working",
-      weight,
-      reps: 5,
-      rir: 2,
-      durationSeconds: null,
-      distanceMeters: null,
-      ...extra[index],
-    }));
-
-  it("reads the ramp as warm-ups, says what each was logged as, and leaves the work alone", () => {
-    const read = readRampAsWarmups(logged([...RAMP, ...WORK]), 3);
-    expect(read.map((set) => [set.setType, set.loggedAs])).toEqual([
-      ["warmup", "working"],
-      ["warmup", "working"],
-      ["warmup", "working"],
-      ["working", undefined],
-      ["working", undefined],
-      ["working", undefined],
+describe("readPerformance", () => {
+  it("reads a ramp in front of the work as the warm-up, however many sets either had", () => {
+    expect(read(logged([...RAMP, ...WORK]))).toEqual([
+      "W40",
+      "W57.5",
+      "W72.5",
+      "100",
+      "100",
+      "100",
     ]);
-    expect(read.map((set) => set.weight)).toEqual([...RAMP, ...WORK]);
-  });
-
-  it("counts only working sets against the prescription, in the order they were done", () => {
-    // A warm-up the athlete did mark is already a warm-up, and is not one of the sets too many.
-    const marked = logged([20, ...RAMP, ...WORK], [{ setType: "warmup" }]);
-    expect(readRampAsWarmups(marked, 3).map((set) => set.setType)).toEqual([
-      "warmup",
-      "warmup",
-      "warmup",
-      "warmup",
-      "working",
-      "working",
-      "working",
+    // One warm-up fewer, one more, and a heavy last one at 90% of the work.
+    expect(read(logged([40, 72.5, ...WORK]))).toEqual(["W40", "W72.5", "100", "100", "100"]);
+    expect(read(logged([...RAMP, 85, ...WORK]))).toEqual([
+      "W40",
+      "W57.5",
+      "W72.5",
+      "W85",
+      "100",
+      "100",
+      "100",
     ]);
-    const shuffled = [...logged([...RAMP, ...WORK])].reverse();
-    expect(
-      readRampAsWarmups(shuffled, 3)
-        .filter((set) => set.loggedAs)
-        .map((set) => set.setIndex)
-        .sort(),
-    ).toEqual([1, 2, 3]);
+    expect(read(logged([...RAMP, 90, ...WORK]))[3]).toBe("W90");
+    // Fewer working sets than the slot asks for: the count says nothing about what was ramp.
+    expect(read(logged([...RAMP, 100, 100]))).toEqual(["W40", "W57.5", "W72.5", "100", "100"]);
   });
 
-  it("returns the performance unchanged when nothing in it is a ramp", () => {
+  it("says what each set was logged as, and leaves the weights exactly as they were", () => {
+    const sets = readPerformance(logged([...RAMP, ...WORK]));
+    expect(sets.map((set) => set.loggedAs)).toEqual([
+      "working",
+      "working",
+      "working",
+      undefined,
+      undefined,
+      undefined,
+    ]);
+    expect(sets.map((set) => set.weight)).toEqual([...RAMP, ...WORK]);
+  });
+
+  it("reads a back-off after the work as a back-off, and a small drop as the work", () => {
+    expect(read(logged([...WORK, 80]))).toEqual(["100", "100", "100", "B80"]);
+    // Two sets at 100 and a third the athlete dropped to 80: two sets of work, not three.
+    expect(read(logged([100, 100, 80]))).toEqual(["100", "100", "B80"]);
+    // Fatigue taking off a plate or two is still the work.
+    expect(read(logged([100, 97.5, 95]))).toEqual(["100", "97.5", "95"]);
+    // A light set logged after the work started is a back-off, not a warm-up.
+    expect(read(logged([100, 60, 100, 100]))).toEqual(["100", "B60", "100", "100"]);
+  });
+
+  it("keeps every step of a pyramid the session's plan prescribed", () => {
+    expect(read(logged([80, 90, 100]), { planned: [80, 90, 100] })).toEqual(["80", "90", "100"]);
+    expect(read(logged([80, 90, 100, 100]), { planned: [80, 90, 100] })).toEqual([
+      "80",
+      "90",
+      "100",
+      "100",
+    ]);
+    // With the ramp in front of it, the ramp is still the warm-up.
+    expect(read(logged([40, 60, 80, 90, 100]), { planned: [80, 90, 100] })).toEqual([
+      "W40",
+      "W60",
+      "80",
+      "90",
+      "100",
+    ]);
+    // Without a plan the prescription is straight sets, and the work is the top.
+    expect(read(logged([80, 90, 100]))).toEqual(["W80", "W90", "100"]);
+  });
+
+  it("changes nothing in straight sets, and keeps what the athlete marked", () => {
     const straight = logged(WORK);
-    expect(readRampAsWarmups(straight, 3)).toEqual(straight);
+    expect(readPerformance(straight)).toEqual(straight);
+    const marked = logged([20, ...RAMP, ...WORK], [{ setType: "warmup" }]);
+    expect(read(marked)).toEqual(["W20", "W40", "W57.5", "W72.5", "100", "100", "100"]);
+    expect(readPerformance(marked)[0]!.loggedAs).toBeUndefined();
+    const backOff = logged([...WORK, 80], [{}, {}, {}, { setType: "backoff" }]);
+    expect(readPerformance(backOff)[3]!.loggedAs).toBeUndefined();
   });
 
-  it("compares the loads it is given, so sets in different units compare as one", () => {
+  it("never reads anything into a set nobody weighed", () => {
+    expect(read(logged([null, 57.5, 72.5, ...WORK]))).toEqual([
+      "null",
+      "W57.5",
+      "W72.5",
+      "100",
+      "100",
+      "100",
+    ]);
+    expect(read(logged([null, null, null]))).toEqual(["null", "null", "null"]);
+    expect(readPerformance([])).toEqual([]);
+  });
+
+  it("reads bodyweight, units and assisted machines the way their loads work", () => {
+    expect(read(logged([0, 0, 0]))).toEqual(["0", "0", "0"]);
+    expect(read(logged([0, 10, 20, 20, 20]))).toEqual(["W0", "W10", "20", "20", "20"]);
+    // 220.46 lb is 99.998 kg: the same load, logged in another unit.
+    expect(read(logged([99.998, 100, 100]))).toEqual(["99.998", "100", "100"]);
     const pounds = logged([88.2, 126.8, 159.8, ...WORK]);
     const inKg = (set: PerformedSet) =>
       set.weight === null ? null : set.setIndex <= 3 ? set.weight / 2.2046 : set.weight;
-    expect(readRampAsWarmups(pounds, 3, { load: inKg }).filter((set) => set.loggedAs)).toHaveLength(
-      3,
-    );
+    expect(readPerformance(pounds, { load: inKg }).filter((set) => set.loggedAs)).toHaveLength(3);
+    // Assisted: more help is easier, so the ramp comes down the numbers.
+    expect(read(logged([50, 40, 30, 30, 30]), { assisted: true })).toEqual([
+      "W50",
+      "W40",
+      "30",
+      "30",
+      "30",
+    ]);
+    expect(read(logged([20, 0, 0, 0]), { assisted: true })).toEqual(["W20", "0", "0", "0"]);
+    expect(read(logged([30, 30, 30, 40]), { assisted: true })).toEqual(["30", "30", "30", "B40"]);
   });
 });

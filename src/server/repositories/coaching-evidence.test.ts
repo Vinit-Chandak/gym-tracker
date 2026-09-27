@@ -17,6 +17,7 @@ import {
   programRuns,
   programs,
   runningActivityDetails,
+  sessionPlans,
   setLogs,
   workoutExercises,
   workoutSessions,
@@ -792,7 +793,14 @@ const asWarmups = (sets: readonly Logged[]): Logged[] =>
   sets.map((set) => ({ ...set, rir: null, setType: "warmup" }));
 
 /** Lower A's high-bar squat, 3 × 4–6 at 2–3 RIR, on a barbell at a commercial gym. */
-async function squatFixture(sessions: readonly (readonly Logged[])[]) {
+/**
+ * `plans[i]`, where given, is the coach's plan session `i` was trained from: its sets, stored
+ * as a consumed plan linked to that workout, as starting a planned session leaves it.
+ */
+async function squatFixture(
+  sessions: readonly (readonly Logged[])[],
+  plans: readonly (readonly Logged[] | null)[] = [],
+) {
   const user = await t.createAuthUser(`${crypto.randomUUID()}@ramp.test`);
   const as = <T>(fn: (db: DbOrTx) => Promise<T>) => withUser(t.db, user.id, fn);
   return as(async (db) => {
@@ -871,6 +879,46 @@ async function squatFixture(sessions: readonly (readonly Logged[])[]) {
           effortReported: true,
         })),
       );
+      const planned = plans[index];
+      if (planned)
+        await db.insert(sessionPlans).values({
+          userId: user.id,
+          programId: program.id,
+          programDayId: slot!.p.programDayId,
+          cycleIndex: 1,
+          dayIndex: 1,
+          gymId: gym!.id,
+          status: "consumed",
+          trigger: "nightly",
+          summary: "Lower A",
+          consumedAt: startedAt,
+          workoutSessionId: session!.id,
+          exercises: [
+            {
+              slotId: slot!.p.id,
+              action: "keep",
+              exerciseSlug: "high-bar-squat",
+              exerciseId: slot!.p.exerciseId,
+              exerciseName: "High-bar barbell squat",
+              equipmentInstanceId: bar!.id,
+              equipmentInstanceName: "Barbell",
+              note: "",
+              restSeconds: null,
+              supersetGroup: null,
+              perSide: null,
+              unit: "kg",
+              slotLineageId: slot!.p.lineageId,
+              sets: planned.map((set) => ({
+                setType: set.setType ?? "working",
+                weight: set.weight,
+                reps: set.reps,
+                rir: set.rir,
+                durationSeconds: null,
+                distanceMeters: null,
+              })),
+            },
+          ],
+        });
       ids.push(`workout:${session!.id}`);
     }
     const context = await planningContext(db, user.id, { gymId: gym!.id });
@@ -1012,51 +1060,82 @@ it("still measures a load change from the work, so an unsupported jump is refuse
   });
 });
 
-it("asks for the ramp as warm-ups when the count alone cannot tell it from the work", async () => {
-  // The latest session: the ramp, then two of the three working sets. Two sets too many are
-  // read as the ramp; the third, 72.5 kg × 3, reads like the first step of a pyramid.
+it("reads a ramp followed by fewer working sets than prescribed without being told", async () => {
+  // The latest session: the ramp, then two of the three working sets. Counting sets could not
+  // tell its 72.5 kg × 3 from the first step of a pyramid; its weight can.
   const a = await squatFixture([
     [...RAMP, ...WORK.slice(0, 2)],
     ...Array.from({ length: 5 }, () => [...RAMP, ...WORK]),
   ]);
   await a.as(async (db) => {
-    const refusal = await a.refusal(db, WORK);
-    expect(refusal?.issues).toContain(
-      `${SQUAT}: this plan is compared with 72.5 kg × 3, logged as a working set in front of the 100 kg work. If that was the warm-up ramp, begin this exercise's sets with it as a warm-up at the logged load, and its working sets are compared with that work instead.`,
-    );
-    // Written the way that refusal asks, with the ramp in front as warm-ups, it holds.
+    expect(await a.refusal(db, WORK)).toBeNull();
+    // Written with the ramp in front as warm-ups, it holds just the same.
     expect(await a.refusal(db, [...asWarmups(RAMP), ...WORK])).toBeNull();
-    // Saying the ramp was a ramp never moves the baseline off the work: 100 kg still anchors.
-    const jump = await a.refusal(db, [
-      ...asWarmups(RAMP),
-      ...WORK.map((set) => ({ ...set, weight: 110 })),
-    ]);
+    // Reading the ramp as a ramp never moves the baseline off the work: 100 kg still anchors.
+    const jump = await a.refusal(
+      db,
+      WORK.map((set) => ({ ...set, weight: 110 })),
+    );
     expect(jump?.issues).toContain(
       `${SQUAT}: the load change exceeds the automatic limit and needs review.`,
     );
-    expect(jump?.issues.some((issue) => issue.includes("warm-up ramp"))).toBe(false);
   });
 });
 
-it("reads a pyramid of the prescribed length, a back-off and an unplanned lift as they were logged", async () => {
+it("keeps a planned pyramid's steps as work, and reads an unplanned one as ramp and top set", async () => {
   const pyramid: Logged[] = [80, 90, 100].map((weight) => ({ weight, reps: 5, rir: 2 }));
-  const p = await squatFixture(Array.from({ length: 6 }, () => pyramid));
-  await p.as(async (db) => {
-    expect(await p.refusal(db, pyramid)).toBeNull();
-    const trend = (await readCoachingEvidence(db, p.user.id, p.program.id, now)).exerciseTrends[0]!;
+  const planned = await squatFixture(
+    Array.from({ length: 6 }, () => pyramid),
+    Array.from({ length: 6 }, () => pyramid),
+  );
+  await planned.as(async (db) => {
+    expect(await planned.refusal(db, pyramid)).toBeNull();
+    const trend = (await readCoachingEvidence(db, planned.user.id, planned.program.id, now))
+      .exerciseTrends[0]!;
     expect(trend.observations[0]?.loadProfile).toEqual([80, 90, 100]);
     expect(trend.latestSets.some((set) => set.loggedAs)).toBe(false);
   });
 
+  // The athlete's own pyramid, with no plan behind it: a slot prescribes straight sets, so the
+  // work is the top, and the steps below it were getting there.
+  const own = await squatFixture(Array.from({ length: 6 }, () => pyramid));
+  await own.as(async (db) => {
+    const trend = (await readCoachingEvidence(db, own.user.id, own.program.id, now))
+      .exerciseTrends[0]!;
+    expect(trend.latestSets.map((set) => [set.weight, set.setType, set.loggedAs])).toEqual([
+      [80, "warmup", "working"],
+      [90, "warmup", "working"],
+      [100, "working", undefined],
+    ]);
+    expect(await own.refusal(db, WORK)).toBeNull();
+  });
+});
+
+it("reads a set the athlete dropped to after two of the work as a back-off", async () => {
+  // Two sets at 100 kg, then a third taken down to 80: two sets of work, not three, so a plan
+  // holding 3 × 100 kg is a hold rather than a 25% jump on the third set.
+  const dropped = await squatFixture([
+    [...WORK.slice(0, 2), { weight: 80, reps: 5, rir: 2 }],
+    ...Array.from({ length: 5 }, () => [...WORK]),
+  ]);
+  await dropped.as(async (db) => expect(await dropped.refusal(db, WORK)).toBeNull());
+});
+
+it("reads a back-off after the work as a back-off, and an unplanned lift the same way", async () => {
   const backOff: Logged[] = [...WORK, { weight: 80, reps: 8, rir: 2 }];
   const b = await squatFixture(Array.from({ length: 6 }, () => backOff));
   await b.as(async (db) => {
     expect(await b.refusal(db, WORK)).toBeNull();
     const trend = (await readCoachingEvidence(db, b.user.id, b.program.id, now)).exerciseTrends[0]!;
     expect(trend.observations[0]?.loadProfile).toEqual([100, 100, 100]);
-    expect(trend.latestSets.some((set) => set.loggedAs)).toBe(false);
+    expect(trend.latestSets.map((set) => [set.weight, set.setType, set.loggedAs])).toEqual([
+      [100, "working", undefined],
+      [100, "working", undefined],
+      [100, "working", undefined],
+      [80, "backoff", "working"],
+    ]);
 
-    // A lift nothing in the programme prescribes has no number of sets to be read against.
+    // A lift nothing in the programme prescribes is read the same way.
     const [curl] = await db.select().from(exercises).where(eq(exercises.slug, "barbell-curl"));
     const startedAt = new Date(now.getTime() - 2 * 86_400_000);
     const [session] = await db
@@ -1095,7 +1174,9 @@ it("reads a pyramid of the prescribed length, a back-off and an unplanned lift a
       await readCoachingEvidence(db, b.user.id, b.program.id, now)
     ).exerciseTrends.find((item) => item.exerciseId === curl!.id)!;
     expect(unplanned.lineageId).toBeNull();
-    expect(unplanned.comparison.load).toBe(20);
-    expect(unplanned.latestSets.some((set) => set.loggedAs)).toBe(false);
+    expect(unplanned.comparison.load).toBe(40);
+    expect(unplanned.latestSets.filter((set) => set.loggedAs).map((set) => set.weight)).toEqual([
+      20, 30,
+    ]);
   });
 });
