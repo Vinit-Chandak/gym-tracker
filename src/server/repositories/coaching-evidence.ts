@@ -291,7 +291,9 @@ export async function readCoachingEvidence(
         ),
       }),
     }));
-    const initial = summarizeExerciseEvidence(group.prescription, history);
+    const initial = summarizeExerciseEvidence(group.prescription, history, null, {
+      assisted: group.assisted,
+    });
     const scope = createHash("sha256")
       .update(
         JSON.stringify([
@@ -334,7 +336,9 @@ export async function readCoachingEvidence(
       slug: group.slug,
       lineageId: group.lineageId,
       equipmentId: group.equipmentId,
-      ...summarizeExerciseEvidence(group.prescription, history, reference),
+      ...summarizeExerciseEvidence(group.prescription, history, reference, {
+        assisted: group.assisted,
+      }),
     };
   });
   const plannedRuns = await plannedRunsFor(db, userId, programId, running);

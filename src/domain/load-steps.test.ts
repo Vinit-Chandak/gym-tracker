@@ -112,6 +112,24 @@ describe("what a step harder is allowed to be", () => {
     const dumbbells: LoadLadder = { known: [], stack: false, assisted: false, increment: 2.5 };
     expect(harderAllowance(limit, 20, dumbbells)).toBeCloseTo(0.125);
   });
+  it("allows as many real steps as asked for, where they are bigger than the percentage", () => {
+    // Two steps up a stack: 59 to 64 is learned from the top gap, and 64 to 69 the same way.
+    expect(harderAllowance(0.1, 59, stack([47, 54, 59]), 2)).toBeCloseTo(10 / 59);
+    const dumbbells: LoadLadder = { known: [], stack: false, assisted: false, increment: 2 };
+    expect(harderAllowance(0.1, 10, dumbbells, 2)).toBeCloseTo(0.4);
+    // Two 2.5 kg steps on a 100 kg bar are 5%, well inside the 10% that stands.
+    const barbell: LoadLadder = { known: [], stack: false, assisted: false, increment: 2.5 };
+    expect(harderAllowance(0.1, 100, barbell, 2)).toBe(0.1);
+    // Less help is harder on an assisted machine, and a step that does not exist is not taken.
+    const assisted: LoadLadder = {
+      known: [10, 20, 30],
+      stack: true,
+      assisted: true,
+      increment: null,
+    };
+    expect(harderAllowance(0.1, 30, assisted, 2)).toBeCloseTo(2 / 3);
+    expect(harderAllowance(0.1, 20, stack([20]), 2)).toBe(0.1);
+  });
   it("leaves the percentage alone where the step is smaller, or unknown", () => {
     const barbell: LoadLadder = { known: [], stack: false, assisted: false, increment: 2.5 };
     expect(harderAllowance(limit, 100, barbell)).toBe(limit);

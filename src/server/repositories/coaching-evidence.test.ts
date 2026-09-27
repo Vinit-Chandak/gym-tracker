@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import {
   coachChangeRecords,
@@ -329,7 +329,7 @@ it("shares evidence consumption between daily decisions and weekly review", asyn
     ).toBe(false);
     await expect(
       assessSessionEvidence(db, a.user.id, a.target, a.output(55, 8), refreshed, new Set(a.ids)),
-    ).rejects.toThrow(/two new comparable/);
+    ).rejects.toThrow(/same evidence cannot justify another change/);
   });
 });
 it("retains a temporary session's baseline and exposes it to the fallback rule", async () => {
@@ -956,24 +956,28 @@ async function squatFixture(
       if (result.outcome !== "session") throw new Error("Unexpected result");
       return result;
     };
-    const assess = async (db: DbOrTx, sets: readonly Logged[]) =>
+    const assess = async (
+      db: DbOrTx,
+      sets: readonly Logged[],
+      cited: readonly string[] = ids.slice(0, 2),
+    ) =>
       assessSessionEvidence(
         db,
         user.id,
         target,
         plan(sets),
         await readCoachingEvidence(db, user.id, program.id, now),
-        new Set(ids.slice(0, 2)),
+        new Set(cited),
       );
-    const refusal = (db: DbOrTx, sets: readonly Logged[]) =>
-      assess(db, sets).then(
+    const refusal = (db: DbOrTx, sets: readonly Logged[], cited?: readonly string[]) =>
+      assess(db, sets, cited).then(
         () => null,
         (error: unknown) => {
           if (error instanceof CoachingError) return error;
           throw error;
         },
       );
-    return { user, as, gym: gym!, bar: bar!, program, ids, assess, refusal };
+    return { user, as, gym: gym!, bar: bar!, program, slot: slot!.p, ids, assess, refusal };
   });
 }
 
@@ -1178,5 +1182,161 @@ it("reads a back-off after the work as a back-off, and an unplanned lift the sam
     expect(unplanned.latestSets.filter((set) => set.loggedAs).map((set) => set.weight)).toEqual([
       20, 30,
     ]);
+  });
+});
+
+/** Every set of one logged session, re-logged with these numbers. */
+async function relog(
+  db: DbOrTx,
+  sourceId: string,
+  values: { weight: number; reps: number; rir: number },
+) {
+  const logged = await db
+    .select({ id: workoutExercises.id })
+    .from(workoutExercises)
+    .where(eq(workoutExercises.workoutSessionId, sourceId.slice("workout:".length)));
+  await db
+    .update(setLogs)
+    .set(values)
+    .where(
+      inArray(
+        setLogs.workoutExerciseId,
+        logged.map((row) => row.id),
+      ),
+    );
+}
+const straight = (weight: number, reps: number, rir: number): Logged[] =>
+  [1, 2, 3].map(() => ({ weight, reps, rir }));
+
+it("steps the load on one session with a rep to spare, and only on that session (ADR 0039)", async () => {
+  // 3 × 6 at 3 RIR at the top of 4–6: 9 in hand against the 8 that 6 at 2 RIR needs.
+  const a = await squatFixture([straight(100, 6, 3), ...Array.from({ length: 5 }, () => WORK)]);
+  await a.as(async (db) => {
+    const step = straight(102.5, 5, 2);
+    expect(await a.assess(db, step, [a.ids[0]!])).toMatchObject([
+      { kind: "progression", evidenceIds: [a.ids[0]], after: { load: 102.5 } },
+    ]);
+    // The session that earned it is the one that has to be cited.
+    expect((await a.refusal(db, step, [a.ids[1]!, a.ids[2]!]))?.issues).toEqual([
+      `${SQUAT}: this change stands on ${a.ids[0]}; cite it, and only evidence new since the last accepted change. The same evidence cannot justify another change.`,
+    ]);
+  });
+});
+
+it("asks a set for the reps it had in hand, on the latest session alone", async () => {
+  // 3 × 5 with 3 in reserve: at 2 RIR, that is 6.
+  const a = await squatFixture([straight(100, 5, 3)]);
+  await a.as(async (db) => {
+    expect(await a.assess(db, straight(100, 6, 2), [a.ids[0]!])).toMatchObject([
+      { kind: "progression", before: { targets: [5, 5, 5] }, after: { targets: [6, 6, 6] } },
+    ]);
+  });
+  // 5 at exactly 2 RIR had no sixth rep in hand, and one session is not two.
+  const b = await squatFixture([straight(100, 5, 2)]);
+  await b.as(async (db) => {
+    expect((await b.refusal(db, straight(100, 6, 2), [b.ids[0]!]))?.issues).toEqual([
+      `${SQUAT}: target changes need repeated comparable evidence and a small step.`,
+      `${SQUAT}: cite two new comparable training dates; the same evidence cannot justify another change.`,
+    ]);
+  });
+});
+
+it("goes back to the load before a step that missed the range twice", async () => {
+  const missed = straight(102.5, 3, 0);
+  const a = await squatFixture([
+    missed,
+    missed,
+    straight(100, 6, 3),
+    ...Array.from({ length: 3 }, () => WORK),
+  ]);
+  await a.as(async (db) => {
+    expect(await a.assess(db, straight(100, 6, 2))).toMatchObject([
+      {
+        kind: "reduction",
+        before: { load: 102.5 },
+        after: { load: 100 },
+        evidenceIds: [a.ids[0], a.ids[1]],
+      },
+    ]);
+    // Anywhere else is still a cut, and a cut needs a confirmed decline.
+    expect((await a.refusal(db, straight(97.5, 6, 2)))?.issues).toContain(
+      `${SQUAT}: the change is not supported by repeated comparable performance.`,
+    );
+  });
+});
+
+it("goes back a coarse step too, though it is more than the automatic cut", async () => {
+  const a = await fixture();
+  await a.as(async (db) => {
+    // 40 to 45 on these dumbbells is 12.5%, and back again is 11%.
+    await relog(db, a.ids[0]!, { weight: 45, reps: 6, rir: 1 });
+    await relog(db, a.ids[1]!, { weight: 45, reps: 6, rir: 1 });
+    for (const id of a.ids.slice(2)) await relog(db, id, { weight: 40, reps: 12, rir: 3 });
+    const evidence = await readCoachingEvidence(db, a.user.id, a.program.id, now);
+    expect(evidence.exerciseTrends[0]?.revert?.load).toBe(40);
+    expect(
+      await assessSessionEvidence(
+        db,
+        a.user.id,
+        a.target,
+        a.output(40, 12),
+        evidence,
+        new Set(a.ids.slice(0, 2)),
+      ),
+    ).toMatchObject([{ kind: "reduction", before: { load: 45 }, after: { load: 40 } }]);
+  });
+});
+
+it("compares a plan with what was trained since an accepted change, not with the change's loads", async () => {
+  // The coach moved the squat to 100 kg five days ago. The athlete trained it with a rep to
+  // spare, the app's rule stepped to 102.5, and they trained that.
+  const a = await squatFixture([
+    straight(102.5, 5, 2),
+    straight(100, 6, 3),
+    ...Array.from({ length: 4 }, () => straight(97.5, 6, 2)),
+  ]);
+  await a.as(async (db) => {
+    await db.insert(coachChangeRecords).values({
+      userId: a.user.id,
+      createdAt: new Date(now.getTime() - 5 * 86_400_000),
+      changes: [
+        {
+          scope: `slot:${a.slot.lineageId}`,
+          kind: "progression",
+          evidenceIds: [a.ids[2]!],
+          unit: "kg",
+          exerciseSlug: SQUAT,
+          equipmentId: a.bar.id,
+          before: { load: 97.5, loads: [0, 1, 2].map((index) => ({ index, load: 97.5 })) },
+          after: { load: 100, loads: [0, 1, 2].map((index) => ({ index, load: 100 })) },
+        },
+      ],
+    });
+    // Holding 102.5, where they are, is a hold, not a jump from the change's 100.
+    expect(await a.refusal(db, straight(102.5, 5, 2))).toBeNull();
+  });
+});
+
+it("lets two earned steps through the 14-day limit where one is already past 10%", async () => {
+  const a = await fixture();
+  await a.as(async (db) => {
+    // 40 kg for weeks; a rep to spare four days ago stepped to 45; a rep to spare at 45 since.
+    for (const id of a.ids.slice(2)) await relog(db, id, { weight: 40, reps: 10, rir: 2 });
+    await relog(db, a.ids[1]!, { weight: 40, reps: 12, rir: 4 });
+    await relog(db, a.ids[0]!, { weight: 45, reps: 12, rir: 3 });
+    const assess = async (load: number) =>
+      assessSessionEvidence(
+        db,
+        a.user.id,
+        a.target,
+        a.output(load, 10),
+        await readCoachingEvidence(db, a.user.id, a.program.id, now),
+        new Set(a.ids.slice(0, 1)),
+      );
+    // 47.5 is one real step from 45, and 40 to 47.5 is two.
+    expect(await assess(47.5)).toMatchObject([{ kind: "progression", after: { load: 47.5 } }]);
+    // A third inside the fortnight is for review.
+    await relog(db, a.ids[0]!, { weight: 47.5, reps: 12, rir: 3 });
+    await expect(assess(50)).rejects.toThrow(/over 14 days need review/);
   });
 });

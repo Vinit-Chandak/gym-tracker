@@ -211,6 +211,7 @@ export const SUGGESTION_KIND_LABELS: Record<SuggestionKind, string> = {
   hold: "Hold",
   repeat: "Repeat",
   reduce: "Reduce",
+  revert: "Step back",
   extend: "Add time",
   lengthen: "Add distance",
   transfer: "Starting guess",
