@@ -427,6 +427,8 @@ export async function getSessionDetail(
     restTimerEnabled?: boolean;
     preferredUnit?: "kg" | "lb";
     timeZone?: string;
+    /** The profile's body weight, null when none is recorded; read when left out. */
+    bodyWeightKg?: number | null;
   } = {},
 ): Promise<SessionDetail | null> {
   const [session] = await db
@@ -469,6 +471,7 @@ export async function getSessionDetail(
           name: exercises.name,
           slug: exercises.slug,
           modality: exercises.modality,
+          movementPattern: exercises.movementPattern,
           loadPortability: exercises.loadPortability,
           requiresEquipment: exercises.requiresEquipment,
           defaultLoadIncrement: exercises.defaultLoadIncrement,
@@ -509,18 +512,24 @@ export async function getSessionDetail(
       .orderBy(asc(setLogs.setIndex)),
     options.restTimerEnabled === undefined ||
     options.preferredUnit === undefined ||
-    options.timeZone === undefined
+    options.timeZone === undefined ||
+    options.bodyWeightKg === undefined
       ? db
           .select({
             restTimerEnabled: profiles.restTimerEnabled,
             timeZone: profiles.timeZone,
             preferredUnit: profiles.preferredUnit,
+            bodyWeightKg: profiles.bodyWeightKg,
           })
           .from(profiles)
           .where(eq(profiles.id, userId))
           .limit(1)
       : Promise.resolve([
-          { restTimerEnabled: options.restTimerEnabled, preferredUnit: options.preferredUnit },
+          {
+            restTimerEnabled: options.restTimerEnabled,
+            preferredUnit: options.preferredUnit,
+            bodyWeightKg: options.bodyWeightKg,
+          },
         ]),
     session.day?.warmupProtocolId
       ? getWarmupProtocol(db, session.day.warmupProtocolId)
@@ -599,6 +608,8 @@ export async function getSessionDetail(
       equipment: row.equipment?.id ? row.equipment : null,
       ladder: row.equipment?.id ? ladders.get(row.equipment.id) : null,
       preferredUnit: options.preferredUnit ?? (profile?.preferredUnit === "lb" ? "lb" : "kg"),
+      // What the athlete weighed in at for this session, else what they last recorded.
+      bodyWeightKg: session.session.bodyWeightKg ?? profile?.bodyWeightKg ?? null,
       slotLineageId: row.planned?.lineageId ?? null,
       history: histories[index]?.history ?? [],
       elsewhere: histories[index]?.elsewhere ?? null,

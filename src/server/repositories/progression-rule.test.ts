@@ -195,3 +195,79 @@ describe("the 14-day brake", () => {
     expect(weights(outcome)).toEqual([40, 40, 40]);
   });
 });
+
+describe("what the workout screen asks for next (ADR 0040)", () => {
+  /** One session with a set per [weight, reps, rir], `daysAgo` days before `asOf`. */
+  const logged = (daysAgo: number, sets: [number, number, number][]): ComparablePerformance => ({
+    ...session(daysAgo, 0, 0, 0),
+    sets: sets.map(([weight, reps, rir], index) => ({
+      setIndex: index + 1,
+      setType: "working" as const,
+      weight,
+      unit: "kg" as const,
+      reps,
+      rir,
+      durationSeconds: null,
+      distanceMeters: null,
+    })),
+  });
+
+  it("goes back from a heavy single to the last load held in the range, not up to three reps", () => {
+    // Deadlift, 3 × 3–5 at 2–3 RIR: 120 × 3 at 2 RIR held; a 125 kg single at 0 RIR since.
+    const deadlift = rule({
+      planned: { ...bench, rirMax: 3 },
+      exerciseSlug: "deadlift",
+      history: [
+        logged(7, [[125, 1, 0]]),
+        logged(14, [
+          [120, 3, 2],
+          [120, 3, 2],
+          [120, 3, 2],
+        ]),
+      ],
+    });
+    expect(deadlift.suggestion).toMatchObject({
+      kind: "revert",
+      reason: "125 kg had 1 rep in hand, short of the 3-rep minimum: back to 120 kg.",
+    });
+    expect(deadlift.suggestion?.sets.map((set) => [set.weight, set.reps, set.rir])).toEqual([
+      [120, 3, 2],
+    ]);
+  });
+
+  it("steps a split squat's dumbbell once the body under it is counted", () => {
+    // 2 × 8–12 a side at 1–2 RIR; 12 a side at 2 RIR with a 5 kg dumbbell.
+    const splitSquat = {
+      planned: { ...bench, sets: 2, repMin: 8, repMax: 12, rirMin: 1, rirMax: 2 },
+      exerciseSlug: "split-squat",
+      history: [
+        logged(7, [
+          [5, 12, 2],
+          [5, 12, 2],
+        ]),
+      ],
+    };
+    const counted = rule({
+      ...splitSquat,
+      exercise: { ...exercise, modality: "bodyweight", movementPattern: "lunge" },
+      bodyWeightKg: 75,
+    });
+    expect(counted.suggestion?.kind).toBe("increase");
+    expect(counted.suggestion?.sets.map((set) => [set.weight, set.reps, set.rir])).toEqual([
+      [7.5, 11, 1],
+      [7.5, 11, 1],
+    ]);
+    // Without a recorded weight the stand-in does the same job.
+    expect(
+      rule({
+        ...splitSquat,
+        exercise: { ...exercise, modality: "bodyweight", movementPattern: "lunge" },
+      }).suggestion?.kind,
+    ).toBe("increase");
+    // Read against the dumbbell alone, 7.5 kg looked half as heavy again.
+    expect(rule(splitSquat).suggestion).toMatchObject({
+      kind: "hold",
+      advice: "Build to 28 reps at this weight first, so the step lands inside the range.",
+    });
+  });
+});

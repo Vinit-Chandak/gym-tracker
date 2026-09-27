@@ -458,6 +458,13 @@ export async function assessSessionEvidence(
           ? { known: [], stack: false, assisted: false, increment: slot.weightStep }
           : null);
       const targetRir = p.rir[0] ?? 2;
+      // The part of the athlete's body a bodyweight movement lifts, as the evidence read it:
+      // a dumbbell step on a split squat is a small part of what is moved (ADR 0040).
+      const evidenceBody = trend?.comparison.prescription.bodyLoad ?? 0;
+      const bodyLoad =
+        evidenceBody > 0 && trend && canConvertLoad(trend.loadUnit, unit)
+          ? convertLoad(evidenceBody, trend.loadUnit, unit)
+          : 0;
       /**
        * The most reps a set at `load` may be asked for: the top of the range, or past it where the
        * next step is so coarse that stepping at the top would land below the range (ADR 0039).
@@ -471,6 +478,7 @@ export async function assessSessionEvidence(
                 repMax: p.reps[1] ?? null,
                 rirMin: p.rir[0] ?? null,
                 rule: p.progressionRule ?? null,
+                bodyLoad,
               },
               load,
               load != null && load > 0 && steps ? (stepHarder(steps, load)?.load ?? null) : null,
@@ -706,7 +714,7 @@ export async function assessSessionEvidence(
                   TRAINING_POLICY.maxCumulativeLoadSteps,
                 ) +
                   1e-9 ||
-              totalChange < -TRAINING_POLICY.maxCumulativeLoadReduction - 1e-9
+              (totalChange < -TRAINING_POLICY.maxCumulativeLoadReduction - 1e-9 && !reverting)
             )
               plan.note(
                 `${entry.exerciseSlug}: the combined changes from the logged load over 14 days need review.`,
@@ -740,7 +748,7 @@ export async function assessSessionEvidence(
                   TRAINING_POLICY.maxCumulativeLoadSteps,
                 ) +
                   1e-9 ||
-              cumulative < -TRAINING_POLICY.maxCumulativeLoadReduction - 1e-9
+              (cumulative < -TRAINING_POLICY.maxCumulativeLoadReduction - 1e-9 && !reverting)
             )
               plan.note(
                 `${entry.exerciseSlug}: the combined load changes over 14 days need review.`,
