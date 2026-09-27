@@ -727,7 +727,11 @@ export async function planningContext(
             defaultDistanceMinMeters: plannedRow.exercise.defaultDistanceMinMeters,
             defaultDistanceMaxMeters: plannedRow.exercise.defaultDistanceMaxMeters,
             defaultRir: plannedRow.exercise.defaultRir,
+            // What is done here: the fallback's movement where the gym swaps the exercise.
+            modality: (resolvedExercise ?? plannedRow.exercise).modality,
+            movementPattern: (resolvedExercise ?? plannedRow.exercise).movementPattern,
           },
+          bodyWeightKg: profile.bodyWeightKg,
           equipment: machine
             ? { id: machine.id, unit: machine.unit, loadIncrement: machine.loadIncrement }
             : null,

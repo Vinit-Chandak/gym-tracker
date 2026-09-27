@@ -1,10 +1,11 @@
+import { stepEasier, stepHarder, type LoadLadder } from "./load-steps";
 import type { PerformedSet, Prescription } from "./progression";
 import type { LoadUnit, SetType } from "./types";
 import { canConvertLoad, convertLoad } from "@/lib/units";
 
 /** Versioned product limits to evaluate, not physiological optima or injury guarantees. */
 export const TRAINING_POLICY = {
-  version: "2026-09-27",
+  version: "2026-09-27.2",
   detailDays: 7,
   trendDays: 56,
   /**
@@ -69,15 +70,18 @@ export type Readiness = "spare" | "on_target" | "building" | "below" | "unknown"
 
 /**
  * Reps to failure expected at `to`, from `capacity` reps to failure at `from`, along Epley's
- * curve. Good for the few percent of one load step; not a claim about anybody's maximum.
+ * curve. `body` is the part of the athlete's own body the exercise lifts, in the same unit: the
+ * curve runs through everything moved, so on a split squat it is the body and the dumbbell
+ * together (ADR 0040). Good for the few percent of one load step; not a claim about anybody's
+ * maximum.
  */
-export function capacityAt(capacity: number, from: number, to: number): number {
-  return 30 * ((from * (1 + capacity / 30)) / to - 1);
+export function capacityAt(capacity: number, from: number, to: number, body = 0): number {
+  return 30 * (((from + body) * (1 + capacity / 30)) / (to + body) - 1);
 }
 
 /** Reps to failure needed at `from` to still have `floor` in hand after moving to `to`. */
-export function capacityNeeded(floor: number, from: number, to: number): number {
-  return 30 * ((to * (1 + floor / 30)) / from - 1);
+export function capacityNeeded(floor: number, from: number, to: number, body = 0): number {
+  return 30 * (((to + body) * (1 + floor / 30)) / (from + body) - 1);
 }
 
 /**
@@ -88,7 +92,7 @@ export function capacityNeeded(floor: number, from: number, to: number): number 
  * set keeps building reps past the top until one step lands inside it (ADR 0039).
  */
 export function repCeiling(
-  p: Pick<Prescription, "repMin" | "repMax" | "rirMin" | "rule">,
+  p: Pick<Prescription, "repMin" | "repMax" | "rirMin" | "rule" | "bodyLoad">,
   load: number | null,
   next: number | null,
   assisted = false,
@@ -98,7 +102,7 @@ export function repCeiling(
   if (load == null || next == null || load <= 0 || next <= load || assisted || p.repMin == null)
     return top;
   const targetRir = p.rirMin ?? 2;
-  const needed = capacityNeeded(p.repMin + targetRir, load, next) - targetRir;
+  const needed = capacityNeeded(p.repMin + targetRir, load, next, p.bodyLoad ?? 0) - targetRir;
   return Math.max(top, Math.ceil(needed - 1e-9));
 }
 
@@ -122,6 +126,13 @@ export function sameLoad(a: number | null, b: number | null): boolean {
   return (
     a === b || (a !== null && b !== null && Math.abs(a - b) <= Math.max(0.05, Math.abs(b) * 0.005))
   );
+}
+
+/** A load as the athlete reads it: a weight, a pin on a stack, or a count of plates. */
+export function loadText(value: number, unit: LoadUnit): string {
+  if (unit === "stack_index") return `pin ${value}`;
+  if (unit === "plate_count") return `${value} plates`;
+  return unit === "none" ? `${value}` : `${value} ${unit}`;
 }
 
 export function median(values: readonly number[]): number | null {
@@ -158,9 +169,20 @@ export function summarizeExerciseEvidence(
   options: {
     /** An assisted machine: less help is harder, and no maximum is estimated from it. */
     assisted?: boolean;
+    /** The machine's loads (ADR 0028), where the prescription does not carry them. */
+    ladder?: Omit<LoadLadder, "increment"> | null;
   } = {},
 ) {
   const assisted = options.assisted ?? p.ladder?.assisted ?? false;
+  // Everything the curve runs through: the logged load and, on a bodyweight movement, the part
+  // of the body it lifts (ADR 0040). Help on an assisted machine is not read along the curve.
+  const body = assisted ? 0 : (p.bodyLoad ?? 0);
+  const ladder: LoadLadder = {
+    known: options.ladder?.known ?? p.ladder?.known ?? [],
+    stack: options.ladder?.stack ?? p.ladder?.stack ?? false,
+    assisted,
+    increment: p.loadIncrement > 0 ? p.loadIncrement : null,
+  };
   const days = new Set<string>();
   const observations = [...input]
     .sort((a, b) => b.performedAt.getTime() - a.performedAt.getTime())
@@ -220,8 +242,12 @@ export function summarizeExerciseEvidence(
     const known = inHand.filter((value): value is number => value !== null);
     // The hardest set is the one that limits a prescription of straight sets.
     const capacity = complete && known.length === selected.length ? Math.min(...known) : null;
+    // The hardest set logged, whether or not every set was. A set left out can only lower it,
+    // so logged sets that fell short of the range say the session did (ADR 0040).
+    const hardest = known.length > 0 ? Math.min(...known) : null;
     // A maximum is only estimated from sets close enough to failure for the curve to hold, on
-    // a load that is lifted rather than a machine's help.
+    // a load that is lifted rather than a machine's help. It is the logged load's maximum: the
+    // body a bodyweight movement lifts is on the curve, and off the number (ADR 0040).
     const estimates = assisted
       ? []
       : selected.flatMap((_, index) => {
@@ -232,7 +258,7 @@ export function summarizeExerciseEvidence(
             weight > 0 &&
             toFailure != null &&
             toFailure <= TRAINING_POLICY.estimateMaxReps
-            ? [weight * (1 + toFailure / 30)]
+            ? [(weight + body) * (1 + toFailure / 30) - body]
             : [];
         });
     return {
@@ -261,6 +287,8 @@ export function summarizeExerciseEvidence(
       belowMinimum: minimum != null && first != null && (valueOf(first, p) ?? Infinity) < minimum,
       /** Reps to failure on the hardest working set, when every set has its reps and RIR. */
       capacity,
+      /** Reps to failure on the hardest set logged with its reps and RIR, even if not all were. */
+      hardest,
       /** Estimated maximum from the best set of 12 reps to failure or fewer (Epley). */
       estimatedMax: estimates.length ? Math.round(Math.max(...estimates) * 10) / 10 : null,
     };
@@ -291,7 +319,7 @@ export function summarizeExerciseEvidence(
       before.load > 0 &&
       harder(first.load, before.load)
     )
-      errors.push(first.capacity - capacityAt(before.capacity, before.load, first.load));
+      errors.push(first.capacity - capacityAt(before.capacity, before.load, first.load, body));
   }
   const calibration = {
     steps: errors.length,
@@ -306,15 +334,21 @@ export function summarizeExerciseEvidence(
   const top = maximum == null ? null : maximum + targetRir;
   const floor = (minimum ?? 1) + targetRir;
   const readinessOf = (point: (typeof base)[number]): Readiness =>
-    !reps || point.capacity === null || point.load === null || !point.validUnit || top === null
+    !reps || point.load === null || !point.validUnit || top === null
       ? "unknown"
-      : point.capacity >= top + spare
-        ? "spare"
-        : point.capacity >= top
-          ? "on_target"
-          : point.capacity >= floor
-            ? "building"
-            : "below";
+      : point.capacity === null
+        ? // Not every set is there to say where the session left the load, unless the ones
+          // that are fell short of the range: the sets missing could not have lifted it.
+          point.hardest !== null && point.hardest < floor
+          ? "below"
+          : "unknown"
+        : point.capacity >= top + spare
+          ? "spare"
+          : point.capacity >= top
+            ? "on_target"
+            : point.capacity >= floor
+              ? "building"
+              : "below";
   const points = base.map((point) => ({ ...point, readiness: readinessOf(point) }));
   const latest = points[0] ?? null;
   const matching = latest
@@ -411,12 +445,32 @@ export function summarizeExerciseEvidence(
     run.points.filter((point) => point.readiness === "below");
   const current = loadRuns[0],
     before = loadRuns[1];
+  /** Where a load goes back to, and why. */
+  type Revert = {
+    load: number;
+    /** Each working set's load, in order; a set without one goes back to `load`. */
+    loads: (number | null)[];
+    /** Reps to failure the hardest set had there, or is expected to have. */
+    capacity: number | null;
+    evidenceIds: string[];
+    /**
+     * `missed_twice`: a step that missed the range twice in its first three sessions.
+     * `out_of_reach`: a load never held in the range, whose latest session could not reach the
+     * bottom of it even taken to failure.
+     */
+    reason: "missed_twice" | "out_of_reach";
+    /**
+     * Where `load` comes from: the load before the step, the last load held in the range, or
+     * the load the latest session's hardest set puts in the range.
+     */
+    to: "before_step" | "last_held" | "fitted";
+  };
   /**
    * A step that did not hold goes back to the load that last worked: missed twice in its first
    * three sessions, the latest of them one of the misses. Only ever to that load, never below
    * it, and never on one bad day.
    */
-  const revert =
+  const missedTwice: Revert | null =
     current &&
     before &&
     current.load !== null &&
@@ -427,15 +481,98 @@ export function summarizeExerciseEvidence(
     misses(current).length >= TRAINING_POLICY.revertMisses
       ? {
           load: before.load,
-          /** Each working set's load the last time at that load, in order. */
           loads: before.points[0]!.loadProfile,
-          /** Reps to failure the hardest set had there. */
           capacity: before.points[0]!.capacity,
           evidenceIds: misses(current).map((point) => point.sourceId),
+          reason: "missed_twice",
+          to: "before_step",
         }
       : null;
+  const held = (point: (typeof points)[number]) =>
+    point.readiness === "building" ||
+    point.readiness === "on_target" ||
+    point.readiness === "spare";
+  /** A load no session in the window held the range at, nor at anything harder. */
+  const neverHeld = (load: number | null) =>
+    load === null ||
+    !points.some(
+      (point) =>
+        held(point) &&
+        point.load !== null &&
+        (sameLoad(point.load, load) || harder(point.load, load)),
+    );
+  /** A session whose hardest set could not reach the bottom of the range even to failure. */
+  const beyondReach = (point: (typeof points)[number]) =>
+    point.readiness === "below" &&
+    point.hardest !== null &&
+    minimum != null &&
+    point.hardest < minimum;
+  /**
+   * A load nobody has held in the range is not a baseline yet (ADR 0040). When the latest session
+   * at one could not reach the bottom of the range even taken to failure — a heavy single, or a
+   * jump far past what the work had shown — holding it asks every set for more in hand than any
+   * session there has had: one rep at 0 RIR, held, became three at 2 RIR. It goes back at once,
+   * to the last load held in the range, else to the load that session itself puts in the range.
+   * A load held in the range, or under one that was, keeps the older rule: one low day holds.
+   */
+  const outOfReach =
+    !missedTwice &&
+    latest !== null &&
+    latest.load !== null &&
+    beyondReach(latest) &&
+    neverHeld(latest.load);
+  const lastHeld = outOfReach
+    ? points.find(
+        (point) => held(point) && point.load !== null && harder(latest!.load!, point.load),
+      )
+    : undefined;
+  /** The heaviest real load at or below where the latest session's hardest set fits the range. */
+  const fitted = (() => {
+    if (!outOfReach || lastHeld || assisted) return null;
+    const from = latest!.load!;
+    const fit = ((from + body) * (1 + latest!.hardest! / 30)) / (1 + floor / 30) - body;
+    let load = from;
+    for (let guard = 0; load > fit + 1e-9; guard++) {
+      const step = guard < 200 ? stepEasier(ladder, load) : null;
+      // A learned stop is a guess, and at home only a load known to exist will do.
+      if (
+        !step ||
+        !(step.load < load) ||
+        step.source === "learned" ||
+        (p.requireKnownLoads && step.source !== "known")
+      )
+        return null;
+      load = step.load;
+    }
+    return load > 0 ? load : null;
+  })();
+  const revert: Revert | null =
+    missedTwice ??
+    (lastHeld
+      ? {
+          load: lastHeld.load!,
+          loads: lastHeld.loadProfile,
+          capacity: lastHeld.capacity,
+          evidenceIds: [latest!.sourceId],
+          reason: "out_of_reach",
+          to: "last_held",
+        }
+      : fitted !== null
+        ? {
+            load: fitted,
+            loads: [],
+            capacity: Math.floor(capacityAt(latest!.hardest!, latest!.load!, fitted, body) + 1e-9),
+            evidenceIds: [latest!.sourceId],
+            reason: "out_of_reach",
+            to: "fitted",
+          }
+        : null);
   // A load that was stepped to and did not hold asks for two sessions, not one, before it is
-  // tried again: one good day is how it was reached last time.
+  // tried again: one good day is how it was reached last time. That is a step that missed the
+  // range twice, or a load never held that a session could not reach the range at (ADR 0040) —
+  // only once the next step would reach it: a single far above is no reason to slow the steps
+  // below it.
+  const nextUp = current?.load != null ? stepHarder(ladder, current.load) : null;
   const failedAbove = loadRuns
     .slice(1)
     .some(
@@ -444,7 +581,11 @@ export function summarizeExerciseEvidence(
         run.load !== null &&
         harder(run.load, current.load) &&
         run.points.length <= TRAINING_POLICY.revertWindow &&
-        misses(run).length >= TRAINING_POLICY.revertMisses,
+        (misses(run).length >= TRAINING_POLICY.revertMisses ||
+          (neverHeld(run.load) &&
+            run.points.some(beyondReach) &&
+            nextUp !== null &&
+            !harder(run.load, nextUp.load))),
     );
   const previous = points[1];
   const steady = (point: (typeof points)[number] | undefined) =>
@@ -466,6 +607,37 @@ export function summarizeExerciseEvidence(
           )
         ? "confirmed"
         : null;
+  /**
+   * What moves the load up next, in the athlete's terms (ADR 0040): the reps and reps in reserve
+   * every working set needs, and in how many sessions. It is here so a coach's note can say it as
+   * it stands, not restate the rule from memory. Null with no load to step from, and when the
+   * next session goes back instead.
+   */
+  const nextStep = (() => {
+    if (!reps || !latest || latest.load === null || !(latest.load > 0) || maximum == null)
+      return null;
+    if (revert) return null;
+    const from = loadText(latest.load, p.unit);
+    const next = stepHarder(ladder, latest.load);
+    if (!next || (p.requireKnownLoads && next.source !== "known"))
+      return `Nobody knows the next load up from ${from} yet: reps build within the range until the athlete enters it.`;
+    const to = loadText(next.load, p.unit);
+    const ceiling = repCeiling(p, latest.load, next.load, assisted) ?? maximum;
+    // One session needs a rep to spare beyond the top; two running need the top itself.
+    const once = failedAbove ? null : Math.max(ceiling, maximum + spare);
+    const twice = `two sessions running with every working set at ${ceiling} reps and ${targetRir} RIR`;
+    if (ceiling > maximum)
+      return `${to} is a big jump from ${from}, so reps build past the top of the range first: it comes after ${
+        once === null
+          ? twice
+          : once === ceiling
+            ? `one session with every working set at ${ceiling} reps and ${targetRir} RIR`
+            : `one session with every working set at ${once} reps and ${targetRir} RIR, or ${twice}`
+      }.`;
+    return once === null
+      ? `${to} comes after ${twice}: the step above this load did not hold last time.`
+      : `${to} comes after one session with every working set at ${maximum} reps and ${targetRir + spare} RIR (or ${once} reps at ${targetRir} RIR), or after ${twice}.`;
+  })();
   // A running estimate of the maximum, across loads, so a trend survives every step up.
   const estimated = [...points].reverse().filter((point) => point.estimatedMax !== null);
   let smoothed: number | null = null;
@@ -538,8 +710,13 @@ export function summarizeExerciseEvidence(
         : loadReady === "confirmed"
           ? [latest!.sourceId, previous!.sourceId]
           : [],
-    /** A step that did not hold, and the load it goes back to. */
+    /**
+     * A load that goes back, and where to: a step that missed the range twice, or a load never
+     * held in the range that the latest session could not reach the bottom of (ADR 0040).
+     */
     revert,
+    /** What moves the load up next, as the athlete should hear it (ADR 0040). */
+    nextStep,
     /**
      * How the athlete's reported reps in reserve held up after each step up in the window: the
      * reps to failure they had at the new load, minus what the session before predicted.

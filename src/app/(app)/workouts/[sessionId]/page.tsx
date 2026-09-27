@@ -35,11 +35,12 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
     user.id,
     async (tx) => {
       const profile = requestProfile;
-      // All three come from the request's profile, so the detail read never fetches it again.
+      // All four come from the request's profile, so the detail read never fetches it again.
       const detail = await getSessionDetail(tx, user.id, sessionId, {
         restTimerEnabled: profile.restTimerEnabled,
         preferredUnit: profile.preferredUnit === "lb" ? "lb" : "kg",
         timeZone: profile.timeZone,
+        bodyWeightKg: profile.bodyWeightKg,
       });
       if (!detail) return null;
       // The records were decided when the session finished; an open session has none yet.

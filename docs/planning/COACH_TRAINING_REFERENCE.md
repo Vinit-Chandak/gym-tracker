@@ -1,6 +1,6 @@
 # Coach training reference
 
-Version: 2026-09-27.1
+Version: 2026-09-27.2
 
 This document is the editorial source. The copy the coach actually reads is served by the
 deployed app from `src/domain/coach-training-reference.ts`, once per job, so a routine's older
@@ -75,13 +75,19 @@ reference document must not overwrite current athlete records.
   step, not a law. A step that misses the band twice in its first three sessions goes back to
   the load before it, and is tried again after two sessions at the ceiling. Where the next step
   is so coarse it would land below the band, build reps past the ceiling until it lands inside.
+- A load never held in the band is not yet a baseline. A heavy single, or a jump the work had
+  not shown, that cannot reach the bottom of the band even taken to failure goes back at once:
+  to the last load held in the band, or to where that session puts the band. Holding it would
+  ask for more reps in reserve than any set there has had.
 - An estimated maximum from sets close to failure can follow a trend across load changes. It is
   never a tested maximum or a target.
 - For fixed-load endurance goals, build reps or duration at that load; change resistance when
   the task calls for it. There is no universal endurance load-up cutoff.
 - Less assistance means greater difficulty on assisted pull-ups/dips. Bodyweight work can
   progress through added load, reduced assistance or changed leverage. Record the setup;
-  machine stack numbers and different load placements are not interchangeable.
+  machine stack numbers and different load placements are not interchangeable. On bodyweight
+  work and lunges the body is most of what is moved, so a load-to-reps conversion runs through
+  the body and the added load together: a small dumbbell step on a split squat is a small step.
 - Holds and carries use time/distance as appropriate. Do not convert seconds or metres to reps.
   Eccentric-only, stability and rehabilitation-style work needs task-specific progression.
 

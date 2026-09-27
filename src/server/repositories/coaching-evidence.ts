@@ -18,6 +18,7 @@ import {
   workoutSessions,
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
+import { bodyLoad } from "@/domain/body-load";
 import { ASSISTED_EQUIPMENT_TYPES } from "@/domain/load-steps";
 import { WORKING_SET_TYPES, type Prescription } from "@/domain/progression";
 import { todayInTimeZone } from "@/domain/program-calendar";
@@ -30,6 +31,7 @@ import type { LoadUnit } from "@/domain/types";
 import { readPerformance } from "@/domain/warmup-ramp";
 import { canConvertLoad, convertLoad } from "@/lib/units";
 import { existingEvidenceIds } from "./coach-memory";
+import { loadLadders } from "./load-ladders";
 import { prescriptionFor } from "./progression-rule";
 import { readRunActivitiesBetween, type RunActivity } from "./training-data";
 
@@ -134,7 +136,11 @@ export async function readCoachingEvidence(
   const start = new Date(end.getTime() - TRAINING_POLICY.trendDays * 86_400_000);
   const [profileRows, rows, slots, references, changes, running, recoveryRows] = await Promise.all([
     db
-      .select({ timeZone: profiles.timeZone, preferredUnit: profiles.preferredUnit })
+      .select({
+        timeZone: profiles.timeZone,
+        preferredUnit: profiles.preferredUnit,
+        bodyWeightKg: profiles.bodyWeightKg,
+      })
       .from(profiles)
       .where(eq(profiles.id, userId)),
     db
@@ -214,6 +220,8 @@ export async function readCoachingEvidence(
     prescription: Prescription;
     /** An assisted machine, where less help is the harder set. */
     assisted: boolean;
+    /** The part of the athlete's body the exercise lifts, in the prescription's unit (ADR 0040). */
+    bodyLoad: number;
     history: Map<string, EvidencePerformance>;
     /**
      * Only part of the retained reference's identity now (ADR 0028): the column is no longer
@@ -245,6 +253,7 @@ export async function readCoachingEvidence(
         equipmentId: row.workoutExercise.equipmentInstanceId,
         prescription,
         assisted: ASSISTED_EQUIPMENT_TYPES.has(row.equipmentType ?? ""),
+        bodyLoad: bodyLoad(row.exercise, profileRows[0]?.bodyWeightKg, prescription.unit),
         history: new Map(),
         convention: row.equipment?.loadConvention ?? "exercise_log_convention",
       };
@@ -268,11 +277,19 @@ export async function readCoachingEvidence(
     userId,
     references.flatMap((r) => r.reference.sourceIds),
   );
-  const plans = await plannedWorkingLoads(
-    db,
-    userId,
-    rows.map(({ session }) => session.id),
-  );
+  const [plans, ladders] = await Promise.all([
+    plannedWorkingLoads(
+      db,
+      userId,
+      rows.map(({ session }) => session.id),
+    ),
+    // Each machine's loads (ADR 0028): where a load goes back to is a load that exists on it.
+    loadLadders(
+      db,
+      userId,
+      [...groups.values()].flatMap((group) => (group.equipmentId ? [group.equipmentId] : [])),
+    ),
+  ]);
   const exerciseTrends = [...groups.entries()].map(([identity, group]) => {
     // Each performance is read as it was trained (ADR 0038): the warm-up in front of the work as
     // warm-ups, whatever they were logged as, a back-off after it as a back-off, and a load the
@@ -330,14 +347,19 @@ export async function readCoachingEvidence(
       })
         ? saved.reference
         : null;
+    // The body a bodyweight movement lifts and the machine's loads are read beside the
+    // prescription, not into it: the prescription is part of the reference's identity above.
+    const read: Prescription =
+      group.bodyLoad > 0 ? { ...group.prescription, bodyLoad: group.bodyLoad } : group.prescription;
     return {
       scope,
       exerciseId: group.exerciseId,
       slug: group.slug,
       lineageId: group.lineageId,
       equipmentId: group.equipmentId,
-      ...summarizeExerciseEvidence(group.prescription, history, reference, {
+      ...summarizeExerciseEvidence(read, history, reference, {
         assisted: group.assisted,
+        ladder: group.equipmentId ? ladders.get(group.equipmentId) : null,
       }),
     };
   });

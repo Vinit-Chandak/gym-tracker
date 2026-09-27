@@ -13,6 +13,7 @@ import {
   programExercises,
   occurrenceVersions,
   plannedOccurrences,
+  profiles,
   programFamilies,
   programRuns,
   programs,
@@ -1338,5 +1339,134 @@ it("lets two earned steps through the 14-day limit where one is already past 10%
     // A third inside the fortnight is for review.
     await relog(db, a.ids[0]!, { weight: 47.5, reps: 12, rir: 3 });
     await expect(assess(50)).rejects.toThrow(/over 14 days need review/);
+  });
+});
+
+it("goes back at once from a heavy single at a load never held in the range (ADR 0040)", async () => {
+  // 3 × 4–6 at 2–3 RIR. 100 × 5 at 2 RIR held the range; a 107.5 single since, at 0 RIR, had
+  // two reps in hand where the range starts at four.
+  const single: Logged[] = [{ weight: 107.5, reps: 2, rir: 0 }];
+  const a = await squatFixture([single, WORK, WORK, WORK]);
+  await a.as(async (db) => {
+    const trend = (await readCoachingEvidence(db, a.user.id, a.program.id, now)).exerciseTrends[0]!;
+    expect(trend).toMatchObject({
+      readiness: "below",
+      revert: { load: 100, reason: "out_of_reach", to: "last_held", evidenceIds: [a.ids[0]] },
+      nextStep: null,
+    });
+    expect(await a.assess(db, straight(100, 5, 2), [a.ids[0]!])).toMatchObject([
+      {
+        kind: "reduction",
+        before: { load: 107.5 },
+        after: { load: 100 },
+        evidenceIds: [a.ids[0]],
+      },
+    ]);
+  });
+  // With nothing held before it, back to the load the single puts in the range: 11.6% down,
+  // more than the automatic cut, and allowed as the load that session supports.
+  const b = await squatFixture([single]);
+  await b.as(async (db) => {
+    const trend = (await readCoachingEvidence(db, b.user.id, b.program.id, now)).exerciseTrends[0]!;
+    expect(trend.revert).toMatchObject({ load: 95, to: "fitted" });
+    expect(await b.assess(db, straight(95, 4, 2), [b.ids[0]!])).toMatchObject([
+      { kind: "reduction", before: { load: 107.5 }, after: { load: 95 } },
+    ]);
+  });
+});
+
+it("reads a bodyweight squat's dumbbell against the body it is added to (ADR 0040)", async () => {
+  const a = await fixture();
+  await a.as(async (db) => {
+    await db.update(profiles).set({ bodyWeightKg: 80 }).where(eq(profiles.id, a.user.id));
+    // A gym's dumbbells, where 7.5 kg need not be listed first as it must be at home.
+    await db.update(gyms).set({ kind: "gym" }).where(eq(gyms.id, a.home.id));
+    const [slot] = await db
+      .select({ p: programExercises })
+      .from(programExercises)
+      .innerJoin(programDays, eq(programDays.id, programExercises.programDayId))
+      .where(and(eq(programDays.programId, a.program.id), eq(programExercises.orderIndex, 2)));
+    // 6 × 8–12 at 2–3 RIR: every set 12 with 3 in reserve, holding a 5 kg dumbbell.
+    const startedAt = new Date(now.getTime() - 2 * 86_400_000);
+    const [session] = await db
+      .insert(workoutSessions)
+      .values({
+        userId: a.user.id,
+        gymId: a.home.id,
+        programId: a.program.id,
+        startedAt,
+        completedAt: new Date(startedAt.getTime() + 3600_000),
+      })
+      .returning();
+    const [logged] = await db
+      .insert(workoutExercises)
+      .values({
+        userId: a.user.id,
+        workoutSessionId: session!.id,
+        exerciseId: slot!.p.exerciseId,
+        plannedProgramExerciseId: slot!.p.id,
+        orderIndex: 2,
+      })
+      .returning();
+    await db.insert(setLogs).values(
+      [1, 2, 3, 4, 5, 6].map((setIndex) => ({
+        userId: a.user.id,
+        workoutExerciseId: logged!.id,
+        setIndex,
+        setType: "working" as const,
+        weight: 5,
+        unit: "kg" as const,
+        reps: 12,
+        rir: 3,
+        effortReported: true,
+      })),
+    );
+    const evidence = await readCoachingEvidence(db, a.user.id, a.program.id, now);
+    const trend = evidence.exerciseTrends.find((item) => item.lineageId === slot!.p.lineageId)!;
+    // 85% of 80 kg moves with the dumbbell, so 7.5 kg is an ordinary step, not a big jump.
+    expect(trend.comparison.prescription.bodyLoad).toBe(68);
+    expect(trend).toMatchObject({ readiness: "spare", loadReady: "spare" });
+    expect(trend.nextStep).toBe(
+      "7.5 kg comes after one session with every working set at 12 reps and 3 RIR (or 13 reps at 2 RIR), or after two sessions running with every working set at 12 reps and 2 RIR.",
+    );
+    const context = await planningContext(db, a.user.id, { gymId: a.home.id });
+    if (context.reason !== null) throw new Error(context.reason);
+    const cited = `workout:${session!.id}`;
+    const plan = (weight: number, reps: number) => {
+      const result = coachJobResultSchema.parse({
+        outcome: "session",
+        adjustment: "normal",
+        rationale: "Step the squat's dumbbell on the rep it had to spare.",
+        evidence: [cited],
+        plan: {
+          summary: "Home training",
+          exercises: context.exercises.map((item) => ({
+            slotId: item.slotId,
+            exerciseSlug: item.planned.slug,
+            equipmentInstanceId: item.slotId === slot!.p.id ? null : a.machine.id,
+            sets:
+              item.slotId === slot!.p.id
+                ? [1, 2, 3, 4, 5, 6].map(() => ({ weight, reps, rir: 2 }))
+                : [],
+          })),
+        },
+      });
+      if (result.outcome !== "session") throw new Error("Unexpected result");
+      return result;
+    };
+    const assess = (weight: number, reps: number) =>
+      assessSessionEvidence(
+        db,
+        a.user.id,
+        a.target,
+        plan(weight, reps),
+        evidence,
+        new Set([cited]),
+      );
+    expect(await assess(7.5, 11)).toMatchObject([
+      { kind: "progression", before: { load: 5 }, after: { load: 7.5 }, evidenceIds: [cited] },
+    ]);
+    // Nor is 5 kg a load to build reps past the top at, as it was while 7.5 looked 50% heavier.
+    await expect(assess(5, 13)).rejects.toThrow(/targets outside the program range/);
   });
 });

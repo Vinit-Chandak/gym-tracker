@@ -56,6 +56,13 @@ export type Prescription = {
   ladder?: Omit<LoadLadder, "increment"> | null;
   /** At home only a load known to exist may be prescribed, never a step worked out. */
   requireKnownLoads?: boolean;
+  /**
+   * The part of the athlete's own body the exercise lifts, in `unit` (ADR 0040). Wherever reps
+   * are read against load — what a step leaves in hand, how far reps build before a coarse step,
+   * an estimated maximum — the load is this plus the logged one. Absent where the body is not
+   * part of the load.
+   */
+  bodyLoad?: number;
 };
 
 /** The ladder the engine steps along: the machine's, or the plain increment. */
@@ -294,11 +301,20 @@ function byCapacity(
       top === null || revert.capacity === null
         ? top
         : Math.max(p.repMin ?? 1, Math.min(top, revert.capacity - targetRir));
+    const hardest = evidence.observations[0]?.hardest ?? null;
+    // A heavy single, or a jump the work had not shown, is not a baseline (ADR 0040).
+    const outOfReach = revert.reason === "out_of_reach";
     return base(
       "revert",
       basis,
-      `${label(evidence.comparison.load, p.unit)} missed the range twice: back to ${label(revert.load, p.unit)}.`,
-      "The last weight that worked. The step is tried again after two sessions at the top of the range.",
+      outOfReach && hardest !== null && p.repMin !== null
+        ? `${label(evidence.comparison.load, p.unit)} had ${hardest} rep${hardest === 1 ? "" : "s"} in hand, short of the ${p.repMin}-rep minimum: back to ${label(revert.load, p.unit)}.`
+        : `${label(evidence.comparison.load, p.unit)} missed the range twice: back to ${label(revert.load, p.unit)}.`,
+      revert.to === "last_held"
+        ? "The last weight you held in the range. A weight not yet held there isn't your baseline; it goes up again from here as usual."
+        : revert.to === "fitted"
+          ? "The weight that set puts in the range. It goes up again from here as usual."
+          : "The last weight that worked. The step is tried again after two sessions at the top of the range.",
       inc,
       onWork((set, index) => ({
         ...set,
@@ -359,7 +375,9 @@ function byCapacity(
       }
       const inHand = set.reps != null && set.rir != null ? set.reps + set.rir : null;
       const after =
-        inHand === null || ladder.assisted ? null : capacityAt(inHand, set.weight, step.load);
+        inHand === null || ladder.assisted
+          ? null
+          : capacityAt(inHand, set.weight, step.load, p.bodyLoad ?? 0);
       if (after !== null && p.repMin != null && after < p.repMin + targetRir - 1e-9) short = true;
       // What the set should have in hand at the new load, asked for at the target effort.
       const reps =

@@ -7,6 +7,7 @@ import {
   type ProgressionSuggestion,
   type SuggestionBasis,
 } from "@/domain/progression";
+import { bodyLoad } from "@/domain/body-load";
 import { weightStepFor } from "@/domain/sets";
 import type { LoadPortability, LoadUnit, PrescriptionType } from "@/domain/types";
 import type { ComparablePerformance } from "@/server/queries/comparable";
@@ -30,7 +31,12 @@ export type RuleInput = {
   exercise: ExerciseDefaults & {
     loadPortability: LoadPortability;
     defaultLoadIncrement: number | null;
+    /** What says whether the body is part of the load (ADR 0040). */
+    modality?: string | null;
+    movementPattern?: string | null;
   };
+  /** The athlete's latest body weight, for the part of it a bodyweight movement lifts. */
+  bodyWeightKg?: number | null;
   /** The machine in use, or null for free weights, bodyweight and an undecided machine. */
   equipment: {
     id: string;
@@ -131,9 +137,13 @@ export function applyRule(input: RuleInput): RuleOutcome {
     if (increment != null) prescription.loadIncrement = convertLoad(increment, "kg", unit);
   }
   const ladder = input.equipment ? (input.ladder ?? null) : null;
+  // On a split squat or a pull-up the curve runs through the body as well as what is added to
+  // it, so a dumbbell step is read as the small step it is (ADR 0040).
+  const body = bodyLoad(input.exercise, input.bodyWeightKg, unit);
   if (prescription) {
     prescription.ladder = ladder;
     prescription.requireKnownLoads = input.locationKind === "home";
+    if (body > 0) prescription.bodyLoad = body;
   }
   // A performance is read as it was trained, as the coach's evidence reads it (ADR 0038): the
   // warm-up in front of the work as warm-ups, whatever they were logged as, and a back-off after
