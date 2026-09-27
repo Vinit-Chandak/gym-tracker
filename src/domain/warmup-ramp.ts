@@ -95,3 +95,91 @@ export function readPerformance<
     return as ? ({ ...set, setType: as, loggedAs: set.setType } as ReadSet<S>) : set;
   });
 }
+
+/** One step of a warm-up ramp: a share of the working load, for a number of reps. */
+export type RampStep = { share: number; reps: number };
+
+const RAMP_STEP =
+  /^\s*(\d+(?:\.\d+)?)(?:\s*[–-]\s*(\d+(?:\.\d+)?))?\s*%\s*[×x]\s*(\d+)(?:\s*[–-]\s*(\d+))?\s*$/;
+
+/**
+ * The ramp a warm-up drill's dose writes, as "40% × 8; 55–60% × 5; 70–75% × 2–3": each step's
+ * share of the working load, the middle of a range of them, and the most reps it names. Null for
+ * a dose that is not a ramp, like "3–5 min" or "8/side".
+ */
+export function parseRamp(dose: string): RampStep[] | null {
+  const steps = dose.split(";").map((part) => {
+    const match = RAMP_STEP.exec(part);
+    if (!match) return null;
+    const low = Number(match[1]);
+    const high = Number(match[2] ?? match[1]);
+    return { share: (low + high) / 200, reps: Number(match[4] ?? match[3]) };
+  });
+  return steps.length > 0 && steps.every((step) => step !== null) ? (steps as RampStep[]) : null;
+}
+
+type Target = {
+  setIndex: number;
+  setType: SetType;
+  weight: number | null;
+  reps: number | null;
+  rir: number | null;
+  durationSeconds: number | null;
+  distanceMeters: number | null;
+};
+
+/**
+ * The ramp written in front of the day's first lift, as warm-up targets (ADR 0038).
+ *
+ * The logger adds a row per target and each row starts as the type its target has, so a ramp
+ * written here is offered as warm-up rows: nobody has to remember to switch each one, and the
+ * working rows below it are the work. Each step is its share of the first working load, rounded
+ * to a load that exists — one of `known` where any are, else a multiple of `step` — never under
+ * `floor` (an empty bar), and kept only while it is lighter than the work and heavier than the
+ * step before it. Targets that already start with a warm-up are left as they are: the athlete's
+ * own last ramp, or the coach's.
+ */
+export function withRamp<T extends Target>(
+  targets: readonly T[],
+  ramp: readonly RampStep[],
+  options: { step: number; floor?: number; known?: readonly number[] },
+): (T | Target)[] {
+  const sorted = [...targets].sort((a, b) => a.setIndex - b.setIndex);
+  const work = sorted.find(
+    (set) => WORKING_SET_TYPES.has(set.setType) && set.weight !== null && set.weight > 0,
+  );
+  if (!work || sorted[0]?.setType === "warmup") return [...targets];
+  const load = work.weight!;
+  const known = (options.known ?? []).filter((value) => value < load - 1e-9);
+  const sets: { weight: number; reps: number }[] = [];
+  for (const { share, reps } of ramp) {
+    const exact = share * load;
+    const rounded = known.length
+      ? known.reduce((best, value) =>
+          Math.abs(value - exact) < Math.abs(best - exact) ? value : best,
+        )
+      : options.step > 0
+        ? Math.round(exact / options.step) * options.step
+        : exact;
+    const weight = Math.round(Math.max(options.floor ?? 0, rounded) * 100) / 100;
+    if (weight <= 0 || weight >= load - 1e-9) continue;
+    if (sets.length > 0 && weight <= sets.at(-1)!.weight + 1e-9) continue;
+    sets.push({ weight, reps });
+  }
+  if (sets.length === 0) return [...targets];
+  return [
+    ...sets.map((set, index): Target => ({
+      setIndex: index + 1,
+      setType: "warmup",
+      weight: set.weight,
+      reps: set.reps,
+      rir: null,
+      durationSeconds: null,
+      distanceMeters: null,
+    })),
+    ...sorted.map((set) => ({
+      ...set,
+      setIndex: set.setIndex - sorted[0]!.setIndex + 1 + sets.length,
+    })),
+  ];
+}

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { PerformedSet } from "./progression";
-import { readPerformance } from "./warmup-ramp";
+import { parseRamp, readPerformance, withRamp } from "./warmup-ramp";
 
 /** The house warm-up's first compound ramp, and three sets of the work, on a 100 kg squat. */
 const RAMP = [40, 57.5, 72.5];
@@ -139,5 +139,60 @@ describe("readPerformance", () => {
     ]);
     expect(read(logged([20, 0, 0, 0]), { assisted: true })).toEqual(["W20", "0", "0", "0"]);
     expect(read(logged([30, 30, 30, 40]), { assisted: true })).toEqual(["30", "30", "30", "B40"]);
+  });
+});
+
+describe("the ramp in front of the first lift", () => {
+  const HOUSE = parseRamp("40% × 8; 55–60% × 5; 70–75% × 2–3")!;
+  const work = (weight: number | null, count = 3): PerformedSet[] =>
+    Array.from({ length: count }, (_, index) => ({
+      setIndex: index + 1,
+      setType: "working",
+      weight,
+      reps: 5,
+      rir: 2,
+      durationSeconds: null,
+      distanceMeters: null,
+    }));
+  const loads = (
+    sets: readonly { setType: string; weight: number | null; reps: number | null }[],
+  ) => sets.map((set) => `${set.setType === "warmup" ? "W" : ""}${set.weight}×${set.reps}`);
+
+  it("reads the house warm-up's dose, and nothing that is not a ramp", () => {
+    expect(HOUSE).toEqual([
+      { share: 0.4, reps: 8 },
+      { share: 0.575, reps: 5 },
+      { share: 0.725, reps: 3 },
+    ]);
+    expect(parseRamp("3–5 min")).toBeNull();
+    expect(parseRamp("1 × 12–15")).toBeNull();
+    expect(parseRamp("50% x 5")).toEqual([{ share: 0.5, reps: 5 }]);
+  });
+
+  it("writes the ramp as warm-ups in front of the work, on loads that exist", () => {
+    const sets = withRamp(work(100), HOUSE, { step: 2.5, floor: 20 });
+    expect(loads(sets)).toEqual(["W40×8", "W57.5×5", "W72.5×3", "100×5", "100×5", "100×5"]);
+    expect(sets.map((set) => set.setIndex)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(sets[0]).toMatchObject({ rir: null });
+    // A light bar starts empty, and a step the bar cannot tell apart is dropped.
+    expect(loads(withRamp(work(35), HOUSE, { step: 2.5, floor: 20 }))).toEqual([
+      "W20×8",
+      "W25×3",
+      "35×5",
+      "35×5",
+      "35×5",
+    ]);
+    // A stack snaps to its own stops below the work.
+    expect(
+      loads(withRamp(work(59), HOUSE, { step: 5, known: [20, 27, 34, 41, 47, 54, 59, 64] })),
+    ).toEqual(["W27×8", "W34×5", "W41×3", "59×5", "59×5", "59×5"]);
+  });
+
+  it("leaves targets alone that already start with a warm-up, or have no load to ramp to", () => {
+    const own = [{ ...work(60, 1)[0]!, setType: "warmup" as const }, ...work(100)];
+    expect(withRamp(own, HOUSE, { step: 2.5 })).toEqual(own);
+    expect(withRamp(work(null), HOUSE, { step: 2.5 })).toEqual(work(null));
+    expect(withRamp(work(0), HOUSE, { step: 2.5 })).toEqual(work(0));
+    expect(withRamp([], HOUSE, { step: 2.5 })).toEqual([]);
   });
 });

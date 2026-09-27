@@ -17,6 +17,7 @@ import {
 import type { DbOrTx } from "@/db/types";
 import type { ProgressionSuggestion } from "@/domain/progression";
 import { planTargets } from "@/domain/session-plan";
+import { parseRamp, withRamp } from "@/domain/warmup-ramp";
 import {
   hasCheckIn,
   recoveryWarnings,
@@ -577,6 +578,12 @@ export async function getSessionDetail(
       rows.flatMap((row) => (row.equipment?.id ? [row.equipment.id] : [])),
     ),
   ]);
+  // The day's warm-up ends in a ramp on its first lift (ADR 0038). Written into the rule's
+  // targets for that lift as warm-ups, the logger offers them as warm-up rows, so the ramp is
+  // logged as the warm-up it is. A coach plan's targets are exact: the coach writes its own ramp.
+  const ramp =
+    warmup?.drills.map((drill) => parseRamp(drill.dose)).find((steps) => steps !== null) ?? null;
+  const firstLift = rows.find((row) => !row.we.skippedAt)?.we.id ?? null;
   const exerciseDetails: SessionExercise[] = [];
   for (const [index, row] of rows.entries()) {
     const saved = row.we.savedPrescription ? manualPrescription(row.we.savedPrescription) : null;
@@ -606,9 +613,13 @@ export async function getSessionDetail(
       : entryIndex >= 0
         ? planAdditions.splice(entryIndex, 1)[0]!
         : null;
+    const unit =
+      row.equipment?.unit ??
+      options.preferredUnit ??
+      (profile?.preferredUnit === "lb" ? "lb" : "kg");
     // The coach's targets replace the rule's prefill; the rule's basis and history stay
     // visible, so the athlete can still see what the numbers were judged against.
-    const suggestion: ProgressionSuggestion | null =
+    const targets: ProgressionSuggestion | null =
       entry && entry.action !== "drop" && entry.sets.length > 0
         ? {
             kind: "coach",
@@ -616,14 +627,40 @@ export async function getSessionDetail(
             reason: entry.note || "Coach plan for today",
             advice: null,
             loadIncrement: weightStep,
-            sets: planTargets(
-              entry,
-              row.equipment?.unit ??
-                options.preferredUnit ??
-                (profile?.preferredUnit === "lb" ? "lb" : "kg"),
-            ),
+            sets: planTargets(entry, unit),
           }
         : rule.suggestion;
+    const ladder = row.equipment?.id ? ladders.get(row.equipment.id) : undefined;
+    const ramped =
+      targets &&
+      targets.kind !== "coach" &&
+      ramp &&
+      row.we.id === firstLift &&
+      ((row.planned ?? saved)?.prescriptionType ?? row.exercise.defaultPrescriptionType) ===
+        "reps" &&
+      !ladder?.assisted
+        ? withRamp(targets.sets, ramp, {
+            step: weightStep,
+            // An empty bar is where a barbell ramp starts, however light the work.
+            floor: row.exercise.modality === "barbell" ? (unit === "lb" ? 45 : 20) : 0,
+            known: ladder?.known ?? [],
+          })
+        : null;
+    // The ramp's rows stay while what is logged fits them, so a reload halfway through the ramp
+    // keeps it; a lift whose work was logged where the ramp would go keeps its own rows.
+    const rampSets = ramped && targets ? ramped.length - targets.sets.length : 0;
+    const suggestion: ProgressionSuggestion | null =
+      ramped &&
+      targets &&
+      rampSets > 0 &&
+      !setRows.some(
+        (set) =>
+          set.workoutExerciseId === row.we.id &&
+          set.setIndex <= rampSets &&
+          set.setType !== "warmup",
+      )
+        ? { ...targets, sets: ramped }
+        : targets;
     exerciseDetails.push({
       id: row.we.id,
       orderIndex: row.we.orderIndex,

@@ -472,6 +472,7 @@ export function ExerciseLogger({
                 onEdit={sets.editRow}
                 onSave={sets.logRow}
                 onOptions={(row) => setOptionsFor(row.setIndex)}
+                onUndoWarmup={sets.undoWarmup}
               />
             ) : (
               <SetTable sets={sets.loggedSets} unitLabel={unitLabel} />

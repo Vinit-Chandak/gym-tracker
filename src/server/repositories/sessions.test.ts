@@ -569,12 +569,19 @@ describe("progression suggestions", () => {
     const { sessionId, detail } = await startUpperA(2);
     const bench = exerciseRow(detail, "barbell-bench-press");
     expect(bench.suggestion).toMatchObject({ kind: "hold", basis: "exercise" });
-    expect(bench.suggestion?.sets.map((s) => [s.weight, s.reps, s.rir])).toEqual([
-      [60, 5, 2],
-      [60, 5, 2],
-      [60, 5, 2],
-      [60, 5, 2],
+    // The upper warm-up ends in a ramp on the day's first lift (ADR 0038): 40%, 55–60% and
+    // 70–75% of the work, offered as warm-ups in front of it, rounded to the bar's plates.
+    expect(bench.suggestion?.sets.map((s) => [s.setType, s.weight, s.reps, s.rir])).toEqual([
+      ["warmup", 25, 8, null],
+      ["warmup", 35, 5, null],
+      ["warmup", 42.5, 3, null],
+      ["working", 60, 5, 2],
+      ["working", 60, 5, 2],
+      ["working", 60, 5, 2],
+      ["working", 60, 5, 2],
     ]);
+    // Only the first lift has it.
+    expect(exerciseRow(detail, "seated-cable-row").suggestion?.sets[0]?.setType).toBe("working");
     const row = exerciseRow(detail, "seated-cable-row");
     expect(row.suggestion).toMatchObject({ kind: "hold", basis: "same_equipment" });
     expect(row.suggestion?.sets[0]?.weight).toBe(40);
@@ -587,7 +594,11 @@ describe("progression suggestions", () => {
     const { sessionId, detail } = await startUpperA(3);
     const bench = exerciseRow(detail, "barbell-bench-press");
     expect(bench.suggestion?.kind).toBe("hold");
-    expect(bench.suggestion?.sets[0]).toMatchObject({ weight: 62.5, reps: 3, rir: 2 });
+    expect(bench.suggestion?.sets.find((s) => s.setType === "working")).toMatchObject({
+      weight: 62.5,
+      reps: 3,
+      rir: 2,
+    });
     expect(bench.regressionStreak).toBe(0);
     expect(exerciseRow(detail, "seated-cable-row").suggestion?.kind).toBe("hold");
     for (let i = 1; i <= 4; i++) await log(bench.id, i, 60, 4, 2);
@@ -866,5 +877,74 @@ describe("a day that was skipped", () => {
     expect(recorded).toBe(true);
     const after = await withUser(t.db, athlete.id, (tx) => getSchedule(tx, athlete.id));
     expect(pendingCycleForDay(after!.state, day.dayIndex)).toBe(2);
+  });
+});
+
+describe("the ramp on the day's first lift", () => {
+  it("keeps its warm-up rows through a reload, until work is logged where they would go", async () => {
+    const athlete = await t.createAuthUser("ramp@example.com");
+    const as = <T>(fn: Parameters<typeof withUser<T>>[2]) => withUser(t.db, athlete.id, fn);
+    await as((tx) => seedTestUserData(tx, athlete));
+    const gym = (await as((tx) => listGyms(tx, athlete.id))).find(
+      (g) => g.slug === "anytime-fitness",
+    )!.id;
+    const upperA = (await as((tx) => getSchedule(tx, athlete.id)))!.days.find(
+      (d) => d.name === "Upper A",
+    )!.id;
+    const start = async (cycleIndex: number) => {
+      const { sessionId } = await as((tx) =>
+        startPlannedSession(tx, athlete.id, { gymId: gym, programDayId: upperA, cycleIndex }),
+      );
+      return sessionId;
+    };
+    const bench = async (sessionId: string) =>
+      exerciseRow(
+        (await as((tx) => getSessionDetail(tx, athlete.id, sessionId)))!,
+        "barbell-bench-press",
+      );
+    const log = (
+      workoutExerciseId: string,
+      setIndex: number,
+      setType: "warmup" | "working",
+      weight: number,
+      reps: number,
+    ) =>
+      as((tx) =>
+        logSet(tx, athlete.id, {
+          workoutExerciseId,
+          setIndex,
+          setType,
+          weight,
+          reps,
+          rir: setType === "warmup" ? null : 2,
+          durationSeconds: null,
+        }),
+      );
+
+    const first = await start(1);
+    const opening = await bench(first);
+    for (let i = 1; i <= 4; i++) await log(opening.id, i, "working", 60, 5);
+    await as((tx) => finishSession(tx, athlete.id, first, { notes: null, bodyWeightKg: null }));
+
+    const second = await start(2);
+    const today = await bench(second);
+    const shape = (row: Awaited<ReturnType<typeof bench>>) =>
+      row.suggestion?.sets.slice(0, 4).map((s) => [s.setIndex, s.setType, s.weight]);
+    expect(shape(today)).toEqual([
+      [1, "warmup", 25],
+      [2, "warmup", 35],
+      [3, "warmup", 42.5],
+      [4, "working", 60],
+    ]);
+    // Halfway through the ramp, the page is loaded again: the ramp is still there.
+    await log(today.id, 1, "warmup", 25, 8);
+    expect(shape(await bench(second))).toEqual(shape(today));
+    // Work logged where the ramp would go: the lift keeps its own rows.
+    await log(today.id, 2, "working", 60, 5);
+    expect((await bench(second)).suggestion?.sets[0]).toMatchObject({
+      setIndex: 1,
+      setType: "working",
+      weight: 60,
+    });
   });
 });
