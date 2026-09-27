@@ -167,7 +167,7 @@ npx tsx scripts/coach/workflow.ts result --user <user> --job <job> --attempt <at
 
 accepted false means stop: the attempt/inputs/target expired or changed. Identical duplicate results are idempotent. Never force stale results into another job.
 
-A 422 names every issue it found, in `issues`, with the first of them repeated in `error`; `issues` is absent when there is only one. Address all of them in one correction — they are independent findings, and a correction that answers one and leaves the rest spends the budget without saving the attempt. A 422 permits at most two corrections of the named validation issues within the same lease. A 409/403 means stop. Never alter a workout after Start, including an ad hoc workout.
+A 422 names every issue it found, in `issues`, with the first of them repeated in `error`; `issues` is absent when there is only one. `workflow.ts` prints `error` and then every issue, numbered, one per line: read the whole list before correcting. Address all of them in one correction — they are independent findings, and a correction that answers one and leaves the rest spends the budget without saving the attempt. A 422 permits at most two corrections of the named validation issues within the same lease. A 409/403 means stop. Never alter a workout after Start, including an ad hoc workout.
 
 If still holding a live claim, persist an unresolved failure:
 

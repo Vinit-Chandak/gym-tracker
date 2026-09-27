@@ -7,7 +7,7 @@
  */
 import { EnvHttpProxyAgent, setGlobalDispatcher } from "undici";
 
-import { COACH_CONTRACT_VERSION } from "@/domain/coaching-workflow";
+import { COACH_CONTRACT_VERSION, describeRefusal } from "@/domain/coaching-workflow";
 
 /**
  * Send requests through the session's proxy, which Node's built-in `fetch` otherwise ignores.
@@ -47,25 +47,9 @@ export class ServiceError extends Error {
     readonly status: number,
     readonly body: unknown,
   ) {
-    super(`${status} from the coach service: ${describe(body)}`);
+    super(`${status} from the coach service: ${describeRefusal(body)}`);
     this.name = "ServiceError";
   }
-}
-
-function describe(body: unknown): string {
-  if (body && typeof body === "object") {
-    const record = body as { error?: unknown; reason?: unknown; issues?: unknown };
-    const issues = Array.isArray(record.issues)
-      ? record.issues
-          .map((issue) => {
-            const i = issue as { path?: unknown; message?: unknown };
-            return `${String(i.path ?? "")}: ${String(i.message ?? "")}`;
-          })
-          .join("; ")
-      : "";
-    return [record.error, record.reason, issues].filter(Boolean).map(String).join(" · ");
-  }
-  return String(body);
 }
 
 export async function api<T>(

@@ -56,6 +56,46 @@ export function contractSkew(served: number): string | null {
     " Stop and report the skew; do not guess at field names."
   );
 }
+/**
+ * A refusal from the coach service as the worker reads it: what was said, then every issue.
+ *
+ * `issues` arrives in three shapes. The guardrails send plain sentences, the plan validator
+ * sends `{ path, message }`, and zod sends its own issues, whose path is an array. The worker's
+ * reader only knew the second, so the guardrails' sentences — the list that names every
+ * independent fault at once, so that one correction can answer all of them — each printed as
+ * ": ", and a worker with two corrections to spend was left to rediscover the list one fault at
+ * a time from `error`, which repeats only the first.
+ */
+export function describeRefusal(body: unknown): string {
+  if (!body || typeof body !== "object") return String(body);
+  const record = body as { error?: unknown; reason?: unknown; issues?: unknown };
+  const head = [record.error, record.reason]
+    .filter((part) => part !== undefined && part !== null && part !== "")
+    .map(String)
+    .join(" · ");
+  const issues = Array.isArray(record.issues) ? record.issues.map(describeIssue) : [];
+  if (issues.length === 0) return head || JSON.stringify(body);
+  return [
+    ...(head ? [head] : []),
+    `${issues.length === 1 ? "1 issue" : `${issues.length} issues`}:`,
+    ...issues.map((issue, index) => `  ${index + 1}. ${issue}`),
+  ].join("\n");
+}
+
+function describeIssue(issue: unknown): string {
+  if (typeof issue === "string") return issue;
+  if (issue && typeof issue === "object") {
+    const { path, message } = issue as { path?: unknown; message?: unknown };
+    const where = Array.isArray(path)
+      ? path.map(String).join(".")
+      : typeof path === "string"
+        ? path
+        : "";
+    if (typeof message === "string") return where ? `${where}: ${message}` : message;
+  }
+  return JSON.stringify(issue);
+}
+
 export const COACH_POLICY_VERSION = "2026-09-25.1";
 export const JOB_KINDS = ["create_program", "prepare_session", "review_program"] as const;
 export const JOB_STATUSES = [
