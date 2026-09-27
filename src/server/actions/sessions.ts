@@ -516,6 +516,11 @@ export async function finishSessionAction(
       }
       // Only the lifting half of the day. A day that also runs still owes its run, and the
       // sequence stays on it until that is logged or skipped in its own right.
+      //
+      // Dated by when the session started, not when it finished, as the session's own
+      // activity and shared stats are. A workout begun at 23:55 and finished at 00:20 was
+      // that evening's; dating it by the finish made the next morning's Today say the day
+      // had been done that morning, and hold back the day that was actually up next.
       if (finished.programId && finished.dayIndex !== null && finished.cycleIndex !== null) {
         await recordSlotEvent(
           tx,
@@ -524,7 +529,10 @@ export async function finishSessionAction(
           { cycleIndex: finished.cycleIndex, dayIndex: finished.dayIndex },
           "session",
           "completed",
-          { occurredOn: today, workoutSessionId: sessionId },
+          {
+            occurredOn: todayInTimeZone(profile.timeZone, finished.startedAt),
+            workoutSessionId: sessionId,
+          },
         );
       }
     });

@@ -160,13 +160,16 @@
    * rather than merely crowding its neighbour. Dropping the native appearance hands the
    * width back to the grid, so these fields measure the same on iOS as on Android.
    *
-   * Both types, not just the one that was noticed: they are the same widget underneath, and
-   * fixing them one at a time is why the time field was still overflowing. `datetime-local`
-   * is left alone deliberately — it is given a row to itself everywhere it is used, so it has
-   * the room these two were fighting over.
+   * Every type built on that widget, not just the one that was noticed: they are the same
+   * control underneath, and fixing them one at a time is why each kept coming back. A row to
+   * itself is not enough room either — a `datetime-local` alone in a card still ran past the
+   * card's right-hand edge, because the widget, not the row, decided its width.
    */
   input[type="date"],
-  input[type="time"] {
+  input[type="time"],
+  input[type="datetime-local"],
+  input[type="month"],
+  input[type="week"] {
     appearance: none;
     -webkit-appearance: none;
     /*
@@ -185,7 +188,10 @@
 
   /* Safari centres the value inside that widget and pads it; line it up with other fields. */
   input[type="date"]::-webkit-date-and-time-value,
-  input[type="time"]::-webkit-date-and-time-value {
+  input[type="time"]::-webkit-date-and-time-value,
+  input[type="datetime-local"]::-webkit-date-and-time-value,
+  input[type="month"]::-webkit-date-and-time-value,
+  input[type="week"]::-webkit-date-and-time-value {
     margin: 0;
     text-align: left;
   }

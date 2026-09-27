@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Route } from "next";
 import { SaveWorkoutRoutine } from "@/components/coaching/routines";
 import { notFound } from "next/navigation";
 
@@ -7,6 +7,7 @@ import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
+import { ORIGIN_PARAM, originPath, parseOrigin } from "@/lib/nav";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { seenSetChanges } from "@/server/queries/set-changes";
@@ -22,6 +23,7 @@ export const metadata: Metadata = { title: "Session" };
 export default async function SessionPage(props: PageProps<"/workouts/[sessionId]">) {
   const { sessionId } = await props.params;
   requireUuid(sessionId);
+  const origin = parseOrigin((await props.searchParams)[ORIGIN_PARAM]);
   const user = await requireUser();
   const requestProfile = await getRequestProfile(user.id, user.email);
   // The sets saved after this render are added by the browser, which knows which ones it holds.
@@ -64,11 +66,14 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
 
   return (
     <>
-      {/* The gym and the cycle are said once, here. The logger below never repeats them. */}
+      {/* The gym is said once, here. The logger below never repeats it. The cycle is left to
+          Today and the programme, where it places the day; beside a gym's name it only crowded
+          the title. Back goes to Today, which is where a workout is started and finished, unless
+          the session was opened from somewhere else that said so. */}
       <PageHeader
         title={title}
-        meta={`${data.gym.name}${data.cycleIndex ? ` · cycle ${data.cycleIndex}` : ""}`}
-        backHref={data.completedAt ? "/progress/history" : "/today"}
+        meta={data.gym.name}
+        backHref={(data.completedAt && origin ? originPath(origin) : "/today") as Route}
       />
       <PageContent>
         {data.completedAt && <SessionRecordsCard records={records} unit={data.preferredUnit} />}
