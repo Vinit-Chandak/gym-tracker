@@ -1278,6 +1278,8 @@ export type FinishedSession = {
   programDayId: string | null;
   dayIndex: number | null;
   cycleIndex: number | null;
+  /** When it began, which is the day it belongs to however late it finished. */
+  startedAt: Date;
   /** The records this session set (ADR 0026), decided as it finished. */
   records: TrainingRecord[];
 };
@@ -1303,6 +1305,7 @@ export async function finishSession(
       programId: workoutSessions.programId,
       programDayId: workoutSessions.programDayId,
       cycleIndex: workoutSessions.cycleIndex,
+      startedAt: workoutSessions.startedAt,
       // The day's position in the cycle, fetched with the update rather than after it.
       // Plain SQL on purpose: the updated row is addressed by its table name here.
       dayIndex: sql<number | null>`(

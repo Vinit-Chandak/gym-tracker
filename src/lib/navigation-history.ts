@@ -17,6 +17,25 @@ export function previousAppPage(): string | null {
   return appPath(value) ? value : null;
 }
 
+/**
+ * The page Back returns to from this one, if the browser has one worth returning to.
+ *
+ * A page that moves within itself through the History API — the workout opening one exercise
+ * and closing it again — leaves entries behind that are still this page, and a form finished
+ * on one of its own sub-pages (Finish, Check-in) leaves that sub-page behind. Neither is
+ * somewhere Back can go: returning to the same page does nothing, and returning into a form
+ * already submitted is a step the athlete has finished with. So both count as having no
+ * previous page, and the header's own destination is used instead.
+ */
+export function previousPageFrom(pathname: string): string | null {
+  const previous = previousAppPage();
+  if (!previous) return null;
+  const previousPath = previous.split(/[?#]/)[0]!;
+  const here = pathname.replace(/\/+$/, "") || "/";
+  if (previousPath === here || previousPath.startsWith(`${here}/`)) return null;
+  return previous;
+}
+
 export function subscribeNavigation(listener: () => void) {
   window.addEventListener(CHANGE, listener);
   window.addEventListener("popstate", listener);

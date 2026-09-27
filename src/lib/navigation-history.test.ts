@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it } from "vitest";
-import { previousAppPage, trackNavigationHistory } from "./navigation-history";
+import { previousAppPage, previousPageFrom, trackNavigationHistory } from "./navigation-history";
 
 let stop: (() => void) | undefined;
 afterEach(() => {
@@ -54,4 +54,23 @@ it("preserves the marker across tracker remounts and restores wrapped methods", 
   expect(window.history.pushState).toBe(original);
   stop = trackNavigationHistory();
   expect(previousAppPage()).toBe("/training/templates");
+});
+
+it("does not count the same page, or one of its own sub-pages, as somewhere to go back to", () => {
+  window.history.replaceState(null, "", "/today");
+  stop = trackNavigationHistory();
+  window.history.pushState({}, "", "/workouts/abc");
+  expect(previousPageFrom("/workouts/abc")).toBe("/today");
+  // Opening an exercise and closing it again stays on the workout.
+  window.history.pushState({}, "", "/workouts/abc?exercise=x");
+  window.history.pushState({}, "", "/workouts/abc");
+  expect(previousAppPage()).toBe("/workouts/abc?exercise=x");
+  expect(previousPageFrom("/workouts/abc")).toBeNull();
+  // Finishing lands back on the workout from its own Finish form.
+  window.history.pushState({}, "", "/workouts/abc/finish");
+  window.history.pushState({}, "", "/workouts/abc");
+  expect(previousPageFrom("/workouts/abc")).toBeNull();
+  // A parent is still a real way back from a sub-page.
+  window.history.pushState({}, "", "/workouts/abc/add-exercise");
+  expect(previousPageFrom("/workouts/abc/add-exercise")).toBe("/workouts/abc");
 });

@@ -7,7 +7,7 @@ import Link from "@/components/ui/app-link";
 import { ChevronLeft } from "@/components/ui/icons";
 import { sectionLabel } from "@/lib/nav";
 import {
-  previousAppPage,
+  previousPageFrom,
   subscribeNavigation,
   trackNavigationHistory,
 } from "@/lib/navigation-history";
@@ -19,7 +19,11 @@ export function NavigationHistory() {
 
 export function BackLink({ fallback, label }: { fallback: string; label?: string }) {
   const router = useRouter();
-  const previous = useSyncExternalStore(subscribeNavigation, previousAppPage, () => null);
+  const previous = useSyncExternalStore(
+    subscribeNavigation,
+    () => previousPageFrom(window.location.pathname),
+    () => null,
+  );
   const destination = previous
     ? (sectionLabel(previous) ?? "Back")
     : (label ?? sectionLabel(fallback) ?? "Back");
