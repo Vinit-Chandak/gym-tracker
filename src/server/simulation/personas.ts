@@ -56,6 +56,10 @@ export type Persona = {
   earlyBird?: boolean;
   /** Says no to every programme change the coach proposes; otherwise each is approved. */
   declines?: boolean;
+  /** Days on which the athlete asks for a review from the app at noon, after the night's plan. */
+  asksForReview?: number[];
+  /** The coach cannot finish this athlete's reviews: each is refused, and failed. */
+  reviewsFail?: boolean;
   /** The coach's own strategy: hold every target, follow the app's rule, or progress. */
   coach: "hold" | "rule" | "progress";
 };
@@ -74,6 +78,8 @@ const base = {
 export const PERSONAS: readonly Persona[] = [
   { ...base, name: "diligent" },
   { ...base, name: "diligent-known-loads", location: "known_loads_gym", level: "intermediate" },
+  { ...base, name: "asks-for-review", asksForReview: [3, 9, 16] },
+  { ...base, name: "reviews-fail", reviewsFail: true, asksForReview: [4] },
   { ...base, name: "no-rir", rir: "never", coach: "hold" },
   { ...base, name: "some-rir", rir: "sometimes" },
   { ...base, name: "ramp-as-working", rampAsWorking: true, location: "known_loads_gym" },

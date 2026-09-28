@@ -16,8 +16,9 @@ const percentile = (values: number[], share: number) => {
 };
 
 export function summarize(jobs: readonly JobRecord[], findings: readonly Finding[]) {
-  const failed = jobs.filter((job) =>
-    ["refused", "crashed", "context_error", "not_accepted"].includes(job.outcome),
+  const failed = jobs.filter(
+    (job) =>
+      !job.meant && ["refused", "crashed", "context_error", "not_accepted"].includes(job.outcome),
   );
   // Refusals the reference coach corrected its way past are worth knowing; ones it could not
   // are the point.
@@ -80,6 +81,12 @@ export function summarize(jobs: readonly JobRecord[], findings: readonly Finding
     lines.push(`### ${key}`, "", `${entry.count} jobs · ${[...entry.personas].join(", ")}`, "");
     lines.push("```", JSON.stringify(entry.example, null, 2).slice(0, 3000), "```", "");
   }
+  const meant = jobs.filter((job) => job.meant && job.outcome !== "accepted");
+  if (meant.length)
+    lines.push(
+      `${meant.length} more jobs were refused on purpose (${[...new Set(meant.map((job) => job.persona))].join(", ")}): their re-plans are checked, not their refusals.`,
+      "",
+    );
   lines.push("## Refusals corrected within the budget", "");
   if (correctedGroups.size === 0) lines.push("None.");
   for (const [key, entry] of [...correctedGroups].sort((a, b) => b[1].count - a[1].count))
@@ -93,7 +100,7 @@ export function summarize(jobs: readonly JobRecord[], findings: readonly Finding
   const accepted = jobs.filter((job) => job.outcome === "accepted").length;
   return {
     markdown: lines.join("\n"),
-    headline: `${jobs.length} jobs, ${accepted} accepted, ${failed.length} not; ${findings.length} other findings.`,
+    headline: `${jobs.length} jobs, ${accepted} accepted, ${failed.length} not (${meant.length} more refused on purpose); ${findings.length} other findings.`,
     unanswerable: [...groups.keys(), ...findingGroups.keys()],
   };
 }
