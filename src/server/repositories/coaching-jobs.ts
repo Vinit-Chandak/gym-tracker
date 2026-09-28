@@ -1458,6 +1458,30 @@ export async function dispatchCoachPage(db: Db, after: string | null = null, now
                 purpose: scheduled ? "scheduled" : "requests",
               },
             });
+            // One review reads everything since the last, so a review still waiting from an
+            // earlier night reads a shorter stretch of the same days. Left queued, nights of
+            // blocked claims — a workout left open at four, a failing page — came due together
+            // and ran back to back, each over days the one before had read. The newest replaces
+            // them, as a daily preparation does; a claimed one is left to finish, and a review
+            // answering only requests never replaces a scheduled one, whose week it would leave
+            // unread.
+            await tx
+              .update(coachJobs)
+              .set({
+                status: "superseded",
+                error: "A newer review replaced this one.",
+                completedAt: now,
+                leaseUntil: null,
+              })
+              .where(
+                and(
+                  eq(coachJobs.userId, athlete.id),
+                  eq(coachJobs.kind, "review_program"),
+                  eq(coachJobs.status, "queued"),
+                  ne(coachJobs.id, result.job.id),
+                  scheduled ? undefined : sql`${coachJobs.target}->>'purpose' = 'requests'`,
+                ),
+              );
           }
         }
         if (result && !pending.includes(result.job.status as "queued" | "claimed")) result = null;

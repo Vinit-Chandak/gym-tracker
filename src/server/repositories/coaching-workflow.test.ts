@@ -1096,6 +1096,22 @@ it("hears a request for something only a review can grant without waiting out th
   expect(reviews[0]?.target).toMatchObject({ reviewStart: anchor.toISOString() });
 });
 
+it("keeps one review waiting, not one for every night its claim could not be made", async () => {
+  const a = await reviewing();
+  const boundary = lastCoachBoundary().at;
+  await a.anchor(new Date(boundary.getTime() - 12 * DAY));
+  // Due three nights running and never claimed — a workout left open at four blocks it — so
+  // each night queues a review of a longer stretch of the same days.
+  await dispatchEveryone(new Date(boundary.getTime() - 2 * DAY));
+  await dispatchEveryone(new Date(boundary.getTime() - DAY));
+  await dispatchEveryone(boundary);
+  const reviews = await a.reviews();
+  const waiting = reviews.filter((job) => job.status === "queued");
+  expect(waiting).toHaveLength(1);
+  expect(reviews.filter((job) => job.status === "superseded")).toHaveLength(2);
+  // The one left reads everything since the anchor, up to the latest boundary.
+  expect(waiting[0]?.target).toMatchObject({ reviewEnd: boundary.toISOString() });
+});
 it("stops waiting for a quiet day once the athlete has trained for ten days straight", async () => {
   const a = await reviewing();
   const boundary = lastCoachBoundary().at;
