@@ -551,6 +551,76 @@ it("checks run distance separately when duration is unchanged and preserves spar
     ).toBe(false);
   });
 });
+it("holds a run inside the programme's range, to the minute a plan can say", async () => {
+  /** An athlete whose last two planned runs took `seconds`, against 20–25 minutes at 1–4. */
+  const ran = async (seconds: number) => {
+    const a = await fixture();
+    return a.as(async (db) => {
+      const [planned] = await db
+        .select()
+        .from(programRuns)
+        .where(eq(programRuns.programId, a.program.id));
+      await db
+        .update(programRuns)
+        .set({ durationMinMinutes: 20, durationMaxMinutes: 25, rpeMin: 1, rpeMax: 4 })
+        .where(eq(programRuns.programId, a.program.id));
+      const cited: string[] = [];
+      for (const days of [4, 1]) {
+        const { id } = await logTestRun(db, a.user.id, {
+          startedAt: new Date(now.getTime() - days * 86_400_000),
+          distanceMeters: 5000,
+          durationSeconds: seconds,
+          rpe: 4,
+          effortReported: true,
+        });
+        await db
+          .update(runningActivityDetails)
+          .set({ legacyProgramRunId: planned!.id })
+          .where(eq(runningActivityDetails.activityId, id));
+        cited.push(`run:${id}`);
+      }
+      const evidence = await readCoachingEvidence(db, a.user.id, a.program.id, now);
+      /** What planning this run for `minutes` changes, or the refusal's issues. */
+      return async (minutes: number) => {
+        const output = a.output(50);
+        output.plan.run = {
+          mode: "outdoor",
+          durationMinutes: minutes,
+          distanceKm: 5,
+          rpe: 4,
+          programRunId: planned!.id,
+          paceNote: "Easy effort",
+          stopRule: "",
+          note: "",
+        };
+        try {
+          const changes = await withUser(t.db, a.user.id, (tx) =>
+            assessSessionEvidence(tx, a.user.id, a.target, output, evidence, new Set(cited)),
+          );
+          return changes.filter((change) => change.scope.startsWith("run:"));
+        } catch (error) {
+          if (error instanceof CoachingError) return error.issues;
+          throw error;
+        }
+      };
+    });
+  };
+
+  // Thirty minutes against 20–25: holding thirty is outside the range, and 25 was a lasting
+  // cut, so no run could be planned. The top of the range is the run unchanged.
+  const long = await ran(30 * 60);
+  expect(await long(25)).toEqual([]);
+  expect(await long(30)).toEqual([
+    "The run duration is outside the program range and needs review.",
+    "This run change exceeds the automatic limit; retain the baseline or ask for review. Unchanged, the run is 25 minutes and 5 km.",
+  ]);
+  // 22:40 cannot be written in whole minutes; 23 is the same run, and a refusal says so.
+  const odd = await ran(22 * 60 + 40);
+  expect(await odd(23)).toEqual([]);
+  expect(await odd(22)).toEqual([
+    "Lasting running reductions need program review; use a supported temporary adjustment for current recovery. Unchanged, the run is 23 minutes and 5 km.",
+  ]);
+});
 it("keeps memo provenance private, invalidates removed sources and detects competing corrections", async () => {
   const a = await fixture();
   const other = await fixture([]);

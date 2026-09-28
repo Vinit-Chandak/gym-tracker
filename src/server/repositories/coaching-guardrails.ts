@@ -901,10 +901,35 @@ export async function assessSessionEvidence(
         )
         .at(-1);
       const retained = prior?.kind === "temporary" ? prior.before : prior?.after;
+      /**
+       * The run an unchanged plan asks for: what the last change set, else the last comparable
+       * run, brought inside the programme's range as a strength target is, and to the whole
+       * minute a plan can say. Unbounded, an athlete who ran 30 minutes against 20–25 could be
+       * planned neither 30 (outside the range) nor 25 (a lasting reduction); and a 27:40 run
+       * could never be held at all, because no whole number of minutes is 27:40.
+       */
+      const within = (value: number | undefined, min: number | null, max: number | null) =>
+        value === undefined ? undefined : Math.min(max ?? Infinity, Math.max(min ?? 0, value));
+      const bounds = runPrescription ?? null;
+      const heldDuration = within(
+        retained?.duration ?? last?.duration,
+        bounds?.durationMinMinutes != null ? bounds.durationMinMinutes * 60 : null,
+        bounds?.durationMaxMinutes != null ? bounds.durationMaxMinutes * 60 : null,
+      );
       const baseline = {
-        duration: retained?.duration ?? last?.duration,
-        distance: retained?.distance ?? last?.distance,
+        duration: heldDuration === undefined ? undefined : Math.round(heldDuration / 60) * 60,
+        distance: within(
+          retained?.distance ?? last?.distance,
+          bounds?.distanceMinKm != null ? bounds.distanceMinKm * 1000 : null,
+          bounds?.distanceMaxKm != null ? bounds.distanceMaxKm * 1000 : null,
+        ),
       };
+      /** The unchanged run, as a refused change names it, so a correction can hold it. */
+      const held = [
+        baseline.duration ? `${baseline.duration / 60} minutes` : null,
+        baseline.distance ? `${Math.round(baseline.distance / 10) / 100} km` : null,
+      ].filter(Boolean);
+      const unchanged = held.length ? ` Unchanged, the run is ${held.join(" and ")}.` : "";
       const distance = run.distanceKm === null ? null : run.distanceKm * 1000;
       const duration = run.durationMinutes === null ? null : run.durationMinutes * 60;
       const longest = evidence.running.longestDistance30Days;
@@ -923,7 +948,7 @@ export async function assessSessionEvidence(
       if (deltas.some((delta) => Math.abs(delta) > 0.001)) {
         if (!temporary && deltas.some((delta) => delta < -0.001))
           plan.note(
-            "Lasting running reductions need program review; use a supported temporary adjustment for current recovery.",
+            `Lasting running reductions need program review; use a supported temporary adjustment for current recovery.${unchanged}`,
           );
         if (
           deltas.some((delta) =>
@@ -931,7 +956,7 @@ export async function assessSessionEvidence(
           )
         )
           plan.note(
-            "This run change exceeds the automatic limit; retain the baseline or ask for review.",
+            `This run change exceeds the automatic limit; retain the baseline or ask for review.${unchanged}`,
           );
         const original = evidence.changes
           .filter(
@@ -966,7 +991,7 @@ export async function assessSessionEvidence(
           history.slice(-2).map((item) => item.sourceId),
         );
         if (!temporary && fresh.days < 2)
-          plan.note("Changing this run needs two new comparable running dates.");
+          plan.note(`Changing this run needs two new comparable running dates.${unchanged}`);
         changes.push({
           scope,
           runMode: run.mode,
