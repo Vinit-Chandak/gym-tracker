@@ -1294,6 +1294,25 @@ it("steps the load on one session with a rep to spare, and only on that session 
   });
 });
 
+it("steps a free weight registered without its increment by the exercise's own jump", async () => {
+  // Onboarding's starter equipment registers the bar with no increment. 20 → 22.5 kg is 12.5%,
+  // past the percentage, and the one jump the bar has: the rule already asks the athlete for it.
+  const a = await squatFixture([straight(20, 6, 3)]);
+  await a.as(async (db) => {
+    await db
+      .update(equipmentInstances)
+      .set({ loadIncrement: null })
+      .where(eq(equipmentInstances.id, a.bar.id));
+    expect(await a.assess(db, straight(22.5, 5, 2), [a.ids[0]!])).toMatchObject([
+      { kind: "progression", after: { load: 22.5 } },
+    ]);
+    // Two jumps are still two.
+    expect((await a.refusal(db, straight(25, 5, 2), [a.ids[0]!]))?.issues).toContain(
+      `${SQUAT}: the load change exceeds the automatic limit and needs review.`,
+    );
+  });
+});
+
 it("asks a set for the reps it had in hand, on the latest session alone", async () => {
   // 3 × 5 with 3 in reserve: at 2 RIR, that is 6.
   const a = await squatFixture([straight(100, 5, 3)]);

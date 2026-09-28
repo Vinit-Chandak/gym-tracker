@@ -73,6 +73,19 @@ export function ladderFor(input: {
   };
 }
 
+/**
+ * A ladder that steps as the athlete's own suggestion does. A free weight or plate-loaded machine
+ * registered without its increment — which is how onboarding's starter equipment registers every
+ * one — steps by `step`, the exercise's default (`weightStepFor`): the rule already asks the
+ * athlete for that jump, and without it the percentage alone forbade the only jump a dumbbell has.
+ * A stack keeps its own loads, a typed increment keeps itself, and with no step nothing is added.
+ */
+export function withDefaultStep(ladder: LoadLadder | null, step: number | null): LoadLadder | null {
+  if (!step || step <= 0) return ladder;
+  if (!ladder) return { known: [], stack: false, assisted: false, increment: step };
+  return !ladder.stack && ladder.increment === null ? { ...ladder, increment: step } : ladder;
+}
+
 /** The next bigger number on this machine, or null when nothing says what it is. */
 export function stepUp(ladder: LoadLadder, from: number): LoadStep | null {
   const above = ladder.known.find((load) => load > from + EPSILON);

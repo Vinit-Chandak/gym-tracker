@@ -10,7 +10,7 @@ import {
   difficultyChange,
   harderAllowance,
   stepHarder,
-  type LoadLadder,
+  withDefaultStep,
 } from "@/domain/load-steps";
 import { WORKING_SET_TYPES } from "@/domain/progression";
 import type { CoachingEvidence } from "./coaching-evidence";
@@ -451,12 +451,9 @@ export async function assessSessionEvidence(
       const ladder = entry.equipmentInstanceId
         ? (ladders.get(entry.equipmentInstanceId) ?? null)
         : null;
-      // Free weights step by the typed jump, as the rule steps them; a machine by its own loads.
-      const steps: LoadLadder | null =
-        ladder ??
-        (slot.weightStep
-          ? { known: [], stack: false, assisted: false, increment: slot.weightStep }
-          : null);
+      // Free weights step by the typed jump, as the rule steps them — the exercise's own where the
+      // machine has none typed — and a stack by its own loads.
+      const steps = withDefaultStep(ladder, slot.weightStep);
       const targetRir = p.rir[0] ?? 2;
       // The part of the athlete's body a bodyweight movement lifts, as the evidence read it:
       // a dumbbell step on a split squat is a small part of what is moved (ADR 0040).
