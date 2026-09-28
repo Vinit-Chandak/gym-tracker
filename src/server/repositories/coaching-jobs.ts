@@ -18,7 +18,7 @@ import {
   or,
   sql,
 } from "drizzle-orm";
-import { alias } from "drizzle-orm/pg-core";
+import { alias, type AnyPgColumn } from "drizzle-orm/pg-core";
 import {
   exercises,
   coachGymIntents,
@@ -265,7 +265,7 @@ export async function reconcileCoachJobs(db: DbOrTx, userId: string, now = new D
     );
   for (const job of expired) {
     const { status, leaseUntil, nextAttemptAt, error, completedAt } = asReconciledJob(job, now);
-    await db
+    const [released] = await db
       .update(coachJobs)
       .set({ status, leaseUntil, nextAttemptAt, error, completedAt })
       .where(
@@ -274,8 +274,32 @@ export async function reconcileCoachJobs(db: DbOrTx, userId: string, now = new D
           eq(coachJobs.status, "claimed"),
           eq(coachJobs.attemptId, job.attemptId!),
         ),
-      );
+      )
+      .returning({ id: coachJobs.id });
+    // A review that timed out still leaves the athlete a planned session; it retries later.
+    if (released) await replanAfterReview(db, userId, job, now);
   }
+}
+
+/**
+ * A review the athlete's session preparation waits for: one running now, or one not yet tried.
+ *
+ * A review that has failed, timed out or put itself off once holds nothing back. It retries
+ * later, and each of its attempts re-plans the session when it ends (`replanAfterReview`).
+ * Waiting on it as well left the athlete without a plan for every night a review the coach
+ * could not finish kept failing — three, with the attempt budget.
+ */
+function reviewStillAhead(
+  jobs: { kind: AnyPgColumn; status: AnyPgColumn; attempts: AnyPgColumn; leaseUntil: AnyPgColumn },
+  now: Date,
+) {
+  return and(
+    eq(jobs.kind, "review_program"),
+    or(
+      and(eq(jobs.status, "claimed"), gt(jobs.leaseUntil, now)),
+      and(eq(jobs.status, "queued"), eq(jobs.attempts, 0)),
+    ),
+  );
 }
 
 export async function claimCoachJob(db: DbOrTx, userId: string, id: string, now = new Date()) {
@@ -300,13 +324,7 @@ export async function claimCoachJob(db: DbOrTx, userId: string, id: string, now 
     const [review] = await db
       .select({ id: coachJobs.id })
       .from(coachJobs)
-      .where(
-        and(
-          eq(coachJobs.userId, userId),
-          eq(coachJobs.kind, "review_program"),
-          inArray(coachJobs.status, ["queued", "claimed"]),
-        ),
-      )
+      .where(and(eq(coachJobs.userId, userId), reviewStillAhead(coachJobs, now)))
       .limit(1);
     if (review) return null;
   }
@@ -328,6 +346,7 @@ export async function claimCoachJob(db: DbOrTx, userId: string, id: string, now 
   const mismatch = await targetMismatch(db, userId, job);
   if (mismatch) {
     await supersedeJob(db, job, mismatch, now);
+    await replanAfterReview(db, userId, job, now);
     return null;
   }
   const [claimed] = await db
@@ -543,7 +562,11 @@ export async function acceptCoachJobResult(
       : await targetMismatch(db, userId, job);
   if (stale) {
     await supersedeJob(db, job, stale, now);
-    return { accepted: false, reason: stale };
+    return {
+      accepted: false,
+      reason: stale,
+      replan: await replanAfterReview(db, userId, job, now),
+    };
   }
   await assertNoOpenWorkout(db, userId);
   if (result.outcome === "deferred") {
@@ -570,7 +593,12 @@ export async function acceptCoachJobResult(
       },
       now,
     );
-    return { accepted: true, deferred: true };
+    // Put off, not finished: the session is still planned now, and again when it is done.
+    return {
+      accepted: true,
+      deferred: true,
+      replan: await replanAfterReview(db, userId, job, now),
+    };
   }
   if (job.kind === "create_program" && !["program", "needs_input"].includes(result.outcome))
     throw new CoachingError("Programme creation needs a draft or clarification questions.", 422);
@@ -942,10 +970,10 @@ export async function acceptCoachJobResult(
         ...(requests.remaining === 0 ? { reviewRequestedAt: null } : {}),
       })
       .where(eq(coachPreferences.userId, userId));
-    await enqueueDailySession(db, userId, job.target.batchDate ?? lastCoachBoundary(now).date);
   }
-  if (job.kind === "review_program" && result.outcome === "needs_input")
-    await enqueueDailySession(db, userId, job.target.batchDate ?? lastCoachBoundary(now).date);
+  // Whatever the review decided — kept, proposed, or a question asked — the next session is
+  // planned again against it.
+  const replan = await replanAfterReview(db, userId, job, now);
   // A session job can find an ask but cannot decide it. The review that can is enqueued for
   // this same batch, so the run draining the queue handles both rather than the athlete
   // waiting a second night for a handover between two of the coach's own jobs. Only the
@@ -992,7 +1020,7 @@ export async function acceptCoachJobResult(
     },
     now,
   );
-  return { accepted: true, draftId, contractVersion: COACH_CONTRACT_VERSION };
+  return { accepted: true, draftId, contractVersion: COACH_CONTRACT_VERSION, replan };
 }
 
 /**
@@ -1237,7 +1265,8 @@ export async function enqueueOccurrencePreparations(
   db: DbOrTx,
   userId: string,
   batchDate: string,
-): Promise<number> {
+  options: Replan = {},
+): Promise<string[]> {
   const preferences = await getCoachingPreferences(db, userId);
   const active = await getActiveProgram(db, userId);
   const occurrences = await openOccurrencesBetween(
@@ -1246,15 +1275,35 @@ export async function enqueueOccurrencePreparations(
     batchDate,
     addDays(batchDate, PREPARATION_LOOKAHEAD_DAYS),
   );
-  let queued = 0;
+  const queued: string[] = [];
   for (const occurrence of occurrences) {
     // Only the active programme's work is coached. Standalone scheduled activities are the
     // athlete's own, and adding one to the programme is an explicit act (SCHED-08).
     if (!occurrence.programVersionId || occurrence.programVersionId !== active?.id) continue;
-    const { created } = await enqueueCoachJob(db, userId, {
+    const dedupeKey = `occurrence:${occurrence.id}:${occurrence.revisionId}${replanSuffix(options)}`;
+    // A re-plan replaces whatever preparation of this session is still waiting.
+    if (options.after)
+      await db
+        .update(coachJobs)
+        .set({
+          status: "superseded",
+          error: "A review re-planned this session.",
+          completedAt: new Date(),
+          leaseUntil: null,
+        })
+        .where(
+          and(
+            eq(coachJobs.userId, userId),
+            eq(coachJobs.kind, "prepare_session"),
+            inArray(coachJobs.status, ["queued", "claimed"]),
+            sql`${coachJobs.target}->>'occurrenceId' = ${occurrence.id}`,
+            ne(coachJobs.dedupeKey, dedupeKey),
+          ),
+        );
+    const { job, created } = await enqueueCoachJob(db, userId, {
       kind: "prepare_session",
       trigger: "daily",
-      dedupeKey: `occurrence:${occurrence.id}:${occurrence.revisionId}`,
+      dedupeKey,
       intakeId: preferences?.intakeId,
       target: {
         programId: active.id,
@@ -1264,10 +1313,11 @@ export async function enqueueOccurrencePreparations(
         batchDate,
       },
     });
-    if (created) queued++;
+    if (created) queued.push(job.id);
   }
   // A preparation written against a revision that has since moved on is not a plan for
-  // anything; it is superseded rather than answered (COACH-08).
+  // anything; it is superseded rather than answered (COACH-08). Read from the job's target,
+  // not its key, so a re-plan of a revision still current is left alone.
   await db
     .update(coachJobs)
     .set({
@@ -1283,11 +1333,9 @@ export async function enqueueOccurrencePreparations(
         inArray(coachJobs.status, ["queued", "claimed"]),
         like(coachJobs.dedupeKey, "occurrence:%"),
         notInArray(
-          coachJobs.dedupeKey,
+          sql`(${coachJobs.target}->>'occurrenceId') || ':' || (${coachJobs.target}->>'occurrenceRevisionId')`,
           occurrences.length > 0
-            ? occurrences.map(
-                (occurrence) => `occurrence:${occurrence.id}:${occurrence.revisionId}`,
-              )
+            ? occurrences.map((occurrence) => `${occurrence.id}:${occurrence.revisionId}`)
             : [""],
         ),
       ),
@@ -1295,11 +1343,44 @@ export async function enqueueOccurrencePreparations(
   return queued;
 }
 
-export async function enqueueDailySession(db: DbOrTx, userId: string, batchDate: string) {
-  await enqueueOccurrencePreparations(db, userId, batchDate);
+export async function enqueueDailySession(
+  db: DbOrTx,
+  userId: string,
+  batchDate: string,
+  options: Replan = {},
+) {
+  await enqueueOccurrencePreparations(db, userId, batchDate, options);
+  return enqueueStrengthSession(db, userId, batchDate, options);
+}
+
+/** The batch's strength session: the next slot of the programme, at the gym it is planned for. */
+async function enqueueStrengthSession(
+  db: DbOrTx,
+  userId: string,
+  batchDate: string,
+  options: Replan,
+) {
   const target = await sessionTarget(db, userId, batchDate);
   if (!target) return null;
   const preferences = await getCoachingPreferences(db, userId);
+  const dedupeKey = `daily:${batchDate}${replanSuffix(options)}`;
+  if (!options.after) {
+    // A review has already re-planned this batch's session and it is still waiting: that is
+    // the plan to make, and the batch's own key would only prepare the same session twice.
+    const [replanned] = await db
+      .select()
+      .from(coachJobs)
+      .where(
+        and(
+          eq(coachJobs.userId, userId),
+          eq(coachJobs.kind, "prepare_session"),
+          inArray(coachJobs.status, ["queued", "claimed"]),
+          like(coachJobs.dedupeKey, `daily:${batchDate}:after-review:%`),
+        ),
+      )
+      .limit(1);
+    if (replanned) return { job: replanned, created: false };
+  }
   await db
     .update(coachJobs)
     .set({
@@ -1313,7 +1394,7 @@ export async function enqueueDailySession(db: DbOrTx, userId: string, batchDate:
         eq(coachJobs.userId, userId),
         eq(coachJobs.trigger, "daily"),
         inArray(coachJobs.status, ["queued", "claimed"]),
-        ne(coachJobs.dedupeKey, `daily:${batchDate}`),
+        ne(coachJobs.dedupeKey, dedupeKey),
         // An occurrence's job is keyed by its own identity, not by the batch, so the strength
         // preparation replacing itself must not sweep the day's swims away with it.
         notLike(coachJobs.dedupeKey, "occurrence:%"),
@@ -1322,10 +1403,45 @@ export async function enqueueDailySession(db: DbOrTx, userId: string, batchDate:
   return enqueueCoachJob(db, userId, {
     kind: "prepare_session",
     trigger: "daily",
-    dedupeKey: `daily:${batchDate}`,
+    dedupeKey,
     intakeId: preferences?.intakeId,
     target,
   });
+}
+
+type Replan = {
+  /** The review this preparation follows: it gets a key of its own, and replaces what waits. */
+  after?: string;
+};
+const replanSuffix = (options: Replan) => (options.after ? `:after-review:${options.after}` : "");
+
+/**
+ * Every review ends with the athlete's next session planned again, against whatever it decided —
+ * kept, proposed, a question asked, deferred, or not reached because the attempt failed.
+ *
+ * The session the batch prepared was written before the review read anything, and its job is
+ * keyed by the batch: a review that finished after it — asked for from the app, opened by an ask
+ * the preparation found, or retried the next night — enqueued nothing, and the plan written
+ * before it stood. This one is keyed by the review, and replaces a preparation still waiting for
+ * the same session. Returns the jobs queued, the strength session first.
+ */
+export async function replanAfterReview(
+  db: DbOrTx,
+  userId: string,
+  review: CoachJob,
+  now = new Date(),
+): Promise<string[]> {
+  if (review.kind !== "review_program") return [];
+  const batchDate = lastCoachBoundary(now).date;
+  const options = { after: review.id };
+  const occurrences = await enqueueOccurrencePreparations(db, userId, batchDate, options);
+  const strength = await enqueueStrengthSession(db, userId, batchDate, options);
+  return [
+    ...(strength && pending.includes(strength.job.status as (typeof pending)[number])
+      ? [strength.job.id]
+      : []),
+    ...occurrences,
+  ];
 }
 
 /**
@@ -1548,13 +1664,7 @@ export async function queuedCoachJobs(db: Db, now = new Date()) {
             db
               .select({ id: other.id })
               .from(other)
-              .where(
-                and(
-                  eq(other.userId, coachJobs.userId),
-                  eq(other.kind, "review_program"),
-                  inArray(other.status, ["queued", "claimed"]),
-                ),
-              ),
+              .where(and(eq(other.userId, coachJobs.userId), reviewStillAhead(other, now))),
           ),
         ),
       ),

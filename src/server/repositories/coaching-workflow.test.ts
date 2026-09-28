@@ -1096,6 +1096,128 @@ it("hears a request for something only a review can grant without waiting out th
   expect(reviews[0]?.target).toMatchObject({ reviewStart: anchor.toISOString() });
 });
 
+/** A review of the week to the latest boundary, for the athlete's active programme. */
+async function queueReview(a: Athlete, key: string) {
+  const schedule = await as(a, (tx) => getSchedule(tx, a.user.id));
+  const boundary = lastCoachBoundary();
+  const { job } = await as(a, (tx) =>
+    enqueueCoachJob(tx, a.user.id, {
+      kind: "review_program",
+      trigger: "weekly",
+      dedupeKey: key,
+      intakeId: a.intake.id,
+      target: {
+        programId: schedule!.program.id,
+        reviewStart: new Date(boundary.at.getTime() - 7 * DAY).toISOString(),
+        reviewEnd: boundary.at.toISOString(),
+        batchDate: boundary.date,
+        purpose: "requests",
+      },
+    }),
+  );
+  return job;
+}
+const replanKey = (review: { id: string }) =>
+  `daily:${lastCoachBoundary().date}:after-review:${review.id}`;
+
+it("plans the next session again after a review, though the night's was already prepared", async () => {
+  const a = await reviewing();
+  // The night's preparation has already run: its batch key is spent.
+  const nightly = await as(a, (tx) => enqueueDailySession(tx, a.user.id, lastCoachBoundary().date));
+  await as(a, (tx) =>
+    tx
+      .update(coachJobs)
+      .set({ status: "succeeded", completedAt: new Date() })
+      .where(eq(coachJobs.id, nightly!.job.id)),
+  );
+  const review = await queueReview(a, "review:asked");
+  const claim = await as(a, (tx) => claimCoachJob(tx, a.user.id, review.id));
+  const accepted = await as(a, (tx) =>
+    acceptCoachJobResult(tx, a.user.id, review.id, claim!.attemptId!, {
+      outcome: "no_change",
+      rationale: "Holding the programme for another week.",
+      coverage: [{ sport: "strength", decision: "unchanged", reason: "" }],
+    }),
+  );
+  // Before, the review enqueued the batch's own key again, which was already spent: nothing.
+  expect(accepted).toMatchObject({ accepted: true, replan: [expect.any(String)] });
+  const replan = await as(a, (tx) =>
+    getCoachJob(tx, a.user.id, (accepted as { replan: string[] }).replan[0]!),
+  );
+  expect(replan).toMatchObject({
+    kind: "prepare_session",
+    status: "queued",
+    dedupeKey: replanKey(review),
+  });
+  expect((await as(a, (tx) => claimCoachJob(tx, a.user.id, replan!.id)))?.id).toBe(replan!.id);
+});
+
+it("still plans the session when a review times out, and does not wait on its retry", async () => {
+  const a = await reviewing();
+  const review = await queueReview(a, "review:lapsed");
+  await as(a, (tx) => claimCoachJob(tx, a.user.id, review.id));
+  await as(a, (tx) =>
+    tx
+      .update(coachJobs)
+      .set({ leaseUntil: new Date(Date.now() - 1000) })
+      .where(eq(coachJobs.id, review.id)),
+  );
+  await as(a, (tx) => reconcileCoachJobs(tx, a.user.id));
+  const jobs = await as(a, (tx) => tx.select().from(coachJobs));
+  expect(jobs.find((job) => job.id === review.id)).toMatchObject({ status: "queued", attempts: 1 });
+  const replan = jobs.find((job) => job.dedupeKey === replanKey(review));
+  expect(replan?.status).toBe("queued");
+  // The review waits to retry; the session it re-planned does not wait for it.
+  expect((await as(a, (tx) => claimCoachJob(tx, a.user.id, replan!.id)))?.id).toBe(replan!.id);
+});
+
+it("starts the re-plan of a review the app asked for, once the worker has its answer", async () => {
+  vi.stubEnv("COACH_SERVICE_TOKEN", "synthetic-workflow-token");
+  vi.stubEnv("COACH_WORKFLOW_ENABLED", "true");
+  try {
+    const a = await reviewing();
+    /** Fails a claimed review through the service, as the worker's `workflow.ts fail` does. */
+    const fail = async (review: { id: string }) => {
+      const claim = await as(a, (tx) => claimCoachJob(tx, a.user.id, review.id));
+      const deferred: (() => Promise<void>)[] = [];
+      const path = ["workflow", "users", a.user.id, "jobs", review.id, "fail"];
+      const response = await handleCoachServiceRequest(
+        t.db,
+        new Request(
+          `https://app.test/api/coach/service/${path.join("/")}?attemptId=${claim!.attemptId}`,
+          {
+            method: "POST",
+            headers: {
+              authorization: "Bearer synthetic-workflow-token",
+              "content-type": "application/json",
+            },
+            body: JSON.stringify({ error: "Could not finish the review.", retryable: true }),
+          },
+        ),
+        path,
+        { defer: (work) => deferred.push(work) },
+      );
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as { replan: string[] };
+      for (const work of deferred) await work();
+      return as(a, (tx) => getCoachJob(tx, a.user.id, body.replan[0]!));
+    };
+    // Started by the nightly routine: its next pass over the queue prepares the session.
+    const nightly = await fail(await queueReview(a, "review:nightly"));
+    expect(nightly).toMatchObject({ status: "queued", dispatchStartedAt: null });
+    // Started from the app for this one job: nothing else would run the re-plan until night.
+    const asked = await queueReview(a, "review:app");
+    await as(a, (tx) =>
+      tx.update(coachJobs).set({ dispatchStartedAt: new Date() }).where(eq(coachJobs.id, asked.id)),
+    );
+    const started = await fail(asked);
+    expect(started?.dedupeKey).toBe(replanKey(asked));
+    expect(started?.dispatchStartedAt).not.toBeNull();
+  } finally {
+    vi.unstubAllEnvs();
+  }
+});
+
 it("keeps one review waiting, not one for every night its claim could not be made", async () => {
   const a = await reviewing();
   const boundary = lastCoachBoundary().at;

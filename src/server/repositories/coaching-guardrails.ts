@@ -117,9 +117,11 @@ function freshSources(
 
 export async function validateCitedEvidence(db: DbOrTx, userId: string, result: ExplainedResult) {
   const valid = await existingEvidenceIds(db, userId, result.evidence);
-  if (result.evidence.some((id) => !valid.has(id)))
+  // Named, so a correction removes the ones that are wrong instead of guessing at all of them.
+  const missing = [...new Set(result.evidence.filter((id) => !valid.has(id)))];
+  if (missing.length)
     fail(
-      "Cite source IDs from the current context, such as workout:<id> or run:<id>; descriptions and other athletes' records are not evidence IDs.",
+      `Cite source IDs from the current context, such as workout:<id> or run:<id>; descriptions and other athletes' records are not evidence IDs. Not found in this athlete's records: ${missing.join(", ")}.`,
     );
   return valid;
 }

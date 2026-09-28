@@ -245,8 +245,13 @@ export function mergeMemory(
         throw new Error(
           "Confirmed is reserved for legacy athlete edits. Use reported with a source quote, or observation/hypothesis for an inference.",
         );
-      if (!item.sourceIds.length || item.sourceIds.some((id) => !validSourceIds.has(id)))
-        throw new Error("Each coach memo item needs existing evidence belonging to this athlete.");
+      const missing = item.sourceIds.filter((id) => !validSourceIds.has(id));
+      if (!item.sourceIds.length || missing.length)
+        throw new Error(
+          `Each coach memo item needs existing evidence belonging to this athlete.${
+            missing.length ? ` Not found in this athlete's records: ${missing.join(", ")}.` : ""
+          }`,
+        );
       if (item.status === "reported") {
         if (!item.sourceQuote || !item.sourceIds.includes(item.sourceQuote.sourceId))
           throw new Error("Reported memory needs a source quote included in its evidence IDs.");

@@ -667,6 +667,36 @@ it("keeps memo provenance private, invalidates removed sources and detects compe
   });
 });
 
+it("accepts a run cited as the evidence names it, and names what it cannot find", async () => {
+  // The evidence packet names a run `run:<id>` with the activity's id. The citation check
+  // looked that id up among the old runs rows only, so every run logged since activities
+  // was refused as "not from the current context" — and the refusal did not say which one.
+  const a = await fixture();
+  await a.as(async (db) => {
+    const { id } = await logTestRun(db, a.user.id, {
+      startedAt: new Date(now.getTime() - 86_400_000),
+      distanceMeters: 5000,
+      durationSeconds: 1800,
+      rpe: 2,
+      effortReported: true,
+    });
+    const run = `run:${id}`;
+    expect((await readCoachingEvidence(db, a.user.id, a.program.id, now)).evidenceIds).toContain(
+      run,
+    );
+    const output = a.output(50);
+    output.evidence = [a.ids[0]!, run, `activity:${id}`];
+    expect(await validateCitedEvidence(db, a.user.id, output)).toEqual(
+      new Set([a.ids[0], run, `activity:${id}`]),
+    );
+    const missing = `run:${crypto.randomUUID()}`;
+    output.evidence = [run, missing, "the easy run on Tuesday"];
+    await expect(validateCitedEvidence(db, a.user.id, output)).rejects.toThrow(
+      `Not found in this athlete's records: ${missing}, the easy run on Tuesday.`,
+    );
+  });
+});
+
 /**
  * A worker gets two corrections inside its lease, and a refusal that names one fault at a
  * time spends them on discovery rather than on the fix. A real run lost a session this way:

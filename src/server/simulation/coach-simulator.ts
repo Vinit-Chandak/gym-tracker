@@ -13,9 +13,10 @@
  * location cannot do. Anything the server refuses such a worker is either a rule the skill does
  * not state or a refusal no worker could answer — both are what this is for.
  */
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, like } from "drizzle-orm";
 
 import {
+  coachJobs,
   equipmentInstances,
   equipmentTypes,
   plannedOccurrences,
@@ -39,8 +40,16 @@ import { handleCoachServiceRequest } from "@/server/coach-service";
 import { ensureProfile } from "@/server/queries/profile";
 import { recordBodyWeight } from "@/server/repositories/body-weight";
 import { confirmIntake, saveIntake } from "@/server/repositories/coach-intakes";
-import { saveCoachNotes, voidPlanForSlot } from "@/server/repositories/coach-plans";
-import { requestGymChange, requestProgramCreation } from "@/server/repositories/coaching-jobs";
+import {
+  nextTrainingSlot,
+  saveCoachNotes,
+  voidPlanForSlot,
+} from "@/server/repositories/coach-plans";
+import {
+  requestGymChange,
+  requestProgramCreation,
+  requestProgramReview,
+} from "@/server/repositories/coaching-jobs";
 import { createGym } from "@/server/repositories/gyms";
 import { skipOccurrence } from "@/server/repositories/occurrences";
 import { releaseRequestsForDraft } from "@/server/repositories/coach-program-requests";
@@ -85,6 +94,10 @@ export type JobRecord = {
   contextBytes: number | null;
   contextMs: number | null;
   detail?: string;
+  /** The preparations a review's ending queued for the athlete's next session. */
+  replan?: string[];
+  /** The persona set this job up to fail, so its refusal is the case under test, not a finding. */
+  meant?: boolean;
   /** For a refused job: what was last sent, and what the context said of each exercise named. */
   sent?: unknown;
   named?: unknown;
@@ -171,7 +184,7 @@ type Context = {
     };
   } | null;
   pendingComponents: string[] | null;
-  trainingEvidence: { exerciseTrends: Trend[] };
+  trainingEvidence: { exerciseTrends: Trend[]; evidenceIds: string[] };
   requestsToAddress: { items: { id: string; quote?: string }[] };
   pendingProposal: unknown;
 };
@@ -463,6 +476,14 @@ export class CoachSimulation {
           a,
           run: () => this.athleteDay(a, day),
         });
+        // Asked from the app at noon, after the night's plan: the app starts a run for it.
+        if (a.persona.asksForReview?.includes(day))
+          events.push({
+            at: this.at(day, "12:00", a.persona.timeZone),
+            what: "ask for a review",
+            a,
+            run: () => this.askForReview(a),
+          });
         // The early bird's workout is still open when the routine runs; it ends at half five.
         if (a.persona.earlyBird)
           events.push({
@@ -535,6 +556,7 @@ export class CoachSimulation {
       contextBytes: null,
       contextMs: null,
     };
+    if (kind === "review_program" && a.persona.reviewsFail) record.meant = true;
     this.jobs.push(record);
     const root = ["workflow", "users", userId, "jobs", jobId];
     try {
@@ -577,6 +599,8 @@ export class CoachSimulation {
         if (sent.status === 200) {
           record.outcome = sent.body.accepted ? "accepted" : "not_accepted";
           if (!sent.body.accepted) record.detail = JSON.stringify(sent.body).slice(0, 400);
+          record.replan = (sent.body.replan as string[] | undefined) ?? [];
+          await this.checkReplan(a, kind, jobId, record);
           return true;
         }
         record.refusals.push(issuesOf(sent));
@@ -589,11 +613,13 @@ export class CoachSimulation {
         plan = corrected;
       }
       record.outcome = "refused";
-      await this.call([...root, "fail"], {
+      const failed = await this.call([...root, "fail"], {
         method: "POST",
         attempt,
         body: { error: record.refusals.at(-1)!.join(" ").slice(0, 500), retryable: true },
       });
+      record.replan = (failed.body.replan as string[] | undefined) ?? [];
+      await this.checkReplan(a, kind, jobId, record);
       return true;
     } catch (error) {
       record.outcome = "crashed";
@@ -602,16 +628,63 @@ export class CoachSimulation {
     }
   }
 
+  /**
+   * Every review ends with the next session planned again, whatever became of the review. A
+   * review that ends without one, while the programme still has a session to come, is a finding.
+   */
+  private async checkReplan(a: SimAthlete, kind: string, jobId: string, record: JobRecord) {
+    if (kind !== "review_program") return;
+    const [queued, schedule] = await this.as(
+      a,
+      async (tx) =>
+        [
+          await tx
+            .select({ id: coachJobs.id })
+            .from(coachJobs)
+            .where(
+              and(
+                eq(coachJobs.userId, a.userId),
+                like(coachJobs.dedupeKey, `%:after-review:${jobId}`),
+              ),
+            ),
+          await getSchedule(tx, a.userId),
+        ] as const,
+    );
+    if (queued.length === 0 && schedule && nextTrainingSlot(schedule))
+      this.note(
+        a,
+        "re-plan",
+        `A review ended (${record.outcome}) without re-planning the next session.`,
+      );
+  }
+
+  /** "Look at my programme now", at noon: the app starts a run for the review, then its re-plan. */
+  private async askForReview(a: SimAthlete) {
+    const requested = await this.as(a, (tx) => requestProgramReview(tx, a.userId));
+    if (!requested.created) return;
+    await this.work(a.userId, requested.job.id, "review_program", "app");
+    const review = this.jobs.at(-1)!;
+    // The service starts a run for the first re-plan once the worker has its answer.
+    if (review.replan?.[0])
+      await this.work(a.userId, review.replan[0], "prepare_session", "after review");
+  }
+
   private async compose(a: SimAthlete, context: Context, root: string[], attempt: string) {
     const kind = context.job.kind;
     if (kind === "create_program") return this.program(context, root, attempt);
-    if (kind === "review_program") return fixed(await this.review(context, root, attempt));
+    if (kind === "review_program")
+      return citing(await this.review(context, root, attempt, a.persona));
     if (context.job.target.occurrenceId) return fixed(endurance(context));
     return session(context, a.persona.coach);
   }
 
   /** A review: hold, and answer every ask — proposing the exercise asked for, where it exists. */
-  private async review(context: Context, root: string[], attempt: string): Promise<Json> {
+  private async review(
+    context: Context,
+    root: string[],
+    attempt: string,
+    persona: Persona,
+  ): Promise<Json> {
     const plan = context.program?.blueprint;
     const sports = ["strength"];
     if (plan?.runs?.length || plan?.days.some((d) => d.includesRun)) sports.push("running");
@@ -667,18 +740,26 @@ export class CoachSimulation {
         detail: "Which days would you like this on, and how much time can it take?",
       });
     }
+    // What a review reads, cited as the evidence packet names it: runs as well as sessions.
+    const ids = context.trainingEvidence.evidenceIds ?? [];
+    const cited = [
+      ...ids.filter((id) => id.startsWith("run:")).slice(-4),
+      ...ids.filter((id) => id.startsWith("workout:")).slice(-4),
+    ];
+    const coverage = sports.map((sport) =>
+      revised && sport === "strength"
+        ? { sport, decision: "changed", reason: "Adds the exercise asked for." }
+        : {
+            sport,
+            decision: "hold",
+            reason: "Not enough comparable sessions to change anything yet.",
+          },
+    );
     const common = {
       rationale: "Holding what the evidence cannot move yet, and answering what was asked.",
-      coverage: sports.map((sport) =>
-        revised && sport === "strength"
-          ? { sport, decision: "changed", reason: "Adds the exercise asked for." }
-          : {
-              sport,
-              decision: "hold",
-              reason: "Not enough comparable sessions to change anything yet.",
-            },
-      ),
-      evidence: [],
+      // A coach that cannot finish this athlete's review leaves a sport out, every time.
+      coverage: persona.reviewsFail ? [] : coverage,
+      evidence: cited,
       memory: memoryPatch(context, opened),
       requests: requestPatch(opened, decisions),
     };
@@ -1137,6 +1218,24 @@ type LoggedSetInput = {
 type Plan = { result: Json; correct(issues: string[]): Plan | null };
 
 const fixed = (result: Json): Plan => ({ result, correct: () => null });
+
+/** A result whose only correction is dropping the citations a refusal names as not found. */
+function citing(result: Json): Plan {
+  return {
+    result,
+    correct(issues) {
+      const missing = issues.flatMap((issue) => {
+        const named = /Not found in this athlete's records: (.+)\.$/.exec(issue);
+        return named ? named[1]!.split(", ") : [];
+      });
+      if (missing.length === 0 || missing.length < issues.length) return null;
+      return citing({
+        ...result,
+        evidence: (result.evidence as string[]).filter((id) => !missing.includes(id)),
+      });
+    },
+  };
+}
 
 function blueprint(): ProgramBlueprint {
   const weeks = 6;
