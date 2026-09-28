@@ -1313,6 +1313,22 @@ it("steps a free weight registered without its increment by the exercise's own j
   });
 });
 
+it("tells the coach to keep a load logged at zero, rather than leave it unknown", async () => {
+  // Logged with nothing added, the known load is 0. The refusal for adding a plate used to say
+  // "or leave load unknown", and a load left unknown is then refused as dropping a known one.
+  const a = await squatFixture([straight(0, 6, 3)]);
+  await a.as(async (db) => {
+    expect((await a.refusal(db, straight(2.5, 6, 2), [a.ids[0]!]))?.issues).toEqual([
+      `${SQUAT}: it was logged with no added load, so there is no load to step from; keep the load at 0, or add load with calibration.`,
+    ]);
+    const unknown = [1, 2, 3].map(() => ({ weight: null as unknown as number, reps: 6, rir: 2 }));
+    expect((await a.refusal(db, unknown, [a.ids[0]!]))?.issues).toEqual([
+      `${SQUAT}: retain the known load (0, 0 and 0 kg), or explicitly request recalibration.`,
+    ]);
+    expect(await a.assess(db, straight(0, 6, 2), [a.ids[0]!])).toEqual([]);
+  });
+});
+
 it("asks a set for the reps it had in hand, on the latest session alone", async () => {
   // 3 × 5 with 3 in reserve: at 2 RIR, that is 6.
   const a = await squatFixture([straight(100, 5, 3)]);

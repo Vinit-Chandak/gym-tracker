@@ -527,6 +527,19 @@ export async function assessSessionEvidence(
           ? null
           : Math.min(range?.[1] ?? Infinity, Math.max(range?.[0] ?? 0, old));
       };
+      /** The known loads, as a refusal to drop them names them: " (40, 40 and 42.5 kg)". */
+      const heldLoads = () => {
+        const loads = Array.from(
+          { length: p.sets },
+          (_, index) => baselineLoads.find((item) => item.index === index)?.load ?? baselineLoad,
+        ).filter((load): load is number => load != null);
+        if (loads.length === 0) return "";
+        const list =
+          loads.length > 1
+            ? `${loads.slice(0, -1).join(", ")} and ${loads.at(-1)}`
+            : String(loads[0]);
+        return ` (${list} ${unit})`;
+      };
       /**
        * Those targets, as a refused target change names them. Nothing else tells a worker what an
        * unchanged slot is, and one that guesses spends its corrections finding out.
@@ -658,7 +671,7 @@ export async function assessSessionEvidence(
           if (set.weight === null) {
             if (setBaseline != null && !equipmentChange && result.adjustment !== "calibration")
               plan.note(
-                `${entry.exerciseSlug}: retain the known load, or explicitly request recalibration.`,
+                `${entry.exerciseSlug}: retain the known load${heldLoads()}, or explicitly request recalibration.`,
               );
             continue;
           }
@@ -676,9 +689,13 @@ export async function assessSessionEvidence(
             );
           if (setBaseline == null || setBaseline <= 0) {
             if (set.weight === 0) continue;
+            // Logged at nothing added, the load is known and it is zero: leaving it unknown is
+            // refused as dropping a known load, so the way out is to keep it, not to forget it.
             if (result.adjustment !== "calibration")
               plan.note(
-                `${entry.exerciseSlug}: no comparable starting load; use calibration with a feasible load or leave load unknown.`,
+                setBaseline === 0
+                  ? `${entry.exerciseSlug}: it was logged with no added load, so there is no load to step from; keep the load at 0, or add load with calibration.`
+                  : `${entry.exerciseSlug}: no comparable starting load; use calibration with a feasible load or leave load unknown.`,
               );
             continue;
           }
