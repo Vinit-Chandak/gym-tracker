@@ -1,7 +1,7 @@
 "use client";
 
 import type { Route } from "next";
-import { Check, ChevronDown } from "@/components/ui/icons";
+import { ChevronDown } from "@/components/ui/icons";
 import { useState, type ReactNode } from "react";
 
 import Link from "@/components/ui/app-link";
@@ -75,13 +75,9 @@ export function SectionSelect<V extends string>({
           {options.map((option) => {
             const selected = option.value === value;
             const className = cn(PRESSABLE_ROW_CLASS, selected && "text-accent");
-            const content = (
-              <>
-                <span className="min-w-0 flex-1 font-medium">{option.label}</span>
-                {/* The tick, not colour alone, says which one you are looking at. */}
-                {selected && <Check className="shrink-0" aria-hidden />}
-              </>
-            );
+            // The section you are in is in the accent colour, and named as current to a screen
+            // reader; the control that opened the sheet already names it too.
+            const content = <span className="min-w-0 flex-1 font-medium">{option.label}</span>;
             return (
               <li key={option.value}>
                 {option.href && !selected ? (

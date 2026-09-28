@@ -6,7 +6,7 @@ import { draftKey, writeDraft } from "@/lib/workout-drafts";
 import { ExerciseLogger } from "./exercise-logger";
 import type { ExerciseVM, SessionVM, SetVM } from "./view-model";
 
-const actions = vi.hoisted(() => ({ log: vi.fn(), remove: vi.fn() }));
+const actions = vi.hoisted(() => ({ log: vi.fn(), remove: vi.fn(), complete: vi.fn() }));
 // `unstable_rethrow` is how a failed save tells a redirect from a dropped connection; the
 // mock has to carry it, or every failure here looks like the framework's own.
 vi.mock("next/navigation", () => ({
@@ -19,7 +19,7 @@ vi.mock("@/components/ui/app-link", () => ({
 vi.mock("@/server/actions/sessions", () => ({
   logSetAction: actions.log,
   deleteSetAction: actions.remove,
-  setExerciseCompletedAction: vi.fn(),
+  setExerciseCompletedAction: actions.complete,
   skipExerciseAction: vi.fn(),
   applyFallbackAction: vi.fn(),
 }));
@@ -134,7 +134,24 @@ beforeEach(() => {
   localStorage.clear();
   actions.log.mockReset();
   actions.remove.mockReset();
+  actions.complete.mockReset();
 });
+
+/** A promise the test answers when it chooses, as a slow connection would. */
+function later<T>() {
+  let answer!: (value: T) => void;
+  const promise = new Promise<T>((resolve) => {
+    answer = resolve;
+  });
+  return { promise, answer };
+}
+
+/** Fills set 1's reps and RIR and presses Save. */
+function saveFirstSet() {
+  fireEvent.change(screen.getByRole("textbox", { name: "Set 1 reps" }), { target: { value: "5" } });
+  fireEvent.change(screen.getByRole("textbox", { name: "Set 1 RIR" }), { target: { value: "2" } });
+  fireEvent.click(screen.getByRole("button", { name: "Save set 1" }));
+}
 afterEach(cleanup);
 
 it("uses the coach's exact set count and types instead of repeating targets to fill the programme", async () => {
@@ -643,4 +660,61 @@ it("keeps a light set with its RIR, or one after the work has started, as a work
   fireEvent.click(screen.getByRole("button", { name: "Save set 2" }));
   await screen.findByText(/Enter RIR/);
   expect(actions.log).toHaveBeenCalledTimes(1);
+});
+
+it("shows an exercise done the moment Complete is pressed, before the server answers", async () => {
+  const reply = later<{ ok: true }>();
+  actions.complete.mockReturnValueOnce(reply.promise);
+  renderLogger({ exercise: { sets: [saved] } });
+  fireEvent.click(screen.getByRole("button", { name: "Complete" }));
+  await screen.findByText("Done");
+  expect(actions.complete).toHaveBeenCalledWith("slot", true);
+  expect(screen.queryByRole("button", { name: "Save set 2" })).toBeNull();
+  await act(async () => reply.answer({ ok: true }));
+  expect(screen.getByText("Done")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Reopen" })).toBeTruthy();
+});
+
+it("puts an exercise back, and says why, when completing it fails", async () => {
+  actions.complete.mockResolvedValueOnce({ ok: false, error: "That session no longer exists." });
+  renderLogger({ exercise: { sets: [saved] } });
+  fireEvent.click(screen.getByRole("button", { name: "Complete" }));
+  await screen.findByText("That session no longer exists.");
+  await waitFor(() => expect(screen.queryByText("Done")).toBeNull());
+  expect(screen.getByRole("button", { name: "Complete" })).toBeTruthy();
+});
+
+it("takes Complete while the last set is still saving, and completes once the set has landed", async () => {
+  const save = later<{ ok: true; set: SetVM }>();
+  actions.log.mockReturnValueOnce(save.promise);
+  actions.complete.mockResolvedValueOnce({ ok: true });
+  renderLogger();
+  saveFirstSet();
+  const complete = screen.getByRole("button", { name: "Complete" }) as HTMLButtonElement;
+  expect(complete.disabled).toBe(false);
+  fireEvent.click(complete);
+  await screen.findByRole("button", { name: "Completing…" });
+  // Nothing is completed on the server before the set it depends on is there.
+  expect(actions.complete).not.toHaveBeenCalled();
+  await act(async () => save.answer({ ok: true, set: saved }));
+  await screen.findByText("Done");
+  expect(actions.complete).toHaveBeenCalledWith("slot", true);
+});
+
+it("keeps an exercise open when the set it was waiting on does not save", async () => {
+  const save = later<{ ok: false; error: string }>();
+  actions.log.mockReturnValueOnce(save.promise);
+  renderLogger({ exercise: { sets: [{ ...saved, setIndex: 2, id: "set-2" }] } });
+  saveFirstSet();
+  fireEvent.click(screen.getByRole("button", { name: "Complete" }));
+  await screen.findByRole("button", { name: "Completing…" });
+  await act(async () =>
+    save.answer({ ok: false, error: "Something went wrong. Please try again." }),
+  );
+  await screen.findByRole("button", { name: "Retry saving set 1" });
+  const complete = await screen.findByRole("button", { name: "Complete" });
+  expect(actions.complete).not.toHaveBeenCalled();
+  expect(screen.queryByText("Done")).toBeNull();
+  // The failed row holds changes nobody has saved, so it has to be dealt with first.
+  expect((complete as HTMLButtonElement).disabled).toBe(true);
 });

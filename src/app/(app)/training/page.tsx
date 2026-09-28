@@ -54,10 +54,10 @@ export default async function TrainingPage() {
   const ordered = [...ENDURANCE_SPORTS].sort(
     (a, b) => Number(data.preferred.includes(b)) - Number(data.preferred.includes(a)),
   );
-  // Both counts are work still owed rather than rows on the calendar, so a session scheduled
-  // for today and then logged stops being counted the moment it is logged.
+  // Work still owed rather than rows on the calendar, so a session scheduled for today and then
+  // logged stops being counted the moment it is logged. Days gone by are not counted: the list
+  // keeps only what was logged on them.
   const upcoming = outstanding(data.standalone.upcoming).length;
-  const earlier = outstanding(data.standalone.earlier).length;
 
   return (
     <>
@@ -109,10 +109,7 @@ export default async function TrainingPage() {
             showing them a run to do. */}
         <Section title="Scheduled on their own">
           <Card>
-            <p className="text-sm text-ink-muted tabular-nums">
-              {upcoming} upcoming
-              {earlier > 0 ? ` · ${earlier} still to do from earlier` : ""}
-            </p>
+            <p className="text-sm text-ink-muted tabular-nums">{upcoming} upcoming</p>
             <p className="text-sm text-ink-muted">
               Sessions you put on the calendar yourself. Your programme&apos;s own sessions are
               under Programme.

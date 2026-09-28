@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronLeft } from "@/components/ui/icons";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useOptimistic, useState, useTransition } from "react";
 
 import Link from "@/components/ui/app-link";
 import { Badge } from "@/components/ui/badge";
@@ -204,7 +204,11 @@ export function ExerciseLogger({
 }: LoggerProps) {
   const [tab, setTab] = useState<LoggerTab>("log");
   const [optionsFor, setOptionsFor] = useState<number | null>(null);
-  const [completed, setCompleted] = useState(exercise.completedAt !== null);
+  const [savedCompleted, setCompleted] = useState(exercise.completedAt !== null);
+  // Completing or reopening shows at once, while the server is told; a failure puts it back.
+  const [completed, showCompleted] = useOptimistic(savedCompleted);
+  // Pressed while a set is still on its way: the exercise completes once that set has landed.
+  const [completing, showCompleting] = useOptimistic(false);
   const [skipped, setSkipped] = useState(exercise.skippedAt !== null);
   const [skipOpen, setSkipOpen] = useState(false);
   const [skipReason, setSkipReason] = useState("");
@@ -257,6 +261,15 @@ export function ExerciseLogger({
 
   const setCompletedState = (value: boolean) =>
     startTransition(async () => {
+      if (value) {
+        showCompleting(true);
+        // A set that did not save keeps the exercise open, its row saying why.
+        if (!(await sets.settled())) return;
+        startTransition(() => showCompleted(true));
+      } else {
+        showCompleted(false);
+        sets.ensureOpenRow();
+      }
       const outcome = await attempted(
         () => setExerciseCompletedAction(exercise.id, value),
         "Connection lost. Your entries are still here. Try again when connected.",
@@ -271,7 +284,6 @@ export function ExerciseLogger({
       }
       setCompleted(value);
       setSkipped(false);
-      if (!value) sets.ensureOpenRow();
     });
 
   const skip = () =>
@@ -538,11 +550,15 @@ export function ExerciseLogger({
                     <Button variant="secondary" disabled={!sets.canAddRow} onClick={sets.addRow}>
                       Add set
                     </Button>
+                    {/* A set still saving does not hold it up: the press waits for the save.
+                        A row with unsaved changes does, as it would otherwise be left behind. */}
                     <Button
                       onClick={() => setCompletedState(true)}
-                      disabled={pending || sets.loggedSets.length === 0 || sets.dirty}
+                      disabled={
+                        pending || (sets.loggedSets.length === 0 && !sets.saving) || sets.editing
+                      }
                     >
-                      Complete
+                      {completing ? "Completing…" : "Complete"}
                     </Button>
                   </>
                 )}
