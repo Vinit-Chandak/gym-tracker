@@ -16,7 +16,7 @@ import {
   storePlan,
 } from "@/server/repositories/coach-plans";
 import { createProposal, ProposalError } from "@/server/repositories/program-revisions";
-import { handleCoachWorkflow } from "./coach-workflow-service";
+import { handleCoachWorkflow, type CoachWorkflowOptions } from "./coach-workflow-service";
 import { CoachingError } from "./repositories/coaching-state";
 
 /**
@@ -100,6 +100,7 @@ export async function handleCoachServiceRequest(
   db: Db,
   request: Request,
   path: string[],
+  options: CoachWorkflowOptions = {},
 ): Promise<Response> {
   if (!getCoachServiceToken())
     return json({ error: "The coach service is not configured on this server." }, 503);
@@ -108,7 +109,8 @@ export async function handleCoachServiceRequest(
   const method = request.method.toUpperCase();
   const meta = { version: 1, generatedAt: new Date().toISOString() };
   try {
-    if (path[0] === "workflow") return await handleCoachWorkflow(db, request, path.slice(1));
+    if (path[0] === "workflow")
+      return await handleCoachWorkflow(db, request, path.slice(1), options);
     if (process.env.COACH_WORKFLOW_ENABLED === "true")
       return json(
         {

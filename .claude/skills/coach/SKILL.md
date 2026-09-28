@@ -31,9 +31,11 @@ npx tsx scripts/coach/workflow.ts dispatch
 
 Drain every page using `dispatch --after <nextCursor>` until the cursor is null. Continue past individual athlete errors, retry failed pages once, and report unresolved errors. There is no 500-athlete ceiling.
 
-Then call `npx tsx scripts/coach/workflow.ts queue`. Process its due jobs and read the queue again: accepting a weekly review may enqueue session preparation. Stop when no jobs are claimable, or a pass makes no progress. Do not busy-poll deferrals or wait for an open workout.
+Then call `npx tsx scripts/coach/workflow.ts queue`. Process its due jobs and read the queue again: every review re-plans the athlete's next session when it ends, whatever it decided and even when it fails or times out, so the next pass holds that preparation. Stop when no jobs are claimable, or a pass makes no progress. Do not busy-poll deferrals or wait for an open workout.
 
 The orchestrator reads identifiers and counts only. Use a fresh subagent context per athlete to claim and process that athlete's job. Different athletes may run in parallel; only one live claim per athlete is allowed. Never mix athletes' evidence, reports or result files. Use a separate temporary directory per job, and remove temporary files at the end.
+
+With a fire payload, process only its job. When that job is a review, the app starts a separate run for the preparation it re-plans (`replan` in the answer to your result or failure): do not claim it yourself.
 
 A 503 saying the workflow is disabled is a rollout blocker. Do not fall back to the old write endpoints.
 

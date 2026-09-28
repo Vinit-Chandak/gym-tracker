@@ -203,13 +203,13 @@ it("gives two same-day swims separate occurrences, jobs and preparations", async
   expect(new Set(occurrences.map((o) => o.id)).size).toBe(2);
 
   const queued = await as(a, (tx) => enqueueOccurrencePreparations(tx, a.id, "2026-09-21"));
-  expect(queued).toBe(2);
+  expect(queued).toHaveLength(2);
   const jobs = await as(a, (tx) => tx.select().from(coachJobs).where(eq(coachJobs.userId, a.id)));
   expect(jobs).toHaveLength(2);
   expect(new Set(jobs.map((job) => job.target.occurrenceId)).size).toBe(2);
 
   // Dedupe: asking again for the same batch enqueues nothing new.
-  expect(await as(a, (tx) => enqueueOccurrencePreparations(tx, a.id, "2026-09-21"))).toBe(0);
+  expect(await as(a, (tx) => enqueueOccurrencePreparations(tx, a.id, "2026-09-21"))).toEqual([]);
 
   await as(a, (tx) =>
     storeOccurrencePlan(tx, a.id, {
@@ -236,7 +236,9 @@ it("prepares the next two days and never re-prepares overdue work", async () => 
   ]);
   const window = await as(a, (tx) => openOccurrencesBetween(tx, a.id, "2026-09-21", "2026-09-23"));
   expect(window.map((row) => row.scheduledOn)).toEqual(["2026-09-21", "2026-09-23"]);
-  expect(await as(a, (tx) => enqueueOccurrencePreparations(tx, a.id, "2026-09-21"))).toBe(2);
+  expect(await as(a, (tx) => enqueueOccurrencePreparations(tx, a.id, "2026-09-21"))).toHaveLength(
+    2,
+  );
   const jobs = await as(a, (tx) => tx.select().from(coachJobs).where(eq(coachJobs.userId, a.id)));
   // The 16th is overdue and the 25th is beyond the window: neither is prepared.
   expect(jobs).toHaveLength(2);

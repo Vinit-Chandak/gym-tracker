@@ -21,7 +21,9 @@ import {
   getCoachJob,
   queuedCoachJobs,
   renewCoachLease,
+  replanAfterReview,
 } from "./repositories/coaching-jobs";
+import { dispatchCoachJob } from "./dispatch-coach-job";
 import { recordAttemptDiagnostics } from "./repositories/coach-diagnostics";
 import { assertCoachEnabled, CoachingError } from "./repositories/coaching-state";
 import { PlanValidationError } from "./repositories/coach-plans";
@@ -47,11 +49,41 @@ const exerciseLookup = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
   offset: z.coerce.number().int().min(0).max(10_000).default(0),
 });
+export type CoachWorkflowOptions = {
+  /** Runs work once the response has gone: Next's `after` in the route, nothing elsewhere. */
+  defer?: (work: () => Promise<void>) => void;
+};
+
+/**
+ * Starts the routine for a review's re-plan when nobody else will run it soon.
+ *
+ * A review the app asked for runs alone, in a routine started for that one job, and the
+ * preparation it leaves behind would otherwise wait for the next night — while the athlete
+ * trains on the plan written before the review. One started by the nightly routine needs
+ * nothing: its next pass over the queue prepares the session. Only the first re-plan is
+ * started, the next session; anything later is prepared by the nightly run.
+ */
+function startReplan(
+  db: Db,
+  userId: string,
+  reviewId: string,
+  replan: readonly string[],
+  defer: CoachWorkflowOptions["defer"],
+) {
+  if (!defer || replan.length === 0) return;
+  defer(async () => {
+    const review = await withUser(db, userId, (tx) => getCoachJob(tx, userId, reviewId));
+    if (review?.kind === "review_program" && review.dispatchStartedAt)
+      await dispatchCoachJob(db, userId, replan[0]!);
+  });
+}
+
 /** Called only after the existing coach service's constant-time bearer authentication. */
 export async function handleCoachWorkflow(
   db: Db,
   request: Request,
   path: string[],
+  options: CoachWorkflowOptions = {},
 ): Promise<Response> {
   if (process.env.COACH_WORKFLOW_ENABLED !== "true")
     return json({ error: "The new coaching workflow is not enabled on this server." }, 503);
@@ -207,9 +239,11 @@ export async function handleCoachWorkflow(
     }
     if (path.length === 5 && operation === "result" && method === "POST") {
       const result = coachJobResultSchema.parse(await request.json());
-      return json(
-        await withUser(db, userId, (tx) => acceptCoachJobResult(tx, userId, id, attemptId, result)),
+      const accepted = await withUser(db, userId, (tx) =>
+        acceptCoachJobResult(tx, userId, id, attemptId, result),
       );
+      startReplan(db, userId, id, ("replan" in accepted && accepted.replan) || [], options.defer);
+      return json(accepted);
     }
     if (path.length === 5 && operation === "fail" && method === "POST") {
       const body = z
@@ -218,40 +252,41 @@ export async function handleCoachWorkflow(
           retryable: z.boolean().default(false),
         })
         .parse(await request.json());
-      return json(
-        await withUser(db, userId, async (tx) => {
-          await assertCoachEnabled(tx, userId);
-          const job = await getCoachJob(tx, userId, id);
-          if (
-            !job ||
-            job.status !== "claimed" ||
-            job.attemptId !== attemptId ||
-            !job.leaseUntil ||
-            job.leaseUntil <= new Date()
-          )
-            throw new CoachingError("This is not the current live attempt.");
-          const retry = body.retryable && job.attempts < job.attemptBudget;
-          await tx
-            .update(coachJobs)
-            .set({
-              status: retry ? "queued" : "failed",
-              error: body.error,
-              leaseUntil: null,
-              nextAttemptAt: new Date(Date.now() + 60_000),
-              completedAt: retry ? null : new Date(),
-            })
-            .where(and(eq(coachJobs.id, id), eq(coachJobs.userId, userId)));
-          await recordAttemptDiagnostics(tx, userId, {
-            jobId: id,
-            attemptId,
-            kind: job.kind,
-            outcome: retry ? "failed_retryable" : "failed",
-            diagnostics: { attempt: job.attempts },
+      const failed = await withUser(db, userId, async (tx) => {
+        await assertCoachEnabled(tx, userId);
+        const job = await getCoachJob(tx, userId, id);
+        if (
+          !job ||
+          job.status !== "claimed" ||
+          job.attemptId !== attemptId ||
+          !job.leaseUntil ||
+          job.leaseUntil <= new Date()
+        )
+          throw new CoachingError("This is not the current live attempt.");
+        const retry = body.retryable && job.attempts < job.attemptBudget;
+        await tx
+          .update(coachJobs)
+          .set({
+            status: retry ? "queued" : "failed",
             error: body.error,
-          });
-          return { accepted: true, retry };
-        }),
-      );
+            leaseUntil: null,
+            nextAttemptAt: new Date(Date.now() + 60_000),
+            completedAt: retry ? null : new Date(),
+          })
+          .where(and(eq(coachJobs.id, id), eq(coachJobs.userId, userId)));
+        await recordAttemptDiagnostics(tx, userId, {
+          jobId: id,
+          attemptId,
+          kind: job.kind,
+          outcome: retry ? "failed_retryable" : "failed",
+          diagnostics: { attempt: job.attempts },
+          error: body.error,
+        });
+        // A review the coach could not finish still leaves the athlete a planned session.
+        return { accepted: true, retry, replan: await replanAfterReview(tx, userId, job) };
+      });
+      startReplan(db, userId, id, failed.replan, options.defer);
+      return json(failed);
     }
     return json({ error: "Unknown workflow route." }, 404);
   } catch (error) {
