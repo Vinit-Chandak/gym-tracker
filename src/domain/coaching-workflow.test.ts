@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { COACH_CONTRACT_VERSION, contractSkew, describeRefusal } from "./coaching-workflow";
+import {
+  COACH_CONTRACT_VERSION,
+  contractSkew,
+  describeRefusal,
+  JOB_LEASE_CAP_MS,
+  jobProgress,
+} from "./coaching-workflow";
 
 describe("a refusal as the worker reads it", () => {
   it("lists every guardrail finding, which arrive as plain sentences", () => {
@@ -91,5 +97,52 @@ describe("contract skew", () => {
     const stale = contractSkew(COACH_CONTRACT_VERSION + 1);
     expect(stale).toContain("git merge --ff-only origin/main");
     expect(stale).toMatch(/rather than forcing it/);
+  });
+});
+
+describe("where an unfinished job stands", () => {
+  const at = new Date("2026-09-28T09:55:00Z");
+  const queuedAt = new Date("2026-09-27T22:40:00Z"); // 04:10 in India
+  const job = (overrides: Partial<Parameters<typeof jobProgress>[0]> = {}) => ({
+    status: "queued",
+    leaseUntil: null,
+    error: null,
+    createdAt: queuedAt,
+    nextAttemptAt: queuedAt,
+    dispatchStartedAt: null,
+    ...overrides,
+  });
+  const minutes = (n: number) => new Date(at.getTime() - n * 60_000);
+
+  it("is working only while a live claim holds it", () => {
+    expect(jobProgress(job({ status: "claimed", leaseUntil: minutes(-5) }), at)).toBe("working");
+    expect(jobProgress(job({ status: "claimed", leaseUntil: minutes(1) }), at)).toBe("waiting");
+  });
+
+  it("is on its way for the hour after it is queued or fired, then waiting", () => {
+    expect(jobProgress(job({ createdAt: minutes(5), nextAttemptAt: minutes(5) }), at)).toBe(
+      "starting",
+    );
+    // Queued at 04:10 by the nightly run and never reached: not planning at 15:25.
+    expect(jobProgress(job(), at)).toBe("waiting");
+    expect(
+      jobProgress(job({ dispatchStartedAt: new Date(at.getTime() - JOB_LEASE_CAP_MS + 1) }), at),
+    ).toBe("starting");
+  });
+
+  it("waits after a failure, a time-out or a put-off, until something starts it again", () => {
+    const failed = job({
+      error: "Cite source IDs from the current context.",
+      nextAttemptAt: minutes(-1),
+      dispatchStartedAt: minutes(2),
+    });
+    expect(jobProgress(failed, at)).toBe("waiting");
+    // Started again: the failure is cleared and it is claimable now.
+    expect(jobProgress({ ...failed, error: null, nextAttemptAt: at }, at)).toBe("starting");
+  });
+
+  it("says nothing of a job that has ended", () => {
+    for (const status of ["succeeded", "failed", "superseded", "needs_input"])
+      expect(jobProgress(job({ status }), at)).toBeNull();
   });
 });

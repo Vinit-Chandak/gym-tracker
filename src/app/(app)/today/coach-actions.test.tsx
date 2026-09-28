@@ -1,12 +1,16 @@
 // @vitest-environment jsdom
-import { act, cleanup, render } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
-import { CoachPending } from "./coach-actions";
+import { CoachPending, CoachWaiting } from "./coach-actions";
 
-const { router } = vi.hoisted(() => ({ router: { refresh: vi.fn() } }));
+const { router, start } = vi.hoisted(() => ({
+  router: { refresh: vi.fn() },
+  start: vi.fn(),
+}));
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
 vi.mock("@/server/actions/coach", () => ({ requestCoachPlanAction: vi.fn() }));
+vi.mock("@/server/actions/coaching-workflow", () => ({ startWaitingCoachJobAction: start }));
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -53,4 +57,26 @@ it("refreshes after the server timeout even when it expires in the background, t
   expect(router.refresh).toHaveBeenCalledTimes(1);
   unmount();
   expect(vi.getTimerCount()).toBe(0);
+});
+
+it("says nothing is planning a session the coach did not reach, and starts it on a tap", async () => {
+  vi.useRealTimers();
+  start.mockResolvedValue({ ok: true, value: { jobId: "job-1" } });
+  render(<CoachWaiting jobId="job-1" attempted={false} hasPlan={false} />);
+  expect(screen.getByRole("status").textContent).toBe(
+    "The coach has not planned this session yet. Your programme's own targets apply until it does. It tries again at its next nightly run.",
+  );
+  expect(screen.queryByText(/is planning/)).toBeNull();
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Ask the coach to plan it now" }));
+  });
+  expect(start).toHaveBeenCalledWith("job-1");
+  expect(router.refresh).toHaveBeenCalledTimes(1);
+});
+
+it("says the coach could not finish, and that its earlier plan stands", () => {
+  render(<CoachWaiting jobId="job-1" attempted hasPlan />);
+  expect(screen.getByRole("status").textContent).toBe(
+    "The coach could not finish planning this session. Its earlier plan stands until it does. It tries again at its next nightly run.",
+  );
 });

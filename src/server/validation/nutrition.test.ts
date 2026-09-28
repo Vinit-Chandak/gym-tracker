@@ -9,6 +9,7 @@ import {
   issuesByPath,
   logFoodSchema,
   logSavedMealSchema,
+  quickFoodSchema,
   saveLibraryMealSchema,
   saveMealSchema,
   targetsInputSchema,
@@ -173,6 +174,53 @@ describe("a new food", () => {
       kcal: "At most 10,000 kcal.",
     });
     expect(errorsOf(createFoodSchema, newFood({ name: "x".repeat(81) }))).toEqual({
+      name: "Keep this under 80 characters.",
+    });
+  });
+});
+
+describe("a quick add", () => {
+  const quick = (fields: Record<string, string> = {}) => ({
+    eatenOn: DAY,
+    meal: "lunch",
+    name: "",
+    kcal: "720",
+    carbsG: "",
+    fatG: "",
+    proteinG: "",
+    ...fields,
+  });
+
+  it("is one serving of what was typed, named Quick add when it is given no name", () => {
+    expect(quickFoodSchema.parse(quick({ proteinG: "35,4", submissionKey: ID }))).toEqual({
+      submissionKey: ID,
+      eatenOn: DAY,
+      meal: "lunch",
+      food: {
+        name: "Quick add",
+        portionAmount: 1,
+        unit: "serving",
+        kcal: 720,
+        carbsG: null,
+        fatG: null,
+        proteinG: 35.4,
+      },
+    });
+    expect(quickFoodSchema.parse(quick({ name: "  Thali at work " })).food.name).toBe(
+      "Thali at work",
+    );
+  });
+
+  it("needs the energy, and keeps every figure and the name inside the bounds", () => {
+    expect(errorsOf(quickFoodSchema, quick({ kcal: "" }))).toEqual({ kcal: "Enter the kcal." });
+    expect(
+      errorsOf(quickFoodSchema, quick({ kcal: "10000.1", fatG: "1001", carbsG: "a lot" })),
+    ).toEqual({
+      kcal: "At most 10,000 kcal.",
+      carbsG: "Enter a number.",
+      fatG: "At most 1,000 g.",
+    });
+    expect(errorsOf(quickFoodSchema, quick({ name: "x".repeat(81) }))).toEqual({
       name: "Keep this under 80 characters.",
     });
   });

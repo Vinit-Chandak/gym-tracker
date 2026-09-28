@@ -21,6 +21,7 @@ import { EnvelopeOpenIcon } from "@phosphor-icons/react/dist/ssr/EnvelopeOpen";
 import { GearSixIcon } from "@phosphor-icons/react/dist/ssr/GearSix";
 import { InfoIcon } from "@phosphor-icons/react/dist/ssr/Info";
 import { KeyIcon } from "@phosphor-icons/react/dist/ssr/Key";
+import { LightningIcon } from "@phosphor-icons/react/dist/ssr/Lightning";
 import { LinkIcon } from "@phosphor-icons/react/dist/ssr/Link";
 import { LockSimpleIcon } from "@phosphor-icons/react/dist/ssr/LockSimple";
 import { MagnifyingGlassIcon } from "@phosphor-icons/react/dist/ssr/MagnifyingGlass";
@@ -122,6 +123,8 @@ export const MicOff = /* @__PURE__ */ duotone(MicrophoneSlashIcon);
 export const Minus = /* @__PURE__ */ duotone(MinusIcon);
 export const Paperclip = /* @__PURE__ */ duotone(PaperclipIcon);
 export const Plus = /* @__PURE__ */ duotone(PlusIcon);
+/** Quick add: a food logged from its figures alone, just this once. */
+export const QuickAdd = /* @__PURE__ */ duotone(LightningIcon);
 /** Compare: two pans weighed against each other. */
 export const Scales = /* @__PURE__ */ duotone(ScalesIcon);
 export const Search = /* @__PURE__ */ duotone(MagnifyingGlassIcon);

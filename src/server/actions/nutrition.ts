@@ -22,6 +22,7 @@ import {
   FoodNotFoundError,
   FoodSubmissionConflictError,
   logFood,
+  logQuickFood,
   logSavedMeal,
   readFoodDays,
   SavedMealChangedError,
@@ -42,6 +43,7 @@ import {
   issuesByPath,
   logFoodSchema,
   logSavedMealSchema,
+  quickFoodSchema,
   saveLibraryMealSchema,
   saveMealSchema,
   targetsInputSchema,
@@ -51,6 +53,7 @@ import {
   type CreateLibraryFoodDraft,
   type LogFoodDraft,
   type LogSavedMealDraft,
+  type QuickFoodDraft,
   type SaveLibraryMealDraft,
   type SaveMealDraft,
   type UpdateEntryDraft,
@@ -166,6 +169,18 @@ export async function createFoodAction(draft: CreateFoodDraft): Promise<FoodActi
   return change(user, (tx) => logFood(tx, user.id, { eatenOn, meal }, { food, amount }), {
     eatenOn,
     receipt: { key: submissionKey, payload: { kind: "create", ...parsed.data } },
+  });
+}
+
+/** Logs a food eaten just this once, from its figures alone, without keeping it in My foods. */
+export async function logQuickFoodAction(draft: QuickFoodDraft): Promise<FoodActionResult> {
+  const user = await requireUser();
+  const parsed = quickFoodSchema.safeParse(draft);
+  if (!parsed.success) return invalid(parsed.error);
+  const { submissionKey, eatenOn, meal, food } = parsed.data;
+  return change(user, (tx) => logQuickFood(tx, user.id, { eatenOn, meal }, food), {
+    eatenOn,
+    receipt: { key: submissionKey, payload: { kind: "quick", ...parsed.data } },
   });
 }
 

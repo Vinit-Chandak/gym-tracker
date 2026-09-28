@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { afterAll, beforeAll, expect, it, vi } from "vitest";
 import {
   coachChangeRecords,
@@ -48,6 +48,7 @@ import {
   renewCoachLease,
   requeueCoachJob,
   settleCoachJobs,
+  restartWaitingJob,
 } from "./coaching-jobs";
 import { coachJobContext } from "./coaching-context";
 import { assertLiveAttempt, lookupExercises } from "./coach-lookups";
@@ -1427,6 +1428,69 @@ it("shows the newest gym request and its selected Start location on Today", asyn
     requestsLeft: 1,
     pending: { gymId: other!.id },
   });
+});
+
+it("says a session's preparation nothing reached is waiting, not planning, and starts it on a tap", async () => {
+  const a = await athlete();
+  const { draft } = await generated(a);
+  const active = await as(a, (tx) =>
+    activateProgramDraft(tx, a.user.id, draft.id, {
+      expectedRevision: draft.revision,
+      startDate: "2026-09-14",
+      transition: "new_block",
+    }),
+  );
+  const today = () =>
+    as(a, (tx) =>
+      todayWorkflowState(tx, a.user.id, {
+        enabled: true,
+        timeZone: "Asia/Kolkata",
+        programId: active.programId,
+        ref: { cycleIndex: 1, dayIndex: 1 },
+        gymId: a.gym.id,
+      }),
+    );
+  const { job } = await as(a, (tx) => requestGymChange(tx, a.user.id, a.gym.id));
+  expect(await today()).toMatchObject({ pending: { gymId: a.gym.id }, waiting: null });
+
+  // Queued in the night and never reached: hours on, nothing is planning it.
+  const queuedAt = new Date(Date.now() - 2 * 3_600_000);
+  await as(a, (tx) =>
+    tx
+      .update(coachJobs)
+      .set({ createdAt: queuedAt, nextAttemptAt: queuedAt })
+      .where(eq(coachJobs.id, job!.id)),
+  );
+  expect(await today()).toMatchObject({
+    pending: null,
+    waiting: { jobId: job!.id, attempted: false },
+  });
+
+  // Started from Today: on its way from now, not from the night, and claimable at once.
+  expect((await as(a, (tx) => restartWaitingJob(tx, a.user.id, job!.id)))?.id).toBe(job!.id);
+  const started = await today();
+  expect(started).toMatchObject({ pending: { gymId: a.gym.id }, waiting: null });
+  expect(started.pending!.requestedAt.getTime()).toBeGreaterThan(Date.now() - 60_000);
+  // A second tap starts nothing more.
+  expect(await as(a, (tx) => restartWaitingJob(tx, a.user.id, job!.id))).toBeNull();
+  expect(await as(a, (tx) => claimCoachJob(tx, a.user.id, job!.id))).not.toBeNull();
+});
+
+it("starts the review a waiting session is behind, whose ending plans the session", async () => {
+  const a = await reviewing();
+  const nightly = await as(a, (tx) => enqueueDailySession(tx, a.user.id, lastCoachBoundary().date));
+  const review = await queueReview(a, "review:stalled");
+  const queuedAt = new Date(Date.now() - 2 * 3_600_000);
+  await as(a, (tx) =>
+    tx
+      .update(coachJobs)
+      .set({ createdAt: queuedAt, nextAttemptAt: queuedAt })
+      .where(inArray(coachJobs.id, [nightly!.job.id, review.id])),
+  );
+  // The session cannot be claimed past a review not yet tried, so the review is what starts.
+  const started = await as(a, (tx) => restartWaitingJob(tx, a.user.id, nightly!.job.id));
+  expect(started?.id).toBe(review.id);
+  expect(await as(a, (tx) => claimCoachJob(tx, a.user.id, review.id))).not.toBeNull();
 });
 
 it("drains more than 500 eligible athletes without a page ceiling or invented jobs", async () => {

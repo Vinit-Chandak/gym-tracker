@@ -800,6 +800,75 @@ it("gives the athlete an allowance of reviews of their own, and answers their as
   expect(later.canAsk).toBe(true);
 });
 
+it("tells a review waiting for the next nightly run from one running, and starts it when asked", async () => {
+  const a = await training();
+  await as(a, (tx) =>
+    tx.update(profiles).set({ aiCoachEnabled: true }).where(eq(profiles.id, a.user.id)),
+  );
+  const asked = await as(a, (tx) => requestProgramReview(tx, a.user.id));
+  expect(await as(a, (tx) => athleteReviewStatus(tx, a.user.id))).toMatchObject({
+    running: true,
+    waiting: null,
+    canAsk: false,
+  });
+
+  // The coach claims it, is refused, and fails it to retry — as the run of 28 September did.
+  await as(a, (tx) => claimCoachJob(tx, a.user.id, asked.job.id));
+  await as(a, (tx) =>
+    tx
+      .update(coachJobs)
+      .set({
+        status: "queued",
+        leaseUntil: null,
+        error: "Cite source IDs from the current context.",
+        nextAttemptAt: new Date(Date.now() + 60_000),
+      })
+      .where(eq(coachJobs.id, asked.job.id)),
+  );
+  // Nothing is reviewing it: it waits for the next nightly run, and asking is offered.
+  expect(await as(a, (tx) => athleteReviewStatus(tx, a.user.id))).toMatchObject({
+    running: false,
+    waiting: { jobId: asked.job.id, attempted: true },
+    canAsk: true,
+  });
+
+  // Asking starts that review again, not a second one.
+  const again = await as(a, (tx) => requestProgramReview(tx, a.user.id));
+  expect(again).toMatchObject({ created: false, restarted: true });
+  expect(again.job).toMatchObject({ id: asked.job.id, status: "queued", error: null });
+  expect(await as(a, (tx) => athleteReviewStatus(tx, a.user.id))).toMatchObject({
+    running: true,
+    waiting: null,
+  });
+  // A second tap finds it on its way.
+  expect(await as(a, (tx) => requestProgramReview(tx, a.user.id))).toMatchObject({
+    created: false,
+    restarted: false,
+  });
+  const reviews = await as(a, (tx) =>
+    tx
+      .select()
+      .from(coachJobs)
+      .where(and(eq(coachJobs.userId, a.user.id), eq(coachJobs.kind, "review_program"))),
+  );
+  expect(reviews).toHaveLength(1);
+  expect(await as(a, (tx) => claimCoachJob(tx, a.user.id, asked.job.id))).not.toBeNull();
+});
+
+it("counts a review nothing reached within the hour as waiting, not reviewing", async () => {
+  const a = await training();
+  await as(a, (tx) =>
+    tx.update(profiles).set({ aiCoachEnabled: true }).where(eq(profiles.id, a.user.id)),
+  );
+  const asked = await as(a, (tx) => requestProgramReview(tx, a.user.id));
+  const later = new Date(Date.now() + 2 * 3_600_000);
+  expect(await as(a, (tx) => athleteReviewStatus(tx, a.user.id, later))).toMatchObject({
+    running: false,
+    waiting: { jobId: asked.job.id, attempted: false },
+    canAsk: true,
+  });
+});
+
 it("reviews an account that switched the coach on before the workflow existed", async () => {
   const a = await training();
   await as(a, (tx) =>

@@ -22,7 +22,11 @@ import {
   saveIntake,
   setTrainingMode,
 } from "@/server/repositories/coach-intakes";
-import { requestProgramCreation, requestProgramReview } from "@/server/repositories/coaching-jobs";
+import {
+  requestProgramCreation,
+  requestProgramReview,
+  restartWaitingJob,
+} from "@/server/repositories/coaching-jobs";
 import { CoachingError, sourceRevision } from "@/server/repositories/coaching-state";
 import {
   activateProgramDraft,
@@ -161,13 +165,46 @@ export async function requestProgramReviewAction() {
     };
   const result = await mutate(async (tx, userId) => {
     const request = await requestProgramReview(tx, userId);
-    return { userId, jobId: request.job.id, created: request.created };
+    return {
+      userId,
+      jobId: request.job.id,
+      created: request.created,
+      start: request.created || request.restarted,
+    };
   });
   if (result.ok) {
-    if (result.value.created)
+    // A new review, or one that was waiting for the next nightly run: either way, a run now.
+    if (result.value.start)
       after(() => dispatchCoachJob(getDb(), result.value.userId, result.value.jobId));
     revalidatePath("/profile/programme");
     revalidatePath("/profile/ai-coach");
+  }
+  return result;
+}
+
+/**
+ * Starts a coach job that is waiting for the next nightly run — Today's session plan, most
+ * often — instead of leaving the athlete to wait for it.
+ */
+export async function startWaitingCoachJobAction(id: string) {
+  if (
+    process.env.COACH_WORKFLOW_ENABLED !== "true" ||
+    !getCoachRoutine() ||
+    !getCoachServiceToken()
+  )
+    return {
+      ok: false as const,
+      error: "On-demand coaching is not set up on this server. The coach runs again tonight.",
+    };
+  const result = await mutate(async (tx, userId) => {
+    const job = await restartWaitingJob(tx, userId, z.uuid().parse(id));
+    return { userId, jobId: job?.id ?? null };
+  });
+  if (result.ok) {
+    const { userId, jobId } = result.value;
+    if (jobId) after(() => dispatchCoachJob(getDb(), userId, jobId));
+    revalidatePath("/today");
+    revalidatePath("/profile/programme");
   }
   return result;
 }
