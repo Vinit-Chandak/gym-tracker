@@ -116,6 +116,46 @@ export const JOB_LEASE_MS = 20 * 60_000;
 /** However busy the worker, an attempt ends this long after its claim. */
 export const JOB_LEASE_CAP_MS = 60 * 60_000;
 export const MAX_JOB_ATTEMPTS = 3;
+
+/**
+ * Where an unfinished job stands, as the athlete should be told it.
+ *
+ * - `working`: a worker holds a live claim on it.
+ * - `starting`: a run is on its way to it — queued, fired or put back on its way within the
+ *   last `JOB_LEASE_CAP_MS`, and not held back by a failure since. A run that was going to
+ *   pick it up has claimed it by then.
+ * - `waiting`: nothing is going to pick it up before the next nightly run. It failed or timed
+ *   out and waits to retry, it was put off, or the run that was meant to reach it never did.
+ *
+ * "Queued" alone read as working: a review that failed at four in the morning and waited for
+ * the next night to retry had the Programme page say the coach was reviewing it all day, and
+ * the session behind it had Today say the coach had been planning since 04:10.
+ */
+export type JobProgress = "working" | "starting" | "waiting";
+export function jobProgress(
+  job: {
+    status: string;
+    leaseUntil: Date | null;
+    error: string | null;
+    createdAt: Date;
+    nextAttemptAt: Date;
+    dispatchStartedAt: Date | null;
+  },
+  now = new Date(),
+): JobProgress | null {
+  if (job.status === "claimed")
+    return job.leaseUntil && job.leaseUntil > now ? "working" : "waiting";
+  if (job.status !== "queued") return null;
+  // Every failure, time-out and put-off leaves its reason, and only a fresh start clears it.
+  if (job.error !== null) return "waiting";
+  const latest = Math.max(
+    job.createdAt.getTime(),
+    job.nextAttemptAt.getTime(),
+    job.dispatchStartedAt?.getTime() ?? 0,
+  );
+  return now.getTime() - latest < JOB_LEASE_CAP_MS ? "starting" : "waiting";
+}
+
 /** The longest failure reason a job keeps. The worker's script clips to it before sending. */
 export const JOB_ERROR_MAX = 500;
 

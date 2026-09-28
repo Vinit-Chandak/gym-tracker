@@ -7,6 +7,7 @@ import {
   gt,
   gte,
   inArray,
+  isNotNull,
   isNull,
   like,
   lt,
@@ -49,6 +50,7 @@ import {
   JOB_LEASE_MS,
   MAX_JOB_ATTEMPTS,
   coachJobResultSchema,
+  jobProgress,
   jobTargetSchema,
   type JobTarget,
 } from "@/domain/coaching-workflow";
@@ -1729,8 +1731,8 @@ export async function athleteReviewStatus(db: DbOrTx, userId: string, now = new 
     )
     .orderBy(desc(coachJobs.createdAt))
     .limit(ATHLETE_REVIEWS_PER_WINDOW);
-  const [running] = await db
-    .select({ id: coachJobs.id })
+  const [unfinished] = await db
+    .select()
     .from(coachJobs)
     .where(
       and(
@@ -1740,15 +1742,23 @@ export async function athleteReviewStatus(db: DbOrTx, userId: string, now = new 
       ),
     )
     .limit(1);
+  const progress = unfinished ? jobProgress(unfinished, now) : null;
+  const running = progress === "working" || progress === "starting";
+  const waiting = progress === "waiting" ? unfinished! : null;
   // Spent only once the window is full. The next ask is free when its oldest member ages
   // out, so the date offered is that one's, not the most recent ask's.
   const spent = recent.length >= ATHLETE_REVIEWS_PER_WINDOW;
   const oldestHeld = recent[recent.length - 1];
   const nextAt = spent && oldestHeld ? new Date(oldestHeld.createdAt.getTime() + windowMs) : null;
   return {
-    /** A review is already queued or running; asking again would only duplicate it. */
-    running: Boolean(running),
-    canAsk: !running && (!nextAt || nextAt <= now),
+    /** A review is being worked, or a run is on its way to it; asking again would duplicate it. */
+    running,
+    /**
+     * A review nothing will pick up before the next nightly run. Asking starts that one now,
+     * rather than a second, so it spends none of the allowance.
+     */
+    waiting: waiting ? { jobId: waiting.id, attempted: waiting.attempts > 0 } : null,
+    canAsk: !running && (waiting !== null || !nextAt || nextAt <= now),
     nextAt: nextAt && nextAt > now ? nextAt : null,
   };
 }
@@ -1781,7 +1791,11 @@ export async function requestProgramReview(db: DbOrTx, userId: string, now = new
   const active = await getActiveProgram(db, userId);
   if (!active) throw new CoachingError("There is no programme to review yet.");
   const status = await athleteReviewStatus(db, userId, now);
-  if (status.running) {
+  if (status.waiting) {
+    const restarted = await restartWaitingJob(db, userId, status.waiting.jobId, now);
+    if (restarted) return { job: restarted, created: false, restarted: true };
+  }
+  if (status.running || status.waiting) {
     const [existing] = await db
       .select()
       .from(coachJobs)
@@ -1793,7 +1807,7 @@ export async function requestProgramReview(db: DbOrTx, userId: string, now = new
         ),
       )
       .limit(1);
-    return { job: existing!, created: false };
+    if (existing) return { job: existing, created: false, restarted: false };
   }
   if (!status.canAsk)
     throw new CoachingError(
@@ -1804,7 +1818,7 @@ export async function requestProgramReview(db: DbOrTx, userId: string, now = new
   const anchor = await reviewAnchor(db, userId, now);
   if (!anchor || anchor >= now)
     throw new CoachingError("There is nothing to review yet. Train a session first.");
-  return enqueueCoachJob(db, userId, {
+  const asked = await enqueueCoachJob(db, userId, {
     kind: "review_program",
     // Scheduled work, so the review is handed the asks it is meant to answer; the purpose
     // below is what keeps it from consuming the cadence's own review.
@@ -1819,6 +1833,62 @@ export async function requestProgramReview(db: DbOrTx, userId: string, now = new
       purpose: "requests",
     },
   });
+  return { ...asked, restarted: false };
+}
+
+/**
+ * Puts a job nothing is working back on its way, for an athlete who will not wait for the next
+ * nightly run: made claimable now, its failure cleared, and its run not yet started, so the
+ * caller starts one with `dispatchCoachJob`. It spends no allowance, because it is not a new
+ * ask — only the coach's own work, started sooner.
+ *
+ * A session preparation that a review is still ahead of would only be refused its claim, so
+ * the review is started instead: its ending plans the session again (`replanAfterReview`).
+ *
+ * Returns the job to start, or null when a run already has it, or it is no longer waiting.
+ */
+export async function restartWaitingJob(
+  db: DbOrTx,
+  userId: string,
+  id: string,
+  now = new Date(),
+): Promise<CoachJob | null> {
+  await assertCoachEnabled(db, userId);
+  await reconcileCoachJobs(db, userId, now);
+  let job = await getCoachJob(db, userId, id);
+  if (!job || jobProgress(job, now) !== "waiting") return null;
+  if (job.kind === "prepare_session") {
+    const [review] = await db
+      .select()
+      .from(coachJobs)
+      .where(and(eq(coachJobs.userId, userId), reviewStillAhead(coachJobs, now)))
+      .limit(1);
+    if (review) {
+      if (jobProgress(review, now) !== "waiting") return null;
+      job = review;
+    }
+  }
+  // The coach will not claim anything while a workout is open, so a run started now would
+  // find nothing it may do.
+  await assertNoOpenWorkout(db, userId);
+  const [restarted] = await db
+    .update(coachJobs)
+    .set({ nextAttemptAt: now, error: null, dispatchStartedAt: null })
+    .where(
+      and(
+        eq(coachJobs.userId, userId),
+        eq(coachJobs.id, job.id),
+        eq(coachJobs.status, "queued"),
+        // Still waiting, by the same rule, when the row is written: a second tap that raced
+        // the first finds it on its way and starts nothing.
+        or(
+          isNotNull(coachJobs.error),
+          sql`greatest(${coachJobs.createdAt}, ${coachJobs.nextAttemptAt}, coalesce(${coachJobs.dispatchStartedAt}, ${coachJobs.createdAt})) <= ${new Date(now.getTime() - JOB_LEASE_CAP_MS).toISOString()}::timestamptz`,
+        ),
+      ),
+    )
+    .returning();
+  return restarted ?? null;
 }
 
 /**

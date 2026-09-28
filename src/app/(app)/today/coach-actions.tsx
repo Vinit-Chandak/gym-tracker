@@ -9,6 +9,8 @@ import { Field, Input } from "@/components/ui/input";
 import { REQUEST_TIMEOUT_MINUTES } from "@/domain/coach-request";
 import { cn } from "@/lib/utils";
 import { requestCoachPlanAction } from "@/server/actions/coach";
+import { startWaitingCoachJobAction } from "@/server/actions/coaching-workflow";
+import { coachingAction } from "@/components/coaching/client-action";
 import { attempted } from "@/lib/offline-submit";
 
 export type CoachGym = { id: string; name: string; isDefault: boolean };
@@ -73,6 +75,57 @@ export function CoachPending({
     <p role="status" className="text-sm text-ink-muted">
       Coach is planning for {gymName}, since {startedAtLabel}. This screen updates itself.
     </p>
+  );
+}
+
+/**
+ * The line in place of "Coach is planning" when nothing is: the session's preparation is
+ * queued, but it failed, or the run meant to reach it never did, and the next nightly run is
+ * the next to try. Saying it was planning, since four in the morning, told the athlete to
+ * wait for something that was not coming; this says what stands and starts it on a tap.
+ */
+export function CoachWaiting({
+  jobId,
+  attempted,
+  hasPlan,
+}: {
+  jobId: string;
+  /** The coach tried and could not finish, rather than never reaching it. */
+  attempted: boolean;
+  /** An earlier plan for this session is on screen. */
+  hasPlan: boolean;
+}) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const start = async () => {
+    setBusy(true);
+    setError(null);
+    const result = await coachingAction(() => startWaitingCoachJobAction(jobId));
+    if (result.ok) router.refresh();
+    else setError(result.error ?? "Could not start the coach. Please retry.");
+    setBusy(false);
+  };
+  return (
+    <div className="space-y-2">
+      <p role="status" className="text-sm text-ink-muted">
+        {attempted
+          ? "The coach could not finish planning this session."
+          : "The coach has not planned this session yet."}{" "}
+        {hasPlan
+          ? "Its earlier plan stands until it does."
+          : "Your programme's own targets apply until it does."}{" "}
+        It tries again at its next nightly run.
+      </p>
+      <Button variant="secondary" className="flex w-full" disabled={busy} onClick={start}>
+        {busy ? "Starting…" : "Ask the coach to plan it now"}
+      </Button>
+      {error && (
+        <p role="alert" className="text-sm text-danger">
+          {error}
+        </p>
+      )}
+    </div>
   );
 }
 

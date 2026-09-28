@@ -5,6 +5,7 @@ import { todayCoachState, type TodayCoachState } from "./coach-plans";
 import { sessionTarget, settleCoachJobs } from "./coaching-jobs";
 import { fromDateTimeLocal } from "@/lib/time";
 import { todayInTimeZone } from "@/domain/program-calendar";
+import { jobProgress } from "@/domain/coaching-workflow";
 
 /**
  * Adapt durable jobs to Today's existing plan renderer without creating legacy requests. Today
@@ -17,6 +18,7 @@ export async function todayWorkflowState(
   input: Parameters<typeof todayCoachState>[2],
   known?: Parameters<typeof sessionTarget>[3],
 ): Promise<TodayCoachState> {
+  const now = new Date();
   const since = fromDateTimeLocal(`${todayInTimeZone(input.timeZone)}T00:00`, input.timeZone)!;
   const [target, stored] = await Promise.all([
     sessionTarget(db, userId, null, known),
@@ -33,7 +35,7 @@ export async function todayWorkflowState(
   ]);
   // An attempt whose lease ran out is shown as it will be recorded; the page records it after
   // answering (`tidyCoachJobsLater`), so reading Today never takes the athlete lock.
-  const { jobs, expired } = settleCoachJobs(stored);
+  const { jobs, expired } = settleCoachJobs(stored, now);
   const selectedGymId =
     target?.programId === input.programId &&
     target.cycleIndex === input.ref.cycleIndex &&
@@ -48,15 +50,31 @@ export async function todayWorkflowState(
       job.target.cycleIndex === input.ref.cycleIndex &&
       job.target.dayIndex === input.ref.dayIndex,
   );
-  const pending = relevant.find((job) => job.status === "queued" || job.status === "claimed");
+  const unfinished = relevant.find((job) => job.status === "queued" || job.status === "claimed");
+  // A review being worked, or on its way, plans this session again when it ends, so the
+  // session is on its way too however long it has sat behind it.
+  const reviewing = jobs.some(
+    (job) =>
+      job.kind === "review_program" &&
+      ["working", "starting"].includes(jobProgress(job, now) ?? ""),
+  );
+  const progress = unfinished ? jobProgress(unfinished, now) : null;
+  const pending = progress !== null && (progress !== "waiting" || reviewing);
   const latest = relevant[0];
   return {
     ...state,
     workflow: true,
     selectedGymId,
     expiredJobs: expired,
-    pending: pending ? { gymId: pending.target.gymId, requestedAt: pending.createdAt } : null,
-    failure: !pending && latest?.status === "failed" ? { error: latest.error } : null,
+    pending:
+      unfinished && pending
+        ? { gymId: unfinished.target.gymId, requestedAt: lastStarted(unfinished, now) }
+        : null,
+    // Queued, but nothing will pick it up before the next nightly run: said so, with a way to
+    // start it now, rather than "planning since 04:10" all day.
+    waiting:
+      unfinished && !pending ? { jobId: unfinished.id, attempted: unfinished.attempts > 0 } : null,
+    failure: !unfinished && latest?.status === "failed" ? { error: latest.error } : null,
     requestsLeft: Math.max(
       0,
       3 -
@@ -66,4 +84,18 @@ export async function todayWorkflowState(
         ).length,
     ),
   };
+}
+
+/** When the job was last set going: queued, started again, or handed a run. */
+function lastStarted(
+  job: { createdAt: Date; nextAttemptAt: Date; dispatchStartedAt: Date | null },
+  now: Date,
+): Date {
+  return new Date(
+    Math.max(
+      job.createdAt.getTime(),
+      Math.min(job.nextAttemptAt.getTime(), now.getTime()),
+      job.dispatchStartedAt?.getTime() ?? 0,
+    ),
+  );
 }

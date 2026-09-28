@@ -26,7 +26,7 @@ import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
 import type { SessionSummary } from "@/server/repositories/sessions";
 import type { ScheduleDay, TodayPlan } from "@/server/repositories/schedule";
 
-import { CoachPending, type CoachGym } from "./coach-actions";
+import { CoachPending, CoachWaiting, type CoachGym } from "./coach-actions";
 import { GymSwitcher, type SwitcherGym } from "./gym-switcher";
 import {
   CompleteRestButton,
@@ -144,6 +144,15 @@ function CoachStatus({
         startedAtLabel={formatTime(coach.pending.requestedAt, timeZone)}
         gymName={planningFor ?? "your gym"}
         workflow={coach.workflow}
+      />
+    );
+  }
+  if (coach.waiting) {
+    return (
+      <CoachWaiting
+        jobId={coach.waiting.jobId}
+        attempted={coach.waiting.attempted}
+        hasPlan={Boolean(coach.plan && coach.matchesGym)}
       />
     );
   }

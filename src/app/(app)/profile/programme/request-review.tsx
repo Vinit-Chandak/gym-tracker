@@ -11,8 +11,13 @@ export type ReviewAvailability = {
   /** False when the coach cannot be started from this server at all. */
   offered: boolean;
   canAsk: boolean;
-  /** A review is already queued or running, so asking again would only duplicate it. */
+  /** A review is being worked, or a run is on its way to it: asking again would duplicate it. */
   running: boolean;
+  /**
+   * A review nothing will pick up before the coach's next nightly run. Asking starts that
+   * one now; `attempted` when the coach tried and could not finish it.
+   */
+  waiting?: { attempted: boolean } | null;
   /** The day they may ask again, already formatted, when the allowance is spent. */
   nextOn: string | null;
   /** When the coach last reviewed the programme, already formatted. */
@@ -45,13 +50,22 @@ export function RequestReview({ availability }: { availability: ReviewAvailabili
   };
 
   const reviewing = sent || availability.running;
+  const waiting = !reviewing ? availability.waiting : null;
+  // Queued used to read as reviewing: a review that failed at four in the morning said the
+  // coach was reviewing all day, and hid the button that could have started it.
   const line = reviewing
     ? "The coach is reviewing your programme."
-    : !availability.canAsk
-      ? `You can ask again from ${availability.nextOn}.`
-      : availability.lastOn
-        ? `Last reviewed ${availability.lastOn}.`
-        : null;
+    : waiting
+      ? `${
+          waiting.attempted
+            ? "The coach could not finish your last review."
+            : "Your review has not started yet."
+        } It tries again at its next nightly run, or ask for it now.`
+      : !availability.canAsk
+        ? `You can ask again from ${availability.nextOn}.`
+        : availability.lastOn
+          ? `Last reviewed ${availability.lastOn}.`
+          : null;
 
   return (
     <div className="space-y-1.5">
@@ -62,7 +76,11 @@ export function RequestReview({ availability }: { availability: ReviewAvailabili
           disabled={busy || !availability.canAsk}
           onClick={ask}
         >
-          {busy ? "Asking…" : "Ask the coach for a review"}
+          {busy
+            ? "Asking…"
+            : waiting
+              ? "Ask the coach to review now"
+              : "Ask the coach for a review"}
         </Button>
       )}
       {line && <p className="px-1 text-center text-xs text-ink-muted">{line}</p>}
