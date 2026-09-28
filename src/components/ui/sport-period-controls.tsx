@@ -6,12 +6,12 @@ import { SportSwitch } from "./sport-switch";
 
 /**
  * The two choices a social screen asks (plan §3.1): sport and period, each in its own
- * control. Stacked on a phone; from 640px the six pills share one row, the sport a third
- * of it, since that is where they all fit at their minimum width.
+ * control, the sport above the period at every width. Side by side, four sports had a third of
+ * the row and broke their names across lines, and the two rows of pills did not line up.
  */
 export function SportPeriodControls({ sport, period }: { sport: TrainingSport; period: Period }) {
   return (
-    <div className="grid gap-2 sm:grid-cols-[1fr_2fr]">
+    <div className="grid gap-2">
       <SportSwitch value={sport} />
       <PeriodSelect value={period} />
     </div>

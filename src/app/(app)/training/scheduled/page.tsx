@@ -21,13 +21,13 @@ import { formatIsoDate } from "@/lib/format";
 export const metadata: Metadata = { title: "Scheduled" };
 
 /**
- * Standalone scheduled work: what is coming, and what is behind (SCHED-08).
+ * Standalone scheduled work: what is coming, and what was done (SCHED-08).
  *
  * Programme sessions are not here — they belong to the programme, which has its own full
  * view. Nothing on this page is a coach target either: scheduling something yourself puts it
  * on the calendar without making it part of a programme.
  */
-function OccurrenceRow({ occurrence, late }: { occurrence: ScheduledOccurrence; late: boolean }) {
+function OccurrenceRow({ occurrence }: { occurrence: ScheduledOccurrence }) {
   return (
     <Card>
       <div className="flex items-start justify-between gap-3">
@@ -45,8 +45,6 @@ function OccurrenceRow({ occurrence, late }: { occurrence: ScheduledOccurrence; 
           <Badge tone="accent">Logged</Badge>
         ) : occurrence.disposition === "skipped" ? (
           <Badge tone="neutral">Skipped</Badge>
-        ) : late ? (
-          <Badge tone="neutral">Not done</Badge>
         ) : null}
       </div>
       {occurrence.loggable && (
@@ -72,6 +70,9 @@ export default async function ScheduledPage() {
     (tx) => standaloneSchedule(tx, user.id, today),
     { readOnly: true },
   );
+  // A day that has gone by keeps only what was logged on it: a session that was not done, or
+  // was skipped, is not a record of anything, and listing it only read as a debt.
+  const done = earlier.filter((occurrence) => occurrence.resolution.kind === "logged");
 
   return (
     <>
@@ -91,14 +92,14 @@ export default async function ScheduledPage() {
             />
           ) : (
             upcoming.map((occurrence) => (
-              <OccurrenceRow key={occurrence.id} occurrence={occurrence} late={false} />
+              <OccurrenceRow key={occurrence.id} occurrence={occurrence} />
             ))
           )}
         </Section>
-        {earlier.length > 0 && (
+        {done.length > 0 && (
           <Section title="Earlier">
-            {earlier.map((occurrence) => (
-              <OccurrenceRow key={occurrence.id} occurrence={occurrence} late />
+            {done.map((occurrence) => (
+              <OccurrenceRow key={occurrence.id} occurrence={occurrence} />
             ))}
           </Section>
         )}

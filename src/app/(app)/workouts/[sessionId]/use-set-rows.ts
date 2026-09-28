@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 
 import { recordSetChange } from "@/components/set-changes";
 import type { LoadUnit, PrescriptionType, SetType } from "@/domain/types";
@@ -234,6 +234,27 @@ export function useSetRows({ exercise, userId, sessionId, measure, unit, onLogge
     exerciseId: exercise.exercise.id,
     equipmentId: exercise.equipment?.id ?? null,
   }));
+  // Saves and deletions still on their way to the server, each settling to whether it landed.
+  const inFlight = useRef(new Set<Promise<boolean>>());
+
+  /** Keeps a request among those `settled` waits for until it answers, however it answers. */
+  const track = <T extends { ok: boolean }>(request: Promise<T>): Promise<T> => {
+    const landed = request.then(
+      (result) => result.ok,
+      () => false,
+    );
+    inFlight.current.add(landed);
+    void landed.then(() => inFlight.current.delete(landed));
+    return request;
+  };
+
+  /**
+   * Resolves once every save and deletion sent so far has answered: true when all of them
+   * landed. Completing an exercise waits on this, so a set still on its way when Complete is
+   * pressed is saved first, and one that fails keeps the exercise open with its row saying why.
+   */
+  const settled = async (): Promise<boolean> =>
+    (await Promise.all([...inFlight.current])).every(Boolean);
 
   useEffect(() => {
     try {
@@ -434,23 +455,25 @@ export function useSetRows({ exercise, userId, sessionId, measure, unit, onLogge
         : current,
     );
     startTransition(async () => {
-      const result = await safeAction(() =>
-        logSetAction({
-          effortInputVersion: EFFORT_INPUT_VERSION,
-          unit: submitted.unit,
-          workoutExerciseId: exercise.id,
-          expectedCompletedAt: row.logged?.completedAt ?? null,
-          expectedExerciseId: draftContext.exerciseId,
-          expectedEquipmentInstanceId: draftContext.equipmentId,
-          setIndex: row.setIndex,
-          setType,
-          weight,
-          reps: reps === null ? null : Math.round(reps),
-          rir,
-          rpe,
-          durationSeconds: duration === null ? null : Math.round(duration),
-          distanceMeters: distance,
-        }),
+      const result = await track(
+        safeAction(() =>
+          logSetAction({
+            effortInputVersion: EFFORT_INPUT_VERSION,
+            unit: submitted.unit,
+            workoutExerciseId: exercise.id,
+            expectedCompletedAt: row.logged?.completedAt ?? null,
+            expectedExerciseId: draftContext.exerciseId,
+            expectedEquipmentInstanceId: draftContext.equipmentId,
+            setIndex: row.setIndex,
+            setType,
+            weight,
+            reps: reps === null ? null : Math.round(reps),
+            rir,
+            rpe,
+            durationSeconds: duration === null ? null : Math.round(duration),
+            distanceMeters: distance,
+          }),
+        ),
       );
       if (!result.ok) {
         update(row.setIndex, { saving: false, error: result.error });
@@ -499,8 +522,8 @@ export function useSetRows({ exercise, userId, sessionId, measure, unit, onLogge
     const expectedCompletedAt = row.logged.completedAt;
     update(row.setIndex, { saving: true });
     startTransition(async () => {
-      const result = await safeAction(() =>
-        deleteSetAction(exercise.id, row.setIndex, expectedCompletedAt),
+      const result = await track(
+        safeAction(() => deleteSetAction(exercise.id, row.setIndex, expectedCompletedAt)),
       );
       if (!result.ok) {
         update(row.setIndex, { saving: false, error: result.error });
@@ -539,6 +562,11 @@ export function useSetRows({ exercise, userId, sessionId, measure, unit, onLogge
     pending,
     storageError,
     dirty: rows.some((row) => row.dirty),
+    /** A set is on its way to the server, or out of it. */
+    saving: rows.some((row) => row.saving),
+    /** A row holds changes nobody has asked to save yet, or a save that failed. */
+    editing: rows.some((row) => row.dirty && !row.saving),
+    settled,
     loggedSets: rows.filter((r) => r.logged).map((r) => r.logged as SetVM),
     ghost: (index: number) => ghostFor(exercise, rows, index),
     editRow,

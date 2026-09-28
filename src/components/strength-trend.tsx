@@ -108,16 +108,16 @@ export function StrengthTrend({
 
       {selected ? (
         <>
-          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-            <SegmentedControl
-              name="strength-metric"
-              aria-label="Strength measurement"
-              options={STRENGTH_METRICS}
-              value={metric}
-              onChange={onMetricChange}
-              columns={5}
-            />
-          </div>
+          {/* The card's full width, as the running measurements are: inside a row of its own it
+              shrank to its words, and broke "Volume" and "e1RM" in half. */}
+          <SegmentedControl
+            name="strength-metric"
+            aria-label="Strength measurement"
+            options={STRENGTH_METRICS}
+            value={metric}
+            onChange={onMetricChange}
+            columns={5}
+          />
           <div className={pending ? "opacity-50 transition-opacity" : undefined}>
             <div className="flex items-start justify-between gap-2">
               <Headline points={selected[metric]} unit={unit} />

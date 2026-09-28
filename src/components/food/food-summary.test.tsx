@@ -142,9 +142,24 @@ describe("a macronutrient's bar", () => {
     expect(fill(protein)).toContain("bg-success");
     expect(fat.querySelector(".text-over")).toBeTruthy();
     expect(carbs.querySelector(".text-over")).toBeNull();
-    // Reached protein gains a tick beside its name.
-    expect(protein.querySelectorAll("svg")).toHaveLength(2);
-    expect(carbs.querySelectorAll("svg")).toHaveLength(1);
+    // A target eaten colours the name as its bar is coloured, and nothing is added beside it.
+    const name = (button: HTMLElement, text: string) =>
+      within(button).getByText(text, { selector: "span" }).className;
+    expect(name(carbs, "Carbs")).toContain("text-series-2");
+    expect(name(fat, "Fat")).toContain("text-over");
+    expect(name(protein, "Protein")).toContain("text-success");
+    for (const button of [carbs, fat, protein])
+      expect(button.querySelectorAll("svg")).toHaveLength(1);
+  });
+
+  it("leaves a name muted while its target is still ahead", () => {
+    render(<FoodSummary eaten={eaten(1200)} target={TARGET} entries={[]} />);
+    for (const label of ["Carbs", "Fat", "Protein"]) {
+      const button = screen.getByRole("button", { name: new RegExp(`^${label}:`) });
+      expect(within(button).getByText(label, { selector: "span" }).className).toContain(
+        "text-ink-muted",
+      );
+    }
   });
 
   it("opens today's foods as plain rows, ranked by what they gave", () => {
