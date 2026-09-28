@@ -12,6 +12,7 @@ const KEY = "00000000-0000-4000-8000-000000000009";
 
 const mocks = vi.hoisted(() => ({
   logFood: vi.fn(),
+  logQuickFood: vi.fn(),
   createFood: vi.fn(),
   saveLibraryMeal: vi.fn(),
   updateEntryAmount: vi.fn(),
@@ -65,6 +66,7 @@ import {
   deleteFoodAction,
   deleteSavedMealAction,
   logFoodAction,
+  logQuickFoodAction,
   logSavedMealAction,
   readFoodMonthAction,
   saveLibraryMealAction,
@@ -102,6 +104,17 @@ const OATS = {
   proteinG: 16.9,
 };
 
+/** A quick add as its sheet sends it: the figures of what was eaten, and no name. */
+const QUICK = {
+  eatenOn: TODAY,
+  meal: "dinner" as const,
+  name: "",
+  kcal: "952",
+  carbsG: "110",
+  fatG: "38",
+  proteinG: "",
+};
+
 function targetsForm(): FormData {
   const form = new FormData();
   form.set("dailyKcal", "2400");
@@ -127,6 +140,7 @@ it.each([undefined, "false", "someone-else@example.test"])(
     for (const result of [
       await logFoodAction({ eatenOn: TODAY, meal: "lunch", foodId: FOOD, amount: "200" }),
       await createFoodAction(NEW_FOOD),
+      await logQuickFoodAction({ ...QUICK, submissionKey: KEY }),
       await updateEntryAction({ entryId: ENTRY, amount: "150" }),
       await deleteEntryAction(ENTRY),
       await saveMealAction({ eatenOn: TODAY, meal: "breakfast", name: "Usual" }),
@@ -145,8 +159,8 @@ it.each([undefined, "false", "someone-else@example.test"])(
     // The calendar's read is not a change, and none of these reads it.
     const { logFood: _both, submitFoodOnce: _receipt, readFoodDays: _read, ...writes } = mocks;
     for (const write of Object.values(writes)) expect(write).toHaveBeenCalledOnce();
-    // Twelve changes, each refreshing the five screens food is shown on.
-    expect(revalidatePath).toHaveBeenCalledTimes(60);
+    // Thirteen changes, each refreshing the five screens food is shown on.
+    expect(revalidatePath).toHaveBeenCalledTimes(65);
     expect(revalidatePath).toHaveBeenCalledWith("/food");
     expect(revalidatePath).toHaveBeenCalledWith("/food/[meal]", "page");
     expect(revalidatePath).toHaveBeenCalledWith("/food/targets");
@@ -184,6 +198,45 @@ it("keeps a new food in My foods by logging it", async () => {
     { eatenOn: TODAY, meal: "breakfast" },
     { food: OATS, amount: 60 },
   );
+});
+
+it("quick adds what was eaten as one serving, keeping nothing in My foods, once for a retried key", async () => {
+  expect(await logQuickFoodAction({ ...QUICK, submissionKey: KEY })).toEqual({ ok: true });
+  const food = {
+    name: "Quick add",
+    portionAmount: 1,
+    unit: "serving",
+    kcal: 952,
+    carbsG: 110,
+    fatG: 38,
+    proteinG: null,
+  };
+  expect(mocks.logQuickFood).toHaveBeenCalledWith(
+    expect.anything(),
+    USER,
+    { eatenOn: TODAY, meal: "dinner" },
+    food,
+  );
+  expect(mocks.logFood).not.toHaveBeenCalled();
+  expect(mocks.createFood).not.toHaveBeenCalled();
+  expect(mocks.submitFoodOnce).toHaveBeenCalledWith(
+    expect.anything(),
+    USER,
+    KEY,
+    { kind: "quick", submissionKey: KEY, eatenOn: TODAY, meal: "dinner", food },
+    expect.any(Function),
+  );
+  // What was typed wrong is said against its field, and nothing is written.
+  vi.clearAllMocks();
+  expect(await logQuickFoodAction({ ...QUICK, kcal: "" })).toEqual({
+    ok: false,
+    fieldErrors: { kcal: "Enter the kcal." },
+  });
+  expect(await logQuickFoodAction({ ...QUICK, eatenOn: "2026-09-27" })).toEqual({
+    ok: false,
+    error: "Food cannot be logged for a day that has not come yet.",
+  });
+  expect(mocks.logQuickFood).not.toHaveBeenCalled();
 });
 
 it("refuses a day that has not come yet, before writing anything", async () => {

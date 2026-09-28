@@ -256,6 +256,9 @@ export const FOOD_UNITS = [
 ] as const;
 export type FoodUnit = (typeof FOOD_UNITS)[number];
 
+/** What a quick add is called when it is given no name of its own. */
+export const QUICK_ADD_NAME = "Quick add";
+
 /**
  * A food as it is kept in My foods: a name, and what one portion of it holds, e.g. 100 g of oats
  * at 389 kcal. Only the portion and its energy are required; a macronutrient left out is unknown.

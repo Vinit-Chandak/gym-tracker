@@ -493,6 +493,27 @@ export async function logFood(
 }
 
 /**
+ * Logs a food eaten just this once: an entry and nothing else. It is not kept in My foods, so
+ * its name is only the entry's and may be one My foods already holds. It is one serving of what
+ * was typed, so a second helping is an amount of two, like any food's.
+ */
+export async function logQuickFood(
+  db: DbOrTx,
+  userId: string,
+  at: MealOf,
+  food: Food,
+): Promise<string> {
+  const tooMuch = overLimit(food, 1);
+  if (tooMuch) throw new AmountTooLargeError(tooMuch);
+  const [entry] = await db
+    .insert(foodEntries)
+    .values(entryValues(userId, at, { ...food, foodId: null, amount: 1 }))
+    .returning({ id: foodEntries.id });
+  if (!entry) throw new Error("The food could not be logged.");
+  return entry.id;
+}
+
+/**
  * Keeps a new food in My foods without eating any of it (ADR 0035). Its recency starts from now,
  * so it is near the top of the list it was just added to.
  */

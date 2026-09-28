@@ -4,6 +4,7 @@ import {
   FOOD_UNITS,
   MEALS,
   NUTRITION_LIMITS,
+  QUICK_ADD_NAME,
   roundTo,
   toHundredth,
   type Food,
@@ -132,19 +133,14 @@ function readName(ctx: Issues, path: string, raw: string, missing: string): stri
   return null;
 }
 
-/**
- * A food from its sheet. Only the name, the portion and its energy are required; a
- * macronutrient left blank is unknown. Figures are kept to the tenth, as they are stored.
- */
-function readFood(ctx: Issues, draft: FoodDraft): Food | null {
-  const name = readName(ctx, "name", draft.name, "Name this food.");
-  const portionAmount = readAmount(ctx, "portionAmount", draft.portionAmount, "Enter the portion.");
-  const unit = (FOOD_UNITS as readonly string[]).includes(draft.unit)
-    ? (draft.unit as Food["unit"])
-    : null;
-  if (!unit) fail(ctx, "unit", "Choose a unit.");
+type Figures = Pick<Food, "kcal" | "carbsG" | "fatG" | "proteinG">;
 
-  const figures = {} as Record<"kcal" | "carbsG" | "fatG" | "proteinG", number | null>;
+/**
+ * The energy and the three macronutrients as typed. Only the energy is required; a
+ * macronutrient left blank is unknown. Kept to the tenth, as they are stored.
+ */
+function readFigures(ctx: Issues, draft: Record<keyof Figures, string>): Figures | null {
+  const figures = {} as Record<keyof Figures, number | null>;
   let valid = true;
   for (const key of ["kcal", "carbsG", "fatG", "proteinG"] as const) {
     const max = key === "kcal" ? NUTRITION_LIMITS.itemKcal : NUTRITION_LIMITS.itemGrams;
@@ -157,18 +153,24 @@ function readFood(ctx: Issues, draft: FoodDraft): Food | null {
     } else continue;
     valid = false;
   }
-  if (!valid || name === null || portionAmount === null || !unit || figures.kcal === null) {
-    return null;
-  }
-  return {
-    name,
-    portionAmount,
-    unit,
-    kcal: figures.kcal,
-    carbsG: figures.carbsG,
-    fatG: figures.fatG,
-    proteinG: figures.proteinG,
-  };
+  if (!valid || figures.kcal === null) return null;
+  return { ...figures, kcal: figures.kcal };
+}
+
+/**
+ * A food from its sheet. Only the name, the portion and its energy are required; a
+ * macronutrient left blank is unknown. Figures are kept to the tenth, as they are stored.
+ */
+function readFood(ctx: Issues, draft: FoodDraft): Food | null {
+  const name = readName(ctx, "name", draft.name, "Name this food.");
+  const portionAmount = readAmount(ctx, "portionAmount", draft.portionAmount, "Enter the portion.");
+  const unit = (FOOD_UNITS as readonly string[]).includes(draft.unit)
+    ? (draft.unit as Food["unit"])
+    : null;
+  if (!unit) fail(ctx, "unit", "Choose a unit.");
+  const figures = readFigures(ctx, draft);
+  if (!figures || name === null || portionAmount === null || !unit) return null;
+  return { name, portionAmount, unit, ...figures };
 }
 
 /** Where a sheet logs to: a meal of the day the page was showing, kept across a retry. */
@@ -201,6 +203,32 @@ export const createFoodSchema = z
     return { submissionKey, eatenOn, meal, food, amount };
   });
 export type CreateFoodDraft = z.input<typeof createFoodSchema>;
+
+/**
+ * A quick add: what was eaten, as one serving holding the figures typed, under a name that is
+ * only this entry's. Nothing is kept in My foods, so the name need not be free there, and a
+ * blank one is the default rather than a mistake.
+ */
+export const quickFoodSchema = z
+  .object({
+    ...PLACE,
+    name: z.string(),
+    kcal: z.string(),
+    carbsG: z.string(),
+    fatG: z.string(),
+    proteinG: z.string(),
+  })
+  .transform((input, ctx) => {
+    const typedName = input.name.trim();
+    const name =
+      typedName === "" ? QUICK_ADD_NAME : readName(ctx, "name", typedName, "Name this food.");
+    const figures = readFigures(ctx, input);
+    if (name === null || !figures) return z.NEVER;
+    const { submissionKey, eatenOn, meal } = input;
+    const food: Food = { name, portionAmount: 1, unit: "serving", ...figures };
+    return { submissionKey, eatenOn, meal, food };
+  });
+export type QuickFoodDraft = z.input<typeof quickFoodSchema>;
 
 /** A new food kept in My foods without being logged (ADR 0035). */
 export const createLibraryFoodSchema = z

@@ -18,6 +18,7 @@ import {
   FoodNameTakenError,
   FoodNotFoundError,
   logFood,
+  logQuickFood,
   logSavedMeal,
   readFoodDay,
   readFoodDays,
@@ -275,6 +276,47 @@ describe("logging a food", () => {
         ),
       ),
     ).toMatch(/foods_values_chk/);
+  });
+});
+
+describe("quick add", () => {
+  it("logs what was eaten just this once, keeping nothing in My foods", async () => {
+    const eater = await t.createAuthUser("quick-eater@example.test");
+    await as(eater, (tx) => ensureProfile(tx, eater));
+    await as(eater, (tx) => logFood(tx, eater.id, at("breakfast"), { food: OATS, amount: 100 }));
+    // A variation of a food already kept: its name is only this entry's, so it may be the same.
+    const variation: Food = {
+      name: "Oats",
+      portionAmount: 1,
+      unit: "serving",
+      kcal: 520,
+      carbsG: 70,
+      fatG: 14,
+      proteinG: 30,
+    };
+    await as(eater, (tx) => logQuickFood(tx, eater.id, at("lunch"), variation));
+    const lunch = await as(eater, (tx) => readMealScreen(tx, eater.id, at("lunch")));
+    expect(lunch.entries).toEqual([
+      {
+        id: expect.any(String),
+        eatenOn: TODAY,
+        meal: "lunch",
+        foodId: null,
+        ...variation,
+        amount: 1,
+      },
+    ]);
+    expect(lunch.foods).toEqual([{ id: expect.any(String), ...OATS }]);
+    expect((await as(eater, (tx) => readFoodDay(tx, eater.id, TODAY))).eaten).toEqual({
+      kcal: 909,
+      carbsG: 136.3,
+      fatG: 20.9,
+      proteinG: 46.9,
+    });
+    // A second helping is an amount, like any food's.
+    await as(eater, (tx) => updateEntryAmount(tx, eater.id, lunch.entries[0]!.id, 2));
+    const [twice] = (await as(eater, (tx) => readMealScreen(tx, eater.id, at("lunch")))).entries;
+    expect(eaten(twice!)).toEqual({ kcal: 1040, carbsG: 140, fatG: 28, proteinG: 60 });
   });
 });
 
