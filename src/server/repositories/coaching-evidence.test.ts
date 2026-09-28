@@ -1121,8 +1121,8 @@ it("still measures a load change from the work, so an unsupported jump is refuse
       WORK.map((set) => ({ ...set, weight: 110 })),
     );
     expect(jump?.issues).toEqual([
-      `${SQUAT}: the load change exceeds the automatic limit and needs review.`,
-      `${SQUAT}: the change is not supported by repeated comparable performance.`,
+      `${SQUAT}: the load change exceeds the automatic limit and needs review. Unchanged, its loads are 100, 100 and 100 kg.`,
+      `${SQUAT}: the change is not supported by repeated comparable performance. Unchanged, its loads are 100, 100 and 100 kg.`,
     ]);
     // 3 × 5 is inside 4–6 but short of the 6 the conservative rule waits for: no load step yet.
     const step = await a.refusal(
@@ -1130,7 +1130,7 @@ it("still measures a load change from the work, so an unsupported jump is refuse
       WORK.map((set) => ({ ...set, weight: 102.5 })),
     );
     expect(step?.issues).toEqual([
-      `${SQUAT}: the change is not supported by repeated comparable performance.`,
+      `${SQUAT}: the change is not supported by repeated comparable performance. Unchanged, its loads are 100, 100 and 100 kg.`,
     ]);
   });
 });
@@ -1152,7 +1152,7 @@ it("reads a ramp followed by fewer working sets than prescribed without being to
       WORK.map((set) => ({ ...set, weight: 110 })),
     );
     expect(jump?.issues).toContain(
-      `${SQUAT}: the load change exceeds the automatic limit and needs review.`,
+      `${SQUAT}: the load change exceeds the automatic limit and needs review. Unchanged, its loads are 100, 100 and 100 kg.`,
     );
   });
 });
@@ -1308,7 +1308,7 @@ it("steps a free weight registered without its increment by the exercise's own j
     ]);
     // Two jumps are still two.
     expect((await a.refusal(db, straight(25, 5, 2), [a.ids[0]!]))?.issues).toContain(
-      `${SQUAT}: the load change exceeds the automatic limit and needs review.`,
+      `${SQUAT}: the load change exceeds the automatic limit and needs review. Unchanged, its loads are 20, 20 and 20 kg.`,
     );
   });
 });
@@ -1389,8 +1389,28 @@ it("goes back to the load before a step that missed the range twice", async () =
     ]);
     // Anywhere else is still a cut, and a cut needs a confirmed decline.
     expect((await a.refusal(db, straight(97.5, 6, 2)))?.issues).toContain(
-      `${SQUAT}: the change is not supported by repeated comparable performance.`,
+      `${SQUAT}: the change is not supported by repeated comparable performance. Unchanged, its loads are 102.5, 102.5 and 102.5 kg.`,
     );
+  });
+});
+
+it("names the load a step back left standing, not the load last lifted", async () => {
+  // The coach went back from 102.5 to 100 and the athlete has not trained since: 100 is the
+  // unchanged load. The trend still shows 102.5 last lifted, so a coach holding what it could
+  // see was refused twice without being told which load would pass.
+  const missed = straight(102.5, 3, 0);
+  const a = await squatFixture([missed, missed, straight(100, 6, 3), WORK, WORK, WORK]);
+  await a.as(async (db) => {
+    const back = await a.assess(db, straight(100, 6, 2));
+    await db.insert(coachChangeRecords).values({
+      userId: a.user.id,
+      changes: back,
+      createdAt: new Date(now.getTime() - 1000),
+    });
+    expect((await a.refusal(db, straight(102.5, 6, 2)))?.issues).toContain(
+      `${SQUAT}: the change is not supported by repeated comparable performance. Unchanged, its loads are 100, 100 and 100 kg.`,
+    );
+    expect(await a.refusal(db, straight(100, 6, 2))).toBeNull();
   });
 });
 

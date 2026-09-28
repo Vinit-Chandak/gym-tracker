@@ -528,17 +528,32 @@ export async function assessSessionEvidence(
           : Math.min(range?.[1] ?? Infinity, Math.max(range?.[0] ?? 0, old));
       };
       /** The known loads, as a refusal to drop them names them: " (40, 40 and 42.5 kg)". */
-      const heldLoads = () => {
+      const loadList = () => {
         const loads = Array.from(
           { length: p.sets },
           (_, index) => baselineLoads.find((item) => item.index === index)?.load ?? baselineLoad,
         ).filter((load): load is number => load != null);
-        if (loads.length === 0) return "";
+        if (loads.length === 0) return null;
         const list =
           loads.length > 1
             ? `${loads.slice(0, -1).join(", ")} and ${loads.at(-1)}`
             : String(loads[0]);
-        return ` (${list} ${unit})`;
+        return { list: `${list} ${unit}`, many: loads.length > 1 };
+      };
+      const heldLoads = () => {
+        const known = loadList();
+        return known ? ` (${known.list})` : "";
+      };
+      /**
+       * The loads a plan that changes nothing keeps, as a refused load change names them. The
+       * baseline is a change still standing where there is one — a step back the athlete has not
+       * trained yet — and not the load last lifted, which is all the trend shows.
+       */
+      const keptLoads = () => {
+        const known = loadList();
+        return known
+          ? ` Unchanged, its ${known.many ? "loads are" : "load is"} ${known.list}.`
+          : "";
       };
       /**
        * Those targets, as a refused target change names them. Nothing else tells a worker what an
@@ -727,11 +742,11 @@ export async function assessSessionEvidence(
             plan.note("A temporary recovery adjustment cannot make the load harder.");
           if (beyondLimit)
             plan.note(
-              `${entry.exerciseSlug}: the load change exceeds the automatic limit and needs review.`,
+              `${entry.exerciseSlug}: the load change exceeds the automatic limit and needs review.${keptLoads()}`,
             );
           if (unsupported)
             plan.note(
-              `${entry.exerciseSlug}: the change is not supported by repeated comparable performance.`,
+              `${entry.exerciseSlug}: the change is not supported by repeated comparable performance.${keptLoads()}`,
             );
           const originalPerformance = trend?.observations
             .filter(
