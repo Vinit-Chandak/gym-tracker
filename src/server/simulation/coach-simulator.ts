@@ -1276,7 +1276,9 @@ function session(context: Context, strategy: Persona["coach"]): Plan {
   const home = context.nextSession?.gym?.kind === "home";
   let adjustment = "normal";
   const evidence = new Set<string>();
-  type Entry = { slot: Slot; trend: Trend | undefined; entry: Json; hold: Json[] };
+  /** What the server has named for an exercise, kept through every later correction. */
+  type Pins = { field?: string; values?: string[]; loads?: number[] };
+  type Entry = { slot: Slot; trend: Trend | undefined; entry: Json; hold: Json[]; pins?: Pins };
   const entries: Entry[] = slots.map((slot) => {
     const p = slot.prescription!;
     const status = slot.atThisGym.status;
@@ -1406,7 +1408,11 @@ function session(context: Context, strategy: Persona["coach"]): Plan {
     return {
       result,
       correct(issues) {
-        const next = list.map((item) => ({ ...item, entry: { ...item.entry } }));
+        const next = list.map((item) => ({
+          ...item,
+          entry: { ...item.entry },
+          pins: { ...item.pins } as Pins,
+        }));
         const cite = new Set(extra);
         let adjustNext = adjust;
         let runNext = run;
@@ -1426,28 +1432,20 @@ function session(context: Context, strategy: Persona["coach"]): Plan {
             /Unchanged, its working (?:sets are|set is) (.+) (reps|seconds|metres)\.$/.exec(issue);
           const stands = /this change stands on (.+?); cite/.exec(issue);
           const loads = /Unchanged, its (?:loads are|load is) (.+) (?:kg|lb)\.$/.exec(issue);
+          // What the server names is pinned, and applied after every other issue, so a hold
+          // for the same exercise, now or in a later correction, cannot undo it.
           if (loads && item) {
-            const values = loads[1]!.split(/, | and /).map(Number);
-            item.entry.sets = (item.hold as Json[]).map((set, i) => ({
-              ...set,
-              weight: values[i] ?? values.at(-1),
-            }));
+            item.pins.loads = loads[1]!.split(/, | and /).map(Number);
             continue;
           }
           if (named && item) {
-            const values = named[1]!.split(/, | and /);
-            const field =
+            item.pins.values = named[1]!.split(/, | and /);
+            item.pins.field =
               named[2] === "reps"
                 ? "reps"
                 : named[2] === "seconds"
                   ? "durationSeconds"
                   : "distanceMeters";
-            item.entry.sets = (item.entry.sets as Json[]).map((set, i) => {
-              const value = values[i];
-              return value && /^\d+(\.\d+)?$/.test(value)
-                ? { ...set, [field]: Number(value) }
-                : set;
-            });
           } else if (stands) {
             for (const id of stands[1]!.split(", ")) cite.add(id);
           } else if (
@@ -1475,6 +1473,17 @@ function session(context: Context, strategy: Persona["coach"]): Plan {
             };
             adjustNext = "equipment";
           } else return null;
+        }
+        for (const item of next) {
+          const { loads, values, field } = item.pins;
+          if (item.entry.action === "drop" || (!loads && !values)) continue;
+          item.entry.sets = (item.entry.sets as Json[]).map((set, i) => ({
+            ...set,
+            ...(loads ? { weight: loads[i] ?? loads.at(-1) } : {}),
+            ...(values && field && /^\d+(\.\d+)?$/.test(values[i] ?? "")
+              ? { [field]: Number(values[i]) }
+              : {}),
+          }));
         }
         return build(next, cite, adjustNext, runNext);
       },
