@@ -20,6 +20,7 @@ import {
   dispatchCoachPage,
   getCoachJob,
   queuedCoachJobs,
+  renewCoachLease,
 } from "./repositories/coaching-jobs";
 import { recordAttemptDiagnostics } from "./repositories/coach-diagnostics";
 import { assertCoachEnabled, CoachingError } from "./repositories/coaching-state";
@@ -115,6 +116,10 @@ export async function handleCoachWorkflow(
         await withUser(db, userId, async (tx) => ({ job: await claimCoachJob(tx, userId, id) })),
       );
     const attemptId = z.uuid().parse(new URL(request.url).searchParams.get("attemptId"));
+    // A worker that is still calling is still working: every read and submission keeps its
+    // claim alive, up to the cap. A failure ends the attempt, so there is nothing to renew.
+    if (operation !== "fail")
+      await withUser(db, userId, (tx) => renewCoachLease(tx, userId, id, attemptId));
     if (path.length === 5 && operation === "context" && method === "GET") {
       const started = performance.now();
       const context = await withUser(db, userId, (tx) =>

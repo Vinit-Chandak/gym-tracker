@@ -45,6 +45,7 @@ import {
   enqueueDailySession,
   queuedCoachJobs,
   reconcileCoachJobs,
+  renewCoachLease,
   requeueCoachJob,
   settleCoachJobs,
 } from "./coaching-jobs";
@@ -502,6 +503,43 @@ it("reconciles an expired attempt and refuses its old token after reclaim", asyn
   await expect(
     as(a, (tx) => acceptCoachJobResult(tx, a.user.id, job.id, claim!.attemptId!, result(a))),
   ).rejects.toThrow(/current attempt/);
+});
+it("keeps a working attempt's claim alive, and no longer than an hour from the claim", async () => {
+  const a = await athlete();
+  const { job } = await request(a);
+  const claim = await as(a, (tx) => claimCoachJob(tx, a.user.id, job.id));
+  const [receipt] = await as(a, (tx) => tx.select().from(coachJobAttempts));
+  const claimedAt = receipt!.startedAt.getTime();
+  const at = (minutes: number) => new Date(claimedAt + minutes * 60_000);
+  const renew = (minutes: number, attemptId = claim!.attemptId!) =>
+    as(a, (tx) => renewCoachLease(tx, a.user.id, job.id, attemptId, at(minutes)));
+  const lease = async () =>
+    (await as(a, (tx) => getCoachJob(tx, a.user.id, job.id)))!.leaseUntil!.getTime();
+
+  // Twenty minutes from each call: a worker taking its time on a third correction keeps it.
+  await renew(10);
+  expect(await lease()).toBe(at(30).getTime());
+  await renew(29);
+  expect(await lease()).toBe(at(49).getTime());
+  // Another attempt's token renews nothing.
+  await renew(30, crypto.randomUUID());
+  expect(await lease()).toBe(at(49).getTime());
+  // Never past the hour, and never shorter than it was.
+  await renew(45);
+  expect(await lease()).toBe(at(60).getTime());
+  await renew(50);
+  expect(await lease()).toBe(at(60).getTime());
+  const [renewed] = await as(a, (tx) => tx.select().from(coachJobAttempts));
+  expect(renewed!.leaseUntil.getTime()).toBe(at(60).getTime());
+  // A lapsed claim stays lapsed: a late call does not bring it back.
+  await as(a, (tx) =>
+    tx
+      .update(coachJobs)
+      .set({ leaseUntil: at(40) })
+      .where(eq(coachJobs.id, job.id)),
+  );
+  await renew(41);
+  expect(await lease()).toBe(at(40).getTime());
 });
 it.each([
   ["another attempt left", 1, "queued"],

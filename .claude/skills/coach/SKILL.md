@@ -177,6 +177,6 @@ If still holding a live claim, persist an unresolved failure:
 npx tsx scripts/coach/workflow.ts fail --user <user> --job <job> --attempt <attempt> --error "One concise factual reason" --retryable true
 ```
 
-Do this as soon as the last correction is refused: a lease is fifteen minutes from the claim, and a failure sent after it lapses is refused and never recorded. `workflow.ts` clips the reason to the 500 characters the server keeps. Only transient failures are retryable. The server bounds attempts. Do not fire extra model invocations yourself. Logging, finish, check-in, skip and page reads never trigger AI; only scheduled work, explicit programme creation and an actual pre-start gym change do.
+Do this as soon as the last correction is refused. The claim lasts twenty minutes from your latest call — every read, lookup and submission renews it — and ends an hour after the claim however busy you are (`job.leaseUntil` in the context says when it would lapse now). A failure sent after it lapses is refused and never recorded. `workflow.ts` clips the reason to the 500 characters the server keeps. Only transient failures are retryable. The server bounds attempts. Do not fire extra model invocations yourself. Logging, finish, check-in, skip and page reads never trigger AI; only scheduled work, explicit programme creation and an actual pre-start gym change do.
 
 Finish with counts of accepted results, no-change reviews, proposals, request decisions, clarifications and unresolved failures. Keep private athlete details out of the orchestrator summary.

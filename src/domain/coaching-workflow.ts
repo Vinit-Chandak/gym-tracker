@@ -106,7 +106,15 @@ export const JOB_STATUSES = [
   "failed",
   "superseded",
 ] as const;
-export const JOB_LEASE_MS = 15 * 60_000;
+/**
+ * How long a claim outlives the worker's last call. Every read and submission of a live attempt
+ * renews it, so a worker is only ever timed out for going quiet, never for taking its time: a
+ * fixed fifteen minutes from the claim cut off a worker in the middle of its third submission,
+ * and the failure it then sent was refused and never recorded.
+ */
+export const JOB_LEASE_MS = 20 * 60_000;
+/** However busy the worker, an attempt ends this long after its claim. */
+export const JOB_LEASE_CAP_MS = 60 * 60_000;
 export const MAX_JOB_ATTEMPTS = 3;
 /** The longest failure reason a job keeps. The worker's script clips to it before sending. */
 export const JOB_ERROR_MAX = 500;
