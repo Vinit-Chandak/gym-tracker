@@ -1236,9 +1236,32 @@ it("asks a set for the reps it had in hand, on the latest session alone", async 
   const b = await squatFixture([straight(100, 5, 2)]);
   await b.as(async (db) => {
     expect((await b.refusal(db, straight(100, 6, 2), [b.ids[0]!]))?.issues).toEqual([
-      `${SQUAT}: target changes need repeated comparable evidence and a small step.`,
+      `${SQUAT}: target changes need repeated comparable evidence and a small step. Unchanged, its working sets are 5, 5 and 5 reps.`,
       `${SQUAT}: cite two new comparable training dates; the same evidence cannot justify another change.`,
     ]);
+  });
+});
+
+it("names the targets a slot holds when its history cannot support a change", async () => {
+  // Logged without reps in reserve, and past both ends of 4–6: nothing here is comparable, so
+  // each set holds what it did, brought inside the range. Nothing else told the coach that,
+  // and three submissions guessed at it until the lease ran out.
+  const logged = [8, 6, 3].map((reps) => ({ weight: 100, reps, rir: null }));
+  const a = await squatFixture([logged]);
+  await a.as(async (db) => {
+    const trend = (await readCoachingEvidence(db, a.user.id, a.program.id, now)).exerciseTrends[0]!;
+    expect(trend).toMatchObject({
+      state: "insufficient_evidence",
+      matchingCount: 0,
+      effortCoverage: { known: 0 },
+    });
+    expect((await a.refusal(db, straight(100, 5, 2), [a.ids[0]!]))?.issues).toEqual([
+      `${SQUAT}: target changes need repeated comparable evidence and a small step. Unchanged, its working sets are 6, 6 and 4 reps.`,
+      `${SQUAT}: cite two new comparable training dates; the same evidence cannot justify another change.`,
+    ]);
+    // What the refusal names is accepted as it stands.
+    const held = [6, 6, 4].map((reps) => ({ weight: 100, reps, rir: 2 }));
+    expect(await a.assess(db, held, [a.ids[0]!])).toEqual([]);
   });
 });
 

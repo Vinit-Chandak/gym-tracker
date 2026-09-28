@@ -502,6 +502,49 @@ export async function assessSessionEvidence(
           set.weight === null ? [] : [{ index, load: set.weight }],
         );
       const baselineLoad = baselineLoads[0]?.load ?? trend?.comparison.load;
+      const range = p.type === "reps" ? p.reps : p.type === "duration" ? p.seconds : p.meters;
+      const withTargets = receipts.find(
+        ({ change }) => change.before.targets?.length || change.after.targets?.length,
+      );
+      const retainedTarget =
+        withTargets && stillStands(withTargets) ? withTargets.change : undefined;
+      /**
+       * What a working set is asked for when its target does not change: what the last change gave
+       * it while that change stands, otherwise what the set did in the latest session, brought
+       * inside the programme's range — whether or not that session can support a change. Null
+       * where neither says, and any target in the range leaves it unchanged.
+       */
+      const unchangedTarget = (index: number) => {
+        const prior = baselineSets[index];
+        const recorded =
+          p.type === "reps"
+            ? prior?.reps
+            : p.type === "duration"
+              ? prior?.durationSeconds
+              : prior?.distanceMeters;
+        const old =
+          (retainedTarget?.kind === "temporary"
+            ? retainedTarget.before.targets
+            : retainedTarget?.after.targets)?.[index] ?? recorded;
+        return old == null
+          ? null
+          : Math.min(range?.[1] ?? Infinity, Math.max(range?.[0] ?? 0, old));
+      };
+      /**
+       * Those targets, as a refused target change names them. Nothing else tells a worker what an
+       * unchanged slot is, and one that guesses spends its corrections finding out.
+       */
+      const heldTargets = () => {
+        const each = Array.from({ length: p.sets }, (_, index) => {
+          const target = unchangedTarget(index);
+          if (target !== null) return String(target);
+          return range?.[0] != null && range[1] != null ? `${range[0]}–${range[1]}` : "any";
+        });
+        const list =
+          each.length > 1 ? `${each.slice(0, -1).join(", ")} and ${each.at(-1)}` : each[0];
+        const measure = p.type === "reps" ? "reps" : p.type === "duration" ? "seconds" : "metres";
+        return `Unchanged, its working ${each.length > 1 ? "sets are" : "set is"} ${list} ${measure}.`;
+      };
       const proposedLoads: { index: number; load: number }[] = [];
       const baselineTargets: number[] = [],
         proposedTargets: number[] = [];
@@ -520,7 +563,6 @@ export async function assessSessionEvidence(
             plan.note("A daily plan cannot increase effort beyond the program's target RIR.");
           if (!temporary && p.type === "reps" && p.rir[1] != null && set.rir! > p.rir[1] + 1)
             plan.note("A lasting effort reduction needs program review.");
-          const range = p.type === "reps" ? p.reps : p.type === "duration" ? p.seconds : p.meters;
           const value =
             p.type === "reps"
               ? set.reps
@@ -564,25 +606,7 @@ export async function assessSessionEvidence(
               `${entry.exerciseSlug}: targets outside the program range need a program review.`,
             );
           const priorSet = baselineSets[index];
-          const recordedValue =
-            p.type === "reps"
-              ? priorSet?.reps
-              : p.type === "duration"
-                ? priorSet?.durationSeconds
-                : priorSet?.distanceMeters;
-          const withTargets = receipts.find(
-            ({ change }) => change.before.targets?.length || change.after.targets?.length,
-          );
-          const retainedTarget =
-            withTargets && stillStands(withTargets) ? withTargets.change : undefined;
-          const oldValue =
-            (retainedTarget?.kind === "temporary"
-              ? retainedTarget.before.targets
-              : retainedTarget?.after.targets)?.[index] ?? recordedValue;
-          const targetBaseline =
-            oldValue == null
-              ? null
-              : Math.min(range?.[1] ?? Infinity, Math.max(range?.[0] ?? 0, oldValue));
+          const targetBaseline = unchangedTarget(index);
           if (targetBaseline !== null) baselineTargets.push(targetBaseline);
           if (value !== null) proposedTargets.push(value);
           if (
@@ -628,7 +652,7 @@ export async function assessSessionEvidence(
                 !(delta > 0 ? trend?.repeatedCompletion : trend?.declineCandidate)
               )
                 plan.note(
-                  `${entry.exerciseSlug}: target changes need repeated comparable evidence and a small step.`,
+                  `${entry.exerciseSlug}: target changes need repeated comparable evidence and a small step. ${heldTargets()}`,
                 );
             }
             changedTarget = true;

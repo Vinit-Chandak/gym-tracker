@@ -108,6 +108,8 @@ export const JOB_STATUSES = [
 ] as const;
 export const JOB_LEASE_MS = 15 * 60_000;
 export const MAX_JOB_ATTEMPTS = 3;
+/** The longest failure reason a job keeps. The worker's script clips to it before sending. */
+export const JOB_ERROR_MAX = 500;
 
 /**
  * Reports an athlete attaches. The byte ceiling is read by the browser before it uploads, by

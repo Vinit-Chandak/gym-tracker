@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { z } from "zod";
-import { contractSkew } from "@/domain/coaching-workflow";
+import { contractSkew, JOB_ERROR_MAX } from "@/domain/coaching-workflow";
 import { api, appUrl, args, fail } from "./client";
 
 const a = args(),
@@ -68,12 +68,18 @@ async function main() {
           method: "POST",
           body: JSON.parse(readFileSync(required("file"), "utf8")),
         });
-      else if (command === "fail")
+      else if (command === "fail") {
+        // A failure is sent at the end of a lease. One refused for the length of its reason is
+        // sent again after the lease has lapsed, and then it is not recorded at all.
+        const error = required("error").trim();
         result = await api(`${root}/fail${query}`, {
           method: "POST",
-          body: { error: required("error"), retryable: a.get("retryable") === "true" },
+          body: {
+            error: error.length > JOB_ERROR_MAX ? `${error.slice(0, JOB_ERROR_MAX - 1)}…` : error,
+            retryable: a.get("retryable") === "true",
+          },
         });
-      else if (command === "attachment") {
+      } else if (command === "attachment") {
         const out = required("out"),
           token = process.env.COACH_SERVICE_TOKEN?.trim();
         const response = await fetch(

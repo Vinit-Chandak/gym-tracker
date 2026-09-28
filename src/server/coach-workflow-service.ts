@@ -8,6 +8,7 @@ import {
   coachJobResultSchema,
   COACH_CONTRACT_VERSION,
   isSupportedContract,
+  JOB_ERROR_MAX,
   SUPPORTED_CONTRACT_VERSIONS,
 } from "@/domain/coaching-workflow";
 import { getCoachAttachment } from "./repositories/coach-attachments";
@@ -207,7 +208,10 @@ export async function handleCoachWorkflow(
     }
     if (path.length === 5 && operation === "fail" && method === "POST") {
       const body = z
-        .object({ error: z.string().trim().min(1).max(500), retryable: z.boolean().default(false) })
+        .object({
+          error: z.string().trim().min(1).max(JOB_ERROR_MAX),
+          retryable: z.boolean().default(false),
+        })
         .parse(await request.json());
       return json(
         await withUser(db, userId, async (tx) => {
