@@ -44,8 +44,8 @@ export async function existingEvidenceIds(db: DbOrTx, userId: string, input: rea
     ["job", coachJobs],
     ["note", coachNotes],
   ] as const;
-  const records = await Promise.all(
-    groups.map(async ([prefix, table]) => {
+  const records = await Promise.all([
+    ...groups.map(async ([prefix, table]) => {
       const ids = idsFor(prefix);
       if (!ids.length) return [];
       const rows = await db
@@ -54,7 +54,19 @@ export async function existingEvidenceIds(db: DbOrTx, userId: string, input: rea
         .where(and(eq(table.userId, userId), inArray(table.id, ids)));
       return rows.map((row) => `${prefix}:${row.id}`);
     }),
-  );
+    // The evidence packet still names a run `run:<id>`, and the id is its activity's: a run
+    // logged since activities has no row among the old runs at all. Looked up there only,
+    // every run the coach cited straight from its own context was refused as not being in it.
+    (async () => {
+      const ids = idsFor("run");
+      if (!ids.length) return [];
+      const rows = await db
+        .select({ id: activities.id })
+        .from(activities)
+        .where(and(eq(activities.userId, userId), inArray(activities.id, ids)));
+      return rows.map((row) => `run:${row.id}`);
+    })(),
+  ]);
   return new Set(records.flat());
 }
 
