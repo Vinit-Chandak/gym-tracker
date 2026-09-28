@@ -65,7 +65,7 @@ import {
   type EndurancePrescription,
 } from "@/domain/activity-prescription";
 import { formatSet, weightStepFor } from "@/domain/sets";
-import { stepsFrom } from "@/domain/load-steps";
+import { stepsFrom, withDefaultStep } from "@/domain/load-steps";
 import { workingSets } from "@/domain/progression";
 import type {
   CoachRequestInitiator,
@@ -790,7 +790,10 @@ export async function planningContext(
                */
               steps: ladder
                 ? stepsFrom(
-                    ladder,
+                    // At home only a load known to exist will do, so nothing is stepped by default.
+                    gym.kind === "home"
+                      ? ladder
+                      : withDefaultStep(ladder, rule?.weightStep ?? null)!,
                     workingSets(rule?.basisPerformance?.sets ?? []).map((set) => set.weight),
                   )
                 : [],
@@ -2213,6 +2216,11 @@ export type TodayCoachState = {
   /** Whether that plan was made for the gym the athlete is about to train at. */
   matchesGym: boolean;
   pending: (Pick<CoachRequest, "gymId" | "requestedAt"> & Partial<CoachRequest>) | null;
+  /**
+   * The coach's work for this session, queued but not going to be picked up before its next
+   * nightly run: failed and waiting to retry, or never reached. The athlete can start it now.
+   */
+  waiting?: { jobId: string; attempted: boolean } | null;
   /** The last thing the coach tried, when it failed and nothing has succeeded since. */
   failure: (Pick<CoachRequest, "error"> & Partial<CoachRequest>) | null;
   requestsLeft: number;

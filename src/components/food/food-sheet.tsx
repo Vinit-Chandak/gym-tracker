@@ -6,7 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Field, Input, INPUT_CLASS } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Sheet } from "@/components/ui/sheet";
-import { FOOD_UNITS, NUTRITION_LIMITS, scaleFood, type Food, type Meal } from "@/domain/nutrition";
+import {
+  FOOD_UNITS,
+  NUTRITION_LIMITS,
+  QUICK_ADD_NAME,
+  scaleFood,
+  type Food,
+  type Meal,
+} from "@/domain/nutrition";
 import { sanitizeNumberEntry } from "@/domain/sets";
 import { FOOD_UNIT_LABELS } from "@/lib/labels";
 import { attempted, OFFLINE_SUBMIT_MESSAGE } from "@/lib/offline-submit";
@@ -15,6 +22,7 @@ import {
   createFoodAction,
   createLibraryFoodAction,
   deleteFoodAction,
+  logQuickFoodAction,
   updateFoodAction,
 } from "@/server/actions/nutrition";
 import type { FoodRecord } from "@/server/repositories/nutrition";
@@ -23,11 +31,13 @@ import type { FoodDraft } from "@/server/validation/nutrition";
 import { AmountField, Preview, typedAmount } from "./amount-field";
 
 /**
- * A new food, logged in a meal as it is made; a new food kept in My foods without being logged
- * (ADR 0035); or one in My foods, to correct or delete.
+ * A new food, logged in a meal as it is made; a food eaten just this once, logged from its
+ * figures alone and not kept; a new food kept in My foods without being logged (ADR 0035); or
+ * one in My foods, to correct or delete.
  */
 export type FoodSheetTarget =
   | { kind: "create"; name: string; eatenOn: string; meal: Meal; mealLabel: string }
+  | { kind: "quick"; name: string; eatenOn: string; meal: Meal; mealLabel: string }
   | { kind: "library"; name: string }
   | { kind: "edit"; food: FoodRecord };
 
@@ -47,6 +57,18 @@ function figure(value: string): number | null {
 }
 
 function draftOf(target: FoodSheetTarget): FoodDraft {
+  if (target.kind === "quick") {
+    // What was eaten, as one serving of it: the figures are the whole of it.
+    return {
+      name: target.name,
+      portionAmount: "1",
+      unit: "serving",
+      kcal: "",
+      carbsG: "",
+      fatG: "",
+      proteinG: "",
+    };
+  }
   if (target.kind !== "edit") {
     // Labels give their figures per 100 g, so that is where a new food starts.
     return {
@@ -77,6 +99,10 @@ function draftOf(target: FoodSheetTarget): FoodDraft {
  * meal is logged as it is made, so the amount eaten is asked here too: it follows the portion
  * until it is changed, so a food entered as eaten needs no second number. One made in My foods
  * is only kept (ADR 0035), so nothing about eating it is asked.
+ *
+ * A quick add asks only for what was eaten — the energy and macronutrients of all of it — and
+ * a name, which may be left blank. There is no portion to give, and nothing is kept to find
+ * again: a variation of something, a meal out, a one-off.
  */
 export function FoodSheet({
   open,
@@ -102,6 +128,7 @@ export function FoodSheet({
   const content = useRef<HTMLFormElement>(null);
   const busy = saving || deleting;
   const creating = target.kind === "create";
+  const quick = target.kind === "quick";
   const amount = eaten ?? fields.portionAmount;
   const unit = fields.unit as Food["unit"];
 
@@ -129,9 +156,20 @@ export function FoodSheet({
                 ...fields,
                 amount,
               })
-            : target.kind === "library"
-              ? createLibraryFoodAction({ submissionKey, ...fields })
-              : updateFoodAction({ foodId: target.food.id, ...fields }),
+            : target.kind === "quick"
+              ? logQuickFoodAction({
+                  submissionKey,
+                  eatenOn: target.eatenOn,
+                  meal: target.meal,
+                  name: fields.name,
+                  kcal: fields.kcal,
+                  carbsG: fields.carbsG,
+                  fatG: fields.fatG,
+                  proteinG: fields.proteinG,
+                })
+              : target.kind === "library"
+                ? createLibraryFoodAction({ submissionKey, ...fields })
+                : updateFoodAction({ foodId: target.food.id, ...fields }),
         OFFLINE_SUBMIT_MESSAGE,
       );
       if (!outcome.ok) {
@@ -139,14 +177,14 @@ export function FoodSheet({
         return;
       }
       if (outcome.value.ok) {
-        const name = fields.name.trim();
+        const name = fields.name.trim() || QUICK_ADD_NAME;
         onDone(
-          target.kind === "create"
+          target.kind === "create" || target.kind === "quick"
             ? `${name} added to ${target.mealLabel}.`
             : target.kind === "library"
               ? `${name} saved to My foods.`
               : `${name} saved.`,
-          target.kind === "create",
+          target.kind === "create" || target.kind === "quick",
         );
         onClose();
         return;
@@ -200,7 +238,7 @@ export function FoodSheet({
         if (!busy) onClose();
       }}
       dismissible={!busy}
-      title={target.kind === "edit" ? "Edit food" : "New food"}
+      title={target.kind === "edit" ? "Edit food" : quick ? "Quick add" : "New food"}
       footer={
         <div className="space-y-3">
           {creating && <Preview amounts={preview} />}
@@ -210,7 +248,7 @@ export function FoodSheet({
             </p>
           )}
           <Button type="submit" form={formId} size="lg" className="w-full" disabled={busy}>
-            {target.kind === "create"
+            {target.kind === "create" || target.kind === "quick"
               ? saving
                 ? "Adding…"
                 : `Add to ${target.mealLabel}`
@@ -231,58 +269,70 @@ export function FoodSheet({
         }}
       >
         <fieldset disabled={busy} className="min-w-0 space-y-4">
-          <Field label="Name" error={errors.name}>
+          {quick && (
+            <p className="text-sm text-ink-muted">
+              Just this once: what you ate, as a whole. It is not kept in My foods.
+            </p>
+          )}
+          <Field label={quick ? "Name (optional)" : "Name"} error={errors.name}>
             <Input
               value={fields.name}
               maxLength={NUTRITION_LIMITS.name}
               autoComplete="off"
-              placeholder="e.g. Oats"
+              placeholder={quick ? QUICK_ADD_NAME : "e.g. Oats"}
               onChange={(event) => set("name", event.target.value)}
             />
           </Field>
 
-          <div className="min-w-0 space-y-1.5">
-            <p id={`${formId}-portion`} className="text-sm font-medium text-ink-muted">
-              Nutrition per
-            </p>
-            <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
-              <input
-                type="text"
-                inputMode="decimal"
-                autoComplete="off"
-                value={fields.portionAmount}
-                aria-labelledby={`${formId}-portion`}
-                aria-invalid={errors.portionAmount ? true : undefined}
-                aria-describedby={portionError ? portionErrorId : undefined}
-                onChange={(event) =>
-                  set(
-                    "portionAmount",
-                    sanitizeNumberEntry(event.target.value, "decimal", NUTRITION_LIMITS.amount),
-                  )
-                }
-                className={cn(INPUT_CLASS, "tabular-nums", errors.portionAmount && "border-danger")}
-              />
-              <Select
-                value={fields.unit}
-                aria-label="Unit"
-                aria-invalid={errors.unit ? true : undefined}
-                onChange={(event) => set("unit", event.target.value)}
-              >
-                {FOOD_UNITS.map((option) => (
-                  <option key={option} value={option}>
-                    {FOOD_UNIT_LABELS[option]}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            {portionError && (
-              <p id={portionErrorId} role="alert" className="text-sm text-danger">
-                {portionError}
+          {!quick && (
+            <div className="min-w-0 space-y-1.5">
+              <p id={`${formId}-portion`} className="text-sm font-medium text-ink-muted">
+                Nutrition per
               </p>
-            )}
-          </div>
+              <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  autoComplete="off"
+                  value={fields.portionAmount}
+                  aria-labelledby={`${formId}-portion`}
+                  aria-invalid={errors.portionAmount ? true : undefined}
+                  aria-describedby={portionError ? portionErrorId : undefined}
+                  onChange={(event) =>
+                    set(
+                      "portionAmount",
+                      sanitizeNumberEntry(event.target.value, "decimal", NUTRITION_LIMITS.amount),
+                    )
+                  }
+                  className={cn(
+                    INPUT_CLASS,
+                    "tabular-nums",
+                    errors.portionAmount && "border-danger",
+                  )}
+                />
+                <Select
+                  value={fields.unit}
+                  aria-label="Unit"
+                  aria-invalid={errors.unit ? true : undefined}
+                  onChange={(event) => set("unit", event.target.value)}
+                >
+                  {FOOD_UNITS.map((option) => (
+                    <option key={option} value={option}>
+                      {FOOD_UNIT_LABELS[option]}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              {portionError && (
+                <p id={portionErrorId} role="alert" className="text-sm text-danger">
+                  {portionError}
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="space-y-2">
+            {quick && <p className="text-sm font-medium text-ink-muted">What it came to</p>}
             {/* Four across on a phone at normal text; fewer, never clipped, as text grows. */}
             <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,4rem),1fr))] gap-2">
               {FIGURES.map(({ field, label, max }) => {

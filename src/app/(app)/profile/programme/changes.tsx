@@ -179,6 +179,7 @@ export async function loadProgrammeChanges(db: DbOrTx, userId: string, timeZone:
         getCoachServiceToken() !== null,
       canAsk: reviewStatus.canAsk,
       running: reviewStatus.running,
+      waiting: reviewStatus.waiting ? { attempted: reviewStatus.waiting.attempted } : null,
       nextOn: reviewStatus.nextAt
         ? formatIsoDay(todayInTimeZone(timeZone, reviewStatus.nextAt))
         : null,

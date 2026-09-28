@@ -9,6 +9,7 @@ import {
   deleteFoodAction,
   deleteSavedMealAction,
   logFoodAction,
+  logQuickFoodAction,
   logSavedMealAction,
   saveMealAction,
   updateEntryAction,
@@ -25,6 +26,7 @@ import { MealEditor } from "./meal-editor";
 
 vi.mock("@/server/actions/nutrition", () => ({
   logFoodAction: vi.fn(),
+  logQuickFoodAction: vi.fn(),
   createFoodAction: vi.fn(),
   updateEntryAction: vi.fn(),
   deleteEntryAction: vi.fn(),
@@ -61,6 +63,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   for (const action of [
     logFoodAction,
+    logQuickFoodAction,
     createFoodAction,
     updateEntryAction,
     deleteEntryAction,
@@ -231,6 +234,64 @@ it("makes a new food from what was searched for, the amount following the portio
   expect(screen.getByRole("searchbox")).toHaveProperty("value", "");
 });
 
+it("quick adds what was eaten from its figures alone, keeping nothing in My foods", async () => {
+  editor();
+  const quick = myFoods().getAllByRole("button")[0]!;
+  expect(quick.textContent).toBe("Quick add Calories and macros, just this once");
+  fireEvent.click(quick);
+  expect(inSheet().getByRole("heading", { name: "Quick add" })).toBeTruthy();
+  expect(sheet().textContent).toContain("It is not kept in My foods.");
+  // What was eaten, as a whole: no portion to give, and no amount to scale it by.
+  expect(inSheet().queryByLabelText("Nutrition per")).toBeNull();
+  expect(inSheet().queryByLabelText("Amount eaten")).toBeNull();
+  expect(inSheet().getByLabelText("Name (optional)")).toHaveProperty("value", "");
+
+  type("kcal", "720");
+  type("Carbs g", "80");
+  type("Fat g", "28");
+  type("Protein g", "35");
+  fireEvent.click(inSheet().getByRole("button", { name: "Add to Breakfast" }));
+  await waitFor(() => expect(sheet().open).toBe(false));
+  expect(logQuickFoodAction).toHaveBeenCalledWith({
+    submissionKey: expect.any(String),
+    eatenOn: TODAY,
+    meal: "breakfast",
+    name: "",
+    kcal: "720",
+    carbsG: "80",
+    fatG: "28",
+    proteinG: "35",
+  });
+  expect(createFoodAction).not.toHaveBeenCalled();
+  expect(screen.getByText("Quick add added to Breakfast.")).toBeTruthy();
+});
+
+it("names a quick add after the search it came from, and says a refused figure on its field", async () => {
+  vi.mocked(logQuickFoodAction).mockResolvedValueOnce({
+    ok: false,
+    fieldErrors: { kcal: "Enter the kcal." },
+  });
+  editor();
+  fireEvent.change(screen.getByRole("searchbox"), { target: { value: " thali at work " } });
+  fireEvent.click(myFoods().getByRole("button", { name: /^Quick add “thali at work”/ }));
+  expect(inSheet().getByLabelText("Name (optional)")).toHaveProperty("value", "thali at work");
+  fireEvent.click(inSheet().getByRole("button", { name: "Add to Breakfast" }));
+  await waitFor(() =>
+    expect(inSheet().getByLabelText("kcal").getAttribute("aria-invalid")).toBe("true"),
+  );
+  expect(sheet().open).toBe(true);
+  expect(inSheet().getByRole("alert").textContent).toBe("Enter the kcal.");
+
+  type("kcal", "650");
+  fireEvent.click(inSheet().getByRole("button", { name: "Add to Breakfast" }));
+  await waitFor(() => expect(sheet().open).toBe(false));
+  const [first, second] = vi.mocked(logQuickFoodAction).mock.calls.map(([draft]) => draft);
+  // A retry is the same submission, so a lost reply cannot log it twice.
+  expect(second!.submissionKey).toBe(first!.submissionKey);
+  expect(second).toMatchObject({ name: "thali at work", kcal: "650" });
+  expect(screen.getByText("thali at work added to Breakfast.")).toBeTruthy();
+});
+
 it("puts a refused field's message on that field, and the caret in it", async () => {
   vi.mocked(createFoodAction).mockResolvedValueOnce({
     ok: false,
@@ -338,8 +399,9 @@ it("adds a saved meal to this meal, or deletes it, from what it holds", async ()
 
 it("searches foods by name, and saved meals by name or by what they hold, in one list", () => {
   editor();
-  // Everything in My foods is one list to add from, saved meals first; nothing is made here.
-  expect(myFoods().getAllByRole("button")).toHaveLength(5);
+  // Everything in My foods is one list to add from, after Quick add and with saved meals first;
+  // nothing is made here.
+  expect(myFoods().getAllByRole("button")).toHaveLength(6);
   expect(screen.queryByRole("button", { name: /^New food/ })).toBeNull();
   const search = screen.getByRole("searchbox");
   fireEvent.change(search, { target: { value: "WHEY" } });
@@ -347,7 +409,7 @@ it("searches foods by name, and saved meals by name or by what they hold, in one
     myFoods()
       .getAllByRole("button")
       .map((button) => button.textContent?.split(" ")[0]),
-  ).toEqual(["Shake", "Usual", "Whey"]);
+  ).toEqual(["Quick", "Shake", "Usual", "Whey"]);
   // A food that exists is found, not offered as a new one.
   fireEvent.change(search, { target: { value: "oats" } });
   expect(screen.queryByRole("button", { name: /^New food/ })).toBeNull();
@@ -358,7 +420,7 @@ it("searches foods by name, and saved meals by name or by what they hold, in one
     myFoods()
       .getAllByRole("button")
       .map((button) => button.textContent),
-  ).toEqual(["New food “granola”"]);
+  ).toEqual(["Quick add “granola” Calories and macros, just this once", "New food “granola”"]);
 });
 
 it("leaves correcting a food to My foods: its sheet here only says how much", () => {
@@ -377,5 +439,5 @@ it("starts an account with nothing in My foods at New food, since nothing can be
     myFoods()
       .getAllByRole("button")
       .map((button) => button.textContent),
-  ).toEqual(["New food"]);
+  ).toEqual(["Quick add Calories and macros, just this once", "New food"]);
 });

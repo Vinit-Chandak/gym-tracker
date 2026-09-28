@@ -551,6 +551,76 @@ it("checks run distance separately when duration is unchanged and preserves spar
     ).toBe(false);
   });
 });
+it("holds a run inside the programme's range, to the minute a plan can say", async () => {
+  /** An athlete whose last two planned runs took `seconds`, against 20–25 minutes at 1–4. */
+  const ran = async (seconds: number) => {
+    const a = await fixture();
+    return a.as(async (db) => {
+      const [planned] = await db
+        .select()
+        .from(programRuns)
+        .where(eq(programRuns.programId, a.program.id));
+      await db
+        .update(programRuns)
+        .set({ durationMinMinutes: 20, durationMaxMinutes: 25, rpeMin: 1, rpeMax: 4 })
+        .where(eq(programRuns.programId, a.program.id));
+      const cited: string[] = [];
+      for (const days of [4, 1]) {
+        const { id } = await logTestRun(db, a.user.id, {
+          startedAt: new Date(now.getTime() - days * 86_400_000),
+          distanceMeters: 5000,
+          durationSeconds: seconds,
+          rpe: 4,
+          effortReported: true,
+        });
+        await db
+          .update(runningActivityDetails)
+          .set({ legacyProgramRunId: planned!.id })
+          .where(eq(runningActivityDetails.activityId, id));
+        cited.push(`run:${id}`);
+      }
+      const evidence = await readCoachingEvidence(db, a.user.id, a.program.id, now);
+      /** What planning this run for `minutes` changes, or the refusal's issues. */
+      return async (minutes: number) => {
+        const output = a.output(50);
+        output.plan.run = {
+          mode: "outdoor",
+          durationMinutes: minutes,
+          distanceKm: 5,
+          rpe: 4,
+          programRunId: planned!.id,
+          paceNote: "Easy effort",
+          stopRule: "",
+          note: "",
+        };
+        try {
+          const changes = await withUser(t.db, a.user.id, (tx) =>
+            assessSessionEvidence(tx, a.user.id, a.target, output, evidence, new Set(cited)),
+          );
+          return changes.filter((change) => change.scope.startsWith("run:"));
+        } catch (error) {
+          if (error instanceof CoachingError) return error.issues;
+          throw error;
+        }
+      };
+    });
+  };
+
+  // Thirty minutes against 20–25: holding thirty is outside the range, and 25 was a lasting
+  // cut, so no run could be planned. The top of the range is the run unchanged.
+  const long = await ran(30 * 60);
+  expect(await long(25)).toEqual([]);
+  expect(await long(30)).toEqual([
+    "The run duration is outside the program range and needs review.",
+    "This run change exceeds the automatic limit; retain the baseline or ask for review. Unchanged, the run is 25 minutes and 5 km.",
+  ]);
+  // 22:40 cannot be written in whole minutes; 23 is the same run, and a refusal says so.
+  const odd = await ran(22 * 60 + 40);
+  expect(await odd(23)).toEqual([]);
+  expect(await odd(22)).toEqual([
+    "Lasting running reductions need program review; use a supported temporary adjustment for current recovery. Unchanged, the run is 23 minutes and 5 km.",
+  ]);
+});
 it("keeps memo provenance private, invalidates removed sources and detects competing corrections", async () => {
   const a = await fixture();
   const other = await fixture([]);
@@ -593,6 +663,36 @@ it("keeps memo provenance private, invalidates removed sources and detects compe
     output.evidence = [a.ids[1]!];
     await expect(validateCitedEvidence(db, other.user.id, output)).rejects.toThrow(
       /other athletes/,
+    );
+  });
+});
+
+it("accepts a run cited as the evidence names it, and names what it cannot find", async () => {
+  // The evidence packet names a run `run:<id>` with the activity's id. The citation check
+  // looked that id up among the old runs rows only, so every run logged since activities
+  // was refused as "not from the current context" — and the refusal did not say which one.
+  const a = await fixture();
+  await a.as(async (db) => {
+    const { id } = await logTestRun(db, a.user.id, {
+      startedAt: new Date(now.getTime() - 86_400_000),
+      distanceMeters: 5000,
+      durationSeconds: 1800,
+      rpe: 2,
+      effortReported: true,
+    });
+    const run = `run:${id}`;
+    expect((await readCoachingEvidence(db, a.user.id, a.program.id, now)).evidenceIds).toContain(
+      run,
+    );
+    const output = a.output(50);
+    output.evidence = [a.ids[0]!, run, `activity:${id}`];
+    expect(await validateCitedEvidence(db, a.user.id, output)).toEqual(
+      new Set([a.ids[0], run, `activity:${id}`]),
+    );
+    const missing = `run:${crypto.randomUUID()}`;
+    output.evidence = [run, missing, "the easy run on Tuesday"];
+    await expect(validateCitedEvidence(db, a.user.id, output)).rejects.toThrow(
+      `Not found in this athlete's records: ${missing}, the easy run on Tuesday.`,
     );
   });
 });
@@ -1051,8 +1151,8 @@ it("still measures a load change from the work, so an unsupported jump is refuse
       WORK.map((set) => ({ ...set, weight: 110 })),
     );
     expect(jump?.issues).toEqual([
-      `${SQUAT}: the load change exceeds the automatic limit and needs review.`,
-      `${SQUAT}: the change is not supported by repeated comparable performance.`,
+      `${SQUAT}: the load change exceeds the automatic limit and needs review. Unchanged, its loads are 100, 100 and 100 kg.`,
+      `${SQUAT}: the change is not supported by repeated comparable performance. Unchanged, its loads are 100, 100 and 100 kg.`,
     ]);
     // 3 × 5 is inside 4–6 but short of the 6 the conservative rule waits for: no load step yet.
     const step = await a.refusal(
@@ -1060,7 +1160,7 @@ it("still measures a load change from the work, so an unsupported jump is refuse
       WORK.map((set) => ({ ...set, weight: 102.5 })),
     );
     expect(step?.issues).toEqual([
-      `${SQUAT}: the change is not supported by repeated comparable performance.`,
+      `${SQUAT}: the change is not supported by repeated comparable performance. Unchanged, its loads are 100, 100 and 100 kg.`,
     ]);
   });
 });
@@ -1082,7 +1182,7 @@ it("reads a ramp followed by fewer working sets than prescribed without being to
       WORK.map((set) => ({ ...set, weight: 110 })),
     );
     expect(jump?.issues).toContain(
-      `${SQUAT}: the load change exceeds the automatic limit and needs review.`,
+      `${SQUAT}: the load change exceeds the automatic limit and needs review. Unchanged, its loads are 100, 100 and 100 kg.`,
     );
   });
 });
@@ -1224,6 +1324,41 @@ it("steps the load on one session with a rep to spare, and only on that session 
   });
 });
 
+it("steps a free weight registered without its increment by the exercise's own jump", async () => {
+  // Onboarding's starter equipment registers the bar with no increment. 20 → 22.5 kg is 12.5%,
+  // past the percentage, and the one jump the bar has: the rule already asks the athlete for it.
+  const a = await squatFixture([straight(20, 6, 3)]);
+  await a.as(async (db) => {
+    await db
+      .update(equipmentInstances)
+      .set({ loadIncrement: null })
+      .where(eq(equipmentInstances.id, a.bar.id));
+    expect(await a.assess(db, straight(22.5, 5, 2), [a.ids[0]!])).toMatchObject([
+      { kind: "progression", after: { load: 22.5 } },
+    ]);
+    // Two jumps are still two.
+    expect((await a.refusal(db, straight(25, 5, 2), [a.ids[0]!]))?.issues).toContain(
+      `${SQUAT}: the load change exceeds the automatic limit and needs review. Unchanged, its loads are 20, 20 and 20 kg.`,
+    );
+  });
+});
+
+it("tells the coach to keep a load logged at zero, rather than leave it unknown", async () => {
+  // Logged with nothing added, the known load is 0. The refusal for adding a plate used to say
+  // "or leave load unknown", and a load left unknown is then refused as dropping a known one.
+  const a = await squatFixture([straight(0, 6, 3)]);
+  await a.as(async (db) => {
+    expect((await a.refusal(db, straight(2.5, 6, 2), [a.ids[0]!]))?.issues).toEqual([
+      `${SQUAT}: it was logged with no added load, so there is no load to step from; keep the load at 0, or add load with calibration.`,
+    ]);
+    const unknown = [1, 2, 3].map(() => ({ weight: null as unknown as number, reps: 6, rir: 2 }));
+    expect((await a.refusal(db, unknown, [a.ids[0]!]))?.issues).toEqual([
+      `${SQUAT}: retain the known load (0, 0 and 0 kg), or explicitly request recalibration.`,
+    ]);
+    expect(await a.assess(db, straight(0, 6, 2), [a.ids[0]!])).toEqual([]);
+  });
+});
+
 it("asks a set for the reps it had in hand, on the latest session alone", async () => {
   // 3 × 5 with 3 in reserve: at 2 RIR, that is 6.
   const a = await squatFixture([straight(100, 5, 3)]);
@@ -1236,9 +1371,32 @@ it("asks a set for the reps it had in hand, on the latest session alone", async 
   const b = await squatFixture([straight(100, 5, 2)]);
   await b.as(async (db) => {
     expect((await b.refusal(db, straight(100, 6, 2), [b.ids[0]!]))?.issues).toEqual([
-      `${SQUAT}: target changes need repeated comparable evidence and a small step.`,
+      `${SQUAT}: target changes need repeated comparable evidence and a small step. Unchanged, its working sets are 5, 5 and 5 reps.`,
       `${SQUAT}: cite two new comparable training dates; the same evidence cannot justify another change.`,
     ]);
+  });
+});
+
+it("names the targets a slot holds when its history cannot support a change", async () => {
+  // Logged without reps in reserve, and past both ends of 4–6: nothing here is comparable, so
+  // each set holds what it did, brought inside the range. Nothing else told the coach that,
+  // and three submissions guessed at it until the lease ran out.
+  const logged = [8, 6, 3].map((reps) => ({ weight: 100, reps, rir: null }));
+  const a = await squatFixture([logged]);
+  await a.as(async (db) => {
+    const trend = (await readCoachingEvidence(db, a.user.id, a.program.id, now)).exerciseTrends[0]!;
+    expect(trend).toMatchObject({
+      state: "insufficient_evidence",
+      matchingCount: 0,
+      effortCoverage: { known: 0 },
+    });
+    expect((await a.refusal(db, straight(100, 5, 2), [a.ids[0]!]))?.issues).toEqual([
+      `${SQUAT}: target changes need repeated comparable evidence and a small step. Unchanged, its working sets are 6, 6 and 4 reps.`,
+      `${SQUAT}: cite two new comparable training dates; the same evidence cannot justify another change.`,
+    ]);
+    // What the refusal names is accepted as it stands.
+    const held = [6, 6, 4].map((reps) => ({ weight: 100, reps, rir: 2 }));
+    expect(await a.assess(db, held, [a.ids[0]!])).toEqual([]);
   });
 });
 
@@ -1261,8 +1419,28 @@ it("goes back to the load before a step that missed the range twice", async () =
     ]);
     // Anywhere else is still a cut, and a cut needs a confirmed decline.
     expect((await a.refusal(db, straight(97.5, 6, 2)))?.issues).toContain(
-      `${SQUAT}: the change is not supported by repeated comparable performance.`,
+      `${SQUAT}: the change is not supported by repeated comparable performance. Unchanged, its loads are 102.5, 102.5 and 102.5 kg.`,
     );
+  });
+});
+
+it("names the load a step back left standing, not the load last lifted", async () => {
+  // The coach went back from 102.5 to 100 and the athlete has not trained since: 100 is the
+  // unchanged load. The trend still shows 102.5 last lifted, so a coach holding what it could
+  // see was refused twice without being told which load would pass.
+  const missed = straight(102.5, 3, 0);
+  const a = await squatFixture([missed, missed, straight(100, 6, 3), WORK, WORK, WORK]);
+  await a.as(async (db) => {
+    const back = await a.assess(db, straight(100, 6, 2));
+    await db.insert(coachChangeRecords).values({
+      userId: a.user.id,
+      changes: back,
+      createdAt: new Date(now.getTime() - 1000),
+    });
+    expect((await a.refusal(db, straight(102.5, 6, 2)))?.issues).toContain(
+      `${SQUAT}: the change is not supported by repeated comparable performance. Unchanged, its loads are 100, 100 and 100 kg.`,
+    );
+    expect(await a.refusal(db, straight(100, 6, 2))).toBeNull();
   });
 });
 

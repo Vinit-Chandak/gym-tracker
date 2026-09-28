@@ -3,7 +3,7 @@
 import { useOptimistic, useRef, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Star } from "@/components/ui/icons";
+import { Plus, QuickAdd, Search, Star } from "@/components/ui/icons";
 import { Input } from "@/components/ui/input";
 import { PRESSABLE_ROW_CLASS } from "@/components/ui/link-row";
 import { SwipeRow } from "@/components/ui/swipe-row";
@@ -29,6 +29,7 @@ type SheetView =
   | { kind: "log"; food: FoodRecord }
   | { kind: "entry"; entry: EntryRecord }
   | { kind: "create"; name: string }
+  | { kind: "quick"; name: string }
   | { kind: "saved"; saved: SavedMealRecord }
   | { kind: "star" };
 
@@ -44,7 +45,8 @@ function scrollBehaviour(): ScrollBehavior {
  *
  * The page adds from My foods and does not manage it: foods are made, corrected and removed on
  * My foods' own screen. Only a search that finds nothing offers a new food, made and added here
- * in one go, since leaving to make it would lose the meal.
+ * in one go, since leaving to make it would lose the meal. Quick add, always first, logs
+ * something eaten just this once from its figures alone, and keeps nothing in My foods.
  */
 export function MealEditor({
   date,
@@ -229,6 +231,23 @@ export function MealEditor({
         </div>
 
         <ul className="box-rows" aria-label="Your foods and meals">
+          <li>
+            <button
+              type="button"
+              onClick={() => open({ kind: "quick", name: query.trim() })}
+              className={PRESSABLE_ROW_CLASS}
+            >
+              <QuickAdd className="shrink-0 text-accent" aria-hidden />
+              <span className="min-w-0 flex-1">
+                <span className="block font-medium [overflow-wrap:anywhere] text-accent">
+                  {query.trim() ? `Quick add “${query.trim()}”` : "Quick add"}
+                </span>{" "}
+                <span className="block text-sm text-ink-muted">
+                  Calories and macros, just this once
+                </span>
+              </span>
+            </button>
+          </li>
           {savedMeals.map((saved) => (
             <li key={saved.id}>
               <button
@@ -315,6 +334,15 @@ export function MealEditor({
           open={sheet.open}
           onClose={close}
           target={{ kind: "create", name: view.name, ...place }}
+          onDone={done}
+        />
+      )}
+      {view?.kind === "quick" && (
+        <FoodSheet
+          key={sheet.key}
+          open={sheet.open}
+          onClose={close}
+          target={{ kind: "quick", name: view.name, ...place }}
           onDone={done}
         />
       )}

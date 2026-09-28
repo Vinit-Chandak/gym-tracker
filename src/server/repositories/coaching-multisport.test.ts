@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { afterAll, beforeAll, expect, it } from "vitest";
 
 import {
@@ -20,7 +20,12 @@ import {
 } from "@/domain/activity-prescription";
 import { activePlanForOccurrence, storeOccurrencePlan } from "./coach-plans";
 import { PlanValidationError } from "./coach-plans";
-import { enqueueOccurrencePreparations, programmeSports } from "./coaching-jobs";
+import {
+  enqueueCoachJob,
+  enqueueOccurrencePreparations,
+  programmeSports,
+  replanAfterReview,
+} from "./coaching-jobs";
 import { materialiseOccurrences, openOccurrencesBetween } from "./program-occurrences";
 import { createProgramFromBlueprint } from "./programs";
 import { STRENGTH_AESTHETICS_HYBRID_8WK } from "@/db/seed/data/program";
@@ -203,13 +208,13 @@ it("gives two same-day swims separate occurrences, jobs and preparations", async
   expect(new Set(occurrences.map((o) => o.id)).size).toBe(2);
 
   const queued = await as(a, (tx) => enqueueOccurrencePreparations(tx, a.id, "2026-09-21"));
-  expect(queued).toBe(2);
+  expect(queued).toHaveLength(2);
   const jobs = await as(a, (tx) => tx.select().from(coachJobs).where(eq(coachJobs.userId, a.id)));
   expect(jobs).toHaveLength(2);
   expect(new Set(jobs.map((job) => job.target.occurrenceId)).size).toBe(2);
 
   // Dedupe: asking again for the same batch enqueues nothing new.
-  expect(await as(a, (tx) => enqueueOccurrencePreparations(tx, a.id, "2026-09-21"))).toBe(0);
+  expect(await as(a, (tx) => enqueueOccurrencePreparations(tx, a.id, "2026-09-21"))).toEqual([]);
 
   await as(a, (tx) =>
     storeOccurrencePlan(tx, a.id, {
@@ -236,10 +241,60 @@ it("prepares the next two days and never re-prepares overdue work", async () => 
   ]);
   const window = await as(a, (tx) => openOccurrencesBetween(tx, a.id, "2026-09-21", "2026-09-23"));
   expect(window.map((row) => row.scheduledOn)).toEqual(["2026-09-21", "2026-09-23"]);
-  expect(await as(a, (tx) => enqueueOccurrencePreparations(tx, a.id, "2026-09-21"))).toBe(2);
+  expect(await as(a, (tx) => enqueueOccurrencePreparations(tx, a.id, "2026-09-21"))).toHaveLength(
+    2,
+  );
   const jobs = await as(a, (tx) => tx.select().from(coachJobs).where(eq(coachJobs.userId, a.id)));
   // The 16th is overdue and the 25th is beyond the window: neither is prepared.
   expect(jobs).toHaveLength(2);
+});
+
+/** A review re-plans the next session of every sport the programme has scheduled, not only strength. */
+it("re-plans every sport's next session when a review ends", async () => {
+  const a = await athlete();
+  const created = await programme(a);
+  const occurrences = await schedule(a, created.familyId, created.id, [
+    { sport: "running", date: "2026-09-21", week: 2 },
+    { sport: "cycling", date: "2026-09-22", week: 2 },
+    { sport: "swimming", date: "2026-09-23", week: 2 },
+  ]);
+  // The night's preparations were queued before the review read anything.
+  const nightly = await as(a, (tx) => enqueueOccurrencePreparations(tx, a.id, "2026-09-21"));
+  expect(nightly).toHaveLength(3);
+  const { job: review } = await as(a, (tx) =>
+    enqueueCoachJob(tx, a.id, {
+      kind: "review_program",
+      trigger: "weekly",
+      dedupeKey: "review:multisport",
+      target: { programId: created.id, batchDate: "2026-09-21" },
+    }),
+  );
+
+  // Noon in India on the 21st, so the same batch the night's preparations were for.
+  const replan = await as(a, (tx) =>
+    replanAfterReview(tx, a.id, review, new Date("2026-09-21T06:30:00Z")),
+  );
+  const replanned = await as(a, (tx) =>
+    tx.select().from(coachJobs).where(inArray(coachJobs.id, replan)),
+  );
+  const bySession = replanned.filter((job) => job.target.occurrenceId);
+  expect(bySession.map((job) => job.target.sport).sort()).toEqual([
+    "cycling",
+    "running",
+    "swimming",
+  ]);
+  expect(new Set(bySession.map((job) => job.target.occurrenceId))).toEqual(
+    new Set(occurrences.map((occurrence) => occurrence.id)),
+  );
+  for (const job of bySession) {
+    expect(job.status).toBe("queued");
+    expect(job.dedupeKey).toMatch(new RegExp(`:after-review:${review.id}$`));
+  }
+  // What the night queued for those sessions is replaced, not prepared alongside.
+  const before = await as(a, (tx) =>
+    tx.select().from(coachJobs).where(inArray(coachJobs.id, nightly)),
+  );
+  expect(before.map((job) => job.status)).toEqual(["superseded", "superseded", "superseded"]);
 });
 
 /** AT-COACH-08: a revision arriving supersedes the job and the preparation written for it. */

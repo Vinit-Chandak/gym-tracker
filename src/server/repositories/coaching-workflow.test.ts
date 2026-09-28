@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { afterAll, beforeAll, expect, it, vi } from "vitest";
 import {
   coachChangeRecords,
@@ -45,8 +45,10 @@ import {
   enqueueDailySession,
   queuedCoachJobs,
   reconcileCoachJobs,
+  renewCoachLease,
   requeueCoachJob,
   settleCoachJobs,
+  restartWaitingJob,
 } from "./coaching-jobs";
 import { coachJobContext } from "./coaching-context";
 import { assertLiveAttempt, lookupExercises } from "./coach-lookups";
@@ -502,6 +504,43 @@ it("reconciles an expired attempt and refuses its old token after reclaim", asyn
   await expect(
     as(a, (tx) => acceptCoachJobResult(tx, a.user.id, job.id, claim!.attemptId!, result(a))),
   ).rejects.toThrow(/current attempt/);
+});
+it("keeps a working attempt's claim alive, and no longer than an hour from the claim", async () => {
+  const a = await athlete();
+  const { job } = await request(a);
+  const claim = await as(a, (tx) => claimCoachJob(tx, a.user.id, job.id));
+  const [receipt] = await as(a, (tx) => tx.select().from(coachJobAttempts));
+  const claimedAt = receipt!.startedAt.getTime();
+  const at = (minutes: number) => new Date(claimedAt + minutes * 60_000);
+  const renew = (minutes: number, attemptId = claim!.attemptId!) =>
+    as(a, (tx) => renewCoachLease(tx, a.user.id, job.id, attemptId, at(minutes)));
+  const lease = async () =>
+    (await as(a, (tx) => getCoachJob(tx, a.user.id, job.id)))!.leaseUntil!.getTime();
+
+  // Twenty minutes from each call: a worker taking its time on a third correction keeps it.
+  await renew(10);
+  expect(await lease()).toBe(at(30).getTime());
+  await renew(29);
+  expect(await lease()).toBe(at(49).getTime());
+  // Another attempt's token renews nothing.
+  await renew(30, crypto.randomUUID());
+  expect(await lease()).toBe(at(49).getTime());
+  // Never past the hour, and never shorter than it was.
+  await renew(45);
+  expect(await lease()).toBe(at(60).getTime());
+  await renew(50);
+  expect(await lease()).toBe(at(60).getTime());
+  const [renewed] = await as(a, (tx) => tx.select().from(coachJobAttempts));
+  expect(renewed!.leaseUntil.getTime()).toBe(at(60).getTime());
+  // A lapsed claim stays lapsed: a late call does not bring it back.
+  await as(a, (tx) =>
+    tx
+      .update(coachJobs)
+      .set({ leaseUntil: at(40) })
+      .where(eq(coachJobs.id, job.id)),
+  );
+  await renew(41);
+  expect(await lease()).toBe(at(40).getTime());
 });
 it.each([
   ["another attempt left", 1, "queued"],
@@ -1058,6 +1097,144 @@ it("hears a request for something only a review can grant without waiting out th
   expect(reviews[0]?.target).toMatchObject({ reviewStart: anchor.toISOString() });
 });
 
+/** A review of the week to the latest boundary, for the athlete's active programme. */
+async function queueReview(a: Athlete, key: string) {
+  const schedule = await as(a, (tx) => getSchedule(tx, a.user.id));
+  const boundary = lastCoachBoundary();
+  const { job } = await as(a, (tx) =>
+    enqueueCoachJob(tx, a.user.id, {
+      kind: "review_program",
+      trigger: "weekly",
+      dedupeKey: key,
+      intakeId: a.intake.id,
+      target: {
+        programId: schedule!.program.id,
+        reviewStart: new Date(boundary.at.getTime() - 7 * DAY).toISOString(),
+        reviewEnd: boundary.at.toISOString(),
+        batchDate: boundary.date,
+        purpose: "requests",
+      },
+    }),
+  );
+  return job;
+}
+const replanKey = (review: { id: string }) =>
+  `daily:${lastCoachBoundary().date}:after-review:${review.id}`;
+
+it("plans the next session again after a review, though the night's was already prepared", async () => {
+  const a = await reviewing();
+  // The night's preparation has already run: its batch key is spent.
+  const nightly = await as(a, (tx) => enqueueDailySession(tx, a.user.id, lastCoachBoundary().date));
+  await as(a, (tx) =>
+    tx
+      .update(coachJobs)
+      .set({ status: "succeeded", completedAt: new Date() })
+      .where(eq(coachJobs.id, nightly!.job.id)),
+  );
+  const review = await queueReview(a, "review:asked");
+  const claim = await as(a, (tx) => claimCoachJob(tx, a.user.id, review.id));
+  const accepted = await as(a, (tx) =>
+    acceptCoachJobResult(tx, a.user.id, review.id, claim!.attemptId!, {
+      outcome: "no_change",
+      rationale: "Holding the programme for another week.",
+      coverage: [{ sport: "strength", decision: "unchanged", reason: "" }],
+    }),
+  );
+  // Before, the review enqueued the batch's own key again, which was already spent: nothing.
+  expect(accepted).toMatchObject({ accepted: true, replan: [expect.any(String)] });
+  const replan = await as(a, (tx) =>
+    getCoachJob(tx, a.user.id, (accepted as { replan: string[] }).replan[0]!),
+  );
+  expect(replan).toMatchObject({
+    kind: "prepare_session",
+    status: "queued",
+    dedupeKey: replanKey(review),
+  });
+  expect((await as(a, (tx) => claimCoachJob(tx, a.user.id, replan!.id)))?.id).toBe(replan!.id);
+});
+
+it("still plans the session when a review times out, and does not wait on its retry", async () => {
+  const a = await reviewing();
+  const review = await queueReview(a, "review:lapsed");
+  await as(a, (tx) => claimCoachJob(tx, a.user.id, review.id));
+  await as(a, (tx) =>
+    tx
+      .update(coachJobs)
+      .set({ leaseUntil: new Date(Date.now() - 1000) })
+      .where(eq(coachJobs.id, review.id)),
+  );
+  await as(a, (tx) => reconcileCoachJobs(tx, a.user.id));
+  const jobs = await as(a, (tx) => tx.select().from(coachJobs));
+  expect(jobs.find((job) => job.id === review.id)).toMatchObject({ status: "queued", attempts: 1 });
+  const replan = jobs.find((job) => job.dedupeKey === replanKey(review));
+  expect(replan?.status).toBe("queued");
+  // The review waits to retry; the session it re-planned does not wait for it.
+  expect((await as(a, (tx) => claimCoachJob(tx, a.user.id, replan!.id)))?.id).toBe(replan!.id);
+});
+
+it("starts the re-plan of a review the app asked for, once the worker has its answer", async () => {
+  vi.stubEnv("COACH_SERVICE_TOKEN", "synthetic-workflow-token");
+  vi.stubEnv("COACH_WORKFLOW_ENABLED", "true");
+  try {
+    const a = await reviewing();
+    /** Fails a claimed review through the service, as the worker's `workflow.ts fail` does. */
+    const fail = async (review: { id: string }) => {
+      const claim = await as(a, (tx) => claimCoachJob(tx, a.user.id, review.id));
+      const deferred: (() => Promise<void>)[] = [];
+      const path = ["workflow", "users", a.user.id, "jobs", review.id, "fail"];
+      const response = await handleCoachServiceRequest(
+        t.db,
+        new Request(
+          `https://app.test/api/coach/service/${path.join("/")}?attemptId=${claim!.attemptId}`,
+          {
+            method: "POST",
+            headers: {
+              authorization: "Bearer synthetic-workflow-token",
+              "content-type": "application/json",
+            },
+            body: JSON.stringify({ error: "Could not finish the review.", retryable: true }),
+          },
+        ),
+        path,
+        { defer: (work) => deferred.push(work) },
+      );
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as { replan: string[] };
+      for (const work of deferred) await work();
+      return as(a, (tx) => getCoachJob(tx, a.user.id, body.replan[0]!));
+    };
+    // Started by the nightly routine: its next pass over the queue prepares the session.
+    const nightly = await fail(await queueReview(a, "review:nightly"));
+    expect(nightly).toMatchObject({ status: "queued", dispatchStartedAt: null });
+    // Started from the app for this one job: nothing else would run the re-plan until night.
+    const asked = await queueReview(a, "review:app");
+    await as(a, (tx) =>
+      tx.update(coachJobs).set({ dispatchStartedAt: new Date() }).where(eq(coachJobs.id, asked.id)),
+    );
+    const started = await fail(asked);
+    expect(started?.dedupeKey).toBe(replanKey(asked));
+    expect(started?.dispatchStartedAt).not.toBeNull();
+  } finally {
+    vi.unstubAllEnvs();
+  }
+});
+
+it("keeps one review waiting, not one for every night its claim could not be made", async () => {
+  const a = await reviewing();
+  const boundary = lastCoachBoundary().at;
+  await a.anchor(new Date(boundary.getTime() - 12 * DAY));
+  // Due three nights running and never claimed — a workout left open at four blocks it — so
+  // each night queues a review of a longer stretch of the same days.
+  await dispatchEveryone(new Date(boundary.getTime() - 2 * DAY));
+  await dispatchEveryone(new Date(boundary.getTime() - DAY));
+  await dispatchEveryone(boundary);
+  const reviews = await a.reviews();
+  const waiting = reviews.filter((job) => job.status === "queued");
+  expect(waiting).toHaveLength(1);
+  expect(reviews.filter((job) => job.status === "superseded")).toHaveLength(2);
+  // The one left reads everything since the anchor, up to the latest boundary.
+  expect(waiting[0]?.target).toMatchObject({ reviewEnd: boundary.toISOString() });
+});
 it("stops waiting for a quiet day once the athlete has trained for ten days straight", async () => {
   const a = await reviewing();
   const boundary = lastCoachBoundary().at;
@@ -1251,6 +1428,69 @@ it("shows the newest gym request and its selected Start location on Today", asyn
     requestsLeft: 1,
     pending: { gymId: other!.id },
   });
+});
+
+it("says a session's preparation nothing reached is waiting, not planning, and starts it on a tap", async () => {
+  const a = await athlete();
+  const { draft } = await generated(a);
+  const active = await as(a, (tx) =>
+    activateProgramDraft(tx, a.user.id, draft.id, {
+      expectedRevision: draft.revision,
+      startDate: "2026-09-14",
+      transition: "new_block",
+    }),
+  );
+  const today = () =>
+    as(a, (tx) =>
+      todayWorkflowState(tx, a.user.id, {
+        enabled: true,
+        timeZone: "Asia/Kolkata",
+        programId: active.programId,
+        ref: { cycleIndex: 1, dayIndex: 1 },
+        gymId: a.gym.id,
+      }),
+    );
+  const { job } = await as(a, (tx) => requestGymChange(tx, a.user.id, a.gym.id));
+  expect(await today()).toMatchObject({ pending: { gymId: a.gym.id }, waiting: null });
+
+  // Queued in the night and never reached: hours on, nothing is planning it.
+  const queuedAt = new Date(Date.now() - 2 * 3_600_000);
+  await as(a, (tx) =>
+    tx
+      .update(coachJobs)
+      .set({ createdAt: queuedAt, nextAttemptAt: queuedAt })
+      .where(eq(coachJobs.id, job!.id)),
+  );
+  expect(await today()).toMatchObject({
+    pending: null,
+    waiting: { jobId: job!.id, attempted: false },
+  });
+
+  // Started from Today: on its way from now, not from the night, and claimable at once.
+  expect((await as(a, (tx) => restartWaitingJob(tx, a.user.id, job!.id)))?.id).toBe(job!.id);
+  const started = await today();
+  expect(started).toMatchObject({ pending: { gymId: a.gym.id }, waiting: null });
+  expect(started.pending!.requestedAt.getTime()).toBeGreaterThan(Date.now() - 60_000);
+  // A second tap starts nothing more.
+  expect(await as(a, (tx) => restartWaitingJob(tx, a.user.id, job!.id))).toBeNull();
+  expect(await as(a, (tx) => claimCoachJob(tx, a.user.id, job!.id))).not.toBeNull();
+});
+
+it("starts the review a waiting session is behind, whose ending plans the session", async () => {
+  const a = await reviewing();
+  const nightly = await as(a, (tx) => enqueueDailySession(tx, a.user.id, lastCoachBoundary().date));
+  const review = await queueReview(a, "review:stalled");
+  const queuedAt = new Date(Date.now() - 2 * 3_600_000);
+  await as(a, (tx) =>
+    tx
+      .update(coachJobs)
+      .set({ createdAt: queuedAt, nextAttemptAt: queuedAt })
+      .where(inArray(coachJobs.id, [nightly!.job.id, review.id])),
+  );
+  // The session cannot be claimed past a review not yet tried, so the review is what starts.
+  const started = await as(a, (tx) => restartWaitingJob(tx, a.user.id, nightly!.job.id));
+  expect(started?.id).toBe(review.id);
+  expect(await as(a, (tx) => claimCoachJob(tx, a.user.id, review.id))).not.toBeNull();
 });
 
 it("drains more than 500 eligible athletes without a page ceiling or invented jobs", async () => {

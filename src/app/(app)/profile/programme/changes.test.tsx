@@ -33,7 +33,14 @@ const data = (overrides: Partial<ProgrammeChangesData> = {}): ProgrammeChangesDa
   recent: [],
   history: { requests: 0, changes: 0 },
   waiting: 0,
-  review: { offered: false, canAsk: false, running: false, nextOn: null, lastOn: null },
+  review: {
+    offered: false,
+    canAsk: false,
+    running: false,
+    waiting: null,
+    nextOn: null,
+    lastOn: null,
+  },
   ...overrides,
 });
 
@@ -107,4 +114,31 @@ it("keeps everything settled behind one row instead of printing it", () => {
 it("says nothing is waiting in one line when nothing is", () => {
   render(<ProgrammeChanges data={data()} />);
   expect(screen.getByText("Nothing is waiting for you.")).toBeTruthy();
+});
+
+it("tells a review waiting for the next nightly run from one running, and offers to start it", () => {
+  const review = { offered: true, nextOn: null, lastOn: null };
+  const { unmount } = render(
+    <ProgrammeChanges
+      data={data({ review: { ...review, canAsk: false, running: true, waiting: null } })}
+    />,
+  );
+  expect(screen.getByText("The coach is reviewing your programme.")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: /ask the coach/i })).toBeNull();
+  unmount();
+
+  render(
+    <ProgrammeChanges
+      data={data({
+        review: { ...review, canAsk: true, running: false, waiting: { attempted: true } },
+      })}
+    />,
+  );
+  expect(screen.queryByText("The coach is reviewing your programme.")).toBeNull();
+  expect(
+    screen.getByText(
+      "The coach could not finish your last review. It tries again at its next nightly run, or ask for it now.",
+    ),
+  ).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Ask the coach to review now" })).toBeTruthy();
 });
