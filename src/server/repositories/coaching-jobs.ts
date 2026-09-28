@@ -24,6 +24,7 @@ import {
   coachGymIntents,
   coachChangeRecords,
   coachIntakes,
+  coachJobAttempts,
   coachJobs,
   coachPreferences,
   coachWeeklyReviews,
@@ -44,6 +45,7 @@ import type { Db, DbOrTx } from "@/db/types";
 import { withUser } from "@/db/with-user";
 import {
   COACH_CONTRACT_VERSION,
+  JOB_LEASE_CAP_MS,
   JOB_LEASE_MS,
   MAX_JOB_ATTEMPTS,
   coachJobResultSchema,
@@ -341,6 +343,58 @@ export async function claimCoachJob(db: DbOrTx, userId: string, id: string, now 
     .where(and(eq(coachJobs.id, id), eq(coachJobs.userId, userId), eq(coachJobs.status, "queued")))
     .returning();
   return claimed ?? null;
+}
+
+/**
+ * Keeps a working attempt's claim alive: `JOB_LEASE_MS` from now, never past `JOB_LEASE_CAP_MS`
+ * from the claim, and never shorter than it already is.
+ *
+ * Called on every read and submission of the attempt, before the request is answered and
+ * outside its transaction, so a refused result still counts as the worker being alive. An
+ * attempt that is not the live one, or whose lease has already lapsed, is left as it is: the
+ * request itself then says why it cannot be served.
+ */
+export async function renewCoachLease(
+  db: DbOrTx,
+  userId: string,
+  id: string,
+  attemptId: string,
+  now = new Date(),
+) {
+  const [attempt] = await db
+    .select({ startedAt: coachJobAttempts.startedAt })
+    .from(coachJobAttempts)
+    .where(
+      and(
+        eq(coachJobAttempts.id, attemptId),
+        eq(coachJobAttempts.jobId, id),
+        eq(coachJobAttempts.userId, userId),
+      ),
+    );
+  if (!attempt) return;
+  const until = new Date(
+    Math.min(now.getTime() + JOB_LEASE_MS, attempt.startedAt.getTime() + JOB_LEASE_CAP_MS),
+  );
+  const [renewed] = await db
+    .update(coachJobs)
+    .set({ leaseUntil: until })
+    .where(
+      and(
+        eq(coachJobs.id, id),
+        eq(coachJobs.userId, userId),
+        eq(coachJobs.status, "claimed"),
+        eq(coachJobs.attemptId, attemptId),
+        gt(coachJobs.leaseUntil, now),
+        lt(coachJobs.leaseUntil, until),
+      ),
+    )
+    .returning({ id: coachJobs.id });
+  // The attempt's receipt says when it could last have been timed out.
+  if (renewed)
+    await db
+      .update(coachJobAttempts)
+      .set({ leaseUntil: until })
+      .where(and(eq(coachJobAttempts.id, attemptId), eq(coachJobAttempts.userId, userId)));
 }
 
 /**
@@ -1404,6 +1458,30 @@ export async function dispatchCoachPage(db: Db, after: string | null = null, now
                 purpose: scheduled ? "scheduled" : "requests",
               },
             });
+            // One review reads everything since the last, so a review still waiting from an
+            // earlier night reads a shorter stretch of the same days. Left queued, nights of
+            // blocked claims — a workout left open at four, a failing page — came due together
+            // and ran back to back, each over days the one before had read. The newest replaces
+            // them, as a daily preparation does; a claimed one is left to finish, and a review
+            // answering only requests never replaces a scheduled one, whose week it would leave
+            // unread.
+            await tx
+              .update(coachJobs)
+              .set({
+                status: "superseded",
+                error: "A newer review replaced this one.",
+                completedAt: now,
+                leaseUntil: null,
+              })
+              .where(
+                and(
+                  eq(coachJobs.userId, athlete.id),
+                  eq(coachJobs.kind, "review_program"),
+                  eq(coachJobs.status, "queued"),
+                  ne(coachJobs.id, result.job.id),
+                  scheduled ? undefined : sql`${coachJobs.target}->>'purpose' = 'requests'`,
+                ),
+              );
           }
         }
         if (result && !pending.includes(result.job.status as "queued" | "claimed")) result = null;

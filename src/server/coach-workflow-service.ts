@@ -8,6 +8,7 @@ import {
   coachJobResultSchema,
   COACH_CONTRACT_VERSION,
   isSupportedContract,
+  JOB_ERROR_MAX,
   SUPPORTED_CONTRACT_VERSIONS,
 } from "@/domain/coaching-workflow";
 import { getCoachAttachment } from "./repositories/coach-attachments";
@@ -19,6 +20,7 @@ import {
   dispatchCoachPage,
   getCoachJob,
   queuedCoachJobs,
+  renewCoachLease,
 } from "./repositories/coaching-jobs";
 import { recordAttemptDiagnostics } from "./repositories/coach-diagnostics";
 import { assertCoachEnabled, CoachingError } from "./repositories/coaching-state";
@@ -114,6 +116,10 @@ export async function handleCoachWorkflow(
         await withUser(db, userId, async (tx) => ({ job: await claimCoachJob(tx, userId, id) })),
       );
     const attemptId = z.uuid().parse(new URL(request.url).searchParams.get("attemptId"));
+    // A worker that is still calling is still working: every read and submission keeps its
+    // claim alive, up to the cap. A failure ends the attempt, so there is nothing to renew.
+    if (operation !== "fail")
+      await withUser(db, userId, (tx) => renewCoachLease(tx, userId, id, attemptId));
     if (path.length === 5 && operation === "context" && method === "GET") {
       const started = performance.now();
       const context = await withUser(db, userId, (tx) =>
@@ -207,7 +213,10 @@ export async function handleCoachWorkflow(
     }
     if (path.length === 5 && operation === "fail" && method === "POST") {
       const body = z
-        .object({ error: z.string().trim().min(1).max(500), retryable: z.boolean().default(false) })
+        .object({
+          error: z.string().trim().min(1).max(JOB_ERROR_MAX),
+          retryable: z.boolean().default(false),
+        })
         .parse(await request.json());
       return json(
         await withUser(db, userId, async (tx) => {

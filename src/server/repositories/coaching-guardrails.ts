@@ -10,7 +10,7 @@ import {
   difficultyChange,
   harderAllowance,
   stepHarder,
-  type LoadLadder,
+  withDefaultStep,
 } from "@/domain/load-steps";
 import { WORKING_SET_TYPES } from "@/domain/progression";
 import type { CoachingEvidence } from "./coaching-evidence";
@@ -451,12 +451,9 @@ export async function assessSessionEvidence(
       const ladder = entry.equipmentInstanceId
         ? (ladders.get(entry.equipmentInstanceId) ?? null)
         : null;
-      // Free weights step by the typed jump, as the rule steps them; a machine by its own loads.
-      const steps: LoadLadder | null =
-        ladder ??
-        (slot.weightStep
-          ? { known: [], stack: false, assisted: false, increment: slot.weightStep }
-          : null);
+      // Free weights step by the typed jump, as the rule steps them — the exercise's own where the
+      // machine has none typed — and a stack by its own loads.
+      const steps = withDefaultStep(ladder, slot.weightStep);
       const targetRir = p.rir[0] ?? 2;
       // The part of the athlete's body a bodyweight movement lifts, as the evidence read it:
       // a dumbbell step on a split squat is a small part of what is moved (ADR 0040).
@@ -502,6 +499,77 @@ export async function assessSessionEvidence(
           set.weight === null ? [] : [{ index, load: set.weight }],
         );
       const baselineLoad = baselineLoads[0]?.load ?? trend?.comparison.load;
+      const range = p.type === "reps" ? p.reps : p.type === "duration" ? p.seconds : p.meters;
+      const withTargets = receipts.find(
+        ({ change }) => change.before.targets?.length || change.after.targets?.length,
+      );
+      const retainedTarget =
+        withTargets && stillStands(withTargets) ? withTargets.change : undefined;
+      /**
+       * What a working set is asked for when its target does not change: what the last change gave
+       * it while that change stands, otherwise what the set did in the latest session, brought
+       * inside the programme's range — whether or not that session can support a change. Null
+       * where neither says, and any target in the range leaves it unchanged.
+       */
+      const unchangedTarget = (index: number) => {
+        const prior = baselineSets[index];
+        const recorded =
+          p.type === "reps"
+            ? prior?.reps
+            : p.type === "duration"
+              ? prior?.durationSeconds
+              : prior?.distanceMeters;
+        const old =
+          (retainedTarget?.kind === "temporary"
+            ? retainedTarget.before.targets
+            : retainedTarget?.after.targets)?.[index] ?? recorded;
+        return old == null
+          ? null
+          : Math.min(range?.[1] ?? Infinity, Math.max(range?.[0] ?? 0, old));
+      };
+      /** The known loads, as a refusal to drop them names them: " (40, 40 and 42.5 kg)". */
+      const loadList = () => {
+        const loads = Array.from(
+          { length: p.sets },
+          (_, index) => baselineLoads.find((item) => item.index === index)?.load ?? baselineLoad,
+        ).filter((load): load is number => load != null);
+        if (loads.length === 0) return null;
+        const list =
+          loads.length > 1
+            ? `${loads.slice(0, -1).join(", ")} and ${loads.at(-1)}`
+            : String(loads[0]);
+        return { list: `${list} ${unit}`, many: loads.length > 1 };
+      };
+      const heldLoads = () => {
+        const known = loadList();
+        return known ? ` (${known.list})` : "";
+      };
+      /**
+       * The loads a plan that changes nothing keeps, as a refused load change names them. The
+       * baseline is a change still standing where there is one — a step back the athlete has not
+       * trained yet — and not the load last lifted, which is all the trend shows.
+       */
+      const keptLoads = () => {
+        const known = loadList();
+        return known
+          ? ` Unchanged, its ${known.many ? "loads are" : "load is"} ${known.list}.`
+          : "";
+      };
+      /**
+       * Those targets, as a refused target change names them. Nothing else tells a worker what an
+       * unchanged slot is, and one that guesses spends its corrections finding out.
+       */
+      const heldTargets = () => {
+        const each = Array.from({ length: p.sets }, (_, index) => {
+          const target = unchangedTarget(index);
+          if (target !== null) return String(target);
+          return range?.[0] != null && range[1] != null ? `${range[0]}–${range[1]}` : "any";
+        });
+        const list =
+          each.length > 1 ? `${each.slice(0, -1).join(", ")} and ${each.at(-1)}` : each[0];
+        const measure = p.type === "reps" ? "reps" : p.type === "duration" ? "seconds" : "metres";
+        return `Unchanged, its working ${each.length > 1 ? "sets are" : "set is"} ${list} ${measure}.`;
+      };
       const proposedLoads: { index: number; load: number }[] = [];
       const baselineTargets: number[] = [],
         proposedTargets: number[] = [];
@@ -520,7 +588,6 @@ export async function assessSessionEvidence(
             plan.note("A daily plan cannot increase effort beyond the program's target RIR.");
           if (!temporary && p.type === "reps" && p.rir[1] != null && set.rir! > p.rir[1] + 1)
             plan.note("A lasting effort reduction needs program review.");
-          const range = p.type === "reps" ? p.reps : p.type === "duration" ? p.seconds : p.meters;
           const value =
             p.type === "reps"
               ? set.reps
@@ -564,25 +631,7 @@ export async function assessSessionEvidence(
               `${entry.exerciseSlug}: targets outside the program range need a program review.`,
             );
           const priorSet = baselineSets[index];
-          const recordedValue =
-            p.type === "reps"
-              ? priorSet?.reps
-              : p.type === "duration"
-                ? priorSet?.durationSeconds
-                : priorSet?.distanceMeters;
-          const withTargets = receipts.find(
-            ({ change }) => change.before.targets?.length || change.after.targets?.length,
-          );
-          const retainedTarget =
-            withTargets && stillStands(withTargets) ? withTargets.change : undefined;
-          const oldValue =
-            (retainedTarget?.kind === "temporary"
-              ? retainedTarget.before.targets
-              : retainedTarget?.after.targets)?.[index] ?? recordedValue;
-          const targetBaseline =
-            oldValue == null
-              ? null
-              : Math.min(range?.[1] ?? Infinity, Math.max(range?.[0] ?? 0, oldValue));
+          const targetBaseline = unchangedTarget(index);
           if (targetBaseline !== null) baselineTargets.push(targetBaseline);
           if (value !== null) proposedTargets.push(value);
           if (
@@ -628,7 +677,7 @@ export async function assessSessionEvidence(
                 !(delta > 0 ? trend?.repeatedCompletion : trend?.declineCandidate)
               )
                 plan.note(
-                  `${entry.exerciseSlug}: target changes need repeated comparable evidence and a small step.`,
+                  `${entry.exerciseSlug}: target changes need repeated comparable evidence and a small step. ${heldTargets()}`,
                 );
             }
             changedTarget = true;
@@ -637,7 +686,7 @@ export async function assessSessionEvidence(
           if (set.weight === null) {
             if (setBaseline != null && !equipmentChange && result.adjustment !== "calibration")
               plan.note(
-                `${entry.exerciseSlug}: retain the known load, or explicitly request recalibration.`,
+                `${entry.exerciseSlug}: retain the known load${heldLoads()}, or explicitly request recalibration.`,
               );
             continue;
           }
@@ -655,9 +704,13 @@ export async function assessSessionEvidence(
             );
           if (setBaseline == null || setBaseline <= 0) {
             if (set.weight === 0) continue;
+            // Logged at nothing added, the load is known and it is zero: leaving it unknown is
+            // refused as dropping a known load, so the way out is to keep it, not to forget it.
             if (result.adjustment !== "calibration")
               plan.note(
-                `${entry.exerciseSlug}: no comparable starting load; use calibration with a feasible load or leave load unknown.`,
+                setBaseline === 0
+                  ? `${entry.exerciseSlug}: it was logged with no added load, so there is no load to step from; keep the load at 0, or add load with calibration.`
+                  : `${entry.exerciseSlug}: no comparable starting load; use calibration with a feasible load or leave load unknown.`,
               );
             continue;
           }
@@ -689,11 +742,11 @@ export async function assessSessionEvidence(
             plan.note("A temporary recovery adjustment cannot make the load harder.");
           if (beyondLimit)
             plan.note(
-              `${entry.exerciseSlug}: the load change exceeds the automatic limit and needs review.`,
+              `${entry.exerciseSlug}: the load change exceeds the automatic limit and needs review.${keptLoads()}`,
             );
           if (unsupported)
             plan.note(
-              `${entry.exerciseSlug}: the change is not supported by repeated comparable performance.`,
+              `${entry.exerciseSlug}: the change is not supported by repeated comparable performance.${keptLoads()}`,
             );
           const originalPerformance = trend?.observations
             .filter(
@@ -877,10 +930,35 @@ export async function assessSessionEvidence(
         )
         .at(-1);
       const retained = prior?.kind === "temporary" ? prior.before : prior?.after;
+      /**
+       * The run an unchanged plan asks for: what the last change set, else the last comparable
+       * run, brought inside the programme's range as a strength target is, and to the whole
+       * minute a plan can say. Unbounded, an athlete who ran 30 minutes against 20–25 could be
+       * planned neither 30 (outside the range) nor 25 (a lasting reduction); and a 27:40 run
+       * could never be held at all, because no whole number of minutes is 27:40.
+       */
+      const within = (value: number | undefined, min: number | null, max: number | null) =>
+        value === undefined ? undefined : Math.min(max ?? Infinity, Math.max(min ?? 0, value));
+      const bounds = runPrescription ?? null;
+      const heldDuration = within(
+        retained?.duration ?? last?.duration,
+        bounds?.durationMinMinutes != null ? bounds.durationMinMinutes * 60 : null,
+        bounds?.durationMaxMinutes != null ? bounds.durationMaxMinutes * 60 : null,
+      );
       const baseline = {
-        duration: retained?.duration ?? last?.duration,
-        distance: retained?.distance ?? last?.distance,
+        duration: heldDuration === undefined ? undefined : Math.round(heldDuration / 60) * 60,
+        distance: within(
+          retained?.distance ?? last?.distance,
+          bounds?.distanceMinKm != null ? bounds.distanceMinKm * 1000 : null,
+          bounds?.distanceMaxKm != null ? bounds.distanceMaxKm * 1000 : null,
+        ),
       };
+      /** The unchanged run, as a refused change names it, so a correction can hold it. */
+      const held = [
+        baseline.duration ? `${baseline.duration / 60} minutes` : null,
+        baseline.distance ? `${Math.round(baseline.distance / 10) / 100} km` : null,
+      ].filter(Boolean);
+      const unchanged = held.length ? ` Unchanged, the run is ${held.join(" and ")}.` : "";
       const distance = run.distanceKm === null ? null : run.distanceKm * 1000;
       const duration = run.durationMinutes === null ? null : run.durationMinutes * 60;
       const longest = evidence.running.longestDistance30Days;
@@ -899,7 +977,7 @@ export async function assessSessionEvidence(
       if (deltas.some((delta) => Math.abs(delta) > 0.001)) {
         if (!temporary && deltas.some((delta) => delta < -0.001))
           plan.note(
-            "Lasting running reductions need program review; use a supported temporary adjustment for current recovery.",
+            `Lasting running reductions need program review; use a supported temporary adjustment for current recovery.${unchanged}`,
           );
         if (
           deltas.some((delta) =>
@@ -907,7 +985,7 @@ export async function assessSessionEvidence(
           )
         )
           plan.note(
-            "This run change exceeds the automatic limit; retain the baseline or ask for review.",
+            `This run change exceeds the automatic limit; retain the baseline or ask for review.${unchanged}`,
           );
         const original = evidence.changes
           .filter(
@@ -942,7 +1020,7 @@ export async function assessSessionEvidence(
           history.slice(-2).map((item) => item.sourceId),
         );
         if (!temporary && fresh.days < 2)
-          plan.note("Changing this run needs two new comparable running dates.");
+          plan.note(`Changing this run needs two new comparable running dates.${unchanged}`);
         changes.push({
           scope,
           runMode: run.mode,
