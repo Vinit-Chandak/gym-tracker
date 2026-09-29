@@ -6,6 +6,7 @@ const baseURL = process.env.AUDIT_BASE_URL ?? "http://localhost:3100";
 if (!["localhost", "127.0.0.1"].includes(new URL(baseURL).hostname))
   throw new Error("Local audit only.");
 const output = process.env.AUDIT_OUTPUT_DIR ?? "output/flow-audit";
+const captureViewport = process.env.AUDIT_CAPTURE_VIEWPORT === "true";
 const fixtures = JSON.parse(await readFile(`${output}/fixtures.json`, "utf8"));
 const results = [];
 const user = (name) => fixtures.people.find((p) => p.username === name).id;
@@ -152,14 +153,27 @@ const configurations = [
   { name: "android", browser: chromium, options: devices["Pixel 7"] },
   { name: "iphone", browser: webkit, options: devices["iPhone 13"] },
   {
+    name: "iphone17",
+    browser: webkit,
+    explicitOnly: true,
+    options: {
+      ...devices["iPhone 17"],
+      viewport: { width: 402, height: 874 },
+      screen: { width: 402, height: 874 },
+      deviceScaleFactor: 3,
+      isMobile: true,
+      hasTouch: true,
+    },
+  },
+  {
     name: "narrow",
     browser: chromium,
     options: { viewport: { width: 320, height: 740 }, isMobile: true, hasTouch: true },
   },
   { name: "desktop", browser: chromium, options: { viewport: { width: 1440, height: 1000 } } },
 ];
-for (const config of configurations.filter(
-  (c) => !process.env.AUDIT_DEVICE || c.name === process.env.AUDIT_DEVICE,
+for (const config of configurations.filter((c) =>
+  process.env.AUDIT_DEVICE ? c.name === process.env.AUDIT_DEVICE : !c.explicitOnly,
 )) {
   const theme = process.env.AUDIT_THEME === "dark" ? "dark" : "light";
   if (theme === "dark") config.name += "-dark";
@@ -171,6 +185,9 @@ for (const config of configurations.filter(
     executablePath: config.browser === chromium ? process.env.AUDIT_CHROMIUM_PATH : undefined,
   });
   const context = await browser.newContext({ ...config.options, baseURL, colorScheme: theme });
+  await context.addInitScript((mode) => {
+    if (location.origin !== "null") localStorage.setItem("overload:appearance", mode);
+  }, theme);
   let page;
   const errors = [];
   async function freshPage() {
@@ -188,6 +205,8 @@ for (const config of configurations.filter(
   async function visit(route, persona, index) {
     if (process.env.AUDIT_ROUTE_FILTER && !new RegExp(process.env.AUDIT_ROUTE_FILTER).test(route))
       return;
+    const screenshotName = `${persona}-${String(index).padStart(2, "0")}`;
+    const screenshots = {};
     const expectedRoute =
       route === "/"
         ? "/today"
@@ -227,13 +246,30 @@ for (const config of configurations.filter(
         await new Promise(requestAnimationFrame);
         await new Promise(requestAnimationFrame);
       });
+      await page.waitForFunction(
+        (mode) => document.documentElement.getAttribute("data-overload-mode") === mode,
+        theme,
+        { timeout: 5000 },
+      );
       const fullPage = await page.evaluate(
         () => document.documentElement.scrollHeight * devicePixelRatio < 32000,
       );
+      if (captureViewport) {
+        const viewportPath = `${config.name}/${screenshotName}-viewport.png`;
+        await page.screenshot({
+          path: `${output}/${viewportPath}`,
+          fullPage: false,
+          animations: "disabled",
+        });
+        screenshots.viewport = viewportPath;
+      }
+      const pagePath = `${config.name}/${screenshotName}.png`;
       await page.screenshot({
-        path: `${folder}/${persona}-${String(index).padStart(2, "0")}.png`,
+        path: `${output}/${pagePath}`,
         fullPage,
+        animations: "disabled",
       });
+      screenshots.page = pagePath;
       const data = await page.evaluate(() => ({
         title: document.title,
         text: document.body.innerText.slice(0, 18000),
@@ -265,6 +301,8 @@ for (const config of configurations.filter(
         url: page.url(),
         status: response.status(),
         durationMs,
+        screenshots,
+        screenshotFullPage: fullPage,
         ...data,
         errors: [...errors],
         accessibility,
@@ -278,7 +316,7 @@ for (const config of configurations.filter(
         `${config.name} ${persona} ${route}: ${response.status()}${data.overflow ? " OVERFLOW" : ""}${errors.length ? ` ERRORS ${errors.length}` : ""}${accessibility.length ? ` A11Y ${accessibility.map((v) => v.id).join(",")}` : ""}`,
       );
     } catch (error) {
-      results.push({ device: config.name, persona, route, error: error.message });
+      results.push({ device: config.name, persona, route, screenshots, error: error.message });
       console.log(`${config.name} ${route}: FAILED ${error.message.split("\n")[0]}`);
     }
     await writeFile(
