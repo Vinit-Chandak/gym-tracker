@@ -96,7 +96,7 @@ Requires Node.js 20.9 or newer (Node 22 recommended) and npm.
 
 For a separate local database, local authentication and six test accounts with 56 months of
 history, follow [the local audit setup](docs/audits/local-56-months.md). The
-[comprehensive audit report](docs/audits/2026-09-26-comprehensive-audit.md) records the fixes,
+[comprehensive audit report](docs/audits/2026-09-29-comprehensive-audit.md) records the fixes,
 screen coverage and verification commands.
 
 ```bash
