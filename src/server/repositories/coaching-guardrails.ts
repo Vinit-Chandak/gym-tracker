@@ -510,8 +510,9 @@ export async function assessSessionEvidence(
       /**
        * What a working set is asked for when its target does not change: what the last change gave
        * it while that change stands, otherwise what the set did in the latest session, brought
-       * inside the programme's range — whether or not that session can support a change. Null
-       * where neither says, and any target in the range leaves it unchanged.
+       * inside the programme's range — whether or not that session can support a change. An
+       * approved target may already be above the range at a coarse load step, but remains bounded
+       * by that load's ceiling. Null where neither says, and any in-range target is unchanged.
        */
       const unchangedTarget = (index: number) => {
         const prior = baselineSets[index];
@@ -521,13 +522,18 @@ export async function assessSessionEvidence(
             : p.type === "duration"
               ? prior?.durationSeconds
               : prior?.distanceMeters;
-        const old =
-          (retainedTarget?.kind === "temporary"
+        const retained = (
+          retainedTarget?.kind === "temporary"
             ? retainedTarget.before.targets
-            : retainedTarget?.after.targets)?.[index] ?? recorded;
-        return old == null
-          ? null
-          : Math.min(range?.[1] ?? Infinity, Math.max(range?.[0] ?? 0, old));
+            : retainedTarget?.after.targets
+        )?.[index];
+        const old = retained ?? recorded;
+        const load = baselineLoads.find((item) => item.index === index)?.load ?? baselineLoad;
+        const top =
+          retained != null && range?.[1] != null
+            ? Math.max(range[1], ceilingAt(load ?? null) ?? range[1])
+            : (range?.[1] ?? Infinity);
+        return old == null ? null : Math.min(top, Math.max(range?.[0] ?? 0, old));
       };
       /** The known loads, as a refusal to drop them names them: " (40, 40 and 42.5 kg)". */
       const loadList = () => {

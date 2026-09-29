@@ -15,7 +15,7 @@ import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 
 import { CoachSimulation } from "./coach-simulator";
 import { PERSONAS } from "./personas";
-import { summarize } from "./report";
+import { contextFileName, summarize } from "./report";
 
 const TOKEN = "simulated-coach-service-token";
 const days = Number(process.env.SIM_DAYS ?? 28);
@@ -49,10 +49,7 @@ it("coaches every persona without a refusal it cannot answer", async () => {
   writeFileSync(join(out, "findings.json"), JSON.stringify(sim.findings, null, 2));
   writeFileSync(join(out, "dispatches.json"), JSON.stringify(sim.dispatches, null, 2));
   for (const [kind, sample] of sim.samples)
-    writeFileSync(
-      join(out, `context-${kind.replace(/[^a-z_:]/gi, "-")}.json`),
-      JSON.stringify(sample, null, 2),
-    );
+    writeFileSync(join(out, contextFileName(kind)), JSON.stringify(sample, null, 2));
   console.info(`Coach simulation report: ${join(out, "report.md")}\n${report.headline}`);
   // The simulation's verdict: every job either accepted, or refused only with an answerable issue.
   expect(report.unanswerable).toEqual([]);

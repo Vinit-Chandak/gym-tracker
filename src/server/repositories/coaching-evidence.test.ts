@@ -1400,6 +1400,72 @@ it("names the targets a slot holds when its history cannot support a change", as
   });
 });
 
+it("retains approved reps above the nominal range at a coarse step without reusing their evidence", async () => {
+  const a = await squatFixture([straight(12, 12, 6)]);
+  await a.as(async (db) => {
+    await db
+      .update(programExercises)
+      .set({
+        repMin: 10,
+        repMax: 15,
+        rirMin: 1,
+        rirMax: 2,
+        progressionRule: { kind: "double_progression", loadIncrement: 2 },
+      })
+      .where(eq(programExercises.id, a.slot.id));
+    await db
+      .update(equipmentInstances)
+      .set({ loadIncrement: 2 })
+      .where(eq(equipmentInstances.id, a.bar.id));
+
+    // The 12 → 14 kg step permits up to 17 reps before stepping the load. This session has
+    // enough capacity for 17, but the accepted change asks for 16 and spends that evidence.
+    const approved = await a.assess(db, straight(12, 16, 1), [a.ids[0]!]);
+    expect(approved).toMatchObject([
+      { before: { targets: [12, 12, 12] }, after: { targets: [16, 16, 16] } },
+    ]);
+    await db.insert(coachChangeRecords).values({
+      userId: a.user.id,
+      changes: approved,
+      createdAt: new Date(now.getTime() - 1000),
+    });
+    // Retaining that exact target is a hold, with no new receipt or citation needed.
+    expect(await a.assess(db, straight(12, 16, 1), [])).toEqual([]);
+    expect((await a.refusal(db, straight(12, 17, 1), [a.ids[0]!]))?.issues).toContain(
+      `${SQUAT}: this change stands on ${a.ids[0]}; cite it, and only evidence new since the last accepted change. The same evidence cannot justify another change.`,
+    );
+    // The exception belongs to this unchanged load, and never exceeds its coarse-step ceiling.
+    for (const sets of [straight(14, 16, 1), straight(12, 18, 1)])
+      expect((await a.refusal(db, sets, [a.ids[0]!]))?.issues).toContain(
+        `${SQUAT}: targets outside the program range need a program review.`,
+      );
+  });
+});
+
+it("does not treat an unapproved logged overshoot as an above-range retained target", async () => {
+  const a = await squatFixture([[1, 2, 3].map(() => ({ weight: 12, reps: 16, rir: null }))]);
+  await a.as(async (db) => {
+    await db
+      .update(programExercises)
+      .set({
+        repMin: 10,
+        repMax: 15,
+        rirMin: 1,
+        rirMax: 2,
+        progressionRule: { kind: "double_progression", loadIncrement: 2 },
+      })
+      .where(eq(programExercises.id, a.slot.id));
+    await db
+      .update(equipmentInstances)
+      .set({ loadIncrement: 2 })
+      .where(eq(equipmentInstances.id, a.bar.id));
+    expect(await a.assess(db, straight(12, 15, 1), [])).toEqual([]);
+    expect((await a.refusal(db, straight(12, 16, 1), []))?.issues).toContain(
+      `${SQUAT}: target changes need repeated comparable evidence and a small step. Unchanged, its working sets are 15, 15 and 15 reps.`,
+    );
+  });
+});
+
 it("goes back to the load before a step that missed the range twice", async () => {
   const missed = straight(102.5, 3, 0);
   const a = await squatFixture([

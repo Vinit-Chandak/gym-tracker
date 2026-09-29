@@ -1,5 +1,19 @@
 import type { Finding, JobRecord } from "./coach-simulator";
 
+/** Context keys use colons internally; exported files must also be valid on Windows. */
+export const contextFileName = (kind: string) =>
+  `context-${kind.replace(/[^a-z0-9_-]/gi, "-")}.json`;
+
+const expectedSupersession = (job: JobRecord) =>
+  job.outcome === "unclaimable" &&
+  job.kind === "prepare_session" &&
+  job.claimState?.httpStatus === 200 &&
+  job.claimState.status === "superseded" &&
+  [
+    "A newer daily preparation replaced this attempt.",
+    "A review re-planned this session.",
+  ].includes(job.claimState.error ?? "");
+
 /** A message with its identifiers and numbers taken out, so the same refusal groups together. */
 export function pattern(message: string) {
   return message
@@ -18,7 +32,8 @@ const percentile = (values: number[], share: number) => {
 export function summarize(jobs: readonly JobRecord[], findings: readonly Finding[]) {
   const failed = jobs.filter(
     (job) =>
-      !job.meant && ["refused", "crashed", "context_error", "not_accepted"].includes(job.outcome),
+      (job.outcome === "unclaimable" && !expectedSupersession(job)) ||
+      (!job.meant && ["refused", "crashed", "context_error", "not_accepted"].includes(job.outcome)),
   );
   // Refusals the reference coach corrected its way past are worth knowing; ones it could not
   // are the point.
@@ -87,6 +102,17 @@ export function summarize(jobs: readonly JobRecord[], findings: readonly Finding
       `${meant.length} more jobs were refused on purpose (${[...new Set(meant.map((job) => job.persona))].join(", ")}): their re-plans are checked, not their refusals.`,
       "",
     );
+  const superseded = jobs.filter(expectedSupersession);
+  if (superseded.length) {
+    lines.push("## Queue snapshots superseded before claim", "");
+    lines.push(
+      "These preparations were replaced after an earlier review in the same queue snapshot finished; the replacement preparations are processed separately.",
+      "",
+    );
+    for (const job of superseded)
+      lines.push(`- Day ${job.day}, ${job.persona}, ${job.jobId}: ${job.claimState!.error}`);
+    lines.push("");
+  }
   lines.push("## Refusals corrected within the budget", "");
   if (correctedGroups.size === 0) lines.push("None.");
   for (const [key, entry] of [...correctedGroups].sort((a, b) => b[1].count - a[1].count))

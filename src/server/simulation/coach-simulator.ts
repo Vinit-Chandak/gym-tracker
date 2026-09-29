@@ -46,6 +46,7 @@ import {
   voidPlanForSlot,
 } from "@/server/repositories/coach-plans";
 import {
+  getCoachJob,
   requestGymChange,
   requestProgramCreation,
   requestProgramReview,
@@ -82,6 +83,7 @@ export type Clock = { set(at: Date): void };
 
 /** One job the reference coach worked, and what came of it. */
 export type JobRecord = {
+  jobId: string;
   persona: string;
   day: number;
   date: string;
@@ -94,6 +96,13 @@ export type JobRecord = {
   contextBytes: number | null;
   contextMs: number | null;
   detail?: string;
+  /** The stored state after a queue snapshot's job could no longer be claimed. */
+  claimState?: {
+    httpStatus: number;
+    status: string | null;
+    error: string | null;
+    nextAttemptAt: string | null;
+  };
   /** The preparations a review's ending queued for the athlete's next session. */
   replan?: string[];
   /** The persona set this job up to fail, so its refusal is the case under test, not a finding. */
@@ -545,6 +554,7 @@ export class CoachSimulation {
   private async work(userId: string, jobId: string, kind: string, trigger: string) {
     const a = this.byUser.get(userId)!;
     const record: JobRecord = {
+      jobId,
       persona: a.persona.name,
       day: this.day,
       date: this.date(this.day),
@@ -563,7 +573,17 @@ export class CoachSimulation {
       const claim = await this.call([...root, "claim"], { method: "POST" });
       const job = claim.body.job as { attemptId: string; target: Json } | null;
       if (claim.status !== 200 || !job) {
-        record.detail = claim.status === 200 ? "not claimable" : JSON.stringify(claim.body);
+        const stored = await this.as(a, (db) => getCoachJob(db, userId, jobId));
+        record.claimState = {
+          httpStatus: claim.status,
+          status: stored?.status ?? null,
+          error: stored?.error ?? null,
+          nextAttemptAt: stored?.nextAttemptAt.toISOString() ?? null,
+        };
+        record.detail =
+          claim.status === 200
+            ? `Not claimable: ${stored?.status ?? "missing"}; ${stored?.error ?? "no reason stored"}`
+            : JSON.stringify(claim.body);
         return false;
       }
       const attempt = job.attemptId;
@@ -1370,7 +1390,7 @@ const clamp = (value: number, range: [number | null, number | null] | null) =>
   Math.min(range?.[1] ?? Infinity, Math.max(range?.[0] ?? 0, value));
 
 /** A strength session: every pending slot kept, swapped or dropped, and each set's target. */
-function session(context: Context, strategy: Persona["coach"]): Plan {
+export function session(context: Context, strategy: Persona["coach"]): Plan {
   const slots = context.nextSession?.exercises ?? [];
   const home = context.nextSession?.gym?.kind === "home";
   let adjustment = "normal";
@@ -1546,7 +1566,14 @@ function session(context: Context, strategy: Persona["coach"]): Plan {
                   ? "durationSeconds"
                   : "distanceMeters";
           } else if (stands) {
-            for (const id of stands[1]!.split(", ")) cite.add(id);
+            const required = stands[1]!.split(", ");
+            // A cited source still refused as not fresh cannot earn another change. Holding
+            // lets the server name any retained baseline we cannot see, instead of resending
+            // the identical rejected increase until the correction budget is exhausted.
+            if (required.some((id) => extra.has(id))) {
+              if (!item) return null;
+              item.entry.sets = item.hold;
+            } else for (const id of required) cite.add(id);
           } else if (
             item &&
             /not supported by repeated comparable performance|cite two new comparable training dates|exceeds the automatic limit|combined .*need review|targets outside the program range|home equipment is known to have|set-count changes|set change needs athlete review|logged with no added load/.test(
