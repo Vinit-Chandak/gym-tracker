@@ -44,6 +44,7 @@ for (const key of [
   "AUDIT_FONT_SIZE",
   "AUDIT_EXPAND_DETAILS",
   "AUDIT_ROUTE_FILTER",
+  "AUDIT_UI_CHECK_FILTER",
   "AUDIT_HISTORY_WEBKIT_SAMPLE",
 ])
   delete env[key];
@@ -63,7 +64,14 @@ for (const device of ["narrow", "iphone"])
     AUDIT_EXPAND_DETAILS: "true",
   });
 add("history", "audit-history", { AUDIT_HISTORY_WEBKIT_SAMPLE: "true" });
-for (const name of ["account", "programme", "bookmarks", "ui-controls", "activity-time"])
+for (const name of [
+  "account",
+  "programme",
+  "bookmarks",
+  "legacy-routes",
+  "ui-controls",
+  "activity-time",
+])
   add(name, `audit-${name}`);
 for (const device of ["android", "iphone"]) {
   for (const name of ["workout", "flows", "recovery"])

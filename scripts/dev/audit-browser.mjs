@@ -44,6 +44,12 @@ const routes = [
   `/runs/${run}`,
   `/runs/${run}/edit`,
   "/food",
+  // Keep populated food states in the sweep even when the saved seed anchor is yesterday.
+  ...(fixtures.history
+    ? ["/food", "/food/breakfast", "/food/lunch", "/food/dinner"].map(
+        (route) => `${route}?day=${fixtures.history.to}`,
+      )
+    : []),
   "/food/targets",
   "/food/my-foods",
   "/food/my-foods/meals/new",

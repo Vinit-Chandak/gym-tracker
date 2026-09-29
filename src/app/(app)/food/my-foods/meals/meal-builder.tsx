@@ -14,6 +14,7 @@ import { addUp, NUTRITION_LIMITS, scaleFood, type Food } from "@/domain/nutritio
 import { formatKcal, formatMacros, formatPortion } from "@/lib/format";
 import { previousAppPage } from "@/lib/navigation-history";
 import { attempted, OFFLINE_SUBMIT_MESSAGE } from "@/lib/offline-submit";
+import { cn } from "@/lib/utils";
 import { deleteSavedMealAction, saveLibraryMealAction } from "@/server/actions/nutrition";
 import type { FoodRecord, SavedMealRecord } from "@/server/repositories/nutrition";
 
@@ -179,9 +180,9 @@ export function MealBuilder({
                   type="button"
                   disabled={busy}
                   onClick={() => open({ kind: "item", item })}
-                  className={PRESSABLE_ROW_CLASS}
+                  className={cn(PRESSABLE_ROW_CLASS, "flex-wrap")}
                 >
-                  <span className="min-w-0 flex-1">
+                  <span className="min-w-0 flex-[1_1_10rem]">
                     <span className="block font-medium [overflow-wrap:anywhere]">
                       {item.food.name}
                     </span>{" "}
@@ -189,7 +190,7 @@ export function MealBuilder({
                       {formatPortion(item.amount, item.food.unit)}
                     </span>
                   </span>{" "}
-                  <span className="shrink-0 tabular-nums">
+                  <span className="ml-auto max-w-full tabular-nums">
                     {formatKcal(scaleFood(item.food, item.amount).kcal)} kcal
                   </span>
                 </button>

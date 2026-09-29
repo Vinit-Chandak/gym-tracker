@@ -263,22 +263,24 @@ function MacroSheet({
             {rows.map((row) => (
               <li
                 key={`${row.name}-${row.unit}`}
-                className="flex min-h-14 items-center gap-3 py-2.5"
+                className="flex min-h-14 flex-wrap items-center gap-3 py-2.5"
               >
-                <span className="min-w-0 flex-1">
+                <span className="min-w-0 flex-[1_1_10rem]">
                   <span className="block font-medium [overflow-wrap:anywhere]">{row.name}</span>{" "}
                   <span className="block text-sm text-ink-muted tabular-nums">
                     {row.meals.map((meal) => MEAL_LABELS[meal]).join(", ")} ·{" "}
-                    <span className="whitespace-nowrap">{formatPortion(row.amount, row.unit)}</span>
+                    <span>{formatPortion(row.amount, row.unit)}</span>
                   </span>
                 </span>{" "}
                 {row.grams === null ? (
-                  <span className="shrink-0 text-ink-muted">
+                  <span className="ml-auto max-w-full text-ink-muted">
                     <span aria-hidden>—</span>
                     <span className="sr-only"> no figure</span>
                   </span>
                 ) : (
-                  <span className="shrink-0 font-medium tabular-nums">{grams(row.grams)} g</span>
+                  <span className="ml-auto max-w-full font-medium tabular-nums">
+                    {grams(row.grams)} g
+                  </span>
                 )}
               </li>
             ))}

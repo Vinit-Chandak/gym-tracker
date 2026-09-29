@@ -4,17 +4,22 @@ import { redirect } from "next/navigation";
 import { LegacyUnavailable } from "@/components/activities/legacy-unavailable";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
-import { requireUser } from "@/server/auth";
+import { requireOnboardedUser } from "@/server/auth";
 import { activityForLegacyRun } from "@/server/legacy-routes";
 import { requireUuid } from "@/server/validation/params";
 
-export const metadata: Metadata = { title: "Edit run" };
+export const metadata: Metadata = { title: "Run" };
 
-/** The old edit link, resolved onto the activity the run became (plan §3.2). */
-export default async function EditRunPage(props: PageProps<"/runs/[runId]/edit">) {
+/**
+ * An old `/runs/<uuid>` link (plan §3.2).
+ *
+ * The run it names is an activity now, and the identifier map says which one. A link that
+ * cannot be resolved says so rather than landing on somebody else's session.
+ */
+export default async function RunPage(props: PageProps<"/runs/[runId]">) {
+  const user = await requireOnboardedUser();
   const { runId } = await props.params;
   requireUuid(runId);
-  const user = await requireUser();
   const activityId = await withUser(
     getDb(),
     user.id,
@@ -22,5 +27,5 @@ export default async function EditRunPage(props: PageProps<"/runs/[runId]/edit">
     { readOnly: true },
   );
   if (!activityId) return <LegacyUnavailable />;
-  redirect(`/training/activities/${activityId}/edit`);
+  redirect(`/training/activities/${activityId}`);
 }

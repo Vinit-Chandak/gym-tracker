@@ -15,6 +15,7 @@
     "audit:ui-controls": "node scripts/dev/audit-ui-controls.mjs",
     "audit:quick-food": "node scripts/dev/audit-quick-food.mjs",
     "audit:activity-time": "node scripts/dev/audit-activity-time.mjs",
+    "audit:legacy-routes": "node scripts/dev/audit-legacy-routes.mjs",
     "audit:flows": "node scripts/dev/audit-flows.mjs",
     "audit:workout": "node scripts/dev/audit-workout.mjs",
     "audit:account": "node scripts/dev/audit-account.mjs",

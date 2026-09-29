@@ -210,14 +210,14 @@ export function SavedMealSheet({
       <div className="space-y-4 pb-1">
         <ul className="ruled-list">
           {saved.items.map((item, index) => (
-            <li key={index} className="flex items-baseline justify-between gap-3 py-2.5">
-              <span className="min-w-0 [overflow-wrap:anywhere]">
+            <li key={index} className="flex flex-wrap items-baseline justify-between gap-3 py-2.5">
+              <span className="min-w-0 flex-[1_1_10rem] [overflow-wrap:anywhere]">
                 {item.name}{" "}
                 <span className="text-sm text-ink-muted">
                   {formatPortion(item.amount, item.unit)}
                 </span>
               </span>{" "}
-              <span className="shrink-0 text-sm tabular-nums">
+              <span className="ml-auto max-w-full text-sm tabular-nums">
                 {formatKcal(eaten(item).kcal)} kcal
               </span>
             </li>

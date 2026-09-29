@@ -85,7 +85,9 @@ function DayLink({
   if (day > today) {
     return (
       <span className="flex flex-col items-center gap-1 py-1 text-sm text-ink-muted tabular-nums">
-        <span className="flex size-9 items-center justify-center">{number}</span>
+        <span className="flex aspect-square w-9 max-w-full items-center justify-center">
+          {number}
+        </span>
         <span aria-hidden className="size-1.5" />
       </span>
     );
@@ -106,7 +108,7 @@ function DayLink({
       <span
         aria-hidden
         className={cn(
-          "flex size-9 items-center justify-center rounded-full text-sm tabular-nums",
+          "flex aspect-square w-9 max-w-full items-center justify-center rounded-full text-sm tabular-nums",
           day === selected
             ? "bg-accent font-semibold text-on-accent"
             : isToday && "border border-line-strong font-semibold",

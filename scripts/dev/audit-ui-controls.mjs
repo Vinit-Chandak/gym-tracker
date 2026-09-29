@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { chromium, webkit, devices } from "@playwright/test";
+import { assertReadableText } from "./audit-text-readability.mjs";
+import { checkFoodLayout } from "./audit-food-layout.mjs";
 
 const baseURL = process.env.AUDIT_BASE_URL ?? "http://localhost:3100";
 if (!["localhost", "127.0.0.1"].includes(new URL(baseURL).hostname))
@@ -45,6 +47,11 @@ for (const config of [
     await page.waitForLoadState("networkidle");
   }
   async function check(name, run) {
+    if (
+      process.env.AUDIT_UI_CHECK_FILTER &&
+      !new RegExp(process.env.AUDIT_UI_CHECK_FILTER).test(name)
+    )
+      return;
     errors = [];
     try {
       await run();
@@ -52,7 +59,10 @@ for (const config of [
       results.push({ device: config.name, name, ok: true });
     } catch (error) {
       results.push({ device: config.name, name, ok: false, error: String(error), errors });
-      await page.screenshot({ path: `${folder}/${config.name}-${name}-failure.png` });
+      await page.screenshot({
+        animations: "disabled",
+        path: `${folder}/${config.name}-${name}-failure.png`,
+      });
     }
     console.log(`${config.name}: ${name}: ${results.at(-1).ok ? "PASS" : "FAIL"}`);
   }
@@ -91,6 +101,57 @@ for (const config of [
 
   try {
     await login("vinit");
+    await check("headers-and-links-narrow-large-text", async () => {
+      await page.setViewportSize({ width: 320, height: 640 });
+      await visit("/food", 32);
+      await assertReadableText(page.getByRole("heading", { name: "Food", exact: true }));
+      await assertReadableText(page.getByText("My foods", { exact: true }));
+      await page.screenshot({
+        animations: "disabled",
+        path: `${folder}/${config.name}-food-header-narrow.png`,
+      });
+      await visit("/profile/ai-coach", 32);
+      await assertReadableText(page.getByRole("heading", { level: 1 }));
+      for (const title of ["Goals, availability and reports", "Programme changes and requests"]) {
+        await assertReadableText(page.getByText(title, { exact: true }));
+      }
+      await page.screenshot({
+        animations: "disabled",
+        path: `${folder}/${config.name}-coach-narrow.png`,
+      });
+      await page
+        .getByText("Programme changes and requests", { exact: true })
+        .scrollIntoViewIfNeeded();
+      await page.screenshot({
+        animations: "disabled",
+        path: `${folder}/${config.name}-coach-links-narrow.png`,
+      });
+    });
+    await check("programme-narrow-large-text", async () => {
+      await page.setViewportSize({ width: 320, height: 640 });
+      await visit("/profile/programme", 32);
+      await page.locator("details").evaluateAll((elements) =>
+        elements.forEach((element) => {
+          element.open = true;
+        }),
+      );
+      await assertReadableText(page.getByRole("heading", { level: 1 }));
+      await assertReadableText(page.locator("main summary p.font-medium, main a p.font-medium"));
+      await page.screenshot({
+        animations: "disabled",
+        path: `${folder}/${config.name}-programme-top-narrow.png`,
+      });
+      await page.locator("main summary p.font-medium").first().scrollIntoViewIfNeeded();
+      await page.screenshot({
+        animations: "disabled",
+        path: `${folder}/${config.name}-programme-cycle-narrow.png`,
+      });
+    });
+    await check("food-rows-narrow-large-text", async () => {
+      await page.setViewportSize({ width: 320, height: 640 });
+      await checkFoodLayout({ page, visit, folder, device: config.name, day: fixtures.history.to });
+    });
+    await page.setViewportSize(config.options.viewport);
     await check("coach-heading-large-text", async () => {
       await visit("/profile/ai-coach", 32);
       const lines = await page
@@ -112,7 +173,10 @@ for (const config of [
       await page.getByRole("button", { name: "About the AI coach", exact: true }).click();
       const bounds = await noteBounds();
       assert.ok(bounds.fits && bounds.painted, JSON.stringify(bounds));
-      await page.screenshot({ path: `${folder}/${config.name}-help-large-text.png` });
+      await page.screenshot({
+        animations: "disabled",
+        path: `${folder}/${config.name}-help-large-text.png`,
+      });
       await page.keyboard.press("Escape");
       assert.equal(await page.getByRole("note").count(), 0);
     });
@@ -130,7 +194,10 @@ for (const config of [
         };
       });
       assert.ok(!scroll.scrollable || scroll.scrolled, "Long help cannot be scrolled");
-      await page.screenshot({ path: `${folder}/${config.name}-help-short.png` });
+      await page.screenshot({
+        animations: "disabled",
+        path: `${folder}/${config.name}-help-short.png`,
+      });
     });
     await page.setViewportSize(config.options.viewport);
     await check("chart-touch-large-text", async () => {
@@ -152,7 +219,10 @@ for (const config of [
           `Tooltip leaves chart: ${JSON.stringify({ rect, bounds })}`,
         );
       }
-      await page.screenshot({ path: `${folder}/${config.name}-chart-touch.png` });
+      await page.screenshot({
+        animations: "disabled",
+        path: `${folder}/${config.name}-chart-touch.png`,
+      });
     });
     await check("native-select-controls", async () => {
       await page.setViewportSize({ width: 320, height: 640 });
@@ -264,7 +334,10 @@ for (const config of [
         await page.getByRole("note").evaluate((element) => !!element.closest("dialog[open]")),
         "Modal help is outside the active dialog",
       );
-      await page.screenshot({ path: `${folder}/${config.name}-sheet-help.png` });
+      await page.screenshot({
+        animations: "disabled",
+        path: `${folder}/${config.name}-sheet-help.png`,
+      });
       await page.keyboard.press("Escape");
       assert.equal(await page.getByRole("note").count(), 0);
       assert.equal(await page.getByRole("dialog").count(), 1);

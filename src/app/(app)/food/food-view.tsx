@@ -23,6 +23,7 @@ import {
 import type { TrainingGoal } from "@/domain/types";
 import { formatKcal, formatSplit } from "@/lib/format";
 import { MEAL_LABELS, TRAINING_GOAL_LABELS } from "@/lib/labels";
+import { cn } from "@/lib/utils";
 import type { EntryRecord, FoodDay, LibraryCount } from "@/server/repositories/nutrition";
 
 import { FoodDayRollover } from "./day-rollover";
@@ -71,12 +72,12 @@ function libraryMeta({ foods, meals }: LibraryCount): string | undefined {
 function MealRow({ meal, entries, href }: { meal: Meal; entries: EntryRecord[]; href: Route }) {
   const foods = [...new Set(entries.map((entry) => entry.name))].join(", ");
   return (
-    <Link href={href} prefetch="intent" className={PRESSABLE_ROW_CLASS}>
+    <Link href={href} prefetch="intent" className={cn(PRESSABLE_ROW_CLASS, "flex-wrap")}>
       {/* The spaces are for the link's name, which a screen reader reads as one string. */}
-      <span className="min-w-0 flex-1">
+      <span className="min-w-0 flex-[1_1_10rem]">
         <span className="block font-medium">{MEAL_LABELS[meal]}</span>{" "}
         {foods ? (
-          <span className="line-clamp-2 block text-sm [overflow-wrap:anywhere] text-ink-muted">
+          <span className="line-clamp-2 text-sm [overflow-wrap:anywhere] text-ink-muted">
             {foods}
           </span>
         ) : (
@@ -84,14 +85,14 @@ function MealRow({ meal, entries, href }: { meal: Meal; entries: EntryRecord[]; 
         )}
       </span>{" "}
       {entries.length > 0 ? (
-        <>
-          <span className="shrink-0 tabular-nums">
+        <span className="ml-auto flex max-w-full min-w-0 items-center gap-3">
+          <span className="min-w-0 tabular-nums">
             {formatKcal(addUp(entries.map(eaten)).kcal)} kcal
           </span>
           <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />
-        </>
+        </span>
       ) : (
-        <Plus className="shrink-0 text-accent" aria-hidden />
+        <Plus className="ml-auto shrink-0 text-accent" aria-hidden />
       )}
     </Link>
   );

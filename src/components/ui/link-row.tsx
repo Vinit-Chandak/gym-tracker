@@ -51,26 +51,30 @@ export function LinkRow<T extends string>({
 }: LinkRowProps<T>) {
   const danger = tone === "danger";
   return (
-    <Link href={href} prefetch={prefetch} className={PRESSABLE_ROW_CLASS}>
-      {icon && <RowIcon icon={icon} className={cn(danger && "text-danger")} />}
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <p className={cn("font-medium [overflow-wrap:anywhere]", danger && "text-danger")}>
-            {title}
-          </p>
-          {badge}
+    <Link href={href} prefetch={prefetch} className={cn(PRESSABLE_ROW_CLASS, "flex-wrap")}>
+      <div className="flex min-w-0 flex-[1_1_10rem] flex-wrap items-center gap-x-3 gap-y-1">
+        {icon && <RowIcon icon={icon} className={cn(danger && "text-danger")} />}
+        <div className="min-w-0 flex-[1_1_8rem]">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <p className={cn("font-medium [overflow-wrap:anywhere]", danger && "text-danger")}>
+              {title}
+            </p>
+            {badge}
+          </div>
+          {subtitle && (
+            <p className="mt-0.5 text-sm [overflow-wrap:anywhere] text-ink-muted">{subtitle}</p>
+          )}
         </div>
-        {subtitle && (
-          <p className="mt-0.5 text-sm [overflow-wrap:anywhere] text-ink-muted">{subtitle}</p>
-        )}
       </div>
-      {/* Trailing actions keep a reserved column so a long name wraps instead of pushing them out. */}
-      {meta && (
-        <span className="max-w-[32%] shrink-0 text-right text-xs text-ink-muted tabular-nums">
-          {meta}
-        </span>
-      )}
-      <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />
+      {/* Move secondary content below the label before it squeezes words into letter stacks. */}
+      <div className="ml-auto flex max-w-full items-center gap-3">
+        {meta && (
+          <span className="min-w-0 text-right text-xs [overflow-wrap:anywhere] text-ink-muted tabular-nums">
+            {meta}
+          </span>
+        )}
+        <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />
+      </div>
     </Link>
   );
 }
@@ -94,9 +98,9 @@ export function Row({
 }) {
   return (
     <div className={cn(ROW_CLASS, "flex-wrap", className)}>
-      <div className="flex min-w-0 flex-[1_1_10rem] items-center gap-3">
+      <div className="flex min-w-0 flex-[1_1_10rem] flex-wrap items-center gap-x-3 gap-y-1">
         {icon && <RowIcon icon={icon} />}
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-[1_1_8rem]">
           <div className="flex flex-wrap items-center gap-1 font-medium [overflow-wrap:anywhere]">
             {title}
           </div>

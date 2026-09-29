@@ -170,20 +170,22 @@ export function MyFoodsView({
                   <Link
                     href={links.meal(meal.id)}
                     prefetch="intent"
-                    className={PRESSABLE_ROW_CLASS}
+                    className={cn(PRESSABLE_ROW_CLASS, "flex-wrap")}
                   >
-                    <Star className="shrink-0 text-accent" aria-hidden />
                     {/* The spaces are for the link's name, which a screen reader reads as one
                         string; beside flex items they take no room on the screen. */}
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-medium [overflow-wrap:anywhere]">
-                        {meal.name}
-                      </span>{" "}
-                      <span className="block text-sm text-ink-muted tabular-nums">
-                        {contents(meal)}
+                    <span className="flex min-w-0 flex-[1_1_10rem] flex-wrap items-center gap-3">
+                      <Star className="shrink-0 text-accent" aria-hidden />
+                      <span className="min-w-0 flex-[1_1_8rem]">
+                        <span className="block font-medium [overflow-wrap:anywhere]">
+                          {meal.name}
+                        </span>{" "}
+                        <span className="block text-sm text-ink-muted tabular-nums">
+                          {contents(meal)}
+                        </span>
                       </span>
                     </span>
-                    <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />
+                    <ChevronRight className="ml-auto shrink-0 text-ink-subtle" aria-hidden />
                   </Link>
                 </SwipeRow>
               </li>

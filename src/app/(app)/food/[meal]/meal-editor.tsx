@@ -183,11 +183,11 @@ export function MealEditor({
                   <button
                     type="button"
                     onClick={() => open({ kind: "entry", entry })}
-                    className={PRESSABLE_ROW_CLASS}
+                    className={cn(PRESSABLE_ROW_CLASS, "flex-wrap")}
                   >
                     {/* The spaces are for the button's name, which a screen reader reads as one
                         string; beside flex items they take no room on the screen. */}
-                    <span className="min-w-0 flex-1">
+                    <span className="min-w-0 flex-[1_1_10rem]">
                       <span className="block font-medium [overflow-wrap:anywhere]">
                         {entry.name}
                       </span>{" "}
@@ -195,7 +195,7 @@ export function MealEditor({
                         {formatPortion(entry.amount, entry.unit)}
                       </span>
                     </span>{" "}
-                    <span className="shrink-0 tabular-nums">
+                    <span className="ml-auto max-w-full tabular-nums">
                       {formatKcal(eaten(entry).kcal)} kcal
                     </span>
                   </button>
@@ -253,16 +253,18 @@ export function MealEditor({
               <button
                 type="button"
                 onClick={() => open({ kind: "saved", saved })}
-                className={PRESSABLE_ROW_CLASS}
+                className={cn(PRESSABLE_ROW_CLASS, "flex-wrap")}
               >
-                <Star className="shrink-0 text-accent" aria-hidden />
-                <span className="min-w-0 flex-1">
-                  <span className="block font-medium [overflow-wrap:anywhere]">{saved.name}</span>{" "}
-                  <span className="block text-sm [overflow-wrap:anywhere] text-ink-muted">
-                    {saved.items.map((item) => item.name).join(", ")}
+                <span className="flex min-w-0 flex-[1_1_10rem] flex-wrap items-center gap-3">
+                  <Star className="shrink-0 text-accent" aria-hidden />
+                  <span className="min-w-0 flex-[1_1_8rem]">
+                    <span className="block font-medium [overflow-wrap:anywhere]">{saved.name}</span>{" "}
+                    <span className="block text-sm [overflow-wrap:anywhere] text-ink-muted">
+                      {saved.items.map((item) => item.name).join(", ")}
+                    </span>
                   </span>
                 </span>{" "}
-                <span className="shrink-0 text-sm tabular-nums">
+                <span className="ml-auto max-w-full text-sm tabular-nums">
                   {formatKcal(addUp(saved.items.map(eaten)).kcal)} kcal
                 </span>
               </button>
