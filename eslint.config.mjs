@@ -25,6 +25,8 @@ const eslintConfig = defineConfig([
     "build/**",
     "coverage/**",
     "next-env.d.ts",
+    // Vendored skill with bundled browser scripts, kept byte-identical to upstream.
+    ".claude/skills/impeccable/**",
   ]),
 ]);
 

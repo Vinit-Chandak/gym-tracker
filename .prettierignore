@@ -13,3 +13,11 @@ public/icons
 *.ico
 *.xlsx
 docs/planning
+# Vendored third-party skills, kept byte-identical to upstream (.claude/README.md).
+.claude/skills/frontend-design
+.claude/skills/impeccable
+.claude/skills/mobile-native
+.claude/skills/animate
+.claude/skills/review-animations
+.claude/skills/vercel-react-view-transitions
+.claude/skills/web-design-guidelines
