@@ -64,137 +64,131 @@ async function containedDayMarkers(scope, surface) {
     );
 }
 
+async function chooseStoredAppearance(page, mode) {
+  await page.evaluate((value) => {
+    const key = "overload:appearance";
+    if (value === null) localStorage.removeItem(key);
+    else localStorage.setItem(key, value);
+    // Storage events normally notify the other tabs. Notify this tab too so its existing
+    // appearance subscriber applies the same preference that navigation will restore.
+    window.dispatchEvent(
+      new StorageEvent("storage", { key, newValue: value, storageArea: localStorage }),
+    );
+  }, mode);
+}
+
 /** Read-only coverage used by the interactive UI audit after logging into Vinit. */
 export async function checkFoodLayout({ page, visit, folder, device, day }) {
   await page.setViewportSize({ width: 320, height: 640 });
   const selectedDay = day ? `?day=${encodeURIComponent(day)}` : "";
-  for (const textSize of [16, 32]) {
-    for (const theme of ["light", "dark"]) {
-      const label = `${device}-food-layout-${textSize}-${theme}`;
-      await visit(`/food${selectedDay}`, textSize);
-      await page.evaluate(
-        (mode) => document.documentElement.setAttribute("data-overload-mode", mode),
-        theme,
-      );
-      await containedDayMarkers(page.getByRole("navigation", { name: "Days" }), "Week strip");
-      const meals = page.getByRole("list", { name: "Meals", exact: true });
-      await readableNames(meals.locator("a > span:first-child > span.font-medium"), "Meal titles");
-      const summaries = meals.locator(".line-clamp-2");
-      await readableNames(summaries, "Meal food summaries");
-      const heights = await summaries.evaluateAll((elements) =>
-        elements.map((element) => {
-          const style = getComputedStyle(element);
-          return {
-            text: element.textContent,
-            height: element.getBoundingClientRect().height,
-            lineHeight: parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.5,
-          };
-        }),
-      );
-      for (const item of heights)
-        assert.ok(
-          item.height <= item.lineHeight * 2 + 1,
-          `Summary exceeds two lines: ${JSON.stringify(item)}`,
+  const originalAppearance = await page.evaluate(() => localStorage.getItem("overload:appearance"));
+  try {
+    for (const textSize of [16, 32]) {
+      for (const theme of ["light", "dark"]) {
+        const label = `${device}-food-layout-${textSize}-${theme}`;
+        await chooseStoredAppearance(page, theme);
+        const assertPalette = () =>
+          page.waitForFunction(
+            (mode) => document.documentElement.getAttribute("data-overload-mode") === mode,
+            theme,
+          );
+        const navigate = async (path) => {
+          await visit(path, textSize);
+          await assertPalette();
+        };
+        const capture = async (name, fullPage = false) => {
+          await assertPalette();
+          await page.screenshot({
+            path: `${folder}/${label}-${name}.png`,
+            fullPage,
+            animations: "disabled",
+          });
+        };
+        const captureRow = async (row, name) => {
+          await row.evaluate((element) =>
+            element.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" }),
+          );
+          await assertPalette();
+          await row.screenshot({ path: `${folder}/${label}-${name}.png`, animations: "disabled" });
+        };
+        await navigate(`/food${selectedDay}`);
+        await containedDayMarkers(page.getByRole("navigation", { name: "Days" }), "Week strip");
+        const meals = page.getByRole("list", { name: "Meals", exact: true });
+        await readableNames(
+          meals.locator("a > span:first-child > span.font-medium"),
+          "Meal titles",
         );
-      await contained(page, "Food summary");
-      await page.screenshot({
-        path: `${folder}/${label}-day.png`,
-        fullPage: true,
-        animations: "disabled",
-      });
-      await meals
-        .getByRole("link")
-        .first()
-        .screenshot({
-          path: `${folder}/${label}-meal-row.png`,
-          animations: "disabled",
-        });
+        const summaries = meals.locator(".line-clamp-2");
+        await readableNames(summaries, "Meal food summaries");
+        const heights = await summaries.evaluateAll((elements) =>
+          elements.map((element) => {
+            const style = getComputedStyle(element);
+            return {
+              text: element.textContent,
+              height: element.getBoundingClientRect().height,
+              lineHeight: parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.5,
+            };
+          }),
+        );
+        for (const item of heights)
+          assert.ok(
+            item.height <= item.lineHeight * 2 + 1,
+            `Summary exceeds two lines: ${JSON.stringify(item)}`,
+          );
+        await contained(page, "Food summary");
+        await capture("day", true);
+        await captureRow(meals.getByRole("link").first(), "meal-row");
 
-      await page.getByRole("button", { name: /, calendar$/ }).click();
-      const calendar = page.getByRole("dialog", { name: "Calendar", exact: true });
-      await containedDayMarkers(calendar, "Month calendar");
-      await page.screenshot({ path: `${folder}/${label}-calendar.png`, animations: "disabled" });
-      await calendar.getByRole("button", { name: "Close sheet", exact: true }).click();
+        await page.getByRole("button", { name: /, calendar$/ }).click();
+        const calendar = page.getByRole("dialog", { name: "Calendar", exact: true });
+        await containedDayMarkers(calendar, "Month calendar");
+        await capture("calendar");
+        await calendar.getByRole("button", { name: "Close sheet", exact: true }).click();
 
-      await page.getByRole("button", { name: /^Protein:/ }).click();
-      const breakdown = page.getByRole("list", { name: "Protein by food", exact: true });
-      await readableNames(
-        breakdown.locator("li > span:first-child > span.font-medium"),
-        "Macro breakdown",
-      );
-      await page.screenshot({ path: `${folder}/${label}-macro.png`, animations: "disabled" });
-      await page
-        .getByRole("dialog")
-        .getByRole("button", { name: "Close sheet", exact: true })
-        .click();
+        await page.getByRole("button", { name: /^Protein:/ }).click();
+        const breakdown = page.getByRole("list", { name: "Protein by food", exact: true });
+        await readableNames(
+          breakdown.locator("li > span:first-child > span.font-medium"),
+          "Macro breakdown",
+        );
+        await capture("macro");
+        await page
+          .getByRole("dialog")
+          .getByRole("button", { name: "Close sheet", exact: true })
+          .click();
 
-      await visit(`/food/breakfast${selectedDay}`, textSize);
-      await page.evaluate(
-        (mode) => document.documentElement.setAttribute("data-overload-mode", mode),
-        theme,
-      );
-      const entries = page.getByRole("list", { name: "In breakfast", exact: true });
-      await readableNames(
-        entries.locator("button > span:first-child > span.font-medium"),
-        "Logged foods",
-      );
-      const library = page.getByRole("list", { name: "Your foods and meals", exact: true });
-      await readableNames(
-        library.locator("button span.font-medium"),
-        "Food and saved-meal choices",
-      );
-      await contained(page, "Meal editor");
-      await page.screenshot({
-        path: `${folder}/${label}-entries.png`,
-        fullPage: true,
-        animations: "disabled",
-      });
-      await entries
-        .locator("li")
-        .first()
-        .screenshot({
-          path: `${folder}/${label}-entry-row.png`,
-          animations: "disabled",
-        });
+        await navigate(`/food/breakfast${selectedDay}`);
+        const entries = page.getByRole("list", { name: "In breakfast", exact: true });
+        await readableNames(
+          entries.locator("button > span:first-child > span.font-medium"),
+          "Logged foods",
+        );
+        const library = page.getByRole("list", { name: "Your foods and meals", exact: true });
+        await readableNames(
+          library.locator("button span.font-medium"),
+          "Food and saved-meal choices",
+        );
+        await contained(page, "Meal editor");
+        await capture("entries", true);
+        await captureRow(entries.locator("li").first(), "entry-row");
 
-      await visit("/food/my-foods", textSize);
-      await page.evaluate(
-        (mode) => document.documentElement.setAttribute("data-overload-mode", mode),
-        theme,
-      );
-      const savedMeals = page.getByRole("list", { name: "Meals", exact: true });
-      await readableNames(savedMeals.locator("a span.font-medium"), "Saved meals");
-      await savedMeals
-        .getByRole("link")
-        .first()
-        .screenshot({
-          path: `${folder}/${label}-library-row.png`,
-          animations: "disabled",
-        });
-      const savedPath = await savedMeals.getByRole("link").first().getAttribute("href");
-      await visit(savedPath, textSize);
-      await page.evaluate(
-        (mode) => document.documentElement.setAttribute("data-overload-mode", mode),
-        theme,
-      );
-      const savedItems = page.getByRole("list", { name: "In this meal", exact: true });
-      await readableNames(
-        savedItems.locator("button > span:first-child > span.font-medium"),
-        "Saved meal items",
-      );
-      await contained(page, "Saved meal editor");
-      await page.screenshot({
-        path: `${folder}/${label}-saved.png`,
-        fullPage: true,
-        animations: "disabled",
-      });
-      await savedItems
-        .locator("li")
-        .first()
-        .screenshot({
-          path: `${folder}/${label}-saved-row.png`,
-          animations: "disabled",
-        });
+        await navigate("/food/my-foods");
+        const savedMeals = page.getByRole("list", { name: "Meals", exact: true });
+        await readableNames(savedMeals.locator("a span.font-medium"), "Saved meals");
+        await captureRow(savedMeals.getByRole("link").first(), "library-row");
+        const savedPath = await savedMeals.getByRole("link").first().getAttribute("href");
+        await navigate(savedPath);
+        const savedItems = page.getByRole("list", { name: "In this meal", exact: true });
+        await readableNames(
+          savedItems.locator("button > span:first-child > span.font-medium"),
+          "Saved meal items",
+        );
+        await contained(page, "Saved meal editor");
+        await capture("saved", true);
+        await captureRow(savedItems.locator("li").first(), "saved-row");
+      }
     }
+  } finally {
+    await chooseStoredAppearance(page, originalAppearance);
   }
 }

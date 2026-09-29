@@ -23,6 +23,7 @@ export default async function WelcomeProgrammePage() {
   return (
     <PageContent>
       <Steps current="programme" />
+      <h1 className="text-xl font-medium">Choose a programme</h1>
       <SavedProgrammeWork onboarding />
       <ProgrammeOptions onboarding />
       <Card>
