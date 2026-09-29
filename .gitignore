@@ -20,6 +20,8 @@
 /.next/
 /.next-audit/
 /output/audit-56-months/
+# Design baselines, comparisons and review screenshots (docs/redesign-2026/).
+/output/design-*/
 /out/
 
 # production
