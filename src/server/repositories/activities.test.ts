@@ -15,7 +15,7 @@ import { seedLegacyAccount, type LegacyAccount } from "@/db/test/multisport-fixt
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
 import { AD_HOC_ORIGIN, plannedOrigin, reportedEffort, UNKNOWN_EFFORT } from "@/domain/activity";
-import { nativeDistance, paceSecondsPerKm } from "@/domain/activity-metrics";
+import { nativeDistance, paceSecondsPerKm, type SwimmingActualV1 } from "@/domain/activity-metrics";
 import {
   ActivityNotFoundError,
   activityTotals,
@@ -591,4 +591,36 @@ describe("the strength parent", () => {
       .where(eq(workoutSessions.id, session!.id));
     expect(after!.activityId).toBeNull();
   });
+});
+
+it("retains every swim measurement through creation, correction and clearing optional readings", async () => {
+  const user = await t.createAuthUser("swim-readings@example.test");
+  const actual: SwimmingActualV1 = {
+    sport: "swimming",
+    environment: "pool",
+    elapsedMs: 1_800_100,
+    activeMs: 1_500_200,
+    distanceMethod: "lengths",
+    distance: null,
+    poolLength: nativeDistance(25, "yd"),
+    lengths: 40,
+    stroke: "freestyle",
+    strokeCount: 520,
+    resourceId: null,
+    averageHeartRate: 132,
+    maxHeartRate: 165,
+  };
+  const saved = await withUser(t.db, user.id, (tx) => createActivity(tx, user.id, run({ actual })));
+  const read = () => withUser(t.db, user.id, (tx) => getActivity(tx, user.id, saved.id));
+  expect((await read())?.actual).toEqual(actual);
+  const corrected = { ...actual, averageHeartRate: 140, maxHeartRate: 175 };
+  await withUser(t.db, user.id, (tx) =>
+    updateActivity(tx, user.id, saved.id, run({ actual: corrected }), 1),
+  );
+  expect((await read())?.actual).toEqual(corrected);
+  const cleared = { ...corrected, averageHeartRate: null, maxHeartRate: null };
+  await withUser(t.db, user.id, (tx) =>
+    updateActivity(tx, user.id, saved.id, run({ actual: cleared }), 2),
+  );
+  expect((await read())?.actual).toEqual(cleared);
 });

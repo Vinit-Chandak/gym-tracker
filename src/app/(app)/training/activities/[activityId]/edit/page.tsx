@@ -8,10 +8,9 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { activityFormValues } from "@/lib/activity-form-values";
 import { ORIGIN_PARAM, originQuery, parseOrigin } from "@/lib/nav";
-import { toDateTimeLocal } from "@/lib/time";
+import { timeZoneOffsetMinutes, toDateTimeLocal } from "@/lib/time";
 import { saveActivityAction } from "@/server/actions/activities";
 import { requireUser } from "@/server/auth";
-import { getRequestProfile } from "@/server/queries/request-profile";
 import { getActivity } from "@/server/repositories/activities";
 import { requireUuid } from "@/server/validation/params";
 
@@ -25,7 +24,6 @@ export default async function EditActivityPage(
   requireUuid(activityId);
   const origin = parseOrigin((await props.searchParams)[ORIGIN_PARAM]);
   const user = await requireUser();
-  const profile = await getRequestProfile(user.id, user.email);
   const activity = await withUser(getDb(), user.id, (tx) => getActivity(tx, user.id, activityId), {
     readOnly: true,
   });
@@ -58,7 +56,11 @@ export default async function EditActivityPage(
           expectedRevision={activity.revision}
           initial={{
             ...activityFormValues(actual),
-            startedAt: toDateTimeLocal(activity.startedAt, profile.timeZone),
+            recordedTimeZone: activity.recordedTimeZone,
+            startedAtOffsetMinutes: String(
+              timeZoneOffsetMinutes(activity.recordedTimeZone, activity.startedAt),
+            ),
+            startedAt: toDateTimeLocal(activity.startedAt, activity.recordedTimeZone),
             effort:
               activity.effort.status === "reported" ? String(activity.effort.value) : "unsure",
             title: activity.title ?? "",

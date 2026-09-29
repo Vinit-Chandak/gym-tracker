@@ -324,6 +324,72 @@ describe("skipping and putting back", () => {
       withUser(t.db, mine.userId, (tx) => skipOccurrence(tx, mine.userId, first!.id)),
     ).rejects.toThrow(OccurrenceNotFoundError);
   });
+
+  it("keeps cancelled work cancelled when an old page submits a skip, reopen, move or claim", async () => {
+    const account = await seeded("cancelled@example.test");
+    const [first] = await occurrences(account.userId);
+    await t.db
+      .update(plannedOccurrences)
+      .set({ disposition: "cancelled" })
+      .where(eq(plannedOccurrences.id, first!.id));
+    const before = await t.db
+      .select()
+      .from(occurrenceEvents)
+      .where(eq(occurrenceEvents.occurrenceId, first!.id));
+
+    for (const change of [
+      (tx: Parameters<typeof skipOccurrence>[0]) => skipOccurrence(tx, account.userId, first!.id),
+      (tx: Parameters<typeof skipOccurrence>[0]) => reopenOccurrence(tx, account.userId, first!.id),
+      (tx: Parameters<typeof skipOccurrence>[0]) =>
+        rescheduleOccurrence(tx, account.userId, first!.id, "2026-12-01"),
+      (tx: Parameters<typeof skipOccurrence>[0]) => claimOccurrence(tx, account.userId, first!.id),
+    ]) {
+      await expect(
+        withUser(t.db, account.userId, async (tx) => {
+          await change(tx);
+        }),
+      ).rejects.toThrow(OccurrenceNotFoundError);
+    }
+    const saved = await withUser(t.db, account.userId, (tx) =>
+      getOccurrence(tx, account.userId, first!.id),
+    );
+    expect(saved).toMatchObject({
+      disposition: "cancelled",
+      loggable: false,
+      revisionId: first!.revisionId,
+    });
+    expect(
+      await t.db
+        .select()
+        .from(occurrenceEvents)
+        .where(eq(occurrenceEvents.occurrenceId, first!.id)),
+    ).toEqual(before);
+  });
+
+  it("does not duplicate lifecycle events or revisions when a lost reply is retried", async () => {
+    const account = await seeded("retry@example.test");
+    const [first] = await occurrences(account.userId);
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await withUser(t.db, account.userId, (tx) => skipOccurrence(tx, account.userId, first!.id));
+    }
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await withUser(t.db, account.userId, (tx) => reopenOccurrence(tx, account.userId, first!.id));
+    }
+    const moved = await withUser(t.db, account.userId, (tx) =>
+      rescheduleOccurrence(tx, account.userId, first!.id, "2026-12-01"),
+    );
+    const replay = await withUser(t.db, account.userId, (tx) =>
+      rescheduleOccurrence(tx, account.userId, first!.id, "2026-12-01"),
+    );
+    expect(replay).toEqual(moved);
+    const events = await t.db
+      .select()
+      .from(occurrenceEvents)
+      .where(eq(occurrenceEvents.occurrenceId, first!.id));
+    for (const kind of ["skipped", "reopened", "rescheduled"]) {
+      expect(events.filter((event) => event.kind === kind)).toHaveLength(1);
+    }
+  });
 });
 
 describe("moving a session", () => {

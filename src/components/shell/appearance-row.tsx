@@ -8,24 +8,12 @@ import { Sheet } from "@/components/ui/sheet";
 import {
   APPEARANCE_LABELS,
   APPEARANCE_MODES,
-  APPEARANCE_STORAGE_KEY,
-  applyAppearance,
+  chooseAppearance,
   readStoredAppearance,
+  subscribeAppearance,
   type Appearance,
 } from "@/lib/appearance";
 import { cn } from "@/lib/utils";
-
-const listeners = new Set<() => void>();
-
-function subscribe(listener: () => void): () => void {
-  listeners.add(listener);
-  // A change in another tab is a storage event; the same tab notifies its own listeners.
-  window.addEventListener("storage", listener);
-  return () => {
-    listeners.delete(listener);
-    window.removeEventListener("storage", listener);
-  };
-}
 
 /**
  * The colours are already right when this mounts — the pre-paint initializer saw to that.
@@ -33,7 +21,7 @@ function subscribe(listener: () => void): () => void {
  * default rather than a placeholder that would replace the row until hydration.
  */
 function useAppearance(): Appearance {
-  return useSyncExternalStore(subscribe, readStoredAppearance, () => "system" as const);
+  return useSyncExternalStore(subscribeAppearance, readStoredAppearance, () => "system" as const);
 }
 
 /** A Profile row that shows the current mode and opens the three choices in a sheet. */
@@ -42,14 +30,7 @@ export function AppearanceRow() {
   const [open, setOpen] = useState(false);
 
   const choose = (mode: Appearance) => {
-    // Paint first, persist second: a full storage quota must not cost the user the change.
-    applyAppearance(mode);
-    try {
-      localStorage.setItem(APPEARANCE_STORAGE_KEY, mode);
-    } catch {
-      // Device-local persistence only; this session still shows the chosen mode.
-    }
-    for (const listener of listeners) listener();
+    chooseAppearance(mode);
     setOpen(false);
   };
 
@@ -59,6 +40,8 @@ export function AppearanceRow() {
         type="button"
         onClick={() => setOpen(true)}
         aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-label={`Appearance: ${APPEARANCE_LABELS[appearance]}`}
         className={PRESSABLE_ROW_CLASS}
       >
         <RowIcon icon={SunMoon} />

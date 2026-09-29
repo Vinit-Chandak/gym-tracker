@@ -1,7 +1,8 @@
 "use client";
 
 import { Info } from "@/components/ui/icons";
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 import { cn } from "@/lib/utils";
 
@@ -24,8 +25,9 @@ const EDGE = 12;
 export function placeNote(
   buttonLeft: number,
   viewportWidth: number,
+  preferredWidth = NOTE_WIDTH,
 ): { left: number; width: number } {
-  const width = Math.min(NOTE_WIDTH, viewportWidth - EDGE * 2);
+  const width = Math.max(0, Math.min(preferredWidth, viewportWidth - EDGE * 2));
   const left = Math.max(EDGE, Math.min(buttonLeft, viewportWidth - EDGE - width));
   return { left: left - buttonLeft, width };
 }
@@ -34,22 +36,68 @@ export function placeNote(
  * The one place an explanation lives: a small circled "i" that opens a short note in
  * place. Nothing else on a screen explains itself in running text.
  *
- * It is deliberately cheap. The note is plain markup positioned beside its button — no
- * portal, no dialog, no layout measurement while closed — and the document listeners that
- * close it exist only while it is open. A second tap, a tap anywhere else or Escape closes
- * it. The one measurement it makes is on opening: where the button is, so the note can be
- * slid inside the screen rather than hanging off its edge.
+ * The note stays inside the visual viewport and grows with the reader's text size. It is
+ * portalled outside scrolling cards; inside a modal it stays in that dialog so it remains
+ * interactive while the rest of the page is inert. No layout is measured while closed.
  */
 export function InfoTip({ label, children, className }: InfoTipProps) {
   const id = useId();
   const root = useRef<HTMLSpanElement>(null);
+  const note = useRef<HTMLSpanElement>(null);
   const [open, setOpen] = useState(false);
-  const [place, setPlace] = useState({ left: 0, width: NOTE_WIDTH });
+  const [target, setTarget] = useState<HTMLElement | null>(null);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    const reposition = () => {
+      const anchor = root.current;
+      const bubble = note.current;
+      if (!anchor || !bubble) return;
+      const viewport = window.visualViewport;
+      const width = viewport?.width ?? window.innerWidth;
+      const height = viewport?.height ?? window.innerHeight;
+      const viewportLeft = viewport?.offsetLeft ?? 0;
+      const viewportTop = viewport?.offsetTop ?? 0;
+      const rect = anchor.getBoundingClientRect();
+      const textSize = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+      const place = placeNote(rect.left - viewportLeft, width, textSize * 18);
+      bubble.style.width = `${place.width}px`;
+      bubble.style.left = `${rect.left + place.left}px`;
+      bubble.style.maxHeight = `${Math.max(0, height - EDGE * 2)}px`;
+      const noteHeight = bubble.getBoundingClientRect().height;
+      const below = rect.bottom + 4;
+      const above = rect.top - noteHeight - 4;
+      const lastTop = viewportTop + height - EDGE - noteHeight;
+      const top = below <= lastTop ? below : above >= viewportTop + EDGE ? above : lastTop;
+      bubble.style.top = `${Math.max(viewportTop + EDGE, Math.min(top, lastTop))}px`;
+    };
+    reposition();
+    // Long notes can scroll with a keyboard as well as touch. Escape returns focus
+    // to their explanation button instead of leaving it on the document body.
+    note.current?.focus({ preventScroll: true });
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(reposition);
+    if (note.current) observer?.observe(note.current);
+    window.addEventListener("resize", reposition);
+    document.addEventListener("scroll", reposition, true);
+    window.visualViewport?.addEventListener("resize", reposition);
+    window.visualViewport?.addEventListener("scroll", reposition);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", reposition);
+      document.removeEventListener("scroll", reposition, true);
+      window.visualViewport?.removeEventListener("resize", reposition);
+      window.visualViewport?.removeEventListener("scroll", reposition);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
     const onPointerDown = (event: PointerEvent) => {
-      if (!root.current?.contains(event.target as Node)) setOpen(false);
+      if (
+        !root.current?.contains(event.target as Node) &&
+        !note.current?.contains(event.target as Node)
+      )
+        setOpen(false);
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -57,25 +105,23 @@ export function InfoTip({ label, children, className }: InfoTipProps) {
         event.preventDefault();
         event.stopPropagation();
         setOpen(false);
+        root.current?.querySelector("button")?.focus({ preventScroll: true });
       }
     };
-    const reposition = () => {
-      if (root.current)
-        setPlace(placeNote(root.current.getBoundingClientRect().left, window.innerWidth));
-    };
+    const close = () => setOpen(false);
     document.addEventListener("pointerdown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
-    window.addEventListener("resize", reposition);
+    target?.addEventListener("close", close);
     return () => {
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("resize", reposition);
+      target?.removeEventListener("close", close);
     };
-  }, [open]);
+  }, [open, target]);
 
   const toggle = () => {
     if (!open && root.current) {
-      setPlace(placeNote(root.current.getBoundingClientRect().left, window.innerWidth));
+      setTarget(root.current.closest("dialog") ?? document.body);
     }
     setOpen((current) => !current);
   };
@@ -87,6 +133,7 @@ export function InfoTip({ label, children, className }: InfoTipProps) {
         aria-label={label}
         aria-expanded={open}
         aria-controls={id}
+        aria-describedby={open ? id : undefined}
         onClick={toggle}
         className={cn(
           "-m-1.5 flex size-11 items-center justify-center rounded-full text-ink-subtle transition-colors duration-[var(--ov-duration-feedback)] hover:text-ink active:bg-surface-raised",
@@ -96,16 +143,20 @@ export function InfoTip({ label, children, className }: InfoTipProps) {
         <Info aria-hidden />
       </button>
       {/* Rendered only while open: a closed tip costs the page nothing but its button. */}
-      {open && (
-        <span
-          id={id}
-          role="note"
-          style={{ left: place.left, width: place.width }}
-          className="absolute top-full z-[var(--ov-z-notice)] mt-1 rounded-card border border-line-strong bg-surface px-3 py-2 text-left text-sm leading-snug font-normal tracking-normal text-ink normal-case shadow-sm"
-        >
-          {children}
-        </span>
-      )}
+      {open &&
+        target &&
+        createPortal(
+          <span
+            ref={note}
+            id={id}
+            role="note"
+            tabIndex={0}
+            className="fixed z-[var(--ov-z-notice)] overflow-y-auto overscroll-contain rounded-card border border-line-strong bg-surface px-3 py-2 text-left text-sm leading-snug font-normal tracking-normal [overflow-wrap:anywhere] text-ink normal-case shadow-sm"
+          >
+            {children}
+          </span>,
+          target,
+        )}
     </span>
   );
 }

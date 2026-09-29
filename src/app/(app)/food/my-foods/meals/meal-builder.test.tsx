@@ -68,6 +68,7 @@ const MILK: FoodRecord = {
   proteinG: 3.3,
 };
 const USUAL: SavedMealRecord = {
+  updatedAt: "2026-09-25T12:00:00.000Z",
   id: "00000000-0000-4000-8000-0000000000a1",
   name: "Usual breakfast",
   // Saved when oats were 379 kcal: the meal keeps what it saved.
@@ -135,8 +136,9 @@ it("changes a saved meal, keeping the foods it holds as they were saved", async 
   fireEvent.click(screen.getByRole("button", { name: "Save meal" }));
   await waitFor(() => expect(saveLibraryMealAction).toHaveBeenCalledOnce());
   expect(saveLibraryMealAction).toHaveBeenCalledWith({
-    submissionKey: undefined,
+    submissionKey: expect.any(String),
     savedMealId: USUAL.id,
+    expectedUpdatedAt: USUAL.updatedAt,
     name: "Usual breakfast",
     items: [
       { keep: 0, amount: "60" },

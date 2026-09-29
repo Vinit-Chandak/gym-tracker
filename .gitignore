@@ -20,6 +20,8 @@
 /.next/
 /.next-audit/
 /output/audit-56-months/
+/output/audit-2026-09-29/
+/output/audit-20260929-*.log
 /out/
 
 # production

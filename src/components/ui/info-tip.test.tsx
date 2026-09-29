@@ -1,9 +1,13 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { InfoTip, placeNote } from "./info-tip";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 function renderTip() {
   return render(
@@ -68,7 +72,52 @@ it("repositions an open note after rotating into a narrower viewport", () => {
   const width = vi.spyOn(window, "innerWidth", "get").mockReturnValue(280);
   fireEvent(window, new Event("resize"));
   expect(screen.getByRole("note").style.width).toBe("256px");
-  expect(screen.getByRole("note").style.left).toBe("-188px");
+  expect(screen.getByRole("note").style.left).toBe("12px");
   width.mockRestore();
   vi.restoreAllMocks();
+});
+
+it("keeps a note outside a sheet's scroll clip but inside its native modal", () => {
+  render(
+    <dialog open>
+      <div style={{ overflow: "hidden", height: 60 }}>
+        <InfoTip label="About supersets">Keep both exercises together.</InfoTip>
+      </div>
+    </dialog>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "About supersets" }));
+  const dialog = screen.getByRole("dialog");
+  expect(screen.getByRole("note").parentElement).toBe(dialog);
+  fireEvent.pointerDown(screen.getByRole("note"));
+  expect(screen.getByRole("note")).toBeTruthy();
+  fireEvent(dialog, new Event("close"));
+  expect(screen.queryByRole("note")).toBeNull();
+});
+
+it("moves long help above its button and bounds it to a keyboard-sized visual viewport", () => {
+  const viewport = Object.assign(new EventTarget(), {
+    width: 320,
+    height: 280,
+    offsetLeft: 10,
+    offsetTop: 30,
+  });
+  vi.stubGlobal("visualViewport", viewport);
+  renderTip();
+  const button = screen.getByRole("button", { name: "About warm-ups" });
+  vi.spyOn(button.parentElement!, "getBoundingClientRect").mockReturnValue({
+    left: 250,
+    top: 240,
+    bottom: 272,
+  } as DOMRect);
+  fireEvent.click(button);
+  const note = screen.getByRole("note");
+  vi.spyOn(note, "getBoundingClientRect").mockReturnValue({ height: 180 } as DOMRect);
+  act(() => viewport.dispatchEvent(new Event("resize")));
+  expect(note.style.left).toBe("30px");
+  expect(note.style.top).toBe("56px");
+  expect(note.style.maxHeight).toBe("256px");
+  viewport.height = 200;
+  act(() => viewport.dispatchEvent(new Event("resize")));
+  expect(note.style.maxHeight).toBe("176px");
+  expect(note.style.top).toBe("42px");
 });

@@ -92,6 +92,7 @@ export default async function NewActivityPage(props: PageProps<"/training/new">)
   // Measurements start blank. Context — the sport, the units, the pool — may preselect;
   // a performance never does (ACTUAL-01).
   const initial: Record<string, string> = {
+    recordedTimeZone: profile.timeZone,
     startedAt: toDateTimeLocal(new Date(), profile.timeZone),
     distanceUnit: sport === "swimming" ? units.poolUnit : units.distanceUnit,
     poolLengthUnit: units.poolUnit,

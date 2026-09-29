@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useLayoutEffect, useRef, useState, useTransition } from "react";
 
 import { ConfirmSheet } from "@/components/confirm-sheet";
 import { Button, type ButtonSize } from "@/components/ui/button";
@@ -43,12 +43,29 @@ export function FollowButton({
   const [asking, setAsking] = useState<"cancel" | "unfollow" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [receivedOutgoing, setReceivedOutgoing] = useState(relation.outgoing);
+  const relationshipVersion = useRef(0);
+  useLayoutEffect(() => {
+    relationshipVersion.current += 1;
+  }, [personId, relation.outgoing]);
+  // An accepted request or a change on another device arrives through refreshed server
+  // props. Local acknowledgement is immediate, but must not hide that newer relationship.
+  if (receivedOutgoing !== relation.outgoing) {
+    setReceivedOutgoing(relation.outgoing);
+    setOutgoing(relation.outgoing);
+    setAsking(null);
+    setError(null);
+  }
   const state = followButtonState({ ...relation, outgoing });
 
   const run = (work: () => Promise<FollowStatus | null>) =>
     startTransition(async () => {
+      const startedVersion = relationshipVersion.current;
       setError(null);
       const outcome = await attempted(work, OFFLINE);
+      // The action result can predate the refreshed relationship (for example, an
+      // accepted request). Neither a late acknowledgement nor its error may undo it.
+      if (relationshipVersion.current !== startedVersion) return;
       if (!outcome.ok) {
         setError(outcome.message);
         return;

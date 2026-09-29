@@ -82,3 +82,54 @@ it("restores the opening revision, so reloading a stale edit cannot silently ove
   await screen.findByText("Changed elsewhere");
   expect(action.mock.calls[0]![1].get("expectedRevision")).toBe("1");
 });
+
+it("keeps drafts separate when navigating to another sport on the same page", async () => {
+  const action = vi.fn().mockResolvedValue({ formError: "Try again" });
+  const editor = render(<ActivityEditor {...props} action={action} />);
+  fireEvent.change(await screen.findByLabelText("Minutes", { exact: true }), {
+    target: { value: "42" },
+  });
+  await waitFor(() => expect(readDrafts(localStorage, props.userId).drafts).toHaveLength(1));
+  editor.rerender(
+    <ActivityEditor {...props} sport="running" submissionKey="running-key" action={action} />,
+  );
+  expect((screen.getByLabelText("Minutes", { exact: true }) as HTMLInputElement).value).toBe("");
+  fireEvent.change(screen.getByLabelText("Minutes", { exact: true }), {
+    target: { value: "23" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Save activity" }));
+  await screen.findByText("Try again");
+  expect(action.mock.calls[0]![1].get("submissionKey")).toBe("running-key");
+  const drafts = readDrafts(localStorage, props.userId).drafts;
+  expect(drafts.find((draft) => draft.sport === "cycling")?.values.minutes).toBe("42");
+  expect(drafts.find((draft) => draft.sport === "running")?.values.minutes).toBe("23");
+});
+
+it("changes scheduled identity while retaining a draft through same-session refreshes", async () => {
+  const action = vi.fn().mockResolvedValue({ formError: "Try again" });
+  const occurrence = { id: "morning", revisionId: "original-revision" };
+  const editor = render(<ActivityEditor {...props} occurrence={occurrence} action={action} />);
+  fireEvent.change(await screen.findByLabelText("Minutes", { exact: true }), {
+    target: { value: "42" },
+  });
+  editor.rerender(
+    <ActivityEditor
+      {...props}
+      occurrence={{ ...occurrence, revisionId: "new-revision" }}
+      action={action}
+    />,
+  );
+  expect((screen.getByLabelText("Minutes", { exact: true }) as HTMLInputElement).value).toBe("42");
+  editor.rerender(
+    <ActivityEditor
+      {...props}
+      occurrence={{ id: "evening", revisionId: "evening-revision" }}
+      action={action}
+    />,
+  );
+  expect((screen.getByLabelText("Minutes", { exact: true }) as HTMLInputElement).value).toBe("");
+  fireEvent.click(screen.getByRole("button", { name: "Save activity" }));
+  await screen.findByText("Try again");
+  expect(action.mock.calls[0]![1].get("occurrenceId")).toBe("evening");
+  expect(action.mock.calls[0]![1].get("revisionId")).toBe("evening-revision");
+});

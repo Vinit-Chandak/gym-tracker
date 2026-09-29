@@ -93,13 +93,17 @@ export function Row({
   className?: string;
 }) {
   return (
-    <div className={cn(ROW_CLASS, className)}>
-      {icon && <RowIcon icon={icon} />}
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1 font-medium [overflow-wrap:anywhere]">{title}</div>
-        {subtitle && (
-          <p className="mt-0.5 text-sm [overflow-wrap:anywhere] text-ink-muted">{subtitle}</p>
-        )}
+    <div className={cn(ROW_CLASS, "flex-wrap", className)}>
+      <div className="flex min-w-0 flex-[1_1_10rem] items-center gap-3">
+        {icon && <RowIcon icon={icon} />}
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1 font-medium [overflow-wrap:anywhere]">
+            {title}
+          </div>
+          {subtitle && (
+            <p className="mt-0.5 text-sm [overflow-wrap:anywhere] text-ink-muted">{subtitle}</p>
+          )}
+        </div>
       </div>
       {children}
     </div>

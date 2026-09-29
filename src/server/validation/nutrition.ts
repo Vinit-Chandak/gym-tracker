@@ -249,6 +249,7 @@ export const saveLibraryMealSchema = z
   .object({
     submissionKey: z.uuid().optional(),
     savedMealId: z.uuid().optional(),
+    expectedUpdatedAt: z.iso.datetime().optional(),
     name: z.string(),
     items: z.array(
       z.union([
@@ -256,6 +257,14 @@ export const saveLibraryMealSchema = z
         z.object({ keep: z.number().int().min(0), amount: z.string() }),
       ]),
     ),
+  })
+  .superRefine((input, ctx) => {
+    if (input.savedMealId && !input.expectedUpdatedAt)
+      ctx.addIssue({
+        code: "custom",
+        path: ["expectedUpdatedAt"],
+        message: "This meal editor is out of date. Reopen the meal from My foods before saving.",
+      });
   })
   .transform((input, ctx) => {
     const name = readName(ctx, "name", input.name, "Name this meal.");
@@ -275,6 +284,9 @@ export const saveLibraryMealSchema = z
     return {
       submissionKey: input.submissionKey,
       savedMealId: input.savedMealId,
+      ...(input.expectedUpdatedAt === undefined
+        ? {}
+        : { expectedUpdatedAt: input.expectedUpdatedAt }),
       name,
       items: items.filter((item) => item !== null),
     };

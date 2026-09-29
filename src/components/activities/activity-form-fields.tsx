@@ -1,12 +1,14 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 import { Card } from "@/components/ui/card";
 import { Disclosure } from "@/components/ui/disclosure";
 import { Field, Input, Textarea } from "@/components/ui/input";
 import { Section } from "@/components/ui/section";
 import { SegmentedControl } from "@/components/ui/segmented-control";
+import { Select } from "@/components/ui/select";
+import { dateTimeLocalCandidates, formatUtcOffset, timeZoneOffsetMinutes } from "@/lib/time";
 import { EFFORT, TEXT_LIMITS } from "@/domain/activity-limits";
 import type { FormState } from "@/server/validation/form";
 
@@ -25,6 +27,71 @@ export type ActivityFormValues = Record<string, string>;
 
 export function useFormValues(state: FormState, initial: ActivityFormValues) {
   return (key: string): string => state.values?.[key] ?? initial[key] ?? "";
+}
+
+/** Native date/time input, with an explicit choice only when clocks repeat that time. */
+export function ActivityStartFields({
+  values,
+  errors,
+}: {
+  values: (key: string) => string;
+  errors?: Record<string, string>;
+}) {
+  const [local, setLocal] = useState(() => values("startedAt"));
+  const [offset, setOffset] = useState(() => values("startedAtOffsetMinutes"));
+  const timeZone = values("recordedTimeZone") || "UTC";
+  const choices = dateTimeLocalCandidates(local, timeZone);
+  return (
+    <>
+      <input type="hidden" name="recordedTimeZone" value={timeZone} />
+      <Field
+        label="When"
+        hint={`Date and time in ${timeZone}.`}
+        error={
+          errors?.startedAt ??
+          errors?.recordedTimeZone ??
+          (choices.length <= 1 ? errors?.startedAtOffsetMinutes : undefined)
+        }
+      >
+        <Input
+          name="startedAt"
+          type="datetime-local"
+          value={local}
+          onChange={(event) => {
+            setLocal(event.target.value);
+            setOffset("");
+          }}
+          required
+        />
+      </Field>
+      {choices.length > 1 ? (
+        <Field
+          label="Which time?"
+          hint="Clocks go back here, so this time happens twice. Choose when you started."
+          error={errors?.startedAtOffsetMinutes}
+        >
+          <Select
+            name="startedAtOffsetMinutes"
+            value={offset}
+            onChange={(event) => setOffset(event.target.value)}
+            required
+          >
+            <option value="">Choose the first or second time</option>
+            {choices.map((instant, index) => {
+              const minutes = timeZoneOffsetMinutes(timeZone, instant);
+              return (
+                <option key={minutes} value={minutes}>
+                  {index === 0 ? "First" : "Second"} occurrence ({formatUtcOffset(minutes)})
+                </option>
+              );
+            })}
+          </Select>
+        </Field>
+      ) : (
+        <input type="hidden" name="startedAtOffsetMinutes" value="" />
+      )}
+    </>
+  );
 }
 
 /**

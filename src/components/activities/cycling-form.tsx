@@ -14,6 +14,7 @@ import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
 
 import {
   ActivityIdentityFields,
+  ActivityStartFields,
   DistanceField,
   EffortField,
   HeartRateFields,
@@ -101,14 +102,7 @@ export function CyclingForm({
 
       <Section title="The ride">
         <Card>
-          <Field label="When" error={state.fieldErrors?.startedAt}>
-            <Input
-              name="startedAt"
-              type="datetime-local"
-              defaultValue={values("startedAt")}
-              required
-            />
-          </Field>
+          <ActivityStartFields values={values} errors={state.fieldErrors} />
 
           <Field group label="Where">
             <SegmentedControl

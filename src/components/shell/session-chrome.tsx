@@ -75,7 +75,7 @@ export function SessionChrome({ session }: { session: ActiveSession }) {
               </p>
               <Link
                 href={`/workouts/${session.id}`}
-                className="shrink-0 px-2 py-1 text-sm font-medium text-accent"
+                className="flex min-h-11 shrink-0 items-center px-2 py-1 text-sm font-medium text-accent"
               >
                 Resume
               </Link>

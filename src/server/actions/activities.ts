@@ -18,6 +18,7 @@ import {
 import {
   DECIMALS,
   EFFORT,
+  FUTURE_START_TOLERANCE_MS,
   needsDistanceConfirmation,
   needsDurationConfirmation,
   TEXT_LIMITS,
@@ -31,7 +32,7 @@ import {
   type SwimmingActualV1,
 } from "@/domain/activity-metrics";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import { fromDateTimeLocal } from "@/lib/time";
+import { dateTimeLocalCandidates, timeZoneOffsetMinutes, toDateTimeLocal } from "@/lib/time";
 import { requireUser } from "@/server/auth";
 import { ensureProfile } from "@/server/queries/profile";
 import { revalidateActivity } from "@/server/activity-effects";
@@ -116,7 +117,34 @@ const baseFields = {
   submissionKey: z.uuid({ error: "This form is out of date. Reload and try again." }),
   startedAt: z.preprocess(
     (value) => (typeof value === "string" ? value.trim() : ""),
-    z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/, { error: "Enter the date and time." }),
+    z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, { error: "Enter the date and time." }),
+  ),
+  recordedTimeZone: z.preprocess(
+    (value) => (typeof value === "string" && value.trim() !== "" ? value.trim() : null),
+    z
+      .string()
+      .max(64)
+      .refine(
+        (zone) => {
+          try {
+            new Intl.DateTimeFormat("en", { timeZone: zone });
+            return true;
+          } catch {
+            return false;
+          }
+        },
+        { error: "Reload this form to use a valid time zone." },
+      )
+      .nullable(),
+  ),
+  startedAtOffsetMinutes: z.preprocess(
+    (value) => (typeof value === "string" && value.trim() !== "" ? value.trim() : null),
+    z.coerce
+      .number({ error: "Choose which time you started." })
+      .int()
+      .min(-840)
+      .max(840)
+      .nullable(),
   ),
   /** 1–5, or the explicit "not sure" that LOG-03 requires as its own answer. */
   effort: z.preprocess(
@@ -358,14 +386,52 @@ export async function saveActivityAction(
     | { ok: true; id: string; sport: EnduranceSport; occurrenceId: string | null }
     | { ok: false; state: FormState };
   try {
-    result = await withUser(getDb(), user.id, async (tx) => {
+    result = await withUser(getDb(), user.id, async (tx): Promise<typeof result> => {
       const profile = await ensureProfile(tx, user);
-      const startedAt = fromDateTimeLocal(form.startedAt, profile.timeZone);
+      const existing = activityId ? await getActivity(tx, user.id, activityId) : null;
+      if (activityId && !existing) throw new ActivityNotFoundError();
+      // An unrelated correction must not re-date an activity after the athlete travels or
+      // changes their profile zone. The edit form uses this same saved zone.
+      const timeZone = existing?.recordedTimeZone ?? form.recordedTimeZone ?? profile.timeZone;
+      const candidates = dateTimeLocalCandidates(form.startedAt, timeZone);
+      const selected =
+        form.startedAtOffsetMinutes === null
+          ? candidates.length === 1
+            ? candidates[0]
+            : null
+          : candidates.find(
+              (instant) => timeZoneOffsetMinutes(timeZone, instant) === form.startedAtOffsetMinutes,
+            );
+      const unchangedTime =
+        existing &&
+        form.startedAt === toDateTimeLocal(existing.startedAt, timeZone) &&
+        (form.startedAtOffsetMinutes === null ||
+          form.startedAtOffsetMinutes === timeZoneOffsetMinutes(timeZone, existing.startedAt));
+      const startedAt = unchangedTime ? existing.startedAt : selected;
       if (!startedAt)
         return {
           ok: false as const,
           state: {
-            fieldErrors: { startedAt: "Enter the date and time." },
+            fieldErrors:
+              candidates.length > 0
+                ? {
+                    startedAtOffsetMinutes:
+                      "This time happens twice when clocks go back. Choose which time you started.",
+                  }
+                : {
+                    startedAt:
+                      "Enter a valid date and time. This time must exist in your time zone.",
+                  },
+            values: formValues(formData),
+          },
+        };
+      if (startedAt.getTime() > Date.now() + FUTURE_START_TOLERANCE_MS)
+        return {
+          ok: false as const,
+          state: {
+            fieldErrors: {
+              startedAt: "An activity cannot start in the future. Schedule it instead.",
+            },
             values: formValues(formData),
           },
         };
@@ -374,9 +440,9 @@ export async function saveActivityAction(
         origin: originOf(form),
         actual,
         startedAt,
-        recordedTimeZone: profile.timeZone,
-        timeZoneSource: "profile_at_entry",
-        occurredOn: todayInTimeZone(profile.timeZone, startedAt),
+        recordedTimeZone: timeZone,
+        timeZoneSource: existing?.timeZoneSource ?? "profile_at_entry",
+        occurredOn: unchangedTime ? existing.occurredOn : todayInTimeZone(timeZone, startedAt),
         effort: effortOf(form.effort),
         outcome: form.outcome,
         title: form.title,

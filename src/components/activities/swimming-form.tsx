@@ -16,6 +16,7 @@ import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
 
 import {
   ActivityIdentityFields,
+  ActivityStartFields,
   DistanceField,
   EffortField,
   HeartRateFields,
@@ -127,14 +128,7 @@ export function SwimmingForm({
 
       <Section title="The swim">
         <Card>
-          <Field label="When" error={state.fieldErrors?.startedAt}>
-            <Input
-              name="startedAt"
-              type="datetime-local"
-              defaultValue={values("startedAt")}
-              required
-            />
-          </Field>
+          <ActivityStartFields values={values} errors={state.fieldErrors} />
 
           <Field group label="Where">
             <SegmentedControl

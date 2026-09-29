@@ -23,6 +23,11 @@ export const APPEARANCE_STORAGE_KEY = "overload:appearance";
 /** The document attribute foundation.css keys the explicit palettes off. */
 export const APPEARANCE_ATTRIBUTE = "data-overload-mode";
 
+const APPEARANCE_CHANGE_EVENT = "overload:appearance-change";
+// A denied write must not make the visible choice disagree with the document, or let
+// metadata updates on navigation undo it. This fallback lasts for the current tab.
+let transientAppearance: Appearance | null = null;
+
 /** Browser chrome colours. These are Form's two canvases, kept in step with form.css. */
 export const CANVAS_LIGHT = "#f4f3ee";
 export const CANVAS_DARK = "#171c1c";
@@ -32,12 +37,41 @@ function parseAppearance(value: unknown): Appearance {
 }
 
 export function readStoredAppearance(): Appearance {
+  if (transientAppearance !== null) return transientAppearance;
   try {
     return parseAppearance(localStorage.getItem(APPEARANCE_STORAGE_KEY));
   } catch {
     // Storage blocked or full: System is the documented fallback.
     return "system";
   }
+}
+
+/** Paint and publish a choice even when browser storage is unavailable. */
+export function chooseAppearance(mode: Appearance): void {
+  transientAppearance = mode;
+  applyAppearance(mode);
+  try {
+    localStorage.setItem(APPEARANCE_STORAGE_KEY, mode);
+    transientAppearance = null;
+  } catch {
+    // Keep the in-memory choice until a successful write or a change from another tab.
+  }
+  window.dispatchEvent(new Event(APPEARANCE_CHANGE_EVENT));
+}
+
+/** Both the label and palette follow changes made here or in another open tab. */
+export function subscribeAppearance(listener: () => void): () => void {
+  const onStorage = (event: StorageEvent) => {
+    if (event.key !== null && event.key !== APPEARANCE_STORAGE_KEY) return;
+    transientAppearance = null;
+    listener();
+  };
+  window.addEventListener("storage", onStorage);
+  window.addEventListener(APPEARANCE_CHANGE_EVENT, listener);
+  return () => {
+    window.removeEventListener("storage", onStorage);
+    window.removeEventListener(APPEARANCE_CHANGE_EVENT, listener);
+  };
 }
 
 /**

@@ -58,7 +58,9 @@ export function MealBuilder({
       amount: item.amount,
     })),
   );
-  // Stable across retries: a new meal whose save lost its reply cannot be saved twice.
+  // Item indexes and the version belong to the snapshot opened by this editor.
+  const [expectedUpdatedAt] = useState(saved?.updatedAt);
+  // Stable across retries, including an edit that removed or reordered retained foods.
   const [submissionKey] = useState(() => crypto.randomUUID());
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
@@ -94,8 +96,9 @@ export function MealBuilder({
       const outcome = await attempted(
         () =>
           saveLibraryMealAction({
-            submissionKey: saved ? undefined : submissionKey,
+            submissionKey,
             savedMealId: saved?.id,
+            expectedUpdatedAt,
             name,
             items: items.map((item) => ({ ...item.source, amount: String(item.amount) })),
           }),

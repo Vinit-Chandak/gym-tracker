@@ -241,7 +241,8 @@ export async function skipOccurrence(
   note?: string,
 ): Promise<void> {
   const occurrence = await requireOccurrence(tx, userId, occurrenceId);
-  if (occurrence.resolution.kind === "logged") throw new OccurrenceNotFoundError();
+  if (!occurrence.loggable) throw new OccurrenceNotFoundError();
+  if (occurrence.disposition === "skipped") return;
   await tx
     .update(plannedOccurrences)
     .set({ disposition: "skipped", updatedAt: new Date() })
@@ -261,7 +262,10 @@ export async function reopenOccurrence(
   userId: string,
   occurrenceId: string,
 ): Promise<void> {
-  await requireOccurrence(tx, userId, occurrenceId);
+  const occurrence = await requireOccurrence(tx, userId, occurrenceId);
+  if (occurrence.resolution.kind === "incomplete") return;
+  if (occurrence.resolution.kind !== "skipped" && occurrence.resolution.kind !== "legacy_completed")
+    throw new OccurrenceNotFoundError();
   await tx
     .update(plannedOccurrences)
     .set({ disposition: "pending", updatedAt: new Date() })
@@ -288,7 +292,7 @@ export async function rescheduleOccurrence(
   options: { scheduledLocalTime?: string | null; orderIndex?: number } = {},
 ): Promise<{ revisionId: string }> {
   const occurrence = await requireOccurrence(tx, userId, occurrenceId);
-  if (occurrence.resolution.kind === "logged") throw new OccurrenceNotFoundError();
+  if (!occurrence.loggable) throw new OccurrenceNotFoundError();
   const [current] = await tx
     .select()
     .from(occurrenceVersions)
@@ -297,6 +301,13 @@ export async function rescheduleOccurrence(
     )
     .limit(1);
   if (!current) throw new OccurrenceNotFoundError();
+  if (
+    current.scheduledOn === scheduledOn &&
+    (options.scheduledLocalTime === undefined ||
+      options.scheduledLocalTime === current.scheduledLocalTime) &&
+    (options.orderIndex === undefined || options.orderIndex === current.orderIndex)
+  )
+    return { revisionId: current.id };
   const [revision] = await tx
     .insert(occurrenceVersions)
     .values({
@@ -353,6 +364,7 @@ export async function claimOccurrence(
   options: { takeOver?: boolean; now?: Date } = {},
 ): Promise<EditClaim> {
   const occurrence = await requireOccurrence(tx, userId, occurrenceId);
+  if (!occurrence.loggable) throw new OccurrenceNotFoundError();
   const now = options.now ?? new Date();
   const [existing] = await tx
     .select()

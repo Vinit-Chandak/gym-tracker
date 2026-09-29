@@ -244,21 +244,26 @@ export async function createLibraryFoodAction(
 }
 
 /**
- * Saves a meal built in My foods, new or changed (ADR 0035). A new one keeps a receipt, so a
- * retry after a lost reply cannot save it twice; saving a changed one again is the same change.
+ * Saves a meal built in My foods, new or changed (ADR 0035). Both keep a receipt: replaying
+ * retained item indexes after a successful edit could otherwise select different foods.
  */
 export async function saveLibraryMealAction(
   draft: SaveLibraryMealDraft,
 ): Promise<FoodActionResult> {
   const user = await requireUser();
   const parsed = saveLibraryMealSchema.safeParse(draft);
-  if (!parsed.success) return invalid(parsed.error);
-  const { submissionKey, savedMealId, name, items } = parsed.data;
-  return change(user, (tx) => saveLibraryMeal(tx, user.id, { id: savedMealId, name, items }), {
-    receipt: savedMealId
-      ? undefined
-      : { key: submissionKey, payload: { kind: "library-meal", ...parsed.data } },
-  });
+  if (!parsed.success) {
+    const versionError = parsed.error.issues.find((issue) => issue.path[0] === "expectedUpdatedAt");
+    return versionError ? { ok: false, error: versionError.message } : invalid(parsed.error);
+  }
+  const { submissionKey, savedMealId, expectedUpdatedAt, name, items } = parsed.data;
+  return change(
+    user,
+    (tx) => saveLibraryMeal(tx, user.id, { id: savedMealId, expectedUpdatedAt, name, items }),
+    {
+      receipt: { key: submissionKey, payload: { kind: "library-meal", ...parsed.data } },
+    },
+  );
 }
 
 /** Corrects a food in My foods, for what is logged from now on. */

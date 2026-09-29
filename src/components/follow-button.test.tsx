@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import type { FollowRelation } from "@/domain/follows";
@@ -92,3 +92,50 @@ it("keeps the request when the sheet is dismissed, and withdraws it when confirm
   await waitFor(() => expect(button("Request")).toBeTruthy());
   expect(actions.cancelRequestAction).toHaveBeenCalledWith("p1");
 });
+
+it("updates a pending request when refreshed server data says it was accepted", () => {
+  const view = render(
+    <FollowButton personId="p1" username="phani03" relation={relation({ outgoing: "pending" })} />,
+  );
+  fireEvent.click(button("Requested"));
+  view.rerender(
+    <FollowButton personId="p1" username="phani03" relation={relation({ outgoing: "accepted" })} />,
+  );
+  expect(button("Following")).toBeTruthy();
+  expect(screen.queryByRole("dialog", { name: "Cancel request?" })).toBeNull();
+});
+
+it.each(["pending", "error"])(
+  "does not overwrite an accepted refresh with an older %s response",
+  async (response) => {
+    let finish!: () => void;
+    actions.followAction.mockImplementation(
+      () =>
+        new Promise((resolve, reject) => {
+          finish = () =>
+            response === "error" ? reject(new TypeError("Lost reply")) : resolve("pending");
+        }),
+    );
+    const view = render(<FollowButton personId="p1" username="phani03" relation={relation()} />);
+    fireEvent.click(button("Request"));
+    view.rerender(
+      <FollowButton
+        personId="p1"
+        username="phani03"
+        relation={relation({ outgoing: "accepted" })}
+      />,
+    );
+    await act(async () => finish());
+    expect(button("Following")).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+    // An unchanged server snapshot must not be needed to repair a stale local status.
+    view.rerender(
+      <FollowButton
+        personId="p1"
+        username="phani03"
+        relation={relation({ outgoing: "accepted" })}
+      />,
+    );
+    expect(button("Following")).toBeTruthy();
+  },
+);

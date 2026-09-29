@@ -378,7 +378,15 @@ it("saves a meal built in My foods, new with a receipt and changed without one",
     ],
   });
   expect(mocks.submitFoodOnce).toHaveBeenCalledTimes(1);
-  expect(await saveLibraryMealAction({ savedMealId: SAVED, name: "Usual", items })).toEqual({
+  expect(
+    await saveLibraryMealAction({
+      savedMealId: SAVED,
+      expectedUpdatedAt: "2026-09-25T12:00:00.000Z",
+      submissionKey: KEY,
+      name: "Usual",
+      items,
+    }),
+  ).toEqual({
     ok: true,
   });
   expect(mocks.saveLibraryMeal).toHaveBeenLastCalledWith(
@@ -386,8 +394,8 @@ it("saves a meal built in My foods, new with a receipt and changed without one",
     USER,
     expect.objectContaining({ id: SAVED }),
   );
-  // A change to a meal that exists is the same change however often it is sent.
-  expect(mocks.submitFoodOnce).toHaveBeenCalledTimes(1);
+  // Edits keep a receipt too: retained item indexes can change after the first save.
+  expect(mocks.submitFoodOnce).toHaveBeenCalledTimes(2);
 });
 
 it("says what stops a meal from being saved, against the name or in words", async () => {
@@ -403,10 +411,22 @@ it("says what stops a meal from being saved, against the name or in words", asyn
   expect(
     await saveLibraryMealAction({
       savedMealId: SAVED,
+      expectedUpdatedAt: "2026-09-25T12:00:00.000Z",
       name: "Usual",
       items: [{ keep: 4, amount: "1" }],
     }),
   ).toEqual({ ok: false, error: new SavedMealChangedError().message });
+});
+
+it("requires an opened version for saved-meal edits, including stale browser submissions", async () => {
+  const result = await saveLibraryMealAction({
+    savedMealId: SAVED,
+    name: "Usual",
+    items: [{ keep: 0, amount: "1" }],
+  });
+  expect(result).toMatchObject({ ok: false, error: expect.stringMatching(/Reopen the meal/) });
+  expect(mocks.saveLibraryMeal).not.toHaveBeenCalled();
+  expect(mocks.submitFoodOnce).not.toHaveBeenCalled();
 });
 
 it("reads a whole month of days for the calendar, and changes nothing", async () => {

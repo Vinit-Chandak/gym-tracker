@@ -31,7 +31,13 @@ export type FoodRecord = Food & { id: string };
 /** One food eaten in one of a day's meals. */
 export type EntryRecord = LoggedFood & { id: string; eatenOn: string; meal: Meal };
 
-export type SavedMealRecord = { id: string; name: string; items: LoggedFood[] };
+export type SavedMealRecord = {
+  id: string;
+  name: string;
+  items: LoggedFood[];
+  /** The version opened by the editor; lists do not need an edit token. */
+  updatedAt?: string;
+};
 
 /** How many foods and saved meals an account keeps in My foods, for the Food screen's row. */
 export type LibraryCount = { foods: number; meals: number };
@@ -356,11 +362,18 @@ export async function readSavedMeal(
   savedMealId: string,
 ): Promise<SavedMealRecord | null> {
   const [row] = await db
-    .select({ id: savedMeals.id, name: savedMeals.name, items: savedMeals.items })
+    .select({
+      id: savedMeals.id,
+      name: savedMeals.name,
+      items: savedMeals.items,
+      updatedAt: savedMeals.updatedAt,
+    })
     .from(savedMeals)
     .where(and(eq(savedMeals.userId, userId), eq(savedMeals.id, savedMealId)))
     .limit(1);
-  return row ? { ...row, items: loggedFoods(row.items, row.name) } : null;
+  return row
+    ? { ...row, items: loggedFoods(row.items, row.name), updatedAt: row.updatedAt.toISOString() }
+    : null;
 }
 
 export async function saveNutritionTargets(
@@ -598,7 +611,7 @@ export async function saveMeal(
   }));
 
   const [existing] = await db
-    .select({ id: savedMeals.id })
+    .select({ id: savedMeals.id, updatedAt: savedMeals.updatedAt })
     .from(savedMeals)
     .where(and(eq(savedMeals.userId, userId), sql`lower(${savedMeals.name}) = lower(${name})`))
     .orderBy(asc(savedMeals.createdAt))
@@ -607,7 +620,11 @@ export async function saveMeal(
   if (existing) {
     await db
       .update(savedMeals)
-      .set({ name, items, updatedAt: new Date() })
+      .set({
+        name,
+        items,
+        updatedAt: new Date(Math.max(Date.now(), existing.updatedAt.getTime() + 1)),
+      })
       .where(and(eq(savedMeals.userId, userId), eq(savedMeals.id, existing.id)));
     return existing.id;
   }
@@ -679,20 +696,32 @@ export type LibraryMealItem = { foodId: string; amount: number } | { keep: numbe
 export async function saveLibraryMeal(
   db: DbOrTx,
   userId: string,
-  input: { id?: string; name: string; items: readonly LibraryMealItem[] },
+  input: {
+    id?: string;
+    expectedUpdatedAt?: string;
+    name: string;
+    items: readonly LibraryMealItem[];
+  },
 ): Promise<string> {
   if (input.items.length === 0) throw new EmptyMealError();
   if (input.items.length > NUTRITION_LIMITS.itemsPerMeal) throw new SavedMealTooLargeError();
 
   let held: LoggedFood[] = [];
+  let previousUpdatedAt: Date | null = null;
   if (input.id) {
     const [existing] = await db
-      .select({ name: savedMeals.name, items: savedMeals.items })
+      .select({ name: savedMeals.name, items: savedMeals.items, updatedAt: savedMeals.updatedAt })
       .from(savedMeals)
       .where(and(eq(savedMeals.userId, userId), eq(savedMeals.id, input.id)))
       .limit(1)
       .for("update");
     if (!existing) throw new SavedMealNotFoundError();
+    if (
+      input.expectedUpdatedAt !== undefined &&
+      existing.updatedAt.toISOString() !== input.expectedUpdatedAt
+    )
+      throw new SavedMealChangedError();
+    previousUpdatedAt = existing.updatedAt;
     held = loggedFoods(existing.items, existing.name);
   }
 
@@ -739,7 +768,11 @@ export async function saveLibraryMeal(
   if (input.id) {
     await db
       .update(savedMeals)
-      .set({ name: input.name, items, updatedAt: new Date() })
+      .set({
+        name: input.name,
+        items,
+        updatedAt: new Date(Math.max(Date.now(), (previousUpdatedAt?.getTime() ?? 0) + 1)),
+      })
       .where(and(eq(savedMeals.userId, userId), eq(savedMeals.id, input.id)));
     return input.id;
   }

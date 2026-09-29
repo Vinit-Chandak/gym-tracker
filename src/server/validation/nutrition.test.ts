@@ -305,6 +305,7 @@ describe("My foods", () => {
     expect(
       saveLibraryMealSchema.parse({
         savedMealId: ID,
+        expectedUpdatedAt: "2026-09-25T12:00:00.000Z",
         name: " Usual breakfast ",
         items: [
           { foodId: ID, amount: "80" },
@@ -314,6 +315,7 @@ describe("My foods", () => {
     ).toEqual({
       submissionKey: undefined,
       savedMealId: ID,
+      expectedUpdatedAt: "2026-09-25T12:00:00.000Z",
       name: "Usual breakfast",
       items: [
         { foodId: ID, amount: 80 },

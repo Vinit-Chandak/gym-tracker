@@ -561,6 +561,7 @@ describe("My foods", () => {
     const saved = await as(user, (tx) => readSavedMeal(tx, user.id, id));
     expect(saved).toEqual({
       id,
+      updatedAt: expect.any(String),
       name: "Paneer rice",
       items: [
         { ...RICE, foodId: rice, amount: 200 },
@@ -666,6 +667,49 @@ describe("My foods", () => {
 });
 
 describe("a retried save", () => {
+  it("refuses stale retained indexes and safely replays an acknowledged meal edit", async () => {
+    const rice = await foodId(user, "Rice");
+    const paneer = await foodId(user, "Paneer");
+    const id = await as(user, (tx) =>
+      saveLibraryMeal(tx, user.id, {
+        name: "Concurrent meal",
+        items: [
+          { foodId: rice, amount: 100 },
+          { foodId: paneer, amount: 50 },
+        ],
+      }),
+    );
+    const opened = await as(user, (tx) => readSavedMeal(tx, user.id, id));
+    const payload = {
+      id,
+      expectedUpdatedAt: opened!.updatedAt,
+      name: "Concurrent meal",
+      items: [{ keep: 1, amount: 75 }],
+    };
+    const key = crypto.randomUUID();
+    const save = () =>
+      as(user, (tx) =>
+        submitFoodOnce(tx, user.id, key, payload, () => saveLibraryMeal(tx, user.id, payload)),
+      );
+    await save();
+    const changed = await as(user, (tx) => readSavedMeal(tx, user.id, id));
+    expect(changed?.updatedAt).not.toBe(opened?.updatedAt);
+    expect(changed?.items.map((item) => item.name)).toEqual(["Paneer"]);
+    // The old first row was Rice; it must not silently address Paneer after the other edit.
+    await expect(
+      as(user, (tx) =>
+        saveLibraryMeal(tx, user.id, {
+          id,
+          expectedUpdatedAt: opened!.updatedAt,
+          name: "Concurrent meal",
+          items: [{ keep: 0, amount: 200 }],
+        }),
+      ),
+    ).rejects.toThrow(SavedMealChangedError);
+    await save();
+    expect(await as(user, (tx) => readSavedMeal(tx, user.id, id))).toEqual(changed);
+  });
+
   it("logs once, even after the entry it made was removed", async () => {
     const key = crypto.randomUUID();
     const input = { food: { ...OATS, name: "Receipt oats" }, amount: 40 };

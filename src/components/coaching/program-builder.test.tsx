@@ -69,3 +69,66 @@ it("caps preview rows for an out-of-range programme length before server validat
     screen.getAllByRole("group").filter((group) => /^Week /.test(group.textContent ?? "")),
   ).toHaveLength(52);
 });
+
+it.each(["change", "remove"])(
+  "does not %s another day's run when editing a rest day",
+  (operation) => {
+    renderBuilder();
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Number of weeks" }), {
+      target: { value: "1" },
+    });
+    fireEvent.change(screen.getByRole("combobox", { name: "Usual weekday" }), {
+      target: { value: "1" },
+    });
+    fireEvent.click(screen.getByRole("checkbox", { name: "Include a run" }));
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Minutes minimum" }), {
+      target: { value: "37" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add a day" }));
+    fireEvent.change(screen.getAllByRole("combobox", { name: "Usual weekday" })[1]!, {
+      target: { value: "1" },
+    });
+    if (operation === "change") {
+      fireEvent.change(screen.getAllByRole("combobox", { name: "Usual weekday" })[1]!, {
+        target: { value: "2" },
+      });
+    } else {
+      fireEvent.click(screen.getAllByRole("button", { name: "Remove day" })[1]!);
+    }
+    expect(
+      (screen.getByRole("spinbutton", { name: "Minutes minimum" }) as HTMLInputElement).value,
+    ).toBe("37");
+  },
+);
+
+it("keeps shared weekday targets unique when adding, moving and removing a second running day", () => {
+  renderBuilder();
+  fireEvent.change(screen.getByRole("spinbutton", { name: "Number of weeks" }), {
+    target: { value: "1" },
+  });
+  fireEvent.change(screen.getByRole("combobox", { name: "Usual weekday" }), {
+    target: { value: "1" },
+  });
+  fireEvent.click(screen.getByRole("checkbox", { name: "Include a run" }));
+  fireEvent.change(screen.getByRole("spinbutton", { name: "Minutes minimum" }), {
+    target: { value: "37" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Add a day" }));
+  fireEvent.change(screen.getAllByRole("combobox", { name: "Usual weekday" })[1]!, {
+    target: { value: "1" },
+  });
+  fireEvent.click(screen.getAllByRole("checkbox", { name: "Include a run" })[1]!);
+  const minutes = () => screen.getAllByRole("spinbutton", { name: "Minutes minimum" });
+  expect(minutes().map((input) => (input as HTMLInputElement).value)).toEqual(["37", "37"]);
+  // A length edit must not create duplicated week/weekday rows either.
+  fireEvent.change(screen.getByRole("spinbutton", { name: "Number of weeks" }), {
+    target: { value: "2" },
+  });
+  expect(minutes()).toHaveLength(4);
+  fireEvent.change(screen.getAllByRole("combobox", { name: "Usual weekday" })[1]!, {
+    target: { value: "2" },
+  });
+  expect(minutes().map((input) => (input as HTMLInputElement).value)).toEqual(["37", "", "37", ""]);
+  fireEvent.click(screen.getAllByRole("button", { name: "Remove day" })[1]!);
+  expect(minutes().map((input) => (input as HTMLInputElement).value)).toEqual(["37", ""]);
+});

@@ -36,6 +36,7 @@ if (fixtures.history) {
   }
 }
 const routes = [
+  "/",
   "/today",
   "/today/choose",
   "/runs",
@@ -84,6 +85,8 @@ const routes = [
   "/profile/routines",
   `/profile/programme/drafts/${draft}`,
   `/profile/programme/drafts/${draft}/programme`,
+  `/welcome/programme/drafts/${draft}`,
+  ...fixtures.jobs.filter((j) => j.userId === vinit).map((j) => `/welcome/programme/jobs/${j.id}`),
   ...fixtures.jobs.filter((j) => j.userId === vinit).map((j) => `/profile/programme/jobs/${j.id}`),
   "/profile/friends",
   "/profile/friends/people",
@@ -162,48 +165,46 @@ for (const config of configurations.filter(
     executablePath: config.browser === chromium ? process.env.AUDIT_CHROMIUM_PATH : undefined,
   });
   const context = await browser.newContext({ ...config.options, baseURL, colorScheme: theme });
-  const page = await context.newPage();
+  let page;
   const errors = [];
-  page.on("pageerror", (error) => errors.push(error.message));
-  const network = { active: new Set(), changedAt: Date.now() };
-  page.on("request", (request) => {
-    network.active.add(request);
-    network.changedAt = Date.now();
-  });
-  const finished = (request) => {
-    network.active.delete(request);
-    network.changedAt = Date.now();
-  };
-  page.on("requestfinished", finished);
-  page.on("requestfailed", finished);
-  async function settle() {
-    if (page.url() === "about:blank") return;
-    // Enlarging text or expanding a disclosure changes which links are visible. Give
-    // intersection observers a frame, then let their prefetches finish before unloading.
-    await page.evaluate(async () => {
-      await document.fonts.ready;
-      await new Promise(requestAnimationFrame);
-      await new Promise(requestAnimationFrame);
-    });
-    const deadline = Date.now() + 20_000;
-    while (network.active.size || Date.now() - network.changedAt < 750) {
-      if (Date.now() > deadline) throw new Error("Page requests did not settle before navigation.");
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
-    await page.waitForLoadState("networkidle");
+  async function freshPage() {
+    // Each route is an independent deep-link check. A streamed legacy redirect can
+    // abandon shell prefetches without a terminal Playwright request event. Reusing
+    // that request tracker poisoned every later route after one redirect. Keep the
+    // authenticated context, but isolate documents; workflow audits cover SPA taps.
+    if (page) await page.close();
+    errors.length = 0;
+    page = await context.newPage();
+    page.on("pageerror", (error) => errors.push(error.message));
   }
   const folder = `${output}/${config.name}`;
   await mkdir(folder, { recursive: true });
   async function visit(route, persona, index) {
     if (process.env.AUDIT_ROUTE_FILTER && !new RegExp(process.env.AUDIT_ROUTE_FILTER).test(route))
       return;
-    errors.length = 0;
+    const expectedRoute =
+      route === "/"
+        ? "/today"
+        : route === "/runs"
+          ? "/training"
+          : route === "/runs/new"
+            ? "/training/new?sport=running"
+            : route.startsWith("/runs/")
+              ? route.replace("/runs/", "/training/activities/")
+              : persona === "taylor" && route === "/welcome/equipment"
+                ? "/welcome/gym"
+                : route;
     try {
-      // Let hydrated tab prefetches finish before replacing the document. WebKit
-      // otherwise reports our deliberately cancelled requests as runtime failures.
-      await settle();
+      await freshPage();
       const started = performance.now();
       const response = await page.goto(route, { waitUntil: "networkidle", timeout: 30_000 });
+      // A streamed redirect can briefly reach network-idle while only its shell is visible.
+      // Wait for the promised destination and real page content before judging that screen.
+      await page.waitForURL(new URL(expectedRoute, baseURL).href, { timeout: 15_000 });
+      await page
+        .getByRole("heading", { level: 1 })
+        .first()
+        .waitFor({ state: "visible", timeout: 15_000 });
       const durationMs = Math.round(performance.now() - started);
       await page.evaluate(
         ({ fontSize, expand }) => {
@@ -215,6 +216,11 @@ for (const config of configurations.filter(
         },
         { fontSize, expand: process.env.AUDIT_EXPAND_DETAILS === "true" },
       );
+      await page.evaluate(async () => {
+        await document.fonts.ready;
+        await new Promise(requestAnimationFrame);
+        await new Promise(requestAnimationFrame);
+      });
       const fullPage = await page.evaluate(
         () => document.documentElement.scrollHeight * devicePixelRatio < 32000,
       );
@@ -245,6 +251,7 @@ for (const config of configurations.filter(
             nodes: v.nodes.map((n) => ({ target: n.target, summary: n.failureSummary })),
           }))
         : [];
+      const unexpectedDestination = page.url() !== new URL(expectedRoute, baseURL).href;
       results.push({
         device: config.name,
         persona,
@@ -255,6 +262,8 @@ for (const config of configurations.filter(
         ...data,
         errors: [...errors],
         accessibility,
+        expectedRoute,
+        unexpectedDestination,
         unexpectedNotFound: /(^|\n)(?:Not found|This page could not be found)(?:\n|\.|$)/i.test(
           data.text,
         ),
@@ -276,7 +285,7 @@ for (const config of configurations.filter(
     );
   }
   async function login(persona) {
-    await settle();
+    await freshPage();
     await context.clearCookies();
     await page.goto("/login");
     await page.getByLabel("Email", { exact: true }).fill(`${persona}@local.test`);
@@ -334,6 +343,7 @@ const failures = results.filter(
     result.error ||
     result.status >= 400 ||
     result.unexpectedNotFound ||
+    result.unexpectedDestination ||
     result.overflow ||
     result.errors?.length ||
     result.accessibility?.length,

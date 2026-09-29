@@ -115,6 +115,7 @@ export type ActivityRecord = {
   startedAt: Date;
   occurredOn: string;
   recordedTimeZone: string;
+  timeZoneSource: TimeZoneSource;
   durationMs: number | null;
   effort: Effort;
   outcome: ActivityOutcome;
@@ -319,6 +320,8 @@ async function writeDetail(
     stroke: actual.stroke,
     strokeCount: actual.strokeCount,
     resourceId: actual.resourceId,
+    averageHeartRate: actual.averageHeartRate,
+    maxHeartRate: actual.maxHeartRate,
   };
   await tx
     .insert(swimmingActivityDetails)
@@ -710,6 +713,7 @@ function toRecord(
     startedAt: row.startedAt,
     occurredOn: row.occurredOn,
     recordedTimeZone: row.recordedTimeZone,
+    timeZoneSource: row.timeZoneSource,
     durationMs: row.durationMs,
     effort: { status: row.effortStatus, value: row.effortValue } as Effort,
     outcome: row.outcome,

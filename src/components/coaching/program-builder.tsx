@@ -84,16 +84,7 @@ export function ProgramBuilder({
   function weeksChange(weeks: number) {
     change({
       weeks,
-      runs: plan.days
-        .filter((day) => day.includesRun)
-        .flatMap((day) =>
-          Array.from(
-            { length: Math.max(0, Math.min(52, weeks)) },
-            (_, i) =>
-              plan.runs.find((r) => r.weekIndex === i + 1 && r.dayOfWeek === day.dayOfWeek) ??
-              emptyRun(i + 1, day.dayOfWeek),
-          ),
-        ),
+      runs: runsForDays(plan.days, weeks, plan.runs),
     });
   }
   async function save(preview: boolean) {
@@ -185,14 +176,15 @@ export function ProgramBuilder({
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() =>
+                onClick={() => {
+                  const days = plan.days
+                    .filter((_, i) => i !== d)
+                    .map((entry, i) => ({ ...entry, dayIndex: i + 1 }));
                   change({
-                    days: plan.days
-                      .filter((_, i) => i !== d)
-                      .map((entry, i) => ({ ...entry, dayIndex: i + 1 })),
-                    runs: plan.runs.filter((r) => r.dayOfWeek !== day.dayOfWeek),
-                  })
-                }
+                    days,
+                    runs: runsForDays(days, plan.weeks, plan.runs),
+                  });
+                }}
               >
                 Remove day
               </Button>
@@ -210,11 +202,19 @@ export function ProgramBuilder({
               value={day.dayOfWeek || ""}
               onChange={(e) => {
                 const dayOfWeek = Number(e.target.value);
+                const days = plan.days.map((entry, i) =>
+                  i === d ? { ...entry, dayOfWeek } : entry,
+                );
+                // Run targets belong to a week and weekday. Moving a rest/lifting day
+                // must not move another day's run; repeated weekdays share one target.
+                const moved = day.includesRun
+                  ? plan.runs
+                      .filter((run) => run.dayOfWeek === day.dayOfWeek)
+                      .map((run) => ({ ...run, dayOfWeek }))
+                  : [];
                 change({
-                  days: plan.days.map((entry, i) => (i === d ? { ...entry, dayOfWeek } : entry)),
-                  runs: plan.runs.map((r) =>
-                    r.dayOfWeek === day.dayOfWeek ? { ...r, dayOfWeek } : r,
-                  ),
+                  days,
+                  runs: runsForDays(days, plan.weeks, [...plan.runs, ...moved]),
                 });
               }}
             >
@@ -399,21 +399,15 @@ export function ProgramBuilder({
               type="checkbox"
               className="size-5"
               checked={day.includesRun}
-              onChange={(e) =>
+              onChange={(e) => {
+                const days = plan.days.map((entry, i) =>
+                  i === d ? { ...entry, includesRun: e.target.checked } : entry,
+                );
                 change({
-                  days: plan.days.map((entry, i) =>
-                    i === d ? { ...entry, includesRun: e.target.checked } : entry,
-                  ),
-                  runs: e.target.checked
-                    ? [
-                        ...plan.runs,
-                        ...Array.from({ length: Math.max(0, Math.min(52, plan.weeks)) }, (_, i) =>
-                          emptyRun(i + 1, day.dayOfWeek),
-                        ),
-                      ]
-                    : plan.runs.filter((r) => r.dayOfWeek !== day.dayOfWeek),
-                })
-              }
+                  days,
+                  runs: runsForDays(days, plan.weeks, plan.runs),
+                });
+              }}
             />
             Include a run
           </label>
@@ -594,6 +588,18 @@ export function ProgramBuilder({
         </Button>
       </div>
     </div>
+  );
+}
+/** Keep one target per week/weekday, including when several cycle days use that weekday. */
+function runsForDays(days: BlueprintDay[], weeks: number, runs: BlueprintRun[]): BlueprintRun[] {
+  const weekdays = new Set(days.filter((day) => day.includesRun).map((day) => day.dayOfWeek));
+  return [...weekdays].flatMap((dayOfWeek) =>
+    Array.from(
+      { length: Math.max(0, Math.min(52, weeks)) },
+      (_, index) =>
+        runs.find((run) => run.weekIndex === index + 1 && run.dayOfWeek === dayOfWeek) ??
+        emptyRun(index + 1, dayOfWeek),
+    ),
   );
 }
 function emptyRun(weekIndex: number, dayOfWeek: number): BlueprintRun {

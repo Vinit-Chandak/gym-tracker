@@ -41,7 +41,20 @@ export function ActivityEditor(props: Props) {
     () => true,
     () => false,
   );
-  return hydrated ? <StoredEditor {...props} /> : <p role="status">Opening your activity…</p>;
+  // Search-parameter navigation can reuse this component for a different sport or session.
+  // Reset only when identity changes; a refresh of the same session must retain its pinned
+  // revision and retry key so it cannot silently overwrite newer work.
+  const identity = JSON.stringify([
+    props.userId,
+    props.sport,
+    props.activityId ?? null,
+    props.occurrence?.id ?? null,
+  ]);
+  return hydrated ? (
+    <StoredEditor key={identity} {...props} />
+  ) : (
+    <p role="status">Opening your activity…</p>
+  );
 }
 
 function StoredEditor(props: Props) {
@@ -134,7 +147,11 @@ function StoredEditor(props: Props) {
   };
   const shared = {
     action,
-    initial: initialDraft.values,
+    initial: {
+      ...initialDraft.values,
+      recordedTimeZone:
+        initialDraft.values.recordedTimeZone ?? props.initial.recordedTimeZone ?? "UTC",
+    },
     submissionKey: initialDraft.submissionKey,
     occurrence: initialDraft.occurrence,
     expectedRevision: initialDraft.expectedRevision,

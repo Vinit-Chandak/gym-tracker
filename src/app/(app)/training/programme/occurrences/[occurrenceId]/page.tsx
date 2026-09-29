@@ -109,6 +109,12 @@ export default async function OccurrencePage(
               was invented.
             </p>
           </Card>
+        ) : occurrence.resolution.kind === "cancelled" ? (
+          <Card>
+            <p className="text-sm text-ink-muted">
+              This session was removed from the programme. It no longer needs to be logged.
+            </p>
+          </Card>
         ) : (
           <>
             {occurrence.loggable && (

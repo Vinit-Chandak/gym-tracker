@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeAll, expect, it, vi } from "vitest";
 
 import { Chart, labelIndices, niceTicks } from "./chart";
@@ -51,6 +51,48 @@ it("draws readings after switching from an empty metric without remounting", () 
   expect(screen.getByRole("img", { name: /Energy, 1 observations/ })).toBeTruthy();
 });
 afterEach(cleanup);
+
+it("drops a touched observation when a date filter removes it", () => {
+  const points = [
+    { date: "2026-09-01", value: 2 },
+    { date: "2026-09-08", value: 4 },
+    { date: "2026-09-15", value: 3 },
+  ];
+  const view = render(
+    <Chart title="Sessions" unit="sessions" series={[{ name: "Runs", color: "red", points }]} />,
+  );
+  fireEvent.pointerDown(screen.getByRole("img"), { clientX: PLOT_WIDTH - 12 });
+  expect(screen.getByRole("status").textContent).toContain("15 Sept 2026");
+  view.rerender(
+    <Chart
+      title="Sessions"
+      unit="sessions"
+      series={[{ name: "Runs", color: "red", points: points.slice(0, 2) }]}
+    />,
+  );
+  expect(screen.queryByRole("status")).toBeNull();
+  expect(screen.getByRole("img").outerHTML).not.toMatch(/NaN|undefined/);
+});
+
+it("keeps a touched date attached to its value when a filter shifts the series", () => {
+  const points = [
+    { date: "2026-09-01", value: 2 },
+    { date: "2026-09-08", value: 4 },
+    { date: "2026-09-15", value: 3 },
+  ];
+  const view = render(
+    <Chart title="Sessions" unit="sessions" series={[{ name: "Runs", color: "red", points }]} />,
+  );
+  fireEvent.pointerDown(screen.getByRole("img"), { clientX: PLOT_WIDTH - 12 });
+  view.rerender(
+    <Chart
+      title="Sessions"
+      unit="sessions"
+      series={[{ name: "Runs", color: "red", points: points.slice(1) }]}
+    />,
+  );
+  expect(screen.getByRole("status").textContent).toContain("15 Sept 2026");
+});
 
 it("keeps recovery ratings on the 1–5 scale and labels a single date once", () => {
   render(

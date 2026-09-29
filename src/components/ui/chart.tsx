@@ -155,11 +155,15 @@ export function Chart({
   // Width is measured after mount: the server cannot know it, and guessing would
   // make the first client render disagree with the server's HTML.
   const [width, setWidth] = useState(0);
-  const [active, setActive] = useState<number | null>(null);
+  const [activeDate, setActiveDate] = useState<string | null>(null);
   // Several charts share one screen, so the hatch each one defines needs its own name.
   const patternId = useId();
 
   const dates = series[0]?.points.map((p) => p.date) ?? [];
+  // A filter can replace the series while a touch tooltip is still open. Track the
+  // observation itself so a shorter range cannot reuse an invalid array index.
+  const activeIndex = activeDate === null ? -1 : dates.indexOf(activeDate);
+  const active = activeIndex < 0 ? null : activeIndex;
   const known = series.flatMap((s) =>
     s.points.filter((p) => p.value !== null).map((p) => p.value!),
   );
@@ -222,7 +226,7 @@ export function Chart({
     let nearest = 0;
     for (let i = 1; i < positions.length; i++)
       if (Math.abs(positions[i]! - local) < Math.abs(positions[nearest]! - local)) nearest = i;
-    setActive(nearest);
+    setActiveDate(dates[nearest]!);
   };
 
   if (empty) {
@@ -302,7 +306,7 @@ export function Chart({
             className="touch-pan-y overflow-visible select-none"
             onPointerMove={onMove}
             onPointerDown={onMove}
-            onPointerLeave={() => setActive(null)}
+            onPointerLeave={() => setActiveDate(null)}
           >
             {ticks.map((t) => (
               <g key={t}>
@@ -470,10 +474,10 @@ export function Chart({
         {active !== null && dates[active] && (
           <div
             role="status"
-            className="pointer-events-none absolute top-0 rounded-control border border-line-strong bg-canvas px-2 py-1 text-xs"
+            className="pointer-events-none absolute top-0 max-w-full rounded-control border border-line-strong bg-canvas px-2 py-1 text-xs [overflow-wrap:anywhere]"
             style={{
-              left: Math.max(0, Math.min(width - 132, x(active) - 66)),
-              minWidth: 108,
+              left: Math.max(0, Math.min(width - Math.min(width, 240), x(active) - 120)),
+              width: Math.min(width, 240),
             }}
           >
             <p className="text-ink-subtle">
@@ -481,7 +485,7 @@ export function Chart({
               {partialAt(active) && " · so far"}
             </p>
             {series.map((s) => (
-              <p key={s.name} className="flex items-center gap-1.5 tabular-nums">
+              <p key={s.name} className="flex min-w-0 flex-wrap items-center gap-1.5 tabular-nums">
                 {multi && (
                   <span
                     className="size-2 shrink-0 rounded-full"
@@ -489,12 +493,12 @@ export function Chart({
                     aria-hidden
                   />
                 )}
-                <span className="font-medium">
+                <span className="min-w-0 font-medium">
                   {s.points[active]?.value === null || s.points[active] === undefined
                     ? "—"
                     : format(s.points[active]!.value!)}
                 </span>
-                <span className="text-ink-subtle">{multi ? s.name : unit}</span>
+                <span className="min-w-0 text-ink-subtle">{multi ? s.name : unit}</span>
               </p>
             ))}
           </div>
