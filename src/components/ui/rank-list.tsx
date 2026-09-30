@@ -57,12 +57,12 @@ export function RankList({
             >
               <span className="flex min-w-0 flex-[1_1_9rem] flex-wrap items-center gap-x-3 gap-y-1">
                 {/* Wide enough for two digits, so names start on one line whatever the rank. */}
-                <span className="w-6 shrink-0 text-right text-sm font-medium tabular-nums">
+                <span className="w-6 shrink-0 text-right text-sm font-semibold tabular-nums">
                   {row.rank ?? "—"}
                 </span>
                 <Avatar username={row.username} displayName={row.displayName} size="row" />
                 <span className="min-w-0 flex-[1_1_3.5rem]">
-                  <span className="block font-medium [overflow-wrap:anywhere]">
+                  <span className="block font-semibold [overflow-wrap:anywhere]">
                     {mine ? "You" : row.displayName || row.username}
                   </span>
                   <span className="block text-sm [overflow-wrap:anywhere] text-ink-muted">
@@ -76,7 +76,7 @@ export function RankList({
                   <span aria-label="No data">—</span>
                 ) : (
                   <>
-                    <span className="block font-medium">{format(row.value)}</span>
+                    <span className="block font-semibold">{format(row.value)}</span>
                     {row.detail && (
                       <span className="block text-xs text-ink-muted">{row.detail}</span>
                     )}

@@ -41,7 +41,7 @@ export function RecoveryProgress({
   if (readings.length === 0)
     return (
       <Card>
-        <h2 className="text-lg font-medium">No check-ins in this range</h2>
+        <h2 className="text-lg font-semibold">No check-ins in this range</h2>
         <p className="text-sm text-ink-muted">
           Sleep, fatigue and soreness appear here when you save a workout check-in, even before you
           finish the workout. Blank answers stay blank.
@@ -49,7 +49,7 @@ export function RecoveryProgress({
         <p className="text-sm text-ink-muted">
           Try a wider date range, or add a check-in from your current workout.
         </p>
-        <Link href="/today" className="inline-flex min-h-11 items-center font-medium text-accent">
+        <Link href="/today" className="inline-flex min-h-11 items-center font-semibold text-accent">
           Go to Today
         </Link>
       </Card>
@@ -82,7 +82,7 @@ export function RecoveryProgress({
                 className="peer sr-only"
               />
               <span className="flex h-full min-h-20 cursor-pointer flex-col gap-1 rounded-control border border-line-strong bg-surface px-3 py-2 peer-checked:border-accent peer-checked:bg-accent-soft peer-focus-visible:ring-2 peer-focus-visible:ring-focus">
-                <span className="text-sm font-medium">{item.label}</span>
+                <span className="text-sm font-semibold">{item.label}</span>
                 <span className="text-lg tabular-nums">
                   {recent ? format(recent[item.value]!) : "—"}
                   <span className="ml-1 text-xs text-ink-muted">
@@ -96,7 +96,7 @@ export function RecoveryProgress({
       </div>
       <Card>
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-lg font-medium">{metric.label}</h2>
+          <h2 className="text-lg font-semibold">{metric.label}</h2>
           <span className="text-xs text-ink-muted">
             {known.length} {known.length === 1 ? "reading" : "readings"}
           </span>
@@ -110,7 +110,7 @@ export function RecoveryProgress({
             >
               <div>
                 <dt className="text-xs text-ink-muted">Latest</dt>
-                <dd className="mt-1 text-2xl font-medium tabular-nums">
+                <dd className="mt-1 text-2xl font-semibold tabular-nums">
                   {format(latest[metric.value]!)}{" "}
                   <span className="text-sm font-normal text-ink-muted">{metric.unit}</span>
                 </dd>
@@ -118,7 +118,7 @@ export function RecoveryProgress({
               </div>
               <div>
                 <dt className="text-xs text-ink-muted">Range average</dt>
-                <dd className="mt-1 text-2xl font-medium tabular-nums">
+                <dd className="mt-1 text-2xl font-semibold tabular-nums">
                   {format(average)}{" "}
                   <span className="text-sm font-normal text-ink-muted">{metric.unit}</span>
                 </dd>
@@ -153,7 +153,7 @@ export function RecoveryProgress({
         )}
       </Card>
       <Card>
-        <h2 className="font-medium">Recent check-ins</h2>
+        <h2 className="font-semibold">Recent check-ins</h2>
         <ul className="divide-y divide-line">
           {readings
             .slice(-3)
@@ -167,12 +167,12 @@ export function RecoveryProgress({
                   {reading.sessionId ? (
                     <Link
                       href={`/workouts/${reading.sessionId}`}
-                      className="inline-flex min-h-11 items-center font-medium text-accent"
+                      className="inline-flex min-h-11 items-center font-semibold text-accent"
                     >
                       {formatIsoDay(reading.date)}
                     </Link>
                   ) : (
-                    <p className="font-medium">{formatIsoDay(reading.date)}</p>
+                    <p className="font-semibold">{formatIsoDay(reading.date)}</p>
                   )}
                   <p className="text-xs text-ink-muted">
                     {reading.source === "workout" ? "Workout check-in" : "Daily recovery"}

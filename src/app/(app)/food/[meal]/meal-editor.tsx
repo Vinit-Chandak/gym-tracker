@@ -148,7 +148,7 @@ export function MealEditor({
           <section aria-label={`${label} total`} className="box panel-padding">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-2xl font-medium tabular-nums">
+                <p className="text-2xl font-semibold tabular-nums">
                   {formatKcal(total.kcal)}
                   <span className="text-sm font-normal text-ink-muted"> kcal</span>
                 </p>
@@ -188,7 +188,7 @@ export function MealEditor({
                     {/* The spaces are for the button's name, which a screen reader reads as one
                         string; beside flex items they take no room on the screen. */}
                     <span className="min-w-0 flex-1">
-                      <span className="block font-medium [overflow-wrap:anywhere]">
+                      <span className="block font-semibold [overflow-wrap:anywhere]">
                         {entry.name}
                       </span>{" "}
                       <span className="block text-sm text-ink-muted tabular-nums">
@@ -239,7 +239,7 @@ export function MealEditor({
             >
               <QuickAdd className="shrink-0 text-accent" aria-hidden />
               <span className="min-w-0 flex-1">
-                <span className="block font-medium [overflow-wrap:anywhere] text-accent">
+                <span className="block font-semibold [overflow-wrap:anywhere] text-accent">
                   {query.trim() ? `Quick add “${query.trim()}”` : "Quick add"}
                 </span>{" "}
                 <span className="block text-sm text-ink-muted">
@@ -257,7 +257,7 @@ export function MealEditor({
               >
                 <Star className="shrink-0 text-accent" aria-hidden />
                 <span className="min-w-0 flex-1">
-                  <span className="block font-medium [overflow-wrap:anywhere]">{saved.name}</span>{" "}
+                  <span className="block font-semibold [overflow-wrap:anywhere]">{saved.name}</span>{" "}
                   <span className="block text-sm [overflow-wrap:anywhere] text-ink-muted">
                     {saved.items.map((item) => item.name).join(", ")}
                   </span>
@@ -276,7 +276,7 @@ export function MealEditor({
                 className={PRESSABLE_ROW_CLASS}
               >
                 <span className="min-w-0 flex-1">
-                  <span className="block font-medium [overflow-wrap:anywhere]">{food.name}</span>{" "}
+                  <span className="block font-semibold [overflow-wrap:anywhere]">{food.name}</span>{" "}
                   <span className="block text-sm text-ink-muted tabular-nums">
                     {formatPortion(food.portionAmount, food.unit)} · {formatKcal(food.kcal)} kcal
                   </span>
@@ -290,7 +290,7 @@ export function MealEditor({
               <button
                 type="button"
                 onClick={() => open({ kind: "create", name: query.trim() })}
-                className={cn(PRESSABLE_ROW_CLASS, "font-medium text-accent")}
+                className={cn(PRESSABLE_ROW_CLASS, "font-semibold text-accent")}
               >
                 <Plus className="shrink-0" aria-hidden />
                 <span className="min-w-0 [overflow-wrap:anywhere]">

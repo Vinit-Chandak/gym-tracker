@@ -100,7 +100,7 @@ export function BodyMap({ volume, totalSets }: { volume: MuscleVolume; totalSets
 
       {active && (
         <p role="status" className="text-center text-sm">
-          <span className="font-medium">{MUSCLE_LABELS[active]}</span>
+          <span className="font-semibold">{MUSCLE_LABELS[active]}</span>
           <span className="text-ink-muted"> · {fmt(volume[active] ?? 0)} sets this week</span>
         </p>
       )}
@@ -109,12 +109,12 @@ export function BodyMap({ volume, totalSets }: { volume: MuscleVolume; totalSets
         <table className="w-full text-left text-sm tabular-nums">
           <thead>
             <tr className="border-b border-line bg-surface-raised text-xs text-ink-muted">
-              <th className="px-3 py-2 font-medium">Muscle</th>
-              <th className="px-3 py-2 text-right font-medium">Sets</th>
+              <th className="px-3 py-2 font-semibold">Muscle</th>
+              <th className="px-3 py-2 text-right font-semibold">Sets</th>
             </tr>
           </thead>
           <tbody>
-            <tr className="border-b border-line font-medium">
+            <tr className="border-b border-line font-semibold">
               <td className="px-3 py-2">Total working sets</td>
               <td className="px-3 py-2 text-right">{fmt(totalSets)}</td>
             </tr>

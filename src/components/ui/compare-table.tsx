@@ -70,7 +70,7 @@ export function CompareTable({
           return (
             <tr key={row.key} className="border-t border-line">
               <th scope="row" className="py-3 pr-3 text-left align-top font-normal">
-                <span className="block font-medium">{row.label}</span>
+                <span className="block font-semibold">{row.label}</span>
                 <span
                   className={cn(
                     "block text-xs tabular-nums",
@@ -100,7 +100,7 @@ function Who({ name, title, color }: { name: string; title?: string; color: stri
     <th
       scope="col"
       title={title}
-      className="pb-2 pl-2 text-right font-medium [overflow-wrap:anywhere]"
+      className="pb-2 pl-2 text-right font-semibold [overflow-wrap:anywhere]"
     >
       <span
         className="mr-1.5 inline-block size-2 rounded-full align-middle"
@@ -118,7 +118,7 @@ function Value({ side, leads }: { side: CompareSide; leads: boolean }) {
       <span
         className={cn(
           "block",
-          leads ? "font-semibold" : side.value ? "font-medium" : "text-ink-muted",
+          leads ? "font-semibold" : side.value ? "font-semibold" : "text-ink-muted",
         )}
       >
         {side.text}

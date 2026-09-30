@@ -67,13 +67,13 @@ export function SessionDetails({
 
       {session.notes && (
         <div className="mt-4">
-          <h3 className="text-sm font-medium">Notes</h3>
+          <h3 className="text-sm font-semibold">Notes</h3>
           <p className="mt-1 text-sm whitespace-pre-line text-ink-muted">{session.notes}</p>
         </div>
       )}
 
       <div className="mt-4">
-        <h3 className="text-sm font-medium">Check-in</h3>
+        <h3 className="text-sm font-semibold">Check-in</h3>
         {readings.length === 0 ? (
           <p className="mt-1 text-sm text-ink-muted">Nothing recorded before this session.</p>
         ) : (
@@ -86,7 +86,7 @@ export function SessionDetails({
         {!readOnly && (
           <Link
             href={`/workouts/${session.id}/check-in`}
-            className="flex min-h-11 items-center text-sm font-medium text-accent"
+            className="flex min-h-11 items-center text-sm font-semibold text-accent"
           >
             {readings.length === 0 ? "Add a check-in" : "Edit the check-in"}
           </Link>

@@ -69,7 +69,7 @@ export function ActivityRow({
       <Avatar username={person.username} displayName={person.displayName} size="row" />
       <span className="min-w-0 flex-1">
         <span className="flex flex-wrap items-baseline justify-between gap-x-2">
-          <span className="font-medium [overflow-wrap:anywhere]">
+          <span className="font-semibold [overflow-wrap:anywhere]">
             {person.displayName || person.username}
           </span>
           <span className="text-xs text-ink-muted">{formatRelativeDay(row.occurredOn, today)}</span>

@@ -29,16 +29,16 @@ export function SetTable({
     <table className="w-full table-fixed text-sm [overflow-wrap:anywhere] tabular-nums">
       <thead>
         <tr className="border-b border-line text-xs text-ink-muted">
-          <th scope="col" className="w-11 py-1 text-center font-medium">
+          <th scope="col" className="w-11 py-1 text-center font-semibold">
             Set
           </th>
-          <th scope="col" className="py-1 text-center font-medium">
+          <th scope="col" className="py-1 text-center font-semibold">
             {heading}
           </th>
-          <th scope="col" className="py-1 text-center font-medium">
+          <th scope="col" className="py-1 text-center font-semibold">
             {mixedMeasures ? "Result" : MEASURE_COLUMN_LABELS[measure]}
           </th>
-          <th scope="col" className="py-1 text-center font-medium">
+          <th scope="col" className="py-1 text-center font-semibold">
             {mixedEffort ? "Effort" : effortMetric(measure).toUpperCase()}
           </th>
         </tr>
@@ -56,7 +56,7 @@ export function SetTable({
                 : set.reps;
           return (
             <tr key={set.setIndex} className="border-b border-line last:border-0">
-              <th scope="row" className="py-1.5 text-center font-medium">
+              <th scope="row" className="py-1.5 text-center font-semibold">
                 {set.setIndex}
                 {set.setType !== "working" && (
                   <span className="block text-[0.625rem] leading-none font-normal text-ink-muted">

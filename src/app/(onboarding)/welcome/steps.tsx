@@ -27,7 +27,7 @@ export function Steps({ current }: { current: OnboardingStep }) {
             <span
               aria-hidden
               className={cn(
-                "flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-medium",
+                "flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold",
                 done && "bg-accent-soft text-accent",
                 active && "bg-accent text-on-accent",
                 !done && !active && "bg-surface-raised text-ink-subtle",
@@ -38,7 +38,7 @@ export function Steps({ current }: { current: OnboardingStep }) {
             <span
               className={cn(
                 "w-full truncate text-center text-[11px]",
-                active ? "font-medium text-ink" : "text-ink-subtle",
+                active ? "font-semibold text-ink" : "text-ink-subtle",
               )}
             >
               {step.label}

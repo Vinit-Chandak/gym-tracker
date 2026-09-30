@@ -77,7 +77,7 @@ export default async function ChooseDayPage() {
                   <li key={day.id} className="space-y-2 px-4 py-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="font-medium [overflow-wrap:anywhere]">{day.name}</p>
+                        <p className="font-semibold [overflow-wrap:anywhere]">{day.name}</p>
                         {day.focus && <p className="text-sm text-ink-muted">{day.focus}</p>}
                       </div>
                       {/* Every day starts out pending, so only a changed status earns a badge. */}

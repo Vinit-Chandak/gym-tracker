@@ -44,14 +44,14 @@ export function FilterSheet({
         aria-expanded={open}
         aria-label={summary ? `${label}: ${summary}` : label}
         className={cn(
-          "flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-control px-2 text-sm font-medium transition-colors duration-[var(--ov-duration-feedback)] active:bg-surface-raised",
+          "flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-control px-2 text-sm font-semibold transition-colors duration-[var(--ov-duration-feedback)] active:bg-surface-raised",
           count > 0 ? "text-accent" : "text-ink-muted hover:text-ink",
         )}
       >
         <SlidersHorizontal className="shrink-0" aria-hidden />
         <span className="hidden min-[24rem]:inline">{label}</span>
         {count > 0 && (
-          <span className="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-medium text-on-accent tabular-nums">
+          <span className="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-semibold text-on-accent tabular-nums">
             {count}
           </span>
         )}

@@ -346,7 +346,7 @@ function Header({
   return (
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
-        <h2 className="text-xl font-medium [overflow-wrap:anywhere]">{title}</h2>
+        <h2 className="text-xl font-semibold [overflow-wrap:anywhere]">{title}</h2>
         <p role="status" aria-live="polite" className="min-h-4 text-xs text-ink-subtle">
           {status}
         </p>
@@ -453,7 +453,7 @@ function TrackChooser({
 }) {
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-medium">Which sounds like you?</h2>
+      <h2 className="text-xl font-semibold">Which sounds like you?</h2>
       {(
         [
           {
@@ -481,7 +481,7 @@ function TrackChooser({
         ] as const
       ).map((option) => (
         <Card key={option.track}>
-          <h3 className="text-lg font-medium">{option.title}</h3>
+          <h3 className="text-lg font-semibold">{option.title}</h3>
           <ul className="space-y-1.5 text-sm text-ink-muted">
             {option.points.map((point) => (
               <li key={point} className="flex gap-2">
@@ -519,7 +519,7 @@ function DayPicker({
 }) {
   return (
     <fieldset className="min-w-0">
-      <legend className="mb-1.5 text-sm font-medium text-ink-muted">{legend}</legend>
+      <legend className="mb-1.5 text-sm font-semibold text-ink-muted">{legend}</legend>
       <div className="grid grid-cols-7 gap-1">
         {WEEKDAY_SHORT.slice(1).map((short, i) => {
           const day = i + 1;
@@ -536,7 +536,7 @@ function DayPicker({
                 )
               }
               className={cn(
-                "flex min-h-12 min-w-0 items-center justify-center rounded-control border text-sm font-medium transition-colors duration-[var(--ov-duration-feedback)]",
+                "flex min-h-12 min-w-0 items-center justify-center rounded-control border text-sm font-semibold transition-colors duration-[var(--ov-duration-feedback)]",
                 on
                   ? "border-accent bg-accent text-on-accent"
                   : "border-line-strong bg-surface text-ink-muted",
@@ -1159,7 +1159,7 @@ function FilePicker({
       )}
     >
       <Paperclip className="text-ink-subtle" aria-hidden />
-      <span className="text-sm font-medium">Add files</span>
+      <span className="text-sm font-semibold">Add files</span>
       <span className="text-xs text-ink-subtle">PDF, image, CSV or text</span>
       <input
         type="file"

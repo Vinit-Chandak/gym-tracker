@@ -102,7 +102,7 @@ export function EquipmentStepForm({
       ) : (
         groups.map((group) => (
           <fieldset key={group.category} className="space-y-2">
-            <legend className="pb-1 text-xs font-medium tracking-wide text-ink-muted uppercase">
+            <legend className="pb-1 text-sm font-semibold text-ink-muted">
               {EQUIPMENT_CATEGORY_LABELS[group.category]}
             </legend>
             <div className="grid gap-2 sm:grid-cols-2">

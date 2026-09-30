@@ -54,7 +54,7 @@ export function AmountField({
   const errorId = `${id}-error`;
   return (
     <div className="min-w-0 space-y-2" data-field-error={error ? "true" : undefined}>
-      <label htmlFor={id} className="block text-sm font-medium text-ink-muted">
+      <label htmlFor={id} className="block text-sm font-semibold text-ink-muted">
         {label}
       </label>
       <div className="flex items-center gap-3">
@@ -72,7 +72,7 @@ export function AmountField({
           }
           className={cn(
             INPUT_CLASS,
-            "h-12 max-w-[12rem] text-lg font-medium tabular-nums",
+            "h-12 max-w-[12rem] text-lg font-semibold tabular-nums",
             error && "border-danger",
           )}
         />
@@ -111,7 +111,7 @@ export function Preview({ amounts }: { amounts: FoodAmounts }) {
   const macros = formatMacros(amounts);
   return (
     <div className="min-w-0">
-      <p className="text-lg font-medium tabular-nums">
+      <p className="text-lg font-semibold tabular-nums">
         {formatKcal(amounts.kcal)}
         <span className="text-sm font-normal text-ink-muted"> kcal</span>
       </p>

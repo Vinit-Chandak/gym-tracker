@@ -56,7 +56,7 @@ export default async function GymFallbackPage(
       <PageContent>
         <p className="flex items-center gap-1 px-1 text-sm text-ink-muted">
           <span>
-            Instead of <span className="font-medium text-ink">{data.exercise.name}</span> at{" "}
+            Instead of <span className="font-semibold text-ink">{data.exercise.name}</span> at{" "}
             {data.gym.name}
           </span>
           <InfoTip label="About fallbacks">

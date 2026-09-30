@@ -32,7 +32,7 @@ export function NavigationFeedback({ href }: { href: string }) {
           {online && (
             <a
               href={href}
-              className="flex min-h-11 shrink-0 items-center px-2 font-medium text-accent"
+              className="flex min-h-11 shrink-0 items-center px-2 font-semibold text-accent"
             >
               Retry
             </a>
@@ -60,7 +60,7 @@ export function LoadingMessage({ title }: { title: string }) {
       {online && (
         <a
           href=""
-          className="loading-retry flex min-h-11 items-center px-3 font-medium text-accent"
+          className="loading-retry flex min-h-11 items-center px-3 font-semibold text-accent"
         >
           Retry loading
         </a>

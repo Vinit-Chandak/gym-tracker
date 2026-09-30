@@ -205,7 +205,7 @@ export function ProfileFields({
       )}
 
       <div className="space-y-1.5">
-        <span className="block text-sm font-medium text-ink-muted">Units</span>
+        <span className="block text-sm font-semibold text-ink-muted">Units</span>
         <SegmentedControl
           name="preferredUnit"
           aria-label="Units"
@@ -238,7 +238,7 @@ export function ProfileFields({
 
       {imperial ? (
         <div className="space-y-1.5">
-          <span className="block text-sm font-medium text-ink-muted">Height</span>
+          <span className="block text-sm font-semibold text-ink-muted">Height</span>
           <div className="grid grid-cols-2 gap-2">
             <Field label="Feet" error={errors?.heightFeet}>
               <Input
@@ -294,7 +294,7 @@ export function ProfileFields({
       </Field>
 
       <div className="space-y-1.5">
-        <span className="block text-sm font-medium text-ink-muted">Sex</span>
+        <span className="block text-sm font-semibold text-ink-muted">Sex</span>
         <SegmentedControl
           name="sex"
           aria-label="Sex"

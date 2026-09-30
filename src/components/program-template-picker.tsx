@@ -63,7 +63,7 @@ export function ProgramTemplatePicker({
                   className="mt-1 size-5 shrink-0 accent-[var(--ov-accent)]"
                 />
                 <span className="min-w-0 space-y-1">
-                  <span className="block font-medium">{template.name}</span>
+                  <span className="block font-semibold">{template.name}</span>
                   <span className="block text-sm text-ink-muted">{template.summary}</span>
                   <ul className="space-y-0.5 pt-1">
                     {template.highlights.map((highlight) => (

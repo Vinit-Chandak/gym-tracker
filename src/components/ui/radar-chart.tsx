@@ -63,7 +63,7 @@ export function RadarChart({ title, axes, series, format = percent, className }:
   return (
     <figure className={cn("space-y-2", className)}>
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-        <figcaption className="text-sm font-medium">{title}</figcaption>
+        <figcaption className="text-sm font-semibold">{title}</figcaption>
         {/* A legend only once there is more than one shape; a single one is the caption. */}
         {multi && (
           <ul className="flex flex-wrap gap-3">
@@ -139,7 +139,7 @@ export function RadarChart({ title, axes, series, format = percent, className }:
         ))}
       </svg>
       <details className="group text-xs text-ink-muted">
-        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1.5 font-medium select-none">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1.5 font-semibold select-none">
           <ChevronDown
             className="shrink-0 transition-transform duration-[var(--ov-duration-feedback)] group-open:rotate-180"
             aria-hidden
@@ -152,11 +152,11 @@ export function RadarChart({ title, axes, series, format = percent, className }:
           <caption className="sr-only">{title} by axis</caption>
           <thead>
             <tr className="text-ink-subtle">
-              <th scope="col" className="py-1.5 font-medium">
+              <th scope="col" className="py-1.5 font-semibold">
                 Group
               </th>
               {series.map((s) => (
-                <th scope="col" key={s.name} className="py-1.5 text-right font-medium">
+                <th scope="col" key={s.name} className="py-1.5 text-right font-semibold">
                   {s.name}
                 </th>
               ))}

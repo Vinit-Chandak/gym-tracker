@@ -228,7 +228,7 @@ export function Chart({
   if (empty) {
     return (
       <figure className="space-y-1">
-        <figcaption className="text-sm font-medium">
+        <figcaption className="text-sm font-semibold">
           {title} <span className="text-ink-muted">({unit})</span>
         </figcaption>
         <p className="py-6 text-center text-sm text-ink-muted">
@@ -267,7 +267,7 @@ export function Chart({
       {(caption || note || multi) && (
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
           <span className="flex min-w-0 items-center gap-1">
-            <figcaption className={cn("text-sm font-medium", !caption && "sr-only")}>
+            <figcaption className={cn("text-sm font-semibold", !caption && "sr-only")}>
               {title} <span className="text-ink-muted">({unit})</span>
             </figcaption>
             {note && <InfoTip label={`About ${title.toLowerCase()}`}>{note}</InfoTip>}
@@ -489,7 +489,7 @@ export function Chart({
                     aria-hidden
                   />
                 )}
-                <span className="font-medium">
+                <span className="font-semibold">
                   {s.points[active]?.value === null || s.points[active] === undefined
                     ? "—"
                     : format(s.points[active]!.value!)}
@@ -509,7 +509,7 @@ export function Chart({
         lands on top of the right-hand column.
       */}
       <details className="group text-xs text-ink-muted">
-        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1.5 font-medium select-none">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1.5 font-semibold select-none">
           <ChevronDown
             className="shrink-0 transition-transform duration-[var(--ov-duration-feedback)] group-open:rotate-180"
             aria-hidden
@@ -522,11 +522,11 @@ export function Chart({
           <caption className="sr-only">{title} by date, newest first</caption>
           <thead>
             <tr className="text-ink-subtle">
-              <th scope="col" className="py-1.5 font-medium">
+              <th scope="col" className="py-1.5 font-semibold">
                 Date
               </th>
               {series.map((s) => (
-                <th scope="col" key={s.name} className="py-1.5 text-right font-medium">
+                <th scope="col" key={s.name} className="py-1.5 text-right font-semibold">
                   {multi ? s.name : unit}
                 </th>
               ))}

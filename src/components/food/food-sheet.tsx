@@ -286,7 +286,7 @@ export function FoodSheet({
 
           {!quick && (
             <div className="min-w-0 space-y-1.5">
-              <p id={`${formId}-portion`} className="text-sm font-medium text-ink-muted">
+              <p id={`${formId}-portion`} className="text-sm font-semibold text-ink-muted">
                 Nutrition per
               </p>
               <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
@@ -332,7 +332,7 @@ export function FoodSheet({
           )}
 
           <div className="space-y-2">
-            {quick && <p className="text-sm font-medium text-ink-muted">What it came to</p>}
+            {quick && <p className="text-sm font-semibold text-ink-muted">What it came to</p>}
             {/* Four across on a phone at normal text; fewer, never clipped, as text grows. */}
             <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,4rem),1fr))] gap-2">
               {FIGURES.map(({ field, label, max }) => {

@@ -62,7 +62,7 @@ export function AppearanceRow() {
         className={PRESSABLE_ROW_CLASS}
       >
         <RowIcon icon={SunMoon} />
-        <span className="min-w-0 flex-1 font-medium">Appearance</span>
+        <span className="min-w-0 flex-1 font-semibold">Appearance</span>
         <span className="shrink-0 text-sm text-ink-muted">{APPEARANCE_LABELS[appearance]}</span>
         <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />
       </button>
@@ -76,7 +76,7 @@ export function AppearanceRow() {
                 onClick={() => choose(mode)}
                 aria-pressed={appearance === mode}
                 className={cn(
-                  "flex min-h-14 w-full items-center justify-between gap-3 px-1 text-left font-medium active:bg-surface-raised",
+                  "flex min-h-14 w-full items-center justify-between gap-3 px-1 text-left font-semibold active:bg-surface-raised",
                   appearance === mode ? "text-ink" : "text-ink-muted",
                 )}
               >

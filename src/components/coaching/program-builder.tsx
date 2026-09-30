@@ -128,7 +128,7 @@ export function ProgramBuilder({
   }
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-medium">
+      <h1 className="text-2xl font-semibold">
         {initial ? "Edit your programme draft" : "Build your programme"}
       </h1>
       <p className="text-sm text-ink-muted">
@@ -162,7 +162,7 @@ export function ProgramBuilder({
       {plan.days.map((day, d) => (
         <Card key={d}>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-lg font-medium">Day {d + 1}</h2>
+            <h2 className="text-lg font-semibold">Day {d + 1}</h2>
             <div className="flex gap-1">
               <Button
                 size="sm"
@@ -262,7 +262,7 @@ export function ProgramBuilder({
           </Field>
           {day.exercises.map((entry, e) => (
             <fieldset key={e} className="space-y-3 rounded-control border border-line p-3">
-              <legend className="px-1 font-medium">
+              <legend className="px-1 font-semibold">
                 {library.find((x) => x.slug === entry.exerciseSlug)?.name ?? entry.exerciseSlug}
               </legend>
               <div className="grid grid-cols-2 gap-3">

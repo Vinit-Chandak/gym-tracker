@@ -90,7 +90,7 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
       <PageContent>
         <Card>
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-base font-medium">{ACTIVITY_SPORT_LABELS[activity.sport]}</h2>
+            <h2 className="text-base font-semibold">{ACTIVITY_SPORT_LABELS[activity.sport]}</h2>
             <Badge tone={activity.outcome === "ended_early" ? "accent" : "neutral"}>
               {activity.outcome === "ended_early" ? "Ended early" : "Logged"}
             </Badge>
@@ -112,7 +112,7 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
 
         {activity.notes && (
           <Card>
-            <h2 className="text-base font-medium">Notes</h2>
+            <h2 className="text-base font-semibold">Notes</h2>
             <p className="text-sm [overflow-wrap:anywhere] whitespace-pre-wrap">{activity.notes}</p>
           </Card>
         )}

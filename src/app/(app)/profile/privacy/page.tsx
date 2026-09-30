@@ -48,7 +48,7 @@ export default async function PrivacyPage() {
       <PageContent>
         <Card>
           <div>
-            <h2 className="font-medium">What a follower can see</h2>
+            <h2 className="font-semibold">What a follower can see</h2>
             <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-ink-muted">
               {VISIBLE.map((line) => (
                 <li key={line}>{line}</li>
@@ -56,7 +56,7 @@ export default async function PrivacyPage() {
             </ul>
           </div>
           <div>
-            <h2 className="font-medium">What nobody can see</h2>
+            <h2 className="font-semibold">What nobody can see</h2>
             <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-ink-muted">
               {NEVER.map((line) => (
                 <li key={line}>{line}</li>

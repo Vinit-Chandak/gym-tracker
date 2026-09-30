@@ -86,7 +86,7 @@ export default async function EquipmentPage(
         {equipment.isActive && (
           <Card>
             <div className="flex items-center justify-between gap-3">
-              <p className="flex items-center gap-1 font-medium">
+              <p className="flex items-center gap-1 font-semibold">
                 Archive machine
                 <InfoTip label="About archiving">
                   Hides it from new sessions at {equipment.gymName}. Sets logged on it stay in

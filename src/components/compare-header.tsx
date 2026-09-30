@@ -25,7 +25,7 @@ export function CompareHeader({
       <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-3">
         <Person person={a} stronger={stronger === "a"} />
         <span
-          className="self-center pt-1 text-sm font-medium tracking-wide text-ink-subtle"
+          className="self-center pt-1 text-sm font-semibold tracking-wide text-ink-subtle"
           aria-hidden
         >
           VS
@@ -41,7 +41,7 @@ function Person({ person, stronger }: { person: ComparePerson; stronger: boolean
     <div className="flex min-w-0 flex-col items-center gap-2 text-center">
       <Avatar username={person.username} displayName={person.displayName} size="compare" />
       <p className="max-w-full min-w-0">
-        <span className="block font-medium [overflow-wrap:anywhere]">
+        <span className="block font-semibold [overflow-wrap:anywhere]">
           {person.displayName || person.username}
         </span>
         <span className="block text-sm [overflow-wrap:anywhere] text-ink-muted">

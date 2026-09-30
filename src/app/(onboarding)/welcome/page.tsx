@@ -21,7 +21,7 @@ export default async function WelcomePage() {
       <Steps current="profile" />
       <Card>
         <div>
-          <h1 className="text-xl font-medium">Welcome to {APP_NAME}</h1>
+          <h1 className="text-xl font-semibold">Welcome to {APP_NAME}</h1>
           <p className="text-sm text-ink-muted">
             A few short steps. Everything here can be changed later, from your profile.
           </p>

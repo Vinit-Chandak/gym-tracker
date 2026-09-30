@@ -81,7 +81,7 @@ export function PickExerciseForm({
             <>
               <input type="hidden" name="equipmentInstanceId" value={applicable[0]!.id} />
               <p className="text-sm text-ink-muted">
-                On <span className="font-medium text-ink">{applicable[0]!.name}</span>
+                On <span className="font-semibold text-ink">{applicable[0]!.name}</span>
               </p>
             </>
           ) : (

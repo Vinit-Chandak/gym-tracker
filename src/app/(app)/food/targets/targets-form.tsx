@@ -136,7 +136,7 @@ export function TargetsForm({
         </Field>
 
         <div className="min-w-0 space-y-1.5">
-          <p className="text-sm font-medium text-ink-muted">Goal</p>
+          <p className="text-sm font-semibold text-ink-muted">Goal</p>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className={goal ? undefined : "text-ink-muted"}>
               {goal ? TRAINING_GOAL_LABELS[goal] : "Not set"}

@@ -68,7 +68,7 @@ function NumericCell({
         className={cn(
           // A well to type into; once the set is saved the number stands on the row's own
           // colour instead, and the well comes back the moment it is focused to be changed.
-          "h-12 w-full min-w-0 rounded-control px-1 text-center font-display text-[1.625rem] leading-none font-extrabold text-ink tabular-nums transition-colors duration-[var(--ov-duration-feedback)] placeholder:font-medium placeholder:text-ink-muted/75 focus:bg-surface focus:ring-2 focus:ring-accent focus:outline-none disabled:opacity-50",
+          "h-12 w-full min-w-0 rounded-control px-1 text-center font-display text-[1.625rem] leading-none font-extrabold text-ink tabular-nums transition-colors duration-[var(--ov-duration-feedback)] placeholder:font-semibold placeholder:text-ink-muted/75 focus:bg-surface focus:ring-2 focus:ring-accent focus:outline-none disabled:opacity-50",
           saved ? "bg-transparent" : "bg-surface-raised",
         )}
       />
@@ -278,7 +278,7 @@ export function SetGrid({
                       type="button"
                       onClick={() => onUndoWarmup(row)}
                       aria-label={`Set ${row.setIndex} was a working set`}
-                      className="-my-2 min-h-11 font-medium text-accent underline underline-offset-2"
+                      className="-my-2 min-h-11 font-semibold text-accent underline underline-offset-2"
                     >
                       Undo
                     </button>

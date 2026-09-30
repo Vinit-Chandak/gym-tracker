@@ -243,7 +243,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
         </Card>
 
         <Card>
-          <h2 className="text-base font-medium">Equipment</h2>
+          <h2 className="text-base font-semibold">Equipment</h2>
           {exercise.requiresEquipment ? (
             <ol className="list-inside list-decimal space-y-1 text-sm">
               {exercise.equipmentOptions.map((option) => (
@@ -257,11 +257,11 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
 
         {exercise.programUsage.length > 0 && (
           <Card>
-            <h2 className="text-base font-medium">In your programme</h2>
+            <h2 className="text-base font-semibold">In your programme</h2>
             <ul className="divide-y divide-line">
               {exercise.programUsage.map((usage) => (
                 <li key={usage.programExerciseId} className="space-y-0.5 py-2">
-                  <p className="text-sm font-medium">{usage.dayName}</p>
+                  <p className="text-sm font-semibold">{usage.dayName}</p>
                   <p className="text-sm text-ink-muted tabular-nums">{prescription(usage)}</p>
                   {(usage.targetLoadNote || usage.progressionNotes) && (
                     <p className="text-xs text-ink-subtle">
@@ -294,7 +294,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
         <ExerciseTrend range={range} machines={machines} selected={selected} />
 
         <Card>
-          <h2 className="flex items-center gap-1 text-base font-medium">
+          <h2 className="flex items-center gap-1 text-base font-semibold">
             Recent sessions
             {exercise.loadPortability !== "global" && (
               <InfoTip label="About recent sessions">
@@ -314,7 +314,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
                     className="block space-y-0.5 py-2"
                   >
                     <div className="flex justify-between gap-3 text-sm">
-                      <span className="font-medium">
+                      <span className="font-semibold">
                         {formatDay(performance.performedAt, timeZone)}
                       </span>
                       <span className="min-w-0 truncate text-ink-muted">
@@ -346,7 +346,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
           {availability.map((entry) => (
             <Card key={entry.gym.id}>
               <div className="flex items-center justify-between gap-3">
-                <h3 className="font-medium">{entry.gym.name}</h3>
+                <h3 className="font-semibold">{entry.gym.name}</h3>
                 <AvailabilityBadge status={entry.resolution.status} />
               </div>
               <p className="text-sm text-ink-muted">{availabilityDetail(entry)}</p>
@@ -358,7 +358,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
                 >
                   <label
                     htmlFor={`preferred-machine-${entry.gym.id}`}
-                    className="block text-sm font-medium text-ink-muted"
+                    className="block text-sm font-semibold text-ink-muted"
                   >
                     Preferred machine here
                   </label>

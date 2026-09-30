@@ -53,7 +53,7 @@ export function CustomExerciseForm({
         setBusy(false);
       }}
     >
-      <h1 className="text-xl font-medium">Add your own exercise</h1>
+      <h1 className="text-xl font-semibold">Add your own exercise</h1>
       <Field label="Exercise name">
         <Input required maxLength={120} value={name} onChange={(e) => setName(e.target.value)} />
       </Field>

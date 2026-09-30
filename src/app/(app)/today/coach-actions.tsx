@@ -187,7 +187,7 @@ export function CoachRequestPanel({
                 onClick={() => setGymId(gym.id)}
                 aria-pressed={chosen}
                 className={cn(
-                  "flex min-h-14 w-full items-center justify-between gap-3 rounded-control border px-4 text-left text-base font-medium",
+                  "flex min-h-14 w-full items-center justify-between gap-3 rounded-control border px-4 text-left text-base font-semibold",
                   chosen
                     ? "border-accent bg-accent-soft text-ink"
                     : "border-transparent bg-surface-raised text-ink active:bg-accent-soft",

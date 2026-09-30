@@ -17,7 +17,7 @@ function SubmitRow() {
       className={cn(PRESSABLE_ROW_CLASS, "disabled:opacity-60")}
     >
       <RowIcon icon={LogOut} />
-      <span className="min-w-0 flex-1 font-medium">{pending ? "Signing out…" : "Sign out"}</span>
+      <span className="min-w-0 flex-1 font-semibold">{pending ? "Signing out…" : "Sign out"}</span>
     </button>
   );
 }

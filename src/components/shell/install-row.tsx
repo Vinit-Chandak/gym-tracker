@@ -53,7 +53,7 @@ export function InstallSection() {
             className={PRESSABLE_ROW_CLASS}
           >
             <RowIcon icon={Download} />
-            <span className="min-w-0 flex-1 font-medium">Install {APP_NAME}</span>
+            <span className="min-w-0 flex-1 font-semibold">Install {APP_NAME}</span>
             <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />
           </button>
         </li>
@@ -62,11 +62,11 @@ export function InstallSection() {
         <Sheet open={open} onClose={() => setOpen(false)} title={`Install ${APP_NAME}`}>
           <dl className="space-y-3 text-sm">
             <div>
-              <dt className="font-medium">Android</dt>
+              <dt className="font-semibold">Android</dt>
               <dd className="text-ink-muted">Chrome menu ⋮ → Add to Home screen</dd>
             </div>
             <div>
-              <dt className="font-medium">iPhone and iPad</dt>
+              <dt className="font-semibold">iPhone and iPad</dt>
               <dd className="text-ink-muted">Safari Share → Add to Home Screen</dd>
             </div>
           </dl>

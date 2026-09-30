@@ -40,7 +40,7 @@ export function PersonCard<T extends string>({
   );
   const identity = (
     <>
-      <p className="text-lg font-medium [overflow-wrap:anywhere]">
+      <p className="text-lg font-semibold [overflow-wrap:anywhere]">
         {person.displayName || person.username}
       </p>
       <p className="text-sm [overflow-wrap:anywhere] text-ink-muted">@{person.username}</p>

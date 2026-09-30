@@ -34,7 +34,7 @@ export function PersonRow<T extends string>({
     <>
       <Avatar username={person.username} displayName={person.displayName} size="row" />
       <span className="min-w-0 flex-1">
-        <span className="block font-medium [overflow-wrap:anywhere]">{name}</span>
+        <span className="block font-semibold [overflow-wrap:anywhere]">{name}</span>
         <span className="block text-sm [overflow-wrap:anywhere] text-ink-muted">
           @{person.username}
         </span>

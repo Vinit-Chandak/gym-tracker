@@ -120,7 +120,7 @@ export function SupersetSheet({
                   <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
                     {entry.members.join(" + ")}
                   </span>
-                  <span className="shrink-0 text-xs font-medium text-ink-muted">Edit</span>
+                  <span className="shrink-0 text-xs font-semibold text-ink-muted">Edit</span>
                   <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />
                 </button>
               </li>

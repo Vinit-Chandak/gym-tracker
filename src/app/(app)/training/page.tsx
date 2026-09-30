@@ -2,9 +2,13 @@ import type { Metadata } from "next";
 
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
+import Link from "@/components/ui/app-link";
 import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { CalendarDays, ClipboardList } from "@/components/ui/icons";
+import { LinkRow, List } from "@/components/ui/link-row";
 import { Section } from "@/components/ui/section";
+import { SPORT_ICON } from "@/components/ui/sport-chip";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { ACTIVITY_SPORT_LABELS, ENDURANCE_SPORTS } from "@/domain/activity";
@@ -16,6 +20,8 @@ import { getRequestProfile } from "@/server/queries/request-profile";
 import { listTemplates } from "@/server/repositories/activity-templates";
 import { standaloneSchedule } from "@/server/repositories/occurrences";
 import { enabledSportsFor } from "@/server/repositories/sport-preferences";
+import { SPORT_TONE, TONE_FILL } from "@/lib/sport-tone";
+import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Training" };
 
@@ -64,73 +70,79 @@ export default async function TrainingPage() {
       <PageHeader title="Training" />
       <PageContent>
         {inProgress && (
-          <Section title="Unfinished">
-            <Card>
-              <p className="text-sm text-ink-muted">
-                A lifting session is still open. It stays here until you finish or discard it.
-              </p>
-              <LinkButton
-                href={`/workouts/${inProgress.id}`}
-                variant="secondary"
-                className="w-full"
-              >
-                Resume the session
-              </LinkButton>
-            </Card>
-          </Section>
+          <Card className="bg-lift-soft">
+            <p className="flex items-center gap-2 font-semibold text-lift-ink">
+              <span aria-hidden className="size-2 rounded-full bg-lift" />A lifting session is still
+              open
+            </p>
+            <p className="text-sm text-ink-muted">It stays here until you finish or discard it.</p>
+            <LinkButton href={`/workouts/${inProgress.id}`} className="w-full">
+              Resume the session
+            </LinkButton>
+          </Card>
         )}
 
-        {/* The sport is the first thing logging needs, so it is asked once, here. A filter
-            above and a chooser on the next screen were the same question in two places. */}
-        <Section title="Log or schedule">
-          <Card>
-            <div className="action-row">
-              {ordered.map((sport) => (
-                <LinkButton key={sport} href={`/training/new?sport=${sport}`} className="w-full">
-                  {ACTIVITY_SPORT_LABELS[sport]}
-                </LinkButton>
-              ))}
-            </div>
-            <p className="text-sm text-ink-muted">
-              Lifting has its own logger, started from Today or from a gym.
-            </p>
-            <LinkButton href="/training/schedule" variant="secondary" className="w-full">
-              Schedule an activity
-            </LinkButton>
-            <p className="text-sm text-ink-muted">
-              Logging something you have already done never counts against a scheduled session
-              unless you open that session and log it.
-            </p>
-          </Card>
+        {/* The sport is the first thing logging needs, so it is asked once, here: one tile
+            per sport, in its colour. A filter above and a chooser on the next screen were the
+            same question in two places. */}
+        <Section
+          title="Log an activity"
+          info={
+            <>
+              Lifting has its own logger, started from Today or from a gym. Logging something you
+              have already done never counts against a scheduled session unless you open that
+              session and log it.
+            </>
+          }
+        >
+          <ul className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,6.5rem),1fr))] gap-3">
+            {ordered.map((sport) => {
+              const Icon = SPORT_ICON[sport];
+              return (
+                <li key={sport}>
+                  <Link
+                    href={`/training/new?sport=${sport}`}
+                    className={cn(
+                      "flex min-h-28 pressable flex-col justify-between rounded-card p-4",
+                      TONE_FILL[SPORT_TONE[sport]],
+                    )}
+                  >
+                    <Icon scale="feature" aria-hidden />
+                    <span className="font-display text-display-s">
+                      {ACTIVITY_SPORT_LABELS[sport]}
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+          <LinkButton href="/training/schedule" variant="secondary" className="w-full">
+            Schedule an activity
+          </LinkButton>
         </Section>
 
-        {/* One-off work only. The programme's own sessions have their own section below, and
+        {/* One-off work only. The programme's own sessions live with the programme, and
             counting them here would say "0 upcoming" to somebody whose Today screen is
             showing them a run to do. */}
-        <Section title="Scheduled on their own">
-          <Card>
-            <p className="text-sm text-ink-muted tabular-nums">{upcoming} upcoming</p>
-            <p className="text-sm text-ink-muted">
-              Sessions you put on the calendar yourself. Your programme&apos;s own sessions are
-              under Programme.
-            </p>
-            <LinkButton href="/training/scheduled" variant="secondary" className="w-full">
-              Upcoming and earlier
-            </LinkButton>
-          </Card>
-        </Section>
-
-        <Section title="Templates">
-          <Card>
-            <p className="text-sm text-ink-muted tabular-nums">
-              {data.templates.length} saved session
-              {data.templates.length === 1 ? "" : "s"}
-            </p>
-            <LinkButton href="/training/templates" variant="secondary" className="w-full">
-              Templates
-            </LinkButton>
-          </Card>
-        </Section>
+        <List>
+          <li>
+            <LinkRow
+              href="/training/scheduled"
+              icon={CalendarDays}
+              title="Scheduled on their own"
+              subtitle="Upcoming and earlier"
+              meta={`${upcoming} upcoming`}
+            />
+          </li>
+          <li>
+            <LinkRow
+              href="/training/templates"
+              icon={ClipboardList}
+              title="Templates"
+              meta={`${data.templates.length} saved`}
+            />
+          </li>
+        </List>
       </PageContent>
     </>
   );

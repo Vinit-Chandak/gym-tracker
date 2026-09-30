@@ -24,7 +24,7 @@ export function RoutineLibrary({
     [error, setError] = useState<string | null>(null);
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-medium">Saved routines</h1>
+      <h1 className="text-2xl font-semibold">Saved routines</h1>
       <p className="text-sm text-ink-muted">
         Start a repeatable workout without changing your active programme. Completed workouts and
         sets stay in history.
@@ -41,7 +41,7 @@ export function RoutineLibrary({
       </Field>
       {routines.map((routine) => (
         <Card key={routine.id}>
-          <h2 className="text-lg font-medium [overflow-wrap:anywhere]">{routine.name}</h2>
+          <h2 className="text-lg font-semibold [overflow-wrap:anywhere]">{routine.name}</h2>
           <ol className="space-y-2 text-sm [overflow-wrap:anywhere]">
             {routine.day.exercises.map((entry, i) => (
               <li key={i}>

@@ -67,7 +67,7 @@ export default async function OccurrencePage(
       <PageContent>
         <Card>
           <div className="flex items-start justify-between gap-3">
-            <h2 className="text-lg font-medium">
+            <h2 className="text-lg font-semibold">
               {target ? describePrescription(target) : "No targets set"}
             </h2>
             {late && <Badge tone="neutral">Not done</Badge>}

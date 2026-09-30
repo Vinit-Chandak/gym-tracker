@@ -250,7 +250,7 @@ export function HistoryView({
                   />
                 ) : (
                   <div className="space-y-1 px-4 py-3">
-                    <p className="flex flex-wrap items-center gap-2 font-medium">
+                    <p className="flex flex-wrap items-center gap-2 font-semibold">
                       {item.title} <Badge>Recovery</Badge>
                     </p>
                     <p className="text-sm text-ink-muted">{item.subtitle}</p>

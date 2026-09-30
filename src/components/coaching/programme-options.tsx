@@ -80,7 +80,7 @@ function Option({
 }) {
   const body = (
     <>
-      <h3 className={nested ? "font-medium" : "text-lg font-medium"}>{title}</h3>
+      <h3 className={nested ? "font-semibold" : "text-lg font-semibold"}>{title}</h3>
       {children}
     </>
   );

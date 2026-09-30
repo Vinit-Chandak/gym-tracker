@@ -51,7 +51,7 @@ export function ExercisePicker({ name, exercises, value, onChange, error }: Exer
       <div className="flex min-h-11 items-center justify-between gap-3">
         <p className="min-w-0 text-sm">
           <span className="text-ink-muted">Selected: </span>
-          <span className="font-medium [overflow-wrap:anywhere]">
+          <span className="font-semibold [overflow-wrap:anywhere]">
             {selected?.name ?? "nothing yet"}
           </span>
         </p>
@@ -59,7 +59,7 @@ export function ExercisePicker({ name, exercises, value, onChange, error }: Exer
           <button
             type="button"
             onClick={() => onChange("")}
-            className="min-h-11 shrink-0 px-2 text-sm font-medium text-ink-muted"
+            className="min-h-11 shrink-0 px-2 text-sm font-semibold text-ink-muted"
           >
             Clear
           </button>
@@ -80,9 +80,7 @@ export function ExercisePicker({ name, exercises, value, onChange, error }: Exer
       ) : (
         groups.map((group) => (
           <section key={group.key}>
-            <h3 className="px-1 pb-1.5 text-xs font-medium tracking-wide text-ink-muted uppercase">
-              {group.title}
-            </h3>
+            <h3 className="px-1 pb-1.5 text-sm font-semibold text-ink-muted">{group.title}</h3>
             <ul className="box-rows">
               {group.items.map((exercise) => (
                 <li key={exercise.id}>
@@ -98,7 +96,7 @@ export function ExercisePicker({ name, exercises, value, onChange, error }: Exer
                     />
                     <span className="flex min-h-14 items-center gap-3 px-4 py-2.5">
                       <span className="min-w-0 flex-1">
-                        <span className="block font-medium [overflow-wrap:anywhere]">
+                        <span className="block font-semibold [overflow-wrap:anywhere]">
                           {exercise.name}
                         </span>
                         <span className="block text-sm [overflow-wrap:anywhere] text-ink-muted">
@@ -107,7 +105,7 @@ export function ExercisePicker({ name, exercises, value, onChange, error }: Exer
                         </span>
                       </span>
                       {value === exercise.id && (
-                        <span className="shrink-0 pr-2 text-sm font-medium text-accent">
+                        <span className="shrink-0 pr-2 text-sm font-semibold text-accent">
                           Chosen
                         </span>
                       )}

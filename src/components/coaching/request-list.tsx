@@ -100,7 +100,7 @@ function RequestRow({ request, base }: { request: RequestView; base: string }) {
 
   return (
     <Card>
-      <p className="font-medium [overflow-wrap:anywhere]">“{request.quote}”</p>
+      <p className="font-semibold [overflow-wrap:anywhere]">“{request.quote}”</p>
       {settled ? (
         <p className="text-sm [overflow-wrap:anywhere] text-ink-muted">
           {[settled, request.outcome || request.detail].filter(Boolean).join(" — ")}

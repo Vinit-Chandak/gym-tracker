@@ -105,7 +105,7 @@ function Side({ tone, name, targets }: { tone: Tone; name: string; targets?: str
     >
       <p
         className={cn(
-          "font-medium [overflow-wrap:anywhere]",
+          "font-semibold [overflow-wrap:anywhere]",
           tone === "removed" && "text-ink-muted",
         )}
       >
@@ -151,7 +151,7 @@ function Operation({
       <div className="min-w-0 flex-1">
         <p
           className={cn(
-            "text-xs font-medium tracking-wide uppercase",
+            "text-sm font-semibold",
             tone === "added"
               ? "text-success"
               : tone === "removed"
@@ -228,7 +228,7 @@ function OperationRow({
     case "retargeted":
       return (
         <Operation icon={SlidersHorizontal} label="Changed" {...op}>
-          <p className="font-medium [overflow-wrap:anywhere]">
+          <p className="font-semibold [overflow-wrap:anywhere]">
             {nameOf(names, operation.to.exerciseSlug)}
           </p>
           {fields(operation.fields)}
@@ -237,7 +237,7 @@ function OperationRow({
     case "reordered":
       return (
         <Operation icon={ArrowsDownUp} label="Moved" {...op}>
-          <p className="font-medium [overflow-wrap:anywhere]">
+          <p className="font-semibold [overflow-wrap:anywhere]">
             {nameOf(names, operation.to.exerciseSlug)}
           </p>
           <p className="mt-0.5 text-sm text-ink-muted tabular-nums">
@@ -248,7 +248,7 @@ function OperationRow({
     case "moved_out":
       return (
         <Operation icon={ArrowRight} label="Moved to another day" {...op}>
-          <p className="font-medium [overflow-wrap:anywhere]">
+          <p className="font-semibold [overflow-wrap:anywhere]">
             {nameOf(names, operation.to.exerciseSlug)}
           </p>
           <p className="mt-0.5 text-sm [overflow-wrap:anywhere] text-ink-muted">
@@ -260,7 +260,7 @@ function OperationRow({
     case "moved_in":
       return (
         <Operation icon={ArrowRight} label="Moved here" {...op}>
-          <p className="font-medium [overflow-wrap:anywhere]">
+          <p className="font-semibold [overflow-wrap:anywhere]">
             {nameOf(names, operation.to.exerciseSlug)}
           </p>
           <p className="mt-0.5 text-sm [overflow-wrap:anywhere] text-ink-muted">
@@ -329,7 +329,7 @@ function DayGroup({
   return (
     <Card>
       <div>
-        <h3 className="font-medium [overflow-wrap:anywhere]">{day.name}</h3>
+        <h3 className="font-semibold [overflow-wrap:anywhere]">{day.name}</h3>
         <p className="mt-0.5 text-sm text-ink-muted">
           {[weekday, status].filter(Boolean).join(" · ") || "Changed"}
         </p>
@@ -370,7 +370,7 @@ export function ProgramDiffView({
   if (summary.empty)
     return (
       <Card>
-        <h3 className="font-medium">
+        <h3 className="font-semibold">
           {summary.descriptionChanged
             ? "Only the programme's description changes"
             : "No programme changes"}
@@ -386,7 +386,7 @@ export function ProgramDiffView({
     <div className="space-y-3">
       {summary.program.length > 0 && (
         <Card>
-          <h3 className="font-medium">Programme</h3>
+          <h3 className="font-semibold">Programme</h3>
           <Lines lines={summary.program.map((field) => readable(field, names))} />
           {programReason && <div>{programReason}</div>}
         </Card>

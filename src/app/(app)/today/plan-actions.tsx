@@ -213,7 +213,7 @@ export function MoreOptions({
           <ul className="min-w-0 ruled-list">
             <li>
               <Link href="/today/choose" className={PRESSABLE_ROW_CLASS} onClick={close}>
-                <span className="min-w-0 flex-1 font-medium">Train another day</span>
+                <span className="min-w-0 flex-1 font-semibold">Train another day</span>
                 <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />
               </Link>
             </li>
@@ -227,7 +227,7 @@ export function MoreOptions({
                 }}
                 className={cn(PRESSABLE_ROW_CLASS, "disabled:opacity-45")}
               >
-                <span className="min-w-0 flex-1 font-medium">
+                <span className="min-w-0 flex-1 font-semibold">
                   {pending ? "Starting…" : "Start an ad hoc session"}
                 </span>
               </button>
@@ -241,7 +241,7 @@ export function MoreOptions({
                   className={cn(PRESSABLE_ROW_CLASS, "disabled:opacity-45")}
                 >
                   <span className="min-w-0 flex-1">
-                    <span className="block font-medium">{coachLabel}</span>
+                    <span className="block font-semibold">{coachLabel}</span>
                     {coach.requestsLeft <= 0 && (
                       <span className="block text-sm text-ink-muted">
                         No requests left today; the coach plans overnight.
@@ -259,7 +259,9 @@ export function MoreOptions({
                   onClick={() => setAsking("skip")}
                   className={PRESSABLE_ROW_CLASS}
                 >
-                  <span className="min-w-0 flex-1 font-medium text-danger">Skip this session</span>
+                  <span className="min-w-0 flex-1 font-semibold text-danger">
+                    Skip this session
+                  </span>
                 </button>
               </li>
             )}

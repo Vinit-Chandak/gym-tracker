@@ -50,7 +50,7 @@ function Proposal({ proposal }: { proposal: ProposalCard }) {
   return (
     <Card>
       <div className="flex items-start justify-between gap-3">
-        <p className="min-w-0 font-medium [overflow-wrap:anywhere]">{proposal.summary}</p>
+        <p className="min-w-0 font-semibold [overflow-wrap:anywhere]">{proposal.summary}</p>
         {proposal.fromCoach && <Badge tone="accent">Coach</Badge>}
       </div>
       <ul className="space-y-1.5">

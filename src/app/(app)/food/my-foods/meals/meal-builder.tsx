@@ -151,7 +151,7 @@ export function MealBuilder({
       <section aria-label="What this meal holds" className="box panel-padding">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-2xl font-medium tabular-nums">
+            <p className="text-2xl font-semibold tabular-nums">
               {formatKcal(total.kcal)}
               <span className="text-sm font-normal text-ink-muted"> kcal</span>
             </p>
@@ -179,7 +179,7 @@ export function MealBuilder({
                   className={PRESSABLE_ROW_CLASS}
                 >
                   <span className="min-w-0 flex-1">
-                    <span className="block font-medium [overflow-wrap:anywhere]">
+                    <span className="block font-semibold [overflow-wrap:anywhere]">
                       {item.food.name}
                     </span>{" "}
                     <span className="block text-sm text-ink-muted tabular-nums">
@@ -231,7 +231,7 @@ export function MealBuilder({
                     className={PRESSABLE_ROW_CLASS}
                   >
                     <span className="min-w-0 flex-1">
-                      <span className="block font-medium [overflow-wrap:anywhere]">
+                      <span className="block font-semibold [overflow-wrap:anywhere]">
                         {food.name}
                       </span>{" "}
                       <span className="block text-sm text-ink-muted tabular-nums">

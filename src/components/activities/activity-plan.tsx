@@ -99,11 +99,11 @@ export function ActivityPlan({
     <Card>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs font-medium tracking-wide text-ink-muted uppercase">
+          <p className="text-sm font-semibold text-ink-muted">
             {ACTIVITY_SPORT_LABELS[sport]} · planned
           </p>
           {prescription?.title && (
-            <h2 className="mt-1 text-lg font-medium [overflow-wrap:anywhere]">
+            <h2 className="mt-1 text-lg font-semibold [overflow-wrap:anywhere]">
               {prescription.title}
             </h2>
           )}

@@ -24,6 +24,10 @@ import { addDays as addIsoDays } from "@/domain/program-calendar";
 import type { RecoveryReading } from "@/domain/recovery";
 import { formatDateRange, formatIsoDay, formatMinutes } from "@/lib/format";
 import { MUSCLE_LABELS } from "@/lib/labels";
+import { SPORT_TONE, TONE_SOFT } from "@/lib/sport-tone";
+import { cn } from "@/lib/utils";
+import { SPORT_ICON } from "@/components/ui/sport-chip";
+import type { ActivitySport } from "@/domain/activity";
 import { pageSection, PROGRESS_SECTIONS, ProgressSections } from "./progress-sections";
 import { RecoveryProgress } from "./recovery-progress";
 
@@ -180,7 +184,7 @@ export function ProgressView({
     : `${weeks.length} ${weeks.length === 1 ? "week" : "weeks"}${
         // Naming the Monday of a week that has not finished would read as its end date.
         lastWeek.partial
-          ? " · this week so far"
+          ? ", this week so far"
           : ` to ${formatIsoDay(addIsoDays(lastWeek.date, 6))}`
       }`;
 
@@ -213,53 +217,79 @@ export function ProgressView({
             )}
 
             {sportTotals && sportTotals.some((total) => total.count > 0) && (
-              <Card>
-                <div className="flex items-center justify-between gap-3">
-                  <h2 className="text-base font-medium">Training totals</h2>
+              <section aria-labelledby="training-totals" className="space-y-2">
+                <div className="flex items-center gap-1 px-1">
+                  <h2 id="training-totals" className="text-[1.0625rem] font-semibold">
+                    Training totals
+                  </h2>
                   <InfoTip label="What these totals count">
                     Every activity in this range, counted in full rather than sampled. Recorded
                     training time, not unique wall-clock time — overlapping sessions are counted
                     once each. Distance is per sport and never added across them.
                   </InfoTip>
                 </div>
-                <ul className="space-y-2">
+                {/* One tile per sport, in its own colour: the count leads, then the time and the
+                    distance, then the days it was spread over. */}
+                <ul className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,9.5rem),1fr))] gap-3">
                   {sportTotals
                     .filter((total) => total.count > 0)
-                    .map((total) => (
-                      <li key={total.sport} className="flex flex-wrap items-baseline gap-x-2">
-                        <span className="font-medium">{total.label}</span>
-                        <span className="text-sm text-ink-muted tabular-nums">
-                          {total.count} {total.count === 1 ? "session" : "sessions"} · {total.days}{" "}
-                          {total.days === 1 ? "day" : "days"} ·{" "}
-                          {formatMinutes(total.durationMs / 60_000)}
-                          {total.distanceMetres !== null && total.distanceMetres > 0
-                            ? ` · ${Math.round(total.distanceMetres / 100) / 10} km`
-                            : ""}
-                        </span>
-                        {/* What the totals could not include, said rather than hidden. */}
-                        {(total.unknownDistances > 0 || total.unknownDurations > 0) && (
-                          <span className="w-full text-xs text-ink-subtle">
-                            {[
-                              total.unknownDistances > 0
-                                ? `${total.unknownDistances} without a distance`
-                                : null,
-                              total.unknownDurations > 0
-                                ? `${total.unknownDurations} without a duration`
-                                : null,
-                            ]
-                              .filter(Boolean)
-                              .join(" · ")}
-                          </span>
-                        )}
-                      </li>
-                    ))}
+                    .map((total) => {
+                      const sport = total.sport as ActivitySport;
+                      const tone = SPORT_TONE[sport] ?? "lift";
+                      const Icon = SPORT_ICON[sport];
+                      return (
+                        <li
+                          key={total.sport}
+                          className={cn("min-w-0 space-y-2 rounded-card p-4", TONE_SOFT[tone])}
+                        >
+                          <p className="flex items-center gap-2 text-sm font-semibold">
+                            {Icon && <Icon aria-hidden />}
+                            {total.label}
+                          </p>
+                          <p className="text-ink tabular-nums">
+                            <span className="font-display text-display-m">{total.count}</span>{" "}
+                            <span className="text-sm font-semibold">
+                              {total.count === 1 ? "session" : "sessions"}
+                            </span>
+                          </p>
+                          <p className="text-sm text-ink tabular-nums">
+                            {formatMinutes(total.durationMs / 60_000)}
+                            {total.distanceMetres !== null && total.distanceMetres > 0 && (
+                              <>
+                                <br />
+                                {Math.round(total.distanceMetres / 100) / 10} km
+                              </>
+                            )}
+                            <br />
+                            <span className="text-ink-muted">
+                              {total.days} {total.days === 1 ? "day" : "days"}
+                            </span>
+                          </p>
+                          {/* What the totals could not include, said rather than hidden. */}
+                          {(total.unknownDistances > 0 || total.unknownDurations > 0) && (
+                            <p className="text-xs text-ink-muted">
+                              {[
+                                total.unknownDistances > 0
+                                  ? `${total.unknownDistances} without a distance`
+                                  : null,
+                                total.unknownDurations > 0
+                                  ? `${total.unknownDurations} without a duration`
+                                  : null,
+                              ]
+                                .filter(Boolean)
+                                .join(", ")}
+                            </p>
+                          )}
+                        </li>
+                      );
+                    })}
                 </ul>
-              </Card>
+              </section>
             )}
 
             <Card>
               <div className="flex items-center justify-between gap-3">
-                <h2 className="text-base font-medium">Weekly sessions</h2>
+                <h2 className="text-[1.0625rem] font-semibold">Weekly sessions</h2>
                 <InfoTip label="About weekly sessions">
                   Weeks run Monday to Sunday in your time zone. The chart ends at the last week you
                   trained in, not at today, so it never finishes on an empty column. A week still
@@ -326,7 +356,7 @@ export function ProgressView({
             {muscles.length > 0 && (
               <Card>
                 <div className="flex items-center justify-between gap-3">
-                  <h2 className="text-base font-medium">Sets by muscle</h2>
+                  <h2 className="text-base font-semibold">Sets by muscle</h2>
                   <InfoTip label="About sets by muscle">
                     Working sets per week. A set counts once for each primary muscle and half for
                     each secondary one; warm-ups are excluded.
@@ -441,7 +471,7 @@ export function ProgressView({
           <>
             <Card>
               <div className="flex items-center justify-between gap-3">
-                <h2 className="text-base font-medium">Body weight</h2>
+                <h2 className="text-base font-semibold">Body weight</h2>
                 <InfoTip label="About body weight">
                   Every reading you have entered, from finishing a workout or from your profile. One
                   reading per day; the newest is the weight shown on your profile.
@@ -469,7 +499,7 @@ export function ProgressView({
 
             <Card>
               <div className="flex items-center justify-between gap-3">
-                <h2 className="text-base font-medium">Muscles this week</h2>
+                <h2 className="text-base font-semibold">Muscles this week</h2>
                 <InfoTip label="About the body map">
                   Working sets from finished workouts. A set counts once for each primary muscle and
                   half for each secondary one; warm-ups are excluded.
@@ -486,7 +516,7 @@ export function ProgressView({
                 >
                   <ChevronLeft aria-hidden />
                 </Button>
-                <p className="min-w-0 text-center text-sm font-medium">
+                <p className="min-w-0 text-center text-sm font-semibold">
                   {formatDateRange(body.from, body.to)}
                 </p>
                 <Button

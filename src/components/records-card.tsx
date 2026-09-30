@@ -25,7 +25,7 @@ export function SessionRecordsCard({
   if (records.length === 0) return null;
   return (
     <Card>
-      <h2 className="text-base font-medium">
+      <h2 className="text-base font-semibold">
         {records.length === 1 ? "1 record" : `${records.length} records`}
       </h2>
       <ul className="divide-y divide-line text-sm">
@@ -36,7 +36,7 @@ export function SessionRecordsCard({
           >
             <Link
               href={`/exercises/${record.exerciseId}`}
-              className="min-w-0 font-medium [overflow-wrap:anywhere] underline-offset-2 hover:underline"
+              className="min-w-0 font-semibold [overflow-wrap:anywhere] underline-offset-2 hover:underline"
             >
               {record.exercise.name}
             </Link>
@@ -71,7 +71,7 @@ export function ExerciseBestsTiles({
   if (bests.length === 0) return null;
   return (
     <Card>
-      <h2 className="text-base font-medium">Your records</h2>
+      <h2 className="text-base font-semibold">Your records</h2>
       <StatTileRow>
         {bests.map((best) => (
           <StatTile
@@ -113,14 +113,14 @@ export function PeriodRecordsList({
           className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 py-2"
         >
           <span className="min-w-0">
-            <span className="block font-medium [overflow-wrap:anywhere]">
+            <span className="block font-semibold [overflow-wrap:anywhere]">
               {record.exercise.name}
             </span>
             <span className="block text-xs text-ink-muted">
               {metricLabel(record.metric, record.exercise)} · {formatIsoDay(record.occurredOn)}
             </span>
           </span>
-          <span className="font-medium tabular-nums">
+          <span className="font-semibold tabular-nums">
             {formatSharedMetric(record.metric, record.value, unit)}
           </span>
         </li>

@@ -3,4 +3,4 @@
  * full-height tap target themselves rather than relying on nearby text.
  */
 export const AUTH_LINK =
-  "inline-flex min-h-11 items-center px-2 font-medium text-accent underline-offset-4 hover:underline";
+  "inline-flex min-h-11 items-center px-2 font-semibold text-accent underline-offset-4 hover:underline";

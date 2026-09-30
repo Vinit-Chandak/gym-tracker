@@ -58,7 +58,7 @@ export function SectionSelect<V extends string>({
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-label={current ? `${label}: ${current.label}` : label}
-        className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-control border border-line-strong bg-surface px-3 text-left font-medium transition-colors duration-[var(--ov-duration-feedback)] active:bg-surface-raised"
+        className="flex min-h-12 min-w-0 flex-1 pressable items-center gap-2 rounded-chip bg-surface px-4 text-left text-[1.0625rem] font-semibold shadow-[0_1px_2px_rgb(20_24_36/0.06)] transition-colors duration-[var(--ov-duration-feedback)] active:bg-surface-raised"
       >
         <span className="min-w-0 flex-1 truncate">{current?.label}</span>
         <ChevronDown
@@ -77,7 +77,7 @@ export function SectionSelect<V extends string>({
             const className = cn(PRESSABLE_ROW_CLASS, selected && "text-accent");
             // The section you are in is in the accent colour, and named as current to a screen
             // reader; the control that opened the sheet already names it too.
-            const content = <span className="min-w-0 flex-1 font-medium">{option.label}</span>;
+            const content = <span className="min-w-0 flex-1 font-semibold">{option.label}</span>;
             return (
               <li key={option.value}>
                 {option.href && !selected ? (

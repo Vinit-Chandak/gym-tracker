@@ -245,7 +245,7 @@ function WarmupRow({
           type="button"
           aria-expanded={open}
           onClick={() => setOpen((current) => !current)}
-          className="flex min-h-14 min-w-0 flex-1 items-center gap-2 py-2 pl-4 text-left font-medium"
+          className="flex min-h-14 min-w-0 flex-1 items-center gap-2 py-2 pl-4 text-left font-semibold"
         >
           <ChevronDown
             className={cn(
@@ -347,7 +347,7 @@ export function WorkoutOverview({
       {!readOnly && session.warnings.length > 0 && (
         <Card>
           <div className="flex items-center justify-between gap-3">
-            <h2 className="flex items-center gap-1 text-base font-medium">
+            <h2 className="flex items-center gap-1 text-base font-semibold">
               Recovery check
               <InfoTip label="About the recovery check">
                 Advice only. Nothing here changes the targets you were given; every set is yours to
@@ -359,7 +359,7 @@ export function WorkoutOverview({
           <ul className="space-y-2 text-sm">
             {session.warnings.map((warning) => (
               <li key={warning.code}>
-                <span className="font-medium">{warning.title}.</span>{" "}
+                <span className="font-semibold">{warning.title}.</span>{" "}
                 <span className="text-ink-muted">{warning.advice}</span>
               </li>
             ))}

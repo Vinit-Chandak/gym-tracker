@@ -55,7 +55,7 @@ export function CoachJobStatus({
   }, [pending, router]);
   return (
     <Card>
-      <h1 className="text-xl font-medium" role="status">
+      <h1 className="text-xl font-semibold" role="status">
         {job.status === "succeeded" ? successLabel : LABELS[job.status]}
       </h1>
       {job.status === "succeeded" && !draftId && rationale && (

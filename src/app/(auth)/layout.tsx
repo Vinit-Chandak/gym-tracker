@@ -11,7 +11,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           <span className="flex size-14 items-center justify-center rounded-card bg-surface text-accent">
             <Dumbbell className="size-8" aria-hidden />
           </span>
-          <h1 className="text-xl font-medium">{APP_NAME}</h1>
+          <h1 className="text-xl font-semibold">{APP_NAME}</h1>
           <p className="text-sm text-balance text-ink-muted">{APP_TAGLINE}</p>
         </header>
         {children}

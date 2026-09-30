@@ -28,10 +28,10 @@ export function ActivitySummary({
 }) {
   return (
     <Card>
-      <p className="text-xs font-medium tracking-wide text-ink-muted uppercase">
+      <p className="text-sm font-semibold text-ink-muted">
         {SPORT_LABELS[activity.sport as TrainingSport]}
       </p>
-      <h1 className="mt-1 text-lg font-medium [overflow-wrap:anywhere]">{activity.title}</h1>
+      <h1 className="mt-1 text-lg font-semibold [overflow-wrap:anywhere]">{activity.title}</h1>
       <p className="mt-1 text-sm text-ink-muted tabular-nums">
         {formatIsoDate(activity.occurredOn)}
       </p>

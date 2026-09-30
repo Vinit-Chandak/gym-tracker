@@ -41,7 +41,7 @@ export default async function WelcomeEquipmentPage(props: PageProps<"/welcome/eq
       <Steps current="equipment" />
       <Card>
         <div>
-          <h1 className="text-xl font-medium">What does {gym.name} have?</h1>
+          <h1 className="text-xl font-semibold">What does {gym.name} have?</h1>
           <p className="flex items-center gap-1 text-sm text-ink-muted">
             Tick the machines it has.
             <InfoTip label="About machines">

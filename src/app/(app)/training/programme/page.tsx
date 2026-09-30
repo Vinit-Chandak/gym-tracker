@@ -103,7 +103,9 @@ export default async function ProgrammePage(props: PageProps<"/training/programm
           <Card>
             {Object.entries(adherence).map(([sport, counts]) => (
               <p key={sport} className="text-sm tabular-nums">
-                <span className="font-medium">{ACTIVITY_SPORT_LABELS[sport as ActivitySport]}</span>{" "}
+                <span className="font-semibold">
+                  {ACTIVITY_SPORT_LABELS[sport as ActivitySport]}
+                </span>{" "}
                 · {counts.logged} logged · {counts.incomplete} outstanding · {counts.skipped}{" "}
                 skipped
                 {counts.cancelled > 0 ? ` · ${counts.cancelled} cancelled` : ""}
@@ -119,7 +121,7 @@ export default async function ProgrammePage(props: PageProps<"/training/programm
         <Section title="Cycle">
           {[...byDate.entries()].map(([date, occurrences]) => (
             <Card key={date}>
-              <p className="text-xs font-medium tracking-wide text-ink-muted uppercase tabular-nums">
+              <p className="text-sm font-semibold text-ink-muted tabular-nums">
                 {date}
                 {date < today ? " · earlier" : ""}
               </p>
@@ -131,7 +133,7 @@ export default async function ProgrammePage(props: PageProps<"/training/programm
                       <Link
                         prefetch="intent"
                         href={`/training/programme/occurrences/${occurrence.id}`}
-                        className="text-base font-medium [overflow-wrap:anywhere]"
+                        className="text-base font-semibold [overflow-wrap:anywhere]"
                       >
                         {ACTIVITY_SPORT_LABELS[occurrence.sport]}
                         {occurrence.prescription

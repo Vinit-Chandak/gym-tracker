@@ -95,7 +95,7 @@ export function SwipeRow({
           moveTo(0);
           onAction();
         }}
-        className="absolute inset-y-0 right-0 flex min-w-[5.5rem] items-center justify-center bg-danger px-4 font-medium text-on-accent focus-visible:-outline-offset-4"
+        className="absolute inset-y-0 right-0 flex min-w-[5.5rem] items-center justify-center bg-danger px-4 font-semibold text-on-accent focus-visible:-outline-offset-4"
       >
         {action}
       </button>

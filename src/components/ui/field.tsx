@@ -62,7 +62,7 @@ export function Field({
     <div className="min-w-0 space-y-1.5" data-field-error={error ? "true" : undefined}>
       <div
         className={
-          labelHidden ? "sr-only" : "flex items-center gap-1 text-sm font-medium text-ink-muted"
+          labelHidden ? "sr-only" : "flex items-center gap-1 text-sm font-semibold text-ink-muted"
         }
       >
         {group ? (

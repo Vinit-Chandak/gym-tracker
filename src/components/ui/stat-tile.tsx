@@ -29,7 +29,7 @@ export function StatTile({
 }) {
   return (
     <div className="min-w-0">
-      <dt className="flex items-center gap-0.5 text-xs leading-tight font-medium text-ink-muted">
+      <dt className="flex items-center gap-0.5 text-xs leading-tight font-semibold text-ink-muted">
         {label}
         {info && (
           <InfoTip label={`About ${label}`} className="-my-2">

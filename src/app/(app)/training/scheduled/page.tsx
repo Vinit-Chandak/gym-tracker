@@ -32,10 +32,10 @@ function OccurrenceRow({ occurrence }: { occurrence: ScheduledOccurrence }) {
     <Card>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs font-medium tracking-wide text-ink-muted uppercase">
+          <p className="text-sm font-semibold text-ink-muted">
             {ACTIVITY_SPORT_LABELS[occurrence.sport]} · {formatIsoDate(occurrence.scheduledOn)}
           </p>
-          <h2 className="mt-1 text-base font-medium [overflow-wrap:anywhere]">
+          <h2 className="mt-1 text-base font-semibold [overflow-wrap:anywhere]">
             {occurrence.prescription
               ? describePrescription(occurrence.prescription)
               : "No targets set"}

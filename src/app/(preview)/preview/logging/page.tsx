@@ -125,7 +125,7 @@ export default function LoggingPreviewPage() {
       <PageContent>
         {CASES.map((c) => (
           <Card key={c.measure}>
-            <h2 className="text-base font-medium">{c.title}</h2>
+            <h2 className="text-base font-semibold">{c.title}</h2>
             <SetGrid
               rows={rows[c.measure] ?? []}
               ghost={() => c.ghost}

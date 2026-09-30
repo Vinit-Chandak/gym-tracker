@@ -138,7 +138,10 @@ export function FoodWeekStrip({ today, date, days, targetKcal, base }: FoodDaysP
 
   return (
     <nav aria-label="Days" className="space-y-1">
-      <div aria-hidden className="grid grid-cols-7 text-center text-xs font-medium text-ink-muted">
+      <div
+        aria-hidden
+        className="grid grid-cols-7 text-center text-xs font-semibold text-ink-muted"
+      >
         {weeks[0]!.map((day) => (
           <span key={day}>{formatIsoWeekdayLetter(day)}</span>
         ))}
@@ -186,7 +189,7 @@ export function FoodCalendarButton({ from, ...props }: FoodDaysProps & { from: s
         aria-haspopup="dialog"
         aria-label={`${label}, calendar`}
         onClick={() => setSheet((current) => ({ key: current.key + 1, open: true }))}
-        className="-mr-1 flex min-h-11 items-center gap-1 rounded-control px-1 text-sm font-medium transition-colors duration-[var(--ov-duration-feedback)] active:bg-surface-raised"
+        className="-mr-1 flex min-h-11 items-center gap-1 rounded-control px-1 text-sm font-semibold transition-colors duration-[var(--ov-duration-feedback)] active:bg-surface-raised"
       >
         {label}
         <ChevronDown className="text-ink-subtle" aria-hidden />
@@ -276,7 +279,7 @@ function CalendarSheet({
           >
             <ChevronLeft aria-hidden />
           </button>
-          <p aria-live="polite" className="font-medium tabular-nums">
+          <p aria-live="polite" className="font-semibold tabular-nums">
             {title}
           </p>
           <button
@@ -291,7 +294,7 @@ function CalendarSheet({
         </div>
         <div
           aria-hidden
-          className="grid grid-cols-7 text-center text-xs font-medium text-ink-muted"
+          className="grid grid-cols-7 text-center text-xs font-semibold text-ink-muted"
         >
           {["M", "T", "W", "T", "F", "S", "S"].map((letter, index) => (
             <span key={index}>{letter}</span>

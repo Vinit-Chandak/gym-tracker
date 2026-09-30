@@ -48,7 +48,7 @@ function Archived({
         <ul className="ruled-list">
           {programmes.map((programme) => (
             <li key={programme.id} className="space-y-2 py-3 first:pt-0 last:pb-0">
-              <p className="font-medium [overflow-wrap:anywhere]">
+              <p className="font-semibold [overflow-wrap:anywhere]">
                 {programme.name} · version {programme.version}
               </p>
               <ProgrammeTools id={programme.id} active={false} />
@@ -111,7 +111,7 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
             {/* What the programme is and how far through it you are. */}
             <Card>
               <div>
-                <h2 className="text-lg font-medium [overflow-wrap:anywhere]">
+                <h2 className="text-lg font-semibold [overflow-wrap:anywhere]">
                   {overview.program.name}
                 </h2>
                 <p className="mt-1.5 text-sm text-ink-muted tabular-nums">
@@ -191,7 +191,7 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
                       <div className="space-y-4">
                         <ProgrammeOptions nested />
                         <div className="space-y-2 border-t border-line pt-4">
-                          <h3 className="font-medium">Or use the suggested template</h3>
+                          <h3 className="font-semibold">Or use the suggested template</h3>
                           <ProgramTemplatePicker
                             templates={templates}
                             today={today}

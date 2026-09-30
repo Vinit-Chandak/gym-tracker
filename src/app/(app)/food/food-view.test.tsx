@@ -116,7 +116,7 @@ it("ends with My foods and then the targets, each a screen of its own", () => {
   view([], { library: { foods: 2, meals: 1 } });
   const links = screen.getAllByRole("link");
   expect(links.slice(-2)).toEqual([
-    screen.getByRole("link", { name: "My foods 2 foods · 1 meal" }),
+    screen.getByRole("link", { name: "My foods 2 foods, 1 meal" }),
     screen.getByRole("link", { name: "Targets 2,300 kcal" }),
   ]);
   expect(links.slice(-2).map((link) => link.getAttribute("href"))).toEqual([

@@ -26,7 +26,7 @@ export default async function WelcomeProgrammePage() {
       <SavedProgrammeWork onboarding />
       <ProgrammeOptions onboarding />
       <Card>
-        <h2 className="text-lg font-medium">Or start with a suggested template</h2>
+        <h2 className="text-lg font-semibold">Or start with a suggested template</h2>
         <ProgramTemplatePicker
           templates={PROGRAM_TEMPLATES.map((template) => ({
             slug: template.slug,

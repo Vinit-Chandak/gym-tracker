@@ -67,7 +67,7 @@ export function TokenManager({
   return (
     <div className="space-y-4">
       <Card>
-        <h2 className="flex items-center gap-1 text-base font-medium">
+        <h2 className="flex items-center gap-1 text-base font-semibold">
           New token
           <InfoTip label="About coach tokens">
             Read-only access to your workouts, runs, recovery and current programme. A token can
@@ -96,7 +96,7 @@ export function TokenManager({
         )}
         {state.token && hidden !== state.token && (
           <div className="space-y-3 rounded-control border border-accent p-3">
-            <p className="text-sm font-medium">Copy it now; it is shown only once.</p>
+            <p className="text-sm font-semibold">Copy it now; it is shown only once.</p>
             <textarea
               readOnly
               aria-label="New coach token"
@@ -141,13 +141,13 @@ export function TokenManager({
         )}
       </Card>
       <Card>
-        <h2 className="text-base font-medium">Your tokens</h2>
+        <h2 className="text-base font-semibold">Your tokens</h2>
         {tokens.length ? (
           <ul className="divide-y divide-line">
             {tokens.map((t) => (
               <li key={t.id} className="flex items-center justify-between gap-3 py-3">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{t.name}</p>
+                  <p className="truncate text-sm font-semibold">{t.name}</p>
                   <p className="text-xs text-ink-muted">
                     {t.revokedAt
                       ? "Revoked"

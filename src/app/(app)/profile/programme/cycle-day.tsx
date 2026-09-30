@@ -43,7 +43,7 @@ export function CycleDay({ plan }: { plan: ProgramDayPlan }) {
     <>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <p className="font-medium [overflow-wrap:anywhere]">{day.name}</p>
+          <p className="font-semibold [overflow-wrap:anywhere]">{day.name}</p>
           {plan.isNext ? (
             <Badge tone="accent">Next</Badge>
           ) : plan.status === "completed" || plan.status === "skipped" ? (

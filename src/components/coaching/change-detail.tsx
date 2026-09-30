@@ -112,7 +112,7 @@ export function ChangeDetail(props: ChangeDetailProps) {
     <div className="space-y-4">
       <Card>
         {/* The page header is the h1; the change's own line is the next level down. */}
-        <h2 className="min-w-0 text-lg font-medium [overflow-wrap:anywhere]">
+        <h2 className="min-w-0 text-lg font-semibold [overflow-wrap:anywhere]">
           {props.headline || (coach ? "The coach's changes" : "Your changes")}
         </h2>
         {props.outcome && <p className="text-sm text-ink-muted">{props.outcome}</p>}

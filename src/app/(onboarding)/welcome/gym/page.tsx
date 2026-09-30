@@ -26,7 +26,7 @@ export default async function WelcomeGymPage() {
           gym again made a second one with the same name. */}
       {gyms.length > 0 && (
         <Card>
-          <h2 className="font-medium">Already added</h2>
+          <h2 className="font-semibold">Already added</h2>
           <ul className="space-y-1 text-sm text-ink-muted">
             {gyms.map((gym) => (
               <li key={gym.id}>
@@ -43,7 +43,7 @@ export default async function WelcomeGymPage() {
         </Card>
       )}
       <Card>
-        <h1 className="text-xl font-medium">
+        <h1 className="text-xl font-semibold">
           {gyms.length > 0 ? "Add another place you train" : "Where do you train?"}
         </h1>
         <FirstGymForm />

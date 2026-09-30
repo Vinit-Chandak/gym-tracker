@@ -45,7 +45,7 @@ export function NumberField({
 
   return (
     <div className={cn("min-w-0 space-y-1", className)}>
-      <span className="block truncate text-xs font-medium text-ink-muted">{label}</span>
+      <span className="block truncate text-xs font-semibold text-ink-muted">{label}</span>
       <div className="grid grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] items-center gap-1 rounded-control bg-surface-raised p-1">
         <button
           type="button"

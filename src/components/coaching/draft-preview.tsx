@@ -87,7 +87,9 @@ export function DraftPreview({
   return (
     <div className="space-y-4">
       <Card>
-        <h1 className="text-2xl font-medium [overflow-wrap:anywhere]">{current.blueprint.name}</h1>
+        <h1 className="text-2xl font-semibold [overflow-wrap:anywhere]">
+          {current.blueprint.name}
+        </h1>
         <p className="text-sm text-ink-muted">{shape(current.blueprint)}</p>
         {current.rationale && <p className="text-sm whitespace-pre-wrap">{current.rationale}</p>}
         {current.blueprint.notes && (
@@ -95,7 +97,7 @@ export function DraftPreview({
         )}
         {current.uncertainties.length > 0 && (
           <div>
-            <h2 className="font-medium">What the coach is unsure about</h2>
+            <h2 className="font-semibold">What the coach is unsure about</h2>
             <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
               {current.uncertainties.map((line, i) => (
                 <li key={i}>{line}</li>
@@ -106,7 +108,7 @@ export function DraftPreview({
       </Card>
       {current.blueprint.days.map((day) => (
         <Card key={day.dayIndex}>
-          <h2 className="text-lg font-medium [overflow-wrap:anywhere]">
+          <h2 className="text-lg font-semibold [overflow-wrap:anywhere]">
             {day.dayIndex}. {day.name}
           </h2>
           <p className="text-sm text-ink-muted">
@@ -117,7 +119,7 @@ export function DraftPreview({
           <ol className="space-y-3">
             {day.exercises.map((e, i) => (
               <li key={i}>
-                <p className="font-medium [overflow-wrap:anywhere]">
+                <p className="font-semibold [overflow-wrap:anywhere]">
                   {library.find((x) => x.slug === e.exerciseSlug)?.name ?? e.exerciseSlug}
                 </p>
                 <p className="text-sm text-ink-muted">{exerciseTargets(e)}</p>
@@ -159,7 +161,7 @@ export function DraftPreview({
       ))}
       {current.openingPlan && (
         <Card>
-          <h2 className="font-medium">Your opening session</h2>
+          <h2 className="font-semibold">Your opening session</h2>
           <p className="text-sm">{current.openingPlan.summary}</p>
           {current.openingPlan.warmup.length > 0 && (
             <p className="text-sm text-ink-muted">
@@ -209,7 +211,7 @@ export function DraftPreview({
       )}
       {editable && (
         <Card>
-          <h2 className="font-medium">Start this programme</h2>
+          <h2 className="font-semibold">Start this programme</h2>
           {needsCheck && (
             <>
               <p className="text-sm text-ink-muted">

@@ -92,7 +92,7 @@ export default function PreviewIconsPage() {
               <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent">
                 <User scale="row" aria-hidden />
               </span>
-              <span className="min-w-0 flex-1 font-medium">Your profile</span>
+              <span className="min-w-0 flex-1 font-semibold">Your profile</span>
               <ChevronRight className="text-ink-subtle" aria-hidden />
             </Link>
           </li>

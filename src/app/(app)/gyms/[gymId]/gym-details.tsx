@@ -210,7 +210,7 @@ export function GymDetails({ data }: { data: GymDetailData }) {
                 >
                   <label
                     htmlFor="absent-equipment"
-                    className="block text-sm font-medium text-ink-muted"
+                    className="block text-sm font-semibold text-ink-muted"
                   >
                     Mark equipment unavailable
                   </label>

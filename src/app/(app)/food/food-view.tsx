@@ -64,7 +64,7 @@ function libraryMeta({ foods, meals }: LibraryCount): string | undefined {
     foods > 0 ? `${foods} ${foods === 1 ? "food" : "foods"}` : null,
     meals > 0 ? `${meals} ${meals === 1 ? "meal" : "meals"}` : null,
   ].filter((part) => part !== null);
-  return parts.length > 0 ? parts.join(" · ") : undefined;
+  return parts.length > 0 ? parts.join(", ") : undefined;
 }
 
 /** One meal's row: its name, what went into it, and what that came to. */

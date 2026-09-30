@@ -21,7 +21,7 @@ export function SignUpForm() {
   if (state.checkEmail) {
     return (
       <div className="space-y-3">
-        <p className="flex items-center gap-2 text-sm font-medium text-success">
+        <p className="flex items-center gap-2 text-sm font-semibold text-success">
           <MailCheck className="shrink-0" aria-hidden />
           Check your inbox
         </p>

@@ -32,7 +32,7 @@ export default async function SportsStepPage() {
       <Steps current="sports" />
       <Card>
         <div>
-          <h1 className="text-xl font-medium">What do you train?</h1>
+          <h1 className="text-xl font-semibold">What do you train?</h1>
           <p className="text-sm text-ink-muted">
             Pick everything that applies. You can change this whenever you like.
           </p>
