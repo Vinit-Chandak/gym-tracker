@@ -7,7 +7,6 @@ import {
   formatIsoDate,
   formatIsoDay,
   formatIsoWeekdayDay,
-  formatMacros,
   formatPortion,
   formatRunKm,
   formatTime,
@@ -70,12 +69,4 @@ it("writes an amount of a food in its own unit, plural where the unit is a word"
   expect(formatPortion(1250, "ml")).toBe("1,250 ml");
   expect(formatAmount(33.333)).toBe("33.33");
   expect(formatAmount(-0.001)).toBe("0");
-});
-
-it("writes the macronutrients that are known, in whole grams", () => {
-  expect(formatMacros({ carbsG: 66.3, fatG: 6.9, proteinG: 16.9 })).toBe(
-    "Carbs 66 g · Fat 7 g · Protein 17 g",
-  );
-  expect(formatMacros({ carbsG: null, fatG: 0, proteinG: 25 })).toBe("Fat 0 g · Protein 25 g");
-  expect(formatMacros({ carbsG: null, fatG: null, proteinG: null })).toBe("");
 });

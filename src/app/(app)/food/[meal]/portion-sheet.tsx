@@ -5,7 +5,7 @@ import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
 import { scaleFood, type Food, type Meal } from "@/domain/nutrition";
-import { formatKcal, formatMacros, formatPortion } from "@/lib/format";
+import { formatKcal, formatPortion } from "@/lib/format";
 import { attempted, OFFLINE_SUBMIT_MESSAGE } from "@/lib/offline-submit";
 import { deleteEntryAction, logFoodAction, updateEntryAction } from "@/server/actions/nutrition";
 
@@ -20,9 +20,9 @@ export type PortionTarget =
   | { kind: "entry"; entryId: string };
 
 /**
- * How much of a food (ADR 0033): the food's portion and what it holds, the amount eaten in the
- * food's own unit, and what that comes to, worked out as it is typed. The figures scale; nothing
- * else needs saying.
+ * How much of a food (ADR 0033): what the food's portion holds, the amount eaten as the big
+ * number in the food's own unit, and what that comes to, worked out as it is typed. The figures
+ * scale; nothing else needs saying.
  *
  * Mounted afresh for every opening, so it always starts from the food it was opened for.
  */
@@ -55,7 +55,6 @@ export function PortionSheet({
   const content = useRef<HTMLFormElement>(null);
   const busy = saving || removing;
   const current = typedAmount(value);
-  const macros = formatMacros(food);
 
   // A refused amount is where the eye and the caret go.
   useEffect(() => {
@@ -130,7 +129,14 @@ export function PortionSheet({
               {formError}
             </p>
           )}
-          <Button type="submit" form={formId} size="lg" className="w-full" disabled={busy}>
+          <Button
+            type="submit"
+            form={formId}
+            size="lg"
+            tone="food"
+            className="w-full"
+            disabled={busy}
+          >
             {target.kind === "log"
               ? saving
                 ? "Adding…"
@@ -152,9 +158,7 @@ export function PortionSheet({
         }}
       >
         <p className="text-sm text-ink-muted tabular-nums">
-          Per {formatPortion(food.portionAmount, food.unit)}
-          <br />
-          {formatKcal(food.kcal)} kcal{macros && ` · ${macros}`}
+          {formatKcal(food.kcal)} kcal per {formatPortion(food.portionAmount, food.unit)}
         </p>
         <AmountField
           label="Amount eaten"

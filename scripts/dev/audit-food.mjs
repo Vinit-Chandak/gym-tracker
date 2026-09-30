@@ -244,7 +244,8 @@ try {
     await expect(page.getByLabel("Fat, % of daily target")).toHaveValue("25");
     await page.getByLabel("Daily target, kcal").fill("2400");
     await expect(page.getByText(/protein is 20% of the target until there is/)).toBeVisible();
-    await expect(page.getByText("Carbs 330 g · Fat 67 g · Protein 120 g")).toBeVisible();
+    // The split is three tiles, in its order: carbohydrate, fat, protein.
+    await expect(page.locator("dd")).toHaveText(["330 g", "67 g", "120 g"]);
     await page.getByRole("button", { name: "Set target", exact: true }).click();
     // Saving goes back to where the targets were opened from.
     await page.waitForURL(/\/food$/);

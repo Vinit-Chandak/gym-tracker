@@ -62,9 +62,9 @@ function markDays(days: readonly FoodDayTotal[], targetKcal: number | null) {
 }
 
 /**
- * One day: its number in a circle, filled when it is the day on screen and ringed when it is
- * today, over the dot that says whether it has food on it and how it went. A day still to come is
- * shown but cannot be opened.
+ * One day: its number in a circle, filled with ink when it is the day on screen (as the chosen
+ * tab is) and ringed when it is today, over the dot that says whether it has food on it and how
+ * it went. A day still to come is shown but cannot be opened.
  */
 function DayLink({
   day,
@@ -108,7 +108,7 @@ function DayLink({
         className={cn(
           "flex size-9 items-center justify-center rounded-full text-sm tabular-nums",
           day === selected
-            ? "bg-accent font-semibold text-on-accent"
+            ? "bg-ink font-semibold text-surface"
             : isToday && "border border-line-strong font-semibold",
         )}
       >
@@ -121,6 +121,13 @@ function DayLink({
     </Link>
   );
 }
+
+/**
+ * How far the strip reaches into the page's gutters: not at all while the column gives each of
+ * the seven days 44px, and on a narrower screen (41px each at 320px) just far enough that it does,
+ * never past the gutters themselves.
+ */
+const STRIP_BLEED = "max(calc(var(--page-gutter) * -1), min(0px, calc((100% - 7 * 2.75rem) / 2)))";
 
 /**
  * The days under the Food header (ADR 0037): weeks of seven ending on today, so yesterday is
@@ -137,7 +144,7 @@ export function FoodWeekStrip({ today, date, days, targetKcal, base }: FoodDaysP
   }, [date]);
 
   return (
-    <nav aria-label="Days" className="space-y-1">
+    <nav aria-label="Days" className="space-y-1" style={{ marginInline: STRIP_BLEED }}>
       <div
         aria-hidden
         className="grid grid-cols-7 text-center text-xs font-semibold text-ink-muted"

@@ -100,15 +100,13 @@ it("lists meals, then foods, under New food and New meal", () => {
     "/food/my-foods/meals/new",
   );
   const meal = within(screen.getByRole("list", { name: "Meals" })).getByRole("link");
-  expect(meal.textContent?.replace(/\s+/g, " ").trim()).toBe(
-    "Usual breakfast 2 foods · 450.2 kcal",
-  );
+  expect(meal.textContent?.replace(/\s+/g, " ").trim()).toBe("Usual breakfast 2 foods, 450.2 kcal");
   expect(meal.getAttribute("href")).toBe(`/food/my-foods/meals/${USUAL.id}`);
   expect(
     within(screen.getByRole("list", { name: "Foods" }))
       .getAllByRole("button", { name: /^(Oats|Whey)/ })
       .map((button) => button.textContent?.replace(/\s+/g, " ").trim()),
-  ).toEqual(["Oats 100 g · 389 kcal", "Whey 1 scoop · 139 kcal"]);
+  ).toEqual(["Oats 100 g, 389 kcal", "Whey 1 scoop, 139 kcal"]);
 });
 
 it("keeps a new food without logging it: no amount eaten, and Save food", async () => {

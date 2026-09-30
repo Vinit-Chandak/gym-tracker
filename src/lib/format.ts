@@ -269,20 +269,3 @@ export function formatPortion(amount: number, unit: FoodUnit): string {
   const plural = amount !== 1 ? FOOD_UNIT_PLURALS[unit] : undefined;
   return `${formatAmount(amount)} ${plural ?? FOOD_UNIT_LABELS[unit]}`;
 }
-
-/** "Carbs 66 g · Fat 7 g · Protein 17 g", in whole grams, leaving out whatever is not known. */
-export function formatMacros(amounts: {
-  carbsG: number | null;
-  fatG: number | null;
-  proteinG: number | null;
-}): string {
-  return (
-    [
-      ["Carbs", amounts.carbsG],
-      ["Fat", amounts.fatG],
-      ["Protein", amounts.proteinG],
-    ] as const
-  )
-    .flatMap(([label, grams]) => (grams === null ? [] : [`${label} ${formatFoodAmount(grams)} g`]))
-    .join(" · ");
-}

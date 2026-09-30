@@ -101,7 +101,7 @@ it("builds a new meal from My foods, each food at the amount its sheet is given"
       .map((row) => row.textContent?.replace(/\s+/g, " ").trim()),
   ).toEqual(["Oats 80 g 311.2 kcal", "Whey 1 scoop 139 kcal"]);
   expect(screen.getByText("450.2")).toBeTruthy();
-  expect(screen.getByText("Carbs 59 g · Fat 7 g · Protein 39 g")).toBeTruthy();
+  expect(screen.getByText("Carbs 59 g, Fat 7 g, Protein 39 g")).toBeTruthy();
 
   fireEvent.click(screen.getByRole("button", { name: "Save meal" }));
   await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/food/my-foods"));

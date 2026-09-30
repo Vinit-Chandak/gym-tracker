@@ -24,6 +24,12 @@ const PROTEIN = "Protein, g per kg of body weight";
 const FAT = "Fat, % of daily target";
 /** The split's numbers are held together by non-breaking spaces. */
 const USE_SPLIT = /^Use 55\s\/\s25\s\/\s20$/;
+/** The grams the target comes to, as its tiles read: "Carbs 373 g, Fat 75 g, Protein 133 g". */
+const split = () =>
+  Array.from(
+    document.querySelectorAll("dd"),
+    (figure) => `${figure.previousElementSibling?.textContent} ${figure.textContent}`,
+  ).join(", ");
 
 it("starts a first set of targets from the goal's split, following the target as it is typed", () => {
   render(<TargetsForm targets={null} bodyWeightKg={63.5} unit="kg" goal="build_muscle" />);
@@ -31,13 +37,13 @@ it("starts a first set of targets from the goal's split, following the target as
   expect(field(PROTEIN).value).toBe("");
   expect(field(FAT).value).toBe("25");
   expect(screen.getByText("Build muscle")).toBeTruthy();
-  expect(screen.queryByText(/^Carbs /)).toBeNull();
+  expect(split()).toBe("");
 
   // 20% of 2,700 kcal is 135 g, 2.1 g/kg at 63.5 kg.
   fireEvent.change(field(KCAL), { target: { value: "2700" } });
   expect(field(PROTEIN).value).toBe("2.1");
   expect(screen.getByText("133 g at 63.5 kg")).toBeTruthy();
-  expect(screen.getByText("Carbs 373 g · Fat 75 g · Protein 133 g")).toBeTruthy();
+  expect(split()).toBe("Carbs 373 g, Fat 75 g, Protein 133 g");
   fireEvent.change(field(KCAL), { target: { value: "3000" } });
   expect(field(PROTEIN).value).toBe("2.4");
   // Nothing to offer while the form already holds the split.
@@ -81,10 +87,10 @@ it("shows saved targets as they are, offering the goal's split while they differ
   expect(field(KCAL).value).toBe("2700");
   expect(field(PROTEIN).value).toBe("1.8");
   expect(screen.getByText("114 g at 63.5 kg")).toBeTruthy();
-  expect(screen.getByText("Carbs 392 g · Fat 75 g · Protein 114 g")).toBeTruthy();
+  expect(split()).toBe("Carbs 392 g, Fat 75 g, Protein 114 g");
   expect(screen.getByRole("button", { name: USE_SPLIT })).toBeTruthy();
   fireEvent.change(field(FAT), { target: { value: "30" } });
-  expect(screen.getByText("Carbs 358 g · Fat 90 g · Protein 114 g")).toBeTruthy();
+  expect(split()).toBe("Carbs 358 g, Fat 90 g, Protein 114 g");
   expect(Object.fromEntries(new FormData(container.querySelector("form")!))).toEqual({
     dailyKcal: "2700",
     proteinPerKg: "1.8",
@@ -101,7 +107,7 @@ it("takes protein from the goal's share, and says so, until there is a body weig
   );
   fireEvent.change(field(KCAL), { target: { value: "2400" } });
   expect(field(PROTEIN).value).toBe("1.8");
-  expect(screen.getByText("Carbs 270 g · Fat 67 g · Protein 180 g")).toBeTruthy();
+  expect(split()).toBe("Carbs 270 g, Fat 67 g, Protein 180 g");
 });
 
 it("warns when protein and fat leave nothing for carbs, in the account's own unit", () => {

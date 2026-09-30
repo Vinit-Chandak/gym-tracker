@@ -5,13 +5,17 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 
 import { AmountSheet } from "@/components/food/amount-sheet";
+import { AddMark, RowText } from "@/components/food/food-row";
+import { macroLine, portionLine } from "@/components/food/food-text";
 import { Button } from "@/components/ui/button";
-import { Plus, Search } from "@/components/ui/icons";
+import { Card } from "@/components/ui/card";
+import { Search } from "@/components/ui/icons";
 import { Field, Input } from "@/components/ui/input";
 import { PRESSABLE_ROW_CLASS } from "@/components/ui/link-row";
+import { Section } from "@/components/ui/section";
 import { SwipeRow } from "@/components/ui/swipe-row";
 import { addUp, NUTRITION_LIMITS, scaleFood, type Food } from "@/domain/nutrition";
-import { formatKcal, formatMacros, formatPortion } from "@/lib/format";
+import { formatKcal, formatPortion } from "@/lib/format";
 import { previousAppPage } from "@/lib/navigation-history";
 import { attempted, OFFLINE_SUBMIT_MESSAGE } from "@/lib/offline-submit";
 import { deleteSavedMealAction, saveLibraryMealAction } from "@/server/actions/nutrition";
@@ -34,7 +38,8 @@ type SheetView = { kind: "add"; food: FoodRecord } | { kind: "item"; item: Item 
  * A meal in My foods (ADR 0035): a name and a set of the account's foods, each at an amount.
  * New meal opens it empty; a saved meal opens it holding its foods as they were saved. Nothing is
  * saved until Save meal: a food is added from the list below at the amount its sheet is given,
- * changed by tapping it, and taken out by swiping it aside or from its sheet.
+ * changed by tapping it, and taken out by swiping it aside or from its sheet. What the meal comes
+ * to and Save meal float at the foot of the screen, so neither is lost while the list is scrolled.
  */
 export function MealBuilder({
   saved,
@@ -74,7 +79,7 @@ export function MealBuilder({
   const nameField = useRef<HTMLInputElement>(null);
   const busy = saving || deleting;
   const total = addUp(items.map((item) => scaleFood(item.food, item.amount)));
-  const macros = formatMacros(total);
+  const macros = macroLine(total);
 
   // After a refused save, a refused name is where the caret goes, once the field is enabled again.
   useEffect(() => {
@@ -111,7 +116,7 @@ export function MealBuilder({
       }
       const fieldErrors = outcome.value.fieldErrors ?? {};
       setErrors(fieldErrors);
-      // An amount the sheet let through but the server did not is said once, above Save.
+      // An amount the sheet let through but the server did not is said once, beside Save.
       const itemError = Object.entries(fieldErrors).find(([path]) => path.startsWith("items."));
       setFormError(outcome.value.error ?? itemError?.[1] ?? null);
     });
@@ -136,32 +141,19 @@ export function MealBuilder({
 
   return (
     <>
-      <Field label="Name" error={errors.name}>
-        <Input
-          ref={nameField}
-          value={name}
-          maxLength={NUTRITION_LIMITS.name}
-          autoComplete="off"
-          placeholder="e.g. Usual breakfast"
-          disabled={busy}
-          onChange={(event) => setName(event.target.value)}
-        />
-      </Field>
-
-      <section aria-label="What this meal holds" className="box panel-padding">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-2xl font-semibold tabular-nums">
-              {formatKcal(total.kcal)}
-              <span className="text-sm font-normal text-ink-muted"> kcal</span>
-            </p>
-            {macros && <p className="text-sm text-ink-muted tabular-nums">{macros}</p>}
-          </div>
-          <Button size="sm" disabled={busy} onClick={save} className="shrink-0">
-            {saving ? "Saving…" : "Save meal"}
-          </Button>
-        </div>
-      </section>
+      <Card>
+        <Field label="Name" error={errors.name}>
+          <Input
+            ref={nameField}
+            value={name}
+            maxLength={NUTRITION_LIMITS.name}
+            autoComplete="off"
+            placeholder="e.g. Usual breakfast"
+            disabled={busy}
+            onChange={(event) => setName(event.target.value)}
+          />
+        </Field>
+      </Card>
 
       {items.length > 0 && (
         <ul className="box-rows" aria-label="In this meal">
@@ -178,14 +170,10 @@ export function MealBuilder({
                   onClick={() => open({ kind: "item", item })}
                   className={PRESSABLE_ROW_CLASS}
                 >
-                  <span className="min-w-0 flex-1">
-                    <span className="block font-semibold [overflow-wrap:anywhere]">
-                      {item.food.name}
-                    </span>{" "}
-                    <span className="block text-sm text-ink-muted tabular-nums">
-                      {formatPortion(item.amount, item.food.unit)}
-                    </span>
-                  </span>{" "}
+                  <RowText
+                    title={item.food.name}
+                    meta={formatPortion(item.amount, item.food.unit)}
+                  />{" "}
                   <span className="shrink-0 tabular-nums">
                     {formatKcal(scaleFood(item.food, item.amount).kcal)} kcal
                   </span>
@@ -201,65 +189,77 @@ export function MealBuilder({
         </p>
       )}
 
-      {foods.length > 0 ? (
-        <div className="space-y-3">
-          <div className="relative">
-            <Search
-              className="absolute top-1/2 left-3 -translate-y-1/2 text-ink-subtle"
-              aria-hidden
-            />
-            <Input
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Add a food"
-              aria-label="Search your foods to add"
-              className="pl-9"
-              autoCapitalize="none"
-              autoCorrect="off"
-              enterKeyHint="search"
-            />
-          </div>
-          {choices.length > 0 && (
-            <ul className="box-rows" aria-label="Your foods">
-              {choices.map((food) => (
-                <li key={food.id}>
-                  <button
-                    type="button"
-                    disabled={busy || full}
-                    onClick={() => open({ kind: "add", food })}
-                    className={PRESSABLE_ROW_CLASS}
-                  >
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-semibold [overflow-wrap:anywhere]">
-                        {food.name}
-                      </span>{" "}
-                      <span className="block text-sm text-ink-muted tabular-nums">
-                        {formatPortion(food.portionAmount, food.unit)} · {formatKcal(food.kcal)}{" "}
-                        kcal
-                      </span>
-                    </span>
-                    <Plus className="shrink-0 text-accent" aria-hidden />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      ) : (
-        <p className="px-1 text-sm text-ink-muted">No foods yet. Make one in My foods first.</p>
-      )}
+      <Section title="Add a food">
+        {foods.length > 0 ? (
+          <>
+            <div className="relative">
+              <Search
+                className="absolute top-1/2 left-3.5 -translate-y-1/2 text-ink-subtle"
+                aria-hidden
+              />
+              <Input
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search your foods"
+                aria-label="Search your foods to add"
+                className="pl-10"
+                autoCapitalize="none"
+                autoCorrect="off"
+                enterKeyHint="search"
+              />
+            </div>
+            {choices.length > 0 && (
+              <ul className="box-rows" aria-label="Your foods">
+                {choices.map((food) => (
+                  <li key={food.id}>
+                    <button
+                      type="button"
+                      disabled={busy || full}
+                      onClick={() => open({ kind: "add", food })}
+                      className={PRESSABLE_ROW_CLASS}
+                    >
+                      <RowText title={food.name} meta={portionLine(food)} />
+                      <AddMark />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        ) : (
+          <p className="px-1 text-sm text-ink-muted">No foods yet. Make one in My foods first.</p>
+        )}
+      </Section>
 
-      {formError && (
-        <p role="alert" className="px-1 text-sm text-danger">
-          {formError}
-        </p>
-      )}
       {saved && (
         <Button variant="danger" className="w-full" disabled={busy} onClick={remove}>
           {deleting ? "Deleting…" : "Delete meal"}
         </Button>
       )}
+      {/* What the meal comes to and the button that saves it, floating above the tab bar, with
+          whatever stopped the save said beside the button that tried it. */}
+      <section aria-label="What this meal holds" className="sticky-actions space-y-1 pl-5">
+        <div className="flex items-center justify-between gap-3">
+          <p className="min-w-0 tabular-nums">
+            <span className="font-display text-display-s font-extrabold">
+              {formatKcal(total.kcal)}
+            </span>
+            <span className="text-sm font-semibold text-ink-muted"> kcal</span>
+          </p>
+          <Button tone="food" disabled={busy} onClick={save} className="shrink-0">
+            {saving ? "Saving…" : "Save meal"}
+          </Button>
+        </div>
+        {items.length > 0 && macros && (
+          <p className="text-sm text-ink-muted tabular-nums">{macros}</p>
+        )}
+        {formError && (
+          <p role="alert" className="text-sm text-danger">
+            {formError}
+          </p>
+        )}
+      </section>
 
       {view?.kind === "add" && (
         <AmountSheet

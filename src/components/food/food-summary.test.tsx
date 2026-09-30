@@ -180,9 +180,9 @@ describe("a macronutrient's bar", () => {
     const rows = within(sheet).getAllByRole("listitem");
     // Milk twice is one row, added up; the food with no protein figure closes the list.
     expect(rows.map(read)).toEqual([
-      "Whey Breakfast · 1 scoop 25 g",
-      "Milk Breakfast, Dinner · 450 ml 15 g",
-      "Home food Lunch · 2 servings — no figure",
+      "Whey Breakfast, 1 scoop 25 g",
+      "Milk Breakfast, Dinner, 450 ml 15 g",
+      "Home food Lunch, 2 servings — no figure",
     ]);
     // Grams only: no share of the day, and one bar, at the top.
     expect(sheet.textContent).not.toContain("%");

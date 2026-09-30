@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { InfoTip } from "@/components/ui/info-tip";
 import {
   goalBand,
   goalStatus,
@@ -69,9 +70,10 @@ function Standing({ eaten, target }: { eaten: number; target: number }) {
     <div className="flex items-start justify-between gap-3">
       <p className="min-w-0 tabular-nums">
         <span className="font-display text-display-xl">
-          {formatKcal(status === "under" ? left : eaten)}
+          {/* Whole kcal at this size: a tenth is noise in the one figure on the card. */}
+          {formatKcal(Math.round(status === "under" ? left : eaten))}
         </span>{" "}
-        <span className="text-[1.0625rem] font-semibold whitespace-nowrap">
+        <span className="text-headline font-semibold whitespace-nowrap">
           {status === "under" ? "kcal left" : "kcal eaten"}
         </span>
       </p>
@@ -101,8 +103,12 @@ export function FoodSummary({
       <div className="space-y-3">
         <Standing eaten={eaten.kcal} target={target.kcal} />
         <GoalBar eaten={eaten.kcal} target={target.kcal} />
-        <p className="text-sm font-semibold text-ink-muted tabular-nums">
+        <p className="flex items-center gap-1 text-sm font-semibold text-ink-muted tabular-nums">
           {formatKcal(eaten.kcal)} / {formatKcal(target.kcal)} kcal eaten
+          <InfoTip label="About the goal" className="-my-2">
+            The two marks on the bar are the goal: anywhere from 90% to 110% of the daily target
+            meets it.
+          </InfoTip>
         </p>
       </div>
       <MacroBars eaten={eaten} target={target} entries={entries} />

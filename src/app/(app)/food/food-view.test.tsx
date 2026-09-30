@@ -104,7 +104,7 @@ it("asks for a target until there is one, naming the goal's split, meals still b
   view([entry("lunch", "Rice", 300)], { targets: false });
   expect(screen.getByRole("heading", { name: "No daily target yet" })).toBeTruthy();
   // The split's numbers are held together by non-breaking spaces.
-  expect(screen.getByText(/^Build muscle · 55\s\/\s25\s\/\s20$/)).toBeTruthy();
+  expect(screen.getByText(/^Build muscle, 55\s\/\s25\s\/\s20$/)).toBeTruthy();
   expect(screen.getByRole("link", { name: "Set target" }).getAttribute("href")).toBe(
     "/food/targets",
   );

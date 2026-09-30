@@ -3,17 +3,19 @@
 import type { Route } from "next";
 import { useOptimistic, useState, useTransition } from "react";
 
+import { RowText } from "@/components/food/food-row";
 import { FoodSheet } from "@/components/food/food-sheet";
+import { foodCount, portionLine } from "@/components/food/food-text";
 import Link from "@/components/ui/app-link";
+import { buttonClassName } from "@/components/ui/button";
 import { ChevronRight, Plus, Search, Star } from "@/components/ui/icons";
 import { Input } from "@/components/ui/input";
-import { PRESSABLE_ROW_CLASS } from "@/components/ui/link-row";
+import { PRESSABLE_ROW_CLASS, RowIcon } from "@/components/ui/link-row";
 import { Section } from "@/components/ui/section";
 import { SwipeRow } from "@/components/ui/swipe-row";
 import { addUp, eaten } from "@/domain/nutrition";
-import { formatKcal, formatPortion } from "@/lib/format";
+import { formatKcal } from "@/lib/format";
 import { attempted } from "@/lib/offline-submit";
-import { cn } from "@/lib/utils";
 import { deleteFoodAction, deleteSavedMealAction } from "@/server/actions/nutrition";
 import type { FoodRecord, Library, SavedMealRecord } from "@/server/repositories/nutrition";
 
@@ -28,18 +30,18 @@ const APP_LINKS: MyFoodsLinks = {
   meal: (id) => `/food/my-foods/meals/${id}` as Route,
 };
 
-/** "3 foods · 580 kcal": what a saved meal holds, in one line. */
+/** "3 foods, 580 kcal": what a saved meal holds, in one line. */
 function contents(meal: SavedMealRecord): string {
-  const count = meal.items.length;
   const total = addUp(meal.items.map(eaten));
-  return `${count} ${count === 1 ? "food" : "foods"} · ${formatKcal(total.kcal)} kcal`;
+  return `${foodCount(meal.items.length)}, ${formatKcal(total.kcal)} kcal`;
 }
 
 /**
  * My foods (ADR 0035): every food and saved meal the account keeps, made, corrected and removed
- * here without logging anything. Meals come first, then foods, the most lately eaten first; a
- * meal opens a page of its own, a food its sheet. Swiping either aside offers Remove, which still
- * takes a tap; a food's sheet can remove it too, and a meal's page can delete it.
+ * here without logging anything. New food and New meal lead, as two pills in food's colour; then
+ * meals, then foods, the most lately eaten first. A meal opens a page of its own, a food its
+ * sheet. Swiping either aside offers Remove, which still takes a tap; a food's sheet can remove
+ * it too, and a meal's page can delete it.
  */
 export function MyFoodsView({
   library,
@@ -103,7 +105,7 @@ export function MyFoodsView({
       {(library.foods.length > 0 || library.savedMeals.length > 0) && (
         <div className="relative">
           <Search
-            className="absolute top-1/2 left-3 -translate-y-1/2 text-ink-subtle"
+            className="absolute top-1/2 left-3.5 -translate-y-1/2 text-ink-subtle"
             aria-hidden
           />
           <Input
@@ -112,7 +114,7 @@ export function MyFoodsView({
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search your foods"
             aria-label="Search your foods and meals"
-            className="pl-9"
+            className="pl-10"
             autoCapitalize="none"
             autoCorrect="off"
             enterKeyHint="search"
@@ -120,37 +122,36 @@ export function MyFoodsView({
         </div>
       )}
 
-      <ul className="box-rows">
-        <li>
-          <button
-            type="button"
-            onClick={() =>
-              setSheet((current) => ({
-                key: current.key + 1,
-                open: true,
-                view: { kind: "library", name: newName },
-              }))
-            }
-            className={cn(PRESSABLE_ROW_CLASS, "font-semibold text-accent")}
-          >
-            <Plus className="shrink-0" aria-hidden />
-            <span className="min-w-0 [overflow-wrap:anywhere]">
-              {newName ? `New food “${newName}”` : "New food"}
-            </span>
-          </button>
-        </li>
-        <li>
-          <Link
-            href={links.newMeal}
-            prefetch="intent"
-            className={cn(PRESSABLE_ROW_CLASS, "font-semibold text-accent")}
-          >
-            <Plus className="shrink-0" aria-hidden />
-            <span className="min-w-0">New meal</span>
-          </Link>
-        </li>
-      </ul>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() =>
+            setSheet((current) => ({
+              key: current.key + 1,
+              open: true,
+              view: { kind: "library", name: newName },
+            }))
+          }
+          className={buttonClassName("secondary", "md", "min-w-0 flex-1", "food")}
+        >
+          <Plus className="shrink-0" aria-hidden />
+          {newName ? `New food “${newName}”` : "New food"}
+        </button>
+        <Link
+          href={links.newMeal}
+          prefetch="intent"
+          className={buttonClassName("secondary", "md", "min-w-0 flex-1", "food")}
+        >
+          <Plus className="shrink-0" aria-hidden />
+          New meal
+        </Link>
+      </div>
 
+      {library.foods.length === 0 && library.savedMeals.length === 0 && (
+        <p className="px-1 text-sm text-ink-muted">
+          Keep the foods you eat often, and meals made of them, to add to any meal in a tap.
+        </p>
+      )}
       {error && (
         <p role="alert" className="px-1 text-sm text-danger">
           {error}
@@ -172,17 +173,8 @@ export function MyFoodsView({
                     prefetch="intent"
                     className={PRESSABLE_ROW_CLASS}
                   >
-                    <Star className="shrink-0 text-accent" aria-hidden />
-                    {/* The spaces are for the link's name, which a screen reader reads as one
-                        string; beside flex items they take no room on the screen. */}
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-semibold [overflow-wrap:anywhere]">
-                        {meal.name}
-                      </span>{" "}
-                      <span className="block text-sm text-ink-muted tabular-nums">
-                        {contents(meal)}
-                      </span>
-                    </span>
+                    <RowIcon icon={Star} className="bg-food-soft text-food-ink" />
+                    <RowText title={meal.name} meta={contents(meal)} />
                     <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />
                   </Link>
                 </SwipeRow>
@@ -213,15 +205,7 @@ export function MyFoodsView({
                     }
                     className={PRESSABLE_ROW_CLASS}
                   >
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-semibold [overflow-wrap:anywhere]">
-                        {food.name}
-                      </span>{" "}
-                      <span className="block text-sm text-ink-muted tabular-nums">
-                        {formatPortion(food.portionAmount, food.unit)} · {formatKcal(food.kcal)}{" "}
-                        kcal
-                      </span>
-                    </span>
+                    <RowText title={food.name} meta={portionLine(food)} />
                     <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />
                   </button>
                 </SwipeRow>

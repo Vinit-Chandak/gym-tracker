@@ -12,7 +12,7 @@ import {
   type Food,
   type FoodAmounts,
 } from "@/domain/nutrition";
-import { formatKcal, formatMacros, formatPortion } from "@/lib/format";
+import { formatKcal, formatPortion } from "@/lib/format";
 
 import { AmountField, Preview, typedAmount } from "./amount-field";
 
@@ -66,7 +66,6 @@ export function AmountSheet({
   const [error, setError] = useState<string>();
   const content = useRef<HTMLFormElement>(null);
   const current = typedAmount(value);
-  const macros = formatMacros(food);
 
   useEffect(() => {
     if (error) content.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
@@ -80,7 +79,7 @@ export function AmountSheet({
       footer={
         <div className="space-y-3">
           <Preview amounts={scaleFood(food, current ?? 0)} />
-          <Button type="submit" form={formId} size="lg" className="w-full">
+          <Button type="submit" form={formId} size="lg" tone="food" className="w-full">
             {submitLabel}
           </Button>
         </div>
@@ -102,9 +101,7 @@ export function AmountSheet({
         }}
       >
         <p className="text-sm text-ink-muted tabular-nums">
-          Per {formatPortion(food.portionAmount, food.unit)}
-          <br />
-          {formatKcal(food.kcal)} kcal{macros && ` · ${macros}`}
+          {formatKcal(food.kcal)} kcal per {formatPortion(food.portionAmount, food.unit)}
         </p>
         <AmountField
           label="Amount"

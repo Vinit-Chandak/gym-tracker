@@ -1,13 +1,14 @@
 import type { Route } from "next";
 
 import { FoodCalendarButton, FoodWeekStrip } from "@/components/food/food-days";
+import { AddMark } from "@/components/food/food-row";
 import { FoodSummary } from "@/components/food/food-summary";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import Link from "@/components/ui/app-link";
 import { buttonClassName } from "@/components/ui/button";
 import { HeroCard } from "@/components/ui/hero-card";
-import { ChevronRight, Plus } from "@/components/ui/icons";
+import { ChevronRight } from "@/components/ui/icons";
 import { LinkRow, List, PRESSABLE_ROW_CLASS } from "@/components/ui/link-row";
 import { Section } from "@/components/ui/section";
 import { stripRange, type FoodDayTotal } from "@/domain/food-days";
@@ -58,7 +59,7 @@ const APP_LINKS: FoodLinks = {
   targets: "/food/targets",
 };
 
-/** "2 foods · 1 meal": what My foods holds, or nothing while it holds nothing. */
+/** "2 foods, 1 meal": what My foods holds, or nothing while it holds nothing. */
 function libraryMeta({ foods, meals }: LibraryCount): string | undefined {
   const parts = [
     foods > 0 ? `${foods} ${foods === 1 ? "food" : "foods"}` : null,
@@ -67,7 +68,10 @@ function libraryMeta({ foods, meals }: LibraryCount): string | undefined {
   return parts.length > 0 ? parts.join(", ") : undefined;
 }
 
-/** One meal's row: its name, what went into it, and what that came to. */
+/**
+ * One meal's row: its name, what went into it, and what that came to; or, with nothing in it
+ * yet, food's own plus, since opening it is adding to it.
+ */
 function MealRow({ meal, entries, href }: { meal: Meal; entries: EntryRecord[]; href: Route }) {
   const foods = [...new Set(entries.map((entry) => entry.name))].join(", ");
   return (
@@ -91,7 +95,7 @@ function MealRow({ meal, entries, href }: { meal: Meal; entries: EntryRecord[]; 
           <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />
         </>
       ) : (
-        <Plus className="shrink-0 text-accent" aria-hidden />
+        <AddMark />
       )}
     </Link>
   );
@@ -145,8 +149,8 @@ export function FoodView({
           <HeroCard tone="food">
             <div>
               <h2 className="font-display text-display-m">No daily target yet</h2>
-              <p className="mt-1 text-[0.9375rem] font-semibold text-ink-muted tabular-nums">
-                {goal ? `${TRAINING_GOAL_LABELS[goal]} · ` : ""}
+              <p className="mt-1 text-callout font-semibold text-ink-muted tabular-nums">
+                {goal ? `${TRAINING_GOAL_LABELS[goal]}, ` : ""}
                 {formatSplit(splitFor(goal))}
               </p>
             </div>
@@ -179,7 +183,7 @@ export function FoodView({
             <LinkRow
               href={links.myFoods}
               title="My foods"
-              meta={libraryMeta(day.library)}
+              subtitle={libraryMeta(day.library)}
               prefetch="intent"
             />
           </li>

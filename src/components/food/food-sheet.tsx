@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
+import { InfoTip } from "@/components/ui/info-tip";
 import { Field, Input, INPUT_CLASS } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Sheet } from "@/components/ui/sheet";
@@ -247,7 +248,14 @@ export function FoodSheet({
               {formError}
             </p>
           )}
-          <Button type="submit" form={formId} size="lg" className="w-full" disabled={busy}>
+          <Button
+            type="submit"
+            form={formId}
+            size="lg"
+            tone="food"
+            className="w-full"
+            disabled={busy}
+          >
             {target.kind === "create" || target.kind === "quick"
               ? saving
                 ? "Adding…"
@@ -269,11 +277,6 @@ export function FoodSheet({
         }}
       >
         <fieldset disabled={busy} className="min-w-0 space-y-4">
-          {quick && (
-            <p className="text-sm text-ink-muted">
-              Just this once: what you ate, as a whole. It is not kept in My foods.
-            </p>
-          )}
           <Field label={quick ? "Name (optional)" : "Name"} error={errors.name}>
             <Input
               value={fields.name}
@@ -332,14 +335,22 @@ export function FoodSheet({
           )}
 
           <div className="space-y-2">
-            {quick && <p className="text-sm font-semibold text-ink-muted">What it came to</p>}
-            {/* Four across on a phone at normal text; fewer, never clipped, as text grows. */}
+            {quick && (
+              <p className="flex items-center gap-1 text-sm font-semibold text-ink-muted">
+                What it came to
+                <InfoTip label="About quick add" className="-my-2">
+                  Just this once: what you ate, as a whole. It is not kept in My foods.
+                </InfoTip>
+              </p>
+            )}
+            {/* Four across on a phone at normal text; fewer, never clipped, as text grows. The
+                figures sit in wells in the display face, as a set's numbers do. */}
             <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,4rem),1fr))] gap-2">
               {FIGURES.map(({ field, label, max }) => {
                 const error = errors[field];
                 return (
                   <label key={field} className="min-w-0 space-y-1">
-                    <span className="block text-xs text-ink-subtle">
+                    <span className="block text-xs font-semibold text-ink-muted">
                       {label}
                       {field === "kcal" && <span aria-hidden> *</span>}
                     </span>
@@ -356,9 +367,8 @@ export function FoodSheet({
                         set(field, sanitizeNumberEntry(event.target.value, "decimal", max))
                       }
                       className={cn(
-                        INPUT_CLASS,
-                        "px-1 text-center tabular-nums",
-                        error && "border-danger",
+                        "h-12 w-full min-w-0 rounded-control bg-surface-raised px-1 text-center font-display text-display-s leading-none font-extrabold text-ink tabular-nums transition-colors duration-[var(--ov-duration-feedback)] focus:bg-surface focus:ring-2 focus:ring-accent focus:outline-none disabled:opacity-50",
+                        error && "ring-2 ring-danger",
                       )}
                     />
                   </label>

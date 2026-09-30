@@ -16,13 +16,15 @@ import {
 import type { SavedMealRecord } from "@/server/repositories/nutrition";
 
 import { Preview } from "@/components/food/amount-field";
+import { RowText } from "@/components/food/food-row";
+import { foodCount } from "@/components/food/food-text";
 
 type Place = { eatenOn: string; meal: Meal; mealLabel: string };
 
-/** "3 foods · 520 kcal": what a list of foods holds, in one line. */
+/** "3 foods, 520 kcal": what a list of foods holds, in one line. */
 function contents(foods: readonly LoggedFood[]): string {
   const total = addUp(foods.map(eaten));
-  return `${foods.length} ${foods.length === 1 ? "food" : "foods"} · ${formatKcal(total.kcal)} kcal`;
+  return `${foodCount(foods.length)}, ${formatKcal(total.kcal)} kcal`;
 }
 
 /**
@@ -89,7 +91,14 @@ export function SaveMealSheet({
               {formError}
             </p>
           )}
-          <Button type="submit" form={formId} size="lg" className="w-full" disabled={saving}>
+          <Button
+            type="submit"
+            form={formId}
+            size="lg"
+            tone="food"
+            className="w-full"
+            disabled={saving}
+          >
             {saving ? "Saving…" : "Save meal"}
           </Button>
         </div>
@@ -201,25 +210,18 @@ export function SavedMealSheet({
               {formError}
             </p>
           )}
-          <Button size="lg" className="w-full" disabled={busy} onClick={add}>
+          <Button size="lg" tone="food" className="w-full" disabled={busy} onClick={add}>
             {adding ? "Adding…" : `Add to ${place.mealLabel}`}
           </Button>
         </div>
       }
     >
       <div className="space-y-4 pb-1">
-        <ul className="ruled-list">
+        <ul className="ruled-list" aria-label={`In ${saved.name}`}>
           {saved.items.map((item, index) => (
-            <li key={index} className="flex items-baseline justify-between gap-3 py-2.5">
-              <span className="min-w-0 [overflow-wrap:anywhere]">
-                {item.name}{" "}
-                <span className="text-sm text-ink-muted">
-                  {formatPortion(item.amount, item.unit)}
-                </span>
-              </span>{" "}
-              <span className="shrink-0 text-sm tabular-nums">
-                {formatKcal(eaten(item).kcal)} kcal
-              </span>
+            <li key={index} className="flex min-h-14 items-center gap-3 py-2.5">
+              <RowText title={item.name} meta={formatPortion(item.amount, item.unit)} />{" "}
+              <span className="shrink-0 tabular-nums">{formatKcal(eaten(item).kcal)} kcal</span>
             </li>
           ))}
         </ul>

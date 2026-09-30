@@ -18,6 +18,8 @@ import { formatFoodAmount, formatPortion } from "@/lib/format";
 import { MEAL_LABELS } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 
+import { RowText } from "./food-row";
+
 /**
  * In the order the split names them: 55 / 25 / 20 is carbohydrate, fat, protein. All three are
  * food's own colour: the sports' colours mean sports everywhere else, and each row is named, so
@@ -117,7 +119,7 @@ export function MacroBars({
                   onClick={() =>
                     setSheet((current) => ({ key: current.key + 1, open: true, macro: key }))
                   }
-                  className="col-span-full grid min-h-10 w-full grid-cols-subgrid items-center gap-y-1.5 rounded-control px-2 py-2 text-left transition-colors duration-[var(--ov-duration-feedback)] active:bg-surface-raised @2xs:py-1"
+                  className="col-span-full grid min-h-11 w-full grid-cols-subgrid items-center gap-y-1.5 rounded-control px-2 py-2 text-left transition-colors duration-[var(--ov-duration-feedback)] active:bg-surface-raised @2xs:py-1"
                 >
                   {/* The name and the numbers share a line while both fit, and the numbers wrap
                       under the name when they do not. On a row wide enough for the bar between
@@ -189,10 +191,10 @@ export function MacroBars({
 }
 
 /**
- * One macronutrient's day (ADR 0036): what was eaten against what was set, with the one bar and
- * where that leaves the day in words, then each food by how much it gave, the most first, as rows
- * like the rest of the app. A food eaten twice is one row; a food logged without the figure closes
- * the list with a dash, since it is why a total may read low.
+ * One macronutrient's day (ADR 0036): the grams eaten as the figure, against what was set, with
+ * the one bar and where that leaves the day in words, then each food by how much it gave, the
+ * most first, as rows like the rest of the app. A food eaten twice is one row; a food logged
+ * without the figure closes the list with a dash, since it is why a total may read low.
  */
 function MacroSheet({
   open,
@@ -228,13 +230,11 @@ function MacroSheet({
       <div className="space-y-4 pb-1">
         <div className="space-y-2.5">
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-            <p
-              className={cn("text-2xl font-semibold tabular-nums", state === "over" && "text-over")}
-            >
-              {grams(eaten)} g
+            <p className={cn("tabular-nums", state === "over" && "text-over")}>
+              <span className="font-display text-display-m font-extrabold">{grams(eaten)} g</span>
               <span
                 className={cn(
-                  "text-sm font-normal",
+                  "text-callout font-semibold",
                   state === "over" ? undefined : "text-ink-muted",
                 )}
               >
@@ -273,13 +273,17 @@ function MacroSheet({
                 key={`${row.name}-${row.unit}`}
                 className="flex min-h-14 items-center gap-3 py-2.5"
               >
-                <span className="min-w-0 flex-1">
-                  <span className="block font-semibold [overflow-wrap:anywhere]">{row.name}</span>{" "}
-                  <span className="block text-sm text-ink-muted tabular-nums">
-                    {row.meals.map((meal) => MEAL_LABELS[meal]).join(", ")} ·{" "}
-                    <span className="whitespace-nowrap">{formatPortion(row.amount, row.unit)}</span>
-                  </span>
-                </span>{" "}
+                <RowText
+                  title={row.name}
+                  meta={
+                    <>
+                      {row.meals.map((meal) => MEAL_LABELS[meal]).join(", ")},{" "}
+                      <span className="whitespace-nowrap">
+                        {formatPortion(row.amount, row.unit)}
+                      </span>
+                    </>
+                  }
+                />{" "}
                 {row.grams === null ? (
                   <span className="shrink-0 text-ink-muted">
                     <span aria-hidden>—</span>

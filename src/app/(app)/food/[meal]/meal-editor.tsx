@@ -2,16 +2,20 @@
 
 import { useOptimistic, useRef, useState, useTransition } from "react";
 
+import { AddMark, RowText } from "@/components/food/food-row";
+import { FoodSheet } from "@/components/food/food-sheet";
+import { macroLine, portionLine } from "@/components/food/food-text";
 import { Button } from "@/components/ui/button";
+import { HeroCard } from "@/components/ui/hero-card";
 import { Plus, QuickAdd, Search, Star } from "@/components/ui/icons";
 import { Input } from "@/components/ui/input";
-import { PRESSABLE_ROW_CLASS } from "@/components/ui/link-row";
+import { PRESSABLE_ROW_CLASS, RowIcon } from "@/components/ui/link-row";
+import { Section } from "@/components/ui/section";
 import { SwipeRow } from "@/components/ui/swipe-row";
 import { addUp, eaten, sameFoods, type Meal } from "@/domain/nutrition";
-import { formatKcal, formatMacros, formatPortion } from "@/lib/format";
+import { formatKcal, formatPortion } from "@/lib/format";
 import { MEAL_LABELS } from "@/lib/labels";
 import { attempted } from "@/lib/offline-submit";
-import { cn } from "@/lib/utils";
 import { deleteEntryAction, deleteSavedMealAction } from "@/server/actions/nutrition";
 import type {
   EntryRecord,
@@ -20,9 +24,11 @@ import type {
   SavedMealRecord,
 } from "@/server/repositories/nutrition";
 
-import { FoodSheet } from "@/components/food/food-sheet";
 import { PortionSheet } from "./portion-sheet";
 import { SavedMealSheet, SaveMealSheet } from "./saved-meal-sheets";
+
+/** A row's leading chip for what is not a food of My foods: Quick add, a saved meal, New food. */
+const FOOD_CHIP = "bg-food-soft text-food-ink";
 
 /** The sheet that is open, and what it was opened for. */
 type SheetView =
@@ -38,10 +44,11 @@ function scrollBehaviour(): ScrollBehavior {
 }
 
 /**
- * One meal of the day (ADRs 0033, 0035): what is in it and what that comes to, the star that
- * saves it, and everything in My foods that can go into it, searched as it is typed. A food opens
- * a sheet for how much of it; a saved meal, for adding all of it. Tapping a food already in the
- * meal changes its amount, and swiping it aside takes it out, which its sheet can do too.
+ * One meal of the day (ADRs 0033, 0035): what it comes to, as a sunflower card with the star that
+ * saves it, then what is in it, then everything in My foods that can go into it, searched as it is
+ * typed. A food opens a sheet for how much of it; a saved meal, for adding all of it. Tapping a
+ * food already in the meal changes its amount, and swiping it aside takes it out, which its sheet
+ * can do too. A meal with nothing in it opens straight on adding.
  *
  * The page adds from My foods and does not manage it: foods are made, corrected and removed on
  * My foods' own screen. Only a search that finds nothing offers a new food, made and added here
@@ -141,37 +148,45 @@ export function MealEditor({
   const nothingFound = foods.length === 0 && savedMeals.length === 0;
   const view = sheet.view;
 
+  const macros = macroLine(total);
+
   return (
     <>
       {entries.length > 0 && (
         <div ref={top} className="scroll-mt-20 space-y-3">
-          <section aria-label={`${label} total`} className="box panel-padding">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-2xl font-semibold tabular-nums">
-                  {formatKcal(total.kcal)}
-                  <span className="text-sm font-normal text-ink-muted"> kcal</span>
-                </p>
-                <p className="text-sm text-ink-muted tabular-nums">{formatMacros(total)}</p>
-                {starred && (
-                  <p className="mt-1 text-xs [overflow-wrap:anywhere] text-ink-muted">
-                    Saved as {starred.name}
-                  </p>
-                )}
-              </div>
+          <HeroCard tone="food" aria-label={`${label} total`} className="space-y-2">
+            <div className="flex items-start justify-between gap-3">
+              <p className="min-w-0 pt-1 tabular-nums">
+                {/* Whole kcal, as the day's card has it: a tenth is noise in the card's figure. */}
+                <span className="font-display text-display-m font-extrabold">
+                  {formatKcal(Math.round(total.kcal))}
+                </span>{" "}
+                <span className="text-headline font-semibold">kcal</span>
+              </p>
+              {/* Starred, it takes the card's solid pill; unstarred, the card's quiet one. */}
               <Button
-                variant="secondary"
+                variant={starred ? "primary" : "secondary"}
                 size="sm"
                 aria-pressed={starred !== null}
                 disabled={pending}
                 onClick={() => (starred ? unstar(starred) : open({ kind: "star" }))}
-                className="shrink-0 aria-pressed:border-accent aria-pressed:bg-accent-soft"
+                className="shrink-0"
               >
-                <Star className={starred ? "text-accent" : "text-ink-subtle"} aria-hidden />
+                {/* Starred, the star's own wash is filled in, so it reads as a star that is on. */}
+                <Star
+                  aria-hidden
+                  className={starred ? "[&>path:first-of-type]:opacity-100" : undefined}
+                />
                 Star
               </Button>
             </div>
-          </section>
+            {macros && <p className="text-callout text-ink-muted tabular-nums">{macros}</p>}
+            {starred && (
+              <p className="text-sm [overflow-wrap:anywhere] text-ink-muted">
+                Saved as {starred.name}
+              </p>
+            )}
+          </HeroCard>
           <ul className="box-rows" aria-label={`In ${label.toLowerCase()}`}>
             {entries.map((entry) => (
               <li key={entry.id}>
@@ -185,16 +200,7 @@ export function MealEditor({
                     onClick={() => open({ kind: "entry", entry })}
                     className={PRESSABLE_ROW_CLASS}
                   >
-                    {/* The spaces are for the button's name, which a screen reader reads as one
-                        string; beside flex items they take no room on the screen. */}
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-semibold [overflow-wrap:anywhere]">
-                        {entry.name}
-                      </span>{" "}
-                      <span className="block text-sm text-ink-muted tabular-nums">
-                        {formatPortion(entry.amount, entry.unit)}
-                      </span>
-                    </span>{" "}
+                    <RowText title={entry.name} meta={formatPortion(entry.amount, entry.unit)} />{" "}
                     <span className="shrink-0 tabular-nums">
                       {formatKcal(eaten(entry).kcal)} kcal
                     </span>
@@ -211,10 +217,10 @@ export function MealEditor({
         </p>
       )}
 
-      <div className="space-y-3">
+      <Section title="Add food">
         <div className="relative">
           <Search
-            className="absolute top-1/2 left-3 -translate-y-1/2 text-ink-subtle"
+            className="absolute top-1/2 left-3.5 -translate-y-1/2 text-ink-subtle"
             aria-hidden
           />
           <Input
@@ -223,7 +229,7 @@ export function MealEditor({
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search your foods"
             aria-label="Search your foods and saved meals"
-            className="pl-9"
+            className="pl-10"
             autoCapitalize="none"
             autoCorrect="off"
             enterKeyHint="search"
@@ -237,15 +243,11 @@ export function MealEditor({
               onClick={() => open({ kind: "quick", name: query.trim() })}
               className={PRESSABLE_ROW_CLASS}
             >
-              <QuickAdd className="shrink-0 text-accent" aria-hidden />
-              <span className="min-w-0 flex-1">
-                <span className="block font-semibold [overflow-wrap:anywhere] text-accent">
-                  {query.trim() ? `Quick add “${query.trim()}”` : "Quick add"}
-                </span>{" "}
-                <span className="block text-sm text-ink-muted">
-                  Calories and macros, just this once
-                </span>
-              </span>
+              <RowIcon icon={QuickAdd} className={FOOD_CHIP} />
+              <RowText
+                title={query.trim() ? `Quick add “${query.trim()}”` : "Quick add"}
+                meta="Calories and macros, just this once"
+              />
             </button>
           </li>
           {savedMeals.map((saved) => (
@@ -255,13 +257,11 @@ export function MealEditor({
                 onClick={() => open({ kind: "saved", saved })}
                 className={PRESSABLE_ROW_CLASS}
               >
-                <Star className="shrink-0 text-accent" aria-hidden />
-                <span className="min-w-0 flex-1">
-                  <span className="block font-semibold [overflow-wrap:anywhere]">{saved.name}</span>{" "}
-                  <span className="block text-sm [overflow-wrap:anywhere] text-ink-muted">
-                    {saved.items.map((item) => item.name).join(", ")}
-                  </span>
-                </span>{" "}
+                <RowIcon icon={Star} className={FOOD_CHIP} />
+                <RowText
+                  title={saved.name}
+                  meta={saved.items.map((item) => item.name).join(", ")}
+                />{" "}
                 <span className="shrink-0 text-sm tabular-nums">
                   {formatKcal(addUp(saved.items.map(eaten)).kcal)} kcal
                 </span>
@@ -275,13 +275,8 @@ export function MealEditor({
                 onClick={() => open({ kind: "log", food })}
                 className={PRESSABLE_ROW_CLASS}
               >
-                <span className="min-w-0 flex-1">
-                  <span className="block font-semibold [overflow-wrap:anywhere]">{food.name}</span>{" "}
-                  <span className="block text-sm text-ink-muted tabular-nums">
-                    {formatPortion(food.portionAmount, food.unit)} · {formatKcal(food.kcal)} kcal
-                  </span>
-                </span>
-                <Plus className="shrink-0 text-accent" aria-hidden />
+                <RowText title={food.name} meta={portionLine(food)} />
+                <AddMark />
               </button>
             </li>
           ))}
@@ -290,17 +285,17 @@ export function MealEditor({
               <button
                 type="button"
                 onClick={() => open({ kind: "create", name: query.trim() })}
-                className={cn(PRESSABLE_ROW_CLASS, "font-semibold text-accent")}
+                className={PRESSABLE_ROW_CLASS}
               >
-                <Plus className="shrink-0" aria-hidden />
-                <span className="min-w-0 [overflow-wrap:anywhere]">
+                <RowIcon icon={Plus} className={FOOD_CHIP} />
+                <span className="min-w-0 font-semibold [overflow-wrap:anywhere]">
                   {query.trim() ? `New food “${query.trim()}”` : "New food"}
                 </span>
               </button>
             </li>
           )}
         </ul>
-      </div>
+      </Section>
 
       <p aria-live="polite" className="sr-only">
         {said}

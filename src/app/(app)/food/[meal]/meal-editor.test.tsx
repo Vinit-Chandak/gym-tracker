@@ -154,8 +154,10 @@ it("logs a food from My foods at the amount eaten, a tap or a few digits away", 
   editor();
   fireEvent.click(myFoods().getByRole("button", { name: /^Oats 100 g/ }));
   expect(inSheet().getByRole("heading", { name: "Oats" })).toBeTruthy();
-  expect(sheet().textContent).toContain("Per 100 g389 kcal · Carbs 66 g · Fat 7 g · Protein 17 g");
+  expect(sheet().textContent).toContain("389 kcal per 100 g");
   expect(inSheet().getByLabelText("Amount eaten")).toHaveProperty("value", "100");
+  // At the food's own portion, what it comes to is what the portion holds.
+  expect(sheet().textContent).toContain("Carbs 66 g, Fat 7 g, Protein 17 g");
 
   fireEvent.click(inSheet().getByRole("button", { name: "200 g" }));
   expect(inSheet().getByLabelText("Amount eaten")).toHaveProperty("value", "200");
@@ -165,7 +167,7 @@ it("logs a food from My foods at the amount eaten, a tap or a few digits away", 
   expect(sheet().textContent).toContain("778 kcal");
   type("Amount eaten", "60");
   expect(sheet().textContent).toContain("233.4 kcal");
-  expect(sheet().textContent).toContain("Carbs 40 g · Fat 4 g · Protein 10 g");
+  expect(sheet().textContent).toContain("Carbs 40 g, Fat 4 g, Protein 10 g");
 
   fireEvent.click(inSheet().getByRole("button", { name: "Add to Breakfast" }));
   await waitFor(() => expect(sheet().open).toBe(false));
@@ -240,7 +242,9 @@ it("quick adds what was eaten from its figures alone, keeping nothing in My food
   expect(quick.textContent).toBe("Quick add Calories and macros, just this once");
   fireEvent.click(quick);
   expect(inSheet().getByRole("heading", { name: "Quick add" })).toBeTruthy();
-  expect(sheet().textContent).toContain("It is not kept in My foods.");
+  // Said behind the tip beside what it came to, rather than written across the sheet.
+  fireEvent.click(inSheet().getByRole("button", { name: "About quick add" }));
+  expect(inSheet().getByRole("note").textContent).toContain("It is not kept in My foods.");
   // What was eaten, as a whole: no portion to give, and no amount to scale it by.
   expect(inSheet().queryByLabelText("Nutrition per")).toBeNull();
   expect(inSheet().queryByLabelText("Amount eaten")).toBeNull();
@@ -363,7 +367,7 @@ it("stars a meal under the name it is given, saying when that replaces one", asy
   expect(star.getAttribute("aria-pressed")).toBe("false");
   fireEvent.click(star);
   expect(inSheet().getByRole("heading", { name: "Star meal" })).toBeTruthy();
-  expect(sheet().textContent).toContain("Breakfast: 1 food · 156 kcal");
+  expect(sheet().textContent).toContain("Breakfast: 1 food, 156 kcal");
   type("Name", "usual BREAKFAST");
   expect(inSheet().getByText("Replaces your saved meal Usual breakfast.")).toBeTruthy();
   type("Name", "Milk breakfast");

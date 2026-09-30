@@ -6,8 +6,11 @@ import { useActionState, useEffect, useState } from "react";
 
 import Link from "@/components/ui/app-link";
 import { buttonClassName } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { FormError, SubmitButton } from "@/components/ui/form";
+import { InfoTip } from "@/components/ui/info-tip";
 import { Field, Input } from "@/components/ui/input";
+import { StatTile, StatTileRow } from "@/components/ui/stat-tile";
 import {
   DEFAULT_PROTEIN_PER_KG,
   macroTargets,
@@ -35,9 +38,10 @@ function numberIn(value: string, bounds: { min: number; max: number }): number |
 }
 
 /**
- * The day's target, protein per kilogram and fat's share of the target (ADR 0035). Carbohydrate
- * is whatever energy is left, so the three always add up, and the grams they come to are worked
- * out as they are typed, by the same rule the screens use.
+ * The day's target, protein per kilogram and fat's share of the target (ADR 0035). The target
+ * leads, as the big number, with the grams it comes to under it; how protein and fat are set is
+ * a card of its own below. Carbohydrate is whatever energy is left, so the three always add up,
+ * and the grams are worked out as they are typed, by the same rule the screens use.
  *
  * The profile's training goal chooses the split a first set of targets starts from: protein and
  * fat follow it as the target is typed, until either is changed. Afterwards the split is offered,
@@ -119,7 +123,7 @@ export function TargetsForm({
   return (
     // After a failed save the form goes on showing what was typed, rather than being reset.
     <form action={formAction} onReset={(event) => event.preventDefault()} className="space-y-4">
-      <div className="box space-y-4 panel-padding">
+      <Card className="space-y-4">
         <Field label="Daily target, kcal" error={state.fieldErrors?.dailyKcal}>
           <Input
             name="dailyKcal"
@@ -132,11 +136,40 @@ export function TargetsForm({
                 sanitizeNumberEntry(event.target.value, "numeric", NUTRITION_LIMITS.dailyKcal.max),
               )
             }
+            className="h-[4.5rem] border-transparent bg-surface-raised font-display text-display-l leading-none font-extrabold tabular-nums placeholder:font-semibold placeholder:text-ink-ghost/70 focus:bg-surface focus:ring-accent"
           />
         </Field>
+        {preview && (
+          <div className="space-y-3">
+            {/* What the target comes to, in the split's order: carbohydrate, fat, protein. */}
+            <StatTileRow className="grid-cols-3 @min-[27rem]:grid-cols-3">
+              <StatTile
+                label="Carbs"
+                value={`${formatFoodAmount(preview.carbsG)} g`}
+                info="Whatever energy protein and fat leave, so the three always add up to the daily target."
+              />
+              <StatTile label="Fat" value={`${formatFoodAmount(preview.fatG)} g`} />
+              <StatTile label="Protein" value={`${formatFoodAmount(preview.proteinG)} g`} />
+            </StatTileRow>
+            {preview.overBudget && (
+              <p className="text-sm text-warning">
+                Protein and fat alone come to more than {formatFoodAmount(preview.kcal)} kcal, so
+                there is nothing left for carbs.
+              </p>
+            )}
+          </div>
+        )}
+      </Card>
 
+      <Card className="space-y-4">
         <div className="min-w-0 space-y-1.5">
-          <p className="text-sm font-semibold text-ink-muted">Goal</p>
+          <p className="flex items-center gap-1 text-sm font-semibold text-ink-muted">
+            Goal
+            <InfoTip label="About the goal" className="-my-2">
+              The training goal on your profile chooses the split a first set of targets starts
+              from: carbs, fat and protein as shares of the daily target.
+            </InfoTip>
+          </p>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className={goal ? undefined : "text-ink-muted"}>
               {goal ? TRAINING_GOAL_LABELS[goal] : "Not set"}
@@ -144,7 +177,7 @@ export function TargetsForm({
             {offerSplit && fromSplit && (
               <button
                 type="button"
-                className={buttonClassName("secondary", "sm", "tabular-nums")}
+                className={buttonClassName("secondary", "sm", "tabular-nums", "food")}
                 onClick={() => {
                   if (fromSplit.proteinPerKg !== null) {
                     setProteinPerKg(String(fromSplit.proteinPerKg));
@@ -158,32 +191,44 @@ export function TargetsForm({
           </div>
         </div>
 
-        <Field
-          label="Protein, g per kg of body weight"
-          error={state.fieldErrors?.proteinPerKg}
-          hint={
-            weighed && perKg !== null
-              ? `${formatFoodAmount((Math.round(perKg * 10) / 10) * bodyWeightKg)} g at ${formatBodyWeight(bodyWeightKg, unit)}`
-              : undefined
-          }
-        >
-          <Input
-            name="proteinPerKg"
-            inputMode="decimal"
-            autoComplete="off"
-            value={shownProtein}
-            onChange={(event) => {
-              stopFollowing();
-              setProteinPerKg(
-                sanitizeNumberEntry(
-                  event.target.value,
-                  "decimal",
-                  NUTRITION_LIMITS.proteinPerKg.max,
-                ),
-              );
-            }}
-          />
-        </Field>
+        <div className="min-w-0 space-y-2">
+          <Field
+            label="Protein, g per kg of body weight"
+            error={state.fieldErrors?.proteinPerKg}
+            hint={
+              weighed && perKg !== null
+                ? `${formatFoodAmount((Math.round(perKg * 10) / 10) * bodyWeightKg)} g at ${formatBodyWeight(bodyWeightKg, unit)}`
+                : undefined
+            }
+          >
+            <Input
+              name="proteinPerKg"
+              inputMode="decimal"
+              autoComplete="off"
+              value={shownProtein}
+              onChange={(event) => {
+                stopFollowing();
+                setProteinPerKg(
+                  sanitizeNumberEntry(
+                    event.target.value,
+                    "decimal",
+                    NUTRITION_LIMITS.proteinPerKg.max,
+                  ),
+                );
+              }}
+              className="tabular-nums"
+            />
+          </Field>
+          {!weighed && (
+            <p className="text-sm text-ink-muted">
+              There is no body weight on your profile yet, so protein is{" "}
+              {Math.round(split.protein * 100)}% of the target until there is.{" "}
+              <Link href="/profile/edit" className="text-accent underline underline-offset-2">
+                Add it in your profile
+              </Link>
+            </p>
+          )}
+        </div>
 
         <Field label="Fat, % of daily target" error={state.fieldErrors?.fatPercent}>
           <Input
@@ -197,33 +242,12 @@ export function TargetsForm({
                 sanitizeNumberEntry(event.target.value, "numeric", NUTRITION_LIMITS.fatPercent.max),
               );
             }}
+            className="tabular-nums"
           />
         </Field>
-
-        {!weighed && (
-          <p className="text-sm text-ink-muted">
-            There is no body weight on your profile yet, so protein is{" "}
-            {Math.round(split.protein * 100)}% of the target until there is.{" "}
-            <Link href="/profile/edit" className="text-accent underline underline-offset-2">
-              Add it in your profile
-            </Link>
-          </p>
-        )}
-        {preview && (
-          <p className="text-sm tabular-nums">
-            Carbs {formatFoodAmount(preview.carbsG)} g · Fat {formatFoodAmount(preview.fatG)} g ·
-            Protein {formatFoodAmount(preview.proteinG)} g
-          </p>
-        )}
-        {preview?.overBudget && (
-          <p className="text-sm text-warning">
-            Protein and fat alone come to more than {formatFoodAmount(preview.kcal)} kcal, so there
-            is nothing left for carbs.
-          </p>
-        )}
-      </div>
+      </Card>
       <FormError message={state.formError} />
-      <SubmitButton>{targets ? "Save targets" : "Set target"}</SubmitButton>
+      <SubmitButton tone="food">{targets ? "Save targets" : "Set target"}</SubmitButton>
     </form>
   );
 }
