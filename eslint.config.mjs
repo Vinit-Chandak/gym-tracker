@@ -25,6 +25,8 @@ const eslintConfig = defineConfig([
     "build/**",
     "coverage/**",
     "next-env.d.ts",
+    // Third-party agent skills ship their own scripts; they are not app code.
+    ".claude/skills/**",
   ]),
 ]);
 

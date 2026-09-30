@@ -6,6 +6,8 @@ This package specifies how to implement **Form**, the user's selected design, ac
 
 **Status: implemented.** The specification below is the contract and stays as written; what was decided while building it, and what was measured afterwards, is recorded in [decision 0013](../decisions/0013-form-interface.md). A later pass that removed most explanatory text, moved what remained behind info tips, colour-coded supersets and split Today into one card per activity is recorded in [decision 0014](../decisions/0014-less-said-per-screen.md). A third pass replaced the ruled lists with filled, outline-free boxes on every screen and rebuilt Settings as rows that open their own pages; it is recorded in [decision 0015](../decisions/0015-grouped-boxes.md). A fourth rebuilt Today around one card per decision, moved every screen's filters into one sheet beside its tabs, and turned Settings → Programme into the whole programme; it is recorded in [decision 0016](../decisions/0016-today-and-the-programme.md). The theme files now live in `src/styles/form/`. Field performance on real devices remains unmeasured.
 
+**Next: a ground-up revamp.** Its workflow, toolkit and open decisions are in [`revamp/`](revamp/README.md). Form remains the contract until the revamp's brief replaces it.
+
 ## Read in this order
 
 | Document                                               | Purpose                                                                                     |

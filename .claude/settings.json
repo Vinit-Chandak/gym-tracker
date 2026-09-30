@@ -2,6 +2,10 @@
   "modelSettings": {
     "claude-opus-5": { "effortLevel": "high" }
   },
+  "env": {
+    "IMPECCABLE_NO_TELEMETRY": "1"
+  },
+  "skillListingBudgetFraction": 0.02,
   "hooks": {
     "SessionStart": [
       {
