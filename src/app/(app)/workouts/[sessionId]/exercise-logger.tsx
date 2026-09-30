@@ -34,6 +34,7 @@ import {
   skipExerciseAction,
 } from "@/server/actions/sessions";
 
+import { ExerciseHistory } from "./exercise-history";
 import { NextLoad, nextLoadQuestion } from "./next-load";
 import { SetGrid } from "./set-grid";
 import { SetOptions } from "./set-options";
@@ -665,6 +666,13 @@ export function ExerciseLogger({
                 </Disclosure>
               )}
             {exercise.previous && <SetTable sets={exercise.previous.sets} unitLabel={unitLabel} />}
+            <ExerciseHistory
+              exerciseId={exercise.exercise.id}
+              workoutExerciseId={exercise.id}
+              loadPortability={exercise.exercise.loadPortability}
+              preferredUnit={session.preferredUnit}
+              timeZone={session.timeZone}
+            />
           </Card>
         )}
       </div>

@@ -16,6 +16,7 @@ import { isRestSlot, partStatus, pendingParts } from "@/domain/schedule";
 import { BODY_LOAD_UNITS, LOAD_UNITS, SET_TYPES, type SlotPart } from "@/domain/types";
 import { fromKilograms, toKilograms } from "@/lib/units";
 import { requireUser } from "@/server/auth";
+import { exerciseHistory, type ComparableSet } from "@/server/queries/comparable";
 import { ensureProfile } from "@/server/queries/profile";
 import { profileChanged } from "@/server/queries/request-profile";
 import { recordBodyWeight } from "@/server/repositories/body-weight";
@@ -640,4 +641,54 @@ export async function completeRestSlotAction(dayIndex: number): Promise<ActionRe
   });
   if (result.ok) revalidateSession();
   return result;
+}
+
+/** How many past sessions the workout's History tab lists at most. */
+const EXERCISE_HISTORY_LIMIT = 200;
+
+export type ExerciseHistoryEntry = {
+  workoutExerciseId: string;
+  workoutSessionId: string;
+  performedAt: string;
+  gymName: string;
+  equipmentName: string | null;
+  sets: ComparableSet[];
+};
+
+/**
+ * Every finished session of one exercise, newest first, for the History tab of the workout
+ * logger. A read and not a change: nothing is revalidated, and it is only asked for when the
+ * tab is opened, so logging a set never pays for it. The exercise being logged is left out.
+ */
+export async function readExerciseHistoryAction(
+  exerciseId: string,
+  workoutExerciseId: string,
+): Promise<{ entries: ExerciseHistoryEntry[]; more: boolean }> {
+  const user = await requireUser();
+  const ids = z.object({ exerciseId: z.uuid(), workoutExerciseId: z.uuid() }).safeParse({
+    exerciseId,
+    workoutExerciseId,
+  });
+  if (!ids.success) return { entries: [], more: false };
+  const rows = await withUser(
+    getDb(),
+    user.id,
+    (tx) =>
+      exerciseHistory(tx, user.id, ids.data.exerciseId, {
+        excludeWorkoutExerciseId: ids.data.workoutExerciseId,
+        limit: EXERCISE_HISTORY_LIMIT + 1,
+      }),
+    { readOnly: true },
+  );
+  return {
+    entries: rows.slice(0, EXERCISE_HISTORY_LIMIT).map((row) => ({
+      workoutExerciseId: row.workoutExerciseId,
+      workoutSessionId: row.workoutSessionId,
+      performedAt: row.performedAt.toISOString(),
+      gymName: row.gymName,
+      equipmentName: row.equipmentInstanceName,
+      sets: row.sets,
+    })),
+    more: rows.length > EXERCISE_HISTORY_LIMIT,
+  };
 }

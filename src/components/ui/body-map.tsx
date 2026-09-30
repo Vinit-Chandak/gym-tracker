@@ -12,6 +12,7 @@ import {
 import { MUSCLE_LABELS } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 
+import { Disclosure } from "./disclosure";
 import { BODY_OUTLINE, BODY_REGIONS, BODY_VIEWBOX, type BodyView } from "./body-regions";
 
 /**
@@ -105,55 +106,62 @@ export function BodyMap({ volume, totalSets }: { volume: MuscleVolume; totalSets
         </p>
       )}
 
-      <div className="overflow-hidden rounded-control">
-        <table className="w-full text-left text-sm tabular-nums">
-          <thead>
-            <tr className="border-b border-line bg-surface-raised text-xs text-ink-muted">
-              <th className="px-3 py-2 font-medium">Muscle</th>
-              <th className="px-3 py-2 text-right font-medium">Sets</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr className="border-b border-line font-medium">
-              <td className="px-3 py-2">Total working sets</td>
-              <td className="px-3 py-2 text-right">{fmt(totalSets)}</td>
-            </tr>
-            {trained.length === 0 && (
-              <tr>
-                <td colSpan={2} className="px-3 py-6 text-center text-ink-muted">
-                  No sets logged this week.
-                </td>
+      {/* The per-muscle numbers fold away, so the map is what the section shows first. */}
+      <Disclosure
+        summary="Number of sets"
+        meta={`${fmt(totalSets)} ${totalSets === 1 ? "set" : "sets"}`}
+        variant="inline"
+      >
+        <div className="overflow-hidden rounded-control">
+          <table className="w-full text-left text-sm tabular-nums">
+            <thead>
+              <tr className="border-b border-line bg-surface-raised text-xs text-ink-muted">
+                <th className="px-3 py-2 font-medium">Muscle</th>
+                <th className="px-3 py-2 text-right font-medium">Sets</th>
               </tr>
-            )}
-            {trained.map((muscle) => (
-              <tr
-                key={muscle}
-                className={cn(
-                  "cursor-pointer border-b border-line last:border-0",
-                  active === muscle && "bg-surface-raised",
-                )}
-                onClick={() => setActive(active === muscle ? null : muscle)}
-              >
-                <th scope="row" className="px-3 font-normal">
-                  <button
-                    type="button"
-                    aria-pressed={active === muscle}
-                    className="flex min-h-11 w-full items-center gap-2 py-2 text-left"
-                  >
-                    <span
-                      className="size-2.5 shrink-0 rounded-[3px]"
-                      style={{ background: STEP_FILL[volumeStep(volume[muscle])] }}
-                      aria-hidden
-                    />
-                    {MUSCLE_LABELS[muscle]}
-                  </button>
-                </th>
-                <td className="px-3 py-2 text-right">{fmt(volume[muscle])}</td>
+            </thead>
+            <tbody>
+              <tr className="border-b border-line font-medium">
+                <td className="px-3 py-2">Total working sets</td>
+                <td className="px-3 py-2 text-right">{fmt(totalSets)}</td>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+              {trained.length === 0 && (
+                <tr>
+                  <td colSpan={2} className="px-3 py-6 text-center text-ink-muted">
+                    No sets logged this week.
+                  </td>
+                </tr>
+              )}
+              {trained.map((muscle) => (
+                <tr
+                  key={muscle}
+                  className={cn(
+                    "cursor-pointer border-b border-line last:border-0",
+                    active === muscle && "bg-surface-raised",
+                  )}
+                  onClick={() => setActive(active === muscle ? null : muscle)}
+                >
+                  <th scope="row" className="px-3 font-normal">
+                    <button
+                      type="button"
+                      aria-pressed={active === muscle}
+                      className="flex min-h-11 w-full items-center gap-2 py-2 text-left"
+                    >
+                      <span
+                        className="size-2.5 shrink-0 rounded-[3px]"
+                        style={{ background: STEP_FILL[volumeStep(volume[muscle])] }}
+                        aria-hidden
+                      />
+                      {MUSCLE_LABELS[muscle]}
+                    </button>
+                  </th>
+                  <td className="px-3 py-2 text-right">{fmt(volume[muscle])}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Disclosure>
     </div>
   );
 }

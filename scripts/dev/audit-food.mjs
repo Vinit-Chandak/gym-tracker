@@ -540,7 +540,7 @@ try {
           !response.request().headers()["next-router-prefetch"]
         );
       });
-      await page.getByRole("button", { name: "Progress section: Overview" }).click();
+      await page.getByRole("button", { name: "Progress section: Body" }).click();
       await prefetched;
       const requests = [];
       const record = (request) => {
@@ -761,7 +761,7 @@ try {
     await dialog().getByRole("button", { name: "Close sheet" }).click();
     // Progress's picker, with History among its sections.
     await navigate("/progress");
-    await page.getByRole("button", { name: "Progress section: Overview" }).click();
+    await page.getByRole("button", { name: "Progress section: Body" }).click();
     await settle();
     await page.screenshot({ path: `${dir}/progress-sections-390-844-dark.png` });
     await dialog().getByRole("button", { name: "Close sheet" }).click();

@@ -267,3 +267,22 @@ export async function recentPerformances(
 ): Promise<ComparablePerformance[]> {
   return performances(db, { userId, exerciseId, limit });
 }
+
+/**
+ * Every completed performance of one exercise, on any machine, newest first: the whole record
+ * the workout's History tab lists. `limit` bounds a very long record; the caller asks for one
+ * more than it shows to know whether there is more.
+ */
+export async function exerciseHistory(
+  db: DbOrTx,
+  userId: string,
+  exerciseId: string,
+  options: { excludeWorkoutExerciseId?: string; limit: number },
+): Promise<ComparablePerformance[]> {
+  return performances(db, {
+    userId,
+    exerciseId,
+    excludeWorkoutExerciseId: options.excludeWorkoutExerciseId,
+    limit: options.limit,
+  });
+}

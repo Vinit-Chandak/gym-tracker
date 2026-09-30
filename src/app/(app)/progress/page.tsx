@@ -8,7 +8,9 @@ import { ACTIVITY_SPORT_LABELS } from "@/domain/activity";
 import { trainingAnalytics } from "@/domain/analytics";
 import { weekStart } from "@/domain/running";
 import { readSportTotals } from "@/server/repositories/activity-analytics";
-import { formatDateRange } from "@/lib/format";
+import { formatDuration, formatPace } from "@/domain/pace";
+import { formatDateRange, formatDateTime, formatRunKm } from "@/lib/format";
+import { originQuery } from "@/lib/nav";
 import { fromKilograms } from "@/lib/units";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
@@ -114,6 +116,20 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
   const wanted = typeof params.series === "string" ? params.series : undefined;
   const selected = analytics.series.find((s) => s.id === wanted) ?? analytics.series[0] ?? null;
 
+  // Every run in the range, newest first, as a list: the charts show the trend, this shows
+  // each run's own distance and pace.
+  const runs = [...training.runs]
+    .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime())
+    .map((run) => ({
+      id: run.id,
+      href: `/training/activities/${run.id}${originQuery("history")}` as const,
+      when: formatDateTime(run.startedAt, profile.timeZone),
+      environment: run.environment === "treadmill" ? "Treadmill" : "Outdoor",
+      distanceKm: formatRunKm(run.distanceMeters),
+      pace: formatPace(run.averagePaceSecondsPerKm),
+      duration: formatDuration(run.durationSeconds),
+    }));
+
   return (
     <FreshAfterSets seen={seen} loading={<Loading />}>
       <PageHeader title="Progress" meta={formatDateRange(range.from, range.to)} />
@@ -130,6 +146,7 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
           weeks={analytics.weeks}
           recovery={recovery}
           pace={analytics.pace}
+          runs={runs}
           options={options}
           selected={selected}
           body={{ from: bodyFrom, to: bodyTo, ...body }}

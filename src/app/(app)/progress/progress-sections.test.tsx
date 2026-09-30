@@ -40,14 +40,14 @@ function open(current: string) {
   return within(screen.getByRole("dialog"));
 }
 
-it("lists History among Progress's sections, after Overview", () => {
+it("lists History among Progress's sections, after Body", () => {
   route.search = "";
-  render(<ProgressSections value="overview" onChange={vi.fn()} action={null} />);
+  render(<ProgressSections value="body" onChange={vi.fn()} action={null} />);
   expect(
-    open("Overview")
+    open("Body")
       .getAllByRole("listitem")
       .map((item) => item.textContent),
-  ).toEqual(["Overview", "History", "Strength", "Running", "Recovery", "Body"]);
+  ).toEqual(["Body", "History", "Strength", "Running", "Recovery", "Overview"]);
 });
 
 it("switches the Progress page's own sections in place", () => {
@@ -75,20 +75,21 @@ it("goes from History to the Progress page's sections, keeping the query", () =>
   render(<ProgressSections value="history" action={null} />);
   const sheet = open("History");
   expect(sheet.getByRole("button", { name: "History" }).getAttribute("aria-current")).toBe("true");
-  expect(sheet.getByRole("link", { name: "Overview" }).getAttribute("href")).toBe(
+  expect(sheet.getByRole("link", { name: "Body" }).getAttribute("href")).toBe(
     "/progress?from=2026-08-01&to=2026-09-25&kind=run",
   );
-  const body = sheet.getByRole("link", { name: "Body" });
-  expect(body.getAttribute("href")).toBe(
-    "/progress?from=2026-08-01&to=2026-09-25&kind=run&view=body",
+  const overview = sheet.getByRole("link", { name: "Overview" });
+  expect(overview.getAttribute("href")).toBe(
+    "/progress?from=2026-08-01&to=2026-09-25&kind=run&view=overview",
   );
   // Only History is loaded whole ahead of the tap.
-  expect(body.dataset.prefetch).toBe("auto");
+  expect(overview.dataset.prefetch).toBe("auto");
 });
 
 it("reads the Progress page's section from its URL, never History", () => {
-  expect(pageSection(null)).toBe("overview");
+  expect(pageSection(null)).toBe("body");
   expect(pageSection("recovery")).toBe("recovery");
-  expect(pageSection("history")).toBe("overview");
-  expect(pageSection("elsewhere")).toBe("overview");
+  expect(pageSection("overview")).toBe("overview");
+  expect(pageSection("history")).toBe("body");
+  expect(pageSection("elsewhere")).toBe("body");
 });

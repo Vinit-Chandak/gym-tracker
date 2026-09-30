@@ -7,34 +7,34 @@ import type { ReactNode } from "react";
 import { SectionSelect } from "@/components/ui/section-select";
 
 /**
- * Progress's sections, as the picker lists them: Overview, which the tab opens on, then History,
- * everything done, day by day (ADR 0034), then a section per subject.
+ * Progress's sections, as the picker lists them: Body, which the tab opens on, then History,
+ * everything done, day by day (ADR 0034), then a section per subject, and the totals last.
  */
 export const PROGRESS_SECTIONS = [
-  { value: "overview", label: "Overview" },
+  { value: "body", label: "Body" },
   { value: "history", label: "History" },
   { value: "strength", label: "Strength" },
   { value: "running", label: "Running" },
   { value: "recovery", label: "Recovery" },
-  { value: "body", label: "Body" },
+  { value: "overview", label: "Overview" },
 ] as const;
 export type ProgressSection = (typeof PROGRESS_SECTIONS)[number]["value"];
 /** The sections the Progress page draws itself, from what it has already read. */
 export type ProgressPageSection = Exclude<ProgressSection, "history">;
 
 /**
- * The section a `?view=` names, or Overview. History is a page of its own, so a view naming it
+ * The section a `?view=` names, or Body. History is a page of its own, so a view naming it
  * is only ever a link made by hand.
  */
 export function pageSection(view: string | null): ProgressPageSection {
   const named = PROGRESS_SECTIONS.find((section) => section.value === view)?.value;
-  return named && named !== "history" ? named : "overview";
+  return named && named !== "history" ? named : "body";
 }
 
 /** Where a section lives: History has a page, the rest are `?view=` of the Progress page. */
 function sectionHref(section: ProgressSection, search: string): Route {
   const params = new URLSearchParams(search);
-  if (section === "overview" || section === "history") params.delete("view");
+  if (section === "body" || section === "history") params.delete("view");
   else params.set("view", section);
   const query = params.toString();
   const path = section === "history" ? "/progress/history" : "/progress";
