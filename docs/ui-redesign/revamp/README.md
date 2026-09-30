@@ -50,7 +50,7 @@ which rule wins when they disagree. The brief should settle:
 - what must not change: every feature and flow, one row per set with its own load, reps and
   RIR, the gym fixed per session, System/Light/Dark, phone-first
   ([the Form decisions](../README.md#decisions-that-implementation-must-preserve));
-- the platform stance, the brand stance and the motion ambition (see [open decisions](#open-decisions));
+- the platform, brand, motion and scope decisions (see [decisions](#decisions));
 - two to five reference apps or screens, and exactly what is admired in each: references steer
   better than adjectives;
 - three words for how it should feel;
@@ -168,21 +168,27 @@ target phone.
 - Test on hardware. Emulation does not show sticky hover, tap delay, safe areas, the keyboard
   or rubber-banding.
 
-## Open decisions
+## Decisions
 
-These are the user's to make before the brief is written.
+Made by the user on 30 September 2026.
 
-1. **Platform stance.** One design for both phones, or iPhone- and Android-flavoured variants
-   of the same design? Stay a PWA, or wrap it for the app stores later?
-2. **Brand stance.** Keep the Overload name, wordmark and copper, or start the identity over?
-3. **Motion ambition.** Quiet and fast, or expressive with authored moments (a set saved, a
-   record set)? Form's rules in [themes and performance](../03-themes-and-performance.md) allow
-   transform and opacity transitions of about 120 ms (180 ms for a sheet), no spring-physics
-   bundle, no page-wide entry choreography, reduced motion as zero duration, and at most
-   +5 KiB of shared-shell JavaScript and +15 KiB per route. Keep them, or set new ones?
-4. **Type.** System fonts (SF on iPhone, Roboto on Android, always native, nothing to load)
-   or a brand typeface?
-5. **Scope and order.** The whole app in one revamp, or the core loop first?
+1. **Platform.** A PWA today, with native iOS and Android apps soon. The design system must
+   translate to SwiftUI and Jetpack Compose: see "Portable to the native apps" in the
+   `overload-ui` skill.
+2. **Brand.** Keep the name Overload. Everything else starts again: the themes, the interface,
+   the experience and the typography, rethought from the ground up. The aim is creative,
+   minimal and intuitive. Form's copper, warm neutrals, wordmark and system face are not
+   constraints.
+3. **Motion.** Loosen Form's limits. The revamp may use richer, authored motion; `DESIGN.md`
+   sets the new rules, and until then code merged to `main` keeps Form's.
+4. **Type.** New typography, chosen for the brand rather than inherited. Faces must be licensed
+   for the web and for embedding in the native apps.
+5. **Scope.** The core loop first: Today, the workout and logging a set, Progress and Food. The
+   rest of the app follows in the same language.
+6. **Figma.** Not used today, available if needed.
+
+The features each core-loop screen must keep are listed in [the feature inventory](features.md).
+The first Claude Design prompt is in [prompts/01-directions.md](prompts/01-directions.md).
 
 ## Sources
 
