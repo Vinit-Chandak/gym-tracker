@@ -11,6 +11,8 @@ import { signUpAction, type SignUpState } from "@/server/actions/auth";
 
 const INITIAL: SignUpState = {};
 
+const INLINE_LINK = "font-semibold text-accent underline-offset-4 hover:underline";
+
 export function SignUpForm() {
   const [state, formAction, pending] = useActionState(signUpAction, INITIAL);
   // What they typed survives a refused attempt, as it does on the sign-in form. Only the
@@ -21,21 +23,24 @@ export function SignUpForm() {
   if (state.checkEmail) {
     return (
       <div className="space-y-3">
-        <p className="flex items-center gap-2 text-sm font-semibold text-success">
+        <p className="flex items-center gap-2 font-semibold text-success">
           <MailCheck className="shrink-0" aria-hidden />
           Check your inbox
         </p>
         <p className="text-sm text-ink-muted">
-          A confirmation link was requested for <span className="text-ink">{state.checkEmail}</span>
-          . Check your inbox and spam folder. Open the link to finish setting up your account.
+          A confirmation link was requested for{" "}
+          <span className="font-semibold [overflow-wrap:anywhere] text-ink">
+            {state.checkEmail}
+          </span>
+          . Open it to finish setting up your account. Nothing there? Look in your spam folder.
         </p>
         <p className="text-sm text-ink-muted">
           Already registered?{" "}
-          <Link href="/login" className="text-accent underline">
+          <Link href="/login" className={INLINE_LINK}>
             Sign in
           </Link>{" "}
           or{" "}
-          <Link href="/forgot-password" className="text-accent underline">
+          <Link href="/forgot-password" className={INLINE_LINK}>
             reset your password
           </Link>
           .
@@ -60,7 +65,8 @@ export function SignUpForm() {
           setup, where it can be changed. Typed, it is checked as you go. */}
       <UsernameField
         required={false}
-        hint="Optional. Lowercase letters, digits, dots and underscores; made from your email if left blank."
+        hint="Optional"
+        info="What friends find you by: lowercase letters, digits, dots and underscores. Leave it blank and one is made from your email; you can change it on the next screen."
       />
       <Field label="Email">
         <Input
@@ -90,9 +96,11 @@ export function SignUpForm() {
           {state.error}
         </p>
       )}
-      <Button type="submit" size="lg" className="w-full" disabled={pending}>
-        {pending ? "Creating account…" : "Create account"}
-      </Button>
+      <div className="pt-1">
+        <Button type="submit" size="lg" className="w-full" disabled={pending}>
+          {pending ? "Creating account…" : "Create account"}
+        </Button>
+      </div>
     </form>
   );
 }

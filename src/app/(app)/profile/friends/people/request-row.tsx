@@ -12,6 +12,9 @@ const OFFLINE = "Could not save. Check your connection and try again.";
 /**
  * Someone asking to follow you: Accept or Decline, no sheet for either. Accepting is what
  * they asked for; declining only deletes the request, and they can ask again.
+ *
+ * The person is a row of their own, opening their page; the two answers sit on the line
+ * under the name, so a long name keeps the width it needs to read as a name.
  */
 export function RequestRow({ person }: { person: Person & { id: string } }) {
   const [pending, startTransition] = useTransition();
@@ -24,28 +27,28 @@ export function RequestRow({ person }: { person: Person & { id: string } }) {
     });
   return (
     <div>
-      <PersonRow person={person}>
-        {/* Two buttons beside a name is a row on most phones; on a 320px one they stack, so
-            the name keeps enough width to read as a word. */}
-        <span className="flex shrink-0 flex-col gap-1 min-[400px]:flex-row min-[400px]:gap-2">
+      <PersonRow person={person} />
+      {/* In line with the name: the avatar's width and its gap in from the row's edge. */}
+      <div className="-mt-1 space-y-2 pr-4 pb-4 pl-16">
+        <div className="flex flex-wrap gap-2">
           <Button size="sm" disabled={pending} onClick={() => answer(acceptRequestAction)}>
             Accept
           </Button>
           <Button
             size="sm"
-            variant="ghost"
+            variant="secondary"
             disabled={pending}
             onClick={() => answer(declineRequestAction)}
           >
             Decline
           </Button>
-        </span>
-      </PersonRow>
-      {error && (
-        <p role="alert" className="px-4 pb-3 text-sm text-danger">
-          {error}
-        </p>
-      )}
+        </div>
+        {error && (
+          <p role="alert" className="text-sm text-danger">
+            {error}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

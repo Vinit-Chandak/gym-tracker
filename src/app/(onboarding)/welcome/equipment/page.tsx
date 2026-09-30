@@ -2,8 +2,6 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { PageContent } from "@/components/shell/page-content";
-import { Card } from "@/components/ui/card";
-import { InfoTip } from "@/components/ui/info-tip";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { requireProfiledUser } from "@/server/auth";
@@ -11,7 +9,7 @@ import { listEquipmentTypes } from "@/server/repositories/equipment";
 import { listGyms } from "@/server/repositories/gyms";
 
 import { SkipLink } from "../skip-link";
-import { Steps } from "../steps";
+import { StepHeading, Steps } from "../steps";
 import { EquipmentStepForm } from "./equipment-step-form";
 
 export const metadata: Metadata = { title: "Machines at your gym" };
@@ -37,21 +35,16 @@ export default async function WelcomeEquipmentPage(props: PageProps<"/welcome/eq
   if (!gym) redirect("/welcome/gym");
 
   return (
-    <PageContent>
+    <PageContent className="pt-6">
       <Steps current="equipment" />
-      <Card>
-        <div>
-          <h1 className="text-xl font-semibold">What does {gym.name} have?</h1>
-          <p className="flex items-center gap-1 text-sm text-ink-muted">
-            Tick the machines it has.
-            <InfoTip label="About machines">
-              Barbells, dumbbells and bodyweight are assumed everywhere, so only machines and cable
-              stations need ticking. This can be changed any time.
-            </InfoTip>
-          </p>
-        </div>
-        <EquipmentStepForm gymId={gym.id} types={types} />
-      </Card>
+      <StepHeading
+        title={`What does ${gym.name} have?`}
+        infoLabel="About machines"
+        info="Barbells, dumbbells and bodyweight are assumed everywhere, so only machines and cable stations need ticking. This can be changed any time."
+      >
+        Tick the machines it has.
+      </StepHeading>
+      <EquipmentStepForm gymId={gym.id} types={types} />
       <SkipLink href="/welcome/programme" />
     </PageContent>
   );

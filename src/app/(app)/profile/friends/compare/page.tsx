@@ -28,7 +28,7 @@ export default async function ComparePickPage() {
 
   return (
     <>
-      <PageHeader title="Compare" backHref="/profile/friends" />
+      <PageHeader title="Compare" backHref="/profile/friends" backLabel="Friends" />
       <PageContent>
         {following.length > 0 ? (
           <Section title="Compare with">
@@ -41,18 +41,14 @@ export default async function ComparePickPage() {
             </List>
           </Section>
         ) : (
-          <>
-            <Card>
-              <EmptyState
-                icon={Scales}
-                title="Follow someone to compare"
-                description="A comparison is between you and a person you follow who shares their training."
-              />
-            </Card>
-            <Card>
-              <PeopleSearch autoFocus />
-            </Card>
-          </>
+          <Card>
+            <EmptyState
+              icon={Scales}
+              title="Follow someone to compare"
+              description="A comparison is between you and a person you follow who shares their training."
+            />
+            <PeopleSearch autoFocus />
+          </Card>
         )}
       </PageContent>
     </>

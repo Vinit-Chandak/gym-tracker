@@ -13,6 +13,7 @@ import { Section } from "@/components/ui/section";
 import { SportPeriodControls } from "@/components/ui/sport-period-controls";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
+import { sportOfLegacy } from "@/domain/activity";
 import {
   ACTIVITY_METRIC_LABELS,
   ACTIVITY_METRICS,
@@ -25,6 +26,7 @@ import { PERIOD_LABELS } from "@/domain/period";
 import type { BodyLoadUnit } from "@/domain/types";
 import { formatActivityMetric } from "@/lib/format";
 import { BODY_REGION_LABELS } from "@/lib/labels";
+import { SPORT_TONE } from "@/lib/sport-tone";
 import { requireUser } from "@/server/auth";
 import { hiddenTrainingLine, loadHeadToHead } from "@/server/queries/head-to-head";
 import { getRequestProfile } from "@/server/queries/request-profile";
@@ -38,6 +40,8 @@ import {
 import { requireUsername } from "@/server/validation/params";
 import { parsePeriod, periodRange } from "@/server/validation/period";
 import { parseSport } from "@/server/validation/sport";
+
+import { HiddenTraining } from "../hidden-training";
 
 export const metadata: Metadata = { title: "Compare" };
 
@@ -102,99 +106,122 @@ export default async function ComparePage(props: PageProps<"/u/[username]/compar
     them.displayName || them.username,
   ];
 
+  const back = `/u/${them.username}?${selection}` as const;
+  if (!("totals" in found)) {
+    return (
+      <>
+        <PageHeader title="Compare" meta={`With ${names[1]}`} backHref={back} />
+        <PageContent>
+          <CompareHeader a={me} b={them} />
+          <HiddenTraining line={hiddenTrainingLine(found)} />
+        </PageContent>
+      </>
+    );
+  }
+
+  // The count the sport is measured in leads, as it does on each person's own page.
+  const lead = ACTIVITY_METRICS[sport][0]!;
+  const leadSides = [side(found.totals[0], lead, unit), side(found.totals[1], lead, unit)];
+
   return (
     <>
-      <PageHeader title="Compare" backHref={`/u/${them.username}?${selection}`} />
+      <PageHeader title="Compare" meta={`With ${names[1]}`} backHref={back} />
       <PageContent>
-        <CompareHeader a={me} b={them} />
-        {!("totals" in found) ? (
-          <p className="px-1 text-sm text-ink-muted">{hiddenTrainingLine(found)}</p>
-        ) : (
-          <>
-            <SportPeriodControls sport={sport} period={period} />
+        <SportPeriodControls sport={sport} period={period} />
 
-            {found.lifting?.trained && (
+        <CompareHeader
+          a={me}
+          b={them}
+          tone={SPORT_TONE[sportOfLegacy(sport)]}
+          score={{
+            label: `${ACTIVITY_METRIC_LABELS[lead]}, last ${PERIOD_LABELS[period]}`,
+            a: leadSides[0]!.text,
+            b: leadSides[1]!.text,
+          }}
+        />
+
+        {found.lifting?.trained && (
+          <Section
+            title="Muscle split"
+            info="Each person's share of their own working sets, so the shapes compare even when one of you trains more."
+          >
+            <Card>
+              <RadarChart
+                title="Share of working sets"
+                axes={SPLIT_GROUPS}
+                series={[
+                  {
+                    name: names[0],
+                    color: "var(--color-series-1)",
+                    values: SPLIT_GROUPS.map((group) => found.lifting!.splits[0][group]),
+                  },
+                  {
+                    name: names[1],
+                    color: "var(--color-series-2)",
+                    values: SPLIT_GROUPS.map((group) => found.lifting!.splits[1][group]),
+                  },
+                ]}
+              />
+            </Card>
+          </Section>
+        )}
+
+        <Section
+          title="Stats"
+          info={`The last ${PERIOD_LABELS[period]}, from the viewer's side: the percentage is how far ahead or behind you are of ${names[1]}.${sport === "run" ? " Best pace is the fastest average pace over a run of at least 1 km; a faster pace leads." : ""}`}
+        >
+          <Card>
+            <CompareTable
+              names={names}
+              rows={ACTIVITY_METRICS[sport].map((metric) => ({
+                key: metric,
+                label: ACTIVITY_METRIC_LABELS[metric],
+                lowerIsBetter: lowerIsBetter(metric),
+                a: side(found.totals[0], metric, unit),
+                b: side(found.totals[1], metric, unit),
+              }))}
+            />
+          </Card>
+        </Section>
+
+        {found.lifting && (
+          <Section
+            title="Exercises in common"
+            info="Movements from the shared library whose load means the same everywhere, that you both logged in the period. Each opens the head to head for that movement."
+          >
+            {found.lifting.common.comparable.length > 0 ? (
+              <List>
+                {found.lifting.common.comparable.map((exercise) => (
+                  <li key={exercise.id}>
+                    <LinkRow
+                      prefetch="intent"
+                      href={`/u/${them.username}/compare/${exercise.id}`}
+                      title={exercise.name}
+                      subtitle={BODY_REGION_LABELS[exercise.region]}
+                    />
+                  </li>
+                ))}
+              </List>
+            ) : (
               <Card>
-                <RadarChart
-                  title="Muscle split"
-                  axes={SPLIT_GROUPS}
-                  series={[
-                    {
-                      name: names[0],
-                      color: "var(--color-series-1)",
-                      values: SPLIT_GROUPS.map((group) => found.lifting!.splits[0][group]),
-                    },
-                    {
-                      name: names[1],
-                      color: "var(--color-series-2)",
-                      values: SPLIT_GROUPS.map((group) => found.lifting!.splits[1][group]),
-                    },
-                  ]}
-                />
-                <p className="text-xs text-ink-muted">
-                  Each person&apos;s share of their own working sets, so the shapes compare even
-                  when one of you trains more.
+                <p className="text-sm text-ink-muted">
+                  No comparable exercises in common in the last {PERIOD_LABELS[period]}.
                 </p>
               </Card>
             )}
-
-            <Section
-              title="Stats"
-              info={`The last ${PERIOD_LABELS[period]}, from the viewer's side: the percentage is how far ahead or behind you are of ${names[1]}.${sport === "run" ? " Best pace is the fastest average pace over a run of at least 1 km; a faster pace leads." : ""}`}
-            >
-              <Card>
-                <CompareTable
-                  names={names}
-                  rows={ACTIVITY_METRICS[sport].map((metric) => ({
-                    key: metric,
-                    label: ACTIVITY_METRIC_LABELS[metric],
-                    lowerIsBetter: lowerIsBetter(metric),
-                    a: side(found.totals[0], metric, unit),
-                    b: side(found.totals[1], metric, unit),
-                  }))}
-                />
-              </Card>
-            </Section>
-
-            {found.lifting && (
-              <Section
-                title="Exercises in common"
-                info="Movements from the shared library whose load means the same everywhere, that you both logged in the period. Each opens the head to head for that movement."
-              >
-                {found.lifting.common.comparable.length > 0 ? (
-                  <List>
-                    {found.lifting.common.comparable.map((exercise) => (
-                      <li key={exercise.id}>
-                        <LinkRow
-                          prefetch="intent"
-                          href={`/u/${them.username}/compare/${exercise.id}`}
-                          title={exercise.name}
-                          subtitle={BODY_REGION_LABELS[exercise.region]}
-                        />
-                      </li>
-                    ))}
-                  </List>
-                ) : (
-                  <Card>
-                    <p className="text-sm text-ink-muted">
-                      No comparable exercises in common in the last {PERIOD_LABELS[period]}.
-                    </p>
-                  </Card>
-                )}
-                {found.lifting.common.notComparable > 0 && (
-                  <p className="flex items-center gap-1 px-1 text-sm text-ink-muted">
-                    {found.lifting.common.notComparable === 1
-                      ? "1 machine exercise in common is not compared: loads differ per machine."
-                      : `${found.lifting.common.notComparable} machine exercises in common are not compared: loads differ per machine.`}
-                    <InfoTip label="About machine exercises">
-                      A machine&apos;s stack numbers are its own, so the app never compares them
-                      across people. They still count toward sets, volume and the muscle split.
-                    </InfoTip>
-                  </p>
-                )}
-              </Section>
+            {found.lifting.common.notComparable > 0 && (
+              <p className="flex items-center gap-1 px-1 text-sm text-ink-muted">
+                {found.lifting.common.notComparable === 1
+                  ? "1 machine exercise in common is not compared."
+                  : `${found.lifting.common.notComparable} machine exercises in common are not compared.`}
+                <InfoTip label="About machine exercises" className="-my-2">
+                  Loads differ per machine: a machine&apos;s stack numbers are its own, so the app
+                  never compares them across people. They still count toward sets, volume and the
+                  muscle split.
+                </InfoTip>
+              </p>
             )}
-          </>
+          </Section>
         )}
       </PageContent>
     </>

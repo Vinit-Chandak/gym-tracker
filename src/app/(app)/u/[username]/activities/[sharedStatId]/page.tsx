@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { ActivitySummary } from "@/components/activities/activity-summary";
+import { PersonRow } from "@/components/person-row";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
+import { List } from "@/components/ui/link-row";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { requireUser } from "@/server/auth";
@@ -38,7 +40,7 @@ export default async function SharedActivityPage(
   requireUuid(sharedStatId);
   const user = await requireUser();
   const profile = await getRequestProfile(user.id, user.email);
-  const activity = await withUser(
+  const found = await withUser(
     getDb(),
     user.id,
     async (tx) => {
@@ -46,17 +48,25 @@ export default async function SharedActivityPage(
       if (!person) return null;
       // Not found and not permitted read the same on purpose.
       if (person.id !== user.id && !(await canViewTraining(tx, person.id))) return null;
-      return readSharedActivity(tx, person.id, sharedStatId);
+      const activity = await readSharedActivity(tx, person.id, sharedStatId);
+      return activity ? { person, activity } : null;
     },
     { readOnly: true },
   );
-  if (!activity) notFound();
+  if (!found) notFound();
+  const { person, activity } = found;
 
   return (
     <>
       <PageHeader title="Session" backHref={`/u/${username}`} />
       <PageContent>
         <ActivitySummary activity={activity} unit={bodyLoadUnit(profile.preferredUnit)} />
+        {/* Whose session it is, and the way to the rest of what they share. */}
+        <List>
+          <li>
+            <PersonRow person={person} />
+          </li>
+        </List>
       </PageContent>
     </>
   );

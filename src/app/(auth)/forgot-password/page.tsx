@@ -5,7 +5,7 @@ import { connection } from "next/server";
 import { Card } from "@/components/ui/card";
 import { isSupabaseConfigured } from "@/lib/env";
 
-import { AUTH_LINK } from "../auth-link";
+import { AUTH_FOOTER, AUTH_HEADING, AUTH_LINK } from "../auth-link";
 import { NotConfigured } from "../not-configured";
 import { ForgotPasswordForm } from "./forgot-password-form";
 
@@ -18,19 +18,19 @@ export default async function ForgotPasswordPage(props: PageProps<"/forgot-passw
 
   return (
     <>
-      <Card>
-        <h2 className="text-lg font-semibold">Reset your password</h2>
+      <Card className="space-y-4">
+        <div className="space-y-1">
+          <h2 className={AUTH_HEADING}>Reset your password</h2>
+          <p className="text-sm text-ink-muted">We&apos;ll email you a link to reset it.</p>
+        </div>
         {error === "link" && (
           <p role="alert" className="text-sm text-danger">
-            That reset link has expired or has already been used. Here is a fresh start.
+            That reset link has expired or has already been used. Ask for a fresh one here.
           </p>
         )}
-        <p className="text-sm text-ink-muted">
-          Enter your email and we will send you a link to choose a new password.
-        </p>
         <ForgotPasswordForm />
       </Card>
-      <p className="text-center text-sm text-ink-muted">
+      <p className={AUTH_FOOTER}>
         <Link href="/login" className={AUTH_LINK}>
           Back to sign in
         </Link>

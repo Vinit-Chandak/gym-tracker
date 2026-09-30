@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { Scales, Trophy, UserPlus, Users } from "@/components/ui/icons";
 import { List } from "@/components/ui/link-row";
 import { Section } from "@/components/ui/section";
@@ -23,9 +24,10 @@ export const metadata: Metadata = { title: "Friends" };
 
 /**
  * Friends (ADR 0027): four one-line tiles — Leaderboard, Compare, Find people and People —
- * then recent activity, the last twenty shared sessions of the people you follow. What grows
- * with the number of people, the lists and the requests, lives behind the People tile, so
- * the activity stays on the first screen however many people there are.
+ * then recent activity, the last twenty shared sessions of the people you follow, each led by
+ * its sport's chip. What grows with the number of people, the lists and the requests, lives
+ * behind the People tile, so the activity stays on the first screen however many people
+ * there are.
  */
 export default async function FriendsPage(props: PageProps<"/profile/friends">) {
   const params = await props.searchParams;
@@ -85,8 +87,8 @@ export default async function FriendsPage(props: PageProps<"/profile/friends">) 
           </li>
         </ShortcutGrid>
 
-        {activity.length > 0 && (
-          <Section title="Recent activity">
+        <Section title="Recent activity">
+          {activity.length > 0 ? (
             <List>
               {activity.map((row) => (
                 <li key={row.id}>
@@ -94,8 +96,14 @@ export default async function FriendsPage(props: PageProps<"/profile/friends">) 
                 </li>
               ))}
             </List>
-          </Section>
-        )}
+          ) : (
+            <Card>
+              <p className="text-sm text-ink-muted">
+                When someone you follow shares a session, it shows up here.
+              </p>
+            </Card>
+          )}
+        </Section>
       </PageContent>
     </>
   );

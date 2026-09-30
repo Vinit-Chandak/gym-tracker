@@ -5,7 +5,7 @@ import { connection } from "next/server";
 import { Card } from "@/components/ui/card";
 import { isSupabaseConfigured } from "@/lib/env";
 
-import { AUTH_LINK } from "../auth-link";
+import { AUTH_FOOTER, AUTH_HEADING, AUTH_LINK } from "../auth-link";
 import { NotConfigured } from "../not-configured";
 import { SignUpForm } from "./signup-form";
 
@@ -17,11 +17,11 @@ export default async function SignUpPage() {
 
   return (
     <>
-      <Card>
-        <h2 className="text-lg font-semibold">Create an account</h2>
+      <Card className="space-y-4">
+        <h2 className={AUTH_HEADING}>Create an account</h2>
         <SignUpForm />
       </Card>
-      <p className="text-center text-sm text-ink-muted">
+      <p className={AUTH_FOOTER}>
         Already have an account?{" "}
         <Link href="/login" className={AUTH_LINK}>
           Sign in

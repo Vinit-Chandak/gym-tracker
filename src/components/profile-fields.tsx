@@ -178,6 +178,8 @@ export function ProfileFields({
         defaultValue={values.username}
         current={values.username}
         error={errors?.username}
+        hint="What friends find you by"
+        info="3 to 20 characters: lowercase letters, digits, dots and underscores. Changing it means your old name no longer finds you."
       />
 
       <Field
@@ -214,9 +216,6 @@ export function ProfileFields({
           onChange={(next) => changeUnit(next as BodyLoadUnit)}
           columns={2}
         />
-        <span className="block text-xs text-ink-subtle">
-          {imperial ? "Height in feet and inches." : "Height in centimetres."}
-        </span>
         {errors?.preferredUnit && (
           <span role="alert" className="block text-sm text-danger">
             {errors.preferredUnit}
@@ -281,7 +280,7 @@ export function ProfileFields({
       <Field
         label="Date of birth"
         error={errors?.dateOfBirth}
-        hint="So training load can be read against your age"
+        info="So training load can be read against your age."
       >
         <Input
           type="date"

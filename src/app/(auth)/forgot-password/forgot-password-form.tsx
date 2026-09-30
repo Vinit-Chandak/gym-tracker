@@ -14,11 +14,16 @@ export function ForgotPasswordForm() {
 
   if (state.sent) {
     return (
-      <p className="flex items-start gap-2 text-sm text-ink-muted">
-        <MailCheck className="mt-0.5 shrink-0 text-success" aria-hidden />
-        If that address has an account, a reset link is on its way. The link works once and expires
-        after an hour.
-      </p>
+      <div role="status" className="space-y-2">
+        <p className="flex items-center gap-2 font-semibold text-success">
+          <MailCheck className="shrink-0" aria-hidden />
+          Check your inbox
+        </p>
+        <p className="text-sm text-ink-muted">
+          If that address has an account, a reset link is on its way. The link works once and
+          expires after an hour.
+        </p>
+      </div>
     );
   }
 
@@ -32,9 +37,11 @@ export function ForgotPasswordForm() {
           {state.error}
         </p>
       )}
-      <Button type="submit" size="lg" className="w-full" disabled={pending}>
-        {pending ? "Sending…" : "Send reset link"}
-      </Button>
+      <div className="pt-1">
+        <Button type="submit" size="lg" className="w-full" disabled={pending}>
+          {pending ? "Sending…" : "Send reset link"}
+        </Button>
+      </div>
     </form>
   );
 }

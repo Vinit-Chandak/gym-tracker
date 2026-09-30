@@ -5,7 +5,7 @@ import { connection } from "next/server";
 import { Card } from "@/components/ui/card";
 import { isSupabaseConfigured } from "@/lib/env";
 
-import { AUTH_LINK } from "../auth-link";
+import { AUTH_FOOTER, AUTH_HEADING, AUTH_LINK } from "../auth-link";
 import { NotConfigured } from "../not-configured";
 import { LoginForm } from "./login-form";
 
@@ -21,8 +21,8 @@ export default async function LoginPage(props: PageProps<"/login">) {
 
   return (
     <>
-      <Card>
-        <h2 className="text-lg font-semibold">Sign in</h2>
+      <Card className="space-y-4">
+        <h2 className={AUTH_HEADING}>Sign in</h2>
         {deleted === "1" && (
           <p role="status" className="text-sm text-success">
             Your account and all of its training data have been deleted.
@@ -35,7 +35,7 @@ export default async function LoginPage(props: PageProps<"/login">) {
         )}
         <LoginForm next={nextPath} />
       </Card>
-      <p className="text-center text-sm text-ink-muted">
+      <p className={AUTH_FOOTER}>
         New here?{" "}
         <Link href="/signup" className={AUTH_LINK}>
           Create an account

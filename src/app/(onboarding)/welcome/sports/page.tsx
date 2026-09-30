@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 
-import { SportChoice } from "@/components/activities/sport-choice";
 import { PageContent } from "@/components/shell/page-content";
-import { Card } from "@/components/ui/card";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { ACTIVITY_SPORTS } from "@/domain/activity";
@@ -10,7 +8,8 @@ import { chooseSportsAction } from "@/server/actions/sport-preferences";
 import { requireUser } from "@/server/auth";
 import { enabledSportsFor } from "@/server/repositories/sport-preferences";
 
-import { Steps } from "../steps";
+import { StepHeading, Steps } from "../steps";
+import { SportPicker } from "./sport-picker";
 
 export const metadata: Metadata = { title: "Your sports" };
 
@@ -28,23 +27,16 @@ export default async function SportsStepPage() {
   });
 
   return (
-    <PageContent>
+    <PageContent className="pt-6">
       <Steps current="sports" />
-      <Card>
-        <div>
-          <h1 className="text-xl font-semibold">What do you train?</h1>
-          <p className="text-sm text-ink-muted">
-            Pick everything that applies. You can change this whenever you like.
-          </p>
-        </div>
-        <SportChoice
-          action={chooseSportsAction}
-          sports={ACTIVITY_SPORTS}
-          enabled={enabled}
-          submitLabel="Continue"
-          note="Only lifting needs a gym set up. The rest you can start logging straight away."
-        />
-      </Card>
+      <StepHeading
+        title="What do you train?"
+        infoLabel="About sports"
+        info="Only lifting needs a gym set up; the rest you can start logging straight away. You can change your sports whenever you like, from your profile."
+      >
+        Pick all that apply.
+      </StepHeading>
+      <SportPicker action={chooseSportsAction} sports={ACTIVITY_SPORTS} enabled={enabled} />
     </PageContent>
   );
 }

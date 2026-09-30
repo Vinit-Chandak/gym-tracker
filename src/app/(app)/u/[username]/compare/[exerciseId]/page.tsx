@@ -41,6 +41,8 @@ import {
 import { requireUsername, requireUuid } from "@/server/validation/params";
 import { parsePeriod, periodRange } from "@/server/validation/period";
 
+import { HiddenTraining } from "../../hidden-training";
+
 export const metadata: Metadata = { title: "Compare exercise" };
 
 /** The metrics that gain "× body weight" when both people share theirs (decision 5). */
@@ -128,7 +130,7 @@ export default async function CompareExercisePage(
         <PageHeader title={exercise.name} meta={region} backHref={`/u/${them.username}/compare`} />
         <PageContent>
           <CompareHeader a={me} b={them} />
-          <p className="px-1 text-sm text-ink-muted">{hiddenTrainingLine(found)}</p>
+          <HiddenTraining line={hiddenTrainingLine(found)} />
         </PageContent>
       </>
     );
@@ -160,7 +162,18 @@ export default async function CompareExercisePage(
     <>
       <PageHeader title={exercise.name} meta={region} backHref={`/u/${them.username}/compare`} />
       <PageContent>
-        <CompareHeader a={me} b={them} stronger={stronger} />
+        {/* The primary metric's all-time bests lead, the same figures the Stronger badge is
+            decided on; every metric and its day are in the table under it. */}
+        <CompareHeader
+          a={me}
+          b={them}
+          stronger={stronger}
+          score={{
+            label: `${metricLabel(metric, exercise)}, all-time best`,
+            a: side(metric, mine, readings.get(me.id), false, unit).text,
+            b: side(metric, theirs, readings.get(them.id), false, unit).text,
+          }}
+        />
 
         <Section
           title="Best"

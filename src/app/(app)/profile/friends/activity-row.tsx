@@ -1,7 +1,8 @@
 import Link from "@/components/ui/app-link";
-import { Avatar } from "@/components/ui/avatar";
 import { ChevronRight } from "@/components/ui/icons";
 import { PRESSABLE_ROW_CLASS } from "@/components/ui/link-row";
+import { SportChip } from "@/components/ui/sport-chip";
+import { sportOfLegacy } from "@/domain/activity";
 import { formatDuration, formatPace } from "@/domain/pace";
 import type { TrainingSport } from "@/domain/sport-scope";
 import type { BodyLoadUnit } from "@/domain/types";
@@ -32,21 +33,22 @@ function summary(row: Activity, unit: BodyLoadUnit): string[] {
         `${formatPace(row.paceSecondsPerKm)} /km`,
       ];
     // A shared ride or swim says it happened, how long it took, and how far where a distance
-    // is known. No pace: without the environment, the assistance or the pool it would be a
-    // number pretending to be comparable (SOCIAL-01, AT-PRIV-02).
+    // is known — a distance of nothing is one nobody logged. No pace: without the environment,
+    // the assistance or the pool it would be a number pretending to be comparable (SOCIAL-01,
+    // AT-PRIV-02).
     case "cycle":
     case "swim":
       return [
         row.title,
-        row.distanceMeters === null ? null : `${formatRunKm(row.distanceMeters)} km`,
+        row.distanceMeters ? `${formatRunKm(row.distanceMeters)} km` : null,
         formatDuration(row.durationSeconds),
       ].filter((part): part is string => part !== null);
   }
 }
 
 /**
- * One line of recent activity (plan §3.4): who, what, and when, opening the person's page.
- * Nothing here can be reacted to.
+ * One line of recent activity (plan §3.4): the sport's chip, who, what, and when, opening
+ * the session. Nothing here can be reacted to.
  */
 export function ActivityRow({
   row,
@@ -66,16 +68,16 @@ export function ActivityRow({
       prefetch="intent"
       className={PRESSABLE_ROW_CLASS}
     >
-      <Avatar username={person.username} displayName={person.displayName} size="row" />
+      <SportChip sport={sportOfLegacy(row.sport)} size="sm" />
       <span className="min-w-0 flex-1">
         <span className="flex flex-wrap items-baseline justify-between gap-x-2">
           <span className="font-semibold [overflow-wrap:anywhere]">
             {person.displayName || person.username}
           </span>
-          <span className="text-xs text-ink-muted">{formatRelativeDay(row.occurredOn, today)}</span>
+          <span className="text-sm text-ink-muted">{formatRelativeDay(row.occurredOn, today)}</span>
         </span>
         <span className="block text-sm [overflow-wrap:anywhere] text-ink-muted tabular-nums">
-          {summary(row, unit).join(" · ")}
+          {summary(row, unit).join(", ")}
         </span>
       </span>
       <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { unstable_rethrow } from "next/navigation";
 
 import { Field, Input } from "@/components/ui/input";
@@ -32,6 +32,7 @@ export function UsernameField({
   current,
   error,
   hint = RULES_HINT,
+  info,
   label = "Username",
   required = true,
 }: {
@@ -40,7 +41,10 @@ export function UsernameField({
   current?: string;
   /** What the server said on submit; shown until the field is edited again. */
   error?: string;
+  /** Under the field while nothing is typed; the live check replaces it once something is. */
   hint?: string;
+  /** The rules and what the name is for, behind a tip beside the label. */
+  info?: ReactNode;
   label?: string;
   required?: boolean;
 }) {
@@ -101,7 +105,7 @@ export function UsernameField({
   const feedback = edited || !error ? liveFeedback(live, hint) : { error };
 
   return (
-    <Field label={label} error={feedback.error} hint={feedback.hint}>
+    <Field label={label} error={feedback.error} hint={feedback.hint} info={info}>
       <Input
         type="text"
         name="username"

@@ -8,18 +8,22 @@ import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { HeroCard } from "@/components/ui/hero-card";
 import { InfoTip } from "@/components/ui/info-tip";
 import { RadarChart } from "@/components/ui/radar-chart";
 import { Section } from "@/components/ui/section";
+import { SPORT_ICON } from "@/components/ui/sport-chip";
 import { SportPeriodControls } from "@/components/ui/sport-period-controls";
 import { StatTile, StatTileRow } from "@/components/ui/stat-tile";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
+import { sportOfLegacy } from "@/domain/activity";
 import { ACTIVITY_METRIC_LABELS, activityValue, type ActivityMetric } from "@/domain/leaderboard";
 import { muscleSplit, SPLIT_GROUPS } from "@/domain/muscle-split";
 import { PERIOD_LABELS } from "@/domain/period";
-import type { TrainingSport } from "@/domain/sport-scope";
+import { SPORT_LABELS, type TrainingSport } from "@/domain/sport-scope";
 import { formatActivityMetric } from "@/lib/format";
+import { SPORT_TONE } from "@/lib/sport-tone";
 import { requireUser } from "@/server/auth";
 import { hiddenTrainingLine } from "@/server/queries/head-to-head";
 import { getRequestProfile } from "@/server/queries/request-profile";
@@ -36,10 +40,15 @@ import { requireUsername } from "@/server/validation/params";
 import { parsePeriod, periodRange } from "@/server/validation/period";
 import { parseSport } from "@/server/validation/sport";
 
+import { HiddenTraining } from "./hidden-training";
+
 export const metadata: Metadata = { title: "Person" };
 
-/** The tiles each sport shows of a period (plan §3.14, §3.16). */
-const TILES: Record<TrainingSport, readonly ActivityMetric[]> = {
+/**
+ * What each sport shows of a period (plan §3.14, §3.16): the count that leads, then the
+ * figures under it.
+ */
+const TILES: Record<TrainingSport, readonly [LeadMetric, ...ActivityMetric[]]> = {
   workout: ["workouts", "working_sets", "volume"],
   run: ["runs", "distance", "time", "best_pace"],
   // Participation, and nothing that claims a performance: a shared ride does not say how
@@ -48,12 +57,21 @@ const TILES: Record<TrainingSport, readonly ActivityMetric[]> = {
   swim: ["sessions", "active_days", "time", "distance"],
 };
 
+/** The counts a sport's figures open with, and what one and several of them are called. */
+type LeadMetric = "workouts" | "runs" | "sessions";
+const LEAD_NOUN: Record<LeadMetric, readonly [string, string]> = {
+  workouts: ["workout", "workouts"],
+  runs: ["run", "runs"],
+  sessions: ["session", "sessions"],
+};
+
 /**
- * A person as others see them (plan §3.14): the header card with the follow button in place
- * of Edit, or "This is you" on your own. Below it their training, if you may see it — the
- * period's totals for the chosen sport and, for lifting, the shape of their split and their
- * records — or one line saying why not. Your own page shows exactly what a follower would
- * see, and says so: the privacy screen's promise, demonstrated.
+ * A person as others see them (plan §3.14): who they are, with the follow button beside
+ * them, or Edit profile on your own. Below it their training, if you may see it — the
+ * period's figures for the chosen sport, filled with that sport's colour and leading to the
+ * comparison, then for lifting the shape of their split and their records — or one line
+ * saying why not. Your own page shows exactly what a follower would see, and says so: the
+ * privacy screen's promise, demonstrated.
  */
 export default async function PersonPage(props: PageProps<"/u/[username]">) {
   const user = await requireUser();
@@ -100,11 +118,17 @@ export default async function PersonPage(props: PageProps<"/u/[username]">) {
   if (!found) notFound();
   const { person, relation, training } = found;
   const name = person.displayName || person.username;
+  const [lead, ...figures] = TILES[sport];
+  const SportIcon = SPORT_ICON[sportOfLegacy(sport)];
 
   return (
     <>
       {/* Your own page is opened from your Profile card; anyone else's from Friends. */}
-      <PageHeader title={name} backHref={relation ? "/profile/friends" : "/profile"} />
+      <PageHeader
+        title={name}
+        backHref={relation ? "/profile/friends" : "/profile"}
+        backLabel={relation ? "Friends" : undefined}
+      />
       <PageContent>
         <PersonCard person={person} counts={person}>
           {relation ? (
@@ -112,31 +136,47 @@ export default async function PersonPage(props: PageProps<"/u/[username]">) {
               personId={person.id}
               username={person.username}
               relation={relation}
-              size="md"
-              className="[&>button]:w-full"
+              className="flex flex-col items-end"
             />
           ) : (
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-sm text-ink-muted">This is you.</p>
-              <LinkButton href="/profile/edit" variant="secondary" size="sm">
-                Edit profile
-              </LinkButton>
-            </div>
+            <LinkButton href="/profile/edit" variant="secondary" size="sm">
+              Edit profile
+            </LinkButton>
           )}
         </PersonCard>
 
         {training ? (
           <>
             {!relation && (
-              <p className="px-1 text-sm text-ink-muted">
-                This is what a follower sees of your training. Change it under Profile › Privacy.
+              <p className="flex items-center gap-1 px-1 text-sm text-ink-muted">
+                This is your page as a follower sees it.
+                <InfoTip label="About your page" className="-my-2">
+                  Change what followers see of your training under Profile, then Privacy.
+                </InfoTip>
               </p>
             )}
             <SportPeriodControls sport={sport} period={period} />
-            <Card>
-              {/* Three lifting tiles share the row; four running tiles pair up under 440px. */}
-              <StatTileRow className={sport === "workout" ? "min-[440px]:grid-cols-3" : undefined}>
-                {TILES[sport].map((metric) => {
+
+            {/* The period in the chosen sport's colour: the count leads, the rest under it. */}
+            <HeroCard tone={SPORT_TONE[sportOfLegacy(sport)]}>
+              <p className="flex min-h-7 items-center gap-2 text-sm font-semibold text-ink-muted">
+                <SportIcon aria-hidden />
+                {SPORT_LABELS[sport]}, last {PERIOD_LABELS[period]}
+              </p>
+              <p className="tabular-nums">
+                <span className="font-display text-display-xl">
+                  {activityValue(training.totals, lead) ?? 0}
+                </span>{" "}
+                <span className="text-headline font-semibold">
+                  {LEAD_NOUN[lead][activityValue(training.totals, lead) === 1 ? 0 : 1]}
+                </span>
+              </p>
+              <StatTileRow
+                className={
+                  figures.length === 2 ? "@min-[27rem]:grid-cols-2" : "@min-[27rem]:grid-cols-3"
+                }
+              >
+                {figures.map((metric) => {
                   const value = activityValue(training.totals, metric);
                   return (
                     <StatTile
@@ -152,7 +192,18 @@ export default async function PersonPage(props: PageProps<"/u/[username]">) {
                   );
                 })}
               </StatTileRow>
-            </Card>
+              {relation && (
+                // Keep the same sport and period when opening the comparison.
+                <LinkButton
+                  href={`/u/${person.username}/compare?sport=${sport}&period=${period}`}
+                  size="lg"
+                  className="w-full"
+                >
+                  Compare
+                </LinkButton>
+              )}
+            </HeroCard>
+
             {training.trained && (
               <Card>
                 <RadarChart
@@ -186,24 +237,11 @@ export default async function PersonPage(props: PageProps<"/u/[username]">) {
                 </Card>
               </Section>
             )}
-            {relation && (
-              // Keep the same sport and period when opening the comparison.
-              <LinkButton
-                href={`/u/${person.username}/compare?sport=${sport}&period=${period}`}
-                className="w-full"
-              >
-                Compare
-              </LinkButton>
-            )}
           </>
         ) : (
-          <p className="flex items-center gap-1 px-1 text-sm text-ink-muted">
-            {hiddenTrainingLine({ them: person, relation: relation ?? { outgoing: null } })}
-            <InfoTip label="About seeing someone's training">
-              Their training appears here once they have accepted you as a follower and while they
-              share it. With sharing off, the profile card is all a follower sees.
-            </InfoTip>
-          </p>
+          <HiddenTraining
+            line={hiddenTrainingLine({ them: person, relation: relation ?? { outgoing: null } })}
+          />
         )}
       </PageContent>
     </>

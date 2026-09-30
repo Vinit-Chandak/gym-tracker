@@ -5,7 +5,8 @@ import { useOptimistic, useState, useTransition } from "react";
 
 import { ConfirmSheet } from "@/components/confirm-sheet";
 import { PersonRow, type Person } from "@/components/person-row";
-import { Button } from "@/components/ui/button";
+import { Button, LinkButton } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { List } from "@/components/ui/link-row";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { attempted } from "@/lib/offline-submit";
@@ -57,9 +58,17 @@ export function PeopleLists({
         ]}
       />
       {people.length === 0 ? (
-        <p className="px-1 text-sm text-ink-muted">
-          {tab === "following" ? "You follow nobody yet." : "Nobody follows you yet."}
-        </p>
+        <Card>
+          <p className="text-callout">
+            {tab === "following" ? "You follow nobody yet." : "Nobody follows you yet."}
+          </p>
+          {/* An empty list of people you follow has one way out, and it is a search. */}
+          {tab === "following" && (
+            <LinkButton href="/profile/friends/find" variant="secondary" className="w-full">
+              Find people
+            </LinkButton>
+          )}
+        </Card>
       ) : (
         <List>
           {people.map((person) => (

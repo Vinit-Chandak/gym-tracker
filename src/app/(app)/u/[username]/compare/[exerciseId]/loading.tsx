@@ -1,5 +1,5 @@
 import { LoadingPage } from "@/components/shell/loading-page";
 
 export default function Loading() {
-  return <LoadingPage title="Compare exercise" />;
+  return <LoadingPage title="Compare exercise" hero rows={4} />;
 }

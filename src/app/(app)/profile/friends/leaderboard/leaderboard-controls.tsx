@@ -4,7 +4,6 @@ import type { Route } from "next";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
 
-import { Card } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
 import { PeriodSelect } from "@/components/ui/period-select";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -21,6 +20,7 @@ import {
 } from "@/domain/leaderboard";
 import type { Period } from "@/domain/period";
 import type { TrainingSport } from "@/domain/sport-scope";
+import { cn } from "@/lib/utils";
 
 export type ExerciseChoice = {
   options: readonly { id: string; name: string }[];
@@ -34,8 +34,9 @@ export type ExerciseChoice = {
  * answers with only the rows asked for and a refresh keeps the board: the sport, then for
  * lifting the mode, then what Activity ranks by and over which period, or which movement
  * Exercise ranks and by which of its metrics. Running is one board, so its mode control is
- * not drawn. Native selects, since six labels do not fit one row of pills on a phone. The
- * board dims while the next one loads rather than blanking.
+ * not drawn. Native selects, since six labels do not fit one row of pills on a phone. They sit
+ * on the canvas like the sport and period pills on a person's page, not in a box of their
+ * own. The board dims while the next one loads rather than blanking.
  */
 export function LeaderboardControls({
   sport,
@@ -63,7 +64,10 @@ export function LeaderboardControls({
   };
 
   return (
-    <Card className={pending ? "opacity-60 transition-opacity" : undefined} aria-busy={pending}>
+    <div
+      className={cn("space-y-3", pending && "opacity-60 transition-opacity")}
+      aria-busy={pending}
+    >
       {/* The mode and metric belong to the sport: the other sport starts on its own board. */}
       <SportSwitch value={sport} resets={["mode", "metric"]} />
       {sport === "workout" && (
@@ -134,6 +138,6 @@ export function LeaderboardControls({
           </>
         )
       )}
-    </Card>
+    </div>
   );
 }

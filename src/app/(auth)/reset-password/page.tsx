@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { isSupabaseConfigured } from "@/lib/env";
 import { getSessionUser } from "@/server/auth";
 
-import { AUTH_LINK } from "../auth-link";
+import { AUTH_FOOTER, AUTH_HEADING, AUTH_LINK } from "../auth-link";
 import { NotConfigured } from "../not-configured";
 import { ResetPasswordForm } from "./reset-password-form";
 
@@ -18,20 +18,22 @@ export default async function ResetPasswordPage() {
 
   return (
     <>
-      <Card>
-        <h2 className="text-lg font-semibold">Choose a new password</h2>
+      <Card className="space-y-4">
+        <div className="space-y-1">
+          <h2 className={AUTH_HEADING}>Choose a new password</h2>
+          {user && (
+            <p className="text-sm [overflow-wrap:anywhere] text-ink-muted">For {user.email}</p>
+          )}
+        </div>
         {user ? (
-          <>
-            <p className="text-sm text-ink-muted">Setting a new password for {user.email}.</p>
-            <ResetPasswordForm />
-          </>
+          <ResetPasswordForm />
         ) : (
           <p className="text-sm text-ink-muted">
             This reset link has expired or has already been used. Ask for a new one.
           </p>
         )}
       </Card>
-      <p className="text-center text-sm text-ink-muted">
+      <p className={AUTH_FOOTER}>
         <Link href={user ? "/today" : "/forgot-password"} className={AUTH_LINK}>
           {user ? "Back to the app" : "Send another link"}
         </Link>

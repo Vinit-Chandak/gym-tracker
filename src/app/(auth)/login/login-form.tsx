@@ -35,15 +35,17 @@ export function LoginForm({ next }: { next?: string }) {
           {state.error}
         </p>
       )}
-      <Button type="submit" size="lg" className="w-full" disabled={pending}>
-        {pending ? "Signing in…" : "Sign in"}
-      </Button>
-      <Link
-        href="/forgot-password"
-        className="flex min-h-11 items-center justify-center text-sm text-ink-muted underline-offset-4 hover:underline"
-      >
-        Forgot your password?
-      </Link>
+      <div className="space-y-1 pt-1">
+        <Button type="submit" size="lg" className="w-full" disabled={pending}>
+          {pending ? "Signing in…" : "Sign in"}
+        </Button>
+        <Link
+          href="/forgot-password"
+          className="flex min-h-11 items-center justify-center rounded-chip text-sm font-semibold text-ink-muted underline-offset-4 hover:underline"
+        >
+          Forgot your password?
+        </Link>
+      </div>
     </form>
   );
 }

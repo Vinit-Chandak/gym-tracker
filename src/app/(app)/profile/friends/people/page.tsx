@@ -40,7 +40,7 @@ export default async function PeoplePage(props: PageProps<"/profile/friends/peop
 
   return (
     <>
-      <PageHeader title="People" backHref="/profile/friends" />
+      <PageHeader title="People" backHref="/profile/friends" backLabel="Friends" />
       <PageContent>
         {requests.length > 0 && (
           <Section title="Requests">
