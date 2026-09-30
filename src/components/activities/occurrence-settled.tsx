@@ -3,11 +3,12 @@ import type { Route } from "next";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { LinkButton } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/empty-state";
-import { CalendarDays } from "@/components/ui/icons";
+import { Card } from "@/components/ui/card";
+import { SportChip } from "@/components/ui/sport-chip";
 import type { ActivitySport } from "@/domain/activity";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
 import { formatIsoDate } from "@/lib/format";
+import { SPORT_TONE } from "@/lib/sport-tone";
 
 /**
  * A scheduled session that cannot be logged again, and why.
@@ -52,16 +53,21 @@ export function OccurrenceSettled({ occurrence }: { occurrence: ScheduledOccurre
     <>
       <PageHeader title="Already done" backHref="/training" />
       <PageContent>
-        <EmptyState
-          icon={CalendarDays}
-          title={settled.title}
-          description={settled.description}
-          action={
-            <LinkButton href={settled.href} variant="secondary">
-              {settled.label}
-            </LinkButton>
-          }
-        />
+        <Card>
+          <div className="flex items-center gap-3">
+            <SportChip sport={occurrence.sport} />
+            <h2 className="text-headline leading-snug font-semibold">{settled.title}</h2>
+          </div>
+          <p className="text-sm text-ink-muted">{settled.description}</p>
+          <LinkButton
+            href={settled.href}
+            variant="secondary"
+            tone={SPORT_TONE[occurrence.sport]}
+            className="w-full"
+          >
+            {settled.label}
+          </LinkButton>
+        </Card>
       </PageContent>
     </>
   );

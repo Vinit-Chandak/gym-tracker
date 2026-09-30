@@ -5,7 +5,7 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import type { Effort } from "@/domain/activity";
 import { formatDuration, formatPace } from "@/domain/pace";
-import { formatDateRange, formatDateTime, formatRunKm } from "@/lib/format";
+import { formatDateRange, formatDateTime, formatIsoWeekdayDay, formatRunKm } from "@/lib/format";
 import { originQuery } from "@/lib/nav";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
@@ -24,11 +24,11 @@ export const metadata: Metadata = { title: "History" };
  */
 export const unstable_dynamicStaleTime = 60;
 
-function readings(values: [string, number | null, string?][]) {
+/** "sleep 7 h, fatigue 2": readings as the tail of a row's one line, the missing ones left out. */
+function readings(values: [string, number | null, string?][]): string[] {
   return values
     .filter(([, value]) => value !== null)
-    .map(([label, value, unit]) => `${label} ${value}${unit ? ` ${unit}` : ""}`)
-    .join(" · ");
+    .map(([label, value, unit]) => `${label} ${value}${unit ? ` ${unit}` : ""}`);
 }
 /**
  * A run's effort, said to be unconfirmed where it is a migrated number nobody stood by.
@@ -37,14 +37,26 @@ function readings(values: [string, number | null, string?][]) {
  * out of five like every other endurance effort, while a strength set's RPE is still out of
  * ten. One word over two scales is what the five-step change was undoing.
  */
-function runEffort(effort: Effort) {
-  if (effort.status === "reported") return `Effort ${effort.value}`;
-  if (effort.value === null) return "";
-  return `Effort ${effort.value} (unconfirmed)`;
+function runEffort(effort: Effort): string | null {
+  if (effort.status === "reported") return `effort ${effort.value}`;
+  if (effort.value === null) return null;
+  return `effort ${effort.value} (unconfirmed)`;
 }
+
+/** The parts of a row's line, joined as a phrase rather than a string of dots. */
+function line(parts: (string | null | undefined)[]): string {
+  return parts.filter(Boolean).join(", ");
+}
+
+const RIDE_NAMES: Record<string, string> = { outdoor: "Outdoor ride", indoor: "Indoor ride" };
+const SWIM_NAMES: Record<string, string> = { pool: "Pool swim", open_water: "Open water swim" };
+
 /**
  * History, one of Progress's sections (ADR 0034): every workout, run, ride, swim and recovery
  * reading in the range, newest first. It was a tab of its own until Food took its place.
+ *
+ * Each row is its name, one line of when and how, and the figure it is remembered by: a
+ * workout's sets, a run's distance, a ride's or a swim's distance or else its time.
  */
 export default async function HistoryPage(props: PageProps<"/progress/history">) {
   const user = await requireUser(),
@@ -83,7 +95,11 @@ export default async function HistoryPage(props: PageProps<"/progress/history">)
       kind: "workout" as const,
       date: w.startedAt.toISOString(),
       title: w.dayName ?? "Ad hoc session",
-      subtitle: `${formatDateTime(w.startedAt, profile.timeZone)} · ${w.gymName}`,
+      subtitle: line([
+        formatDateTime(w.startedAt, profile.timeZone),
+        w.gymName,
+        ...readings([["sleep", w.sleepHours, "h"]]),
+      ]),
       // Opened from here, the entry keeps Progress selected rather than the tab it lives under,
       // and goes back to History.
       href: `/workouts/${w.id}${originQuery("history")}` as const,
@@ -93,53 +109,73 @@ export default async function HistoryPage(props: PageProps<"/progress/history">)
         id: e.exerciseId,
         name: e.name,
         machineId: e.machineId,
-        machineName: e.machineName ? `${e.machineName} · ${w.gymName}` : null,
+        machineName: e.machineName ? `${e.machineName}, ${w.gymName}` : null,
       })),
-      recovery: readings([["Sleep", w.sleepHours, "h"]]),
     })),
     ...data.training.runs.map((r) => ({
       id: r.id,
       kind: "run" as const,
       date: r.startedAt.toISOString(),
-      title: `${r.environment === "treadmill" ? "Treadmill" : "Outdoor"} · ${formatRunKm(r.distanceMeters)} km`,
-      subtitle: formatDateTime(r.startedAt, profile.timeZone),
+      title: r.title ?? (r.environment === "treadmill" ? "Treadmill run" : "Outdoor run"),
+      subtitle: line([
+        formatDateTime(r.startedAt, profile.timeZone),
+        formatDuration(r.durationSeconds),
+        `${formatPace(r.averagePaceSecondsPerKm)} /km`,
+        runEffort(r.effort),
+      ]),
       href: `/training/activities/${r.id}${originQuery("history")}` as const,
-      meta: `${formatDuration(r.durationSeconds)} · ${formatPace(r.averagePaceSecondsPerKm)}/km`,
+      meta: `${formatRunKm(r.distanceMeters)} km`,
       gymId: r.gymId,
       exercises: [],
-      recovery: runEffort(r.effort),
     })),
-    ...data.endurance.items.map((activity) => ({
-      id: activity.id,
-      kind: activity.sport as "cycling" | "swimming",
-      date: activity.startedAt.toISOString(),
-      title:
+    ...data.endurance.items.map((activity) => {
+      const cycling = activity.sport === "cycling";
+      // An unrecorded duration says so by its absence rather than reading as zero minutes.
+      const duration =
+        activity.durationMs === null
+          ? null
+          : formatDuration(Math.round(activity.durationMs / 1000));
+      const distance =
         activity.distanceMetres === null
-          ? activity.sport === "cycling"
-            ? "Ride"
-            : "Swim"
-          : `${activity.sport === "cycling" ? "Ride" : "Swim"} · ${formatRunKm(activity.distanceMetres)} km`,
-      subtitle: formatDateTime(activity.startedAt, profile.timeZone),
-      href: `/training/activities/${activity.id}${originQuery("history")}` as const,
-      // An unrecorded duration says so rather than reading as zero minutes.
-      meta:
-        activity.durationMs === null ? "" : formatDuration(Math.round(activity.durationMs / 1000)),
-      gymId: null,
-      exercises: [],
-      recovery: readings([
-        ["Effort", activity.effortStatus === "reported" ? activity.effortValue : null],
-      ]),
-    })),
+          ? null
+          : cycling
+            ? `${formatRunKm(activity.distanceMetres)} km`
+            : `${Math.round(activity.distanceMetres)} m`;
+      return {
+        id: activity.id,
+        kind: activity.sport as "cycling" | "swimming",
+        date: activity.startedAt.toISOString(),
+        title:
+          activity.title ??
+          (cycling ? RIDE_NAMES : SWIM_NAMES)[activity.environment ?? ""] ??
+          (cycling ? "Ride" : "Swim"),
+        subtitle: line([
+          formatDateTime(activity.startedAt, profile.timeZone),
+          // The time is the row's figure when there is no distance, so it is not said twice.
+          distance === null ? null : duration,
+          ...readings([
+            ["effort", activity.effortStatus === "reported" ? activity.effortValue : null],
+          ]),
+        ]),
+        href: `/training/activities/${activity.id}${originQuery("history")}` as const,
+        meta: distance ?? duration ?? "",
+        gymId: null,
+        exercises: [],
+      };
+    }),
     ...data.training.recovery.map((r) => ({
       id: r.id,
       kind: "recovery" as const,
       date: r.date,
-      title: `Recovery · ${r.date}`,
-      subtitle: readings([
-        ["Sleep", r.sleepHours, "h"],
-        ["Energy", r.energy],
-        ["Fatigue", r.fatigue],
-        ["Soreness", r.soreness],
+      title: "Recovery",
+      subtitle: line([
+        formatIsoWeekdayDay(r.date),
+        ...readings([
+          ["sleep", r.sleepHours, "h"],
+          ["energy", r.energy],
+          ["fatigue", r.fatigue],
+          ["soreness", r.soreness],
+        ]),
       ]),
       meta: "",
       gymId: null,

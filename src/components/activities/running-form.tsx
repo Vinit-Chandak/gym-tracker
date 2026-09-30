@@ -15,11 +15,13 @@ import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
 import {
   ActivityIdentityFields,
   DistanceField,
+  DurationField,
   EffortField,
   HeartRateFields,
   LargeEntryConfirmation,
   MoreDetails,
   NotesFields,
+  Readout,
   TargetCard,
   useFormValues,
   type ActivityFormValues,
@@ -88,86 +90,76 @@ export function RunningForm({
         occurrence={occurrence}
         expectedRevision={expectedRevision}
       />
-      {target && <TargetCard title={target.title} lines={target.lines} />}
+      {target && <TargetCard sport="running" title={target.title} lines={target.lines} />}
 
-      <Section title="The run">
-        <Card>
-          <Field label="When" error={state.fieldErrors?.startedAt}>
-            <Input
-              name="startedAt"
-              type="datetime-local"
-              defaultValue={values("startedAt")}
-              required
-            />
-          </Field>
-
-          <Field group label="Where">
-            <SegmentedControl
-              name="environment"
-              aria-label="Where"
-              options={ENVIRONMENTS}
-              defaultValue={values("environment") || "outdoor"}
-              columns={2}
-            />
-          </Field>
-
-          <DistanceField
-            value={distance}
-            unit={unit}
-            onValueChange={setDistance}
-            onUnitChange={setUnit}
-            units={DISTANCE_UNITS}
-            error={state.fieldErrors?.distance ?? state.fieldErrors?.distanceValue}
+      <Card>
+        <Field label="When" error={state.fieldErrors?.startedAt}>
+          <Input
+            name="startedAt"
+            type="datetime-local"
+            defaultValue={values("startedAt")}
+            required
           />
+        </Field>
+        <Field group label="Where">
+          <SegmentedControl
+            name="environment"
+            aria-label="Where"
+            options={ENVIRONMENTS}
+            defaultValue={values("environment") || "outdoor"}
+            columns={2}
+          />
+        </Field>
+      </Card>
 
-          <Field
-            group
-            label="Duration"
-            error={
-              state.fieldErrors?.duration ??
-              state.fieldErrors?.hours ??
-              state.fieldErrors?.minutes ??
-              state.fieldErrors?.seconds
-            }
-          >
-            <div className="grid grid-cols-3 gap-2">
-              <Field label="Hours">
-                <Input
-                  name="hours"
-                  inputMode="numeric"
-                  value={hours}
-                  onChange={(event) => setHours(event.target.value)}
-                  placeholder="0"
-                />
-              </Field>
-              <Field label="Minutes">
-                <Input
-                  name="minutes"
-                  inputMode="numeric"
-                  value={minutes}
-                  onChange={(event) => setMinutes(event.target.value)}
-                  placeholder="30"
-                />
-              </Field>
-              <Field label="Seconds">
-                <Input
-                  name="seconds"
-                  inputMode="numeric"
-                  value={seconds}
-                  onChange={(event) => setSeconds(event.target.value)}
-                  placeholder="0"
-                />
-              </Field>
-            </div>
-          </Field>
-
-          {pace !== null && (
-            <p role="status" className="text-sm text-ink-muted tabular-nums">
-              Pace {formatPaceSeconds(pace)} /km
-            </p>
-          )}
-        </Card>
-      </Section>
+      <Card className="space-y-4">
+        <DistanceField
+          value={distance}
+          unit={unit}
+          onValueChange={setDistance}
+          onUnitChange={setUnit}
+          units={DISTANCE_UNITS}
+          error={state.fieldErrors?.distance ?? state.fieldErrors?.distanceValue}
+        />
+        <DurationField
+          label="Duration"
+          error={
+            state.fieldErrors?.duration ??
+            state.fieldErrors?.hours ??
+            state.fieldErrors?.minutes ??
+            state.fieldErrors?.seconds
+          }
+          parts={[
+            {
+              name: "hours",
+              label: "Hours",
+              suffix: "h",
+              placeholder: "0",
+              value: hours,
+              onChange: setHours,
+            },
+            {
+              name: "minutes",
+              label: "Minutes",
+              suffix: "min",
+              placeholder: "30",
+              value: minutes,
+              onChange: setMinutes,
+            },
+            {
+              name: "seconds",
+              label: "Seconds",
+              suffix: "s",
+              placeholder: "0",
+              value: seconds,
+              onChange: setSeconds,
+            },
+          ]}
+        />
+        {pace !== null && (
+          <Readout sport="running" label="Pace" value={formatPaceSeconds(pace)} unit="/km" />
+        )}
+      </Card>
 
       <Section title="Effort">
         <Card>
@@ -175,56 +167,56 @@ export function RunningForm({
         </Card>
       </Section>
 
-      <Section title="Details">
-        <MoreDetails
-          hasErrors={[
-            "surface",
-            "elevationGainMetres",
-            "treadmillInclinePercent",
-            "cadenceStepsPerMinute",
-            "averageHeartRate",
-            "maxHeartRate",
-          ].some((field) => Boolean(state.fieldErrors?.[field]))}
-        >
-          <Field label="Surface" hint="Optional" error={state.fieldErrors?.surface}>
-            <Input name="surface" defaultValue={values("surface")} placeholder="Road, trail…" />
-          </Field>
-          <div className="grid grid-cols-2 gap-2">
-            <Field label="Elevation gain m" error={state.fieldErrors?.elevationGainMetres}>
-              <Input
-                name="elevationGainMetres"
-                inputMode="decimal"
-                defaultValue={values("elevationGainMetres")}
-                placeholder="—"
-              />
-            </Field>
-            <Field label="Incline %" error={state.fieldErrors?.treadmillInclinePercent}>
-              <Input
-                name="treadmillInclinePercent"
-                inputMode="decimal"
-                defaultValue={values("treadmillInclinePercent")}
-                placeholder="—"
-              />
-            </Field>
-          </div>
-          <Field label="Cadence steps/min" error={state.fieldErrors?.cadenceStepsPerMinute}>
+      <MoreDetails
+        hasErrors={[
+          "surface",
+          "elevationGainMetres",
+          "treadmillInclinePercent",
+          "cadenceStepsPerMinute",
+          "averageHeartRate",
+          "maxHeartRate",
+        ].some((field) => Boolean(state.fieldErrors?.[field]))}
+      >
+        <Field label="Surface" hint="Optional" error={state.fieldErrors?.surface}>
+          <Input name="surface" defaultValue={values("surface")} placeholder="Road, trail…" />
+        </Field>
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="Elevation gain m" error={state.fieldErrors?.elevationGainMetres}>
             <Input
-              name="cadenceStepsPerMinute"
+              name="elevationGainMetres"
               inputMode="decimal"
-              defaultValue={values("cadenceStepsPerMinute")}
+              defaultValue={values("elevationGainMetres")}
               placeholder="—"
             />
           </Field>
-          <HeartRateFields values={values} errors={state.fieldErrors} />
-        </MoreDetails>
-      </Section>
+          <Field label="Incline %" error={state.fieldErrors?.treadmillInclinePercent}>
+            <Input
+              name="treadmillInclinePercent"
+              inputMode="decimal"
+              defaultValue={values("treadmillInclinePercent")}
+              placeholder="—"
+            />
+          </Field>
+        </div>
+        <Field label="Cadence steps/min" error={state.fieldErrors?.cadenceStepsPerMinute}>
+          <Input
+            name="cadenceStepsPerMinute"
+            inputMode="decimal"
+            defaultValue={values("cadenceStepsPerMinute")}
+            placeholder="—"
+          />
+        </Field>
+        <HeartRateFields values={values} errors={state.fieldErrors} />
+      </MoreDetails>
 
       <NotesFields values={values} errors={state.fieldErrors} />
 
       <div className="space-y-2">
         <LargeEntryConfirmation message={state.formError} />
         <FormError message={state.formError} />
-        <SubmitButton pendingLabel="Saving…">{submitLabel}</SubmitButton>
+        <SubmitButton tone="run" pendingLabel="Saving…">
+          {submitLabel}
+        </SubmitButton>
       </div>
     </form>
   );

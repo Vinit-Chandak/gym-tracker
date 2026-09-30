@@ -1,5 +1,6 @@
 import Link from "@/components/ui/app-link";
 import { Card } from "@/components/ui/card";
+import { Trophy } from "@/components/ui/icons";
 import { StatTile, StatTileRow } from "@/components/ui/stat-tile";
 import { metricLabel, type MetricExercise } from "@/domain/shared-stats";
 import type { BodyLoadUnit } from "@/domain/types";
@@ -11,9 +12,29 @@ import type {
 } from "@/server/repositories/shared-stats";
 
 /**
- * The records a finished workout set (plan §3.13): one line per record, "Barbell bench press
- * · Est. 1RM 88 kg (was 85 kg)", in the reader's unit. On the workout's page, so it is there
- * whenever the workout is reopened and not only in the moment.
+ * "88 kg": the figure in the display face and its unit small beside it, the way every record
+ * on these screens is read. A figure with no unit ("1:30") is the figure alone.
+ */
+function RecordFigure({ text }: { text: string }) {
+  const [value, ...unit] = text.split(" ");
+  return (
+    <span className="shrink-0 text-right tabular-nums">
+      <span className="font-display text-display-s font-extrabold">{value}</span>
+      {unit.length > 0 && (
+        <>
+          {" "}
+          <span className="text-sm font-semibold text-ink-muted">{unit.join(" ")}</span>
+        </>
+      )}
+    </span>
+  );
+}
+
+/**
+ * The records a finished workout set (plan §3.13): one row per record, the movement and what
+ * it was measured by, with the new figure large beside it and the old one under the name, in
+ * the reader's unit. On the workout's page, so it is there whenever the workout is reopened
+ * and not only in the moment.
  */
 export function SessionRecordsCard({
   records,
@@ -25,28 +46,34 @@ export function SessionRecordsCard({
   if (records.length === 0) return null;
   return (
     <Card>
-      <h2 className="text-base font-semibold">
+      <h2 className="flex items-center gap-3 text-headline font-semibold">
+        <span
+          aria-hidden
+          className="flex size-9 shrink-0 items-center justify-center rounded-control bg-lift-soft text-lift-ink"
+        >
+          <Trophy />
+        </span>
         {records.length === 1 ? "1 record" : `${records.length} records`}
       </h2>
-      <ul className="divide-y divide-line text-sm">
+      <ul className="ruled-list">
         {records.map((record) => (
           <li
             key={`${record.exerciseId}:${record.metric}`}
-            className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 py-2"
+            className="flex items-center justify-between gap-3 py-3 last:pb-0"
           >
-            <Link
-              href={`/exercises/${record.exerciseId}`}
-              className="min-w-0 font-semibold [overflow-wrap:anywhere] underline-offset-2 hover:underline"
-            >
-              {record.exercise.name}
-            </Link>
-            <span className="text-ink-muted tabular-nums">
-              {metricLabel(record.metric, record.exercise)}{" "}
-              <span className="text-ink">
-                {formatSharedMetric(record.metric, record.value, unit)}
-              </span>{" "}
-              (was {formatSharedMetric(record.metric, record.previous, unit)})
+            <span className="min-w-0">
+              <Link
+                href={`/exercises/${record.exerciseId}`}
+                className="inline-flex min-h-11 items-center font-semibold [overflow-wrap:anywhere] underline-offset-2 hover:underline"
+              >
+                {record.exercise.name}
+              </Link>
+              <span className="-mt-1.5 block text-sm [overflow-wrap:anywhere] text-ink-muted tabular-nums">
+                {metricLabel(record.metric, record.exercise)}, was{" "}
+                {formatSharedMetric(record.metric, record.previous, unit)}
+              </span>
             </span>
+            <RecordFigure text={formatSharedMetric(record.metric, record.value, unit)} />
           </li>
         ))}
       </ul>
@@ -71,7 +98,7 @@ export function ExerciseBestsTiles({
   if (bests.length === 0) return null;
   return (
     <Card>
-      <h2 className="text-base font-semibold">Your records</h2>
+      <h2 className="text-headline font-semibold">Your records</h2>
       <StatTileRow>
         {bests.map((best) => (
           <StatTile
@@ -80,8 +107,8 @@ export function ExerciseBestsTiles({
             value={
               <>
                 {formatSharedMetric(best.metric, best.value, unit)}
-                <span className="mt-0.5 block text-xs font-normal text-ink-muted">
-                  {best.work ? `${formatTopWeightWork(best.work)} · ` : ""}
+                <span className="mt-0.5 block font-sans text-xs font-normal text-ink-muted">
+                  {best.work ? `${formatTopWeightWork(best.work)}, ` : ""}
                   {formatIsoDay(best.occurredOn)}
                 </span>
               </>
@@ -106,23 +133,21 @@ export function PeriodRecordsList({
   unit: BodyLoadUnit;
 }) {
   return (
-    <ul className="divide-y divide-line text-sm">
+    <ul className="ruled-list">
       {records.map((record) => (
         <li
           key={record.exercise.id}
-          className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 py-2"
+          className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
         >
           <span className="min-w-0">
             <span className="block font-semibold [overflow-wrap:anywhere]">
               {record.exercise.name}
             </span>
-            <span className="block text-xs text-ink-muted">
-              {metricLabel(record.metric, record.exercise)} · {formatIsoDay(record.occurredOn)}
+            <span className="block text-sm [overflow-wrap:anywhere] text-ink-muted tabular-nums">
+              {metricLabel(record.metric, record.exercise)}, {formatIsoDay(record.occurredOn)}
             </span>
           </span>
-          <span className="font-semibold tabular-nums">
-            {formatSharedMetric(record.metric, record.value, unit)}
-          </span>
+          <RecordFigure text={formatSharedMetric(record.metric, record.value, unit)} />
         </li>
       ))}
     </ul>

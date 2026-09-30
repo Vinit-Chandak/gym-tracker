@@ -36,7 +36,7 @@ export default async function EditTemplatePage(
 
   return (
     <>
-      <PageHeader title="Edit template" backHref="/training/templates" />
+      <PageHeader title="Edit template" meta={template.name} backHref="/training/templates" />
       <PageContent>
         <PrescriptionEditor
           action={saveTemplateAction.bind(null, templateId)}

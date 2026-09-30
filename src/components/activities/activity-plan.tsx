@@ -1,7 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { DetailList } from "@/components/ui/detail-list";
-import { ACTIVITY_SPORT_LABELS, type ActivitySport } from "@/domain/activity";
 import {
   expandSteps,
   prescriptionTotals,
@@ -47,82 +46,99 @@ function metres(value: number): string {
   return value >= 1000 ? `${(value / 1000).toFixed(value % 1000 === 0 ? 0 : 2)} km` : `${value} m`;
 }
 
+/**
+ * A dash a line never breaks at, and a space that keeps a figure with its unit or its label,
+ * so "effort 1–2" is not left as "effort 1–" over "2".
+ */
+const DASH = "\u2060–\u2060";
+const SPACE = "\u00a0";
+
+/** "20–25 min": both ends in one unit say it once, at the end. */
 function range(low: number, high: number, format: (value: number) => string): string {
-  return low === high ? format(high) : `${format(low)}–${format(high)}`;
+  if (low === high) return format(high).replace(" ", SPACE);
+  const [from, fromUnit] = format(low).split(" ");
+  const [to, toUnit] = format(high).split(" ");
+  return fromUnit === toUnit
+    ? `${from}${DASH}${to}${toUnit ? `${SPACE}${toUnit}` : ""}`
+    : `${format(low).replace(" ", SPACE)}${DASH}${format(high).replace(" ", SPACE)}`;
 }
 
-/** "8 × 50 m · freestyle": one written step, said the way it was written. */
+/** "Swim 8 × 50 m, effort 3, freestyle": one written step, said the way it was written. */
 function stepLine(step: ReturnType<typeof expandSteps>[number]): string {
   const target =
     step.target.kind === "duration"
       ? range(step.target.ms[0], step.target.ms[1], minutes)
       : range(step.target.metres[0], step.target.metres[1], metres);
-  const parts = [ACTION_LABELS[step.action], target];
-  if (step.effort) parts.push(`Effort ${range(step.effort[0], step.effort[1], String)}`);
+  const parts = [`${ACTION_LABELS[step.action]} ${target}`];
+  if (step.effort) parts.push(`effort${SPACE}${range(step.effort[0], step.effort[1], String)}`);
   if (step.stroke && step.stroke !== "unspecified") parts.push(step.stroke);
-  return parts.join(" · ");
+  return parts.join(", ");
 }
 
 /** The whole-session targets, which are stated beside the steps rather than derived from them. */
-function sessionLine(prescription: EndurancePrescription): string | null {
+function sessionParts(prescription: EndurancePrescription): string[] {
   const { durationMs, distanceMetres, effort } = prescription.sessionTargets;
-  const parts = [
+  return [
     distanceMetres ? range(distanceMetres[0], distanceMetres[1], metres) : null,
     durationMs ? range(durationMs[0], durationMs[1], minutes) : null,
-    effort ? `Effort ${range(effort[0], effort[1], String)}` : null,
-  ].filter(Boolean);
-  return parts.length > 0 ? parts.join(" · ") : null;
+    effort ? `effort${SPACE}${range(effort[0], effort[1], String)}` : null,
+  ].filter((part): part is string => part !== null);
 }
 
 export type ActivityPlanProps = {
-  sport: ActivitySport;
   /** The prescription in force: the coach's preparation, or the programme's own. */
   prescription: EndurancePrescription | null;
   /** The coach's sentences for today, when a preparation exists. */
   preparation?: { summary: string; note: string } | null;
   /** Said out loud rather than left blank when the coach has not prepared this one. */
   preparedByCoach?: boolean;
+  /** A session of the programme, rather than one the athlete scheduled on its own. */
+  fromProgramme?: boolean;
 };
 
 export function ActivityPlan({
-  sport,
   prescription,
   preparation = null,
   preparedByCoach = false,
+  fromProgramme = true,
 }: ActivityPlanProps) {
   if (!prescription && !preparation) return null;
   const steps = prescription ? expandSteps(prescription) : [];
   const totals = prescription ? prescriptionTotals(prescription) : null;
-  const overall = prescription ? sessionLine(prescription) : null;
+  const overall = prescription ? sessionParts(prescription) : [];
 
   return (
     <Card>
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-ink-muted">
-            {ACTIVITY_SPORT_LABELS[sport]} · planned
-          </p>
-          {prescription?.title && (
-            <h2 className="mt-1 text-lg font-semibold [overflow-wrap:anywhere]">
-              {prescription.title}
-            </h2>
+          <h2 className="text-headline font-semibold [overflow-wrap:anywhere]">
+            {prescription?.title ?? "The plan"}
+          </h2>
+          {overall.length > 0 && (
+            <p className="mt-0.5 text-sm [overflow-wrap:anywhere] text-ink-muted tabular-nums">
+              {overall.join(", ")}
+            </p>
           )}
-          {overall && <p className="mt-1 text-sm text-ink-muted tabular-nums">{overall}</p>}
         </div>
-        <Badge tone={preparedByCoach ? "accent" : "neutral"}>
-          {preparedByCoach ? "From your coach" : "Your programme"}
-        </Badge>
+        {(preparedByCoach || fromProgramme) && (
+          <Badge tone={preparedByCoach ? "accent" : "neutral"}>
+            {preparedByCoach ? "From your coach" : "Your programme"}
+          </Badge>
+        )}
       </div>
 
-      {preparation?.summary && <p className="mt-3 text-sm">{preparation.summary}</p>}
+      {preparation?.summary && <p className="text-sm">{preparation.summary}</p>}
 
       {steps.length > 0 && (
-        <ol className="mt-3 space-y-1.5">
+        <ol className="ruled-list">
           {steps.map((step, index) => (
-            <li key={`${step.id}-${step.repetition}-${index}`} className="text-sm">
-              <span className="text-ink-muted">{PHASE_LABELS[step.phase]}</span>{" "}
-              <span className="tabular-nums">{stepLine(step)}</span>
-              {step.notes && <span className="text-ink-muted"> — {step.notes}</span>}
+            <li
+              key={`${step.id}-${step.repetition}-${index}`}
+              className="flex flex-wrap items-baseline justify-between gap-x-3 py-2 text-sm"
+            >
+              <span className="text-ink-muted">{PHASE_LABELS[step.phase]}</span>
+              <span className="text-right font-semibold tabular-nums">{stepLine(step)}</span>
+              {step.notes && <span className="basis-full text-ink-muted">{step.notes}</span>}
             </li>
           ))}
         </ol>
@@ -131,30 +147,26 @@ export function ActivityPlan({
       {totals && totals.prescribedRestMs > 0 && (
         // Named as prescribed rest, not as rest. What is actually rested is not measured, and
         // the gap between elapsed and active time is not evidence of it (AT-LOG-09).
-        <p className="mt-2 text-xs text-ink-muted tabular-nums">
+        <p className="text-xs text-ink-muted tabular-nums">
           Planned rest between reps: {minutes(totals.prescribedRestMs)}
         </p>
       )}
 
       {prescription?.running && (
-        <div className="mt-3">
-          <DetailList
-            entries={[
-              ["Pace", prescription.running.paceNote],
-              ["Progression", prescription.running.progressionNote],
-              ["Stop if", prescription.running.symptomStopRule],
-              ["Note", prescription.running.note],
-            ]}
-          />
-        </div>
+        <DetailList
+          entries={[
+            ["Pace", prescription.running.paceNote],
+            ["Progression", prescription.running.progressionNote],
+            ["Stop if", prescription.running.symptomStopRule],
+            ["Note", prescription.running.note],
+          ]}
+        />
       )}
       {prescription?.instructions && (
-        <div className="mt-3">
-          <DetailList entries={[["How to run it", prescription.instructions]]} />
-        </div>
+        <DetailList entries={[["How to do it", prescription.instructions]]} />
       )}
-      {preparation?.note && <p className="mt-3 text-sm text-ink-muted">{preparation.note}</p>}
-      {prescription?.notes && <p className="mt-3 text-sm text-ink-muted">{prescription.notes}</p>}
+      {preparation?.note && <p className="text-sm text-ink-muted">{preparation.note}</p>}
+      {prescription?.notes && <p className="text-sm text-ink-muted">{prescription.notes}</p>}
     </Card>
   );
 }

@@ -9,6 +9,7 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { isActivitySport, isEnduranceSport, type EnduranceSport } from "@/domain/activity";
 import { describePrescription } from "@/domain/activity-prescription";
+import { formatIsoWeekdayDay } from "@/lib/format";
 import { toDateTimeLocal } from "@/lib/time";
 import { saveActivityAction } from "@/server/actions/activities";
 import { requireUser } from "@/server/auth";
@@ -111,7 +112,14 @@ export default async function NewActivityPage(props: PageProps<"/training/new">)
 
   return (
     <>
-      <PageHeader title={`Log a ${sportNoun(sport)}`} backHref="/training" />
+      <PageHeader
+        title={`Log a ${sportNoun(sport)}`}
+        // The session it answers, when it answers one: the qualifying fact under the title.
+        meta={
+          occurrence ? `Scheduled for ${formatIsoWeekdayDay(occurrence.scheduledOn)}` : undefined
+        }
+        backHref="/training"
+      />
       <PageContent>
         <ActivityEditor
           {...shared}

@@ -6,11 +6,13 @@ import { Card } from "@/components/ui/card";
 import { FormError, SubmitButton } from "@/components/ui/form";
 import { Field, Input } from "@/components/ui/input";
 import { Section } from "@/components/ui/section";
-import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select } from "@/components/ui/select";
-import { ACTIVITY_SPORT_LABELS, type ActivitySport } from "@/domain/activity";
+import type { ActivitySport, EnduranceSport } from "@/domain/activity";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
+import { SPORT_TONE } from "@/lib/sport-tone";
 import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
+
+import { SportChips } from "./sport-chips";
 
 /**
  * Scheduling one session (SCHED-08).
@@ -35,8 +37,8 @@ export function ScheduleForm({
   templates,
 }: {
   action: (previous: FormState, formData: FormData) => Promise<FormState>;
-  sport: ActivitySport;
-  sports: readonly ActivitySport[];
+  sport: EnduranceSport;
+  sports: readonly EnduranceSport[];
   today: string;
   templates: readonly ScheduleTemplateOption[];
 }) {
@@ -48,51 +50,48 @@ export function ScheduleForm({
 
   return (
     <form action={formAction} className="space-y-[var(--section-gap)]">
-      <Section title="What and when">
-        <Card>
-          <Field group label="Sport" error={state.fieldErrors?.sport}>
-            <SegmentedControl
-              name="sport"
-              aria-label="Sport"
-              options={sports.map((item) => ({
-                value: item,
-                label: ACTIVITY_SPORT_LABELS[item],
-              }))}
-              value={selectedSport}
-              onChange={(next) => {
-                setSelectedSport(next);
-                setChosen("");
-              }}
-              columns={sports.length}
+      <Card>
+        <Field group labelHidden label="Sport" error={state.fieldErrors?.sport}>
+          <SportChips
+            sports={sports}
+            value={selectedSport}
+            onChange={(next) => {
+              setSelectedSport(next);
+              setChosen("");
+            }}
+          />
+        </Field>
+        {/* Side by side only once both fit. A date and a time sharing a 320px row leaves
+            each of them narrower than the value it has to show, which is the same call
+            the other date pairs in the app make. */}
+        <div className="grid gap-3 min-[420px]:grid-cols-2">
+          <Field label="Date" error={state.fieldErrors?.scheduledOn}>
+            <Input
+              name="scheduledOn"
+              type="date"
+              defaultValue={state.values?.scheduledOn ?? today}
+              required
             />
           </Field>
-          {/* Side by side only once both fit. A date and a time sharing a 320px row leaves
-              each of them narrower than the value it has to show, which is the same call
-              the other date pairs in the app make. */}
-          <div className="grid gap-3 min-[420px]:grid-cols-2">
-            <Field label="Date" error={state.fieldErrors?.scheduledOn}>
-              <Input
-                name="scheduledOn"
-                type="date"
-                defaultValue={state.values?.scheduledOn ?? today}
-                required
-              />
-            </Field>
-            <Field label="Time" hint="Optional" error={state.fieldErrors?.scheduledLocalTime}>
-              <Input
-                name="scheduledLocalTime"
-                type="time"
-                defaultValue={state.values?.scheduledLocalTime ?? ""}
-              />
-            </Field>
-          </div>
-          <p className="text-sm text-ink-muted">
-            A time orders the day&rsquo;s cards. Nothing starts recording.
-          </p>
-        </Card>
-      </Section>
+          <Field
+            label="Time"
+            hint="Optional"
+            info="A time orders the day's cards on Today. Nothing starts recording."
+            error={state.fieldErrors?.scheduledLocalTime}
+          >
+            <Input
+              name="scheduledLocalTime"
+              type="time"
+              defaultValue={state.values?.scheduledLocalTime ?? ""}
+            />
+          </Field>
+        </div>
+      </Card>
 
-      <Section title="Targets">
+      <Section
+        title="Targets"
+        info="A template's targets are copied as they are now. Editing the template later leaves this session as it was scheduled."
+      >
         <Card>
           <Field label="Template" hint="Optional" error={state.fieldErrors?.templateId}>
             <Select
@@ -100,10 +99,10 @@ export function ScheduleForm({
               value={chosen}
               onChange={(event) => setChosen(event.target.value)}
             >
-              <option value="">No targets — just the date</option>
+              <option value="">No targets, just the date</option>
               {matchingTemplates.map((item) => (
                 <option key={item.id} value={item.id}>
-                  {item.name} · {item.summary}
+                  {item.name}, {item.summary}
                 </option>
               ))}
             </Select>
@@ -116,7 +115,9 @@ export function ScheduleForm({
 
       <div className="space-y-2">
         <FormError message={state.formError} />
-        <SubmitButton pendingLabel="Scheduling…">Schedule it</SubmitButton>
+        <SubmitButton tone={SPORT_TONE[selectedSport]} pendingLabel="Scheduling…">
+          Schedule it
+        </SubmitButton>
       </div>
     </form>
   );

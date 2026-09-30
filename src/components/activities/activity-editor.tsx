@@ -41,7 +41,13 @@ export function ActivityEditor(props: Props) {
     () => true,
     () => false,
   );
-  return hydrated ? <StoredEditor {...props} /> : <p role="status">Opening your activity…</p>;
+  return hydrated ? (
+    <StoredEditor {...props} />
+  ) : (
+    <p role="status" className="px-1 text-sm text-ink-muted">
+      Opening your activity…
+    </p>
+  );
 }
 
 function StoredEditor(props: Props) {
@@ -143,13 +149,16 @@ function StoredEditor(props: Props) {
   };
   return (
     <div className="space-y-3" onChange={changed}>
+      {/* What this device is holding, on one quiet line with the way to let it go. */}
       {notice && (
-        <div className="space-y-1">
-          <p role="status" className="text-sm text-ink-muted">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 pl-1">
+          <p role="status" className="min-w-0 flex-1 basis-48 text-sm text-ink-muted">
             {notice}
           </p>
           <Button
             variant="ghost"
+            size="sm"
+            className="-mr-2 shrink-0"
             onClick={() => {
               try {
                 clearDraft(localStorage, props.userId, current.current.draftId);

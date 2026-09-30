@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { Chart, SERIES_COLORS } from "@/components/ui/chart";
 import { Headline } from "@/components/ui/headline";
 import { InfoTip } from "@/components/ui/info-tip";
+import { Field } from "@/components/ui/input";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select } from "@/components/ui/select";
 import type { PerformanceSeries } from "@/domain/analytics";
@@ -27,9 +28,18 @@ export const STRENGTH_METRICS = [
 export type StrengthMetric = (typeof STRENGTH_METRICS)[number]["value"];
 
 /**
- * The machine, in the corner. One exercise done on two machines is two series, because
+ * "Leg press, Anytime Fitness": a series names its machine and gym with a middle dot, and
+ * every other meta line on these screens reads as a phrase, so it is said with a comma.
+ */
+function machineLabel(machine: string): string {
+  return machine.split(" · ").join(", ");
+}
+
+/**
+ * The machine, under the exercise. One exercise done on two machines is two series, because
  * the loads are not comparable, and this is where the reader picks between them. It only
- * appears when there is a choice to make; a single series says nothing about itself.
+ * appears when there is a choice to make; a single series says nothing about itself. It has
+ * a row of its own, so a machine's whole name is read rather than its first ten letters.
  */
 function MachinePicker({
   entries,
@@ -43,20 +53,16 @@ function MachinePicker({
   onChange: (id: string) => void;
 }) {
   return (
-    <Select
-      aria-label="Machine"
-      value={value}
-      disabled={disabled}
-      onChange={(event) => onChange(event.target.value)}
-      wrapperClassName="max-w-full min-w-0"
-    >
-      {entries.map((entry) => (
-        <option key={entry.id} value={entry.id}>
-          {entry.machine}
-          {entry.unit === "kg" ? "" : ` · ${LOAD_UNIT_LABELS[entry.unit]}`}
-        </option>
-      ))}
-    </Select>
+    <Field label="Machine">
+      <Select value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)}>
+        {entries.map((entry) => (
+          <option key={entry.id} value={entry.id}>
+            {machineLabel(entry.machine)}
+            {entry.unit === "kg" ? "" : `, ${LOAD_UNIT_LABELS[entry.unit]}`}
+          </option>
+        ))}
+      </Select>
+    </Field>
   );
 }
 
@@ -106,6 +112,16 @@ export function StrengthTrend({
     <>
       {picker}
 
+      {/* The machine, only when there is one to choose. */}
+      {selected && machines.length > 1 && (
+        <MachinePicker
+          entries={machines}
+          value={selected.id}
+          disabled={pending}
+          onChange={onChooseSeries}
+        />
+      )}
+
       {selected ? (
         <>
           {/* The card's full width, as the running measurements are: inside a row of its own it
@@ -121,23 +137,14 @@ export function StrengthTrend({
           <div className={pending ? "opacity-50 transition-opacity" : undefined}>
             <div className="flex items-start justify-between gap-2">
               <Headline points={selected[metric]} unit={unit} />
-              <span className="flex max-w-[60%] min-w-0 items-center gap-1">
-                {/* The machine, in the corner, only when there is one to choose. */}
-                {machines.length > 1 && (
-                  <MachinePicker
-                    entries={machines}
-                    value={selected.id}
-                    disabled={pending}
-                    onChange={onChooseSeries}
-                  />
-                )}
+              <span className="flex shrink-0 items-center">
                 <InfoTip label="About this chart" className="shrink-0">
                   One point per session; warm-up sets are excluded.{" "}
                   {machines.length > 1
                     ? "Each machine is its own series, because loads on different machines are not comparable."
                     : selected.machine === "Across gyms"
                       ? "The load means the same at every gym, so all sessions count."
-                      : `Sessions on ${selected.machine}.`}
+                      : `Sessions on ${machineLabel(selected.machine)}.`}
                   {metric === "estimated1RM" &&
                     " Estimated 1RM is Epley's formula on barbell and dumbbell sets of 1–10 reps; a dumbbell load counts as logged, not doubled per hand."}
                 </InfoTip>

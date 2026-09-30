@@ -17,11 +17,14 @@ import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
 import {
   ActivityIdentityFields,
   DistanceField,
+  DurationField,
   EffortField,
   HeartRateFields,
   LargeEntryConfirmation,
   MoreDetails,
   NotesFields,
+  NumberWell,
+  Readout,
   TargetCard,
   useFormValues,
   type ActivityFormValues,
@@ -112,6 +115,11 @@ export function SwimmingForm({
     activeMs !== null && derivedMetres !== null && derivedMetres > 0
       ? activeMs / 1000 / (toMetresPerHundred(derivedMetres, paceUnit) || 1)
       : null;
+  // "400 yd": the figure in the display face, its unit beside it.
+  const [lengthsFigure, lengthsUnit] =
+    method === "lengths" && derivedMetres !== null
+      ? formatDistance(derivedMetres, poolUnit as "m" | "yd").split(" ")
+      : [];
 
   return (
     <form action={formAction} className="space-y-[var(--section-gap)]">
@@ -123,163 +131,154 @@ export function SwimmingForm({
         occurrence={occurrence}
         expectedRevision={expectedRevision}
       />
-      {target && <TargetCard title={target.title} lines={target.lines} />}
+      {target && <TargetCard sport="swimming" title={target.title} lines={target.lines} />}
 
-      <Section title="The swim">
-        <Card>
-          <Field label="When" error={state.fieldErrors?.startedAt}>
-            <Input
-              name="startedAt"
-              type="datetime-local"
-              defaultValue={values("startedAt")}
-              required
-            />
-          </Field>
+      <Card>
+        <Field label="When" error={state.fieldErrors?.startedAt}>
+          <Input
+            name="startedAt"
+            type="datetime-local"
+            defaultValue={values("startedAt")}
+            required
+          />
+        </Field>
+        <Field group label="Where">
+          <SegmentedControl
+            name="environment"
+            aria-label="Where"
+            options={ENVIRONMENTS}
+            value={environment}
+            onChange={(value) => {
+              setEnvironment(value);
+              // Open water has no lengths to count; the method goes back to a real choice.
+              if (value === "open_water" && method === "lengths") setMethod("unknown");
+            }}
+            columns={2}
+          />
+        </Field>
+      </Card>
 
-          <Field group label="Where">
-            <SegmentedControl
-              name="environment"
-              aria-label="Where"
-              options={ENVIRONMENTS}
-              value={environment}
-              onChange={(value) => {
-                setEnvironment(value);
-                // Open water has no lengths to count; the method goes back to a real choice.
-                if (value === "open_water" && method === "lengths") setMethod("unknown");
-              }}
-              columns={2}
-            />
-          </Field>
+      <Card className="space-y-4">
+        <DurationField
+          label="Elapsed time"
+          info="From getting in to getting out, rests included."
+          error={
+            state.fieldErrors?.elapsed ??
+            state.fieldErrors?.hours ??
+            state.fieldErrors?.minutes ??
+            state.fieldErrors?.seconds
+          }
+          parts={[
+            {
+              name: "hours",
+              label: "Hours",
+              suffix: "h",
+              placeholder: "0",
+              defaultValue: values("hours"),
+            },
+            {
+              name: "minutes",
+              label: "Minutes",
+              suffix: "min",
+              placeholder: "40",
+              defaultValue: values("minutes"),
+            },
+            {
+              name: "seconds",
+              label: "Seconds",
+              suffix: "s",
+              placeholder: "0",
+              inputMode: "decimal",
+              defaultValue: values("seconds"),
+            },
+          ]}
+        />
 
-          <Field
-            group
-            label="Elapsed time"
-            hint="From getting in to getting out, rests included"
-            error={
-              state.fieldErrors?.elapsed ??
-              state.fieldErrors?.hours ??
-              state.fieldErrors?.minutes ??
-              state.fieldErrors?.seconds
+        <Field group label="How it was measured" error={state.fieldErrors?.distanceMethod}>
+          <SegmentedControl
+            name="distanceMethod"
+            aria-label="Distance method"
+            options={
+              environment === "open_water"
+                ? METHODS.filter((item) => item.value !== "lengths")
+                : METHODS
             }
-          >
-            <div className="grid grid-cols-3 gap-2">
-              <Field label="Hours">
-                <Input
-                  name="hours"
-                  inputMode="numeric"
-                  defaultValue={values("hours")}
-                  placeholder="0"
-                />
-              </Field>
-              <Field label="Minutes">
-                <Input
-                  name="minutes"
-                  inputMode="numeric"
-                  defaultValue={values("minutes")}
-                  placeholder="40"
-                />
-              </Field>
-              <Field label="Seconds">
-                <Input
-                  name="seconds"
-                  inputMode="decimal"
-                  defaultValue={values("seconds")}
-                  placeholder="0"
-                />
-              </Field>
-            </div>
-          </Field>
-        </Card>
-      </Section>
+            value={method}
+            onChange={setMethod}
+            columns={3}
+          />
+        </Field>
 
-      <Section title="Distance">
-        <Card>
-          <Field group label="How it was measured" error={state.fieldErrors?.distanceMethod}>
-            <SegmentedControl
-              name="distanceMethod"
-              aria-label="Distance method"
-              options={
-                environment === "open_water"
-                  ? METHODS.filter((item) => item.value !== "lengths")
-                  : METHODS
-              }
-              value={method}
-              onChange={setMethod}
-              columns={3}
-            />
-          </Field>
-
-          {method === "lengths" && (
-            <>
-              <div className="grid grid-cols-[1fr_auto] gap-2">
-                <Field label="Pool length" error={state.fieldErrors?.poolLength}>
-                  <Input
-                    name="poolLengthValue"
-                    inputMode="decimal"
-                    value={poolLength}
-                    onChange={(event) => setPoolLength(event.target.value)}
-                    placeholder="25"
-                  />
-                </Field>
-                <Field group label="Unit">
-                  <SegmentedControl
-                    name="poolLengthUnit"
-                    aria-label="Pool unit"
-                    options={POOL_UNITS}
-                    value={poolUnit}
-                    onChange={setPoolUnit}
-                    columns={2}
-                  />
-                </Field>
-              </div>
-              <Field
-                label="Lengths"
-                hint="One length is one trip from one end to the other"
-                error={state.fieldErrors?.lengths}
-              >
-                <Input
-                  name="lengths"
-                  inputMode="numeric"
-                  value={lengths}
-                  onChange={(event) => setLengths(event.target.value)}
-                  placeholder="16"
-                />
-              </Field>
-              {derivedMetres !== null && (
-                <p role="status" className="text-sm text-ink-muted tabular-nums">
-                  {formatDistance(derivedMetres, poolUnit as "m" | "yd")}
-                  {/* A yard pool is not a metre pool, and the metres say so exactly. */}
-                  {poolUnit === "yd" ? ` · ${formatDistance(derivedMetres, "m", 2)}` : ""}
-                </p>
-              )}
-            </>
-          )}
-
-          {environment === "pool" && method !== "lengths" && (
-            <>
-              <input type="hidden" name="poolLengthValue" value={poolLength} />
-              <input type="hidden" name="poolLengthUnit" value={poolUnit} />
-            </>
-          )}
-
-          {method === "manual" && (
+        {method === "lengths" && (
+          <>
             <DistanceField
-              value={distance}
-              unit={distanceUnit}
-              onValueChange={setDistance}
-              onUnitChange={setDistanceUnit}
+              label="Pool length"
+              name="poolLengthValue"
+              unitName="poolLengthUnit"
+              unitLabel="Pool unit"
+              placeholder="25"
+              value={poolLength}
+              unit={poolUnit}
+              onValueChange={setPoolLength}
+              onUnitChange={setPoolUnit}
               units={POOL_UNITS}
-              error={state.fieldErrors?.distance ?? state.fieldErrors?.distanceValue}
+              error={state.fieldErrors?.poolLength}
             />
-          )}
+            <Field
+              label="Lengths"
+              info="One length is one trip from one end of the pool to the other."
+              error={state.fieldErrors?.lengths}
+            >
+              <NumberWell
+                name="lengths"
+                inputMode="numeric"
+                value={lengths}
+                onChange={(event) => setLengths(event.target.value)}
+                placeholder="16"
+              />
+            </Field>
+            {lengthsFigure && (
+              <Readout
+                sport="swimming"
+                label="Distance"
+                value={lengthsFigure}
+                unit={lengthsUnit}
+                // A yard pool is not a metre pool, and the metres say so exactly.
+                detail={
+                  poolUnit === "yd" && derivedMetres !== null
+                    ? formatDistance(derivedMetres, "m", 2)
+                    : undefined
+                }
+              />
+            )}
+          </>
+        )}
 
-          {method === "unknown" && (
-            <p className="text-sm text-ink-muted">
-              The time still counts. Nothing is made up for the distance.
-            </p>
-          )}
-        </Card>
-      </Section>
+        {environment === "pool" && method !== "lengths" && (
+          <>
+            <input type="hidden" name="poolLengthValue" value={poolLength} />
+            <input type="hidden" name="poolLengthUnit" value={poolUnit} />
+          </>
+        )}
+
+        {method === "manual" && (
+          <DistanceField
+            value={distance}
+            unit={distanceUnit}
+            onValueChange={setDistance}
+            onUnitChange={setDistanceUnit}
+            units={POOL_UNITS}
+            placeholder="800"
+            error={state.fieldErrors?.distance ?? state.fieldErrors?.distanceValue}
+          />
+        )}
+
+        {method === "unknown" && (
+          <p className="text-sm text-ink-muted">
+            The time still counts. Nothing is made up for the distance.
+          </p>
+        )}
+      </Card>
 
       <Section title="Effort">
         <Card>
@@ -287,81 +286,82 @@ export function SwimmingForm({
         </Card>
       </Section>
 
-      <Section title="Details">
-        <MoreDetails
-          hasErrors={[
-            "activeMs",
-            "activeMinutes",
-            "activeSeconds",
-            "stroke",
-            "strokeCount",
-            "averageHeartRate",
-            "maxHeartRate",
-          ].some((field) => Boolean(state.fieldErrors?.[field]))}
-        >
-          <Field
-            group
-            label="Swimming time"
-            hint="Optional — the time actually swimming, without the rests"
-            error={
-              state.fieldErrors?.activeMs ??
-              state.fieldErrors?.activeMinutes ??
-              state.fieldErrors?.activeSeconds
-            }
-          >
-            <div className="grid grid-cols-2 gap-2">
-              <Field label="Minutes">
-                <Input
-                  name="activeMinutes"
-                  inputMode="numeric"
-                  value={activeMinutes}
-                  onChange={(event) => setActiveMinutes(event.target.value)}
-                  placeholder="—"
-                />
-              </Field>
-              <Field label="Seconds">
-                <Input
-                  name="activeSeconds"
-                  inputMode="decimal"
-                  value={activeSeconds}
-                  onChange={(event) => setActiveSeconds(event.target.value)}
-                  placeholder="—"
-                />
-              </Field>
-            </div>
-          </Field>
-          {pace !== null && (
-            <p role="status" className="text-sm text-ink-muted tabular-nums">
-              {formatPaceSeconds(pace, 1)} per 100 {paceUnit}
-            </p>
-          )}
-          <Field label="Stroke" error={state.fieldErrors?.stroke}>
-            <Select name="stroke" defaultValue={values("stroke") || "unspecified"}>
-              {SWIM_STROKES.map((stroke) => (
-                <option key={stroke} value={stroke}>
-                  {STROKE_LABELS[stroke]}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label="Strokes taken" hint="Optional" error={state.fieldErrors?.strokeCount}>
-            <Input
-              name="strokeCount"
-              inputMode="numeric"
-              defaultValue={values("strokeCount")}
-              placeholder="—"
-            />
-          </Field>
-          <HeartRateFields values={values} errors={state.fieldErrors} />
-        </MoreDetails>
-      </Section>
+      <MoreDetails
+        hasErrors={[
+          "activeMs",
+          "activeMinutes",
+          "activeSeconds",
+          "stroke",
+          "strokeCount",
+          "averageHeartRate",
+          "maxHeartRate",
+        ].some((field) => Boolean(state.fieldErrors?.[field]))}
+      >
+        <DurationField
+          label="Swimming time"
+          hint="Optional"
+          info="The time actually swimming, without the rests. A pace needs it."
+          error={
+            state.fieldErrors?.activeMs ??
+            state.fieldErrors?.activeMinutes ??
+            state.fieldErrors?.activeSeconds
+          }
+          parts={[
+            {
+              name: "activeMinutes",
+              label: "Minutes",
+              suffix: "min",
+              placeholder: "—",
+              value: activeMinutes,
+              onChange: setActiveMinutes,
+            },
+            {
+              name: "activeSeconds",
+              label: "Seconds",
+              suffix: "s",
+              placeholder: "—",
+              inputMode: "decimal",
+              value: activeSeconds,
+              onChange: setActiveSeconds,
+            },
+          ]}
+        />
+        {pace !== null && (
+          <Readout
+            sport="swimming"
+            label="Swimming pace"
+            value={formatPaceSeconds(pace, 1)}
+            unit={`per 100 ${paceUnit}`}
+          />
+        )}
+        <Field label="Stroke" error={state.fieldErrors?.stroke}>
+          <Select name="stroke" defaultValue={values("stroke") || "unspecified"}>
+            {SWIM_STROKES.map((stroke) => (
+              <option key={stroke} value={stroke}>
+                {STROKE_LABELS[stroke]}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Strokes taken" hint="Optional" error={state.fieldErrors?.strokeCount}>
+          <Input
+            name="strokeCount"
+            inputMode="numeric"
+            defaultValue={values("strokeCount")}
+            placeholder="—"
+          />
+        </Field>
+        <HeartRateFields values={values} errors={state.fieldErrors} />
+      </MoreDetails>
 
       <NotesFields values={values} errors={state.fieldErrors} />
 
       <div className="space-y-2">
         <LargeEntryConfirmation message={state.formError} />
         <FormError message={state.formError} />
-        <SubmitButton pendingLabel="Saving…">{submitLabel}</SubmitButton>
+        <SubmitButton tone="swim" pendingLabel="Saving…">
+          {submitLabel}
+        </SubmitButton>
       </div>
     </form>
   );

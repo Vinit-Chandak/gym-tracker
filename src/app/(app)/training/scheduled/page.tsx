@@ -2,21 +2,24 @@ import type { Metadata } from "next";
 
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
+import Link from "@/components/ui/app-link";
 import { Badge } from "@/components/ui/badge";
 import { LinkButton } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { CalendarDays } from "@/components/ui/icons";
+import { CalendarDays, ChevronRight } from "@/components/ui/icons";
+import { PRESSABLE_ROW_CLASS, ROW_CLASS, List } from "@/components/ui/link-row";
 import { Section } from "@/components/ui/section";
+import { SportChip } from "@/components/ui/sport-chip";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { ACTIVITY_SPORT_LABELS } from "@/domain/activity";
 import { describePrescription } from "@/domain/activity-prescription";
 import { todayInTimeZone } from "@/domain/program-calendar";
+import { formatIsoWeekdayDay } from "@/lib/format";
+import { SPORT_TONE } from "@/lib/sport-tone";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { standaloneSchedule, type ScheduledOccurrence } from "@/server/repositories/occurrences";
-import { formatIsoDate } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Scheduled" };
 
@@ -27,36 +30,59 @@ export const metadata: Metadata = { title: "Scheduled" };
  * view. Nothing on this page is a coach target either: scheduling something yourself puts it
  * on the calendar without making it part of a programme.
  */
-function OccurrenceRow({ occurrence }: { occurrence: ScheduledOccurrence }) {
+function OccurrenceRow({ occurrence, today }: { occurrence: ScheduledOccurrence; today: string }) {
+  const time = occurrence.scheduledLocalTime?.slice(0, 5) ?? null;
+  const when =
+    occurrence.scheduledOn === today ? "Today" : formatIsoWeekdayDay(occurrence.scheduledOn);
+  // The sport, the day and the time on one line; what it asks for under it, as on Today.
+  const meta = [ACTIVITY_SPORT_LABELS[occurrence.sport], when, time].filter(Boolean).join(", ");
+  const body = (
+    <>
+      <SportChip sport={occurrence.sport} />
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm [overflow-wrap:anywhere] text-ink-muted tabular-nums">
+          {meta}
+        </span>
+        <span className="block text-headline leading-snug font-semibold [overflow-wrap:anywhere]">
+          {occurrence.prescription
+            ? describePrescription(occurrence.prescription)
+            : "No targets set"}
+        </span>
+      </span>
+    </>
+  );
+
+  // Answered: the row opens what was logged, as a finished session on Today does.
+  if (occurrence.resolution.kind === "logged") {
+    return (
+      <Link
+        href={`/training/activities/${occurrence.resolution.activityId}`}
+        prefetch="intent"
+        className={PRESSABLE_ROW_CLASS}
+      >
+        {body}
+        <Badge tone="success">Logged</Badge>
+        <ChevronRight className="-ml-1 shrink-0 text-ink-subtle" aria-hidden />
+      </Link>
+    );
+  }
   return (
-    <Card>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-ink-muted">
-            {ACTIVITY_SPORT_LABELS[occurrence.sport]} · {formatIsoDate(occurrence.scheduledOn)}
-          </p>
-          <h2 className="mt-1 text-base font-semibold [overflow-wrap:anywhere]">
-            {occurrence.prescription
-              ? describePrescription(occurrence.prescription)
-              : "No targets set"}
-          </h2>
-        </div>
-        {occurrence.resolution.kind === "logged" ? (
-          <Badge tone="accent">Logged</Badge>
-        ) : occurrence.disposition === "skipped" ? (
-          <Badge tone="neutral">Skipped</Badge>
-        ) : null}
-      </div>
-      {occurrence.loggable && (
-        <LinkButton
-          href={`/training/new?occurrence=${occurrence.id}`}
-          variant="secondary"
-          className="w-full"
-        >
-          Log it
-        </LinkButton>
-      )}
-    </Card>
+    <div className={ROW_CLASS}>
+      {body}
+      <span className="flex shrink-0 flex-col items-end gap-1.5">
+        {occurrence.disposition === "skipped" && <Badge tone="neutral">Skipped</Badge>}
+        {occurrence.loggable && (
+          <LinkButton
+            href={`/training/new?occurrence=${occurrence.id}`}
+            variant="secondary"
+            tone={SPORT_TONE[occurrence.sport]}
+            size="sm"
+          >
+            Log it
+          </LinkButton>
+        )}
+      </span>
+    </div>
   );
 }
 
@@ -78,7 +104,14 @@ export default async function ScheduledPage() {
     <>
       <PageHeader title="Scheduled on their own" backHref="/training" />
       <PageContent>
-        <Section title="Upcoming">
+        <Section
+          title="Upcoming"
+          info={
+            upcoming.length > 0
+              ? "Sessions you put on the calendar yourself. Today's are on Today too; your programme's own sessions are under Programme."
+              : undefined
+          }
+        >
           {upcoming.length === 0 ? (
             <EmptyState
               icon={CalendarDays}
@@ -91,16 +124,24 @@ export default async function ScheduledPage() {
               }
             />
           ) : (
-            upcoming.map((occurrence) => (
-              <OccurrenceRow key={occurrence.id} occurrence={occurrence} />
-            ))
+            <List>
+              {upcoming.map((occurrence) => (
+                <li key={occurrence.id}>
+                  <OccurrenceRow occurrence={occurrence} today={today} />
+                </li>
+              ))}
+            </List>
           )}
         </Section>
         {done.length > 0 && (
           <Section title="Earlier">
-            {done.map((occurrence) => (
-              <OccurrenceRow key={occurrence.id} occurrence={occurrence} />
-            ))}
+            <List>
+              {done.map((occurrence) => (
+                <li key={occurrence.id}>
+                  <OccurrenceRow occurrence={occurrence} today={today} />
+                </li>
+              ))}
+            </List>
           </Section>
         )}
       </PageContent>

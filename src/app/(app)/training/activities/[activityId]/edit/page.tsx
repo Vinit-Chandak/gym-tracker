@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/shell/page-header";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { activityFormValues } from "@/lib/activity-form-values";
+import { formatDateTime } from "@/lib/format";
 import { ORIGIN_PARAM, originQuery, parseOrigin } from "@/lib/nav";
 import { toDateTimeLocal } from "@/lib/time";
 import { saveActivityAction } from "@/server/actions/activities";
@@ -36,6 +37,7 @@ export default async function EditActivityPage(
     <>
       <PageHeader
         title={`Correct the ${noun}`}
+        meta={formatDateTime(activity.startedAt, profile.timeZone)}
         backHref={`/training/activities/${activityId}${originQuery(origin)}`}
       />
       <PageContent>

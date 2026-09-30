@@ -1,17 +1,21 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useId, useState, type ReactNode } from "react";
 
 import { Card } from "@/components/ui/card";
 import { Disclosure } from "@/components/ui/disclosure";
 import { FormError, SubmitButton } from "@/components/ui/form";
+import { InfoTip } from "@/components/ui/info-tip";
 import { Field, Input, Textarea } from "@/components/ui/input";
 import { Section } from "@/components/ui/section";
 import { SegmentedControl } from "@/components/ui/segmented-control";
-import { ACTIVITY_SPORT_LABELS, type EnduranceSport } from "@/domain/activity";
+import type { EnduranceSport } from "@/domain/activity";
 import { TEXT_LIMITS } from "@/domain/activity-limits";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
+import { SPORT_TONE } from "@/lib/sport-tone";
 import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
+
+import { SportChips } from "./sport-chips";
 
 /**
  * Writing what a session asks for (plan §5.1).
@@ -47,6 +51,91 @@ const STEP_KINDS = [
   { value: "duration", label: "By time" },
 ];
 
+type End = {
+  name: string;
+  /** What a screen reader calls the box: "Minutes from". */
+  label: string;
+  defaultValue: string;
+  placeholder: string;
+  inputMode: "numeric" | "decimal";
+  error?: string;
+};
+
+/**
+ * A target written as a range, "30 to 35", on one line under its name. The two boxes keep
+ * their own names for a screen reader; on screen the word between them says the rest. A unit
+ * the range is written in is chosen beside the name.
+ */
+function RangeField({
+  label,
+  hint,
+  info,
+  unit,
+  from,
+  to,
+}: {
+  label: string;
+  hint?: string;
+  info?: ReactNode;
+  unit?: ReactNode;
+  from: End;
+  to: End;
+}) {
+  const id = useId();
+  const errors = [from.error, to.error].filter(Boolean);
+  const feedbackId = `${id}-feedback`;
+  const described = errors.length > 0 || hint ? feedbackId : undefined;
+  const box = (end: End) => (
+    <Input
+      name={end.name}
+      aria-label={end.label}
+      inputMode={end.inputMode}
+      defaultValue={end.defaultValue}
+      placeholder={end.placeholder}
+      aria-invalid={end.error ? true : undefined}
+      aria-describedby={described}
+      className="text-center tabular-nums"
+    />
+  );
+  return (
+    <div className="min-w-0 space-y-1.5">
+      <div className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <span className="flex min-w-0 items-center gap-1 text-sm font-semibold text-ink-muted">
+          <span id={`${id}-label`} className="min-w-0 [overflow-wrap:anywhere]">
+            {label}
+          </span>
+          {info && <InfoTip label={`About ${label.toLowerCase()}`}>{info}</InfoTip>}
+        </span>
+        {unit && <div className="w-32 max-w-full shrink-0">{unit}</div>}
+      </div>
+      <div
+        role="group"
+        aria-labelledby={`${id}-label`}
+        className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2"
+      >
+        {box(from)}
+        <span aria-hidden className="text-sm text-ink-muted">
+          to
+        </span>
+        {box(to)}
+      </div>
+      {(errors.length > 0 || hint) && (
+        <span id={feedbackId} className="block space-y-0.5">
+          {errors.length > 0 ? (
+            errors.map((error) => (
+              <span key={error} role="alert" className="block text-sm text-danger">
+                {error}
+              </span>
+            ))
+          ) : (
+            <span className="block text-xs text-ink-subtle">{hint}</span>
+          )}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export function PrescriptionEditor({
   action,
   sport,
@@ -68,153 +157,146 @@ export function PrescriptionEditor({
   const units = DISTANCE_UNITS[selectedSport];
   const initialUnit = (key: string) =>
     units.some((unit) => unit.value === value(key)) ? value(key) : units[0]!.value;
+  const errors = state.fieldErrors;
 
   return (
     <form action={formAction} className="space-y-[var(--section-gap)]">
       {sports.length === 0 && <input type="hidden" name="sport" value={sport} />}
 
-      <Section title="The session">
-        <Card>
-          {sports.length > 0 && (
-            <Field group label="Sport" error={state.fieldErrors?.sport}>
+      <Card>
+        {sports.length > 0 && (
+          <Field group labelHidden label="Sport" error={errors?.sport}>
+            <SportChips sports={sports} value={selectedSport} onChange={setSelectedSport} />
+          </Field>
+        )}
+        <Field label="Name" error={errors?.name}>
+          <Input
+            name="name"
+            defaultValue={value("name")}
+            maxLength={TEXT_LIMITS.title}
+            placeholder="Easy 5k"
+            required
+          />
+        </Field>
+      </Card>
+
+      <Section
+        title="Overall target"
+        info="Give a time, a distance, or both. Leave the other blank and nothing is invented for it."
+      >
+        <Card className="space-y-4">
+          <RangeField
+            label="Time in minutes"
+            from={{
+              name: "durationMinMinutes",
+              label: "Minutes from",
+              defaultValue: value("durationMinMinutes"),
+              placeholder: "30",
+              inputMode: "numeric",
+              error: errors?.durationMinMinutes,
+            }}
+            to={{
+              name: "durationMaxMinutes",
+              label: "Minutes to",
+              defaultValue: value("durationMaxMinutes"),
+              placeholder: "35",
+              inputMode: "numeric",
+              error: errors?.durationMaxMinutes,
+            }}
+          />
+          <RangeField
+            label="Distance"
+            unit={
               <SegmentedControl
-                name="sport"
-                aria-label="Sport"
-                options={sports.map((item) => ({
-                  value: item,
-                  label: ACTIVITY_SPORT_LABELS[item],
-                }))}
-                value={selectedSport}
-                onChange={setSelectedSport}
-                columns={sports.length}
+                key={`distance-${selectedSport}`}
+                name="distanceUnit"
+                aria-label="Distance unit"
+                options={units}
+                defaultValue={initialUnit("distanceUnit")}
+                columns={units.length}
               />
-            </Field>
-          )}
-          <Field label="Name" error={state.fieldErrors?.name}>
-            <Input
-              name="name"
-              defaultValue={value("name")}
-              maxLength={TEXT_LIMITS.title}
-              placeholder="Easy 5k"
-              required
+            }
+            from={{
+              name: "distanceMin",
+              label: "Distance from",
+              defaultValue: value("distanceMin"),
+              placeholder: "5",
+              inputMode: "decimal",
+              error: errors?.distanceMin,
+            }}
+            to={{
+              name: "distanceMax",
+              label: "Distance to",
+              defaultValue: value("distanceMax"),
+              placeholder: "5",
+              inputMode: "decimal",
+              error: errors?.distanceMax,
+            }}
+          />
+          <RangeField
+            label="Effort"
+            hint="Optional"
+            info="How hard it should feel, 1 very easy to 5 maximal."
+            from={{
+              name: "effortMin",
+              label: "Effort from",
+              defaultValue: value("effortMin"),
+              placeholder: "3",
+              inputMode: "decimal",
+              error: errors?.effortMin,
+            }}
+            to={{
+              name: "effortMax",
+              label: "Effort to",
+              defaultValue: value("effortMax"),
+              placeholder: "5",
+              inputMode: "decimal",
+              error: errors?.effortMax,
+            }}
+          />
+        </Card>
+      </Section>
+
+      <Disclosure summary="One repeated block" meta="Optional" defaultOpen={stepKind !== "none"}>
+        <div className="space-y-3">
+          <Field
+            group
+            label="How the block is measured"
+            info="Rest happens between repetitions, so eight of them have seven rests."
+          >
+            <SegmentedControl
+              name="stepTargetKind"
+              aria-label="Block target"
+              options={STEP_KINDS}
+              value={stepKind}
+              onChange={setStepKind}
+              columns={3}
             />
           </Field>
-        </Card>
-      </Section>
-
-      <Section title="Overall target">
-        <Card>
-          <div className="grid grid-cols-2 gap-2">
-            <Field label="Minutes from" error={state.fieldErrors?.durationMinMinutes}>
-              <Input
-                name="durationMinMinutes"
-                inputMode="numeric"
-                defaultValue={value("durationMinMinutes")}
-                placeholder="30"
-              />
-            </Field>
-            <Field label="Minutes to" error={state.fieldErrors?.durationMaxMinutes}>
-              <Input
-                name="durationMaxMinutes"
-                inputMode="numeric"
-                defaultValue={value("durationMaxMinutes")}
-                placeholder="35"
-              />
-            </Field>
-          </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-[1fr_1fr_auto]">
-            <Field label="Distance from" error={state.fieldErrors?.distanceMin}>
-              <Input
-                name="distanceMin"
-                inputMode="decimal"
-                defaultValue={value("distanceMin")}
-                placeholder="5"
-              />
-            </Field>
-            <Field label="Distance to" error={state.fieldErrors?.distanceMax}>
-              <Input
-                name="distanceMax"
-                inputMode="decimal"
-                defaultValue={value("distanceMax")}
-                placeholder="5"
-              />
-            </Field>
-            <div className="col-span-full sm:col-span-1">
-              <Field group label="Unit">
-                <SegmentedControl
-                  key={`distance-${selectedSport}`}
-                  name="distanceUnit"
-                  aria-label="Distance unit"
-                  options={units}
-                  defaultValue={initialUnit("distanceUnit")}
-                  columns={units.length}
-                />
-              </Field>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <Field label="Effort from" hint="Optional" error={state.fieldErrors?.effortMin}>
-              <Input
-                name="effortMin"
-                inputMode="decimal"
-                defaultValue={value("effortMin")}
-                placeholder="3"
-              />
-            </Field>
-            <Field label="Effort to" hint="Optional" error={state.fieldErrors?.effortMax}>
-              <Input
-                name="effortMax"
-                inputMode="decimal"
-                defaultValue={value("effortMax")}
-                placeholder="5"
-              />
-            </Field>
-          </div>
-          <p className="text-sm text-ink-muted">
-            Give a time, a distance, or both. Leave the other blank and nothing is invented for it.
-          </p>
-        </Card>
-      </Section>
-
-      <Section title="Repeats">
-        <Disclosure summary="One repeated block" meta="Optional" defaultOpen={stepKind !== "none"}>
-          <div className="space-y-3">
-            <Field group label="How the block is measured">
-              <SegmentedControl
-                name="stepTargetKind"
-                aria-label="Block target"
-                options={STEP_KINDS}
-                value={stepKind}
-                onChange={setStepKind}
-                columns={3}
-              />
-            </Field>
-            {stepKind !== "none" && (
-              <>
-                <div className="grid grid-cols-2 gap-2">
-                  <Field label="Repetitions" error={state.fieldErrors?.repetitions}>
-                    <Input
-                      name="repetitions"
-                      inputMode="numeric"
-                      defaultValue={value("repetitions")}
-                      placeholder="8"
-                    />
-                  </Field>
-                  <Field
-                    label="Rest between, seconds"
-                    error={state.fieldErrors?.restBetweenSeconds}
-                  >
-                    <Input
-                      name="restBetweenSeconds"
-                      inputMode="numeric"
-                      defaultValue={value("restBetweenSeconds")}
-                      placeholder="20"
-                    />
-                  </Field>
-                </div>
-                {stepKind === "distance" ? (
-                  <div className="grid grid-cols-[1fr_auto] gap-2">
-                    <Field label="Each repetition" error={state.fieldErrors?.stepDistance}>
+          {stepKind !== "none" && (
+            <>
+              <div className="grid grid-cols-2 gap-2">
+                <Field label="Repetitions" error={errors?.repetitions}>
+                  <Input
+                    name="repetitions"
+                    inputMode="numeric"
+                    defaultValue={value("repetitions")}
+                    placeholder="8"
+                  />
+                </Field>
+                <Field label="Rest between, seconds" error={errors?.restBetweenSeconds}>
+                  <Input
+                    name="restBetweenSeconds"
+                    inputMode="numeric"
+                    defaultValue={value("restBetweenSeconds")}
+                    placeholder="20"
+                  />
+                </Field>
+              </div>
+              {stepKind === "distance" ? (
+                <div className="flex flex-wrap items-end gap-2">
+                  <div className="min-w-0 flex-1 basis-32">
+                    <Field label="Each repetition" error={errors?.stepDistance}>
                       <Input
                         name="stepDistance"
                         inputMode="decimal"
@@ -222,7 +304,9 @@ export function PrescriptionEditor({
                         placeholder="50"
                       />
                     </Field>
-                    <Field group label="Unit">
+                  </div>
+                  <div className="w-32 max-w-full">
+                    <Field group labelHidden label="Unit">
                       <SegmentedControl
                         key={`step-${selectedSport}`}
                         name="stepDistanceUnit"
@@ -233,44 +317,38 @@ export function PrescriptionEditor({
                       />
                     </Field>
                   </div>
-                ) : (
-                  <Field
-                    label="Each repetition, seconds"
-                    error={state.fieldErrors?.stepDurationSeconds}
-                  >
-                    <Input
-                      name="stepDurationSeconds"
-                      inputMode="numeric"
-                      defaultValue={value("stepDurationSeconds")}
-                      placeholder="120"
-                    />
-                  </Field>
-                )}
-                <p className="text-sm text-ink-muted">
-                  Rest happens between repetitions, so eight of them have seven rests.
-                </p>
-              </>
-            )}
-          </div>
-        </Disclosure>
-      </Section>
+                </div>
+              ) : (
+                <Field label="Each repetition, seconds" error={errors?.stepDurationSeconds}>
+                  <Input
+                    name="stepDurationSeconds"
+                    inputMode="numeric"
+                    defaultValue={value("stepDurationSeconds")}
+                    placeholder="120"
+                  />
+                </Field>
+              )}
+            </>
+          )}
+        </div>
+      </Disclosure>
 
-      <Section title="Notes">
-        <Card>
-          <Field label="Notes" hint="Optional" error={state.fieldErrors?.notes}>
-            <Textarea
-              name="notes"
-              defaultValue={value("notes")}
-              maxLength={TEXT_LIMITS.prescriptionNotes}
-              placeholder="What this session is for…"
-            />
-          </Field>
-        </Card>
-      </Section>
+      <Card>
+        <Field label="Notes" hint="Optional" error={errors?.notes}>
+          <Textarea
+            name="notes"
+            defaultValue={value("notes")}
+            maxLength={TEXT_LIMITS.prescriptionNotes}
+            placeholder="What this session is for…"
+          />
+        </Field>
+      </Card>
 
       <div className="space-y-2">
         <FormError message={state.formError} />
-        <SubmitButton pendingLabel="Saving…">{submitLabel}</SubmitButton>
+        <SubmitButton tone={SPORT_TONE[selectedSport]} pendingLabel="Saving…">
+          {submitLabel}
+        </SubmitButton>
       </div>
     </form>
   );

@@ -36,11 +36,14 @@ it("says each record in the reader's unit, with what it was before", () => {
     />,
   );
   expect(screen.getByRole("heading", { name: "2 records" })).toBeTruthy();
-  expect(screen.getByRole("link", { name: "Barbell bench press" }).getAttribute("href")).toBe(
-    "/exercises/bench",
-  );
-  expect(screen.getByText(/Est\. 1RM/).textContent).toContain("194 lb (was 187.4 lb)");
-  expect(screen.getByText(/Most reps/).textContent).toContain("12 reps (was 11 reps)");
+  const benchLink = screen.getByRole("link", { name: "Barbell bench press" });
+  expect(benchLink.getAttribute("href")).toBe("/exercises/bench");
+  // The new figure beside the movement, and what it was before under its name.
+  expect(benchLink.closest("li")!.textContent).toContain("194 lb");
+  expect(screen.getByText(/Est\. 1RM/).textContent).toBe("Est. 1RM, was 187.4 lb");
+  const pullUpLink = screen.getByRole("link", { name: "Pull-up" });
+  expect(pullUpLink.closest("li")!.textContent).toContain("12 reps");
+  expect(screen.getByText(/Most reps/).textContent).toBe("Most reps, was 11 reps");
 });
 
 it("renders nothing at all when a session set no records", () => {
@@ -61,7 +64,7 @@ it("tiles the bests with their dates, labelled for the movement", () => {
   );
   expect(screen.getByText("Added load")).toBeTruthy();
   expect(screen.getByText("10 kg")).toBeTruthy();
-  expect(screen.getByText("3 × 8 · 30 Aug 2026")).toBeTruthy();
+  expect(screen.getByText("3 × 8, 30 Aug 2026")).toBeTruthy();
   expect(screen.getByText("8 Sept 2026")).toBeTruthy();
 });
 
@@ -72,9 +75,9 @@ it("lists period records with the metric and day under the name", () => {
       records={[{ exercise: bench, metric: "e1rm", value: 81.7, occurredOn: "2026-09-08" }]}
     />,
   );
-  expect(screen.getByText("Barbell bench press")).toBeTruthy();
-  expect(screen.getByText("Est. 1RM · 8 Sept 2026")).toBeTruthy();
-  expect(screen.getByText("81.7 kg")).toBeTruthy();
+  const name = screen.getByText("Barbell bench press");
+  expect(screen.getByText("Est. 1RM, 8 Sept 2026")).toBeTruthy();
+  expect(name.closest("li")!.textContent).toContain("81.7 kg");
 });
 
 const row = (over: Partial<Activity>): Activity => ({
@@ -97,7 +100,7 @@ it("reads a workout row and a run row the way the plan writes them", () => {
   render(<ActivityRow row={row({})} unit="kg" today="2026-09-15" />);
   // The shared row's own id: a raw activity id would name a private record (AT-PRIV-04).
   expect(screen.getByRole("link").getAttribute("href")).toBe("/u/phani03/activities/1");
-  expect(screen.getByText("Upper A · 18 sets · 6,240 kg · 2 records")).toBeTruthy();
+  expect(screen.getByText("Upper A, 18 sets, 6,240 kg, 2 records")).toBeTruthy();
   expect(screen.getByText("Yesterday")).toBeTruthy();
   cleanup();
   render(
@@ -115,7 +118,7 @@ it("reads a workout row and a run row the way the plan writes them", () => {
       today="2026-09-15"
     />,
   );
-  expect(screen.getByText("Run · 5.2 km · 28:10 · 5:25 /km")).toBeTruthy();
+  expect(screen.getByText("Run, 5.2 km, 28:10, 5:25 /km")).toBeTruthy();
   expect(screen.getByText("Today")).toBeTruthy();
   cleanup();
 
@@ -142,7 +145,7 @@ it("reads a workout row and a run row the way the plan writes them", () => {
       today="2026-09-15"
     />,
   );
-  expect(screen.getByText("Ride · 18.2 km · 30:00")).toBeTruthy();
+  expect(screen.getByText("Ride, 18.2 km, 30:00")).toBeTruthy();
   cleanup();
 
   render(
@@ -162,5 +165,5 @@ it("reads a workout row and a run row the way the plan writes them", () => {
       today="2026-09-15"
     />,
   );
-  expect(screen.getByText("Swim · 25:00")).toBeTruthy();
+  expect(screen.getByText("Swim, 25:00")).toBeTruthy();
 });

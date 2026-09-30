@@ -92,6 +92,12 @@ type Props = {
   selected: PerformanceSeries | null;
 };
 
+/**
+ * Body weight is about the person rather than any one sport, so its line is drawn in ink:
+ * colour on this screen always names a sport.
+ */
+const BODY_WEIGHT_COLOR = "var(--ov-ink)";
+
 const RUN_METRICS = [
   { value: "distance", label: "Distance" },
   { value: "duration", label: "Duration" },
@@ -219,7 +225,7 @@ export function ProgressView({
             {sportTotals && sportTotals.some((total) => total.count > 0) && (
               <section aria-labelledby="training-totals" className="space-y-2">
                 <div className="flex items-center gap-1 px-1">
-                  <h2 id="training-totals" className="text-[1.0625rem] font-semibold">
+                  <h2 id="training-totals" className="text-headline font-semibold">
                     Training totals
                   </h2>
                   <InfoTip label="What these totals count">
@@ -240,7 +246,7 @@ export function ProgressView({
                       return (
                         <li
                           key={total.sport}
-                          className={cn("min-w-0 space-y-2 rounded-card p-4", TONE_SOFT[tone])}
+                          className={cn("min-w-0 space-y-2 rounded-tile p-4", TONE_SOFT[tone])}
                         >
                           <p className="flex items-center gap-2 text-sm font-semibold">
                             {Icon && <Icon aria-hidden />}
@@ -289,7 +295,7 @@ export function ProgressView({
 
             <Card>
               <div className="flex items-center justify-between gap-3">
-                <h2 className="text-[1.0625rem] font-semibold">Weekly sessions</h2>
+                <h2 className="text-headline font-semibold">Weekly sessions</h2>
                 <InfoTip label="About weekly sessions">
                   Weeks run Monday to Sunday in your time zone. The chart ends at the last week you
                   trained in, not at today, so it never finishes on an empty column. A week still
@@ -356,7 +362,7 @@ export function ProgressView({
             {muscles.length > 0 && (
               <Card>
                 <div className="flex items-center justify-between gap-3">
-                  <h2 className="text-base font-semibold">Sets by muscle</h2>
+                  <h2 className="text-headline font-semibold">Sets by muscle</h2>
                   <InfoTip label="About sets by muscle">
                     Working sets per week. A set counts once for each primary muscle and half for
                     each secondary one; warm-ups are excluded.
@@ -471,7 +477,7 @@ export function ProgressView({
           <>
             <Card>
               <div className="flex items-center justify-between gap-3">
-                <h2 className="text-base font-semibold">Body weight</h2>
+                <h2 className="text-headline font-semibold">Body weight</h2>
                 <InfoTip label="About body weight">
                   Every reading you have entered, from finishing a workout or from your profile. One
                   reading per day; the newest is the weight shown on your profile.
@@ -484,22 +490,20 @@ export function ProgressView({
                     title="Body weight"
                     unit={unit}
                     caption={false}
-                    series={[
-                      { name: "Body weight", color: SERIES_COLORS.lifting, points: bodyWeight },
-                    ]}
+                    series={[{ name: "Body weight", color: BODY_WEIGHT_COLOR, points: bodyWeight }]}
                   />
                 </>
               ) : (
                 <p className="text-sm text-ink-muted">
                   No readings in this range. Weight recorded when you finish a session appears here,
-                  and you can set it any day from Profile → Edit profile.
+                  and you can set it any day from Edit profile, under Profile.
                 </p>
               )}
             </Card>
 
             <Card>
               <div className="flex items-center justify-between gap-3">
-                <h2 className="text-base font-semibold">Muscles this week</h2>
+                <h2 className="text-headline font-semibold">Muscles this week</h2>
                 <InfoTip label="About the body map">
                   Working sets from finished workouts. A set counts once for each primary muscle and
                   half for each secondary one; warm-ups are excluded.

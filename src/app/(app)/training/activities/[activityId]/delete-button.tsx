@@ -24,7 +24,7 @@ export function DeleteActivityButton({
   return (
     <div className="space-y-2">
       {armed && (
-        <p className="text-sm text-ink-muted">
+        <p className="px-4 text-center text-sm text-ink-muted">
           This removes the log and its shared statistics
           {settlesOccurrence ? ", and the planned session becomes loggable again" : ""}. It cannot
           be undone.
@@ -52,7 +52,7 @@ export function DeleteActivityButton({
         {pending ? "Deleting…" : armed ? "Tap again to delete" : "Delete activity"}
       </Button>
       {error && (
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="px-4 text-center text-sm text-danger">
           {error}
         </p>
       )}

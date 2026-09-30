@@ -106,16 +106,17 @@ await mkdir(folder, { recursive: true });
 const persist = () => writeFile(`${folder}/results.json`, JSON.stringify(report, null, 2));
 const sql = postgres(database, { max: 1 });
 
+/** A recovery row's readings as History says them after its date: "sleep 7.5 h, fatigue 4". */
 function readings(row) {
   return [
-    ["Sleep", row.sleep_hours, "h"],
-    ["Energy", row.energy],
-    ["Fatigue", row.fatigue],
-    ["Soreness", row.soreness],
+    ["sleep", row.sleep_hours, "h"],
+    ["energy", row.energy],
+    ["fatigue", row.fatigue],
+    ["soreness", row.soreness],
   ]
     .filter(([, value]) => value !== null)
     .map(([label, value, unit]) => `${label} ${Number(value)}${unit ? ` ${unit}` : ""}`)
-    .join(" · ");
+    .join(", ");
 }
 
 async function snapshot(username) {
@@ -321,15 +322,15 @@ async function checkRecords(page, data, window, kind = "all") {
             badges: link
               ? [...link.querySelectorAll("span")].map((span) => span.textContent.trim())
               : [],
-            date: link
-              ? null
-              : row
-                  .querySelector(":scope > div > p")
-                  ?.textContent.match(/^Recovery · (\d{4}-\d{2}-\d{2})/)?.[1],
+            date: link ? null : row.querySelector(":scope > [data-date]")?.dataset.date,
+            // The row's line is "Sun 27 Sept, sleep 7.5 h, fatigue 4": the readings follow the date.
             readings: link
               ? null
-              : row.querySelector(":scope > div > p:nth-child(2)")?.textContent.trim(),
-            notes: link ? null : (row.querySelector(":scope > p")?.textContent.trim() ?? ""),
+              : (row.querySelector("[data-readings]")?.textContent.trim() ?? "")
+                  .split(", ")
+                  .slice(1)
+                  .join(", "),
+            notes: link ? null : (row.querySelector("[data-notes]")?.textContent.trim() ?? ""),
           };
         })
       : [];

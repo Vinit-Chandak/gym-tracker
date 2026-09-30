@@ -40,6 +40,22 @@ export function OccurrenceActions({
   return (
     <div className="space-y-3">
       <Card>
+        <form action={moveAction} className="space-y-3">
+          <Field
+            label="Move to"
+            info="Only this session moves. The week it was first placed in is still the one adherence counts it against."
+            error={moveState.fieldErrors?.scheduledOn}
+          >
+            <Input name="scheduledOn" type="date" defaultValue={scheduledOn} required />
+          </Field>
+          <FormError message={moveState.formError} />
+          <SubmitButton variant="secondary" size="md" pendingLabel="Moving…">
+            Move it
+          </SubmitButton>
+        </form>
+      </Card>
+
+      <div className="space-y-1">
         <Button
           variant="ghost"
           className="w-full"
@@ -62,30 +78,16 @@ export function OccurrenceActions({
           {pending ? "Saving…" : skipped ? "Put it back" : "Skip this session"}
         </Button>
         {skipped && (
-          <p className="text-sm text-ink-muted">
-            Skipped sessions stay in the programme. Logging one puts it back by itself.
+          <p className="px-4 text-center text-sm text-ink-muted">
+            A skipped session stays where it is. Logging it puts it back by itself.
           </p>
         )}
         {error && (
-          <p role="alert" className="text-sm text-danger">
+          <p role="alert" className="px-4 text-center text-sm text-danger">
             {error}
           </p>
         )}
-      </Card>
-
-      <Card>
-        <form action={moveAction} className="space-y-2">
-          <Field label="Move to" error={moveState.fieldErrors?.scheduledOn}>
-            <Input name="scheduledOn" type="date" defaultValue={scheduledOn} required />
-          </Field>
-          <p className="text-sm text-ink-muted">
-            Only this session moves. The week it was first placed in is what adherence counts
-            against.
-          </p>
-          <FormError message={moveState.formError} />
-          <SubmitButton pendingLabel="Moving…">Move it</SubmitButton>
-        </form>
-      </Card>
+      </div>
     </div>
   );
 }

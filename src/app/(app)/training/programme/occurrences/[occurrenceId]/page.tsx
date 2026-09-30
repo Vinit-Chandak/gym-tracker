@@ -5,22 +5,24 @@ import { ActivityPlan } from "@/components/activities/activity-plan";
 import { OccurrenceActions } from "@/components/activities/occurrence-actions";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
-import Link from "@/components/ui/app-link";
 import { Badge } from "@/components/ui/badge";
 import { LinkButton } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { HeroCard } from "@/components/ui/hero-card";
+import { InfoTip } from "@/components/ui/info-tip";
+import { SPORT_ICON } from "@/components/ui/sport-chip";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { ACTIVITY_SPORT_LABELS } from "@/domain/activity";
 import { describePrescription } from "@/domain/activity-prescription";
 import { isOverdue } from "@/domain/occurrences";
 import { todayInTimeZone } from "@/domain/program-calendar";
+import { formatIsoDate, formatIsoWeekdayDay } from "@/lib/format";
+import { SPORT_TONE } from "@/lib/sport-tone";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { activePlanForOccurrence } from "@/server/repositories/coach-plans";
 import { getOccurrence } from "@/server/repositories/occurrences";
 import { requireUuid } from "@/server/validation/params";
-import { formatIsoDate } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Scheduled session" };
 
@@ -56,6 +58,26 @@ export default async function OccurrencePage(
   // One target on the page: the coach's, when it prepared this session inside the approved
   // range, and the programme's otherwise. The two used to be printed one above the other.
   const target = prepared?.prescription ?? occurrence.prescription;
+  const Icon = SPORT_ICON[occurrence.sport];
+  const time = occurrence.scheduledLocalTime?.slice(0, 5) ?? null;
+  const resolution = occurrence.resolution;
+  const moved =
+    occurrence.originalScheduledOn && occurrence.originalScheduledOn !== occurrence.scheduledOn
+      ? occurrence.originalScheduledOn
+      : null;
+
+  const badge =
+    resolution.kind === "logged" ? (
+      <Badge tone="success">Logged</Badge>
+    ) : resolution.kind === "skipped" ? (
+      <Badge tone="neutral">Skipped</Badge>
+    ) : resolution.kind === "cancelled" ? (
+      <Badge tone="neutral">Cancelled</Badge>
+    ) : resolution.kind === "legacy_completed" ? (
+      <Badge tone="neutral">Completed earlier</Badge>
+    ) : late ? (
+      <Badge tone="neutral">Not done</Badge>
+    ) : null;
 
   return (
     <>
@@ -65,63 +87,78 @@ export default async function OccurrencePage(
         backHref="/training/programme"
       />
       <PageContent>
-        <Card>
+        {/* The session itself, in its sport's colour: what it asks for, and the one thing to
+            do about it. */}
+        <HeroCard tone={SPORT_TONE[occurrence.sport]}>
           <div className="flex items-start justify-between gap-3">
-            <h2 className="text-lg font-semibold">
+            <p className="flex min-h-7 min-w-0 items-center gap-2 text-sm font-semibold text-ink-muted tabular-nums">
+              <Icon aria-hidden />
+              {formatIsoWeekdayDay(occurrence.scheduledOn)}
+              {time ? `, ${time}` : ""}
+            </p>
+            {badge}
+          </div>
+          <div>
+            <h2 className="font-display text-display-l font-extrabold [overflow-wrap:anywhere]">
               {target ? describePrescription(target) : "No targets set"}
             </h2>
-            {late && <Badge tone="neutral">Not done</Badge>}
-          </div>
-          {occurrence.originalScheduledOn &&
-            occurrence.originalScheduledOn !== occurrence.scheduledOn && (
-              <p className="text-sm text-ink-muted">
-                Moved from {formatIsoDate(occurrence.originalScheduledOn)}. Adherence still counts
-                against that week.
+            {moved && (
+              // The tip's target is taller than the line, so it gives the height back.
+              <p className="mt-2 flex items-center gap-1 text-callout text-ink-muted">
+                <span>Moved from {formatIsoWeekdayDay(moved)}.</span>
+                <InfoTip label="About moving a session" className="-my-2">
+                  Adherence still counts against the week it was first placed in.
+                </InfoTip>
               </p>
             )}
-        </Card>
+          </div>
 
-        {occurrence.resolution.kind !== "logged" && (
-          <ActivityPlan
-            sport={occurrence.sport}
-            prescription={target}
-            preparation={prepared ? { summary: prepared.summary, note: prepared.note } : null}
-            preparedByCoach={prepared !== null}
-          />
-        )}
-
-        {occurrence.resolution.kind === "logged" ? (
-          <Card>
-            <p className="text-sm text-ink-muted">
-              Logged on {formatIsoDate(occurrence.resolution.occurredOn)}.
-            </p>
-            <Link
-              href={`/training/activities/${occurrence.resolution.activityId}`}
-              className="text-sm text-accent"
-            >
-              See what you logged
-            </Link>
-          </Card>
-        ) : occurrence.resolution.kind === "legacy_completed" ? (
-          <Card>
-            <p className="text-sm text-ink-muted">
+          {resolution.kind === "logged" ? (
+            <>
+              <p className="text-callout text-ink-muted">
+                Logged on {formatIsoDate(resolution.occurredOn)}.
+              </p>
+              <LinkButton
+                href={`/training/activities/${resolution.activityId}`}
+                size="lg"
+                className="w-full"
+              >
+                See what you logged
+              </LinkButton>
+            </>
+          ) : resolution.kind === "legacy_completed" ? (
+            <p className="text-callout text-ink-muted">
               Completed before this was recorded in full. There is no activity behind it, and none
               was invented.
             </p>
-          </Card>
-        ) : (
-          <>
-            {occurrence.loggable && (
-              <LinkButton href={`/training/new?occurrence=${occurrence.id}`} className="w-full">
+          ) : (
+            occurrence.loggable && (
+              <LinkButton
+                href={`/training/new?occurrence=${occurrence.id}`}
+                size="lg"
+                className="w-full"
+              >
                 Log it
               </LinkButton>
-            )}
-            <OccurrenceActions
-              occurrenceId={occurrence.id}
-              skipped={occurrence.disposition === "skipped"}
-              scheduledOn={occurrence.scheduledOn}
-            />
-          </>
+            )
+          )}
+        </HeroCard>
+
+        {resolution.kind !== "logged" && (
+          <ActivityPlan
+            prescription={target}
+            preparation={prepared ? { summary: prepared.summary, note: prepared.note } : null}
+            preparedByCoach={prepared !== null}
+            fromProgramme={occurrence.familyId !== null}
+          />
+        )}
+
+        {resolution.kind !== "logged" && resolution.kind !== "legacy_completed" && (
+          <OccurrenceActions
+            occurrenceId={occurrence.id}
+            skipped={occurrence.disposition === "skipped"}
+            scheduledOn={occurrence.scheduledOn}
+          />
         )}
       </PageContent>
     </>

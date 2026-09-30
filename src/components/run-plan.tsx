@@ -15,7 +15,7 @@ export type RunTargets = {
   rpeMax?: number | null;
 };
 
-/** "5 km · 25–30 min · Effort 2": how far, how long, and how hard. */
+/** "5 km, 25–30 min, effort 2": how far, how long, and how hard, read as one phrase. */
 export function runSummary(run: RunTargets): string {
   const parts = [
     run.distanceMinKm === null
@@ -24,9 +24,9 @@ export function runSummary(run: RunTargets): string {
     rangeLabel(run.durationMinMinutes, run.durationMaxMinutes, " min"),
     run.rpeMin === null || run.rpeMin === undefined
       ? null
-      : `Effort ${rangeLabel(run.rpeMin, run.rpeMax ?? run.rpeMin)}`,
+      : `effort ${rangeLabel(run.rpeMin, run.rpeMax ?? run.rpeMin)}`,
   ];
-  return parts.filter(Boolean).join(" · ");
+  return parts.filter(Boolean).join(", ");
 }
 
 /** Whether the run says anything beyond how long and how hard. */

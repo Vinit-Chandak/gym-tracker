@@ -15,11 +15,13 @@ import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
 import {
   ActivityIdentityFields,
   DistanceField,
+  DurationField,
   EffortField,
   HeartRateFields,
   LargeEntryConfirmation,
   MoreDetails,
   NotesFields,
+  Readout,
   TargetCard,
   useFormValues,
   type ActivityFormValues,
@@ -86,6 +88,9 @@ export function CyclingForm({
       ? null
       : toMetres(Number(distance.replace(",", ".")), unit as "km" | "mi");
   const speed = metres === null ? null : speedMetresPerSecond(metres, durationMs);
+  // "24.5 km/h": the figure in the display face, its unit beside it.
+  const [speedFigure, speedUnit] =
+    speed === null ? [] : formatSpeed(speed, unit as "km" | "mi").split(" ");
 
   return (
     <form action={formAction} className="space-y-[var(--section-gap)]">
@@ -97,90 +102,78 @@ export function CyclingForm({
         occurrence={occurrence}
         expectedRevision={expectedRevision}
       />
-      {target && <TargetCard title={target.title} lines={target.lines} />}
+      {target && <TargetCard sport="cycling" title={target.title} lines={target.lines} />}
 
-      <Section title="The ride">
-        <Card>
-          <Field label="When" error={state.fieldErrors?.startedAt}>
-            <Input
-              name="startedAt"
-              type="datetime-local"
-              defaultValue={values("startedAt")}
-              required
-            />
-          </Field>
-
-          <Field group label="Where">
-            <SegmentedControl
-              name="environment"
-              aria-label="Where"
-              options={ENVIRONMENTS}
-              defaultValue={values("environment") || "outdoor"}
-              columns={2}
-            />
-          </Field>
-
-          <Field
-            group
-            label="Duration"
-            error={
-              state.fieldErrors?.duration ??
-              state.fieldErrors?.hours ??
-              state.fieldErrors?.minutes ??
-              state.fieldErrors?.seconds
-            }
-          >
-            <div className="grid grid-cols-3 gap-2">
-              <Field label="Hours">
-                <Input
-                  name="hours"
-                  inputMode="numeric"
-                  value={hours}
-                  onChange={(event) => setHours(event.target.value)}
-                  placeholder="1"
-                />
-              </Field>
-              <Field label="Minutes">
-                <Input
-                  name="minutes"
-                  inputMode="numeric"
-                  value={minutes}
-                  onChange={(event) => setMinutes(event.target.value)}
-                  placeholder="30"
-                />
-              </Field>
-              <Field label="Seconds">
-                <Input
-                  name="seconds"
-                  inputMode="numeric"
-                  value={seconds}
-                  onChange={(event) => setSeconds(event.target.value)}
-                  placeholder="0"
-                />
-              </Field>
-            </div>
-          </Field>
-
-          <DistanceField
-            value={distance}
-            unit={unit}
-            onValueChange={setDistance}
-            onUnitChange={setUnit}
-            units={DISTANCE_UNITS}
-            hint="Optional — leave it blank if you do not know"
-            error={state.fieldErrors?.distance ?? state.fieldErrors?.distanceValue}
+      <Card>
+        <Field label="When" error={state.fieldErrors?.startedAt}>
+          <Input
+            name="startedAt"
+            type="datetime-local"
+            defaultValue={values("startedAt")}
+            required
           />
-          {speed !== null ? (
-            <p role="status" className="text-sm text-ink-muted tabular-nums">
-              Overall average {formatSpeed(speed, unit as "km" | "mi")}
-            </p>
-          ) : (
-            <p className="text-sm text-ink-muted">
-              Without a distance there is no speed to work out, and none is guessed.
-            </p>
-          )}
-        </Card>
-      </Section>
+        </Field>
+        <Field group label="Where">
+          <SegmentedControl
+            name="environment"
+            aria-label="Where"
+            options={ENVIRONMENTS}
+            defaultValue={values("environment") || "outdoor"}
+            columns={2}
+          />
+        </Field>
+      </Card>
+
+      <Card className="space-y-4">
+        <DurationField
+          label="Duration"
+          error={
+            state.fieldErrors?.duration ??
+            state.fieldErrors?.hours ??
+            state.fieldErrors?.minutes ??
+            state.fieldErrors?.seconds
+          }
+          parts={[
+            {
+              name: "hours",
+              label: "Hours",
+              suffix: "h",
+              placeholder: "1",
+              value: hours,
+              onChange: setHours,
+            },
+            {
+              name: "minutes",
+              label: "Minutes",
+              suffix: "min",
+              placeholder: "30",
+              value: minutes,
+              onChange: setMinutes,
+            },
+            {
+              name: "seconds",
+              label: "Seconds",
+              suffix: "s",
+              placeholder: "0",
+              value: seconds,
+              onChange: setSeconds,
+            },
+          ]}
+        />
+        <DistanceField
+          value={distance}
+          unit={unit}
+          onValueChange={setDistance}
+          onUnitChange={setUnit}
+          units={DISTANCE_UNITS}
+          hint="Optional"
+          info="Leave it blank if you do not know. Without a distance there is no speed to work out, and none is guessed."
+          error={state.fieldErrors?.distance ?? state.fieldErrors?.distanceValue}
+        />
+        {speedFigure && (
+          <Readout sport="cycling" label="Overall average" value={speedFigure} unit={speedUnit} />
+        )}
+      </Card>
 
       <Section title="Effort">
         <Card>
@@ -197,52 +190,52 @@ export function CyclingForm({
         </Card>
       </Section>
 
-      <Section title="Details">
-        <MoreDetails
-          hasErrors={[
-            "averagePowerWatts",
-            "averageCadenceRpm",
-            "elevationGainMetres",
-            "averageHeartRate",
-            "maxHeartRate",
-          ].some((field) => Boolean(state.fieldErrors?.[field]))}
-        >
-          <div className="grid grid-cols-2 gap-2">
-            <Field label="Average power W" error={state.fieldErrors?.averagePowerWatts}>
-              <Input
-                name="averagePowerWatts"
-                inputMode="decimal"
-                defaultValue={values("averagePowerWatts")}
-                placeholder="—"
-              />
-            </Field>
-            <Field label="Average cadence rpm" error={state.fieldErrors?.averageCadenceRpm}>
-              <Input
-                name="averageCadenceRpm"
-                inputMode="decimal"
-                defaultValue={values("averageCadenceRpm")}
-                placeholder="—"
-              />
-            </Field>
-          </div>
-          <Field label="Elevation gain m" error={state.fieldErrors?.elevationGainMetres}>
+      <MoreDetails
+        hasErrors={[
+          "averagePowerWatts",
+          "averageCadenceRpm",
+          "elevationGainMetres",
+          "averageHeartRate",
+          "maxHeartRate",
+        ].some((field) => Boolean(state.fieldErrors?.[field]))}
+      >
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="Average power W" error={state.fieldErrors?.averagePowerWatts}>
             <Input
-              name="elevationGainMetres"
+              name="averagePowerWatts"
               inputMode="decimal"
-              defaultValue={values("elevationGainMetres")}
+              defaultValue={values("averagePowerWatts")}
               placeholder="—"
             />
           </Field>
-          <HeartRateFields values={values} errors={state.fieldErrors} />
-        </MoreDetails>
-      </Section>
+          <Field label="Average cadence rpm" error={state.fieldErrors?.averageCadenceRpm}>
+            <Input
+              name="averageCadenceRpm"
+              inputMode="decimal"
+              defaultValue={values("averageCadenceRpm")}
+              placeholder="—"
+            />
+          </Field>
+        </div>
+        <Field label="Elevation gain m" error={state.fieldErrors?.elevationGainMetres}>
+          <Input
+            name="elevationGainMetres"
+            inputMode="decimal"
+            defaultValue={values("elevationGainMetres")}
+            placeholder="—"
+          />
+        </Field>
+        <HeartRateFields values={values} errors={state.fieldErrors} />
+      </MoreDetails>
 
       <NotesFields values={values} errors={state.fieldErrors} />
 
       <div className="space-y-2">
         <LargeEntryConfirmation message={state.formError} />
         <FormError message={state.formError} />
-        <SubmitButton pendingLabel="Saving…">{submitLabel}</SubmitButton>
+        <SubmitButton tone="ride" pendingLabel="Saving…">
+          {submitLabel}
+        </SubmitButton>
       </div>
     </form>
   );
