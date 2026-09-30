@@ -13,3 +13,8 @@ public/icons
 *.ico
 *.xlsx
 docs/planning
+# Third-party agent skills and subagents, kept byte-for-byte as published (each skill's UPSTREAM.md
+# names its source). Overload's own skills stay formatted.
+.claude/skills/*
+!.claude/skills/coach
+.claude/agents/impeccable-*.md
