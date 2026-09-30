@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
-import { Card } from "@/components/ui/card";
+import { Disclosure } from "@/components/ui/disclosure";
+import { Section } from "@/components/ui/section";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { requireUser } from "@/server/auth";
@@ -32,8 +33,9 @@ const NEVER = [
 ];
 
 /**
- * Privacy (plan §3.7): the promise in plain words above the switches that keep it, because a
- * privacy screen that does not say what it protects is decoration.
+ * Privacy (plan §3.7): the switches, then the promise they keep in plain words, because a
+ * privacy screen that does not say what it protects is decoration. The promise is folded
+ * into its two lists so the switches are the first thing on the screen.
  */
 export default async function PrivacyPage() {
   const user = await requireUser();
@@ -46,38 +48,45 @@ export default async function PrivacyPage() {
     <>
       <PageHeader title="Privacy" backHref="/profile" />
       <PageContent>
-        <Card>
-          <div>
-            <h2 className="font-semibold">What a follower can see</h2>
-            <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-ink-muted">
+        <Section title="Sharing">
+          <PrivacySwitches
+            values={{
+              followApproval: profile.followApproval,
+              shareTraining: profile.shareTraining,
+              shareBodyWeight: profile.shareBodyWeight,
+              discoverableByEmail: profile.discoverableByEmail,
+            }}
+          />
+        </Section>
+        <Section
+          title="Rides and swims"
+          info="Each is shared only if you switch it on here, and only while Share training with followers is on."
+        >
+          <SportSharingSwitches
+            values={{
+              cycling: sports.find((sport) => sport.sport === "cycling")!.shareStats,
+              swimming: sports.find((sport) => sport.sport === "swimming")!.shareStats,
+            }}
+          />
+        </Section>
+        {/* The promise, in the ADR's own two lists: one tap each, rather than a wall of
+            bullets above the switches that keep it. */}
+        <Section title="What is shared">
+          <Disclosure summary="What a follower can see" meta={`${VISIBLE.length}`}>
+            <ul className="list-disc space-y-1.5 pl-5 text-sm">
               {VISIBLE.map((line) => (
                 <li key={line}>{line}</li>
               ))}
             </ul>
-          </div>
-          <div>
-            <h2 className="font-semibold">What nobody can see</h2>
-            <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-ink-muted">
+          </Disclosure>
+          <Disclosure summary="What nobody can see" meta={`${NEVER.length}`}>
+            <ul className="list-disc space-y-1.5 pl-5 text-sm">
               {NEVER.map((line) => (
                 <li key={line}>{line}</li>
               ))}
             </ul>
-          </div>
-        </Card>
-        <PrivacySwitches
-          values={{
-            followApproval: profile.followApproval,
-            shareTraining: profile.shareTraining,
-            shareBodyWeight: profile.shareBodyWeight,
-            discoverableByEmail: profile.discoverableByEmail,
-          }}
-        />
-        <SportSharingSwitches
-          values={{
-            cycling: sports.find((sport) => sport.sport === "cycling")!.shareStats,
-            swimming: sports.find((sport) => sport.sport === "swimming")!.shareStats,
-          }}
-        />
+          </Disclosure>
+        </Section>
       </PageContent>
     </>
   );

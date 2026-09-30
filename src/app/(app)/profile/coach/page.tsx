@@ -29,7 +29,7 @@ export default async function CoachSettingsPage() {
           }))}
         />
         <Card>
-          <h2 className="flex items-center gap-1 text-base font-semibold">
+          <h2 className="flex items-center gap-1 text-headline font-semibold">
             Endpoints
             <InfoTip label="About the endpoints">
               Relative to this app&apos;s URL. Send the token as{" "}

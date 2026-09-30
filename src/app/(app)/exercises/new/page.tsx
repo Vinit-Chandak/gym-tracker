@@ -28,7 +28,7 @@ export default async function Page() {
   );
   return (
     <>
-      <PageHeader title="Custom exercise" backHref="/exercises" />
+      <PageHeader title="Add your own exercise" backHref="/exercises" />
       <PageContent>
         <Card>
           <CustomExerciseForm machines={machines} />

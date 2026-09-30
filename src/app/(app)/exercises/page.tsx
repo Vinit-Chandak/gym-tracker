@@ -17,11 +17,22 @@ export default async function ExercisesPage() {
   const exercises = await withUser(getDb(), user.id, (tx) => listExercises(tx), { readOnly: true });
   return (
     <>
-      <PageHeader title="Exercises" backHref="/profile" />
+      <PageHeader
+        title="Exercises"
+        meta={`${exercises.filter((exercise) => exercise.isActive).length} in the library`}
+        backHref="/profile"
+        action={
+          <LinkButton
+            href="/exercises/new"
+            variant="secondary"
+            size="sm"
+            aria-label="Add your own exercise"
+          >
+            Add
+          </LinkButton>
+        }
+      />
       <PageContent>
-        <LinkButton href="/exercises/new" variant="secondary">
-          Add your own exercise
-        </LinkButton>
         <ExerciseLibrary exercises={exercises} />
       </PageContent>
     </>

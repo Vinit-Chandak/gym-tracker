@@ -3,7 +3,6 @@
 import { Search } from "@/components/ui/icons";
 import { useMemo, useState } from "react";
 
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { LinkRow, List } from "@/components/ui/link-row";
 import { Section } from "@/components/ui/section";
@@ -12,8 +11,8 @@ import { EXERCISE_MODALITY_LABELS, MUSCLE_LABELS } from "@/lib/labels";
 import type { ExerciseListItem } from "@/server/repositories/exercises";
 
 function subtitle(exercise: ExerciseListItem): string {
-  const muscles = exercise.primaryMuscles.map((m) => MUSCLE_LABELS[m]).join(", ");
-  return `${EXERCISE_MODALITY_LABELS[exercise.modality]} · ${muscles}`;
+  const muscles = exercise.primaryMuscles.map((m) => MUSCLE_LABELS[m].toLowerCase()).join(", ");
+  return [EXERCISE_MODALITY_LABELS[exercise.modality], muscles].filter(Boolean).join(", ");
 }
 
 function Rows({ items }: { items: ExerciseListItem[] }) {
@@ -26,7 +25,9 @@ function Rows({ items }: { items: ExerciseListItem[] }) {
             href={`/exercises/${exercise.id}`}
             title={exercise.name}
             subtitle={subtitle(exercise)}
-            badge={exercise.loadPortability === "global" ? undefined : <Badge>Per machine</Badge>}
+            // Where its load is compared, said quietly at the row's end rather than as a
+            // badge that wraps under a long name.
+            meta={exercise.loadPortability === "global" ? undefined : "Per machine"}
           />
         </li>
       ))}
@@ -51,14 +52,14 @@ export function ExerciseLibrary({ exercises }: { exercises: ExerciseListItem[] }
   }, [exercises, query]);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-[var(--section-gap)]">
       <div className="relative">
         <Search className="absolute top-1/2 left-3 -translate-y-1/2 text-ink-subtle" aria-hidden />
         <Input
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search by name, muscle or equipment"
+          placeholder="Search name, muscle or equipment"
           aria-label="Search exercises"
           className="pl-9"
           autoCapitalize="none"

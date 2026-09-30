@@ -26,7 +26,7 @@ export default async function EditGymPage(props: PageProps<"/gyms/[gymId]/edit">
 
   return (
     <>
-      <PageHeader title="Edit gym" backHref={`/gyms/${gym.id}`} />
+      <PageHeader title="Edit gym" meta={gym.name} backHref={`/gyms/${gym.id}`} />
       <PageContent>
         <Card>
           <GymForm

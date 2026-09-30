@@ -1,5 +1,5 @@
 import { MEASURE_UNIT_SUFFIX, rangeLabel } from "@/lib/labels";
-import { supersetHues, supersetStyle, type SupersetHue } from "@/lib/superset-colors";
+import { supersetHues, supersetLabels, type SupersetHue } from "@/lib/superset-colors";
 import { cn } from "@/lib/utils";
 import type { PlannedExercisePreview } from "@/server/repositories/schedule";
 
@@ -34,18 +34,24 @@ export function planSummary(exercises: readonly PlannedExercisePreview[]): strin
   return `${count} ${count === 1 ? "exercise" : "exercises"}, ${sets} ${sets === 1 ? "set" : "sets"}`;
 }
 
-type Block = { key: string; hue?: SupersetHue; items: PlannedExercisePreview[] };
+type Entry = { exercise: PlannedExercisePreview; label?: string };
+type Block = { key: string; hue?: SupersetHue; items: Entry[] };
 
-/** Consecutive members of one superset, gathered so the group is drawn once, not per row. */
+/**
+ * Consecutive members of one superset, gathered so the group is drawn once, not per row, each
+ * member carrying its gym-style label: A1 and A2 are done back to back, then B1 and B2.
+ */
 function blocks(exercises: readonly PlannedExercisePreview[]): Block[] {
   const hues = supersetHues(exercises);
+  const labels = supersetLabels(exercises);
   const grouped: Block[] = [];
-  for (const exercise of exercises) {
+  exercises.forEach((exercise, index) => {
     const hue = exercise.supersetGroup ? hues.get(exercise.supersetGroup) : undefined;
+    const entry = { exercise, label: labels.get(index) };
     const last = grouped[grouped.length - 1];
-    if (hue && last && last.hue === hue) last.items.push(exercise);
-    else grouped.push({ key: exercise.programExerciseId, hue, items: [exercise] });
-  }
+    if (hue && last && last.hue === hue) last.items.push(entry);
+    else grouped.push({ key: exercise.programExerciseId, hue, items: [entry] });
+  });
   return grouped;
 }
 
@@ -56,7 +62,7 @@ function blocks(exercises: readonly PlannedExercisePreview[]): Block[] {
  * name and a prescription sharing one line only wrap on the long names, so a list of them
  * is part one-line rows and part two, with a rule between each — there is no rhythm to read
  * down. Here the eye finds the prescriptions in one column, and a superset takes a single
- * tinted bracket around its group rather than a marker on each of its rows.
+ * neutral bracket around its group, its members named A1, A2 as a gym writes them.
  */
 export function PlannedExerciseList({
   exercises,
@@ -72,11 +78,15 @@ export function PlannedExerciseList({
             "min-w-0",
             block.hue && "space-y-2.5 rounded-r-control py-2 pl-2.5 superset-row",
           )}
-          style={block.hue ? supersetStyle(block.hue) : undefined}
         >
-          {block.items.map((exercise) => (
+          {block.items.map(({ exercise, label }) => (
             <div key={exercise.programExerciseId} className="min-w-0">
-              <p className="text-sm [overflow-wrap:anywhere]">{exercise.name}</p>
+              <p className="text-sm [overflow-wrap:anywhere]">
+                {label && (
+                  <span className="mr-1.5 font-semibold text-ink-muted tabular-nums">{label}</span>
+                )}
+                {exercise.name}
+              </p>
               <p className="mt-0.5 text-xs text-ink-muted tabular-nums">{prescription(exercise)}</p>
             </div>
           ))}

@@ -6,6 +6,7 @@ import type { Route } from "next";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field, Input, Textarea } from "@/components/ui/input";
+import { ChevronDown } from "@/components/ui/icons";
 import { Select } from "@/components/ui/select";
 import {
   type BlueprintDay,
@@ -19,6 +20,8 @@ import {
 } from "@/server/actions/coaching-workflow";
 import { saveRoutineAction } from "@/server/actions/manual-training";
 import { WEEKDAY_NAMES } from "@/lib/labels";
+
+import { DayChip, dayKind } from "./day-chip";
 
 type LibraryEntry = {
   slug: string;
@@ -127,13 +130,7 @@ export function ProgramBuilder({
     change({ days: days.map((d, i) => ({ ...d, dayIndex: i + 1 })) });
   }
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">
-        {initial ? "Edit your programme draft" : "Build your programme"}
-      </h1>
-      <p className="text-sm text-ink-muted">
-        Set your own training days and targets. Preview the complete programme before starting it.
-      </p>
+    <div className="space-y-[var(--section-gap)]">
       <Card>
         <Field label="Programme name">
           <Input
@@ -162,7 +159,12 @@ export function ProgramBuilder({
       {plan.days.map((day, d) => (
         <Card key={d}>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-lg font-semibold">Day {d + 1}</h2>
+            <div className="flex min-w-0 items-center gap-3">
+              <DayChip index={d + 1} kind={dayKind(day)} />
+              <h2 className="min-w-0 text-headline font-semibold [overflow-wrap:anywhere]">
+                {day.name || `Day ${d + 1}`}
+              </h2>
+            </div>
             <div className="flex gap-1">
               <Button
                 size="sm"
@@ -171,7 +173,7 @@ export function ProgramBuilder({
                 aria-label={`Move day ${d + 1} up`}
                 onClick={() => reorderDay(d, d - 1)}
               >
-                ↑
+                <ChevronDown className="rotate-180" aria-hidden />
               </Button>
               <Button
                 size="sm"
@@ -180,7 +182,7 @@ export function ProgramBuilder({
                 aria-label={`Move day ${d + 1} down`}
                 onClick={() => reorderDay(d, d + 1)}
               >
-                ↓
+                <ChevronDown aria-hidden />
               </Button>
               <Button
                 size="sm"
@@ -261,10 +263,15 @@ export function ProgramBuilder({
             />
           </Field>
           {day.exercises.map((entry, e) => (
-            <fieldset key={e} className="space-y-3 rounded-control border border-line p-3">
-              <legend className="px-1 font-semibold">
+            <fieldset key={e} className="space-y-3 rounded-tile bg-surface-raised p-3">
+              {/* The legend names the group for a screen reader; the same name is drawn as a
+                  plain line, since a legend sits on a border this box does not have. */}
+              <legend className="sr-only">
                 {library.find((x) => x.slug === entry.exerciseSlug)?.name ?? entry.exerciseSlug}
               </legend>
+              <p aria-hidden className="font-semibold [overflow-wrap:anywhere]">
+                {library.find((x) => x.slug === entry.exerciseSlug)?.name ?? entry.exerciseSlug}
+              </p>
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Sets">
                   <Input
@@ -419,7 +426,9 @@ export function ProgramBuilder({
           </label>
           {day.includesRun && (
             <details open>
-              <summary className="min-h-11 cursor-pointer py-2">Running targets by week</summary>
+              <summary className="flex min-h-11 cursor-pointer items-center py-2 font-semibold text-run-ink">
+                Running targets by week
+              </summary>
               <div className="space-y-3">
                 {plan.runs
                   .filter((r) => r.dayOfWeek === day.dayOfWeek)
@@ -484,7 +493,7 @@ export function ProgramBuilder({
             </details>
           )}
           {!day.includesLifting && !day.includesRun && (
-            <p className="text-sm text-ink-muted">This is a rest / mobility day.</p>
+            <p className="text-sm text-ink-muted">A rest and mobility day.</p>
           )}
           {day.exercises.length > 0 && (
             <Button
@@ -505,6 +514,7 @@ export function ProgramBuilder({
       ))}
       <Button
         variant="secondary"
+        className="w-full"
         disabled={plan.days.length >= 31}
         onClick={() =>
           change({
@@ -585,11 +595,17 @@ export function ProgramBuilder({
           {message}
         </p>
       )}
-      <div className="flex flex-wrap gap-3">
-        <Button variant="secondary" disabled={busy} onClick={() => save(false)}>
+      {/* Kept on screen while a long programme is scrolled: saving is the point of the form. */}
+      <div className="sticky-actions flex flex-wrap items-center gap-2">
+        <Button
+          variant="secondary"
+          disabled={busy}
+          onClick={() => save(false)}
+          className="shrink-0 px-4"
+        >
           Save draft
         </Button>
-        <Button disabled={busy} onClick={() => save(true)}>
+        <Button disabled={busy} onClick={() => save(true)} className="min-w-0 flex-1 basis-40 px-4">
           {busy ? "Saving…" : "Preview programme"}
         </Button>
       </div>

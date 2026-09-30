@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { Card } from "@/components/ui/card";
+import { AiCoach, LoaderCircle } from "@/components/ui/icons";
 import { Button, LinkButton } from "@/components/ui/button";
 import { SpeechTextarea } from "@/components/ui/dictation";
 import { answerCoachQuestionsAction } from "@/server/actions/coaching-workflow";
@@ -55,9 +56,22 @@ export function CoachJobStatus({
   }, [pending, router]);
   return (
     <Card>
-      <h1 className="text-xl font-semibold" role="status">
-        {job.status === "succeeded" ? successLabel : LABELS[job.status]}
-      </h1>
+      <div className="flex items-start gap-3">
+        <span
+          aria-hidden
+          className="flex size-11 shrink-0 items-center justify-center rounded-[0.875rem] bg-accent-soft text-accent"
+        >
+          {pending ? (
+            <LoaderCircle className="animate-spin motion-reduce:animate-none" />
+          ) : (
+            <AiCoach />
+          )}
+        </span>
+        {/* The page header is the h1; this is what the request has come to. */}
+        <h2 className="min-w-0 self-center text-xl leading-snug font-semibold" role="status">
+          {job.status === "succeeded" ? successLabel : LABELS[job.status]}
+        </h2>
+      </div>
       {job.status === "succeeded" && !draftId && rationale && (
         <p className="text-sm text-ink-muted">{rationale}</p>
       )}

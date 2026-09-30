@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { Button, LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { AiCoach, SlidersHorizontal, type AppIcon } from "@/components/ui/icons";
+import { RowIcon } from "@/components/ui/link-row";
 import { chooseTrainingModeAction } from "@/server/actions/coaching-workflow";
 
 /**
@@ -28,7 +30,7 @@ export function ProgrammeOptions({
   const base = onboarding ? "/welcome/programme" : "/profile/programme";
   return (
     <div className={nested ? "ruled-list" : "space-y-3"}>
-      <Option nested={nested} title="Create your own programme">
+      <Option nested={nested} icon={AiCoach} title="Create your own programme">
         <p className="text-sm text-ink-muted">
           Answer a few questions and the coach writes it. You review the draft before you start.
         </p>
@@ -36,7 +38,7 @@ export function ProgrammeOptions({
           Create with the coach
         </LinkButton>
       </Option>
-      <Option nested={nested} title="Build it yourself">
+      <Option nested={nested} icon={SlidersHorizontal} title="Build it yourself">
         <p className="text-sm text-ink-muted">
           Choose your own days, exercises and targets. No AI run needed.
         </p>
@@ -71,16 +73,25 @@ export function ProgrammeOptions({
 
 function Option({
   title,
+  icon,
   nested,
   children,
 }: {
   title: string;
+  icon: AppIcon;
   nested: boolean;
   children: ReactNode;
 }) {
   const body = (
     <>
-      <h3 className={nested ? "font-semibold" : "text-lg font-semibold"}>{title}</h3>
+      {nested ? (
+        <h3 className="font-semibold">{title}</h3>
+      ) : (
+        <div className="flex items-center gap-3">
+          <RowIcon icon={icon} />
+          <h3 className="text-headline font-semibold">{title}</h3>
+        </div>
+      )}
       {children}
     </>
   );

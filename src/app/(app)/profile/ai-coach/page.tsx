@@ -77,7 +77,7 @@ export default async function AiCoachSettingsPage() {
             configured && !canRequest && profile.aiCoachEnabled
               ? [status, "On-demand coaching is not set up on this server"]
                   .filter(Boolean)
-                  .join(" · ")
+                  .join(". ")
               : status
           }
           noteId={crypto.randomUUID()}
@@ -95,7 +95,7 @@ export default async function AiCoachSettingsPage() {
                     note.dispositionDetail,
                   ]
                     .filter(Boolean)
-                    .join(" — "),
+                    .join(": "),
           }))}
           overview={memo.overview}
           overviewUpdatedAt={

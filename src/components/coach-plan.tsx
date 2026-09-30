@@ -1,3 +1,4 @@
+import { phrase } from "@/components/coaching/phrase";
 import { prescription } from "@/components/planned-exercises";
 import type { PlanWarning } from "@/domain/coach-review";
 import { warningsForSport } from "@/domain/sport-scope";
@@ -61,7 +62,11 @@ export function CoachPlanList({
           const line = planLine(entry, unit, entry.perSide ?? slot?.perSide ?? false);
           const targets = dropped
             ? "Skipped today"
-            : (line ?? (slot ? prescription(slot) : "By the rule"));
+            : line
+              ? phrase(line)
+              : slot
+                ? prescription(slot)
+                : "By the rule";
           return (
             <li key={`${entry.slotId ?? "added"}-${index}`} className="min-w-0">
               <p
@@ -71,7 +76,7 @@ export function CoachPlanList({
                 )}
               >
                 {name}
-                {machine && <span className="text-ink-muted"> · {machine}</span>}
+                {machine && <span className="text-ink-muted">, {machine}</span>}
               </p>
               <p className="mt-0.5 text-xs text-ink-muted tabular-nums">{targets}</p>
               {entry.note && <p className="mt-0.5 text-xs text-ink-muted">{entry.note}</p>}

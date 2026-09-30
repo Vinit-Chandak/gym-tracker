@@ -54,7 +54,7 @@ export default async function GymFallbackPage(
     <>
       <PageHeader title="Add fallback" backHref={`/gyms/${data.gym.id}/programme`} />
       <PageContent>
-        <p className="flex items-center gap-1 px-1 text-sm text-ink-muted">
+        <p className="flex items-center gap-1 px-1 text-callout text-ink-muted">
           <span>
             Instead of <span className="font-semibold text-ink">{data.exercise.name}</span> at{" "}
             {data.gym.name}

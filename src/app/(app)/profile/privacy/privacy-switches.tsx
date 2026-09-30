@@ -2,7 +2,11 @@
 
 import { useOptimistic, useState, useTransition } from "react";
 
-import { List, Row } from "@/components/ui/link-row";
+import type { ReactNode } from "react";
+
+import { InfoTip } from "@/components/ui/info-tip";
+import { List, ROW_CLASS } from "@/components/ui/link-row";
+import { SportChip } from "@/components/ui/sport-chip";
 import { Switch } from "@/components/ui/switch";
 import { attempted } from "@/lib/offline-submit";
 import { setPrivacyAction } from "@/server/actions/privacy";
@@ -68,6 +72,7 @@ export function SportSharingSwitches({
             effect="Share the date, duration and known distance. Share training with followers must also be on."
             enabled={values[sport]}
             save={(next) => setSportSharingAction(sport, next)}
+            leading={<SportChip sport={sport} size="sm" />}
           />
         </li>
       ))}
@@ -75,16 +80,23 @@ export function SportSharingSwitches({
   );
 }
 
+/**
+ * One switch in a row: its name, what turning it changes behind the tip beside the name, and
+ * the switch. Saved on change; a failed save puts the switch back and says why under it.
+ */
 function SavedSwitch({
   label,
   effect,
   enabled,
   save,
+  leading,
 }: {
   label: string;
   effect: string;
   enabled: boolean;
   save: (next: boolean) => Promise<void>;
+  /** A sport's chip, for a switch that is about one sport. */
+  leading?: ReactNode;
 }) {
   const [pending, startTransition] = useTransition();
   const [shown, show] = useOptimistic(enabled);
@@ -104,9 +116,16 @@ function SavedSwitch({
     });
   return (
     <div>
-      <Row title={label} subtitle={effect}>
+      <div className={ROW_CLASS}>
+        {leading}
+        <p className="flex min-w-0 flex-1 items-center gap-1 font-semibold [overflow-wrap:anywhere]">
+          <span className="min-w-0">{label}</span>
+          <InfoTip label={`About ${label.toLowerCase()}`} className="-my-2">
+            {effect}
+          </InfoTip>
+        </p>
         <Switch label={label} checked={shown} onChange={change} disabled={pending} />
-      </Row>
+      </div>
       {error && (
         <p role="alert" className="px-4 pb-3 text-sm text-danger">
           {error}

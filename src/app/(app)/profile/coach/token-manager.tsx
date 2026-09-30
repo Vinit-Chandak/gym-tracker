@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { InfoTip } from "@/components/ui/info-tip";
 import { Field, Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { formatIsoDay } from "@/lib/format";
 import { attempted, keepsErrorOnDisconnect } from "@/lib/offline-submit";
 import {
   createCoachTokenAction,
@@ -67,7 +68,7 @@ export function TokenManager({
   return (
     <div className="space-y-4">
       <Card>
-        <h2 className="flex items-center gap-1 text-base font-semibold">
+        <h2 className="flex items-center gap-1 text-headline font-semibold">
           New token
           <InfoTip label="About coach tokens">
             Read-only access to your workouts, runs, recovery and current programme. A token can
@@ -95,13 +96,13 @@ export function TokenManager({
           </p>
         )}
         {state.token && hidden !== state.token && (
-          <div className="space-y-3 rounded-control border border-accent p-3">
+          <div className="space-y-3 rounded-tile bg-accent-soft p-3">
             <p className="text-sm font-semibold">Copy it now; it is shown only once.</p>
             <textarea
               readOnly
               aria-label="New coach token"
               value={state.token}
-              className="min-h-24 w-full rounded-control bg-canvas p-2 font-mono text-sm break-all"
+              className="min-h-24 w-full rounded-control bg-surface p-2 font-mono text-sm break-all"
             />
             <div className="flex gap-2">
               <Button
@@ -141,19 +142,19 @@ export function TokenManager({
         )}
       </Card>
       <Card>
-        <h2 className="text-base font-semibold">Your tokens</h2>
+        <h2 className="text-headline font-semibold">Your tokens</h2>
         {tokens.length ? (
-          <ul className="divide-y divide-line">
+          <ul className="ruled-list">
             {tokens.map((t) => (
               <li key={t.id} className="flex items-center justify-between gap-3 py-3">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold">{t.name}</p>
-                  <p className="text-xs text-ink-muted">
+                  <p className="truncate font-semibold">{t.name}</p>
+                  <p className="text-sm text-ink-muted tabular-nums">
                     {t.revokedAt
                       ? "Revoked"
                       : t.expired
                         ? "Expired"
-                        : `Expires ${t.expiresAt.slice(0, 10)}`}
+                        : `Expires ${formatIsoDay(t.expiresAt.slice(0, 10))}`}
                   </p>
                 </div>
                 {!t.revokedAt && !t.expired && <Revoke id={t.id} />}

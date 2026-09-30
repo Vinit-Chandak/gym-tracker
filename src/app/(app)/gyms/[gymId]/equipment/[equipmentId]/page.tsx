@@ -50,11 +50,11 @@ export default async function EquipmentPage(
 
   return (
     <>
-      <PageHeader title={equipment.name} backHref={`/gyms/${gymId}`} />
+      <PageHeader title={equipment.name} meta={equipment.gymName} backHref={`/gyms/${gymId}`} />
       <PageContent>
         {!equipment.isActive && (
           <Card>
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <Badge tone="danger">Archived</Badge>
               <form action={setEquipmentActiveAction.bind(null, gymId, equipment.id, true)}>
                 <SubmitButton variant="secondary" size="sm">
@@ -85,7 +85,7 @@ export default async function EquipmentPage(
         />
         {equipment.isActive && (
           <Card>
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="flex items-center gap-1 font-semibold">
                 Archive machine
                 <InfoTip label="About archiving">

@@ -53,7 +53,7 @@ export function ProgramTemplatePicker({
           const active = template.slug === chosen;
           return (
             <li key={template.slug}>
-              <label className="flex cursor-pointer gap-3 rounded-control border border-transparent bg-surface-raised p-3 has-checked:border-accent has-checked:bg-accent-soft">
+              <label className="flex cursor-pointer gap-3 rounded-tile bg-surface-raised p-3.5 transition-colors duration-[var(--ov-duration-feedback)] has-checked:bg-lift-soft has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-focus">
                 <input
                   type="radio"
                   name="templateSlug"
@@ -63,7 +63,9 @@ export function ProgramTemplatePicker({
                   className="mt-1 size-5 shrink-0 accent-[var(--ov-accent)]"
                 />
                 <span className="min-w-0 space-y-1">
-                  <span className="block font-semibold">{template.name}</span>
+                  <span className="block font-semibold [overflow-wrap:anywhere]">
+                    {template.name}
+                  </span>
                   <span className="block text-sm text-ink-muted">{template.summary}</span>
                   <ul className="space-y-0.5 pt-1">
                     {template.highlights.map((highlight) => (

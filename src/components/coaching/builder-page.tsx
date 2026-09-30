@@ -48,7 +48,10 @@ export async function ProgrammeBuilderPage({
   const base = onboarding ? "/welcome/programme" : "/profile/programme";
   return (
     <>
-      <PageHeader title="Programme builder" backHref={base} />
+      <PageHeader
+        title={data.initial ? "Edit programme draft" : "Build a programme"}
+        backHref={base}
+      />
       <PageContent>
         <ProgramBuilder {...data} base={base} />
         <LinkButton href="/exercises/new" variant="ghost">

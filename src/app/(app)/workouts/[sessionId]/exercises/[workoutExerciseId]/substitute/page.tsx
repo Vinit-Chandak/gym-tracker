@@ -58,8 +58,9 @@ export default async function SubstitutePage(
         backLabel="Exercise"
       />
       <PageContent>
-        <p className="px-1 text-sm text-ink-muted">
-          Instead of {data.slot.exercise.name} at {data.session.gym.name}.
+        <p className="px-1 text-callout text-ink-muted">
+          Instead of <span className="font-semibold text-ink">{data.slot.exercise.name}</span> at{" "}
+          {data.session.gym.name}
         </p>
         <PickExerciseForm
           action={substituteExerciseAction.bind(

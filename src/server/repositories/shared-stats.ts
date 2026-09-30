@@ -53,8 +53,11 @@ async function ownerTimeZone(tx: DbOrTx, userId: string): Promise<string> {
   return row?.timeZone ?? "UTC";
 }
 
-/** The best the owner had done per exercise and metric before `startedAt`. */
-async function previousMaxima(
+/**
+ * The best the owner had done per exercise and metric before `startedAt`. Finishing a session
+ * measures its records against this, and the finish screen previews them against the same.
+ */
+export async function previousMaxima(
   tx: DbOrTx,
   userId: string,
   exerciseIds: readonly string[],

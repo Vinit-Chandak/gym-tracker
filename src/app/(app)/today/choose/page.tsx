@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { DayChip, dayKind } from "@/components/coaching/day-chip";
 import { PlannedExerciseList, planSummary } from "@/components/planned-exercises";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
@@ -74,11 +75,21 @@ export default async function ChooseDayPage() {
                 const exercises = exercisesByDay.get(day.id) ?? [];
                 const start = starts.get(day.id);
                 return (
-                  <li key={day.id} className="space-y-2 px-4 py-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
+                  <li key={day.id} className="space-y-3 px-4 py-4">
+                    {/* The day's number on its kind's colour: lifting cobalt, a run-only day
+                        tangerine, a day off rose, so the cycle reads at a glance. */}
+                    <div className="flex items-start gap-3">
+                      <DayChip index={day.dayIndex} kind={dayKind(day)} />
+                      <div className="min-w-0 flex-1 self-center">
                         <p className="font-semibold [overflow-wrap:anywhere]">{day.name}</p>
-                        {day.focus && <p className="text-sm text-ink-muted">{day.focus}</p>}
+                        {day.focus && (
+                          <p className="text-sm [overflow-wrap:anywhere] text-ink-muted">
+                            {day.focus}
+                          </p>
+                        )}
+                        {!day.includesLifting && !day.includesRun && (
+                          <p className="text-sm text-ink-subtle">Rest day</p>
+                        )}
                       </div>
                       {/* Every day starts out pending, so only a changed status earns a badge. */}
                       {status !== "pending" && (
@@ -88,7 +99,7 @@ export default async function ChooseDayPage() {
                       )}
                     </div>
 
-                    {day.includesLifting ? (
+                    {day.includesLifting && (
                       <>
                         {exercises.length > 0 && (
                           <Disclosure
@@ -109,7 +120,9 @@ export default async function ChooseDayPage() {
                             dayName={day.name}
                             fromCycleIndex={start.cycleIndex}
                             // One calm button per row: seven primary buttons make none primary.
+                            // Lifting's soft wash says which sport the button starts.
                             variant="secondary"
+                            tone="lift"
                           />
                         ) : (
                           <p className="text-sm text-ink-muted">
@@ -117,13 +130,12 @@ export default async function ChooseDayPage() {
                           </p>
                         )}
                       </>
-                    ) : !day.includesRun ? (
-                      <p className="text-sm text-ink-subtle">Rest day</p>
-                    ) : null}
+                    )}
                     {day.includesRun && (
                       <LinkButton
                         href="/training/programme?sport=running"
-                        variant="ghost"
+                        variant="secondary"
+                        tone="run"
                         className="w-full"
                       >
                         View planned runs

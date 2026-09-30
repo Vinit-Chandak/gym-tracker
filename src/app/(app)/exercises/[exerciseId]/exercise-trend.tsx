@@ -45,9 +45,9 @@ export function ExerciseTrend({
 
   return (
     <Card>
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="text-base font-semibold">Progress</h2>
+          <h2 className="text-headline font-semibold">Progress</h2>
           <p className="text-sm text-ink-muted tabular-nums">{dates}</p>
         </div>
         <FilterSheet title="Filters" summary={dates}>

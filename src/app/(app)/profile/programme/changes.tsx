@@ -209,7 +209,7 @@ export function ProgrammeChanges({
     !data.withCoach.length &&
     !data.recent.length;
   return (
-    <div className="space-y-6">
+    <div className="space-y-[var(--section-gap)]">
       {data.waiting > 0 && (
         <Section title="Waiting for you">
           {data.proposals.length > 0 && (
@@ -277,7 +277,7 @@ export function ProgrammeChanges({
                 data.history.changes > 0 && plural(data.history.changes, "change"),
               ]
                 .filter(Boolean)
-                .join(" · ")}
+                .join(", ")}
             />
           </li>
         </List>

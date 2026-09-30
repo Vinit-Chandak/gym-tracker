@@ -17,9 +17,9 @@ const CHECK_IN_LABELS: [keyof SessionVM, string][] = [
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between gap-3 py-1">
+    <div className="flex min-h-11 items-center justify-between gap-3 py-2">
       <dt className="text-ink-muted">{label}</dt>
-      <dd className="text-right [overflow-wrap:anywhere] tabular-nums">{value}</dd>
+      <dd className="text-right font-semibold [overflow-wrap:anywhere] tabular-nums">{value}</dd>
     </div>
   );
 }
@@ -51,7 +51,7 @@ export function SessionDetails({
 
   return (
     <Sheet open={open} onClose={onClose} title="Session details">
-      <dl className="text-sm">
+      <dl className="text-sm ruled-list">
         <Row label="Gym" value={session.gym.name} />
         <Row label="Started" value={formatDateTime(session.startedAt, session.timeZone)} />
         {durationMinutes !== null && <Row label="Duration" value={`${durationMinutes} min`} />}
@@ -66,18 +66,18 @@ export function SessionDetails({
       </dl>
 
       {session.notes && (
-        <div className="mt-4">
-          <h3 className="text-sm font-semibold">Notes</h3>
+        <div className="mt-5">
+          <h3 className="font-semibold">Notes</h3>
           <p className="mt-1 text-sm whitespace-pre-line text-ink-muted">{session.notes}</p>
         </div>
       )}
 
-      <div className="mt-4">
-        <h3 className="text-sm font-semibold">Check-in</h3>
+      <div className="mt-5">
+        <h3 className="font-semibold">Check-in</h3>
         {readings.length === 0 ? (
           <p className="mt-1 text-sm text-ink-muted">Nothing recorded before this session.</p>
         ) : (
-          <dl className="mt-1 text-sm">
+          <dl className="mt-1 text-sm ruled-list">
             {readings.map(([label, value]) => (
               <Row key={label} label={label} value={String(value)} />
             ))}

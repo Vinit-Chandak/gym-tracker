@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { Route } from "next";
 
 import Link from "@/components/ui/app-link";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { SpeechTextarea } from "@/components/ui/dictation";
@@ -50,7 +51,7 @@ function waitingLine(request: RequestView): string {
       request.condition,
     ]
       .filter(Boolean)
-      .join(" · ");
+      .join(", ");
   return "At the next coach run";
 }
 
@@ -102,10 +103,17 @@ function RequestRow({ request, base }: { request: RequestView; base: string }) {
     <Card>
       <p className="font-semibold [overflow-wrap:anywhere]">“{request.quote}”</p>
       {settled ? (
-        <p className="text-sm [overflow-wrap:anywhere] text-ink-muted">
-          {[settled, request.outcome || request.detail].filter(Boolean).join(" — ")}
-          {request.settledOn && <span className="tabular-nums"> · {request.settledOn}</span>}
-        </p>
+        <div className="space-y-1.5">
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-muted tabular-nums">
+            <Badge tone={request.state === "applied" ? "success" : "neutral"}>{settled}</Badge>
+            {request.settledOn}
+          </p>
+          {(request.outcome || request.detail) && (
+            <p className="text-sm [overflow-wrap:anywhere] text-ink-muted">
+              {request.outcome || request.detail}
+            </p>
+          )}
+        </div>
       ) : request.state === "needs_answer" ? (
         request.detail && <p className="text-sm [overflow-wrap:anywhere]">{request.detail}</p>
       ) : (

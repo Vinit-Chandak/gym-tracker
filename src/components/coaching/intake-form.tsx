@@ -21,6 +21,7 @@ import {
   toFeetAndInches,
   toKilograms,
 } from "@/lib/units";
+import { TONE_FILL } from "@/lib/sport-tone";
 import { cn } from "@/lib/utils";
 import {
   coachIntakeSchema,
@@ -132,7 +133,7 @@ export function CoachIntakeForm({
           saveCoachIntakeAction(snapshot, revision.current),
         );
         if (!result.ok) {
-          setSaveState("Not saved — retry before leaving.");
+          setSaveState("Not saved. Retry before leaving.");
           throw new Error(result.error);
         }
         revision.current = result.value.revision;
@@ -346,8 +347,8 @@ function Header({
   return (
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
-        <h2 className="text-xl font-semibold [overflow-wrap:anywhere]">{title}</h2>
-        <p role="status" aria-live="polite" className="min-h-4 text-xs text-ink-subtle">
+        <h2 className="font-display text-display-m [overflow-wrap:anywhere]">{title}</h2>
+        <p role="status" aria-live="polite" className="mt-1 min-h-4 text-xs text-ink-subtle">
           {status}
         </p>
       </div>
@@ -387,8 +388,8 @@ function StepProgress({
           >
             <span
               className={cn(
-                "block h-1 rounded-full transition-colors duration-[var(--ov-duration-feedback)]",
-                i <= step ? "bg-accent" : "bg-surface-raised",
+                "block h-1.5 rounded-full transition-colors duration-[var(--ov-duration-feedback)]",
+                i <= step ? "bg-accent" : "bg-line",
               )}
             />
           </button>
@@ -453,7 +454,7 @@ function TrackChooser({
 }) {
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-semibold">Which sounds like you?</h2>
+      <h2 className="px-1 font-display text-display-m">Which sounds like you?</h2>
       {(
         [
           {
@@ -480,9 +481,9 @@ function TrackChooser({
           },
         ] as const
       ).map((option) => (
-        <Card key={option.track}>
-          <h3 className="text-lg font-semibold">{option.title}</h3>
-          <ul className="space-y-1.5 text-sm text-ink-muted">
+        <Card key={option.track} className="space-y-4">
+          <h3 className="text-xl font-semibold">{option.title}</h3>
+          <ul className="space-y-2 text-callout text-ink-muted">
             {option.points.map((point) => (
               <li key={point} className="flex gap-2">
                 <Check className="mt-0.5 shrink-0 text-accent" aria-hidden />
@@ -512,10 +513,13 @@ function DayPicker({
   legend,
   selected,
   onChange,
+  tone = "lift",
 }: {
   legend: string;
   selected: number[];
   onChange: (days: number[]) => void;
+  /** Whose days these are: training days in lifting's colour, run days in running's. */
+  tone?: "lift" | "run";
 }) {
   return (
     <fieldset className="min-w-0">
@@ -536,10 +540,8 @@ function DayPicker({
                 )
               }
               className={cn(
-                "flex min-h-12 min-w-0 items-center justify-center rounded-control border text-sm font-semibold transition-colors duration-[var(--ov-duration-feedback)]",
-                on
-                  ? "border-accent bg-accent text-on-accent"
-                  : "border-line-strong bg-surface text-ink-muted",
+                "flex min-h-12 min-w-0 pressable items-center justify-center rounded-control text-sm font-semibold",
+                on ? TONE_FILL[tone] : "bg-surface-raised text-ink-muted",
               )}
             >
               {short.slice(0, 1)}
@@ -920,6 +922,7 @@ function WeekStep({ answers, change }: { answers: CoachIntake; change: Change })
         {runs > 0 && (
           <DayPicker
             legend="Run days"
+            tone="run"
             selected={answers.preferredRunDays}
             onChange={(days) =>
               change({
@@ -1194,14 +1197,14 @@ function ReviewStep({
             ["Goal", answers.goal || "Not answered"],
             [
               "Your week",
-              `${answers.sessionsPerWeek ?? "?"} sessions · ${
+              `${answers.sessionsPerWeek ?? "?"} sessions, ${
                 answers.minutesPerSession ?? "?"
-              } minutes · ${days || "flexible days"}`,
+              } minutes, ${days || "flexible days"}`,
             ],
             [
               "Running",
               answers.runsPerWeek
-                ? `${answers.runsPerWeek} a week · ${
+                ? `${answers.runsPerWeek} a week, ${
                     answers.preferredRunDays.map((d) => WEEKDAY_NAMES[d]).join(", ") ||
                     "flexible days"
                   }`
@@ -1223,7 +1226,7 @@ function ReviewStep({
                 answers.ageYears ? `${answers.ageYears} years` : null,
               ]
                 .filter(Boolean)
-                .join(" · ") || "Not answered",
+                .join(", ") || "Not answered",
             ],
             ["Injuries", answers.restrictions || "None reported"],
             ["Preferences", answers.preferences || "None reported"],

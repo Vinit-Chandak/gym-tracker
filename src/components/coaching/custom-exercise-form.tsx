@@ -53,7 +53,6 @@ export function CustomExerciseForm({
         setBusy(false);
       }}
     >
-      <h1 className="text-xl font-semibold">Add your own exercise</h1>
       <Field label="Exercise name">
         <Input required maxLength={120} value={name} onChange={(e) => setName(e.target.value)} />
       </Field>
@@ -88,19 +87,24 @@ export function CustomExerciseForm({
         </Select>
       </Field>
       <fieldset>
-        <legend className="mb-2 text-sm text-ink-muted">
+        <legend className="mb-2 text-sm font-semibold text-ink-muted">
           Primary muscles (optional if unknown)
         </legend>
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,max(7rem,45%)),1fr))] gap-2">
+        {/* Pills that keep their checkbox: a tap anywhere on the pill toggles it, and the box
+            still says which are on without relying on the wash alone. */}
+        <div className="flex flex-wrap gap-2">
           {MUSCLE_GROUPS.map((m) => (
-            <label key={m} className="flex min-h-11 min-w-0 items-center gap-2">
+            <label
+              key={m}
+              className="flex min-h-11 min-w-0 cursor-pointer items-center gap-2 rounded-chip bg-surface-raised px-3.5 text-sm font-semibold text-ink-muted transition-colors duration-[var(--ov-duration-feedback)] has-checked:bg-lift-soft has-checked:text-lift-ink"
+            >
               <input
                 type="checkbox"
                 checked={muscles.includes(m)}
                 onChange={(e) =>
                   setMuscles(e.target.checked ? [...muscles, m] : muscles.filter((x) => x !== m))
                 }
-                className="size-5 shrink-0"
+                className="size-4 shrink-0 accent-[var(--ov-lift)]"
               />
               <span className="min-w-0 [overflow-wrap:anywhere]">{MUSCLE_LABELS[m]}</span>
             </label>
@@ -125,7 +129,7 @@ export function CustomExerciseForm({
           {error}
         </p>
       )}
-      <Button type="submit" disabled={busy}>
+      <Button type="submit" size="lg" className="w-full" disabled={busy}>
         {busy ? "Saving…" : "Save to my exercise library"}
       </Button>
     </form>

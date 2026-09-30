@@ -1,5 +1,5 @@
 import { SubmitButton } from "@/components/ui/form";
-import { ExternalLink } from "@/components/ui/icons";
+import { Dumbbell, ExternalLink } from "@/components/ui/icons";
 import type { Metadata } from "next";
 import Link from "@/components/ui/app-link";
 import { notFound } from "next/navigation";
@@ -12,6 +12,7 @@ import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
 import { buttonClassName, LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { HeroCard } from "@/components/ui/hero-card";
 import { InfoTip } from "@/components/ui/info-tip";
 import { Section } from "@/components/ui/section";
 import { Select } from "@/components/ui/select";
@@ -32,7 +33,6 @@ import {
   LOAD_PORTABILITY_LABELS,
   LOAD_UNIT_LABELS,
   MEASURE_COLUMN_LABELS,
-  MEASURE_UNIT_SUFFIX,
   MUSCLE_LABELS,
   rangeLabel,
   restLabel,
@@ -66,7 +66,7 @@ function prescription(usage: ExerciseProgramUsage): string {
         : rangeLabel(usage.repMin, usage.repMax);
   const volume = `${usage.sets} × ${range}`;
   const side = usage.perSide ? " per side" : "";
-  return `${volume}${side} @ ${rangeLabel(usage.rirMin, usage.rirMax)} RIR · rest ${restLabel(usage.restMinSeconds, usage.restMaxSeconds)}`;
+  return `${volume}${side} @ ${rangeLabel(usage.rirMin, usage.rirMax)} RIR, rest ${restLabel(usage.restMinSeconds, usage.restMaxSeconds)}`;
 }
 
 function availabilityDetail(entry: ExerciseGymAvailability): string {
@@ -169,42 +169,47 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
     <>
       <PageHeader title={exercise.name} backHref="/exercises" />
       <PageContent>
-        <Card>
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge>{EXERCISE_CATEGORY_LABELS[exercise.category]}</Badge>
-            <Badge>{EXERCISE_MODALITY_LABELS[exercise.modality]}</Badge>
-            <Badge tone={exercise.loadPortability === "global" ? "success" : "accent"}>
-              {LOAD_PORTABILITY_LABELS[exercise.loadPortability]}
-            </Badge>
-            <InfoTip label="About load comparability">
-              {LOAD_PORTABILITY_HELP[exercise.loadPortability]}
-            </InfoTip>
+        {/* The movement, led by the range it is worked in: its kind, the muscles it trains,
+            and its default targets as figures, in lifting's colour. The name is the bar's. */}
+        <HeroCard tone="lift">
+          <div className="flex items-start justify-between gap-3">
+            <p className="flex min-h-7 min-w-0 items-center gap-2 text-sm font-semibold text-ink-muted">
+              <Dumbbell aria-hidden />
+              <span className="min-w-0">
+                {EXERCISE_CATEGORY_LABELS[exercise.category]},{" "}
+                {EXERCISE_MODALITY_LABELS[exercise.modality].toLowerCase()}
+              </span>
+            </p>
             {!exercise.isActive && <Badge tone="danger">Excluded</Badge>}
           </div>
-
-          <div className="space-y-1">
-            <p className="text-sm">
-              <span className="text-ink-muted">Primary: </span>
-              {exercise.primaryMuscles.map((m) => MUSCLE_LABELS[m]).join(", ")}
+          <div>
+            <p className="tabular-nums">
+              <span className="font-display text-display-l">
+                {rangeLabel(measureRange[0], measureRange[1])}
+              </span>{" "}
+              <span className="text-xl font-semibold">
+                {MEASURE_COLUMN_LABELS[measure].toLowerCase()}
+              </span>
             </p>
-            {exercise.secondaryMuscles.length > 0 && (
-              <p className="text-sm">
-                <span className="text-ink-muted">Also: </span>
-                {exercise.secondaryMuscles.map((m) => MUSCLE_LABELS[m]).join(", ")}
-              </p>
-            )}
-            <p className="text-sm">
-              <span className="text-ink-muted">Pattern: </span>
-              {exercise.movementPattern.replace(/_/g, " ")}
+            <p className="mt-2 text-callout [overflow-wrap:anywhere] text-ink-muted first-letter:uppercase">
+              {exercise.primaryMuscles.map((m) => MUSCLE_LABELS[m].toLowerCase()).join(", ")}
+              {exercise.secondaryMuscles.length > 0 &&
+                `, also ${exercise.secondaryMuscles
+                  .map((m) => MUSCLE_LABELS[m].toLowerCase())
+                  .join(", ")}`}
+            </p>
+            <p className="mt-1 flex items-center gap-1 text-sm text-ink-muted">
+              <span className="min-w-0">
+                {LOAD_PORTABILITY_LABELS[exercise.loadPortability]},{" "}
+                {exercise.movementPattern.replace(/_/g, " ")} pattern
+              </span>
+              <InfoTip label="About load comparability" className="-my-2">
+                {LOAD_PORTABILITY_HELP[exercise.loadPortability]}
+              </InfoTip>
             </p>
           </div>
 
-          <StatTileRow>
-            {/* Whatever this movement is actually counted in. A carry has no reps to show. */}
-            <StatTile
-              label={MEASURE_COLUMN_LABELS[measure]}
-              value={rangeLabel(measureRange[0], measureRange[1], MEASURE_UNIT_SUFFIX[measure])}
-            />
+          <StatTileRow className="grid-cols-3 border-t border-line pt-4 @min-[27rem]:grid-cols-3">
             <StatTile
               label="RIR"
               value={exercise.defaultRir === null ? "—" : String(exercise.defaultRir)}
@@ -240,10 +245,10 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
               <ExternalLink aria-hidden />
             </a>
           )}
-        </Card>
+        </HeroCard>
 
         <Card>
-          <h2 className="text-base font-semibold">Equipment</h2>
+          <h2 className="text-headline font-semibold">Equipment</h2>
           {exercise.requiresEquipment ? (
             <ol className="list-inside list-decimal space-y-1 text-sm">
               {exercise.equipmentOptions.map((option) => (
@@ -257,15 +262,18 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
 
         {exercise.programUsage.length > 0 && (
           <Card>
-            <h2 className="text-base font-semibold">In your programme</h2>
-            <ul className="divide-y divide-line">
+            <h2 className="text-headline font-semibold">In your programme</h2>
+            <ul className="ruled-list">
               {exercise.programUsage.map((usage) => (
-                <li key={usage.programExerciseId} className="space-y-0.5 py-2">
-                  <p className="text-sm font-semibold">{usage.dayName}</p>
+                <li
+                  key={usage.programExerciseId}
+                  className="space-y-0.5 py-2.5 first:pt-0 last:pb-0"
+                >
+                  <p className="font-semibold">{usage.dayName}</p>
                   <p className="text-sm text-ink-muted tabular-nums">{prescription(usage)}</p>
                   {(usage.targetLoadNote || usage.progressionNotes) && (
-                    <p className="text-xs text-ink-subtle">
-                      {[usage.targetLoadNote, usage.progressionNotes].filter(Boolean).join(" · ")}
+                    <p className="text-sm text-ink-subtle">
+                      {[usage.targetLoadNote, usage.progressionNotes].filter(Boolean).join(". ")}
                     </p>
                   )}
                 </li>
@@ -294,7 +302,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
         <ExerciseTrend range={range} machines={machines} selected={selected} />
 
         <Card>
-          <h2 className="flex items-center gap-1 text-base font-semibold">
+          <h2 className="flex items-center gap-1 text-headline font-semibold">
             Recent sessions
             {exercise.loadPortability !== "global" && (
               <InfoTip label="About recent sessions">
@@ -306,12 +314,12 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
           {performances.length === 0 ? (
             <p className="text-sm text-ink-muted">Not logged yet.</p>
           ) : (
-            <ul className="divide-y divide-line">
+            <ul className="-mx-[var(--panel-padding)] ruled-list">
               {performances.map((performance) => (
                 <li key={performance.workoutExerciseId}>
                   <Link
                     href={`/workouts/${performance.workoutSessionId}`}
-                    className="block space-y-0.5 py-2"
+                    className="block space-y-0.5 px-[var(--panel-padding)] py-2.5 transition-colors duration-[var(--ov-duration-feedback)] active:bg-surface-raised"
                   >
                     <div className="flex justify-between gap-3 text-sm">
                       <span className="font-semibold">
@@ -320,7 +328,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
                       <span className="min-w-0 truncate text-ink-muted">
                         {performance.gymName}
                         {performance.equipmentInstanceName
-                          ? ` · ${performance.equipmentInstanceName}`
+                          ? `, ${performance.equipmentInstanceName}`
                           : ""}
                       </span>
                     </div>
@@ -345,8 +353,8 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
           )}
           {availability.map((entry) => (
             <Card key={entry.gym.id}>
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="font-semibold">{entry.gym.name}</h3>
+              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                <h3 className="min-w-0 font-semibold [overflow-wrap:anywhere]">{entry.gym.name}</h3>
                 <AvailabilityBadge status={entry.resolution.status} />
               </div>
               <p className="text-sm text-ink-muted">{availabilityDetail(entry)}</p>

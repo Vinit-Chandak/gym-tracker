@@ -106,7 +106,7 @@ it("keeps everything settled behind one row instead of printing it", () => {
   render(<ProgrammeChanges data={data({ history: { requests: 2, changes: 1 } })} />);
   const link = screen.getByRole("link", { name: /Past requests and changes/ });
   expect(link.getAttribute("href")).toBe("/profile/programme/history");
-  expect(link.textContent).toContain("2 requests · 1 change");
+  expect(link.textContent).toContain("2 requests, 1 change");
   expect(screen.queryByText("Settled requests")).toBeNull();
   expect(screen.queryByText("Reviews")).toBeNull();
 });

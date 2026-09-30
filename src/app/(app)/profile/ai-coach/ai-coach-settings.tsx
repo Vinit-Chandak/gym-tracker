@@ -154,7 +154,7 @@ export function AiCoachSettings({
 
       <Section
         title="Tell the coach"
-        info="Read at the next daily coach run. Anything you ask the programme to do gets its answer under Programme → Changes."
+        info="Read at the next daily coach run. Anything you ask the programme to do gets its answer under Programme, on the Changes tab."
       >
         <Card>
           <form key={noteId} action={formAction} className="space-y-4">
@@ -180,10 +180,20 @@ export function AiCoachSettings({
         {notes.length > 0 && (
           <List>
             {notes.map((note) => (
-              <li key={note.id} className="space-y-1 p-4">
-                <p className="text-sm [overflow-wrap:anywhere] whitespace-pre-line">{note.text}</p>
-                <p className="text-xs text-ink-muted">
-                  {note.when} · {note.outcome ?? "Not read yet"}
+              <li key={note.id} className="space-y-1.5 px-4 py-3.5">
+                <p className="[overflow-wrap:anywhere] whitespace-pre-line">{note.text}</p>
+                {/* What became of it leads; when it was written is the quieter half. */}
+                <p className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 text-sm">
+                  <span
+                    className={
+                      note.outcome
+                        ? "min-w-0 [overflow-wrap:anywhere] text-ink-muted"
+                        : "font-semibold text-ink-muted"
+                    }
+                  >
+                    {note.outcome ?? "Not read yet"}
+                  </span>
+                  <span className="shrink-0 text-xs text-ink-subtle tabular-nums">{note.when}</span>
                 </p>
               </li>
             ))}
@@ -209,7 +219,7 @@ export function AiCoachSettings({
                   subtitle={
                     attempt.status === "failed" && attempt.error
                       ? attempt.error
-                      : [attempt.gymName, attempt.when].filter(Boolean).join(" · ") || undefined
+                      : [attempt.gymName, attempt.when].filter(Boolean).join(", ") || undefined
                   }
                 >
                   <span className="shrink-0 text-xs text-ink-muted tabular-nums">

@@ -1,3 +1,4 @@
+import { GYM_KIND_ICON } from "@/components/ui/gym-kind-icon";
 import { MapPin } from "@/components/ui/icons";
 import type { Metadata } from "next";
 
@@ -23,8 +24,9 @@ function GymRows({ gyms, plain = false }: { gyms: GymListItem[]; plain?: boolean
         <li key={gym.id}>
           <LinkRow
             href={`/gyms/${gym.id}`}
+            icon={GYM_KIND_ICON[gym.kind]}
             title={gym.name}
-            subtitle={`${GYM_KIND_LABELS[gym.kind]} · ${equipmentCountLabel(gym.equipmentCount)}`}
+            subtitle={`${GYM_KIND_LABELS[gym.kind]}, ${equipmentCountLabel(gym.equipmentCount).toLowerCase()}`}
             badge={gym.isDefault ? <Badge tone="accent">Default</Badge> : undefined}
           />
         </li>

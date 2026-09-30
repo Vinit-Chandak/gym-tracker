@@ -4,7 +4,6 @@ import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 
-import { Badge } from "@/components/ui/badge";
 import { Button, LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { SpeechTextarea } from "@/components/ui/dictation";
@@ -96,7 +95,14 @@ export function ChangeDetail(props: ChangeDetailProps) {
     );
   const why = coach && unasked && (props.rationale || props.uncertainties.length > 0);
   const tags: Record<string, ReactNode> = {};
-  for (const [id, quote] of attributed) tags[id] = <Badge tone="accent">“{quote}”</Badge>;
+  // The athlete's words on the line they produced: a quiet bubble that wraps like prose, since
+  // a quote runs longer than a badge's one word.
+  for (const [id, quote] of attributed)
+    tags[id] = (
+      <span className="inline-block max-w-full rounded-tile bg-accent-soft px-2.5 py-1 text-sm leading-snug font-semibold [overflow-wrap:anywhere] text-accent">
+        “{quote}”
+      </span>
+    );
 
   const run = async (work: () => Promise<{ ok: boolean; error?: string }>, done?: () => void) => {
     setBusy(true);
@@ -109,10 +115,10 @@ export function ChangeDetail(props: ChangeDetailProps) {
   const back = () => router.push(`${props.base}?view=changes` as Route);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-[var(--section-gap)]">
       <Card>
         {/* The page header is the h1; the change's own line is the next level down. */}
-        <h2 className="min-w-0 text-lg font-semibold [overflow-wrap:anywhere]">
+        <h2 className="min-w-0 text-xl leading-snug font-semibold [overflow-wrap:anywhere]">
           {props.headline || (coach ? "The coach's changes" : "Your changes")}
         </h2>
         {props.outcome && <p className="text-sm text-ink-muted">{props.outcome}</p>}

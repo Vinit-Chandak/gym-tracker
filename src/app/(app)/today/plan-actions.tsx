@@ -8,6 +8,7 @@ import { Button, type ButtonVariant } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
 import { PRESSABLE_ROW_CLASS } from "@/components/ui/link-row";
 import { Sheet } from "@/components/ui/sheet";
+import type { Tone } from "@/lib/sport-tone";
 import type { SlotPart } from "@/domain/types";
 import { attempted, keepsOutcomeOnDisconnect } from "@/lib/offline-submit";
 import { cn } from "@/lib/utils";
@@ -66,6 +67,7 @@ export function StartPlannedButton({
   dayIndex,
   label,
   variant = "primary",
+  tone,
   dayName,
   fromCycleIndex,
 }: {
@@ -74,6 +76,8 @@ export function StartPlannedButton({
   dayIndex: number;
   label: string;
   variant?: ButtonVariant;
+  /** The day's sport colour, for a list of days where each button belongs to one. */
+  tone?: Tone;
   /** The cycle the athlete is looking at, when they chose the day from a list of one cycle. */
   fromCycleIndex?: number;
   /**
@@ -89,6 +93,7 @@ export function StartPlannedButton({
       <Button
         size="lg"
         variant={variant}
+        tone={tone}
         aria-label={dayName ? `${label}: ${dayName}` : undefined}
         className="w-full"
         disabled={gymId === null || pending}

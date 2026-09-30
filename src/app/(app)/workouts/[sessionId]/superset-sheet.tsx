@@ -6,12 +6,29 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { InfoTip } from "@/components/ui/info-tip";
 import { Sheet } from "@/components/ui/sheet";
-import { supersetHues, supersetStyle } from "@/lib/superset-colors";
+import { supersetHues, supersetLetter, type SupersetHue } from "@/lib/superset-colors";
 import { cn } from "@/lib/utils";
 import { removeSupersetAction, saveSupersetAction } from "@/server/actions/sessions";
 
 import type { ExerciseVM } from "./view-model";
 import { attempted } from "@/lib/offline-submit";
+
+/**
+ * A group's letter in a small neutral chip, as a gym writes supersets: A, then B. Colour on
+ * screen means a sport, so the letter is what tells two groups apart.
+ */
+function GroupLetter({ hue, label }: { hue: SupersetHue; label?: string }) {
+  return (
+    <span
+      className="flex size-7 shrink-0 items-center justify-center rounded-full bg-surface-raised text-xs font-semibold text-ink-muted"
+      aria-hidden={label ? undefined : true}
+    >
+      {/* Read as "In superset B" where the letter says something the row does not. */}
+      {label && <span className="sr-only">{label} </span>}
+      {supersetLetter(hue)}
+    </span>
+  );
+}
 
 type SupersetSheetProps = {
   sessionId: string;
@@ -114,9 +131,9 @@ export function SupersetSheet({
                 <button
                   type="button"
                   onClick={() => onEditGroup(entry.name)}
-                  className="flex min-h-12 w-full items-center gap-3 py-2 pl-2 text-left text-sm superset-row active:bg-surface-raised"
-                  style={supersetStyle(entry.hue)}
+                  className="flex min-h-12 w-full items-center gap-3 py-2 text-left text-sm active:bg-surface-raised"
                 >
+                  <GroupLetter hue={entry.hue} />
                   <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
                     {entry.members.join(" + ")}
                   </span>
@@ -153,14 +170,8 @@ export function SupersetSheet({
                   <span className="min-w-0 flex-1 text-sm [overflow-wrap:anywhere]">
                     {exercise.exercise.name}
                   </span>
-                  {/* Already in another group: its colour says which, no words needed. */}
-                  {hue && (
-                    <span
-                      className="size-2.5 shrink-0 rounded-full"
-                      style={{ background: `var(--ov-group-${hue})` }}
-                      aria-label="In another superset"
-                    />
-                  )}
+                  {/* Already in another group: its letter says which. */}
+                  {hue && <GroupLetter hue={hue} label="In superset" />}
                 </label>
               </li>
             );

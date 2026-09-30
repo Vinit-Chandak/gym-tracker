@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
+import { List } from "@/components/ui/link-row";
 import { Section } from "@/components/ui/section";
 import { getDb } from "@/db/client";
 import { exercises } from "@/db/schema";
@@ -135,14 +136,14 @@ export default async function DraftProgrammePage({ params }: { params: Promise<{
         backHref={`/profile/programme/drafts/${data.draft.id}` as Route}
       />
       <PageContent>
-        <Section title={`${data.draft.blueprint.name} · week ${data.week}`}>
-          <ul className="space-y-3">
+        <Section title={`${data.draft.blueprint.name}, week ${data.week}`}>
+          <List>
             {days.map((plan) => (
               <li key={plan.day.id}>
                 <CycleDay plan={plan} />
               </li>
             ))}
-          </ul>
+          </List>
         </Section>
       </PageContent>
     </>

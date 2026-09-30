@@ -1,5 +1,6 @@
 import { SubmitButton } from "@/components/ui/form";
-import { Dumbbell } from "@/components/ui/icons";
+import { GYM_KIND_ICON } from "@/components/ui/gym-kind-icon";
+import { ClipboardList, Dumbbell } from "@/components/ui/icons";
 
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
@@ -9,16 +10,10 @@ import { Card } from "@/components/ui/card";
 import { Disclosure } from "@/components/ui/disclosure";
 import { EmptyState } from "@/components/ui/empty-state";
 import { InfoTip } from "@/components/ui/info-tip";
-import { LinkRow, List } from "@/components/ui/link-row";
+import { LinkRow, List, Row } from "@/components/ui/link-row";
 import { Section } from "@/components/ui/section";
 import { Select } from "@/components/ui/select";
-import {
-  AVAILABILITY_LABELS,
-  EQUIPMENT_CATEGORY_LABELS,
-  GYM_KIND_LABELS,
-  LOAD_UNIT_LABELS,
-  RESISTANCE_MODE_LABELS,
-} from "@/lib/labels";
+import { AVAILABILITY_LABELS, EQUIPMENT_CATEGORY_LABELS, GYM_KIND_LABELS } from "@/lib/labels";
 import {
   markEquipmentAbsentFromFormAction,
   unmarkEquipmentAbsentAction,
@@ -26,13 +21,11 @@ import {
 import { setDefaultGymAction, setGymActiveAction } from "@/server/actions/gyms";
 import { listAbsentEquipment } from "@/server/repositories/absent-equipment";
 import { gymAvailability } from "@/server/repositories/availability";
-import {
-  listEquipmentForGym,
-  listEquipmentTypes,
-  type EquipmentListItem,
-} from "@/server/repositories/equipment";
+import { listEquipmentForGym, listEquipmentTypes } from "@/server/repositories/equipment";
 import { getGym } from "@/server/repositories/gyms";
 import { EQUIPMENT_CATEGORIES } from "@/domain/types";
+
+import { EquipmentList, EquipmentRows } from "./equipment-list";
 
 export type GymDetailData = {
   gym: NonNullable<Awaited<ReturnType<typeof getGym>>>;
@@ -41,42 +34,6 @@ export type GymDetailData = {
   types: Awaited<ReturnType<typeof listEquipmentTypes>>;
   availability: Awaited<ReturnType<typeof gymAvailability>>;
 };
-function EquipmentRows({
-  gymId,
-  items,
-  plain = false,
-}: {
-  gymId: string;
-  items: EquipmentListItem[];
-  plain?: boolean;
-}) {
-  return (
-    <List plain={plain}>
-      {items.map((item) => (
-        <li key={item.id}>
-          <LinkRow
-            prefetch="intent"
-            href={`/gyms/${gymId}/equipment/${item.id}`}
-            title={item.name}
-            // Machines are usually named after their type, so only add it when it differs.
-            subtitle={
-              item.typeName === item.name
-                ? RESISTANCE_MODE_LABELS[item.resistanceMode]
-                : `${item.typeName} · ${RESISTANCE_MODE_LABELS[item.resistanceMode]}`
-            }
-            // A bare unit on every row is noise; the step is the part worth showing.
-            meta={
-              item.loadIncrement !== null
-                ? `+${item.loadIncrement} ${LOAD_UNIT_LABELS[item.unit]}`
-                : undefined
-            }
-          />
-        </li>
-      ))}
-    </List>
-  );
-}
-
 export function GymDetails({ data }: { data: GymDetailData }) {
   const { gym, equipment, absent, types, availability } = data;
   const activeEquipment = equipment.filter((item) => item.isActive);
@@ -86,7 +43,7 @@ export function GymDetails({ data }: { data: GymDetailData }) {
     ? (["direct", "fallback", "unknown", "unavailable"] as const)
         .filter((status) => summary[status] > 0)
         .map((status) => `${summary[status]} ${AVAILABILITY_LABELS[status].toLowerCase()}`)
-        .join(" · ")
+        .join(", ")
     : "No active programme";
   const registeredTypeIds = new Set(activeEquipment.map((item) => item.typeId));
   const absentTypeIds = new Set(absent.map((item) => item.equipmentTypeId));
@@ -112,33 +69,55 @@ export function GymDetails({ data }: { data: GymDetailData }) {
         }
       />
       <PageContent>
-        <Card>
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge>{GYM_KIND_LABELS[gym.kind]}</Badge>
-            {gym.isDefault && <Badge tone="accent">Default gym</Badge>}
-            {!gym.isActive && <Badge tone="danger">Archived</Badge>}
-          </div>
-          {gym.address && <p className="text-sm text-ink-muted">{gym.address}</p>}
-          {gym.notes && <p className="text-sm whitespace-pre-line">{gym.notes}</p>}
-          {gym.isActive && !gym.isDefault && (
-            <form action={setDefaultGymAction.bind(null, gym.id)}>
-              <SubmitButton variant="secondary" className="w-full">
-                Make default gym
-              </SubmitButton>
-            </form>
+        {/* What this place is: its kind and standing and where it is, as the first row, then
+            what to know there and the one thing to do about it. */}
+        <List>
+          <li>
+            <Row
+              icon={GYM_KIND_ICON[gym.kind]}
+              title={
+                <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  {GYM_KIND_LABELS[gym.kind]}
+                  {gym.isDefault && <Badge tone="accent">Default gym</Badge>}
+                  {!gym.isActive && <Badge tone="danger">Archived</Badge>}
+                </span>
+              }
+              subtitle={gym.address ?? undefined}
+            />
+          </li>
+          {gym.notes && (
+            <li className="px-4 py-3">
+              <p className="text-sm [overflow-wrap:anywhere] whitespace-pre-line">{gym.notes}</p>
+            </li>
           )}
-          {!gym.isActive && (
-            <form action={setGymActiveAction.bind(null, gym.id, true)}>
-              <SubmitButton variant="secondary" className="w-full">
-                Restore gym
-              </SubmitButton>
-            </form>
+          {(gym.isActive ? !gym.isDefault : true) && (
+            <li className="px-4 py-3">
+              {gym.isActive && !gym.isDefault && (
+                <form action={setDefaultGymAction.bind(null, gym.id)}>
+                  <SubmitButton variant="secondary" className="w-full">
+                    Make default gym
+                  </SubmitButton>
+                </form>
+              )}
+              {!gym.isActive && (
+                <form action={setGymActiveAction.bind(null, gym.id, true)}>
+                  <SubmitButton variant="secondary" className="w-full">
+                    Restore gym
+                  </SubmitButton>
+                </form>
+              )}
+            </li>
           )}
-        </Card>
+        </List>
 
         <List>
           <li>
-            <LinkRow href={`/gyms/${gym.id}/programme`} title="Programme fit" subtitle={fitLabel} />
+            <LinkRow
+              href={`/gyms/${gym.id}/programme`}
+              icon={ClipboardList}
+              title="Programme fit"
+              subtitle={fitLabel}
+            />
           </li>
         </List>
 
@@ -160,7 +139,7 @@ export function GymDetails({ data }: { data: GymDetailData }) {
               description="Add each machine or cable station you use here."
             />
           ) : (
-            <EquipmentRows gymId={gym.id} items={activeEquipment} />
+            <EquipmentList gymId={gym.id} items={activeEquipment} />
           )}
           {/* Archived machines stay out of new logging but remain in the record. */}
           {archivedEquipment.length > 0 && (
@@ -180,11 +159,11 @@ export function GymDetails({ data }: { data: GymDetailData }) {
                 <p className="text-sm text-ink-muted">Nothing marked unavailable.</p>
               )}
               {absent.length > 0 && (
-                <ul className="divide-y divide-line">
+                <ul className="ruled-list">
                   {absent.map((item) => (
                     <li
                       key={item.equipmentTypeId}
-                      className="flex items-center justify-between gap-3 py-1.5"
+                      className="flex flex-wrap items-center justify-between gap-x-3 py-1.5"
                     >
                       <span className="text-sm">{item.typeName}</span>
                       <form

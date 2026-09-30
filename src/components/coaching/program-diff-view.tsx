@@ -21,6 +21,8 @@ import {
 import { WEEKDAY_NAMES } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 
+import { phrase } from "./phrase";
+
 /**
  * A programme change, as the difference it actually is.
  *
@@ -73,12 +75,12 @@ function Lines({ lines }: { lines: readonly SummaryLine[] }) {
           <span className="text-ink">{line.label}:</span>{" "}
           {line.from !== null && (
             <>
-              <span className="line-through decoration-ink-subtle">{line.from}</span>{" "}
+              <span className="line-through decoration-ink-subtle">{phrase(line.from)}</span>{" "}
               <span aria-hidden>→</span>
               <span className="sr-only">changes to</span>{" "}
             </>
           )}
-          <span className="text-ink">{line.to}</span>
+          <span className="text-ink">{phrase(line.to)}</span>
         </li>
       ))}
     </ul>
@@ -112,7 +114,7 @@ function Side({ tone, name, targets }: { tone: Tone; name: string; targets?: str
         {name}
       </p>
       {targets && (
-        <p className="mt-0.5 text-sm [overflow-wrap:anywhere] text-ink-muted">{targets}</p>
+        <p className="mt-0.5 text-sm [overflow-wrap:anywhere] text-ink-muted">{phrase(targets)}</p>
       )}
     </div>
   );
@@ -284,7 +286,7 @@ function OperationRow({
 function RunEntry({ runs, reason }: { runs: RunSummary; reason?: ReactNode }) {
   // The weeks it names are the weeks that change: "weeks 3–8", or "weeks 3, 5 and 7" when the
   // weeks between are left as they were.
-  const label = `${runs.weeks.length === 1 ? "Run" : "Runs"} · ${weeksLabel(runs.weeks)}`;
+  const label = `${runs.weeks.length === 1 ? "Run" : "Runs"}, ${weeksLabel(runs.weeks)}`;
   return (
     <Operation icon={Footprints} label={label} reason={reason}>
       {runs.lines.length > 0 ? (
@@ -331,7 +333,7 @@ function DayGroup({
       <div>
         <h3 className="font-semibold [overflow-wrap:anywhere]">{day.name}</h3>
         <p className="mt-0.5 text-sm text-ink-muted">
-          {[weekday, status].filter(Boolean).join(" · ") || "Changed"}
+          {[weekday, status].filter(Boolean).join(", ") || "Changed"}
         </p>
         {dayReason && <div className="mt-1.5">{dayReason}</div>}
       </div>

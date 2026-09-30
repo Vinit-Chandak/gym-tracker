@@ -3,7 +3,6 @@
 import { useActionState, useState } from "react";
 
 import { ExercisePicker } from "@/components/exercise-picker";
-import { Card } from "@/components/ui/card";
 import { FormError, SubmitButton } from "@/components/ui/form";
 import { Field } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -25,6 +24,11 @@ type Props = {
   exerciseFieldName?: string;
 };
 
+/**
+ * The library to choose from, and under it, pinned above the navigation while the list
+ * scrolls, what was chosen and the button that uses it. The catalogue runs to a hundred and
+ * more rows; the answer to it should not be at the bottom of all of them.
+ */
 export function PickExerciseForm({
   action,
   exercises,
@@ -51,11 +55,42 @@ export function PickExerciseForm({
         error={state.fieldErrors?.[exerciseFieldName]}
       />
 
-      {/*
-        The machine question is asked only when there is a decision to make. One applicable
-        machine is not a choice, and an exercise that uses none should not be handed a list.
-      */}
-      <Card>
+      <div className="sticky-actions space-y-3">
+        <div className="flex min-h-11 items-center justify-between gap-3 px-1">
+          <div className="min-w-0">
+            {chosen ? (
+              <>
+                <p className="font-semibold [overflow-wrap:anywhere]">{chosen.name}</p>
+                {/* One applicable machine is not a choice, so it is said rather than asked. */}
+                {applicable.length === 1 ? (
+                  <p className="text-sm [overflow-wrap:anywhere] text-ink-muted">
+                    On {applicable[0]!.name}
+                  </p>
+                ) : applicable.length === 0 ? (
+                  <p className="text-sm text-ink-muted">
+                    {chosen.requiresEquipment ? "No machine registered here" : "No machine needed"}
+                  </p>
+                ) : null}
+              </>
+            ) : (
+              <p className="text-ink-muted">Choose an exercise</p>
+            )}
+          </div>
+          {chosen && (
+            <button
+              type="button"
+              onClick={() => setExerciseId("")}
+              className="min-h-11 shrink-0 px-2 text-sm font-semibold text-ink-muted"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+
+        {/*
+          The machine question is asked only when there is a decision to make. One applicable
+          machine is not a choice, and an exercise that uses none should not be handed a list.
+        */}
         {chosen &&
           (applicable.length > 1 ? (
             <Field
@@ -77,24 +112,16 @@ export function PickExerciseForm({
                 ))}
               </Select>
             </Field>
-          ) : applicable.length === 1 ? (
-            <>
-              <input type="hidden" name="equipmentInstanceId" value={applicable[0]!.id} />
-              <p className="text-sm text-ink-muted">
-                On <span className="font-semibold text-ink">{applicable[0]!.name}</span>
-              </p>
-            </>
           ) : (
-            <>
-              <input type="hidden" name="equipmentInstanceId" value="" />
-              <p className="text-sm text-ink-muted">
-                {chosen.requiresEquipment ? "No machine registered here." : "No machine needed."}
-              </p>
-            </>
+            <input
+              type="hidden"
+              name="equipmentInstanceId"
+              value={applicable.length === 1 ? applicable[0]!.id : ""}
+            />
           ))}
 
-        {remember && (
-          <label className="flex min-h-11 items-center gap-3 text-sm">
+        {remember && chosen && (
+          <label className="flex min-h-11 items-center gap-3 px-1 text-sm">
             <input
               type="checkbox"
               name="remember"
@@ -107,7 +134,7 @@ export function PickExerciseForm({
 
         <FormError message={state.formError} />
         <SubmitButton disabled={!exerciseId}>{submitLabel}</SubmitButton>
-      </Card>
+      </div>
     </form>
   );
 }

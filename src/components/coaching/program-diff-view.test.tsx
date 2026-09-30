@@ -199,7 +199,7 @@ it("folds a run's weeks into one entry and leaves the finished weeks out", () =>
       names={NAMES}
     />,
   );
-  expect(screen.getByText("Runs · weeks 3–6")).toBeTruthy();
+  expect(screen.getByText("Runs, weeks 3–6")).toBeTruthy();
   expect(screen.queryByText(/week 1/)).toBeNull();
   expect(screen.getAllByText(/Minutes:/)).toHaveLength(1);
   expect(screen.getByText("15–17 in week 3, building to 18–20 by week 6")).toBeTruthy();
