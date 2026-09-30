@@ -1,4 +1,5 @@
 import type { Icon as PhosphorIcon, IconProps } from "@phosphor-icons/react/lib";
+import { ArrowClockwiseIcon } from "@phosphor-icons/react/dist/ssr/ArrowClockwise";
 import { ArrowRightIcon } from "@phosphor-icons/react/dist/ssr/ArrowRight";
 import { ArrowsDownUpIcon } from "@phosphor-icons/react/dist/ssr/ArrowsDownUp";
 import { ArrowSquareOutIcon } from "@phosphor-icons/react/dist/ssr/ArrowSquareOut";
@@ -149,6 +150,8 @@ export const MicOff = /* @__PURE__ */ duotone(MicrophoneSlashIcon);
 export const Minus = /* @__PURE__ */ bold(MinusIcon);
 export const Paperclip = /* @__PURE__ */ duotone(PaperclipIcon);
 export const Plus = /* @__PURE__ */ bold(PlusIcon);
+/** Try a failed save again. */
+export const Retry = /* @__PURE__ */ bold(ArrowClockwiseIcon);
 /** A rest day: the one day the programme asks for nothing but recovery. */
 export const Rest = /* @__PURE__ */ duotone(MoonIcon);
 /** Cycling, drawn as the rider rather than the bike, like running and swimming beside it. */

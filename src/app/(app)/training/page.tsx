@@ -95,7 +95,7 @@ export default async function TrainingPage() {
             </>
           }
         >
-          <ul className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,6.5rem),1fr))] gap-3">
+          <ul className="grid grid-cols-1 gap-3 min-[22rem]:grid-cols-3">
             {ordered.map((sport) => {
               const Icon = SPORT_ICON[sport];
               return (
@@ -103,7 +103,7 @@ export default async function TrainingPage() {
                   <Link
                     href={`/training/new?sport=${sport}`}
                     className={cn(
-                      "flex min-h-28 pressable flex-col justify-between rounded-card p-4",
+                      "flex min-h-16 pressable items-center gap-3 rounded-tile p-4 min-[22rem]:min-h-28 min-[22rem]:flex-col min-[22rem]:items-start min-[22rem]:justify-between",
                       TONE_FILL[SPORT_TONE[sport]],
                     )}
                   >

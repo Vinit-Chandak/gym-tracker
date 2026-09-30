@@ -718,3 +718,43 @@ it("keeps an exercise open when the set it was waiting on does not save", async 
   // The failed row holds changes nobody has saved, so it has to be dealt with first.
   expect((complete as HTMLButtonElement).disabled).toBe(true);
 });
+
+it("saves a set done as suggested with one tap on its effort, never a copied one", async () => {
+  actions.log.mockResolvedValue({ ok: true, set: saved });
+  renderLogger({
+    exercise: {
+      suggestion: {
+        kind: "repeat",
+        basis: "exercise",
+        reason: "Same as last time",
+        advice: null,
+        loadIncrement: 2.5,
+        sets: [
+          {
+            setIndex: 1,
+            setType: "working",
+            weight: 60,
+            reps: 5,
+            rir: 1,
+            durationSeconds: null,
+            distanceMeters: null,
+          },
+        ],
+      },
+    },
+  });
+
+  // Only the set being done offers the one-tap efforts.
+  const group = screen.getByRole("group", { name: "Save set 1 at an effort" });
+  expect(screen.queryByRole("group", { name: "Save set 2 at an effort" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Save set 1 at 2 RIR" }));
+
+  // The suggested load and reps, and the effort that was tapped rather than the target's.
+  await waitFor(() =>
+    expect(actions.log).toHaveBeenCalledWith(
+      expect.objectContaining({ setIndex: 1, weight: 60, reps: 5, rir: 2 }),
+    ),
+  );
+  await screen.findByText("Set 1 saved");
+  expect(group.isConnected).toBe(false);
+});

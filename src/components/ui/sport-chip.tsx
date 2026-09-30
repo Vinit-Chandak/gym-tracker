@@ -29,7 +29,7 @@ export function SportChip({
       aria-hidden
       className={cn(
         "flex shrink-0 items-center justify-center",
-        size === "md" ? "size-11 rounded-[0.875rem]" : "size-9 rounded-[0.75rem]",
+        size === "md" ? "size-11 rounded-control" : "size-9 rounded-control",
         TONE_SOFT[SPORT_TONE[sport]],
         className,
       )}

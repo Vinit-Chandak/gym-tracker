@@ -251,10 +251,11 @@ in dark so it can be read as text.
 ## Typography
 
 - **Display (Big Shoulders 800, 0.95 line height):** the one name or figure that leads a screen.
-  `display-xl` 5rem for the kcal left; `display-l` 3.25rem for today's day and the exercise being
-  logged; `display-m` 2.25rem for page titles and secondary heroes; `display-s` 1.625rem for tile
-  figures and previous sets. Set-row numbers use it at 1.625rem.
-- **Everything else is the system UI font:** titles 1.0625rem semibold, body 1rem regular, small
+  `display-xl` (5rem, never wider than 21vw) for the kcal left; `display-l` 3.25rem for today's
+  day and the exercise being logged; `display-m` 2.25rem for page titles, secondary heroes and
+  tile figures; `display-s` 1.625rem for previous sets. Set-row numbers use it at 1.625rem.
+- **Everything else is the system UI font:** `headline` 1.0625rem semibold for card and row
+  titles, body 1rem regular, `callout` 0.9375rem for the line under a hero's name, small
   0.875rem, labels 0.8125rem semibold. Figures use tabular numerals.
 
 ### Named Rules
@@ -319,13 +320,22 @@ never zooms.
 ### Set row (signature)
 
 Set number in a round chip; load, reps (or seconds or metres) and effort as big display-face
-numbers in raised wells; a round check to save. Suggestions are the placeholder, lighter and
-fainter than anything typed. A saved set tints the row `lift-soft`, drops the wells and fills its
-check cobalt with a short pop (none under reduced motion).
+numbers in raised wells; a round 56px check to save (44px on a 320px phone). Suggestions are the
+placeholder, lighter and fainter than anything typed. A row that has been typed into fills its
+check cobalt to ask to be saved. Under the set being done, one-tap efforts (RIR 0 to 4, or RPE 6
+to 10) save it as suggested with the effort tapped: effort is always the athlete's, never copied.
+A saved set tints the row `lift-soft`, drops the wells and fills its check with a short pop (none
+under reduced motion). Complete stays secondary until the sets asked for are saved.
+
+### Supersets
+
+Named by letter, as a gym writes them: A1, A2, then B1, B2, in the number chip. The group is a
+neutral bracket (an ink bar and a raised wash), never a colour, because colour means a sport.
 
 ### Navigation
 
-Floating capsule with five tabs; the active tab is an ink pill with its label. The session in
+Floating capsule with five tabs; the active tab is an ink pill with its label. At large text
+sizes the capsule grows with the text and a label wraps rather than being cut. The session in
 progress and the rest timer are floating pills above it.
 
 ### Sheet

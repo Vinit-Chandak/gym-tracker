@@ -40,7 +40,7 @@ export function BackLink({ fallback, label }: { fallback: string; label?: string
       className="-ml-1.5 flex min-w-0 flex-1 basis-[5.5rem] pressable items-center gap-0.5 self-stretch rounded-chip px-1.5 text-accent active:bg-surface-raised"
     >
       <ChevronLeft className="shrink-0" aria-hidden />
-      <span className="text-[0.9375rem] font-semibold [overflow-wrap:anywhere]">{destination}</span>
+      <span className="text-callout font-semibold [overflow-wrap:anywhere]">{destination}</span>
     </Link>
   );
 }

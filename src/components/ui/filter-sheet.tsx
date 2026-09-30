@@ -44,7 +44,7 @@ export function FilterSheet({
         aria-expanded={open}
         aria-label={summary ? `${label}: ${summary}` : label}
         className={cn(
-          "flex min-h-12 min-w-12 shrink-0 pressable items-center justify-center gap-1.5 rounded-chip px-3.5 text-sm font-semibold shadow-[0_1px_2px_rgb(20_24_36/0.06)] transition-colors duration-[var(--ov-duration-feedback)] active:bg-surface-raised",
+          "flex min-h-12 min-w-12 shrink-0 pressable items-center justify-center gap-1.5 rounded-chip px-3.5 text-sm font-semibold transition-colors duration-[var(--ov-duration-feedback)] active:bg-surface-raised",
           count > 0 ? "bg-accent-soft text-accent" : "bg-surface text-ink",
         )}
       >

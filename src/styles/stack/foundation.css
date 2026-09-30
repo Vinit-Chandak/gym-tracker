@@ -21,9 +21,10 @@
   --ov-text-title: 1.5rem;
   --ov-leading-body: 1.45;
   --ov-leading-heading: 1.05;
-  --ov-display-xl: 5rem;
-  --ov-display-l: 3.25rem;
-  --ov-display-m: 2.25rem;
+  /* The one figure that fills a card: never wider than the card at large text sizes. */
+  --ov-display-xl: min(5rem, 21vw);
+  --ov-display-l: min(3.25rem, 15vw);
+  --ov-display-m: min(2.25rem, 11vw);
   --ov-display-s: 1.625rem;
 
   --ov-space-1: 0.25rem;
@@ -40,13 +41,12 @@
   --ov-control-height: 3rem;
   --ov-target-min: 2.75rem;
   --ov-icon-control: 1.25rem;
-  --ov-icon-navigation: 1.5rem;
+  --ov-icon-navigation: min(1.5rem, 30px);
   --ov-icon-row: 1.25rem;
   --ov-icon-feature: 1.75rem;
   --ov-content-max: 32rem;
-  --ov-nav-height: 4.25rem;
-  --ov-set-columns: 2.75rem minmax(4rem, 1.25fr) minmax(3.25rem, 1fr) minmax(2.75rem, 0.85fr)
-    2.75rem;
+  --ov-nav-height: min(4.25rem, 84px);
+  --ov-set-columns: 2.25rem minmax(3.75rem, 1.25fr) minmax(3rem, 1fr) minmax(2.5rem, 0.85fr) 3.5rem;
 
   --ov-duration-instant: 0ms;
   --ov-duration-feedback: 140ms;

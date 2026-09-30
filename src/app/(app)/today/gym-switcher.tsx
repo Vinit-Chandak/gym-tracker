@@ -62,7 +62,7 @@ export function GymSwitcher({
           type="button"
           onClick={() => setOpen(true)}
           aria-haspopup="dialog"
-          className="flex min-h-11 max-w-[13.5rem] pressable items-center gap-1.5 rounded-chip bg-surface py-2 pr-3 pl-3 text-sm font-semibold text-ink shadow-[0_1px_2px_rgb(20_24_36/0.06)]"
+          className="flex min-h-11 max-w-full pressable items-center gap-1.5 rounded-chip bg-surface py-2 pr-3 pl-3 text-sm font-semibold text-ink"
         >
           <MapPin className="shrink-0 text-lift-ink" aria-hidden />
           <span className="min-w-0 truncate">{current ? current.name : "Choose a gym"}</span>

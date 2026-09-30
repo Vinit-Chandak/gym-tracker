@@ -249,6 +249,15 @@ export function ExerciseLogger({
       ? exercise.decision.resolution.equipmentInstance
       : null;
   const editable = !readOnly && !skipped && !completed;
+  // The working sets asked for: the coach's, else the programme's. Until they are all saved,
+  // Complete waits in the background and the set being done is what stands out.
+  const coachTargets = exercise.suggestion?.kind === "coach" ? exercise.suggestion.sets : [];
+  const wanted =
+    coachTargets.length > 0
+      ? coachTargets.filter((set) => set.setType !== "warmup").length
+      : (exercise.planned?.sets ?? 1);
+  const allDone =
+    sets.loggedSets.filter((set) => set.setType !== "warmup").length >= wanted && !sets.editing;
   const optionsRow = sets.rows.find((row) => row.setIndex === optionsFor) ?? null;
   const suggestion = suggestionHeadline(exercise, unit);
   const prescription = prescriptionLine(exercise);
@@ -342,7 +351,7 @@ export function ExerciseLogger({
       <button
         type="button"
         onClick={onBack}
-        className="flex min-h-11 pressable items-center gap-1 rounded-chip bg-surface pr-4 pl-2.5 text-[0.9375rem] font-semibold text-ink active:bg-surface-raised"
+        className="flex min-h-11 pressable items-center gap-1 rounded-chip bg-surface pr-4 pl-2.5 text-callout font-semibold text-ink active:bg-surface-raised"
       >
         <ChevronLeft aria-hidden />
         All exercises
@@ -365,9 +374,16 @@ export function ExerciseLogger({
           {exercise.exercise.name}
         </h2>
         {prescription && (
-          <p className="text-[0.9375rem] font-semibold tabular-nums">
+          <p className="text-callout font-semibold tabular-nums">
             {suggestion?.kind === "coach" && "Programme: "}
             {prescription}
+          </p>
+        )}
+        {/* What was lifted last time, a glance away while logging (the History tab has the rest). */}
+        {editable && exercise.previous && (
+          <p className="text-sm text-ink-muted tabular-nums">
+            {exercise.previous.sameMachine ? "Last time on this machine" : "Last time"}:{" "}
+            <span className="font-semibold text-ink">{formatSets(exercise.previous.sets)}</span>
           </p>
         )}
         {editable && suggestion && (
@@ -490,6 +506,7 @@ export function ExerciseLogger({
                   }
                   onEdit={sets.editRow}
                   onSave={sets.logRow}
+                  onQuickLog={sets.logWithEffort}
                   onOptions={(row) => setOptionsFor(row.setIndex)}
                   onUndoWarmup={sets.undoWarmup}
                 />
@@ -573,6 +590,7 @@ export function ExerciseLogger({
                   // A row with unsaved changes does, as it would otherwise be left behind.
                   <Button
                     size="lg"
+                    variant={allDone ? "primary" : "secondary"}
                     className="w-full"
                     onClick={() => setCompletedState(true)}
                     disabled={

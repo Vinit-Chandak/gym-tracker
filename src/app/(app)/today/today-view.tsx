@@ -61,7 +61,7 @@ function HeroHead({
 }) {
   return (
     <>
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
         <p className="flex min-h-7 min-w-0 items-center gap-2 text-sm font-semibold text-ink-muted tabular-nums">
           <Icon aria-hidden />
           {position}
@@ -73,7 +73,7 @@ function HeroHead({
         {(subtitle || note) && (
           // The tip's tap target is taller than the line it sits on, so it gives the height
           // back: a day with a note is spaced exactly like one without.
-          <p className="mt-2 flex items-center gap-1 text-[0.9375rem] leading-snug text-ink-muted">
+          <p className="mt-2 flex items-center gap-1 text-callout leading-snug text-ink-muted">
             {subtitle && <span className="min-w-0 [overflow-wrap:anywhere]">{subtitle}</span>}
             {note && (
               <InfoTip label={`About ${title}`} className="-my-2">
@@ -189,7 +189,7 @@ function CoachStatus({
 /** How a finished half of the day says so: quietly, in the place its button was. */
 function DoneNote({ children }: { children: ReactNode }) {
   return (
-    <p className="flex min-h-12 items-center gap-2.5 rounded-tile bg-surface-raised px-4 py-3 text-[0.9375rem] leading-snug font-semibold">
+    <p className="flex min-h-12 items-center gap-2.5 rounded-tile bg-surface-raised px-4 py-3 text-callout leading-snug font-semibold">
       <CheckCircle2 aria-hidden />
       {children}
     </p>
@@ -278,7 +278,7 @@ export function TodayView({
       {!plan ? (
         <HeroCard tone="lift">
           <HeroHead icon={Dumbbell} title="No programme" />
-          <p className="text-[0.9375rem] leading-snug text-ink-muted">
+          <p className="text-callout leading-snug text-ink-muted">
             Choose one and Today will say what to train each day.
           </p>
           <LinkButton href="/profile/programme" size="lg" className="w-full">
@@ -400,9 +400,11 @@ export function TodayView({
             <OccurrenceCard occurrence={leadOccurrence} meta={`Part of ${day.name}`} hero />
           )}
 
-          {!day.includesLifting && !restDay && (
+          {/* Said only when the day has nothing else on screen; an ad hoc session is always
+              in More options. */}
+          {!day.includesLifting && !restDay && !leadOccurrence && (
             <Card>
-              <h2 className="text-[1.0625rem] font-semibold">No lifting planned for this day</h2>
+              <h2 className="text-headline font-semibold">No lifting planned for this day</h2>
               <StartAdHocButton gymId={defaultGym?.id ?? null} />
             </Card>
           )}
@@ -481,11 +483,11 @@ export function TodayView({
             <div className="flex items-center gap-3">
               <span
                 aria-hidden
-                className="flex size-11 shrink-0 items-center justify-center rounded-[0.875rem] bg-lift-soft text-lift-ink"
+                className="flex size-11 shrink-0 items-center justify-center rounded-control bg-lift-soft text-lift-ink"
               >
                 <MapPin />
               </span>
-              <h2 className="text-[1.0625rem] font-semibold">Add a gym to start training</h2>
+              <h2 className="text-headline font-semibold">Add a gym to start training</h2>
             </div>
             <LinkButton href="/gyms/new" size="lg" className="w-full">
               Add your first gym
@@ -501,7 +503,7 @@ export function TodayView({
                   <span aria-hidden className="size-2 rounded-full bg-lift" />
                   In progress
                 </p>
-                <h2 className="mt-1 text-[1.0625rem] font-semibold [overflow-wrap:anywhere]">
+                <h2 className="mt-1 text-headline font-semibold [overflow-wrap:anywhere]">
                   {inProgress.dayName ?? "Ad hoc session"}
                 </h2>
                 <p className="mt-0.5 text-sm text-ink-muted tabular-nums">
@@ -527,12 +529,12 @@ export function TodayView({
               <Card className="flex items-center gap-3 space-y-0">
                 <span
                   aria-hidden
-                  className="flex size-11 shrink-0 items-center justify-center rounded-[0.875rem] bg-success/12 text-success"
+                  className="flex size-11 shrink-0 items-center justify-center rounded-control bg-success/12 text-success"
                 >
                   <CheckCircle2 />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <h2 className="text-[1.0625rem] font-semibold [overflow-wrap:anywhere]">
+                  <h2 className="text-headline font-semibold [overflow-wrap:anywhere]">
                     {finishedToday.name}
                   </h2>
                   <p className="text-sm text-ink-muted">

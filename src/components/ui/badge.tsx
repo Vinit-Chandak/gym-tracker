@@ -16,7 +16,7 @@ export function Badge({
   return (
     <span
       className={cn(
-        "inline-flex max-w-full min-w-0 shrink-0 items-center rounded-chip px-2.5 py-1 text-xs leading-none font-semibold [overflow-wrap:anywhere]",
+        "badge inline-flex max-w-full min-w-0 shrink-0 items-center rounded-chip px-2.5 py-1 text-xs leading-none font-semibold [overflow-wrap:anywhere]",
         tone === "accent" && "bg-accent-soft text-accent",
         tone === "success" && "bg-success/12 text-success",
         tone === "warning" && "bg-warning/14 text-warning",

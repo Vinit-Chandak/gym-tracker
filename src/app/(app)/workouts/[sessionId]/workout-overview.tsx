@@ -11,7 +11,7 @@ import { List } from "@/components/ui/link-row";
 import { InfoTip } from "@/components/ui/info-tip";
 import { formatSets } from "@/domain/sets";
 import { formatDateTime } from "@/lib/format";
-import { supersetHues, supersetStyle } from "@/lib/superset-colors";
+import { supersetHues, supersetLabels } from "@/lib/superset-colors";
 import { cn } from "@/lib/utils";
 import { setWarmupCompletedAction } from "@/server/actions/sessions";
 
@@ -166,7 +166,7 @@ function SessionHero({
       </div>
       {session.exercises.length > 0 && <SetLadder exercises={session.exercises} />}
       {readOnly ? (
-        <p className="text-[0.9375rem] font-semibold text-ink-muted tabular-nums">
+        <p className="text-callout font-semibold text-ink-muted tabular-nums">
           Finished{" "}
           {session.completedAt ? formatDateTime(session.completedAt, session.timeZone) : ""}
         </p>
@@ -179,7 +179,7 @@ function SessionHero({
             <h2 className="mt-1 font-display text-display-m [overflow-wrap:anywhere]">
               {next.exercise.name}
             </h2>
-            <p className="mt-1 text-[0.9375rem] text-ink-muted tabular-nums">{nextSetLine(next)}</p>
+            <p className="mt-1 text-callout text-ink-muted tabular-nums">{nextSetLine(next)}</p>
           </div>
           <Button size="lg" className="w-full" onClick={() => onOpenExercise(next.id)}>
             {next.sets.length > 0 ? "Continue" : "Go to exercise"}
@@ -254,7 +254,7 @@ function WarmupRow({
             )}
             aria-hidden
           />
-          <span className="min-w-0 flex-1">Warm-up</span>
+          <span className="min-w-0 flex-1 whitespace-nowrap">Warm-up</span>
           <span className="shrink-0 text-xs font-normal text-ink-muted tabular-nums">
             {coachLines.length > 0
               ? `${coachLines.length} from the coach`
@@ -327,6 +327,7 @@ export function WorkoutOverview({
 }: OverviewProps) {
   const [warmupDone, setWarmupDone] = useState(session.warmupCompleted);
   const hues = supersetHues(session.exercises);
+  const labels = supersetLabels(session.exercises);
 
   return (
     <div className="space-y-[var(--section-gap)]">
@@ -373,7 +374,7 @@ export function WorkoutOverview({
         <div className="flex box items-start gap-3 px-4 py-3">
           <span
             aria-hidden
-            className="flex size-9 shrink-0 items-center justify-center rounded-[0.75rem] bg-accent-soft text-accent"
+            className="flex size-9 shrink-0 items-center justify-center rounded-control bg-accent-soft text-accent"
           >
             <AiCoach />
           </span>
@@ -391,7 +392,7 @@ export function WorkoutOverview({
         <p className="text-sm text-ink-muted">No exercises yet.</p>
       ) : (
         <List>
-          {session.exercises.map((exercise) => {
+          {session.exercises.map((exercise, index) => {
             // A finished session is a record of what happened, so a skipped exercise still says
             // it was skipped; without that it reads the same as one that was simply never done.
             const action: { label: string; tone: "accent" | "muted" } = readOnly
@@ -400,6 +401,7 @@ export function WorkoutOverview({
                 : { label: "View", tone: "muted" }
               : rowAction(exercise);
             const hue = exercise.supersetGroup ? hues.get(exercise.supersetGroup) : undefined;
+            const label = labels.get(index);
             return (
               <li key={exercise.id}>
                 <button
@@ -407,24 +409,31 @@ export function WorkoutOverview({
                   onClick={() => onOpenExercise(exercise.id)}
                   className={cn(
                     "flex min-h-16 w-full items-center gap-3 py-3 pr-4 text-left active:bg-surface-raised",
-                    // Rows in a superset share one colour; nothing else marks the group. The
-                    // bar takes 4px of the gutter so the names still line up.
+                    // Rows in a superset share one bracket and are named A1, A2 in their chip.
+                    // The bar takes 4px of the gutter so the names still line up.
                     hue ? "pl-3 superset-row" : "pl-4",
                   )}
-                  style={hue ? supersetStyle(hue) : undefined}
                 >
                   <span
                     className={cn(
                       "flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold tabular-nums",
                       exercise.completedAt
                         ? "bg-lift text-on-lift"
-                        : "bg-surface-raised text-ink-muted",
+                        : label
+                          ? "bg-surface text-ink"
+                          : "bg-surface-raised text-ink-muted",
                     )}
-                    style={
-                      hue && !exercise.completedAt ? { color: "var(--superset-color)" } : undefined
-                    }
                   >
-                    {exercise.completedAt ? <Check aria-hidden /> : exercise.orderIndex}
+                    {exercise.completedAt ? (
+                      <Check aria-hidden />
+                    ) : label ? (
+                      <>
+                        <span aria-hidden>{label}</span>
+                        <span className="sr-only">Superset {label}</span>
+                      </>
+                    ) : (
+                      exercise.orderIndex
+                    )}
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block font-semibold [overflow-wrap:anywhere]">
@@ -447,7 +456,10 @@ export function WorkoutOverview({
                   >
                     {action.label}
                   </span>
-                  <ChevronRight className="-ml-1 shrink-0 text-ink-subtle" aria-hidden />
+                  {/* The pill is the way in when there is one; a chevron only when there is not. */}
+                  {action.tone !== "accent" && (
+                    <ChevronRight className="-ml-1 shrink-0 text-ink-subtle" aria-hidden />
+                  )}
                 </button>
               </li>
             );

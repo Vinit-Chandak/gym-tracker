@@ -118,7 +118,7 @@ function Value({ side, leads }: { side: CompareSide; leads: boolean }) {
       <span
         className={cn(
           "block",
-          leads ? "font-semibold" : side.value ? "font-semibold" : "text-ink-muted",
+          leads ? "font-semibold" : side.value ? "font-normal" : "text-ink-muted",
         )}
       >
         {side.text}

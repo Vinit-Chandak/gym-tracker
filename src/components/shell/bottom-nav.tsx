@@ -30,14 +30,15 @@ function NavContent({
   const { pending } = useLinkStatus();
   return (
     <span className={cn("nav-tab", (active || pending) && "nav-tab-active")}>
-      <span className="flex h-8 w-11 shrink-0 items-center justify-center lg:size-8">
+      <span className="flex h-[min(2rem,34px)] w-[min(2.75rem,46px)] shrink-0 items-center justify-center lg:size-8">
         {pending ? (
           <LoaderCircle scale="navigation" className="motion-safe:animate-spin" aria-hidden />
         ) : (
           <Icon scale="navigation" aria-hidden />
         )}
       </span>
-      <span className="max-w-full truncate">{label}</span>
+      {/* At large text the capsule grows with it, so a label wraps rather than being cut. */}
+      <span className="max-w-full text-center leading-tight [overflow-wrap:anywhere]">{label}</span>
       {pending && <span className="sr-only">Loading {label}…</span>}
     </span>
   );

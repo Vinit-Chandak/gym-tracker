@@ -48,8 +48,10 @@ export function PageHeader<T extends string>({
       ) : (
         <div className="page-width flex flex-wrap items-end gap-3 pt-6 pb-4">
           {/* The meta follows the name in reading order and sits above it on screen. */}
-          <div className="flex min-w-0 flex-1 flex-col-reverse gap-1">
-            <h1 className="min-w-0 text-display-m [overflow-wrap:anywhere]">{title}</h1>
+          {/* Sized by its words, so an action that does not fit beside the name wraps under
+              it rather than the name breaking inside a word. */}
+          <div className="flex min-w-0 flex-[1_1_auto] flex-col-reverse gap-1">
+            <h1 className="min-w-0 text-display-m break-words">{title}</h1>
             {meta && (
               <p className="min-w-0 text-sm font-semibold [overflow-wrap:anywhere] text-ink-muted tabular-nums">
                 {meta}
@@ -88,7 +90,7 @@ function NestedBar<T extends string>({
     <div className="page-width flex min-h-14 flex-wrap items-center gap-x-2 gap-y-1 py-1.5">
       <BackLink fallback={backHref} label={backLabel} />
       <div className="min-w-0 flex-1 basis-32">
-        <h1 className="font-sans text-[1.0625rem] leading-tight font-semibold [overflow-wrap:anywhere]">
+        <h1 className="font-sans text-headline leading-tight font-semibold [overflow-wrap:anywhere]">
           {title}
         </h1>
         {meta && (

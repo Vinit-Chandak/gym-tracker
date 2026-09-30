@@ -362,6 +362,25 @@ export function useSetRows({ exercise, userId, sessionId, measure, unit, onLogge
     update(row.setIndex, next);
   };
 
+  /**
+   * One tap for a set done as suggested: the effort the athlete taps is typed into the row,
+   * exactly as the keyboard would type it, and the row is saved. Load and reps come from the
+   * row as it stands, typed or suggested; effort is only ever the athlete's own.
+   */
+  const logWithEffort = (row: RowState, value: string) => {
+    const field: DraftValueField = measure === "reps" ? "rir" : "rpe";
+    const next: RowState = {
+      ...row,
+      [field]: value,
+      touched: new Set(row.touched).add(field),
+      effortVersion: EFFORT_INPUT_VERSION,
+      dirty: true,
+    };
+    remember(next);
+    update(row.setIndex, next);
+    logRow(next);
+  };
+
   const restore = (row: RowState) => {
     forget(row.setIndex);
     update(row.setIndex, row.logged ? rowFromSet(row.logged) : emptyRow(row.setIndex));
@@ -573,6 +592,7 @@ export function useSetRows({ exercise, userId, sessionId, measure, unit, onLogge
     undoWarmup,
     restore,
     logRow,
+    logWithEffort,
     removeRow,
     addRow,
     ensureOpenRow,

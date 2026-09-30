@@ -58,7 +58,7 @@ export function SectionSelect<V extends string>({
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-label={current ? `${label}: ${current.label}` : label}
-        className="flex min-h-12 min-w-0 flex-1 pressable items-center gap-2 rounded-chip bg-surface px-4 text-left text-[1.0625rem] font-semibold shadow-[0_1px_2px_rgb(20_24_36/0.06)] transition-colors duration-[var(--ov-duration-feedback)] active:bg-surface-raised"
+        className="flex min-h-12 min-w-0 flex-1 pressable items-center gap-2 rounded-chip bg-surface px-4 text-left text-headline font-semibold transition-colors duration-[var(--ov-duration-feedback)] active:bg-surface-raised"
       >
         <span className="min-w-0 flex-1 truncate">{current?.label}</span>
         <ChevronDown

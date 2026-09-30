@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, LoaderCircle } from "@/components/ui/icons";
+import { Check, LoaderCircle, Retry } from "@/components/ui/icons";
 
 import { InfoTip } from "@/components/ui/info-tip";
 import { sanitizeNumberEntry, SET_LIMITS } from "@/domain/sets";
@@ -89,10 +89,15 @@ type SetGridProps = {
   rirTarget?: string | null;
   onEdit: (row: RowState, patch: Partial<RowState>, touch: DraftValueField) => void;
   onSave: (row: RowState) => void;
+  /** Saves a row with the effort tapped, for a set done as suggested: one tap, not three. */
+  onQuickLog?: (row: RowState, effort: string) => void;
   onOptions: (row: RowState) => void;
   /** Puts a set the logger saved as a warm-up back to a working set. */
   onUndoWarmup?: (row: RowState) => void;
 };
+
+/** The efforts offered as one-tap saves: reps in reserve for reps, RPE for time and distance. */
+const QUICK_EFFORTS = { rir: ["0", "1", "2", "3", "4"], rpe: ["6", "7", "8", "9", "10"] } as const;
 
 /** The third column: the field the exercise is actually counted in, and what bounds it. */
 const MEASURE_FIELD: Record<PrescriptionType, { field: DraftValueField; max: number }> = {
@@ -119,11 +124,20 @@ export function SetGrid({
   rirTarget = null,
   onEdit,
   onSave,
+  onQuickLog,
   onOptions,
   onUndoWarmup,
 }: SetGridProps) {
   const middle = { ...MEASURE_FIELD[measure], label: MEASURE_COLUMN_LABELS[measure] };
   const effort = effortMetric(measure);
+  // The set being done now: the first row not yet saved. It alone offers the one-tap efforts,
+  // and only once it has a load and reps (typed or suggested) for them to be saved with.
+  const current = rows.find((row) => row.logged === null && !row.saving);
+  const currentGhost = current ? ghost(current.setIndex) : {};
+  const quick =
+    onQuickLog && current && !current.error && (current[middle.field] || currentGhost[middle.field])
+      ? current
+      : null;
 
   return (
     <div className="set-grid">
@@ -132,21 +146,15 @@ export function SetGrid({
         <span className="text-center">{unitLabel}</span>
         <span className="text-center">{middle.label}</span>
         {/* RIR is the one column whose meaning changes with the movement, so it explains
-            itself here rather than being left to a glossary nobody opens mid-set. */}
-        <span className="flex items-center justify-center gap-0.5">
+            itself here rather than being left to a glossary nobody opens mid-set; the same
+            tip says what the faint numbers are, so the header needs no second one. */}
+        <span className="set-effort-head flex items-center gap-0.5">
           {effort.toUpperCase()}
           <InfoTip label={`What ${effort.toUpperCase()} means here`} className="-my-2">
             {effort === "rir" ? (rirNote ?? RIR_HELP) : RPE_HELP}
-            {effort === "rir" && rirTarget ? ` Today's target is ${rirTarget} RIR.` : ""}
-          </InfoTip>
-        </span>
-        {/* The one explanation the grid needs, kept out of the way over the save column. */}
-        <span className="flex justify-center">
-          <span className="sr-only">Save</span>
-          <InfoTip label="How suggestions work">
-            Faint load and rep/time/distance numbers are suggestions. Type over them to record
-            something different. Enter your actual effort for each working set; effort is never
-            copied from a suggestion. Warm-up effort is optional.
+            {effort === "rir" && rirTarget ? ` Today's target is ${rirTarget} RIR.` : ""} Faint
+            numbers are suggestions: type over them to record something different. Effort is never
+            copied from a suggestion; warm-up effort is optional.
           </InfoTip>
         </span>
       </div>
@@ -172,9 +180,10 @@ export function SetGrid({
                   type="button"
                   onClick={() => onOptions(row)}
                   aria-label={`Set ${row.setIndex} options${mark ? `, ${SET_TYPE_LABELS[row.setType].toLowerCase()}` : ""}`}
-                  className="set-identity flex size-11 min-w-0 pressable flex-col items-center justify-center justify-self-center rounded-full bg-surface-raised text-ink active:bg-line"
+                  // Drawn at 36px so the row fits a small phone; the hit area is 44px all round.
+                  className="set-identity relative flex size-9 min-w-0 pressable flex-col items-center justify-center justify-self-center rounded-full bg-surface-raised text-ink after:absolute after:-inset-1 after:rounded-full after:content-[''] active:bg-line"
                 >
-                  <span className="text-[0.9375rem] leading-none font-semibold tabular-nums">
+                  <span className="text-callout leading-none font-semibold tabular-nums">
                     {row.setIndex}
                   </span>
                   {mark && (
@@ -224,13 +233,13 @@ export function SetGrid({
                   {row.saving ? (
                     <span
                       role="status"
-                      className="flex size-11 items-center justify-center rounded-full bg-lift-soft text-lift-ink"
+                      className="flex size-11 items-center justify-center rounded-full bg-lift-soft text-lift-ink @min-[17.25rem]:size-14"
                     >
                       <LoaderCircle className="motion-safe:animate-spin" aria-hidden />
                       <span className="sr-only">Saving set {row.setIndex}</span>
                     </span>
                   ) : saved ? (
-                    <span className="set-done flex size-11 items-center justify-center rounded-full bg-lift text-on-lift">
+                    <span className="set-done flex size-11 items-center justify-center rounded-full bg-lift text-on-lift @min-[17.25rem]:size-14">
                       <Check aria-hidden />
                       <span className="sr-only">Set {row.setIndex} saved</span>
                     </span>
@@ -246,20 +255,44 @@ export function SetGrid({
                             : `Save set ${row.setIndex}`
                       }
                       className={cn(
-                        "flex size-11 pressable items-center justify-center rounded-full text-xs font-semibold",
+                        "flex size-11 pressable items-center justify-center rounded-full @min-[17.25rem]:size-14",
                         row.error
                           ? "border-2 border-danger text-danger active:bg-surface-raised"
-                          : row.logged
-                            ? // An edited saved set: the same check, asking to be pressed again.
-                              "border-2 border-lift bg-surface text-lift-ink active:bg-lift-soft"
+                          : row.dirty
+                            ? // Typed into, so ready: the check fills to ask to be pressed.
+                              "bg-lift text-on-lift active:bg-lift-ink"
                             : "border-2 border-line-strong bg-surface text-ink-subtle active:border-lift active:bg-lift-soft active:text-lift-ink",
                       )}
                     >
-                      {row.error ? "Retry" : <Check aria-hidden />}
+                      {row.error ? <Retry aria-hidden /> : <Check aria-hidden />}
                     </button>
                   )}
                 </div>
               </div>
+
+              {/* The set being done now, as suggested: tap how it felt and it is saved. */}
+              {quick === row && onQuickLog && (
+                <div
+                  role="group"
+                  aria-label={`Save set ${row.setIndex} at an effort`}
+                  className="flex flex-wrap items-center gap-1.5 pt-2 pl-1"
+                >
+                  <span className="mr-1 text-sm font-semibold text-ink-muted">
+                    Save at {effort.toUpperCase()}
+                  </span>
+                  {QUICK_EFFORTS[effort].map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => onQuickLog(row, value)}
+                      aria-label={`Save set ${row.setIndex} at ${value} ${effort.toUpperCase()}`}
+                      className="flex size-11 pressable items-center justify-center rounded-full bg-lift-soft font-display text-[1.25rem] leading-none font-extrabold text-lift-ink active:bg-lift active:text-on-lift"
+                    >
+                      {value}
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {/* Below the row, never inside a column, so the numbers stay in line. */}
               {row.error && (

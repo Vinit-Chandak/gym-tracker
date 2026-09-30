@@ -102,6 +102,10 @@
   --text-xl: var(--ov-text-title);
   --text-xl--line-height: 1.2;
   /* The display face's sizes: the one number or name that leads a screen. */
+  --text-callout: 0.9375rem;
+  --text-callout--line-height: 1.4;
+  --text-headline: 1.0625rem;
+  --text-headline--line-height: 1.3;
   --text-display-xl: var(--ov-display-xl);
   --text-display-xl--line-height: 0.9;
   --text-display-l: var(--ov-display-l);
@@ -120,7 +124,7 @@
   /* The row of tabs, and the whole island: the glass is exactly as tall as its tabs. */
   --nav-height: var(--ov-nav-height);
   /* Side gutters stay independent of the smaller gap below the island. */
-  --nav-inset: var(--ov-space-5);
+  --nav-inset: min(var(--ov-space-5), 20px);
   /*
    * Bring the island 12px closer to the bottom on inset displays, with a 4px minimum gap.
    * The same gap also positions the resume strip and reserves space in the page below.
@@ -348,7 +352,8 @@
   --ov-line: rgb(255 255 255 / 0.24);
   --ov-line-strong: rgb(255 255 255 / 0.55);
   --ov-surface: rgb(255 255 255 / 0.14);
-  --ov-surface-raised: rgb(255 255 255 / 0.16);
+  /* A darker wash, not a lighter one: white text on it measures above 7:1 on either fill. */
+  --ov-surface-raised: rgb(11 13 18 / 0.18);
   --ov-accent: #ffffff;
   --ov-accent-strong: rgb(255 255 255 / 0.86);
   --ov-accent-soft: rgb(255 255 255 / 0.2);
@@ -405,6 +410,11 @@
 
 .hero-card[data-hero="rose"] {
   --ov-on-accent: var(--ov-rose);
+}
+
+/* A badge on a hero card is a wash of the card's own ink, whatever state it names. */
+.hero-card .badge {
+  background-color: var(--ov-surface-raised);
 }
 
 /*
@@ -574,6 +584,12 @@ html:has(.app-content) {
   }
 }
 
+@media (width < 22.5rem) {
+  :root {
+    --nav-inset: var(--ov-space-2);
+  }
+}
+
 .nav-items {
   display: flex;
   height: 100%;
@@ -600,13 +616,15 @@ html:has(.app-content) {
   height: 100%;
   width: 100%;
   min-width: 0;
-  padding-inline: 0.125rem;
+  padding-inline: 2px;
   align-items: center;
   justify-content: center;
   flex-direction: column;
   gap: 0.0625rem;
   border-radius: inherit;
-  font-size: 0.6875rem;
+  /* Grows with the text up to the width five whole words can share on a phone, then holds,
+     as a native tab bar does; the page itself scales in full. */
+  font-size: max(min(0.6875rem, 3vw), 10.5px);
   font-weight: 600;
   letter-spacing: 0.01em;
   transition:
@@ -759,14 +777,12 @@ html:has(.app-content) {
 }
 
 /*
- * A superset member. The group's hue arrives as --superset-color from the row itself, so
- * one rule serves all eight colours: a bar on the left and a faint wash of the same hue
- * behind the row, which is how two rows say they belong together without a caption.
- * Browsers without color-mix drop the wash and keep the bar.
+ * A superset member: a neutral bracket, an ink bar on the left and a raised wash behind the
+ * row. Colour means a sport, so the group is named by its letter (A1, A2) rather than a hue.
  */
 @utility superset-row {
-  border-left: 4px solid var(--superset-color, var(--ov-accent));
-  background: color-mix(in srgb, var(--superset-color, var(--ov-accent)) 9%, transparent);
+  border-left: 4px solid var(--ov-ink-subtle);
+  background: var(--ov-surface-raised);
 }
 
 /*
@@ -779,12 +795,12 @@ html:has(.app-content) {
  * viewport is unchanged while every number gets twice as wide.
  *
  * The thresholds are the tiers' own minimums, not guesses:
- *   18.25rem = 2.75 (identity) + 4 + 3.25 + 2.75 (fields) + 2.75 (save) + 4 × 0.5 (gaps)
- *              + 0.75 (the row's own padding, which carries its saved colour)
- *   15rem    = the same without the save cell and its gap, which have moved to their own line
- * At normal text a 360px phone leaves 18.5rem of container, so the one-line grid holds on
- * every current phone; a 320px one and 200% text land in the lower tiers. No value is ever
- * clipped or shrunk to keep a row on one line.
+ *   17.25rem  = 2.25 (identity) + 3.75 + 3 + 2.5 (fields) + 3.5 (the 56px check)
+ *               + 4 × 0.375 (gaps) + 0.75 (the row's own padding, which carries its colour)
+ *   16.5rem   = the same with a 44px check, which is where a 320px phone lands
+ *   13.375rem = the same without the check and its gap, which have moved to their own line
+ * Every phone keeps the row on one line at normal text; 200% text lands in the lower tiers.
+ * No value is ever clipped or shrunk to keep a row on one line.
  */
 .set-grid {
   container-type: inline-size;
@@ -807,8 +823,14 @@ html:has(.app-content) {
 .set-row {
   display: grid;
   grid-template-columns: var(--ov-set-columns);
-  gap: var(--ov-space-2);
+  gap: 0.375rem;
   align-items: center;
+}
+
+/* The effort heading spans its column and the check's, which has no heading of its own. */
+.set-effort-head {
+  grid-column: 4 / span 2;
+  padding-inline-start: 0.5rem;
 }
 
 /* The cell is a pass-through so its input stays a direct grid item in every tier. */
@@ -820,10 +842,22 @@ html:has(.app-content) {
   display: none;
 }
 
-/* Tier 2: the numbers keep their row; saving takes the next one. */
-@container (max-width: 18.25rem) {
+/* Tier 1, narrower: the check drops to 44px, which a 320px phone has room for. */
+@container (width < 17.25rem) {
   .set-row {
-    grid-template-columns: var(--ov-target-min) 1fr 1fr 1fr;
+    grid-template-columns:
+      2.25rem minmax(3.75rem, 1.25fr) minmax(3rem, 1fr) minmax(2.5rem, 0.85fr)
+      var(--ov-target-min);
+  }
+}
+
+/* Tier 2: the numbers keep their row; saving takes the next one. */
+@container (width < 16.5rem) {
+  .set-row {
+    grid-template-columns: 2.25rem 1fr 1fr 1fr;
+  }
+  .set-effort-head {
+    grid-column: auto;
   }
   .set-row > .set-save {
     grid-column: 1 / -1;
@@ -836,7 +870,7 @@ html:has(.app-content) {
  * a 320px row at 200% text — a four-digit load alone wants most of it — so the row grows
  * downwards instead, and the column header gives way to per-field labels.
  */
-@container (max-width: 15rem) {
+@container (width < 13.375rem) {
   .set-row {
     grid-template-columns: minmax(0, auto) minmax(0, 1fr);
   }

@@ -9,7 +9,7 @@ import { extendTailwindMerge } from "tailwind-merge";
 const twMerge = extendTailwindMerge({
   extend: {
     theme: {
-      text: ["display-xl", "display-l", "display-m", "display-s"],
+      text: ["display-xl", "display-l", "display-m", "display-s", "callout", "headline"],
       radius: ["card", "control", "sheet", "hero", "tile", "chip", "island"],
     },
   },

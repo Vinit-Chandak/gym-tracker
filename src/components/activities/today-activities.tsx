@@ -58,7 +58,7 @@ export function OccurrenceCard({
     const Icon = SPORT_ICON[occurrence.sport];
     return (
       <HeroCard tone={tone}>
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
           <p className="flex min-h-7 items-center gap-2 text-sm font-semibold text-ink-muted tabular-nums">
             <Icon aria-hidden />
             {ACTIVITY_SPORT_LABELS[occurrence.sport]}
@@ -70,7 +70,7 @@ export function OccurrenceCard({
           <h2 className="font-display text-display-l [overflow-wrap:anywhere]">
             {line(occurrence)}
           </h2>
-          {meta && <p className="mt-1 text-[0.9375rem] text-ink-muted">{meta}</p>}
+          {meta && <p className="mt-1 text-callout text-ink-muted">{meta}</p>}
         </div>
         {occurrence.resolution.kind === "logged" ? (
           <LinkButton
@@ -98,7 +98,7 @@ export function OccurrenceCard({
           {ACTIVITY_SPORT_LABELS[occurrence.sport]}
           {time ? `, ${time}` : ""}
         </p>
-        <h2 className="text-[1.0625rem] leading-snug font-semibold [overflow-wrap:anywhere]">
+        <h2 className="text-headline leading-snug font-semibold [overflow-wrap:anywhere]">
           {line(occurrence)}
         </h2>
         {meta && <p className="text-sm [overflow-wrap:anywhere] text-ink-muted">{meta}</p>}

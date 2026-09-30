@@ -27,7 +27,7 @@ export function Section({
   return (
     <section className={cn("min-w-0", className)}>
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-1 pb-2">
-        <h2 className="flex items-center gap-1 text-[1.0625rem] font-semibold text-ink">
+        <h2 className="flex items-center gap-1 text-headline font-semibold text-ink">
           {title}
           {info && <InfoTip label={`About ${title.toLowerCase()}`}>{info}</InfoTip>}
         </h2>

@@ -25,7 +25,7 @@ export function RowIcon({ icon: Icon, className }: { icon: AppIcon; className?: 
   return (
     <span
       className={cn(
-        "flex size-9 shrink-0 items-center justify-center rounded-[0.75rem] bg-surface-raised text-ink",
+        "flex size-9 shrink-0 items-center justify-center rounded-control bg-surface-raised text-ink",
         className,
       )}
       aria-hidden
@@ -65,7 +65,7 @@ export function LinkRow<T extends string>({
       {icon && <RowIcon icon={icon} className={cn(danger && "bg-danger/12 text-danger")} />}
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <p className={cn("font-semibold [overflow-wrap:anywhere]", danger && "text-danger")}>
+          <p className={cn("font-semibold break-words hyphens-auto", danger && "text-danger")}>
             {title}
           </p>
           {badge}
@@ -76,7 +76,7 @@ export function LinkRow<T extends string>({
       </div>
       {/* Trailing actions keep a reserved column so a long name wraps instead of pushing them out. */}
       {meta && (
-        <span className="max-w-[32%] shrink-0 text-right text-sm text-ink-muted tabular-nums">
+        <span className="max-w-[32%] min-w-0 text-right text-sm break-words text-ink-muted tabular-nums">
           {meta}
         </span>
       )}
