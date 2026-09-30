@@ -9,7 +9,8 @@ this page is corrected.
 Each section lists the information shown, the actions, the states a design must cover, what
 must survive any redesign, and sample content from the repository for mockups. The sample
 content is real: it comes from the seed data, the preview fixtures and the audit seed, never
-invented.
+invented. Elsewhere, quoted labels show the wording and format the app uses; the numbers inside
+them are illustrative.
 
 ## Everywhere: the shell
 
@@ -55,10 +56,10 @@ anything scheduled), where they will train, and one tap to start or resume it.
   started early): its name, gym, start time and number of sets, with Resume. Only one Resume
   ever appears on Today.
 - **The offered lifting day:**
-  - where it sits in the programme ("Cycle 1 of 8 · Day 3"), its name ("Lower A"), its focus
+  - where it sits in the programme ("Cycle 1 of 8 · Day 1"), its name ("Lower A"), its focus
     and time ("Squat + quads · 70–90 min");
   - a note with the day's effort guidance and notes;
-  - a status: "2 behind" or "On track" while pending (behind = days since the programme
+  - a status: "22 behind" or "On track" while pending (behind = days since the programme
     started minus days completed or skipped), otherwise Done or Skipped; "Coach" when the
     coach planned it;
   - **the plan**, one tap away: "6 exercises · 16 sets", then each exercise with its
@@ -126,6 +127,204 @@ requests; offline; loading; error.
   ("Talk-test; slower than push pace"). (`src/app/(preview)/preview/page.tsx`)
 - Gyms "Anytime Fitness" (gym) and "Home" (home). Warm-up "Daily mobility": 90/90 hip switches
   6–8 per side, Cat-cow 6–8. (`src/db/seed/data/warmups.ts`)
+
+## A workout and logging a set
+
+Code: `src/app/(app)/workouts/[sessionId]/` (`workout-view.tsx`, `workout-overview.tsx`,
+`exercise-logger.tsx`, `set-grid.tsx`, `set-options.tsx`, `use-set-rows.ts`, `next-load.tsx`,
+`superset-sheet.tsx`, `session-details.tsx`, `check-in/`, `finish/`, `add-exercise/`),
+`src/components/shell/rest-timer.tsx`, `src/server/actions/sessions.ts`.
+
+**Purpose:** record every set of one workout at one gym, exercise by exercise in any order,
+then close it as a permanent record.
+
+**The flow:** Start workout on Today → a short check-in (Save and start, or Skip) → the
+workout's exercise list → open an exercise and log its sets → Complete it and move to any
+other → Finish session (notes and body weight) → the finished record, with any records set.
+An ad hoc session starts empty; a programme day arrives with its exercises, fallbacks,
+supersets and any coach plan already applied.
+
+### The check-in
+
+Four readings before the session: sleep hours, sleep quality, fatigue and soreness. Warnings
+from them become a "Recovery check" on the workout ("Sleep {hours} h: hold loads today rather
+than adding, and keep the RIR honest").
+
+### The workout
+
+- **Header:** the day's name or "Ad hoc session", and the gym, said once for the whole session.
+- The recovery check and the coach's summary, when present.
+- **Warm-up**, when the day has one: the number of drills or the coach's lines, each drill
+  with its dose, and Mark done.
+- **Each exercise:** its order, name, machine, progress ("2 of 3 sets", warm-ups not counted),
+  the working sets so far ("60×5, 62.5×4"), and Start, Resume, Done or Skipped. Supersets are
+  grouped visibly.
+- **Actions:** open an exercise; Add exercise (search by name, muscle or equipment); Superset
+  (group two or more exercises for this workout only); Session details (gym, start, duration,
+  programme day, cycle, body weight, notes, the check-in); Finish session, which waits until
+  no unsaved drafts remain ("Save drafts first").
+
+### Logging an exercise
+
+- **The exercise:** name, status, and its equipment ("Smith machine", "Free weights",
+  "Bodyweight", "Machine not chosen", "· instead of 45° leg press" when substituted).
+- **The prescription, shown once above the sets:** "3 × 4–6 @ 2–3 RIR · rest 3–4 min", or
+  "2 × 20–45 s per side · report RPE · rest 60 s". Only a set that differs shows its own
+  target.
+- **The suggestion for today:** one of Add load, Hold, Repeat, Reduce, Step back, Add time, Add
+  distance, Starting guess, No history or Coach plan, with a line such as "Next: 65 kg × 4+" or
+  "Keep 62.5 kg", and why, one tap away.
+- **One row per set**, each its own record:
+  - the set number and type: Warm-up, Working, Back-off, Drop, AMRAP or To failure;
+  - load: kg or lb for free weights (the account's unit), added load for bodyweight moves (0
+    means bodyweight), or the machine's own unit (plates or stack number), never converted;
+  - reps, seconds or metres, depending on how the exercise is counted;
+  - effort: RIR for reps, RPE 1–10 for time and distance; required on working sets, optional
+    on warm-ups, and never pre-filled;
+  - Save, then a confirmed check. Untouched load and reps take the suggested value, shown
+    faintly until saved; effort never does.
+- **Set options** for a row: its type, steppers for load (in the machine's real increments),
+  reps (1), seconds (5), metres (5) and effort (1), and remove the row or delete the set.
+- **Saving a set** confirms it, adds an empty row for the next, and starts the rest timer: the
+  coach's rest, else the plan's, else 90 s. A light first set saved without effort before any
+  working set becomes a warm-up, with Undo.
+- **Also:** edit a saved set (Update), add a set (up to 50), Complete the exercise (Reopen
+  afterwards), Skip it with an optional reason before any set is logged, and on a machine
+  whose next weight is unknown, record it ("Next up from 45 kg").
+- **Technique:** the cue, target load, progression and substitution for the movement, and a
+  link to the exercise library.
+- **History:** the previous comparable session on this machine ("Previous on this machine:
+  60 kg × 5, 62.5 kg × 4 · 8 Sep"), a warning after two sessions in decline, and why today's
+  suggestion is what it is.
+- **When the machine is not settled:** use it, use a fallback, add a fallback (remembered for
+  this gym), or register the machine.
+
+### Finishing and the record
+
+- **Finish:** what was recorded (sets per exercise, "60 kg × 5, …"), what was not done
+  ("Nothing logged", "Skipped: travelling"), notes, and body weight.
+- **The finished workout:** read only, with its records ("Barbell bench press · Est. 1RM 88 kg
+  (was 85 kg)"; also top weight, best set, most reps, longest hold and longest carry), and
+  "Save or repeat this workout" as a routine.
+
+### States to design
+
+Ad hoc and programme sessions; an empty session; supersets; timed and distance exercises;
+machine, free-weight and bodyweight exercises; an unsettled machine; a suggestion of each
+kind; no history; a saving, saved and failed set; offline, with drafts kept on the device and
+restored on return; drafts left on a completed exercise; a set changed on another device; a
+completed and a skipped exercise; the finished record.
+
+### Must survive
+
+- Load, reps (or time or distance) and effort belong to each set; identical sets stay
+  separate records, and editing one never touches another.
+- Effort is always entered by the athlete and never pre-filled; an empty effort is unknown,
+  not zero. A suggested value looks unconfirmed until saved.
+- One unfinished workout at a time; the gym is fixed for the session and said once.
+- Free movement between exercises, in any order; completing one never jumps to the next.
+- Exercises are only added (at the end) or skipped, never reordered or deleted. Supersets
+  apply to this workout only and never change the programme.
+- A set counts as saved only once the server confirms it; a double tap never duplicates it;
+  a failed save keeps its draft; unsaved drafts block finishing.
+- A session with sets can never be discarded. A finished session is read only and keeps what
+  was skipped.
+
+### Sample content
+
+- **Gyms:** Anytime Fitness (default), Samsung Gym, Society Gym, Home, Outdoor. **Machines:**
+  Smith machine, Cable station, Assisted pull-up machine, Seated leg curl, Pec deck, 45° leg
+  press. (`src/db/test/fixtures.ts`)
+- **Lower A:** High-bar barbell squat 3 × 4–6 @ 2–3 RIR, rest 180–240 s, cue "Brace; whole
+  foot; controlled depth", progression "+2.5 kg after 3×6"; 45° leg press 3 × 6–10 @ 1–2;
+  Seated leg curl 3 × 8–12 @ 1–2, rest 120 s. (`src/db/seed/data/program.ts`)
+- **Upper A:** Barbell bench press 4 × 3–5 @ 2; Pull-up, "Bodyweight; log added load only".
+- **Timed and distance:** Side plank 2 × 20–45 s per side, rest 60 s; Farmer's carry 20–40 m.
+- **Superset:** Wrist curl + Reverse wrist curl, 2 × 12–20, rest 60 s.
+- **Warm-up:** Lower-body warm-up (easy bike or treadmill 4–5 min, 90/90 hip switches 6–8 per
+  side, …) ending in the ramp "40% × 8; 55–60% × 5; 70–75% × 2–3". (`src/db/seed/data/warmups.ts`)
+- **Sets:** bench 60 kg × 5 @ 2 RIR, then 62.5 kg × 4 @ 1 RIR; a Hold suggestion of 62.5 kg ×
+  3 @ 2. (`src/server/repositories/sessions.test.ts`)
+
+## Progress
+
+Code: `src/app/(app)/progress/` (`page.tsx`, `progress-view.tsx`, `progress-sections.tsx`,
+`recovery-progress.tsx`, `history/`), `src/components/strength-trend.tsx`,
+`src/components/ui/chart.tsx`, `body-map.tsx`, `filter-sheet.tsx`, `src/domain/analytics.ts`.
+
+**Purpose:** how training is going over a chosen date range (totals, trends, recovery, body
+weight and muscle volume), and every past entry, which can be opened, corrected or deleted.
+
+### Sections
+
+One picker offers six sections: **Overview** (where the tab opens), **History**, **Strength**,
+**Running**, **Recovery** and **Body**. The header says "Progress" with the date range
+("6 Jul – 30 Sept 2026"); a Filters control sets the range, about the last 12 weeks by
+default and up to a year.
+
+- **Overview:** training totals per sport, only for sports with sessions ("Strength 40
+  sessions · 39 days · 37 h 36 min"; "Running 15 sessions · 15 days · 6 h 10 min · 59.8 km";
+  cycling and swimming alike), noting sessions without a distance or duration; and **weekly
+  sessions**, lifting and runs per week, with this week marked "so far".
+- **Strength:** choose an exercise, then one of five measures (heaviest working set, most reps,
+  volume, average RIR, estimated 1RM), shown as the latest value, the change over the range
+  ("+x since DD/MM") and a line with one point per session. Where the exercise was done on
+  several machines, choose one ("Seated leg curl · Anytime Fitness") or "Across gyms"; loads from
+  different machines never share a line. Then **sets by muscle**: a muscle and its weekly sets
+  (a primary muscle counts 1, a secondary 0.5, warm-ups not at all).
+- **Running:** distance and duration per week, and pace per run (min/km, lower is faster),
+  outdoor and treadmill never mixed.
+- **Recovery:** how many check-ins; sleep hours, sleep quality, fatigue and soreness, each with
+  its latest value, the range average and a line; the last three check-ins.
+- **Body:** body weight over the range in the account's unit (one reading per day); and
+  **muscles this week**, with its own week arrows: front and back body figures shaded by
+  working sets (15+, 10–14, 5–9, 1–4, none), a legend and a table; tapping a muscle shows
+  "Chest · 6 sets this week".
+- **History:** "79 entries", newest first, each marked Workout, Run, Ride, Swim or Recovery.
+  A workout shows its name, date, time, gym, sets and sleep; a run "Outdoor · 5 km", "30:34 ·
+  6:07/km" and its effort; a ride or swim its distance and time; a recovery entry its
+  readings. Filters: dates, activity, gym, exercise and machine, with a count of filters set
+  and Clear filters.
+
+### Actions
+
+Switch section; set the date range; choose exercise, machine, measure, muscle, running mode
+and recovery measure; step through body-map weeks; tap or drag a chart for its value, and
+open "View values" for a table; open any entry from History (a finished workout, read only,
+or an activity page with its time, distance, pace or speed, effort and notes); correct an
+activity; delete an activity (always confirmed).
+
+### States to design
+
+Nothing recorded in the range; one sport only; a sport turned off (its history still shows);
+a partial week; missing answers and missing distances (gaps, not zeros); more than 500
+records (a sample, with a warning); an invalid range; pounds, miles and yards; loading;
+error; offline.
+
+### Must survive
+
+- All six sections stay reachable, and History stays its own page. Dates and filters live in
+  the URL, so Back and reload restore them.
+- Strength's numbers are the same as the exercise page's; loads from different machines never
+  share a series.
+- Missing data is never zero: gaps break lines and blanks stay blank.
+- Every chart keeps a table of its values, the body map keeps its table, and colour never
+  carries meaning alone.
+- Explanations live in help notes one tap away, not in running text.
+- Deleting an activity always asks for confirmation.
+
+### Sample content
+
+From the audit seed (`scripts/dev/seed-audit-history.ts`, `docs/audits/local-56-months.md`),
+56 months of history, February 2022 to September 2026:
+
+- Strength sessions at Anytime Fitness, 42–60 min, 9 sets: Barbell bench press reaching 62 kg
+  × 8–10 at 2 RIR in August 2026; Goblet squat; Farmer's carry; Plank holds of 55 s.
+- Runs: "Outdoor · 3 km, 17:20 · 5:47/km"; 4 km in 23:47; 5 km in 30:34 at 6:07/km.
+- A 50 min indoor ride with no distance; a swim of 48 lengths of 25 m.
+- Body weight: 1 Aug 75.96 kg, 15 Aug 76.67 kg, 1 Sep 76.28 kg, 15 Sep 77.32 kg, 28 Sep
+  77.47 kg.
+- A daily recovery check-in: sleep 7 h, quality 3, fatigue 3, soreness 1.
 
 ## Food
 

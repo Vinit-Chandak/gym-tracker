@@ -67,7 +67,9 @@ are what gets designed.
 
 ### 1. Directions (Claude Design)
 
-Start without the current interface, or the result is a repaint of it. Ask for two or three
+Start without the current interface, or the result is a repaint of it. Every direction draws
+the same content, taken from [the feature inventory](features.md); the ready-made prompt is
+[prompts/01-directions.md](prompts/01-directions.md). Ask for two or three
 genuinely different directions, each on the same three or four anchor screens (Today, logging
 a set mid-workout, Progress, Food) at the iPhone 17 size the catalogue uses, 402×874, in light
 and dark, with real data. Pick one, then ask for two contrasting alternatives to test the
