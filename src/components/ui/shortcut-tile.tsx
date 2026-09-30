@@ -24,11 +24,13 @@ export function ShortcutTile<T extends string>({
   return (
     <Link
       href={href}
-      className="flex h-full min-h-14 box min-w-0 items-center gap-2.5 px-3 py-2 transition-colors duration-[var(--ov-duration-feedback)] active:bg-surface-raised"
+      className="flex h-full min-h-24 box min-w-0 pressable flex-col justify-between gap-3 rounded-tile p-4"
     >
-      <Icon scale="row" className="text-accent" aria-hidden />
+      <span className="flex size-10 items-center justify-center rounded-[0.8125rem] bg-accent-soft text-accent">
+        <Icon scale="row" aria-hidden />
+      </span>
       <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-        <span className="min-w-0 font-medium [overflow-wrap:anywhere]">{label}</span>
+        <span className="min-w-0 font-semibold [overflow-wrap:anywhere]">{label}</span>
         {badge}
       </span>
     </Link>

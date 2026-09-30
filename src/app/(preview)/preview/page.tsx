@@ -45,6 +45,44 @@ const PREVIOUS_DAY: NonNullable<TodayPlan["finishedToday"]> = {
   includesRun: false,
 };
 
+/** A day that neither lifts nor runs, for the rest state. */
+const REST_DAY: NonNullable<TodayPlan["suggestedDay"]> = {
+  ...DAY,
+  id: "00000000-0000-4000-8000-000000000008",
+  dayIndex: 4,
+  name: "Rest + mobility",
+  focus: "Recovery",
+  includesLifting: false,
+  includesRun: false,
+  timeNote: "15 min",
+  effortNote: null,
+  notes: "Walk if you like",
+  warmupProtocolId: "w1",
+};
+
+/** A day that runs and does not lift, for the run state. */
+const RUN_DAY: NonNullable<TodayPlan["suggestedDay"]> = {
+  ...DAY,
+  id: "00000000-0000-4000-8000-000000000009",
+  name: "Easy run",
+  focus: "Aerobic base",
+  includesLifting: false,
+  includesRun: true,
+  timeNote: "30 min",
+  effortNote: null,
+  notes: null,
+};
+
+const REST_PROTOCOL = {
+  name: "Mobility flow",
+  drills: [
+    { order: 1, name: "Cat–cow", dose: "10 slow reps", cue: "", purpose: "" },
+    { order: 2, name: "World's greatest stretch", dose: "5 each side", cue: "", purpose: "" },
+    { order: 3, name: "90/90 hip switch", dose: "8 each side", cue: "", purpose: "" },
+    { order: 4, name: "Dead hang", dose: "3 × 30 s", cue: "", purpose: "" },
+  ],
+};
+
 const EXERCISES: TodayPlan["suggestedExercises"] = [
   {
     programExerciseId: "e1",
@@ -185,8 +223,31 @@ const OPEN_SESSION = {
 export default async function TodayPreviewPage(props: PageProps<"/preview">) {
   // The states of a day that lifts and runs. The default is the one the run used to
   // disappear in: workout finished, run still owed. `next` is the day offered after the one
-  // before it was finished today, which is up next rather than today's.
+  // before it was finished today, which is up next rather than today's. `rest` and `run` are
+  // the two other kinds of day: one that asks only for recovery, one that only runs.
   const { state } = await props.searchParams;
+
+  if (state === "rest" || state === "run") {
+    return (
+      <PreviewShell tab="/today">
+        <TodayView
+          today="2026-09-12"
+          timeZone="Asia/Kolkata"
+          gyms={[{ id: "g1", name: "Anytime Fitness", kind: "gym", isDefault: true }]}
+          plan={plan({
+            sessionStatus: "pending",
+            suggestedDay: state === "rest" ? REST_DAY : RUN_DAY,
+            suggestedExercises: [],
+            behind: state === "rest" ? 1 : 0,
+            nextTrainingDay: state === "rest" ? { ...PREVIOUS_DAY, cycleIndex: 1 } : null,
+          })}
+          inProgress={null}
+          restProtocol={state === "rest" ? REST_PROTOCOL : null}
+          programmeOccurrences={state === "run" ? [RUN_OCCURRENCE] : []}
+        />
+      </PreviewShell>
+    );
+  }
 
   return (
     <PreviewShell tab="/today">

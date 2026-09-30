@@ -1,48 +1,60 @@
 /*
- * Shared scale, responsive dimensions, motion and the light/dark selection.
- * Imported before form.css from src/app/globals.css. Components consume the semantic
- * --ov-* names only; the per-mode palette inputs in form.css are private to this pair.
+ * Stack: the shared scale, motion and the light/dark selection.
+ * Imported before stack.css from src/app/globals.css. Components consume the semantic --ov-*
+ * names only; the per-mode palette inputs in stack.css are private to this pair.
  */
-:where([data-overload-design="form"]) {
+:where([data-overload-design="stack"]) {
+  /* The phone's own face for everything read; the display face for the one number that leads. */
   --ov-font-body:
     ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --ov-font-display:
+    var(--font-display, "Avenir Next Condensed"), "Avenir Next Condensed", "Roboto Condensed",
+    "Arial Narrow", sans-serif;
   --ov-font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
 
-  --ov-text-label: 0.75rem;
-  --ov-text-small: clamp(0.8125rem, 0.78rem + 0.15vw, 0.875rem);
-  --ov-text-body: clamp(0.875rem, 0.8rem + 0.3vw, 1rem);
+  /* rem, not viewport units: text scales with the reader's setting, never with the screen. */
+  --ov-text-label: 0.8125rem;
+  --ov-text-small: 0.875rem;
+  --ov-text-body: 1rem;
   --ov-text-input: max(1rem, 16px);
-  --ov-text-title: clamp(1.5rem, 1.2rem + 1.25vw, 2rem);
-  --ov-text-section: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+  --ov-text-section: 1.125rem;
+  --ov-text-title: 1.5rem;
   --ov-leading-body: 1.45;
-  --ov-leading-heading: 1.15;
+  --ov-leading-heading: 1.05;
+  --ov-display-xl: 5rem;
+  --ov-display-l: 3.25rem;
+  --ov-display-m: 2.25rem;
+  --ov-display-s: 1.625rem;
 
   --ov-space-1: 0.25rem;
-  --ov-space-2: 0.375rem;
-  --ov-space-3: 0.5rem;
-  --ov-space-4: 0.75rem;
-  --ov-space-5: 1rem;
-  --ov-space-6: 1.25rem;
-  --ov-space-7: 1.5rem;
-  --ov-page-gutter: clamp(0.75rem, 3.8vw, 1.25rem);
-  --ov-panel-padding: clamp(0.75rem, 3.5vw, 1.125rem);
-  --ov-section-gap: clamp(1rem, 4.5vw, 1.5rem);
-  --ov-row-gap: 0.375rem;
-  --ov-control-height: 2.75rem;
+  --ov-space-2: 0.5rem;
+  --ov-space-3: 0.75rem;
+  --ov-space-4: 1rem;
+  --ov-space-5: 1.25rem;
+  --ov-space-6: 1.5rem;
+  --ov-space-7: 2rem;
+  --ov-page-gutter: 1rem;
+  --ov-panel-padding: 1.25rem;
+  --ov-section-gap: 1.25rem;
+  --ov-row-gap: 0.5rem;
+  --ov-control-height: 3rem;
   --ov-target-min: 2.75rem;
-  --ov-icon-control: clamp(1.125rem, 1.0625rem + 0.25vw, 1.25rem);
-  --ov-icon-navigation: clamp(1.25rem, 1.125rem + 0.5vw, 1.5rem);
-  --ov-icon-row: clamp(1.375rem, 1.25rem + 0.5vw, 1.5rem);
-  --ov-icon-feature: clamp(1.5rem, 1.375rem + 0.5vw, 1.75rem);
+  --ov-icon-control: 1.25rem;
+  --ov-icon-navigation: 1.5rem;
+  --ov-icon-row: 1.25rem;
+  --ov-icon-feature: 1.75rem;
   --ov-content-max: 32rem;
-  --ov-nav-height: 4rem;
+  --ov-nav-height: 4.25rem;
   --ov-set-columns: 2.75rem minmax(4rem, 1.25fr) minmax(3.25rem, 1fr) minmax(2.75rem, 0.85fr)
     2.75rem;
 
   --ov-duration-instant: 0ms;
-  --ov-duration-feedback: 120ms;
-  --ov-duration-sheet: 180ms;
+  --ov-duration-feedback: 140ms;
+  --ov-duration-sheet: 320ms;
+  --ov-duration-exit: 180ms;
   --ov-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ov-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ov-ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
   --ov-z-content: 0;
   --ov-z-nav: 40;
   --ov-z-timer: 45;
@@ -53,12 +65,13 @@
   --ov-canvas: var(--ov-light-canvas);
   --ov-surface: var(--ov-light-surface);
   --ov-surface-raised: var(--ov-light-surface-raised);
+  --ov-surface-selected: var(--ov-light-surface-selected);
+  --ov-line: var(--ov-light-line);
+  --ov-line-strong: var(--ov-light-line-strong);
   --ov-ink: var(--ov-light-ink);
   --ov-ink-muted: var(--ov-light-ink-muted);
   --ov-ink-subtle: var(--ov-light-ink-subtle);
   --ov-ink-ghost: var(--ov-light-ink-ghost);
-  --ov-line: var(--ov-light-line);
-  --ov-line-strong: var(--ov-light-line-strong);
   --ov-accent: var(--ov-light-accent);
   --ov-accent-strong: var(--ov-light-accent-strong);
   --ov-on-accent: var(--ov-light-on-accent);
@@ -88,28 +101,54 @@
   --ov-group-6: var(--ov-light-group-6);
   --ov-group-7: var(--ov-light-group-7);
   --ov-group-8: var(--ov-light-group-8);
-  /* Avatar circles: the hue is the person's, these two lightnesses are the palette's. */
-  --ov-avatar-surface-l: 0.88;
+  --ov-lift: var(--ov-light-lift);
+  --ov-on-lift: var(--ov-light-on-lift);
+  --ov-lift-soft: var(--ov-light-lift-soft);
+  --ov-lift-ink: var(--ov-light-lift-ink);
+  --ov-run: var(--ov-light-run);
+  --ov-on-run: var(--ov-light-on-run);
+  --ov-run-soft: var(--ov-light-run-soft);
+  --ov-run-ink: var(--ov-light-run-ink);
+  --ov-ride: var(--ov-light-ride);
+  --ov-on-ride: var(--ov-light-on-ride);
+  --ov-ride-soft: var(--ov-light-ride-soft);
+  --ov-ride-ink: var(--ov-light-ride-ink);
+  --ov-swim: var(--ov-light-swim);
+  --ov-on-swim: var(--ov-light-on-swim);
+  --ov-swim-soft: var(--ov-light-swim-soft);
+  --ov-swim-ink: var(--ov-light-swim-ink);
+  --ov-food: var(--ov-light-food);
+  --ov-on-food: var(--ov-light-on-food);
+  --ov-food-soft: var(--ov-light-food-soft);
+  --ov-food-ink: var(--ov-light-food-ink);
+  --ov-rose: var(--ov-light-rose);
+  --ov-on-rose: var(--ov-light-on-rose);
+  --ov-rose-soft: var(--ov-light-rose-soft);
+  --ov-rose-ink: var(--ov-light-rose-ink);
+  --ov-avatar-surface-l: 0.9;
   --ov-avatar-surface-c: 0.06;
   --ov-avatar-ink-l: 0.4;
-  --ov-avatar-ink-c: 0.11;
+  --ov-avatar-ink-c: 0.13;
 }
 
 /* System, including absent/invalid preference; explicit Light/Dark are excluded. */
 @media (prefers-color-scheme: dark) {
   :where(
-    [data-overload-design="form"]:not([data-overload-mode="light"]):not([data-overload-mode="dark"])
+    [data-overload-design="stack"]:not([data-overload-mode="light"]):not(
+        [data-overload-mode="dark"]
+      )
   ) {
     color-scheme: dark;
     --ov-canvas: var(--ov-dark-canvas);
     --ov-surface: var(--ov-dark-surface);
     --ov-surface-raised: var(--ov-dark-surface-raised);
+    --ov-surface-selected: var(--ov-dark-surface-selected);
+    --ov-line: var(--ov-dark-line);
+    --ov-line-strong: var(--ov-dark-line-strong);
     --ov-ink: var(--ov-dark-ink);
     --ov-ink-muted: var(--ov-dark-ink-muted);
     --ov-ink-subtle: var(--ov-dark-ink-subtle);
     --ov-ink-ghost: var(--ov-dark-ink-ghost);
-    --ov-line: var(--ov-dark-line);
-    --ov-line-strong: var(--ov-dark-line-strong);
     --ov-accent: var(--ov-dark-accent);
     --ov-accent-strong: var(--ov-dark-accent-strong);
     --ov-on-accent: var(--ov-dark-on-accent);
@@ -139,24 +178,49 @@
     --ov-group-6: var(--ov-dark-group-6);
     --ov-group-7: var(--ov-dark-group-7);
     --ov-group-8: var(--ov-dark-group-8);
-    --ov-avatar-surface-l: 0.34;
-    --ov-avatar-surface-c: 0.06;
-    --ov-avatar-ink-l: 0.88;
+    --ov-lift: var(--ov-dark-lift);
+    --ov-on-lift: var(--ov-dark-on-lift);
+    --ov-lift-soft: var(--ov-dark-lift-soft);
+    --ov-lift-ink: var(--ov-dark-lift-ink);
+    --ov-run: var(--ov-dark-run);
+    --ov-on-run: var(--ov-dark-on-run);
+    --ov-run-soft: var(--ov-dark-run-soft);
+    --ov-run-ink: var(--ov-dark-run-ink);
+    --ov-ride: var(--ov-dark-ride);
+    --ov-on-ride: var(--ov-dark-on-ride);
+    --ov-ride-soft: var(--ov-dark-ride-soft);
+    --ov-ride-ink: var(--ov-dark-ride-ink);
+    --ov-swim: var(--ov-dark-swim);
+    --ov-on-swim: var(--ov-dark-on-swim);
+    --ov-swim-soft: var(--ov-dark-swim-soft);
+    --ov-swim-ink: var(--ov-dark-swim-ink);
+    --ov-food: var(--ov-dark-food);
+    --ov-on-food: var(--ov-dark-on-food);
+    --ov-food-soft: var(--ov-dark-food-soft);
+    --ov-food-ink: var(--ov-dark-food-ink);
+    --ov-rose: var(--ov-dark-rose);
+    --ov-on-rose: var(--ov-dark-on-rose);
+    --ov-rose-soft: var(--ov-dark-rose-soft);
+    --ov-rose-ink: var(--ov-dark-rose-ink);
+    --ov-avatar-surface-l: 0.36;
+    --ov-avatar-surface-c: 0.08;
+    --ov-avatar-ink-l: 0.9;
     --ov-avatar-ink-c: 0.08;
   }
 }
 
-:where([data-overload-design="form"][data-overload-mode="dark"]) {
+:where([data-overload-design="stack"][data-overload-mode="dark"]) {
   color-scheme: dark;
   --ov-canvas: var(--ov-dark-canvas);
   --ov-surface: var(--ov-dark-surface);
   --ov-surface-raised: var(--ov-dark-surface-raised);
+  --ov-surface-selected: var(--ov-dark-surface-selected);
+  --ov-line: var(--ov-dark-line);
+  --ov-line-strong: var(--ov-dark-line-strong);
   --ov-ink: var(--ov-dark-ink);
   --ov-ink-muted: var(--ov-dark-ink-muted);
   --ov-ink-subtle: var(--ov-dark-ink-subtle);
   --ov-ink-ghost: var(--ov-dark-ink-ghost);
-  --ov-line: var(--ov-dark-line);
-  --ov-line-strong: var(--ov-dark-line-strong);
   --ov-accent: var(--ov-dark-accent);
   --ov-accent-strong: var(--ov-dark-accent-strong);
   --ov-on-accent: var(--ov-dark-on-accent);
@@ -186,25 +250,52 @@
   --ov-group-6: var(--ov-dark-group-6);
   --ov-group-7: var(--ov-dark-group-7);
   --ov-group-8: var(--ov-dark-group-8);
-  --ov-avatar-surface-l: 0.34;
-  --ov-avatar-surface-c: 0.06;
-  --ov-avatar-ink-l: 0.88;
+  --ov-lift: var(--ov-dark-lift);
+  --ov-on-lift: var(--ov-dark-on-lift);
+  --ov-lift-soft: var(--ov-dark-lift-soft);
+  --ov-lift-ink: var(--ov-dark-lift-ink);
+  --ov-run: var(--ov-dark-run);
+  --ov-on-run: var(--ov-dark-on-run);
+  --ov-run-soft: var(--ov-dark-run-soft);
+  --ov-run-ink: var(--ov-dark-run-ink);
+  --ov-ride: var(--ov-dark-ride);
+  --ov-on-ride: var(--ov-dark-on-ride);
+  --ov-ride-soft: var(--ov-dark-ride-soft);
+  --ov-ride-ink: var(--ov-dark-ride-ink);
+  --ov-swim: var(--ov-dark-swim);
+  --ov-on-swim: var(--ov-dark-on-swim);
+  --ov-swim-soft: var(--ov-dark-swim-soft);
+  --ov-swim-ink: var(--ov-dark-swim-ink);
+  --ov-food: var(--ov-dark-food);
+  --ov-on-food: var(--ov-dark-on-food);
+  --ov-food-soft: var(--ov-dark-food-soft);
+  --ov-food-ink: var(--ov-dark-food-ink);
+  --ov-rose: var(--ov-dark-rose);
+  --ov-on-rose: var(--ov-dark-on-rose);
+  --ov-rose-soft: var(--ov-dark-rose-soft);
+  --ov-rose-ink: var(--ov-dark-rose-ink);
+  --ov-avatar-surface-l: 0.36;
+  --ov-avatar-surface-c: 0.08;
+  --ov-avatar-ink-l: 0.9;
   --ov-avatar-ink-c: 0.08;
 }
 
+/* Reduced motion keeps meaning with opacity: durations shorten, movement is removed where used. */
 @media (prefers-reduced-motion: reduce) {
-  :where([data-overload-design="form"]) {
+  :where([data-overload-design="stack"]) {
     --ov-duration-feedback: 0ms;
-    --ov-duration-sheet: 0ms;
+    --ov-duration-sheet: 160ms;
+    --ov-duration-exit: 120ms;
   }
 }
 
 /* Equal, low selector specificity: these critical system colours win in every mode. */
 @media (forced-colors: active) {
-  :where([data-overload-design="form"]) {
+  :where([data-overload-design="stack"]) {
     --ov-canvas: Canvas;
     --ov-surface: Canvas;
     --ov-surface-raised: Canvas;
+    --ov-surface-selected: Canvas;
     --ov-ink: CanvasText;
     --ov-ink-muted: CanvasText;
     --ov-ink-subtle: CanvasText;
@@ -239,5 +330,29 @@
     --ov-group-6: Highlight;
     --ov-group-7: Highlight;
     --ov-group-8: Highlight;
+    --ov-lift: Highlight;
+    --ov-on-lift: HighlightText;
+    --ov-lift-soft: Canvas;
+    --ov-lift-ink: CanvasText;
+    --ov-run: Highlight;
+    --ov-on-run: HighlightText;
+    --ov-run-soft: Canvas;
+    --ov-run-ink: CanvasText;
+    --ov-ride: Highlight;
+    --ov-on-ride: HighlightText;
+    --ov-ride-soft: Canvas;
+    --ov-ride-ink: CanvasText;
+    --ov-swim: Highlight;
+    --ov-on-swim: HighlightText;
+    --ov-swim-soft: Canvas;
+    --ov-swim-ink: CanvasText;
+    --ov-food: Highlight;
+    --ov-on-food: HighlightText;
+    --ov-food-soft: Canvas;
+    --ov-food-ink: CanvasText;
+    --ov-rose: Highlight;
+    --ov-on-rose: HighlightText;
+    --ov-rose-soft: Canvas;
+    --ov-rose-ink: CanvasText;
   }
 }

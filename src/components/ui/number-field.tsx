@@ -45,14 +45,14 @@ export function NumberField({
 
   return (
     <div className={cn("min-w-0 space-y-1", className)}>
-      <span className="block truncate text-xs text-ink-subtle">{label}</span>
-      <div className="grid grid-cols-2 overflow-hidden rounded-control border border-line-strong bg-surface">
+      <span className="block truncate text-xs font-medium text-ink-muted">{label}</span>
+      <div className="grid grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] items-center gap-1 rounded-control bg-surface-raised p-1">
         <button
           type="button"
           onClick={() => bump(-step)}
           disabled={disabled}
           aria-label={`Decrease ${label}`}
-          className="order-2 h-11 border-t border-r border-line text-lg text-ink-muted select-none active:bg-surface-raised disabled:opacity-40"
+          className="order-1 flex size-11 pressable items-center justify-center rounded-[0.625rem] bg-surface text-xl font-semibold text-ink select-none disabled:opacity-40"
         >
           −
         </button>
@@ -65,14 +65,14 @@ export function NumberField({
           onChange={(event) => onChange(sanitizeNumberEntry(event.target.value, inputMode, max))}
           disabled={disabled}
           aria-label={label}
-          className="order-1 col-span-2 h-11 w-full min-w-0 bg-transparent text-center text-[length:var(--ov-text-input)] font-semibold tabular-nums placeholder:font-normal placeholder:text-ink-ghost focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset"
+          className="order-2 h-11 w-full min-w-0 rounded-[0.625rem] bg-transparent text-center font-display text-[1.75rem] leading-none font-extrabold tabular-nums placeholder:font-bold placeholder:text-ink-ghost focus:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset"
         />
         <button
           type="button"
           onClick={() => bump(step)}
           disabled={disabled}
           aria-label={`Increase ${label}`}
-          className="order-3 h-11 border-t border-line text-lg text-ink-muted select-none active:bg-surface-raised disabled:opacity-40"
+          className="order-3 flex size-11 pressable items-center justify-center rounded-[0.625rem] bg-surface text-xl font-semibold text-ink select-none disabled:opacity-40"
         >
           +
         </button>

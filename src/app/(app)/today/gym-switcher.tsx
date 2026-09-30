@@ -1,10 +1,10 @@
 "use client";
 
-import { Check, MapPin } from "@/components/ui/icons";
+import { Check, ChevronDown, MapPin } from "@/components/ui/icons";
 import Link from "@/components/ui/app-link";
 import { useState, useTransition } from "react";
 
-import { Button, LinkButton } from "@/components/ui/button";
+import { LinkButton } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
 import type { GymKind } from "@/domain/types";
 import { GYM_KIND_LABELS } from "@/lib/labels";
@@ -16,7 +16,10 @@ import { attempted } from "@/lib/offline-submit";
 
 export type SwitcherGym = { id: string; name: string; kind: GymKind; isDefault: boolean };
 
-/** One-tap gym selection: shows the default gym and opens a sheet to change it. */
+/**
+ * One-tap gym selection: a pill in Today's header naming where the next session will be,
+ * which opens a sheet to change it. The pin says what the name is, so nothing captions it.
+ */
 export function GymSwitcher({
   gyms,
   workflow = false,
@@ -54,22 +57,23 @@ export function GymSwitcher({
 
   return (
     <>
-      {/* One line: the pin says what the name is, so nothing has to caption it. */}
-      <section aria-label="Current gym" className="flex box items-center gap-2 py-1 pr-1 pl-3">
-        <MapPin className="shrink-0 text-ink-muted" aria-hidden />
-        <p className="min-w-0 flex-1 truncate text-sm font-medium">
-          {current ? current.name : gyms.length > 0 ? "No default gym" : "No gyms yet"}
-        </p>
-        {gyms.length > 0 ? (
-          <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
-            Change
-          </Button>
-        ) : (
-          <LinkButton href="/gyms/new" size="sm">
-            Add gym
-          </LinkButton>
-        )}
-      </section>
+      {gyms.length > 0 ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-haspopup="dialog"
+          className="flex min-h-11 max-w-[13.5rem] pressable items-center gap-1.5 rounded-chip bg-surface py-2 pr-3 pl-3 text-sm font-semibold text-ink shadow-[0_1px_2px_rgb(20_24_36/0.06)]"
+        >
+          <MapPin className="shrink-0 text-lift-ink" aria-hidden />
+          <span className="min-w-0 truncate">{current ? current.name : "Choose a gym"}</span>
+          <span className="sr-only">, change gym</span>
+          <ChevronDown className="shrink-0 text-ink-subtle" aria-hidden />
+        </button>
+      ) : (
+        <LinkButton href="/gyms/new" size="sm">
+          Add gym
+        </LinkButton>
+      )}
 
       <Sheet open={open} onClose={() => setOpen(false)} title="Choose gym">
         {workflow && (
@@ -97,7 +101,7 @@ export function GymSwitcher({
                 disabled={pending}
                 aria-pressed={gym.id === current?.id}
                 className={cn(
-                  "flex min-h-14 w-full items-center justify-between gap-3 rounded-control border px-4 text-left text-base font-medium",
+                  "flex min-h-14 w-full pressable items-center justify-between gap-3 rounded-tile border-2 px-4 text-left text-base font-semibold",
                   gym.id === current?.id
                     ? "border-accent bg-accent-soft text-ink"
                     : "border-transparent bg-surface-raised text-ink active:bg-accent-soft",
@@ -106,7 +110,7 @@ export function GymSwitcher({
               >
                 <span className="min-w-0">
                   <span className="block truncate">{gym.name}</span>
-                  <span className="block text-xs font-normal text-ink-muted">
+                  <span className="block text-sm font-normal text-ink-muted">
                     {GYM_KIND_LABELS[gym.kind]}
                   </span>
                 </span>
@@ -117,7 +121,7 @@ export function GymSwitcher({
         </ul>
         <Link
           href="/gyms"
-          className="mt-3 block py-3 text-center text-sm font-medium text-ink-muted"
+          className="mt-3 block py-3 text-center text-sm font-semibold text-accent"
         >
           Manage gyms
         </Link>

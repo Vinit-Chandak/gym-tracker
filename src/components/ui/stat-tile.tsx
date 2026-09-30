@@ -29,7 +29,7 @@ export function StatTile({
 }) {
   return (
     <div className="min-w-0">
-      <dt className="flex items-center gap-0.5 text-xs leading-tight text-ink-muted">
+      <dt className="flex items-center gap-0.5 text-xs leading-tight font-medium text-ink-muted">
         {label}
         {info && (
           <InfoTip label={`About ${label}`} className="-my-2">
@@ -37,7 +37,7 @@ export function StatTile({
           </InfoTip>
         )}
       </dt>
-      <dd className="mt-1 text-lg font-medium tabular-nums">{value}</dd>
+      <dd className="mt-1 font-display text-display-s font-extrabold tabular-nums">{value}</dd>
     </div>
   );
 }

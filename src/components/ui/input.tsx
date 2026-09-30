@@ -9,7 +9,7 @@ export { Field } from "./field";
  * against the surface behind it, while a separator between rows does not.
  */
 export const INPUT_CLASS =
-  "h-11 min-w-0 w-full rounded-control border border-line-strong bg-surface px-3 text-[length:var(--ov-text-input)] text-ink placeholder:text-ink-ghost focus:border-accent focus:outline-none disabled:opacity-50";
+  "h-12 min-w-0 w-full rounded-control border border-line-strong bg-surface px-4 text-[length:var(--ov-text-input)] text-ink placeholder:text-ink-ghost focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25 disabled:opacity-50";
 
 /** Text input sized for thumbs; 16px text keeps iOS from zooming in on focus. */
 export function Input({ className, ...props }: ComponentProps<"input">) {

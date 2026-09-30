@@ -5,9 +5,8 @@ import { cn } from "@/lib/utils";
 import { InfoTip } from "./info-tip";
 
 /**
- * A small label above a box. Quiet on purpose: the box beneath carries the group, so
- * several of these on one screen read as one page rather than a stack of headings, and
- * nothing is drawn under the label.
+ * A heading above a card, in sentence case. The card beneath carries the group, so the
+ * heading only names it: no rule, no eyebrow, nothing drawn under it.
  */
 export function Section({
   title,
@@ -27,14 +26,14 @@ export function Section({
 }) {
   return (
     <section className={cn("min-w-0", className)}>
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-1 pb-1.5">
-        <h2 className="flex items-center gap-1 text-xs font-medium tracking-wide text-ink-muted uppercase">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-1 pb-2">
+        <h2 className="flex items-center gap-1 text-[1.0625rem] font-semibold text-ink">
           {title}
           {info && <InfoTip label={`About ${title.toLowerCase()}`}>{info}</InfoTip>}
         </h2>
         {action}
       </div>
-      {description && <p className="px-1 pb-2 text-sm text-ink-muted">{description}</p>}
+      {description && <p className="-mt-1 px-1 pb-2 text-sm text-ink-muted">{description}</p>}
       <div className="min-w-0 space-y-3">{children}</div>
     </section>
   );

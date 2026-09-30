@@ -6,7 +6,7 @@ import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import Link from "@/components/ui/app-link";
 import { buttonClassName } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { HeroCard } from "@/components/ui/hero-card";
 import { ChevronRight, Plus } from "@/components/ui/icons";
 import { LinkRow, List, PRESSABLE_ROW_CLASS } from "@/components/ui/link-row";
 import { Section } from "@/components/ui/section";
@@ -74,7 +74,7 @@ function MealRow({ meal, entries, href }: { meal: Meal; entries: EntryRecord[]; 
     <Link href={href} prefetch="intent" className={PRESSABLE_ROW_CLASS}>
       {/* The spaces are for the link's name, which a screen reader reads as one string. */}
       <span className="min-w-0 flex-1">
-        <span className="block font-medium">{MEAL_LABELS[meal]}</span>{" "}
+        <span className="block font-semibold">{MEAL_LABELS[meal]}</span>{" "}
         {foods ? (
           <span className="line-clamp-2 block text-sm [overflow-wrap:anywhere] text-ink-muted">
             {foods}
@@ -138,14 +138,14 @@ export function FoodView({
       <PageContent>
         <FoodWeekStrip {...daysProps} />
         {target ? (
-          <Card>
+          <HeroCard tone="food">
             <FoodSummary eaten={day.eaten} target={target} entries={day.entries} />
-          </Card>
+          </HeroCard>
         ) : (
-          <Card className="flex flex-wrap items-center justify-between gap-3 space-y-0">
-            <div className="min-w-0">
-              <h2 className="font-medium">No daily target yet</h2>
-              <p className="text-sm text-ink-muted tabular-nums">
+          <HeroCard tone="food">
+            <div>
+              <h2 className="font-display text-display-m">No daily target yet</h2>
+              <p className="mt-1 text-[0.9375rem] font-semibold text-ink-muted tabular-nums">
                 {goal ? `${TRAINING_GOAL_LABELS[goal]} · ` : ""}
                 {formatSplit(splitFor(goal))}
               </p>
@@ -153,11 +153,11 @@ export function FoodView({
             <Link
               href={links.targets}
               prefetch="intent"
-              className={buttonClassName("primary", "sm")}
+              className={buttonClassName("primary", "lg", "w-full")}
             >
               Set target
             </Link>
-          </Card>
+          </HeroCard>
         )}
 
         <Section title="Meals">

@@ -141,7 +141,8 @@ it("shows a saved set in the list, in the reopened exercise and on Back, without
 
   fireEvent.click(screen.getByRole("button", { name: "All exercises" }));
   page.rerender(view());
-  expect(screen.getByText("1 set · 60×5")).toBeTruthy();
+  expect(screen.getByText("1 set")).toBeTruthy();
+  expect(screen.getByText("60×5")).toBeTruthy();
   expect(screen.getByText("Resume")).toBeTruthy();
 
   fireEvent.click(screen.getByRole("button", { name: /Bench press/ }));
@@ -172,7 +173,8 @@ it("takes a render that already holds the set as it is", async () => {
   render(
     <WorkoutView session={workout(id, [saved])} seenSetChanges={setChangesMade()} userId="user" />,
   );
-  expect(screen.getByText("1 set · 60×5")).toBeTruthy();
+  expect(screen.getByText("1 set")).toBeTruthy();
+  expect(screen.getByText("60×5")).toBeTruthy();
 });
 
 it("drops a deleted set from the list", async () => {
@@ -208,5 +210,6 @@ it("brings the list up to date when a save lands after the exercise was left", a
   page.rerender(<WorkoutView session={rendered} seenSetChanges={seen} userId="user" />);
   expect(screen.getByText("0 sets")).toBeTruthy();
   await act(async () => land({ ok: true, set: saved }));
-  expect(screen.getByText("1 set · 60×5")).toBeTruthy();
+  expect(screen.getByText("1 set")).toBeTruthy();
+  expect(screen.getByText("60×5")).toBeTruthy();
 });

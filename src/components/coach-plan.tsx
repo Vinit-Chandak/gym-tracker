@@ -6,7 +6,7 @@ import { planLine, type PlanRun, type StoredPlanExercise } from "@/domain/sessio
 import { cn } from "@/lib/utils";
 import type { PlannedExercisePreview, RunTarget } from "@/server/repositories/schedule";
 
-/** "6 exercises · 15 sets" for a coach plan: what it keeps, and the sets it asks for. */
+/** "6 exercises, 15 sets" for a coach plan: what it keeps, and the sets it asks for. */
 export function coachPlanSummary(
   entries: readonly StoredPlanExercise[],
   planned: readonly PlannedExercisePreview[],
@@ -25,7 +25,7 @@ export function coachPlanSummary(
     unchanged.reduce((total, slot) => total + slot.sets, 0),
   );
   const count = kept.length + unchanged.length;
-  return `${count} ${count === 1 ? "exercise" : "exercises"} · ${sets} ${sets === 1 ? "set" : "sets"}`;
+  return `${count} ${count === 1 ? "exercise" : "exercises"}, ${sets} ${sets === 1 ? "set" : "sets"}`;
 }
 
 /**

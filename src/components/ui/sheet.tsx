@@ -123,15 +123,15 @@ export function Sheet({ open, onClose, title, children, footer, dismissible = tr
         {/* Contain child margins in both flex and compact block layouts. Otherwise the
             measured header changes height as compact mode toggles and can oscillate. */}
         <div ref={heading} className="flow-root shrink-0">
-          <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-line-strong" aria-hidden />
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <h2 className="min-w-0 text-lg font-medium [overflow-wrap:anywhere]">{title}</h2>
+          <div className="mx-auto mb-4 h-1.5 w-11 rounded-full bg-ink-ghost/40" aria-hidden />
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h2 className="min-w-0 text-xl font-semibold [overflow-wrap:anywhere]">{title}</h2>
             <button
               type="button"
               aria-label="Close sheet"
               disabled={!dismissible}
               onClick={onClose}
-              className="flex size-11 shrink-0 items-center justify-center rounded-control text-ink-muted disabled:opacity-45"
+              className="flex size-11 shrink-0 pressable items-center justify-center rounded-full bg-surface-raised text-ink-muted disabled:opacity-45"
             >
               <Close aria-hidden />
             </button>
@@ -143,7 +143,7 @@ export function Sheet({ open, onClose, title, children, footer, dismissible = tr
         {footer && (
           <div
             ref={bottom}
-            className="sheet-footer -mx-[var(--panel-padding)] mt-3 shrink-0 border-t border-line px-[var(--panel-padding)] pt-3"
+            className="sheet-footer -mx-[var(--panel-padding)] mt-3 shrink-0 border-t border-line px-[var(--panel-padding)] pt-4"
           >
             {footer}
           </div>

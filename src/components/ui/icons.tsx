@@ -29,7 +29,11 @@ import { MapPinIcon } from "@phosphor-icons/react/dist/ssr/MapPin";
 import { MicrophoneIcon } from "@phosphor-icons/react/dist/ssr/Microphone";
 import { MicrophoneSlashIcon } from "@phosphor-icons/react/dist/ssr/MicrophoneSlash";
 import { MinusIcon } from "@phosphor-icons/react/dist/ssr/Minus";
+import { MoonIcon } from "@phosphor-icons/react/dist/ssr/Moon";
 import { PaperclipIcon } from "@phosphor-icons/react/dist/ssr/Paperclip";
+import { PersonSimpleBikeIcon } from "@phosphor-icons/react/dist/ssr/PersonSimpleBike";
+import { PersonSimpleRunIcon } from "@phosphor-icons/react/dist/ssr/PersonSimpleRun";
+import { PersonSimpleSwimIcon } from "@phosphor-icons/react/dist/ssr/PersonSimpleSwim";
 import { PlusIcon } from "@phosphor-icons/react/dist/ssr/Plus";
 import { ScalesIcon } from "@phosphor-icons/react/dist/ssr/Scales";
 import { SignOutIcon } from "@phosphor-icons/react/dist/ssr/SignOut";
@@ -76,6 +80,28 @@ function duotone(Icon: PhosphorIcon): AppIcon {
   };
 }
 
+/**
+ * Chevrons, ticks, plus, minus and the close cross are strokes with nothing to fill: the
+ * duotone caret shades the triangle between its arms and the duotone tick sits in a shaded
+ * square, so both read as other symbols.
+ */
+function bold(Icon: PhosphorIcon): AppIcon {
+  return function BoldIcon({ scale = "control", className, ...props }: AppIconProps) {
+    return (
+      <Icon
+        aria-hidden={
+          props.alt || props["aria-label"] || props["aria-labelledby"] ? undefined : true
+        }
+        focusable="false"
+        {...props}
+        weight="bold"
+        className={cn("app-icon", className)}
+        data-icon-scale={scale}
+      />
+    );
+  };
+}
+
 // Keep functional names stable for the shared row, form and navigation components.
 export const AiCoach = /* @__PURE__ */ duotone(BrainIcon);
 export const ArrowRight = /* @__PURE__ */ duotone(ArrowRightIcon);
@@ -92,14 +118,14 @@ export const ArrowsDownUp = /* @__PURE__ */ duotone(ArrowsDownUpIcon);
 export const BarChart = /* @__PURE__ */ duotone(ChartBarIcon);
 export const BookOpen = /* @__PURE__ */ duotone(BookOpenIcon);
 export const CalendarDays = /* @__PURE__ */ duotone(CalendarDotsIcon);
-export const Check = /* @__PURE__ */ duotone(CheckIcon);
+export const Check = /* @__PURE__ */ bold(CheckIcon);
 export const CheckCircle2 = /* @__PURE__ */ duotone(CheckCircleIcon);
-export const ChevronDown = /* @__PURE__ */ duotone(CaretDownIcon);
-export const ChevronLeft = /* @__PURE__ */ duotone(CaretLeftIcon);
-export const ChevronRight = /* @__PURE__ */ duotone(CaretRightIcon);
+export const ChevronDown = /* @__PURE__ */ bold(CaretDownIcon);
+export const ChevronLeft = /* @__PURE__ */ bold(CaretLeftIcon);
+export const ChevronRight = /* @__PURE__ */ bold(CaretRightIcon);
 export const ClipboardList = /* @__PURE__ */ duotone(ClipboardTextIcon);
 /** Removing one thing from a group of them, where a bin would say more than is meant. */
-export const Close = /* @__PURE__ */ duotone(XIcon);
+export const Close = /* @__PURE__ */ bold(XIcon);
 export const Download = /* @__PURE__ */ duotone(DownloadSimpleIcon);
 export const Dumbbell = /* @__PURE__ */ duotone(BarbellIcon);
 export const ExternalLink = /* @__PURE__ */ duotone(ArrowSquareOutIcon);
@@ -120,9 +146,15 @@ export const MailCheck = /* @__PURE__ */ duotone(EnvelopeOpenIcon);
 export const MapPin = /* @__PURE__ */ duotone(MapPinIcon);
 export const Mic = /* @__PURE__ */ duotone(MicrophoneIcon);
 export const MicOff = /* @__PURE__ */ duotone(MicrophoneSlashIcon);
-export const Minus = /* @__PURE__ */ duotone(MinusIcon);
+export const Minus = /* @__PURE__ */ bold(MinusIcon);
 export const Paperclip = /* @__PURE__ */ duotone(PaperclipIcon);
-export const Plus = /* @__PURE__ */ duotone(PlusIcon);
+export const Plus = /* @__PURE__ */ bold(PlusIcon);
+/** A rest day: the one day the programme asks for nothing but recovery. */
+export const Rest = /* @__PURE__ */ duotone(MoonIcon);
+/** Cycling, drawn as the rider rather than the bike, like running and swimming beside it. */
+export const Ride = /* @__PURE__ */ duotone(PersonSimpleBikeIcon);
+export const Run = /* @__PURE__ */ duotone(PersonSimpleRunIcon);
+export const Swim = /* @__PURE__ */ duotone(PersonSimpleSwimIcon);
 /** Quick add: a food logged from its figures alone, just this once. */
 export const QuickAdd = /* @__PURE__ */ duotone(LightningIcon);
 /** Compare: two pans weighed against each other. */

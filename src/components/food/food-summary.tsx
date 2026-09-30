@@ -58,25 +58,34 @@ export function GoalBar({ eaten, target }: { eaten: number; target: number }) {
 }
 
 /**
- * Where the day stands, beside its total: what is left while under the band, that the goal is met
- * once inside it, and by how much past it. A day still being eaten is not a day that missed its
- * goal, so under the band reads as what is left and nothing more.
+ * Where the day stands, as the figure that leads the card: what is left while under the band;
+ * once inside it or past it, what was eaten, with the badge saying which. A day still being
+ * eaten is not a day that missed its goal, so under the band reads as what is left and no more.
  */
-function Standing({ status, left }: { status: GoalStatus; left: number }) {
-  if (status === "met") return <Badge tone="success">Goal met</Badge>;
-  if (status === "over") return <Badge tone="warning">{formatKcal(-left)} over</Badge>;
+function Standing({ eaten, target }: { eaten: number; target: number }) {
+  const status = goalStatus(eaten, target);
+  const left = target - eaten;
   return (
-    <p className="shrink-0 text-sm text-ink-muted tabular-nums">
-      <span className="font-medium text-ink">{formatKcal(left)}</span> left
-    </p>
+    <div className="flex items-start justify-between gap-3">
+      <p className="min-w-0 tabular-nums">
+        <span className="font-display text-display-xl">
+          {formatKcal(status === "under" ? left : eaten)}
+        </span>{" "}
+        <span className="text-[1.0625rem] font-semibold whitespace-nowrap">
+          {status === "under" ? "kcal left" : "kcal eaten"}
+        </span>
+      </p>
+      {status === "met" && <Badge tone="success">Goal met</Badge>}
+      {status === "over" && <Badge tone="warning">{formatKcal(-left)} over</Badge>}
+    </div>
   );
 }
 
 /**
  * What the day has come to against its targets, at the top of the Food screen (ADR 0036): the
- * energy against the goal band with where that leaves the day beside it, then a row for each
- * macronutrient, each opening what the day's foods gave it. The band's ends are drawn on the bar
- * and not written out, so the card holds only the numbers that move during the day.
+ * figure that matters now, the energy against the goal band, then a row for each macronutrient,
+ * each opening what the day's foods gave it. The band's ends are drawn on the bar and not written
+ * out, so the card holds only the numbers that move during the day.
  */
 export function FoodSummary({
   eaten,
@@ -90,17 +99,11 @@ export function FoodSummary({
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-          <p className="min-w-0 text-xl font-medium tabular-nums">
-            {formatKcal(eaten.kcal)}
-            <span className="text-sm font-normal text-ink-muted">
-              {" "}
-              / {formatKcal(target.kcal)} kcal
-            </span>
-          </p>{" "}
-          <Standing status={goalStatus(eaten.kcal, target.kcal)} left={target.kcal - eaten.kcal} />
-        </div>
+        <Standing eaten={eaten.kcal} target={target.kcal} />
         <GoalBar eaten={eaten.kcal} target={target.kcal} />
+        <p className="text-sm font-semibold text-ink-muted tabular-nums">
+          {formatKcal(eaten.kcal)} / {formatKcal(target.kcal)} kcal eaten
+        </p>
       </div>
       <MacroBars eaten={eaten} target={target} entries={entries} />
     </div>

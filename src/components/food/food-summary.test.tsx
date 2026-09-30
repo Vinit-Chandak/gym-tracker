@@ -84,7 +84,9 @@ describe("the summary", () => {
 
   it("says what is left beside the total while the day is under the goal", () => {
     render(<FoodSummary eaten={eaten(1200)} target={TARGET} entries={[]} />);
-    expect(read(document.body)).toMatch(/^1,200 \/ 2,400 kcal 1,200 left/);
+    // What is left leads, as the card's figure; what was eaten against the target follows.
+    expect(read(document.body)).toMatch(/^1,200 kcal left/);
+    expect(read(document.body)).toContain("1,200 / 2,400 kcal eaten");
     expect(screen.queryByText("Goal met")).toBeNull();
     // The band's ends are drawn on the bar, and named to a screen reader, but not written out.
     expect(read(document.body)).not.toMatch(/Goal \d|2,160|2,640/);
@@ -134,10 +136,10 @@ describe("a macronutrient's bar", () => {
     const carbs = screen.getByRole("button", { name: "Carbs: 315 of 315 g" });
     const fat = screen.getByRole("button", { name: "Fat: 70 of 67 g, over" });
     const protein = screen.getByRole("button", { name: "Protein: 140 of 135 g, reached" });
-    // Each row's bar: its own colour at the target, red past it, green once protein is reached.
+    // Each row's bar: food's colour at the target, red past it, green once protein is reached.
     const fill = (button: HTMLElement) =>
       button.querySelector("span[aria-hidden] > span")!.className;
-    expect(fill(carbs)).toContain("bg-series-2");
+    expect(fill(carbs)).toContain("bg-food-ink");
     expect(fill(fat)).toContain("bg-over");
     expect(fill(protein)).toContain("bg-success");
     expect(fat.querySelector(".text-over")).toBeTruthy();
@@ -145,7 +147,7 @@ describe("a macronutrient's bar", () => {
     // A target eaten colours the name as its bar is coloured, and nothing is added beside it.
     const name = (button: HTMLElement, text: string) =>
       within(button).getByText(text, { selector: "span" }).className;
-    expect(name(carbs, "Carbs")).toContain("text-series-2");
+    expect(name(carbs, "Carbs")).toContain("text-food-ink");
     expect(name(fat, "Fat")).toContain("text-over");
     expect(name(protein, "Protein")).toContain("text-success");
     for (const button of [carbs, fat, protein])

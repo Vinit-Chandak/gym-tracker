@@ -35,7 +35,17 @@ type CellProps = {
   onChange: (value: string) => void;
 };
 
-function NumericCell({ row, field, label, short, ghost, inputMode, max, onChange }: CellProps) {
+function NumericCell({
+  row,
+  field,
+  label,
+  short,
+  ghost,
+  inputMode,
+  max,
+  saved,
+  onChange,
+}: CellProps & { saved: boolean }) {
   return (
     <span className="set-cell">
       {/* Shown only when the row has stacked: the column header is gone by then. The
@@ -55,7 +65,12 @@ function NumericCell({ row, field, label, short, ghost, inputMode, max, onChange
         aria-label={label}
         aria-invalid={row.error ? true : undefined}
         onChange={(event) => onChange(sanitizeNumberEntry(event.target.value, inputMode, max))}
-        className="h-11 w-full min-w-0 rounded-control border border-line-strong bg-surface px-1 text-center text-[length:var(--ov-text-input)] font-semibold text-ink tabular-nums placeholder:font-normal placeholder:text-ink-ghost focus:border-accent focus:outline-none disabled:opacity-50"
+        className={cn(
+          // A well to type into; once the set is saved the number stands on the row's own
+          // colour instead, and the well comes back the moment it is focused to be changed.
+          "h-12 w-full min-w-0 rounded-control px-1 text-center font-display text-[1.625rem] leading-none font-extrabold text-ink tabular-nums transition-colors duration-[var(--ov-duration-feedback)] placeholder:font-medium placeholder:text-ink-muted/75 focus:bg-surface focus:ring-2 focus:ring-accent focus:outline-none disabled:opacity-50",
+          saved ? "bg-transparent" : "bg-surface-raised",
+        )}
       />
     </span>
   );
@@ -87,9 +102,11 @@ const MEASURE_FIELD: Record<PrescriptionType, { field: DraftValueField; max: num
 };
 
 /**
- * One row per set: identity and options, load, reps or seconds, RIR, save.
+ * One row per set: identity and options, load, reps or seconds, RIR, and a check to save it.
  *
  * The labels and the unit are in the header, once, so the rows themselves are only numbers.
+ * A saved set turns the row the lifting colour with its check filled, so the sets done and
+ * the sets to go read apart at arm's length.
  * Four sets that hold the same values still show four rows, because they are four records —
  * merging them into one "shared" value would lose the ability to change any of them alone.
  */
@@ -110,7 +127,7 @@ export function SetGrid({
 
   return (
     <div className="set-grid">
-      <div className="set-header set-row border-b border-line pb-1 text-sm font-semibold">
+      <div className="set-header set-row px-1.5 pb-1 text-sm font-semibold text-ink-muted">
         <span className="text-center">Set</span>
         <span className="text-center">{unitLabel}</span>
         <span className="text-center">{middle.label}</span>
@@ -134,7 +151,7 @@ export function SetGrid({
         </span>
       </div>
 
-      <ol>
+      <ol className="space-y-1.5">
         {rows.map((row) => {
           const rowUnit = row.unit
             ? `${unitLabel.startsWith("+") ? "+" : ""}${LOAD_UNIT_LABELS[row.unit]}`
@@ -143,22 +160,26 @@ export function SetGrid({
           const saved = row.logged !== null && !row.dirty;
           const mark = SET_TYPE_MARK[row.setType];
           return (
-            <li key={row.setIndex} className="border-b border-line py-1.5">
+            <li
+              key={row.setIndex}
+              className={cn(
+                "rounded-tile px-1.5 py-1.5 transition-colors duration-[var(--ov-duration-feedback)]",
+                saved && "bg-lift-soft",
+              )}
+            >
               <div className="set-row">
                 <button
                   type="button"
                   onClick={() => onOptions(row)}
                   aria-label={`Set ${row.setIndex} options${mark ? `, ${SET_TYPE_LABELS[row.setType].toLowerCase()}` : ""}`}
-                  className="set-identity flex h-11 min-w-0 flex-col items-center justify-center rounded-control border border-line px-3 text-ink-muted active:bg-surface-raised"
+                  className="set-identity flex size-11 min-w-0 pressable flex-col items-center justify-center justify-self-center rounded-full bg-surface-raised text-ink active:bg-line"
                 >
-                  <span className="text-sm font-medium tabular-nums">{row.setIndex}</span>
-                  {mark ? (
-                    <span className="text-[0.625rem] leading-none font-medium text-accent">
+                  <span className="text-[0.9375rem] leading-none font-semibold tabular-nums">
+                    {row.setIndex}
+                  </span>
+                  {mark && (
+                    <span className="mt-0.5 text-[0.625rem] leading-none font-bold text-accent">
                       {mark}
-                    </span>
-                  ) : (
-                    <span className="text-[0.625rem] leading-none" aria-hidden>
-                      ···
                     </span>
                   )}
                 </button>
@@ -171,6 +192,7 @@ export function SetGrid({
                   ghost={g.weight}
                   inputMode="decimal"
                   max={SET_LIMITS.weight}
+                  saved={saved}
                   onChange={(value) => onEdit(row, { weight: value }, "weight")}
                 />
                 <NumericCell
@@ -181,6 +203,7 @@ export function SetGrid({
                   ghost={g[middle.field]}
                   inputMode={measure === "distance" ? "decimal" : "numeric"}
                   max={middle.max}
+                  saved={saved}
                   onChange={(value) => onEdit(row, { [middle.field]: value }, middle.field)}
                 />
                 <NumericCell
@@ -191,6 +214,7 @@ export function SetGrid({
                   ghost={undefined}
                   inputMode="decimal"
                   max={SET_LIMITS[effort]}
+                  saved={saved}
                   onChange={(value) => onEdit(row, { [effort]: value }, effort)}
                 />
 
@@ -200,13 +224,13 @@ export function SetGrid({
                   {row.saving ? (
                     <span
                       role="status"
-                      className="flex h-11 w-full items-center justify-center text-ink-muted"
+                      className="flex size-11 items-center justify-center rounded-full bg-lift-soft text-lift-ink"
                     >
                       <LoaderCircle className="motion-safe:animate-spin" aria-hidden />
                       <span className="sr-only">Saving set {row.setIndex}</span>
                     </span>
                   ) : saved ? (
-                    <span className="flex h-11 w-full items-center justify-center text-success">
+                    <span className="set-done flex size-11 items-center justify-center rounded-full bg-lift text-on-lift">
                       <Check aria-hidden />
                       <span className="sr-only">Set {row.setIndex} saved</span>
                     </span>
@@ -222,13 +246,16 @@ export function SetGrid({
                             : `Save set ${row.setIndex}`
                       }
                       className={cn(
-                        "h-11 w-full rounded-control text-xs font-medium",
+                        "flex size-11 pressable items-center justify-center rounded-full text-xs font-semibold",
                         row.error
-                          ? "border border-danger text-danger active:bg-surface-raised"
-                          : "bg-accent text-on-accent active:bg-accent-strong",
+                          ? "border-2 border-danger text-danger active:bg-surface-raised"
+                          : row.logged
+                            ? // An edited saved set: the same check, asking to be pressed again.
+                              "border-2 border-lift bg-surface text-lift-ink active:bg-lift-soft"
+                            : "border-2 border-line-strong bg-surface text-ink-subtle active:border-lift active:bg-lift-soft active:text-lift-ink",
                       )}
                     >
-                      {row.error ? "Retry" : "Save"}
+                      {row.error ? "Retry" : <Check aria-hidden />}
                     </button>
                   )}
                 </div>

@@ -1,11 +1,11 @@
 @import "tailwindcss" source(none);
-/* Foundation first: it declares the semantic --ov-* names form.css fills in. */
-@import "../styles/form/foundation.css";
-@import "../styles/form/form.css";
+/* Foundation first: it declares the semantic --ov-* names stack.css fills in. */
+@import "../styles/stack/foundation.css";
+@import "../styles/stack/stack.css";
 @source "../";
 
 /*
- * Form design tokens, exposed under the Tailwind names the app already uses.
+ * Stack design tokens, exposed under the Tailwind names the app uses.
  *
  * `inline` matters: it makes `bg-canvas` compile to `var(--ov-canvas)` rather than to a
  * frozen copy of whatever `--ov-canvas` happened to be at build time. The light/dark
@@ -16,6 +16,7 @@
   --color-canvas: var(--ov-canvas);
   --color-surface: var(--ov-surface);
   --color-surface-raised: var(--ov-surface-raised);
+  --color-surface-selected: var(--ov-surface-selected);
   --color-line: var(--ov-line);
   --color-line-strong: var(--ov-line-strong);
 
@@ -55,12 +56,43 @@
   --color-group-7: var(--ov-group-7);
   --color-group-8: var(--ov-group-8);
 
+  /* Sport colours: a fill, the ink that sits on it, a soft wash, and text on a surface. */
+  --color-lift: var(--ov-lift);
+  --color-on-lift: var(--ov-on-lift);
+  --color-lift-soft: var(--ov-lift-soft);
+  --color-lift-ink: var(--ov-lift-ink);
+  --color-run: var(--ov-run);
+  --color-on-run: var(--ov-on-run);
+  --color-run-soft: var(--ov-run-soft);
+  --color-run-ink: var(--ov-run-ink);
+  --color-ride: var(--ov-ride);
+  --color-on-ride: var(--ov-on-ride);
+  --color-ride-soft: var(--ov-ride-soft);
+  --color-ride-ink: var(--ov-ride-ink);
+  --color-swim: var(--ov-swim);
+  --color-on-swim: var(--ov-on-swim);
+  --color-swim-soft: var(--ov-swim-soft);
+  --color-swim-ink: var(--ov-swim-ink);
+  --color-food: var(--ov-food);
+  --color-on-food: var(--ov-on-food);
+  --color-food-soft: var(--ov-food-soft);
+  --color-food-ink: var(--ov-food-ink);
+  --color-rose: var(--ov-rose);
+  --color-on-rose: var(--ov-on-rose);
+  --color-rose-soft: var(--ov-rose-soft);
+  --color-rose-ink: var(--ov-rose-ink);
+
   --font-sans: var(--ov-font-body);
   --font-mono: var(--ov-font-mono);
+  --font-display: var(--ov-font-display);
 
   --radius-card: var(--ov-radius-card);
   --radius-control: var(--ov-radius-control);
   --radius-sheet: var(--ov-radius-sheet);
+  --radius-hero: var(--ov-radius-hero);
+  --radius-tile: var(--ov-radius-tile);
+  --radius-chip: var(--ov-radius-chip);
+  --radius-island: var(--ov-radius-island);
 
   --text-xs: var(--ov-text-label);
   --text-sm: var(--ov-text-small);
@@ -68,11 +100,20 @@
   --text-lg: var(--ov-text-section);
   --text-lg--line-height: var(--ov-leading-heading);
   --text-xl: var(--ov-text-title);
-  --text-xl--line-height: var(--ov-leading-heading);
+  --text-xl--line-height: 1.2;
+  /* The display face's sizes: the one number or name that leads a screen. */
+  --text-display-xl: var(--ov-display-xl);
+  --text-display-xl--line-height: 0.9;
+  --text-display-l: var(--ov-display-l);
+  --text-display-l--line-height: 0.95;
+  --text-display-m: var(--ov-display-m);
+  --text-display-m--line-height: 1;
+  --text-display-s: var(--ov-display-s);
+  --text-display-s--line-height: 1.05;
 }
 
 /*
- * Layout names the app's utilities already reference, resolved from the Form scale so
+ * Layout names the app's utilities already reference, resolved from the Stack scale so
  * spacing comes from tokens rather than a margin chosen per screen.
  */
 :root {
@@ -114,13 +155,20 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
-  h1,
-  h2,
-  h3 {
+  /* A screen's name is set in the display face; every heading inside it in the text face. */
+  h1 {
     font-family: var(--ov-font-heading);
     font-weight: var(--ov-weight-heading);
     letter-spacing: var(--ov-heading-tracking);
     line-height: var(--ov-leading-heading);
+  }
+
+  h2,
+  h3 {
+    font-family: var(--ov-font-body);
+    font-weight: 650;
+    letter-spacing: -0.011em;
+    line-height: 1.25;
   }
 
   a,
@@ -131,7 +179,7 @@
   }
 
   :focus-visible {
-    outline: 2px solid var(--ov-focus);
+    outline: 2.5px solid var(--ov-focus);
     outline-offset: 3px;
   }
 
@@ -251,9 +299,22 @@
 }
 
 /*
- * Ruled list: rows separated by one hairline, running the full width of whatever holds
- * them. Nothing is drawn on the first row's top or the last row's bottom, so a list adds
- * no line of its own to the box it sits in.
+ * Something you press. It gives way a little under the finger and springs back, which is
+ * the whole acknowledgement a tap needs; nothing slides or fades on the way in.
+ */
+@utility pressable {
+  transition:
+    transform var(--ov-duration-feedback) var(--ov-ease-out),
+    background-color var(--ov-duration-feedback) var(--ov-ease-standard),
+    color var(--ov-duration-feedback) var(--ov-ease-standard);
+  &:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+}
+
+/*
+ * Rows separated by one soft hairline. Nothing is drawn on the first row's top or the last
+ * row's bottom, so a list adds no line of its own to the card it sits in.
  */
 @utility ruled-list {
   :where(& > * + *) {
@@ -262,14 +323,129 @@
 }
 
 /*
- * A box: the grouping for anything that belongs together. A shared hairline keeps its
- * boundary visible in both palettes, including when it sits on another surface.
+ * A card: the grouping for anything that belongs together. Its boundary is the step from the
+ * mist canvas up to the white surface, with no outline, so a screen reads as a few clear
+ * objects rather than a grid of ruled boxes.
  */
 @utility box {
   min-width: 0;
-  border: 1px solid var(--ov-line);
   border-radius: var(--ov-radius-card);
   background: var(--ov-surface);
+}
+
+/*
+ * Inside a hero card the palette is re-pointed at the fill's own ink, so any text, line,
+ * button or badge placed on cobalt or on sunflower reads correctly without knowing it is
+ * there. The primary button becomes the fill's opposite: white on cobalt with cobalt text,
+ * ink on sunflower with sunflower text.
+ */
+.hero-card[data-hero="lift"],
+.hero-card[data-hero="ride"] {
+  --ov-ink: #ffffff;
+  --ov-ink-muted: rgb(255 255 255 / 0.92);
+  --ov-ink-subtle: rgb(255 255 255 / 0.9);
+  --ov-ink-ghost: rgb(255 255 255 / 0.62);
+  --ov-line: rgb(255 255 255 / 0.24);
+  --ov-line-strong: rgb(255 255 255 / 0.55);
+  --ov-surface: rgb(255 255 255 / 0.14);
+  --ov-surface-raised: rgb(255 255 255 / 0.16);
+  --ov-accent: #ffffff;
+  --ov-accent-strong: rgb(255 255 255 / 0.86);
+  --ov-accent-soft: rgb(255 255 255 / 0.2);
+  --ov-success: #ffffff;
+  --ov-warning: #ffffff;
+  --ov-danger: #ffffff;
+  --ov-over: #ffffff;
+  --ov-focus: #ffffff;
+}
+
+.hero-card[data-hero="lift"] {
+  --ov-on-accent: var(--ov-lift);
+}
+
+.hero-card[data-hero="ride"] {
+  --ov-on-accent: var(--ov-ride);
+}
+
+.hero-card[data-hero="run"],
+.hero-card[data-hero="swim"],
+.hero-card[data-hero="food"],
+.hero-card[data-hero="rose"] {
+  --ov-ink: #141824;
+  --ov-ink-muted: rgb(20 24 36 / 0.88);
+  --ov-ink-subtle: rgb(20 24 36 / 0.86);
+  --ov-ink-ghost: rgb(20 24 36 / 0.52);
+  --ov-line: rgb(20 24 36 / 0.16);
+  --ov-line-strong: rgb(20 24 36 / 0.45);
+  --ov-surface: rgb(255 255 255 / 0.3);
+  --ov-surface-raised: rgb(20 24 36 / 0.1);
+  --ov-accent: #141824;
+  --ov-accent-strong: #000000;
+  --ov-accent-soft: rgb(20 24 36 / 0.12);
+  --ov-success: #141824;
+  --ov-warning: #141824;
+  --ov-danger: #141824;
+  --ov-over: #141824;
+  --ov-focus: #141824;
+}
+
+.hero-card[data-hero="run"] {
+  --ov-on-accent: var(--ov-run);
+}
+
+.hero-card[data-hero="swim"] {
+  --ov-on-accent: var(--ov-swim);
+}
+
+.hero-card[data-hero="food"] {
+  --ov-on-accent: var(--ov-food);
+  /* The macronutrient bars are drawn in food's ink, which on food's own fill is the card's ink. */
+  --ov-food-ink: #141824;
+}
+
+.hero-card[data-hero="rose"] {
+  --ov-on-accent: var(--ov-rose);
+}
+
+/*
+ * Anything that floats out of a hero card — a note, a sheet — is drawn on the page again. The
+ * page's colours are captured once on the root, so a hero's re-pointing never reaches them.
+ */
+:root {
+  --ov-page-ink: var(--ov-ink);
+  --ov-page-ink-muted: var(--ov-ink-muted);
+  --ov-page-ink-subtle: var(--ov-ink-subtle);
+  --ov-page-surface: var(--ov-surface);
+  --ov-page-surface-raised: var(--ov-surface-raised);
+  --ov-page-line: var(--ov-line);
+  --ov-page-line-strong: var(--ov-line-strong);
+  --ov-page-accent: var(--ov-accent);
+  --ov-page-on-accent: var(--ov-on-accent);
+  --ov-page-focus: var(--ov-focus);
+  --ov-page-success: var(--ov-success);
+  --ov-page-warning: var(--ov-warning);
+  --ov-page-danger: var(--ov-danger);
+  --ov-page-over: var(--ov-over);
+  --ov-page-food-ink: var(--ov-food-ink);
+}
+
+.hero-card [role="note"],
+.hero-card dialog {
+  --ov-ink: var(--ov-page-ink);
+  --ov-ink-muted: var(--ov-page-ink-muted);
+  --ov-ink-subtle: var(--ov-page-ink-subtle);
+  --ov-surface: var(--ov-page-surface);
+  --ov-surface-raised: var(--ov-page-surface-raised);
+  --ov-line: var(--ov-page-line);
+  --ov-line-strong: var(--ov-page-line-strong);
+  --ov-accent: var(--ov-page-accent);
+  --ov-on-accent: var(--ov-page-on-accent);
+  --ov-focus: var(--ov-page-focus);
+  --ov-success: var(--ov-page-success);
+  --ov-warning: var(--ov-page-warning);
+  --ov-danger: var(--ov-page-danger);
+  --ov-over: var(--ov-page-over);
+  --ov-food-ink: var(--ov-page-food-ink);
 }
 
 /* Icon dimensions follow the viewport and text size independently of the hit target. */
@@ -305,7 +481,6 @@
  */
 @utility box-rows {
   min-width: 0;
-  border: 1px solid var(--ov-line);
   border-radius: var(--ov-radius-card);
   background: var(--ov-surface);
   :where(& > * + *) {
@@ -339,19 +514,19 @@ html:has(.app-content) {
 }
 
 /*
- * An island, not a bar: the navigation floats clear of all four edges and the page runs
+ * A capsule, not a bar: the navigation floats clear of all four edges and the page runs
  * underneath it. Translucency plus a blur is what makes that readable — you can see there
  * is more page below without being able to read it through the labels — so the fallback
- * for a browser without a backdrop filter is an opaque island, never a see-through one.
+ * for a browser without a backdrop filter is an opaque capsule, never a see-through one.
  */
 .primary-nav {
   position: fixed;
   inset: auto max(var(--nav-inset), env(safe-area-inset-right)) var(--nav-gap)
     max(var(--nav-inset), env(safe-area-inset-left));
   z-index: var(--ov-z-nav);
-  /* Border-box, so the island measures exactly the height the page reserved for it. */
+  /* Border-box, so the capsule measures exactly the height the page reserved for it. */
   height: var(--nav-height);
-  border: 1px solid var(--ov-line);
+  border: 0;
   border-radius: var(--ov-radius-island);
   background: var(--ov-nav-island);
   box-shadow: var(--ov-nav-shadow);
@@ -402,16 +577,16 @@ html:has(.app-content) {
 .nav-items {
   display: flex;
   height: 100%;
-  /* Keeps a pressed tab's highlight clear of the island's own edge. */
-  padding: 0.25rem;
+  /* Keeps a pressed tab's highlight clear of the capsule's own edge. */
+  padding: 0.375rem;
 }
 
 /* The tap target: the whole cell, so nothing between two tabs is dead space. */
 .nav-link {
   display: block;
   height: 100%;
-  /* Inside the island's own rounding, so a pressed tab never squares off its corner. */
-  border-radius: calc(var(--ov-radius-island) - 0.25rem);
+  /* Inside the capsule's own rounding, so a pressed tab never squares off its corner. */
+  border-radius: calc(var(--ov-radius-island) - 0.375rem);
   user-select: none;
 }
 
@@ -429,18 +604,20 @@ html:has(.app-content) {
   align-items: center;
   justify-content: center;
   flex-direction: column;
-  gap: 0.125rem;
+  gap: 0.0625rem;
   border-radius: inherit;
-  font-size: clamp(0.625rem, 2.7vw, 0.75rem);
-  font-weight: 500;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
   transition:
     background-color var(--ov-duration-feedback) var(--ov-ease-standard),
     color var(--ov-duration-feedback) var(--ov-ease-standard);
 }
 
+/* The current tab is the one solid thing in the capsule: ink, with the canvas's colour on it. */
 .nav-tab-active {
-  background: var(--ov-accent-soft);
-  color: var(--ov-accent);
+  background: var(--ov-ink);
+  color: var(--ov-surface);
 }
 
 /* Pressing an unselected tab tints it; pressing the selected one leaves its fill alone. */
@@ -504,9 +681,9 @@ html:has(.app-content) {
     width: 12rem;
     height: auto;
     border: 0;
-    border-right: 1px solid var(--ov-line);
+    border-right: 0;
     border-radius: 0;
-    background: var(--ov-canvas);
+    background: var(--ov-surface);
     box-shadow: none;
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
@@ -519,7 +696,7 @@ html:has(.app-content) {
   }
   .nav-link {
     height: auto;
-    border-radius: var(--ov-radius-control);
+    border-radius: var(--ov-radius-chip);
   }
   .nav-tab {
     height: auto;
@@ -583,14 +760,13 @@ html:has(.app-content) {
 
 /*
  * A superset member. The group's hue arrives as --superset-color from the row itself, so
- * one rule serves all eight colours: a rule on the left and a faint wash of the same hue
+ * one rule serves all eight colours: a bar on the left and a faint wash of the same hue
  * behind the row, which is how two rows say they belong together without a caption.
- * Browsers without color-mix drop the wash and keep the rule. The row sets its own left
- * padding, allowing for the rule, so its text lines up with the rows around it.
+ * Browsers without color-mix drop the wash and keep the bar.
  */
 @utility superset-row {
-  border-left: 3px solid var(--superset-color, var(--ov-accent));
-  background: color-mix(in srgb, var(--superset-color, var(--ov-accent)) 10%, transparent);
+  border-left: 4px solid var(--superset-color, var(--ov-accent));
+  background: color-mix(in srgb, var(--superset-color, var(--ov-accent)) 9%, transparent);
 }
 
 /*
@@ -603,14 +779,29 @@ html:has(.app-content) {
  * viewport is unchanged while every number gets twice as wide.
  *
  * The thresholds are the tiers' own minimums, not guesses:
- *   17rem     = 2.75 (identity) + 4 + 3.25 + 2.75 (fields) + 2.75 (save) + 4 × 0.375 (gaps)
- *   13.625rem = the same without the save cell, which has moved to its own line
- * At normal text a 320px phone leaves 18.5rem of container, so the one-line grid holds
- * everywhere; at 200% the same phone leaves 9.25rem and lands in the labelled tier. No
- * value is ever clipped or shrunk to keep a row on one line.
+ *   18.25rem = 2.75 (identity) + 4 + 3.25 + 2.75 (fields) + 2.75 (save) + 4 × 0.5 (gaps)
+ *              + 0.75 (the row's own padding, which carries its saved colour)
+ *   15rem    = the same without the save cell and its gap, which have moved to their own line
+ * At normal text a 360px phone leaves 18.5rem of container, so the one-line grid holds on
+ * every current phone; a 320px one and 200% text land in the lower tiers. No value is ever
+ * clipped or shrunk to keep a row on one line.
  */
 .set-grid {
   container-type: inline-size;
+}
+
+/* The check lands when a set is saved: one short pop, and nothing for reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .set-done {
+    animation: set-done var(--ov-duration-sheet) var(--ov-ease-out);
+  }
+}
+
+@keyframes set-done {
+  from {
+    transform: scale(0.6);
+    opacity: 0.4;
+  }
 }
 
 .set-row {
@@ -630,12 +821,13 @@ html:has(.app-content) {
 }
 
 /* Tier 2: the numbers keep their row; saving takes the next one. */
-@container (max-width: 17rem) {
+@container (max-width: 18.25rem) {
   .set-row {
     grid-template-columns: var(--ov-target-min) 1fr 1fr 1fr;
   }
   .set-row > .set-save {
     grid-column: 1 / -1;
+    justify-content: flex-end;
   }
 }
 
@@ -644,7 +836,7 @@ html:has(.app-content) {
  * a 320px row at 200% text — a four-digit load alone wants most of it — so the row grows
  * downwards instead, and the column header gives way to per-field labels.
  */
-@container (max-width: 13.625rem) {
+@container (max-width: 15rem) {
   .set-row {
     grid-template-columns: minmax(0, auto) minmax(0, 1fr);
   }
@@ -715,17 +907,39 @@ dialog.sheet::backdrop {
 }
 
 /*
- * A short rise that explains where the sheet came from. A keyframe rather than a
- * transition because <dialog> goes from display:none to open in one step; reduced motion
- * zeroes --ov-duration-sheet, so the panel simply appears.
+ * The sheet rises from the bottom edge it belongs to, on the drawer curve, while the page
+ * dims. A keyframe rather than a transition because <dialog> goes from display:none to open
+ * in one step. Reduced motion keeps the fade and drops the travel.
  */
 dialog.sheet[open] .sheet-panel {
-  animation: sheet-in var(--ov-duration-sheet) var(--ov-ease-standard);
+  animation: sheet-in var(--ov-duration-sheet) var(--ov-ease-drawer);
+}
+
+dialog.sheet[open]::backdrop {
+  animation: backdrop-in var(--ov-duration-sheet) var(--ov-ease-standard);
 }
 
 @keyframes sheet-in {
   from {
-    transform: translateY(0.75rem);
-    opacity: 0.6;
+    transform: translateY(2.5rem);
+    opacity: 0;
+  }
+}
+
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  dialog.sheet[open] .sheet-panel {
+    animation-name: sheet-fade;
+  }
+}
+
+@keyframes sheet-fade {
+  from {
+    opacity: 0;
   }
 }

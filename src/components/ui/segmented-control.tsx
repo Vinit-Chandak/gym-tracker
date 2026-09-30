@@ -59,7 +59,7 @@ export function SegmentedControl<V extends string>({
       role="radiogroup"
       aria-label={ariaLabel}
       {...accessibility}
-      className="flex min-w-0 flex-wrap gap-1 rounded-control bg-surface-raised p-1"
+      className="flex min-w-0 flex-wrap gap-1 rounded-[1.125rem] bg-surface-raised p-1"
     >
       {options.map((option) => (
         <label
@@ -92,8 +92,8 @@ export function SegmentedControl<V extends string>({
           />
           <span
             className={cn(
-              "flex min-h-11 items-center justify-center rounded-control border border-transparent px-1 py-1 text-sm leading-tight font-medium text-ink-muted transition-colors duration-[var(--ov-duration-feedback)] select-none",
-              "peer-checked:border-line-strong peer-checked:bg-accent-soft peer-checked:text-ink",
+              "flex min-h-11 items-center justify-center rounded-[0.875rem] px-1 py-1 text-sm leading-tight font-semibold text-ink-muted transition-colors duration-[var(--ov-duration-feedback)] select-none",
+              "peer-checked:bg-surface-selected peer-checked:text-ink peer-checked:shadow-[0_1px_3px_rgb(20_24_36/0.12)]",
               "peer-focus-visible:ring-2 peer-focus-visible:ring-focus",
             )}
           >

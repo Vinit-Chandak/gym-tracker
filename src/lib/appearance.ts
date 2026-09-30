@@ -1,5 +1,5 @@
 /**
- * Light/dark appearance. One design (Form), three preferences: System, Light and Dark.
+ * Light/dark appearance. One design (Stack), three preferences: System, Light and Dark.
  *
  * The palette itself is chosen in CSS — `system` is the plain `prefers-color-scheme`
  * media query in foundation.css, so the common case needs no JavaScript at all. Only an
@@ -23,9 +23,9 @@ export const APPEARANCE_STORAGE_KEY = "overload:appearance";
 /** The document attribute foundation.css keys the explicit palettes off. */
 export const APPEARANCE_ATTRIBUTE = "data-overload-mode";
 
-/** Browser chrome colours. These are Form's two canvases, kept in step with form.css. */
-export const CANVAS_LIGHT = "#f4f3ee";
-export const CANVAS_DARK = "#171c1c";
+/** Browser chrome colours. These are Stack's two canvases, kept in step with stack.css. */
+export const CANVAS_LIGHT = "#e7eaf0";
+export const CANVAS_DARK = "#0b0d12";
 
 function parseAppearance(value: unknown): Appearance {
   return APPEARANCE_MODES.includes(value as Appearance) ? (value as Appearance) : "system";

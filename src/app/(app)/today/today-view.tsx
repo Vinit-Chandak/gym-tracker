@@ -10,11 +10,12 @@ import { CoachPlanList, coachPlanSummary } from "@/components/coach-plan";
 import { PlannedExerciseList, planSummary } from "@/components/planned-exercises";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
-import { Wordmark } from "@/components/shell/wordmark";
 import { Badge } from "@/components/ui/badge";
 import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Disclosure } from "@/components/ui/disclosure";
+import { HeroCard } from "@/components/ui/hero-card";
+import { CheckCircle2, Dumbbell, MapPin, Rest, type AppIcon } from "@/components/ui/icons";
 import { InfoTip } from "@/components/ui/info-tip";
 import { Section } from "@/components/ui/section";
 import { writtenSummaryForSport } from "@/domain/sport-scope";
@@ -37,54 +38,62 @@ import {
 } from "./plan-actions";
 
 /**
- * A card's opening block: where in the programme this is, what it is called, and the
- * standing beside it. The eyebrow carries the position so the name can be the largest
- * thing on the card, and every line below it is spaced the same way on every card.
+ * A hero card's opening block: where in the programme this is, what it is called, and the
+ * standing beside it. The name is the largest thing on the screen, in the display face; the
+ * position sits small above it and whatever the programme says about the day sits under it,
+ * with the rest of its notes behind one tip.
  */
-function CardHead({
-  eyebrow,
+function HeroHead({
+  icon: Icon,
+  position,
   title,
   subtitle,
   note,
-  badge,
+  badges,
 }: {
-  eyebrow?: string;
+  icon: AppIcon;
+  position?: string;
   title: string;
   subtitle?: string | null;
   /** Anything worth knowing that is not worth a line of its own. */
   note?: string | null;
-  badge?: ReactNode;
+  badges?: ReactNode;
 }) {
   return (
-    <div className="flex items-start justify-between gap-3">
-      <div className="min-w-0">
-        {eyebrow && (
-          <p className="text-xs font-medium tracking-wide text-ink-muted uppercase">{eyebrow}</p>
-        )}
-        {/* The tip's tap target is taller than the line it sits on, so it gives the
-            height back: a card with a note is spaced exactly like one without. */}
-        <h2 className="mt-1 flex items-center gap-1 text-lg font-medium [overflow-wrap:anywhere]">
-          <span className="min-w-0">{title}</span>
-          {note && (
-            <InfoTip label={`About ${title}`} className="-my-1.5">
-              {note}
-            </InfoTip>
-          )}
-        </h2>
-        {subtitle && <p className="mt-1.5 text-sm text-ink-muted">{subtitle}</p>}
+    <>
+      <div className="flex items-start justify-between gap-3">
+        <p className="flex min-h-7 min-w-0 items-center gap-2 text-sm font-semibold text-ink-muted tabular-nums">
+          <Icon aria-hidden />
+          {position}
+        </p>
+        {badges && <span className="flex shrink-0 flex-wrap justify-end gap-1.5">{badges}</span>}
       </div>
-      {badge}
-    </div>
+      <div>
+        <h2 className="font-display text-display-l [overflow-wrap:anywhere]">{title}</h2>
+        {(subtitle || note) && (
+          // The tip's tap target is taller than the line it sits on, so it gives the height
+          // back: a day with a note is spaced exactly like one without.
+          <p className="mt-2 flex items-center gap-1 text-[0.9375rem] leading-snug text-ink-muted">
+            {subtitle && <span className="min-w-0 [overflow-wrap:anywhere]">{subtitle}</span>}
+            {note && (
+              <InfoTip label={`About ${title}`} className="-my-2">
+                {note}
+              </InfoTip>
+            )}
+          </p>
+        )}
+      </div>
+    </>
   );
 }
 
 function DrillList({ drills }: { drills: readonly WarmupDrill[] }) {
   return (
-    <ul className="space-y-2.5">
+    <ul className="space-y-3">
       {drills.map((drill) => (
         <li key={drill.order} className="min-w-0">
-          <p className="text-sm [overflow-wrap:anywhere]">{drill.name}</p>
-          <p className="mt-0.5 text-xs text-ink-muted tabular-nums">{drill.dose}</p>
+          <p className="font-semibold [overflow-wrap:anywhere]">{drill.name}</p>
+          <p className="mt-0.5 text-sm text-ink-muted tabular-nums">{drill.dose}</p>
         </li>
       ))}
     </ul>
@@ -94,13 +103,13 @@ function DrillList({ drills }: { drills: readonly WarmupDrill[] }) {
 /** What the day is and roughly what it costs, on one line under its name. */
 function daySubtitle(day: ScheduleDay): string | null {
   const parts = [day.focus, day.timeNote].filter(Boolean);
-  return parts.length > 0 ? parts.join(" · ") : null;
+  return parts.length > 0 ? parts.join(", ") : null;
 }
 
 /** The rest of what the programme says about the day, gathered behind one tip. */
 function dayNote(day: ScheduleDay): string | null {
   const parts = [day.effortNote, day.notes].filter(Boolean);
-  return parts.length > 0 ? parts.join(" · ") : null;
+  return parts.length > 0 ? parts.join(". ") : null;
 }
 
 export type TodayViewProps = {
@@ -179,7 +188,12 @@ function CoachStatus({
 
 /** How a finished half of the day says so: quietly, in the place its button was. */
 function DoneNote({ children }: { children: ReactNode }) {
-  return <p className="text-sm text-ink-muted">{children}</p>;
+  return (
+    <p className="flex min-h-12 items-center gap-2.5 rounded-tile bg-surface-raised px-4 py-3 text-[0.9375rem] leading-snug font-semibold">
+      <CheckCircle2 aria-hidden />
+      {children}
+    </p>
+  );
 }
 
 const TASK_BADGE: Record<SlotStatus, ReactNode> = {
@@ -211,7 +225,7 @@ export function TodayView({
     .map((gym) => ({ id: gym.id, name: gym.name, isDefault: gym.id === defaultGym?.id }));
   const position =
     plan?.suggestion && day
-      ? `Cycle ${plan.suggestion.slot.cycleIndex} of ${plan.program.weeks} · Day ${day.dayIndex}`
+      ? `Cycle ${plan.suggestion.slot.cycleIndex} of ${plan.program.weeks}, day ${day.dayIndex}`
       : undefined;
 
   const standing =
@@ -246,40 +260,258 @@ export function TodayView({
   const isProgramme = (occurrence: ScheduledOccurrence) => programmeIds.has(occurrence.id);
   // What the day on offer's section lists: everything, unless today has a section of its own.
   const onOffer = (occurrence: ScheduledOccurrence) => !finishedToday || isProgramme(occurrence);
+  const offered = outstanding.filter(onOffer);
+  // A day that runs but does not lift leads with its run: the one filled card on the screen
+  // is always the thing the day is for.
+  const leadOccurrence =
+    plan?.suggestion && day && !day.includesLifting && !restDay
+      ? (offered.find(isProgramme) ?? null)
+      : null;
+
+  const noGymLine =
+    defaultGym === null && gyms.length > 0 ? (
+      <p className="text-sm text-ink-muted">Choose a gym at the top of the screen to start.</p>
+    ) : null;
+
+  const theDay = (
+    <>
+      {!plan ? (
+        <HeroCard tone="lift">
+          <HeroHead icon={Dumbbell} title="No programme" />
+          <p className="text-[0.9375rem] leading-snug text-ink-muted">
+            Choose one and Today will say what to train each day.
+          </p>
+          <LinkButton href="/profile/programme" size="lg" className="w-full">
+            Choose a programme
+          </LinkButton>
+          <StartAdHocButton gymId={defaultGym?.id ?? null} />
+        </HeroCard>
+      ) : !plan.suggestion || !day ? (
+        <HeroCard tone="lift">
+          <HeroHead
+            icon={CheckCircle2}
+            position="Programme complete"
+            title={plan.program.name}
+            subtitle={`${plan.progress.total} programme days`}
+          />
+          <LinkButton href="/profile/programme" size="lg" className="w-full">
+            Plan the next block
+          </LinkButton>
+          <StartAdHocButton gymId={defaultGym?.id ?? null} />
+        </HeroCard>
+      ) : (
+        <>
+          {/* The workout. Nothing on this card is about the run. */}
+          {day.includesLifting && (
+            <HeroCard tone="lift">
+              {/* With a coach plan the line under the name is the coach's sentence; what the
+                  day is and costs moves behind the tip, so nothing the programme says is lost. */}
+              <HeroHead
+                icon={Dumbbell}
+                position={position}
+                title={day.name}
+                subtitle={
+                  coachPlan
+                    ? (writtenSummaryForSport(coachPlan, "workout") ?? daySubtitle(day))
+                    : day.includesRun
+                      ? planSummary(plan.suggestedExercises)
+                      : daySubtitle(day)
+                }
+                note={
+                  day.includesRun
+                    ? null
+                    : coachPlan
+                      ? [daySubtitle(day), dayNote(day)].filter(Boolean).join(". ") || null
+                      : dayNote(day)
+                }
+                badges={
+                  <>
+                    {coachPlan && <Badge tone="accent">Coach</Badge>}
+                    {sessionStatus === "pending" ? standing : TASK_BADGE[sessionStatus]}
+                  </>
+                }
+              />
+              {openHere && inProgress ? (
+                <>
+                  <LinkButton
+                    href={`/workouts/${inProgress.id}`}
+                    size="lg"
+                    className="w-full"
+                    aria-label={`Resume session: ${day.name}`}
+                  >
+                    Resume session
+                  </LinkButton>
+                  <p className="text-sm text-ink-muted tabular-nums">
+                    Started {formatDateTime(inProgress.startedAt, timeZone)} at {inProgress.gymName}
+                    , {inProgress.setCount} {inProgress.setCount === 1 ? "set" : "sets"} so far
+                  </p>
+                  {inProgress.setCount === 0 && <DiscardSessionButton sessionId={inProgress.id} />}
+                </>
+              ) : sessionStatus === "completed" ? (
+                <DoneNote>Workout logged. Nothing left to do here today.</DoneNote>
+              ) : sessionStatus === "skipped" ? (
+                <DoneNote>Workout skipped.</DoneNote>
+              ) : (
+                <>
+                  <StartPlannedButton
+                    gymId={defaultGym?.id ?? null}
+                    programDayId={day.id}
+                    dayIndex={day.dayIndex}
+                    label="Start workout"
+                    dayName={day.name}
+                  />
+                  {noGymLine}
+                </>
+              )}
+              {coach && (
+                <CoachStatus
+                  coach={coach}
+                  gymName={defaultGym?.name ?? null}
+                  gyms={gyms}
+                  timeZone={timeZone}
+                />
+              )}
+            </HeroCard>
+          )}
+
+          {/* What the workout is made of, one tap away rather than on the card. */}
+          {day.includesLifting &&
+            (coachPlan ? (
+              <Disclosure
+                summary="The plan"
+                meta={coachPlanSummary(coachPlan.exercises, plan.suggestedExercises)}
+              >
+                <CoachPlanList
+                  entries={coachPlan.exercises}
+                  planned={plan.suggestedExercises}
+                  unit={unit}
+                  warnings={coachPlan.warnings}
+                />
+              </Disclosure>
+            ) : (
+              plan.suggestedExercises.length > 0 && (
+                <Disclosure summary="The plan" meta={planSummary(plan.suggestedExercises)}>
+                  <PlannedExerciseList exercises={plan.suggestedExercises} />
+                </Disclosure>
+              )
+            ))}
+
+          {leadOccurrence && (
+            <OccurrenceCard occurrence={leadOccurrence} meta={`Part of ${day.name}`} hero />
+          )}
+
+          {!day.includesLifting && !restDay && (
+            <Card>
+              <h2 className="text-[1.0625rem] font-semibold">No lifting planned for this day</h2>
+              <StartAdHocButton gymId={defaultGym?.id ?? null} />
+            </Card>
+          )}
+
+          {/* A day that neither lifts nor runs: rest, mobility, and one tick. */}
+          {restDay && (
+            <HeroCard tone="rose">
+              <HeroHead
+                icon={Rest}
+                position={position}
+                title={day.name}
+                subtitle={daySubtitle(day)}
+                note={dayNote(day)}
+                badges={sessionStatus === "pending" ? standing : TASK_BADGE[sessionStatus]}
+              />
+              {sessionStatus === "pending" && (
+                <CompleteRestButton dayIndex={day.dayIndex} label="Mark rest day done" />
+              )}
+              {/* Resting is the suggestion, not a rule: the next lifting day stays one
+                  tap away rather than only through "Train another day". */}
+              {plan.nextTrainingDay && (
+                <StartPlannedButton
+                  gymId={defaultGym?.id ?? null}
+                  programDayId={plan.nextTrainingDay.id}
+                  dayIndex={plan.nextTrainingDay.dayIndex}
+                  variant="secondary"
+                  label={`Start ${plan.nextTrainingDay.name} instead`}
+                />
+              )}
+            </HeroCard>
+          )}
+          {restDay && restProtocol && (
+            <Disclosure summary={restProtocol.name} meta={`${restProtocol.drills.length} drills`}>
+              <DrillList drills={restProtocol.drills} />
+            </Disclosure>
+          )}
+        </>
+      )}
+
+      {/* The rest of what is due: the programme's own endurance for the day being
+          offered, then whatever the athlete scheduled for today. A programme session
+          says which day it belongs to, so a run never arrives unexplained. */}
+      {offered
+        .filter((occurrence) => occurrence !== leadOccurrence)
+        .map((occurrence) => (
+          <OccurrenceCard
+            key={occurrence.id}
+            occurrence={occurrence}
+            meta={isProgramme(occurrence) && day ? `Part of ${day.name}` : null}
+          />
+        ))}
+      <CompletedOccurrences occurrences={completed.filter(onOffer)} />
+    </>
+  );
 
   return (
     <>
-      <PageHeader title={<Wordmark />} meta={formatIsoWeekdayDay(today)} />
+      <PageHeader
+        title="Today"
+        meta={formatIsoWeekdayDay(today)}
+        // Where the next session will be. Once a session starts the gym is fixed, and its
+        // own screens carry it, so this is about the next session, not the current one.
+        action={
+          gyms.length > 0 ? (
+            <GymSwitcher
+              gyms={gyms}
+              workflow={coach?.workflow}
+              selectedGymId={coach?.selectedGymId}
+            />
+          ) : undefined
+        }
+      />
       <PageContent>
-        {/* Where you are training. Once a session starts the gym is fixed, and its own
-            screens carry it, so this row is about the next session, not the current one. */}
-        {gyms.length === 0 ? (
+        {gyms.length === 0 && (
           <Card>
-            <h2 className="text-lg font-medium">Add a gym to start training</h2>
+            <div className="flex items-center gap-3">
+              <span
+                aria-hidden
+                className="flex size-11 shrink-0 items-center justify-center rounded-[0.875rem] bg-lift-soft text-lift-ink"
+              >
+                <MapPin />
+              </span>
+              <h2 className="text-[1.0625rem] font-semibold">Add a gym to start training</h2>
+            </div>
             <LinkButton href="/gyms/new" size="lg" className="w-full">
               Add your first gym
             </LinkButton>
           </Card>
-        ) : (
-          <GymSwitcher
-            gyms={gyms}
-            workflow={coach?.workflow}
-            selectedGymId={coach?.selectedGymId}
-          />
         )}
 
         {openElsewhere && inProgress && (
           <Card>
-            <CardHead
-              eyebrow="In progress"
-              title={inProgress.dayName ?? "Ad hoc session"}
-              subtitle={`${inProgress.gymName} · ${formatDateTime(inProgress.startedAt, timeZone)}`}
-              badge={
-                <Badge tone="accent">
-                  {inProgress.setCount} {inProgress.setCount === 1 ? "set" : "sets"}
-                </Badge>
-              }
-            />
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="flex items-center gap-2 text-sm font-semibold text-lift-ink">
+                  <span aria-hidden className="size-2 rounded-full bg-lift" />
+                  In progress
+                </p>
+                <h2 className="mt-1 text-[1.0625rem] font-semibold [overflow-wrap:anywhere]">
+                  {inProgress.dayName ?? "Ad hoc session"}
+                </h2>
+                <p className="mt-0.5 text-sm text-ink-muted tabular-nums">
+                  {inProgress.gymName}, {formatDateTime(inProgress.startedAt, timeZone)}
+                </p>
+              </div>
+              <Badge tone="accent">
+                {inProgress.setCount} {inProgress.setCount === 1 ? "set" : "sets"}
+              </Badge>
+            </div>
             <LinkButton href={`/workouts/${inProgress.id}`} size="lg" className="w-full">
               Resume session
             </LinkButton>
@@ -288,212 +520,42 @@ export function TodayView({
           </Card>
         )}
 
-        {finishedToday && (
-          <Section title="Today">
-            <Card>
-              <CardHead
-                title={finishedToday.name}
-                subtitle={
-                  finishedToday.includesLifting || finishedToday.includesRun
-                    ? "Done. Nothing left to do here today."
-                    : "Rest day done."
-                }
-                badge={TASK_BADGE.completed}
+        {finishedToday ? (
+          <>
+            {/* Today's day is done; what is left of today stays above what comes next. */}
+            <div className="space-y-3">
+              <Card className="flex items-center gap-3 space-y-0">
+                <span
+                  aria-hidden
+                  className="flex size-11 shrink-0 items-center justify-center rounded-[0.875rem] bg-success/12 text-success"
+                >
+                  <CheckCircle2 />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-[1.0625rem] font-semibold [overflow-wrap:anywhere]">
+                    {finishedToday.name}
+                  </h2>
+                  <p className="text-sm text-ink-muted">
+                    {finishedToday.includesLifting || finishedToday.includesRun
+                      ? "Done. Nothing left to do here today."
+                      : "Rest day done."}
+                  </p>
+                </div>
+              </Card>
+              {outstanding
+                .filter((occurrence) => !isProgramme(occurrence))
+                .map((occurrence) => (
+                  <OccurrenceCard key={occurrence.id} occurrence={occurrence} />
+                ))}
+              <CompletedOccurrences
+                occurrences={completed.filter((occurrence) => !isProgramme(occurrence))}
               />
-            </Card>
-            {outstanding
-              .filter((occurrence) => !isProgramme(occurrence))
-              .map((occurrence) => (
-                <OccurrenceCard key={occurrence.id} occurrence={occurrence} />
-              ))}
-            <CompletedOccurrences
-              occurrences={completed.filter((occurrence) => !isProgramme(occurrence))}
-            />
-          </Section>
+            </div>
+            <Section title="Up next">{theDay}</Section>
+          </>
+        ) : (
+          <div className="space-y-3">{theDay}</div>
         )}
-
-        {/* What today asks for, at the top, whatever put it there. */}
-        <Section title={finishedToday ? "Up next" : "Today"}>
-          {!plan ? (
-            <Card>
-              <h2 className="text-lg font-medium">No programme</h2>
-              <LinkButton href="/profile/programme" size="lg" className="w-full">
-                Choose a programme
-              </LinkButton>
-              <StartAdHocButton gymId={defaultGym?.id ?? null} />
-            </Card>
-          ) : !plan.suggestion || !day ? (
-            <Card>
-              <CardHead
-                eyebrow="Programme complete"
-                title={plan.program.name}
-                subtitle={`${plan.progress.total} programme days`}
-              />
-              <LinkButton href="/profile/programme" size="lg" className="w-full">
-                Plan the next block
-              </LinkButton>
-              <StartAdHocButton gymId={defaultGym?.id ?? null} />
-            </Card>
-          ) : (
-            <>
-              {/* The workout. Nothing on this card is about the run. */}
-              {day.includesLifting && (
-                <Card>
-                  {/* With a coach plan the card's line is the coach's sentence; what the day is
-                    and costs moves behind the tip, so nothing the programme says is lost. */}
-                  <CardHead
-                    eyebrow={position}
-                    title={day.name}
-                    subtitle={
-                      coachPlan
-                        ? (writtenSummaryForSport(coachPlan, "workout") ?? daySubtitle(day))
-                        : day.includesRun
-                          ? planSummary(plan.suggestedExercises)
-                          : daySubtitle(day)
-                    }
-                    note={
-                      day.includesRun
-                        ? null
-                        : coachPlan
-                          ? [daySubtitle(day), dayNote(day)].filter(Boolean).join(" · ") || null
-                          : dayNote(day)
-                    }
-                    badge={
-                      <span className="flex shrink-0 flex-wrap justify-end gap-1">
-                        {coachPlan && <Badge tone="accent">Coach</Badge>}
-                        {sessionStatus === "pending" ? standing : TASK_BADGE[sessionStatus]}
-                      </span>
-                    }
-                  />
-                  {openHere && inProgress ? (
-                    <>
-                      <LinkButton
-                        href={`/workouts/${inProgress.id}`}
-                        size="lg"
-                        className="w-full"
-                        aria-label={`Resume session: ${day.name}`}
-                      >
-                        Resume session
-                      </LinkButton>
-                      <p className="text-sm text-ink-muted tabular-nums">
-                        Started {formatDateTime(inProgress.startedAt, timeZone)} ·{" "}
-                        {inProgress.gymName} · {inProgress.setCount}{" "}
-                        {inProgress.setCount === 1 ? "set" : "sets"}
-                      </p>
-                      {inProgress.setCount === 0 && (
-                        <DiscardSessionButton sessionId={inProgress.id} />
-                      )}
-                    </>
-                  ) : sessionStatus === "completed" ? (
-                    <DoneNote>Workout logged. Nothing left to do here today.</DoneNote>
-                  ) : sessionStatus === "skipped" ? (
-                    <DoneNote>Workout skipped.</DoneNote>
-                  ) : (
-                    <>
-                      <StartPlannedButton
-                        gymId={defaultGym?.id ?? null}
-                        programDayId={day.id}
-                        dayIndex={day.dayIndex}
-                        label="Start workout"
-                        dayName={day.name}
-                      />
-                      {defaultGym === null && (
-                        <p className="text-sm text-ink-muted">Choose a gym above to start.</p>
-                      )}
-                    </>
-                  )}
-                  {coach && (
-                    <CoachStatus
-                      coach={coach}
-                      gymName={defaultGym?.name ?? null}
-                      gyms={gyms}
-                      timeZone={timeZone}
-                    />
-                  )}
-                  {coachPlan ? (
-                    <Disclosure
-                      summary="The plan"
-                      meta={coachPlanSummary(coachPlan.exercises, plan.suggestedExercises)}
-                      variant="footer"
-                    >
-                      <CoachPlanList
-                        entries={coachPlan.exercises}
-                        planned={plan.suggestedExercises}
-                        unit={unit}
-                        warnings={coachPlan.warnings}
-                      />
-                    </Disclosure>
-                  ) : (
-                    plan.suggestedExercises.length > 0 && (
-                      <Disclosure
-                        summary="The plan"
-                        meta={planSummary(plan.suggestedExercises)}
-                        variant="footer"
-                      >
-                        <PlannedExerciseList exercises={plan.suggestedExercises} />
-                      </Disclosure>
-                    )
-                  )}
-                </Card>
-              )}
-
-              {!day.includesLifting && !restDay && (
-                <Card>
-                  <h2 className="text-lg font-medium">No workout planned for this day</h2>
-                  <StartAdHocButton gymId={defaultGym?.id ?? null} />
-                </Card>
-              )}
-
-              {/* A day that neither lifts nor runs: rest, mobility, and one tick. */}
-              {restDay && (
-                <Card>
-                  <CardHead
-                    eyebrow={position}
-                    title={day.name}
-                    subtitle={daySubtitle(day)}
-                    note={dayNote(day)}
-                    badge={sessionStatus === "pending" ? standing : TASK_BADGE[sessionStatus]}
-                  />
-                  {sessionStatus === "pending" && (
-                    <CompleteRestButton dayIndex={day.dayIndex} label="Mark rest day done" />
-                  )}
-                  {/* Resting is the suggestion, not a rule: the next lifting day stays one
-                    tap away rather than only through "Train another day". */}
-                  {plan.nextTrainingDay && (
-                    <StartPlannedButton
-                      gymId={defaultGym?.id ?? null}
-                      programDayId={plan.nextTrainingDay.id}
-                      dayIndex={plan.nextTrainingDay.dayIndex}
-                      variant="secondary"
-                      label={`Start ${plan.nextTrainingDay.name} instead`}
-                    />
-                  )}
-                  {restProtocol && (
-                    <Disclosure
-                      summary={restProtocol.name}
-                      meta={`${restProtocol.drills.length} drills`}
-                      variant="footer"
-                    >
-                      <DrillList drills={restProtocol.drills} />
-                    </Disclosure>
-                  )}
-                </Card>
-              )}
-            </>
-          )}
-
-          {/* The rest of what is due: the programme's own endurance for the day being
-            offered, then whatever the athlete scheduled for today. A programme session
-            says which day it belongs to, so a run never arrives unexplained. */}
-          {outstanding.filter(onOffer).map((occurrence) => (
-            <OccurrenceCard
-              key={occurrence.id}
-              occurrence={occurrence}
-              meta={programmeIds.has(occurrence.id) && day ? `Part of ${day.name}` : null}
-            />
-          ))}
-          <CompletedOccurrences occurrences={completed.filter(onOffer)} />
-        </Section>
 
         {/* Everything that is not the day's own decision, one tap behind one control. */}
         {plan && plan.suggestion && day && (

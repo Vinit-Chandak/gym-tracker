@@ -1,0 +1,150 @@
+/*
+ * Stack: one design, a light and a dark palette. Import after foundation.css.
+ *
+ * Colour means sport: lifting is cobalt, running tangerine, cycling violet, swimming aqua,
+ * food sunflower and recovery rose. Everything else is neutral, so a colour on screen always
+ * says what it is about. Each sport has a fill with its own ink (`on-*`), a soft wash
+ * (`*-soft`) and a text shade that holds 4.5:1 on the surfaces (`*-ink`).
+ */
+:where([data-overload-design="stack"]) {
+  /* Radii by hierarchy, never one radius for everything. */
+  --ov-radius-hero: 1.75rem;
+  --ov-radius-card: 1.375rem;
+  --ov-radius-tile: 1.125rem;
+  --ov-radius-control: 0.875rem;
+  --ov-radius-chip: 999px;
+  --ov-radius-sheet: 1.75rem;
+  --ov-radius-island: 2.125rem;
+  --ov-font-heading: var(--ov-font-display);
+  --ov-weight-heading: 800;
+  --ov-heading-tracking: 0;
+
+  --ov-light-canvas: #e7eaf0;
+  --ov-light-surface: #ffffff;
+  --ov-light-surface-raised: #f0f2f6;
+  /* The chosen segment in a pill track: lifted off the raised track, never sunk into it. */
+  --ov-light-surface-selected: #ffffff;
+  --ov-light-line: #e2e5eb;
+  --ov-light-line-strong: #8e94a3;
+  --ov-light-ink: #141824;
+  --ov-light-ink-muted: #555c6e;
+  --ov-light-ink-subtle: #5f6677;
+  --ov-light-ink-ghost: #8d93a2;
+  --ov-light-accent: #2f4cf2;
+  --ov-light-accent-strong: #2238c9;
+  --ov-light-on-accent: #ffffff;
+  --ov-light-accent-soft: #e3e8ff;
+  --ov-light-success: #0f7539;
+  --ov-light-warning: #9a4f00;
+  --ov-light-danger: #c42431;
+  --ov-light-over: #c42431;
+  --ov-light-focus: #2f4cf2;
+  --ov-light-series-1: #2f4cf2;
+  --ov-light-series-2: #e0561d;
+  --ov-light-series-3: #6647f0;
+  --ov-light-series-4: #0b8fa3;
+  --ov-light-volume-0: #e4e8f1;
+  --ov-light-volume-1: #c5d0ff;
+  --ov-light-volume-2: #93a5ff;
+  --ov-light-volume-3: #5b75f6;
+  --ov-light-volume-4: #2f4cf2;
+  --ov-light-backdrop: rgb(11 13 18 / 0.45);
+  --ov-light-nav-island: rgb(255 255 255 / 0.9);
+  --ov-light-nav-shadow: 0 0.75rem 2rem rgb(20 24 36 / 0.16);
+  --ov-light-group-1: #2f4cf2;
+  --ov-light-group-2: #ad3a0a;
+  --ov-light-group-3: #6d28d9;
+  --ov-light-group-4: #0b6a80;
+  --ov-light-group-5: #855000;
+  --ov-light-group-6: #be185d;
+  --ov-light-group-7: #116e36;
+  --ov-light-group-8: #475569;
+  --ov-light-lift: #2f4cf2;
+  --ov-light-on-lift: #ffffff;
+  --ov-light-lift-soft: #e3e8ff;
+  --ov-light-lift-ink: #2940d8;
+  --ov-light-run: #ff6a33;
+  --ov-light-on-run: #141824;
+  --ov-light-run-soft: #ffe6da;
+  --ov-light-run-ink: #b53a0a;
+  --ov-light-ride: #6647f0;
+  --ov-light-on-ride: #ffffff;
+  --ov-light-ride-soft: #ece7ff;
+  --ov-light-ride-ink: #5537d9;
+  --ov-light-swim: #16b3c7;
+  --ov-light-on-swim: #141824;
+  --ov-light-swim-soft: #d9f3f6;
+  --ov-light-swim-ink: #0a6e7c;
+  --ov-light-food: #ffc53d;
+  --ov-light-on-food: #141824;
+  --ov-light-food-soft: #fff1cc;
+  --ov-light-food-ink: #7f5700;
+  --ov-light-rose: #f2638c;
+  --ov-light-on-rose: #141824;
+  --ov-light-rose-soft: #ffe3eb;
+  --ov-light-rose-ink: #b22a55;
+
+  --ov-dark-canvas: #0b0d12;
+  --ov-dark-surface: #1a1d26;
+  --ov-dark-surface-raised: #252a36;
+  --ov-dark-surface-selected: #3a4152;
+  --ov-dark-line: #2c313d;
+  --ov-dark-line-strong: #737a8a;
+  --ov-dark-ink: #f2f4f8;
+  --ov-dark-ink-muted: #a9afbd;
+  --ov-dark-ink-subtle: #9aa0af;
+  --ov-dark-ink-ghost: #737a8a;
+  --ov-dark-accent: #8b9dff;
+  --ov-dark-accent-strong: #a7b5ff;
+  --ov-dark-on-accent: #0b0d12;
+  --ov-dark-accent-soft: #1f2856;
+  --ov-dark-success: #45cf88;
+  --ov-dark-warning: #f2a93b;
+  --ov-dark-danger: #ff6b70;
+  --ov-dark-over: #ff6b70;
+  --ov-dark-focus: #a7b5ff;
+  --ov-dark-series-1: #8b9dff;
+  --ov-dark-series-2: #ff9466;
+  --ov-dark-series-3: #b7a6ff;
+  --ov-dark-series-4: #5ed6e6;
+  --ov-dark-volume-0: #232838;
+  --ov-dark-volume-1: #26336f;
+  --ov-dark-volume-2: #3448c4;
+  --ov-dark-volume-3: #5c76ff;
+  --ov-dark-volume-4: #9aaeff;
+  --ov-dark-backdrop: rgb(0 0 0 / 0.62);
+  --ov-dark-nav-island: rgb(26 29 38 / 0.9);
+  --ov-dark-nav-shadow: 0 0.75rem 2rem rgb(0 0 0 / 0.5);
+  --ov-dark-group-1: #93a4ff;
+  --ov-dark-group-2: #ff9d72;
+  --ov-dark-group-3: #c4b5fd;
+  --ov-dark-group-4: #67e8f9;
+  --ov-dark-group-5: #fcd34d;
+  --ov-dark-group-6: #f9a8d4;
+  --ov-dark-group-7: #86efac;
+  --ov-dark-group-8: #cbd5e1;
+  --ov-dark-lift: #3651f0;
+  --ov-dark-on-lift: #ffffff;
+  --ov-dark-lift-soft: #1b2350;
+  --ov-dark-lift-ink: #93a4ff;
+  --ov-dark-run: #ff7a45;
+  --ov-dark-on-run: #141824;
+  --ov-dark-run-soft: #3a1f12;
+  --ov-dark-run-ink: #ff9d72;
+  --ov-dark-ride: #6647f0;
+  --ov-dark-on-ride: #ffffff;
+  --ov-dark-ride-soft: #261c4f;
+  --ov-dark-ride-ink: #b7a6ff;
+  --ov-dark-swim: #22c3d8;
+  --ov-dark-on-swim: #141824;
+  --ov-dark-swim-soft: #0c3036;
+  --ov-dark-swim-ink: #6fddec;
+  --ov-dark-food: #ffc53d;
+  --ov-dark-on-food: #141824;
+  --ov-dark-food-soft: #3a2e10;
+  --ov-dark-food-ink: #ffd46e;
+  --ov-dark-rose: #ff7aa0;
+  --ov-dark-on-rose: #141824;
+  --ov-dark-rose-soft: #3d1826;
+  --ov-dark-rose-ink: #ffa0bc;
+}

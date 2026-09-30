@@ -43,7 +43,7 @@ export function SegmentedLinks({
   return (
     <div
       aria-label={label}
-      className={cn("grid min-w-0 gap-1 rounded-control bg-surface-raised p-1", className)}
+      className={cn("grid min-w-0 gap-1 rounded-[1.125rem] bg-surface-raised p-1", className)}
       style={{ gridTemplateColumns: `repeat(auto-fit, minmax(${MIN_PILL}, 1fr))` }}
     >
       {options.map((option) => (
@@ -52,10 +52,10 @@ export function SegmentedLinks({
           href={option.href as Route}
           aria-current={option.current ? "page" : undefined}
           className={cn(
-            "flex min-h-11 min-w-0 items-center justify-center rounded-control border border-transparent px-2 py-1 text-center text-sm leading-tight font-medium transition-colors duration-[var(--ov-duration-feedback)]",
+            "flex min-h-11 min-w-0 items-center justify-center rounded-[0.875rem] px-2 py-1 text-center text-sm leading-tight font-semibold transition-colors duration-[var(--ov-duration-feedback)]",
             "focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none",
             option.current
-              ? "border-line-strong bg-accent-soft text-ink"
+              ? "bg-surface-selected text-ink shadow-[0_1px_3px_rgb(20_24_36/0.12)]"
               : "text-ink-muted active:text-ink",
           )}
         >

@@ -23,12 +23,18 @@ export function Headline({
   const better = lowerIsBetter ? delta < 0 : delta > 0;
   return (
     <p className="flex min-w-0 flex-wrap items-baseline gap-x-2">
-      <span className="text-xl font-medium tabular-nums">
+      <span className="font-display text-display-m font-extrabold tabular-nums">
         {Math.round(last * 10) / 10}
-        <span className="ml-1 text-sm font-normal text-ink-muted">{unit}</span>
+        <span className="ml-1 font-sans text-base font-semibold text-ink-muted">{unit}</span>
       </span>
       {known.length > 1 && delta !== 0 && (
-        <span className={better ? "text-sm text-success" : "text-sm text-ink-muted"}>
+        <span
+          className={
+            better
+              ? "rounded-chip bg-success/12 px-2 py-0.5 text-sm font-semibold text-success"
+              : "text-sm text-ink-muted"
+          }
+        >
           {delta > 0 ? "+" : ""}
           {delta} since {known[0]!.date.slice(5).split("-").reverse().join("/")}
         </span>

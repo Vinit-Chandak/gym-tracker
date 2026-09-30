@@ -104,11 +104,18 @@ export function RestTimer({ sessionId }: { sessionId: string }) {
   };
 
   return (
-    <div role="timer" className="border-t border-line bg-surface">
-      <div className="page-width flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-1.5">
-        <span className="text-xs text-ink-muted">Rest</span>
-        <span className={cn("text-lg font-medium tabular-nums", remaining === 0 && "text-accent")}>
-          {remaining === 0 ? "Go" : formatDuration(remaining)}
+    <div role="timer" className="page-width pb-2">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-chip bg-surface py-1.5 pr-1.5 pl-5 shadow-[var(--ov-nav-shadow)]">
+        <span className="flex items-baseline gap-2">
+          <span className="text-sm font-semibold text-ink-muted">Rest</span>
+          <span
+            className={cn(
+              "font-display text-[1.875rem] leading-none font-extrabold tabular-nums",
+              remaining === 0 && "text-accent",
+            )}
+          >
+            {remaining === 0 ? "Go" : formatDuration(remaining)}
+          </span>
         </span>
         <div className="flex gap-1">
           <Button variant="secondary" size="sm" onClick={extend}>

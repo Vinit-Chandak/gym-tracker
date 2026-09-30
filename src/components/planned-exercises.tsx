@@ -27,11 +27,11 @@ export function totalSets(exercises: readonly PlannedExercisePreview[]): number 
   return exercises.reduce((sets, exercise) => sets + exercise.sets, 0);
 }
 
-/** "6 exercises · 15 sets", the one line that says what a day costs. */
+/** "6 exercises, 15 sets", the one line that says what a day costs. */
 export function planSummary(exercises: readonly PlannedExercisePreview[]): string {
   const count = exercises.length;
   const sets = totalSets(exercises);
-  return `${count} ${count === 1 ? "exercise" : "exercises"} · ${sets} ${sets === 1 ? "set" : "sets"}`;
+  return `${count} ${count === 1 ? "exercise" : "exercises"}, ${sets} ${sets === 1 ? "set" : "sets"}`;
 }
 
 type Block = { key: string; hue?: SupersetHue; items: PlannedExercisePreview[] };

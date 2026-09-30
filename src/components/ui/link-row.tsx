@@ -20,9 +20,19 @@ export const PRESSABLE_ROW_CLASS = cn(
   "transition-colors duration-[var(--ov-duration-feedback)] focus-visible:-outline-offset-2 active:bg-surface-raised",
 );
 
-/** The leading icon of a row, where a screen uses them: Profile and its sub-pages. */
+/** The leading icon of a row, in its own rounded chip: Profile and its sub-pages. */
 export function RowIcon({ icon: Icon, className }: { icon: AppIcon; className?: string }) {
-  return <Icon scale="row" className={cn("shrink-0 text-ink-muted", className)} aria-hidden />;
+  return (
+    <span
+      className={cn(
+        "flex size-9 shrink-0 items-center justify-center rounded-[0.75rem] bg-surface-raised text-ink",
+        className,
+      )}
+      aria-hidden
+    >
+      <Icon scale="row" aria-hidden />
+    </span>
+  );
 }
 
 type LinkRowProps<T extends string> = {
@@ -52,10 +62,10 @@ export function LinkRow<T extends string>({
   const danger = tone === "danger";
   return (
     <Link href={href} prefetch={prefetch} className={PRESSABLE_ROW_CLASS}>
-      {icon && <RowIcon icon={icon} className={cn(danger && "text-danger")} />}
+      {icon && <RowIcon icon={icon} className={cn(danger && "bg-danger/12 text-danger")} />}
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <p className={cn("font-medium [overflow-wrap:anywhere]", danger && "text-danger")}>
+          <p className={cn("font-semibold [overflow-wrap:anywhere]", danger && "text-danger")}>
             {title}
           </p>
           {badge}
@@ -66,7 +76,7 @@ export function LinkRow<T extends string>({
       </div>
       {/* Trailing actions keep a reserved column so a long name wraps instead of pushing them out. */}
       {meta && (
-        <span className="max-w-[32%] shrink-0 text-right text-xs text-ink-muted tabular-nums">
+        <span className="max-w-[32%] shrink-0 text-right text-sm text-ink-muted tabular-nums">
           {meta}
         </span>
       )}
@@ -96,7 +106,9 @@ export function Row({
     <div className={cn(ROW_CLASS, className)}>
       {icon && <RowIcon icon={icon} />}
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1 font-medium [overflow-wrap:anywhere]">{title}</div>
+        <div className="flex items-center gap-1 font-semibold [overflow-wrap:anywhere]">
+          {title}
+        </div>
         {subtitle && (
           <p className="mt-0.5 text-sm [overflow-wrap:anywhere] text-ink-muted">{subtitle}</p>
         )}

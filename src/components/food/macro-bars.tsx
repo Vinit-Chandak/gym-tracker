@@ -18,11 +18,15 @@ import { formatFoodAmount, formatPortion } from "@/lib/format";
 import { MEAL_LABELS } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 
-/** In the order the split names them: 55 / 25 / 20 is carbohydrate, fat, protein. */
+/**
+ * In the order the split names them: 55 / 25 / 20 is carbohydrate, fat, protein. All three are
+ * food's own colour: the sports' colours mean sports everywhere else, and each row is named, so
+ * no bar needs a hue of its own to be told apart.
+ */
 const MACROS = [
-  { key: "carbsG", label: "Carbs", fill: "bg-series-2", ink: "text-series-2" },
-  { key: "fatG", label: "Fat", fill: "bg-series-4", ink: "text-series-4" },
-  { key: "proteinG", label: "Protein", fill: "bg-series-3", ink: "text-series-3" },
+  { key: "carbsG", label: "Carbs", fill: "bg-food-ink", ink: "text-food-ink" },
+  { key: "fatG", label: "Fat", fill: "bg-food-ink", ink: "text-food-ink" },
+  { key: "proteinG", label: "Protein", fill: "bg-food-ink", ink: "text-food-ink" },
 ] as const satisfies readonly { key: MacroKey; label: string; fill: string; ink: string }[];
 
 /** A glyph beside a label a size smaller than the controls': sized here, since icons size by CSS. */
@@ -135,7 +139,7 @@ export function MacroBars({
                         state === "over" && "text-over",
                       )}
                     >
-                      <span className="font-medium">{grams(eaten[key])}</span>{" "}
+                      <span className="font-semibold">{grams(eaten[key])}</span>{" "}
                       <span
                         className={cn(
                           "whitespace-nowrap",
@@ -144,11 +148,13 @@ export function MacroBars({
                       >
                         / {formatFoodAmount(target[key])} g
                       </span>
+                      {/* Said in words as well as in colour, which a filled card cannot show. */}
+                      {state === "over" && <span className="font-semibold"> over</span>}
                     </span>
                   </span>
                   <span
                     aria-hidden
-                    className="[grid-column:1/-1] [grid-row:2] block h-1.5 overflow-hidden rounded-full bg-surface-raised @2xs:[grid-column:2] @2xs:[grid-row:1]"
+                    className="[grid-column:1/-1] [grid-row:2] block h-2 overflow-hidden rounded-full bg-surface-raised @2xs:[grid-column:2] @2xs:[grid-row:1]"
                   >
                     <span
                       className={cn("block h-full rounded-full", STATE_FILL[state] ?? fill)}

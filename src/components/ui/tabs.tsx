@@ -36,11 +36,11 @@ export function Tabs<V extends string>({
 }) {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
   return (
-    <div className="flex min-w-0 items-end gap-1 border-b border-line">
+    <div className="flex min-w-0 items-center gap-2">
       <div
         role="tablist"
         aria-label={label}
-        className="grid min-w-0 flex-1"
+        className="grid min-w-0 flex-1 gap-1 rounded-[1.125rem] bg-surface-raised p-1"
         style={{ gridTemplateColumns: `repeat(auto-fit, minmax(${MIN_TAB}, 1fr))` }}
       >
         {options.map((option, index) => (
@@ -73,17 +73,17 @@ export function Tabs<V extends string>({
               refs.current[next]?.focus();
             }}
             className={cn(
-              "min-h-11 min-w-0 border-b-2 px-2 py-2 text-sm font-medium transition-colors duration-[var(--ov-duration-feedback)] focus-visible:-outline-offset-4",
+              "min-h-11 min-w-0 rounded-[0.875rem] px-2 py-2 text-sm font-semibold transition-colors duration-[var(--ov-duration-feedback)] focus-visible:-outline-offset-4",
               value === option.value
-                ? "border-accent text-accent"
-                : "border-transparent text-ink-muted hover:text-ink",
+                ? "bg-surface-selected text-ink shadow-[0_1px_3px_rgb(20_24_36/0.12)]"
+                : "text-ink-muted hover:text-ink",
             )}
           >
             <span className="block hyphens-auto">{option.label}</span>
           </button>
         ))}
       </div>
-      {action && <div className="flex shrink-0 items-center pb-1">{action}</div>}
+      {action && <div className="flex shrink-0 items-center">{action}</div>}
     </div>
   );
 }

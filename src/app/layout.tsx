@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Big_Shoulders } from "next/font/google";
 import { AppearanceSync } from "@/components/shell/appearance-sync";
 import { PwaProvider } from "@/components/shell/pwa-provider";
 import { NavigationHistory } from "@/components/shell/back-link";
@@ -7,6 +8,20 @@ import { APP_DESCRIPTION, APP_NAME } from "@/lib/app";
 import { APPEARANCE_INIT_SCRIPT, CANVAS_DARK, CANVAS_LIGHT } from "@/lib/appearance";
 
 import "./globals.css";
+
+/*
+ * The display face: condensed and athletic, for the one number or name that leads a screen.
+ * Self-hosted by next/font, so no request goes to Google from the phone. The optical-size
+ * axis gives large sizes the display cut on their own.
+ */
+const display = Big_Shoulders({
+  subsets: ["latin"],
+  axes: ["opsz"],
+  variable: "--font-display",
+  display: "swap",
+  // next/font has no metrics for this face, so it cannot size a fallback to match.
+  adjustFontFallback: false,
+});
 
 export const metadata: Metadata = {
   applicationName: APP_NAME,
@@ -20,7 +35,7 @@ export const metadata: Metadata = {
      * taller, so a 402x874 iPhone ran the whole app in 402x812 and left the navigation island
      * floating 62px — one status bar — clear of the bottom edge, over a strip of manifest
      * colour no page could reach. It also paints the clock white whatever is under it, which
-     * on Form's light canvas is white on cream. `default` hands the status bar back to iOS,
+     * on a light canvas is white on white. `default` hands the status bar back to iOS,
      * which tints it with the theme-colour this app already keeps in step with the palette.
      */
     statusBarStyle: "default",
@@ -55,8 +70,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     // scoped to this element so a real mismatch anywhere else still surfaces.
     <html
       lang="en"
-      className="h-full"
-      data-overload-design="form"
+      className={`h-full ${display.variable}`}
+      data-overload-design="stack"
       suppressHydrationWarning
       // color-scheme now comes from the theme files, per mode, so native controls follow.
     >

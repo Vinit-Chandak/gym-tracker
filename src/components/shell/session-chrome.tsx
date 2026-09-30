@@ -67,15 +67,18 @@ export function SessionChrome({ session }: { session: ActiveSession }) {
       >
         {session.restTimerEnabled && <RestTimer sessionId={session.id} />}
         {!hideResume && (
-          <div className="border-t border-line bg-surface">
-            <div className="page-width flex min-h-11 items-center justify-between gap-3 py-1.5">
-              <p className="min-w-0 truncate text-sm">
-                <span className="text-ink-muted">In progress · </span>
-                {session.name}
+          <div className="page-width pb-2">
+            <div className="flex min-h-12 items-center justify-between gap-3 rounded-chip bg-ink py-1.5 pr-1.5 pl-5 text-surface shadow-[var(--ov-nav-shadow)]">
+              <p className="flex min-w-0 items-center gap-2 text-sm">
+                <span className="size-2 shrink-0 rounded-full bg-lift" aria-hidden />
+                <span className="min-w-0 truncate">
+                  <span className="font-semibold">{session.name}</span>
+                  <span className="opacity-75"> in progress</span>
+                </span>
               </p>
               <Link
                 href={`/workouts/${session.id}`}
-                className="shrink-0 px-2 py-1 text-sm font-medium text-accent"
+                className="shrink-0 pressable rounded-chip bg-surface px-4 py-2 text-sm font-semibold text-ink"
               >
                 Resume
               </Link>

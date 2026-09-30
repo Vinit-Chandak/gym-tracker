@@ -63,7 +63,7 @@ function NavItems({ pathname, origin }: { pathname: string; origin: NavOrigin | 
               href={href}
               prefetch
               aria-current={active ? "page" : undefined}
-              className={cn("nav-link", active ? "text-accent" : "text-ink-muted hover:text-ink")}
+              className={cn("nav-link", active ? "text-ink" : "text-ink-muted hover:text-ink")}
             >
               <NavContent label={label} icon={icon} active={active} />
             </Link>
@@ -88,7 +88,7 @@ export function BottomNav({ pathname: standingIn }: { pathname?: string } = {}) 
     <div className="viewport-chrome">
       <nav aria-label="Primary" className="primary-nav">
         <div className="hidden px-6 pt-7 pb-3 lg:block">
-          <p className="text-lg font-medium">
+          <p className="font-display text-display-s font-extrabold">
             <Wordmark />
           </p>
           <p className="mt-0.5 text-xs text-ink-muted">Your training, in focus.</p>

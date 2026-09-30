@@ -27,13 +27,13 @@ export function Switch({ checked, onChange, label, disabled }: SwitchProps) {
       <span
         aria-hidden
         className={cn(
-          "relative block h-7 w-12 rounded-full border transition-colors duration-[var(--ov-duration-feedback)]",
-          checked ? "border-accent bg-accent" : "border-line-strong bg-surface-raised",
+          "relative block h-[1.875rem] w-[3.125rem] rounded-full transition-colors duration-[var(--ov-duration-feedback)]",
+          checked ? "bg-accent" : "bg-ink-ghost/45",
         )}
       >
         <span
           className={cn(
-            "absolute top-0.5 left-0.5 block size-[1.375rem] rounded-full bg-surface shadow-sm transition-transform duration-[var(--ov-duration-feedback)]",
+            "absolute top-[0.1875rem] left-[0.1875rem] block size-6 rounded-full bg-white shadow-[0_1px_3px_rgb(0_0_0/0.25)] transition-transform duration-[var(--ov-duration-feedback)] ease-[var(--ov-ease-out)]",
             checked && "translate-x-5",
           )}
         />

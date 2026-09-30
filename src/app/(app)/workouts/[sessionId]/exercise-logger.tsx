@@ -1,13 +1,14 @@
 "use client";
 
-import { ChevronLeft } from "@/components/ui/icons";
-import { useEffect, useOptimistic, useState, useTransition } from "react";
+import { ChevronLeft, Plus } from "@/components/ui/icons";
+import { useEffect, useOptimistic, useState, useTransition, type ReactNode } from "react";
 
 import Link from "@/components/ui/app-link";
 import { Badge } from "@/components/ui/badge";
 import { Button, LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Disclosure } from "@/components/ui/disclosure";
+import { HeroCard } from "@/components/ui/hero-card";
 import { Input } from "@/components/ui/input";
 import { SetTable } from "@/components/ui/set-table";
 import { Sheet } from "@/components/ui/sheet";
@@ -193,6 +194,16 @@ type LoggerProps = {
  * One exercise, in focus. Everything here belongs to this exercise: the workout's gym,
  * programme and day are session context and are not repeated per set.
  */
+/** One of the programme's notes on the exercise, under its own small label. */
+function Note({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div>
+      <p className="text-sm font-semibold text-ink-muted">{label}</p>
+      <p className="mt-0.5 [overflow-wrap:anywhere]">{children}</p>
+    </div>
+  );
+}
+
 export function ExerciseLogger({
   exercise,
   session,
@@ -331,27 +342,45 @@ export function ExerciseLogger({
       <button
         type="button"
         onClick={onBack}
-        className="-ml-1 flex min-h-11 items-center gap-1 text-sm font-medium text-ink-muted"
+        className="flex min-h-11 pressable items-center gap-1 rounded-chip bg-surface pr-4 pl-2.5 text-[0.9375rem] font-semibold text-ink active:bg-surface-raised"
       >
         <ChevronLeft aria-hidden />
         All exercises
       </button>
 
-      <Card className="space-y-1">
+      {/* The exercise, what it asks for today and what the rule or the coach says about it:
+          the one filled card on the screen, above the tabs so every tab keeps it in view. */}
+      <HeroCard tone="lift" className="space-y-3">
         <div className="flex items-start justify-between gap-3">
-          <h2 className="min-w-0 text-lg font-medium [overflow-wrap:anywhere]">
-            {exercise.exercise.name}
-          </h2>
+          <p className="min-w-0 pt-1 text-sm font-semibold [overflow-wrap:anywhere] text-ink-muted">
+            {equipmentLine(exercise, session.gym.kind)}
+            {substituted ? `, instead of ${plannedName}` : ""}
+          </p>
           <div className="flex shrink-0 gap-1">
             {completed && <Badge tone="success">Done</Badge>}
             {skipped && <Badge tone="warning">Skipped</Badge>}
           </div>
         </div>
-        <p className="text-sm text-ink-muted">
-          {equipmentLine(exercise, session.gym.kind)}
-          {substituted ? ` · instead of ${plannedName}` : ""}
-        </p>
-      </Card>
+        <h2 className="font-display text-display-l [overflow-wrap:anywhere]">
+          {exercise.exercise.name}
+        </h2>
+        {prescription && (
+          <p className="text-[0.9375rem] font-semibold tabular-nums">
+            {suggestion?.kind === "coach" && "Programme: "}
+            {prescription}
+          </p>
+        )}
+        {editable && suggestion && (
+          <div className="flex items-start gap-2 border-t border-line pt-3">
+            <Badge tone={suggestionTone(suggestion.kind)}>
+              {SUGGESTION_KIND_LABELS[suggestion.kind]}
+            </Badge>
+            {suggestion.text && (
+              <p className="min-w-0 text-sm leading-snug font-semibold">{suggestion.text}</p>
+            )}
+          </div>
+        )}
+      </HeroCard>
 
       <Tabs
         name="exercise"
@@ -364,34 +393,11 @@ export function ExerciseLogger({
       <div id="exercise-panel" role="tabpanel" aria-labelledby={`exercise-${tab}-tab`}>
         {tab === "log" && (
           <div className="space-y-3">
-            {/* What to do and what the rule says, boxed together; the grid itself stays on
-                the page, where its columns have the width they were measured for. */}
-            {(prescription || (editable && suggestion)) && (
-              <Card>
-                {prescription && (
-                  <p className="text-sm font-medium tabular-nums">
-                    {suggestion?.kind === "coach" && "Programme: "}
-                    {prescription}
-                  </p>
-                )}
-                {editable && suggestion && (
-                  <div className="flex items-start gap-2">
-                    <Badge tone={suggestionTone(suggestion.kind)}>
-                      {SUGGESTION_KIND_LABELS[suggestion.kind]}
-                    </Badge>
-                    {suggestion.text && (
-                      <p className="min-w-0 text-sm font-medium">{suggestion.text}</p>
-                    )}
-                  </div>
-                )}
-              </Card>
-            )}
-
             {/* Equipment problems come before the grid: without a machine there is nothing
                 meaningful to log, so the decision has to be the first thing offered. */}
             {needsDecision && exercise.decision && (
-              <div className="space-y-2 rounded-card border border-warning p-3">
-                <p className="text-sm font-medium">
+              <div className="space-y-2 rounded-card bg-warning/12 p-4">
+                <p className="font-semibold">
                   {availableMachine
                     ? "Choose the registered machine for this exercise"
                     : exercise.decision.resolution.status === "unavailable"
@@ -469,25 +475,40 @@ export function ExerciseLogger({
                 Skipped{exercise.notes ? `: ${exercise.notes}` : ""}.
               </p>
             ) : editable ? (
-              <SetGrid
-                rows={sets.rows}
-                ghost={sets.ghost}
-                unitLabel={unitLabel}
-                measure={measure}
-                rirNote={exercise.exercise.rirNote}
-                rirTarget={
-                  exercise.planned &&
-                  (exercise.planned.rirMin !== null || exercise.planned.rirMax !== null)
-                    ? rangeLabel(exercise.planned.rirMin, exercise.planned.rirMax)
-                    : null
-                }
-                onEdit={sets.editRow}
-                onSave={sets.logRow}
-                onOptions={(row) => setOptionsFor(row.setIndex)}
-                onUndoWarmup={sets.undoWarmup}
-              />
+              <Card className="px-3 pt-3 pb-3">
+                <SetGrid
+                  rows={sets.rows}
+                  ghost={sets.ghost}
+                  unitLabel={unitLabel}
+                  measure={measure}
+                  rirNote={exercise.exercise.rirNote}
+                  rirTarget={
+                    exercise.planned &&
+                    (exercise.planned.rirMin !== null || exercise.planned.rirMax !== null)
+                      ? rangeLabel(exercise.planned.rirMin, exercise.planned.rirMax)
+                      : null
+                  }
+                  onEdit={sets.editRow}
+                  onSave={sets.logRow}
+                  onOptions={(row) => setOptionsFor(row.setIndex)}
+                  onUndoWarmup={sets.undoWarmup}
+                />
+                {!readOnly && !completed && (
+                  <Button
+                    variant="secondary"
+                    className="w-full"
+                    disabled={!sets.canAddRow}
+                    onClick={sets.addRow}
+                  >
+                    <Plus aria-hidden />
+                    Add set
+                  </Button>
+                )}
+              </Card>
             ) : (
-              <SetTable sets={sets.loggedSets} unitLabel={unitLabel} />
+              <Card>
+                <SetTable sets={sets.loggedSets} unitLabel={unitLabel} />
+              </Card>
             )}
 
             {nextLoad && exercise.equipment && (
@@ -508,8 +529,8 @@ export function ExerciseLogger({
             )}
 
             {(readOnly || completed || skipped) && sets.dirty && (
-              <div className="space-y-2 rounded-card border border-warning p-3">
-                <p className="text-sm text-warning">
+              <div className="space-y-2 rounded-card bg-warning/12 p-4">
+                <p className="text-sm font-semibold text-warning">
                   {readOnly
                     ? "This workout is finished, so these entries cannot be saved here."
                     : "Unsaved drafts on this device. Reopen the exercise to retry saving."}
@@ -519,13 +540,13 @@ export function ExerciseLogger({
                   .map((row) => (
                     <div key={row.setIndex} className="text-sm">
                       <p>
-                        Set {row.setIndex}: {row.weight || "—"} {unit} ·{" "}
+                        Set {row.setIndex}: {row.weight || "—"} {unit},{" "}
                         {measure === "duration"
                           ? `${row.duration || "—"} s`
                           : measure === "distance"
                             ? `${row.distance || "—"} m`
-                            : `${row.reps || "—"} reps`}{" "}
-                        · {measure === "reps" ? `RIR ${row.rir || "—"}` : `RPE ${row.rpe || "—"}`}
+                            : `${row.reps || "—"} reps`}
+                        , {measure === "reps" ? `RIR ${row.rir || "—"}` : `RPE ${row.rpe || "—"}`}
                       </p>
                       <Button variant="ghost" size="sm" onClick={() => sets.restore(row)}>
                         Discard this local draft
@@ -536,37 +557,35 @@ export function ExerciseLogger({
             )}
 
             {!readOnly && !skipped && (
-              <div className="action-row">
+              <div className="space-y-2">
                 {completed ? (
                   <Button
                     variant="secondary"
+                    size="lg"
+                    className="w-full"
                     onClick={() => setCompletedState(false)}
                     disabled={pending}
                   >
                     Reopen
                   </Button>
                 ) : (
-                  <>
-                    <Button variant="secondary" disabled={!sets.canAddRow} onClick={sets.addRow}>
-                      Add set
-                    </Button>
-                    {/* A set still saving does not hold it up: the press waits for the save.
-                        A row with unsaved changes does, as it would otherwise be left behind. */}
-                    <Button
-                      onClick={() => setCompletedState(true)}
-                      disabled={
-                        pending || (sets.loggedSets.length === 0 && !sets.saving) || sets.editing
-                      }
-                    >
-                      {completing ? "Completing…" : "Complete"}
-                    </Button>
-                  </>
+                  // A set still saving does not hold it up: the press waits for the save.
+                  // A row with unsaved changes does, as it would otherwise be left behind.
+                  <Button
+                    size="lg"
+                    className="w-full"
+                    onClick={() => setCompletedState(true)}
+                    disabled={
+                      pending || (sets.loggedSets.length === 0 && !sets.saving) || sets.editing
+                    }
+                  >
+                    {completing ? "Completing…" : "Complete"}
+                  </Button>
                 )}
                 {!completed && sets.loggedSets.length === 0 && (
                   <Button
                     variant="ghost"
-                    size="sm"
-                    className="col-span-full"
+                    className="w-full"
                     onClick={() => setSkipOpen(true)}
                     disabled={pending || sets.dirty}
                   >
@@ -578,6 +597,8 @@ export function ExerciseLogger({
             {!readOnly && skipped && (
               <Button
                 variant="secondary"
+                size="lg"
+                className="w-full"
                 onClick={() => setCompletedState(false)}
                 disabled={pending}
               >
@@ -588,30 +609,16 @@ export function ExerciseLogger({
         )}
 
         {tab === "technique" && (
-          <Card className="text-sm">
-            {exercise.planned?.keyCue && (
-              <p>
-                <span className="text-ink-muted">Cue: </span>
-                {exercise.planned.keyCue}
-              </p>
-            )}
+          <Card className="space-y-4">
+            {exercise.planned?.keyCue && <Note label="Cue">{exercise.planned.keyCue}</Note>}
             {exercise.planned?.targetLoadNote && (
-              <p>
-                <span className="text-ink-muted">Target load: </span>
-                {exercise.planned.targetLoadNote}
-              </p>
+              <Note label="Target load">{exercise.planned.targetLoadNote}</Note>
             )}
             {exercise.planned?.progressionNotes && (
-              <p>
-                <span className="text-ink-muted">Progression: </span>
-                {exercise.planned.progressionNotes}
-              </p>
+              <Note label="Progression">{exercise.planned.progressionNotes}</Note>
             )}
             {exercise.substitutionReason && (
-              <p>
-                <span className="text-ink-muted">Substitution: </span>
-                {exercise.substitutionReason}
-              </p>
+              <Note label="Substitution">{exercise.substitutionReason}</Note>
             )}
             {!exercise.planned?.keyCue &&
               !exercise.planned?.targetLoadNote &&
@@ -620,7 +627,7 @@ export function ExerciseLogger({
               )}
             <Link
               href={`/exercises/${exercise.exercise.id}`}
-              className="flex min-h-11 items-center font-medium text-accent"
+              className="flex min-h-11 items-center font-semibold text-accent"
             >
               Open in the exercise library
             </Link>
@@ -628,14 +635,25 @@ export function ExerciseLogger({
         )}
 
         {tab === "history" && (
-          <Card className="text-sm">
-            <p>
-              {exercise.previous
-                ? `${exercise.previous.sameMachine ? "Previous on this machine" : "Previous"}: ${formatSets(exercise.previous.sets)} · ${formatDay(exercise.previous.performedAt, session.timeZone)}${exercise.previous.sameMachine ? "" : ` · ${exercise.previous.gymName}`}`
-                : "No previous comparable session."}
-            </p>
+          <Card className="space-y-4">
+            {exercise.previous ? (
+              <div>
+                <p className="text-sm font-semibold text-ink-muted">
+                  {exercise.previous.sameMachine ? "Previous on this machine" : "Previous"}
+                </p>
+                <p className="mt-1 font-display text-display-s [overflow-wrap:anywhere] tabular-nums">
+                  {formatSets(exercise.previous.sets)}
+                </p>
+                <p className="mt-1 text-sm text-ink-muted">
+                  {formatDay(exercise.previous.performedAt, session.timeZone)}
+                  {exercise.previous.sameMachine ? "" : `, ${exercise.previous.gymName}`}
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-ink-muted">No previous comparable session.</p>
+            )}
             {exercise.regressionStreak >= REGRESSION_WARNING_STREAK && (
-              <p className="text-warning">
+              <p className="text-sm font-semibold text-warning">
                 Repeated comparable decline. Keep the baseline pending coach review and reassess
                 current recovery.
               </p>
