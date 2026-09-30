@@ -108,7 +108,7 @@ const nav = (label) =>
 async function openHistory() {
   await nav("Progress").click();
   await settled("/progress");
-  await page.getByRole("button", { name: "Progress section: Overview" }).click();
+  await page.getByRole("button", { name: "Progress section: Body" }).click();
   await page.getByRole("dialog").getByRole("link", { name: "History", exact: true }).click();
   await settled("/progress/history");
 }

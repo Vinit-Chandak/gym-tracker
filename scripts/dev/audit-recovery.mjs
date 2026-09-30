@@ -162,7 +162,7 @@ async function submit(id, values) {
 }
 async function recovery() {
   await page.getByRole("link", { name: "Progress", exact: true }).click();
-  await page.getByRole("button", { name: "Progress section: Overview" }).click();
+  await page.getByRole("button", { name: "Progress section: Body" }).click();
   await page.getByRole("button", { name: "Recovery", exact: true }).click();
   await expect(page).toHaveURL(/view=recovery/);
 }

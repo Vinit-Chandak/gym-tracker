@@ -1,11 +1,12 @@
 "use client";
 
 import { ChevronLeft, ChevronRight } from "@/components/ui/icons";
-import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import type { Route } from "next";
 
+import Link from "@/components/ui/app-link";
+import { BodyMap } from "@/components/ui/body-map";
 import { DateRangeFields } from "@/components/date-range-fields";
 import { StrengthTrend, type SeriesOption, type StrengthMetric } from "@/components/strength-trend";
 import { Button } from "@/components/ui/button";
@@ -27,19 +28,6 @@ import { MUSCLE_LABELS } from "@/lib/labels";
 import { pageSection, PROGRESS_SECTIONS, ProgressSections } from "./progress-sections";
 import { RecoveryProgress } from "./recovery-progress";
 
-/**
- * The body map carries an anatomical outline and every muscle region as path data, and only
- * one of the five sections drawn here ever shows it. Loading it on demand keeps that weight
- * out of the bundle for the four that do not.
- */
-const BodyMap = dynamic(() => import("@/components/ui/body-map").then((m) => m.BodyMap), {
-  loading: () => (
-    <p role="status" className="py-8 text-center text-sm text-ink-muted">
-      Loading the body map…
-    </p>
-  ),
-});
-
 export type Week = {
   date: string;
   workouts: number;
@@ -49,6 +37,17 @@ export type Week = {
   muscles: Record<MuscleGroup, number>;
   /** The week is still running, so its totals are not a whole week's. */
   partial: boolean;
+};
+
+/** One run as the Running section lists it, already formatted in the account's time zone. */
+export type RunRow = {
+  id: string;
+  href: `/training/activities/${string}`;
+  when: string;
+  environment: string;
+  distanceKm: string;
+  pace: string;
+  duration: string;
 };
 
 export type SportTotal = {
@@ -78,6 +77,8 @@ type Props = {
   weeks: Week[];
   recovery: RecoveryReading[];
   pace: { date: string; value: number | null; mode: string }[];
+  /** Every run in `range`, newest first. */
+  runs: RunRow[];
   options: SeriesOption[];
   body: { from: string; to: string; volume: MuscleVolume; totalSets: number };
   /** Body weight readings over `range`, already converted into `unit`. */
@@ -102,6 +103,7 @@ export function ProgressView({
   weeks,
   recovery,
   pace,
+  runs,
   options,
   selected,
   body,
@@ -365,68 +367,101 @@ export function ProgressView({
         )}
 
         {tab === "running" && (
-          <Card>
-            <SegmentedControl
-              name="run-metric"
-              aria-label="Running measurement"
-              options={RUN_METRICS}
-              value={runMetric}
-              onChange={setRunMetric}
-              columns={3}
-            />
-            {runMetric === "pace" ? (
-              <>
-                <SegmentedControl
-                  name="pace-mode"
-                  aria-label="Pace context"
-                  options={[
-                    { value: "outdoor", label: "Outdoor" },
-                    { value: "treadmill", label: "Treadmill" },
-                  ]}
-                  value={paceMode}
-                  onChange={setPaceMode}
-                  columns={2}
-                />
-                <Chart
-                  title="Pace"
-                  unit="min/km"
-                  series={[
-                    {
-                      name: "Pace",
-                      color: SERIES_COLORS.running,
-                      points: pace.filter((p) => p.mode === paceMode),
-                    },
-                  ]}
-                  format={(v) => {
-                    const mins = Math.floor(v);
-                    return `${mins}:${String(Math.round((v - mins) * 60)).padStart(2, "0")}`;
-                  }}
-                  note="Lower is faster. Outdoor and treadmill paces are kept apart."
-                />
-              </>
-            ) : (
-              <>
-                {weeksNote && <p className="text-sm text-ink-muted">{weeksNote}</p>}
-                <Chart
-                  title={runMetric === "distance" ? "Weekly distance" : "Weekly duration"}
-                  unit={runMetric === "distance" ? "km" : "min"}
-                  kind="bar"
-                  series={[
-                    {
-                      name: "Runs",
-                      color: SERIES_COLORS.running,
-                      points: asPoints((w) => (runMetric === "distance" ? w.runKm : w.runMinutes)),
-                    } satisfies ChartSeries,
-                  ]}
-                  format={
-                    runMetric === "duration"
-                      ? (v) => (v >= 60 ? formatMinutes(v) : String(Math.round(v)))
-                      : undefined
-                  }
-                />
-              </>
-            )}
-          </Card>
+          <>
+            <Card>
+              <SegmentedControl
+                name="run-metric"
+                aria-label="Running measurement"
+                options={RUN_METRICS}
+                value={runMetric}
+                onChange={setRunMetric}
+                columns={3}
+              />
+              {runMetric === "pace" ? (
+                <>
+                  <SegmentedControl
+                    name="pace-mode"
+                    aria-label="Pace context"
+                    options={[
+                      { value: "outdoor", label: "Outdoor" },
+                      { value: "treadmill", label: "Treadmill" },
+                    ]}
+                    value={paceMode}
+                    onChange={setPaceMode}
+                    columns={2}
+                  />
+                  <Chart
+                    title="Pace"
+                    unit="min/km"
+                    series={[
+                      {
+                        name: "Pace",
+                        color: SERIES_COLORS.running,
+                        points: pace.filter((p) => p.mode === paceMode),
+                      },
+                    ]}
+                    format={(v) => {
+                      const mins = Math.floor(v);
+                      return `${mins}:${String(Math.round((v - mins) * 60)).padStart(2, "0")}`;
+                    }}
+                    note="Lower is faster. Outdoor and treadmill paces are kept apart."
+                  />
+                </>
+              ) : (
+                <>
+                  {weeksNote && <p className="text-sm text-ink-muted">{weeksNote}</p>}
+                  <Chart
+                    title={runMetric === "distance" ? "Weekly distance" : "Weekly duration"}
+                    unit={runMetric === "distance" ? "km" : "min"}
+                    kind="bar"
+                    series={[
+                      {
+                        name: "Runs",
+                        color: SERIES_COLORS.running,
+                        points: asPoints((w) =>
+                          runMetric === "distance" ? w.runKm : w.runMinutes,
+                        ),
+                      } satisfies ChartSeries,
+                    ]}
+                    format={
+                      runMetric === "duration"
+                        ? (v) => (v >= 60 ? formatMinutes(v) : String(Math.round(v)))
+                        : undefined
+                    }
+                  />
+                </>
+              )}
+            </Card>
+
+            <Card>
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-base font-medium">Runs</h2>
+                <InfoTip label="About the run list">
+                  Every run in the chosen dates, newest first. Pace is the average over the whole
+                  run, in minutes per kilometre. Change the dates with Filters.
+                </InfoTip>
+              </div>
+              {runs.length === 0 ? (
+                <p className="text-sm text-ink-muted">No runs in this range.</p>
+              ) : (
+                <ul className="divide-y divide-line">
+                  {runs.map((run) => (
+                    <li key={run.id}>
+                      <Link href={run.href} className="block space-y-0.5 py-2">
+                        <div className="flex justify-between gap-3 text-sm">
+                          <span className="font-medium tabular-nums">{run.distanceKm} km</span>
+                          <span className="text-ink-muted tabular-nums">{run.pace} /km</span>
+                        </div>
+                        <p className="text-xs text-ink-muted tabular-nums">
+                          {run.when} · {run.environment} · {run.duration}
+                        </p>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+          </>
         )}
 
         {tab === "recovery" && (
@@ -439,34 +474,6 @@ export function ProgressView({
 
         {tab === "body" && (
           <>
-            <Card>
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="text-base font-medium">Body weight</h2>
-                <InfoTip label="About body weight">
-                  Every reading you have entered, from finishing a workout or from your profile. One
-                  reading per day; the newest is the weight shown on your profile.
-                </InfoTip>
-              </div>
-              {bodyWeight.length > 0 ? (
-                <>
-                  <Headline points={bodyWeight} unit={unit} />
-                  <Chart
-                    title="Body weight"
-                    unit={unit}
-                    caption={false}
-                    series={[
-                      { name: "Body weight", color: SERIES_COLORS.lifting, points: bodyWeight },
-                    ]}
-                  />
-                </>
-              ) : (
-                <p className="text-sm text-ink-muted">
-                  No readings in this range. Weight recorded when you finish a session appears here,
-                  and you can set it any day from Profile → Edit profile.
-                </p>
-              )}
-            </Card>
-
             <Card>
               <div className="flex items-center justify-between gap-3">
                 <h2 className="text-base font-medium">Muscles this week</h2>
@@ -502,6 +509,34 @@ export function ProgressView({
               <div className={pending ? "opacity-50 transition-opacity" : undefined}>
                 <BodyMap volume={body.volume} totalSets={body.totalSets} />
               </div>
+            </Card>
+
+            <Card>
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-base font-medium">Body weight</h2>
+                <InfoTip label="About body weight">
+                  Every reading you have entered, from finishing a workout or from your profile. One
+                  reading per day; the newest is the weight shown on your profile.
+                </InfoTip>
+              </div>
+              {bodyWeight.length > 0 ? (
+                <>
+                  <Headline points={bodyWeight} unit={unit} />
+                  <Chart
+                    title="Body weight"
+                    unit={unit}
+                    caption={false}
+                    series={[
+                      { name: "Body weight", color: SERIES_COLORS.lifting, points: bodyWeight },
+                    ]}
+                  />
+                </>
+              ) : (
+                <p className="text-sm text-ink-muted">
+                  No readings in this range. Weight recorded when you finish a session appears here,
+                  and you can set it any day from Profile → Edit profile.
+                </p>
+              )}
             </Card>
           </>
         )}

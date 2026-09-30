@@ -9,6 +9,10 @@ afterEach(cleanup);
 
 it("offers native keyboard controls for selecting and clearing a muscle", () => {
   render(<BodyMap volume={{ ...emptyMuscleVolume(), chest: 6 }} totalSets={6} />);
+  const table = screen.getByText("Number of sets").closest("details")!;
+  expect(table.open).toBe(false);
+  fireEvent.click(table.querySelector("summary")!);
+  expect(table.open).toBe(true);
   const choice = screen.getByRole("button", { name: "Chest" });
   choice.focus();
   expect(document.activeElement).toBe(choice);
