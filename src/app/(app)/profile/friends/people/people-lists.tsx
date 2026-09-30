@@ -1,7 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useOptimistic, useState, useTransition } from "react";
+import { useSearchParams } from "next/navigation";
+import { useState, useTransition } from "react";
 
 import { ConfirmSheet } from "@/components/confirm-sheet";
 import { PersonRow, type Person } from "@/components/person-row";
@@ -26,20 +26,25 @@ const OFFLINE = "Could not save. Check your connection and try again.";
 export function PeopleLists({
   following,
   followers,
-  initial,
 }: {
   following: ListedPerson[];
   followers: ListedPerson[];
-  initial: PeopleTab;
 }) {
-  const router = useRouter();
-  const [tab, setTab] = useOptimistic<PeopleTab>(initial);
-  const [, startNavigation] = useTransition();
+  const params = useSearchParams();
+  // Both lists are already loaded. Read the URL on every render so deep links and browser
+  // Back/Forward select the right one without refetching the page on each toggle.
+  const tab: PeopleTab =
+    params.getAll("people").length === 1 && params.get("people") === "followers"
+      ? "followers"
+      : "following";
   const choose = (next: PeopleTab) => {
-    startNavigation(() => {
-      setTab(next);
-      router.replace(`/profile/friends/people?people=${next}`, { scroll: false });
-    });
+    const query = new URLSearchParams(params.toString());
+    query.set("people", next);
+    window.history.replaceState(
+      null,
+      "",
+      `/profile/friends/people?${query}${window.location.hash}`,
+    );
   };
   const people = tab === "following" ? following : followers;
 

@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/shell/page-header";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { requireUser } from "@/server/auth";
-import { readLibrary, readSavedMeal } from "@/server/repositories/nutrition";
+import { readFoods, readSavedMeal } from "@/server/repositories/nutrition";
 
 import { MealBuilder } from "../meal-builder";
 
@@ -18,10 +18,10 @@ export default async function SavedMealPage(props: PageProps<"/food/my-foods/mea
   const { id } = await props.params;
   if (!z.uuid().safeParse(id).success) notFound();
   const user = await requireUser();
-  const [saved, { foods }] = await withUser(
+  const [saved, foods] = await withUser(
     getDb(),
     user.id,
-    (tx) => Promise.all([readSavedMeal(tx, user.id, id), readLibrary(tx, user.id)]),
+    (tx) => Promise.all([readSavedMeal(tx, user.id, id), readFoods(tx, user.id)]),
     { readOnly: true },
   );
   if (!saved) notFound();

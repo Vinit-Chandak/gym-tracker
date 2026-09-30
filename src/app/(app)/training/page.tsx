@@ -8,13 +8,12 @@ import { Section } from "@/components/ui/section";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { ACTIVITY_SPORT_LABELS, ENDURANCE_SPORTS } from "@/domain/activity";
-import { outstanding } from "@/domain/occurrences";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { requireUser } from "@/server/auth";
 import { getActiveSession } from "@/server/queries/active-session";
 import { getRequestProfile } from "@/server/queries/request-profile";
-import { listTemplates } from "@/server/repositories/activity-templates";
-import { standaloneSchedule } from "@/server/repositories/occurrences";
+import { countActiveTemplates } from "@/server/repositories/activity-templates";
+import { countUpcomingStandalone } from "@/server/repositories/occurrences";
 import { enabledSportsFor } from "@/server/repositories/sport-preferences";
 
 export const metadata: Metadata = { title: "Training" };
@@ -43,8 +42,8 @@ export default async function TrainingPage() {
       getDb(),
       user.id,
       async (tx) => ({
-        templates: await listTemplates(tx, user.id, {}),
-        standalone: await standaloneSchedule(tx, user.id, today),
+        templateCount: await countActiveTemplates(tx, user.id),
+        upcoming: await countUpcomingStandalone(tx, user.id, today),
         // The sports this account actually trains are offered first, as the chooser did.
         preferred: await enabledSportsFor(tx, user.id),
       }),
@@ -57,7 +56,7 @@ export default async function TrainingPage() {
   // Work still owed rather than rows on the calendar, so a session scheduled for today and then
   // logged stops being counted the moment it is logged. Days gone by are not counted: the list
   // keeps only what was logged on them.
-  const upcoming = outstanding(data.standalone.upcoming).length;
+  const upcoming = data.upcoming;
 
   return (
     <>
@@ -123,8 +122,8 @@ export default async function TrainingPage() {
         <Section title="Templates">
           <Card>
             <p className="text-sm text-ink-muted tabular-nums">
-              {data.templates.length} saved session
-              {data.templates.length === 1 ? "" : "s"}
+              {data.templateCount} saved session
+              {data.templateCount === 1 ? "" : "s"}
             </p>
             <LinkButton href="/training/templates" variant="secondary" className="w-full">
               Templates

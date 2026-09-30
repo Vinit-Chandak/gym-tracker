@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { backfillMultisport } from "@/db/backfill-multisport";
-import { occurrenceVersions, plannedOccurrences } from "@/db/schema";
+import { activityTemplates, occurrenceVersions, plannedOccurrences } from "@/db/schema";
 import { seedLegacyAccount, type LegacyAccount } from "@/db/test/multisport-fixtures";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
@@ -15,6 +15,7 @@ import { toMetres } from "@/lib/distance-units";
 
 import {
   archiveTemplate,
+  countActiveTemplates,
   createTemplate,
   getTemplate,
   getTemplateRevision,
@@ -65,6 +66,40 @@ async function account(email: string): Promise<LegacyAccount> {
 }
 
 describe("writing a template", () => {
+  it("counts only readable active templates with a current revision", async () => {
+    const mine = await account("count-mine@example.test");
+    const theirs = await account("count-theirs@example.test");
+    await withUser(t.db, mine.userId, async (tx) => {
+      for (const name of ["Active", "Archived"]) {
+        const created = await createTemplate(tx, mine.userId, {
+          sport: "running",
+          name,
+          prescription: simplePrescription("running", { distanceMetres: [5000, 5000] }),
+        });
+        if (name === "Archived") await archiveTemplate(tx, mine.userId, created.id);
+      }
+      // The list's inner join excludes an unfinished template without its first revision.
+      await tx.insert(activityTemplates).values({
+        userId: mine.userId,
+        sport: "running",
+        name: "Without revision",
+      });
+    });
+    const [count, listed] = await withUser(
+      t.db,
+      mine.userId,
+      (tx) => Promise.all([countActiveTemplates(tx, mine.userId), listTemplates(tx, mine.userId)]),
+      { readOnly: true },
+    );
+    expect(count).toBe(1);
+    expect(count).toBe(listed.length);
+    expect(
+      await withUser(t.db, theirs.userId, (tx) => countActiveTemplates(tx, mine.userId), {
+        readOnly: true,
+      }),
+    ).toBe(0);
+  });
+
   it("stores the session as written and reads it back whole", async () => {
     const owner = await account("swimmer@example.test");
 

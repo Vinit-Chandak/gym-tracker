@@ -10,7 +10,7 @@ import { Card } from "@/components/ui/card";
 import { SpeechTextarea } from "@/components/ui/dictation";
 import { Disclosure } from "@/components/ui/disclosure";
 import { Field, Input } from "@/components/ui/input";
-import { PLAN_LIMITS } from "@/domain/session-plan";
+import { PLAN_LIMITS } from "@/domain/plan-limits";
 import type { ChangeSummary } from "@/domain/program-change-summary";
 import {
   approveProgramChangeAction,

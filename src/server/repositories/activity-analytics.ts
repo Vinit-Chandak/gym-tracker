@@ -115,11 +115,11 @@ const DISTANCE = sql<number | null>`coalesce(
  * `from` and `to` are local dates and both inclusive, matching how the athlete reads their own
  * calendar. Omitting them reads everything, which is what a lifetime total means.
  */
-export async function readActivityTotals(
+export async function readSportTotals(
   tx: DbOrTx,
   userId: string,
   range: { from?: string; to?: string } = {},
-): Promise<ActivityTotals> {
+): Promise<SportTotals[]> {
   const where = [eq(activities.userId, userId), eq(activities.status, "completed")];
   if (range.from) where.push(gte(activities.occurredOn, range.from));
   if (range.to) where.push(lte(activities.occurredOn, range.to));
@@ -149,15 +149,7 @@ export async function readActivityTotals(
     .where(and(...where))
     .groupBy(activities.sport);
 
-  const [overall] = await tx
-    .select({
-      trainingDays: sql<number>`count(distinct ${activities.occurredOn})::int`,
-      activities: sql<number>`count(*)::int`,
-    })
-    .from(activities)
-    .where(and(...where));
-
-  const bySport = ACTIVITY_SPORTS.map((sport) => {
+  return ACTIVITY_SPORTS.map((sport) => {
     const row = rows.find((candidate) => candidate.sport === sport);
     if (!row) return EMPTY(sport);
     return {
@@ -176,6 +168,25 @@ export async function readActivityTotals(
       unknownEfforts: row.unknownEfforts,
     };
   });
+}
+
+/** Complete totals, including distinct training days across sports for readers that use them. */
+export async function readActivityTotals(
+  tx: DbOrTx,
+  userId: string,
+  range: { from?: string; to?: string } = {},
+): Promise<ActivityTotals> {
+  const bySport = await readSportTotals(tx, userId, range);
+  const where = [eq(activities.userId, userId), eq(activities.status, "completed")];
+  if (range.from) where.push(gte(activities.occurredOn, range.from));
+  if (range.to) where.push(lte(activities.occurredOn, range.to));
+  const [overall] = await tx
+    .select({
+      trainingDays: sql<number>`count(distinct ${activities.occurredOn})::int`,
+      activities: sql<number>`count(*)::int`,
+    })
+    .from(activities)
+    .where(and(...where));
 
   return {
     coverage: { from: range.from ?? "", to: range.to ?? "", complete: true },

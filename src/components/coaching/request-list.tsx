@@ -1,14 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import type { Route } from "next";
 
 import Link from "@/components/ui/app-link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { SpeechTextarea } from "@/components/ui/dictation";
-import { PLAN_LIMITS } from "@/domain/session-plan";
+import { PLAN_LIMITS } from "@/domain/plan-limits";
 import type { RequestState } from "@/domain/program-request";
 import { formatIsoDay } from "@/lib/format";
 import {
@@ -81,7 +80,6 @@ export function RequestList({
 }
 
 function RequestRow({ request, base }: { request: RequestView; base: string }) {
-  const router = useRouter();
   const [answer, setAnswer] = useState("");
   const [noteId, setNoteId] = useState(() => crypto.randomUUID());
   const [busy, setBusy] = useState(false);
@@ -93,8 +91,7 @@ function RequestRow({ request, base }: { request: RequestView; base: string }) {
     setBusy(true);
     setError(null);
     const result = await work();
-    if (result.ok) router.refresh();
-    else setError(result.error ?? "Could not save. Please retry.");
+    if (!result.ok) setError(result.error ?? "Could not save. Please retry.");
     setBusy(false);
   };
 

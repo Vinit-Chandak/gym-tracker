@@ -9,6 +9,9 @@ import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
 
 import { countWaitingOnAthlete } from "@/server/repositories/coach-proposals";
+import * as programsRepository from "@/server/repositories/programs";
+import { changeSummaryLine, summariseProgramDiff } from "@/domain/program-change-summary";
+import { diffPrograms } from "@/domain/program-diff";
 
 import { loadProgrammeChanges } from "./changes";
 
@@ -106,7 +109,10 @@ afterAll(async () => {
 });
 
 it("gives one proposal one row, carrying the words of the ask it answers", async () => {
+  const readBase = vi.spyOn(programsRepository, "readProgramBlueprint");
   const data = await as((tx) => loadProgrammeChanges(tx, userId, "Europe/London"));
+  expect(readBase).not.toHaveBeenCalled();
+  readBase.mockRestore();
   // One route in: not a draft row, a request row and a review row for the same change.
   expect(data.proposals).toEqual([
     {
@@ -157,4 +163,63 @@ it("counts a settled ask in history, and an open one nowhere but the tab", async
   );
   const after = await as((tx) => loadProgrammeChanges(tx, userId, "Europe/London"));
   expect(after.history.requests).toBe(1);
+});
+
+it("reads a shared base once for headline-free drafts and retains their distinct summaries", async () => {
+  const account = await t.createAuthUser("fallback-changes@example.com");
+  const { programId } = await withUser(t.db, account.id, (tx) => seedTestUserData(tx, account));
+  const baseline = await withUser(
+    t.db,
+    account.id,
+    (tx) => programsRepository.readProgramBlueprint(tx, account.id, programId),
+    { readOnly: true },
+  );
+  if (!baseline) throw new Error("Expected the seeded programme");
+  const blueprints = [1, 2].map((more) => {
+    const blueprint = structuredClone(baseline.blueprint);
+    const first = blueprint.days.flatMap((day) => day.exercises)[0]!;
+    first.sets += more;
+    return blueprint;
+  });
+  const drafts = await withUser(t.db, account.id, (tx) =>
+    tx
+      .insert(programDrafts)
+      .values(
+        blueprints.map((blueprint) => ({
+          userId: account.id,
+          source: "manual" as const,
+          status: "ready" as const,
+          blueprint,
+          baseProgramId: programId,
+          sourceRevision: 1,
+        })),
+      )
+      .returning({ id: programDrafts.id }),
+  );
+  const readBase = vi.spyOn(programsRepository, "readProgramBlueprint");
+  try {
+    const read = () =>
+      withUser(t.db, account.id, (tx) => loadProgrammeChanges(tx, account.id, "Europe/London"), {
+        readOnly: true,
+      });
+    const result = await read();
+    expect(readBase).toHaveBeenCalledTimes(1);
+    expect(result.proposals).toHaveLength(2);
+    for (const [i, draft] of drafts.entries()) {
+      expect(result.proposals.find((proposal) => proposal.id === draft.id)?.title).toBe(
+        changeSummaryLine(summariseProgramDiff(diffPrograms(baseline.blueprint, blueprints[i]))),
+      );
+    }
+    // The reuse ends with the loader call; a later request reads the base again.
+    await read();
+    expect(readBase).toHaveBeenCalledTimes(2);
+    // Draft ownership continues to be enforced even if a caller supplies another account's id.
+    expect(
+      await withUser(t.db, userId, (tx) => loadProgrammeChanges(tx, account.id, "Europe/London"), {
+        readOnly: true,
+      }),
+    ).toMatchObject({ proposals: [], waiting: 0 });
+  } finally {
+    readBase.mockRestore();
+  }
 });

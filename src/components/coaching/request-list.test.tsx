@@ -4,10 +4,14 @@ import { afterEach, expect, it, vi } from "vitest";
 import type { ComponentProps } from "react";
 
 import { RequestList, type RequestView } from "./request-list";
-import { answerProgramRequestAction } from "@/server/actions/coaching-workflow";
+import {
+  answerProgramRequestAction,
+  withdrawProgramRequestAction,
+} from "@/server/actions/coaching-workflow";
 
+const { refresh } = vi.hoisted(() => ({ refresh: vi.fn() }));
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn(), replace: vi.fn() }),
+  useRouter: () => ({ push: vi.fn(), refresh, replace: vi.fn() }),
   unstable_rethrow: () => {},
 }));
 vi.mock("@/components/ui/app-link", () => ({
@@ -17,7 +21,10 @@ vi.mock("@/server/actions/coaching-workflow", () => ({
   answerProgramRequestAction: vi.fn(),
   withdrawProgramRequestAction: vi.fn(),
 }));
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+});
 
 const request = (overrides: Partial<RequestView>): RequestView => ({
   id: "00000000-0000-4000-8000-000000000001",
@@ -69,6 +76,24 @@ it("uses a new answer key when the coach asks another question on the same reque
   await waitFor(() => expect(answerProgramRequestAction).toHaveBeenCalledTimes(2));
   const calls = vi.mocked(answerProgramRequestAction).mock.calls;
   expect(calls[0]![2]).not.toBe(calls[1]![2]);
+  expect(refresh).not.toHaveBeenCalled();
+});
+
+it("keeps an unsuccessful answer for retry and lets successful withdrawal use the action render", async () => {
+  vi.mocked(answerProgramRequestAction).mockResolvedValue({ ok: false, error: "Try again." });
+  vi.mocked(withdrawProgramRequestAction).mockResolvedValue({
+    ok: true,
+    value: { id: request({}).id },
+  });
+  render(<RequestList requests={[request({ state: "needs_answer", detail: "Which day?" })]} />);
+  fireEvent.change(screen.getByRole("textbox"), { target: { value: "Tuesday" } });
+  fireEvent.click(screen.getByRole("button", { name: "Send answer" }));
+  await waitFor(() => expect(screen.getByRole("alert").textContent).toBe("Try again."));
+  expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe("Tuesday");
+  fireEvent.click(screen.getByRole("button", { name: "I no longer want this" }));
+  await waitFor(() => expect(withdrawProgramRequestAction).toHaveBeenCalledWith(request({}).id));
+  await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+  expect(refresh).not.toHaveBeenCalled();
 });
 
 it("titles each ask with the athlete's own words and says only what it needs now", () => {

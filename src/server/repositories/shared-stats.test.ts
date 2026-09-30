@@ -1,4 +1,5 @@
 import { eq, sql } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/pglite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
@@ -6,6 +7,7 @@ import {
   hasBackfillRun,
   SHARED_STATS_BACKFILL,
 } from "@/db/backfill-shared-stats";
+import * as schema from "@/db/schema";
 import {
   exercises,
   profileDirectory,
@@ -25,6 +27,7 @@ import { performanceSeries } from "@/domain/analytics";
 import { LIFTING_METRICS, RUNNING_METRICS, type ActivityMetric } from "@/domain/leaderboard";
 import { convertLoad } from "@/lib/units";
 import { loadCircle, rankCircle, rankExercise } from "@/server/queries/leaderboard";
+import { loadHeadToHead } from "@/server/queries/head-to-head";
 
 import { recordBodyWeight } from "./body-weight";
 import { acceptFollow, requestFollow } from "./follows";
@@ -520,6 +523,43 @@ describe("leaderboard", () => {
 
   it("is the viewer and the people they follow, by name", () => {
     expect(circle).toEqual([alice, bob, carol]);
+  });
+
+  it("reuses the comparison's viewer directory row while reading current follows and privacy", async () => {
+    const queries: string[] = [];
+    const traced = drizzle(t.client, {
+      schema,
+      logger: { logQuery: (query) => queries.push(query) },
+    });
+    await opt(carol, "share_training", false);
+    try {
+      await withUser(
+        traced,
+        bob,
+        async (tx) => {
+          const viewer = { id: bob, username: "bob" };
+          const head = await loadHeadToHead(tx, viewer, "alice");
+          if (head === null || head === "self") throw new Error("Expected a comparison");
+          const existing = await loadCircle(tx, viewer);
+          queries.length = 0;
+          const reused = await loadCircle(tx, viewer, head.me);
+          expect(reused).toEqual(existing);
+          expect(queries).toHaveLength(1);
+          expect(queries[0]).toContain('from "follows"');
+          // Reusing a public directory row does not bypass the policies on training reads.
+          const bests = await readExerciseBests(
+            tx,
+            reused.map((person) => person.id),
+            bench,
+          );
+          expect(bests.has(alice)).toBe(true);
+          expect(bests.has(carol)).toBe(false);
+        },
+        { readOnly: true },
+      );
+    } finally {
+      await opt(carol, "share_training", true);
+    }
   });
 
   it("reads one number per person for each activity metric, absent without a session", async () => {

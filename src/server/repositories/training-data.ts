@@ -332,11 +332,17 @@ export async function readRecovery(db: DbOrTx, userId: string, range: DateRange)
     .orderBy(desc(dailyRecovery.date));
 }
 
-export async function readTrainingData(db: DbOrTx, userId: string, range: DateRange) {
+export async function readTrainingData(
+  db: DbOrTx,
+  userId: string,
+  range: DateRange,
+  options: { includeRecovery?: boolean } = {},
+) {
   const [workouts, runData, recovery] = await Promise.all([
     readWorkouts(db, userId, range),
     readRunActivities(db, userId, range),
-    readRecovery(db, userId, range),
+    // Progress reads complete recovery independently, including uncapped workout check-ins.
+    options.includeRecovery === false ? Promise.resolve([]) : readRecovery(db, userId, range),
   ]);
   return {
     workouts: workouts.workouts,

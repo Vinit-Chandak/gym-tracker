@@ -14,15 +14,21 @@ import { enabledSportsFor } from "@/server/repositories/sport-preferences";
  * about the gym already added — took the same name a second time and made a duplicate.
  */
 export async function onboardingEntry(userId: string): Promise<Route> {
-  // A sport-only account never reaches the gym steps, so their absence says nothing about how
-  // far setup got. It picks up at the plan step instead (SCOPE-02).
-  const sports = await withUser(getDb(), userId, (tx) => enabledSportsFor(tx, userId), {
-    readOnly: true,
-  });
-  if (!sports.includes("strength")) return "/welcome/programme";
-  const gyms = await withUser(getDb(), userId, (tx) => listGyms(tx, userId), { readOnly: true });
-  if (gyms.length === 0) return "/welcome";
-  const gym = gyms.find((candidate) => candidate.isDefault) ?? gyms[0]!;
-  if (gym.equipmentCount === 0) return `/welcome/equipment?gym=${gym.id}` as Route;
-  return "/welcome/programme";
+  return withUser(
+    getDb(),
+    userId,
+    async (tx): Promise<Route> => {
+      // A sport-only account never reaches the gym steps, so their absence says nothing about
+      // how far setup got. Keep that short circuit, and reuse the read-only transaction when
+      // the gym read is needed instead of opening and authenticating a second one.
+      const sports = await enabledSportsFor(tx, userId);
+      if (!sports.includes("strength")) return "/welcome/programme";
+      const gyms = await listGyms(tx, userId);
+      if (gyms.length === 0) return "/welcome";
+      const gym = gyms.find((candidate) => candidate.isDefault) ?? gyms[0]!;
+      if (gym.equipmentCount === 0) return `/welcome/equipment?gym=${gym.id}` as Route;
+      return "/welcome/programme";
+    },
+    { readOnly: true },
+  );
 }

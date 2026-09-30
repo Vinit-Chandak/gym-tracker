@@ -13,7 +13,7 @@ import {
 } from "@/server/actions/coaching-workflow";
 import type { ProgramDraft } from "@/server/repositories/program-drafts";
 import type { ProgramBlueprint } from "@/domain/program-blueprint";
-import { exerciseTargets } from "@/domain/program-diff";
+import { exerciseTargets } from "@/domain/exercise-targets";
 import { rangeLabel } from "@/lib/labels";
 import { WEEKDAY_NAMES } from "@/lib/labels";
 

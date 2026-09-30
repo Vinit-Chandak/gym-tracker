@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, inArray, lt, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNull, lt, sql } from "drizzle-orm";
 
 import {
   activities,
@@ -204,6 +204,41 @@ export async function standaloneSchedule(
     .where(and(eq(plannedOccurrences.userId, userId), sql`${plannedOccurrences.familyId} is null`))
     .orderBy(asc(occurrenceVersions.scheduledOn), asc(occurrenceVersions.orderIndex))) as Row[];
   return splitByDate(rows.map(hydrate), today);
+}
+
+/** The same outstanding upcoming work as standaloneSchedule, without loading its history. */
+export async function countUpcomingStandalone(
+  tx: DbOrTx,
+  userId: string,
+  today: string,
+): Promise<number> {
+  const [row] = await tx
+    .select({ value: sql<number>`count(*)::int` })
+    .from(plannedOccurrences)
+    .innerJoin(
+      occurrenceVersions,
+      and(
+        eq(occurrenceVersions.id, plannedOccurrences.currentRevisionId),
+        eq(occurrenceVersions.userId, plannedOccurrences.userId),
+      ),
+    )
+    .leftJoin(
+      activities,
+      and(
+        eq(activities.occurrenceId, plannedOccurrences.id),
+        eq(activities.userId, plannedOccurrences.userId),
+      ),
+    )
+    .where(
+      and(
+        eq(plannedOccurrences.userId, userId),
+        isNull(plannedOccurrences.familyId),
+        gte(occurrenceVersions.scheduledOn, today),
+        eq(plannedOccurrences.disposition, "pending"),
+        isNull(activities.id),
+      ),
+    );
+  return row?.value ?? 0;
 }
 
 /** A programme's occurrences, for the Cycle view that owns the full programme. */

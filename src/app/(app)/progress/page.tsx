@@ -7,7 +7,7 @@ import { withUser } from "@/db/with-user";
 import { ACTIVITY_SPORT_LABELS } from "@/domain/activity";
 import { trainingAnalytics } from "@/domain/analytics";
 import { weekStart } from "@/domain/running";
-import { readActivityTotals } from "@/server/repositories/activity-analytics";
+import { readSportTotals } from "@/server/repositories/activity-analytics";
 import { formatDateRange } from "@/lib/format";
 import { fromKilograms } from "@/lib/units";
 import { requireUser } from "@/server/auth";
@@ -79,18 +79,18 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
     user.id,
     (tx) =>
       Promise.all([
-        readTrainingData(tx, user.id, range),
+        readTrainingData(tx, user.id, range, { includeRecovery: false }),
         readMuscleVolume(tx, user.id, bodyRange),
         listBodyWeights(tx, user.id, range),
         // Complete per-sport totals, from the canonical tables every sport is written to.
-        readActivityTotals(tx, user.id, { from: range.from, to: range.to }),
+        readSportTotals(tx, user.id, { from: range.from, to: range.to }),
         readRecoveryHistory(tx, user.id, range, profile.timeZone),
       ]),
     { readOnly: true },
   );
   const preferredUnit = profile.preferredUnit === "lb" ? "lb" : "kg";
   const sportTotals =
-    totals?.bySport.map((total) => ({
+    totals.map((total) => ({
       sport: total.sport,
       label: ACTIVITY_SPORT_LABELS[total.sport],
       count: total.count,

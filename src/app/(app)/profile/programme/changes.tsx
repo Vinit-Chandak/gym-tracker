@@ -103,9 +103,20 @@ export async function loadProgrammeChanges(db: DbOrTx, userId: string, timeZone:
       asks.set(request.draftId, [...(asks.get(request.draftId) ?? []), request.quote]);
 
   const currentCycle = schedule ? progress(schedule.state).currentCycle : 1;
+  // The title only needs a derived summary without a stored headline. Several such drafts
+  // can share their base; keep its in-flight read within this transaction, not across requests.
+  const bases = new Map<string, ReturnType<typeof readProgramBlueprint>>();
+  const readBase = (programId: string) => {
+    let pending = bases.get(programId);
+    if (!pending) {
+      pending = readProgramBlueprint(db, userId, programId);
+      bases.set(programId, pending);
+    }
+    return pending;
+  };
   const proposals = await Promise.all(
     drafts.map(async (draft) => {
-      const base = await readProgramBlueprint(db, userId, draft.baseProgramId!);
+      const base = draft.headline ? null : await readBase(draft.baseProgramId!);
       const summarised = base
         ? summariseProgramDiff(diffPrograms(base.blueprint, draft.blueprint), {
             fromWeek: schedule?.program.id === draft.baseProgramId ? currentCycle : 1,

@@ -73,6 +73,22 @@ export async function listTemplates(
   return rows as ActivityTemplate[];
 }
 
+/** The Training tab needs the number of saved sessions, without their prescriptions. */
+export async function countActiveTemplates(tx: DbOrTx, userId: string): Promise<number> {
+  const [row] = await tx
+    .select({ value: sql<number>`count(*)::int` })
+    .from(activityTemplates)
+    .innerJoin(
+      activityTemplateRevisions,
+      and(
+        eq(activityTemplateRevisions.id, activityTemplates.currentRevisionId),
+        eq(activityTemplateRevisions.userId, activityTemplates.userId),
+      ),
+    )
+    .where(and(eq(activityTemplates.userId, userId), isNull(activityTemplates.archivedAt)));
+  return row?.value ?? 0;
+}
+
 export async function getTemplate(
   tx: DbOrTx,
   userId: string,

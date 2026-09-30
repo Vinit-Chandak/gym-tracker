@@ -12,6 +12,7 @@ import {
   InvalidCursorError,
   listActivityPage,
   readActivityTotals,
+  readSportTotals,
   readAdherence,
   readComparableBests,
   readWeeklyActivityVolume,
@@ -120,6 +121,38 @@ const save = (userId: string, input: SaveActivityInput) =>
   withUser(t.db, userId, (tx) => createActivity(tx, userId, input));
 
 describe("totals over the whole period", () => {
+  it("reads the same per-sport totals alone, with range boundaries and RLS preserved", async () => {
+    const userId = await athlete("sport-only@example.test");
+    const otherId = await athlete("sport-only-other@example.test");
+    await save(userId, ride("2026-04-30", { distanceKm: 80 }));
+    await save(userId, ride("2026-05-01", { distanceKm: null }));
+    await save(userId, swim("2026-05-31", { poolMetres: 25, lengths: 16 }));
+    await save(userId, ride("2026-06-01", { distanceKm: 90 }));
+    await save(otherId, ride("2026-05-15", { distanceKm: 100 }));
+    const range = { from: "2026-05-01", to: "2026-05-31" };
+    const [only, full] = await withUser(
+      t.db,
+      userId,
+      (tx) =>
+        Promise.all([readSportTotals(tx, userId, range), readActivityTotals(tx, userId, range)]),
+      { readOnly: true },
+    );
+    expect(only).toEqual(full.bySport);
+    expect(only.find((sport) => sport.sport === "cycling")).toMatchObject({
+      count: 1,
+      unknownDistances: 1,
+      distanceMetres: null,
+    });
+    expect(only.find((sport) => sport.sport === "swimming")).toMatchObject({
+      count: 1,
+      distanceMetres: 400,
+    });
+    const hidden = await withUser(t.db, otherId, (tx) => readSportTotals(tx, userId, range), {
+      readOnly: true,
+    });
+    expect(hidden.every((sport) => sport.count === 0)).toBe(true);
+  });
+
   /** AT-STAT-02: more rows than any display cap, and the total is still the total. */
   it("counts every ride, not the first page of them", async () => {
     const userId = await athlete("volume@example.test");

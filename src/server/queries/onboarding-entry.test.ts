@@ -1,9 +1,17 @@
 import { beforeEach, expect, it, vi } from "vitest";
 
-const { gyms, sports } = vi.hoisted(() => ({ gyms: vi.fn(), sports: vi.fn() }));
+const { gyms, sports, transaction, tx } = vi.hoisted(() => {
+  const tx = {};
+  return {
+    gyms: vi.fn(),
+    sports: vi.fn(),
+    tx,
+    transaction: vi.fn((_db: unknown, _id: string, run: (tx: unknown) => unknown) => run(tx)),
+  };
+});
 vi.mock("@/db/client", () => ({ getDb: () => ({}) }));
 vi.mock("@/db/with-user", () => ({
-  withUser: (_db: unknown, _id: string, run: (tx: unknown) => unknown) => run({}),
+  withUser: transaction,
 }));
 vi.mock("@/server/repositories/gyms", () => ({ listGyms: gyms }));
 vi.mock("@/server/repositories/sport-preferences", () => ({ enabledSportsFor: sports }));
@@ -11,6 +19,7 @@ vi.mock("@/server/repositories/sport-preferences", () => ({ enabledSportsFor: sp
 import { onboardingEntry } from "./onboarding-entry";
 
 beforeEach(() => {
+  transaction.mockClear();
   gyms.mockReset();
   sports.mockReset();
   // Lifting is on unless a test says otherwise, which is the path through all four steps.
@@ -37,6 +46,10 @@ it("starts at the beginning when nothing has been saved", async () => {
 it("picks up at the machines once a gym is there", async () => {
   gyms.mockResolvedValue([gym({ id: "gym-7" })]);
   expect(await onboardingEntry("user-1")).toBe("/welcome/equipment?gym=gym-7");
+  expect(transaction).toHaveBeenCalledTimes(1);
+  expect(transaction).toHaveBeenCalledWith({}, "user-1", expect.any(Function), { readOnly: true });
+  expect(sports).toHaveBeenCalledWith(tx, "user-1");
+  expect(gyms).toHaveBeenCalledWith(tx, "user-1");
 });
 
 it("picks up at the programme once that gym has machines", async () => {
@@ -49,6 +62,7 @@ it("skips the gym steps for an account that does not lift", async () => {
   sports.mockResolvedValue(["swimming"]);
   gyms.mockResolvedValue([]);
   expect(await onboardingEntry("user-1")).toBe("/welcome/programme");
+  expect(gyms).not.toHaveBeenCalled();
 });
 
 it("goes by the gym they train at, not the first one added", async () => {

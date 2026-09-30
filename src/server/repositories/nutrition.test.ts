@@ -1,6 +1,8 @@
 import { and, eq, sql } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/pglite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import * as schema from "@/db/schema";
 import { foodEntries, foods, savedMeals } from "@/db/schema";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
@@ -22,6 +24,7 @@ import {
   logSavedMeal,
   readFoodDay,
   readFoodDays,
+  readFoods,
   readLibrary,
   readMealScreen,
   readSavedMeal,
@@ -531,6 +534,62 @@ describe("My foods", () => {
     fatG: 0.3,
     proteinG: 2.7,
   };
+
+  it("reads the builder's foods in recency/name order without loading saved meals", async () => {
+    const builder = await t.createAuthUser("food-builder@example.test");
+    await as(builder, (tx) => ensureProfile(tx, builder));
+    const older = new Date("2026-09-01T00:00:00Z");
+    const recent = new Date("2026-09-02T00:00:00Z");
+    const names = ["zebra oats", "Apple oats", "Older oats"];
+    await as(builder, (tx) =>
+      tx.insert(foods).values(
+        names.map((name, index) => ({
+          userId: builder.id,
+          ...OATS,
+          name,
+          createdAt: index === 0 ? recent : older,
+          lastLoggedAt: index === 1 ? recent : null,
+        })),
+      ),
+    );
+    await as(builder, (tx) =>
+      tx.insert(savedMeals).values({
+        userId: builder.id,
+        name: "Not needed by the builder",
+        items: [{ ...OATS, foodId: null, amount: 50 }],
+      }),
+    );
+    const queries: string[] = [];
+    const traced = drizzle(t.client, {
+      schema,
+      logger: { logQuery: (query) => queries.push(query) },
+    });
+    const onlyFoods = await withUser(
+      traced,
+      builder.id,
+      async (tx) => {
+        queries.length = 0;
+        const result = await readFoods(tx, builder.id);
+        expect(queries).toHaveLength(1);
+        expect(queries[0]).toContain('from "foods"');
+        expect(queries[0]).not.toContain('"saved_meals"');
+        return result;
+      },
+      { readOnly: true },
+    );
+    expect(onlyFoods).toEqual(
+      ["Apple oats", "zebra oats", "Older oats"].map((name) => ({
+        id: expect.any(String),
+        ...OATS,
+        name,
+      })),
+    );
+    expect(onlyFoods).toEqual((await as(builder, (tx) => readLibrary(tx, builder.id))).foods);
+    // Asking for the owner's id from another authenticated account still returns nothing.
+    expect(
+      await withUser(t.db, other.id, (tx) => readFoods(tx, builder.id), { readOnly: true }),
+    ).toEqual([]);
+  });
 
   it("keeps a food without logging any of it, near the top of the list", async () => {
     const before = await as(user, (tx) => readFoodDay(tx, user.id, TODAY));

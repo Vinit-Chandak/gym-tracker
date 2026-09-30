@@ -98,7 +98,7 @@ export default async function CompareExercisePage(
       const metric = primaryMetric(exercise);
       // The friend is in the circle whenever their training is visible (you follow them), so
       // one read of the circle's bests serves the bar pairs and the board beneath.
-      const circle = await loadCircle(tx, { id: user.id, username: viewer.username });
+      const circle = await loadCircle(tx, { id: user.id, username: viewer.username }, head.me);
       const [bests, readings, trend] = await Promise.all([
         readExerciseBests(
           tx,

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 
 import { coachingAction } from "@/components/coaching/client-action";
 import { Button } from "@/components/ui/button";
@@ -32,7 +31,6 @@ export type ReviewAvailability = {
  * that a review is running, when the last one was, or when the allowance comes back.
  */
 export function RequestReview({ availability }: { availability: ReviewAvailability }) {
-  const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,7 +42,6 @@ export function RequestReview({ availability }: { availability: ReviewAvailabili
     const result = await coachingAction(() => requestProgramReviewAction());
     if (result.ok) {
       setSent(true);
-      router.refresh();
     } else setError(result.error ?? "Could not ask for a review. Please retry.");
     setBusy(false);
   };

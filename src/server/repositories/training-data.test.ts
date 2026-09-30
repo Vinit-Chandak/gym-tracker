@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { backfillMultisport } from "@/db/backfill-multisport";
 import {
   activities,
+  dailyRecovery,
   gyms,
   occurrenceVersions,
   plannedOccurrences,
@@ -103,6 +104,35 @@ function run(
 }
 
 describe("the runs an athlete's own screens read", () => {
+  it("can omit duplicate daily recovery without changing the charts Progress consumes", async () => {
+    await withUser(t.db, alice.id, async (tx) => {
+      await createActivity(tx, alice.id, run());
+      await tx.insert(dailyRecovery).values({ userId: alice.id, date: range.from, sleepHours: 7 });
+    });
+    const [full, withoutRecovery] = await withUser(
+      t.db,
+      alice.id,
+      (tx) =>
+        Promise.all([
+          readTrainingData(tx, alice.id, range),
+          readTrainingData(tx, alice.id, range, { includeRecovery: false }),
+        ]),
+      { readOnly: true },
+    );
+    expect(full.recovery).toHaveLength(1);
+    expect(withoutRecovery).toEqual({ ...full, recovery: [] });
+    const visible = (data: typeof full) => {
+      const { weeks, series, pace, truncated } = trainingAnalytics(
+        data,
+        ZONE,
+        range.from,
+        range.to,
+      );
+      return { weeks, series, pace, truncated };
+    };
+    expect(visible(withoutRecovery)).toEqual(visible(full));
+  });
+
   it("shows a run logged since the cutover in History and counts it on Progress", async () => {
     const saved = await withUser(t.db, alice.id, (tx) => createActivity(tx, alice.id, run()));
     const [history, data] = await withUser(t.db, alice.id, (tx) =>

@@ -11,7 +11,6 @@ import { GYM_KIND_LABELS } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 import { setDefaultGymAction } from "@/server/actions/gyms";
 import { requestCoachPlanAction } from "@/server/actions/coach";
-import { useRouter } from "next/navigation";
 import { attempted } from "@/lib/offline-submit";
 
 export type SwitcherGym = { id: string; name: string; kind: GymKind; isDefault: boolean };
@@ -26,7 +25,6 @@ export function GymSwitcher({
   workflow?: boolean;
   selectedGymId?: string | null;
 }) {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +45,6 @@ export function GymSwitcher({
       else if (!outcome.value.ok) setError(outcome.value.error);
       else {
         setOpen(false);
-        router.refresh();
       }
     });
   }

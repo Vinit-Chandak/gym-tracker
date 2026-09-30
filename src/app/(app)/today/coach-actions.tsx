@@ -95,15 +95,13 @@ export function CoachWaiting({
   /** An earlier plan for this session is on screen. */
   hasPlan: boolean;
 }) {
-  const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const start = async () => {
     setBusy(true);
     setError(null);
     const result = await coachingAction(() => startWaitingCoachJobAction(jobId));
-    if (result.ok) router.refresh();
-    else setError(result.error ?? "Could not start the coach. Please retry.");
+    if (!result.ok) setError(result.error ?? "Could not start the coach. Please retry.");
     setBusy(false);
   };
   return (

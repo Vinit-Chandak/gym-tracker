@@ -26,9 +26,11 @@ export type BoardRow = {
 export async function loadCircle(
   tx: DbOrTx,
   viewer: { id: string; username: string },
+  /** The viewer's directory row already read inside this transaction, when available. */
+  knownViewer?: DirectoryProfile,
 ): Promise<DirectoryProfile[]> {
   const [me, following] = await Promise.all([
-    getDirectoryProfile(tx, viewer.username),
+    knownViewer ?? getDirectoryProfile(tx, viewer.username),
     listFollowing(tx, viewer.id),
   ]);
   const circle = me ? [me, ...following] : following;

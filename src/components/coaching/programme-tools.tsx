@@ -53,8 +53,7 @@ export function ProgrammeTools({ id, active = true }: { id: string; active?: boo
                 onClick={async () => {
                   setBusy(true);
                   const result = await coachingAction(() => archiveProgramAction(id));
-                  if (result.ok) router.refresh();
-                  else setError(result.error);
+                  if (!result.ok) setError(result.error);
                   setArchive(false);
                   setBusy(false);
                 }}

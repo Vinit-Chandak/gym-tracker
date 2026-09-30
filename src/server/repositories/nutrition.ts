@@ -312,14 +312,19 @@ function loggedFoods(items: readonly Partial<LoggedFood>[], mealName: string): L
   });
 }
 
+/** The foods alone, with the same projection and recency order everywhere they are offered. */
+export async function readFoods(db: DbOrTx, userId: string): Promise<FoodRecord[]> {
+  return db
+    .select({ id: foods.id, ...FOOD_COLUMNS })
+    .from(foods)
+    .where(eq(foods.userId, userId))
+    .orderBy(...FOOD_ORDER);
+}
+
 /** My foods: the foods, the most lately eaten first, and the saved meals by name. */
 export async function readLibrary(db: DbOrTx, userId: string): Promise<Library> {
   const [library, saved] = await Promise.all([
-    db
-      .select({ id: foods.id, ...FOOD_COLUMNS })
-      .from(foods)
-      .where(eq(foods.userId, userId))
-      .orderBy(...FOOD_ORDER),
+    readFoods(db, userId),
     db
       .select({ id: savedMeals.id, name: savedMeals.name, items: savedMeals.items })
       .from(savedMeals)

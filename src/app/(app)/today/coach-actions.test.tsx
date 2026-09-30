@@ -71,7 +71,8 @@ it("says nothing is planning a session the coach did not reach, and starts it on
     fireEvent.click(screen.getByRole("button", { name: "Ask the coach to plan it now" }));
   });
   expect(start).toHaveBeenCalledWith("job-1");
-  expect(router.refresh).toHaveBeenCalledTimes(1);
+  // The action's revalidatePath carries the new render; another refresh repeats its reads.
+  expect(router.refresh).not.toHaveBeenCalled();
 });
 
 it("says the coach could not finish, and that its earlier plan stands", () => {

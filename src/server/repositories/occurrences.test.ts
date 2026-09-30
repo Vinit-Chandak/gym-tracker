@@ -8,9 +8,11 @@ import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
 import { AD_HOC_ORIGIN, plannedOrigin, reportedEffort } from "@/domain/activity";
 import { nativeDistance } from "@/domain/activity-metrics";
+import { outstanding, type OccurrenceDisposition } from "@/domain/occurrences";
 import { createActivity } from "./activities";
 import {
   claimOccurrence,
+  countUpcomingStandalone,
   ClaimLostError,
   getOccurrence,
   holdsClaim,
@@ -504,6 +506,70 @@ describe("the edit claim", () => {
 });
 
 describe("standalone scheduling", () => {
+  it("counts the list's outstanding work including today without loading earlier prescriptions", async () => {
+    const owner = await seeded("count-standalone@example.test");
+    const other = await seeded("count-other@example.test");
+    await withUser(t.db, owner.userId, async (tx) => {
+      const cases: { date: string; disposition: OccurrenceDisposition; logged?: boolean }[] = [
+        { date: "2026-09-19", disposition: "pending" },
+        { date: "2026-09-20", disposition: "pending" },
+        { date: "2026-09-21", disposition: "pending" },
+        { date: "2026-09-21", disposition: "skipped" },
+        { date: "2026-09-21", disposition: "cancelled" },
+        { date: "2026-09-21", disposition: "legacy_completed" },
+        { date: "2026-09-21", disposition: "pending", logged: true },
+      ];
+      for (const entry of cases) {
+        const [occurrence] = await tx
+          .insert(plannedOccurrences)
+          .values({
+            userId: owner.userId,
+            sport: "running",
+            disposition: entry.disposition,
+            originalScheduledOn: entry.date,
+          })
+          .returning();
+        const [revision] = await tx
+          .insert(occurrenceVersions)
+          .values({
+            occurrenceId: occurrence!.id,
+            userId: owner.userId,
+            sport: "running",
+            scheduledOn: entry.date,
+            schedulingZone: "Asia/Kolkata",
+          })
+          .returning();
+        await tx
+          .update(plannedOccurrences)
+          .set({ currentRevisionId: revision!.id })
+          .where(eq(plannedOccurrences.id, occurrence!.id));
+        if (entry.logged)
+          await createActivity(tx, owner.userId, run(plannedOrigin(occurrence!.id, revision!.id)));
+      }
+      await tx.insert(plannedOccurrences).values({ userId: owner.userId, sport: "running" });
+    });
+    const [count, listed] = await withUser(
+      t.db,
+      owner.userId,
+      (tx) =>
+        Promise.all([
+          countUpcomingStandalone(tx, owner.userId, "2026-09-20"),
+          standaloneSchedule(tx, owner.userId, "2026-09-20"),
+        ]),
+      { readOnly: true },
+    );
+    expect(count).toBe(2);
+    expect(count).toBe(outstanding(listed.upcoming).length);
+    expect(
+      await withUser(
+        t.db,
+        other.userId,
+        (tx) => countUpcomingStandalone(tx, owner.userId, "2026-09-20"),
+        { readOnly: true },
+      ),
+    ).toBe(0);
+  });
+
   /** AT-SCHED-12: it appears on its date and in its own view, and creates no programme. */
   it("splits into upcoming and earlier without touching the programme", async () => {
     const account = await seeded("standalone@example.test");
