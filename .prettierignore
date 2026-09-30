@@ -17,4 +17,5 @@ docs/planning
 # names its source). Overload's own skills stay formatted.
 .claude/skills/*
 !.claude/skills/coach
+!.claude/skills/overload-ui
 .claude/agents/impeccable-*.md

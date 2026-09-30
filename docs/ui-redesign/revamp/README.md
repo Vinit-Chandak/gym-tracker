@@ -40,8 +40,10 @@ export a `.zip` at each milestone.
 ### 0. Brief
 
 Write the prompt once and keep it in the repository, so every session starts from the same
-truth. `/impeccable init` drafts a `PRODUCT.md` from the code and asks only for the gaps.
-The brief should settle:
+truth. `/impeccable init` drafts a `PRODUCT.md` from the code and asks only for the gaps; when
+it asks for the platform, answer **web**, or it loads native iOS and Android guidance that does
+not apply. The `overload-ui` skill already records which installed skill owns which job and
+which rule wins when they disagree. The brief should settle:
 
 - who the app is for and the scene it is used in: between sets, one hand, sweaty, glancing,
   bright gyms and dark ones;
@@ -49,8 +51,14 @@ The brief should settle:
   RIR, the gym fixed per session, System/Light/Dark, phone-first
   ([the Form decisions](../README.md#decisions-that-implementation-must-preserve));
 - the platform stance, the brand stance and the motion ambition (see [open decisions](#open-decisions));
-- two to five reference apps, and exactly what is admired in each;
-- three words for how it should feel, and the tropes it must avoid.
+- two to five reference apps or screens, and exactly what is admired in each: references steer
+  better than adjectives;
+- three words for how it should feel;
+- a named list of patterns to avoid. Anthropic's prompting guide for Opus 5.5 notes that
+  "avoid a generic AI look" only swaps one default style for another, and that naming the
+  patterns works: its own example list includes an off-white background and monospace labels,
+  both of which Form uses today. Check each round's output for the default it fell into, and
+  add it to the list.
 
 Group the 75 page templates into about ten archetypes before designing anything: Today, the
 live workout logger, sheets and pickers, lists and history, detail pages, charts, forms and
@@ -61,8 +69,9 @@ are what gets designed.
 
 Start without the current interface, or the result is a repaint of it. Ask for two or three
 genuinely different directions, each on the same three or four anchor screens (Today, logging
-a set mid-workout, Progress, Food) at phone size in light and dark, with real data. Pick one,
-then ask for two contrasting alternatives to test the choice.
+a set mid-workout, Progress, Food) at the iPhone 17 size the catalogue uses, 402×874, in light
+and dark, with real data. Pick one, then ask for two contrasting alternatives to test the
+choice.
 
 Only then show the current app, so the direction is mapped onto real content and structure.
 Uploads are capped at about 20 files per chat, so pick 12 to 16 phone captures from the
@@ -76,6 +85,12 @@ the type scale and fonts, spacing, radii, shadows, previews of the primitives (b
 list row, sheet, tabs, stat, chart), and a README that states the voice, iconography and
 platform rules. Tokens there have no motion family, so the motion principles (durations,
 easings, springs, what never moves) go in the README and in the repository.
+
+Write the rules so they can be checked: "section titles are 15 px semibold", not "clean
+headings". Vercel found that agents building pages from a `design.md` of checkable rules, a
+constraining stylesheet and deterministic checks made 39 mechanical failures where the same
+pages without it made 91, and that a failure once named and encoded tends to stay gone. When a
+screen comes out wrong, fix the rule or the token, not just the screen.
 
 ### 3. Anchor screens and the core loop (Claude Design)
 
@@ -111,6 +126,11 @@ Those captures use WebKit, which cloud sessions do not ship: add
 `npx playwright install webkit chromium` to the cloud environment's setup script (environment
 menu in the session's title bar, then Edit), or take the captures on a laptop.
 
+Keep the maker and the critic apart. After each area, a reviewer with fresh context (a
+subagent such as Impeccable's finish reviewer, or a new session) compares the captures with
+the anchor artboards and the `DESIGN.md` rules. Fix what it finds in tokens and components,
+not page by page.
+
 Once the new primitives exist, `/design-sync` can upload them to the Claude Design design
 system, so later mockups use the real components. It is React-only, wants an entry file that
 exports the components with their types and a compiled stylesheet, and its `/design-login`
@@ -120,15 +140,19 @@ upload is a snapshot.
 ### 6. Motion (Claude Code)
 
 `/improve-animations` and `find-animation-opportunities` plan it; `animate`, `apple-design`
-and `vercel-react-view-transitions` build it; `/review-animations` checks it. Every motion
-decision is judged on a real iPhone and a mid-range Android phone, installed as the PWA, with
-reduced motion on and off.
+and `vercel-react-view-transitions` build it; `/review-animations` and
+`fixing-motion-performance` check it. Most of it needs no library: CSS transitions,
+`@starting-style`, `linear()` springs and React's `<ViewTransition>` all work in Safari on
+iPhone and Chrome on Android. Every motion decision is judged on a real iPhone and a
+mid-range Android phone, installed as the PWA, with reduced motion on and off: agents can
+check curves and timings but not how a gesture feels.
 
 ### 7. Polish and audit (Claude Code)
 
-`/impeccable audit` and `/impeccable polish` per area, `web-design-guidelines` on the diff,
-the `mobile-native` checklist on devices, the axe checks already in the audit scripts, and
-interaction latency measured on the slowest target phone.
+`/impeccable audit` and `/impeccable polish` per area, `web-design-guidelines` and
+`accessibility` on the diff, the `mobile-native` and `overload-ui` PWA checklists on devices,
+the axe checks already in the audit scripts, and interaction latency measured on the slowest
+target phone.
 
 ## Practical rules
 
@@ -150,7 +174,28 @@ These are the user's to make before the brief is written.
    of the same design? Stay a PWA, or wrap it for the app stores later?
 2. **Brand stance.** Keep the Overload name, wordmark and copper, or start the identity over?
 3. **Motion ambition.** Quiet and fast, or expressive with authored moments (a set saved, a
-   record set)?
+   record set)? Form's rules in [themes and performance](../03-themes-and-performance.md) allow
+   transform and opacity transitions of about 120 ms (180 ms for a sheet), no spring-physics
+   bundle, no page-wide entry choreography, reduced motion as zero duration, and at most
+   +5 KiB of shared-shell JavaScript and +15 KiB per route. Keep them, or set new ones?
 4. **Type.** System fonts (SF on iPhone, Roboto on Android, always native, nothing to load)
    or a brand typeface?
 5. **Scope and order.** The whole app in one revamp, or the core loop first?
+
+## Sources
+
+Checked on 30 September 2026.
+
+- Claude Design: [getting started](https://support.claude.com/en/articles/14604416-get-started-with-claude-design)
+  (shared usage limits, no version history, handoff and export options) and
+  [file uploads](https://support.claude.com/en/articles/8241126-uploading-files-to-claude)
+  (20 files per chat, 8000×8000 px).
+- Claude Code: [`/design` and `/design-sync`](https://code.claude.com/docs/en/commands),
+  [skills](https://code.claude.com/docs/en/skills) and
+  [settings in cloud sessions](https://code.claude.com/docs/en/settings#settings-in-cloud-sessions).
+- Anthropic, [prompting Claude Opus 5.5: frontend design defaults](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5-5#frontend-design-defaults).
+- Vercel, [how our agents build on-brand pages with design.md](https://vercel.com/blog/how-our-agents-build-on-brand-pages-with-design-md)
+  (31 August 2026).
+- Platform facts behind `overload-ui`: [WebKit features in Safari 26.0](https://webkit.org/blog/17333/webkit-features-in-safari-26-0/),
+  [Chrome on Android edge-to-edge](https://developer.chrome.com/docs/css-ui/edge-to-edge) and
+  MDN's browser-compat-data 8.1.3.
