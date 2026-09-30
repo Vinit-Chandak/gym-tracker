@@ -78,7 +78,7 @@ function prescriptionLine(exercise: ExerciseVM): string | null {
   const p = exercise.planned;
   if (!p) return null;
   const volume = `${p.sets} × ${volumeRange(exercise)}`;
-  return `${volume}${p.perSide ? " per side" : ""}${p.prescriptionType === "reps" ? ` @ ${rangeLabel(p.rirMin, p.rirMax)} RIR` : " · report RPE"} · rest ${restLabel(p.restMinSeconds, p.restMaxSeconds)}`;
+  return `${volume}${p.perSide ? " per side" : ""}${p.prescriptionType === "reps" ? ` @ ${rangeLabel(p.rirMin, p.rirMax)} RIR` : ", report RPE"}, rest ${restLabel(p.restMinSeconds, p.restMaxSeconds)}`;
 }
 
 /** The machine, or what stands in for one. The gym itself is session context, not row chrome. */

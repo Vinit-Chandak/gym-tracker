@@ -44,8 +44,8 @@ export function FilterSheet({
         aria-expanded={open}
         aria-label={summary ? `${label}: ${summary}` : label}
         className={cn(
-          "flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-control px-2 text-sm font-semibold transition-colors duration-[var(--ov-duration-feedback)] active:bg-surface-raised",
-          count > 0 ? "text-accent" : "text-ink-muted hover:text-ink",
+          "flex min-h-12 min-w-12 shrink-0 pressable items-center justify-center gap-1.5 rounded-chip px-3.5 text-sm font-semibold shadow-[0_1px_2px_rgb(20_24_36/0.06)] transition-colors duration-[var(--ov-duration-feedback)] active:bg-surface-raised",
+          count > 0 ? "bg-accent-soft text-accent" : "bg-surface text-ink",
         )}
       >
         <SlidersHorizontal className="shrink-0" aria-hidden />

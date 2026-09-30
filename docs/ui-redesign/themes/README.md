@@ -1,16 +1,16 @@
-# Form theme tokens
+# Theme tokens
 
-These files are now part of the application. There is one design, Form, with light and dark palettes; no Fieldnotes asset or runtime style picker is included.
+These files are part of the application. There is one design, Stack (which replaced Form in [decision 0041](../../decisions/0041-stack-colour-means-sport.md)), with light and dark palettes; no runtime style picker is included.
 
 ## Files and activation
 
-| File                             | Purpose                                                                       |
-| -------------------------------- | ----------------------------------------------------------------------------- |
-| `src/styles/form/foundation.css` | Shared scale, responsive dimensions, motion and semantic light/dark selection |
-| `src/styles/form/form.css`       | Form typography/radii and complete light/dark colour primitives               |
+| File                              | Purpose                                                                           |
+| --------------------------------- | --------------------------------------------------------------------------------- |
+| `src/styles/stack/foundation.css` | Shared scale, responsive dimensions, motion and semantic light/dark selection     |
+| `src/styles/stack/stack.css`      | Stack typography/radii and complete light/dark colour primitives, sports included |
 
-`src/app/globals.css` imports foundation then Form, in that order, and aliases the Tailwind
-names onto the semantic tokens. `src/app/layout.tsx` sets `data-overload-design="form"` on the
+`src/app/globals.css` imports foundation then Stack, in that order, and aliases the Tailwind
+names onto the semantic tokens. `src/app/layout.tsx` sets `data-overload-design="stack"` on the
 document root. `data-overload-mode` is set to `light` or `dark` only for an explicit choice;
 System leaves it absent, so the media query in foundation.css decides. An invalid stored value
 falls back to System. Persistence and first-paint handling live in `src/lib/appearance.ts` and

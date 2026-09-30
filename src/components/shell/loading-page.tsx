@@ -16,9 +16,12 @@ export function LoadingPage({
   segmented = false,
   /** Reserves a box holding one text field, for a page that is a search. */
   field = false,
+  /** Reserves the hero card a screen opens with: Today, Food, a workout. */
+  hero = false,
   rows = 5,
 }: {
   title?: string;
+  hero?: boolean;
   controls?: boolean;
   tiles?: boolean;
   segmented?: boolean;
@@ -31,10 +34,16 @@ export function LoadingPage({
       <PageContent>
         <div role="status" aria-live="polite" className="space-y-4">
           <LoadingMessage title={title} />
+          {hero && (
+            <div
+              aria-hidden="true"
+              className="h-64 rounded-hero bg-surface-raised motion-safe:animate-pulse"
+            />
+          )}
           {controls && (
             <div aria-hidden="true" className="flex gap-2 motion-safe:animate-pulse">
-              <div className="h-11 flex-1 rounded-control bg-surface-raised" />
-              <div className="h-11 w-24 rounded-control bg-surface-raised" />
+              <div className="h-12 flex-1 rounded-chip bg-surface-raised" />
+              <div className="h-12 w-24 rounded-chip bg-surface-raised" />
             </div>
           )}
           {tiles && (
@@ -50,7 +59,7 @@ export function LoadingPage({
           {segmented && (
             <div
               aria-hidden="true"
-              className="h-11 rounded-control bg-surface-raised motion-safe:animate-pulse"
+              className="h-12 rounded-[1.125rem] bg-surface-raised motion-safe:animate-pulse"
             />
           )}
           {field && (

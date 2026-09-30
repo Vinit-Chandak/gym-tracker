@@ -13,7 +13,7 @@ export function FormError({ message }: { message?: string }) {
     <p
       role="alert"
       tabIndex={-1}
-      className="rounded-control border border-danger bg-transparent px-3 py-2 text-sm text-danger"
+      className="rounded-tile bg-danger/10 px-4 py-3 text-sm font-semibold text-danger"
     >
       {message}
     </p>

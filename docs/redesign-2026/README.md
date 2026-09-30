@@ -6,15 +6,15 @@
 
 ## Where things are
 
-| What                                          | Where                                                                                                     |
-| --------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| Product truth                                 | [`PRODUCT.md`](../../PRODUCT.md)                                                                          |
-| The shipped system, "Form 1"                  | [`DESIGN.md`](../../DESIGN.md); tokens in `src/styles/form/`                                              |
-| The ten decisions every redesign keeps        | [`docs/ui-redesign/README.md`](../ui-redesign/README.md)                                                  |
-| Process, prompts and research                 | [playbook.md](playbook.md)                                                                                |
-| Claude Code kit: design skills, review agent  | [`.claude/README.md`](../../.claude/README.md)                                                            |
-| Claude Design: the new system, empty for now  | [Design System](https://claude.ai/artifact/X8UrTaqvCTiiNF8t5e51rg) (filled in Phase 2)                    |
-| Claude Design: the canvas convention to reuse | "Gym Tracker — Graph Fixes": rows "As they draw today", "Built" and "Decided: …", one sticky per decision |
+| What                                          | Where                                                                                                                         |
+| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Product truth                                 | [`PRODUCT.md`](../../PRODUCT.md)                                                                                              |
+| The new system, Stack                         | [`DESIGN.md`](../../DESIGN.md); tokens in `src/styles/stack/`; [decision 0041](../decisions/0041-stack-colour-means-sport.md) |
+| The ten decisions every redesign keeps        | [`docs/ui-redesign/README.md`](../ui-redesign/README.md)                                                                      |
+| Process, prompts and research                 | [playbook.md](playbook.md)                                                                                                    |
+| Claude Code kit: design skills, review agent  | [`.claude/README.md`](../../.claude/README.md)                                                                                |
+| Claude Design: the new system, empty for now  | [Design System](https://claude.ai/artifact/X8UrTaqvCTiiNF8t5e51rg) (filled in Phase 2)                                        |
+| Claude Design: the canvas convention to reuse | "Gym Tracker — Graph Fixes": rows "As they draw today", "Built" and "Decided: …", one sticky per decision                     |
 
 ## What the redesign must fix
 
@@ -70,16 +70,16 @@ The full checklists, with sources, are in [playbook.md](playbook.md).
 
 ## Phases
 
-| #   | Phase                                                     | Status                                                                                  |
-| --- | --------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| 0   | Prepare: screenshots, kit, brief, Form 1 in Claude Design | Kit, `PRODUCT.md`, `DESIGN.md` and this brief done; baseline screenshots with the owner |
-| 1   | Explore three directions in Claude Design                 | Next                                                                                    |
-| 2   | Lock the new system in code, then in Claude Design        |                                                                                         |
-| 3   | Design every screen and link a clickable prototype        |                                                                                         |
-| 4   | Hand off and rebuild one area per pull request            |                                                                                         |
-| 5   | Motion                                                    |                                                                                         |
-| 6   | Polish for iPhone, Android and the installed PWA          |                                                                                         |
-| 7   | Verify with the audits, the review agent and real phones  |                                                                                         |
-| 8   | Optional promo video                                      |                                                                                         |
+| #   | Phase                                                     | Status                                                                         |
+| --- | --------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| 0   | Prepare: screenshots, kit, brief, Form 1 in Claude Design | Done                                                                           |
+| 1   | Explore three directions in Claude Design                 | Done; all three rejected by the owner                                          |
+| 2   | Lock the new system in code, then in Claude Design        | Stack, in code: [decision 0041](../decisions/0041-stack-colour-means-sport.md) |
+| 3   | Design every screen and link a clickable prototype        |                                                                                |
+| 4   | Hand off and rebuild one area per pull request            | Rebuilt in code directly, every tab and its screens                            |
+| 5   | Motion                                                    |                                                                                |
+| 6   | Polish for iPhone, Android and the installed PWA          |                                                                                |
+| 7   | Verify with the audits, the review agent and real phones  |                                                                                |
+| 8   | Optional promo video                                      |                                                                                |
 
-Record the chosen direction as decision 0041 in `docs/decisions/`, and each later phase's decisions the same way.
+The chosen direction is recorded as [decision 0041](../decisions/0041-stack-colour-means-sport.md); record each later phase's decisions the same way.
