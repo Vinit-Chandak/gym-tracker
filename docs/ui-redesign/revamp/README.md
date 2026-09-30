@@ -74,7 +74,7 @@ and dark, with real data. Pick one, then ask for two contrasting alternatives to
 choice.
 
 Only then show the current app, so the direction is mapped onto real content and structure.
-Uploads are capped at about 20 files per chat, so pick 12 to 16 phone captures from the
+Uploads are capped at 20 files per chat, so pick 12 to 16 phone captures from the
 catalogue (one per archetype, core loop in both themes) rather than all 700 images. Use
 comments for local fixes, chat for structural changes and direct edits for nudges.
 
@@ -122,9 +122,11 @@ On a branch, in this order, each step a reviewable pull request:
 
 Each pull request passes `npm run check` and carries before-and-after captures from the
 existing scripts (`scripts/dev/audit-browser.mjs` at the iPhone 17 viewport, both themes).
-Those captures use WebKit, which cloud sessions do not ship: add
-`npx playwright install webkit chromium` to the cloud environment's setup script (environment
-menu in the session's title bar, then Edit), or take the captures on a laptop.
+Those captures use WebKit and the browsers matching the repository's Playwright 1.63, which
+cloud sessions do not ship (they carry an older Chromium only). Install them in the cloud
+environment's setup script (environment menu in the session's title bar, then Edit) with
+`npx playwright install webkit chromium`, adding `--with-deps` if WebKit's system libraries are
+missing, or take the captures on a laptop.
 
 Keep the maker and the critic apart. After each area, a reviewer with fresh context (a
 subagent such as Impeccable's finish reviewer, or a new session) compares the captures with
