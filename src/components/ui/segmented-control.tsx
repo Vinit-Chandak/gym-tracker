@@ -92,7 +92,9 @@ export function SegmentedControl<V extends string>({
           />
           <span
             className={cn(
-              "flex min-h-11 items-center justify-center rounded-[0.875rem] px-1 py-1 text-sm leading-tight font-semibold text-ink-muted transition-colors duration-[var(--ov-duration-feedback)] select-none",
+              "flex min-h-11 items-center justify-center rounded-control px-1 py-1 leading-tight font-semibold text-ink-muted transition-colors duration-[var(--ov-duration-feedback)] select-none",
+              // Four or more to a row: a size smaller, so the longest sport name fits a phone.
+              columns && columns >= 4 ? "text-[0.8125rem]" : "text-sm",
               "peer-checked:bg-surface-selected peer-checked:text-ink peer-checked:shadow-[0_1px_3px_rgb(20_24_36/0.12)]",
               "peer-focus-visible:ring-2 peer-focus-visible:ring-focus",
             )}

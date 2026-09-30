@@ -26,7 +26,7 @@ export function ShortcutTile<T extends string>({
       href={href}
       className="flex h-full min-h-24 box min-w-0 pressable flex-col justify-between gap-3 rounded-tile p-4"
     >
-      <span className="flex size-10 items-center justify-center rounded-[0.8125rem] bg-accent-soft text-accent">
+      <span className="flex size-10 items-center justify-center rounded-control bg-surface-raised text-ink">
         <Icon scale="row" aria-hidden />
       </span>
       <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">

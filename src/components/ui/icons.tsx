@@ -20,6 +20,7 @@ import { ClipboardTextIcon } from "@phosphor-icons/react/dist/ssr/ClipboardText"
 import { DownloadSimpleIcon } from "@phosphor-icons/react/dist/ssr/DownloadSimple";
 import { EnvelopeOpenIcon } from "@phosphor-icons/react/dist/ssr/EnvelopeOpen";
 import { GearSixIcon } from "@phosphor-icons/react/dist/ssr/GearSix";
+import { HouseIcon } from "@phosphor-icons/react/dist/ssr/House";
 import { InfoIcon } from "@phosphor-icons/react/dist/ssr/Info";
 import { KeyIcon } from "@phosphor-icons/react/dist/ssr/Key";
 import { LightningIcon } from "@phosphor-icons/react/dist/ssr/Lightning";
@@ -43,6 +44,7 @@ import { SneakerMoveIcon } from "@phosphor-icons/react/dist/ssr/SneakerMove";
 import { StarIcon } from "@phosphor-icons/react/dist/ssr/Star";
 import { TimerIcon } from "@phosphor-icons/react/dist/ssr/Timer";
 import { TrashIcon } from "@phosphor-icons/react/dist/ssr/Trash";
+import { TreeIcon } from "@phosphor-icons/react/dist/ssr/Tree";
 import { TrophyIcon } from "@phosphor-icons/react/dist/ssr/Trophy";
 import { UserIcon } from "@phosphor-icons/react/dist/ssr/User";
 import { UserPlusIcon } from "@phosphor-icons/react/dist/ssr/UserPlus";
@@ -137,6 +139,8 @@ export const ExternalLink = /* @__PURE__ */ duotone(ArrowSquareOutIcon);
  */
 export const Food = /* @__PURE__ */ duotone(BowlFoodIcon);
 export const Footprints = /* @__PURE__ */ duotone(SneakerMoveIcon);
+/** A home gym. */
+export const Home = /* @__PURE__ */ duotone(HouseIcon);
 export const Info = /* @__PURE__ */ duotone(InfoIcon);
 export const KeyRound = /* @__PURE__ */ duotone(KeyIcon);
 export const Link2 = /* @__PURE__ */ duotone(LinkIcon);
@@ -170,6 +174,8 @@ export const Star = /* @__PURE__ */ duotone(StarIcon);
 export const SunMoon = /* @__PURE__ */ duotone(CircleHalfIcon);
 export const Timer = /* @__PURE__ */ duotone(TimerIcon);
 export const Trash = /* @__PURE__ */ duotone(TrashIcon);
+/** Training outdoors: a park, a track, a hill. */
+export const Outdoors = /* @__PURE__ */ duotone(TreeIcon);
 /** Leaderboard: the cup, which needs no explaining. */
 export const Trophy = /* @__PURE__ */ duotone(TrophyIcon);
 export const User = /* @__PURE__ */ duotone(UserIcon);

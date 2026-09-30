@@ -18,16 +18,37 @@ const EDGE = 12;
 
 /**
  * Where the note goes, relative to its button: under it, starting at the button's left
- * edge, then slid just far enough that it stays `EDGE` px inside the screen on both sides.
- * Exported for the test; the maths is the only part of this component worth one.
+ * edge, then slid just far enough that it stays `EDGE` px inside the box it can be seen in —
+ * the screen, or a sheet's scrolling body — on both sides. `right` and `boxLeft` are that
+ * box's edges. Exported for the test; the maths is the only part of this component worth one.
  */
 export function placeNote(
   buttonLeft: number,
-  viewportWidth: number,
+  right: number,
+  boxLeft = 0,
 ): { left: number; width: number } {
-  const width = Math.min(NOTE_WIDTH, viewportWidth - EDGE * 2);
-  const left = Math.max(EDGE, Math.min(buttonLeft, viewportWidth - EDGE - width));
+  const width = Math.min(NOTE_WIDTH, right - boxLeft - EDGE * 2);
+  const left = Math.max(boxLeft + EDGE, Math.min(buttonLeft, right - EDGE - width));
   return { left: left - buttonLeft, width };
+}
+
+/** Where a note under `element` can be seen: the screen, narrowed by any box that clips it. */
+function visibleBox(element: HTMLElement): { left: number; right: number } {
+  let left = 0;
+  let right = window.innerWidth;
+  for (let node = element.parentElement; node; node = node.parentElement) {
+    if (getComputedStyle(node).overflowX === "visible") continue;
+    const rect = node.getBoundingClientRect();
+    if (rect.right <= rect.left) continue;
+    left = Math.max(left, rect.left);
+    right = Math.min(right, rect.right);
+  }
+  return { left, right };
+}
+
+function placeUnder(element: HTMLElement): { left: number; width: number } {
+  const box = visibleBox(element);
+  return placeNote(element.getBoundingClientRect().left, box.right, box.left);
 }
 
 /**
@@ -60,8 +81,7 @@ export function InfoTip({ label, children, className }: InfoTipProps) {
       }
     };
     const reposition = () => {
-      if (root.current)
-        setPlace(placeNote(root.current.getBoundingClientRect().left, window.innerWidth));
+      if (root.current) setPlace(placeUnder(root.current));
     };
     document.addEventListener("pointerdown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
@@ -74,9 +94,7 @@ export function InfoTip({ label, children, className }: InfoTipProps) {
   }, [open]);
 
   const toggle = () => {
-    if (!open && root.current) {
-      setPlace(placeNote(root.current.getBoundingClientRect().left, window.innerWidth));
-    }
+    if (!open && root.current) setPlace(placeUnder(root.current));
     setOpen((current) => !current);
   };
 

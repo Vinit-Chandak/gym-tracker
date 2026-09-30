@@ -49,6 +49,10 @@ it("keeps the note inside the screen whichever edge its button is near", () => {
   expect(placeNote(40, 800)).toEqual({ left: 0, width: 288 });
   // A very narrow screen: the note shrinks to fit between the margins.
   expect(placeNote(100, 280)).toEqual({ left: 12 - 100, width: 256 });
+  // Inside a sheet whose body is inset 20px from each side of a 390px screen: the note keeps
+  // its margin inside the body, which is what clips it, not merely inside the screen.
+  expect(placeNote(300, 370, 20)).toEqual({ left: 370 - 12 - 288 - 300, width: 288 });
+  expect(placeNote(10, 330, 60)).toEqual({ left: 60 + 12 - 10, width: 246 });
 });
 
 it("consumes Escape so dismissing a note does not also close an enclosing dialog", () => {

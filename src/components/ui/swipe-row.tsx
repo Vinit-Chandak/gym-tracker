@@ -95,7 +95,11 @@ export function SwipeRow({
           moveTo(0);
           onAction();
         }}
-        className="absolute inset-y-0 right-0 flex min-w-[5.5rem] items-center justify-center bg-danger px-4 font-semibold text-on-accent focus-visible:-outline-offset-4"
+        className={cn(
+          "absolute inset-y-0 right-0 flex min-w-[5.5rem] items-center justify-center bg-danger px-4 font-semibold text-on-accent transition-opacity duration-[var(--ov-duration-feedback)] focus-visible:-outline-offset-4",
+          // Hidden at rest, so the list's rounded corners never show a sliver of it.
+          offset === 0 && !dragging && "opacity-0",
+        )}
       >
         {action}
       </button>

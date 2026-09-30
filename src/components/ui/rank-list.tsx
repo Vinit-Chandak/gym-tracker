@@ -56,8 +56,9 @@ export function RankList({
               )}
             >
               <span className="flex min-w-0 flex-[1_1_9rem] flex-wrap items-center gap-x-3 gap-y-1">
-                {/* Wide enough for two digits, so names start on one line whatever the rank. */}
-                <span className="w-6 shrink-0 text-right text-sm font-semibold tabular-nums">
+                {/* The rank is the figure a board is read by, so it is set in the display face.
+                    Wide enough for two digits, so names start on one line whatever the rank. */}
+                <span className="w-6 shrink-0 text-right font-display text-display-s tabular-nums">
                   {row.rank ?? "—"}
                 </span>
                 <Avatar username={row.username} displayName={row.displayName} size="row" />

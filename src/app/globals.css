@@ -108,12 +108,16 @@
   --text-headline--line-height: 1.3;
   --text-display-xl: var(--ov-display-xl);
   --text-display-xl--line-height: 0.9;
+  --text-display-xl--font-weight: 800;
   --text-display-l: var(--ov-display-l);
   --text-display-l--line-height: 0.95;
+  --text-display-l--font-weight: 800;
   --text-display-m: var(--ov-display-m);
   --text-display-m--line-height: 1;
+  --text-display-m--font-weight: 800;
   --text-display-s: var(--ov-display-s);
   --text-display-s--line-height: 1.05;
+  --text-display-s--font-weight: 800;
 }
 
 /*

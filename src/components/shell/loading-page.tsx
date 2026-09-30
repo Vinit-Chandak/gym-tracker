@@ -1,3 +1,5 @@
+import type { Route } from "next";
+
 import { PageHeader } from "./page-header";
 import { PageContent } from "./page-content";
 import { LoadingMessage } from "./navigation-feedback";
@@ -18,9 +20,12 @@ export function LoadingPage({
   field = false,
   /** Reserves the hero card a screen opens with: Today, Food, a workout. */
   hero = false,
+  /** A screen one level down: its skeleton has the compact bar with the way back. */
+  backHref,
   rows = 5,
 }: {
   title?: string;
+  backHref?: Route;
   hero?: boolean;
   controls?: boolean;
   tiles?: boolean;
@@ -30,7 +35,7 @@ export function LoadingPage({
 }) {
   return (
     <>
-      <PageHeader title={title} />
+      <PageHeader title={title} backHref={backHref} />
       <PageContent>
         <div role="status" aria-live="polite" className="space-y-4">
           <LoadingMessage title={title} />

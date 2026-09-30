@@ -4,16 +4,19 @@ import { InfoTip } from "@/components/ui/info-tip";
 import { cn } from "@/lib/utils";
 
 /**
- * A row of small numbers under their labels. Inside a box, four across leaves each label about
- * a quarter of the screen minus the padding, which the longest of them ("Unavailable") only
- * clears from about 440px. Below that it is two rows of two, rather than words broken
- * mid-syllable. The gap does the separating; there are no rules between tiles.
+ * A row of small numbers under their labels. Four across needs a row about 27rem wide for the
+ * longest label ("Unavailable"); narrower than that it is two rows of two, rather than words
+ * broken mid-syllable. The row measures itself in rem, so larger text keeps two across. The gap
+ * does the separating; there are no rules between tiles. Pass `@min-[27rem]:grid-cols-3` (with
+ * `grid-cols-3`) for a row of three.
  */
 export function StatTileRow({ className, children }: { className?: string; children: ReactNode }) {
   return (
-    <dl className={cn("grid grid-cols-2 gap-x-4 gap-y-3 min-[440px]:grid-cols-4", className)}>
-      {children}
-    </dl>
+    <div className="@container min-w-0">
+      <dl className={cn("grid grid-cols-2 gap-x-4 gap-y-3 @min-[27rem]:grid-cols-4", className)}>
+        {children}
+      </dl>
+    </div>
   );
 }
 
