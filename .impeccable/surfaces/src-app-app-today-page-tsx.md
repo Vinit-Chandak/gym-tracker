@@ -2,7 +2,12 @@
 version: 1
 slug: "src-app-app-today-page-tsx"
 primary_target: "src/app/(app)/today/page.tsx"
-related_targets: ["src/app/(app)/workouts/[sessionId]/exercise-logger.tsx","src/app/(app)/progress/page.tsx","src/app/(app)/food/page.tsx"]
+related_targets:
+  [
+    "src/app/(app)/workouts/[sessionId]/exercise-logger.tsx",
+    "src/app/(app)/progress/page.tsx",
+    "src/app/(app)/food/page.tsx",
+  ]
 ---
 
 # Core loop revamp (Today, workout logger, Progress, Food)
