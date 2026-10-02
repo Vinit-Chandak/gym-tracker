@@ -52,7 +52,7 @@ export default function PreviewHeadersPage() {
           title="Wordmark"
           description="The name with a stroke of highlighter under it, at the sizes it is set: the auth sheet, a block title, the masthead."
         >
-          <div className="box flex flex-wrap items-baseline gap-x-8 gap-y-4 py-4">
+          <div className="flex box flex-wrap items-baseline gap-x-8 gap-y-4 py-4">
             <p className="text-3xl leading-none">
               <Wordmark />
             </p>
@@ -68,7 +68,7 @@ export default function PreviewHeadersPage() {
           title="Four pens"
           description="The highlighter for the one primary action on a screen, and the ruled, pen and red-pen alternatives beside it."
         >
-          <div className="box action-row py-4">
+          <div className="action-row box py-4">
             <LinkButton href="/preview/headers">Primary</LinkButton>
             <LinkButton href="/preview/headers" variant="secondary">
               Secondary

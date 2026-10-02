@@ -85,7 +85,8 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
 
   // The one giant measure: how far, for a sport that is about distance, and otherwise how
   // long. A ride or swim whose distance is unknown is still a record of its time.
-  const headlineLabel = actual && (actual.sport === "running" || metres !== null) ? "Distance" : "Time";
+  const headlineLabel =
+    actual && (actual.sport === "running" || metres !== null) ? "Distance" : "Time";
   const headline = stats.find((stat) => stat.label === headlineLabel)!;
   const tiles = stats.filter((stat) => stat !== headline);
   const Icon = SPORT_ICONS[activity.sport];

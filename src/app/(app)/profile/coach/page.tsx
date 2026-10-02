@@ -37,7 +37,7 @@ export default async function CoachSettingsPage() {
               (YYYY-MM-DD) default to the last 12 weeks. Everything is read-only JSON.
             </InfoTip>
           </h2>
-          <ul className="ruled-list font-mono text-xs break-all">
+          <ul className="font-mono text-xs break-all ruled-list">
             {[
               "/api/coach/summary",
               "/api/coach/workouts",

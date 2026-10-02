@@ -41,6 +41,9 @@ const DISTANCE_UNITS: Record<EnduranceSport, { value: string; label: string }[]>
   ],
 };
 
+/** A target the athlete types, in the data voice. */
+const MEASURE_CLASS = "font-data text-lg font-semibold tabular-nums placeholder:font-normal";
+
 const STEP_KINDS = [
   { value: "none", label: "No block" },
   { value: "distance", label: "By distance" },
@@ -111,6 +114,7 @@ export function PrescriptionEditor({
                 inputMode="numeric"
                 defaultValue={value("durationMinMinutes")}
                 placeholder="30"
+                className={MEASURE_CLASS}
               />
             </Field>
             <Field label="Minutes to" error={state.fieldErrors?.durationMaxMinutes}>
@@ -119,6 +123,7 @@ export function PrescriptionEditor({
                 inputMode="numeric"
                 defaultValue={value("durationMaxMinutes")}
                 placeholder="35"
+                className={MEASURE_CLASS}
               />
             </Field>
           </div>
@@ -129,6 +134,7 @@ export function PrescriptionEditor({
                 inputMode="decimal"
                 defaultValue={value("distanceMin")}
                 placeholder="5"
+                className={MEASURE_CLASS}
               />
             </Field>
             <Field label="Distance to" error={state.fieldErrors?.distanceMax}>
@@ -137,6 +143,7 @@ export function PrescriptionEditor({
                 inputMode="decimal"
                 defaultValue={value("distanceMax")}
                 placeholder="5"
+                className={MEASURE_CLASS}
               />
             </Field>
             <div className="col-span-full sm:col-span-1">
@@ -159,6 +166,7 @@ export function PrescriptionEditor({
                 inputMode="decimal"
                 defaultValue={value("effortMin")}
                 placeholder="3"
+                className={MEASURE_CLASS}
               />
             </Field>
             <Field label="Effort to" hint="Optional" error={state.fieldErrors?.effortMax}>
@@ -167,6 +175,7 @@ export function PrescriptionEditor({
                 inputMode="decimal"
                 defaultValue={value("effortMax")}
                 placeholder="5"
+                className={MEASURE_CLASS}
               />
             </Field>
           </div>
@@ -198,6 +207,7 @@ export function PrescriptionEditor({
                       inputMode="numeric"
                       defaultValue={value("repetitions")}
                       placeholder="8"
+                      className={MEASURE_CLASS}
                     />
                   </Field>
                   <Field
@@ -209,6 +219,7 @@ export function PrescriptionEditor({
                       inputMode="numeric"
                       defaultValue={value("restBetweenSeconds")}
                       placeholder="20"
+                      className={MEASURE_CLASS}
                     />
                   </Field>
                 </div>
@@ -220,6 +231,7 @@ export function PrescriptionEditor({
                         inputMode="decimal"
                         defaultValue={value("stepDistance")}
                         placeholder="50"
+                        className={MEASURE_CLASS}
                       />
                     </Field>
                     <Field group label="Unit">
@@ -243,6 +255,7 @@ export function PrescriptionEditor({
                       inputMode="numeric"
                       defaultValue={value("stepDurationSeconds")}
                       placeholder="120"
+                      className={MEASURE_CLASS}
                     />
                   </Field>
                 )}
@@ -268,7 +281,7 @@ export function PrescriptionEditor({
         </Card>
       </Section>
 
-      <div className="space-y-2">
+      <div className="space-y-3">
         <FormError message={state.formError} />
         <SubmitButton pendingLabel="Saving…">{submitLabel}</SubmitButton>
       </div>

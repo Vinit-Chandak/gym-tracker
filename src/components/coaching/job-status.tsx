@@ -95,8 +95,8 @@ export function CoachJobStatus({
           )}
           {pending && (
             <p className="text-sm text-ink-muted">
-              You can leave this screen. Your answers and files are saved, and the draft will
-              appear under Programme when it is ready.
+              You can leave this screen. Your answers and files are saved, and the draft will appear
+              under Programme when it is ready.
             </p>
           )}
           {job.error && (

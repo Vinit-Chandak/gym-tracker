@@ -6,13 +6,13 @@ import { useState, useTransition } from "react";
 
 import { DateRangeFields } from "@/components/date-range-fields";
 import { StrengthTrend, type SeriesOption, type StrengthMetric } from "@/components/strength-trend";
-import { Card } from "@/components/ui/card";
 import { FilterSheet } from "@/components/ui/filter-sheet";
+import { Section } from "@/components/ui/section";
 import type { PerformanceSeries } from "@/domain/analytics";
 import { formatDateRange } from "@/lib/format";
 
 /**
- * The Progress screen's strength card, on the page of the exercise it is already about.
+ * The Progress screen's strength trend, on the page of the exercise it is already about.
  *
  * Progress asks which exercise first; here that answer is the screen you are on, so the
  * chooser is the one thing left out and everything under it — the five measurements, the
@@ -44,30 +44,31 @@ export function ExerciseTrend({
   const dates = formatDateRange(range.from, range.to);
 
   return (
-    <Card>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="text-base font-medium">Progress</h2>
-          <p className="text-sm text-ink-muted tabular-nums">{dates}</p>
-        </div>
+    <Section
+      title="Progress"
+      action={
         <FilterSheet title="Filters" summary={dates}>
           {(close) => <DateRangeFields from={range.from} to={range.to} onApplied={close} />}
         </FilterSheet>
-      </div>
-      <StrengthTrend
-        selected={selected}
-        machines={machines}
-        metric={metric}
-        onMetricChange={setMetric}
-        onChooseSeries={chooseSeries}
-        pending={pending}
-        empty={
-          <p className="text-sm text-ink-muted">
-            Nothing logged for this exercise in this range. Finish a workout with logged sets, or
-            widen the dates, to see trends.
-          </p>
-        }
-      />
-    </Card>
+      }
+    >
+      <section className="box space-y-3 py-4">
+        <p className="font-data text-sm text-ink-muted tabular-nums">{dates}</p>
+        <StrengthTrend
+          selected={selected}
+          machines={machines}
+          metric={metric}
+          onMetricChange={setMetric}
+          onChooseSeries={chooseSeries}
+          pending={pending}
+          empty={
+            <p className="text-sm text-ink-muted">
+              Nothing logged for this exercise in this range. Finish a workout with logged sets, or
+              widen the dates, to see trends.
+            </p>
+          }
+        />
+      </section>
+    </Section>
   );
 }

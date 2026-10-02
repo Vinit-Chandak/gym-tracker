@@ -33,9 +33,9 @@ type SegmentedControlProps<V extends string> = {
 const MIN_SEGMENT = "4.75rem";
 
 /**
- * Radio group drawn as a row of cells on a raised track; the chosen cell takes the
- * highlighter. Works without JavaScript because it is a real radio input; the label is the
- * tap target.
+ * Radio group drawn as a row of cells on a raised track; the chosen cell is inked in, the
+ * way a ticked box on a form is. The highlighter stays free for the screen's one primary.
+ * Works without JavaScript because it is a real radio input; the label is the tap target.
  *
  * Preferred columns share a row until each would be narrower than a touch target. Flex
  * wrapping responds to the available space and enlarged text.
@@ -93,7 +93,7 @@ export function SegmentedControl<V extends string>({
           <span
             className={cn(
               "flex min-h-10 items-center justify-center rounded-control px-1 py-1 text-sm leading-tight font-medium text-ink-muted transition-colors duration-[var(--ov-duration-feedback)] select-none",
-              "peer-checked:bg-highlight peer-checked:text-on-highlight",
+              "peer-checked:bg-ink peer-checked:text-canvas",
               "peer-focus-visible:ring-2 peer-focus-visible:ring-focus",
             )}
           >

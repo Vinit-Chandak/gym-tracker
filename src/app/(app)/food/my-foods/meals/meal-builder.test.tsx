@@ -183,6 +183,7 @@ it("deletes a saved meal and goes back to My foods", async () => {
 
 it("says to make a food first when My foods has none", () => {
   render(<MealBuilder saved={null} foods={[]} />);
-  expect(screen.getByText("No foods yet. Make one in My foods first.")).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "No foods yet" })).toBeTruthy();
+  expect(screen.getByText("Make one in My foods first.")).toBeTruthy();
   expect(screen.queryByRole("searchbox")).toBeNull();
 });

@@ -1,11 +1,10 @@
 import { SubmitButton } from "@/components/ui/form";
-import { Dumbbell } from "@/components/ui/icons";
+import { ClipboardList, Dumbbell } from "@/components/ui/icons";
 
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
 import { LinkButton } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Disclosure } from "@/components/ui/disclosure";
 import { EmptyState } from "@/components/ui/empty-state";
 import { InfoTip } from "@/components/ui/info-tip";
@@ -112,33 +111,44 @@ export function GymDetails({ data }: { data: GymDetailData }) {
         }
       />
       <PageContent>
-        <Card>
+        {/* What kind of place it is and where, with its standing: the default gym is the
+            current one, so that badge is the highlighter. */}
+        <section className="box space-y-3 py-4">
           <div className="flex flex-wrap items-center gap-2">
             <Badge>{GYM_KIND_LABELS[gym.kind]}</Badge>
-            {gym.isDefault && <Badge tone="accent">Default gym</Badge>}
+            {gym.isDefault && <Badge tone="highlight">Default gym</Badge>}
             {!gym.isActive && <Badge tone="danger">Archived</Badge>}
           </div>
-          {gym.address && <p className="text-sm text-ink-muted">{gym.address}</p>}
-          {gym.notes && <p className="text-sm whitespace-pre-line">{gym.notes}</p>}
+          {gym.address && (
+            <p className="text-sm [overflow-wrap:anywhere] text-ink-muted">{gym.address}</p>
+          )}
+          {gym.notes && (
+            <p className="text-sm [overflow-wrap:anywhere] whitespace-pre-line">{gym.notes}</p>
+          )}
           {gym.isActive && !gym.isDefault && (
             <form action={setDefaultGymAction.bind(null, gym.id)}>
-              <SubmitButton variant="secondary" className="w-full">
+              <SubmitButton variant="secondary" size="md" className="w-full">
                 Make default gym
               </SubmitButton>
             </form>
           )}
           {!gym.isActive && (
             <form action={setGymActiveAction.bind(null, gym.id, true)}>
-              <SubmitButton variant="secondary" className="w-full">
+              <SubmitButton variant="secondary" size="md" className="w-full">
                 Restore gym
               </SubmitButton>
             </form>
           )}
-        </Card>
+        </section>
 
         <List>
           <li>
-            <LinkRow href={`/gyms/${gym.id}/programme`} title="Programme fit" subtitle={fitLabel} />
+            <LinkRow
+              href={`/gyms/${gym.id}/programme`}
+              icon={ClipboardList}
+              title="Programme fit"
+              subtitle={fitLabel}
+            />
           </li>
         </List>
 
@@ -175,18 +185,20 @@ export function GymDetails({ data }: { data: GymDetailData }) {
             title="Unavailable equipment"
             info="Mark what this gym lacks so the programme suggests alternatives instead of asking."
           >
-            <Card>
+            <section className="box space-y-3 py-3">
               {absent.length === 0 && absentCandidates.length === 0 && (
                 <p className="text-sm text-ink-muted">Nothing marked unavailable.</p>
               )}
               {absent.length > 0 && (
-                <ul className="divide-y divide-line">
+                <ul className="min-w-0 ruled-list">
                   {absent.map((item) => (
                     <li
                       key={item.equipmentTypeId}
-                      className="flex items-center justify-between gap-3 py-1.5"
+                      className="flex min-h-11 items-center justify-between gap-3"
                     >
-                      <span className="text-sm">{item.typeName}</span>
+                      <span className="min-w-0 text-sm [overflow-wrap:anywhere]">
+                        {item.typeName}
+                      </span>
                       <form
                         className="shrink-0"
                         action={unmarkEquipmentAbsentAction.bind(
@@ -195,7 +207,7 @@ export function GymDetails({ data }: { data: GymDetailData }) {
                           item.equipmentTypeId,
                         )}
                       >
-                        <SubmitButton variant="ghost" size="sm">
+                        <SubmitButton variant="ghost" size="sm" className="-mr-3 w-auto">
                           Remove
                         </SubmitButton>
                       </form>
@@ -243,7 +255,7 @@ export function GymDetails({ data }: { data: GymDetailData }) {
                   </div>
                 </form>
               )}
-            </Card>
+            </section>
           </Section>
         )}
 

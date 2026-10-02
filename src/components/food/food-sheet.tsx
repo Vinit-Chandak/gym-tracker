@@ -306,7 +306,7 @@ export function FoodSheet({
                   }
                   className={cn(
                     INPUT_CLASS,
-                    "tabular-nums",
+                    "font-data font-semibold tabular-nums",
                     errors.portionAmount && "border-danger",
                   )}
                 />
@@ -333,13 +333,14 @@ export function FoodSheet({
 
           <div className="space-y-2">
             {quick && <p className="text-sm font-medium text-ink-muted">What it came to</p>}
-            {/* Four across on a phone at normal text; fewer, never clipped, as text grows. */}
+            {/* Four cells across on a phone at normal text, the numbers in the data voice as
+                on the set grid; fewer across, never clipped, as text grows. */}
             <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,4rem),1fr))] gap-2">
               {FIGURES.map(({ field, label, max }) => {
                 const error = errors[field];
                 return (
                   <label key={field} className="min-w-0 space-y-1">
-                    <span className="block text-xs text-ink-subtle">
+                    <span className="block text-xs text-ink-muted">
                       {label}
                       {field === "kcal" && <span aria-hidden> *</span>}
                     </span>
@@ -357,7 +358,7 @@ export function FoodSheet({
                       }
                       className={cn(
                         INPUT_CLASS,
-                        "px-1 text-center tabular-nums",
+                        "h-12 px-1 text-center font-data text-lg font-semibold tabular-nums",
                         error && "border-danger",
                       )}
                     />

@@ -99,18 +99,23 @@ export function ActivityPlan({
   return (
     <Section title={`${ACTIVITY_SPORT_LABELS[sport]} · planned`}>
       <section className="box space-y-4 py-4">
+        {/* The session's own title when it has one, and its targets under it; a session
+            with no title is named by its targets. Whose hand wrote it stands beside. */}
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            {prescription?.title ? (
+            {prescription?.title && (
               <h2 className="text-lg font-semibold [overflow-wrap:anywhere]">
                 {prescription.title}
               </h2>
-            ) : (
-              <h2 className="text-lg font-semibold">What to do</h2>
             )}
-            {overall && (
-              <p className="mt-1 font-data text-sm text-ink-muted tabular-nums">{overall}</p>
-            )}
+            {overall &&
+              (prescription?.title ? (
+                <p className="mt-1 font-data text-sm text-ink-muted tabular-nums">{overall}</p>
+              ) : (
+                <h2 className="font-data text-lg font-semibold [overflow-wrap:anywhere] tabular-nums">
+                  {overall}
+                </h2>
+              ))}
           </div>
           <Badge tone={preparedByCoach ? "accent" : "neutral"}>
             {preparedByCoach ? "From your coach" : "Your programme"}

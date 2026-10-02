@@ -60,7 +60,7 @@ export function SportChoice({
                 className={cn(
                   "flex min-h-12 items-center gap-2 rounded-control border px-3 text-left text-sm font-medium transition-[background-color,color,transform,border-color] duration-[var(--ov-duration-feedback)] ease-[var(--ov-ease-out)] select-none active:scale-[0.98]",
                   on
-                    ? "border-highlight-strong bg-highlight text-on-highlight"
+                    ? "border-highlight-strong bg-highlight-soft text-ink"
                     : "border-line-strong bg-surface text-ink-muted active:bg-surface-raised",
                 )}
               >
@@ -68,7 +68,7 @@ export function SportChoice({
                 <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
                   {ACTIVITY_SPORT_LABELS[sport]}
                 </span>
-                {on && <Check className="shrink-0" aria-hidden />}
+                {on && <Check className="shrink-0 text-pen" aria-hidden />}
               </button>
             );
           })}

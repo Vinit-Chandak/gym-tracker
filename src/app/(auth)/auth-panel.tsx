@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
  */
 export function AuthPanel({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="panel panel-padding space-y-4">
+    <section className="panel space-y-4 panel-padding">
       <h2 className="text-xl">{title}</h2>
       {children}
     </section>

@@ -19,7 +19,7 @@ export type SegmentedLink = {
 
 /**
  * A segmented control whose segments are destinations: the same cells on a track as
- * `SegmentedControl`, the current one under the highlighter. Links rather than radios
+ * `SegmentedControl`, the current one inked in. Links rather than radios
  * because choosing one navigates — so it works with no JavaScript, can be opened in a new
  * tab, and is announced as the current page.
  */
@@ -50,7 +50,7 @@ export function SegmentedLinks({
           className={cn(
             "flex min-h-10 min-w-0 items-center justify-center rounded-control px-2 py-1 text-center text-sm leading-tight font-medium transition-colors duration-[var(--ov-duration-feedback)]",
             "focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none",
-            option.current ? "bg-highlight text-on-highlight" : "text-ink-muted active:text-ink",
+            option.current ? "bg-ink text-canvas" : "text-ink-muted active:text-ink",
           )}
         >
           {/* Hyphenate a long word if it must wrap; never split it at an arbitrary letter. */}

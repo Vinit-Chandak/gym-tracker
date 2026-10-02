@@ -67,7 +67,7 @@ function Lines({ lines }: { lines: readonly SummaryLine[] }) {
           <span className="text-ink">{line.label}:</span>{" "}
           {line.from !== null && (
             <>
-              <span className="font-data text-ink-subtle line-through tabular-nums">
+              <span className="font-data text-ink-subtle tabular-nums line-through">
                 {line.from}
               </span>{" "}
               <span aria-hidden>→</span>

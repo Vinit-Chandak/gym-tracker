@@ -150,7 +150,11 @@ function Label({
           {title}
           {tip && <InfoTip label={tipLabel ?? `About ${title.toLowerCase()}`}>{tip}</InfoTip>}
         </h2>
-        {meta && <p className="font-data text-sm font-medium text-ink-muted tabular-nums">{meta}</p>}
+        {meta && (
+          <p className="ml-auto font-data text-sm font-medium text-ink-muted tabular-nums">
+            {meta}
+          </p>
+        )}
       </div>
       <div className="min-w-0 space-y-3">{children}</div>
     </section>
@@ -363,7 +367,9 @@ export function ProgressView({
                             </p>
                             {/* What the totals could not include, said rather than hidden. */}
                             {unknown.length > 0 && (
-                              <p className="mt-0.5 text-xs text-ink-subtle">{unknown.join(" · ")}</p>
+                              <p className="mt-0.5 text-xs text-ink-subtle">
+                                {unknown.join(" · ")}
+                              </p>
                             )}
                           </div>
                         </li>
@@ -554,7 +560,7 @@ export function ProgressView({
               tip="Every run in the chosen dates, newest first. Pace is the average over the whole run, in minutes per kilometre. Change the dates with Filters."
             >
               {runs.length === 0 ? (
-                <p className="py-4 text-sm text-ink-muted box">No runs in this range.</p>
+                <p className="box py-4 text-sm text-ink-muted">No runs in this range.</p>
               ) : (
                 <ul className="box-rows">
                   {runs.map((run) => (

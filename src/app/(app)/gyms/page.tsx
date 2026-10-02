@@ -1,4 +1,4 @@
-import { MapPin } from "@/components/ui/icons";
+import { House, MapPin, Path, type AppIcon } from "@/components/ui/icons";
 import type { Metadata } from "next";
 
 import { PageContent } from "@/components/shell/page-content";
@@ -10,11 +10,19 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LinkRow, List } from "@/components/ui/link-row";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
+import type { GymKind } from "@/domain/types";
 import { equipmentCountLabel, GYM_KIND_LABELS } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
 import { listGyms, type GymListItem } from "@/server/repositories/gyms";
 
 export const metadata: Metadata = { title: "Gyms" };
+
+/** Where you train, as a glyph: a pin for a gym, a path outdoors, a house at home. */
+const KIND_ICONS: Record<GymKind, AppIcon> = {
+  gym: MapPin,
+  outdoor: Path,
+  home: House,
+};
 
 function GymRows({ gyms, plain = false }: { gyms: GymListItem[]; plain?: boolean }) {
   return (
@@ -23,9 +31,11 @@ function GymRows({ gyms, plain = false }: { gyms: GymListItem[]; plain?: boolean
         <li key={gym.id}>
           <LinkRow
             href={`/gyms/${gym.id}`}
+            icon={KIND_ICONS[gym.kind]}
             title={gym.name}
             subtitle={`${GYM_KIND_LABELS[gym.kind]} · ${equipmentCountLabel(gym.equipmentCount)}`}
-            badge={gym.isDefault ? <Badge tone="accent">Default</Badge> : undefined}
+            // The default gym is the current one, so it carries the highlighter.
+            badge={gym.isDefault ? <Badge tone="highlight">Default</Badge> : undefined}
           />
         </li>
       ))}

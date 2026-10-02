@@ -209,7 +209,7 @@ export default async function FoodPreviewPage(props: PageProps<"/preview/food">)
             library={fresh ? EMPTY : LIBRARY}
             links={{
               newMeal: "/preview/food?page=meal&state=new" as Route,
-              meal: () => "/preview/food?page=meal" as Route,
+              meal: "/preview/food?page=meal",
             }}
           />
         </PageContent>

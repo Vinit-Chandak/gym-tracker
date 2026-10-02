@@ -111,31 +111,33 @@ need the Supabase values from `SETUP.md`.
 
 ## Scripts
 
-| Command                            | What it does                                                                     |
-| ---------------------------------- | -------------------------------------------------------------------------------- |
-| `npm run dev`                      | Start the development server                                                     |
-| `npm run build`                    | Production build                                                                 |
-| `npm run start`                    | Serve the production build                                                       |
-| `npm run lint`                     | ESLint (Next.js core-web-vitals + TypeScript rules)                              |
-| `npm run format`                   | Prettier, writes changes (`format:check` only checks)                            |
-| `npm run typecheck`                | Generate Next.js route types, then `tsc --noEmit`                                |
-| `npm test`                         | Vitest: domain rules, seed integrity, migrations + RLS on PGlite                 |
-| `npm run check`                    | lint + format check + typecheck + tests                                          |
-| `npm run db:generate`              | Generate a SQL migration from the Drizzle schema                                 |
-| `npm run db:migrate`               | Apply migrations to `DIRECT_DATABASE_URL`                                        |
-| `npm run db:seed`                  | Seed the shared library (no gyms, machines or programmes)                        |
-| `npm run db:setup`                 | `db:migrate` followed by `db:seed`                                               |
-| `npm run db:deploy`                | What a production deploy runs: migrate, then seed the library                    |
-| `npm run db:backfill:shared-stats` | Rewrite friends' shared stats from history (idempotent; `db:deploy` ran it once) |
-| `npm run db:studio`                | Drizzle Studio against the configured database                                   |
-| `npm run audit:dev`                | `next dev` against the seeded local audit database (port 3100)                   |
+| Command                            | What it does                                                                              |
+| ---------------------------------- | ----------------------------------------------------------------------------------------- |
+| `npm run dev`                      | Start the development server                                                              |
+| `npm run build`                    | Production build                                                                          |
+| `npm run start`                    | Serve the production build                                                                |
+| `npm run lint`                     | ESLint (Next.js core-web-vitals + TypeScript rules)                                       |
+| `npm run format`                   | Prettier, writes changes (`format:check` only checks)                                     |
+| `npm run typecheck`                | Generate Next.js route types, then `tsc --noEmit`                                         |
+| `npm test`                         | Vitest: domain rules, seed integrity, migrations + RLS on PGlite                          |
+| `npm run check`                    | lint + format check + typecheck + tests                                                   |
+| `npm run db:generate`              | Generate a SQL migration from the Drizzle schema                                          |
+| `npm run db:migrate`               | Apply migrations to `DIRECT_DATABASE_URL`                                                 |
+| `npm run db:seed`                  | Seed the shared library (no gyms, machines or programmes)                                 |
+| `npm run db:setup`                 | `db:migrate` followed by `db:seed`                                                        |
+| `npm run db:deploy`                | What a production deploy runs: migrate, then seed the library                             |
+| `npm run db:backfill:shared-stats` | Rewrite friends' shared stats from history (idempotent; `db:deploy` ran it once)          |
+| `npm run db:studio`                | Drizzle Studio against the configured database                                            |
+| `npm run audit:dev`                | `next dev` against the seeded local audit database (port 3100)                            |
 | `npm run screenshot`               | Phone-canvas screenshots of the running app, both palettes (`scripts/dev/screenshot.mjs`) |
 
 ## Looking at a change without deploying it
 
 Every real screen is behind sign-in and a database. `npm run dev` also serves `/preview` (the
-day's cards, including a day that both lifts and runs), `/preview/logging` (the set grid in each
-of its three measures) and `/preview/food` (the Food tab, with
+day's blocks, including a day that both lifts and runs), `/preview/logging` (the set grid in each
+of its three measures), `/preview/headers` (the shell's chrome: wordmark, page headers, the four
+pens, the tab bar), `/preview/coaching` (the coach's screens with example data:
+`?view=options|intake|manual|draft|changes|unchanged|equipment`) and `/preview/food` (the Food tab, with
 `?state=first|empty|over|evening|noweight`; a meal's page with `?meal=breakfast`, adding
 `&state=new` for an account with no foods yet; and `?page=targets`, `?page=my-foods` and
 `?page=meal`, each taking `&state=first` or `&state=new` for its first use) against made-up
@@ -150,7 +152,7 @@ src/
     layout.tsx, manifest.ts     metadata, viewport, PWA manifest
     (auth)/                     sign in, sign up, forgot and reset password
     auth/confirm/               where every emailed link lands
-    (onboarding)/welcome/       the four first-run steps
+    (onboarding)/welcome/       the five first-run steps
     (app)/                      the five tabs behind the shared shell
       today/ training/ food/ progress/ profile/
       progress/history/           History, one of Progress's sections

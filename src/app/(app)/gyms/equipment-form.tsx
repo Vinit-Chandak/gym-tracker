@@ -45,6 +45,9 @@ type EquipmentFormProps = {
   preferredUnit: BodyLoadUnit;
 };
 
+/** A load or a step the athlete types, in the data voice, so it reads back at arm's length. */
+const MEASURE_CLASS = "font-data text-lg font-semibold tabular-nums placeholder:font-normal";
+
 const MODE_OPTIONS = RESISTANCE_MODES.map((mode) => ({
   value: mode,
   label: RESISTANCE_MODE_LABELS[mode],
@@ -188,9 +191,11 @@ export function EquipmentForm({
           >
             <Input
               name="availableLoads"
+              inputMode="decimal"
               defaultValue={value("availableLoads")}
               maxLength={2000}
               placeholder="4, 6, 8, 10, 12"
+              className={MEASURE_CLASS}
             />
           </Field>
           {/* A stack learns its steps from what is logged on it (ADR 0028); a typed jump
@@ -211,6 +216,7 @@ export function EquipmentForm({
                 inputMode="decimal"
                 defaultValue={value("loadIncrement")}
                 placeholder="2.5"
+                className={MEASURE_CLASS}
               />
             </Field>
           )}
@@ -230,7 +236,12 @@ export function EquipmentForm({
 
           <div className="grid grid-cols-2 gap-3">
             <Field label="Angle (°)" hint="Optional" error={state.fieldErrors?.angleDegrees}>
-              <Input name="angleDegrees" inputMode="decimal" defaultValue={value("angleDegrees")} />
+              <Input
+                name="angleDegrees"
+                inputMode="decimal"
+                defaultValue={value("angleDegrees")}
+                className={MEASURE_CLASS}
+              />
             </Field>
             <Field label="Pulley ratio" hint="Optional" error={state.fieldErrors?.pulleyRatio}>
               <Input
@@ -248,7 +259,7 @@ export function EquipmentForm({
         </div>
       </Disclosure>
 
-      <div className="space-y-2">
+      <div className="space-y-3">
         <FormError message={state.formError} />
         <SubmitButton>{submitLabel}</SubmitButton>
       </div>

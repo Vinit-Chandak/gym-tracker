@@ -160,8 +160,8 @@ export function AiCoachSettings({
         title="Tell the coach"
         info="Read at the next daily coach run. Anything you ask the programme to do gets its answer under Programme → Changes."
       >
-        <Card>
-          <form key={noteId} action={formAction} className="space-y-4">
+        <div className="box">
+          <form key={noteId} action={formAction} className="space-y-4 py-4">
             <input type="hidden" name="noteId" value={state.values?.noteId ?? noteId} />
             <Field label="Notes for the coach">
               <Textarea
@@ -180,19 +180,22 @@ export function AiCoachSettings({
               {saved ? "Saved." : ""}
             </p>
           </form>
-        </Card>
-        {notes.length > 0 && (
-          <List>
-            {notes.map((note) => (
-              <li key={note.id} className="space-y-1 py-3">
-                <p className="text-sm [overflow-wrap:anywhere] whitespace-pre-line">{note.text}</p>
-                <p className="font-data text-sm text-ink-muted tabular-nums">
-                  {note.when} · {note.outcome ?? "Not read yet"}
-                </p>
-              </li>
-            ))}
-          </List>
-        )}
+          {/* What you have told it, newest first, under the form that adds to it. */}
+          {notes.length > 0 && (
+            <ul className="rule-top ruled-list">
+              {notes.map((note) => (
+                <li key={note.id} className="space-y-1 py-3">
+                  <p className="text-sm [overflow-wrap:anywhere] whitespace-pre-line">
+                    {note.text}
+                  </p>
+                  <p className="font-data text-sm text-ink-muted tabular-nums">
+                    {note.when} · {note.outcome ?? "Not read yet"}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </Section>
 
       {attempts.length > 0 && (

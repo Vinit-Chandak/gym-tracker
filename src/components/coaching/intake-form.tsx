@@ -1,7 +1,8 @@
 "use client";
 import { coachingAction } from "./client-action";
 
-import { Check, Paperclip } from "@/components/ui/icons";
+import { Paperclip } from "@/components/ui/icons";
+import { NumberCell } from "./sheet-bits";
 import { useEffect, useRef, useState } from "react";
 import { useRouter, unstable_rethrow } from "next/navigation";
 import type { Route } from "next";
@@ -284,7 +285,7 @@ export function CoachIntakeForm({
 
   if (answers.track === "guided")
     return (
-      <div className="space-y-5">
+      <div className="space-y-[var(--section-gap)]">
         <Header title="About you" status={saveState} busy={busy} onExit={exit} />
         <GuidedStep {...shared} />
         {failure}
@@ -300,7 +301,7 @@ export function CoachIntakeForm({
     );
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-[var(--section-gap)]">
       <Header title={STEPS[step] ?? "Review"} status={saveState} busy={busy} onExit={exit} />
       <StepProgress step={step} busy={busy} onStep={move} />
       {step === 0 && <YouStep {...shared} />}
@@ -346,8 +347,12 @@ function Header({
   return (
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
-        <h2 className="text-xl font-medium [overflow-wrap:anywhere]">{title}</h2>
-        <p role="status" aria-live="polite" className="min-h-4 text-xs text-ink-subtle">
+        <h2 className="text-2xl [overflow-wrap:anywhere]">{title}</h2>
+        <p
+          role="status"
+          aria-live="polite"
+          className="min-h-5 font-data text-sm text-ink-subtle tabular-nums"
+        >
           {status}
         </p>
       </div>
@@ -359,9 +364,9 @@ function Header({
 }
 
 /**
- * Where you are in the detailed route: one bar per step, the passed ones filled, each
- * tappable. Five named buttons wrapping over two rows was the old version of this, and it
- * read as a row of tabs rather than as progress through one form.
+ * Where you are in the detailed route: one cell per step, like the cells of the cycle strip.
+ * The steps already passed are inked in, the current one is under the highlighter, the rest
+ * are outlined; each is tappable, and the line beneath names the one you are on.
  */
 function StepProgress({
   step,
@@ -373,29 +378,29 @@ function StepProgress({
   onStep: (step: number) => void;
 }) {
   return (
-    <nav aria-label="Programme steps" className="space-y-1.5">
-      <div className="flex gap-1.5">
+    <nav aria-label="Programme steps" className="space-y-1.5 py-3 rule-bottom rule-top">
+      <ol className="grid grid-cols-5 gap-1">
         {STEPS.map((name, i) => (
-          <button
-            key={name}
-            type="button"
-            disabled={busy}
-            aria-current={step === i ? "step" : undefined}
-            aria-label={`Step ${i + 1} of ${STEPS.length}: ${name}`}
-            onClick={() => onStep(i)}
-            className="min-w-0 flex-1 py-2"
-          >
-            <span
-              className={cn(
-                "block h-1 rounded-full transition-colors duration-[var(--ov-duration-feedback)]",
-                i <= step ? "bg-accent" : "bg-surface-raised",
-              )}
-            />
-          </button>
+          <li key={name}>
+            <button
+              type="button"
+              disabled={busy}
+              aria-current={step === i ? "step" : undefined}
+              aria-label={`Step ${i + 1} of ${STEPS.length}: ${name}`}
+              onClick={() => onStep(i)}
+              className="block w-full rounded-control transition-opacity duration-[var(--ov-duration-feedback)] disabled:opacity-60"
+            >
+              <NumberCell
+                number={i + 1}
+                state={i < step ? "done" : i === step ? "current" : "pending"}
+                className="h-11 w-full"
+              />
+            </button>
+          </li>
         ))}
-      </div>
-      <p className="text-xs text-ink-subtle tabular-nums">
-        Step {step + 1} of {STEPS.length}
+      </ol>
+      <p className="font-data text-sm text-ink-muted tabular-nums">
+        Step {step + 1} of {STEPS.length} · {STEPS[step]}
       </p>
     </nav>
   );
@@ -416,9 +421,9 @@ function Actions({
   onBack?: () => void;
 }) {
   return (
-    <div className="sticky-actions flex items-center gap-3">
+    <div className="sticky-actions -mx-[var(--page-gutter)] flex items-center gap-3 px-[var(--page-gutter)]">
       {onBack && (
-        <Button variant="secondary" disabled={busy} onClick={onBack} className="shrink-0">
+        <Button size="lg" variant="secondary" disabled={busy} onClick={onBack} className="shrink-0">
           Back
         </Button>
       )}
@@ -453,54 +458,58 @@ function TrackChooser({
 }) {
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-medium">Which sounds like you?</h2>
-      {(
-        [
-          {
-            track: "guided",
-            title: "I'm new to this",
-            points: [
-              "A few short questions, on one screen",
-              "Say the rest in your own words, typed or spoken",
-              "The coach picks your split, exercises and starting loads",
-            ],
-            action: "Start here",
-            variant: "primary",
-          },
-          {
-            track: "detailed",
-            title: "I already train",
-            points: [
-              "Your days, session length and running",
-              "Injuries, preferences and exercises to leave out",
-              "Attach a plan or a report for the coach to work from",
-            ],
-            action: "Set it up in detail",
-            variant: "secondary",
-          },
-        ] as const
-      ).map((option) => (
-        <Card key={option.track}>
-          <h3 className="text-lg font-medium">{option.title}</h3>
-          <ul className="space-y-1.5 text-sm text-ink-muted">
-            {option.points.map((point) => (
-              <li key={point} className="flex gap-2">
-                <Check className="mt-0.5 shrink-0 text-accent" aria-hidden />
-                <span className="min-w-0">{point}</span>
-              </li>
-            ))}
-          </ul>
-          <Button
-            size="lg"
-            variant={option.variant}
-            disabled={busy}
-            className="w-full"
-            onClick={() => onChoose(option.track)}
-          >
-            {option.action}
-          </Button>
-        </Card>
-      ))}
+      <h2 className="text-2xl">Which sounds like you?</h2>
+      <ul className="box-rows">
+        {(
+          [
+            {
+              track: "guided",
+              title: "I'm new to this",
+              points: [
+                "A few short questions, on one screen",
+                "Say the rest in your own words, typed or spoken",
+                "The coach picks your split, exercises and starting loads",
+              ],
+              action: "Start here",
+              variant: "primary",
+            },
+            {
+              track: "detailed",
+              title: "I already train",
+              points: [
+                "Your days, session length and running",
+                "Injuries, preferences and exercises to leave out",
+                "Attach a plan or a report for the coach to work from",
+              ],
+              action: "Set it up in detail",
+              variant: "secondary",
+            },
+          ] as const
+        ).map((option) => (
+          <li key={option.track} className="space-y-3 py-4">
+            <h3 className="text-lg">{option.title}</h3>
+            <ul className="space-y-1 text-sm text-ink-muted">
+              {option.points.map((point) => (
+                <li key={point} className="flex gap-2">
+                  <span aria-hidden className="shrink-0">
+                    ·
+                  </span>
+                  <span className="min-w-0">{point}</span>
+                </li>
+              ))}
+            </ul>
+            <Button
+              size="lg"
+              variant={option.variant}
+              disabled={busy}
+              className="w-full"
+              onClick={() => onChoose(option.track)}
+            >
+              {option.action}
+            </Button>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -536,9 +545,9 @@ function DayPicker({
                 )
               }
               className={cn(
-                "flex min-h-12 min-w-0 items-center justify-center rounded-control border text-sm font-medium transition-colors duration-[var(--ov-duration-feedback)]",
+                "flex min-h-11 min-w-0 items-center justify-center rounded-control border font-data text-sm font-semibold transition-colors duration-[var(--ov-duration-feedback)] active:bg-surface-raised",
                 on
-                  ? "border-accent bg-accent text-on-accent"
+                  ? "border-highlight-strong bg-highlight-soft text-ink"
                   : "border-line-strong bg-surface text-ink-muted",
               )}
             >
@@ -1019,8 +1028,8 @@ function TrainingStep({
         {answers.avoidExerciseSlugs.length > 0 && (
           <ul className="ruled-list">
             {answers.avoidExerciseSlugs.map((slug) => (
-              <li key={slug} className="flex items-center justify-between gap-2 py-1 text-sm">
-                <span className="min-w-0 [overflow-wrap:anywhere]">
+              <li key={slug} className="flex min-h-11 items-center justify-between gap-2 py-0.5">
+                <span className="min-w-0 font-medium [overflow-wrap:anywhere]">
                   {library.find((exercise) => exercise.slug === slug)?.name ?? slug}
                 </span>
                 <Button
@@ -1095,12 +1104,12 @@ function StartingPointStep({
         {files.length > 0 && (
           <ul className="ruled-list">
             {files.map((file) => (
-              <li key={file.id} className="flex items-center gap-2 py-2">
+              <li key={file.id} className="flex min-h-14 items-center gap-3 py-2">
                 <input
                   type="checkbox"
                   id={`report-${file.id}`}
                   checked={answers.attachmentIds.includes(file.id)}
-                  className="size-5 shrink-0 accent-[var(--ov-accent)]"
+                  className="size-5 shrink-0 accent-[var(--ov-pen)]"
                   disabled={
                     busy ||
                     (!answers.attachmentIds.includes(file.id) &&
@@ -1116,12 +1125,12 @@ function StartingPointStep({
                 />
                 <label
                   htmlFor={`report-${file.id}`}
-                  className="min-w-0 flex-1 text-sm [overflow-wrap:anywhere]"
+                  className="min-w-0 flex-1 font-medium [overflow-wrap:anywhere]"
                 >
                   {file.name}
                 </label>
                 <a
-                  className="shrink-0 text-sm text-accent underline"
+                  className="flex min-h-11 shrink-0 items-center text-sm font-medium text-pen underline-offset-4 hover:underline"
                   href={`/api/coaching/attachments/${file.id}`}
                   download
                 >
@@ -1243,8 +1252,8 @@ function ReviewStep({
             ],
           ] as const
         ).map(([label, value]) => (
-          <div key={label} className="flex flex-wrap gap-x-4 gap-y-0.5 py-2">
-            <dt className="w-24 shrink-0 text-ink-muted">{label}</dt>
+          <div key={label} className="flex flex-wrap gap-x-4 gap-y-0.5 py-2.5">
+            <dt className="w-24 shrink-0 text-xs leading-5 text-ink-muted">{label}</dt>
             <dd className="min-w-0 flex-1 break-words whitespace-pre-wrap">{value}</dd>
           </div>
         ))}

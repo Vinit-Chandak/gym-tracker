@@ -51,7 +51,7 @@ export async function ProgrammeBuilderPage({
       <PageHeader title="Programme builder" backHref={base} />
       <PageContent>
         <ProgramBuilder {...data} base={base} />
-        <LinkButton href="/exercises/new" variant="ghost">
+        <LinkButton href="/exercises/new" variant="ghost" className="flex w-full">
           Add a custom exercise to your library
         </LinkButton>
       </PageContent>

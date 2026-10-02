@@ -85,8 +85,8 @@ export default async function TrainingPage() {
             <section className="panel space-y-3 p-4">
               <h2 className="text-lg font-semibold">A lifting session is still open</h2>
               <p className="text-sm text-ink-muted tabular-nums">
-                {inProgress.gymName} · {formatDateTime(inProgress.startedAt, profile.timeZone)}.
-                It stays here until you finish or discard it.
+                {inProgress.gymName} · {formatDateTime(inProgress.startedAt, profile.timeZone)}. It
+                stays here until you finish or discard it.
               </p>
               <LinkButton href={`/workouts/${inProgress.id}`} size="lg" className="w-full">
                 Resume the session

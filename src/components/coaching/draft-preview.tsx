@@ -84,7 +84,7 @@ function DraftDay({
                   exercise.keyCue,
                 ]
                   .filter(Boolean)
-                  .join(" ") || null
+                  .join(" · ") || null
               }
               hue={exercise.supersetGroup ? hues.get(exercise.supersetGroup) : undefined}
             />
@@ -94,7 +94,9 @@ function DraftDay({
       {!day.includesLifting && !day.includesRun && (
         <p className="mt-2 text-sm text-ink-muted">Rest / mobility</p>
       )}
-      {day.notes && <p className="mt-3 text-sm [overflow-wrap:anywhere] text-ink-muted">{day.notes}</p>}
+      {day.notes && (
+        <p className="mt-3 text-sm [overflow-wrap:anywhere] text-ink-muted">{day.notes}</p>
+      )}
       {runs.length > 0 && (
         <Disclosure summary="Run targets" variant="footer" className="mt-3">
           <ul className="ruled-list">
@@ -277,12 +279,7 @@ export function DraftPreview({
               <p className="text-sm text-ink-muted">
                 Check this draft against your current training data before starting it.
               </p>
-              <Button
-                disabled={busy}
-                variant="secondary"
-                className="flex w-full"
-                onClick={check}
-              >
+              <Button disabled={busy} variant="secondary" className="flex w-full" onClick={check}>
                 Check current data
               </Button>
             </>

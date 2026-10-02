@@ -103,7 +103,7 @@ export function SaveMealSheet({
           if (!saving) save();
         }}
       >
-        <p className="text-sm text-ink-muted tabular-nums">
+        <p className="font-data text-sm text-ink-muted tabular-nums">
           {place.mealLabel}: {contents(foods)}
         </p>
         <Field
@@ -211,13 +211,15 @@ export function SavedMealSheet({
         <ul className="ruled-list">
           {saved.items.map((item, index) => (
             <li key={index} className="flex flex-wrap items-baseline justify-between gap-3 py-2.5">
+              {/* The spaces are for a screen reader, which reads the row as one string; beside
+                  flex items they take no room on the screen. */}
               <span className="min-w-0 flex-[1_1_10rem] [overflow-wrap:anywhere]">
                 {item.name}{" "}
-                <span className="text-sm text-ink-muted">
+                <span className="font-data text-sm text-ink-muted tabular-nums">
                   {formatPortion(item.amount, item.unit)}
                 </span>
               </span>{" "}
-              <span className="ml-auto max-w-full text-sm tabular-nums">
+              <span className="ml-auto max-w-full font-data text-sm font-semibold tabular-nums">
                 {formatKcal(eaten(item).kcal)} kcal
               </span>
             </li>

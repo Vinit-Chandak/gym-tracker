@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { PlanRow } from "@/components/planned-exercises";
 import { Button, LinkButton } from "@/components/ui/button";
+import { Disclosure } from "@/components/ui/disclosure";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Repeat } from "@/components/ui/icons";
 import { Field, Input } from "@/components/ui/input";
@@ -44,8 +45,8 @@ export function RoutineLibrary({
       <div className="min-w-0">
         <h2 className="text-2xl">Saved routines</h2>
         <p className="mt-1 text-sm text-ink-muted">
-          Start a repeatable workout without changing your active programme. Completed workouts
-          and sets stay in history.
+          Start a repeatable workout without changing your active programme. Completed workouts and
+          sets stay in history.
         </p>
       </div>
       <Field label="Where will you train?">
@@ -117,17 +118,8 @@ export function SaveWorkoutRoutine({ sessionId, name }: { sessionId: string; nam
     [busy, setBusy] = useState(false),
     [error, setError] = useState<string | null>(null);
   return (
-    <details className="group box">
-      <summary className="flex min-h-14 cursor-pointer list-none items-center gap-2 py-3 font-medium transition-colors duration-[var(--ov-duration-feedback)] active:bg-surface-raised">
-        <span
-          aria-hidden
-          className="shrink-0 text-ink-subtle transition-transform duration-[var(--ov-duration-feedback)] group-open:rotate-90"
-        >
-          ›
-        </span>
-        Save or repeat this workout
-      </summary>
-      <div className="space-y-3 pb-4">
+    <Disclosure summary="Save or repeat this workout">
+      <div className="space-y-3">
         <Field label="Routine name">
           <Input value={title} maxLength={120} onChange={(e) => setTitle(e.target.value)} />
         </Field>
@@ -154,6 +146,6 @@ export function SaveWorkoutRoutine({ sessionId, name }: { sessionId: string; nam
           </p>
         )}
       </div>
-    </details>
+    </Disclosure>
   );
 }

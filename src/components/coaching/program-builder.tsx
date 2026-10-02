@@ -5,7 +5,9 @@ import { useRouter, unstable_rethrow } from "next/navigation";
 import type { Route } from "next";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Disclosure } from "@/components/ui/disclosure";
 import { Field, Input, Textarea } from "@/components/ui/input";
+import { Section } from "@/components/ui/section";
 import { Select } from "@/components/ui/select";
 import {
   type BlueprintDay,
@@ -19,6 +21,8 @@ import {
 } from "@/server/actions/coaching-workflow";
 import { saveRoutineAction } from "@/server/actions/manual-training";
 import { WEEKDAY_NAMES } from "@/lib/labels";
+
+import { NumberCell } from "./sheet-bits";
 
 type LibraryEntry = {
   slug: string;
@@ -118,42 +122,51 @@ export function ProgramBuilder({
     change({ days: days.map((d, i) => ({ ...d, dayIndex: i + 1 })) });
   }
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-medium">
-        {initial ? "Edit your programme draft" : "Build your programme"}
-      </h1>
-      <p className="text-sm text-ink-muted">
-        Set your own training days and targets. Preview the complete programme before starting it.
-      </p>
-      <Card>
-        <Field label="Programme name">
-          <Input
-            maxLength={120}
-            value={plan.name}
-            onChange={(e) => change({ name: e.target.value })}
-          />
-        </Field>
-        <Field label="Number of weeks">
-          <Input
-            type="number"
-            min={1}
-            max={52}
-            value={plan.weeks || ""}
-            onChange={(e) => weeksChange(Number(e.target.value))}
-          />
-        </Field>
-        <Field label="Programme notes">
-          <Textarea
-            maxLength={2000}
-            value={plan.notes}
-            onChange={(e) => change({ notes: e.target.value })}
-          />
-        </Field>
-      </Card>
+    <div className="space-y-[var(--section-gap)]">
+      <div className="min-w-0">
+        <h2 className="text-2xl">
+          {initial ? "Edit your programme draft" : "Build your programme"}
+        </h2>
+        <p className="mt-1 text-sm text-ink-muted">
+          Set your own training days and targets. Preview the complete programme before starting it.
+        </p>
+      </div>
+      <Section title="Programme">
+        <Card className="space-y-4">
+          <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-3">
+            <Field label="Programme name">
+              <Input
+                maxLength={120}
+                value={plan.name}
+                onChange={(e) => change({ name: e.target.value })}
+              />
+            </Field>
+            <Field label="Number of weeks">
+              <Input
+                type="number"
+                min={1}
+                max={52}
+                value={plan.weeks || ""}
+                onChange={(e) => weeksChange(Number(e.target.value))}
+              />
+            </Field>
+          </div>
+          <Field label="Programme notes">
+            <Textarea
+              maxLength={2000}
+              value={plan.notes}
+              onChange={(e) => change({ notes: e.target.value })}
+            />
+          </Field>
+        </Card>
+      </Section>
       {plan.days.map((day, d) => (
-        <Card key={d}>
+        <Card key={d} className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-lg font-medium">Day {d + 1}</h2>
+            <div className="flex items-center gap-3">
+              <NumberCell number={d + 1} />
+              <h2 className="text-lg">Day {d + 1}</h2>
+            </div>
             <div className="flex gap-1">
               <Button
                 size="sm"
@@ -190,69 +203,71 @@ export function ProgramBuilder({
               </Button>
             </div>
           </div>
-          <Field label="Day name">
-            <Input
-              maxLength={80}
-              value={day.name}
-              onChange={(e) => dayChange(d, { name: e.target.value })}
-            />
-          </Field>
-          <Field label="Usual weekday">
-            <Select
-              value={day.dayOfWeek || ""}
-              onChange={(e) => {
-                const dayOfWeek = Number(e.target.value);
-                const days = plan.days.map((entry, i) =>
-                  i === d ? { ...entry, dayOfWeek } : entry,
-                );
-                // Run targets belong to a week and weekday. Moving a rest/lifting day
-                // must not move another day's run; repeated weekdays share one target.
-                const moved = day.includesRun
-                  ? plan.runs
-                      .filter((run) => run.dayOfWeek === day.dayOfWeek)
-                      .map((run) => ({ ...run, dayOfWeek }))
-                  : [];
-                change({
-                  days,
-                  runs: runsForDays(days, plan.weeks, [...plan.runs, ...moved]),
-                });
-              }}
-            >
-              <option value="">Choose a weekday</option>
-              {WEEKDAY_NAMES.slice(1).map((name, i) => (
-                <option key={name} value={i + 1}>
-                  {name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label="Focus">
-            <Input
-              maxLength={120}
-              value={day.focus}
-              onChange={(e) => dayChange(d, { focus: e.target.value })}
-            />
-          </Field>
-          <Field label="Warm-up (optional)">
-            <Select
-              value={day.warmupSlug}
-              onChange={(e) => dayChange(d, { warmupSlug: e.target.value })}
-            >
-              <option value="">No warm-up</option>
-              {warmups.map((w) => (
-                <option key={w.slug} value={w.slug}>
-                  {w.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label="Time available / notes">
-            <Input
-              maxLength={120}
-              value={day.timeNote}
-              onChange={(e) => dayChange(d, { timeNote: e.target.value })}
-            />
-          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Day name">
+              <Input
+                maxLength={80}
+                value={day.name}
+                onChange={(e) => dayChange(d, { name: e.target.value })}
+              />
+            </Field>
+            <Field label="Usual weekday">
+              <Select
+                value={day.dayOfWeek || ""}
+                onChange={(e) => {
+                  const dayOfWeek = Number(e.target.value);
+                  const days = plan.days.map((entry, i) =>
+                    i === d ? { ...entry, dayOfWeek } : entry,
+                  );
+                  // Run targets belong to a week and weekday. Moving a rest/lifting day
+                  // must not move another day's run; repeated weekdays share one target.
+                  const moved = day.includesRun
+                    ? plan.runs
+                        .filter((run) => run.dayOfWeek === day.dayOfWeek)
+                        .map((run) => ({ ...run, dayOfWeek }))
+                    : [];
+                  change({
+                    days,
+                    runs: runsForDays(days, plan.weeks, [...plan.runs, ...moved]),
+                  });
+                }}
+              >
+                <option value="">Choose a weekday</option>
+                {WEEKDAY_NAMES.slice(1).map((name, i) => (
+                  <option key={name} value={i + 1}>
+                    {name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Focus">
+              <Input
+                maxLength={120}
+                value={day.focus}
+                onChange={(e) => dayChange(d, { focus: e.target.value })}
+              />
+            </Field>
+            <Field label="Warm-up (optional)">
+              <Select
+                value={day.warmupSlug}
+                onChange={(e) => dayChange(d, { warmupSlug: e.target.value })}
+              >
+                <option value="">No warm-up</option>
+                {warmups.map((w) => (
+                  <option key={w.slug} value={w.slug}>
+                    {w.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Time available / notes">
+              <Input
+                maxLength={120}
+                value={day.timeNote}
+                onChange={(e) => dayChange(d, { timeNote: e.target.value })}
+              />
+            </Field>
+          </div>
           <Field label="Day notes">
             <Textarea
               maxLength={500}
@@ -260,144 +275,175 @@ export function ProgramBuilder({
               onChange={(e) => dayChange(d, { notes: e.target.value })}
             />
           </Field>
-          {day.exercises.map((entry, e) => (
-            <fieldset key={e} className="space-y-3 rounded-control border border-line p-3">
-              <legend className="px-1 font-medium">
-                {library.find((x) => x.slug === entry.exerciseSlug)?.name ?? entry.exerciseSlug}
-              </legend>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Sets">
-                  <Input
-                    type="number"
-                    min={1}
-                    max={20}
-                    value={entry.sets}
-                    onChange={(event) => exerciseChange(d, e, { sets: Number(event.target.value) })}
-                  />
-                </Field>
-                <Field label="Count each set in">
-                  <Select
-                    value={entry.reps ? "reps" : entry.duration ? "duration" : "distance"}
-                    onChange={(event) => {
-                      const measure = event.target.value;
-                      exerciseChange(d, e, {
-                        reps: measure === "reps" ? [NaN, NaN] : undefined,
-                        duration: measure === "duration" ? [NaN, NaN] : undefined,
-                        distance: measure === "distance" ? [NaN, NaN] : undefined,
-                      });
-                    }}
-                  >
-                    <option value="reps">Reps</option>
-                    <option value="duration">Seconds</option>
-                    <option value="distance">Metres</option>
-                  </Select>
-                </Field>
-                {(
-                  [
-                    entry.reps ? "reps" : entry.duration ? "duration" : "distance",
-                    "rir",
-                    "rest",
-                  ] as const
-                )
-                  .filter((key) => key !== "rir" || entry.rir !== null)
-                  .map((key) => (
-                    <RangeFields
-                      key={key}
-                      label={
-                        key === "rir"
-                          ? "RIR"
-                          : key === "rest"
-                            ? "Rest seconds"
-                            : key === "reps"
-                              ? "Reps"
-                              : key === "duration"
-                                ? "Seconds"
-                                : "Metres"
-                      }
-                      value={entry[key as "reps"] ?? [NaN, NaN]}
-                      onChange={(range) => exerciseChange(d, e, { [key]: range })}
-                    />
-                  ))}
-              </div>
-              <label className="flex min-h-11 items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={entry.rir !== null}
-                  onChange={(event) =>
-                    exerciseChange(d, e, { rir: event.target.checked ? [NaN, NaN] : null })
-                  }
-                />
-                Set a reps-in-reserve target (optional)
-              </label>
-              <label className="flex min-h-11 items-center gap-2">
-                <input
-                  type="checkbox"
-                  className="size-5"
-                  checked={entry.perSide ?? false}
-                  onChange={(event) => exerciseChange(d, e, { perSide: event.target.checked })}
-                />
-                Perform each set on both sides
-              </label>
-              <Field label="Superset group (optional)">
-                <Input
-                  maxLength={60}
-                  value={entry.supersetGroup ?? ""}
-                  placeholder="Give paired exercises the same label"
-                  onChange={(event) =>
-                    exerciseChange(d, e, { supersetGroup: event.target.value || undefined })
-                  }
-                />
-              </Field>
-              <Field label="Load / calibration guidance">
-                <Textarea
-                  maxLength={300}
-                  value={entry.targetLoadNote ?? ""}
-                  onChange={(event) => exerciseChange(d, e, { targetLoadNote: event.target.value })}
-                />
-              </Field>
-              <Field label="Exercise notes">
-                <Textarea
-                  maxLength={500}
-                  value={entry.notes ?? ""}
-                  onChange={(event) => exerciseChange(d, e, { notes: event.target.value })}
-                />
-              </Field>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  disabled={e === 0}
-                  onClick={() => {
-                    const entries = [...day.exercises];
-                    [entries[e - 1], entries[e]] = [entries[e]!, entries[e - 1]!];
-                    dayChange(d, { exercises: entries });
-                  }}
-                >
-                  Move up
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    const entries = day.exercises.filter((_, i) => i !== e);
-                    dayChange(d, { exercises: entries, includesLifting: entries.length > 0 });
-                  }}
-                >
-                  Remove exercise
-                </Button>
-              </div>
-            </fieldset>
-          ))}
+          {day.exercises.length > 0 && (
+            <ol className="rule-top ruled-list">
+              {day.exercises.map((entry, e) => (
+                <li key={e} className="flex gap-3 py-4">
+                  <span className="w-5 shrink-0 pt-0.5 font-data text-sm font-medium text-ink-subtle tabular-nums">
+                    {e + 1}
+                  </span>
+                  <fieldset className="min-w-0 flex-1 space-y-3">
+                    <legend className="font-medium [overflow-wrap:anywhere]">
+                      {library.find((x) => x.slug === entry.exerciseSlug)?.name ??
+                        entry.exerciseSlug}
+                    </legend>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="Sets">
+                        <Input
+                          type="number"
+                          min={1}
+                          max={20}
+                          value={entry.sets}
+                          onChange={(event) =>
+                            exerciseChange(d, e, { sets: Number(event.target.value) })
+                          }
+                        />
+                      </Field>
+                      <Field label="Count each set in">
+                        <Select
+                          value={entry.reps ? "reps" : entry.duration ? "duration" : "distance"}
+                          onChange={(event) => {
+                            const measure = event.target.value;
+                            exerciseChange(d, e, {
+                              reps: measure === "reps" ? [NaN, NaN] : undefined,
+                              duration: measure === "duration" ? [NaN, NaN] : undefined,
+                              distance: measure === "distance" ? [NaN, NaN] : undefined,
+                            });
+                          }}
+                        >
+                          <option value="reps">Reps</option>
+                          <option value="duration">Seconds</option>
+                          <option value="distance">Metres</option>
+                        </Select>
+                      </Field>
+                      {(
+                        [
+                          entry.reps ? "reps" : entry.duration ? "duration" : "distance",
+                          "rir",
+                          "rest",
+                        ] as const
+                      )
+                        .filter((key) => key !== "rir" || entry.rir !== null)
+                        .map((key) => (
+                          <RangeFields
+                            key={key}
+                            label={
+                              key === "rir"
+                                ? "RIR"
+                                : key === "rest"
+                                  ? "Rest seconds"
+                                  : key === "reps"
+                                    ? "Reps"
+                                    : key === "duration"
+                                      ? "Seconds"
+                                      : "Metres"
+                            }
+                            value={entry[key as "reps"] ?? [NaN, NaN]}
+                            onChange={(range) => exerciseChange(d, e, { [key]: range })}
+                          />
+                        ))}
+                    </div>
+                    <label className="flex min-h-11 items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        className="size-5 shrink-0"
+                        checked={entry.rir !== null}
+                        onChange={(event) =>
+                          exerciseChange(d, e, { rir: event.target.checked ? [NaN, NaN] : null })
+                        }
+                      />
+                      Set a reps-in-reserve target (optional)
+                    </label>
+                    <label className="flex min-h-11 items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        className="size-5 shrink-0"
+                        checked={entry.perSide ?? false}
+                        onChange={(event) =>
+                          exerciseChange(d, e, { perSide: event.target.checked })
+                        }
+                      />
+                      Perform each set on both sides
+                    </label>
+                    <Disclosure
+                      summary="Superset, load guidance and notes"
+                      variant="inline"
+                      defaultOpen={Boolean(
+                        entry.supersetGroup || entry.targetLoadNote || entry.notes,
+                      )}
+                    >
+                      <div className="space-y-3">
+                        <Field label="Superset group (optional)">
+                          <Input
+                            maxLength={60}
+                            value={entry.supersetGroup ?? ""}
+                            placeholder="Give paired exercises the same label"
+                            onChange={(event) =>
+                              exerciseChange(d, e, {
+                                supersetGroup: event.target.value || undefined,
+                              })
+                            }
+                          />
+                        </Field>
+                        <Field label="Load / calibration guidance">
+                          <Textarea
+                            maxLength={300}
+                            value={entry.targetLoadNote ?? ""}
+                            onChange={(event) =>
+                              exerciseChange(d, e, { targetLoadNote: event.target.value })
+                            }
+                          />
+                        </Field>
+                        <Field label="Exercise notes">
+                          <Textarea
+                            maxLength={500}
+                            value={entry.notes ?? ""}
+                            onChange={(event) =>
+                              exerciseChange(d, e, { notes: event.target.value })
+                            }
+                          />
+                        </Field>
+                      </div>
+                    </Disclosure>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={e === 0}
+                        onClick={() => {
+                          const entries = [...day.exercises];
+                          [entries[e - 1], entries[e]] = [entries[e]!, entries[e - 1]!];
+                          dayChange(d, { exercises: entries });
+                        }}
+                      >
+                        Move up
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          const entries = day.exercises.filter((_, i) => i !== e);
+                          dayChange(d, { exercises: entries, includesLifting: entries.length > 0 });
+                        }}
+                      >
+                        Remove exercise
+                      </Button>
+                    </div>
+                  </fieldset>
+                </li>
+              ))}
+            </ol>
+          )}
           <AddExercise
             library={library}
             onAdd={(entry) =>
               dayChange(d, { includesLifting: true, exercises: [...day.exercises, entry] })
             }
           />
-          <label className="flex min-h-11 items-center gap-2">
+          <label className="flex min-h-11 items-center gap-2 text-sm">
             <input
               type="checkbox"
-              className="size-5"
+              className="size-5 shrink-0"
               checked={day.includesRun}
               onChange={(e) => {
                 const days = plan.days.map((entry, i) =>
@@ -412,14 +458,15 @@ export function ProgramBuilder({
             Include a run
           </label>
           {day.includesRun && (
-            <details open>
-              <summary className="min-h-11 cursor-pointer py-2">Running targets by week</summary>
+            <Disclosure summary="Running targets by week" variant="inline" defaultOpen>
               <div className="space-y-3">
                 {plan.runs
                   .filter((r) => r.dayOfWeek === day.dayOfWeek)
                   .map((run) => (
-                    <fieldset key={run.weekIndex} className="space-y-3 border-t border-line pt-3">
-                      <legend>Week {run.weekIndex}</legend>
+                    <fieldset key={run.weekIndex} className="space-y-3 pt-3 rule-top">
+                      <legend className="font-data text-sm font-semibold tabular-nums">
+                        Week {run.weekIndex}
+                      </legend>
                       <div className="grid grid-cols-2 gap-3">
                         <RangeFields
                           label="Kilometres"
@@ -475,7 +522,7 @@ export function ProgramBuilder({
                     </fieldset>
                   ))}
               </div>
-            </details>
+            </Disclosure>
           )}
           {!day.includesLifting && !day.includesRun && (
             <p className="text-sm text-ink-muted">This is a rest / mobility day.</p>
@@ -499,6 +546,7 @@ export function ProgramBuilder({
       ))}
       <Button
         variant="secondary"
+        className="flex w-full"
         disabled={plan.days.length >= 31}
         onClick={() =>
           change({
@@ -524,7 +572,7 @@ export function ProgramBuilder({
         Add a day
       </Button>
       {routines.length > 0 && (
-        <Card>
+        <Card className="space-y-4">
           <Field label="Use a saved routine as a programme day">
             <Select value={routineId} onChange={(event) => setRoutineId(event.target.value)}>
               <option value="">Choose a routine</option>
@@ -537,6 +585,7 @@ export function ProgramBuilder({
           </Field>
           <Button
             variant="secondary"
+            className="flex w-full"
             disabled={!routineId || plan.days.length >= 31}
             onClick={() => {
               const routine = routines.find((entry) => entry.id === routineId)!;
@@ -579,11 +628,11 @@ export function ProgramBuilder({
           {message}
         </p>
       )}
-      <div className="flex flex-wrap gap-3">
-        <Button variant="secondary" disabled={busy} onClick={() => save(false)}>
+      <div className="sticky-actions -mx-[var(--page-gutter)] flex items-center gap-3 px-[var(--page-gutter)]">
+        <Button size="lg" variant="secondary" disabled={busy} onClick={() => save(false)}>
           Save draft
         </Button>
-        <Button disabled={busy} onClick={() => save(true)}>
+        <Button size="lg" className="min-w-0 flex-1" disabled={busy} onClick={() => save(true)}>
           {busy ? "Saving…" : "Preview programme"}
         </Button>
       </div>
@@ -655,7 +704,7 @@ function AddExercise({
   const [query, setQuery] = useState(""),
     [slug, setSlug] = useState("");
   return (
-    <div className="space-y-3 border-t border-line pt-3">
+    <div className="space-y-3 pt-4 rule-top">
       <Field label="Find an exercise">
         <Input
           type="search"
@@ -680,6 +729,7 @@ function AddExercise({
       </Field>
       <Button
         variant="secondary"
+        className="flex w-full"
         disabled={!slug}
         onClick={() => {
           const e = library.find((entry) => entry.slug === slug)!;

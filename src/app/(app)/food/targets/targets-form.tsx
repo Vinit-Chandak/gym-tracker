@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useState } from "react";
 
 import Link from "@/components/ui/app-link";
-import { buttonClassName } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { FormError, SubmitButton } from "@/components/ui/form";
 import { Field, Input } from "@/components/ui/input";
 import {
@@ -35,13 +35,13 @@ function numberIn(value: string, bounds: { min: number; max: number }): number |
 }
 
 /**
- * The day's target, protein per kilogram and fat's share of the target (ADR 0035). Carbohydrate
- * is whatever energy is left, so the three always add up, and the grams they come to are worked
- * out as they are typed, by the same rule the screens use.
+ * The day's target, protein per kilogram and fat's share of the target (ADR 0035), as ruled
+ * rows of one block. Carbohydrate is whatever energy is left, so the three always add up, and
+ * the grams they come to are worked out as they are typed, by the same rule the screens use.
  *
  * The profile's training goal chooses the split a first set of targets starts from: protein and
  * fat follow it as the target is typed, until either is changed. Afterwards the split is offered,
- * in one button, only while the targets differ from it.
+ * as one word in pen, only while the targets differ from it.
  */
 export function TargetsForm({
   targets,
@@ -119,32 +119,40 @@ export function TargetsForm({
   return (
     // After a failed save the form goes on showing what was typed, rather than being reset.
     <form action={formAction} onReset={(event) => event.preventDefault()} className="space-y-4">
-      <div className="box space-y-4 panel-padding">
-        <Field label="Daily target, kcal" error={state.fieldErrors?.dailyKcal}>
-          <Input
-            name="dailyKcal"
-            inputMode="numeric"
-            autoComplete="off"
-            placeholder="2400"
-            value={dailyKcal}
-            onChange={(event) =>
-              setDailyKcal(
-                sanitizeNumberEntry(event.target.value, "numeric", NUTRITION_LIMITS.dailyKcal.max),
-              )
-            }
-          />
-        </Field>
+      <div className="box ruled-list">
+        <div className="py-4">
+          <Field label="Daily target, kcal" error={state.fieldErrors?.dailyKcal}>
+            <Input
+              name="dailyKcal"
+              inputMode="numeric"
+              autoComplete="off"
+              placeholder="2400"
+              value={dailyKcal}
+              onChange={(event) =>
+                setDailyKcal(
+                  sanitizeNumberEntry(
+                    event.target.value,
+                    "numeric",
+                    NUTRITION_LIMITS.dailyKcal.max,
+                  ),
+                )
+              }
+            />
+          </Field>
+        </div>
 
-        <div className="min-w-0 space-y-1.5">
+        {/* The goal is the profile's; here it only says which split the targets start from. */}
+        <div className="min-w-0 space-y-1.5 py-4">
           <p className="text-sm font-medium text-ink-muted">Goal</p>
-          <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex min-h-11 flex-wrap items-center justify-between gap-2">
             <p className={goal ? undefined : "text-ink-muted"}>
               {goal ? TRAINING_GOAL_LABELS[goal] : "Not set"}
             </p>
             {offerSplit && fromSplit && (
-              <button
-                type="button"
-                className={buttonClassName("secondary", "sm", "tabular-nums")}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="-mr-3 tabular-nums"
                 onClick={() => {
                   if (fromSplit.proteinPerKg !== null) {
                     setProteinPerKg(String(fromSplit.proteinPerKg));
@@ -153,73 +161,86 @@ export function TargetsForm({
                 }}
               >
                 Use {formatSplit(split)}
-              </button>
+              </Button>
             )}
           </div>
         </div>
 
-        <Field
-          label="Protein, g per kg of body weight"
-          error={state.fieldErrors?.proteinPerKg}
-          hint={
-            weighed && perKg !== null
-              ? `${formatFoodAmount((Math.round(perKg * 10) / 10) * bodyWeightKg)} g at ${formatBodyWeight(bodyWeightKg, unit)}`
-              : undefined
-          }
-        >
-          <Input
-            name="proteinPerKg"
-            inputMode="decimal"
-            autoComplete="off"
-            value={shownProtein}
-            onChange={(event) => {
-              stopFollowing();
-              setProteinPerKg(
-                sanitizeNumberEntry(
-                  event.target.value,
-                  "decimal",
-                  NUTRITION_LIMITS.proteinPerKg.max,
-                ),
-              );
-            }}
-          />
-        </Field>
+        <div className="space-y-3 py-4">
+          <Field
+            label="Protein, g per kg of body weight"
+            error={state.fieldErrors?.proteinPerKg}
+            hint={
+              weighed && perKg !== null
+                ? `${formatFoodAmount((Math.round(perKg * 10) / 10) * bodyWeightKg)} g at ${formatBodyWeight(bodyWeightKg, unit)}`
+                : undefined
+            }
+          >
+            <Input
+              name="proteinPerKg"
+              inputMode="decimal"
+              autoComplete="off"
+              value={shownProtein}
+              onChange={(event) => {
+                stopFollowing();
+                setProteinPerKg(
+                  sanitizeNumberEntry(
+                    event.target.value,
+                    "decimal",
+                    NUTRITION_LIMITS.proteinPerKg.max,
+                  ),
+                );
+              }}
+            />
+          </Field>
+          {!weighed && (
+            <p className="text-sm text-ink-muted">
+              There is no body weight on your profile yet, so protein is{" "}
+              {Math.round(split.protein * 100)}% of the target until there is.{" "}
+              <Link
+                href="/profile/edit"
+                className="font-medium text-pen underline underline-offset-2"
+              >
+                Add it in your profile
+              </Link>
+            </p>
+          )}
+        </div>
 
-        <Field label="Fat, % of daily target" error={state.fieldErrors?.fatPercent}>
-          <Input
-            name="fatPercent"
-            inputMode="numeric"
-            autoComplete="off"
-            value={shownFat}
-            onChange={(event) => {
-              stopFollowing();
-              setFatPercent(
-                sanitizeNumberEntry(event.target.value, "numeric", NUTRITION_LIMITS.fatPercent.max),
-              );
-            }}
-          />
-        </Field>
+        <div className="py-4">
+          <Field label="Fat, % of daily target" error={state.fieldErrors?.fatPercent}>
+            <Input
+              name="fatPercent"
+              inputMode="numeric"
+              autoComplete="off"
+              value={shownFat}
+              onChange={(event) => {
+                stopFollowing();
+                setFatPercent(
+                  sanitizeNumberEntry(
+                    event.target.value,
+                    "numeric",
+                    NUTRITION_LIMITS.fatPercent.max,
+                  ),
+                );
+              }}
+            />
+          </Field>
+        </div>
 
-        {!weighed && (
-          <p className="text-sm text-ink-muted">
-            There is no body weight on your profile yet, so protein is{" "}
-            {Math.round(split.protein * 100)}% of the target until there is.{" "}
-            <Link href="/profile/edit" className="text-accent underline underline-offset-2">
-              Add it in your profile
-            </Link>
-          </p>
-        )}
         {preview && (
-          <p className="text-sm tabular-nums">
-            Carbs {formatFoodAmount(preview.carbsG)} g · Fat {formatFoodAmount(preview.fatG)} g ·
-            Protein {formatFoodAmount(preview.proteinG)} g
-          </p>
-        )}
-        {preview?.overBudget && (
-          <p className="text-sm text-warning">
-            Protein and fat alone come to more than {formatFoodAmount(preview.kcal)} kcal, so there
-            is nothing left for carbs.
-          </p>
+          <div className="space-y-1 py-4">
+            <p className="text-xs text-ink-muted">Per day</p>
+            <p className="font-data font-semibold tabular-nums">
+              {`Carbs ${formatFoodAmount(preview.carbsG)} g · Fat ${formatFoodAmount(preview.fatG)} g · Protein ${formatFoodAmount(preview.proteinG)} g`}
+            </p>
+            {preview.overBudget && (
+              <p className="text-sm text-warning">
+                Protein and fat alone come to more than {formatFoodAmount(preview.kcal)} kcal, so
+                there is nothing left for carbs.
+              </p>
+            )}
+          </div>
         )}
       </div>
       <FormError message={state.formError} />

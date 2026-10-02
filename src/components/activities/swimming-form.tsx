@@ -224,14 +224,16 @@ export function SwimmingForm({
                   />
                 </Field>
                 <Field group label="Unit">
-                  <SegmentedControl
-                    name="poolLengthUnit"
-                    aria-label="Pool unit"
-                    options={POOL_UNITS}
-                    value={poolUnit}
-                    onChange={setPoolUnit}
-                    columns={2}
-                  />
+                  <div className="w-28">
+                    <SegmentedControl
+                      name="poolLengthUnit"
+                      aria-label="Pool unit"
+                      options={POOL_UNITS}
+                      value={poolUnit}
+                      onChange={setPoolUnit}
+                      columns={2}
+                    />
+                  </div>
                 </Field>
               </div>
               <Field
@@ -338,11 +340,7 @@ export function SwimmingForm({
             </div>
           </Field>
           {pace !== null && (
-            <Readout
-              label="Pace"
-              value={formatPaceSeconds(pace, 1)}
-              unit={`per 100 ${paceUnit}`}
-            />
+            <Readout label="Pace" value={formatPaceSeconds(pace, 1)} unit={`per 100 ${paceUnit}`} />
           )}
           <Field label="Stroke" error={state.fieldErrors?.stroke}>
             <Select name="stroke" defaultValue={values("stroke") || "unspecified"}>

@@ -7,7 +7,7 @@ as a PNG under this folder with the name below; the README links them from here.
 
 | File                       | Screen                             | State to capture                                                         |
 | -------------------------- | ---------------------------------- | ------------------------------------------------------------------------ |
-| `profile.png`              | Profile tab                        | Header card with counts, Friends row with a request badge                |
+| `profile.png`              | Profile tab                        | Identity block with counts, Friends row with a request badge             |
 | `friends.png`              | Profile › Friends                  | The four tiles, People with a request badge, recent activity             |
 | `friends-empty.png`        | Profile › Friends, new account     | Only the four tiles                                                      |
 | `people.png`               | Profile › Friends › People         | A request, then Following / Followers                                    |
@@ -18,9 +18,10 @@ as a PNG under this folder with the name below; the README links them from here.
 | `compare-running.png`      | `/u/username/compare?sport=run`    | The five running rows                                                    |
 | `compare-exercise.png`     | `/u/username/compare/[exerciseId]` | Stronger badge, bests with dates, the two-line trend, friends' board     |
 | `leaderboard.png`          | Profile › Friends › Leaderboard    | Activity mode, "You" highlighted, a "—" row at the end                   |
-| `leaderboard-exercise.png` | Leaderboard, Exercise mode         | Exercise and metric selects, dates under the values                      |
+| `leaderboard-exercise.png` | Leaderboard, Exercise mode         | Exercise select, the metric cells, dates under the values                |
 | `leaderboard-empty.png`    | Leaderboard, nobody followed       | The empty state with the search field focused                            |
 | `privacy.png`              | Profile › Privacy                  | The four switches and the two lists above them                           |
-| `records.png`              | A finished workout                 | The Records card                                                         |
+| `records.png`              | A finished workout                 | The Records block                                                        |
 
-Not yet taken: the list above is the set to capture. Delete this line once they are in.
+Not yet taken: the list above is the set to capture (`npm run screenshot` takes phone-canvas
+captures of the running app in both palettes). Delete this line once they are in.

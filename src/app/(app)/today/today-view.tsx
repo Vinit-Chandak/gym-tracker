@@ -351,7 +351,7 @@ export function TodayView({
           {!plan ? (
             <section className="box space-y-4 py-4">
               <div className="flex items-start gap-3">
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-control bg-highlight text-on-highlight">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-control border border-line-strong bg-surface text-ink">
                   <ClipboardList aria-hidden />
                 </span>
                 <div className="min-w-0">

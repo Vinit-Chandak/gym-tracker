@@ -34,8 +34,10 @@ and its calm-journal opposite (cream paper, serif, terracotta boxes).
 OWN-WORLD: A sheet, not a stack of cards: paper-white in daylight, graphite-black at the gym, both with a
 faint construction grid showing through. Ink text in Barlow (semi-condensed for dense data), tabular
 numerals everywhere a number lives. One highlighter, fluorescent yellow with black ink on it, marks
-today, the selected thing and the one primary action; pen blue is the coach's own hand and every
-interactive word; pencil grey is anything proposed and not yet confirmed. Hairline rules, 4 px corners,
+today, the current step and the one primary action, and nothing else: a chosen cell in a segmented
+control is inked in, and a marked row or tile in a picker takes the highlighter's soft tint with a
+pen check; pen blue is the coach's own hand and every interactive word; pencil grey is anything
+proposed and not yet confirmed. Hairline rules, 4 px corners,
 no card inside a card, no decorative shadow; only a sheet that lifts (a bottom sheet) casts one.
 Icons in one stroke weight (Phosphor regular). The signature data graphic is the periodisation chart:
 stepped bars of weekly work with the cycle blocks banded behind them.

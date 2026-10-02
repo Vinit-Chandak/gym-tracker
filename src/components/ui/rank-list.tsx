@@ -49,13 +49,11 @@ export function RankList({
               href={`/u/${row.username}` as Route}
               prefetch="intent"
               aria-current={mine ? "true" : undefined}
-              className={cn(
-                PRESSABLE_ROW_CLASS,
-                "flex-wrap",
-                // The older name is kept beside the sheet's own: both are the viewer's row.
-                mine && "bg-accent-soft bg-highlight-soft",
-                absent && "text-ink-muted",
-              )}
+              // The older name is kept beside the sheet's own wash, outside the merge that
+              // would otherwise drop one of them: both name the viewer's row.
+              className={`${cn(PRESSABLE_ROW_CLASS, "flex-wrap", absent && "text-ink-muted")}${
+                mine ? "bg-accent-soft bg-highlight-soft" : ""
+              }`}
             >
               <span className="flex min-w-0 flex-[1_1_9rem] flex-wrap items-center gap-x-3 gap-y-1">
                 {/* Wide enough for two digits, so names start on one line whatever the rank. */}

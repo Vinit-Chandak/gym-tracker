@@ -22,7 +22,7 @@ export function CompareHeader({
   stronger?: Side | null;
 }) {
   return (
-    <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-3 py-4 rule-top rule-bottom">
+    <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-3 py-4 rule-bottom rule-top">
       <Person person={a} series="var(--color-series-1)" stronger={stronger === "a"} />
       <span
         className="self-center font-data text-lg font-semibold text-ink-subtle tabular-nums"
@@ -48,13 +48,14 @@ function Person({
     <div className="flex min-w-0 flex-col items-center gap-2 text-center">
       <Avatar username={person.username} displayName={person.displayName} size="compare" />
       <p className="max-w-full min-w-0">
-        <span className="flex items-center justify-center gap-1.5 font-medium [overflow-wrap:anywhere]">
+        <span className="block font-medium [overflow-wrap:anywhere]">
+          {/* Inline with the first word, so a name that wraps keeps its dot on its first line. */}
           <span
-            className="inline-block size-2 shrink-0 rounded-full"
+            className="mr-1.5 inline-block size-2 rounded-full align-middle"
             style={{ background: series }}
             aria-hidden
           />
-          <span className="min-w-0">{person.displayName || person.username}</span>
+          {person.displayName || person.username}
         </span>
         <span className="block text-sm [overflow-wrap:anywhere] text-ink-muted">
           @{person.username}

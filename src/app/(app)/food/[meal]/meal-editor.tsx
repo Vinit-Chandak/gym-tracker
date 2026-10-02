@@ -82,6 +82,7 @@ export function MealEditor({
   );
   const [pending, startTransition] = useTransition();
   const total = addUp(entries.map(eaten));
+  const macros = formatMacros(total);
   const starred =
     entries.length > 0
       ? (screen.savedMeals.find((saved) => sameFoods(entries, saved.items)) ?? null)
@@ -143,36 +144,46 @@ export function MealEditor({
 
   return (
     <>
+      {/* The meal itself: what it comes to at the head of the block, then what is in it. */}
       {entries.length > 0 && (
-        <div ref={top} className="scroll-mt-20 space-y-3">
-          <section aria-label={`${label} total`} className="box panel-padding">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-2xl font-medium tabular-nums">
-                  {formatKcal(total.kcal)}
-                  <span className="text-sm font-normal text-ink-muted"> kcal</span>
+        <div ref={top} className="box scroll-mt-20 pt-4">
+          <section
+            aria-label={`${label} total`}
+            className="flex flex-wrap items-start justify-between gap-3"
+          >
+            <div className="min-w-0">
+              {/* The spaces are for a screen reader, which reads the line as one string; beside
+                  flex items they take no room on the screen. */}
+              <p className="flex flex-wrap items-baseline gap-x-1.5">
+                <span className="measure text-2xl">{formatKcal(total.kcal)}</span>{" "}
+                <span className="font-data text-sm text-ink-muted">kcal</span>
+              </p>
+              {macros && (
+                <p className="mt-1 font-data text-sm text-ink-muted tabular-nums">{macros}</p>
+              )}
+              {starred && (
+                <p className="mt-1 text-xs [overflow-wrap:anywhere] text-ink-muted">
+                  Saved as {starred.name}
                 </p>
-                <p className="text-sm text-ink-muted tabular-nums">{formatMacros(total)}</p>
-                {starred && (
-                  <p className="mt-1 text-xs [overflow-wrap:anywhere] text-ink-muted">
-                    Saved as {starred.name}
-                  </p>
-                )}
-              </div>
-              <Button
-                variant="secondary"
-                size="sm"
-                aria-pressed={starred !== null}
-                disabled={pending}
-                onClick={() => (starred ? unstar(starred) : open({ kind: "star" }))}
-                className="shrink-0 aria-pressed:border-accent aria-pressed:bg-accent-soft"
-              >
-                <Star className={starred ? "text-accent" : "text-ink-subtle"} aria-hidden />
-                Star
-              </Button>
+              )}
             </div>
+            {/* Starred is a chosen state, so the pressed button takes the highlighter. */}
+            <Button
+              variant="secondary"
+              size="sm"
+              aria-pressed={starred !== null}
+              disabled={pending}
+              onClick={() => (starred ? unstar(starred) : open({ kind: "star" }))}
+              className="shrink-0 aria-pressed:border-highlight-strong aria-pressed:bg-highlight aria-pressed:text-on-highlight"
+            >
+              <Star className={starred ? undefined : "text-ink-subtle"} aria-hidden />
+              Star
+            </Button>
           </section>
-          <ul className="box-rows" aria-label={`In ${label.toLowerCase()}`}>
+          <ul
+            className="mt-4 border-t border-line ruled-list"
+            aria-label={`In ${label.toLowerCase()}`}
+          >
             {entries.map((entry) => (
               <li key={entry.id}>
                 <SwipeRow
@@ -191,11 +202,11 @@ export function MealEditor({
                       <span className="block font-medium [overflow-wrap:anywhere]">
                         {entry.name}
                       </span>{" "}
-                      <span className="block text-sm text-ink-muted tabular-nums">
+                      <span className="block font-data text-sm text-ink-muted tabular-nums">
                         {formatPortion(entry.amount, entry.unit)}
                       </span>
                     </span>{" "}
-                    <span className="ml-auto max-w-full tabular-nums">
+                    <span className="ml-auto max-w-full font-data font-semibold tabular-nums">
                       {formatKcal(eaten(entry).kcal)} kcal
                     </span>
                   </button>
@@ -206,11 +217,12 @@ export function MealEditor({
         </div>
       )}
       {error && (
-        <p role="alert" className="px-1 text-sm text-danger">
+        <p role="alert" className="text-sm text-danger">
           {error}
         </p>
       )}
 
+      {/* Everything that can go into the meal: the search as a cell, then one ruled list. */}
       <div className="space-y-3">
         <div className="relative">
           <Search
@@ -223,7 +235,7 @@ export function MealEditor({
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search your foods"
             aria-label="Search your foods and saved meals"
-            className="pl-9"
+            className="pl-10"
             autoCapitalize="none"
             autoCorrect="off"
             enterKeyHint="search"
@@ -237,9 +249,9 @@ export function MealEditor({
               onClick={() => open({ kind: "quick", name: query.trim() })}
               className={PRESSABLE_ROW_CLASS}
             >
-              <QuickAdd className="shrink-0 text-accent" aria-hidden />
+              <QuickAdd className="shrink-0 text-pen" aria-hidden />
               <span className="min-w-0 flex-1">
-                <span className="block font-medium [overflow-wrap:anywhere] text-accent">
+                <span className="block font-medium [overflow-wrap:anywhere] text-pen">
                   {query.trim() ? `Quick add “${query.trim()}”` : "Quick add"}
                 </span>{" "}
                 <span className="block text-sm text-ink-muted">
@@ -256,7 +268,7 @@ export function MealEditor({
                 className={cn(PRESSABLE_ROW_CLASS, "flex-wrap")}
               >
                 <span className="flex min-w-0 flex-[1_1_10rem] flex-wrap items-center gap-3">
-                  <Star className="shrink-0 text-accent" aria-hidden />
+                  <Star className="shrink-0 text-pen" aria-hidden />
                   <span className="min-w-0 flex-[1_1_8rem]">
                     <span className="block font-medium [overflow-wrap:anywhere]">{saved.name}</span>{" "}
                     <span className="block text-sm [overflow-wrap:anywhere] text-ink-muted">
@@ -264,7 +276,7 @@ export function MealEditor({
                     </span>
                   </span>
                 </span>{" "}
-                <span className="ml-auto max-w-full text-sm tabular-nums">
+                <span className="ml-auto max-w-full font-data text-sm font-semibold tabular-nums">
                   {formatKcal(addUp(saved.items.map(eaten)).kcal)} kcal
                 </span>
               </button>
@@ -279,11 +291,11 @@ export function MealEditor({
               >
                 <span className="min-w-0 flex-1">
                   <span className="block font-medium [overflow-wrap:anywhere]">{food.name}</span>{" "}
-                  <span className="block text-sm text-ink-muted tabular-nums">
+                  <span className="block font-data text-sm text-ink-muted tabular-nums">
                     {formatPortion(food.portionAmount, food.unit)} · {formatKcal(food.kcal)} kcal
                   </span>
                 </span>
-                <Plus className="shrink-0 text-accent" aria-hidden />
+                <Plus className="shrink-0 text-pen" aria-hidden />
               </button>
             </li>
           ))}
@@ -292,7 +304,7 @@ export function MealEditor({
               <button
                 type="button"
                 onClick={() => open({ kind: "create", name: query.trim() })}
-                className={cn(PRESSABLE_ROW_CLASS, "font-medium text-accent")}
+                className={cn(PRESSABLE_ROW_CLASS, "font-medium text-pen")}
               >
                 <Plus className="shrink-0" aria-hidden />
                 <span className="min-w-0 [overflow-wrap:anywhere]">

@@ -50,9 +50,7 @@ export function OccurrenceSettled({ occurrence }: { occurrence: ScheduledOccurre
           icon={CalendarDays}
           title={settled.title}
           description={settled.description}
-          action={
-            <LinkButton href={settled.href}>{settled.label}</LinkButton>
-          }
+          action={<LinkButton href={settled.href}>{settled.label}</LinkButton>}
         />
       </PageContent>
     </>

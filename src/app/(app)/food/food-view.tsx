@@ -6,8 +6,8 @@ import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import Link from "@/components/ui/app-link";
 import { buttonClassName } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { ChevronRight, Plus } from "@/components/ui/icons";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ChevronRight, Plus, Target } from "@/components/ui/icons";
 import { LinkRow, List, PRESSABLE_ROW_CLASS } from "@/components/ui/link-row";
 import { Section } from "@/components/ui/section";
 import { stripRange, type FoodDayTotal } from "@/domain/food-days";
@@ -68,7 +68,15 @@ function libraryMeta({ foods, meals }: LibraryCount): string | undefined {
   return parts.length > 0 ? parts.join(" · ") : undefined;
 }
 
-/** One meal's row: its name, what went into it, and what that came to. */
+/** "Build muscle · 55 / 25 / 20": the goal, and the split a first set of targets starts from. */
+function splitLine(goal: TrainingGoal | null): string {
+  return `${goal ? `${TRAINING_GOAL_LABELS[goal]} · ` : ""}${formatSplit(splitFor(goal))}`;
+}
+
+/**
+ * One meal's row: its name, what went into it under it, and what that came to in the data voice
+ * at the right, or the pen's plus while there is nothing in it yet.
+ */
 function MealRow({ meal, entries, href }: { meal: Meal; entries: EntryRecord[]; href: Route }) {
   const foods = [...new Set(entries.map((entry) => entry.name))].join(", ");
   return (
@@ -85,24 +93,25 @@ function MealRow({ meal, entries, href }: { meal: Meal; entries: EntryRecord[]; 
         )}
       </span>{" "}
       {entries.length > 0 ? (
-        <span className="ml-auto flex max-w-full min-w-0 items-center gap-3">
-          <span className="min-w-0 tabular-nums">
+        <span className="ml-auto flex max-w-full min-w-0 items-center gap-2">
+          <span className="min-w-0 font-data font-semibold tabular-nums">
             {formatKcal(addUp(entries.map(eaten)).kcal)} kcal
           </span>
           <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />
         </span>
       ) : (
-        <Plus className="ml-auto shrink-0 text-accent" aria-hidden />
+        <Plus className="ml-auto shrink-0 text-pen" aria-hidden />
       )}
     </Link>
   );
 }
 
 /**
- * The Food screen (ADRs 0032 to 0037): the days under the header, then the day on screen against
- * its targets, then its seven meals in the order they are eaten, each opening a page to add to it,
- * then My foods and the targets, each a screen of its own. Until there is a target, asking for one
- * is what the screen opens with. A day before today reads and changes exactly as today does.
+ * The Food screen (ADRs 0032 to 0037) as one sheet: the days under the header as a strip of
+ * cells, then the day on screen against its targets in one measure, then its seven meals in the
+ * order they are eaten, each opening a page to add to it, then My foods and the targets, each a
+ * screen of its own. Until there is a target, asking for one is what the screen opens with. A day
+ * before today reads and changes exactly as today does.
  */
 export function FoodView({
   timeZone,
@@ -139,26 +148,29 @@ export function FoodView({
       <PageContent>
         <FoodWeekStrip {...daysProps} />
         {target ? (
-          <Card>
+          <section className="box pt-4">
             <FoodSummary eaten={day.eaten} target={target} entries={day.entries} />
-          </Card>
+          </section>
         ) : (
-          <Card className="flex flex-wrap items-center justify-between gap-3 space-y-0">
-            <div className="min-w-0">
-              <h2 className="font-medium">No daily target yet</h2>
-              <p className="text-sm text-ink-muted tabular-nums">
-                {goal ? `${TRAINING_GOAL_LABELS[goal]} · ` : ""}
-                {formatSplit(splitFor(goal))}
-              </p>
-            </div>
-            <Link
-              href={links.targets}
-              prefetch="intent"
-              className={buttonClassName("primary", "sm")}
-            >
-              Set target
-            </Link>
-          </Card>
+          <section className="box">
+            <EmptyState
+              icon={Target}
+              title="No daily target yet"
+              description="Set one and every day on this sheet reads against it, starting from your goal's split."
+              action={
+                <div className="space-y-3">
+                  <p className="font-data text-sm text-ink-muted tabular-nums">{splitLine(goal)}</p>
+                  <Link
+                    href={links.targets}
+                    prefetch="intent"
+                    className={buttonClassName("primary", "lg", "min-w-[min(100%,14rem)]")}
+                  >
+                    Set target
+                  </Link>
+                </div>
+              }
+            />
+          </section>
         )}
 
         <Section title="Meals">

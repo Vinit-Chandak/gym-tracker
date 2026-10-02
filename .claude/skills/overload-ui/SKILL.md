@@ -16,8 +16,10 @@ when this file and `DESIGN.md` disagree, `DESIGN.md` wins and this file needs a 
 
 Ink is what is true and confirmed. Pencil (`ink-ghost`, the `pencil` utility) is what the coach
 proposes and the athlete has not yet confirmed. Pen (`pen`) is the coach's own hand and every
-word that can be tapped. The highlighter (`highlight`, black ink on it) marks today, the selected
-thing and the one primary action on a screen. Groups are ruled blocks (`box`, `box-rows`,
+word that can be tapped. The highlighter (`highlight`, black ink on it) marks today, the current
+step and the one primary action on a screen, and nothing else: a chosen cell in a segmented
+control is inked in (`bg-ink text-canvas`), and a marked row or tile in a picker or multi-select
+takes the soft tint (`highlight-soft`) with a pen check. Groups are ruled blocks (`box`, `box-rows`,
 `ruled-list`), never boxes in boxes; the one opaque container is `panel`, for a thing that must
 stand off the page. Numbers live in the data voice (`font-data`, `measure`, tabular). The
 daylight and graphite sheets are the same world; everything is right in both or it is not done.
@@ -69,7 +71,7 @@ daylight and graphite sheets are the same world; everything is right in both or 
 2. Run the app against the seeded audit database (`docs/local-dev.md`): `npm run audit:setup`
    once, then `npm run audit:auth` and `npm run audit:dev`.
 3. Screenshot both palettes at phone size: `node scripts/dev/screenshot.mjs vinit both <prefix>
-   <route>…` (`WIDE=1` for desktop, `FULL=1` for full page; `CHROMIUM=/path` when the installed
+<route>…` (`WIDE=1` for desktop, `FULL=1` for full page; `CHROMIUM=/path` when the installed
    Playwright browsers are older than the package). Look once, fix everything you see, confirm
    once; do not loop on screenshots.
 4. `sh .claude/skills/impeccable/scripts/impeccable detect --json <files>` for the mechanical

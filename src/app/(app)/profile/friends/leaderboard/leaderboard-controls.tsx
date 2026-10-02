@@ -73,7 +73,10 @@ export function LeaderboardControls({
   }));
 
   return (
-    <div className={cn("space-y-3", pending && "opacity-60 transition-opacity")} aria-busy={pending}>
+    <div
+      className={cn("space-y-3", pending && "opacity-60 transition-opacity")}
+      aria-busy={pending}
+    >
       {/* The mode and metric belong to the sport: the other sport starts on its own board. */}
       <SportSwitch value={sport} resets={["mode", "metric"]} />
       {sport === "workout" && (

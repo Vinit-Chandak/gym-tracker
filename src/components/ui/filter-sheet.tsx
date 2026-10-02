@@ -51,7 +51,7 @@ export function FilterSheet({
         <SlidersHorizontal className="shrink-0" aria-hidden />
         <span className="hidden min-[24rem]:inline">{label}</span>
         {count > 0 && (
-          <span className="inline-flex size-5 shrink-0 items-center justify-center font-data text-xs font-semibold tabular-nums highlight">
+          <span className="inline-flex size-5 shrink-0 items-center justify-center highlight font-data text-xs font-semibold tabular-nums">
             {count}
           </span>
         )}

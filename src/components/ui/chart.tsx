@@ -270,10 +270,7 @@ export function Chart({
   // apart by one pixel of the sheet rather than by a stroke drawn around each; the rest of
   // the slice is air either side.
   const slotCap = series.length === 1 ? 24 : 14;
-  const groupWidth = Math.max(
-    4,
-    Math.min(band - 6, series.length * slotCap + (series.length - 1)),
-  );
+  const groupWidth = Math.max(4, Math.min(band - 6, series.length * slotCap + (series.length - 1)));
   const slot = Math.max(2, (groupWidth - (series.length - 1)) / series.length);
   // The newest whole observation, for the figure printed over it. Only on a single run of
   // bars: over a pair, or over a line that already has a headline above it, it is clutter.

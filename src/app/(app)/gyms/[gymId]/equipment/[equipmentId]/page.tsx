@@ -5,8 +5,8 @@ import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
 import { SubmitButton } from "@/components/ui/form";
-import { Card } from "@/components/ui/card";
 import { InfoTip } from "@/components/ui/info-tip";
+import { Row } from "@/components/ui/link-row";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { setEquipmentActiveAction, updateEquipmentAction } from "@/server/actions/equipment";
@@ -53,16 +53,18 @@ export default async function EquipmentPage(
       <PageHeader title={equipment.name} backHref={`/gyms/${gymId}`} />
       <PageContent>
         {!equipment.isActive && (
-          <Card>
-            <div className="flex items-center justify-between gap-3">
-              <Badge tone="danger">Archived</Badge>
-              <form action={setEquipmentActiveAction.bind(null, gymId, equipment.id, true)}>
-                <SubmitButton variant="secondary" size="sm">
+          <section className="box">
+            <Row title={<Badge tone="danger">Archived</Badge>} subtitle={equipment.gymName}>
+              <form
+                className="ml-auto shrink-0"
+                action={setEquipmentActiveAction.bind(null, gymId, equipment.id, true)}
+              >
+                <SubmitButton variant="secondary" size="sm" className="w-auto">
                   Restore
                 </SubmitButton>
               </form>
-            </div>
-          </Card>
+            </Row>
+          </section>
         )}
         <EquipmentForm
           action={updateEquipmentAction.bind(null, equipment.id)}
@@ -84,22 +86,28 @@ export default async function EquipmentPage(
           submitLabel="Save changes"
         />
         {equipment.isActive && (
-          <Card>
-            <div className="flex items-center justify-between gap-3">
-              <p className="flex items-center gap-1 font-medium">
-                Archive machine
-                <InfoTip label="About archiving">
-                  Hides it from new sessions at {equipment.gymName}. Sets logged on it stay in
-                  history.
-                </InfoTip>
-              </p>
-              <form action={setEquipmentActiveAction.bind(null, gymId, equipment.id, false)}>
+          <section className="box">
+            <Row
+              title={
+                <>
+                  Archive machine
+                  <InfoTip label="About archiving">
+                    Hides it from new sessions at {equipment.gymName}. Sets logged on it stay in
+                    history.
+                  </InfoTip>
+                </>
+              }
+            >
+              <form
+                className="ml-auto shrink-0"
+                action={setEquipmentActiveAction.bind(null, gymId, equipment.id, false)}
+              >
                 <SubmitButton variant="danger" size="sm" className="w-auto">
                   Archive
                 </SubmitButton>
               </form>
-            </div>
-          </Card>
+            </Row>
+          </section>
         )}
       </PageContent>
     </>

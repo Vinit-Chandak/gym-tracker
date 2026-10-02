@@ -72,7 +72,9 @@ export function ProgramTemplatePicker({
                   className="sr-only"
                 />
                 <span className="min-w-0 flex-1 space-y-1">
-                  <span className="block font-medium [overflow-wrap:anywhere]">{template.name}</span>
+                  <span className="block font-medium [overflow-wrap:anywhere]">
+                    {template.name}
+                  </span>
                   <span className="block text-sm text-ink-muted">{template.summary}</span>
                   <ul className="space-y-0.5 pt-1">
                     {template.highlights.map((highlight) => (
@@ -86,7 +88,9 @@ export function ProgramTemplatePicker({
                 <span
                   className={cn(
                     "flex size-6 shrink-0 items-center justify-center rounded-control border",
-                    active ? "border-ink bg-ink text-canvas" : "border-line-strong text-transparent",
+                    active
+                      ? "border-ink bg-ink text-canvas"
+                      : "border-line-strong text-transparent",
                   )}
                   aria-hidden
                 >

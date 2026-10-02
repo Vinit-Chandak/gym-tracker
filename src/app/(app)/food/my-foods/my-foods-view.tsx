@@ -5,7 +5,9 @@ import { useOptimistic, useState, useTransition } from "react";
 
 import { FoodSheet } from "@/components/food/food-sheet";
 import Link from "@/components/ui/app-link";
-import { ChevronRight, Plus, Search, Star } from "@/components/ui/icons";
+import { Button, buttonClassName } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ChevronRight, Food, Search, Star } from "@/components/ui/icons";
 import { Input } from "@/components/ui/input";
 import { PRESSABLE_ROW_CLASS } from "@/components/ui/link-row";
 import { Section } from "@/components/ui/section";
@@ -17,16 +19,26 @@ import { cn } from "@/lib/utils";
 import { deleteFoodAction, deleteSavedMealAction } from "@/server/actions/nutrition";
 import type { FoodRecord, Library, SavedMealRecord } from "@/server/repositories/nutrition";
 
-/** Where the page's links lead: the app's own pages, or in the preview the previews of them. */
+/**
+ * Where the page's links lead: the app's own pages, or in the preview the previews of them. A
+ * saved meal's page is a pattern with its id in it, since a function cannot be handed to this
+ * client component from the preview's server page; a pattern without `{id}` opens the same
+ * page for every meal, which is what the preview wants.
+ */
 export type MyFoodsLinks = {
   newMeal: Route;
-  meal: (id: string) => Route;
+  meal: string;
 };
 
 const APP_LINKS: MyFoodsLinks = {
   newMeal: "/food/my-foods/meals/new",
-  meal: (id) => `/food/my-foods/meals/${id}` as Route,
+  meal: "/food/my-foods/meals/{id}",
 };
+
+/** A saved meal's own page. */
+function mealHref(links: MyFoodsLinks, id: string): Route {
+  return links.meal.replace("{id}", id) as Route;
+}
 
 /** "3 foods · 580 kcal": what a saved meal holds, in one line. */
 function contents(meal: SavedMealRecord): string {
@@ -37,8 +49,9 @@ function contents(meal: SavedMealRecord): string {
 
 /**
  * My foods (ADR 0035): every food and saved meal the account keeps, made, corrected and removed
- * here without logging anything. Meals come first, then foods, the most lately eaten first; a
- * meal opens a page of its own, a food its sheet. Swiping either aside offers Remove, which still
+ * here without logging anything. A new food is the screen's one highlighted action, a new meal
+ * the ruled one beside it. Meals come first, then foods, the most lately eaten first; a meal
+ * opens a page of its own, a food its sheet. Swiping either aside offers Remove, which still
  * takes a tap; a food's sheet can remove it too, and a meal's page can delete it.
  */
 export function MyFoodsView({
@@ -96,63 +109,76 @@ export function MyFoodsView({
     : meals;
   // A search that finds nothing names the food it was looking for.
   const newName = shownFoods.length === 0 && shownMeals.length === 0 ? query.trim() : "";
+  const hasLibrary = library.foods.length > 0 || library.savedMeals.length > 0;
   const view = sheet.view;
+
+  const newFood = (
+    <Button
+      size="lg"
+      onClick={() =>
+        setSheet((current) => ({
+          key: current.key + 1,
+          open: true,
+          view: { kind: "library", name: newName },
+        }))
+      }
+    >
+      {newName ? `New food “${newName}”` : "New food"}
+    </Button>
+  );
 
   return (
     <>
-      {(library.foods.length > 0 || library.savedMeals.length > 0) && (
-        <div className="relative">
-          <Search
-            className="absolute top-1/2 left-3 -translate-y-1/2 text-ink-subtle"
-            aria-hidden
-          />
-          <Input
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search your foods"
-            aria-label="Search your foods and meals"
-            className="pl-9"
-            autoCapitalize="none"
-            autoCorrect="off"
-            enterKeyHint="search"
-          />
+      {hasLibrary ? (
+        <div className="space-y-3">
+          <div className="relative">
+            <Search
+              className="absolute top-1/2 left-3 -translate-y-1/2 text-ink-subtle"
+              aria-hidden
+            />
+            <Input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search your foods"
+              aria-label="Search your foods and meals"
+              className="pl-10"
+              autoCapitalize="none"
+              autoCorrect="off"
+              enterKeyHint="search"
+            />
+          </div>
+          <div className="action-row">
+            {newFood}
+            <Link
+              href={links.newMeal}
+              prefetch="intent"
+              className={buttonClassName("secondary", "lg")}
+            >
+              New meal
+            </Link>
+          </div>
         </div>
+      ) : (
+        <section className="box">
+          <EmptyState
+            icon={Food}
+            title="Nothing in My foods yet"
+            description="Foods and meals kept here are one tap away in every meal of the day."
+            action={
+              <div className="flex flex-col items-center gap-2">
+                {newFood}
+                <Link href={links.newMeal} prefetch="intent" className={buttonClassName("ghost")}>
+                  New meal
+                </Link>
+              </div>
+            }
+          />
+        </section>
       )}
 
-      <ul className="box-rows">
-        <li>
-          <button
-            type="button"
-            onClick={() =>
-              setSheet((current) => ({
-                key: current.key + 1,
-                open: true,
-                view: { kind: "library", name: newName },
-              }))
-            }
-            className={cn(PRESSABLE_ROW_CLASS, "font-medium text-accent")}
-          >
-            <Plus className="shrink-0" aria-hidden />
-            <span className="min-w-0 [overflow-wrap:anywhere]">
-              {newName ? `New food “${newName}”` : "New food"}
-            </span>
-          </button>
-        </li>
-        <li>
-          <Link
-            href={links.newMeal}
-            prefetch="intent"
-            className={cn(PRESSABLE_ROW_CLASS, "font-medium text-accent")}
-          >
-            <Plus className="shrink-0" aria-hidden />
-            <span className="min-w-0">New meal</span>
-          </Link>
-        </li>
-      </ul>
-
       {error && (
-        <p role="alert" className="px-1 text-sm text-danger">
+        <p role="alert" className="text-sm text-danger">
           {error}
         </p>
       )}
@@ -168,19 +194,19 @@ export function MyFoodsView({
                   onAction={() => remove(meal, "meal")}
                 >
                   <Link
-                    href={links.meal(meal.id)}
+                    href={mealHref(links, meal.id)}
                     prefetch="intent"
                     className={cn(PRESSABLE_ROW_CLASS, "flex-wrap")}
                   >
                     {/* The spaces are for the link's name, which a screen reader reads as one
                         string; beside flex items they take no room on the screen. */}
                     <span className="flex min-w-0 flex-[1_1_10rem] flex-wrap items-center gap-3">
-                      <Star className="shrink-0 text-accent" aria-hidden />
+                      <Star className="shrink-0 text-pen" aria-hidden />
                       <span className="min-w-0 flex-[1_1_8rem]">
                         <span className="block font-medium [overflow-wrap:anywhere]">
                           {meal.name}
                         </span>{" "}
-                        <span className="block text-sm text-ink-muted tabular-nums">
+                        <span className="block font-data text-sm text-ink-muted tabular-nums">
                           {contents(meal)}
                         </span>
                       </span>
@@ -219,7 +245,7 @@ export function MyFoodsView({
                       <span className="block font-medium [overflow-wrap:anywhere]">
                         {food.name}
                       </span>{" "}
-                      <span className="block text-sm text-ink-muted tabular-nums">
+                      <span className="block font-data text-sm text-ink-muted tabular-nums">
                         {formatPortion(food.portionAmount, food.unit)} · {formatKcal(food.kcal)}{" "}
                         kcal
                       </span>

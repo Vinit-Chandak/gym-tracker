@@ -1,8 +1,7 @@
 import { NumberCell, type CellState } from "@/components/coaching/sheet-bits";
 import { PlannedExerciseList, planSummary } from "@/components/planned-exercises";
-import { hasRunGuidance, RunPlanDetails, runSummary } from "@/components/run-plan";
+import { runSummary } from "@/components/run-plan";
 import { Badge } from "@/components/ui/badge";
-import { DetailList } from "@/components/ui/detail-list";
 import { SLOT_STATUS_LABELS } from "@/lib/labels";
 import type { ProgramDayPlan, ScheduleDay } from "@/server/repositories/schedule";
 
@@ -20,6 +19,25 @@ function cost(plan: ProgramDayPlan): string {
       .join(" · ");
   if (plan.run) return runSummary(plan.run);
   return "Rest day";
+}
+
+/**
+ * The rest of what the day says — warm-up, effort, notes, and how to run its run — as short
+ * labelled lines that wrap, so a day's small print costs a few lines rather than a column.
+ */
+function DayDetails({ entries }: { entries: readonly (readonly [string, string | null])[] }) {
+  const shown = entries.filter(([, value]) => value);
+  if (shown.length === 0) return null;
+  return (
+    <dl className="mt-3 space-y-1 text-sm">
+      {shown.map(([label, value]) => (
+        <div key={label} className="flex min-w-0 gap-2">
+          <dt className="shrink-0 text-ink-muted">{label}</dt>
+          <dd className="min-w-0 [overflow-wrap:anywhere]">{value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
 }
 
 /** The cell's state follows the day's: the next one is under the highlighter, done is inked. */
@@ -45,16 +63,6 @@ export function CycleDay({ plan }: { plan: ProgramDayPlan }) {
       {SLOT_STATUS_LABELS[plan.status]}
     </Badge>
   ) : null;
-  const details = (
-    <DetailList
-      entries={[
-        ["Warm-up", plan.warmupName],
-        ["Effort", day.effortNote],
-        ["Notes", day.notes],
-      ]}
-    />
-  );
-  const guidance = plan.run && hasRunGuidance(plan.run);
 
   return (
     <article className="min-w-0 py-4" aria-label={`Day ${day.dayIndex}, ${day.name}`}>
@@ -76,12 +84,16 @@ export function CycleDay({ plan }: { plan: ProgramDayPlan }) {
           <PlannedExerciseList exercises={plan.exercises} />
         </div>
       )}
-      {(guidance || plan.warmupName || day.effortNote || day.notes) && (
-        <div className="mt-3 space-y-2.5">
-          {guidance && plan.run && <RunPlanDetails run={plan.run} />}
-          {details}
-        </div>
-      )}
+      <DayDetails
+        entries={[
+          ["Pace", plan.run?.paceNote ?? null],
+          ["Progression", plan.run?.progressionNote ?? null],
+          ["Stop if", plan.run?.stopRule ?? null],
+          ["Warm-up", plan.warmupName],
+          ["Effort", day.effortNote],
+          ["Notes", day.notes],
+        ]}
+      />
     </article>
   );
 }

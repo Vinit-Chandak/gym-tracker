@@ -41,8 +41,7 @@ export function Headline({
           }
         >
           {delta > 0 ? "+" : "−"}
-          {format(Math.abs(delta))} since{" "}
-          {known[0]!.date.slice(5).split("-").reverse().join("/")}
+          {format(Math.abs(delta))} since {known[0]!.date.slice(5).split("-").reverse().join("/")}
         </span>
       )}
     </p>

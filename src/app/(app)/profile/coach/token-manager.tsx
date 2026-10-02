@@ -100,7 +100,7 @@ export function TokenManager({
           </p>
         )}
         {state.token && hidden !== state.token && (
-          <div className="panel space-y-3 panel-padding" role="group" aria-label="New coach token">
+          <div className="panel space-y-3 panel-padding" role="group" aria-label="Token created">
             <p className="text-sm font-medium">Copy it now; it is shown only once.</p>
             <textarea
               readOnly

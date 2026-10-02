@@ -63,10 +63,11 @@ function filled(eaten: number, target: number): number {
 export type EatenEntry = LoggedFood & { meal: Meal };
 
 /**
- * Grams eaten against grams set, one row each (ADR 0036): the name, a bar, and the two numbers
- * lined up on the right, each row opening what the day's foods gave to it. Carbohydrate and fat
- * turn red past their targets; protein is a minimum, so reaching it turns it green. Once a row's
- * target is eaten its name takes its bar's colour, so a met target reads from the names alone.
+ * Grams eaten against grams set, one ruled row each (ADR 0036): the name, a thin bar, and the
+ * two numbers in the data voice on the right, each row opening what the day's foods gave to it.
+ * Carbohydrate and fat turn red past their targets; protein is a minimum, so reaching it turns
+ * it green. Once a row's target is eaten its name takes its bar's colour, so a met target reads
+ * from the names alone.
  *
  * The rows share one grid (a subgrid each), so the numbers column is as wide as the widest
  * numbers and every bar is the same length, whatever the grams. Where a row is too narrow for all
@@ -95,10 +96,9 @@ export function MacroBars({
 
   return (
     <>
-      {/* The container is the card's width, which the list's own negative margins would not be. */}
       <div className="@container">
         <ul
-          className="-mx-2 grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 @2xs:grid-cols-[5rem_minmax(0,1fr)_auto_auto]"
+          className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 ruled-list @2xs:grid-cols-[4.5rem_minmax(0,1fr)_auto_auto]"
           aria-label="Carbs, fat and protein"
         >
           {MACROS.map(({ key, label, fill, ink }) => {
@@ -113,7 +113,7 @@ export function MacroBars({
                   onClick={() =>
                     setSheet((current) => ({ key: current.key + 1, open: true, macro: key }))
                   }
-                  className="col-span-full grid min-h-10 w-full grid-cols-subgrid items-center gap-y-1.5 rounded-control px-2 py-2 text-left transition-colors duration-[var(--ov-duration-feedback)] active:bg-surface-raised @2xs:py-1"
+                  className="col-span-full grid min-h-11 w-full grid-cols-subgrid items-center gap-y-1.5 py-2.5 text-left transition-colors duration-[var(--ov-duration-feedback)] focus-visible:-outline-offset-2 active:bg-surface-raised @2xs:py-2"
                 >
                   {/* The name and the numbers share a line while both fit, and the numbers wrap
                       under the name when they do not. On a row wide enough for the bar between
@@ -121,7 +121,7 @@ export function MacroBars({
                   <span className="[grid-column:1] [grid-row:1] flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-0.5 @2xs:contents">
                     <span
                       className={cn(
-                        "text-sm @2xs:[grid-column:1] @2xs:[grid-row:1]",
+                        "text-sm font-medium @2xs:[grid-column:1] @2xs:[grid-row:1]",
                         atTarget(state, eaten[key], target[key])
                           ? (STATE_INK[state] ?? ink)
                           : "text-ink-muted",
@@ -131,11 +131,11 @@ export function MacroBars({
                     </span>
                     <span
                       className={cn(
-                        "ml-auto text-right text-sm tabular-nums @2xs:[grid-column:3] @2xs:[grid-row:1]",
+                        "ml-auto text-right font-data text-sm tabular-nums @2xs:[grid-column:3] @2xs:[grid-row:1]",
                         state === "over" && "text-over",
                       )}
                     >
-                      <span className="font-medium">{grams(eaten[key])}</span>{" "}
+                      <span className="font-semibold">{grams(eaten[key])}</span>{" "}
                       <span
                         className={cn(
                           "whitespace-nowrap",
@@ -148,10 +148,10 @@ export function MacroBars({
                   </span>
                   <span
                     aria-hidden
-                    className="[grid-column:1/-1] [grid-row:2] block h-1.5 overflow-hidden rounded-full bg-surface-raised @2xs:[grid-column:2] @2xs:[grid-row:1]"
+                    className="[grid-column:1/-1] [grid-row:2] block h-1.5 overflow-hidden rounded-control bg-surface-raised @2xs:[grid-column:2] @2xs:[grid-row:1]"
                   >
                     <span
-                      className={cn("block h-full rounded-full", STATE_FILL[state] ?? fill)}
+                      className={cn("block h-full rounded-control", STATE_FILL[state] ?? fill)}
                       style={{ width: `${filled(eaten[key], target[key]) * 100}%` }}
                     />
                   </span>
@@ -222,25 +222,28 @@ function MacroSheet({
       <div className="space-y-4 pb-1">
         <div className="space-y-2.5">
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-            <p className={cn("text-2xl font-medium tabular-nums", state === "over" && "text-over")}>
-              {grams(eaten)} g
+            {/* The spaces are for a screen reader, which reads the line as one string; beside
+                flex items they take no room on the screen. */}
+            <p
+              className={cn(
+                "flex min-w-0 flex-wrap items-baseline gap-x-1.5",
+                state === "over" && "text-over",
+              )}
+            >
+              <span className="measure text-2xl">{grams(eaten)} g</span>{" "}
               <span
-                className={cn(
-                  "text-sm font-normal",
-                  state === "over" ? undefined : "text-ink-muted",
-                )}
+                className={cn("font-data text-sm", state === "over" ? undefined : "text-ink-muted")}
               >
-                {" "}
                 of {formatFoodAmount(target)} g
               </span>
             </p>{" "}
             {state === "reached" ? (
-              <p className="text-sm text-success">Reached</p>
+              <p className="font-data text-sm font-semibold text-success">Reached</p>
             ) : (
               standing && (
                 <p
                   className={cn(
-                    "text-sm tabular-nums",
+                    "font-data text-sm font-semibold tabular-nums",
                     state === "over" ? "text-over" : "text-ink-muted",
                   )}
                 >
@@ -249,9 +252,9 @@ function MacroSheet({
               )
             )}
           </div>
-          <span aria-hidden className="block h-2 overflow-hidden rounded-full bg-surface-raised">
+          <span aria-hidden className="block h-2 overflow-hidden rounded-control bg-surface-raised">
             <span
-              className={cn("block h-full rounded-full", STATE_FILL[state] ?? fill)}
+              className={cn("block h-full rounded-control", STATE_FILL[state] ?? fill)}
               style={{ width: `${filled(eaten, target) * 100}%` }}
             />
           </span>
@@ -267,18 +270,18 @@ function MacroSheet({
               >
                 <span className="min-w-0 flex-[1_1_10rem]">
                   <span className="block font-medium [overflow-wrap:anywhere]">{row.name}</span>{" "}
-                  <span className="block text-sm text-ink-muted tabular-nums">
+                  <span className="block font-data text-sm text-ink-muted tabular-nums">
                     {row.meals.map((meal) => MEAL_LABELS[meal]).join(", ")} ·{" "}
                     <span>{formatPortion(row.amount, row.unit)}</span>
                   </span>
                 </span>{" "}
                 {row.grams === null ? (
-                  <span className="ml-auto max-w-full text-ink-muted">
+                  <span className="ml-auto max-w-full font-data text-ink-muted">
                     <span aria-hidden>—</span>
                     <span className="sr-only"> no figure</span>
                   </span>
                 ) : (
-                  <span className="ml-auto max-w-full font-medium tabular-nums">
+                  <span className="ml-auto max-w-full font-data font-semibold tabular-nums">
                     {grams(row.grams)} g
                   </span>
                 )}

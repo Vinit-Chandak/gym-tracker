@@ -2,7 +2,6 @@
 
 import { useId } from "react";
 
-import { buttonClassName } from "@/components/ui/button";
 import { INPUT_CLASS } from "@/components/ui/input";
 import {
   NUTRITION_LIMITS,
@@ -27,9 +26,10 @@ function unitAfter(unit: FoodUnit, amount: number | null): string {
 }
 
 /**
- * How much of a food: a field in the food's own unit, with the amounts most often eaten a tap
- * away, from half a portion to two. The one the field holds is shown chosen, so "the usual" is
- * visible at a glance and a different amount is one tap or a few digits.
+ * How much of a food: a cell in the food's own unit, with the amounts most often eaten a tap
+ * away, from half a portion to two, as a row of cells on one track. The one the field holds is
+ * under the highlighter, so "the usual" is visible at a glance and a different amount is one tap
+ * or a few digits. They are buttons rather than radios because the typed amount may match none.
  */
 export function AmountField({
   label,
@@ -72,15 +72,19 @@ export function AmountField({
           }
           className={cn(
             INPUT_CLASS,
-            "h-12 max-w-[12rem] text-lg font-medium tabular-nums",
+            "h-12 max-w-[12rem] font-data text-lg font-semibold tabular-nums",
             error && "border-danger",
           )}
         />
-        <span className="min-w-0 text-lg text-ink-muted" aria-hidden>
+        <span className="min-w-0 font-data text-lg text-ink-muted" aria-hidden>
           {unitAfter(unit, current)}
         </span>
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div
+        role="group"
+        aria-label="Quick amounts"
+        className="flex min-w-0 flex-wrap gap-1 rounded-control border border-line bg-surface-raised p-1"
+      >
         {quickAmounts(portionAmount).map((amount) => (
           <button
             key={amount}
@@ -89,8 +93,10 @@ export function AmountField({
             aria-pressed={current === amount}
             onClick={() => onChange(String(amount))}
             className={cn(
-              buttonClassName("secondary", "sm"),
-              "tabular-nums aria-pressed:border-accent aria-pressed:bg-accent-soft",
+              "flex min-h-10 min-w-0 flex-[1_1_4rem] items-center justify-center rounded-control px-1 py-1 font-data text-sm font-semibold text-ink-muted tabular-nums select-none",
+              "transition-[background-color,color,transform] duration-[var(--ov-duration-feedback)] ease-[var(--ov-ease-out)] active:scale-[0.98]",
+              "focus-visible:-outline-offset-2 disabled:pointer-events-none disabled:opacity-45",
+              "aria-pressed:bg-ink aria-pressed:text-canvas",
             )}
           >
             {formatPortion(amount, unit)}
@@ -111,11 +117,13 @@ export function Preview({ amounts }: { amounts: FoodAmounts }) {
   const macros = formatMacros(amounts);
   return (
     <div className="min-w-0">
-      <p className="text-lg font-medium tabular-nums">
-        {formatKcal(amounts.kcal)}
-        <span className="text-sm font-normal text-ink-muted"> kcal</span>
+      {/* The space is for a screen reader, which reads the line as one string; beside flex
+          items it takes no room on the screen. */}
+      <p className="flex flex-wrap items-baseline gap-x-1.5">
+        <span className="measure text-xl">{formatKcal(amounts.kcal)}</span>{" "}
+        <span className="font-data text-sm text-ink-muted">kcal</span>
       </p>
-      {macros && <p className="text-xs text-ink-muted tabular-nums">{macros}</p>}
+      {macros && <p className="mt-0.5 font-data text-xs text-ink-muted tabular-nums">{macros}</p>}
     </div>
   );
 }

@@ -37,7 +37,7 @@ export function StepHeader({ current }: { current: OnboardingStep }) {
 export function Steps({ current }: { current: OnboardingStep }) {
   const index = indexOf(current);
   return (
-    <ol aria-label="Setup progress" className="grid grid-cols-5 gap-1 py-3 rule-top rule-bottom">
+    <ol aria-label="Setup progress" className="grid grid-cols-5 gap-1 py-3 rule-bottom rule-top">
       {ONBOARDING_STEPS.map((step, i) => {
         const done = i < index;
         const active = i === index;

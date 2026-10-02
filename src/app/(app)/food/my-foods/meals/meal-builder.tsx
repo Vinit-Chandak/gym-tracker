@@ -6,11 +6,12 @@ import { useEffect, useRef, useState, useTransition } from "react";
 
 import { AmountSheet } from "@/components/food/amount-sheet";
 import { Button } from "@/components/ui/button";
-import { Plus, Search } from "@/components/ui/icons";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Food, Plus, Search } from "@/components/ui/icons";
 import { Field, Input } from "@/components/ui/input";
 import { PRESSABLE_ROW_CLASS } from "@/components/ui/link-row";
 import { SwipeRow } from "@/components/ui/swipe-row";
-import { addUp, NUTRITION_LIMITS, scaleFood, type Food } from "@/domain/nutrition";
+import { addUp, NUTRITION_LIMITS, scaleFood, type Food as FoodFigures } from "@/domain/nutrition";
 import { formatKcal, formatMacros, formatPortion } from "@/lib/format";
 import { previousAppPage } from "@/lib/navigation-history";
 import { attempted, OFFLINE_SUBMIT_MESSAGE } from "@/lib/offline-submit";
@@ -25,7 +26,7 @@ import type { FoodRecord, SavedMealRecord } from "@/server/repositories/nutritio
 type Item = {
   key: string;
   source: { foodId: string } | { keep: number };
-  food: Food;
+  food: FoodFigures;
   amount: number;
 };
 
@@ -34,8 +35,10 @@ type SheetView = { kind: "add"; food: FoodRecord } | { kind: "item"; item: Item 
 /**
  * A meal in My foods (ADR 0035): a name and a set of the account's foods, each at an amount.
  * New meal opens it empty; a saved meal opens it holding its foods as they were saved. Nothing is
- * saved until Save meal: a food is added from the list below at the amount its sheet is given,
- * changed by tapping it, and taken out by swiping it aside or from its sheet.
+ * saved until Save meal, the one highlighted action, which stays within the thumb's reach at the
+ * end of the meal while a long one scrolls under it. A food is added from the list below at the
+ * amount its sheet is given, changed by tapping it, and taken out by swiping it aside or from
+ * its sheet.
  */
 export function MealBuilder({
   saved,
@@ -152,58 +155,66 @@ export function MealBuilder({
         />
       </Field>
 
-      <section aria-label="What this meal holds" className="box panel-padding">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-2xl font-medium tabular-nums">
-              {formatKcal(total.kcal)}
-              <span className="text-sm font-normal text-ink-muted"> kcal</span>
-            </p>
-            {macros && <p className="text-sm text-ink-muted tabular-nums">{macros}</p>}
-          </div>
-          <Button size="sm" disabled={busy} onClick={save} className="shrink-0">
+      {/* The meal: what it comes to at the head of the block, what is in it, and Save. */}
+      <div className="box py-4">
+        <section aria-label="What this meal holds" className="min-w-0">
+          {/* The space is for a screen reader, which reads the line as one string; beside flex
+              items it takes no room on the screen. */}
+          <p className="flex flex-wrap items-baseline gap-x-1.5">
+            <span className="measure text-2xl">{formatKcal(total.kcal)}</span>{" "}
+            <span className="font-data text-sm text-ink-muted">kcal</span>
+          </p>
+          {macros && <p className="mt-1 font-data text-sm text-ink-muted tabular-nums">{macros}</p>}
+        </section>
+
+        {items.length > 0 && (
+          <ul className="mt-3 border-t border-line ruled-list" aria-label="In this meal">
+            {items.map((item) => (
+              <li key={item.key}>
+                <SwipeRow
+                  action="Remove"
+                  actionLabel={`Remove ${item.food.name}`}
+                  onAction={() => setItems((current) => current.filter((row) => row !== item))}
+                >
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => open({ kind: "item", item })}
+                    className={cn(PRESSABLE_ROW_CLASS, "flex-wrap")}
+                  >
+                    {/* The spaces are for the button's name, which a screen reader reads as one
+                        string; beside flex items they take no room on the screen. */}
+                    <span className="min-w-0 flex-[1_1_10rem]">
+                      <span className="block font-medium [overflow-wrap:anywhere]">
+                        {item.food.name}
+                      </span>{" "}
+                      <span className="block font-data text-sm text-ink-muted tabular-nums">
+                        {formatPortion(item.amount, item.food.unit)}
+                      </span>
+                    </span>{" "}
+                    <span className="ml-auto max-w-full font-data font-semibold tabular-nums">
+                      {formatKcal(scaleFood(item.food, item.amount).kcal)} kcal
+                    </span>
+                  </button>
+                </SwipeRow>
+              </li>
+            ))}
+          </ul>
+        )}
+        {errors.items && (
+          <p role="alert" className="mt-3 text-sm text-danger">
+            {errors.items}
+          </p>
+        )}
+
+        {/* Kept on screen while a long meal scrolls under it, on a strip of canvas so the rows
+            never show through. */}
+        <div className="sticky bottom-[var(--actions-inset)] z-[1] -mx-1 mt-3 bg-canvas px-1 py-2">
+          <Button size="lg" className="w-full" disabled={busy} onClick={save}>
             {saving ? "Saving…" : "Save meal"}
           </Button>
         </div>
-      </section>
-
-      {items.length > 0 && (
-        <ul className="box-rows" aria-label="In this meal">
-          {items.map((item) => (
-            <li key={item.key}>
-              <SwipeRow
-                action="Remove"
-                actionLabel={`Remove ${item.food.name}`}
-                onAction={() => setItems((current) => current.filter((row) => row !== item))}
-              >
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => open({ kind: "item", item })}
-                  className={cn(PRESSABLE_ROW_CLASS, "flex-wrap")}
-                >
-                  <span className="min-w-0 flex-[1_1_10rem]">
-                    <span className="block font-medium [overflow-wrap:anywhere]">
-                      {item.food.name}
-                    </span>{" "}
-                    <span className="block text-sm text-ink-muted tabular-nums">
-                      {formatPortion(item.amount, item.food.unit)}
-                    </span>
-                  </span>{" "}
-                  <span className="ml-auto max-w-full tabular-nums">
-                    {formatKcal(scaleFood(item.food, item.amount).kcal)} kcal
-                  </span>
-                </button>
-              </SwipeRow>
-            </li>
-          ))}
-        </ul>
-      )}
-      {errors.items && (
-        <p role="alert" className="px-1 text-sm text-danger">
-          {errors.items}
-        </p>
-      )}
+      </div>
 
       {foods.length > 0 ? (
         <div className="space-y-3">
@@ -218,7 +229,7 @@ export function MealBuilder({
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Add a food"
               aria-label="Search your foods to add"
-              className="pl-9"
+              className="pl-10"
               autoCapitalize="none"
               autoCorrect="off"
               enterKeyHint="search"
@@ -238,12 +249,12 @@ export function MealBuilder({
                       <span className="block font-medium [overflow-wrap:anywhere]">
                         {food.name}
                       </span>{" "}
-                      <span className="block text-sm text-ink-muted tabular-nums">
+                      <span className="block font-data text-sm text-ink-muted tabular-nums">
                         {formatPortion(food.portionAmount, food.unit)} · {formatKcal(food.kcal)}{" "}
                         kcal
                       </span>
                     </span>
-                    <Plus className="shrink-0 text-accent" aria-hidden />
+                    <Plus className="shrink-0 text-pen" aria-hidden />
                   </button>
                 </li>
               ))}
@@ -251,11 +262,13 @@ export function MealBuilder({
           )}
         </div>
       ) : (
-        <p className="px-1 text-sm text-ink-muted">No foods yet. Make one in My foods first.</p>
+        <section className="box">
+          <EmptyState icon={Food} title="No foods yet" description="Make one in My foods first." />
+        </section>
       )}
 
       {formError && (
-        <p role="alert" className="px-1 text-sm text-danger">
+        <p role="alert" className="text-sm text-danger">
           {formError}
         </p>
       )}

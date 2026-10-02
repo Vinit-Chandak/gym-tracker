@@ -69,7 +69,7 @@ export function RecoveryProgress({
           <p className="text-xs font-semibold tracking-[0.08em] text-ink-muted uppercase">
             Latest readings · select a measure
           </p>
-          <p className="font-data text-sm font-medium text-ink-muted tabular-nums">
+          <p className="ml-auto font-data text-sm font-medium text-ink-muted tabular-nums">
             {readings.length} {readings.length === 1 ? "check-in" : "check-ins"} in this range
           </p>
         </div>
@@ -93,7 +93,7 @@ export function RecoveryProgress({
                   onChange={() => onSelect(item.value)}
                   className="peer sr-only"
                 />
-                <span className="flex h-full min-h-16 cursor-pointer flex-col justify-between gap-1 rounded-control px-2.5 py-2 text-ink-muted transition-colors duration-[var(--ov-duration-feedback)] select-none peer-checked:bg-highlight peer-checked:text-on-highlight peer-focus-visible:ring-2 peer-focus-visible:ring-focus">
+                <span className="flex h-full min-h-16 cursor-pointer flex-col justify-between gap-1 rounded-control px-2.5 py-2 text-ink-muted transition-colors duration-[var(--ov-duration-feedback)] select-none peer-checked:bg-ink peer-checked:text-canvas peer-focus-visible:ring-2 peer-focus-visible:ring-focus">
                   <span className="text-xs leading-tight font-medium">{item.label}</span>
                   <span className="measure text-xl">
                     {recent ? format(recent[item.value]!) : "—"}
@@ -117,7 +117,7 @@ export function RecoveryProgress({
               multiple check-ins on one day stay separate.
             </InfoTip>
           </h2>
-          <span className="font-data text-sm font-medium text-ink-muted tabular-nums">
+          <span className="ml-auto font-data text-sm font-medium text-ink-muted tabular-nums">
             {known.length} {known.length === 1 ? "reading" : "readings"}
           </span>
         </div>
@@ -129,7 +129,9 @@ export function RecoveryProgress({
                 <dt className="text-xs leading-tight text-ink-muted">Latest</dt>
                 <dd className="mt-1.5 measure text-2xl">
                   {format(latest[metric.value]!)}{" "}
-                  <span className="font-sans text-sm font-normal text-ink-muted">{metric.unit}</span>
+                  <span className="font-sans text-sm font-normal text-ink-muted">
+                    {metric.unit}
+                  </span>
                 </dd>
                 <dd className="mt-1 text-xs text-ink-subtle">{formatIsoDay(latest.date)}</dd>
               </div>
@@ -137,7 +139,9 @@ export function RecoveryProgress({
                 <dt className="text-xs leading-tight text-ink-muted">Range average</dt>
                 <dd className="mt-1.5 measure text-2xl">
                   {format(average)}{" "}
-                  <span className="font-sans text-sm font-normal text-ink-muted">{metric.unit}</span>
+                  <span className="font-sans text-sm font-normal text-ink-muted">
+                    {metric.unit}
+                  </span>
                 </dd>
                 <dd className="mt-1 text-xs text-ink-subtle">From recorded answers only</dd>
               </div>

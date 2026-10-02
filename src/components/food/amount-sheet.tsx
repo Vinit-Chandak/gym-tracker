@@ -101,10 +101,12 @@ export function AmountSheet({
           onClose();
         }}
       >
-        <p className="text-sm text-ink-muted tabular-nums">
+        <p className="text-sm text-ink-muted">
           Per {formatPortion(food.portionAmount, food.unit)}
           <br />
-          {formatKcal(food.kcal)} kcal{macros && ` · ${macros}`}
+          <span className="font-data tabular-nums">
+            {formatKcal(food.kcal)} kcal{macros && ` · ${macros}`}
+          </span>
         </p>
         <AmountField
           label="Amount"

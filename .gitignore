@@ -53,3 +53,6 @@ next-env.d.ts
 
 # keep the example env file tracked
 !.env.example
+
+# impeccable finish-review captures (regenerated per run)
+/.impeccable/review/

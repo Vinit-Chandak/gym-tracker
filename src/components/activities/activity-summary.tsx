@@ -25,8 +25,8 @@ export function ActivitySummary({
   activity: SharedActivityDetail;
   unit: BodyLoadUnit;
 }) {
-  const shown = entries(activity, unit).filter(
-    (entry): entry is readonly [string, string] => Boolean(entry[1]),
+  const shown = entries(activity, unit).filter((entry): entry is readonly [string, string] =>
+    Boolean(entry[1]),
   );
   return (
     <section className="box space-y-4 py-4">

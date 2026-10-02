@@ -79,7 +79,7 @@ export function SectionSelect<V extends string>({
             // screen reader; the control that opened the sheet already names it too.
             const content = (
               <span className="min-w-0 flex-1 font-medium">
-                <span className={cn(selected && "-mx-1.5 px-1.5 py-0.5 highlight")}>
+                <span className={cn(selected && "-mx-1.5 highlight px-1.5 py-0.5")}>
                   {option.label}
                 </span>
               </span>

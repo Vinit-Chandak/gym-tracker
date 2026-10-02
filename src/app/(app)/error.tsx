@@ -33,7 +33,7 @@ export default function AppError({
       <PageHeader title="Something went wrong" />
       <PageContent>
         <div className="flex flex-col items-center px-[var(--ov-panel-padding)] py-[clamp(2rem,6vw,3.5rem)] text-center">
-          <div className="flex size-12 items-center justify-center rounded-control bg-highlight text-on-highlight">
+          <div className="flex size-12 items-center justify-center rounded-control border border-line-strong bg-surface text-ink">
             <Warning scale="feature" aria-hidden />
           </div>
           <p className="mt-4 max-w-xs text-ink-muted">

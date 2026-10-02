@@ -153,14 +153,17 @@ export function DistanceField({
           aria-label={label}
           className={MEASURE_INPUT_CLASS}
         />
-        <SegmentedControl
-          name="distanceUnit"
-          aria-label="Distance unit"
-          options={units}
-          value={unit}
-          onChange={onUnitChange}
-          columns={units.length}
-        />
+        {/* Wide enough for both units to share one row; the input takes the rest. */}
+        <div className="w-28">
+          <SegmentedControl
+            name="distanceUnit"
+            aria-label="Distance unit"
+            options={units}
+            value={unit}
+            onChange={onUnitChange}
+            columns={units.length}
+          />
+        </div>
       </div>
     </Field>
   );
@@ -359,7 +362,12 @@ export function LargeEntryConfirmation({ message }: { message?: string }) {
     <div className="panel space-y-1 px-4 py-3">
       <p className="text-sm font-medium text-warning">{message}</p>
       <label className="flex min-h-11 items-center gap-2 text-sm">
-        <input type="checkbox" name="confirmLarge" value="on" className="size-5 accent-[var(--ov-pen)]" />
+        <input
+          type="checkbox"
+          name="confirmLarge"
+          value="on"
+          className="size-5 accent-[var(--ov-pen)]"
+        />
         Yes, that is right.
       </label>
     </div>
