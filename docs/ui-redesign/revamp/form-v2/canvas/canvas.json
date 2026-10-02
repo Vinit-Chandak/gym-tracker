@@ -1,0 +1,268 @@
+{
+  "v": 3,
+  "createdOnFiles": {
+    "v": 1,
+    "at": "2026-10-01T05:49:17Z"
+  },
+  "title": "Overload revamp: Form v2",
+  "launch": {
+    "view": "canvas",
+    "page": "form"
+  },
+  "pages": [
+    {
+      "id": "form",
+      "name": "Form (the art is your training)"
+    }
+  ],
+  "boards": {
+    "Form-Today-Light.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 402,
+      "h": 874,
+      "title": "Form · Today · light",
+      "page": "form",
+      "is_interactive": true
+    },
+    "Form-Workout-Light.dc.html": {
+      "x": 482,
+      "y": 0,
+      "w": 402,
+      "h": 874,
+      "title": "Form · The workout, grouped by state · light",
+      "page": "form",
+      "is_interactive": true
+    },
+    "Form-Log-Light.dc.html": {
+      "x": 964,
+      "y": 0,
+      "w": 402,
+      "h": 874,
+      "title": "Form · Logging a set · light",
+      "page": "form",
+      "is_interactive": true
+    },
+    "Form-Why.dc.html": {
+      "x": 1446,
+      "y": 0,
+      "w": 402,
+      "h": 874,
+      "title": "Form · Why keep 62.5 kg: the suggestion, explained",
+      "page": "form",
+      "is_interactive": true
+    },
+    "Form-Workout-Coach.dc.html": {
+      "x": 1928,
+      "y": 0,
+      "w": 402,
+      "h": 874,
+      "title": "Form · The workout the coach planned (Lower A, from the coach-plan test)",
+      "page": "form",
+      "is_interactive": true
+    },
+    "Form-Progress-Light.dc.html": {
+      "x": 2410,
+      "y": 0,
+      "w": 402,
+      "h": 874,
+      "title": "Form · Progress · light",
+      "page": "form",
+      "is_interactive": true
+    },
+    "Form-Food-Light.dc.html": {
+      "x": 2892,
+      "y": 0,
+      "w": 402,
+      "h": 874,
+      "title": "Form · Food · light",
+      "page": "form",
+      "is_interactive": true
+    },
+    "Form-About.dc.html": {
+      "x": 3374,
+      "y": 0,
+      "w": 640,
+      "h": 1617,
+      "title": "Form · How the art is made, and how it holds up",
+      "page": "form"
+    },
+    "Form-Today-Dark.dc.html": {
+      "x": 0,
+      "y": 994,
+      "w": 402,
+      "h": 874,
+      "title": "Form · Today · dark",
+      "page": "form",
+      "is_interactive": true
+    },
+    "Form-Log-Dark.dc.html": {
+      "x": 482,
+      "y": 994,
+      "w": 402,
+      "h": 874,
+      "title": "Form · Logging a set · dark, RIR chosen",
+      "page": "form",
+      "is_interactive": true
+    },
+    "Form-Moment.dc.html": {
+      "x": 964,
+      "y": 994,
+      "w": 402,
+      "h": 874,
+      "title": "Form · Signature: a set is inked",
+      "page": "form",
+      "is_interactive": true
+    },
+    "Form-Moment-Reduced.dc.html": {
+      "x": 1446,
+      "y": 994,
+      "w": 402,
+      "h": 874,
+      "title": "Form · Signature, reduced motion",
+      "page": "form",
+      "is_interactive": true
+    },
+    "Form-Coach.dc.html": {
+      "x": 1928,
+      "y": 994,
+      "w": 402,
+      "h": 3448,
+      "title": "Form · Coach notes: lengths, states and where they go",
+      "page": "form"
+    },
+    "Form-Log-Large.dc.html": {
+      "x": 2410,
+      "y": 994,
+      "w": 402,
+      "h": 2058,
+      "title": "Form · Logging a set at 200% text, the whole scroll: the entry first",
+      "page": "form"
+    },
+    "Form-Today-Coach.dc.html": {
+      "x": 2892,
+      "y": 994,
+      "w": 402,
+      "h": 874,
+      "title": "Form · Today with the coach’s status: the plan folds to one line",
+      "page": "form",
+      "is_interactive": true
+    },
+    "Form-Today-375.dc.html": {
+      "x": 0,
+      "y": 1988,
+      "w": 375,
+      "h": 667,
+      "title": "Form · Today at 375 × 667: no home indicator, the plan one tap away",
+      "page": "form",
+      "is_interactive": true
+    },
+    "Form-Log-Pounds-375.dc.html": {
+      "x": 455,
+      "y": 1988,
+      "w": 375,
+      "h": 667,
+      "title": "Form · Logging in pounds at 375 × 667: 140 lb, from the repository’s pounds audit",
+      "page": "form",
+      "is_interactive": true
+    },
+    "Form-Today-440.dc.html": {
+      "x": 910,
+      "y": 1988,
+      "w": 440,
+      "h": 956,
+      "title": "Form · Today at 440 × 956",
+      "page": "form",
+      "is_interactive": true
+    },
+    "Form-Workout-440.dc.html": {
+      "x": 1430,
+      "y": 1988,
+      "w": 440,
+      "h": 956,
+      "title": "Form · The workout at 440 × 956",
+      "page": "form",
+      "is_interactive": true
+    },
+    "Form-Today-320.dc.html": {
+      "x": 0,
+      "y": 4562,
+      "w": 320,
+      "h": 568,
+      "title": "Form · Today at 320 × 568: the print gives way, the plan folds",
+      "page": "form",
+      "is_interactive": true
+    },
+    "Form-Log-320.dc.html": {
+      "x": 400,
+      "y": 4562,
+      "w": 320,
+      "h": 831,
+      "title": "Form · Logging in pounds at 320 × 568, the whole scroll: steppers stack, RIR takes two rows",
+      "page": "form",
+      "is_interactive": true
+    },
+    "Form-Food-320.dc.html": {
+      "x": 800,
+      "y": 4562,
+      "w": 320,
+      "h": 1131,
+      "title": "Form · Food at 320 × 568, the whole scroll: the days scroll, opened at today",
+      "page": "form",
+      "is_interactive": true
+    },
+    "Form-Alphabet.dc.html": {
+      "x": 1200,
+      "y": 4562,
+      "w": 1400,
+      "h": 3470,
+      "title": "Form · The alphabet: how the art grows with the app",
+      "page": "form"
+    },
+    "Form-System.dc.html": {
+      "x": 0,
+      "y": 8152,
+      "w": 1846,
+      "h": 6918,
+      "title": "Form · System sheet",
+      "page": "form"
+    }
+  },
+  "order": [
+    "Form-Today-Light.dc.html",
+    "Form-Workout-Light.dc.html",
+    "Form-Log-Light.dc.html",
+    "Form-Why.dc.html",
+    "Form-Workout-Coach.dc.html",
+    "Form-Progress-Light.dc.html",
+    "Form-Food-Light.dc.html",
+    "Form-About.dc.html",
+    "Form-Today-Dark.dc.html",
+    "Form-Log-Dark.dc.html",
+    "Form-Moment.dc.html",
+    "Form-Moment-Reduced.dc.html",
+    "Form-Coach.dc.html",
+    "Form-Log-Large.dc.html",
+    "Form-Today-Coach.dc.html",
+    "Form-Today-375.dc.html",
+    "Form-Log-Pounds-375.dc.html",
+    "Form-Today-440.dc.html",
+    "Form-Workout-440.dc.html",
+    "Form-Today-320.dc.html",
+    "Form-Log-320.dc.html",
+    "Form-Food-320.dc.html",
+    "Form-Alphabet.dc.html",
+    "Form-System.dc.html"
+  ],
+  "notes": {
+    "form_title": {
+      "x": 0,
+      "y": -300,
+      "text": "Form — the art is your training. Black and white; every colour is printed by what you did",
+      "kind": "title1",
+      "maxW": 1848,
+      "page": "form"
+    }
+  },
+  "designSystems": []
+}

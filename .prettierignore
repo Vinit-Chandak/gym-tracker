@@ -19,3 +19,6 @@ docs/planning
 !.claude/skills/coach
 !.claude/skills/overload-ui
 .claude/agents/impeccable-*.md
+# Written by docs/ui-redesign/revamp/form-v2/source/build.mjs, wholesale, on every build.
+docs/ui-redesign/revamp/form-v2/canvas
+docs/ui-redesign/revamp/form-v2/tokens
