@@ -63,6 +63,27 @@ K.LINKS.dark = {
   profile: "Profile.dc.html",
 };
 
+K.BACKS.light = {
+  Today: "Today.dc.html",
+  Training: "Training.dc.html",
+  Programme: "Training.dc.html",
+  Food: "Food.dc.html",
+  Progress: "Progress.dc.html",
+  Calendar: "Calendar.dc.html",
+  History: "Progress-History.dc.html",
+  Profile: "Profile.dc.html",
+  Gyms: "Gyms.dc.html",
+  "Upper A": "Workout.dc.html",
+  "Lower A": "Workout-Coach.dc.html",
+  "Easy Run + Arms": "Workout-Superset.dc.html",
+};
+K.BACKS.dark = {
+  Today: "Today-Dark.dc.html",
+  Food: "Food-Dark.dc.html",
+  Progress: "Progress-Dark.dc.html",
+  "Upper A": "Workout-Dark.dc.html",
+};
+
 // ---------- every board: a phone screen, or a wide board ----------
 // s(file, title, render, { dv, t, tall, css }): render returns the body; tall boards are a whole
 // scroll whose height is measured.
@@ -103,7 +124,7 @@ const PAGES = [
         boards: [
           scr("Today.dc.html", "Today", () => TO.todayScreen(L, d)),
           scr("Today-Coach.dc.html", "Today, the coach planning", () =>
-            TO.todayScreen(L, d, { coach: COACH_PLANNING, label: "Today, the coach planning" }),
+            TO.todayScreen(L, d, { coach: COACH_PLANNING, label: "Today" }),
           ),
           scr("Today-More-options.dc.html", "Today › More options", () =>
             EX.moreOptionsScreen(L, d),
@@ -136,12 +157,9 @@ const PAGES = [
           scr("Moment.dc.html", "Signature: a set is inked", () => SE.momentScreen(L, d), {
             css: SE.momentCss(L),
           }),
-          scr(
-            "Moment-Reduced.dc.html",
-            "Signature, reduced motion",
-            () => SE.momentScreen(L, d, { reduced: true }),
-            { css: SE.momentCss(L, { reduced: true }) },
-          ),
+          scr("Moment-Reduced.dc.html", "Signature, reduced motion", () => SE.momentScreen(L, d), {
+            css: SE.momentCss(L, { reduced: true }),
+          }),
           scr("Why.dc.html", "Why: the suggestion, explained", () => SE.whyScreen(L, d)),
           scr("Technique.dc.html", "Technique", () => SE.techniqueScreen(L, d)),
           scr("History.dc.html", "History, every session", () => SE.historyScreen(L, d)),
@@ -231,7 +249,15 @@ const PAGES = [
         title: "Profile and settings",
         boards: [
           scr("Profile.dc.html", "Profile", () => MO.profileScreen(L, d)),
-          scr("Edit-profile.dc.html", "Edit profile", () => MO.editProfileScreen(L, d)),
+          scr(
+            "Edit-profile.dc.html",
+            "Edit profile, the whole scroll",
+            () => MO.editProfileScreen(L, d),
+            {
+              tall: true,
+              fallback: 1500,
+            },
+          ),
           scr("Appearance.dc.html", "Appearance", () => MO.appearanceScreen(L, d)),
           scr("Privacy.dc.html", "Privacy", () => PE.privacyScreen(L, d)),
           scr("Delete-account.dc.html", "Delete account", () => PE.deleteAccountScreen(L, d)),
@@ -562,7 +588,8 @@ const tokens = {
     devices: DV,
     gutter: "20 pt; 16 under 360 pt",
     markColumn: "20 pt, names 12 after it",
-    tabBar: "64 pt: 4 + 48 of targets + 12 above the home indicator (6 without one)",
+    tabBar:
+      "64 pt: 3 + 44-pt targets + 17 (11 without a home indicator), the targets 4 clear of the indicator",
     targetsMin: "44 pt (48 dp on Android)",
     session: "a full-screen layer over the tabs",
   },

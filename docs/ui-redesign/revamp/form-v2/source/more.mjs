@@ -42,14 +42,15 @@ export function trainingScreen(t, dv = K.D) {
         ? c.map((n, j) => ({ n, done: done ? n : 0, pair: j === 0 }))
         : [{ n: c, done: done ? c : 0 }],
     );
+    // in the day's order: an easy-run day runs first, as its name and notes say
     const parts = [];
-    if (cols.length) parts.push({ kind: "strength", columns: cols });
     if (d.run) parts.push({ kind: "run", minutes: d.minutes, done });
+    if (cols.length) parts.push({ kind: "strength", columns: cols });
     if (d.drills)
       parts.push({ kind: "mobility", segments: d.drills, segDone: done ? d.drills : 0, done });
     const tw = wide ? cw : (cw - gap) / 2;
-    const state = done ? "done" : wide ? "today" : "to do";
-    return `<li style="${s({ "min-width": 0, "grid-column": wide ? "1 / -1" : undefined })}"><a href="#" aria-label="Day ${i + 1}, ${esc(d.name)}, ${state}" style="display:block"><div style="${s({ "line-height": 0, outline: wide ? `2.5px solid ${t.ink}` : undefined, "outline-offset": wide ? 2 : undefined })}">${dayPrint({ w: tw, h: wide ? 92 : 64, paper: t.paper, parts, ariaLabel: "" })}</div><span style="${s({ display: "flex", "justify-content": "space-between", "align-items": "baseline", gap: 8, "margin-top": 6 })}"><span class="wrap" style="${txt(14, 700, { "line-height": 1.25 })}">${d.name}</span>${wide ? `<span class="nb" style="${txt(13, 700)}">Today</span>` : ""}</span></a></li>`;
+    const state = done ? "done" : wide ? "next" : "to do";
+    return `<li style="${s({ "min-width": 0, "grid-column": wide ? "1 / -1" : undefined })}"><a href="#" aria-label="Day ${i + 1}, ${esc(d.name)}, ${state}" style="display:block"><div style="${s({ "line-height": 0, outline: wide ? `2.5px solid ${t.ink}` : undefined, "outline-offset": wide ? 2 : undefined })}">${dayPrint({ w: tw, h: wide ? 92 : 64, paper: t.paper, parts, ariaLabel: "" })}</div><span style="${s({ display: "flex", "justify-content": "space-between", "align-items": "baseline", gap: 8, "margin-top": 6 })}"><span class="wrap" style="${txt(14, 700, { "line-height": 1.25 })}">${d.name}</span>${wide ? `<span class="nb" style="${txt(13, 700)}">Next</span>` : ""}</span></a></li>`;
   };
   const inner = `${K.topHeader(t, dv, "Training", K.iconBtn(t, "plus", "Schedule an activity", { "margin-right": -10 }))}
 <section aria-labelledby="prog" style="margin-top:4px">
@@ -71,9 +72,10 @@ export function coachScreen(t, dv = K.D) {
   const G = K.gut(dv);
   const answer = `<div style="${s({ display: "flex", "flex-direction": "column", gap: 10, padding: 14, "border-radius": 14, background: t.surface })}">
 <p style="${s({ display: "flex", "align-items": "center", gap: 6 })}; ${txt(13, 700)}">${icon("coach", 16)}Needs your answer</p>
-<p style="${txt(17, 700, { "line-height": 1.3 })}">Which day works best for your core work?</p>
+<p style="${txt(16, 700, { "line-height": 1.35 })}">“Add squat practice. Can we move core work to another day?”</p>
+<p style="${txt(16, 500, { "line-height": 1.4 })}">Which day works best for your core work?</p>
 <label><span class="sr">Your answer to the coach</span><textarea rows="2" placeholder="Your answer" style="${s({ width: "100%", "min-height": 70, padding: "12px 14px", "border-radius": 14, border: `1.5px solid ${t.control}`, background: t.ground, color: t.ink, "font-family": K.FONTS.text, "font-size": 16, resize: "none", display: "block" })}"></textarea></label>
-<div style="${s({ display: "flex", gap: 6, "flex-wrap": "wrap", "align-items": "center" })}"><button type="button" style="${K.BTN(t, "primary", { h: 44 })}; padding: 0 18px; font-size: 15px">Send answer</button><button type="button" style="${K.BTN(t, "text", { h: 44 })}; font-size: 15px; color: ${t.ink2}">I no longer want this</button></div></div>`;
+<div style="${s({ display: "flex", gap: 6, "flex-wrap": "wrap", "align-items": "center" })}"><button type="button" aria-disabled="true" style="${K.BTN(t, "waiting", { h: 44 })}; padding: 0 18px; font-size: 15px">Send answer</button><button type="button" style="${K.BTN(t, "text", { h: 44 })}; font-size: 15px; color: ${t.ink2}">I no longer want this</button></div></div>`;
   const change = `<li><a href="#" style="${s({ display: "flex", "align-items": "center", gap: 12, "min-height": 62, padding: "8px 0" })}">${K.markCell(`<span style="display:grid">${icon("plus", 20)}</span>`)}<span style="${s({ display: "flex", "flex-direction": "column", flex: "1 1 auto", "min-width": 0 })}"><span style="${txt(16, 700)}">Add squat practice</span><span class="wrap" style="${txt(14, 500, { color: t.ink2 })}">Add the requested squat practice and one set to the first movement.</span></span>${K.chev(t)}</a></li>`;
   const note = (text, outcome, last = false) =>
     `<li style="${s({ padding: "10px 0", "border-bottom": last ? 0 : `1px solid ${t.hair}` })}"><p style="${txt(15, 600, { "line-height": 1.4 })}">${text}</p><p style="${txt(13, 500, { color: t.ink2 })}; margin-top: 2px">${outcome}</p></li>`;
@@ -97,13 +99,16 @@ ${sect(t, "Tell the coach", `${note("Next week I can train on Saturday as well."
 export const avatar = (t, letter, size = 56) =>
   `<span aria-hidden="true" style="${s({ width: size, height: size, "border-radius": 9999, background: t.surface, color: t.ink, display: "grid", "place-items": "center", "flex-shrink": 0 })}; ${title(Math.round(size * 0.46), { lh: 1 })}">${letter}</span>`;
 export function profileScreen(t, dv = K.D) {
-  const person = `<div style="${s({ display: "flex", "align-items": "center", gap: 12, "margin-top": 6 })}"><a href="#" style="${s({ display: "flex", "align-items": "center", gap: 14, flex: "1 1 auto", "min-width": 0 })}">${avatar(t, "V")}<span style="${s({ display: "flex", "flex-direction": "column", "min-width": 0 })}"><span class="wrap" style="${txt(20, 700)}">${me.name}</span><span class="wrap" style="${txt(14, 500, { color: t.ink2 })}; ${tn}">@${me.handle} · ${me.followers} follower · ${me.following} following</span></span></a><a href="#" aria-label="Edit profile" style="${s({ width: 44, height: 44, display: "grid", "place-items": "center", "border-radius": 9999, background: t.surface, "flex-shrink": 0 })}">${icon("edit", 20)}</a></div>`;
+  // the account's real state: date of birth and goal unset, so the card asks for them, once
+  const person = `<div style="${s({ display: "flex", "align-items": "flex-start", gap: 12, "margin-top": 6 })}"><a href="#" style="${s({ display: "flex", "align-items": "center", gap: 14, flex: "1 1 auto", "min-width": 0 })}">${avatar(t, "V")}<span style="${s({ display: "flex", "flex-direction": "column", "min-width": 0 })}"><span class="wrap" style="${txt(20, 700)}">${me.name}</span><span class="wrap" style="${txt(14, 500, { color: t.ink2 })}; ${tn}">@${me.handle} · ${me.followers} follower · ${me.following} following</span></span></a><a href="Edit-profile.dc.html" aria-label="Edit profile" style="${s({ width: 44, height: 44, display: "grid", "place-items": "center", "border-radius": 9999, background: t.surface, "flex-shrink": 0 })}">${icon("edit", 20)}</a></div>
+<a href="Edit-profile.dc.html" style="${s({ display: "flex", "align-items": "center", gap: 8, "min-height": 44, "margin-top": 6 })}; ${txt(15, 700)}"><span style="display:grid">${icon("warn", 18)}</span><span class="wrap">${me.missing}</span></a>`;
   const inner = `${K.topHeader(t, dv, "Profile")}
 ${person}
-${sect(t, "", setRow(t, "people", "Friends", { badge: `${me.requests} request`, last: true }), { mt: 14 })}
-${sect(t, "Training", `${setRow(t, "pin", "Gyms and machines")}${setRow(t, "book", "Exercise library")}${setRow(t, "rest", "Rest timer", { trail: K.toggle(t, true, "Rest timer") })}${setRow(t, "coach", "AI coach", { value: "On", last: true })}`)}
+${sect(t, "", setRow(t, "people", "Friends", { badge: `${me.requests} request`, last: true }), { mt: 8 })}
+${sect(t, "Training", `${setRow(t, "table", "Programme")}${setRow(t, "pin", "Gyms and machines")}${setRow(t, "book", "Exercise library")}${setRow(t, "rest", "Rest timer", { trail: K.toggle(t, false, "Rest timer") })}${setRow(t, "coach", "AI coach", { last: true })}`)}
 ${sect(t, "Preferences", `${setRow(t, "contrast", "Appearance", { value: "System" })}${setRow(t, "lock", "Privacy", { last: true })}`)}
-${sect(t, "Account", `${setRow(t, "key", "Password")}${setRow(t, "link", "Coach access")}${setRow(t, "exit", "Sign out", { trail: "" })}${setRow(t, "trash", "Delete account", { last: true })}`)}`;
+${sect(t, "Account", `${setRow(t, "password", "Password")}${setRow(t, "key", "Coach access", { last: true })}`)}
+${sect(t, "", `${setRow(t, "exit", "Sign out", { trail: "" })}${setRow(t, "trash", "Delete account", { last: true })}`, { mt: 14 })}`;
   return K.root(t, `${K.screenMain(t, inner, { dv })}${K.navbar(t, "profile", { dv })}`, {
     label: "Profile",
     dv,
@@ -123,22 +128,28 @@ export function appearanceScreen(t, dv = K.D) {
   });
 }
 export function editProfileScreen(t, dv = K.D) {
+  // every field the app asks for (profile-fields.tsx), the account's values where it has them;
+  // date of birth and goal are still to add, and the form says so once, above it
+  const readOnly = `<dl style="${s({ display: "flex", "justify-content": "space-between", gap: 12, padding: "10px 0", "border-bottom": `1px solid ${t.hair}`, "margin-top": 10 })}"><dt style="${txt(15, 700)}">Email</dt><dd class="wrap" style="${txt(15, 500, { color: t.ink2 })}">${me.email}</dd></dl>`;
+  const still = `<p style="${s({ display: "flex", gap: 8, "align-items": "flex-start", "margin-top": 12 })}; ${txt(15, 600, { "line-height": 1.4 })}"><span style="${s({ display: "grid", "flex-shrink": 0, "margin-top": 1 })}">${icon("warn", 18)}</span><span>Still to add: date of birth and training goal. Saving needs all of them.</span></p>`;
+  const select = (label, value) =>
+    `<div style="${s({ display: "flex", "flex-direction": "column", gap: 6 })}"><span style="${txt(14, 700)}">${label}</span><button type="button" aria-haspopup="listbox" aria-label="${label}: ${value}" style="${s({ display: "flex", "align-items": "center", "justify-content": "space-between", height: 52, padding: "0 14px 0 16px", "border-radius": 14, border: `1.5px solid ${t.control}`, color: t.ink2 })}; ${txt(16, 500)}">${value}${icon("chevronDown", 18)}</button></div>`;
   const inner = `${K.nestedHeader(t, "Profile")}
 <h2 style="${title(34)}; margin-top: 2px">Edit profile</h2>
+${readOnly}
+${still}
 <div style="${s({ display: "flex", "flex-direction": "column", gap: 16, "margin-top": 14 })}">
 ${K.field(t, "Name", { value: me.name })}
 ${K.field(t, "Username", { value: me.handle, help: "3 to 20 characters: lowercase letters, digits, dots and underscores." })}
 ${K.field(t, "Time zone", { value: "Asia/Kolkata" })}
 ${labelled(t, "Units", seg(t, ["kg (kilograms)", "lb (pounds)"], 0, "Units", { size: 15 }), { note: "Height in centimetres." })}
 <div style="${s({ display: "grid", "grid-template-columns": "repeat(2, minmax(0,1fr))", gap: 12 })}">${K.field(t, "Body weight (kg)", { value: me.weight })}${K.field(t, "Height (cm)", { value: me.height })}</div>
+${K.field(t, "Date of birth", { placeholder: "dd/mm/yyyy", help: "So training load can be read against your age" })}
+${labelled(t, "Sex", `<div role="radiogroup" aria-label="Sex" style="${s({ display: "grid", "grid-template-columns": "repeat(2, minmax(0,1fr))", gap: 2, padding: 3, background: t.surface, "border-radius": 14 })}">${["Female", "Male", "Other", "Prefer not to say"].map((x) => `<button type="button" role="radio" aria-checked="false" style="${s({ "min-height": 44, "border-radius": 11, padding: "4px 6px" })}; ${txt(15, 700)}">${x}</button>`).join("")}</div>`)}
+${select("Training goal", "Choose a goal")}
+<button type="button" style="${K.BTN(t, "primary")}; width: 100%; margin-top: 4px">Save</button>
 </div>`;
-  const G = K.gut(dv);
-  const foot = `<div style="${s({ position: "absolute", left: G, right: G, bottom: K.navH(dv) + 12 })}"><button type="button" style="${K.BTN(t, "primary")}; width: 100%">Save</button></div>`;
-  return K.root(
-    t,
-    `${K.screenMain(t, inner, { dv, bottom: K.navH(dv) + 12 + 56 + 8 })}${foot}${K.navbar(t, "profile", { dv, nested: true })}`,
-    { label: "Edit profile", dv },
-  );
+  return K.wholeBoard(t, inner, dv, "profile", "Edit profile", { nested: true });
 }
 
 // ---------- THE FIRST RUN: You, Sports, Gym, Machines, Plan ----------
@@ -180,7 +191,7 @@ export function welcomeScreen(t, dv = K.D) {
     w: cw,
     h: K.short(dv) ? 96 : 128,
     paper: t.paper,
-    align: "center",
+
     parts: [
       {
         kind: "strength",
@@ -195,7 +206,20 @@ export function welcomeScreen(t, dv = K.D) {
     ],
     ariaLabel: "A print: lifting, a run, a ride and a swim",
   });
+  // the print's key, once: each form beside its sport
+  const key = `<p style="${s({ display: "flex", "flex-wrap": "wrap", gap: "4px 14px", "margin-top": 8 })}; ${txt(13, 600, { color: t.ink2 })}">${[
+    ["strength", "Lifting"],
+    ["run", "Running"],
+    ["ride", "Cycling"],
+    ["swim", "Swimming"],
+  ]
+    .map(
+      ([k, l]) =>
+        `<span style="display:inline-flex;align-items:center;gap:5px">${K.stateMark(t, k, 12)}${l}</span>`,
+    )
+    .join("")}</p>`;
   const inner = `${K.printFrame(print, { mt: 6 })}
+${key}
 ${stepTitle(t, dv, "Welcome to Overload")}
 ${sub(t, "A few short steps. Everything here can be changed later, from your profile.")}
 <div style="${s({ display: "flex", "flex-direction": "column", gap: 14, "margin-top": 16 })}">${K.field(t, "What should we call you?", { value: me.name, optional: true })}${K.field(t, "Username", { value: me.handle, help: "Available." })}
@@ -241,7 +265,7 @@ export function machinesStepScreen(t, dv = K.D) {
   const inner = `${stepTitle(t, dv, "What does Anytime Fitness have?")}
 <p style="${s({ display: "flex", "align-items": "center", gap: 2, "margin-top": 2 })}; ${txt(16, 500, { color: t.ink2 })}">Tick the machines it has.<button type="button" aria-label="About machines" aria-haspopup="dialog" style="${s({ width: 44, height: 44, display: "grid", "place-items": "center", color: t.ink2 })}">${icon("info", 18)}</button></p>
 <label style="${s({ display: "flex", "align-items": "center", gap: 10, height: 48, padding: "0 14px", "border-radius": 14, border: `1.5px solid ${t.control}`, "margin-top": 2 })}"><span style="display:grid;color:${t.ink2}">${icon("search", 20)}</span><span class="sr">Find a machine</span><span aria-hidden="true" style="${txt(16, 500, { color: t.ink2 })}">Find a machine</span></label>
-<div style="${s({ display: "flex", "align-items": "center", gap: 4, "margin-top": 8 })}"><button type="button" style="${K.BTN(t, "tonal", { h: 40 })}; padding: 0 12px; font-size: 14px">Select all machines</button><button type="button" style="${K.BTN(t, "text", { h: 40 })}; font-size: 14px">Clear all</button><span style="flex:1 1 auto"></span><span role="status" style="${txt(14, 700)}; ${tn}">${MC.ticked.length} selected</span></div>
+<div style="${s({ display: "flex", "align-items": "center", gap: 4, "margin-top": 8 })}"><button type="button" style="${K.BTN(t, "tonal", { h: 44 })}; padding: 0 12px; font-size: 14px">Select all machines</button><button type="button" style="${K.BTN(t, "text", { h: 44 })}; font-size: 14px">Clear all</button><span style="flex:1 1 auto"></span><span role="status" style="${txt(14, 700)}; ${tn}">${MC.ticked.length} selected</span></div>
 ${K.caption(t, "Machines", { mt: 12 })}
 <ul style="${s({ display: "grid", "grid-template-columns": "repeat(2, minmax(0,1fr))", gap: 6, "margin-top": 4 })}">${MC.Machines.map(tick).join("")}</ul>`;
   return onboardFrame(t, dv, 3, inner, `${go(t, "Add and continue")}${skip(t)}`, {

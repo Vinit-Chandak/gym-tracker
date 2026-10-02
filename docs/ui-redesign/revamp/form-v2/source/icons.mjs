@@ -57,7 +57,10 @@ const GLYPHS = {
   repeat: `<path d="M5 11V9.5a4 4 0 0 1 4-4h9.5"/><path d="M15.5 2.5l3 3-3 3"/><path d="M19 13v1.5a4 4 0 0 1-4 4H5.5"/><path d="M8.5 21.5l-3-3 3-3"/>`,
   bell: `<path d="M6.5 16.5V11a5.5 5.5 0 0 1 11 0v5.5l1.5 2h-14z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>`,
   // equipment: what an exercise is done with
-  kettlebell: `<path d="M8.7 10.4V8a3.3 3.3 0 0 1 6.6 0v2.4"/><path d="M8.2 20h7.6a5.6 5.6 0 1 0-7.6 0z"/>`,
+  // free weights: a dumbbell, side on; nothing about it reads as the padlock
+  dumbbell: `<path d="M7.5 12h9"/><rect x="4" y="7" width="3.5" height="10" rx="1"/><rect x="16.5" y="7" width="3.5" height="10" rx="1"/><path d="M2.5 10v4M21.5 10v4"/>`,
+  // a password: a field of dots
+  password: `<rect x="3" y="7" width="18" height="10" rx="2.5"/><path d="M8 12h.01M12 12h.01M16 12h.01" stroke-width="2.8"/>`,
   machine: `<rect x="6" y="3.5" width="10" height="17" rx="1.6"/><path d="M6 8h10M6 12h10M6 16h10"/><path d="M16 12h3.5"/>`,
   cable: `<path d="M4 4h16"/><circle cx="12" cy="7.5" r="2.4"/><path d="M12 9.9v7"/><path d="M8.5 17.5h7"/>`,
   smith: `<path d="M5.5 3.5v17M18.5 3.5v17"/><path d="M3 11h18"/><path d="M8.2 8.5v5M15.8 8.5v5"/>`,
@@ -65,7 +68,8 @@ const GLYPHS = {
   // context: where a run, ride or swim happened
   outdoor: `<path d="M3 18h18"/><path d="M7.4 18a4.6 4.6 0 0 1 9.2 0"/><path d="M12 9.6V7.4M7.6 12.2L6.1 10.7M16.4 12.2l1.5-1.5"/>`,
   treadmill: `<path d="M3.5 19.5h12.8a1.7 1.7 0 0 0 0-3.4H3.5a1.7 1.7 0 0 0 0 3.4z"/><path d="M17.2 16.2L19.4 6.5h-4.2"/>`,
-  trainer: `<circle cx="12" cy="9.5" r="5.5"/><circle cx="12" cy="9.5" r="1.2"/><path d="M8.2 20.5l3.8-5 3.8 5M5.5 20.5h13"/>`,
+  // an indoor bike: a wheel held up by a stand from its hub, on the floor
+  trainer: `<circle cx="12" cy="9.5" r="6"/><circle cx="12" cy="9.5" r="1.3"/><path d="M12 9.5L6.8 20.5M12 9.5l5.2 11M4 20.5h16"/>`,
   pool: `<path d="M3.5 6.5h17M3.5 17.5h17"/><path d="M3.5 12c1.4 0 2.1-1.4 4.2-1.4s2.8 1.4 4.3 1.4 2.2-1.4 4.3-1.4 2.8 1.4 4.2 1.4"/>`,
   openwater: `<path d="M3.5 10c1.4 0 2.1-1.4 4.2-1.4s2.8 1.4 4.3 1.4 2.2-1.4 4.3-1.4 2.8 1.4 4.2 1.4"/><path d="M3.5 15.5c1.4 0 2.1-1.4 4.2-1.4s2.8 1.4 4.3 1.4 2.2-1.4 4.3-1.4 2.8 1.4 4.2 1.4"/>`,
   indoor: `<path d="M4 11L12 4.5l8 6.5"/><path d="M6 9.5v10h12v-10"/>`,
@@ -139,12 +143,13 @@ export const LABELS = {
   globe: "Time zone",
   people: "Friends",
   lock: "Privacy",
-  key: "Password",
+  key: "Coach access",
   trash: "Delete",
   exit: "Sign out",
   repeat: "Routines",
   bell: "Reminders",
-  kettlebell: "Free weights",
+  dumbbell: "Free weights",
+  password: "Password",
   machine: "Machine",
   cable: "Cable",
   smith: "Smith machine",
@@ -166,7 +171,7 @@ export const LABELS = {
 // The order the system sheet shows them in.
 export const ICON_ORDER = {
   destinations: ["today", "training", "food", "progress", "profile"],
-  equipment: ["kettlebell", "machine", "cable", "smith", "bodyweight"],
+  equipment: ["dumbbell", "machine", "cable", "smith", "bodyweight"],
   context: ["outdoor", "treadmill", "trainer", "pool", "openwater", "indoor"],
   actions: [
     "play",
@@ -207,6 +212,7 @@ export const ICON_ORDER = {
     "distance",
     "pace",
     "offline",
+    "coach",
   ],
   settings: [
     "ruler",
@@ -219,6 +225,7 @@ export const ICON_ORDER = {
     "trophy",
     "scales",
     "lock",
+    "password",
     "key",
     "repeat",
     "bell",

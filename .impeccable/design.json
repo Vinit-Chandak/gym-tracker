@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-02T13:25:07Z",
+  "generatedAt": "2026-10-02T14:37:56Z",
   "title": "Design System: Overload",
   "extensions": {
     "colorMeta": {
@@ -1194,9 +1194,17 @@
       "name": "Waiting Button",
       "kind": "button",
       "refersTo": "button-waiting",
-      "description": "A button waiting on something: Choose RIR to save, Saving….",
-      "html": "<button class=\"ds-btn-waiting\" aria-disabled=\"true\">Choose RIR to save</button>",
+      "description": "A button waiting on something: Save while RIR is empty (the app's sentence for a missing RIR describes it), Saving….",
+      "html": "<button class=\"ds-btn-waiting\" aria-disabled=\"true\" aria-describedby=\"rir-need\">Save</button><span id=\"rir-need\" hidden>Enter RIR: estimate how many more good reps you could do.</span>",
       "css": ".ds-btn-waiting { display:inline-flex; align-items:center; justify-content:center; height:56px; padding:0 20px; border:0; border-radius:14px; background:#f4f4f5; color:#5b5d64; font:700 17px/1 'Atkinson Hyperlegible Next', system-ui, sans-serif; }"
+    },
+    {
+      "name": "Destructive Button",
+      "kind": "button",
+      "refersTo": "button-tonal",
+      "description": "A 2-px ink outline with its glyph leading; grey until confirmed; never in the primary place.",
+      "html": "<button class=\"ds-btn-danger\" aria-disabled=\"true\">Delete everything</button>",
+      "css": ".ds-btn-danger { display:inline-flex; align-items:center; justify-content:center; gap:8px; height:56px; padding:0 20px; border:2px solid #85878e; border-radius:14px; background:transparent; color:#5b5d64; font:700 17px/1 'Atkinson Hyperlegible Next', system-ui, sans-serif; } .ds-btn-danger:not([aria-disabled]) { border-color:#16171b; color:#16171b; }"
     },
     {
       "name": "Stepper",
@@ -1212,7 +1220,7 @@
       "refersTo": "ledger-row",
       "description": "One row per set: number, 12-px mark (warm-up grey, saved ultramarine, current outlined, to do thinned), the set in notation.",
       "html": "<ol class=\"ds-ledger\"><li><span>W</span><i class=\"warm\"></i><b class=\"dim\">25 × 8</b></li><li><span>1</span><i class=\"done\"></i><b>60 × 5 @ 2</b></li><li class=\"now\"><span>3</span><i class=\"cur\"></i><b></b></li><li><span>4</span><i class=\"todo\"></i><b></b></li></ol>",
-      "css": ".ds-ledger { list-style:none; margin:0; padding:0; width:320px; } .ds-ledger li { display:flex; align-items:center; height:40px; border-bottom:1px solid #e6e6e9; font:700 15px 'Atkinson Hyperlegible Next', system-ui, sans-serif; color:#16171b; } .ds-ledger li.now { background:#f4f4f5; border-radius:10px; padding:0 8px; margin:0 -8px; } .ds-ledger span { width:26px; } .ds-ledger i { display:block; width:12px; height:12px; margin:0 16px 0 4px; box-sizing:border-box; } .ds-ledger i.warm { background:#c9c4b8; } .ds-ledger i.done { background:#2b40c8; } .ds-ledger i.cur { width:14px; height:14px; border:2.5px solid #16171b; } .ds-ledger i.todo { background:#9aaaf0; border:1.5px solid #2b40c8; } .ds-ledger b { font:600 19px/1 'Jost', system-ui, sans-serif; font-variant-numeric:tabular-nums; } .ds-ledger b.dim { color:#5b5d64; font-size:17px; }"
+      "css": ".ds-ledger { list-style:none; margin:0; padding:0; width:320px; } .ds-ledger li { display:flex; align-items:center; height:44px; border-bottom:1px solid #e6e6e9; font:700 15px 'Atkinson Hyperlegible Next', system-ui, sans-serif; color:#16171b; } .ds-ledger li.now { background:#f4f4f5; border-radius:10px; padding:0 8px; margin:0 -8px; } .ds-ledger span { width:26px; } .ds-ledger i { display:block; width:12px; height:12px; margin:0 16px 0 4px; box-sizing:border-box; } .ds-ledger i.warm { background:#c9c4b8; } .ds-ledger i.done { background:#2b40c8; } .ds-ledger i.cur { width:14px; height:14px; border:2.5px solid #16171b; } .ds-ledger i.todo { background:#9aaaf0; border:1.5px solid #2b40c8; } .ds-ledger b { font:600 20px/1 'Jost', system-ui, sans-serif; font-variant-numeric:tabular-nums; } .ds-ledger b.dim { color:#5b5d64; font-size:17px; }"
     },
     {
       "name": "Rest Pill",
@@ -1345,7 +1353,7 @@
       }
     ],
     "dos": [
-      "Do take every figure and line of copy from the repository's seed, preview, test and audit data; a print draws only what was logged.",
+      "Do take every figure from the repository's seed, preview, test and audit data, and every interface string from the app's own screens; where a design needs a string the app does not have yet, say so. A print draws only what was logged.",
       "Do lead every row with its mark in the mark column, and start every name at one edge.",
       "Do let ink say state: a mark's fill, an outline, a dashed edge; keep words for what ink cannot say.",
       "Do give a new sport its family's form with one cut, and check it reads at 12 px.",

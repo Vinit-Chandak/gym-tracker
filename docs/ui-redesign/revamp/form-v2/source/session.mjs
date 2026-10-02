@@ -12,13 +12,13 @@
 import { s, esc } from "./lib.mjs";
 import * as K from "./kit.mjs";
 import { dayPrint, PIG } from "./art.mjs";
-import { upperA, armsWorkout, lowerA, bench, sept8, run2Aug, EQUIP } from "./data.mjs";
+import { upperA, upperA3, armsWorkout, lowerA, bench, sept8, run2Aug, EQUIP } from "./data.mjs";
 
 const { txt, num, title, icon, tn } = K;
-const glyphFor = (m) => EQUIP[m] || "kettlebell";
+const glyphFor = (m) => EQUIP[m] || "dumbbell";
 const equipName = (m) =>
   ({
-    kettlebell: "Free weights",
+    dumbbell: "Free weights",
     bodyweight: "Bodyweight",
     cable: "Cable",
     machine: "Machine",
@@ -29,7 +29,7 @@ const equipName = (m) =>
 const minimise = () =>
   `<button type="button" aria-label="Minimise the workout" style="${s({ width: 44, height: 44, display: "grid", "place-items": "center", "flex-shrink": 0, "margin-left": -10 })}">${icon("chevronDown", 24)}</button>`;
 const finishBtn = (t) =>
-  `<a href="#" style="${K.BTN(t, "outline", { h: 36 })}; padding: 0 14px; font-size: 15px">Finish</a>`;
+  `<a href="Finish.dc.html" style="${s({ display: "flex", "align-items": "center", height: 44, "flex-shrink": 0 })}"><span style="${K.BTN(t, "outline", { h: 36 })}; padding: 0 14px; font-size: 15px">Finish</span></a>`;
 export function sessionHeader(
   t,
   {
@@ -43,7 +43,7 @@ export function sessionHeader(
   return `<header style="${s({ display: "flex", "align-items": "center", gap: 8, height: 48, "flex-shrink": 0 })}">${left}<span style="flex:1 1 auto"></span>${rest ? K.restPill(t, { time: bench.restNow.time, frac: bench.restNow.frac, ...restOpts }) : ""}${finish ? finishBtn(t) : ""}${more ? `<span style="margin-right:-10px">${K.iconBtn(t, "more", more)}</span>` : ""}</header>`;
 }
 const backTo = (t, label, href = "#") =>
-  `<a href="${href}" style="${s({ display: "flex", "align-items": "center", gap: 2, height: 44, "margin-left": -10, "padding-right": 6, "min-width": 0 })}; ${txt(17, 700)}">${icon("chevronLeft", 22)}<span class="nb" style="overflow:hidden;text-overflow:ellipsis">${label}</span></a>`;
+  `<a href="${K.backHref(t, label, href)}" style="${s({ display: "flex", "align-items": "center", gap: 2, height: 44, "margin-left": -10, "padding-right": 6, "min-width": 0 })}; ${txt(17, 700)}">${icon("chevronLeft", 22)}<span class="nb" style="overflow:hidden;text-overflow:ellipsis">${label}</span></a>`;
 // a session screen has no tab bar: the body runs to the safe area
 const sessionMain = (t, inner, dv, { bottom = 0, flex = false, fade = true } = {}) =>
   K.screenMain(t, inner, { dv, bottom: bottom || dv.bottom + 8, flex, fade });
@@ -71,121 +71,103 @@ function exRow(t, x, { open = false, done = false, skipped = false, last = false
 function warmRow(t, { name, sub, drills, done, last = false }) {
   return `<li><a href="#" style="${s({ display: "flex", "align-items": "center", gap: 12, "min-height": 56, padding: "8px 0", "border-bottom": last ? 0 : `1px solid ${t.hair}` })}">${K.markCell(K.stateMark(t, "mobility", 18, { state: done ? "done" : "todo", segments: drills, done: done ? drills : 0, label: done ? "Warm-up done" : "Warm-up to do" }))}<span style="${s({ display: "flex", "flex-direction": "column", flex: "1 1 auto", "min-width": 0 })}"><span style="${txt(16, 700)}">${name}</span><span class="wrap" style="${txt(14, 500, { color: t.ink2 })}; ${tn}">${sub}</span></span></a></li>`;
 }
-const group = (t, label, rows, id) =>
-  `<section aria-labelledby="${id}">${K.caption(t, label, { id, mt: 18 })}<ul>${rows}</ul></section>`;
 const addRow = (t) =>
   `<div style="${s({ display: "flex", gap: 8, "margin-top": 10 })}"><button type="button" style="${K.BTN(t, "tonal", { h: 44 })}; padding: 0 14px; font-size: 15px">${icon("plus", 18)}Add exercise</button><button type="button" style="${K.BTN(t, "tonal", { h: 44 })}; padding: 0 14px; font-size: 15px">${icon("link", 18)}Superset</button></div>`;
 const superset = (t, rows, names) =>
-  `<li style="position:relative"><ul aria-label="Superset: ${esc(names.join(" and "))}">${rows}</ul>${K.supersetBracket(t, "Superset")}</li>`;
+  `<li style="${K.SS_GROUP}"><ul aria-label="Superset: ${esc(names.join(" and "))}">${rows}</ul>${K.supersetBracket(t, "Superset")}</li>`;
 
 export function workoutScreen(t, dv = K.D, { kind = "upper" } = {}) {
+  // The list keeps the programme's order, the warm-up first; each row's mark says where it
+  // stands (done, under way, to do, skipped), so no heading repeats it. The print's parts stand
+  // in the same order.
   const G = K.gut(dv),
     cw = dv.W - 2 * G,
     sm = K.short(dv);
-  const head = sessionHeader(t, { left: minimise(t), finish: true });
   const ttl = (name, extra = "") =>
     `<h2 style="${title(K.titleSize(name, cw - 30, dv.W < 360 ? 30 : 34), { lh: 1.05 })}; margin-top: 2px; display: flex; align-items: center; gap: 8px">${name}${extra}</h2>`;
+  const meta = (X) =>
+    K.metaLine(
+      t,
+      [`${icon("pin", 16)}<span>${X.gym}</span>`, `${icon("rest", 16)}<span>${X.time}</span>`],
+      { mt: 4 },
+    );
+  const print = (parts, ariaLabel) =>
+    K.printFrame(dayPrint({ w: cw, h: sm ? 92 : 112, paper: t.paper, parts, ariaLabel }), {
+      mt: 12,
+    });
   let inner, label;
   if (kind === "upper") {
     const X = upperA;
-    const open = X.exercises.filter((x) => x.state === "open"),
-      todo = X.exercises.filter((x) => !x.state);
-    inner = `${head}${ttl(X.session)}
-${K.metaLine(t, [`${icon("pin", 16)}<span>${X.gym}</span>`, `${icon("rest", 16)}<span>${X.time}</span>`], { mt: 4 })}
-${K.printFrame(
-  dayPrint({
-    w: cw,
-    h: sm ? 92 : 112,
-    paper: t.paper,
-    align: "ends",
-    parts: [
-      { kind: "strength", columns: X.exercises.map((x) => ({ n: x.sets, done: x.done || 0 })) },
-      {
-        kind: "mobility",
-        segments: X.warmup.drills,
-        segDone: X.warmup.drills,
-        done: true,
-        modules: 3,
-      },
-    ],
-    ariaLabel: "Upper A: the bench’s first two sets inked, the warm-up done",
-  }),
-  { mt: 12 },
+    const rows = X.exercises.map((x, i) =>
+      exRow(t, x, { dv, open: x.state === "open", last: i === X.exercises.length - 1 }),
+    );
+    inner = `${sessionHeader(t, { left: minimise(t), finish: true })}${ttl(X.session)}
+${meta(X)}
+${print(
+  [
+    {
+      kind: "mobility",
+      segments: X.warmup.drills,
+      segDone: X.warmup.drills,
+      done: true,
+      modules: 3,
+    },
+    { kind: "strength", columns: X.exercises.map((x) => ({ n: x.sets, done: x.done || 0 })) },
+  ],
+  "Upper A: the warm-up done, the bench’s first two sets inked, six exercises to do",
 )}
 <div style="margin-top:12px">${K.coachNote(t, { who: "Recovery check", tone: "check", title: "Sleep 5 h", text: "Hold loads today rather than adding, and keep the RIR honest.", dv, more: false, size: 15 })}</div>
-${group(t, "In progress", open.map((x) => exRow(t, x, { dv, open: true, last: true })).join(""), "g-open")}
-${group(t, "To do", todo.map((x, i) => exRow(t, x, { dv, last: i === todo.length - 1 })).join(""), "g-todo")}
-${group(t, "Done", warmRow(t, { name: X.warmup.name, sub: `${X.warmup.drills} drills`, drills: X.warmup.drills, done: true, last: true }), "g-done")}
+<ul aria-label="Upper A" style="margin-top:8px">${warmRow(t, { name: X.warmup.name, sub: `${X.warmup.drills} drills`, drills: X.warmup.drills, done: true })}${rows.join("")}</ul>
 ${addRow(t)}`;
-    label = "Upper A, the workout";
+    label = "Upper A";
   } else if (kind === "arms") {
     const X = armsWorkout;
-    const open = X.exercises.filter((x) => x.state === "open"),
-      done = X.exercises.filter((x) => x.state === "done"),
+    const single = X.exercises.filter((x) => !x.superset),
       ss = X.exercises.filter((x) => x.superset);
-    inner = `${head}${ttl(X.session)}
-${K.metaLine(t, [`${icon("pin", 16)}<span>${X.gym}</span>`, `${icon("rest", 16)}<span>${X.time}</span>`], { mt: 4 })}
-${K.printFrame(
-  dayPrint({
-    w: cw,
-    h: sm ? 92 : 112,
-    paper: t.paper,
-    align: "ends",
-    parts: [
-      {
-        kind: "strength",
-        columns: X.exercises.map((x, i) => ({
-          n: x.sets,
-          done: x.done || 0,
-          pair: x.superset && X.exercises[i + 1]?.superset === x.superset,
-        })),
-      },
-      { kind: "mobility", segments: 5, segDone: 0, modules: 3 },
-    ],
-    ariaLabel:
-      "Easy Run + Arms: barbell curl inked, one set of the pushdown, the forearms superset to do",
-  }),
-  { mt: 12 },
+    inner = `${sessionHeader(t, { left: minimise(t), finish: true })}${ttl(X.session)}
+${meta(X)}
+${print(
+  [
+    { kind: "mobility", segments: 5, segDone: 0, modules: 3 },
+    {
+      kind: "strength",
+      columns: X.exercises.map((x, i) => ({
+        n: x.sets,
+        done: x.done || 0,
+        pair: x.superset && X.exercises[i + 1]?.superset === x.superset,
+      })),
+    },
+  ],
+  "Easy Run + Arms: the run warm-up to do, barbell curl inked, two sets of the pushdown, the forearms superset to do",
 )}
-${group(t, "In progress", open.map((x) => exRow(t, x, { dv, open: true, last: true })).join(""), "g-open")}
-${group(
-  t,
-  "To do",
-  `${warmRow(t, { name: "Run warm-up", sub: "5 drills", drills: 5, done: false })}${superset(
-    t,
-    ss.map((x, i) => exRow(t, x, { dv, last: i === ss.length - 1 })).join(""),
-    ss.map((x) => x.name),
-  )}`,
-  "g-todo",
-)}
-${group(t, "Done", done.map((x) => exRow(t, x, { dv, done: true, last: true })).join(""), "g-done")}
+<ul aria-label="Easy Run + Arms" style="margin-top:8px">${warmRow(t, { name: "Run warm-up", sub: "5 drills", drills: 5, done: false })}${single
+      .map((x) => exRow(t, x, { dv, open: x.state === "open", done: x.state === "done" }))
+      .join("")}${superset(
+      t,
+      ss.map((x, i) => exRow(t, x, { dv, last: i === ss.length - 1 })).join(""),
+      ss.map((x) => x.name),
+    )}</ul>
 ${addRow(t)}`;
-    label = "Easy Run + Arms, a superset among the exercises to do";
+    label = "Easy Run + Arms";
   } else {
-    const X = lowerA,
-      kept = X.entries.filter((x) => !x.dropped),
-      dropped = X.entries.filter((x) => x.dropped);
-    inner = `${head}${ttl(X.session, `<span role="img" aria-label="Planned by the coach" style="display:grid;color:${t.ink}">${icon("coach", 22)}</span>`)}
-${K.metaLine(t, [`${icon("pin", 16)}<span>${X.gym}</span>`, `${icon("rest", 16)}<span>${X.time}</span>`], { mt: 4 })}
-${K.printFrame(
-  dayPrint({
-    w: cw,
-    h: sm ? 92 : 112,
-    paper: t.paper,
-    align: "ends",
-    parts: [
-      {
-        kind: "strength",
-        columns: X.entries.map((x) => ({ n: x.sets, done: 0, skipped: !!x.dropped })),
-      },
-      { kind: "mobility", segments: 2, segDone: 0, modules: 3 },
-    ],
-    ariaLabel: "Lower A as the coach planned it: seven exercises to do, the cable crunch skipped",
-  }),
-  { mt: 12 },
+    const X = lowerA;
+    inner = `${sessionHeader(t, { left: minimise(t), finish: true, rest: false })}${ttl(X.session, `<span role="img" aria-label="Planned by the coach" style="display:grid;color:${t.ink}">${icon("coach", 22)}</span>`)}
+${meta(X)}
+${print(
+  [
+    { kind: "mobility", segments: 2, segDone: 0, modules: 3 },
+    {
+      kind: "strength",
+      columns: X.entries.map((x) => ({ n: x.sets, done: 0, skipped: !!x.dropped })),
+    },
+  ],
+  "Lower A as the coach planned it: the warm-up and seven exercises to do, the cable crunch skipped",
 )}
-${group(t, "To do", `${warmRow(t, { name: "Warm-up", sub: X.warmup.join(" · "), drills: 2, done: false })}${kept.map((x, i) => exRow(t, { ...x, done: 0 }, { dv, last: i === kept.length - 1 })).join("")}`, "g-todo")}
-${group(t, "Skipped", dropped.map((x) => exRow(t, x, { dv, skipped: true, last: true })).join(""), "g-skip")}`;
+<ul aria-label="Lower A, planned by the coach" style="margin-top:8px">${warmRow(t, { name: "Warm-up", sub: X.warmup.join(" · "), drills: 2, done: false })}${X.entries
+      .map((x, i) =>
+        exRow(t, { ...x, done: 0 }, { dv, skipped: !!x.dropped, last: i === X.entries.length - 1 }),
+      )
+      .join("")}</ul>`;
     label = "Lower A, planned by the coach";
   }
   return K.root(t, sessionMain(t, inner, dv), { label, dv });
@@ -193,8 +175,10 @@ ${group(t, "Skipped", dropped.map((x) => exRow(t, x, { dv, skipped: true, last: 
 
 // ---------- logging: Log, Technique, History ----------
 const RIR_NAME = (v) => (v === "1" ? "1 rep in reserve" : `${v} reps in reserve`);
-function ledgerRow(t, r, { now = false, swap = null } = {}) {
-  // r: { n, v, reps, rir, kind: 'warm' | 'warmTodo' | 'done' | 'todo' | 'now' }
+function ledgerRow(t, r, { now = false, swap = null, unit = "kg" } = {}) {
+  // r: { n, v, reps, rir | rpe, kind: 'warm' | 'warmTodo' | 'done' | 'todo' | 'now' }. "@" is RIR
+  // alone; a set rated by RPE says so.
+  const unitName = unit === "lb" ? "pounds" : "kilograms";
   const markSz = 12;
   const mk =
     r.kind === "done"
@@ -208,21 +192,21 @@ function ledgerRow(t, r, { now = false, swap = null } = {}) {
             : `<span style="${s({ width: markSz, height: markSz, border: `1.5px solid ${t.marks.strength}`, background: t.scheme === "dark" ? "#27317a" : PIG.ultraT, display: "block" })}"></span>`;
   const text =
     r.kind === "done"
-      ? `<span style="${num(20)}">${r.v} <span style="${txt(14, 600, { color: t.ink2 })}">×</span> ${r.reps} <span style="${txt(14, 600, { color: t.ink2 })}">@</span> ${r.rir}</span>`
+      ? `<span style="${num(20)}">${r.v} <span style="${txt(14, 600, { color: t.ink2 })}">×</span> ${r.reps} ${r.rpe ? `<span style="${txt(14, 600, { color: t.ink2 })}">RPE</span> ${r.rpe}` : `<span style="${txt(14, 600, { color: t.ink2 })}">@</span> ${r.rir}`}</span>`
       : r.kind === "warm" || r.kind === "warmTodo"
         ? `<span style="${num(17)}; color: ${t.ink2}">${r.v} <span style="${txt(13, 600)}">×</span> ${r.reps}</span>`
         : "";
   const aria =
     r.kind === "done"
-      ? `Set ${r.n}: ${r.v} kilograms, ${r.reps} reps, ${RIR_NAME(String(r.rir))}. Saved. Edit`
+      ? `Set ${r.n}: ${r.v} ${unitName}, ${r.reps} reps, ${r.rpe ? `RPE ${r.rpe}` : RIR_NAME(String(r.rir))}. Saved. Edit`
       : r.kind === "warm"
-        ? `Warm-up: ${r.v} kilograms, ${r.reps} reps. Saved. Edit`
+        ? `Warm-up: ${r.v} ${unitName}, ${r.reps} reps. Saved. Edit`
         : r.kind === "warmTodo"
-          ? `Warm-up to do: ${r.v} kilograms, ${r.reps} reps`
+          ? `Warm-up to do: ${r.v} ${unitName}, ${r.reps} reps`
           : r.kind === "now"
             ? `Set ${r.n}, being entered below`
             : `Set ${r.n}, to do`;
-  return `<li><button type="button" aria-label="${esc(aria)}"${now ? ' aria-current="step"' : ""} style="${s({ display: "flex", "align-items": "center", gap: 0, width: "100%", height: 40, "border-bottom": `1px solid ${t.hair}`, "text-align": "left", background: now ? t.surface : "transparent", margin: now ? "0 -8px" : 0, padding: now ? "0 8px" : 0, "border-radius": now ? 10 : 0, "box-sizing": "content-box" })}"><span style="${s({ width: 26, "flex-shrink": 0, color: r.kind.startsWith("warm") ? t.ink2 : t.ink })}; ${txt(15, 700)}; ${tn}">${r.n}</span>${K.markCell(swap ? swap : mk)}<span style="${s({ "margin-left": 12, flex: "1 1 auto", "min-width": 0 })}">${swap && r.kind === "now" ? r.text || "" : text}</span>${r.trail || ""}</button></li>`;
+  return `<li><button type="button" aria-label="${esc(aria)}"${now ? ' aria-current="step"' : ""} style="${s({ display: "flex", "align-items": "center", gap: 0, width: "100%", height: 44, "border-bottom": `1px solid ${t.hair}`, "text-align": "left", background: now ? t.surface : "transparent", margin: now ? "0 -8px" : 0, padding: now ? "0 8px" : 0, "border-radius": now ? 10 : 0, "box-sizing": "content-box" })}"><span style="${s({ width: 26, "flex-shrink": 0, color: r.kind.startsWith("warm") ? t.ink2 : t.ink })}; ${txt(15, 700)}; ${tn}">${r.n}</span>${K.markCell(swap ? swap : mk)}<span style="${s({ "margin-left": 12, flex: "1 1 auto", "min-width": 0 })}">${swap && r.kind === "now" ? r.text || "" : text}</span>${r.trail || ""}</button></li>`;
 }
 export function ledger(t, S, { start = false, rows = null } = {}) {
   const items = rows ||
@@ -238,7 +222,7 @@ export function ledger(t, S, { start = false, rows = null } = {}) {
       { n: S.next.n, kind: "now" },
       ...S.todo.map((x) => ({ ...x, kind: "todo" })),
     ];
-  return `<ol aria-label="Sets" style="margin-top:6px">${items.map((r) => (typeof r === "string" ? r : ledgerRow(t, r, { now: r.kind === "now" }))).join("")}<li><button type="button" style="${s({ display: "flex", "align-items": "center", gap: 8, height: 44, color: t.ink2, "padding-left": 26 })}; ${txt(15, 700)}">${icon("plus", 18)}Add set</button></li></ol>`;
+  return `<ol aria-label="Sets" style="margin-top:6px; flex: 1 0 auto">${items.map((r) => (typeof r === "string" ? r : ledgerRow(t, r, { now: r.kind === "now", unit: S.unit }))).join("")}<li><button type="button" style="${s({ display: "flex", "align-items": "center", gap: 8, height: 44, color: t.ink2, "padding-left": 26 })}; ${txt(15, 700)}">${icon("plus", 18)}Add set</button></li></ol>`;
 }
 // The entry reads as the notation it records: load × reps @ RIR. Three steppers in one row while
 // each column holds its figure and two 44 pt buttons (at least 100 pt); otherwise load takes the
@@ -254,15 +238,19 @@ export function entry(
     saveHtml = null,
     rirHtml = null,
     headHtml = null,
+    vals = null,
+    swapTo = {},
   } = {},
 ) {
   const cw = dv.W - 2 * K.gut(dv);
-  // three steppers side by side while each column holds its figure and two 44 pt buttons 6 apart;
-  // the operators narrow first (360 dp Android and 375 pt phones keep one row, 320 stacks)
+  // three steppers side by side while each column holds its figure and two buttons 8 apart (44 pt
+  // on iOS, 48 dp on Android); the operators narrow first. 375 pt keeps one row; 360 dp Android
+  // and 320 pt stack: load first, then reps and RIR.
+  const bsize = dv.android ? 48 : 44,
+    bgap = 8;
   const opW = cw < 340 ? 14 : 18,
     colW = (cw - 2 * opW) / 3;
-  const three = colW >= 94;
-  const bgap = colW < 100 ? 6 : 8;
+  const three = colW >= 2 * bsize + bgap;
   const max = K.roomy(dv) ? 46 : 42;
   const size = Math.min(max, K.fit(S.next.load, (three ? colW : cw * 0.6) - 18, max, 28));
   const unit = S.unit;
@@ -270,7 +258,9 @@ export function entry(
   const st = armed ? "touched" : "suggested";
   const sw = swaps || {};
   const load = K.stepFigure(t, {
-    value: start ? "25" : S.next.load,
+    value: start ? "25" : (vals?.load ?? S.next.load),
+    swapTo: swapTo.load,
+    bsize,
     unit,
     size,
     state: st,
@@ -280,7 +270,9 @@ export function entry(
     bgap,
   });
   const reps = K.stepFigure(t, {
-    value: start ? "8" : S.next.reps,
+    value: start ? "8" : (vals?.reps ?? S.next.reps),
+    swapTo: swapTo.reps,
+    bsize,
     unit: "reps",
     size,
     state: st,
@@ -296,10 +288,11 @@ export function entry(
       unit: "RIR",
       size,
       state: armed ? "touched" : "empty",
-      hint: start ? "optional" : `target ${S.next.target}`,
+      hint: start ? "optional" : `target\u00a0${S.next.target}`,
       dec: "One rep less in reserve",
       inc: "One rep more in reserve",
       bgap,
+      bsize,
     });
   const op = (c) =>
     `<span aria-hidden="true" style="${s({ "padding-top": Math.round(size * 0.32), color: t.ink2, "text-align": "center" })}; ${txt(Math.round(size * 0.5), 500)}">${c}</span>`;
@@ -309,20 +302,29 @@ export function entry(
   const tag =
     start || !S.suggestion
       ? ""
-      : `<button type="button" aria-haspopup="dialog" aria-label="${esc(`${S.suggestion.kind}: why ${S.next.load} ${S.unit} × ${S.next.reps}`)}" style="${s({ display: "inline-flex", "align-items": "center", gap: 5, height: 30, padding: "0 9px 0 10px", "border-radius": 8, border: `1.5px solid ${t.ink}` })}; ${txt(14, 700)}">${S.suggestion.kind}${icon("info", 16)}</button>`;
+      : `<a href="Why.dc.html" aria-haspopup="dialog" aria-label="${esc(`${S.suggestion.kind}: why ${S.next.load} ${S.unit} × ${S.next.reps}`)}" style="${s({ display: "inline-flex", "align-items": "center", height: 44 })}"><span style="${s({ display: "inline-flex", "align-items": "center", gap: 5, height: 30, padding: "0 9px 0 10px", "border-radius": 8, border: `1.5px solid ${t.ink}` })}; ${txt(14, 700)}">${S.suggestion.kind}${icon("info", 16)}</span></a>`;
   const save =
     saveHtml ||
     (start
-      ? `<button type="button" style="${K.BTN(t, "primary")}; width: 100%">Save warm-up</button>`
+      ? `<button type="button" style="${K.BTN(t, "primary")}; width: 100%">${SAVE}</button>`
       : armed
-        ? `<button type="button" style="${K.BTN(t, "primary")}; width: 100%">Save set ${S.next.n}</button>`
-        : `<button type="button" aria-disabled="true" aria-describedby="rir-hint" style="${K.BTN(t, "waiting")}; width: 100%"><span id="rir-hint">Choose RIR to save</span></button>`);
+        ? `<button type="button" style="${K.BTN(t, "primary")}; width: 100%">${SAVE}</button>`
+        : saveWaiting(t));
   return `<section aria-label="${start ? "Warm-up 1" : `Set ${S.next.n}`}" style="${s({ display: "flex", "flex-direction": "column", gap: K.short(dv) ? 8 : 12, "padding-top": 10, "border-top": `1px solid ${t.hair}`, "flex-shrink": 0, background: t.ground })}">
-<div style="${s({ display: "flex", "align-items": "center", gap: 10, height: 36 })}"><h3 style="${txt(17, 700)}">${headHtml || (start ? "Warm-up 1" : `Set ${S.next.n}`)}</h3>${tag}<span style="flex:1 1 auto"></span><button type="button" aria-haspopup="dialog" aria-label="Set options: type, notes, remove" style="${s({ width: 44, height: 44, display: "grid", "place-items": "center", color: t.ink2, "margin-right": -10 })}">${icon("sliders", 20)}</button></div>
+<div style="${s({ display: "flex", "align-items": "center", gap: 10, height: 44 })}"><h3 style="${txt(17, 700)}">${headHtml || (start ? "Warm-up 1" : `Set ${S.next.n}`)}</h3>${tag}<span style="flex:1 1 auto"></span><button type="button" aria-haspopup="dialog" aria-label="Set options: type, notes, remove" style="${s({ width: 44, height: 44, display: "grid", "place-items": "center", color: t.ink2, "margin-right": -10 })}">${icon("sliders", 20)}</button></div>
 ${figures}
 <div style="margin-top:2px">${save}</div>
 </section>`;
 }
+// Save, in the app's words (set-grid.tsx). Until RIR is chosen it waits, grey, and the app's own
+// sentence for a missing RIR describes it (src/domain/effort.ts).
+export const SAVE = "Save";
+export const RIR_NEEDED = "Enter RIR: estimate how many more good reps you could do.";
+export const RPE_NEEDED = "Enter effort from 1 (very easy) to 10 (maximal).";
+export const saveWaiting = (t, { id = "rir-hint", need = RIR_NEEDED, style = "" } = {}) =>
+  `<button type="button" aria-disabled="true" aria-describedby="${id}" style="${K.BTN(t, "waiting")}; width: 100%${style}">${SAVE}</button><span id="${id}" class="sr">${need}</span>`;
+export const panel = (active, inner, style = "") =>
+  `<div role="tabpanel" id="panel" aria-labelledby="panel-tab-${active}"${style ? ` style="${style}"` : ""}>${inner}</div>`;
 function logHeader(t, S, dv, active = 0, { restOpts = {} } = {}) {
   const cw = dv.W - 2 * K.gut(dv);
   const glyph = glyphFor(S.modality);
@@ -344,22 +346,25 @@ export function logScreen(
     rows = null,
   } = {},
 ) {
-  const record = `${logHeader(t, S, dv, 0, { restOpts })}${ledger(t, S, { start, rows })}`;
+  const head = logHeader(t, S, dv, 0, { restOpts });
+  const list = ledger(t, S, { start, rows });
   const ent = entry(t, S, dv, { armed, start, ...entryOpts });
   if (whole)
     return K.root(
       t,
-      K.screenMain(t, `${record}<div style="margin-top:10px">${ent}</div>`, { dv, whole: true }),
-      { label: `${S.exercise}, the whole scroll`, dv, height: "auto" },
+      K.screenMain(t, `${head}${panel(0, list)}<div style="margin-top:10px">${ent}</div>`, {
+        dv,
+        whole: true,
+      }),
+      { label: S.exercise, dv, height: "auto" },
     );
+  // When the sets need more room than the screen has, the list keeps its end in view (the set being
+  // entered, what is left and Add set) and the earlier rows pass under the tabs, as a list scrolled
+  // to its foot does. A cut that falls between two rows would read as a missing set.
   const G = K.gut(dv);
-  const inner = `<div style="${s({ flex: "1 1 auto", "min-height": 0, overflow: "hidden", position: "relative", margin: `0 -${G}px`, padding: `0 ${G}px` })}">${record}${K.fadeTo(t, 18)}</div>${ent}`;
+  const inner = `${head}${panel(0, list, s({ flex: "1 1 auto", "min-height": 0, display: "flex", "flex-direction": "column-reverse", overflow: "hidden", margin: `0 -${G}px`, padding: `0 ${G}px` }))}${ent}`;
   return K.root(t, sessionMain(t, inner, dv, { flex: true, fade: false }), {
-    label: armed
-      ? `${S.exercise}, set ${S.next.n}, RIR chosen`
-      : start
-        ? `${S.exercise}, starting with the warm-ups`
-        : `${S.exercise}, entering set ${S.next.n}`,
+    label: S.exercise,
     dv,
   });
 }
@@ -370,35 +375,41 @@ export function techniqueScreen(t, dv = K.D, { S = bench } = {}) {
         `<div style="${s({ padding: "12px 0", "border-bottom": `1px solid ${t.hair}` })}"><dt style="${txt(13, 700, { color: t.ink2 })}">${k}</dt><dd style="${txt(17, 500, { "line-height": 1.4 })}; margin-top: 2px; ${tn}">${v}</dd></div>`,
     )
     .join("");
-  const inner = `${logHeader(t, S, dv, 1)}<dl style="margin-top:4px">${rows}</dl><a href="#" style="${s({ display: "flex", "align-items": "center", "justify-content": "space-between", height: 52 })}; ${txt(16, 700)}">Open in the exercise library${icon("chevronRight", 20)}</a>`;
-  return K.root(t, sessionMain(t, inner, dv), { label: `${S.exercise}, technique`, dv });
+  const inner = `${logHeader(t, S, dv, 1)}${panel(1, `<dl style="margin-top:4px">${rows}</dl><a href="#" style="${s({ display: "flex", "align-items": "center", "justify-content": "space-between", height: 52 })}; ${txt(16, 700)}">Open in the exercise library${icon("chevronRight", 20)}</a>`)}`;
+  return K.root(t, sessionMain(t, inner, dv), { label: S.exercise, dv });
 }
+// History: every session of this exercise, newest first, each set as it was logged. The sessions
+// test that drives logging has no dates, so each session is named by its cycle; the reason for
+// today's suggestion lives on the suggestion's tag, not here.
 export function historyScreen(t, dv = K.D, { S = bench } = {}) {
   const setRows = (sets) =>
     sets
-      .map(([v, reps, rir], i) => ledgerRow(t, { n: i + 1, v, reps, rir, kind: "done" }))
+      .map(([v, reps, rir], i) =>
+        ledgerRow(t, { n: i + 1, v, reps, rir, kind: "done" }, { unit: S.unit }),
+      )
       .join("");
   const sessions = S.history
     .map(
       (h, i) =>
-        `<section aria-label="${h.when}" style="margin-top:${i ? 16 : 10}px"><h3 style="${s({ display: "flex", "justify-content": "space-between", "align-items": "baseline" })}; ${txt(15, 700)}"><span>${h.when}</span>${h.note ? `<span style="${txt(13, 600, { color: t.ink2 })}">${h.note}</span>` : ""}</h3><ol>${setRows(h.sets)}</ol></section>`,
+        `<section aria-labelledby="h-${i}" style="margin-top:${i ? 18 : 10}px"><h3 id="h-${i}" style="${s({ display: "flex", "justify-content": "space-between", "align-items": "baseline", gap: 12 })}; ${txt(15, 700)}"><span>${h.when}</span></h3><ol>${setRows(h.sets)}</ol></section>`,
     )
     .join("");
-  const why = `<section aria-labelledby="why-h" style="${s({ "margin-top": 12, padding: "12px 14px", "border-radius": 14, background: t.surface })}"><h3 id="why-h" style="${s({ display: "flex", "align-items": "center", gap: 8 })}; ${txt(13, 700)}"><span style="${s({ padding: "1px 8px", "border-radius": 8, border: `1.5px solid ${t.ink}` })}">${S.suggestion.kind}</span><span style="${num(17)}">62.5 <span style="${txt(13, 600, { color: t.ink2 })}">kg ×</span> 3</span></h3><p style="${txt(16, 500, { "line-height": 1.4 })}; margin-top: 6px">${S.suggestion.reason}</p><p style="${txt(13, 500, { color: t.ink2 })}; margin-top: 2px">${S.suggestion.basis}</p></section>`;
-  const inner = `${logHeader(t, S, dv, 2)}${why}${sessions}<a href="#" style="${s({ display: "flex", "align-items": "center", "justify-content": "space-between", height: 52, "margin-top": 6 })}; ${txt(16, 700)}">Every session of this exercise${icon("chevronRight", 20)}</a>`;
-  return K.root(t, sessionMain(t, inner, dv), { label: `${S.exercise}, history`, dv });
+  const inner = `${logHeader(t, S, dv, 2)}${panel(2, `<p style="${txt(13, 700, { color: t.ink2 })}; margin-top: 12px; ${tn}">All sessions · ${S.history.length}</p>${sessions}`)}`;
+  return K.root(t, sessionMain(t, inner, dv), { label: S.exercise, dv });
 }
 // Why: the suggestion explained, a short sheet over logging.
 export function whyScreen(t, dv = K.D, { S = bench } = {}) {
   const under = logScreen(t, dv, { S })
     .replace(/^<div[^>]*><h1 class="sr">[^<]*<\/h1>/, "")
     .replace(/<\/div>$/, "");
-  const inner = `<div style="${s({ display: "flex", "align-items": "center", gap: 10 })}"><span style="${s({ padding: "2px 9px", "border-radius": 8, border: `1.5px solid ${t.ink}`, "flex-shrink": 0 })}; ${txt(14, 700)}">${S.suggestion.kind}</span><h2 id="why-title" style="${title(28)}; flex: 1 1 auto; ${tn}">Keep 62.5 kg × 3</h2><button type="button" aria-label="Close" style="${s({ width: 44, height: 44, display: "grid", "place-items": "center", "margin-right": -10 })}">${icon("close", 20)}</button></div>
-<p style="${txt(17, 500, { "line-height": 1.45 })}; margin-top: 10px">${S.suggestion.reason}</p>
-<p style="${txt(14, 500, { color: t.ink2 })}; margin-top: 4px">${S.suggestion.basis} Last time: 62.5 kg × 2, 3, 3, 3 @ 1.</p>
+  const inner = `<div style="${s({ display: "flex", "align-items": "center", gap: 10 })}"><span style="${s({ padding: "2px 9px", "border-radius": 8, border: `1.5px solid ${t.ink}`, "flex-shrink": 0 })}; ${txt(14, 700)}">${S.suggestion.kind}</span><h2 id="why-title" style="${title(28)}; flex: 1 1 auto">Why this suggestion</h2><button type="button" aria-label="Close" style="${s({ width: 44, height: 44, display: "grid", "place-items": "center", "margin-right": -10 })}">${icon("close", 20)}</button></div>
+<p style="${num(26)}; margin-top: 12px">${S.next.load} <span style="${txt(15, 600, { color: t.ink2 })}">${S.unit} ×</span> ${S.next.reps} <span style="${txt(15, 600, { color: t.ink2 })}">@</span> ${S.next.target}</p>
+<p style="${txt(17, 600, { "line-height": 1.45 })}; margin-top: 8px">${S.suggestion.reason}</p>
+${S.suggestion.advice ? `<p style="${txt(16, 500, { "line-height": 1.45 })}; margin-top: 6px">${S.suggestion.advice}</p>` : ""}
+<p style="${txt(14, 500, { color: t.ink2 })}; margin-top: 6px">${S.suggestion.basis}</p>
 <a href="#" style="${s({ display: "flex", "align-items": "center", "justify-content": "space-between", height: 52, "margin-top": 8, "border-top": `1px solid ${t.hair}` })}; ${txt(16, 700)}">History${icon("chevronRight", 20)}</a>`;
   return K.root(t, `${under}${K.sheet(t, inner, { dv, id: "why-title", label: "Why" })}`, {
-    label: "Why keep 62.5 kg × 3",
+    label: "Why this suggestion",
     dv,
   });
 }
@@ -407,8 +418,9 @@ export function whyScreen(t, dv = K.D, { S = bench } = {}) {
 // Save presses (120 ms) and turns to Saving…; the row's mark turns, a thinned square with an arc,
 // while the server answers; on confirmation ink rolls up the mark (420 ms) and the row takes its
 // figures; then set 4 takes the outline, the values go back to suggestions, RIR empties and rest
-// restarts at 3:00. Nothing is inked before the server has it.
-export function momentScreen(t, dv = K.D, { reduced = false } = {}) {
+// restarts at 3:00. Nothing is inked before the server has it. The lifter has turned the
+// suggested 62.5 × 3 down to 60 × 4, as the sessions test logs set 3.
+export function momentScreen(t, dv = K.D) {
   const S = bench;
   const sw = (a, b, ca, cb) =>
     `<span style="display:inline-grid"><span class="${ca}" style="grid-area:1/1">${a}</span><span class="${cb}" aria-hidden="true" style="grid-area:1/1">${b}</span></span>`;
@@ -417,7 +429,7 @@ export function momentScreen(t, dv = K.D, { reduced = false } = {}) {
   const savingMark = `<span style="${s({ position: "relative", width: sq, height: sq, background: PIG.ultraT, border: `1.5px solid ${t.marks.strength}`, display: "block" })}"><svg class="spin" width="${sq}" height="${sq}" viewBox="0 0 24 24" aria-hidden="true" style="position:absolute;inset:-1.5px;display:block" fill="none" stroke="${t.ink}" stroke-width="4" stroke-linecap="round"><path d="M12 4a8 8 0 1 1-8 8"/></svg></span>`;
   const inkMark = `<span class="ink3" style="${s({ width: sq, height: sq, background: t.marks.strength, display: "block" })}"></span>`;
   const mark3 = `<span style="display:inline-grid;place-items:center"><span class="m-now" style="grid-area:1/1;display:grid">${nowMark}</span><span class="m-saving" style="grid-area:1/1;display:grid">${savingMark}</span><span class="m-ink" style="grid-area:1/1;display:grid">${inkMark}</span></span>`;
-  const text3 = `<span class="t3" style="${num(20)}">62.5 <span style="${txt(14, 600, { color: t.ink2 })}">×</span> 3 <span style="${txt(14, 600, { color: t.ink2 })}">@</span> 2</span>`;
+  const text3 = `<span class="t3" style="${num(20)}">60 <span style="${txt(14, 600, { color: t.ink2 })}">×</span> 4 <span style="${txt(14, 600, { color: t.ink2 })}">@</span> 2</span>`;
   const mark4 = `<span style="display:inline-grid;place-items:center"><span class="m4-todo" style="grid-area:1/1;display:grid"><span style="${s({ width: sq, height: sq, border: `1.5px solid ${t.marks.strength}`, background: PIG.ultraT, display: "block" })}"></span></span><span class="m4-now" style="grid-area:1/1;display:grid">${nowMark}</span></span>`;
   const rows = [
     ...S.warmups.map((w) => ({ ...w, kind: "warm" })),
@@ -435,23 +447,25 @@ export function momentScreen(t, dv = K.D, { reduced = false } = {}) {
   const head = (a, b) => sw(a, b, "h3a", "h4a");
   const rirSel = `<div role="group" aria-label="RIR" style="${s({ display: "flex", "flex-direction": "column", "align-items": "center", gap: 6 })}"><output style="display:block;text-align:center">${sw(`<span style="${num(42, { lh: 1.1 })}">2</span>`, `<span style="${num(42, { lh: 1.1 })}; color: ${t.control}">–</span>`, "r2", "r0")}</output><span style="${txt(13, 600, { color: t.ink2 })}">RIR · target 2</span><span style="${s({ display: "flex", gap: 8, "margin-top": 2 })}">${K.roundBtn(t, "minus", "One rep less in reserve")}${K.roundBtn(t, "plus", "One rep more in reserve")}</span></div>`;
   const saveHtml = `<div style="display:grid">
-<span class="sv-wait" aria-hidden="true" style="${K.BTN(t, "waiting")}; grid-area: 1/1">Choose RIR to save</span>
+<span class="sv-wait" aria-hidden="true" style="${K.BTN(t, "waiting")}; grid-area: 1/1">${SAVE}</span>
 <span class="sv-saving" aria-hidden="true" style="${K.BTN(t, "waiting")}; grid-area: 1/1">Saving…</span>
 <span class="sv-saved" aria-hidden="true" style="${K.BTN(t, "waiting")}; grid-area: 1/1; color: ${t.ink}">${icon("check", 20)}Saved</span>
-<button type="button" class="sv-armed" style="${K.BTN(t, "primary")}; grid-area: 1/1">Save set 3</button>
+<button type="button" class="sv-armed" style="${K.BTN(t, "primary")}; grid-area: 1/1">${SAVE}</button>
 </div>`;
-  const record = `${logHeader(t, S, dv, 0, { restOpts: { timeHtml: sw("2:14", "3:00", "t1", "t2") } })}<ol aria-label="Sets" style="margin-top:6px">${rows.join("")}</ol>`;
+  const record = `${logHeader(t, S, dv, 0, { restOpts: { timeHtml: sw("2:14", "3:00", "t1", "t2") } })}${panel(0, `<ol aria-label="Sets" style="margin-top:6px">${rows.join("")}</ol>`)}`;
   const ent = entry(t, S, dv, {
     armed: true,
     swaps: { load: ["va", "vb"], reps: ["va", "vb"] },
+    vals: { load: "60", reps: "4" },
+    swapTo: { load: S.next.load, reps: S.next.reps },
     saveHtml,
     rirHtml: rirSel,
     headHtml: head("Set 3", "Set 4"),
   });
   const G = K.gut(dv);
-  const inner = `<div style="${s({ flex: "1 1 auto", "min-height": 0, overflow: "hidden", position: "relative", margin: `0 -${G}px`, padding: `0 ${G}px` })}">${record}</div>${ent}<p class="sr" role="status">Set 3 saved: 62.5 kg, 3 reps, 2 in reserve. Rest 3:00.</p>`;
+  const inner = `<div style="${s({ flex: "1 1 auto", "min-height": 0, overflow: "hidden", position: "relative", margin: `0 -${G}px`, padding: `0 ${G}px` })}">${record}</div>${ent}<p class="sr" role="status">Set 3 saved: 60 kilograms, 4 reps, 2 in reserve. Rest 3:00.</p>`;
   return K.root(t, sessionMain(t, inner, dv, { flex: true, fade: false }), {
-    label: reduced ? "A set is inked, reduced motion" : "A set is inked",
+    label: S.exercise,
     dv,
   });
 }
@@ -496,25 +510,35 @@ ${show("t2", 2.08)}
 }
 
 // ---------- check-in, before the workout ----------
+// A 1–5 scale: its words stand under its own 1 and 5, so which way is better is read where the
+// finger goes (the app's scales do not all run the same way, and their meaning is kept).
 function scale(t, label, ends, chosen, id) {
-  return `<div role="radiogroup" aria-labelledby="${id}" style="${s({ display: "flex", "flex-direction": "column", gap: 6, padding: "12px 0", "border-bottom": `1px solid ${t.hair}` })}"><p id="${id}" style="${s({ display: "flex", "justify-content": "space-between", "align-items": "baseline", gap: 8 })}"><span style="${txt(16, 700)}">${label}</span><span style="${txt(13, 500, { color: t.ink2 })}">1 ${ends[0]} · 5 ${ends[1]}</span></p><div style="${s({ display: "grid", "grid-template-columns": "repeat(5, minmax(0,1fr))", gap: 2, padding: 3, background: t.surface, "border-radius": 14 })}">${[
+  return `<div role="radiogroup" aria-labelledby="${id}" aria-describedby="${id}-ends" style="${s({ display: "flex", "flex-direction": "column", gap: 6, padding: "12px 0", "border-bottom": `1px solid ${t.hair}` })}"><p id="${id}" style="${txt(16, 700)}">${label}</p><div style="${s({ display: "grid", "grid-template-columns": "repeat(5, minmax(0,1fr))", gap: 2, padding: 3, "border-radius": 14, background: t.surface })}">${[
     1, 2, 3, 4, 5,
   ]
     .map(
       (v) =>
         `<button type="button" role="radio" aria-checked="${v === chosen}" aria-label="${v}" style="${s({ height: 46, "border-radius": 11, background: v === chosen ? t.ink : "transparent", color: v === chosen ? t.onInk : t.ink })}; ${num(20)}">${v}</button>`,
     )
-    .join("")}</div></div>`;
+    .join(
+      "",
+    )}</div><p id="${id}-ends" style="${s({ display: "flex", "justify-content": "space-between", padding: "0 6px" })}; ${txt(13, 600, { color: t.ink2 })}"><span>1 ${ends[0]}</span><span>${ends[1]} 5</span></p></div>`;
 }
 export function checkInScreen(t, dv = K.D) {
-  const sleep = `<div style="${s({ display: "flex", "align-items": "center", "justify-content": "space-between", gap: 12, padding: "10px 0 12px", "border-bottom": `1px solid ${t.hair}` })}"><span style="${s({ display: "flex", "flex-direction": "column" })}"><span style="${txt(16, 700)}">Sleep</span><span style="${txt(13, 500, { color: t.ink2 })}">Hours last night</span></span><span style="${s({ display: "flex", "align-items": "center", gap: 10 })}">${K.roundBtn(t, "minus", "Half an hour less")}<output aria-label="5 hours" style="${num(26)}; min-width: 48px; text-align: center">5</output>${K.roundBtn(t, "plus", "Half an hour more")}</span></div>`;
+  const sleep = K.rowStepper(t, {
+    label: "Hours last night",
+    value: "5",
+    dec: "Half an hour less",
+    inc: "Half an hour more",
+  });
   const inner = `${sessionHeader(t, { left: backTo(t, "Today"), rest: false, more: null })}
 <h2 style="${title(dv.W < 360 ? 30 : 34)}; margin-top: 2px">How are you today?</h2>
-<p style="${txt(15, 500, { color: t.ink2 })}; margin-top: 4px">Optional. Upper A · Anytime Fitness</p>
-<div style="margin-top:10px">${sleep}${scale(t, "Sleep quality", ["poor", "great"], 3, "q")}${scale(t, "Fatigue", ["fresh", "wrecked"], 5, "f")}${scale(t, "Soreness", ["none", "severe"], 2, "so")}</div>`;
+<p style="${txt(15, 500, { color: t.ink2 })}; margin-top: 4px">Optional</p>
+<section aria-labelledby="ci-sleep">${K.caption(t, "Sleep", { id: "ci-sleep", mt: 12 })}${sleep}${scale(t, "Quality", ["poor", "great"], 3, "q")}</section>
+<section aria-labelledby="ci-feel">${K.caption(t, "How you feel", { id: "ci-feel", mt: 14 })}${scale(t, "General fatigue", ["fresh", "wrecked"], 5, "f")}${scale(t, "Soreness", ["none", "severe"], 2, "so")}</section>`;
   const foot = `<div style="${s({ position: "absolute", left: K.gut(dv), right: K.gut(dv), bottom: dv.bottom + 8, display: "flex", "flex-direction": "column", gap: 4 })}"><button type="button" style="${K.BTN(t, "primary")}">Save and start</button><a href="#" style="${s({ display: "grid", "place-items": "center", height: 44 })}; ${txt(15, 700)}">Skip check-in</a></div>`;
   return K.root(t, `${sessionMain(t, inner, dv, { bottom: dv.bottom + 8 + 56 + 48 + 8 })}${foot}`, {
-    label: "Check-in before Upper A",
+    label: "How are you today?",
     dv,
   });
 }
@@ -541,57 +565,117 @@ function recordedRows(t, X) {
     })
     .join("");
 }
+// Finish: what the session recorded and what it did not, then the notes and the day's body weight
+// (the app's finish page, src/app/(app)/workouts/[sessionId]/finish/). Upper A, cycle 3: the bench
+// alone was logged, so the other six are not done; a dashed mark says so once for each.
+const upperCols = () => [
+  { n: 7, done: 7, warm: 3 },
+  ...upperA.exercises.slice(1).map((x) => ({ n: x.sets, done: 0, skipped: true })),
+];
+function finishedRows(t, X) {
+  return X.done
+    .map((x) => {
+      const n = x.sets.length + (x.warm ? x.warm.length : 0);
+      return `<li style="${s({ display: "flex", "align-items": "center", gap: 12, "min-height": 52, padding: "6px 0", "border-bottom": `1px solid ${t.hair}` })}">${K.markCell(K.colMark(t, n, n, { warm: x.warm ? x.warm.length : 0 }))}<span style="${s({ display: "flex", "flex-direction": "column", "min-width": 0, flex: "1 1 auto" })}"><span class="wrap" style="${txt(16, 700)}">${x.name}</span><span class="wrap" style="${txt(14, 500)}; ${tn}">${x.sets.map(([v, r]) => `${v} kg × ${r}`).join(", ")}</span></span></li>`;
+    })
+    .join("");
+}
+const notDone = (t) => {
+  const names = upperA.exercises.slice(1).map((x) => x.name);
+  return `<div style="${s({ display: "flex", gap: 12, "align-items": "flex-start", padding: "10px 0", "border-bottom": `1px solid ${t.hair}` })}">${K.markCell(K.colMark(t, 3, 0, { skipped: true, label: "Not done" }))}<p class="wrap" style="${txt(14, 500, { color: t.ink2, "line-height": 1.4 })}">${names.join(", ")}</p></div>`;
+};
 export function finishScreen(t, dv = K.D) {
-  const X = sept8;
+  const X = upperA3;
   const G = K.gut(dv),
     cw = dv.W - 2 * G;
-  const under = `${sessionHeader(t, { left: minimise(t), finish: true, rest: false })}<h2 style="${title(34)}">${X.title}</h2>${K.printFrame(dayPrint({ w: cw, h: 112, paper: t.paper, align: "ends", parts: [{ kind: "strength", columns: sessionCols(X) }] }), { mt: 12 })}`;
-  const inner = `<div style="${s({ display: "flex", "align-items": "center", gap: 10 })}"><h2 id="fin-title" style="${title(28)}; flex: 1 1 auto">Finish</h2><button type="button" aria-label="Close" style="${s({ width: 44, height: 44, display: "grid", "place-items": "center", "margin-right": -10 })}">${icon("close", 20)}</button></div>
-<p style="${s({ display: "flex", "justify-content": "space-between" })}; ${txt(13, 700, { color: t.ink2 })}; margin-top: 8px"><span>Recorded</span><span style="${tn}">9 sets</span></p>
-<ul>${recordedRows(t, X)}</ul>
-<div style="${s({ display: "flex", "flex-direction": "column", gap: 14, "margin-top": 14 })}">${K.field(t, "Notes", { rows: 2, placeholder: "How it went, anything the coach should know…", help: "Your coach reads these", optional: true })}<div style="${s({ display: "flex", "align-items": "center", "justify-content": "space-between", gap: 12 })}"><span style="${s({ display: "flex", "flex-direction": "column" })}"><span style="${txt(16, 700)}">Body weight</span><span style="${txt(13, 500, { color: t.ink2 })}">Today’s reading · optional</span></span><span style="${s({ display: "flex", "align-items": "center", gap: 10 })}">${K.roundBtn(t, "minus", "Less, 0.1 kg")}<output aria-label="76.83 kilograms" style="${num(26)}; min-width: 76px; text-align: center">76.83</output>${K.roundBtn(t, "plus", "More, 0.1 kg")}</span></div></div>
+  const under = `${sessionHeader(t, { left: minimise(t), finish: true, rest: false })}<h2 style="${title(34)}">${X.title}</h2>${K.printFrame(
+    dayPrint({
+      w: cw,
+      h: 112,
+      paper: t.paper,
+      parts: [
+        { kind: "mobility", segments: 4, segDone: 4, done: true, modules: 3 },
+        { kind: "strength", columns: upperCols() },
+      ],
+    }),
+    { mt: 12 },
+  )}`;
+  const inner = `<div style="${s({ display: "flex", "align-items": "center", gap: 10 })}"><h2 id="fin-title" style="${title(28)}; flex: 1 1 auto">${X.title}</h2><button type="button" aria-label="Close" style="${s({ width: 44, height: 44, display: "grid", "place-items": "center", "margin-right": -10 })}">${icon("close", 20)}</button></div>
+${K.metaLine(t, [`${icon("pin", 16)}<span>${X.gym}</span>`], { mt: 0 })}
+<h3 style="${s({ display: "flex", "justify-content": "space-between" })}; ${txt(13, 700, { color: t.ink2 })}; margin-top: 12px"><span>Recorded</span><span style="${tn}">${X.sets} sets</span></h3>
+<ul>${finishedRows(t, X)}</ul>
+<h3 style="${txt(13, 700, { color: t.ink2 })}; margin-top: 12px">Not done</h3>
+${notDone(t)}
+<div style="${s({ display: "flex", "flex-direction": "column", gap: 14, "margin-top": 14 })}">${K.field(t, "Notes", { rows: 2, placeholder: "How it went, anything the coach should know…", help: "Your coach reads these" })}${K.field(t, "Body weight (kg)", { help: "Optional — recorded as today’s reading" })}</div>
 <button type="button" style="${K.BTN(t, "primary")}; width: 100%; margin-top: 16px">Finish session</button>`;
   return K.root(
     t,
-    `${sessionMain(t, under, dv)}${K.sheet(t, inner, { dv, id: "fin-title", top: 96 })}`,
-    { label: "Finish the session", dv },
+    `${sessionMain(t, under, dv)}${K.sheet(t, inner, { dv, id: "fin-title", top: 64 })}`,
+    { label: "Finish session", dv },
   );
 }
-// The record, the moment the session ends: the print in full ink, what it set, what it was.
-export function summaryScreen(t, dv = K.D, { past = false } = {}) {
-  const X = sept8;
-  const G = K.gut(dv),
-    cw = dv.W - 2 * G;
-  const rec = X.records
+// The record, the moment the session ends: the print as it stands, what it recorded, and the
+// routine to save or repeat. Upper A set no records, so none are shown; a past workout that set
+// four (Tue 8 Sept) lists them in ink, each led by its mark.
+function records(t, list) {
+  return `<h3 style="${txt(13, 700, { color: t.ink2 })}; margin: 18px 0 2px">${list.length} records</h3><ul>${list
     .map(
       ([ex, metric, v, unit, was]) =>
-        `<li style="${s({ display: "flex", "flex-direction": "column", gap: 2, padding: "10px 12px 11px", background: t.ultra, color: t.onUltra, "border-radius": 0, "min-width": 0 })}"><span class="wrap" style="${txt(12, 700, { color: t.onUltra2 })}">${ex}</span><span style="${txt(13, 700)}">${metric}</span><span class="nb" style="${s({ display: "flex", "align-items": "baseline", gap: 4 })}"><span style="${num(26)}">${v}</span><span style="${txt(13, 700)}">${unit}</span></span><span style="${txt(12, 600, { color: t.onUltra2 })}; ${tn}">was ${was}</span></li>`,
+        `<li style="${s({ display: "flex", "align-items": "center", gap: 12, "min-height": 52, padding: "6px 0", "border-bottom": `1px solid ${t.hair}` })}">${K.markCell(K.stateMark(t, "strength", 14))}<span style="${s({ display: "flex", "flex-direction": "column", "min-width": 0, flex: "1 1 auto" })}"><span class="wrap" style="${txt(16, 700)}">${ex}</span><span class="wrap" style="${txt(14, 500, { color: t.ink2 })}; ${tn}">${metric} · was ${was}</span></span><span class="nb" style="${s({ display: "flex", "align-items": "baseline", gap: 3 })}"><span style="${num(20)}">${v}</span><span style="${txt(13, 600, { color: t.ink2 })}">${unit}</span></span></li>`,
     )
-    .join("");
+    .join("")}</ul>`;
+}
+export function summaryScreen(t, dv = K.D, { past = false } = {}) {
+  const G = K.gut(dv),
+    cw = dv.W - 2 * G;
   const stat = (n, u, l) =>
     `<div style="${s({ display: "flex", "flex-direction": "column", "min-width": 0 })}"><span class="nb" style="${s({ display: "flex", "align-items": "baseline", gap: 3 })}"><span style="${num(26)}">${n}</span><span style="${txt(13, 600, { color: t.ink2 })}">${u}</span></span><span style="${txt(13, 500, { color: t.ink2 })}">${l}</span></div>`;
-  const head = past
-    ? `${K.nestedHeader(t, "Calendar")}`
-    : `<header style="${s({ display: "flex", "align-items": "center", height: 48 })}"><span style="flex:1 1 auto"></span><button type="button" aria-label="Close" style="${s({ width: 44, height: 44, display: "grid", "place-items": "center", "margin-right": -10 })}">${icon("close", 22)}</button></header>`;
-  const inner = `${head}
-${K.printFrame(dayPrint({ w: cw, h: past ? 120 : 168, paper: t.paper, align: "center", parts: [{ kind: "strength", columns: sessionCols(X) }], ariaLabel: "The session in full ink: three exercises of three sets, the warm-ups in grey" }), { mt: 4 })}
+  if (past) {
+    const X = sept8;
+    const inner = `${K.nestedHeader(t, "Calendar")}
+${K.printFrame(dayPrint({ w: cw, h: 120, paper: t.paper, parts: [{ kind: "strength", columns: sessionCols(X) }], ariaLabel: "Tue 8 Sept in full ink: three exercises of three sets, the warm-ups in grey" }), { mt: 4 })}
 <h2 style="${title(K.titleSize(X.title, cw, 34))}; margin-top: 12px">${X.title}</h2>
 ${K.metaLine(t, [`${icon("calendar", 16)}<span>${X.date}</span>`, `${icon("pin", 16)}<span>${X.gym}</span>`], { mt: 4 })}
 <div style="${s({ display: "grid", "grid-template-columns": "repeat(3, minmax(0,1fr))", gap: 10, "margin-top": 14 })}">${stat(X.minutes, "min", "Time")}${stat(9, "", "Sets")}${stat(X.volume, "kg", "Volume")}</div>
-<h3 style="${txt(13, 700, { color: t.ink2 })}; margin: 18px 0 8px">${X.records.length} records</h3>
-<ul style="${s({ display: "grid", "grid-template-columns": "repeat(2, minmax(0,1fr))", gap: 6 })}">${rec}</ul>
-${past ? `<h3 style="${txt(13, 700, { color: t.ink2 })}; margin: 18px 0 2px">Sets</h3><ul>${recordedRows(t, X)}</ul><p style="${s({ display: "flex", gap: 8, "align-items": "center", "margin-top": 12 })}; ${txt(14, 500, { color: t.ink2 })}">${icon("moon", 16)}Check-in: ${X.checkin}</p>` : ""}`;
-  const foot = past
-    ? ""
-    : `<div style="${s({ position: "absolute", left: G, right: G, bottom: dv.bottom + 8, display: "flex", gap: 10 })}"><button type="button" style="${K.BTN(t, "tonal")}; flex: 1 1 0">${icon("repeat", 20)}Save as routine</button><button type="button" style="${K.BTN(t, "primary")}; flex: 1 1 0">Done</button></div>`;
-  if (past)
+${records(t, X.records)}
+<h3 style="${txt(13, 700, { color: t.ink2 })}; margin: 18px 0 2px">Sets</h3><ul>${recordedRows(t, X)}</ul>
+<h3 style="${txt(13, 700, { color: t.ink2 })}; margin: 18px 0 2px">Check-in</h3><dl style="${s({ display: "grid", "grid-template-columns": "repeat(4, minmax(0,1fr))", gap: 8 })}">${X.checkin
+      .map(
+        ([k, v]) =>
+          `<div><dt style="${txt(13, 500, { color: t.ink2 })}">${k}</dt><dd style="${num(20)}; margin-top: 2px">${v}</dd></div>`,
+      )
+      .join("")}</dl>`;
     return K.root(
       t,
       `${K.screenMain(t, inner, { dv })}${K.navbar(t, "progress", { dv, nested: true })}`,
-      { label: "Tue 8 Sept, a finished workout", dv },
+      { label: "Ad hoc session, Tue 8 Sept", dv },
     );
+  }
+  const X = upperA3;
+  const inner = `<header style="${s({ display: "flex", "align-items": "center", height: 48 })}"><span style="flex:1 1 auto"></span><button type="button" aria-label="Close" style="${s({ width: 44, height: 44, display: "grid", "place-items": "center", "margin-right": -10 })}">${icon("close", 22)}</button></header>
+${K.printFrame(
+  dayPrint({
+    w: cw,
+    h: 168,
+    paper: t.paper,
+    parts: [
+      { kind: "mobility", segments: 4, segDone: 4, done: true, modules: 3 },
+      { kind: "strength", columns: upperCols() },
+    ],
+    ariaLabel:
+      "Upper A as it ended: the warm-up and the bench in full ink, its warm-up sets grey; six exercises not done, dashed",
+  }),
+  { mt: 4 },
+)}
+<h2 style="${title(34)}; margin-top: 12px">${X.title}</h2>
+${K.metaLine(t, [`${icon("pin", 16)}<span>${X.gym}</span>`], { mt: 4 })}
+<div style="${s({ display: "grid", "grid-template-columns": "repeat(3, minmax(0,1fr))", gap: 10, "margin-top": 14 })}">${stat(X.sets, "", "Sets")}${stat(X.volume, "kg", "Volume")}</div>
+<h3 style="${txt(13, 700, { color: t.ink2 })}; margin: 18px 0 2px">Recorded</h3><ul>${finishedRows(t, X)}</ul>
+<h3 style="${txt(13, 700, { color: t.ink2 })}; margin: 14px 0 0">Not done</h3>${notDone(t)}
+<button type="button" aria-expanded="false" style="${s({ display: "flex", "align-items": "center", gap: 12, width: "100%", "min-height": 56, "border-bottom": `1px solid ${t.hair}` })}">${K.markCell(`<span style="display:grid">${icon("repeat", 20)}</span>`)}<span style="${txt(16, 700, { flex: "1 1 auto", "text-align": "left" })}">Save or repeat this workout</span>${icon("chevronDown", 18)}</button>`;
+  const foot = `<div style="${s({ position: "absolute", left: G, right: G, bottom: dv.bottom + 8 })}"><a href="Today.dc.html" style="${K.BTN(t, "primary")}; width: 100%">Done</a></div>`;
   return K.root(t, `${sessionMain(t, inner, dv, { bottom: dv.bottom + 8 + 56 + 8 })}${foot}`, {
-    label: "The session, finished",
+    label: "Upper A, finished",
     dv,
   });
 }
@@ -601,8 +685,8 @@ export function runLogScreen(t, dv = K.D) {
   const G = K.gut(dv);
   const plan = `<aside aria-label="The plan asked for" style="${s({ display: "flex", gap: 12, "align-items": "center", padding: "12px 14px", "border-radius": 14, background: t.surface, "margin-top": 12 })}">${K.stateMark(t, "run", 22, { state: "todo" })}<span style="${s({ display: "flex", "flex-direction": "column", "min-width": 0 })}"><span style="${num(20)}">25<span style="font-family:${K.FONTS.text};font-weight:500">–</span>30 <span style="${txt(14, 600, { color: t.ink2 })}">min</span></span><span class="wrap" style="${txt(14, 500, { color: t.ink2 })}">Talk-test; slower than push pace</span></span></aside>`;
   const figRow = (label, value, unit, dec, inc, hint = "") =>
-    `<div style="${s({ display: "flex", "align-items": "center", "justify-content": "space-between", gap: 12, padding: "10px 0", "border-bottom": `1px solid ${t.hair}` })}"><span style="${s({ display: "flex", "flex-direction": "column", "min-width": 0 })}"><span style="${txt(16, 700)}">${label}</span>${hint ? `<span style="${txt(13, 500, { color: t.ink2 })}; ${tn}">${hint}</span>` : ""}</span><span style="${s({ display: "flex", "align-items": "center", gap: 10 })}">${K.roundBtn(t, "minus", dec)}<output style="${s({ display: "flex", "align-items": "baseline", gap: 3, "min-width": 84, "justify-content": "center" })}"><span style="${num(26)}">${value}</span><span style="${txt(13, 600, { color: t.ink2 })}">${unit}</span></output>${K.roundBtn(t, "plus", inc)}</span></div>`;
-  const effort = `<div role="radiogroup" aria-labelledby="eff" style="${s({ display: "flex", "flex-direction": "column", gap: 6, padding: "12px 0" })}"><p id="eff" style="${s({ display: "flex", "justify-content": "space-between", "align-items": "baseline" })}"><span style="${txt(16, 700)}">Effort</span><span style="${txt(13, 500, { color: t.ink2 })}">1 very easy · 5 maximal</span></p><div style="${s({ display: "grid", "grid-template-columns": "repeat(5, minmax(0,1fr)) minmax(0,1.6fr)", gap: 2, padding: 3, background: t.surface, "border-radius": 14 })}">${[
+    K.rowStepper(t, { label, value, unit, dec, inc, hint });
+  const effort = `<div role="radiogroup" aria-labelledby="eff" style="${s({ display: "flex", "flex-direction": "column", gap: 6, padding: "12px 0" })}"><p id="eff" style="${s({ display: "flex", "justify-content": "space-between", "align-items": "baseline" })}"><span style="${txt(16, 700)}">Effort</span><span style="${txt(13, 500, { color: t.ink2 })}">1 very easy to 5 maximal</span></p><div style="${s({ display: "grid", "grid-template-columns": "repeat(5, minmax(0,1fr)) minmax(0,1.6fr)", gap: 2, padding: 3, background: t.surface, "border-radius": 14 })}">${[
     "1",
     "2",
     "3",
@@ -627,12 +711,12 @@ ${plan}
     0,
     { label: "Where" },
   )}</div>
-<div style="margin-top:6px">${figRow("Distance", "4.0", "km", "Less, 0.1 km", "More, 0.1 km")}${figRow("Time", "26:30", "", "A minute less", "A minute more", "Pace 6:38 /km")}</div>
+<div style="margin-top:6px">${figRow("Distance", "4.0", "km", "Less, 0.1 km", "More, 0.1 km")}${figRow("Duration", "26:30", "", "A minute less", "A minute more", "Pace 6:38 /km")}</div>
 ${effort}
 <button type="button" style="${s({ display: "flex", "align-items": "center", gap: 8, height: 44, color: t.ink2 })}; ${txt(15, 700)}">${icon("plus", 18)}Notes, heart rate, more</button>`;
-  const foot = `<div style="${s({ position: "absolute", left: G, right: G, bottom: dv.bottom + 8 })}"><button type="button" style="${K.BTN(t, "primary")}; width: 100%">Save run</button></div>`;
+  const foot = `<div style="${s({ position: "absolute", left: G, right: G, bottom: dv.bottom + 8 })}"><button type="button" style="${K.BTN(t, "primary")}; width: 100%">Save activity</button></div>`;
   return K.root(t, `${sessionMain(t, inner, dv, { bottom: dv.bottom + 8 + 56 + 8 })}${foot}`, {
-    label: "Log a run, Fri 11 Sept",
+    label: "Log a run",
     dv,
   });
 }
@@ -644,7 +728,7 @@ export function runDetailScreen(t, dv = K.D) {
   const stat = (n, u, l) =>
     `<div style="${s({ display: "flex", "flex-direction": "column", "min-width": 0, padding: "10px 0", "border-bottom": `1px solid ${t.hair}` })}"><span class="nb" style="${s({ display: "flex", "align-items": "baseline", gap: 3 })}"><span style="${num(26)}">${n}</span><span style="${txt(13, 600, { color: t.ink2 })}">${u}</span></span><span style="${txt(13, 500, { color: t.ink2 })}">${l}</span></div>`;
   const inner = `${K.nestedHeader(t, "Calendar", `<span style="margin-right:-10px">${K.iconBtn(t, "more", "Correct or delete this run")}</span>`)}
-${K.printFrame(dayPrint({ w: cw, h: 128, paper: t.paper, align: "center", parts: [{ kind: "run", minutes: 17, done: true }], ariaLabel: "The run, in full ink" }), { mt: 4 })}
+${K.printFrame(dayPrint({ w: cw, h: 128, paper: t.paper, parts: [{ kind: "run", minutes: 17, done: true }], ariaLabel: "The run, in full ink" }), { mt: 4 })}
 <h2 style="${title(K.titleSize(X.title, cw, 30))}; margin-top: 12px">${X.title}</h2>
 ${K.metaLine(t, [`${icon("calendar", 16)}<span>${X.date}</span>`, `${K.equip(t, "outdoor", "Outdoor")}<span>Outdoor</span>`], { mt: 4 })}
 <div style="${s({ display: "grid", "grid-template-columns": "repeat(2, minmax(0,1fr))", "column-gap": 16, "margin-top": 10 })}">${stat(X.km, "km", "Distance")}${stat(X.time, "", "Time")}${stat(X.pace, "/km", "Pace")}${stat(X.effort, "", "Effort")}</div>

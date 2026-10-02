@@ -194,11 +194,15 @@ const F_ = (f) => (f ? ' fill="currentColor"' : "");
 const FORM_ICONS = {
   today: (f) =>
     `<circle cx="16" cy="11" r="5"${F_(f)}/><rect x="3.5" y="9" width="7" height="7" rx="0.6"${F_(f)}/><path d="M3 19.5h18"/>`,
+  // the programme: three columns of two blocks, as tall as the other destinations
   training: (f) =>
     [3, 9.5, 16]
-      .map((x) => `<rect x="${x}" y="8.5" width="5" height="7" rx="0.6"${F_(f)}/>`)
+      .map(
+        (x) =>
+          `<rect x="${x}" y="5.5" width="5" height="5.5" rx="0.6"${F_(f)}/><rect x="${x}" y="13" width="5" height="5.5" rx="0.6"${F_(f)}/>`,
+      )
       .join(""),
-  food: (f) => `<path d="M3.5 9.5h17a8.5 8.5 0 0 1-17 0z"${F_(f)}/>`,
+  food: (f) => `<path d="M2.5 8h19a9.5 9.5 0 0 1-19 0z"${F_(f)}/>`,
   progress: (f) =>
     `<rect x="4" y="4" width="7" height="7" rx="0.6"${F_(f)}/><circle cx="16.5" cy="7.5" r="3.5"${F_(f)}/><circle cx="7.5" cy="16.5" r="3.5"${F_(f)}/><rect x="13" y="13" width="7" height="7" rx="0.6"${F_(f)}/>`,
   profile: (f) =>
@@ -254,6 +258,9 @@ export function BTN(t, kind, { h = 56, w = null } = {}) {
     waiting: { background: t.surface, color: t.ink2 },
     outline: { background: "transparent", color: t.ink, border: `1.5px solid ${t.control}` },
     text: { background: "transparent", color: t.ink, padding: "0 10px" },
+    // destructive: an ink outline, 2 pt, its glyph leading; until confirmed, the outline is grey
+    danger: { background: "transparent", color: t.ink, border: `2px solid ${t.ink}` },
+    dangerWait: { background: "transparent", color: t.ink2, border: `2px solid ${t.control}` },
   }[kind];
   return s({ ...base, ...k, ...(w ? { width: w, padding: 0 } : {}) });
 }
@@ -290,9 +297,9 @@ export function navbar(t, active, { nested = false, dv = D, pos = "absolute" } =
     lab = dv.W < 360 ? 12 : 13;
   const items = NAVS.map(([key, label]) => {
     const on = key === active;
-    return `<a href="${links[key] || "#"}" ${on ? `aria-current="${nested ? "true" : "page"}"` : ""} style="${s({ display: "flex", "flex-direction": "column", "align-items": "center", "justify-content": "center", gap: 3, height: 48, "min-width": 0, color: on ? t.ink : t.ink2 })}">${icon(key, 24, { filled: on })}<span class="nb" style="${txt(lab, on ? 700 : 600, { "line-height": 1 })}">${label}</span></a>`;
+    return `<a href="${links[key] || "#"}" ${on ? `aria-current="${nested ? "true" : "page"}"` : ""} style="${s({ display: "flex", "flex-direction": "column", "align-items": "center", "justify-content": "center", gap: 3, height: 44, "min-width": 0, color: on ? t.ink : t.ink2 })}">${icon(key, 24, { filled: on })}<span class="nb" style="${txt(lab, on ? 700 : 600, { "line-height": 1 })}">${label}</span></a>`;
   }).join("");
-  return `<nav aria-label="Destinations" style="${s({ position: pos, left: 0, right: 0, bottom: 0, height: NB, padding: `4px 6px ${NB - 52}px`, display: "grid", "grid-template-columns": "repeat(5, minmax(0, 1fr))", background: t.ground, "border-top": `1px solid ${t.hair}`, "z-index": 3 })}">${items}</nav>`;
+  return `<nav aria-label="Destinations" style="${s({ position: pos, left: 0, right: 0, bottom: 0, height: NB, padding: `3px 6px ${NB - 47}px`, display: "grid", "grid-template-columns": "repeat(5, minmax(0, 1fr))", background: t.ground, "border-top": `1px solid ${t.hair}`, "z-index": 3 })}">${items}</nav>`;
 }
 // The rest timer as a pill: a ring that empties and the time. One tap opens +30 s and Stop. It sits
 // in the header of the workout and of logging; elsewhere the session strip carries it.
@@ -318,7 +325,8 @@ export function restPill(
     timeHtml = null,
   } = {},
 ) {
-  return `<button type="button" aria-haspopup="dialog" aria-label="${aria}" style="${s({ display: "flex", "align-items": "center", gap: 7, height: 36, padding: "0 12px 0 9px", "border-radius": 18, background: go ? t.ink : t.surface, color: go ? t.onInk : t.ink, "flex-shrink": 0, margin: "4px 0" })}">${go ? icon("rest", 18) : restRing(t, frac)}<span role="timer" style="${num(17)}">${timeHtml || time}</span></button>`;
+  // the pill is 36 pt to see and 44 to touch
+  return `<button type="button" aria-haspopup="dialog" aria-label="${aria}" style="${s({ display: "flex", "align-items": "center", height: 44, "flex-shrink": 0 })}"><span style="${s({ display: "flex", "align-items": "center", gap: 7, height: 36, padding: "0 12px 0 9px", "border-radius": 18, background: go ? t.ink : t.surface, color: go ? t.onInk : t.ink })}">${go ? icon("rest", 18) : restRing(t, frac)}<span role="timer" style="${num(17)}">${timeHtml || time}</span></span></button>`;
 }
 export const stripH = 52;
 export function strip(
@@ -351,11 +359,16 @@ export function screenMain(
     return `<main style="${s({ padding: `${top ?? dv.top}px ${G}px 24px`, display: flex ? "flex" : undefined, "flex-direction": flex ? "column" : undefined })}">${inner}</main>`;
   return `<main style="${s({ position: "absolute", top: top ?? dv.top, left: 0, right: 0, bottom: bottom ?? navH(dv), overflow: "hidden", padding: `0 ${G}px`, display: flex ? "flex" : undefined, "flex-direction": flex ? "column" : undefined })}">${inner}${fade ? fadeTo(t, fade === true ? 24 : fade) : ""}</main>`;
 }
-// A whole-scroll board: the screen in normal flow, the tab bar at its foot, and a dashed line where
-// the first screen ends.
+// A whole-scroll board: the screen in normal flow, the tab bar at its foot, and where the first
+// screen ends marked by ticks in the margins, clear of the content.
+export const foldTicks = (t, dv, top) => {
+  const tick = (side) =>
+    `<span style="${s({ position: "absolute", [side]: 0, top: -1, width: gut(dv) - 6, "border-top": `2px dashed ${t.ink2}` })}"></span>`;
+  return `<div aria-hidden="true" style="${s({ position: "absolute", left: 0, right: 0, top, "pointer-events": "none", "z-index": 4 })}">${tick("left")}${tick("right")}</div>`;
+};
 export function wholeBoard(t, inner, dv, active, label, { nested = false, foot = "" } = {}) {
   const NB = navH(dv);
-  const body = `${screenMain(t, inner, { dv, whole: true, flex: true })}${foot}<div style="position:relative;height:${NB}px">${navbar(t, active, { nested, dv })}</div><div aria-hidden="true" style="${s({ position: "absolute", left: 0, right: 0, top: dv.H - NB, "border-top": `2px dashed ${t.ink2}`, "pointer-events": "none", "z-index": 4 })}"></div>`;
+  const body = `${screenMain(t, inner, { dv, whole: true, flex: true })}${foot}<div style="position:relative;height:${NB}px">${navbar(t, active, { nested, dv })}</div>${foldTicks(t, dv, dv.H - NB)}`;
   return root(t, body, { label, dv, height: "auto" });
 }
 
@@ -365,8 +378,12 @@ export function wholeBoard(t, inner, dv, active, label, { nested = false, foot =
 export function topHeader(t, dv, name, action = "", { fact = null } = {}) {
   return `<header style="${s({ display: "flex", "align-items": "center", "justify-content": "space-between", gap: 12, "min-height": 52, "padding-top": 4 })}"><div style="min-width:0"><h2 style="${title(dv.W < 360 ? 32 : 36, { lh: 1 })}">${name}</h2>${fact ? `<p style="${txt(14, 500, { color: t.ink2 })}; margin-top: 4px; ${tn}">${fact}</p>` : ""}</div>${action}</header>`;
 }
+// Back links name where they go; build.mjs maps each name to its board, so flows can be walked.
+export const BACKS = { light: {}, dark: {} };
+export const backHref = (t, label, href = "#") =>
+  href !== "#" ? href : (BACKS[t.scheme] || {})[label] || BACKS.light[label] || "#";
 export const backLink = (t, label, href = "#") =>
-  `<a href="${href}" style="${s({ display: "flex", "align-items": "center", gap: 2, height: 44, padding: "0 8px 0 4px", "flex-shrink": 1, "min-width": 0 })}; ${txt(17, 700)}">${icon("chevronLeft", 22)}<span class="nb" style="overflow:hidden;text-overflow:ellipsis">${label}</span></a>`;
+  `<a href="${backHref(t, label, href)}" style="${s({ display: "flex", "align-items": "center", gap: 2, height: 44, padding: "0 8px 0 4px", "flex-shrink": 1, "min-width": 0 })}; ${txt(17, 700)}">${icon("chevronLeft", 22)}<span class="nb" style="overflow:hidden;text-overflow:ellipsis">${label}</span></a>`;
 export const iconBtn = (t, name, aria, extra = {}) =>
   `<button type="button" aria-label="${esc(aria)}" aria-haspopup="dialog" style="${s({ width: 44, height: 44, display: "grid", "place-items": "center", "flex-shrink": 0, ...extra })}">${icon(name, 24)}</button>`;
 // A nested screen: back names where it goes; the right side holds at most the rest pill and More.
@@ -374,15 +391,51 @@ export const nestedHeader = (t, back, right = "", href = "#") =>
   `<header style="${s({ display: "flex", "align-items": "center", gap: 6, height: 48, margin: "0 -12px 0 -12px", "flex-shrink": 0 })}">${backLink(t, back, href)}<span style="flex:1 1 auto"></span>${right}</header>`;
 
 // ---------- tabs: words on a hairline; where you are is ink, underlined ----------
-export function tabs(t, items, active = 0, { dv = D, id = "tabs", scroll = false } = {}) {
+// Tabs, two kinds. Sections that are pages of their own (Progress) are links in a nav, the one
+// you are on marked aria-current; they scroll sideways, every label whole: the strip starts at the
+// first section, or ends at the last when the one you are on would not show, and a fade says there
+// is more. Panels of one screen (Log, Technique, History) are a tablist of buttons over a tabpanel.
+export function tabs(
+  t,
+  items,
+  active = 0,
+  { dv = D, id = "tabs", scroll = false, panel = "panel" } = {},
+) {
   const G = gut(dv);
+  const bar = (on) =>
+    on
+      ? `<span aria-hidden="true" style="${s({ position: "absolute", left: scroll ? 0 : 10, right: scroll ? 0 : 10, bottom: -1, height: 2.5, background: t.ink, "border-radius": 2 })}"></span>`
+      : "";
+  if (!scroll) {
+    const cells = items
+      .map(
+        (x, i) =>
+          `<button type="button" role="tab" id="${panel}-tab-${i}" aria-selected="${i === active}" aria-controls="${panel}" style="${s({ position: "relative", display: "grid", "place-items": "center", height: 44, padding: "0 4px", color: i === active ? t.ink : t.ink2, "white-space": "nowrap", flex: "1 1 0", "min-width": 0 })}; ${txt(15, i === active ? 700 : 600)}">${x.label || x}${bar(i === active)}</button>`,
+      )
+      .join("");
+    return `<div role="tablist" aria-label="${id}" style="${s({ display: "flex", "border-bottom": `1px solid ${t.hair}` })}">${cells}</div>`;
+  }
+  const IW = 88,
+    view = dv.W - 2 * G,
+    fit = Math.max(1, Math.floor(view / IW)),
+    atEnd = active >= fit && items.length > fit,
+    spacer = atEnd ? (items.length - fit) * IW + dv.W - 2 * G - items.length * IW : 0;
   const cells = items
-    .map(
-      (x, i) =>
-        `<a href="${x.href || "#"}" role="tab" aria-selected="${i === active}" style="${s({ position: "relative", display: "grid", "place-items": "center", height: 44, padding: "0 4px", color: i === active ? t.ink : t.ink2, "white-space": "nowrap", flex: scroll ? "0 0 auto" : "1 1 0", "min-width": 0 })}; ${txt(15, i === active ? 700 : 600)}">${x.label || x}${i === active ? `<span aria-hidden="true" style="${s({ position: "absolute", left: scroll ? 4 : 10, right: scroll ? 4 : 10, bottom: -1, height: 2.5, background: t.ink, "border-radius": 2 })}"></span>` : ""}</a>`,
-    )
+    .map((x, i) => {
+      const label = x.label || x,
+        on = i === active;
+      return `<li style="flex:0 0 ${IW}px"><a href="${x.href || "#"}"${on ? ' aria-current="page"' : ""} style="${s({ position: "relative", display: "inline-flex", "align-items": "center", height: 44, color: on ? t.ink : t.ink2, "white-space": "nowrap" })}; ${txt(15, on ? 700 : 600)}">${label}${bar(on)}</a></li>`;
+    })
     .join("");
-  return `<nav role="tablist" aria-label="${id}" style="${s({ display: "flex", gap: scroll ? 18 : 0, "border-bottom": `1px solid ${t.hair}`, margin: scroll ? `0 -${G}px` : 0, padding: scroll ? `0 ${G}px` : 0, overflow: scroll ? "hidden" : undefined })}">${cells}</nav>`;
+  // the fade is solid over the gutter and any part of a label that would be cut, then softens
+  const fade = (side) => {
+    // on the right it hides whatever of the next label would be cut, then softens over 16 pt;
+    // on the left it softens across the gutter alone, clear of the first whole label
+    const solid = side === "left" ? 0 : G + Math.max(0, view - fit * IW),
+      soft = side === "left" ? G - 2 : 16;
+    return `<span aria-hidden="true" style="${s({ position: "absolute", top: 0, bottom: 1, [side]: 0, width: solid + soft, background: `linear-gradient(to ${side === "left" ? "right" : "left"}, ${t.ground} ${Math.round((solid / (solid + soft)) * 100)}%, transparent)`, "pointer-events": "none" })}"></span>`;
+  };
+  return `<nav aria-label="${id}" style="${s({ position: "relative", margin: `0 -${G}px`, "border-bottom": `1px solid ${t.hair}` })}"><div style="${s({ "overflow-x": "auto", "scrollbar-width": "none", direction: atEnd ? "rtl" : undefined })}"><ul style="${s({ display: "flex", width: "max-content", direction: "ltr", padding: `0 ${G + Math.max(0, spacer)}px 0 ${G}px` })}">${cells}</ul></div>${atEnd ? fade("left") : fade("right")}</nav>`;
 }
 
 // ---------- rows and sections ----------
@@ -474,7 +527,9 @@ export function stepFigure(
     tag = null,
     w = null,
     swapCls = null,
+    swapTo = null,
     bgap = 8,
+    bsize = 44,
   } = {},
 ) {
   const shown =
@@ -484,12 +539,12 @@ export function stepFigure(
         ? `<span style="${num(size, { lh: 1.1 })}; color: ${t.ink2}; text-decoration: underline dotted 2px; text-underline-offset: 6px">${value}</span>`
         : `<span style="${num(size, { lh: 1.1 })}; color: ${t.ink}">${value}</span>`;
   const swap = swapCls
-    ? `<span style="display:inline-grid"><span class="${swapCls[0]}" style="grid-area:1/1"><span style="${num(size, { lh: 1.1 })}; color: ${t.ink}">${value}</span></span><span class="${swapCls[1]}" aria-hidden="true" style="grid-area:1/1"><span style="${num(size, { lh: 1.1 })}; color: ${t.ink2}; text-decoration: underline dotted 2px; text-underline-offset: 6px">${value}</span></span></span>`
+    ? `<span style="display:inline-grid"><span class="${swapCls[0]}" style="grid-area:1/1"><span style="${num(size, { lh: 1.1 })}; color: ${t.ink}">${value}</span></span><span class="${swapCls[1]}" aria-hidden="true" style="grid-area:1/1"><span style="${num(size, { lh: 1.1 })}; color: ${t.ink2}; text-decoration: underline dotted 2px; text-underline-offset: 6px">${swapTo ?? value}</span></span></span>`
     : shown;
   return `<div role="group" aria-label="${esc(unit)}" style="${s({ display: "flex", "flex-direction": "column", "align-items": "center", gap: 6, "min-width": 0, width: w ?? undefined })}">
 <output aria-label="${esc(`${state === "empty" ? "not set" : value} ${unit}${state === "suggested" ? ", suggested, not yet confirmed" : ""}`)}" style="${s({ display: "block", "text-align": "center", "white-space": "nowrap" })}">${swap}</output>
 <span style="${s({ display: "flex", "align-items": "center", gap: 5, "min-height": 18 })}; ${txt(13, 600, { color: t.ink2 })}"><span class="nb">${unit}</span>${hint ? `<span class="nb" style="${s({ color: t.ink2, "font-weight": 500 })}">· ${hint}</span>` : ""}${tag || ""}</span>
-<span style="${s({ display: "flex", gap: bgap, "margin-top": 2 })}">${roundBtn(t, "minus", dec)}${roundBtn(t, "plus", inc)}</span>
+<span style="${s({ display: "flex", gap: bgap, "margin-top": 2 })}">${roundBtn(t, "minus", dec, { size: bsize })}${roundBtn(t, "plus", inc, { size: bsize })}</span>
 </div>`;
 }
 // A choice drawn as glyphs: two or three toggles, each an icon with a short word under it.
@@ -503,7 +558,11 @@ export function iconChoice(t, items, chosen = 0, { label = "Where", size = 26 } 
 }
 // A switch: ink when on.
 export const toggle = (t, on, label) =>
-  `<button type="button" role="switch" aria-checked="${on}" aria-label="${esc(label)}" style="${s({ position: "relative", width: 51, height: 31, "border-radius": 16, background: on ? t.ink : t.surface2, "flex-shrink": 0 })}"><span style="${s({ position: "absolute", top: 3, left: on ? 23 : 3, width: 25, height: 25, "border-radius": 9999, background: on ? t.onInk : t.ground, "box-shadow": on ? "none" : `0 0 0 1px ${t.hair}` })}"></span></button>`;
+  `<button type="button" role="switch" aria-checked="${on}" aria-label="${esc(label)}" style="${s({ display: "grid", "align-items": "center", width: 51, height: 44, "flex-shrink": 0 })}"><span style="${s({ position: "relative", display: "block", width: 51, height: 31, "border-radius": 16, background: on ? t.ink : t.surface2 })}"><span style="${s({ position: "absolute", top: 3, left: on ? 23 : 3, width: 25, height: 25, "border-radius": 9999, background: on ? t.onInk : t.ground, "box-shadow": on ? "none" : `0 0 0 1px ${t.hair}` })}"></span></span></button>`;
+// A row's stepper: the label (and its hint) left; −, the value in a fixed 120-pt column, + right,
+// so the buttons line up row under row whatever the figure.
+export const rowStepper = (t, { label, value, unit = "", dec, inc, hint = "", size = 26 }) =>
+  `<div style="${s({ display: "flex", "align-items": "center", "justify-content": "space-between", gap: 12, padding: "10px 0", "border-bottom": `1px solid ${t.hair}` })}"><span style="${s({ display: "flex", "flex-direction": "column", "min-width": 0 })}"><span class="wrap" style="${txt(16, 700)}">${label}</span>${hint ? `<span class="wrap" style="${txt(13, 500, { color: t.ink2 })}; ${tn}">${hint}</span>` : ""}</span><span style="${s({ display: "flex", "align-items": "center", "flex-shrink": 0 })}">${roundBtn(t, "minus", dec)}<output style="${s({ display: "flex", "align-items": "baseline", "justify-content": "center", gap: 3, width: 120 })}"><span style="${num(size)}">${value}</span>${unit ? `<span style="${txt(13, 600, { color: t.ink2 })}">${unit}</span>` : ""}</output>${roundBtn(t, "plus", inc)}</span></div>`;
 // A field: label above, 52 pt, a control-grey border.
 export const field = (
   t,
@@ -594,7 +653,7 @@ export const markCell = (inner) =>
 // Equipment as a glyph in a meta line, with its name for screen readers.
 export const equip = (t, glyphName, label, size = 16) =>
   `<span role="img" aria-label="${esc(label)}" style="${s({ display: "inline-grid", color: t.ink2, "vertical-align": "-3px" })}">${icon(glyphName, size)}</span>`;
-// A meta line of facts, each a glyph and a figure: "[kettlebell] 4 × 3–5 @ 2 · [rest] 3–4 min".
+// A meta line of facts, each a glyph and a figure: "[dumbbell] 4 × 3–5 @ 2 · [rest] 3–4 min".
 export const metaLine = (t, parts, { size = 15, mt = 4 } = {}) =>
   `<p style="${s({ display: "flex", "align-items": "center", "flex-wrap": "wrap", gap: "2px 12px", "margin-top": mt, color: t.ink2 })}; ${txt(size, 500)}; ${tn}">${parts
     .filter(Boolean)
@@ -603,6 +662,11 @@ export const metaLine = (t, parts, { size = 15, mt = 4 } = {}) =>
         `<span style="${s({ display: "inline-flex", "align-items": "center", gap: 5, "white-space": "nowrap" })}">${p}</span>`,
     )
     .join("")}</p>`;
-// The superset bracket: a hairline in ink down the mark column, joining the marks of the pair.
+// The superset bracket: a hairline in ink joining the pair. It stands in the left gutter, 8 pt
+// from the edge, wherever the pair is listed: beside the marks of a list, beside the set numbers
+// of a ledger.
+// A superset's group reaches 12 pt into the gutter and pads it back, so its bracket stands in the
+// gutter while staying inside the group's own box.
+export const SS_GROUP = "position:relative; margin-left:-12px; padding-left:12px";
 export const supersetBracket = (t, label = "Superset") =>
-  `<span role="img" aria-label="${esc(label)}" style="${s({ position: "absolute", left: 0, top: 22, bottom: 22, width: 6, "border-left": `2px solid ${t.ink}`, "border-top": `2px solid ${t.ink}`, "border-bottom": `2px solid ${t.ink}` })}"></span>`;
+  `<span role="img" aria-label="${esc(label)}" style="${s({ position: "absolute", left: 0, top: 14, bottom: 14, width: 6, "border-left": `2px solid ${t.ink}`, "border-top": `2px solid ${t.ink}`, "border-bottom": `2px solid ${t.ink}` })}"></span>`;

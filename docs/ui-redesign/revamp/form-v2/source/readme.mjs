@@ -48,7 +48,7 @@ const NOTES = [
   ],
   [
     "Equipment and outdoor or treadmill as icons",
-    "Glyphs for free weights (a kettlebell), machine, cable, Smith machine and bodyweight; and for outdoors, treadmill, indoor bike, pool and open water. They lead meta lines and choices.",
+    "Glyphs for free weights (a dumbbell), machine, cable, Smith machine and bodyweight; and for outdoors, treadmill, indoor bike, pool and open water. They lead meta lines and choices.",
     "Log · runs, rides, swims · Gyms · Add exercise",
   ],
   [
@@ -58,12 +58,12 @@ const NOTES = [
   ],
   [
     "Progress is congested: one month, several activities a day, tap for a scrolling calendar",
-    "One month, two marks a row, +N past four, each week’s count beside it; the calendar scrolls month after month; a day opens on its print.",
+    "One month as a calendar: each day a link, its marks right under its date, +N past four; the totals under it name each sport; the calendar scrolls month after month; a day opens on its print.",
     "Progress · Calendar · Day",
   ],
   [
     "Less padding under the tab bar",
-    "64 pt: 48 of targets, 12 above the home indicator.",
+    "64 pt: 44-pt targets ending 4 clear of the home indicator.",
     "Every tab",
   ],
   [
@@ -124,12 +124,12 @@ export function readmeBoard({ pages: PAGES = [], boardCount = 0 } = {}) {
   const score = (label, v, note) =>
     `<div style="${s({ display: "flex", "flex-direction": "column", gap: 4, padding: "16px 0", "border-top": `2px solid ${L.ink}` })}"><span style="${txt(14, 700, { color: L.ink2 })}">${label}</span><span style="${K.num(44)}">${v}</span><span style="${txt(14, 500, { color: L.ink2, "line-height": 1.4 })}">${note}</span></div>`;
   const critique = `<div style="${s({ display: "grid", "grid-template-columns": "repeat(4, minmax(0,1fr))", gap: GAP })}">${CR.scores.map(([l, v, n]) => score(l, v, n)).join("")}</div>
-<div style="${s({ display: "grid", "grid-template-columns": "repeat(2, minmax(0,1fr))", gap: 40, "margin-top": 8 })}"><div>${`<p style="${txt(15, 700)}">What the reviews found on the last canvas, and what changed</p>`}<ul style="${s({ display: "flex", "flex-direction": "column", gap: 8, "margin-top": 10 })}">${CR.fixed.map((x) => `<li style="${s({ display: "flex", gap: 10 })}; ${txt(15, 500, { "line-height": 1.45 })}"><span style="${s({ width: 7, height: 7, background: L.ink, "margin-top": 8, "flex-shrink": 0 })}"></span><span>${x}</span></li>`).join("")}</ul></div><div>${`<p style="${txt(15, 700)}">What the fresh review of this canvas says</p>`}<ul style="${s({ display: "flex", "flex-direction": "column", gap: 8, "margin-top": 10 })}">${CR.fresh.map((x) => `<li style="${s({ display: "flex", gap: 10 })}; ${txt(15, 500, { "line-height": 1.45 })}"><span style="${s({ width: 7, height: 7, background: L.ink, "margin-top": 8, "flex-shrink": 0 })}"></span><span>${x}</span></li>`).join("")}</ul></div></div>`;
+<div style="${s({ display: "grid", "grid-template-columns": "repeat(2, minmax(0,1fr))", gap: 40, "margin-top": 8 })}"><div>${`<p style="${txt(15, 700)}">What the reviews found on the last canvas, and what changed</p>`}<ul style="${s({ display: "flex", "flex-direction": "column", gap: 8, "margin-top": 10 })}">${CR.fixed.map((x) => `<li style="${s({ display: "flex", gap: 10 })}; ${txt(15, 500, { "line-height": 1.45 })}"><span style="${s({ width: 7, height: 7, background: L.ink, "margin-top": 8, "flex-shrink": 0 })}"></span><span>${x}</span></li>`).join("")}</ul></div><div>${`<p style="${txt(15, 700)}">What the fresh review and the audit found on this canvas, and what changed</p>`}<ul style="${s({ display: "flex", "flex-direction": "column", gap: 8, "margin-top": 10 })}">${CR.fresh.map((x) => `<li style="${s({ display: "flex", gap: 10 })}; ${txt(15, 500, { "line-height": 1.45 })}"><span style="${s({ width: 7, height: 7, background: L.ink, "margin-top": 8, "flex-shrink": 0 })}"></span><span>${x}</span></li>`).join("")}</ul></div></div>`;
   return `<div style="${s({ width: RW, padding: PAD, background: L.ground, color: L.ink, "font-family": K.FONTS.text, display: "flex", "flex-direction": "column", gap: 56, "-webkit-font-smoothing": "antialiased" })}">
 <header style="${s({ display: "flex", "flex-direction": "column", gap: 24 })}"><div style="${s({ display: "flex", "justify-content": "space-between", "align-items": "flex-end", gap: 24 })}"><div><h1 style="${title(72, { lh: 1 })}">Form v2, refined</h1><p style="${txt(19, 500, { color: L.ink2, "line-height": 1.45, "max-width": 900 })}; margin-top: 12px">The art is your training. The interface is black and white and stays out of the way; every colour is a print made from what was logged. This canvas redraws Form from scratch after your notes: a new alphabet, logging as a ledger, and the rest of the app in the same language.</p></div>${K.wordmark(L, 28)}</div>${K.printFrame(hero)}</header>
 ${section(`${H2("Your notes, and what changed")}${notes}`)}
 ${section(`${H2("Reading the canvas", `${boardCount} boards on ${PAGES.length} pages. Phone boards are 402 × 874 unless their name says otherwise, drawn at the size they will ship; each is a working page, with real buttons, links and labels.`)}<ul style="${s({ display: "grid", "grid-template-columns": "repeat(3, minmax(0,1fr))", gap: GAP })}">${pages}</ul>`)}
-${section(`${H2("Where the figures come from", "Every name, figure and line of copy is the repository’s. Where a figure is worked out (a warm-up ramp, a pace, a total), it is worked out with the app’s own rule.")}<ul style="${s({ display: "flex", "flex-direction": "column", gap: 8 })}">${sources}</ul>`)}
+${section(`${H2("Where the figures come from", "Every name and figure is the repository’s, and so is every interface string the app already has. Where a figure is worked out (a warm-up ramp, a pace, a total), it is worked out with the app’s own rule. Today follows the preview’s Friday; the session pages follow Upper A’s third cycle, by cycle because its test has no dates.")}<ul style="${s({ display: "flex", "flex-direction": "column", gap: 8 })}">${sources}</ul>`)}
 ${section(`${H2("Critiques", CR.method)}${critique}`)}
 </div>`;
 }

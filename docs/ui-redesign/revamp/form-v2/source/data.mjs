@@ -75,14 +75,15 @@ export const cycle = [
     columns: [4, 3, 3, 2, 3, 2, 2],
     warm: 4,
   },
-  // day 3 as the preview plans it (src/app/(preview)/preview/page.tsx), so it matches Today
+  // day 3 as program.ts has it: six exercises, the forearms pair a superset, and cycle 1's run
+  // (20–25 min); Today's preview plans its own version of the day
   {
     name: "Easy Run + Arms",
     focus: "Aerobic + arms/forearms",
     time: "70–100 min",
-    columns: [3, 3, [3, 2]],
-    run: "25–30 min",
-    minutes: 30,
+    columns: [3, 3, 2, 2, [2, 2]],
+    run: "20–25 min",
+    minutes: 25,
   },
   {
     name: "Lower B",
@@ -107,8 +108,8 @@ export const cycle = [
   { name: "Rest + Mobility", focus: "Recovery", time: "10–15 min", drills: 7 },
 ];
 
-// Upper A (program.ts), with each exercise's modality (exercises.ts) and machine at Anytime Fitness
-// (src/db/test/fixtures.ts). The bench is open: warm-ups done, sets 1 and 2 saved.
+// Upper A (program.ts), with each exercise's modality (exercises.ts), in its third cycle
+// (sessions.test.ts). The bench is open: warm-ups done, sets 1 and 2 saved.
 export const upperA = {
   session: "Upper A",
   focus: "Bench + back",
@@ -123,7 +124,7 @@ export const upperA = {
       rx: "4 × 3–5 @ 2",
       done: 2,
       state: "open",
-      last: "62.5 kg × 4",
+      last: "60 kg × 4, 60 kg × 4",
     },
     { name: "Pull-up", modality: "bodyweight", sets: 3, rx: "3 × 6–10 @ 1–2" },
     {
@@ -159,7 +160,9 @@ export const upperA = {
 };
 
 // Logging the bench, Upper A's third cycle (sessions.test.ts "holds after a miss"): the rule holds
-// 62.5 kg × 3 @ 2 with the reason progression.ts gives when a set had more in hand than it showed.
+// 62.5 kg × 3 @ 2 with the reason progression.ts gives; the cycle logs 60 × 4 @ 2, so sets 1 and 2
+// are saved at that and set 3 is offered the suggestion. The test's sessions carry no dates, so the
+// history names each by its cycle (the app shows a date).
 export const bench = {
   exercise: "Barbell bench press",
   modality: "barbell",
@@ -173,16 +176,20 @@ export const bench = {
     { n: "W", v: "35", reps: 5 },
     { n: "W", v: "45", reps: 3 },
   ],
-  // sets 1 and 2 as sessions.test.ts logs them (features.md's sample)
+  // sets 1 and 2 as sessions.test.ts logs cycle 3
   sets: [
-    { n: 1, v: "60", reps: 5, rir: 2 },
-    { n: 2, v: "62.5", reps: 4, rir: 1 },
+    { n: 1, v: "60", reps: 4, rir: 2 },
+    { n: 2, v: "60", reps: 4, rir: 2 },
   ],
   next: { n: 3, load: "62.5", reps: "3", target: 2 },
   todo: [{ n: 4 }],
+  // progression.ts's reason and advice for this hold (cycle 2's first set fell under the range);
+  // the app dates the basis, the test's sessions have no dates, so it names the cycle
   suggestion: {
     kind: "Hold",
-    reason: "Same weight: aim for the reps you had in hand last time.",
+    reason: "One low performance does not lower the baseline.",
+    advice:
+      "Repeat the planned range and check effort, rest and why the set stopped. A persistent reduction needs repeated comparable evidence.",
     basis: "Based on this exercise, cycle 2.",
   },
   restNow: { time: "2:14", frac: 0.74, aria: "Rest, 2 minutes 14 seconds left" },
@@ -195,7 +202,7 @@ export const bench = {
   history: [
     {
       when: "Cycle 2",
-      note: "Last time",
+      where: "Anytime Fitness",
       sets: [
         ["62.5", 2, 1],
         ["62.5", 3, 1],
@@ -205,6 +212,7 @@ export const bench = {
     },
     {
       when: "Cycle 1",
+      where: "Anytime Fitness",
       sets: [
         ["60", 5, 2],
         ["60", 5, 2],
@@ -240,7 +248,7 @@ export const lowerA = {
   focus: "Squat + quads",
   time: "70–90 min",
   gym: "Anytime Fitness",
-  warmup: ["Bike 4 min", "Squat ramp 40 kg × 6, 50 kg × 3"],
+  warmup: ["Bike 4 min", "Squat ramp 40×6, 50×3"],
   entries: [
     {
       name: "High-bar barbell squat",
@@ -426,7 +434,13 @@ export const sept8 = {
   time: "19:00–19:54",
   gym: "Anytime Fitness",
   minutes: 54,
-  checkin: "7.5 h · 5 · 3 · 3",
+  // its check-in, labelled as session-details.tsx labels it
+  checkin: [
+    ["Sleep (h)", "7.5"],
+    ["Sleep quality", "5"],
+    ["Fatigue", "3"],
+    ["Soreness", "3"],
+  ],
   volume: "2,580",
   exercises: [
     {
@@ -465,14 +479,32 @@ export const sept8 = {
     ["Goblet squat", "Best set", "660", "kg", "650 kg"],
   ],
 };
-// The summary right after Finish: Upper A with the records card's own sample (records-card.test.tsx).
-export const upperDone = {
+// Upper A, cycle 3, finished as sessions.test.ts finishes it: the bench's warm-ups as the ramp
+// offered them and its four sets of 60 × 4 @ 2; nothing else logged, so six exercises are not done
+// and nothing is a record (60 × 4 estimates under cycle 1's 60 × 5). The finish page counts every
+// set (src/app/(app)/workouts/[sessionId]/finish/page.tsx); volume is the working sets' kg × reps.
+export const upperA3 = {
   title: "Upper A",
   gym: "Anytime Fitness",
-  records: [
-    ["Barbell bench press", "Est. 1RM", "88", "kg", "85 kg"],
-    ["Pull-up", "Most reps", "12", "reps", "11 reps"],
+  done: [
+    {
+      name: "Barbell bench press",
+      modality: "barbell",
+      warm: [
+        ["25", 8],
+        ["35", 5],
+        ["45", 3],
+      ],
+      sets: [
+        ["60", 4, 2],
+        ["60", 4, 2],
+        ["60", 4, 2],
+        ["60", 4, 2],
+      ],
+    },
   ],
+  sets: 7,
+  volume: "960",
 };
 // Barbell bench press, the account's whole record at Anytime Fitness: 454 sessions over 56 months.
 export const benchLife = {
@@ -607,13 +639,13 @@ export const copy = {
 
 // Equipment, from an exercise's modality (src/domain/types.ts) to its glyph.
 export const EQUIP = {
-  barbell: "kettlebell",
-  dumbbell: "kettlebell",
+  barbell: "dumbbell",
+  dumbbell: "dumbbell",
   bodyweight: "bodyweight",
   cable: "cable",
   machine: "machine",
   smith_machine: "smith",
-  mobility: "kettlebell",
+  mobility: "bodyweight",
 };
 
 // ---------- Training: a day of the programme opened (src/db/seed/data/program.ts, Upper B) ----------
@@ -698,36 +730,39 @@ export const carry = {
   load: "32",
   metres: "30",
 };
-// Add exercise, searching "pull up" (src/lib/exercise-search.ts run over the seeded library)
+// Add exercise, searching "pull up": exercise-search.ts over the 276 seeded exercises, ties in the
+// library's name order; the picker filters nothing.
 export const pullUpSearch = {
   query: "pull up",
   best: [
     ["Pull-up", "bodyweight", "Lats, Biceps"],
     ["Assisted pull-up (machine)", "machine", "Lats, Biceps"],
-    ["Scapular pull-up", "bodyweight", "Lats, Traps"],
     ["Neutral-grip pull-up", "bodyweight", "Lats, Biceps"],
+    ["Scapular pull-up", "bodyweight", "Lats, Traps"],
     ["Towel pull-up", "bodyweight", "Forearms, Lats"],
   ],
   other: [["Chin-up", "bodyweight", "Biceps, Lats"]],
   chosen: "Assisted pull-up (machine)",
   machine: "Assisted pull-up machine",
 };
-// Choose a fallback for Lower A's leg extension, which Anytime Fitness has no machine for
-// (src/db/test/fixtures.ts), searching "quads"; the leg extension itself is left out.
+// A fallback for Lower A's leg extension at Samsung Gym, where it is not yet known to be there (the
+// default gym has one); searching "quads" over the 275 others: 1 best match, then 43 by muscle,
+// equipment or movement in name order. The chosen split squat is the group's 27th; the picker
+// names it under the search.
 export const quadSearch = {
+  gym: "Samsung Gym",
   query: "quads",
   best: [["Foam roll quads", "bodyweight", "Quads"]],
   other: [
-    ["High-bar barbell squat", "barbell", "Quads, Glutes"],
-    ["Split squat (supported)", "bodyweight", "Quads, Glutes"],
     ["45° leg press", "machine", "Quads, Glutes"],
-    ["Horizontal leg press", "machine", "Quads, Glutes"],
-    ["Front squat", "barbell", "Quads"],
-    ["Sumo deadlift", "barbell", "Glutes, Quads"],
-    ["Trap-bar deadlift", "barbell", "Quads, Glutes"],
-    ["Smith machine squat", "smith_machine", "Quads, Glutes"],
-    ["Goblet squat", "dumbbell", "Quads, Glutes"],
+    ["Belt squat", "machine", "Quads, Glutes"],
+    ["Bodyweight squat", "bodyweight", "Quads, Glutes"],
+    ["Box jump", "bodyweight", "Quads, Glutes"],
+    ["Box squat", "barbell", "Quads, Glutes"],
+    ["Bulgarian split squat", "dumbbell", "Quads, Glutes"],
+    ["Cossack squat", "bodyweight", "Adductors, Quads"],
   ],
+  otherCount: 43,
   chosen: "Split squat (supported)",
 };
 
@@ -798,31 +833,90 @@ export const historyDays = [
     ],
   },
 ];
-// Every September run (history and people seeds), in date order
-export const septRuns = [
-  { d: 2, where: "Treadmill", km: 3, time: "17:18", pace: "5:46", min: 17.3 },
-  { d: 4, where: "Outdoor", km: 3.1, time: "21:00", pace: "6:46", min: 21 },
-  { d: 6, where: "Treadmill", km: 4, time: "23:44", pace: "5:56", min: 23.7 },
-  { d: 10, where: "Treadmill", km: 5, time: "30:30", pace: "6:06", min: 30.5 },
-  { d: 11, where: "Outdoor", km: 4, time: "26:30", pace: "6:38", min: 26.5 },
-  { d: 18, where: "Outdoor", km: 2.7, time: "18:12", pace: "6:44", min: 18.2 },
-  { d: 25, where: "Outdoor", km: 5, time: "33:00", pace: "6:36", min: 33 },
-  { d: 26, where: "Treadmill", km: 4, time: "24:24", pace: "6:06", min: 24.4 },
+// Every run in the Progress range, 6 Jul – 29 Sept 2026, newest first, as the Running list renders
+// them (progress-view.tsx): the audit database for vinit on 29 Sept.
+export const rangeRuns = [
+  { when: "Sat 26 Sept, 17:30", where: "Treadmill", km: 4, time: "24:24", pace: "6:06" },
+  { when: "Fri 25 Sept, 06:00", where: "Outdoor", km: 5, time: "33:00", pace: "6:36" },
+  { when: "Fri 18 Sept, 06:00", where: "Outdoor", km: 2.7, time: "18:12", pace: "6:44" },
+  { when: "Fri 11 Sept, 06:00", where: "Outdoor", km: 4, time: "26:30", pace: "6:38" },
+  { when: "Thu 10 Sept, 17:30", where: "Treadmill", km: 5, time: "30:30", pace: "6:06" },
+  { when: "Sun 6 Sept, 17:30", where: "Treadmill", km: 4, time: "23:44", pace: "5:56" },
+  { when: "Fri 4 Sept, 06:00", where: "Outdoor", km: 3.1, time: "21:00", pace: "6:46" },
+  { when: "Wed 2 Sept, 17:30", where: "Treadmill", km: 3, time: "17:18", pace: "5:46" },
+  { when: "Wed 26 Aug, 17:30", where: "Outdoor", km: 4, time: "24:27", pace: "6:07" },
+  { when: "Mon 10 Aug, 17:30", where: "Outdoor", km: 5, time: "30:34", pace: "6:07" },
+  { when: "Thu 6 Aug, 17:30", where: "Outdoor", km: 4, time: "23:47", pace: "5:57" },
+  { when: "Sun 2 Aug, 17:30", where: "Outdoor", km: 3, time: "17:20", pace: "5:47" },
+  { when: "Sun 26 Jul, 17:30", where: "Outdoor", km: 4, time: "24:30", pace: "6:08" },
+  { when: "Fri 10 Jul, 17:30", where: "Outdoor", km: 5, time: "30:38", pace: "6:08" },
+  { when: "Mon 6 Jul, 17:30", where: "Outdoor", km: 4, time: "23:50", pace: "5:58" },
 ];
-// Check-ins, 15–28 Sept: each response kept apart, a day's daily reading and its workout check-in
-// both (src/domain/recovery.ts); sleep h, quality, fatigue, soreness; null where it was not asked
+// Weekly distance, Monday weeks from 6 Jul (analytics.ts); this week, from 28 Sept, so far
+export const runWeeks = [
+  ["6 Jul", 9],
+  ["13 Jul", 0],
+  ["20 Jul", 4],
+  ["27 Jul", 3],
+  ["3 Aug", 4],
+  ["10 Aug", 5],
+  ["17 Aug", 0],
+  ["24 Aug", 4],
+  ["31 Aug", 10.1],
+  ["7 Sept", 9],
+  ["14 Sept", 2.7],
+  ["21 Sept", 9],
+  ["28 Sept", 0, "so far"],
+];
+// Check-ins in the Progress range, 6 Jul – 29 Sept: every response kept apart, workout check-ins
+// and daily readings both (recovery-history.ts); sleep h, quality, fatigue, soreness; null where it
+// was not answered. 44 readings, 31 of them with sleep.
+const R = (date, src, sleep, q, f, so) => ({ date, src, sleep, q, f, s: so });
 export const recovery = [
-  { d: 15, src: "daily", sleep: 7.5, q: 4, f: 4, s: 2 },
-  { d: 15, src: "workout", sleep: 7, q: 4, f: 1, s: 2 },
-  { d: 18, src: "workout", f: 2 },
-  { d: 19, src: "workout", sleep: 6.5, q: 3, f: 1, s: 2 },
-  { d: 20, src: "workout", f: 2 },
-  { d: 21, src: "daily", sleep: 7.5, q: 4, s: 2 },
-  { d: 21, src: "workout", sleep: 7.5, q: 5, f: 3, s: 2 },
-  { d: 22, src: "workout", sleep: 6.5, q: 3, f: 3, s: 1 },
-  { d: 27, src: "daily", sleep: 7.5, q: 4, f: 4, s: 2 },
-  { d: 27, src: "workout", sleep: 7, q: 4, f: 2, s: 2 },
-  { d: 28, src: "workout", f: 3 },
+  R("8 Jul", "workout", 7.5, 5, 3, 3),
+  R("9 Jul", "daily", null, null, 2, null),
+  R("15 Jul", "daily", 6.5, 5, 2, 3),
+  R("15 Jul", "workout", 7, 4, 1, 2),
+  R("18 Jul", "workout", null, null, 2, null),
+  R("21 Jul", "daily", 6.5, 5, null, 3),
+  R("22 Jul", "workout", 6.5, 3, 3, 1),
+  R("27 Jul", "daily", 6.5, 5, 2, 3),
+  R("1 Aug", "workout", 6.5, 3, 1, 1),
+  R("3 Aug", "daily", 7, 3, 3, 1),
+  R("4 Aug", "workout", null, null, 2, null),
+  R("8 Aug", "workout", 7.5, 5, 3, 3),
+  R("9 Aug", "daily", null, null, 3, null),
+  R("15 Aug", "daily", 7, 3, 3, 1),
+  R("15 Aug", "workout", 7, 4, 1, 2),
+  R("18 Aug", "workout", null, null, 2, null),
+  R("21 Aug", "daily", 7, 3, null, 1),
+  R("22 Aug", "workout", 6.5, 3, 1, 2),
+  R("22 Aug", "workout", 6.5, 3, 3, 1),
+  R("23 Aug", "workout", null, null, 2, null),
+  R("24 Aug", "workout", 7.5, 5, 3, 2),
+  R("27 Aug", "daily", 7, 3, 3, 1),
+  R("30 Aug", "workout", 7, 4, 2, 2),
+  R("31 Aug", "workout", null, null, 3, null),
+  R("1 Sept", "workout", 6.5, 3, 1, 1),
+  R("3 Sept", "daily", 7.5, 4, 4, 2),
+  R("4 Sept", "workout", null, null, 2, null),
+  R("5 Sept", "workout", 6.5, 3, 1, 2),
+  R("7 Sept", "workout", 7.5, 5, 3, 2),
+  R("8 Sept", "workout", 7.5, 5, 3, 3),
+  R("9 Sept", "daily", null, null, 4, null),
+  R("12 Sept", "workout", null, null, 1, null),
+  R("13 Sept", "workout", 7, 4, 2, 2),
+  R("15 Sept", "daily", 7.5, 4, 4, 2),
+  R("15 Sept", "workout", 7, 4, 1, 2),
+  R("18 Sept", "workout", null, null, 2, null),
+  R("19 Sept", "workout", 6.5, 3, 1, 2),
+  R("20 Sept", "workout", null, null, 2, null),
+  R("21 Sept", "daily", 7.5, 4, null, 2),
+  R("21 Sept", "workout", 7.5, 5, 3, 2),
+  R("22 Sept", "workout", 6.5, 3, 3, 1),
+  R("27 Sept", "daily", 7.5, 4, 4, 2),
+  R("27 Sept", "workout", 7, 4, 2, 2),
+  R("28 Sept", "workout", null, null, 3, null),
 ];
 
 // ---------- Food: adding to a meal (src/app/(preview)/preview/food/page.tsx) ----------
@@ -872,69 +966,51 @@ export const me = {
   followers: 1,
   following: 2,
   requests: 1,
-  weight: "77.47",
-  height: "175",
+  weight: "77.5", // 77.47 kg, shown to 0.1 as fromKilograms rounds it
+  height: "175", // the coach intake's, copied to the profile (seed-audit.ts)
+  email: "vinit@local.test",
+  // date of birth and training goal are unset, so the profile asks for them (profile.ts)
+  missing: "Add your date of birth and training goal",
 };
-// Friends' recent activity on 29 Sept, from seed-people.ts (runs at 06:00, workouts at 19:00),
-// summarised as activity-row.tsx writes them; a workout's volume is its working sets' kg × reps.
+// Friends' recent activity on 29 Sept: the first rows of Recent activity as the app renders them
+// (shared-stats.ts readActivity, newest first; activity-row.tsx), from the audit database.
+const FD = (who, day, sport, text) => ({ who, initial: who[0], day, sport, text });
 export const feed = [
-  {
-    who: "Priya Menon",
-    initial: "P",
-    day: "Sun 27 Sept",
-    sport: "run",
-    text: "Run · 5 km · 27:48 · 5:34 /km",
-  },
-  {
-    who: "Shreyash Laddha",
-    initial: "S",
-    day: "Fri 25 Sept",
-    sport: "strength",
-    text: "Workout · 11 sets · 3,945 kg",
-    sets: 11,
-  },
-  {
-    who: "Priya Menon",
-    initial: "P",
-    day: "Thu 24 Sept",
-    sport: "strength",
-    text: "Workout · 9 sets · 852 kg",
-    sets: 9,
-  },
-  {
-    who: "Priya Menon",
-    initial: "P",
-    day: "Wed 23 Sept",
-    sport: "run",
-    text: "Run · 10 km · 1:01:00 · 6:06 /km",
-  },
-  {
-    who: "Shreyash Laddha",
-    initial: "S",
-    day: "Wed 23 Sept",
-    sport: "strength",
-    text: "Workout · 14 sets · 3,250 kg",
-    sets: 14,
-  },
+  FD("Priya Menon", "Yesterday", "run", "Run · 6 km · 36:36 · 6:06 /km"),
+  FD("Shreyash Laddha", "Yesterday", "ride", "Ride · 25 km · 1:10:00"),
+  FD("Priya Menon", "Yesterday", "ride", "Ride · 25 km · 1:10:00"),
+  FD("Shreyash Laddha", "Sun 27 Sept", "ride", "Ride · 0 km · 15:00"),
+  FD("Priya Menon", "Sun 27 Sept", "ride", "Ride · 0 km · 15:00"),
+  FD("Shreyash Laddha", "Sun 27 Sept", "ride", "Ride · 30:00"),
+  FD("Priya Menon", "Sun 27 Sept", "ride", "Ride · 30:00"),
+  FD("Priya Menon", "Sun 27 Sept", "run", "Run · 5 km · 27:48 · 5:34 /km"),
 ];
-// The fixture gyms and Anytime Fitness's machines (src/db/test/fixtures.ts)
+// vinit's gyms as gyms.ts sorts them (default first, then by name): the fixture's five, and at the
+// default gym a machine for every one of the 93 equipment types (seed-audit-multisport.ts), so
+// nothing is marked absent. The machines in equipment.ts's order (by name, byte order), each with
+// its glyph and the second line gym-details.tsx gives it.
 export const gymList = [
-  { name: "Anytime Fitness", kind: "gym", meta: "7 machines", def: true },
+  { name: "Anytime Fitness", kind: "gym", meta: "93 machines", def: true },
+  { name: "Home", kind: "home", meta: "No equipment yet" },
+  { name: "Outdoor", kind: "outdoor", meta: "No equipment yet" },
   { name: "Samsung Gym", kind: "gym", meta: "No equipment yet" },
   { name: "Society Gym", kind: "gym", meta: "No equipment yet" },
-  { name: "Outdoor", kind: "outdoor", meta: "No equipment yet" },
-  { name: "Home", kind: "home", meta: "No equipment yet" },
 ];
+export const machineCount = 93;
+export const programmeFit = "33 available";
 export const machines = [
-  { name: "Smith machine", glyph: "smith", load: "Plate-loaded", step: "+2.5 kg" },
-  { name: "Cable station", glyph: "cable", load: "Weight stack" },
-  { name: "Assisted pull-up machine", glyph: "machine", load: "Weight stack" },
-  { name: "Seated leg curl", glyph: "machine", load: "Weight stack" },
-  { name: "Pec deck", glyph: "machine", load: "Pec deck (fly / reverse fly) · Weight stack" },
   { name: "45° leg press", glyph: "machine", load: "Plate-loaded" },
-  { name: "Horizontal leg press", glyph: "machine", load: "Plate-loaded" },
+  { name: "Ab crunch machine", glyph: "machine", load: "Weight stack" },
+  { name: "Ab wheel", glyph: "bodyweight", load: "Bodyweight" },
+  { name: "Adjustable bench", glyph: "bodyweight", load: "Bodyweight" },
+  { name: "Air / assault bike", glyph: "trainer", load: "Cardio" },
+  { name: "Assisted dip machine", glyph: "machine", load: "Weight stack" },
+  { name: "Assisted pull-up machine", glyph: "machine", load: "Weight stack" },
+  { name: "Back extension bench", glyph: "bodyweight", load: "Bodyweight" },
+  { name: "Back extension machine", glyph: "machine", load: "Weight stack" },
+  { name: "Barbell", glyph: "dumbbell", load: "Free weight" },
 ];
-export const unavailable = ["Hip thrust / glute drive machine", "Standing calf raise machine"];
+export const unavailable = [];
 // The first-run machine list (equipment-types.ts), its first rows, with the fixture's machines ticked
 export const machineCatalogue = {
   Machines: [

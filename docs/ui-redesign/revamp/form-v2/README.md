@@ -31,21 +31,21 @@ and the rows under it are its legend, each led by a small copy of its part.
 
 The canvas was redrawn from scratch after the owner's notes on the first version:
 
-| The note                                                     | What the boards do now                                                                                                    |
-| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
-| Better art for runs, cycling and other sports; fix alignment | A new alphabet on one module grid and one ground line: block, stride, wheel, wave, fan, bowl                              |
-| Keep the cycle and the rest timer minimal                    | The cycle is seven squares; rest is one pill, a dial that empties from twelve                                             |
-| Minimal text, nothing repeated                               | No words on prints; state shown by ink, not words; each fact once per screen                                              |
-| Revamp logging; Log, Technique, History; warm-ups faded      | A ledger, one row per set, with the entry docked below it; History lists every session; warm-ups are grey                 |
-| RIR as minus, a figure, plus                                 | RIR is a stepper that starts empty, its target beside it                                                                  |
-| Equipment and outdoor or treadmill as icons                  | Glyphs for free weights (a kettlebell), machine, cable, Smith machine, bodyweight; outdoors, treadmill, indoor bike, pool |
-| Start everything at the left edge                            | One 20-pt mark column and one name edge on every list                                                                     |
-| Progress congested: one month, every activity, a calendar    | One month, two marks a row, `+N`, the week's count; the calendar scrolls month by month; a day opens on its print         |
-| Less padding under the tab bar                               | 64 pt                                                                                                                     |
-| Over-full food without breaking the bowl                     | The food heaps above the rim as one symmetric mound                                                                       |
-| More pages, the coach among them                             | 74 boards: the AI coach and its proposed change, Training, Friends, Gyms, the first run, every Progress section and more  |
-| Native apps; text never runs off                             | An iOS and Android board, Android-size boards, typed entry, wrap and fit rules                                            |
-| The weight chart's coloured point; blue text selection       | Both ink                                                                                                                  |
+| The note                                                     | What the boards do now                                                                                                                            |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Better art for runs, cycling and other sports; fix alignment | A new alphabet on one module grid and one ground line: block, stride, wheel, wave, fan, bowl                                                      |
+| Keep the cycle and the rest timer minimal                    | The cycle is seven squares; rest is one pill, a dial that empties from twelve                                                                     |
+| Minimal text, nothing repeated                               | No words on prints; state shown by ink, not words; each fact once per screen                                                                      |
+| Revamp logging; Log, Technique, History; warm-ups faded      | A ledger, one row per set, with the entry docked below it; History lists every session; warm-ups are grey                                         |
+| RIR as minus, a figure, plus                                 | RIR is a stepper that starts empty, its target beside it: tap the dash for the target, − or + for one either side                                 |
+| Equipment and outdoor or treadmill as icons                  | Glyphs for free weights (a dumbbell), machine, cable, Smith machine, bodyweight; outdoors, treadmill, indoor bike, pool, open water               |
+| Start everything at the left edge                            | One 20-pt mark column and one name edge on every list                                                                                             |
+| Progress congested: one month, every activity, a calendar    | One month as a calendar: each day a link, its marks under its date, `+N` past four; the calendar scrolls month by month; a day opens on its print |
+| Less padding under the tab bar                               | 64 pt: 44-pt targets ending 4 clear of the home indicator                                                                                         |
+| Over-full food without breaking the bowl                     | The food heaps above the rim as one symmetric mound                                                                                               |
+| More pages, the coach among them                             | 74 boards: the AI coach and its proposed change, Training, Friends, Gyms, the first run, every Progress section and more                          |
+| Native apps; text never runs off                             | An iOS and Android board, Android-size boards, typed entry, wrap and fit rules                                                                    |
+| The weight chart's coloured point; blue text selection       | Both ink                                                                                                                                          |
 
 ## What is here
 
@@ -91,23 +91,29 @@ values go back to suggestions, RIR empties and rest restarts at 3:00.
 
 ## Where the content comes from
 
-Every name, figure and line of copy is taken from this repository; where a figure is worked
-out, it is worked out with the app's own rule. `source/data.mjs` names the source beside each.
+Every name and figure, and every interface string the app already has, is taken from this
+repository; where a figure is worked out, it is worked out with the app's own rule.
+`source/data.mjs` names the source beside each. Two choices follow from the data:
 
-| Content                                                    | Source                                                                                    |
-| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| Today: Fri 11 Sept, Easy Run + Arms, its run and superset  | `src/app/(preview)/preview/page.tsx`                                                      |
-| The programme, its days and targets, Upper B               | `src/db/seed/data/program.ts`, `warmups.ts`                                               |
-| Logging the bench: sets, the Hold and its reason, the ramp | `src/server/repositories/sessions.test.ts`, `src/domain/progression.ts`, `warmup-ramp.ts` |
-| Pounds: the squat at 135 and 140 lb                        | `scripts/dev/audit-workout.mjs`                                                           |
-| The coach's Lower A, its status and its proposed change    | `coach-plans.test.ts`, `coach-actions.tsx`, `src/app/(preview)/preview/coaching/page.tsx` |
-| The AI coach page: question, notes, memo                   | `scripts/dev/seed-audit.ts`                                                               |
-| Progress, calendar, History, Running, Recovery, Body       | the audit database for `vinit` on 29 Sept 2026 (`scripts/dev/audit.mjs` and its seeds)    |
-| Food: Fri 25 Sept, its over state, the food library        | `src/app/(preview)/preview/food/page.tsx`                                                 |
-| Friends' activity, the profile's counts                    | `scripts/dev/seed-people.ts`, summarised as `activity-row.tsx` writes it                  |
-| Gyms and machines                                          | `src/db/test/fixtures.ts`, `src/db/seed/data/equipment-types.ts`                          |
-| Exercise search results                                    | `src/lib/exercise-search.ts`, run over the seeded library                                 |
-| Every interface string                                     | the screens under `src/app` and `src/components`                                          |
+- Today follows the preview's Friday (Easy Run + Arms), but the session pages, from Workout to
+  Summary, follow Upper A's third cycle, because the preview has no session in progress and the
+  test that holds Upper A does.
+- That test has no dates, so the logging boards name sessions by cycle, not by date.
+
+| Content                                                                                         | Source                                                                                                                                                                       |
+| ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Today: Fri 11 Sept, Easy Run + Arms, its run and superset                                       | `src/app/(preview)/preview/page.tsx`                                                                                                                                         |
+| The programme, its days and targets, Upper B                                                    | `src/db/seed/data/program.ts`, `warmups.ts`                                                                                                                                  |
+| Upper A, cycle 3: the bench (60 × 4 @ 2), the Hold and its reason, the ramp, Finish and Summary | `src/server/repositories/sessions.test.ts`, `src/domain/progression.ts`, `warmup-ramp.ts`                                                                                    |
+| Pounds: the squat at 135 and 140 lb                                                             | `scripts/dev/audit-workout.mjs`                                                                                                                                              |
+| The coach's Lower A, its status and its proposed change                                         | `coach-plans.test.ts`, `coach-actions.tsx`, `src/app/(preview)/preview/coaching/page.tsx`                                                                                    |
+| The AI coach page: question, notes, memo                                                        | `scripts/dev/seed-audit.ts`                                                                                                                                                  |
+| Progress, calendar, History, Running, Recovery, Body                                            | the audit database for `vinit` on 29 Sept 2026 (`scripts/dev/audit.mjs` and its seeds)                                                                                       |
+| Food: Fri 25 Sept, its over state, the food library                                             | `src/app/(preview)/preview/food/page.tsx`                                                                                                                                    |
+| Friends' activity, the profile's counts                                                         | `scripts/dev/seed-people.ts`, summarised as `activity-row.tsx` writes it                                                                                                     |
+| Gyms, machines and the profile                                                                  | the same audit database (93 equipment types at Anytime Fitness, `scripts/dev/seed-audit-multisport.ts`; height from the coach intake), `src/db/seed/data/equipment-types.ts` |
+| Exercise search results                                                                         | `src/lib/exercise-search.ts`, run over the seeded library                                                                                                                    |
+| Every interface string                                                                          | the screens under `src/app` and `src/components`; labels for what the app does not have yet (each calendar day's name, each print's description) are the design's            |
 
 ## The generator
 
@@ -133,4 +139,15 @@ Fonts through Node, so it works behind a proxy (`NODE_USE_ENV_PROXY=1`).
 
 ## How it was checked
 
-See the read-me board's critique section and [`source/critique.json`](source/critique.json).
+The last canvas had five separate reviews (design, the Impeccable detector, native readiness,
+accessibility, craft and economy); what they found and what changed is on the read-me board.
+This canvas then had three more checks, and every finding they confirmed was fixed:
+
+| Check                                                                                                                                                                                            | Result                                                                                                                                                                                           |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| A fresh-eyes review of all 74 boards: Nielsen's heuristics, cognitive load, your notes one by one, three personas                                                                                | 26/40 before the fixes (29/40 for the last canvas's 24 boards, so not like-for-like); two P0s (print geometry, pounds read as kilograms) and six P1s                                             |
+| An audit of accessibility, craft and data: every string grepped against `src/`, every figure recomputed from the seeds and tests, `exercise-search.ts` re-run, every board rendered and measured | Five high findings (search results, three sessions in one flow, misattributed sets, pounds, the calendar), seven medium, five accessibility and six craft                                        |
+| The Impeccable detector on `canvas/`                                                                                                                                                             | 108 findings: 17 warnings, all intended (14 where a selected tab's bar sits on its hairline, 2 where the ink fills its mark, 1 spacing), and 91 advisories (fitted figure sizes, print drawings) |
+
+The scores and the full list are in [`source/critique.json`](source/critique.json) and on the
+read-me board; the review is also kept in `.impeccable/critique/`.

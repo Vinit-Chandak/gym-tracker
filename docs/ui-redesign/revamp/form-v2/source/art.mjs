@@ -263,27 +263,32 @@ export function form(
       // spin: the wheel's spokes cut as a cross, a flywheel turning in place
       out += `<path d="M${f1(cx - r)} ${f1(cy)}H${f1(cx + r)}M${f1(cx)} ${f1(cy - r)}V${f1(cy + r)}" stroke="${cut}" stroke-width="${f1(Math.max(1.4, r * 0.16))}"/>`;
   } else if (shape === "wave") {
-    // two crests of water; a paddle is one filled crest; a row is one crest crossed by an oar
+    // two crests of water filling the box: the lower one's trough and stroke stand on the ground,
+    // the upper one's crest meets the top, a band of paper between; a paddle is one heavier crest,
+    // a row the two crests cut by two oars. Skipped is the crests as a thin dashed line.
     const ww = Math.min(w, h * 1.6),
       x0 = x + (w - ww) / 2,
       k = ww / 4,
-      amp = Math.min(h, ww) * 0.2,
-      stw = Math.max(1.6, Math.min(h, ww) * 0.14);
+      m = Math.min(h - plat, ww) * (fill ? 1 : 0.84),
+      amp = m * 0.22,
+      stw = Math.max(1.6, m * 0.15);
     const crest = (yy) =>
       `M${f1(x0 + stw / 2)} ${f1(yy)} q${f1((k - stw / 4) / 2)} ${f1(-amp)} ${f1(k - stw / 4)} 0 t${f1(k - stw / 4)} 0 t${f1(k - stw / 4)} 0 t${f1(k - stw / 4)} 0`;
-    const wc = state === "todo" ? T : C,
-      sk = state === "skipped" ? ` stroke-dasharray="${f1(S * 0.1)} ${f1(S * 0.08)}"` : "";
-    const lo = base - stw * 0.6,
-      hi = base - Math.min(h, ww) * 0.52;
-    if (v && v.op === "single")
-      out += `<path d="${crest(lo - amp * 0.4)}" fill="none" stroke="${wc}" stroke-width="${f1(stw * 1.35)}" stroke-linecap="round"${sk}/>`;
+    const band = (amp + stw) / 2,
+      lo = base - band,
+      hi = base - m + band;
+    const wc = state === "todo" ? T : C;
+    if (state === "skipped")
+      out += `<path d="${crest(hi)} ${crest(lo)}" fill="none" stroke="${C}" stroke-width="${sw}" stroke-linecap="butt" stroke-dasharray="${f1(S * 0.09)} ${f1(S * 0.07)}"/>`;
+    else if (v && v.op === "single")
+      out += `<path d="${crest(base - (amp + stw * 1.35) / 2)}" fill="none" stroke="${wc}" stroke-width="${f1(stw * 1.35)}" stroke-linecap="round"/>`;
     else if (v && v.op === "oar")
       // row: the two crests, cut twice straight down, as oars cut the water
-      out += `<path d="${crest(hi)} ${crest(lo)}" fill="none" stroke="${wc}" stroke-width="${f1(stw)}" stroke-linecap="round"${sk}/>${[0.36, 0.64].map((f) => `<path d="M${f1(x0 + ww * f)} ${f1(hi - amp - stw)}V${f1(lo + stw)}" stroke="${cut}" stroke-width="${f1(Math.max(1.6, stw * 0.55))}"/>`).join("")}`;
+      out += `<path d="${crest(hi)} ${crest(lo)}" fill="none" stroke="${wc}" stroke-width="${f1(stw)}" stroke-linecap="round"/>${[0.36, 0.64].map((f) => `<path d="M${f1(x0 + ww * f)} ${f1(base - m)}V${f1(base)}" stroke="${cut}" stroke-width="${f1(Math.max(1.6, stw * 0.55))}"/>`).join("")}`;
     else if (state === "todo")
       out += `<path d="${crest(hi)} ${crest(lo)}" fill="none" stroke="${C}" stroke-width="${f1(stw)}" stroke-linecap="round"/><path d="${crest(hi)} ${crest(lo)}" fill="none" stroke="${T}" stroke-width="${f1(Math.max(0.8, stw - 2.6))}" stroke-linecap="round"/>`;
     else
-      out += `<path d="${crest(hi)} ${crest(lo)}" fill="none" stroke="${wc}" stroke-width="${f1(stw)}" stroke-linecap="round"${sk}/>`;
+      out += `<path d="${crest(hi)} ${crest(lo)}" fill="none" stroke="${wc}" stroke-width="${f1(stw)}" stroke-linecap="round"/>`;
   } else if (shape === "fan") {
     const r = Math.min(w, h - plat),
       ox = x,
@@ -349,10 +354,11 @@ function formModules(p, cap) {
   // a run's body grows with its time, a module for every 15 minutes (1 to 3), plus its lean
   if (p.kind === "run")
     return { hm, wm: hm * SLANT + Math.min(3, Math.max(1.4, (minutes || 30) / 15)) };
-  if (p.kind === "ride" || p.kind === "spin") return { hm, wm: hm };
-  if (p.kind === "swim") return { hm, wm: hm * 1.5 };
-  if (p.kind === "mobility") return { hm, wm: hm };
-  return { hm, wm: hm };
+  // a wheel, a fan or a bowl is as wide as it is tall: hm modules and the gaps between them
+  const side = hm + (hm - 1) * 0.14;
+  if (p.kind === "ride" || p.kind === "spin") return { hm, wm: side };
+  if (p.kind === "swim") return { hm, wm: side * 1.5 };
+  return { hm, wm: side };
 }
 export function dayPrint({
   w = 362,
@@ -362,8 +368,8 @@ export function dayPrint({
   ariaLabel = null,
   labels = false,
   maxModule = 44,
-  align = "start",
 } = {}) {
+  // Parts stand in the order of the rows under the print, from its left edge, a module apart.
   const P = palFor(paper),
     PO = paperOpen(w, h, { paper, label: ariaLabel });
   const pad = Math.max(16, Math.round(Math.min(w, 400) * 0.055));
@@ -372,7 +378,6 @@ export function dayPrint({
     labelBand = labels ? 26 : 0,
     top = Math.max(16, Math.round(h * 0.1)) + labelBand;
   const str = parts.find((p) => p.kind === "strength");
-  const others = parts.filter((p) => p.kind !== "strength");
   const cols = str ? columnsOf(str) : [];
   const cap = Math.max(2, str ? Math.max(...cols.map((c) => c.n)) : 3);
   // gaps in modules
@@ -385,158 +390,59 @@ export function dayPrint({
     strWm += 1;
     if (i < cols.length - 1) strWm += c.pair ? pairG : colG;
   });
-  const fm = others.map((p) => formModules(p, cap));
-  const totalWm =
-    strWm +
-    fm.reduce((a, q) => a + q.wm, 0) +
-    partG * Math.max(0, others.length + (str ? 1 : 0) - 1);
+  const fm = parts.map((p) => (p.kind === "strength" ? { wm: strWm } : formModules(p, cap)));
+  const totalWm = fm.reduce((a, q) => a + q.wm, 0) + partG * Math.max(0, parts.length - 1);
   const capHm = cap + (cap - 1) * g;
   const u = Math.min(maxModule, (w - 2 * pad) / totalWm, (ground - 4 - top) / capHm);
-  const usedW = totalWm * u;
-  let x = align === "center" ? (w - usedW) / 2 : pad;
-  const spare = Math.max(0, w - 2 * pad - usedW);
+  let x = pad;
   let art = "",
     labs = "";
   const labelY = top - 10;
   const lab = (lx, name, fig) =>
     `<text x="${f1(lx)}" y="${f1(labelY)}" style="${FONT};font-size:12px;font-weight:700;fill:${P.ink}">${name}${fig ? ` <tspan style="font-weight:500;fill:${P.label}">${fig}</tspan>` : ""}</text>`;
-  if (str) {
-    const sx = x;
-    cols.forEach((c, i) => {
-      for (let k = 0; k < c.n; k++) {
-        const yy = ground - (k + 1) * u - k * g * u;
-        // warm-up sets are the foot of a column: done in grey, to do as a grey outline
-        const isWarm = typeof c.warm === "number" ? k < c.warm : !!c.warm;
-        const state = c.skipped ? "skipped" : k < c.done ? "done" : "todo";
-        const ew = f1(Math.max(1.2, Math.min(1.8, u * 0.07)));
-        art += c.skipped
-          ? `<rect x="${f1(x + 0.9)}" y="${f1(yy + 0.9)}" width="${f1(u - 1.8)}" height="${f1(u - 1.8)}" fill="none" stroke="${P.col.strength}" stroke-width="1.8" stroke-dasharray="${f1(u * 0.16)} ${f1(u * 0.12)}"/>`
-          : isWarm
-            ? state === "done"
-              ? `<rect x="${f1(x)}" y="${f1(yy)}" width="${f1(u)}" height="${f1(u)}" fill="${P.warm}"/>`
-              : `<rect x="${f1(x + 0.75)}" y="${f1(yy + 0.75)}" width="${f1(u - 1.5)}" height="${f1(u - 1.5)}" fill="none" stroke="${P.label}" stroke-width="${ew}"/>`
-            : state === "done"
-              ? `<rect x="${f1(x)}" y="${f1(yy)}" width="${f1(u)}" height="${f1(u)}" fill="${P.col.strength}"/>`
-              : `<rect x="${f1(x + 0.6)}" y="${f1(yy + 0.6)}" width="${f1(u - 1.2)}" height="${f1(u - 1.2)}" fill="${P.tint.strength}" stroke="${P.col.strength}" stroke-width="${ew}"/>`;
-      }
-      // a superset's two columns stand closer than any others; the lists bracket them in words' place
-      x += u;
-      if (i < cols.length - 1) x += (c.pair ? pairG : colG) * u;
-    });
-    if (labels) labs += lab(sx, str.name, str.figure);
+  parts.forEach((p, pi) => {
+    if (p.kind === "strength") {
+      const sx = x;
+      cols.forEach((c, i) => {
+        for (let k = 0; k < c.n; k++) {
+          const yy = ground - (k + 1) * u - k * g * u;
+          // warm-up sets are the foot of a column: done in grey, to do as a grey outline
+          const isWarm = typeof c.warm === "number" ? k < c.warm : !!c.warm;
+          const state = c.skipped ? "skipped" : k < c.done ? "done" : "todo";
+          const ew = f1(Math.max(1.2, Math.min(1.8, u * 0.07)));
+          art += c.skipped
+            ? `<rect x="${f1(x + 0.9)}" y="${f1(yy + 0.9)}" width="${f1(u - 1.8)}" height="${f1(u - 1.8)}" fill="none" stroke="${P.col.strength}" stroke-width="1.8" stroke-dasharray="${f1(u * 0.16)} ${f1(u * 0.12)}"/>`
+            : isWarm
+              ? state === "done"
+                ? `<rect x="${f1(x)}" y="${f1(yy)}" width="${f1(u)}" height="${f1(u)}" fill="${P.warm}"/>`
+                : `<rect x="${f1(x + 0.75)}" y="${f1(yy + 0.75)}" width="${f1(u - 1.5)}" height="${f1(u - 1.5)}" fill="none" stroke="${P.label}" stroke-width="${ew}"/>`
+              : state === "done"
+                ? `<rect x="${f1(x)}" y="${f1(yy)}" width="${f1(u)}" height="${f1(u)}" fill="${P.col.strength}"/>`
+                : `<rect x="${f1(x + 0.6)}" y="${f1(yy + 0.6)}" width="${f1(u - 1.2)}" height="${f1(u - 1.2)}" fill="${P.tint.strength}" stroke="${P.col.strength}" stroke-width="${ew}"/>`;
+        }
+        // a superset's two columns stand closer than any others; the lists bracket them
+        x += u;
+        if (i < cols.length - 1) x += (c.pair ? pairG : colG) * u;
+      });
+      if (labels) labs += lab(sx, p.name, p.figure);
+    } else {
+      const { hm, wm } = fm[pi];
+      const fw = wm * u,
+        fh = hm * u + (hm - 1) * g * u;
+      art += form(p.kind, x, ground - fh, fw, fh, {
+        state: p.state || (p.done ? "done" : "todo"),
+        indoor: p.indoor,
+        segments: p.segments || 0,
+        done: p.segDone || 0,
+        paper,
+        fill: true,
+      });
+      if (labels) labs += lab(x, p.name, p.figure);
+      x += fw;
+    }
     x += partG * u;
-    if (align === "ends" && others.length === 1) x += spare;
-  }
-  others.forEach((p, i) => {
-    const { hm, wm } = fm[i];
-    const fw = wm * u,
-      fh = hm * u + (hm - 1) * g * u;
-    art += form(p.kind, x, ground - fh, fw, fh, {
-      state: p.state || (p.done ? "done" : "todo"),
-      indoor: p.indoor,
-      segments: p.segments || 0,
-      done: p.segDone || 0,
-      paper,
-      fill: true,
-    });
-    if (labels) labs += lab(x, p.name, p.figure);
-    x += fw + partG * u;
-    if (align === "ends" && i === others.length - 2) x += spare;
   });
   return `${PO.open}${art}<rect x="${f1(pad - 6)}" y="${f1(ground)}" width="${f1(w - 2 * pad + 12)}" height="${groundH}" fill="${P.ink}"/>${PO.grain}${labs}${PO.end}`;
-}
-
-// ---------- the calendar: a month of days, every activity of a day in its cell ----------
-// days: { dom: [{ sport, indoor? }] }. A cell stacks its marks on its own baseline, two to a row
-// and up to `fit`; past that it shows +N. Today is ringed in ink; days after today stay blank.
-// With `weeks`, an eighth column gives each week's sessions, this week's marked "so far".
-export function monthPrint({
-  w = 362,
-  year,
-  month, // 0-based
-  days,
-  today = null,
-  paper = PIG.paper,
-  cellH = 52,
-  mark = 13,
-  weekdays = true,
-  ariaLabel = null,
-  fit = 4,
-  perRow = 2,
-  weeks = false,
-  numSize = 12,
-} = {}) {
-  const P = palFor(paper);
-  const first = new Date(Date.UTC(year, month, 1));
-  const nDays = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-  const lead = (first.getUTCDay() + 6) % 7; // Monday first
-  const rows = Math.ceil((lead + nDays) / 7);
-  const pad = 8,
-    head = weekdays ? 24 : 6;
-  const h = head + rows * cellH + pad;
-  const weekW = weeks ? 34 : 0;
-  const cw = (w - 2 * pad - weekW) / 7;
-  const PO = paperOpen(w, h, { paper, label: ariaLabel });
-  let out = "";
-  const T = (x, y, t, { a = "start", wt = 700, fill = P.label, size = 12 } = {}) =>
-    `<text x="${f1(x)}" y="${f1(y)}" text-anchor="${a}" style="${FONT};font-size:${size}px;font-weight:${wt};fill:${fill};font-variant-numeric:tabular-nums">${t}</text>`;
-  if (weekdays) {
-    ["M", "T", "W", "T", "F", "S", "S"].forEach((d, i) => (out += T(pad + i * cw + 6, 16, d)));
-    if (weeks) out += T(w - pad, 16, "Week", { a: "end" });
-  }
-  const weekCount = Array(rows).fill(0);
-  for (let dom = 1; dom <= nDays; dom++) {
-    const i = lead + dom - 1,
-      r = Math.floor(i / 7),
-      c = i % 7;
-    const x = pad + c * cw,
-      y = head + r * cellH;
-    const sessions = days[dom] || [];
-    const future = today !== null && dom > today;
-    const isToday = dom === today;
-    weekCount[r] += future ? 0 : sessions.length;
-    out += T(x + 6, y + 14, dom, {
-      wt: isToday ? 800 : 600,
-      fill: future ? P.dot : isToday ? P.ink : P.label,
-      size: numSize,
-    });
-    if (isToday)
-      out += `<rect x="${f1(x + 1.5)}" y="${f1(y + 1.5)}" width="${f1(cw - 3)}" height="${f1(cellH - 3)}" fill="none" stroke="${P.ink}" stroke-width="1.5"/>`;
-    const baseY = y + cellH - 7;
-    if (!sessions.length) {
-      if (!future)
-        out += `<circle cx="${f1(x + 9)}" cy="${f1(baseY - 2)}" r="1.4" fill="${P.dot}"/>`;
-      continue;
-    }
-    const shown = sessions.length > fit ? sessions.slice(0, fit - 1) : sessions;
-    const more = sessions.length - shown.length;
-    const gap = Math.max(3, Math.round(mark * 0.28));
-    const slots = [...shown.map((ss) => ({ ss })), ...(more ? [{ more }] : [])];
-    slots.forEach((sl, k) => {
-      const col = k % perRow,
-        row = Math.floor(k / perRow);
-      const mx = x + 6 + col * (mark * 1.3 + gap),
-        my = baseY - (row + 1) * mark - row * gap;
-      if (sl.more) out += T(mx, my + mark - 2, `+${sl.more}`, { fill: P.ink, size: 12 });
-      else {
-        const mw = sl.ss.sport === "run" ? mark * 1.3 : mark;
-        out += form(sl.ss.sport, mx, my, mw, mark, {
-          indoor: sl.ss.indoor,
-          paper,
-          state: sl.ss.state || "done",
-          fill: true,
-        });
-      }
-    });
-  }
-  if (weeks)
-    weekCount.forEach((n, r) => {
-      const y = head + r * cellH;
-      const current = today !== null && r === Math.floor((lead + today - 1) / 7);
-      out += T(w - pad, y + cellH / 2 + 5, n || "–", { a: "end", fill: P.ink, size: 15, wt: 600 });
-      if (current) out += T(w - pad, y + cellH / 2 + 19, "so far", { a: "end", size: 12, wt: 600 });
-    });
-  return `${PO.open}${out}${PO.grain}${PO.end}`;
 }
 
 // ---------- the bowl: the day's food, filled meal by meal; past the target it heaps ----------

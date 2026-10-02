@@ -7,7 +7,7 @@
 import { s, esc } from "./lib.mjs";
 import * as K from "./kit.mjs";
 import { dayPrint } from "./art.mjs";
-import { today as T } from "./data.mjs";
+import { today as T, EQUIP } from "./data.mjs";
 
 const { txt, num, title, icon, tn } = K;
 
@@ -28,13 +28,21 @@ export function cycleMark(t, { day = 3, done = 2, of = 7, cycle = 1, cycles = 8 
 
 // The gym, as a choice: a pin and the name. Shown because the account has more than one gym.
 export const gymChoice = (t, name = T.gym.name, { size = 15 } = {}) =>
-  `<button type="button" aria-haspopup="dialog" aria-label="Gym: ${esc(name)}. Change" style="${s({ display: "inline-flex", "align-items": "center", gap: 4, height: 32, "min-width": 0, color: t.ink2, "margin-left": -2 })}; ${txt(size, 600)}">${icon("pin", 17)}<span class="nb" style="overflow:hidden;text-overflow:ellipsis">${name}</span>${icon("chevronDown", 15)}</button>`;
+  `<button type="button" aria-haspopup="dialog" aria-label="Gym: ${esc(name)}. Change" style="${s({ display: "inline-flex", "align-items": "center", gap: 4, height: 44, margin: "-6px 0 -6px -2px", "min-width": 0, color: t.ink2 })}; ${txt(size, 600)}">${icon("pin", 17)}<span class="nb" style="overflow:hidden;text-overflow:ellipsis">${name}</span>${icon("chevronDown", 15)}</button>`;
 
 // One planned exercise: its column of sets, its name, its targets.
+// One exercise row everywhere: its sets as a column mark, the name, and under it the equipment's
+// glyph and the prescription (Today, a programme day and the workout alike).
+const EQUIP_NAME = {
+  dumbbell: "Free weights",
+  bodyweight: "Bodyweight",
+  cable: "Cable",
+  machine: "Machine",
+  smith: "Smith machine",
+};
 export function planRow(t, x, { last = false, dv = K.D } = {}) {
-  const narrow = dv.W < 360,
-    rowH = dv.H < 800 ? 38 : 44;
-  return `<li style="${s({ display: "flex", "align-items": "center", gap: 12, "min-height": rowH, padding: "3px 0", "border-bottom": last ? 0 : `1px solid ${t.hair}` })}">${K.markCell(K.colMark(t, x.sets, x.done || 0, { label: `${x.sets} sets` }))}<span style="${s({ display: "flex", "flex-wrap": "wrap", "justify-content": "space-between", "align-items": "baseline", gap: "0 10px", flex: "1 1 auto", "min-width": 0 })}"><span class="wrap" style="${txt(narrow ? 15 : 16, 600)}">${x.name}</span><span class="nb" style="${txt(narrow ? 14 : 15, 500, { color: t.ink2 })}; ${tn}">${K.dashes(x.rx).replace(/<span[^>]*>–<\/span>/g, "–")}</span></span></li>`;
+  const glyph = EQUIP[x.modality] || "dumbbell";
+  return `<li style="${s({ display: "flex", "align-items": "center", gap: 12, "min-height": dv.H < 800 ? 48 : 52, padding: "5px 0", "border-bottom": last ? 0 : `1px solid ${t.hair}` })}">${K.markCell(K.colMark(t, x.sets, x.done || 0, { label: `${x.sets} sets` }))}<span style="${s({ display: "flex", "flex-direction": "column", flex: "1 1 auto", "min-width": 0 })}"><span class="wrap" style="${txt(16, 700, { "line-height": 1.25 })}">${x.name}</span>${K.metaLine(t, [`${K.equip(t, glyph, EQUIP_NAME[glyph])}<span>${K.dashes(x.rx).replace(/<span[^>]*>–<\/span>/g, "–")}</span>`], { size: 14, mt: 1 })}</span></li>`;
 }
 
 export function todayScreen(t, dv = K.D, { coach = null, label = "Today" } = {}) {
@@ -54,17 +62,17 @@ export function todayScreen(t, dv = K.D, { coach = null, label = "Today" } = {})
     h: ph,
     paper: t.paper,
     parts: [
-      { kind: "strength", columns: cols },
       { kind: "run", minutes: T.run.minutes },
+      { kind: "strength", columns: cols },
     ],
     ariaLabel:
-      "Today’s print: four arm exercises as columns of their sets, the superset under one beam, and the run’s stride. Nothing done yet.",
+      "Today’s print: the run’s stride, then four arm exercises as columns of their sets, the superset’s two standing closer. Nothing done yet.",
   });
   // the run, then the plan: one mark column, one name edge
   const runRow = `<li style="${s({ display: "flex", "align-items": "center", gap: 12, "min-height": short ? 50 : 56, padding: short ? "4px 0" : "6px 0", "border-bottom": `1px solid ${t.hair}` })}">${K.markCell(K.stateMark(t, "run", 18, { state: "todo", label: "Run, to do" }))}<span style="${s({ display: "flex", "flex-direction": "column", flex: "1 1 auto", "min-width": 0 })}"><span style="${s({ display: "flex", "align-items": "baseline", gap: 8, "flex-wrap": "wrap" })}"><span style="${txt(17, 700)}">Run</span><span class="nb" style="${num(20)}">${K.dashes(T.run.target)} <span style="${txt(14, 600, { color: t.ink2 })}">${T.run.unit}</span></span></span><span class="wrap" style="${txt(14, 500, { color: t.ink2 })}">${T.run.note}</span></span><a href="#" style="${K.BTN(t, "tonal", { h: 44 })}; padding: 0 16px">Log it</a></li>`;
   const ss = T.plan.filter((x) => x.superset);
   const single = T.plan.filter((x) => !x.superset);
-  const plan = `${single.map((x) => planRow(t, x, { dv })).join("")}<li style="position:relative"><ul aria-label="Superset: ${ss.map((x) => x.name).join(" and ")}">${ss.map((x, i) => planRow(t, x, { dv, last: i === ss.length - 1 })).join("")}</ul>${K.supersetBracket(t, "Superset")}</li>`;
+  const plan = `${single.map((x) => planRow(t, x, { dv })).join("")}<li style="${K.SS_GROUP}"><ul aria-label="Superset: ${ss.map((x) => x.name).join(" and ")}">${ss.map((x, i) => planRow(t, x, { dv, last: i === ss.length - 1 })).join("")}</ul>${K.supersetBracket(t, "Superset")}</li>`;
   const pinned = K.navH(dv) + (tiny ? 10 : 12);
   const body = `${K.screenMain(
     t,
@@ -74,9 +82,14 @@ ${K.printFrame(print, { mt: 2 })}
   <h2 id="day" style="${title(K.titleSize(T.day, cw, narrow ? 30 : short ? 32 : 36))}">${T.day}</h2>
   ${K.metaLine(t, [gymChoice(t), `${icon("rest", 16)}<span>${T.time}</span>`], { mt: 2 })}
 </section>
-${coach ? `<div style="margin-top:10px">${K.coachNote(t, { ...coach, dv, size: 15 })}</div>` : ""}
-${short && !coach ? "" : `<p style="${txt(14, 500, { color: t.ink2 })}; margin-top: ${coach ? 10 : 8}px">${T.notes}</p>`}
-<ul aria-label="Today, in any order" style="margin-top:2px">${runRow}${plan}</ul>`,
+${
+  coach
+    ? coach.tone === "planning"
+      ? `<p role="status" style="${s({ display: "flex", gap: 8, "align-items": "flex-start", "margin-top": 10, color: t.ink2 })}; ${txt(15, 500, { "line-height": 1.4 })}"><span style="${s({ display: "grid", "flex-shrink": 0, "margin-top": 1, color: t.ink })}">${icon("coach", 18)}</span><span>${coach.text}</span></p>`
+      : `<div style="margin-top:10px">${K.coachNote(t, { ...coach, dv, size: 15 })}</div>`
+    : ""
+}
+<ul aria-label="Today: the run first, then the arms" style="margin-top:${coach ? 10 : 8}px">${runRow}${plan}</ul>`,
     { dv, bottom: pinned + 56 + 8, fade: tiny ? 12 : true },
   )}
 <div style="${s({ position: "absolute", left: G, right: G, bottom: pinned, display: "flex", gap: 10 })}">

@@ -32,7 +32,7 @@ ${table(
       "Tab bar",
       `The system ${code("TabView")}: 49 + 34 pt, a floating glass bar on iOS 26`,
       `${code("NavigationBar")} or ${code("ShortNavigationBar")} (64 dp) plus the navigation-bar inset`,
-      "64 pt: 48 of targets, 12 above the home indicator, 6 where there is none",
+      "64 pt: 44-pt targets ending 4 clear of the home indicator; 11 under them where there is none",
     ],
     [
       "Sheets",
@@ -89,7 +89,7 @@ function insets() {
     return `<figure style="${s({ display: "flex", "flex-direction": "column", gap: 10, margin: 0 })}"><div style="${s({ position: "relative", width: w, height: h, border: `2px solid ${L.ink}`, "border-radius": 24, overflow: "hidden", background: L.ground })}"><div style="${s({ position: "absolute", left: 0, right: 0, top: 0, height: top * sc, background: L.surface2 })}"></div><div style="${s({ position: "absolute", left: 0, right: 0, bottom: 0, height: K.navH({ bottom }) * sc, "border-top": `1px solid ${L.ink}`, background: L.surface })}"></div>${bottom ? `<div style="${s({ position: "absolute", left: "50%", bottom: 8 * sc, width: 134 * sc, height: 5 * sc, "margin-left": -67 * sc, "border-radius": 9999, background: L.ink })}"></div>` : ""}<div style="${s({ position: "absolute", left: 20 * sc, right: 20 * sc, top: (top + 8) * sc, bottom: (K.navH({ bottom }) + 8) * sc, border: `1.5px dashed ${L.ink2}` })}"></div></div><figcaption style="${txt(13, 500, { color: L.ink2, "max-width": w + 40, "line-height": 1.4 })}"><b style="color:${L.ink}">${label}</b><br>${extra}</figcaption></figure>`;
   };
   return section(`${H2("Safe areas", "Every pinned control is placed from the bar’s top edge or from the safe area, never from a fixed number. Grey is the platform’s; the dashed box is the content.")}
-<div style="${s({ display: "flex", gap: 40, "align-items": "flex-start", "flex-wrap": "wrap" })}">${phone("iPhone 402 × 874", 402, 874, 62, 34, "Status 62, home indicator 34; the tab bar keeps 12 above the indicator")}${phone("iPhone SE 375 × 667", 375, 667, 20, 0, "Status 20, no indicator; 6 under the tab bar")}${phone("Android 360 × 800", 360, 800, 28, 16, "Status 24–52 with a cutout; gesture handle 16, three buttons 48")}${phone("iPhone 440 × 956", 440, 956, 62, 34, "The largest: the print takes the room, nothing stretches")}</div>`);
+<div style="${s({ display: "flex", gap: 40, "align-items": "flex-start", "flex-wrap": "wrap" })}">${phone("iPhone 402 × 874", 402, 874, 62, 34, "Status 62, home indicator 34; the tab bar’s targets end 4 above the indicator")}${phone("iPhone SE 375 × 667", 375, 667, 20, 0, "Status 20, no indicator; 6 under the tab bar")}${phone("Android 360 × 800", 360, 800, 28, 16, "Status 24–52 with a cutout; gesture handle 16, three buttons 48")}${phone("iPhone 440 × 956", 440, 956, 62, 34, "The largest: the print takes the room, nothing stretches")}</div>`);
 }
 function textRules() {
   const R = [
@@ -99,7 +99,7 @@ function textRules() {
     ],
     [
       "Figures step down",
-      "A figure keeps one line and steps down to fit its column (62.5 → 34 pt at 320), never truncated, never an ellipsis.",
+      "A figure keeps one line and steps down to fit its column (62.5 at 46 pt on the 440 board, 41 at 402, 39 at 375), never truncated, never an ellipsis.",
     ],
     [
       "Titles step down, then wrap",
@@ -115,7 +115,7 @@ function textRules() {
     ],
     [
       "Layouts fold, never drop",
-      "Three steppers to a row from 360 dp up, stacked under it; at 200% one to a row. The equipment line, the target and the suggestion always stay.",
+      "Three steppers to a row while each column holds its figure and two buttons (375 pt and up). At 320 pt and on 360-dp Android load takes a row, and reps and RIR share the next. The equipment line, the target and the suggestion always stay.",
     ],
   ];
   return section(
@@ -157,7 +157,7 @@ ${table(
   ],
   ["160px", "", "", ""],
 )}
-<p style="${txt(14, 500, { color: L.ink2 })}">At accessibility sizes (iOS ${code("isAccessibilitySize")}, Android font scale 1.5 and up) the logging screen takes the 200% layout: the entry first, one stepper to a row, Save pinned.</p>`);
+<p style="${txt(14, 500, { color: L.ink2 })}">At accessibility sizes (iOS ${code("isAccessibilitySize")}, Android font scale 1.5 and up) the logging screen takes the 200% layout: the entry first with load beside its buttons, reps and RIR under it, the ledger below, Save pinned.</p>`);
 }
 function haptics() {
   return section(`${H2("Haptics and motion")}
@@ -199,11 +199,11 @@ function decisions() {
   const D = [
     [
       "The tab bar is 64 pt, not 83",
-      "You asked for less room under the icons. The bar keeps 12 pt above the home indicator (the indicator is 5 pt tall, 8 pt from the edge), which the 34-pt safe area otherwise leaves empty. On iOS and Android the system bar decides; this applies to the web app.",
+      "You asked for less room under the icons. The bar’s 44-pt targets end 4 pt above the home indicator (5 pt tall, 8 pt from the edge), inside the 34-pt safe area that otherwise stays empty. On iOS and Android the system bar decides; this applies to the web app.",
     ],
     [
       "RIR is a − / + stepper",
-      "You asked for minus, a figure, plus. The review asked for a row of choices, because a stepper needs a starting value and RIR must never be pre-filled. The stepper starts empty (–, with the target beside it); the first press sets the target, then steps. Save waits until it is set.",
+      "You asked for minus, a figure, plus. The review asked for a row of choices, because a stepper needs a starting value and RIR must never be pre-filled. The stepper starts empty (a dash, with the target beside it): tapping the dash takes the target, − and + take one either side of it, then step. Save waits until it is set.",
     ],
     [
       "The session covers the tabs",

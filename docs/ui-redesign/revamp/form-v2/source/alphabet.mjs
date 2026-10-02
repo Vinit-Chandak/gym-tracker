@@ -1,18 +1,9 @@
 // The alphabet: how a print is made, and how it grows with the app. Drawn by art.mjs itself.
 import { s } from "./lib.mjs";
 import * as K from "./kit.mjs";
-import {
-  PAL,
-  FAMILY,
-  VARIANT,
-  SLANT,
-  form,
-  dayPrint,
-  monthPrint,
-  bowlPrint,
-  bowlFigure,
-} from "./art.mjs";
+import { PAL, FAMILY, VARIANT, SLANT, form, dayPrint, bowlPrint, bowlFigure } from "./art.mjs";
 import { september, food as F, foodOver } from "./data.mjs";
+import { monthGrid } from "./progress.mjs";
 
 export const ABW = 1400;
 const { txt, title } = K;
@@ -25,9 +16,13 @@ const H2 = (text, note = "") =>
 const cap = (text) => `<p style="${txt(14, 700)}">${text}</p>`;
 const sub = (text) =>
   `<p style="${txt(13, 500, { color: L.ink2, "line-height": 1.4 })}">${text}</p>`;
-// a form alone on a square of paper
-const swatch = (sport, size = 96, opts = {}, box = 140) =>
-  `<svg width="${box}" height="${box}" viewBox="0 0 ${box} ${box}" aria-hidden="true" style="display:block"><rect width="${box}" height="${box}" fill="${P.paper}"/>${form(sport, (box - size) / 2, (box - size) / 2 - 6, sport === "run" || VARIANT[sport]?.base === "run" ? size * 1.15 : size, size, { paper: P.paper, ...opts })}<rect x="${(box - size) / 2 - 6}" y="${box - (box - size) / 2 - 3}" width="${size + 12}" height="3" fill="${P.ink}"/></svg>`;
+// a form alone on a square of paper; every tile of a row shares one ground line, whatever its size
+const swatch = (sport, size = 96, opts = {}, box = 140) => {
+  const ground = Math.round(box * 0.78);
+  const w = sport === "run" || VARIANT[sport]?.base === "run" ? size * 1.15 : size;
+  const gw = Math.max(w, size) + 12;
+  return `<svg width="${box}" height="${box}" viewBox="0 0 ${box} ${box}" aria-hidden="true" style="display:block"><rect width="${box}" height="${box}" fill="${P.paper}"/>${form(sport, (box - w) / 2, ground - size, w, size, { paper: P.paper, ...opts })}<rect x="${(box - gw) / 2}" y="${ground}" width="${gw}" height="3" fill="${P.ink}"/></svg>`;
+};
 const section = (inner) =>
   `<section style="${s({ display: "flex", "flex-direction": "column", gap: 22 })}">${inner}</section>`;
 
@@ -171,6 +166,7 @@ function prints() {
         h: 190,
         paper: P.paper,
         parts: [
+          { kind: "run", minutes: 30 },
           {
             kind: "strength",
             columns: [
@@ -180,28 +176,26 @@ function prints() {
               { n: 2, done: 0 },
             ],
           },
-          { kind: "run", minutes: 30 },
         ],
         ariaLabel: "",
       }),
-      "Today, Fri 11 Sept: to do. Four arm exercises (the forearms pair closer) and the run.",
+      "Today, Fri 11 Sept, to do: the run, then four arm exercises, the superset’s two closer.",
     ],
     [
       dayPrint({
         w,
         h: 190,
         paper: P.paper,
-        align: "ends",
         parts: [
+          { kind: "mobility", segments: 4, segDone: 4, done: true, modules: 3 },
           {
             kind: "strength",
             columns: [4, 3, 3, 2, 3, 2, 2].map((n, i) => ({ n, done: i === 0 ? 2 : 0 })),
           },
-          { kind: "mobility", segments: 4, segDone: 4, done: true, modules: 3 },
         ],
         ariaLabel: "",
       }),
-      "Upper A in progress: the bench’s first two sets inked, the warm-up done.",
+      "Upper A in progress: the warm-up done, the bench’s first two sets inked.",
     ],
     [
       dayPrint({
@@ -209,44 +203,34 @@ function prints() {
         h: 190,
         paper: P.paper,
         parts: [
+          { kind: "run", minutes: 33, done: true },
+          { kind: "swim", minutes: 30, done: true },
           {
             kind: "strength",
             columns: [
               { n: 3, done: 3, warm: 1 },
-              { n: 3, done: 3, warm: 1 },
+              { n: 3, done: 3 },
               { n: 3, done: 3 },
             ],
           },
-          { kind: "run", minutes: 33, done: true },
-          { kind: "swim", minutes: 30, done: true },
         ],
         ariaLabel: "",
       }),
-      "Fri 25 Sept, done: a lift with its warm-ups in grey, a run and an open-water swim.",
+      "Fri 25 Sept, done, in the day’s order: a run, an open-water swim, and a lift with its warm-up in grey.",
     ],
   ];
   return section(
-    `${H2("A day", "The day’s print is Today’s hero and every record’s header: what is owed, thinned, inking as it is done.")}<div style="${s({ display: "grid", "grid-template-columns": "repeat(3, minmax(0,1fr))", gap: GAP })}">${items.map(([svg, l]) => `<div style="${s({ display: "flex", "flex-direction": "column", gap: 8 })}">${svg}${sub(l)}</div>`).join("")}</div>`,
+    `${H2("A day", "The day’s print is Today’s hero and every record’s header. Its parts stand in the order of the rows under it, starting at the left; what is owed is thinned and inks as it is done.")}<div style="${s({ display: "grid", "grid-template-columns": "repeat(3, minmax(0,1fr))", gap: GAP })}">${items.map(([svg, l]) => `<div style="${s({ display: "flex", "flex-direction": "column", gap: 8 })}">${svg}${sub(l)}</div>`).join("")}</div>`,
   );
 }
 function month() {
-  const m = monthPrint({
-    w: 420,
-    year: 2026,
-    month: 8,
-    days: september,
-    today: 29,
-    paper: P.paper,
-    cellH: 58,
-    mark: 13,
-    weeks: true,
-    ariaLabel: "September",
-  });
+  const m = `<div style="width:420px">${monthGrid(L, { year: 2026, month: 8, days: september, today: 29, cellH: 58, mark: 13 })}</div>`;
   const rules = [
-    "Every activity of a day is in its cell, two to a row, bottom up; past four, +N.",
-    "Today is ringed in ink; days after today stay blank; a day with nothing has a dot.",
-    "The eighth column is each week’s sessions; this week’s says so far.",
-    "Tap the month for the whole calendar: the same cells, larger, one month after another.",
+    "The month is interface, not a print: dates in ink on the ground, a hairline between weeks; only the marks are pigment.",
+    "Every activity of a day sits right under its date, two to a row; past four, +N.",
+    "Today is ringed in ink; a past day with nothing has a dot; days to come are quieter and cannot be opened.",
+    "Each day is a link named with what it holds: “Fri 25 Sept: run 5 km, swim 1,500 m, lifting 60 min”.",
+    "Calendar opens every month, one after another, the same cells larger.",
   ];
   return section(
     `${H2("A month")}<div style="${s({ display: "grid", "grid-template-columns": "420px minmax(0,1fr)", gap: 40, "align-items": "start" })}">${m}<ul style="${s({ display: "flex", "flex-direction": "column", gap: 10 })}">${rules.map((r) => `<li style="${s({ display: "flex", gap: 10 })}; ${txt(16, 500, { "line-height": 1.45 })}"><span style="${s({ width: 8, height: 8, background: L.ink, "margin-top": 8, "flex-shrink": 0 })}"></span>${r}</li>`).join("")}</ul></div>`,

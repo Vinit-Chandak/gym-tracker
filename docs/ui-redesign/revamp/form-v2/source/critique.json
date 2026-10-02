@@ -1,5 +1,5 @@
 {
-  "method": "Five isolated assessments of the last canvas: a design review, the Impeccable detector, native readiness, accessibility, and craft and economy. Then a fresh-eyes review and the detector on this one.",
+  "method": "Five separate reviews of the last canvas: a design review, the Impeccable detector, native readiness, accessibility, and craft and economy. This canvas then had a fresh-eyes review, an audit of accessibility, craft and data against the repository, and the detector.",
   "scores": [
     [
       "Last canvas · heuristics",
@@ -11,8 +11,16 @@
       "150",
       "Findings: 3 warnings (cramped padding twice, a flat type step) and 147 advisories."
     ],
-    ["This canvas · heuristics", "…", "Pending the fresh review."],
-    ["This canvas · detector", "…", "Pending the scan."]
+    [
+      "This canvas · heuristics",
+      "26/40",
+      "The fresh review of all 74 boards, before the fixes beside it. It is not a like-for-like score: with three times the boards, most points went on consistency."
+    ],
+    [
+      "This canvas · detector",
+      "108",
+      "Findings: 17 warnings (14 where a selected tab’s bar sits on its hairline, 2 where the ink fills its mark, 1 spacing) and 91 advisories (fitted figure sizes and print drawings)."
+    ]
   ],
   "fixed": [
     "A set showed Saved before it was saved: the mark now turns while the server answers, Save reads Saving…, and the ink lands on the answer.",
@@ -26,15 +34,29 @@
     "The end of a session was not drawn: Finish, then the summary with its print and records.",
     "Row and Racket broke One Cut: every variant is now a single cut."
   ],
-  "fresh": ["Pending."],
+  "fresh": [
+    "The wave sank through the ground and a skipped swim looked done: waves stand on the ground, a skipped crest is dashed with square ends, and the wheel and fan are whole modules.",
+    "Prints lined up three ways: every print starts at the left with its parts in the order of its rows.",
+    "Pounds were read aloud as kilograms: every set names its own unit.",
+    "The session pages followed three sessions with misattributed sets: Workout, Log, Why, Finish and Summary follow Upper A, cycle 3 (60 × 4 @ 2), from the app’s own test.",
+    "The calendar was a hidden picture: every day is a link that names what it holds, with its marks under its own date.",
+    "The 200% log dropped controls: it keeps More, Set options, Hold, every set and Add set, with reps and RIR on the first screen.",
+    "“@” meant RIR and RPE, and records were colour tiles: RPE is written “RPE 8”, and records are an ink list.",
+    "The kettlebell read as the padlock: free weights are a dumbbell.",
+    "Copy and data that were not the app’s: the boards use the app’s own strings, and gyms, machines, search results and the profile come from the same audit account.",
+    "Targets under 44 pt, weak contrast and tabs that were links: hit areas grow to 44 (48 dp on Android), future days, bars and step dots meet 3:1, and only real tabs are tabs.",
+    "Text said twice and labels clipped: status words, a second “Coach”, a second back link and Body’s second reading are gone; Progress picks its section from one button and shows its range.",
+    "Kept on purpose: the RIR stepper and the 64-pt tab bar, as your notes asked. Sets still save only when the server answers, as the app does, and the check-in scales keep the app’s direction, with their end words shown."
+  ],
   "sources": [
     "Today and its run: the preview Today (src/app/(preview)/preview/page.tsx), Fri 11 Sept 2026, Easy Run + Arms.",
     "The programme: src/db/seed/data/program.ts (8-Week Strength + Aesthetics Hybrid) and its warm-ups (warmups.ts).",
-    "Logging the bench: src/server/repositories/sessions.test.ts (Upper A over three cycles and the Hold it earns); the warm-up ramp from src/domain/warmup-ramp.ts.",
+    "The session, from Workout to Summary: Upper A in src/server/repositories/sessions.test.ts. Its third cycle (60 × 4 @ 2) and the Hold it earns; the warm-up ramp from src/domain/warmup-ramp.ts.",
     "Progress, the calendar, History, Running, Body and Recovery: the audit database for vinit on 29 Sept 2026, as scripts/dev/audit.mjs seeds it.",
+    "Gyms, machines and the profile: the same audit account (93 equipment types at Anytime Fitness, height from the coach intake, no date of birth or goal yet).",
     "Food: the food preview (Fri 25 Sept 2026) and its over state.",
     "The coach: scripts/dev/seed-audit.ts (vinit’s question, notes and memo) and the coaching preview’s proposed change.",
-    "Friends: scripts/dev/seed-people.ts. Gyms and machines: src/db/test/fixtures.ts. The first run: the onboarding pages and equipment-types.ts.",
+    "Friends: scripts/dev/seed-people.ts. The first run: the onboarding pages and equipment-types.ts.",
     "Search results: src/lib/exercise-search.ts, run over the 276 seeded exercises."
   ]
 }

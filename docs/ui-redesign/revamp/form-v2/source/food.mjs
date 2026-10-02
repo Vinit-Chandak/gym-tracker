@@ -26,7 +26,7 @@ export function dayBowl(t, state, on = false, size = 22) {
       : "";
   const heap =
     state === "over"
-      ? `<path d="M${w / 2 - r} ${top}A${r * 1.5} ${r * 1.5} 0 0 1 ${w / 2 + r} ${top}Z" fill="${c}"/>`
+      ? `<path d="M${w / 2 - r} ${top}A${r * 1.12} ${r * 1.12} 0 0 1 ${w / 2 + r} ${top}Z" fill="${c}"/>`
       : "";
   return `<svg width="${w}" height="${top + r + 2}" viewBox="0 0 ${w} ${top + r + 2}" aria-hidden="true" style="display:block;overflow:visible">${fill}${heap}<path d="${bowl}" fill="none" stroke="${c}" stroke-width="1.75" stroke-linejoin="round"/></svg>`;
 }
@@ -49,10 +49,12 @@ function dayStrip(t, dv, week = F.week) {
     .join("");
   if (fits)
     return `<div style="${s({ display: "grid", "grid-template-columns": "repeat(7, minmax(0, 1fr))", gap: 4 })}">${cells}</div>`;
+  // narrower than seven 44-pt days: the strip scrolls and opens on the latest whole days; the
+  // earliest waits a swipe away behind a fade in the gutter, never cut through
   const gap = 3,
-    inner = 7 * 44 + 6 * gap,
-    shift = inner - cw;
-  return `<div style="${s({ position: "relative", overflow: "hidden", margin: `0 -${G}px`, padding: `0 ${G}px` })}"><div style="${s({ display: "grid", "grid-template-columns": "repeat(7, 44px)", gap, transform: `translateX(-${shift}px)` })}">${cells}</div><span aria-hidden="true" style="${s({ position: "absolute", left: 0, top: 0, bottom: 0, width: 24, background: `linear-gradient(to right, ${t.ground}, ${K.rgba0(t.ground)})`, "pointer-events": "none" })}"></span></div>`;
+    shown = Math.floor((cw + gap) / (44 + gap)),
+    spacer = cw - shown * 44 - (shown - 1) * gap;
+  return `<div style="${s({ position: "relative", margin: `0 -${G}px` })}"><div style="${s({ "overflow-x": "auto", "scrollbar-width": "none", direction: "rtl" })}"><div style="${s({ display: "grid", "grid-template-columns": "repeat(7, 44px)", gap, width: "max-content", direction: "ltr", padding: `0 ${G + spacer}px 0 ${G}px` })}">${cells}</div></div><span aria-hidden="true" style="${s({ position: "absolute", left: 0, top: 0, bottom: 0, width: G - 2, background: `linear-gradient(to right, ${t.ground}, ${K.rgba0(t.ground)})`, "pointer-events": "none" })}"></span></div>`;
 }
 // A macro: what was eaten, against its limit (≤) or its minimum (≥), on a rail. Over a limit, the
 // ink runs past a tick at the target, so it never reads like the bowl's heap.
@@ -118,10 +120,9 @@ ${K.printFrame(print, { mt: 8 })}
         `<a href="#" style="${s({ flex: "1 1 0", display: "flex", "align-items": "center", gap: 10, "min-height": 52, padding: "6px 12px", "border-radius": 14, background: t.surface, "min-width": 0 })}">${icon(i, 20)}<span style="${s({ display: "flex", "flex-direction": "column", "min-width": 0 })}"><span style="${txt(14, 700)}">${l}</span><span class="wrap" style="${txt(13, 600, { color: t.ink2 })}; ${tn}">${f}</span></span></a>`,
     )
     .join("")}</div>`;
-  if (whole)
-    return K.wholeBoard(t, inner, dv, "food", `Food at ${dv.W} points wide, the whole scroll`);
+  if (whole) return K.wholeBoard(t, inner, dv, "food", "Food");
   return K.root(t, `${K.screenMain(t, inner, { dv })}${K.navbar(t, "food", { dv })}`, {
-    label: over ? "Food, Friday 25 September, over the target" : "Food, Friday 25 September",
+    label: "Food",
     dv,
   });
 }
