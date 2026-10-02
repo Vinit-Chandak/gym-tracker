@@ -2,7 +2,9 @@
 
 The revamp direction chosen on the Claude Design canvas (Form page, Version 8, 1 October 2026),
 kept here with its source, tokens and screenshots. It is still being refined: nothing in the
-application has changed, and the revamp's `PRODUCT.md` and `DESIGN.md` are not written yet.
+application has changed. The revamp's [`PRODUCT.md`](../../../../PRODUCT.md) and
+[`DESIGN.md`](../../../../DESIGN.md), at the repository root, record the product and this design
+system.
 
 Form v2 replaces the current interface, Form ([decision 0013](../../../decisions/0013-form-interface.md)),
 and shares nothing with its look.
@@ -209,3 +211,7 @@ After changing a board that scrolls as a whole (the system sheet, About, the alp
 notes, 200% text, the 320 whole scrolls), run `render.mjs --measure`, build again and render
 again. `render.mjs` uses the repository's Playwright; if its browser is not installed, point
 `CHROMIUM_PATH` at a Chromium executable.
+
+A change to a token, a rule or a component goes into `DESIGN.md` in the same change, with its
+sidecar, `.impeccable/design.json`, regenerated (Impeccable's `document` step), so the next
+session builds from what the boards show.
