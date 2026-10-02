@@ -150,7 +150,7 @@ export function PeriodisationChart({ data }: { data: PeriodisationData }) {
                         x={(x1 + x2) / 2}
                         y={height - PAD.bottom + 18}
                         textAnchor="middle"
-                        fontSize="11"
+                        fontSize="12"
                         fontWeight="600"
                         fill={current ? "var(--color-on-highlight)" : "var(--color-ink-subtle)"}
                         className="font-data tabular-nums"
@@ -179,7 +179,7 @@ export function PeriodisationChart({ data }: { data: PeriodisationData }) {
                   x={PAD.left - 6}
                   y={y(tick) + 3.5}
                   textAnchor="end"
-                  fontSize="11"
+                  fontSize="12"
                   fill="var(--color-ink-subtle)"
                   className="font-data tabular-nums"
                 >
@@ -248,7 +248,7 @@ export function PeriodisationChart({ data }: { data: PeriodisationData }) {
           </svg>
         )}
       </div>
-      <figcaption className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-muted">
+      <figcaption className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-ink-muted">
         <span className="flex items-center gap-1.5">
           <span className="size-2.5 bg-ink" aria-hidden />
           Working sets a week

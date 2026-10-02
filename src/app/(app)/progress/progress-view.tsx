@@ -323,13 +323,12 @@ export function ProgressView({
               meta={`Cycle ${programme.currentCycle} of ${programme.cycles}`}
             >
               <Card>
-                <p className="[overflow-wrap:anywhere]">
-                  <span className="font-medium">{programme.name}</span>
-                  <span className="font-data text-ink-muted tabular-nums">
-                    {" "}
-                    · {formatDateRange(programme.startDate, programme.endDate)}
-                  </span>
-                </p>
+                <div className="min-w-0">
+                  <p className="font-medium [overflow-wrap:anywhere]">{programme.name}</p>
+                  <p className="font-data text-sm text-ink-muted tabular-nums">
+                    {formatDateRange(programme.startDate, programme.endDate)}
+                  </p>
+                </div>
                 <PeriodisationChart data={programme} />
                 <ProgrammeStanding programme={programme} />
               </Card>

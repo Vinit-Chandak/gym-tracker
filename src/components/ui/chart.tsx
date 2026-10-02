@@ -342,7 +342,7 @@ export function Chart({
                   x={PAD.left - 6}
                   y={y(t) + 3.5}
                   textAnchor="end"
-                  fontSize="11"
+                  fontSize="12"
                   fill="var(--color-ink-subtle)"
                   className="font-data tabular-nums"
                 >
@@ -502,7 +502,7 @@ export function Chart({
                           ? "end"
                           : "middle"
                   }
-                  fontSize="11"
+                  fontSize="12"
                   fill="var(--color-ink-subtle)"
                   className="font-data tabular-nums"
                 >

@@ -82,8 +82,10 @@ function Standing({ status, left }: { status: GoalStatus; left: number }) {
 
 /**
  * What the day has come to against its targets, at the top of the Food screen (ADR 0036): one
- * measure, the energy, with its target beside it and where that leaves the day, over the ruled
- * goal bar; then a ruled row for each macronutrient, each opening what the day's foods gave it.
+ * sum line in the data voice, the energy eaten over its target, with where that leaves the
+ * day at the end of the line, over the ruled goal bar; then a ruled row for each
+ * macronutrient, each opening what the day's foods gave it. A sum on a sheet is a line of the
+ * sheet, not a figure set large above it.
  * The band's ends are drawn on the bar and not written out, so the block holds only the numbers
  * that move during the day.
  */
@@ -102,11 +104,9 @@ export function FoodSummary({
         <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
           {/* The spaces are for a screen reader, which reads the line as one string; beside
               flex items they take no room on the screen. */}
-          <p className="flex min-w-0 flex-wrap items-baseline gap-x-1.5">
-            <span className="measure text-2xl">{formatKcal(eaten.kcal)}</span>{" "}
-            <span className="font-data text-base text-ink-muted">
-              / {formatKcal(target.kcal)} kcal
-            </span>
+          <p className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 font-data text-lg tabular-nums">
+            <span className="font-semibold">{formatKcal(eaten.kcal)}</span>{" "}
+            <span className="text-ink-muted">/ {formatKcal(target.kcal)} kcal</span>
           </p>{" "}
           <Standing status={goalStatus(eaten.kcal, target.kcal)} left={target.kcal - eaten.kcal} />
         </div>

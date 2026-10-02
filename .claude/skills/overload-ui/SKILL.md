@@ -19,7 +19,8 @@ proposes and the athlete has not yet confirmed. Pen (`pen`) is the coach's own h
 word that can be tapped. The highlighter (`highlight`, black ink on it) marks today, the current
 step and the one primary action on a screen, and nothing else: a chosen cell in a segmented
 control is inked in (`bg-ink text-canvas`), and a marked row or tile in a picker or multi-select
-takes the soft tint (`highlight-soft`) with a pen check. Groups are ruled blocks (`box`, `box-rows`,
+takes the soft tint (`highlight-soft`) with a pen check, and the wordmark is ink alone inside the
+app (its stroke, `<Wordmark mark />`, belongs to the sign-in screens). Groups are ruled blocks (`box`, `box-rows`,
 `ruled-list`), never boxes in boxes; the one opaque container is `panel`, for a thing that must
 stand off the page. Numbers live in the data voice (`font-data`, `measure`, tabular). The
 daylight and graphite sheets are the same world; everything is right in both or it is not done.
@@ -35,6 +36,9 @@ daylight and graphite sheets are the same world; everything is right in both or 
 6. Icons come from `src/components/ui/icons.tsx` (Phosphor regular, one stroke); add new glyphs
    there, never import an icon library elsewhere.
 7. 44 px targets, visible focus, colour never the only signal, text that wraps at 200 % zoom.
+8. A progress section shows one plot at full width, never a grid of small charts; the
+   periodisation chart (`src/components/periodisation-chart.tsx`) is the signature graphic, and
+   every other chart draws on `src/components/ui/chart.tsx` with lettering no smaller than 12 px.
 
 ## Which skill owns which job
 

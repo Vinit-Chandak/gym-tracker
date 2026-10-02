@@ -172,6 +172,10 @@ src/
   components/                   shell, ui primitives
   lib/                          env access, app identity, helpers
 docs/                           plan, ADRs, planning documents
+PRODUCT.md                      the product truth the design work reads first
+DESIGN.md                       the design system as built (tokens in .impeccable/design.json)
+.impeccable/                    the direction contract, critiques and design tokens
+.claude/skills/overload-ui/     the house rules for interface work in this world
 ```
 
 ## How data access works
