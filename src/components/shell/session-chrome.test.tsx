@@ -6,7 +6,11 @@ import { SessionChrome } from "./session-chrome";
 
 const route = vi.hoisted(() => ({ pathname: "/workouts/active" }));
 vi.mock("next/navigation", () => ({ usePathname: () => route.pathname }));
-vi.mock("./rest-timer", () => ({ RestTimer: () => <div role="timer">Rest 1:00</div> }));
+vi.mock("./rest-timer", () => ({
+  RestTimer: () => <div role="timer">Rest 1:00</div>,
+  // A timer is running in every case here; the strip reads it to decide whether to show.
+  useRestRemaining: () => 60,
+}));
 vi.mock("@/components/ui/app-link", () => ({
   default: (props: ComponentProps<"a">) => <a {...props} />,
 }));

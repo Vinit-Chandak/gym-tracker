@@ -791,3 +791,83 @@ dialog.sheet[open] .sheet-panel {
 .ink-in {
   animation: ink-in var(--ov-duration-ink) var(--ov-ease-out);
 }
+
+/* ---- Turning the sheet: route transitions ------------------------------------------- */
+
+/*
+ * React's <ViewTransition> (src/app/(app)/template.tsx) names each navigation by the type the
+ * link carried: a row into a detail slides the next sheet in from the right, a tab change
+ * crosses to the other sheet, and anything untyped (the browser's own back, a refresh) simply
+ * swaps. Short, ease-out, and only transform and opacity.
+ */
+:root {
+  --vt-exit: 110ms;
+  --vt-enter: 180ms;
+  --vt-move: 240ms;
+}
+
+@keyframes vt-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes vt-slide {
+  from {
+    translate: var(--vt-offset);
+  }
+  to {
+    translate: 0;
+  }
+}
+
+::view-transition-old(.sheet-cross) {
+  animation: var(--vt-exit) var(--ov-ease-out) both vt-fade reverse;
+}
+::view-transition-new(.sheet-cross) {
+  animation: var(--vt-enter) var(--ov-ease-out) both vt-fade;
+}
+
+::view-transition-old(.nav-forward) {
+  --vt-offset: -24px;
+  animation:
+    var(--vt-exit) var(--ov-ease-out) both vt-fade reverse,
+    var(--vt-move) var(--ov-ease-out) both vt-slide reverse;
+}
+::view-transition-new(.nav-forward) {
+  --vt-offset: 40px;
+  animation:
+    var(--vt-enter) var(--ov-ease-out) both vt-fade,
+    var(--vt-move) var(--ov-ease-out) both vt-slide;
+}
+
+::view-transition-old(.nav-back) {
+  --vt-offset: 40px;
+  animation:
+    var(--vt-exit) var(--ov-ease-out) both vt-fade reverse,
+    var(--vt-move) var(--ov-ease-out) both vt-slide reverse;
+}
+::view-transition-new(.nav-back) {
+  --vt-offset: -24px;
+  animation:
+    var(--vt-enter) var(--ov-ease-out) both vt-fade,
+    var(--vt-move) var(--ov-ease-out) both vt-slide;
+}
+
+/* The fixed chrome never takes part: the tab bar and the session line stay put while the
+   sheet beneath them turns. */
+.primary-nav,
+.session-chrome {
+  view-transition-name: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}

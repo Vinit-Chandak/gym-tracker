@@ -30,6 +30,8 @@ export function BackLink({ fallback, label }: { fallback: string; label?: string
   return (
     <Link
       href={(previous ?? fallback) as Route}
+      // The browser's own back carries no type; a direct link to the fallback slides back.
+      transitionTypes={["nav-back"]}
       aria-label={destination === "Back" ? "Back" : `Back to ${destination}`}
       onNavigate={(event) => {
         if (previous) {

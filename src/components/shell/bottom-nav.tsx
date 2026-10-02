@@ -62,6 +62,8 @@ function NavItems({ pathname, origin }: { pathname: string; origin: NavOrigin | 
             <Link
               href={href}
               prefetch
+              // A tab change is lateral: the next sheet crosses in, nothing slides.
+              transitionTypes={["nav-tab"]}
               aria-current={active ? "page" : undefined}
               className="nav-link"
             >

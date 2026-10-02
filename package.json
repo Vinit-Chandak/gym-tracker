@@ -10,6 +10,8 @@
     "audit:auth": "node scripts/dev/audit.mjs auth",
     "audit:build": "node scripts/dev/audit.mjs build",
     "audit:start": "node scripts/dev/audit.mjs start",
+    "audit:dev": "node scripts/dev/audit.mjs dev",
+    "screenshot": "node scripts/dev/screenshot.mjs",
     "audit:screens": "node scripts/dev/audit-browser.mjs",
     "audit:all": "node scripts/dev/audit-suite.mjs",
     "audit:ui-controls": "node scripts/dev/audit-ui-controls.mjs",

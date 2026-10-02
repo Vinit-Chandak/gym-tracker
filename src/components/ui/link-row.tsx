@@ -54,7 +54,13 @@ export function LinkRow<T extends string>({
 }: LinkRowProps<T>) {
   const danger = tone === "danger";
   return (
-    <Link href={href} prefetch={prefetch} className={cn(PRESSABLE_ROW_CLASS, "flex-wrap")}>
+    <Link
+      href={href}
+      prefetch={prefetch}
+      // A row leads one level deeper, so the next sheet slides in from the right.
+      transitionTypes={["nav-forward"]}
+      className={cn(PRESSABLE_ROW_CLASS, "flex-wrap")}
+    >
       <div className="flex min-w-0 flex-[1_1_10rem] flex-wrap items-center gap-x-3 gap-y-1">
         {icon && <RowIcon icon={icon} className={cn(danger && "text-danger")} />}
         <div className="min-w-0 flex-[1_1_8rem]">
