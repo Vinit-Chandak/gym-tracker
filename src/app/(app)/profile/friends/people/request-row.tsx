@@ -10,8 +10,9 @@ import { acceptRequestAction, declineRequestAction } from "@/server/actions/foll
 const OFFLINE = "Could not save. Check your connection and try again.";
 
 /**
- * Someone asking to follow you: Accept or Decline, no sheet for either. Accepting is what
- * they asked for; declining only deletes the request, and they can ask again.
+ * Someone asking to follow you: Accept, ruled, and Decline, a word in the red pen. No sheet
+ * for either: accepting is what they asked for, and declining only deletes the request, so
+ * they can ask again. Neither takes the highlighter — a list of requests is not one action.
  */
 export function RequestRow({ person }: { person: Person & { id: string } }) {
   const [pending, startTransition] = useTransition();
@@ -28,12 +29,18 @@ export function RequestRow({ person }: { person: Person & { id: string } }) {
         {/* Two buttons beside a name is a row on most phones; on a 320px one they stack, so
             the name keeps enough width to read as a word. */}
         <span className="flex shrink-0 flex-col gap-1 min-[400px]:flex-row min-[400px]:gap-2">
-          <Button size="sm" disabled={pending} onClick={() => answer(acceptRequestAction)}>
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={pending}
+            onClick={() => answer(acceptRequestAction)}
+          >
             Accept
           </Button>
           <Button
             size="sm"
             variant="ghost"
+            className="text-danger hover:text-danger"
             disabled={pending}
             onClick={() => answer(declineRequestAction)}
           >
@@ -42,7 +49,7 @@ export function RequestRow({ person }: { person: Person & { id: string } }) {
         </span>
       </PersonRow>
       {error && (
-        <p role="alert" className="px-4 pb-3 text-sm text-danger">
+        <p role="alert" className="pb-3 text-sm text-danger">
           {error}
         </p>
       )}

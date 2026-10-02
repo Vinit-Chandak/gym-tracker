@@ -4,16 +4,16 @@ import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { Button, LinkButton } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { chooseTrainingModeAction } from "@/server/actions/coaching-workflow";
+import { cn } from "@/lib/utils";
 
 /**
  * The two ways to get a programme, and on the first run a third way to skip having one.
  *
- * `nested` is for a section that is already a box — Profile folds these away behind "Start a
- * new programme" — where a card inside a card inside a section draws three edges around one
- * choice. There they are ruled rows in the box that already exists; on their own, on the
- * first-run screen, they keep the box each.
+ * Two ruled rows of one block: a title, the sentence that says what it costs, and the way in.
+ * The coach's way carries the highlighter, because the coach is what the app is for; the
+ * other is ruled. `nested` drops the outer rules for a section that is already a block —
+ * Profile folds these away behind "Start a new programme".
  */
 export function ProgrammeOptions({
   onboarding = false,
@@ -27,23 +27,25 @@ export function ProgrammeOptions({
     [busy, setBusy] = useState(false);
   const base = onboarding ? "/welcome/programme" : "/profile/programme";
   return (
-    <div className={nested ? "ruled-list" : "space-y-3"}>
-      <Option nested={nested} title="Create your own programme">
-        <p className="text-sm text-ink-muted">
-          Answer a few questions and the coach writes it. You review the draft before you start.
-        </p>
-        <LinkButton href={`${base}/create` as Route} className="flex w-full">
-          Create with the coach
-        </LinkButton>
-      </Option>
-      <Option nested={nested} title="Build it yourself">
-        <p className="text-sm text-ink-muted">
-          Choose your own days, exercises and targets. No AI run needed.
-        </p>
-        <LinkButton href={`${base}/manual` as Route} variant="secondary" className="flex w-full">
-          Build a programme
-        </LinkButton>
-      </Option>
+    <div className="space-y-3">
+      <ul className={cn("min-w-0", nested ? "ruled-list" : "box-rows")}>
+        <Option title="Create your own programme">
+          <p className="text-sm text-ink-muted">
+            Answer a few questions and the coach writes it. You review the draft before you start.
+          </p>
+          <LinkButton href={`${base}/create` as Route} className="flex w-full">
+            Create with the coach
+          </LinkButton>
+        </Option>
+        <Option title="Build it yourself">
+          <p className="text-sm text-ink-muted">
+            Choose your own days, exercises and targets. No AI run needed.
+          </p>
+          <LinkButton href={`${base}/manual` as Route} variant="secondary" className="flex w-full">
+            Build a programme
+          </LinkButton>
+        </Option>
+      </ul>
       {onboarding && (
         <Button
           disabled={busy}
@@ -69,24 +71,11 @@ export function ProgrammeOptions({
   );
 }
 
-function Option({
-  title,
-  nested,
-  children,
-}: {
-  title: string;
-  nested: boolean;
-  children: ReactNode;
-}) {
-  const body = (
-    <>
-      <h3 className={nested ? "font-medium" : "text-lg font-medium"}>{title}</h3>
+function Option({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <li className="space-y-3 py-4">
+      <h3 className="text-lg">{title}</h3>
       {children}
-    </>
-  );
-  return nested ? (
-    <div className="space-y-2 py-3 first:pt-0 last:pb-0">{body}</div>
-  ) : (
-    <Card>{body}</Card>
+    </li>
   );
 }

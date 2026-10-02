@@ -1,5 +1,6 @@
+import { PageHeader } from "@/components/shell/page-header";
+import { Wordmark } from "@/components/shell/wordmark";
 import { Check } from "@/components/ui/icons";
-
 import { cn } from "@/lib/utils";
 
 export const ONBOARDING_STEPS = [
@@ -14,31 +15,55 @@ export const ONBOARDING_STEPS = [
 
 export type OnboardingStep = (typeof ONBOARDING_STEPS)[number]["key"];
 
-/** Where the user is in the first-run flow. Dots, not a progress bar: it is short. */
-export function Steps({ current }: { current: OnboardingStep }) {
-  const index = ONBOARDING_STEPS.findIndex((step) => step.key === current);
+function indexOf(current: OnboardingStep): number {
+  return ONBOARDING_STEPS.findIndex((step) => step.key === current);
+}
+
+/** The opening line of every step: the app's own name, and where in setup this is. */
+export function StepHeader({ current }: { current: OnboardingStep }) {
   return (
-    <ol className="flex items-center gap-2" aria-label="Setup progress">
+    <PageHeader
+      title={<Wordmark />}
+      meta={`Step ${indexOf(current) + 1} of ${ONBOARDING_STEPS.length}`}
+    />
+  );
+}
+
+/**
+ * Where the athlete is in setup: the five steps as a row of cells on a ruled strip, the way
+ * the cycle strip marks the day on Today. Steps already done are inked in, the current one is
+ * under the highlighter, and the ones still to come are outlined.
+ */
+export function Steps({ current }: { current: OnboardingStep }) {
+  const index = indexOf(current);
+  return (
+    <ol aria-label="Setup progress" className="grid grid-cols-5 gap-1 py-3 rule-top rule-bottom">
       {ONBOARDING_STEPS.map((step, i) => {
         const done = i < index;
         const active = i === index;
         return (
-          <li key={step.key} className="flex min-w-0 flex-1 flex-col items-center gap-1">
+          <li
+            key={step.key}
+            aria-current={active ? "step" : undefined}
+            className={cn(
+              "flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-control border px-0.5 py-1 text-center",
+              active
+                ? "border-highlight-strong bg-highlight text-on-highlight"
+                : done
+                  ? "border-ink bg-ink text-canvas"
+                  : "border-line text-ink-muted",
+            )}
+          >
             <span
               aria-hidden
-              className={cn(
-                "flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-medium",
-                done && "bg-accent-soft text-accent",
-                active && "bg-accent text-on-accent",
-                !done && !active && "bg-surface-raised text-ink-subtle",
-              )}
+              className="flex h-4 items-center font-data text-sm leading-none font-semibold tabular-nums"
             >
-              {done ? <Check /> : i + 1}
+              {done ? <Check className="!size-3.5" /> : i + 1}
             </span>
             <span
               className={cn(
-                "w-full truncate text-center text-[11px]",
-                active ? "font-medium text-ink" : "text-ink-subtle",
+                "text-[11px] leading-tight [overflow-wrap:anywhere]",
+                active && "font-medium",
               )}
             >
               {step.label}

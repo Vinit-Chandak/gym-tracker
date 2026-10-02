@@ -3,14 +3,25 @@
 import { useActionState, useState } from "react";
 
 import { type ProfileFieldValues } from "@/components/profile-fields";
-import { Field, Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import { FormError, SubmitButton } from "@/components/ui/form";
+import { Field, Input } from "@/components/ui/input";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { UsernameField } from "@/components/username-field";
+import type { BodyLoadUnit } from "@/domain/types";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
 import { saveOnboardingProfileAction } from "@/server/actions/profile";
 import { INITIAL_FORM_STATE } from "@/server/validation/form";
 
+const UNIT_OPTIONS = [
+  { value: "kg", label: "kg (kilograms)" },
+  { value: "lb", label: "lb (pounds)" },
+] as const satisfies readonly { value: BodyLoadUnit; label: string }[];
+
+function asUnit(value: string | undefined, fallback: BodyLoadUnit): BodyLoadUnit {
+  return value === "kg" || value === "lb" ? value : fallback;
+}
+
+/** The first step's form: name, handle, units and time zone, then the one highlighter. */
 export function ProfileStepForm(values: ProfileFieldValues) {
   const [state, formAction] = useActionState(
     keepsFormOnDisconnect(saveOnboardingProfileAction),
@@ -43,14 +54,14 @@ export function ProfileStepForm(values: ProfileFieldValues) {
         error={state.fieldErrors?.username}
         hint="What friends will find you by. You can change it later from your profile."
       />
-      <Field label="Weight units">
-        <Select
+      {/* Two choices, so two cells on a track rather than a picker: the chosen one is marked. */}
+      <Field group label="Weight units">
+        <SegmentedControl
           name="preferredUnit"
-          defaultValue={state.values?.preferredUnit ?? values.preferredUnit}
-        >
-          <option value="kg">kg (kilograms)</option>
-          <option value="lb">lb (pounds)</option>
-        </Select>
+          columns={2}
+          options={UNIT_OPTIONS}
+          defaultValue={asUnit(state.values?.preferredUnit, values.preferredUnit)}
+        />
       </Field>
       <Field label="Time zone" error={state.fieldErrors?.timeZone}>
         <Input name="timeZone" defaultValue={state.values?.timeZone ?? zone} required />

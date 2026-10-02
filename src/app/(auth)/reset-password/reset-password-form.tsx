@@ -1,9 +1,9 @@
 "use client";
 
-import { CheckCircle2 } from "@/components/ui/icons";
 import { useActionState } from "react";
 
-import { LinkButton, Button } from "@/components/ui/button";
+import { Button, LinkButton } from "@/components/ui/button";
+import { CheckCircle2 } from "@/components/ui/icons";
 import { Field, Input } from "@/components/ui/input";
 import { updatePasswordAction, type PasswordChangeState } from "@/server/actions/auth";
 
@@ -14,8 +14,8 @@ export function ResetPasswordForm() {
 
   if (state.done) {
     return (
-      <div className="space-y-3">
-        <p className="flex items-center gap-2 text-sm font-medium text-success">
+      <div className="space-y-4">
+        <p className="flex items-center gap-2 font-medium text-success">
           <CheckCircle2 className="shrink-0" aria-hidden />
           Password updated
         </p>

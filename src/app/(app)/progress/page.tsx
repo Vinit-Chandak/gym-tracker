@@ -128,6 +128,8 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
       distanceKm: formatRunKm(run.distanceMeters),
       pace: formatPace(run.averagePaceSecondsPerKm),
       duration: formatDuration(run.durationSeconds),
+      distanceMeters: run.distanceMeters,
+      durationSeconds: run.durationSeconds,
     }));
 
   return (

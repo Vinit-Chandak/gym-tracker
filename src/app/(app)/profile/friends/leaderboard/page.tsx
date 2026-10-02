@@ -137,16 +137,14 @@ export default async function LeaderboardPage(props: PageProps<"/profile/friends
       <PageContent>
         {board.kind === "alone" ? (
           <>
-            <Card>
-              <EmptyState
-                icon={Trophy}
-                title="Follow someone to rank against them"
-                description="The leaderboard ranks you and the people you follow who share their training."
-              />
-            </Card>
-            <Card>
-              <PeopleSearch autoFocus />
-            </Card>
+            <EmptyState
+              icon={Trophy}
+              title="Follow someone to rank against them"
+              description="The leaderboard ranks you and the people you follow who share their training."
+            />
+            <Section title="Find people">
+              <PeopleSearch autoFocus labelHidden />
+            </Section>
           </>
         ) : (
           <>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { ActivityEditor } from "@/components/activities/activity-editor";
+import { sportNoun } from "@/components/activities/sport-icons";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { getDb } from "@/db/client";
@@ -29,7 +30,7 @@ export default async function EditActivityPage(
   });
   if (!activity?.actual) notFound();
   const actual = activity.actual;
-  const noun = actual.sport === "running" ? "run" : actual.sport === "cycling" ? "ride" : "swim";
+  const noun = sportNoun(actual.sport);
   return (
     <>
       <PageHeader

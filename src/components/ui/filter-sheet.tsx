@@ -14,7 +14,7 @@ import { Sheet } from "./sheet";
  * is anchored to the bottom edge, capped at 90dvh and scrolls its own content, rather than
  * hanging off the side of a narrow phone the way an anchored menu can. Nothing inside it is
  * rendered while it is closed, so the filters cost the page one button until they are asked
- * for.
+ * for. The word is in the pen while a filter is set, with the count under the highlighter.
  */
 export function FilterSheet({
   title,
@@ -45,13 +45,13 @@ export function FilterSheet({
         aria-label={summary ? `${label}: ${summary}` : label}
         className={cn(
           "flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-control px-2 text-sm font-medium transition-colors duration-[var(--ov-duration-feedback)] active:bg-surface-raised",
-          count > 0 ? "text-accent" : "text-ink-muted hover:text-ink",
+          count > 0 ? "text-pen" : "text-ink-muted hover:text-ink",
         )}
       >
         <SlidersHorizontal className="shrink-0" aria-hidden />
         <span className="hidden min-[24rem]:inline">{label}</span>
         {count > 0 && (
-          <span className="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-medium text-on-accent tabular-nums">
+          <span className="inline-flex size-5 shrink-0 items-center justify-center font-data text-xs font-semibold tabular-nums highlight">
             {count}
           </span>
         )}

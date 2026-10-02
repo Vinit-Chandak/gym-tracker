@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import Link from "@/components/ui/app-link";
 import { connection } from "next/server";
 
-import { Card } from "@/components/ui/card";
 import { isSupabaseConfigured } from "@/lib/env";
 
 import { AUTH_LINK } from "../auth-link";
+import { AuthPanel } from "../auth-panel";
 import { NotConfigured } from "../not-configured";
 import { SignUpForm } from "./signup-form";
 
@@ -17,10 +17,9 @@ export default async function SignUpPage() {
 
   return (
     <>
-      <Card>
-        <h2 className="text-lg font-medium">Create an account</h2>
+      <AuthPanel title="Create an account">
         <SignUpForm />
-      </Card>
+      </AuthPanel>
       <p className="text-center text-sm text-ink-muted">
         Already have an account?{" "}
         <Link href="/login" className={AUTH_LINK}>

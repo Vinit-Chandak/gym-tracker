@@ -9,7 +9,8 @@ import { attempted, OFFLINE_SUBMIT_MESSAGE } from "@/lib/offline-submit";
 /**
  * Deleting says what it will take with it before it takes it: the log, what a follower can
  * see of it, and the answer it gave to a planned session (plan §5.2). There is no undo, so
- * the confirmation is the safeguard.
+ * the confirmation is the safeguard. The red pen from the first tap: a button that destroys
+ * something says so before it is pressed, not only once it is armed.
  */
 export function DeleteActivityButton({
   activityId,
@@ -31,7 +32,7 @@ export function DeleteActivityButton({
         </p>
       )}
       <Button
-        variant={armed ? "danger" : "ghost"}
+        variant="danger"
         className="w-full"
         disabled={pending}
         onClick={() => {

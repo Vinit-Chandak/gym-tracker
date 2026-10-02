@@ -62,7 +62,7 @@ export function PeopleLists({
         ]}
       />
       {people.length === 0 ? (
-        <p className="px-1 text-sm text-ink-muted">
+        <p className="py-2 text-sm text-ink-muted">
           {tab === "following" ? "You follow nobody yet." : "Nobody follows you yet."}
         </p>
       ) : (

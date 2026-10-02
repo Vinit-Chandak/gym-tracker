@@ -19,11 +19,15 @@ import {
   EffortField,
   HeartRateFields,
   LargeEntryConfirmation,
+  MEASURE_INPUT_CLASS,
   MoreDetails,
   NotesFields,
+  Readout,
   TargetCard,
+  TIME_INPUT_CLASS,
   useFormValues,
   type ActivityFormValues,
+  type ActivityTarget,
 } from "./activity-form-fields";
 
 /**
@@ -58,7 +62,7 @@ type Props = {
   initial: ActivityFormValues;
   submissionKey: string;
   occurrence?: { id: string; revisionId: string; planId?: string | null } | null;
-  target?: { title: string; lines: string[] } | null;
+  target?: ActivityTarget | null;
   expectedRevision?: number | null;
   submitLabel: string;
 };
@@ -98,10 +102,10 @@ export function CyclingForm({
         occurrence={occurrence}
         expectedRevision={expectedRevision}
       />
-      {target && <TargetCard title={target.title} lines={target.lines} />}
+      {target && <TargetCard {...target} />}
 
       <Section title="The ride">
-        <Card>
+        <Card className="space-y-4">
           <ActivityStartFields values={values} errors={state.fieldErrors} />
 
           <Field group label="Where">
@@ -132,6 +136,7 @@ export function CyclingForm({
                   value={hours}
                   onChange={(event) => setHours(event.target.value)}
                   placeholder="1"
+                  className={TIME_INPUT_CLASS}
                 />
               </Field>
               <Field label="Minutes">
@@ -141,6 +146,7 @@ export function CyclingForm({
                   value={minutes}
                   onChange={(event) => setMinutes(event.target.value)}
                   placeholder="30"
+                  className={TIME_INPUT_CLASS}
                 />
               </Field>
               <Field label="Seconds">
@@ -150,6 +156,7 @@ export function CyclingForm({
                   value={seconds}
                   onChange={(event) => setSeconds(event.target.value)}
                   placeholder="0"
+                  className={TIME_INPUT_CLASS}
                 />
               </Field>
             </div>
@@ -165,9 +172,7 @@ export function CyclingForm({
             error={state.fieldErrors?.distance ?? state.fieldErrors?.distanceValue}
           />
           {speed !== null ? (
-            <p role="status" className="text-sm text-ink-muted tabular-nums">
-              Overall average {formatSpeed(speed, unit as "km" | "mi")}
-            </p>
+            <Readout label="Overall average" value={formatSpeed(speed, unit as "km" | "mi")} />
           ) : (
             <p className="text-sm text-ink-muted">
               Without a distance there is no speed to work out, and none is guessed.
@@ -177,7 +182,7 @@ export function CyclingForm({
       </Section>
 
       <Section title="Effort">
-        <Card>
+        <Card className="space-y-4">
           <EffortField value={values("effort")} error={state.fieldErrors?.effort} />
           <Field group label="Assistance" error={state.fieldErrors?.assistance}>
             <SegmentedControl
@@ -208,6 +213,7 @@ export function CyclingForm({
                 inputMode="decimal"
                 defaultValue={values("averagePowerWatts")}
                 placeholder="—"
+                className={MEASURE_INPUT_CLASS}
               />
             </Field>
             <Field label="Average cadence rpm" error={state.fieldErrors?.averageCadenceRpm}>
@@ -216,6 +222,7 @@ export function CyclingForm({
                 inputMode="decimal"
                 defaultValue={values("averageCadenceRpm")}
                 placeholder="—"
+                className={MEASURE_INPUT_CLASS}
               />
             </Field>
           </div>
@@ -225,6 +232,7 @@ export function CyclingForm({
               inputMode="decimal"
               defaultValue={values("elevationGainMetres")}
               placeholder="—"
+              className={MEASURE_INPUT_CLASS}
             />
           </Field>
           <HeartRateFields values={values} errors={state.fieldErrors} />
@@ -233,7 +241,7 @@ export function CyclingForm({
 
       <NotesFields values={values} errors={state.fieldErrors} />
 
-      <div className="space-y-2">
+      <div className="space-y-3">
         <LargeEntryConfirmation message={state.formError} />
         <FormError message={state.formError} />
         <SubmitButton pendingLabel="Saving…">{submitLabel}</SubmitButton>

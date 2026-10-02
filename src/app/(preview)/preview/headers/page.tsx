@@ -1,24 +1,25 @@
 import type { Metadata } from "next";
 
+import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { Wordmark } from "@/components/shell/wordmark";
 import { LinkButton } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { PageContent } from "@/components/shell/page-content";
 import { Section } from "@/components/ui/section";
 
 import { PreviewShell } from "../../preview-shell";
 
-export const metadata: Metadata = { title: "Preview · Headers" };
+export const metadata: Metadata = { title: "Preview · Chrome" };
 
 /**
- * Every shape the masthead takes, one under the other, so the set can be read at a phone's
- * width before it ships: the first screen, a screen with a control beside its title, one
- * that qualifies itself with a range, and the compact bar a page one level down carries.
+ * The sheet's chrome, one piece under the other, so the set can be read at a phone's width
+ * in both palettes before it ships: the wordmark at the sizes it is set, every shape the
+ * masthead takes — the first screen, a screen with a control beside its title, one that
+ * qualifies itself with a range, and the compact bar a page one level down carries — the
+ * four pens an action can be drawn in, and the tab bar the shell stands beneath it all.
  *
- * The real `PageHeader` renders each of them; only the surrounding page is made up. They
- * are drawn in flow rather than stuck to the top, which is the one thing a gallery cannot
- * show — four sticky headers would stack on each other.
+ * The real components render each of them; only the surrounding page is made up. The
+ * headers are drawn in flow rather than stuck to the top, which is the one thing a gallery
+ * cannot show — five sticky headers would stack on each other.
  */
 export default function PreviewHeadersPage() {
   return (
@@ -47,14 +48,38 @@ export default function PreviewHeadersPage() {
         />
       </div>
       <PageContent>
-        <Section title="What to look at" description="The title's baseline, and what sits on it.">
-          <Card>
-            <p className="text-sm text-ink-muted">
-              The meta hangs off the far end of the title&apos;s own baseline rather than stacking
-              above it in uppercase. One level down the title is centred between the way back and
-              whatever the screen offers, so a nested page never reads like a top-level one.
+        <Section
+          title="Wordmark"
+          description="The name with a stroke of highlighter under it, at the sizes it is set: the auth sheet, a block title, the masthead."
+        >
+          <div className="box flex flex-wrap items-baseline gap-x-8 gap-y-4 py-4">
+            <p className="text-3xl leading-none">
+              <Wordmark />
             </p>
-          </Card>
+            <p className="text-2xl">
+              <Wordmark />
+            </p>
+            <p className="text-xl">
+              <Wordmark />
+            </p>
+          </div>
+        </Section>
+        <Section
+          title="Four pens"
+          description="The highlighter for the one primary action on a screen, and the ruled, pen and red-pen alternatives beside it."
+        >
+          <div className="box action-row py-4">
+            <LinkButton href="/preview/headers">Primary</LinkButton>
+            <LinkButton href="/preview/headers" variant="secondary">
+              Secondary
+            </LinkButton>
+            <LinkButton href="/preview/headers" variant="ghost">
+              Ghost
+            </LinkButton>
+            <LinkButton href="/preview/headers" variant="danger">
+              Danger
+            </LinkButton>
+          </div>
         </Section>
       </PageContent>
     </PreviewShell>

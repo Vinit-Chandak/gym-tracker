@@ -1,5 +1,4 @@
-import { Card } from "@/components/ui/card";
-import { DetailList } from "@/components/ui/detail-list";
+import { StatTile, StatTileRow } from "@/components/ui/stat-tile";
 import { formatDuration, formatPace } from "@/domain/pace";
 import { formatIsoDate, formatRunKm, formatSharedLoad } from "@/lib/format";
 import type { BodyLoadUnit } from "@/domain/types";
@@ -26,19 +25,25 @@ export function ActivitySummary({
   activity: SharedActivityDetail;
   unit: BodyLoadUnit;
 }) {
+  const shown = entries(activity, unit).filter(
+    (entry): entry is readonly [string, string] => Boolean(entry[1]),
+  );
   return (
-    <Card>
-      <p className="text-xs font-medium tracking-wide text-ink-muted uppercase">
-        {SPORT_LABELS[activity.sport as TrainingSport]}
-      </p>
-      <h1 className="mt-1 text-lg font-medium [overflow-wrap:anywhere]">{activity.title}</h1>
-      <p className="mt-1 text-sm text-ink-muted tabular-nums">
-        {formatIsoDate(activity.occurredOn)}
-      </p>
-      <div className="mt-3">
-        <DetailList entries={entries(activity, unit)} />
+    <section className="box space-y-4 py-4">
+      <div className="min-w-0">
+        <h1 className="text-2xl [overflow-wrap:anywhere]">{activity.title}</h1>
+        <p className="mt-1 text-sm text-ink-muted tabular-nums">
+          {SPORT_LABELS[activity.sport as TrainingSport]} · {formatIsoDate(activity.occurredOn)}
+        </p>
       </div>
-    </Card>
+      {shown.length > 0 && (
+        <StatTileRow>
+          {shown.map(([label, value]) => (
+            <StatTile key={label} label={label} value={value} />
+          ))}
+        </StatTileRow>
+      )}
+    </section>
   );
 }
 

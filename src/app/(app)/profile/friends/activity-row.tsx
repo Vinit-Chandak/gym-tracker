@@ -45,8 +45,10 @@ function summary(row: Activity, unit: BodyLoadUnit): string[] {
 }
 
 /**
- * One line of recent activity (plan §3.4): who, what, and when, opening the person's page.
- * Nothing here can be reacted to.
+ * One line of recent activity (plan §3.4): who, what, and when, opening the shared session.
+ * The name is in the body hand; what they did is tabulated in the data voice, the title and
+ * its measures on one line, with the day at the far end of the name's line. Nothing here can
+ * be reacted to.
  */
 export function ActivityRow({
   row,
@@ -68,13 +70,15 @@ export function ActivityRow({
     >
       <Avatar username={person.username} displayName={person.displayName} size="row" />
       <span className="min-w-0 flex-1">
-        <span className="flex flex-wrap items-baseline justify-between gap-x-2">
+        <span className="flex flex-wrap items-baseline justify-between gap-x-3">
           <span className="font-medium [overflow-wrap:anywhere]">
             {person.displayName || person.username}
           </span>
-          <span className="text-xs text-ink-muted">{formatRelativeDay(row.occurredOn, today)}</span>
+          <span className="font-data text-xs font-medium text-ink-muted tabular-nums">
+            {formatRelativeDay(row.occurredOn, today)}
+          </span>
         </span>
-        <span className="block text-sm [overflow-wrap:anywhere] text-ink-muted tabular-nums">
+        <span className="mt-0.5 block font-data text-sm [overflow-wrap:anywhere] text-ink-muted tabular-nums">
           {summary(row, unit).join(" · ")}
         </span>
       </span>

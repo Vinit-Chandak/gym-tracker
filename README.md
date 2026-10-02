@@ -128,6 +128,8 @@ need the Supabase values from `SETUP.md`.
 | `npm run db:deploy`                | What a production deploy runs: migrate, then seed the library                    |
 | `npm run db:backfill:shared-stats` | Rewrite friends' shared stats from history (idempotent; `db:deploy` ran it once) |
 | `npm run db:studio`                | Drizzle Studio against the configured database                                   |
+| `npm run audit:dev`                | `next dev` against the seeded local audit database (port 3100)                   |
+| `npm run screenshot`               | Phone-canvas screenshots of the running app, both palettes (`scripts/dev/screenshot.mjs`) |
 
 ## Looking at a change without deploying it
 

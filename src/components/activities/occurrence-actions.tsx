@@ -3,7 +3,6 @@
 import { useActionState, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { FormError, SubmitButton } from "@/components/ui/form";
 import { Field, Input } from "@/components/ui/input";
 import {
@@ -19,7 +18,8 @@ import { attempted, keepsFormOnDisconnect, OFFLINE_SUBMIT_MESSAGE } from "@/lib/
  *
  * Each acts on this session alone. Undoing a skip restores the same session rather than
  * creating a second one, and moving it changes its date without moving the day around it or
- * touching another sport.
+ * touching another sport. Neither takes the highlighter: logging the session is the one
+ * thing the page is for, and these are the ways of not doing that today.
  */
 export function OccurrenceActions({
   occurrenceId,
@@ -38,8 +38,24 @@ export function OccurrenceActions({
   );
 
   return (
-    <div className="space-y-3">
-      <Card>
+    <div className="space-y-[var(--section-gap)]">
+      <section className="box py-4">
+        <form action={moveAction} className="space-y-3">
+          <Field
+            label="Move to"
+            hint="Only this session moves. The week it was first placed in is what adherence counts against."
+            error={moveState.fieldErrors?.scheduledOn}
+          >
+            <Input name="scheduledOn" type="date" defaultValue={scheduledOn} required />
+          </Field>
+          <FormError message={moveState.formError} />
+          <SubmitButton variant="secondary" size="md" pendingLabel="Moving…">
+            Move it
+          </SubmitButton>
+        </form>
+      </section>
+
+      <div className="space-y-2">
         <Button
           variant="ghost"
           className="w-full"
@@ -62,30 +78,16 @@ export function OccurrenceActions({
           {pending ? "Saving…" : skipped ? "Put it back" : "Skip this session"}
         </Button>
         {skipped && (
-          <p className="text-sm text-ink-muted">
+          <p className="text-center text-sm text-ink-muted">
             Skipped sessions stay in the programme. Logging one puts it back by itself.
           </p>
         )}
         {error && (
-          <p role="alert" className="text-sm text-danger">
+          <p role="alert" className="text-center text-sm text-danger">
             {error}
           </p>
         )}
-      </Card>
-
-      <Card>
-        <form action={moveAction} className="space-y-2">
-          <Field label="Move to" error={moveState.fieldErrors?.scheduledOn}>
-            <Input name="scheduledOn" type="date" defaultValue={scheduledOn} required />
-          </Field>
-          <p className="text-sm text-ink-muted">
-            Only this session moves. The week it was first placed in is what adherence counts
-            against.
-          </p>
-          <FormError message={moveState.formError} />
-          <SubmitButton pendingLabel="Moving…">Move it</SubmitButton>
-        </form>
-      </Card>
+      </div>
     </div>
   );
 }

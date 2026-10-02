@@ -30,7 +30,8 @@ export type SectionOption<V extends string> = {
  * taller than some of the panels underneath it. Naming only the section you are in takes
  * one row, and the rest arrive in the same bottom sheet the app already uses for a short
  * decision: anchored to the bottom edge, capped at 90dvh, never hanging off a narrow
- * screen, and identical on iOS and Android — which a native select is not.
+ * screen, and identical on iOS and Android — which a native select is not. In the sheet the
+ * section you are in is under the highlighter, as the chosen thing is everywhere else.
  */
 export function SectionSelect<V extends string>({
   label,
@@ -74,10 +75,15 @@ export function SectionSelect<V extends string>({
         <ul className="min-w-0 ruled-list">
           {options.map((option) => {
             const selected = option.value === value;
-            const className = cn(PRESSABLE_ROW_CLASS, selected && "text-accent");
-            // The section you are in is in the accent colour, and named as current to a screen
-            // reader; the control that opened the sheet already names it too.
-            const content = <span className="min-w-0 flex-1 font-medium">{option.label}</span>;
+            // The section you are in carries the highlighter, and is named as current to a
+            // screen reader; the control that opened the sheet already names it too.
+            const content = (
+              <span className="min-w-0 flex-1 font-medium">
+                <span className={cn(selected && "-mx-1.5 px-1.5 py-0.5 highlight")}>
+                  {option.label}
+                </span>
+              </span>
+            );
             return (
               <li key={option.value}>
                 {option.href && !selected ? (
@@ -88,7 +94,7 @@ export function SectionSelect<V extends string>({
                     prefetch={option.prefetch}
                     replace
                     onClick={() => setOpen(false)}
-                    className={className}
+                    className={PRESSABLE_ROW_CLASS}
                   >
                     {content}
                   </Link>
@@ -100,7 +106,7 @@ export function SectionSelect<V extends string>({
                       if (!selected) onChange?.(option.value);
                       setOpen(false);
                     }}
-                    className={className}
+                    className={PRESSABLE_ROW_CLASS}
                   >
                     {content}
                   </button>

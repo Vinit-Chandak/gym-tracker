@@ -3,8 +3,9 @@ import { coachingAction } from "./client-action";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
+import { PlanRow } from "@/components/planned-exercises";
 import { Button, LinkButton } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Disclosure } from "@/components/ui/disclosure";
 import { Field, Input } from "@/components/ui/input";
 import {
   activateProgramDraftAction,
@@ -12,10 +13,12 @@ import {
   reviewProgramDraftAction,
 } from "@/server/actions/coaching-workflow";
 import type { ProgramDraft } from "@/server/repositories/program-drafts";
-import type { ProgramBlueprint } from "@/domain/program-blueprint";
+import type { BlueprintDay, ProgramBlueprint } from "@/domain/program-blueprint";
 import { exerciseTargets } from "@/domain/exercise-targets";
-import { rangeLabel } from "@/lib/labels";
-import { WEEKDAY_NAMES } from "@/lib/labels";
+import { rangeLabel, WEEKDAY_NAMES } from "@/lib/labels";
+import { supersetHues } from "@/lib/superset-colors";
+
+import { CoachLine, ListLabel, NumberCell } from "./sheet-bits";
 
 /** "6 weeks · 4 days per cycle · 91 lifting sets per cycle", counting one of anything as one. */
 function shape(blueprint: ProgramBlueprint): string {
@@ -27,12 +30,101 @@ function shape(blueprint: ProgramBlueprint): string {
   return `${plural(blueprint.weeks, "week")} · ${plural(blueprint.days.length, "day")} per cycle · ${plural(sets, "lifting set")} per cycle`;
 }
 
+/** "Monday · Squat and hinge · 45 min": what the day is, on one line under its name. */
+function daySubtitle(day: BlueprintDay): string {
+  return [WEEKDAY_NAMES[day.dayOfWeek], day.focus, day.timeNote].filter(Boolean).join(" · ");
+}
+
+/**
+ * One day of the draft, written out as Cycle writes a day: the number in the margin, the
+ * name, then every exercise as a row of the plan with the coach's lines beneath in pen.
+ */
+function DraftDay({
+  day,
+  blueprint,
+  names,
+}: {
+  day: BlueprintDay;
+  blueprint: ProgramBlueprint;
+  names: ReadonlyMap<string, string>;
+}) {
+  const hues = supersetHues(
+    day.exercises.map((exercise) => ({ supersetGroup: exercise.supersetGroup ?? null })),
+  );
+  const runs = day.includesRun
+    ? blueprint.runs.filter((run) => run.dayOfWeek === day.dayOfWeek)
+    : [];
+  return (
+    <article className="min-w-0 py-4" aria-label={`Day ${day.dayIndex}, ${day.name}`}>
+      <div className="flex items-start gap-3">
+        <NumberCell number={day.dayIndex} className="mt-0.5" />
+        <div className="min-w-0 flex-1">
+          <h3 className="text-lg [overflow-wrap:anywhere]">{day.name}</h3>
+          <p className="mt-0.5 text-sm text-ink-muted">{daySubtitle(day)}</p>
+        </div>
+      </div>
+      {day.exercises.length > 0 && (
+        <ol className="mt-3 min-w-0 ruled-list">
+          {day.exercises.map((exercise, index) => (
+            <PlanRow
+              key={index}
+              number={index + 1}
+              name={names.get(exercise.exerciseSlug) ?? exercise.exerciseSlug}
+              detail={[
+                exerciseTargets(exercise),
+                exercise.supersetGroup ? `Superset ${exercise.supersetGroup}` : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+              note={
+                [
+                  exercise.targetLoadNote,
+                  exercise.notes,
+                  exercise.progressionNotes,
+                  exercise.keyCue,
+                ]
+                  .filter(Boolean)
+                  .join(" ") || null
+              }
+              hue={exercise.supersetGroup ? hues.get(exercise.supersetGroup) : undefined}
+            />
+          ))}
+        </ol>
+      )}
+      {!day.includesLifting && !day.includesRun && (
+        <p className="mt-2 text-sm text-ink-muted">Rest / mobility</p>
+      )}
+      {day.notes && <p className="mt-3 text-sm [overflow-wrap:anywhere] text-ink-muted">{day.notes}</p>}
+      {runs.length > 0 && (
+        <Disclosure summary="Run targets" variant="footer" className="mt-3">
+          <ul className="ruled-list">
+            {runs.map((run) => (
+              <li key={run.weekIndex} className="py-2 text-sm">
+                <p className="font-data tabular-nums">
+                  Week {run.weekIndex}: {run.distanceKm ? `${span(run.distanceKm)} km · ` : ""}
+                  {span(run.duration)} minutes · Effort {span(run.rpe)}
+                </p>
+                {(run.paceNote || run.stopRule) && (
+                  <p className="mt-0.5 [overflow-wrap:anywhere] text-ink-muted">
+                    {[run.paceNote, run.stopRule].filter(Boolean).join(" ")}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </Disclosure>
+      )}
+    </article>
+  );
+}
+
 /**
  * A first programme, in full, before anybody starts it.
  *
  * This is the one screen that still prints a whole programme, because there is nothing to
  * compare it against: an athlete with no programme cannot be shown a difference. Every later
- * version arrives as a change detail instead, and the programme itself lives in Cycle.
+ * version arrives as a change detail instead, and the programme itself lives in Cycle. The
+ * coach's own lines are in pen; the decision to start stands off the page on a panel.
  */
 export function DraftPreview({
   draft,
@@ -58,6 +150,7 @@ export function DraftPreview({
     [busy, setBusy] = useState(false),
     [error, setError] = useState<string | null>(null);
   const editable = ["editing", "ready"].includes(current.status);
+  const names = new Map(library.map((exercise) => [exercise.slug, exercise.name]));
   async function check() {
     setBusy(true);
     const result = await coachingAction(() =>
@@ -84,138 +177,112 @@ export function DraftPreview({
     else setError(result.error);
     setBusy(false);
   }
+  const opening = current.openingPlan;
   return (
-    <div className="space-y-4">
-      <Card>
-        <h1 className="text-2xl font-medium [overflow-wrap:anywhere]">{current.blueprint.name}</h1>
-        <p className="text-sm text-ink-muted">{shape(current.blueprint)}</p>
-        {current.rationale && <p className="text-sm whitespace-pre-wrap">{current.rationale}</p>}
+    <div className="space-y-[var(--section-gap)]">
+      {/* What the programme is: its name as the largest thing on the sheet, its shape in the
+          data voice, and the coach's reasoning in the coach's hand. */}
+      <section className="box space-y-3 py-4" aria-label={current.blueprint.name}>
+        <div>
+          <h2 className="text-2xl [overflow-wrap:anywhere]">{current.blueprint.name}</h2>
+          <p className="mt-1 font-data text-sm text-ink-muted tabular-nums">
+            {shape(current.blueprint)}
+          </p>
+        </div>
+        {current.rationale && <CoachLine>{current.rationale}</CoachLine>}
         {current.blueprint.notes && (
-          <p className="text-sm whitespace-pre-wrap text-ink-muted">{current.blueprint.notes}</p>
+          <p className="text-sm [overflow-wrap:anywhere] whitespace-pre-wrap text-ink-muted">
+            {current.blueprint.notes}
+          </p>
         )}
         {current.uncertainties.length > 0 && (
           <div>
-            <h2 className="font-medium">What the coach is unsure about</h2>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
+            <ListLabel title="What the coach is unsure about" />
+            <ul className="ruled-list">
               {current.uncertainties.map((line, i) => (
-                <li key={i}>{line}</li>
+                <li key={i} className="py-2">
+                  <CoachLine>{line}</CoachLine>
+                </li>
               ))}
             </ul>
           </div>
         )}
-      </Card>
-      {current.blueprint.days.map((day) => (
-        <Card key={day.dayIndex}>
-          <h2 className="text-lg font-medium [overflow-wrap:anywhere]">
-            {day.dayIndex}. {day.name}
-          </h2>
-          <p className="text-sm text-ink-muted">
-            {WEEKDAY_NAMES[day.dayOfWeek]}
-            {day.focus ? ` · ${day.focus}` : ""}
-            {day.timeNote ? ` · ${day.timeNote}` : ""}
-          </p>
-          <ol className="space-y-3">
-            {day.exercises.map((e, i) => (
-              <li key={i}>
-                <p className="font-medium [overflow-wrap:anywhere]">
-                  {library.find((x) => x.slug === e.exerciseSlug)?.name ?? e.exerciseSlug}
-                </p>
-                <p className="text-sm text-ink-muted">{exerciseTargets(e)}</p>
-                {e.supersetGroup && (
-                  <p className="text-xs text-accent">Superset: {e.supersetGroup}</p>
-                )}
-                {e.targetLoadNote && <p className="text-sm">{e.targetLoadNote}</p>}
-                {e.notes && <p className="text-sm text-ink-muted">{e.notes}</p>}
-                {e.progressionNotes && (
-                  <p className="text-sm text-ink-muted">{e.progressionNotes}</p>
-                )}
-                {e.keyCue && <p className="text-sm text-ink-muted">{e.keyCue}</p>}
-              </li>
-            ))}
-          </ol>
-          {!day.includesLifting && !day.includesRun && (
-            <p className="text-sm text-ink-muted">Rest / mobility</p>
-          )}
-          {day.includesRun && (
-            <details>
-              <summary className="min-h-11 cursor-pointer py-2">Run targets</summary>
-              <ul className="space-y-2 text-sm">
-                {current.blueprint.runs
-                  .filter((r) => r.dayOfWeek === day.dayOfWeek)
-                  .map((r) => (
-                    <li key={r.weekIndex}>
-                      Week {r.weekIndex}: {r.distanceKm ? `${span(r.distanceKm)} km · ` : ""}
-                      {span(r.duration)} minutes · Effort {span(r.rpe)}
-                      <p className="text-ink-muted">
-                        {r.paceNote} {r.stopRule}
-                      </p>
-                    </li>
-                  ))}
-              </ul>
-            </details>
-          )}
-          {day.notes && <p className="text-sm text-ink-muted">{day.notes}</p>}
-        </Card>
-      ))}
-      {current.openingPlan && (
-        <Card>
-          <h2 className="font-medium">Your opening session</h2>
-          <p className="text-sm">{current.openingPlan.summary}</p>
-          {current.openingPlan.warmup.length > 0 && (
-            <p className="text-sm text-ink-muted">
-              Warm-up: {current.openingPlan.warmup.join(" ")}
+      </section>
+
+      <ul className="box-rows">
+        {current.blueprint.days.map((day) => (
+          <li key={day.dayIndex}>
+            <DraftDay day={day} blueprint={current.blueprint} names={names} />
+          </li>
+        ))}
+      </ul>
+
+      {opening && (
+        <section className="box space-y-3 py-4" aria-label="Your opening session">
+          <h2 className="text-lg">Your opening session</h2>
+          <CoachLine>{opening.summary}</CoachLine>
+          {opening.warmup.length > 0 && (
+            <p className="text-sm [overflow-wrap:anywhere] text-ink-muted">
+              Warm-up: {opening.warmup.join(" ")}
             </p>
           )}
-          <ul className="space-y-2 text-sm">
-            {current.openingPlan.exercises.map((entry, i) => (
-              <li key={i}>
-                <strong>
-                  {library.find((e) => e.slug === entry.exerciseSlug)?.name ?? entry.exerciseSlug}
-                </strong>
-                <p>{entry.note}</p>
-                <p className="text-ink-muted">
-                  {entry.action === "drop"
+          <ol className="min-w-0 ruled-list">
+            {opening.exercises.map((entry, i) => (
+              <PlanRow
+                key={i}
+                number={i + 1}
+                name={names.get(entry.exerciseSlug) ?? entry.exerciseSlug}
+                detail={
+                  entry.action === "drop"
                     ? "Left out"
                     : entry.sets
                         .map(
                           (s) =>
                             `${s.reps !== null ? `${s.reps} reps` : s.durationSeconds !== null ? `${s.durationSeconds} s` : s.distanceMeters !== null ? `${s.distanceMeters} m` : "Target to calibrate"}${s.weight === null ? " · load to calibrate" : ` @ ${s.weight} ${machines.find((machine) => machine.id === entry.equipmentInstanceId)?.unit ?? preferredUnit}`}${s.rir === null ? "" : ` · RIR ${s.rir}`}`,
                         )
-                        .join("; ")}
-                </p>
-              </li>
+                        .join("; ")
+                }
+                note={entry.note || null}
+                struck={entry.action === "drop"}
+              />
             ))}
-          </ul>
-          {current.openingPlan.run && (
-            <p className="text-sm">
-              Run:{" "}
-              {current.openingPlan.run.durationMinutes !== null
-                ? `${current.openingPlan.run.durationMinutes} minutes`
-                : "Duration to calibrate"}
-              {current.openingPlan.run.distanceKm !== null
-                ? ` · ${current.openingPlan.run.distanceKm} km`
-                : ""}
-              {current.openingPlan.run.rpe !== null
-                ? ` · Effort ${current.openingPlan.run.rpe}`
-                : ""}
-              . {current.openingPlan.run.paceNote} {current.openingPlan.run.stopRule}
+          </ol>
+          {opening.run && (
+            <p className="text-sm [overflow-wrap:anywhere]">
+              <span className="font-data tabular-nums">
+                Run:{" "}
+                {opening.run.durationMinutes !== null
+                  ? `${opening.run.durationMinutes} minutes`
+                  : "Duration to calibrate"}
+                {opening.run.distanceKm !== null ? ` · ${opening.run.distanceKm} km` : ""}
+                {opening.run.rpe !== null ? ` · Effort ${opening.run.rpe}` : ""}.
+              </span>{" "}
+              <span className="text-ink-muted">
+                {[opening.run.paceNote, opening.run.stopRule].filter(Boolean).join(" ")}
+              </span>
             </p>
           )}
           <p className="text-xs text-ink-muted">
             Editing the programme clears this opening session. Your edited programme targets will be
             used when you start.
           </p>
-        </Card>
+        </section>
       )}
+
       {editable && (
-        <Card>
-          <h2 className="font-medium">Start this programme</h2>
+        <section className="panel space-y-3 panel-padding" aria-label="Start this programme">
+          <h2 className="text-lg">Start this programme</h2>
           {needsCheck && (
             <>
               <p className="text-sm text-ink-muted">
                 Check this draft against your current training data before starting it.
               </p>
-              <Button disabled={busy} variant="secondary" onClick={check}>
+              <Button
+                disabled={busy}
+                variant="secondary"
+                className="flex w-full"
+                onClick={check}
+              >
                 Check current data
               </Button>
             </>
@@ -223,29 +290,46 @@ export function DraftPreview({
           <Field label="Start date">
             <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
           </Field>
-          <Button disabled={busy || needsCheck || !startDate} onClick={activate}>
+          <Button
+            size="lg"
+            className="flex w-full"
+            disabled={busy || needsCheck || !startDate}
+            onClick={activate}
+          >
             {busy ? "Saving…" : "Start my programme"}
           </Button>
-          <LinkButton href={`${base}/manual?draft=${current.id}` as Route} variant="secondary">
-            Edit the draft
-          </LinkButton>
-          <Button
-            variant="ghost"
-            disabled={busy}
-            onClick={async () => {
-              setBusy(true);
-              const result = await coachingAction(() => rejectProgramDraftAction(current.id));
-              if (result.ok) router.push(base);
-              else setError(result.error);
-              setBusy(false);
-            }}
-          >
-            Discard this draft
-          </Button>
-        </Card>
+          <div className="action-row">
+            <LinkButton
+              href={`${base}/manual?draft=${current.id}` as Route}
+              variant="secondary"
+              className="w-full"
+            >
+              Edit the draft
+            </LinkButton>
+            <Button
+              variant="danger"
+              className="w-full"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                const result = await coachingAction(() => rejectProgramDraftAction(current.id));
+                if (result.ok) router.push(base);
+                else setError(result.error);
+                setBusy(false);
+              }}
+            >
+              Discard this draft
+            </Button>
+          </div>
+          {error && (
+            <p role="alert" className="text-sm text-danger">
+              {error}
+            </p>
+          )}
+        </section>
       )}
       {!editable && <p className="text-sm text-ink-muted">This draft is {current.status}.</p>}
-      {error && (
+      {!editable && error && (
         <p role="alert" className="text-sm text-danger">
           {error}
         </p>

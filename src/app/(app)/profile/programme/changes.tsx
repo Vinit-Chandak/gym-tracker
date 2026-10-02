@@ -4,8 +4,9 @@ import type { Route } from "next";
 import { Proposals } from "./proposals";
 import { RequestReview, type ReviewAvailability } from "./request-review";
 import { RequestList, type RequestView } from "@/components/coaching/request-list";
-import { Card } from "@/components/ui/card";
 import { Disclosure } from "@/components/ui/disclosure";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Check } from "@/components/ui/icons";
 import { LinkRow, List } from "@/components/ui/link-row";
 import { Section } from "@/components/ui/section";
 import { coachProgramRequests, coachWeeklyReviews, programDrafts } from "@/db/schema";
@@ -205,6 +206,11 @@ function plural(count: number, noun: string) {
   return `${count} ${noun}${count === 1 ? "" : "s"}`;
 }
 
+/**
+ * The Changes tab: what needs the athlete first, then what is with the coach, then what the
+ * coach changed on its own. A proposal is a row that opens the decision; a question is
+ * answered where it is asked. Nothing settled is printed here; it is one tap away under History.
+ */
 export function ProgrammeChanges({
   data,
   base = "/profile/programme",
@@ -220,7 +226,7 @@ export function ProgrammeChanges({
     !data.withCoach.length &&
     !data.recent.length;
   return (
-    <div className="space-y-6">
+    <div className="space-y-[var(--section-gap)]">
       {data.waiting > 0 && (
         <Section title="Waiting for you">
           {data.proposals.length > 0 && (
@@ -249,7 +255,7 @@ export function ProgrammeChanges({
 
       {data.withCoach.length > 0 && (
         <Disclosure summary="With the coach" meta={`${data.withCoach.length}`}>
-          <RequestList requests={data.withCoach} base={base} />
+          <RequestList requests={data.withCoach} base={base} plain />
         </Disclosure>
       )}
 
@@ -270,9 +276,11 @@ export function ProgrammeChanges({
       )}
 
       {nothing && (
-        <Card>
-          <p className="text-sm text-ink-muted">Nothing is waiting for you.</p>
-        </Card>
+        <EmptyState
+          icon={Check}
+          title="Nothing is waiting for you."
+          description="What the coach proposes, and anything it asks you, appears here."
+        />
       )}
 
       <RequestReview availability={data.review} />

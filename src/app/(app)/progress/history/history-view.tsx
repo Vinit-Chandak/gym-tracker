@@ -5,15 +5,25 @@ import { useMemo } from "react";
 import type { Route } from "next";
 
 import { DateRangeFields } from "@/components/date-range-fields";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FilterSheet } from "@/components/ui/filter-sheet";
 import { Field } from "@/components/ui/input";
-import { LinkRow, List } from "@/components/ui/link-row";
+import { PRESSABLE_ROW_CLASS, ROW_CLASS } from "@/components/ui/link-row";
 import { Select } from "@/components/ui/select";
-import { formatDateRange } from "@/lib/format";
-import { CalendarDays } from "@/components/ui/icons";
+import { formatDateRange, formatIsoDate, formatRelativeDay } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import {
+  Bicycle,
+  CalendarDays,
+  ChevronRight,
+  Dumbbell,
+  Heartbeat,
+  Run,
+  Waves,
+  type AppIcon,
+} from "@/components/ui/icons";
+import Link from "@/components/ui/app-link";
 
 import { ProgressSections } from "../progress-sections";
 
@@ -22,6 +32,8 @@ export type HistoryItem = {
   /** Every sport history holds, plus the recovery readings that are not training at all. */
   kind: "workout" | "run" | "cycling" | "swimming" | "recovery";
   date: string;
+  /** The civil day the entry belongs to in the account's time zone; the day of `date` otherwise. */
+  day?: string;
   title: string;
   subtitle: string;
   href?: Route<`/workouts/${string}` | `/runs/${string}` | `/training/activities/${string}`>;
@@ -40,6 +52,15 @@ const KIND_LABELS: Record<HistoryItem["kind"], string> = {
   cycling: "Ride",
   swimming: "Swim",
   recovery: "Recovery",
+};
+
+/** The glyph in each row's margin, named for a screen reader with the row's kind. */
+const KIND_ICONS: Record<HistoryItem["kind"], AppIcon> = {
+  workout: Dumbbell,
+  run: Run,
+  cycling: Bicycle,
+  swimming: Waves,
+  recovery: Heartbeat,
 };
 
 const EMPTY: Filters = { kind: "all", gym: "", exercise: "", machine: "" };
@@ -67,11 +88,67 @@ function fromSearch(params: URLSearchParams | ReadonlyURLSearchParams): Filters 
   };
 }
 
+/** "Today", "Yesterday", "Fri 11 Sept", and with its year once the day is in another one. */
+function dayLabel(day: string, today: string | undefined): string {
+  if (!today) return formatIsoDate(day);
+  return day.slice(0, 4) === today.slice(0, 4) ? formatRelativeDay(day, today) : formatIsoDate(day);
+}
+
+/**
+ * One entry: the kind's glyph in the margin, the title, what else it says under it, and the
+ * measures at the end of the row in the data voice. A link where there is a record to open;
+ * a recovery reading is the row itself.
+ */
+function HistoryRow({ item }: { item: HistoryItem }) {
+  const Icon = KIND_ICONS[item.kind];
+  const content = (
+    <>
+      <Icon
+        scale="row"
+        role="img"
+        aria-label={KIND_LABELS[item.kind]}
+        className="shrink-0 text-ink-muted"
+      />
+      <span className="min-w-0 flex-[1_1_8rem]">
+        <span className="block font-medium [overflow-wrap:anywhere]">{item.title}</span>
+        {item.subtitle && (
+          <span className="mt-0.5 block text-sm [overflow-wrap:anywhere] text-ink-muted">
+            {item.subtitle}
+          </span>
+        )}
+        {item.recovery && (
+          <span className="mt-0.5 block text-xs [overflow-wrap:anywhere] text-ink-muted">
+            {item.recovery}
+          </span>
+        )}
+      </span>
+      {(item.meta || item.href) && (
+        <span className="ml-auto flex max-w-full items-center gap-2">
+          {item.meta && (
+            <span className="min-w-0 text-right font-data text-sm [overflow-wrap:anywhere] text-ink-muted tabular-nums">
+              {item.meta}
+            </span>
+          )}
+          {item.href && <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />}
+        </span>
+      )}
+    </>
+  );
+  return item.href ? (
+    <Link href={item.href} prefetch="intent" className={cn(PRESSABLE_ROW_CLASS, "flex-wrap")}>
+      {content}
+    </Link>
+  ) : (
+    <div className={cn(ROW_CLASS, "flex-wrap")}>{content}</div>
+  );
+}
+
 export function HistoryView({
   range,
   items,
   gyms,
   truncated,
+  today,
 }: {
   /** The dates the server read, changed from inside the filter sheet. */
   range: { from: string; to: string };
@@ -79,6 +156,8 @@ export function HistoryView({
   gyms: { id: string; name: string }[];
   /** The list stops at the newest records the server would send, short of the whole range. */
   truncated: boolean;
+  /** Today in the account's time zone, so the newest days can be called Today and Yesterday. */
+  today?: string;
 }) {
   // Filtering happens on data the page already has, so it stays local and immediate. The
   // URL is updated through the History API purely so that coming back from an entry
@@ -141,6 +220,15 @@ export function HistoryView({
   const active = (Object.keys(EMPTY) as (keyof Filters)[]).filter(
     (key) => filters[key] !== EMPTY[key],
   ).length;
+
+  // The list is newest first; cut into days, each under its own label, in that same order.
+  const days: { day: string; items: HistoryItem[] }[] = [];
+  for (const item of shown) {
+    const day = item.day ?? item.date.slice(0, 10);
+    const last = days[days.length - 1];
+    if (last && last.day === day) last.items.push(item);
+    else days.push({ day, items: [item] });
+  }
 
   return (
     <div className="page-stack">
@@ -225,43 +313,31 @@ export function HistoryView({
         }
       />
 
-      <div className="space-y-3">
+      <div className="space-y-4">
         {truncated && (
           <p role="status" className="text-sm text-warning">
             Showing the newest records only. Narrow the dates to see every entry; the totals in
             Overview cover the whole period whatever this list shows.
           </p>
         )}
-        <p role="status" className="pl-1 text-sm text-ink-muted tabular-nums">
+        <p role="status" className="font-data text-sm font-medium text-ink-muted tabular-nums">
           {shown.length} {shown.length === 1 ? "entry" : "entries"}
         </p>
         {shown.length ? (
-          <List>
-            {shown.map((item) => (
-              <li key={item.id}>
-                {item.href ? (
-                  <LinkRow
-                    prefetch="intent"
-                    href={item.href}
-                    title={item.title}
-                    subtitle={item.subtitle}
-                    meta={item.meta}
-                    badge={<Badge>{KIND_LABELS[item.kind]}</Badge>}
-                  />
-                ) : (
-                  <div className="space-y-1 px-4 py-3">
-                    <p className="flex flex-wrap items-center gap-2 font-medium">
-                      {item.title} <Badge>Recovery</Badge>
-                    </p>
-                    <p className="text-sm text-ink-muted">{item.subtitle}</p>
-                  </div>
-                )}
-                {item.recovery && (
-                  <p className="px-4 pb-3 text-xs text-ink-muted">{item.recovery}</p>
-                )}
-              </li>
-            ))}
-          </List>
+          days.map((group) => (
+            <section key={group.day} className="min-w-0">
+              <h2 className="pb-1 text-xs font-semibold tracking-[0.08em] text-ink-muted uppercase">
+                {dayLabel(group.day, today)}
+              </h2>
+              <ul className="box-rows">
+                {group.items.map((item) => (
+                  <li key={item.id}>
+                    <HistoryRow item={item} />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))
         ) : (
           <EmptyState
             icon={CalendarDays}

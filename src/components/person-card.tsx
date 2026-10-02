@@ -3,15 +3,15 @@ import type { ReactNode } from "react";
 
 import Link from "@/components/ui/app-link";
 import { Avatar } from "@/components/ui/avatar";
-import { Card } from "@/components/ui/card";
 
 export type PersonCounts = { followers: number; following: number };
 
 /**
- * The header card: what a friend sees of a person (ADR 0026), and the same card on your own
- * Profile tab. Avatar, name, handle, the two counts, then whatever the screen puts under it:
- * Edit profile on your tab, the follow button on someone else's page. On your own tab the
- * counts open the matching list on the People page; on anyone else's they are plain.
+ * The identity block: what a friend sees of a person (ADR 0026), and the same block on your
+ * own Profile tab. A ruled block with the avatar, the name set large — it is what the screen
+ * is about — the handle, the two counts in the data voice, then whatever the screen puts
+ * under it: Edit profile on your tab, the follow button on someone else's page. On your own
+ * tab the counts open the matching list on the People page; on anyone else's they are plain.
  *
  * Given an `href`, the avatar and the name lead there: on your tab, to the page a follower
  * sees. The counts stay links of their own beside it, never inside it.
@@ -40,14 +40,14 @@ export function PersonCard<T extends string>({
   );
   const identity = (
     <>
-      <p className="text-lg font-medium [overflow-wrap:anywhere]">
+      <p className="text-2xl leading-tight [overflow-wrap:anywhere]">
         {person.displayName || person.username}
       </p>
-      <p className="text-sm [overflow-wrap:anywhere] text-ink-muted">@{person.username}</p>
+      <p className="mt-0.5 text-sm [overflow-wrap:anywhere] text-ink-muted">@{person.username}</p>
     </>
   );
   return (
-    <Card>
+    <section className="box space-y-4 py-4">
       <div className="flex items-center gap-4">
         {href ? (
           // The same destination as the name, for a thumb. A keyboard or a screen reader
@@ -69,18 +69,18 @@ export function PersonCard<T extends string>({
           ) : (
             identity
           )}
-          <p className="mt-1 flex flex-wrap gap-x-3 text-sm text-ink-muted">
+          <p className="mt-1.5 flex flex-wrap gap-x-3 font-data text-sm font-medium text-ink-muted tabular-nums">
             {countsLinkToFriends ? (
               <>
                 <Link
                   href="/profile/friends/people?people=followers"
-                  className="underline-offset-2 hover:underline"
+                  className="text-pen underline-offset-2 hover:underline"
                 >
                   {followers}
                 </Link>
                 <Link
                   href="/profile/friends/people?people=following"
-                  className="underline-offset-2 hover:underline"
+                  className="text-pen underline-offset-2 hover:underline"
                 >
                   {following}
                 </Link>
@@ -96,6 +96,6 @@ export function PersonCard<T extends string>({
         </div>
       </div>
       {children}
-    </Card>
+    </section>
   );
 }

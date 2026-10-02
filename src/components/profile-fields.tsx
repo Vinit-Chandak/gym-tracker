@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
+import { Card } from "@/components/ui/card";
 import { Field, Input } from "@/components/ui/input";
+import { Section } from "@/components/ui/section";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select } from "@/components/ui/select";
 import { UsernameField } from "@/components/username-field";
@@ -163,170 +165,180 @@ export function ProfileFields({
   return (
     <>
       <span ref={anchor} hidden />
-      <Field label="Name" error={errors?.displayName}>
-        <Input
-          type="text"
-          name="displayName"
-          autoComplete="name"
-          maxLength={80}
-          defaultValue={values.displayName}
-          required
-        />
-      </Field>
+      {/* Who you are, then the body the numbers are about: two ruled blocks, so the long form
+          reads as two short ones. */}
+      <Section title="You">
+        <Card className="space-y-4">
+          <Field label="Name" error={errors?.displayName}>
+            <Input
+              type="text"
+              name="displayName"
+              autoComplete="name"
+              maxLength={80}
+              defaultValue={values.displayName}
+              required
+            />
+          </Field>
 
-      <UsernameField
-        defaultValue={values.username}
-        current={values.username}
-        error={errors?.username}
-      />
+          <UsernameField
+            defaultValue={values.username}
+            current={values.username}
+            error={errors?.username}
+          />
 
-      <Field
-        label="Time zone"
-        error={errors?.timeZone}
-        hint={detected && detected !== timeZone ? `This device says ${detected}` : undefined}
-      >
-        <Input
-          type="text"
-          name="timeZone"
-          autoCapitalize="off"
-          autoCorrect="off"
-          spellCheck={false}
-          list="time-zone-suggestions"
-          value={timeZone}
-          onChange={(event) => setEditedZone(event.target.value)}
-          required
-        />
-      </Field>
-      {detected && (
-        <datalist id="time-zone-suggestions">
-          <option value={detected} />
-          <option value="UTC" />
-        </datalist>
-      )}
+          <Field
+            label="Time zone"
+            error={errors?.timeZone}
+            hint={detected && detected !== timeZone ? `This device says ${detected}` : undefined}
+          >
+            <Input
+              type="text"
+              name="timeZone"
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
+              list="time-zone-suggestions"
+              value={timeZone}
+              onChange={(event) => setEditedZone(event.target.value)}
+              required
+            />
+          </Field>
+          {detected && (
+            <datalist id="time-zone-suggestions">
+              <option value={detected} />
+              <option value="UTC" />
+            </datalist>
+          )}
+        </Card>
+      </Section>
 
-      <div className="space-y-1.5">
-        <span className="block text-sm font-medium text-ink-muted">Units</span>
-        <SegmentedControl
-          name="preferredUnit"
-          aria-label="Units"
-          options={UNIT_OPTIONS}
-          value={unit}
-          onChange={(next) => changeUnit(next as BodyLoadUnit)}
-          columns={2}
-        />
-        <span className="block text-xs text-ink-subtle">
-          {imperial ? "Height in feet and inches." : "Height in centimetres."}
-        </span>
-        {errors?.preferredUnit && (
-          <span role="alert" className="block text-sm text-danger">
-            {errors.preferredUnit}
-          </span>
-        )}
-      </div>
+      <Section title="Body and units">
+        <Card className="space-y-4">
+          <div className="space-y-1.5">
+            <span className="block text-sm font-medium text-ink-muted">Units</span>
+            <SegmentedControl
+              name="preferredUnit"
+              aria-label="Units"
+              options={UNIT_OPTIONS}
+              value={unit}
+              onChange={(next) => changeUnit(next as BodyLoadUnit)}
+              columns={2}
+            />
+            <span className="block text-xs text-ink-subtle">
+              {imperial ? "Height in feet and inches." : "Height in centimetres."}
+            </span>
+            {errors?.preferredUnit && (
+              <span role="alert" className="block text-sm text-danger">
+                {errors.preferredUnit}
+              </span>
+            )}
+          </div>
 
-      <Field label={`Body weight (${unit})`} error={errors?.bodyWeight}>
-        <Input
-          type="text"
-          name="bodyWeight"
-          inputMode="decimal"
-          value={weight}
-          onChange={(event) => setWeight(event.target.value)}
-          placeholder={unit === "kg" ? "74.5" : "164.2"}
-          required
-        />
-      </Field>
+          <Field label={`Body weight (${unit})`} error={errors?.bodyWeight}>
+            <Input
+              type="text"
+              name="bodyWeight"
+              inputMode="decimal"
+              value={weight}
+              onChange={(event) => setWeight(event.target.value)}
+              placeholder={unit === "kg" ? "74.5" : "164.2"}
+              required
+            />
+          </Field>
 
-      {imperial ? (
-        <div className="space-y-1.5">
-          <span className="block text-sm font-medium text-ink-muted">Height</span>
-          <div className="grid grid-cols-2 gap-2">
-            <Field label="Feet" error={errors?.heightFeet}>
+          {imperial ? (
+            <div className="space-y-1.5">
+              <span className="block text-sm font-medium text-ink-muted">Height</span>
+              <div className="grid grid-cols-2 gap-2">
+                <Field label="Feet" error={errors?.heightFeet}>
+                  <Input
+                    type="text"
+                    name="heightFeet"
+                    inputMode="numeric"
+                    value={feet}
+                    onChange={(event) => setFeet(event.target.value)}
+                    placeholder="5"
+                    required
+                  />
+                </Field>
+                {/* Inches may be left blank: a height of exactly five feet is five feet. */}
+                <Field label="Inches" error={errors?.heightInches}>
+                  <Input
+                    type="text"
+                    name="heightInches"
+                    inputMode="numeric"
+                    value={inches}
+                    onChange={(event) => setInches(event.target.value)}
+                    placeholder="10"
+                  />
+                </Field>
+              </div>
+            </div>
+          ) : (
+            <Field label="Height (cm)" error={errors?.heightCm}>
               <Input
                 type="text"
-                name="heightFeet"
-                inputMode="numeric"
-                value={feet}
-                onChange={(event) => setFeet(event.target.value)}
-                placeholder="5"
+                name="heightCm"
+                inputMode="decimal"
+                value={heightCm}
+                onChange={(event) => setHeightCm(event.target.value)}
+                placeholder="178"
                 required
               />
             </Field>
-            {/* Inches may be left blank: a height of exactly five feet is five feet. */}
-            <Field label="Inches" error={errors?.heightInches}>
-              <Input
-                type="text"
-                name="heightInches"
-                inputMode="numeric"
-                value={inches}
-                onChange={(event) => setInches(event.target.value)}
-                placeholder="10"
-              />
-            </Field>
+          )}
+
+          <Field
+            label="Date of birth"
+            error={errors?.dateOfBirth}
+            hint="So training load can be read against your age"
+          >
+            <Input
+              type="date"
+              name="dateOfBirth"
+              autoComplete="bday"
+              value={dateOfBirth}
+              onChange={(event) => setDateOfBirth(event.target.value)}
+              required
+            />
+          </Field>
+
+          <div className="space-y-1.5">
+            <span className="block text-sm font-medium text-ink-muted">Sex</span>
+            <SegmentedControl
+              name="sex"
+              aria-label="Sex"
+              options={SEX_OPTIONS}
+              value={sex}
+              onChange={setSex}
+              columns={2}
+            />
+            {errors?.sex && (
+              <span role="alert" className="block text-sm text-danger">
+                {errors.sex}
+              </span>
+            )}
           </div>
-        </div>
-      ) : (
-        <Field label="Height (cm)" error={errors?.heightCm}>
-          <Input
-            type="text"
-            name="heightCm"
-            inputMode="decimal"
-            value={heightCm}
-            onChange={(event) => setHeightCm(event.target.value)}
-            placeholder="178"
-            required
-          />
-        </Field>
-      )}
 
-      <Field
-        label="Date of birth"
-        error={errors?.dateOfBirth}
-        hint="So training load can be read against your age"
-      >
-        <Input
-          type="date"
-          name="dateOfBirth"
-          autoComplete="bday"
-          value={dateOfBirth}
-          onChange={(event) => setDateOfBirth(event.target.value)}
-          required
-        />
-      </Field>
-
-      <div className="space-y-1.5">
-        <span className="block text-sm font-medium text-ink-muted">Sex</span>
-        <SegmentedControl
-          name="sex"
-          aria-label="Sex"
-          options={SEX_OPTIONS}
-          value={sex}
-          onChange={setSex}
-          columns={2}
-        />
-        {errors?.sex && (
-          <span role="alert" className="block text-sm text-danger">
-            {errors.sex}
-          </span>
-        )}
-      </div>
-
-      <Field label="Training goal" error={errors?.trainingGoal}>
-        <Select
-          name="trainingGoal"
-          value={trainingGoal}
-          onChange={(event) => setTrainingGoal(event.target.value)}
-          required
-        >
-          <option value="" disabled>
-            Choose a goal
-          </option>
-          {TRAINING_GOALS.map((goal) => (
-            <option key={goal} value={goal}>
-              {TRAINING_GOAL_LABELS[goal]}
-            </option>
-          ))}
-        </Select>
-      </Field>
+          <Field label="Training goal" error={errors?.trainingGoal}>
+            <Select
+              name="trainingGoal"
+              value={trainingGoal}
+              onChange={(event) => setTrainingGoal(event.target.value)}
+              required
+            >
+              <option value="" disabled>
+                Choose a goal
+              </option>
+              {TRAINING_GOALS.map((goal) => (
+                <option key={goal} value={goal}>
+                  {TRAINING_GOAL_LABELS[goal]}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </Card>
+      </Section>
     </>
   );
 }

@@ -20,10 +20,16 @@ export function ProfileForm({ values }: { values: ProfileFieldValues }) {
     state.values === undefined;
 
   return (
-    <form action={formAction} onReset={(event) => event.preventDefault()} className="space-y-4">
+    <form
+      action={formAction}
+      onReset={(event) => event.preventDefault()}
+      className="space-y-[var(--section-gap)]"
+    >
       <ProfileFields values={values} errors={state.fieldErrors} />
-      <FormError message={state.formError} />
-      <SubmitButton pendingLabel="Saving…">Save</SubmitButton>
+      <div className="space-y-3">
+        <FormError message={state.formError} />
+        <SubmitButton pendingLabel="Saving…">Save</SubmitButton>
+      </div>
       <p className="sr-only" role="status">
         {saved ? "Profile saved" : ""}
       </p>

@@ -19,10 +19,11 @@ export type RankRow = Ranked<{
 }>;
 
 /**
- * Leaderboard rows (plan §3.12): rank, avatar, name, value. Your own row reads "You" and is
- * tinted; a row with nothing to rank trails, greyed, with "—", so a friend's absence is
- * visible rather than mysterious. Each row opens the person's page. Server-renderable, so a
- * board costs no JavaScript.
+ * Leaderboard rows (plan §3.12): rank, avatar, name, value, the numbers in the data voice.
+ * Your own row reads "You" and carries the highlighter's wash, the way the selected thing
+ * does everywhere on the sheet; a row with nothing to rank trails, greyed, with "—", so a
+ * friend's absence is visible rather than mysterious. Each row opens the person's page.
+ * Server-renderable, so a board costs no JavaScript.
  */
 export function RankList({
   rows,
@@ -51,13 +52,14 @@ export function RankList({
               className={cn(
                 PRESSABLE_ROW_CLASS,
                 "flex-wrap",
-                mine && "bg-accent-soft",
+                // The older name is kept beside the sheet's own: both are the viewer's row.
+                mine && "bg-accent-soft bg-highlight-soft",
                 absent && "text-ink-muted",
               )}
             >
               <span className="flex min-w-0 flex-[1_1_9rem] flex-wrap items-center gap-x-3 gap-y-1">
                 {/* Wide enough for two digits, so names start on one line whatever the rank. */}
-                <span className="w-6 shrink-0 text-right text-sm font-medium tabular-nums">
+                <span className="w-6 shrink-0 text-right font-data text-sm font-semibold tabular-nums">
                   {row.rank ?? "—"}
                 </span>
                 <Avatar username={row.username} displayName={row.displayName} size="row" />
@@ -73,12 +75,16 @@ export function RankList({
               {/* Values get their own line when the name and rank need the available width. */}
               <span className="ml-auto max-w-full min-w-0 shrink-0 text-right text-sm leading-tight [overflow-wrap:anywhere] tabular-nums">
                 {row.value === null ? (
-                  <span aria-label="No data">—</span>
+                  <span aria-label="No data" className="font-data">
+                    —
+                  </span>
                 ) : (
                   <>
-                    <span className="block font-medium">{format(row.value)}</span>
+                    <span className="block font-data text-base font-semibold">
+                      {format(row.value)}
+                    </span>
                     {row.detail && (
-                      <span className="block text-xs text-ink-muted">{row.detail}</span>
+                      <span className="block font-data text-xs text-ink-muted">{row.detail}</span>
                     )}
                     {row.occurredOn && (
                       <span className="block text-xs text-ink-muted">

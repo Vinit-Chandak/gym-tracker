@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import Link from "@/components/ui/app-link";
 import { connection } from "next/server";
 
-import { Card } from "@/components/ui/card";
 import { isSupabaseConfigured } from "@/lib/env";
 
 import { AUTH_LINK } from "../auth-link";
+import { AuthPanel } from "../auth-panel";
 import { NotConfigured } from "../not-configured";
 import { ForgotPasswordForm } from "./forgot-password-form";
 
@@ -18,8 +18,7 @@ export default async function ForgotPasswordPage(props: PageProps<"/forgot-passw
 
   return (
     <>
-      <Card>
-        <h2 className="text-lg font-medium">Reset your password</h2>
+      <AuthPanel title="Reset your password">
         {error === "link" && (
           <p role="alert" className="text-sm text-danger">
             That reset link has expired or has already been used. Here is a fresh start.
@@ -29,7 +28,7 @@ export default async function ForgotPasswordPage(props: PageProps<"/forgot-passw
           Enter your email and we will send you a link to choose a new password.
         </p>
         <ForgotPasswordForm />
-      </Card>
+      </AuthPanel>
       <p className="text-center text-sm text-ink-muted">
         <Link href="/login" className={AUTH_LINK}>
           Back to sign in

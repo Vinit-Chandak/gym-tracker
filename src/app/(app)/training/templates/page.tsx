@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 
+import { SPORT_ICONS } from "@/components/activities/sport-icons";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import Link from "@/components/ui/app-link";
 import { LinkButton } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { CalendarDays } from "@/components/ui/icons";
+import { Dumbbell, Repeat } from "@/components/ui/icons";
 import { Section } from "@/components/ui/section";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
@@ -41,51 +41,70 @@ export default async function TemplatesPage() {
     <>
       <PageHeader title="Templates" backHref="/training" />
       <PageContent>
-        <LinkButton href="/training/templates/new" className="w-full">
-          New template
-        </LinkButton>
-
         <Section title="Endurance">
           {templates.length === 0 ? (
             <EmptyState
-              icon={CalendarDays}
+              icon={Repeat}
               title="No templates yet"
               description="Write a session once and schedule it whenever you want it."
+              action={<LinkButton href="/training/templates/new">New template</LinkButton>}
             />
           ) : (
-            templates.map((template) => (
-              <Card key={template.id}>
-                <p className="text-xs font-medium tracking-wide text-ink-muted uppercase">
-                  {ACTIVITY_SPORT_LABELS[template.sport]}
-                </p>
-                <h2 className="mt-1 text-base font-medium [overflow-wrap:anywhere]">
-                  {template.name}
-                </h2>
-                <p className="text-sm text-ink-muted">
-                  {describePrescription(template.prescription)} · version {template.version}
-                </p>
-                <Link
-                  href={`/training/templates/${template.id}/edit`}
-                  className="text-sm text-accent"
-                >
-                  Edit
-                </Link>
-              </Card>
-            ))
+            <>
+              <ul className="box-rows">
+                {templates.map((template) => {
+                  const Icon = SPORT_ICONS[template.sport];
+                  return (
+                    <li
+                      key={template.id}
+                      className="flex min-h-14 flex-wrap items-center gap-x-3 gap-y-1 py-3"
+                    >
+                      <div className="flex min-w-0 flex-[1_1_10rem] items-start gap-3">
+                        <Icon scale="row" className="mt-0.5 shrink-0 text-ink-muted" aria-hidden />
+                        <div className="min-w-0 flex-1">
+                          <h2 className="font-medium [overflow-wrap:anywhere]">{template.name}</h2>
+                          <p className="mt-0.5 font-data text-sm [overflow-wrap:anywhere] text-ink-muted tabular-nums">
+                            {ACTIVITY_SPORT_LABELS[template.sport]} ·{" "}
+                            {describePrescription(template.prescription)} · version{" "}
+                            {template.version}
+                          </p>
+                        </div>
+                      </div>
+                      <Link
+                        href={`/training/templates/${template.id}/edit`}
+                        transitionTypes={["nav-forward"]}
+                        className="ml-auto inline-flex min-h-11 shrink-0 items-center px-1 text-sm font-medium text-pen"
+                      >
+                        Edit
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+              <LinkButton href="/training/templates/new" size="lg" className="w-full">
+                New template
+              </LinkButton>
+            </>
           )}
         </Section>
 
+        {/* Read-only here: routines are started from Today. */}
         {routines.length > 0 && (
           <Section title="Strength routines">
-            {routines.map((routine) => (
-              <Card key={routine.id}>
-                <h2 className="text-base font-medium [overflow-wrap:anywhere]">{routine.name}</h2>
-                <p className="text-sm text-ink-muted">
-                  {routine.day.exercises.length} exercise
-                  {routine.day.exercises.length === 1 ? "" : "s"}
-                </p>
-              </Card>
-            ))}
+            <ul className="box-rows">
+              {routines.map((routine) => (
+                <li key={routine.id} className="flex min-h-14 items-center gap-3 py-3">
+                  <Dumbbell scale="row" className="shrink-0 text-ink-muted" aria-hidden />
+                  <h2 className="min-w-0 flex-1 font-medium [overflow-wrap:anywhere]">
+                    {routine.name}
+                  </h2>
+                  <p className="shrink-0 font-data text-sm text-ink-muted tabular-nums">
+                    {routine.day.exercises.length} exercise
+                    {routine.day.exercises.length === 1 ? "" : "s"}
+                  </p>
+                </li>
+              ))}
+            </ul>
           </Section>
         )}
       </PageContent>

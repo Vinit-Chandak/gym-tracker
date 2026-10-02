@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 
+import type { ButtonVariant } from "@/components/ui/button";
 import { FormError, SubmitButton } from "@/components/ui/form";
 import { Field, Input } from "@/components/ui/input";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -17,14 +18,19 @@ function asKind(value: string | undefined): GymKind {
   return (GYM_KINDS as readonly string[]).includes(value ?? "") ? (value as GymKind) : "gym";
 }
 
-export function FirstGymForm() {
+export function FirstGymForm({
+  /** The highlighter when adding a gym is the step's action; ruled when another is already there. */
+  submitVariant = "primary",
+}: {
+  submitVariant?: ButtonVariant;
+}) {
   const [state, formAction] = useActionState(
     keepsFormOnDisconnect(createFirstGymAction),
     INITIAL_FORM_STATE,
   );
 
   return (
-    <form action={formAction} className="space-y-5">
+    <form action={formAction} className="space-y-4">
       <Field label="Name" error={state.fieldErrors?.name}>
         <Input
           name="name"
@@ -38,12 +44,15 @@ export function FirstGymForm() {
       <Field group label="Type" error={state.fieldErrors?.kind}>
         <SegmentedControl
           name="kind"
+          columns={KIND_OPTIONS.length}
           options={KIND_OPTIONS}
           defaultValue={asKind(state.values?.kind)}
         />
       </Field>
       <FormError message={state.formError} />
-      <SubmitButton pendingLabel="Adding…">Add gym</SubmitButton>
+      <SubmitButton variant={submitVariant} pendingLabel="Adding…">
+        Add gym
+      </SubmitButton>
     </form>
   );
 }

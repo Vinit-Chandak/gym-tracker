@@ -19,11 +19,15 @@ import {
   EffortField,
   HeartRateFields,
   LargeEntryConfirmation,
+  MEASURE_INPUT_CLASS,
   MoreDetails,
   NotesFields,
+  Readout,
   TargetCard,
+  TIME_INPUT_CLASS,
   useFormValues,
   type ActivityFormValues,
+  type ActivityTarget,
 } from "./activity-form-fields";
 
 /**
@@ -52,7 +56,7 @@ type Props = {
   /** The occurrence being logged, with the revision pinned when the form opened. */
   occurrence?: { id: string; revisionId: string; planId?: string | null } | null;
   /** What the plan asked for, kept beside the form rather than inside it. */
-  target?: { title: string; lines: string[] } | null;
+  target?: ActivityTarget | null;
   expectedRevision?: number | null;
   submitLabel: string;
 };
@@ -89,10 +93,10 @@ export function RunningForm({
         occurrence={occurrence}
         expectedRevision={expectedRevision}
       />
-      {target && <TargetCard title={target.title} lines={target.lines} />}
+      {target && <TargetCard {...target} />}
 
       <Section title="The run">
-        <Card>
+        <Card className="space-y-4">
           <ActivityStartFields values={values} errors={state.fieldErrors} />
 
           <Field group label="Where">
@@ -132,6 +136,7 @@ export function RunningForm({
                   value={hours}
                   onChange={(event) => setHours(event.target.value)}
                   placeholder="0"
+                  className={TIME_INPUT_CLASS}
                 />
               </Field>
               <Field label="Minutes">
@@ -141,6 +146,7 @@ export function RunningForm({
                   value={minutes}
                   onChange={(event) => setMinutes(event.target.value)}
                   placeholder="30"
+                  className={TIME_INPUT_CLASS}
                 />
               </Field>
               <Field label="Seconds">
@@ -150,16 +156,13 @@ export function RunningForm({
                   value={seconds}
                   onChange={(event) => setSeconds(event.target.value)}
                   placeholder="0"
+                  className={TIME_INPUT_CLASS}
                 />
               </Field>
             </div>
           </Field>
 
-          {pace !== null && (
-            <p role="status" className="text-sm text-ink-muted tabular-nums">
-              Pace {formatPaceSeconds(pace)} /km
-            </p>
-          )}
+          {pace !== null && <Readout label="Pace" value={formatPaceSeconds(pace)} unit="/km" />}
         </Card>
       </Section>
 
@@ -190,6 +193,7 @@ export function RunningForm({
                 inputMode="decimal"
                 defaultValue={values("elevationGainMetres")}
                 placeholder="—"
+                className={MEASURE_INPUT_CLASS}
               />
             </Field>
             <Field label="Incline %" error={state.fieldErrors?.treadmillInclinePercent}>
@@ -198,6 +202,7 @@ export function RunningForm({
                 inputMode="decimal"
                 defaultValue={values("treadmillInclinePercent")}
                 placeholder="—"
+                className={MEASURE_INPUT_CLASS}
               />
             </Field>
           </div>
@@ -207,6 +212,7 @@ export function RunningForm({
               inputMode="decimal"
               defaultValue={values("cadenceStepsPerMinute")}
               placeholder="—"
+              className={MEASURE_INPUT_CLASS}
             />
           </Field>
           <HeartRateFields values={values} errors={state.fieldErrors} />
@@ -215,7 +221,7 @@ export function RunningForm({
 
       <NotesFields values={values} errors={state.fieldErrors} />
 
-      <div className="space-y-2">
+      <div className="space-y-3">
         <LargeEntryConfirmation message={state.formError} />
         <FormError message={state.formError} />
         <SubmitButton pendingLabel="Saving…">{submitLabel}</SubmitButton>

@@ -5,8 +5,9 @@ import { unstable_rethrow } from "next/navigation";
 
 import { FollowButton } from "@/components/follow-button";
 import { PersonRow } from "@/components/person-row";
-import { Field, Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Search } from "@/components/ui/icons";
+import { Field, Input } from "@/components/ui/input";
 import { List } from "@/components/ui/link-row";
 import { searchPeopleAction, type PersonResult } from "@/server/actions/people";
 
@@ -14,9 +15,10 @@ import { searchPeopleAction, type PersonResult } from "@/server/actions/people";
 export const PEOPLE_SEARCH_DELAY_MS = 350;
 
 /**
- * Find people (plan §3.4): one field, and the matches beneath it as rows with the follow
- * button in the state that applies. A query with `@` is an exact email; anything else is the
- * start of a username or of a word in a name. Results are an action's reply, kept here.
+ * Find people (plan §3.4): one search cell, and the matches beneath it as ruled rows with
+ * the follow button in the state that applies. A query with `@` is an exact email; anything
+ * else is the start of a username or of a word in a name. Results are an action's reply,
+ * kept here.
  */
 export function PeopleSearch({
   autoFocus = false,
@@ -60,18 +62,25 @@ export function PeopleSearch({
   return (
     <div className="space-y-3">
       <Field label="Find people" hint="Username or email." labelHidden={labelHidden}>
-        <Input
-          type="search"
-          name="query"
-          autoComplete="off"
-          autoCapitalize="off"
-          autoCorrect="off"
-          spellCheck={false}
-          maxLength={64}
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          autoFocus={autoFocus}
-        />
+        <div className="relative">
+          <Search
+            className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-ink-subtle"
+            aria-hidden
+          />
+          <Input
+            type="search"
+            name="query"
+            autoComplete="off"
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck={false}
+            maxLength={64}
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            autoFocus={autoFocus}
+            className="pl-10"
+          />
+        </div>
       </Field>
       <p className="sr-only" role="status">
         {searching ? "Searching" : results ? `${results.length} found` : ""}
@@ -94,7 +103,7 @@ export function PeopleSearch({
         </div>
       )}
       {results && results.length === 0 && (
-        <p className="px-1 text-sm text-ink-muted">
+        <p className="py-2 text-sm text-ink-muted">
           Nobody called that.
           {trimmed.includes("@") ? " An email has to match exactly." : ""}
         </p>

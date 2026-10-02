@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { ActivityEditor } from "@/components/activities/activity-editor";
 import { OccurrenceSettled } from "@/components/activities/occurrence-settled";
+import { sportNoun } from "@/components/activities/sport-icons";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { getDb } from "@/db/client";
@@ -80,6 +81,7 @@ export default async function NewActivityPage(props: PageProps<"/training/new">)
   const target = occurrence?.prescription
     ? {
         title: occurrence.preparedByCoach ? "Your coach asked for" : "The plan asked for",
+        fromCoach: Boolean(occurrence.preparedByCoach),
         lines: [
           describePrescription(occurrence.prescription),
           occurrence.prescription.running?.paceNote,
@@ -128,8 +130,4 @@ export default async function NewActivityPage(props: PageProps<"/training/new">)
       </PageContent>
     </>
   );
-}
-
-function sportNoun(sport: EnduranceSport): string {
-  return sport === "running" ? "run" : sport === "cycling" ? "ride" : "swim";
 }

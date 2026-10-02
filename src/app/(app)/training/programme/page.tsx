@@ -1,21 +1,21 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { OccurrenceLinkRow } from "@/components/activities/occurrence-row";
+import { SPORT_ICONS } from "@/components/activities/sport-icons";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
-import Link from "@/components/ui/app-link";
 import { Badge } from "@/components/ui/badge";
 import { LinkButton } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CalendarDays } from "@/components/ui/icons";
 import { Section } from "@/components/ui/section";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { ACTIVITY_SPORT_LABELS, isActivitySport, type ActivitySport } from "@/domain/activity";
-import { describePrescription } from "@/domain/activity-prescription";
 import { adherenceBySport } from "@/domain/occurrences";
 import { todayInTimeZone } from "@/domain/program-calendar";
+import { formatIsoDate } from "@/lib/format";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { programmeOccurrences } from "@/server/repositories/occurrences";
@@ -23,12 +23,12 @@ import { getSchedule } from "@/server/repositories/schedule";
 
 export const metadata: Metadata = { title: "Programme" };
 
-const STATUS: Record<string, { label: string; tone: "accent" | "neutral" }> = {
-  logged: { label: "Logged", tone: "accent" },
+const STATUS: Record<string, { label: string; tone: "success" | "neutral" | "warning" }> = {
+  logged: { label: "Logged", tone: "success" },
   skipped: { label: "Skipped", tone: "neutral" },
   cancelled: { label: "Cancelled", tone: "neutral" },
   legacy_completed: { label: "Completed earlier", tone: "neutral" },
-  incomplete: { label: "Not done", tone: "neutral" },
+  incomplete: { label: "Not done", tone: "warning" },
 };
 
 /**
@@ -73,11 +73,7 @@ export default async function ProgrammePage(props: PageProps<"/training/programm
             icon={CalendarDays}
             title="No active programme"
             description="A programme keeps several weeks of training in one place, across every sport you train."
-            action={
-              <LinkButton href="/profile/programme/create" variant="secondary">
-                Create a programme
-              </LinkButton>
-            }
+            action={<LinkButton href="/profile/programme/create">Create a programme</LinkButton>}
           />
         </PageContent>
       </>
@@ -99,51 +95,56 @@ export default async function ProgrammePage(props: PageProps<"/training/programm
     <>
       <PageHeader title="Programme" meta={data.schedule.program.name} backHref="/training" />
       <PageContent>
-        <Section title="Adherence">
-          <Card>
-            {Object.entries(adherence).map(([sport, counts]) => (
-              <p key={sport} className="text-sm tabular-nums">
-                <span className="font-medium">{ACTIVITY_SPORT_LABELS[sport as ActivitySport]}</span>{" "}
-                · {counts.logged} logged · {counts.incomplete} outstanding · {counts.skipped}{" "}
-                skipped
-                {counts.cancelled > 0 ? ` · ${counts.cancelled} cancelled` : ""}
-              </p>
-            ))}
-            {/* Each sport's record is its own: an unfinished run cannot fail a finished lift. */}
-            <p className="text-sm text-ink-muted">
-              Counted per sport, against the week each session was first placed in.
-            </p>
-          </Card>
+        {/* Each sport's record is its own: an unfinished run cannot fail a finished lift. */}
+        <Section
+          title="Adherence"
+          info="Counted per sport, against the week each session was first placed in."
+        >
+          <ul className="box-rows">
+            {Object.entries(adherence).map(([sport, counts]) => {
+              const Icon = SPORT_ICONS[sport as ActivitySport];
+              return (
+                <li key={sport} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-3">
+                  <Icon scale="row" className="shrink-0 text-ink-muted" aria-hidden />
+                  <p className="min-w-0 flex-[1_1_6rem] font-medium">
+                    {ACTIVITY_SPORT_LABELS[sport as ActivitySport]}
+                  </p>
+                  <p className="min-w-0 font-data text-sm text-ink-muted tabular-nums">
+                    {counts.logged} logged · {counts.incomplete} outstanding · {counts.skipped}{" "}
+                    skipped
+                    {counts.cancelled > 0 ? ` · ${counts.cancelled} cancelled` : ""}
+                  </p>
+                </li>
+              );
+            })}
+          </ul>
         </Section>
 
         <Section title="Cycle">
           {[...byDate.entries()].map(([date, occurrences]) => (
-            <Card key={date}>
-              <p className="text-xs font-medium tracking-wide text-ink-muted uppercase tabular-nums">
-                {date}
-                {date < today ? " · earlier" : ""}
-              </p>
-              {occurrences.map((occurrence) => {
-                const status = STATUS[occurrence.resolution.kind]!;
-                return (
-                  <div key={occurrence.id} className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <Link
-                        prefetch="intent"
-                        href={`/training/programme/occurrences/${occurrence.id}`}
-                        className="text-base font-medium [overflow-wrap:anywhere]"
-                      >
-                        {ACTIVITY_SPORT_LABELS[occurrence.sport]}
-                        {occurrence.prescription
-                          ? ` · ${describePrescription(occurrence.prescription)}`
-                          : ""}
-                      </Link>
-                    </div>
-                    <Badge tone={status.tone}>{status.label}</Badge>
-                  </div>
-                );
-              })}
-            </Card>
+            <div key={date}>
+              <div className="flex items-baseline justify-between gap-3 pb-1">
+                <p className="text-xs font-semibold tracking-[0.08em] text-ink-muted uppercase tabular-nums">
+                  {formatIsoDate(date)}
+                </p>
+                {date < today && (
+                  <p className="font-data text-sm text-ink-muted tabular-nums">earlier</p>
+                )}
+              </div>
+              <ul className="box-rows">
+                {occurrences.map((occurrence) => {
+                  const status = STATUS[occurrence.resolution.kind]!;
+                  return (
+                    <OccurrenceLinkRow
+                      key={occurrence.id}
+                      occurrence={occurrence}
+                      when=""
+                      badge={<Badge tone={status.tone}>{status.label}</Badge>}
+                    />
+                  );
+                })}
+              </ul>
+            </div>
           ))}
           {data.occurrences.length === 0 && (
             <EmptyState

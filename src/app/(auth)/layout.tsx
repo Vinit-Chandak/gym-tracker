@@ -1,18 +1,22 @@
-import { Dumbbell } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { APP_NAME, APP_TAGLINE } from "@/lib/app";
+import { Wordmark } from "@/components/shell/wordmark";
+import { APP_TAGLINE } from "@/lib/app";
 
+/**
+ * The sheet before there is an account on it: the app's own name set large at the top, its
+ * one line under it, and then the page's panel — the form standing off the page — with the
+ * way to the other auth screen under that in the pen.
+ */
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center px-4 py-8 pt-safe pb-safe">
       <div className="w-full max-w-sm space-y-6">
-        <header className="flex flex-col items-center gap-2 text-center">
-          <span className="flex size-14 items-center justify-center rounded-card bg-surface text-accent">
-            <Dumbbell className="size-8" aria-hidden />
-          </span>
-          <h1 className="text-xl font-medium">{APP_NAME}</h1>
-          <p className="text-sm text-balance text-ink-muted">{APP_TAGLINE}</p>
+        <header className="text-center">
+          <h1 className="text-3xl leading-none">
+            <Wordmark />
+          </h1>
+          <p className="mt-4 text-balance text-ink-muted">{APP_TAGLINE}</p>
         </header>
         {children}
       </div>

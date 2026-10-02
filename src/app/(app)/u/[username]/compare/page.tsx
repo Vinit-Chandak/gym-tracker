@@ -108,7 +108,7 @@ export default async function ComparePage(props: PageProps<"/u/[username]/compar
       <PageContent>
         <CompareHeader a={me} b={them} />
         {!("totals" in found) ? (
-          <p className="px-1 text-sm text-ink-muted">{hiddenTrainingLine(found)}</p>
+          <p className="text-sm text-ink-muted">{hiddenTrainingLine(found)}</p>
         ) : (
           <>
             <SportPeriodControls sport={sport} period={period} />
@@ -182,7 +182,7 @@ export default async function ComparePage(props: PageProps<"/u/[username]/compar
                   </Card>
                 )}
                 {found.lifting.common.notComparable > 0 && (
-                  <p className="flex items-center gap-1 px-1 text-sm text-ink-muted">
+                  <p className="flex items-center gap-1 text-sm text-ink-muted">
                     {found.lifting.common.notComparable === 1
                       ? "1 machine exercise in common is not compared: loads differ per machine."
                       : `${found.lifting.common.notComparable} machine exercises in common are not compared: loads differ per machine.`}

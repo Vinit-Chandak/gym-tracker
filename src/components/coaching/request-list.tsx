@@ -5,17 +5,18 @@ import type { Route } from "next";
 
 import Link from "@/components/ui/app-link";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { SpeechTextarea } from "@/components/ui/dictation";
 import { PLAN_LIMITS } from "@/domain/plan-limits";
 import type { RequestState } from "@/domain/program-request";
 import { formatIsoDay } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import {
   answerProgramRequestAction,
   withdrawProgramRequestAction,
 } from "@/server/actions/coaching-workflow";
 
 import { coachingAction } from "./client-action";
+import { CoachLine } from "./sheet-bits";
 
 export type RequestView = {
   id: string;
@@ -60,26 +61,44 @@ function waitingLine(request: RequestView): string {
  * answer it in; an ask waiting on the coach says when it will be heard; a settled one says
  * what it came to. Nothing is said twice: no status badge under a heading that already says
  * it, no coach paraphrase of the ask above the ask, no date the coach's run stamped on it.
+ *
+ * One ruled block cut into rows. The first question's Send is the one highlighter of the
+ * list; any further question's is ruled, so a screen never shows two.
  */
 export function RequestList({
   requests,
   base = "/profile/programme",
+  plain = false,
 }: {
   requests: readonly RequestView[];
   base?: string;
+  /** Drops the outer rules, for a list already inside a block or a disclosure. */
+  plain?: boolean;
 }) {
+  const firstQuestion = requests.find((request) => request.state === "needs_answer")?.id;
   return (
-    <ul className="space-y-3">
+    <ul className={cn("min-w-0", plain ? "ruled-list" : "box-rows")}>
       {requests.map((request) => (
-        <li key={request.id}>
-          <RequestRow request={request} base={base} />
-        </li>
+        <RequestRow
+          key={request.id}
+          request={request}
+          base={base}
+          emphasis={request.id === firstQuestion}
+        />
       ))}
     </ul>
   );
 }
 
-function RequestRow({ request, base }: { request: RequestView; base: string }) {
+function RequestRow({
+  request,
+  base,
+  emphasis,
+}: {
+  request: RequestView;
+  base: string;
+  emphasis: boolean;
+}) {
   const [answer, setAnswer] = useState("");
   const [noteId, setNoteId] = useState(() => crypto.randomUUID());
   const [busy, setBusy] = useState(false);
@@ -96,22 +115,23 @@ function RequestRow({ request, base }: { request: RequestView; base: string }) {
   };
 
   return (
-    <Card>
-      <p className="font-medium [overflow-wrap:anywhere]">“{request.quote}”</p>
+    <li className="space-y-3 py-4">
+      {/* The ask, in the athlete's own words, in pen: it is what the coach is working from. */}
+      <p className="font-medium [overflow-wrap:anywhere] text-pen">“{request.quote}”</p>
       {settled ? (
         <p className="text-sm [overflow-wrap:anywhere] text-ink-muted">
           {[settled, request.outcome || request.detail].filter(Boolean).join(" — ")}
           {request.settledOn && <span className="tabular-nums"> · {request.settledOn}</span>}
         </p>
       ) : request.state === "needs_answer" ? (
-        request.detail && <p className="text-sm [overflow-wrap:anywhere]">{request.detail}</p>
+        request.detail && <CoachLine>{request.detail}</CoachLine>
       ) : (
-        <p className="text-sm text-ink-muted tabular-nums">{waitingLine(request)}</p>
+        <p className="font-data text-sm text-ink-muted tabular-nums">{waitingLine(request)}</p>
       )}
       {settled && request.draftId && (
         <Link
           href={`${base}/drafts/${request.draftId}` as Route}
-          className="flex min-h-11 items-center text-sm text-accent underline-offset-4 hover:underline"
+          className="flex min-h-11 items-center text-sm font-medium text-pen underline-offset-4 hover:underline"
         >
           See the change
         </Link>
@@ -128,6 +148,7 @@ function RequestRow({ request, base }: { request: RequestView; base: string }) {
           />
           <Button
             className="flex w-full"
+            variant={emphasis ? "primary" : "secondary"}
             disabled={busy || answer.trim().length === 0}
             onClick={() =>
               act(async () => {
@@ -161,6 +182,6 @@ function RequestRow({ request, base }: { request: RequestView; base: string }) {
           {error}
         </p>
       )}
-    </Card>
+    </li>
   );
 }

@@ -21,11 +21,15 @@ import {
   EffortField,
   HeartRateFields,
   LargeEntryConfirmation,
+  MEASURE_INPUT_CLASS,
   MoreDetails,
   NotesFields,
+  Readout,
   TargetCard,
+  TIME_INPUT_CLASS,
   useFormValues,
   type ActivityFormValues,
+  type ActivityTarget,
 } from "./activity-form-fields";
 
 /**
@@ -72,7 +76,7 @@ type Props = {
   initial: ActivityFormValues;
   submissionKey: string;
   occurrence?: { id: string; revisionId: string; planId?: string | null } | null;
-  target?: { title: string; lines: string[] } | null;
+  target?: ActivityTarget | null;
   expectedRevision?: number | null;
   submitLabel: string;
 };
@@ -124,10 +128,10 @@ export function SwimmingForm({
         occurrence={occurrence}
         expectedRevision={expectedRevision}
       />
-      {target && <TargetCard title={target.title} lines={target.lines} />}
+      {target && <TargetCard {...target} />}
 
       <Section title="The swim">
-        <Card>
+        <Card className="space-y-4">
           <ActivityStartFields values={values} errors={state.fieldErrors} />
 
           <Field group label="Where">
@@ -163,6 +167,7 @@ export function SwimmingForm({
                   inputMode="numeric"
                   defaultValue={values("hours")}
                   placeholder="0"
+                  className={TIME_INPUT_CLASS}
                 />
               </Field>
               <Field label="Minutes">
@@ -171,6 +176,7 @@ export function SwimmingForm({
                   inputMode="numeric"
                   defaultValue={values("minutes")}
                   placeholder="40"
+                  className={TIME_INPUT_CLASS}
                 />
               </Field>
               <Field label="Seconds">
@@ -179,6 +185,7 @@ export function SwimmingForm({
                   inputMode="decimal"
                   defaultValue={values("seconds")}
                   placeholder="0"
+                  className={TIME_INPUT_CLASS}
                 />
               </Field>
             </div>
@@ -187,7 +194,7 @@ export function SwimmingForm({
       </Section>
 
       <Section title="Distance">
-        <Card>
+        <Card className="space-y-4">
           <Field group label="How it was measured" error={state.fieldErrors?.distanceMethod}>
             <SegmentedControl
               name="distanceMethod"
@@ -213,6 +220,7 @@ export function SwimmingForm({
                     value={poolLength}
                     onChange={(event) => setPoolLength(event.target.value)}
                     placeholder="25"
+                    className={MEASURE_INPUT_CLASS}
                   />
                 </Field>
                 <Field group label="Unit">
@@ -237,14 +245,17 @@ export function SwimmingForm({
                   value={lengths}
                   onChange={(event) => setLengths(event.target.value)}
                   placeholder="16"
+                  className={MEASURE_INPUT_CLASS}
                 />
               </Field>
               {derivedMetres !== null && (
-                <p role="status" className="text-sm text-ink-muted tabular-nums">
-                  {formatDistance(derivedMetres, poolUnit as "m" | "yd")}
-                  {/* A yard pool is not a metre pool, and the metres say so exactly. */}
-                  {poolUnit === "yd" ? ` · ${formatDistance(derivedMetres, "m", 2)}` : ""}
-                </p>
+                <Readout
+                  label="Distance"
+                  value={`${formatDistance(derivedMetres, poolUnit as "m" | "yd")}${
+                    // A yard pool is not a metre pool, and the metres say so exactly.
+                    poolUnit === "yd" ? ` · ${formatDistance(derivedMetres, "m", 2)}` : ""
+                  }`}
+                />
               )}
             </>
           )}
@@ -311,6 +322,7 @@ export function SwimmingForm({
                   value={activeMinutes}
                   onChange={(event) => setActiveMinutes(event.target.value)}
                   placeholder="—"
+                  className={TIME_INPUT_CLASS}
                 />
               </Field>
               <Field label="Seconds">
@@ -320,14 +332,17 @@ export function SwimmingForm({
                   value={activeSeconds}
                   onChange={(event) => setActiveSeconds(event.target.value)}
                   placeholder="—"
+                  className={TIME_INPUT_CLASS}
                 />
               </Field>
             </div>
           </Field>
           {pace !== null && (
-            <p role="status" className="text-sm text-ink-muted tabular-nums">
-              {formatPaceSeconds(pace, 1)} per 100 {paceUnit}
-            </p>
+            <Readout
+              label="Pace"
+              value={formatPaceSeconds(pace, 1)}
+              unit={`per 100 ${paceUnit}`}
+            />
           )}
           <Field label="Stroke" error={state.fieldErrors?.stroke}>
             <Select name="stroke" defaultValue={values("stroke") || "unspecified"}>
@@ -344,6 +359,7 @@ export function SwimmingForm({
               inputMode="numeric"
               defaultValue={values("strokeCount")}
               placeholder="—"
+              className={MEASURE_INPUT_CLASS}
             />
           </Field>
           <HeartRateFields values={values} errors={state.fieldErrors} />
@@ -352,7 +368,7 @@ export function SwimmingForm({
 
       <NotesFields values={values} errors={state.fieldErrors} />
 
-      <div className="space-y-2">
+      <div className="space-y-3">
         <LargeEntryConfirmation message={state.formError} />
         <FormError message={state.formError} />
         <SubmitButton pendingLabel="Saving…">{submitLabel}</SubmitButton>

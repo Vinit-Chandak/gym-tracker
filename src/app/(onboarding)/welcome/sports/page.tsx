@@ -1,16 +1,15 @@
 import type { Metadata } from "next";
 
-import { SportChoice } from "@/components/activities/sport-choice";
 import { PageContent } from "@/components/shell/page-content";
 import { Card } from "@/components/ui/card";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { ACTIVITY_SPORTS } from "@/domain/activity";
-import { chooseSportsAction } from "@/server/actions/sport-preferences";
 import { requireUser } from "@/server/auth";
 import { enabledSportsFor } from "@/server/repositories/sport-preferences";
 
-import { Steps } from "../steps";
+import { StepHeader, Steps } from "../steps";
+import { SportsStepForm } from "./sports-step-form";
 
 export const metadata: Metadata = { title: "Your sports" };
 
@@ -28,23 +27,24 @@ export default async function SportsStepPage() {
   });
 
   return (
-    <PageContent>
-      <Steps current="sports" />
-      <Card>
-        <div>
-          <h1 className="text-xl font-medium">What do you train?</h1>
-          <p className="text-sm text-ink-muted">
-            Pick everything that applies. You can change this whenever you like.
-          </p>
-        </div>
-        <SportChoice
-          action={chooseSportsAction}
-          sports={ACTIVITY_SPORTS}
-          enabled={enabled}
-          submitLabel="Continue"
-          note="Only lifting needs a gym set up. The rest you can start logging straight away."
-        />
-      </Card>
-    </PageContent>
+    <>
+      <StepHeader current="sports" />
+      <PageContent>
+        <Steps current="sports" />
+        <Card>
+          <div>
+            <h2 className="text-2xl">What do you train?</h2>
+            <p className="mt-1 text-ink-muted">
+              Pick everything that applies. You can change this whenever you like.
+            </p>
+          </div>
+          <SportsStepForm
+            sports={ACTIVITY_SPORTS}
+            enabled={enabled}
+            note="Only lifting needs a gym set up. The rest you can start logging straight away."
+          />
+        </Card>
+      </PageContent>
+    </>
   );
 }

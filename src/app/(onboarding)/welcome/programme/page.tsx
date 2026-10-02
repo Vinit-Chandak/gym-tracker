@@ -4,44 +4,51 @@ import { SavedProgrammeWork } from "@/components/coaching/saved-work";
 
 import { ProgramTemplatePicker } from "@/components/program-template-picker";
 import { PageContent } from "@/components/shell/page-content";
-import { Card } from "@/components/ui/card";
+import { Disclosure } from "@/components/ui/disclosure";
 import { PROGRAM_TEMPLATES } from "@/db/seed/data/templates";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { requireProfiledUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 
 import { FinishSetupLink } from "../skip-link";
-import { Steps } from "../steps";
+import { StepHeader, Steps } from "../steps";
 
 export const metadata: Metadata = { title: "Choose a programme" };
 
+/**
+ * The last step: the ways to get a programme, and the ways to go without one. The template
+ * picker, whose own Start button would be a second highlighter beside "Create with the
+ * coach", folds away behind its heading until the athlete asks for it.
+ */
 export default async function WelcomeProgrammePage() {
   const user = await requireProfiledUser();
   // The cached read: it writes only for a missing profile, where this used to lock every visit.
   const profile = await getRequestProfile(user.id, user.email, user.displayName);
 
   return (
-    <PageContent>
-      <Steps current="programme" />
-      <h1 className="text-xl font-medium">Choose a programme</h1>
-      <SavedProgrammeWork onboarding />
-      <ProgrammeOptions onboarding />
-      <Card>
-        <h2 className="text-lg font-medium">Or start with a suggested template</h2>
-        <ProgramTemplatePicker
-          templates={PROGRAM_TEMPLATES.map((template) => ({
-            slug: template.slug,
-            name: template.name,
-            summary: template.summary,
-            highlights: template.highlights,
-            weeks: template.blueprint.weeks,
-          }))}
-          today={todayInTimeZone(profile.timeZone)}
-          submitLabel="Start training"
-          finishOnboarding
-        />
-      </Card>
-      <FinishSetupLink label="I'll train without a programme" />
-    </PageContent>
+    <>
+      <StepHeader current="programme" />
+      <PageContent>
+        <Steps current="programme" />
+        <h2 className="text-2xl">Choose a programme</h2>
+        <SavedProgrammeWork onboarding />
+        <ProgrammeOptions onboarding />
+        <Disclosure summary="Or start with a suggested template">
+          <ProgramTemplatePicker
+            templates={PROGRAM_TEMPLATES.map((template) => ({
+              slug: template.slug,
+              name: template.name,
+              summary: template.summary,
+              highlights: template.highlights,
+              weeks: template.blueprint.weeks,
+            }))}
+            today={todayInTimeZone(profile.timeZone)}
+            submitLabel="Start training"
+            finishOnboarding
+          />
+        </Disclosure>
+        <FinishSetupLink label="I'll train without a programme" />
+      </PageContent>
+    </>
   );
 }

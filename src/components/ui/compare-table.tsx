@@ -1,3 +1,5 @@
+import { ArrowDown, ArrowUp } from "@/components/ui/icons";
+
 import { compareValues, type Comparison } from "@/domain/compare";
 import { cn } from "@/lib/utils";
 
@@ -28,13 +30,14 @@ export function percentLabel(comparison: Comparison): string {
 }
 
 /**
- * Several numbers head to head (plan §3.10–3.11): a table with the two people across the top
- * — "You" first, as on the header card, each marked with the colour the radar and the trend
- * chart give them — and one row per metric, the values side by side and the difference
- * under the metric's name as a percentage from the viewer's side, with an arrow: success
- * when ahead, muted when behind. The leading value is the heavier one; a side with nothing
- * reads muted and the percentage "—". A real table, so a screen reader hears whose number
- * each is; server-renderable, so a page of these costs no JavaScript.
+ * Several numbers head to head (plan §3.10–3.11): a ruled table with the two people across
+ * the top — "You" first, as on the header card, each marked with the square of the colour the
+ * radar and the trend chart give them — and one row per metric, the values side by side in
+ * the data voice and the difference under the metric's name as a percentage from the
+ * viewer's side, with an arrow: success when ahead, muted when behind. The leading value is
+ * the heavier one; a side with nothing reads muted and the percentage "—". A real table, so
+ * a screen reader hears whose number each is; server-renderable, so a page of these costs
+ * no JavaScript.
  */
 export function CompareTable({
   names,
@@ -73,12 +76,12 @@ export function CompareTable({
                 <span className="block font-medium">{row.label}</span>
                 <span
                   className={cn(
-                    "block text-xs tabular-nums",
+                    "flex items-center gap-0.5 font-data text-xs font-medium tabular-nums",
                     ahead ? "text-success" : "text-ink-muted",
                   )}
                 >
-                  {ahead && <span aria-hidden>↑ </span>}
-                  {behind && <span aria-hidden>↓ </span>}
+                  {ahead && <ArrowUp className="!size-3 shrink-0" aria-hidden />}
+                  {behind && <ArrowDown className="!size-3 shrink-0" aria-hidden />}
                   <span className="sr-only">
                     {ahead ? "You lead " : behind ? "They lead " : ""}
                   </span>
@@ -103,7 +106,7 @@ function Who({ name, title, color }: { name: string; title?: string; color: stri
       className="pb-2 pl-2 text-right font-medium [overflow-wrap:anywhere]"
     >
       <span
-        className="mr-1.5 inline-block size-2 rounded-full align-middle"
+        className="mr-1.5 inline-block size-2 align-middle"
         style={{ background: color }}
         aria-hidden
       />
@@ -117,7 +120,7 @@ function Value({ side, leads }: { side: CompareSide; leads: boolean }) {
     <td className="py-3 pl-2 text-right align-top leading-tight tabular-nums">
       <span
         className={cn(
-          "block",
+          "block font-data text-base",
           leads ? "font-semibold" : side.value ? "font-medium" : "text-ink-muted",
         )}
       >

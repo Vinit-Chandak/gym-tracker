@@ -5,7 +5,8 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import type { Effort } from "@/domain/activity";
 import { formatDuration, formatPace } from "@/domain/pace";
-import { formatDateRange, formatDateTime, formatRunKm } from "@/lib/format";
+import { todayInTimeZone } from "@/domain/program-calendar";
+import { formatDateRange, formatRunKm, formatTime } from "@/lib/format";
 import { originQuery } from "@/lib/nav";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
@@ -82,8 +83,10 @@ export default async function HistoryPage(props: PageProps<"/progress/history">)
       id: w.id,
       kind: "workout" as const,
       date: w.startedAt.toISOString(),
+      day: todayInTimeZone(profile.timeZone, w.startedAt),
       title: w.dayName ?? "Ad hoc session",
-      subtitle: `${formatDateTime(w.startedAt, profile.timeZone)} · ${w.gymName}`,
+      // The day is the label the row sits under; the row itself says the time and the gym.
+      subtitle: `${formatTime(w.startedAt, profile.timeZone)} · ${w.gymName}`,
       // Opened from here, the entry keeps Progress selected rather than the tab it lives under,
       // and goes back to History.
       href: `/workouts/${w.id}${originQuery("history")}` as const,
@@ -101,8 +104,9 @@ export default async function HistoryPage(props: PageProps<"/progress/history">)
       id: r.id,
       kind: "run" as const,
       date: r.startedAt.toISOString(),
+      day: todayInTimeZone(profile.timeZone, r.startedAt),
       title: `${r.environment === "treadmill" ? "Treadmill" : "Outdoor"} · ${formatRunKm(r.distanceMeters)} km`,
-      subtitle: formatDateTime(r.startedAt, profile.timeZone),
+      subtitle: formatTime(r.startedAt, profile.timeZone),
       href: `/training/activities/${r.id}${originQuery("history")}` as const,
       meta: `${formatDuration(r.durationSeconds)} · ${formatPace(r.averagePaceSecondsPerKm)}/km`,
       gymId: r.gymId,
@@ -113,13 +117,14 @@ export default async function HistoryPage(props: PageProps<"/progress/history">)
       id: activity.id,
       kind: activity.sport as "cycling" | "swimming",
       date: activity.startedAt.toISOString(),
+      day: todayInTimeZone(profile.timeZone, activity.startedAt),
       title:
         activity.distanceMetres === null
           ? activity.sport === "cycling"
             ? "Ride"
             : "Swim"
           : `${activity.sport === "cycling" ? "Ride" : "Swim"} · ${formatRunKm(activity.distanceMetres)} km`,
-      subtitle: formatDateTime(activity.startedAt, profile.timeZone),
+      subtitle: formatTime(activity.startedAt, profile.timeZone),
       href: `/training/activities/${activity.id}${originQuery("history")}` as const,
       // An unrecorded duration says so rather than reading as zero minutes.
       meta:
@@ -134,7 +139,9 @@ export default async function HistoryPage(props: PageProps<"/progress/history">)
       id: r.id,
       kind: "recovery" as const,
       date: r.date,
-      title: `Recovery · ${r.date}`,
+      day: r.date,
+      // The date is the label the row sits under, so the row is only what was answered.
+      title: "Recovery",
       subtitle: readings([
         ["Sleep", r.sleepHours, "h"],
         ["Energy", r.energy],
@@ -162,6 +169,7 @@ export default async function HistoryPage(props: PageProps<"/progress/history">)
           items={items}
           gyms={data.gyms.map((g) => ({ id: g.id, name: g.name }))}
           truncated={data.training.truncated || data.endurance.nextCursor !== null}
+          today={todayInTimeZone(profile.timeZone)}
         />
       </PageContent>
     </>

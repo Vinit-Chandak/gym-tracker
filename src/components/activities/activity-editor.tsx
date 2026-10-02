@@ -14,6 +14,7 @@ import { originQuery, type NavOrigin } from "@/lib/nav";
 import { formValues, type FormState } from "@/server/validation/form";
 import type { SaveActivityState } from "@/server/actions/activities";
 import { Button } from "@/components/ui/button";
+import type { ActivityTarget } from "./activity-form-fields";
 import { RunningForm } from "./running-form";
 import { CyclingForm } from "./cycling-form";
 import { SwimmingForm } from "./swimming-form";
@@ -29,7 +30,7 @@ type Props = {
   origin?: NavOrigin | null;
   expectedRevision?: number;
   occurrence?: { id: string; revisionId: string; planId?: string | null } | null;
-  target?: { title: string; lines: string[] } | null;
+  target?: ActivityTarget | null;
   submitLabel: string;
 };
 
@@ -159,14 +160,18 @@ function StoredEditor(props: Props) {
     submitLabel: props.submitLabel,
   };
   return (
-    <div className="space-y-3" onChange={changed}>
+    <div className="space-y-[var(--section-gap)]" onChange={changed}>
+      {/* The draft's standing, on one rule above the form: what was kept, and the word that
+          lets it go. */}
       {notice && (
-        <div className="space-y-1">
-          <p role="status" className="text-sm text-ink-muted">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-1 rule-bottom">
+          <p role="status" className="min-w-0 text-sm text-ink-muted">
             {notice}
           </p>
           <Button
             variant="ghost"
+            size="sm"
+            className="-mr-3"
             onClick={() => {
               try {
                 clearDraft(localStorage, props.userId, current.current.draftId);

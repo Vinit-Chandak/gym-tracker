@@ -5,9 +5,10 @@ import { PageHeader } from "@/components/shell/page-header";
 import { LinkButton } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CalendarDays } from "@/components/ui/icons";
-import type { ActivitySport } from "@/domain/activity";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
 import { formatIsoDate } from "@/lib/format";
+
+import { SPORT_NOUNS } from "./sport-icons";
 
 /**
  * A scheduled session that cannot be logged again, and why.
@@ -17,13 +18,6 @@ import { formatIsoDate } from "@/lib/format";
  * has already done. It says what became of it, and offers the thing they probably wanted:
  * what they logged, or the programme the cancelled session came from.
  */
-const SPORT_NOUNS: Record<ActivitySport, string> = {
-  strength: "session",
-  running: "run",
-  cycling: "ride",
-  swimming: "swim",
-};
-
 export function OccurrenceSettled({ occurrence }: { occurrence: ScheduledOccurrence }) {
   const noun = SPORT_NOUNS[occurrence.sport];
   const when = formatIsoDate(occurrence.scheduledOn);
@@ -57,9 +51,7 @@ export function OccurrenceSettled({ occurrence }: { occurrence: ScheduledOccurre
           title={settled.title}
           description={settled.description}
           action={
-            <LinkButton href={settled.href} variant="secondary">
-              {settled.label}
-            </LinkButton>
+            <LinkButton href={settled.href}>{settled.label}</LinkButton>
           }
         />
       </PageContent>

@@ -78,7 +78,11 @@ export function ScheduleForm({
                 required
               />
             </Field>
-            <Field label="Time" hint="Optional" error={state.fieldErrors?.scheduledLocalTime}>
+            <Field
+              label="Time"
+              hint="Optional. A time orders the day’s cards. Nothing starts recording."
+              error={state.fieldErrors?.scheduledLocalTime}
+            >
               <Input
                 name="scheduledLocalTime"
                 type="time"
@@ -86,9 +90,6 @@ export function ScheduleForm({
               />
             </Field>
           </div>
-          <p className="text-sm text-ink-muted">
-            A time orders the day&rsquo;s cards. Nothing starts recording.
-          </p>
         </Card>
       </Section>
 
@@ -110,7 +111,9 @@ export function ScheduleForm({
           </Field>
           {/* The revision, not the template: what is scheduled is what the template says now. */}
           <input type="hidden" name="templateRevisionId" value={template?.revisionId ?? ""} />
-          {template && <p className="text-sm text-ink-muted">Copies {template.summary}.</p>}
+          {template && (
+            <p className="text-sm text-ink-muted tabular-nums">Copies {template.summary}.</p>
+          )}
         </Card>
       </Section>
 

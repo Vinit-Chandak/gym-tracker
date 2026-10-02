@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
 import { signInAction, type SignInState } from "@/server/actions/auth";
 
+import { AUTH_FORM_LINK } from "../auth-link";
+
 const INITIAL: SignInState = {};
 
 export function LoginForm({ next }: { next?: string }) {
@@ -38,10 +40,7 @@ export function LoginForm({ next }: { next?: string }) {
       <Button type="submit" size="lg" className="w-full" disabled={pending}>
         {pending ? "Signing in…" : "Sign in"}
       </Button>
-      <Link
-        href="/forgot-password"
-        className="flex min-h-11 items-center justify-center text-sm text-ink-muted underline-offset-4 hover:underline"
-      >
+      <Link href="/forgot-password" className={AUTH_FORM_LINK}>
         Forgot your password?
       </Link>
     </form>

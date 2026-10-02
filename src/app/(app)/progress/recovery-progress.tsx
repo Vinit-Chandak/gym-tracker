@@ -3,6 +3,7 @@
 import Link from "@/components/ui/app-link";
 import { Card } from "@/components/ui/card";
 import { Chart, SERIES_COLORS } from "@/components/ui/chart";
+import { InfoTip } from "@/components/ui/info-tip";
 import type { RecoveryReading } from "@/domain/recovery";
 import { formatIsoDay } from "@/lib/format";
 
@@ -19,6 +20,12 @@ export const RECOVERY_METRICS = [
 type RecoveryMetric = (typeof RECOVERY_METRICS)[number]["value"];
 const format = (value: number) => String(Math.round(value * 100) / 100);
 
+/**
+ * The check-in readings over the range: one chart, with the measure chosen from a row of
+ * four cells that each carry their latest reading in the data voice, the chosen one under the
+ * highlighter. Blank answers leave gaps in the line; every reading is in the table beneath
+ * it, and the last three are listed with the workout each came from.
+ */
 export function RecoveryProgress({
   readings,
   selected,
@@ -41,7 +48,7 @@ export function RecoveryProgress({
   if (readings.length === 0)
     return (
       <Card>
-        <h2 className="text-lg font-medium">No check-ins in this range</h2>
+        <h2 className="text-lg">No check-ins in this range</h2>
         <p className="text-sm text-ink-muted">
           Sleep, fatigue and soreness appear here when you save a workout check-in, even before you
           finish the workout. Blank answers stay blank.
@@ -49,7 +56,7 @@ export function RecoveryProgress({
         <p className="text-sm text-ink-muted">
           Try a wider date range, or add a check-in from your current workout.
         </p>
-        <Link href="/today" className="inline-flex min-h-11 items-center font-medium text-accent">
+        <Link href="/today" className="inline-flex min-h-11 items-center font-medium text-pen">
           Go to Today
         </Link>
       </Card>
@@ -58,69 +65,79 @@ export function RecoveryProgress({
   return (
     <>
       <div>
-        <p className="text-sm text-ink-muted">
-          {readings.length} {readings.length === 1 ? "check-in" : "check-ins"} in this range
-        </p>
-        <p className="mt-1 text-xs text-ink-subtle">Latest readings · select a measure</p>
-      </div>
-      <div
-        role="radiogroup"
-        aria-label="Recovery measurement"
-        className="grid grid-cols-2 gap-2 sm:grid-cols-4"
-      >
-        {RECOVERY_METRICS.map((item) => {
-          const recent = readings.findLast((reading) => reading[item.value] !== null);
-          return (
-            <label key={item.value} className="relative min-w-0">
-              <input
-                type="radio"
-                name="recovery-metric"
-                value={item.value}
-                aria-label={item.label}
-                checked={metric.value === item.value}
-                onChange={() => onSelect(item.value)}
-                className="peer sr-only"
-              />
-              <span className="flex h-full min-h-20 cursor-pointer flex-col gap-1 rounded-control border border-line-strong bg-surface px-3 py-2 peer-checked:border-accent peer-checked:bg-accent-soft peer-focus-visible:ring-2 peer-focus-visible:ring-focus">
-                <span className="text-sm font-medium">{item.label}</span>
-                <span className="text-lg tabular-nums">
-                  {recent ? format(recent[item.value]!) : "—"}
-                  <span className="ml-1 text-xs text-ink-muted">
-                    {recent ? item.unit : "Not logged"}
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 pb-2">
+          <p className="text-xs font-semibold tracking-[0.08em] text-ink-muted uppercase">
+            Latest readings · select a measure
+          </p>
+          <p className="font-data text-sm font-medium text-ink-muted tabular-nums">
+            {readings.length} {readings.length === 1 ? "check-in" : "check-ins"} in this range
+          </p>
+        </div>
+        {/* The measure picker: four cells on one track, like a segmented control, each
+            showing its latest reading; the chosen one takes the highlighter. */}
+        <div
+          role="radiogroup"
+          aria-label="Recovery measurement"
+          className="grid grid-cols-2 gap-1 rounded-control border border-line bg-surface-raised p-1 sm:grid-cols-4"
+        >
+          {RECOVERY_METRICS.map((item) => {
+            const recent = readings.findLast((reading) => reading[item.value] !== null);
+            return (
+              <label key={item.value} className="relative min-w-0">
+                <input
+                  type="radio"
+                  name="recovery-metric"
+                  value={item.value}
+                  aria-label={item.label}
+                  checked={metric.value === item.value}
+                  onChange={() => onSelect(item.value)}
+                  className="peer sr-only"
+                />
+                <span className="flex h-full min-h-16 cursor-pointer flex-col justify-between gap-1 rounded-control px-2.5 py-2 text-ink-muted transition-colors duration-[var(--ov-duration-feedback)] select-none peer-checked:bg-highlight peer-checked:text-on-highlight peer-focus-visible:ring-2 peer-focus-visible:ring-focus">
+                  <span className="text-xs leading-tight font-medium">{item.label}</span>
+                  <span className="measure text-xl">
+                    {recent ? format(recent[item.value]!) : "—"}
+                    <span className="ml-1 font-sans text-xs font-normal">
+                      {recent ? item.unit : "Not logged"}
+                    </span>
                   </span>
                 </span>
-              </span>
-            </label>
-          );
-        })}
+              </label>
+            );
+          })}
+        </div>
       </div>
+
       <Card>
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-lg font-medium">{metric.label}</h2>
-          <span className="text-xs text-ink-muted">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+          <h2 className="flex items-center gap-1 text-lg">
+            {metric.label}
+            <InfoTip label={`About ${metric.label.toLowerCase()}`} className="-my-1.5">
+              Each point is one saved check-in, including open workouts. Blank answers leave gaps;
+              multiple check-ins on one day stay separate.
+            </InfoTip>
+          </h2>
+          <span className="font-data text-sm font-medium text-ink-muted tabular-nums">
             {known.length} {known.length === 1 ? "reading" : "readings"}
           </span>
         </div>
         <p className="text-sm text-ink-muted">{metric.hint}</p>
         {latest && average !== null ? (
           <>
-            <dl
-              aria-label={`${metric.label} summary`}
-              className="grid grid-cols-2 gap-3 border-b border-line pb-3"
-            >
-              <div>
-                <dt className="text-xs text-ink-muted">Latest</dt>
-                <dd className="mt-1 text-2xl font-medium tabular-nums">
+            <dl aria-label={`${metric.label} summary`} className="grid grid-cols-2 gap-x-4 gap-y-3">
+              <div className="min-w-0">
+                <dt className="text-xs leading-tight text-ink-muted">Latest</dt>
+                <dd className="mt-1.5 measure text-2xl">
                   {format(latest[metric.value]!)}{" "}
-                  <span className="text-sm font-normal text-ink-muted">{metric.unit}</span>
+                  <span className="font-sans text-sm font-normal text-ink-muted">{metric.unit}</span>
                 </dd>
                 <dd className="mt-1 text-xs text-ink-subtle">{formatIsoDay(latest.date)}</dd>
               </div>
-              <div>
-                <dt className="text-xs text-ink-muted">Range average</dt>
-                <dd className="mt-1 text-2xl font-medium tabular-nums">
+              <div className="min-w-0">
+                <dt className="text-xs leading-tight text-ink-muted">Range average</dt>
+                <dd className="mt-1.5 measure text-2xl">
                   {format(average)}{" "}
-                  <span className="text-sm font-normal text-ink-muted">{metric.unit}</span>
+                  <span className="font-sans text-sm font-normal text-ink-muted">{metric.unit}</span>
                 </dd>
                 <dd className="mt-1 text-xs text-ink-subtle">From recorded answers only</dd>
               </div>
@@ -142,7 +159,6 @@ export function RecoveryProgress({
                   })),
                 },
               ]}
-              note="Each point is one saved check-in, including open workouts. Blank answers leave gaps; multiple check-ins on one day stay separate."
             />
           </>
         ) : (
@@ -152,22 +168,25 @@ export function RecoveryProgress({
           </p>
         )}
       </Card>
-      <Card>
-        <h2 className="font-medium">Recent check-ins</h2>
-        <ul className="divide-y divide-line">
+
+      <section className="min-w-0">
+        <h2 className="pb-2 text-xs font-semibold tracking-[0.08em] text-ink-muted uppercase">
+          Recent check-ins
+        </h2>
+        <ul className="box-rows">
           {readings
             .slice(-3)
             .reverse()
             .map((reading) => (
               <li
                 key={`${reading.source}:${reading.id}`}
-                className="flex min-h-16 items-center justify-between gap-3 py-2"
+                className="flex min-h-14 items-center justify-between gap-3 py-2"
               >
                 <div className="min-w-0">
                   {reading.sessionId ? (
                     <Link
                       href={`/workouts/${reading.sessionId}`}
-                      className="inline-flex min-h-11 items-center font-medium text-accent"
+                      className="inline-flex min-h-11 items-center font-medium text-pen"
                     >
                       {formatIsoDay(reading.date)}
                     </Link>
@@ -178,8 +197,10 @@ export function RecoveryProgress({
                     {reading.source === "workout" ? "Workout check-in" : "Daily recovery"}
                   </p>
                 </div>
-                <p className="shrink-0 text-right text-sm tabular-nums">
-                  <span className="block text-xs text-ink-muted">{metric.label}</span>
+                <p className="shrink-0 text-right font-data text-base font-semibold tabular-nums">
+                  <span className="block font-sans text-xs font-normal text-ink-muted">
+                    {metric.label}
+                  </span>
                   {reading[metric.value] === null
                     ? "Not logged"
                     : `${format(reading[metric.value]!)} ${metric.unit}`}
@@ -187,7 +208,7 @@ export function RecoveryProgress({
               </li>
             ))}
         </ul>
-      </Card>
+      </section>
     </>
   );
 }

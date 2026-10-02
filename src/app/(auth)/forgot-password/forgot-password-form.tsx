@@ -1,9 +1,9 @@
 "use client";
 
-import { MailCheck } from "@/components/ui/icons";
 import { useActionState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { MailCheck } from "@/components/ui/icons";
 import { Field, Input } from "@/components/ui/input";
 import { requestPasswordResetAction, type PasswordResetState } from "@/server/actions/auth";
 

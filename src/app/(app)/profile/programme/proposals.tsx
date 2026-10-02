@@ -2,9 +2,9 @@
 
 import { useState, useTransition } from "react";
 
+import { CoachLine } from "@/components/coaching/sheet-bits";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { applyProposalAction, rejectProposalAction } from "@/server/actions/coach";
 import { attempted } from "@/lib/offline-submit";
 
@@ -22,6 +22,8 @@ export type ProposalCard = {
  *
  * Approving writes the next version of the programme: the same sequence, the same position,
  * with this change in it. Everything already logged keeps the prescription it was given.
+ * The coach's own words are in pen; the two answers are ruled and plain, because the one
+ * highlighter on the Changes tab belongs to no single proposal.
  */
 function Proposal({ proposal }: { proposal: ProposalCard }) {
   const [pending, startTransition] = useTransition();
@@ -48,9 +50,9 @@ function Proposal({ proposal }: { proposal: ProposalCard }) {
   };
 
   return (
-    <Card>
+    <li className="space-y-3 py-4">
       <div className="flex items-start justify-between gap-3">
-        <p className="min-w-0 font-medium [overflow-wrap:anywhere]">{proposal.summary}</p>
+        <p className="min-w-0 text-lg font-semibold [overflow-wrap:anywhere]">{proposal.summary}</p>
         {proposal.fromCoach && <Badge tone="accent">Coach</Badge>}
       </div>
       <ul className="space-y-1.5">
@@ -60,39 +62,35 @@ function Proposal({ proposal }: { proposal: ProposalCard }) {
           </li>
         ))}
       </ul>
-      {proposal.rationale && (
-        <p className="text-sm [overflow-wrap:anywhere] whitespace-pre-line">{proposal.rationale}</p>
-      )}
-      <p className="text-xs text-ink-muted tabular-nums">{proposal.createdAt}</p>
+      {proposal.rationale && <CoachLine>{proposal.rationale}</CoachLine>}
+      <p className="font-data text-sm text-ink-muted tabular-nums">{proposal.createdAt}</p>
       {error && (
         <p role="alert" className="text-sm text-danger">
           {error}
         </p>
       )}
       <div className="action-row">
+        <Button variant="ghost" className="w-full" disabled={pending} onClick={() => act("reject")}>
+          {pending && operation === "reject" ? "Dismissing…" : "No thanks"}
+        </Button>
         <Button
           variant="secondary"
           className="w-full"
           disabled={pending}
-          onClick={() => act("reject")}
+          onClick={() => act("apply")}
         >
-          {pending && operation === "reject" ? "Dismissing…" : "No thanks"}
-        </Button>
-        <Button className="w-full" disabled={pending} onClick={() => act("apply")}>
           {pending && operation === "apply" ? "Applying…" : "Apply"}
         </Button>
       </div>
-    </Card>
+    </li>
   );
 }
 
 export function Proposals({ proposals }: { proposals: ProposalCard[] }) {
   return (
-    <ul className="space-y-3">
+    <ul className="box-rows">
       {proposals.map((proposal) => (
-        <li key={proposal.id}>
-          <Proposal proposal={proposal} />
-        </li>
+        <Proposal key={proposal.id} proposal={proposal} />
       ))}
     </ul>
   );

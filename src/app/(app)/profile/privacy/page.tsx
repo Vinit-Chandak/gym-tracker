@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { Card } from "@/components/ui/card";
+import { Section } from "@/components/ui/section";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { requireUser } from "@/server/auth";
@@ -31,6 +32,21 @@ const NEVER = [
   "Your email address, height, date of birth, sex and training goal.",
 ];
 
+/** One list of the promise, ruled line by line. */
+function Promise({ lines }: { lines: readonly string[] }) {
+  return (
+    <Card className="space-y-0 py-0">
+      <ul className="ruled-list">
+        {lines.map((line) => (
+          <li key={line} className="py-2.5 text-sm [overflow-wrap:anywhere]">
+            {line}
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
 /**
  * Privacy (plan §3.7): the promise in plain words above the switches that keep it, because a
  * privacy screen that does not say what it protects is decoration.
@@ -46,24 +62,13 @@ export default async function PrivacyPage() {
     <>
       <PageHeader title="Privacy" backHref="/profile" />
       <PageContent>
-        <Card>
-          <div>
-            <h2 className="font-medium">What a follower can see</h2>
-            <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-ink-muted">
-              {VISIBLE.map((line) => (
-                <li key={line}>{line}</li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <h2 className="font-medium">What nobody can see</h2>
-            <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-ink-muted">
-              {NEVER.map((line) => (
-                <li key={line}>{line}</li>
-              ))}
-            </ul>
-          </div>
-        </Card>
+        {/* The promise first, as two ruled lists, then the switches that keep it. */}
+        <Section title="What a follower can see">
+          <Promise lines={VISIBLE} />
+        </Section>
+        <Section title="What nobody can see">
+          <Promise lines={NEVER} />
+        </Section>
         <PrivacySwitches
           values={{
             followApproval: profile.followApproval,

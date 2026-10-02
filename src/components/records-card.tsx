@@ -11,9 +11,10 @@ import type {
 } from "@/server/repositories/shared-stats";
 
 /**
- * The records a finished workout set (plan §3.13): one line per record, "Barbell bench press
- * · Est. 1RM 88 kg (was 85 kg)", in the reader's unit. On the workout's page, so it is there
- * whenever the workout is reopened and not only in the moment.
+ * The records a finished workout set (plan §3.13): one ruled row per record, "Barbell bench
+ * press · Est. 1RM 88 kg (was 85 kg)", the numbers in the data voice and in the reader's
+ * unit. On the workout's page, so it is there whenever the workout is reopened and not only
+ * in the moment.
  */
 export function SessionRecordsCard({
   records,
@@ -25,10 +26,8 @@ export function SessionRecordsCard({
   if (records.length === 0) return null;
   return (
     <Card>
-      <h2 className="text-base font-medium">
-        {records.length === 1 ? "1 record" : `${records.length} records`}
-      </h2>
-      <ul className="divide-y divide-line text-sm">
+      <h2 className="text-lg">{records.length === 1 ? "1 record" : `${records.length} records`}</h2>
+      <ul className="min-w-0 text-sm ruled-list">
         {records.map((record) => (
           <li
             key={`${record.exerciseId}:${record.metric}`}
@@ -36,13 +35,13 @@ export function SessionRecordsCard({
           >
             <Link
               href={`/exercises/${record.exerciseId}`}
-              className="min-w-0 font-medium [overflow-wrap:anywhere] underline-offset-2 hover:underline"
+              className="min-w-0 font-medium [overflow-wrap:anywhere] text-pen underline-offset-2 hover:underline"
             >
               {record.exercise.name}
             </Link>
-            <span className="text-ink-muted tabular-nums">
+            <span className="font-data text-ink-muted tabular-nums">
               {metricLabel(record.metric, record.exercise)}{" "}
-              <span className="text-ink">
+              <span className="font-semibold text-ink">
                 {formatSharedMetric(record.metric, record.value, unit)}
               </span>{" "}
               (was {formatSharedMetric(record.metric, record.previous, unit)})
@@ -71,7 +70,7 @@ export function ExerciseBestsTiles({
   if (bests.length === 0) return null;
   return (
     <Card>
-      <h2 className="text-base font-medium">Your records</h2>
+      <h2 className="text-lg">Your records</h2>
       <StatTileRow>
         {bests.map((best) => (
           <StatTile
@@ -80,7 +79,7 @@ export function ExerciseBestsTiles({
             value={
               <>
                 {formatSharedMetric(best.metric, best.value, unit)}
-                <span className="mt-0.5 block text-xs font-normal text-ink-muted">
+                <span className="mt-1 block font-sans text-xs leading-tight font-normal text-ink-muted">
                   {best.work ? `${formatTopWeightWork(best.work)} · ` : ""}
                   {formatIsoDay(best.occurredOn)}
                 </span>
@@ -96,7 +95,7 @@ export function ExerciseBestsTiles({
 /**
  * A person's Records for a period (plan §3.13): the best lifts by estimated 1RM, then the
  * other movements by what they are measured in. The same list on your own page as on a
- * friend's, in the reader's unit.
+ * friend's, in the reader's unit, the value in the data voice at the end of the row.
  */
 export function PeriodRecordsList({
   records,
@@ -106,7 +105,7 @@ export function PeriodRecordsList({
   unit: BodyLoadUnit;
 }) {
   return (
-    <ul className="divide-y divide-line text-sm">
+    <ul className="min-w-0 text-sm ruled-list">
       {records.map((record) => (
         <li
           key={record.exercise.id}
@@ -120,7 +119,7 @@ export function PeriodRecordsList({
               {metricLabel(record.metric, record.exercise)} · {formatIsoDay(record.occurredOn)}
             </span>
           </span>
-          <span className="font-medium tabular-nums">
+          <span className="font-data text-base font-semibold tabular-nums">
             {formatSharedMetric(record.metric, record.value, unit)}
           </span>
         </li>

@@ -1,19 +1,24 @@
 import type { Metadata } from "next";
 
+import { OccurrenceRow } from "@/components/activities/occurrence-row";
+import { SPORT_ICONS, sportNoun } from "@/components/activities/sport-icons";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { LinkButton } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { CalendarDays, ClipboardList, Repeat } from "@/components/ui/icons";
+import { LinkRow, List } from "@/components/ui/link-row";
 import { Section } from "@/components/ui/section";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
-import { ACTIVITY_SPORT_LABELS, ENDURANCE_SPORTS } from "@/domain/activity";
+import { ENDURANCE_SPORTS } from "@/domain/activity";
 import { todayInTimeZone } from "@/domain/program-calendar";
+import { formatDateTime, formatRelativeDay } from "@/lib/format";
 import { requireUser } from "@/server/auth";
 import { getActiveSession } from "@/server/queries/active-session";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { countActiveTemplates } from "@/server/repositories/activity-templates";
-import { countUpcomingStandalone } from "@/server/repositories/occurrences";
+import { standaloneSchedule } from "@/server/repositories/occurrences";
+import { getActiveProgram } from "@/server/repositories/schedule";
 import { enabledSportsFor } from "@/server/repositories/sport-preferences";
 
 export const metadata: Metadata = { title: "Training" };
@@ -25,12 +30,16 @@ export const metadata: Metadata = { title: "Training" };
  */
 export const unstable_dynamicStaleTime = 60;
 
+/** How many of the sessions still owed are listed on the tab itself; the rest are one tap away. */
+const UP_NEXT = 3;
+
 /**
- * Where training is entered and managed (plan §2.3).
+ * Where training is entered and managed (plan §2.3): the week's other work.
  *
- * Not a second history and not a second Today. This is where you come to log something,
- * schedule something, open the programme or pick up work you left unfinished. What actually
- * happened lives in History; what is scheduled for today lives on Today.
+ * Not a second history and not a second Today. The sessions you put on the calendar yourself
+ * open the page, because they are what is owed next; then the ways to log or schedule; then
+ * the lists behind them. What actually happened lives in History; what is scheduled for
+ * today lives on Today.
  */
 export default async function TrainingPage() {
   const user = await requireUser();
@@ -43,7 +52,8 @@ export default async function TrainingPage() {
       user.id,
       async (tx) => ({
         templateCount: await countActiveTemplates(tx, user.id),
-        upcoming: await countUpcomingStandalone(tx, user.id, today),
+        schedule: await standaloneSchedule(tx, user.id, today),
+        programme: await getActiveProgram(tx, user.id),
         // The sports this account actually trains are offered first, as the chooser did.
         preferred: await enabledSportsFor(tx, user.id),
       }),
@@ -55,8 +65,14 @@ export default async function TrainingPage() {
   );
   // Work still owed rather than rows on the calendar, so a session scheduled for today and then
   // logged stops being counted the moment it is logged. Days gone by are not counted: the list
-  // keeps only what was logged on them.
-  const upcoming = data.upcoming;
+  // keeps only what was logged on them. One-off work only: the programme's own sessions have
+  // their own row below, and counting them here would say "0 upcoming" to somebody whose Today
+  // screen is showing them a run to do.
+  const owed = data.schedule.upcoming.filter(
+    (occurrence) =>
+      occurrence.disposition === "pending" && occurrence.resolution.kind === "incomplete",
+  );
+  const upcoming = owed.length;
 
   return (
     <>
@@ -64,71 +80,88 @@ export default async function TrainingPage() {
       <PageContent>
         {inProgress && (
           <Section title="Unfinished">
-            <Card>
-              <p className="text-sm text-ink-muted">
-                A lifting session is still open. It stays here until you finish or discard it.
+            {/* The session in progress stands off the page: it is the one thing here that is
+                already under way. */}
+            <section className="panel space-y-3 p-4">
+              <h2 className="text-lg font-semibold">A lifting session is still open</h2>
+              <p className="text-sm text-ink-muted tabular-nums">
+                {inProgress.gymName} · {formatDateTime(inProgress.startedAt, profile.timeZone)}.
+                It stays here until you finish or discard it.
               </p>
-              <LinkButton
-                href={`/workouts/${inProgress.id}`}
-                variant="secondary"
-                className="w-full"
-              >
+              <LinkButton href={`/workouts/${inProgress.id}`} size="lg" className="w-full">
                 Resume the session
               </LinkButton>
-            </Card>
+            </section>
+          </Section>
+        )}
+
+        {/* What is owed next, before the ways to add to it. */}
+        {owed.length > 0 && (
+          <Section title="Up next">
+            <ul className="box-rows">
+              {owed.slice(0, UP_NEXT).map((occurrence) => (
+                <OccurrenceRow
+                  key={occurrence.id}
+                  occurrence={occurrence}
+                  when={formatRelativeDay(occurrence.scheduledOn, today)}
+                />
+              ))}
+            </ul>
           </Section>
         )}
 
         {/* The sport is the first thing logging needs, so it is asked once, here. A filter
             above and a chooser on the next screen were the same question in two places. */}
-        <Section title="Log or schedule">
-          <Card>
-            <div className="action-row">
-              {ordered.map((sport) => (
-                <LinkButton key={sport} href={`/training/new?sport=${sport}`} className="w-full">
-                  {ACTIVITY_SPORT_LABELS[sport]}
-                </LinkButton>
-              ))}
-            </div>
-            <p className="text-sm text-ink-muted">
-              Lifting has its own logger, started from Today or from a gym.
-            </p>
-            <LinkButton href="/training/schedule" variant="secondary" className="w-full">
-              Schedule an activity
-            </LinkButton>
-            <p className="text-sm text-ink-muted">
-              Logging something you have already done never counts against a scheduled session
-              unless you open that session and log it.
-            </p>
-          </Card>
+        <Section
+          title="Log or schedule"
+          info="Lifting has its own logger, started from Today or from a gym. Logging something you have already done never counts against a scheduled session unless you open that session and log it."
+        >
+          <List>
+            {ordered.map((sport) => (
+              <li key={sport}>
+                <LinkRow
+                  href={`/training/new?sport=${sport}`}
+                  icon={SPORT_ICONS[sport]}
+                  title={`Log a ${sportNoun(sport)}`}
+                />
+              </li>
+            ))}
+          </List>
+          <LinkButton href="/training/schedule" variant="secondary" className="w-full">
+            Schedule an activity
+          </LinkButton>
         </Section>
 
-        {/* One-off work only. The programme's own sessions have their own section below, and
-            counting them here would say "0 upcoming" to somebody whose Today screen is
-            showing them a run to do. */}
-        <Section title="Scheduled on their own">
-          <Card>
-            <p className="text-sm text-ink-muted tabular-nums">{upcoming} upcoming</p>
-            <p className="text-sm text-ink-muted">
-              Sessions you put on the calendar yourself. Your programme&apos;s own sessions are
-              under Programme.
-            </p>
-            <LinkButton href="/training/scheduled" variant="secondary" className="w-full">
-              Upcoming and earlier
-            </LinkButton>
-          </Card>
-        </Section>
-
-        <Section title="Templates">
-          <Card>
-            <p className="text-sm text-ink-muted tabular-nums">
-              {data.templateCount} saved session
-              {data.templateCount === 1 ? "" : "s"}
-            </p>
-            <LinkButton href="/training/templates" variant="secondary" className="w-full">
-              Templates
-            </LinkButton>
-          </Card>
+        <Section
+          title="Scheduled and saved"
+          info="Sessions you put on the calendar yourself. Your programme's own sessions are under Programme."
+        >
+          <List>
+            <li>
+              <LinkRow
+                href="/training/scheduled"
+                icon={CalendarDays}
+                title="Upcoming and earlier"
+                meta={`${upcoming} upcoming`}
+              />
+            </li>
+            <li>
+              <LinkRow
+                href="/training/programme"
+                icon={ClipboardList}
+                title="Programme"
+                meta={data.programme?.name ?? "No active programme"}
+              />
+            </li>
+            <li>
+              <LinkRow
+                href="/training/templates"
+                icon={Repeat}
+                title="Templates"
+                meta={`${data.templateCount} saved session${data.templateCount === 1 ? "" : "s"}`}
+              />
+            </li>
+          </List>
         </Section>
       </PageContent>
     </>

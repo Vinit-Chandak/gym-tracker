@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Scales, Trophy, UserPlus, Users } from "@/components/ui/icons";
 import { List } from "@/components/ui/link-row";
 import { Section } from "@/components/ui/section";
@@ -23,9 +24,9 @@ export const metadata: Metadata = { title: "Friends" };
 
 /**
  * Friends (ADR 0027): four one-line tiles — Leaderboard, Compare, Find people and People —
- * then recent activity, the last twenty shared sessions of the people you follow. What grows
- * with the number of people, the lists and the requests, lives behind the People tile, so
- * the activity stays on the first screen however many people there are.
+ * then recent activity, the last twenty shared sessions of the people you follow as a ruled
+ * list. What grows with the number of people, the lists and the requests, lives behind the
+ * People tile, so the activity stays on the first screen however many people there are.
  */
 export default async function FriendsPage(props: PageProps<"/profile/friends">) {
   const params = await props.searchParams;
@@ -37,7 +38,7 @@ export default async function FriendsPage(props: PageProps<"/profile/friends">) 
   const profile = await getRequestProfile(user.id, user.email);
   const unit = profile.preferredUnit === "lb" ? ("lb" as const) : ("kg" as const);
   const today = todayInTimeZone(profile.timeZone);
-  const { requests, activity } = await withUser(
+  const { requests, activity, circle } = await withUser(
     getDb(),
     user.id,
     async (tx) => {
@@ -50,7 +51,7 @@ export default async function FriendsPage(props: PageProps<"/profile/friends">) 
         tx,
         following.map((person) => person.id),
       );
-      return { requests, activity };
+      return { requests, activity, circle: following.length };
     },
     { readOnly: true },
   );
@@ -85,7 +86,7 @@ export default async function FriendsPage(props: PageProps<"/profile/friends">) 
           </li>
         </ShortcutGrid>
 
-        {activity.length > 0 && (
+        {activity.length > 0 ? (
           <Section title="Recent activity">
             <List>
               {activity.map((row) => (
@@ -95,6 +96,17 @@ export default async function FriendsPage(props: PageProps<"/profile/friends">) 
               ))}
             </List>
           </Section>
+        ) : (
+          // A blank sheet says what will be written on it, and what puts it there.
+          <EmptyState
+            icon={Users}
+            title="No activity yet"
+            description={
+              circle === 0
+                ? "Follow people from Find people, and the sessions they share appear here, newest first."
+                : "The people you follow have not shared a session yet. What they log appears here, newest first."
+            }
+          />
         )}
       </PageContent>
     </>

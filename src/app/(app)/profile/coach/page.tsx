@@ -29,7 +29,7 @@ export default async function CoachSettingsPage() {
           }))}
         />
         <Card>
-          <h2 className="flex items-center gap-1 text-base font-medium">
+          <h2 className="flex items-center gap-1 text-lg">
             Endpoints
             <InfoTip label="About the endpoints">
               Relative to this app&apos;s URL. Send the token as{" "}
@@ -37,7 +37,7 @@ export default async function CoachSettingsPage() {
               (YYYY-MM-DD) default to the last 12 weeks. Everything is read-only JSON.
             </InfoTip>
           </h2>
-          <ul className="space-y-2 font-mono text-xs break-all">
+          <ul className="ruled-list font-mono text-xs break-all">
             {[
               "/api/coach/summary",
               "/api/coach/workouts",
@@ -46,7 +46,9 @@ export default async function CoachSettingsPage() {
               "/api/coach/recovery",
               "/api/coach/program/current",
             ].map((path) => (
-              <li key={path}>GET {path}</li>
+              <li key={path} className="py-2">
+                <span className="text-ink-muted">GET</span> {path}
+              </li>
             ))}
           </ul>
         </Card>

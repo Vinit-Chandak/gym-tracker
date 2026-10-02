@@ -128,7 +128,7 @@ export default async function CompareExercisePage(
         <PageHeader title={exercise.name} meta={region} backHref={`/u/${them.username}/compare`} />
         <PageContent>
           <CompareHeader a={me} b={them} />
-          <p className="px-1 text-sm text-ink-muted">{hiddenTrainingLine(found)}</p>
+          <p className="text-sm text-ink-muted">{hiddenTrainingLine(found)}</p>
         </PageContent>
       </>
     );

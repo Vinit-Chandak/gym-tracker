@@ -4,7 +4,8 @@ import type { Metadata, Route } from "next";
 import { RequestList } from "@/components/coaching/request-list";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
-import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Check } from "@/components/ui/icons";
 import { LinkRow, List } from "@/components/ui/link-row";
 import { Section } from "@/components/ui/section";
 import { getDb } from "@/db/client";
@@ -132,9 +133,11 @@ export default async function ProgrammeHistoryPage() {
           </Section>
         )}
         {requests.length === 0 && changes.length === 0 && (
-          <Card>
-            <p className="text-sm text-ink-muted">Nothing settled yet.</p>
-          </Card>
+          <EmptyState
+            icon={Check}
+            title="Nothing settled yet."
+            description="Asks the coach has answered and changes you decided on will be listed here."
+          />
         )}
       </PageContent>
     </>

@@ -15,6 +15,7 @@ import { SportPeriodControls } from "@/components/ui/sport-period-controls";
 import { StatTile, StatTileRow } from "@/components/ui/stat-tile";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
+import { followButtonState } from "@/domain/follows";
 import { ACTIVITY_METRIC_LABELS, activityValue, type ActivityMetric } from "@/domain/leaderboard";
 import { muscleSplit, SPLIT_GROUPS } from "@/domain/muscle-split";
 import { PERIOD_LABELS } from "@/domain/period";
@@ -49,11 +50,15 @@ const TILES: Record<TrainingSport, readonly ActivityMetric[]> = {
 };
 
 /**
- * A person as others see them (plan §3.14): the header card with the follow button in place
- * of Edit, or "This is you" on your own. Below it their training, if you may see it — the
- * period's totals for the chosen sport and, for lifting, the shape of their split and their
- * records — or one line saying why not. Your own page shows exactly what a follower would
- * see, and says so: the privacy screen's promise, demonstrated.
+ * A person as others see them (plan §3.14): the identity block with the follow button in
+ * place of Edit, or "This is you" on your own. Below it their training, if you may see it —
+ * the period's totals for the chosen sport as a row of measures and, for lifting, the shape
+ * of their split and their records as ruled rows — or one line saying why not. Your own page
+ * shows exactly what a follower would see, and says so: the privacy screen's promise,
+ * demonstrated.
+ *
+ * One highlighter: while following them is still the thing to do, the follow button has it
+ * and Compare is ruled; once you follow them, Compare is the action and takes it.
  */
 export default async function PersonPage(props: PageProps<"/u/[username]">) {
   const user = await requireUser();
@@ -100,6 +105,8 @@ export default async function PersonPage(props: PageProps<"/u/[username]">) {
   if (!found) notFound();
   const { person, relation, training } = found;
   const name = person.displayName || person.username;
+  const followState_ = relation ? followButtonState(relation) : null;
+  const followingThem = followState_ === "following" || followState_ === "requested";
 
   return (
     <>
@@ -116,7 +123,7 @@ export default async function PersonPage(props: PageProps<"/u/[username]">) {
               className="[&>button]:w-full"
             />
           ) : (
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-sm text-ink-muted">This is you.</p>
               <LinkButton href="/profile/edit" variant="secondary" size="sm">
                 Edit profile
@@ -128,7 +135,7 @@ export default async function PersonPage(props: PageProps<"/u/[username]">) {
         {training ? (
           <>
             {!relation && (
-              <p className="px-1 text-sm text-ink-muted">
+              <p className="text-sm text-ink-muted">
                 This is what a follower sees of your training. Change it under Profile › Privacy.
               </p>
             )}
@@ -190,6 +197,8 @@ export default async function PersonPage(props: PageProps<"/u/[username]">) {
               // Keep the same sport and period when opening the comparison.
               <LinkButton
                 href={`/u/${person.username}/compare?sport=${sport}&period=${period}`}
+                size="lg"
+                variant={followingThem ? "primary" : "secondary"}
                 className="w-full"
               >
                 Compare
@@ -197,7 +206,7 @@ export default async function PersonPage(props: PageProps<"/u/[username]">) {
             )}
           </>
         ) : (
-          <p className="flex items-center gap-1 px-1 text-sm text-ink-muted">
+          <p className="flex items-center gap-1 text-sm text-ink-muted">
             {hiddenTrainingLine({ them: person, relation: relation ?? { outgoing: null } })}
             <InfoTip label="About seeing someone's training">
               Their training appears here once they have accepted you as a follower and while they

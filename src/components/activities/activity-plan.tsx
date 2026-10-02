@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
 import { DetailList } from "@/components/ui/detail-list";
+import { Pencil } from "@/components/ui/icons";
+import { Section } from "@/components/ui/section";
 import { ACTIVITY_SPORT_LABELS, type ActivitySport } from "@/domain/activity";
 import {
   expandSteps,
@@ -16,7 +17,7 @@ import {
  * enters afterwards are what happened. Nothing here prefills a form, and nothing here is
  * described as a result (ACTUAL-01, AT-STRUCT-08).
  *
- * The card also says, plainly, whether a coach prepared this or whether it is the programme's
+ * The block also says, plainly, whether a coach prepared this or whether it is the programme's
  * own approved session. An athlete who can see a plan should be able to see where it came
  * from, and "the coach has not got to this one yet" is a fact worth stating rather than an
  * absence to be papered over.
@@ -96,48 +97,77 @@ export function ActivityPlan({
   const overall = prescription ? sessionLine(prescription) : null;
 
   return (
-    <Card>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs font-medium tracking-wide text-ink-muted uppercase">
-            {ACTIVITY_SPORT_LABELS[sport]} · planned
-          </p>
-          {prescription?.title && (
-            <h2 className="mt-1 text-lg font-medium [overflow-wrap:anywhere]">
-              {prescription.title}
-            </h2>
-          )}
-          {overall && <p className="mt-1 text-sm text-ink-muted tabular-nums">{overall}</p>}
+    <Section title={`${ACTIVITY_SPORT_LABELS[sport]} · planned`}>
+      <section className="box space-y-4 py-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            {prescription?.title ? (
+              <h2 className="text-lg font-semibold [overflow-wrap:anywhere]">
+                {prescription.title}
+              </h2>
+            ) : (
+              <h2 className="text-lg font-semibold">What to do</h2>
+            )}
+            {overall && (
+              <p className="mt-1 font-data text-sm text-ink-muted tabular-nums">{overall}</p>
+            )}
+          </div>
+          <Badge tone={preparedByCoach ? "accent" : "neutral"}>
+            {preparedByCoach ? "From your coach" : "Your programme"}
+          </Badge>
         </div>
-        <Badge tone={preparedByCoach ? "accent" : "neutral"}>
-          {preparedByCoach ? "From your coach" : "Your programme"}
-        </Badge>
-      </div>
 
-      {preparation?.summary && <p className="mt-3 text-sm">{preparation.summary}</p>}
+        {/* The coach's sentence for the session, in the coach's hand. */}
+        {preparation?.summary && (
+          <p className="flex gap-2 [overflow-wrap:anywhere] text-pen">
+            <Pencil className="mt-0.5 shrink-0" aria-hidden />
+            <span>{preparation.summary}</span>
+          </p>
+        )}
 
-      {steps.length > 0 && (
-        <ol className="mt-3 space-y-1.5">
-          {steps.map((step, index) => (
-            <li key={`${step.id}-${step.repetition}-${index}`} className="text-sm">
-              <span className="text-ink-muted">{PHASE_LABELS[step.phase]}</span>{" "}
-              <span className="tabular-nums">{stepLine(step)}</span>
-              {step.notes && <span className="text-ink-muted"> — {step.notes}</span>}
-            </li>
-          ))}
-        </ol>
-      )}
+        {steps.length > 0 && (
+          <div>
+            <div className="flex items-baseline justify-between gap-3 pb-1">
+              <p className="text-xs font-semibold tracking-[0.08em] text-ink-muted uppercase">
+                Steps
+              </p>
+              <p className="font-data text-sm text-ink-muted tabular-nums">
+                {steps.length} {steps.length === 1 ? "step" : "steps"}
+              </p>
+            </div>
+            <ol className="min-w-0 ruled-list">
+              {steps.map((step, index) => (
+                <li
+                  key={`${step.id}-${step.repetition}-${index}`}
+                  className="flex min-w-0 items-baseline gap-3 py-2"
+                >
+                  <span className="w-5 shrink-0 font-data text-sm font-medium text-ink-subtle tabular-nums">
+                    {index + 1}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-data font-semibold [overflow-wrap:anywhere] tabular-nums">
+                      {stepLine(step)}
+                    </p>
+                    <p className="mt-0.5 text-sm text-ink-muted">
+                      {PHASE_LABELS[step.phase]}
+                      {step.notes && <span> — {step.notes}</span>}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
 
-      {totals && totals.prescribedRestMs > 0 && (
-        // Named as prescribed rest, not as rest. What is actually rested is not measured, and
-        // the gap between elapsed and active time is not evidence of it (AT-LOG-09).
-        <p className="mt-2 text-xs text-ink-muted tabular-nums">
-          Planned rest between reps: {minutes(totals.prescribedRestMs)}
-        </p>
-      )}
+        {totals && totals.prescribedRestMs > 0 && (
+          // Named as prescribed rest, not as rest. What is actually rested is not measured, and
+          // the gap between elapsed and active time is not evidence of it (AT-LOG-09).
+          <p className="text-xs text-ink-muted tabular-nums">
+            Planned rest between reps: {minutes(totals.prescribedRestMs)}
+          </p>
+        )}
 
-      {prescription?.running && (
-        <div className="mt-3">
+        {prescription?.running && (
           <DetailList
             entries={[
               ["Pace", prescription.running.paceNote],
@@ -146,15 +176,17 @@ export function ActivityPlan({
               ["Note", prescription.running.note],
             ]}
           />
-        </div>
-      )}
-      {prescription?.instructions && (
-        <div className="mt-3">
+        )}
+        {prescription?.instructions && (
           <DetailList entries={[["How to run it", prescription.instructions]]} />
-        </div>
-      )}
-      {preparation?.note && <p className="mt-3 text-sm text-ink-muted">{preparation.note}</p>}
-      {prescription?.notes && <p className="mt-3 text-sm text-ink-muted">{prescription.notes}</p>}
-    </Card>
+        )}
+        {preparation?.note && (
+          <p className="text-sm [overflow-wrap:anywhere] text-ink-muted">{preparation.note}</p>
+        )}
+        {prescription?.notes && (
+          <p className="text-sm [overflow-wrap:anywhere] text-ink-muted">{prescription.notes}</p>
+        )}
+      </section>
+    </Section>
   );
 }

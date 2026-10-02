@@ -3,6 +3,7 @@
 import { AiCoach } from "@/components/ui/icons";
 import { useActionState, useOptimistic, useState, useTransition, type ReactNode } from "react";
 
+import { CoachLine } from "@/components/coaching/sheet-bits";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { FormError, SubmitButton } from "@/components/ui/form";
@@ -46,8 +47,9 @@ type Props = {
 };
 
 /**
- * The coach, on one screen: the switch, what it has been doing, what it knows about you,
- * and the place to tell it things. Boxes of rows and labelled boxes, as every Settings page.
+ * The coach, on one screen: the switch, what it has been doing, what it knows about you in
+ * its own hand, and the place to tell it things. Ruled rows and ruled blocks, as every
+ * settings page; no highlighter, because nothing here is the one thing to do.
  */
 export function AiCoachSettings({
   workflow = false,
@@ -120,7 +122,7 @@ export function AiCoachSettings({
               <Switch label="AI coach" checked={shown} onChange={change} disabled={pending} />
             </Row>
             {error && (
-              <p role="alert" className="px-4 pb-3 text-sm text-danger">
+              <p role="alert" className="pb-3 text-sm text-danger">
                 {error}
               </p>
             )}
@@ -134,12 +136,12 @@ export function AiCoachSettings({
         title="What the coach knows"
         info="What the coach keeps from your notes and training. To add or correct something, tell the coach below."
       >
-        <Card>
+        <Card className="space-y-2">
           {overview ? (
-            <ul className="list-disc space-y-1.5 pl-5 text-sm">
+            <ul className="ruled-list">
               {memoLines(overview).map((line, index) => (
-                <li key={index} className="[overflow-wrap:anywhere]">
-                  {line}
+                <li key={index} className="py-2 [overflow-wrap:anywhere]">
+                  <CoachLine>{line}</CoachLine>
                 </li>
               ))}
             </ul>
@@ -147,7 +149,9 @@ export function AiCoachSettings({
             <p className="text-sm text-ink-muted">Nothing yet.</p>
           )}
           {overviewUpdatedAt && (
-            <p className="text-xs text-ink-muted tabular-nums">Updated {overviewUpdatedAt}</p>
+            <p className="font-data text-sm text-ink-muted tabular-nums">
+              Updated {overviewUpdatedAt}
+            </p>
           )}
         </Card>
       </Section>
@@ -169,7 +173,7 @@ export function AiCoachSettings({
               />
             </Field>
             <FormError message={state.formError} />
-            <SubmitButton variant="secondary" pendingLabel="Saving…">
+            <SubmitButton variant="secondary" size="md" pendingLabel="Saving…">
               Send note
             </SubmitButton>
             <p className="text-sm text-ink-muted" role="status">
@@ -180,9 +184,9 @@ export function AiCoachSettings({
         {notes.length > 0 && (
           <List>
             {notes.map((note) => (
-              <li key={note.id} className="space-y-1 p-4">
+              <li key={note.id} className="space-y-1 py-3">
                 <p className="text-sm [overflow-wrap:anywhere] whitespace-pre-line">{note.text}</p>
-                <p className="text-xs text-ink-muted">
+                <p className="font-data text-sm text-ink-muted tabular-nums">
                   {note.when} · {note.outcome ?? "Not read yet"}
                 </p>
               </li>
@@ -212,7 +216,7 @@ export function AiCoachSettings({
                       : [attempt.gymName, attempt.when].filter(Boolean).join(" · ") || undefined
                   }
                 >
-                  <span className="shrink-0 text-xs text-ink-muted tabular-nums">
+                  <span className="shrink-0 font-data text-sm text-ink-muted tabular-nums">
                     {attempt.when.split(",")[0]}
                   </span>
                 </Row>

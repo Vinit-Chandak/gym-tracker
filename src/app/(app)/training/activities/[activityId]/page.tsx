@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { SPORT_ICONS } from "@/components/activities/sport-icons";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
 import { LinkButton } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { StatTile, StatTileRow } from "@/components/ui/stat-tile";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
@@ -31,12 +31,15 @@ import { DeleteActivityButton } from "./delete-button";
 
 export const metadata: Metadata = { title: "Activity" };
 
+type Stat = { label: string; value: string };
+
 /**
  * One logged activity, whatever sport it is.
  *
  * Each sport shows what it actually recorded and nothing more: a ride with no distance shows
  * no speed, a swim timed only end to end shows no pace, and an effort nobody confirmed says
- * so rather than passing for a report (plan §§4, 9.1).
+ * so rather than passing for a report (plan §§4, 9.1). The measure the sport is about is the
+ * largest thing on the sheet; the rest tabulate under it.
  */
 export default async function ActivityPage(props: PageProps<"/training/activities/[activityId]">) {
   const { activityId } = await props.params;
@@ -52,7 +55,7 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
 
   const actual = activity.actual;
   const metres = actual ? actualDistanceMetres(actual) : null;
-  const stats: { label: string; value: string }[] = [
+  const stats: Stat[] = [
     {
       label: "Time",
       value: activity.durationMs === null ? "—" : formatDuration(activity.durationMs / 1000),
@@ -80,6 +83,13 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
   }
   stats.push({ label: "Effort", value: describeEffort(activity.effort) });
 
+  // The one giant measure: how far, for a sport that is about distance, and otherwise how
+  // long. A ride or swim whose distance is unknown is still a record of its time.
+  const headlineLabel = actual && (actual.sport === "running" || metres !== null) ? "Distance" : "Time";
+  const headline = stats.find((stat) => stat.label === headlineLabel)!;
+  const tiles = stats.filter((stat) => stat !== headline);
+  const Icon = SPORT_ICONS[activity.sport];
+
   return (
     <>
       <PageHeader
@@ -88,18 +98,30 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
         backHref="/progress/history"
       />
       <PageContent>
-        <Card>
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-base font-medium">{ACTIVITY_SPORT_LABELS[activity.sport]}</h2>
-            <Badge tone={activity.outcome === "ended_early" ? "accent" : "neutral"}>
+        <section className="box space-y-4 py-4">
+          <div className="flex items-start justify-between gap-3">
+            <h2 className="flex min-w-0 items-center gap-2 text-lg font-semibold">
+              <Icon scale="row" className="shrink-0 text-ink-muted" aria-hidden />
+              <span className="min-w-0 [overflow-wrap:anywhere]">
+                {ACTIVITY_SPORT_LABELS[activity.sport]}
+              </span>
+            </h2>
+            <Badge tone={activity.outcome === "ended_early" ? "warning" : "neutral"}>
               {activity.outcome === "ended_early" ? "Ended early" : "Logged"}
             </Badge>
           </div>
+
+          <dl className="min-w-0">
+            <dt className="text-xs text-ink-muted">{headline.label}</dt>
+            <dd className="mt-1.5 measure text-3xl [overflow-wrap:anywhere]">{headline.value}</dd>
+          </dl>
+
           <StatTileRow>
-            {stats.map((stat) => (
+            {tiles.map((stat) => (
               <StatTile key={stat.label} label={stat.label} value={stat.value} />
             ))}
           </StatTileRow>
+
           {activity.origin.kind === "planned" && (
             <p className="text-sm text-ink-muted">This answered a scheduled session.</p>
           )}
@@ -108,19 +130,19 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
               Elapsed time only, so there is no swimming pace for this one.
             </p>
           )}
-        </Card>
+        </section>
 
         {activity.notes && (
-          <Card>
-            <h2 className="text-base font-medium">Notes</h2>
+          <section className="box space-y-2 py-4">
+            <h2 className="text-lg font-semibold">Notes</h2>
             <p className="text-sm [overflow-wrap:anywhere] whitespace-pre-wrap">{activity.notes}</p>
-          </Card>
+          </section>
         )}
 
         <div className="space-y-2">
           <LinkButton
             href={`/training/activities/${activity.id}/edit${originQuery(origin)}`}
-            variant="ghost"
+            variant="secondary"
             className="w-full"
           >
             Correct this activity

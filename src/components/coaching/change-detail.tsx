@@ -4,9 +4,7 @@ import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 
-import { Badge } from "@/components/ui/badge";
 import { Button, LinkButton } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { SpeechTextarea } from "@/components/ui/dictation";
 import { Disclosure } from "@/components/ui/disclosure";
 import { Field, Input } from "@/components/ui/input";
@@ -21,6 +19,7 @@ import {
 
 import { coachingAction } from "./client-action";
 import { ProgramDiffView } from "./program-diff-view";
+import { CoachLine } from "./sheet-bits";
 
 export type ChangeRequestTag = {
   id: string;
@@ -62,11 +61,14 @@ function shortQuote(quote: string): string {
  * One change to the programme, as a decision the athlete can take in one screen.
  *
  * The title is what the change does. Under it, only what differs — once per cycle, from the
- * week the athlete is in — and the lines an ask of theirs produced carry their own words.
- * Nothing else is restated: not the ask (the previous screen showed it), not that approval is
- * needed (the buttons say so), not when it applies (approving updates every week still to
- * come, immediately). The coach's reasoning is offered only when something in the change is
- * the coach's own idea rather than an answer to an ask.
+ * week the athlete is in — drawn as the pen layer over the programme, and the lines an ask of
+ * theirs produced carry their own words. Nothing else is restated: not the ask (the previous
+ * screen showed it), not that approval is needed (the buttons say so), not when it applies
+ * (approving updates every week still to come, immediately). The coach's reasoning is offered
+ * only when something in the change is the coach's own idea rather than an answer to an ask.
+ *
+ * The decision stands off the page on a panel: Approve under the highlighter, the other two
+ * answers ruled and in the red pen.
  */
 export function ChangeDetail(props: ChangeDetailProps) {
   const router = useRouter();
@@ -96,7 +98,7 @@ export function ChangeDetail(props: ChangeDetailProps) {
     );
   const why = coach && unasked && (props.rationale || props.uncertainties.length > 0);
   const tags: Record<string, ReactNode> = {};
-  for (const [id, quote] of attributed) tags[id] = <Badge tone="accent">“{quote}”</Badge>;
+  for (const [id, quote] of attributed) tags[id] = <span>“{quote}”</span>;
 
   const run = async (work: () => Promise<{ ok: boolean; error?: string }>, done?: () => void) => {
     setBusy(true);
@@ -109,26 +111,25 @@ export function ChangeDetail(props: ChangeDetailProps) {
   const back = () => router.push(`${props.base}?view=changes` as Route);
 
   return (
-    <div className="space-y-4">
-      <Card>
-        {/* The page header is the h1; the change's own line is the next level down. */}
-        <h2 className="min-w-0 text-lg font-medium [overflow-wrap:anywhere]">
+    <div className="space-y-[var(--section-gap)]">
+      <section className="box space-y-3 py-4">
+        {/* The page header is the h1; the change's own line is the thing this screen is about. */}
+        <h2 className="min-w-0 text-2xl [overflow-wrap:anywhere]">
           {props.headline || (coach ? "The coach's changes" : "Your changes")}
         </h2>
         {props.outcome && <p className="text-sm text-ink-muted">{props.outcome}</p>}
         {why && (
           <Disclosure summary="Why" variant="footer">
             <div className="space-y-3">
-              {props.rationale && (
-                <p className="text-sm [overflow-wrap:anywhere] whitespace-pre-wrap">
-                  {props.rationale}
-                </p>
-              )}
+              {props.rationale && <CoachLine>{props.rationale}</CoachLine>}
               {props.uncertainties.length > 0 && (
-                <ul className="list-disc space-y-1 pl-5 text-sm text-ink-muted">
+                <ul className="space-y-1 text-sm text-ink-muted">
                   {props.uncertainties.map((line, index) => (
-                    <li key={index} className="[overflow-wrap:anywhere]">
-                      {line}
+                    <li key={index} className="flex gap-2 [overflow-wrap:anywhere]">
+                      <span aria-hidden className="shrink-0">
+                        ·
+                      </span>
+                      <span className="min-w-0">{line}</span>
                     </li>
                   ))}
                 </ul>
@@ -136,7 +137,7 @@ export function ChangeDetail(props: ChangeDetailProps) {
             </div>
           </Disclosure>
         )}
-      </Card>
+      </section>
 
       <ProgramDiffView summary={props.summary} names={props.names} reasons={tags} />
 
@@ -144,7 +145,7 @@ export function ChangeDetail(props: ChangeDetailProps) {
           only rewrites the description, or only weeks already behind, still has to be
           approvable and dismissable, or it would sit on the Changes tab for good. */}
       {open && (
-        <Card>
+        <section className="panel space-y-3 panel-padding" aria-label="Answer this change">
           {!props.canContinue && (
             <>
               <p className="text-sm text-ink-muted">
@@ -160,6 +161,7 @@ export function ChangeDetail(props: ChangeDetailProps) {
             </>
           )}
           <Button
+            size="lg"
             disabled={busy || !startDate}
             className="flex w-full"
             onClick={() =>
@@ -221,7 +223,7 @@ export function ChangeDetail(props: ChangeDetailProps) {
             </LinkButton>
           )}
           <Button
-            variant="ghost"
+            variant="danger"
             className="flex w-full"
             disabled={busy}
             onClick={() =>
@@ -243,7 +245,7 @@ export function ChangeDetail(props: ChangeDetailProps) {
               {error}
             </p>
           )}
-        </Card>
+        </section>
       )}
 
       {/* The whole programme as it would be — after the difference, not before it. */}

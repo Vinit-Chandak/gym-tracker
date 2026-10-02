@@ -46,11 +46,12 @@ function polygon(count: number, shares: readonly number[]): string {
 
 /**
  * A radar of a few axes (plan §3.10): the shape of a training split at a glance, and for two
- * people whether the shapes match. Hand-drawn SVG on the theme's series tokens, like `Chart`.
- * Rings and spokes are hairlines; each polygon is a filled shape — a translucent wash of its
- * series colour under a 2px edge, no markers at the corners — so two shapes read as two
- * areas and stay legible where they cross, the overlap darker than either. The values are
- * in the table beneath for anyone who cannot read the shape.
+ * people whether the shapes match. Drawn like `Chart`, on the theme's series tokens: the
+ * rings and spokes are hairlines, the outer ring solid and the inner ones dotted, the labels
+ * in the data voice; each polygon is a translucent wash of its series colour under a 2px
+ * edge, no markers at the corners, so two shapes read as two areas and stay legible where
+ * they cross, the overlap darker than either. The values are in the table beneath for
+ * anyone who cannot read the shape.
  */
 export function RadarChart({ title, axes, series, format = percent, className }: RadarChartProps) {
   const count = axes.length;
@@ -69,11 +70,7 @@ export function RadarChart({ title, axes, series, format = percent, className }:
           <ul className="flex flex-wrap gap-3">
             {series.map((s) => (
               <li key={s.name} className="flex items-center gap-1.5 text-xs text-ink-muted">
-                <span
-                  className="size-2.5 shrink-0 rounded-full"
-                  style={{ background: s.color }}
-                  aria-hidden
-                />
+                <span className="size-2.5 shrink-0" style={{ background: s.color }} aria-hidden />
                 {s.name}
               </li>
             ))}
@@ -96,6 +93,7 @@ export function RadarChart({ title, axes, series, format = percent, className }:
             fill="none"
             stroke="var(--color-line)"
             strokeWidth="1"
+            strokeDasharray={ring === 1 ? undefined : "1 3"}
           />
         ))}
         {axes.map((axis, i) => {
@@ -118,7 +116,9 @@ export function RadarChart({ title, axes, series, format = percent, className }:
                 y={label.y + 4}
                 textAnchor={anchor}
                 fontSize="12"
+                fontWeight="500"
                 fill="var(--color-ink-muted)"
+                className="font-data"
               >
                 {axis}
               </text>
@@ -133,7 +133,7 @@ export function RadarChart({ title, axes, series, format = percent, className }:
               fillOpacity={multi ? 0.32 : 0.28}
               stroke={s.color}
               strokeWidth="2"
-              strokeLinejoin="round"
+              strokeLinejoin="bevel"
             />
           </g>
         ))}
@@ -169,7 +169,7 @@ export function RadarChart({ title, axes, series, format = percent, className }:
                   {axis}
                 </th>
                 {series.map((s) => (
-                  <td key={s.name} className="py-1.5 text-right">
+                  <td key={s.name} className="py-1.5 text-right font-data">
                     {format(s.values[i] ?? 0)}
                   </td>
                 ))}

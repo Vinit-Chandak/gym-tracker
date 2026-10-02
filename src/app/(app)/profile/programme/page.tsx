@@ -8,9 +8,10 @@ import { programs } from "@/db/schema";
 import { ProgramTemplatePicker } from "@/components/program-template-picker";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
-import { Card } from "@/components/ui/card";
 import { DetailList } from "@/components/ui/detail-list";
 import { Disclosure } from "@/components/ui/disclosure";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ClipboardList } from "@/components/ui/icons";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { Section } from "@/components/ui/section";
 import { StatTile, StatTileRow } from "@/components/ui/stat-tile";
@@ -29,6 +30,14 @@ import { ProgrammeTabs } from "./programme-tabs";
 import { PROGRAMME_VIEWS, type ProgrammeView } from "./programme-views";
 
 export const metadata: Metadata = { title: "Programme" };
+
+/**
+ * The template picker draws its own submit as a primary. On this screen the coach's way in is
+ * the one highlighter, so the template's button is quietened to a ruled one from outside: the
+ * picker is shared with onboarding and takes no variant of its own.
+ */
+const QUIET_SUBMIT =
+  "[&_button[type=submit]]:border-line-strong [&_button[type=submit]]:bg-surface [&_button[type=submit]]:text-ink [&_button[type=submit]]:active:bg-surface-raised";
 
 /**
  * Programmes that have been retired, under everything they were retired in favour of.
@@ -63,10 +72,10 @@ function Archived({
 /**
  * The programme, under two headings.
  *
- * Cycle is the whole programme and the only place it is printed in full. Changes is what the
- * coach has altered, proposed or answered, as differences rather than as a second copy of the
- * programme. The card above them belongs to neither: it is what programme this is and how far
- * through it you are, which is true on both tabs.
+ * Cycle is the whole programme, written out as a sheet, and the only place it is printed in
+ * full. Changes is what the coach has altered, proposed or answered, as differences rather
+ * than as a second copy of the programme. The block above them belongs to neither: it is what
+ * programme this is and how far through it you are, which is true on both tabs.
  */
 export default async function ProgrammeSettingsPage(props: PageProps<"/profile/programme">) {
   const user = await requireUser();
@@ -108,28 +117,29 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
         <SavedProgrammeWork />
         {overview ? (
           <>
-            {/* What the programme is and how far through it you are. */}
-            <Card>
-              <div>
-                <h2 className="text-lg font-medium [overflow-wrap:anywhere]">
-                  {overview.program.name}
-                </h2>
-                <p className="mt-1.5 text-sm text-ink-muted tabular-nums">
+            {/* What the programme is and how far through it you are: its name as the largest
+                thing on the sheet, the position beneath in the data voice. */}
+            <section className="box space-y-4 py-4" aria-label={overview.program.name}>
+              <div className="min-w-0">
+                <h2 className="text-2xl [overflow-wrap:anywhere]">{overview.program.name}</h2>
+                <p className="mt-1 text-sm text-ink-muted tabular-nums">
                   {overview.program.startDate ? formatIsoDate(overview.program.startDate) : "—"} →{" "}
                   {overview.program.endDate ? formatIsoDate(overview.program.endDate) : "—"}
                 </p>
               </div>
-              <ProgressBar
-                value={overview.progress.completed}
-                max={overview.progress.total}
-                label={`${overview.progress.completed} of ${overview.progress.total} programme days done`}
-              />
-              <p className="text-xs text-ink-muted tabular-nums">
-                Cycle {overview.currentCycle} of {overview.program.weeks} ·{" "}
-                {overview.progress.completed} of {overview.progress.total} programme days ·{" "}
-                {overview.progress.remaining} to go
-                {overview.progress.skipped > 0 && ` · ${overview.progress.skipped} skipped`}
-              </p>
+              <div className="space-y-1.5">
+                <ProgressBar
+                  value={overview.progress.completed}
+                  max={overview.progress.total}
+                  label={`${overview.progress.completed} of ${overview.progress.total} programme days done`}
+                />
+                <p className="font-data text-sm font-medium text-ink-muted tabular-nums">
+                  Cycle {overview.currentCycle} of {overview.program.weeks} ·{" "}
+                  {overview.progress.completed} of {overview.progress.total} programme days ·{" "}
+                  {overview.progress.remaining} to go
+                  {overview.progress.skipped > 0 && ` · ${overview.progress.skipped} skipped`}
+                </p>
+              </div>
               <StatTileRow>
                 <StatTile label="Weeks" value={overview.program.weeks} />
                 <StatTile label="Days a cycle" value={overview.days.length} />
@@ -154,25 +164,26 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
                   </div>
                 </Disclosure>
               )}
-            </Card>
+            </section>
 
             <ProgrammeTabs view={view} waiting={changes.waiting} />
             <div
               id="programme-panel"
               role="tabpanel"
               aria-labelledby={`programme-${view}-tab`}
-              className="min-w-0 space-y-6"
+              className="min-w-0 space-y-[var(--section-gap)]"
             >
               {view === "changes" ? (
                 <ProgrammeChanges data={changes} />
               ) : (
                 <>
-                  {/* Every session the programme asks for, in the order it asks for them. */}
+                  {/* Every session the programme asks for, in the order it asks for them,
+                      each written out in full. */}
                   <Section
                     title="The cycle"
-                    info="One pass through these days is a cycle, and the programme repeats it for its whole length. Open a day to see everything it prescribes."
+                    info="One pass through these days is a cycle, and the programme repeats it for its whole length. Each day lists everything it prescribes."
                   >
-                    <ul className="space-y-3">
+                    <ul className="box-rows">
                       {overview.days.map((plan) => (
                         <li key={plan.day.id}>
                           <CycleDay plan={plan} />
@@ -190,8 +201,8 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
                     <Disclosure summary="Start a new programme">
                       <div className="space-y-4">
                         <ProgrammeOptions nested />
-                        <div className="space-y-2 border-t border-line pt-4">
-                          <h3 className="font-medium">Or use the suggested template</h3>
+                        <div className={`space-y-3 border-t border-line pt-4 ${QUIET_SUBMIT}`}>
+                          <h3 className="text-lg">Or use the suggested template</h3>
                           <ProgramTemplatePicker
                             templates={templates}
                             today={today}
@@ -209,17 +220,24 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
           </>
         ) : (
           <>
+            {/* First run: nothing to print yet, so the sheet says what will be written here
+                and offers the three ways to begin. */}
+            <EmptyState
+              icon={ClipboardList}
+              title="No programme yet"
+              description="Create one with the coach, build your own, or start from the suggested template."
+            />
             <Section title="Start a programme">
               <ProgrammeOptions />
             </Section>
             <Section title="Or use the suggested template">
-              <Card>
+              <div className={`box py-4 ${QUIET_SUBMIT}`}>
                 <ProgramTemplatePicker
                   templates={templates}
                   today={today}
                   submitLabel="Start this programme"
                 />
-              </Card>
+              </div>
             </Section>
             {archived.length > 0 && <Archived programmes={archived} />}
           </>

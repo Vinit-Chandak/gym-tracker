@@ -1,15 +1,16 @@
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
 import type { Side } from "@/domain/compare";
 
 export type ComparePerson = { username: string; displayName: string | null };
 
 /**
- * Head to head (plan §3.10): two large avatars with "VS" between and the names under each,
- * the viewer always on the left. The exercise screen adds a Stronger badge under whoever
- * leads on the movement's primary metric; the overall screen never does, since "more
- * active" is not a contest anyone asked to enter.
+ * Head to head (plan §3.10): two large avatars with "vs" between them in the data voice and
+ * the names under each, the viewer always on the left, on a ruled block. Each name carries
+ * the dot of the series colour the radar, the table and the trend chart give that person.
+ * The exercise screen adds a Stronger badge under whoever leads on the movement's primary
+ * metric; the overall screen never does, since "more active" is not a contest anyone asked
+ * to enter.
  */
 export function CompareHeader({
   a,
@@ -21,28 +22,39 @@ export function CompareHeader({
   stronger?: Side | null;
 }) {
   return (
-    <Card>
-      <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-3">
-        <Person person={a} stronger={stronger === "a"} />
-        <span
-          className="self-center pt-1 text-sm font-medium tracking-wide text-ink-subtle"
-          aria-hidden
-        >
-          VS
-        </span>
-        <Person person={b} stronger={stronger === "b"} />
-      </div>
-    </Card>
+    <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-3 py-4 rule-top rule-bottom">
+      <Person person={a} series="var(--color-series-1)" stronger={stronger === "a"} />
+      <span
+        className="self-center font-data text-lg font-semibold text-ink-subtle tabular-nums"
+        aria-hidden
+      >
+        vs
+      </span>
+      <Person person={b} series="var(--color-series-2)" stronger={stronger === "b"} />
+    </div>
   );
 }
 
-function Person({ person, stronger }: { person: ComparePerson; stronger: boolean }) {
+function Person({
+  person,
+  series,
+  stronger,
+}: {
+  person: ComparePerson;
+  series: string;
+  stronger: boolean;
+}) {
   return (
     <div className="flex min-w-0 flex-col items-center gap-2 text-center">
       <Avatar username={person.username} displayName={person.displayName} size="compare" />
       <p className="max-w-full min-w-0">
-        <span className="block font-medium [overflow-wrap:anywhere]">
-          {person.displayName || person.username}
+        <span className="flex items-center justify-center gap-1.5 font-medium [overflow-wrap:anywhere]">
+          <span
+            className="inline-block size-2 shrink-0 rounded-full"
+            style={{ background: series }}
+            aria-hidden
+          />
+          <span className="min-w-0">{person.displayName || person.username}</span>
         </span>
         <span className="block text-sm [overflow-wrap:anywhere] text-ink-muted">
           @{person.username}

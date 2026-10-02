@@ -10,9 +10,10 @@ import { cn } from "@/lib/utils";
 export type Person = { username: string; displayName: string | null };
 
 /**
- * One person in a list: avatar, name, handle, and whatever sits at the trailing edge — a
- * follow button, a value, or a chevron. The name is the link to their page; the trailing
- * control stays outside it, so a button never sits inside a link.
+ * One person in a ruled row: avatar, name, handle, and whatever sits at the trailing edge —
+ * a follow button, a value, or a chevron. The name is the link to their page; the trailing
+ * control stays outside it, so a button never sits inside a link. Flush with the rules, like
+ * every row on the sheet.
  */
 export function PersonRow<T extends string>({
   person,
@@ -42,12 +43,13 @@ export function PersonRow<T extends string>({
     </>
   );
   return (
-    <div className={cn(ROW_CLASS, "gap-3", className)}>
+    <div className={cn(ROW_CLASS, className)}>
       {link ? (
         <Link
           href={href ?? (`/u/${person.username}` as Route)}
           prefetch="intent"
-          className="-my-3 -ml-4 flex min-h-14 min-w-0 flex-1 items-center gap-3 py-3 pl-4 focus-visible:-outline-offset-2"
+          // Fills the row's height, so the whole left of the row is the tap target.
+          className="-my-3 flex min-h-14 min-w-0 flex-1 items-center gap-3 py-3 transition-colors duration-[var(--ov-duration-feedback)] focus-visible:-outline-offset-2 active:bg-surface-raised"
         >
           {body}
         </Link>

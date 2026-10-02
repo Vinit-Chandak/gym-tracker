@@ -11,7 +11,7 @@ import { listEquipmentTypes } from "@/server/repositories/equipment";
 import { listGyms } from "@/server/repositories/gyms";
 
 import { SkipLink } from "../skip-link";
-import { Steps } from "../steps";
+import { StepHeader, Steps } from "../steps";
 import { EquipmentStepForm } from "./equipment-step-form";
 
 export const metadata: Metadata = { title: "Machines at your gym" };
@@ -37,22 +37,25 @@ export default async function WelcomeEquipmentPage(props: PageProps<"/welcome/eq
   if (!gym) redirect("/welcome/gym");
 
   return (
-    <PageContent>
-      <Steps current="equipment" />
-      <Card>
-        <div>
-          <h1 className="text-xl font-medium">What does {gym.name} have?</h1>
-          <p className="flex items-center gap-1 text-sm text-ink-muted">
-            Tick the machines it has.
-            <InfoTip label="About machines">
-              Barbells, dumbbells and bodyweight are assumed everywhere, so only machines and cable
-              stations need ticking. This can be changed any time.
-            </InfoTip>
-          </p>
-        </div>
-        <EquipmentStepForm gymId={gym.id} types={types} />
-      </Card>
-      <SkipLink href="/welcome/programme" />
-    </PageContent>
+    <>
+      <StepHeader current="equipment" />
+      <PageContent>
+        <Steps current="equipment" />
+        <Card>
+          <div>
+            <h2 className="text-2xl [overflow-wrap:anywhere]">What does {gym.name} have?</h2>
+            <p className="mt-1 flex items-center gap-1 text-ink-muted">
+              Tick the machines it has.
+              <InfoTip label="About machines">
+                Barbells, dumbbells and bodyweight are assumed everywhere, so only machines and
+                cable stations need ticking. This can be changed any time.
+              </InfoTip>
+            </p>
+          </div>
+          <EquipmentStepForm gymId={gym.id} types={types} />
+        </Card>
+        <SkipLink href="/welcome/programme" />
+      </PageContent>
+    </>
   );
 }

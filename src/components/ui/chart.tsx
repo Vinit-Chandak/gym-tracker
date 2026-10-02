@@ -10,10 +10,11 @@ import { cn } from "@/lib/utils";
 import { InfoTip } from "./info-tip";
 
 /**
- * Series marks come from the theme, so the same chart is legible on either canvas: the
- * tokens carry a separately validated colour per mode rather than one hex that was only
- * ever checked against the dark surface. Assignments stay fixed — lifting is always
- * series 1 — and every series is labelled, so colour never carries the meaning alone.
+ * Series marks come from the theme, so the same chart is legible on either sheet: series 1 is
+ * the ink and series 2 the pen, each carrying a separately chosen value per mode rather than
+ * one hex that was only ever checked against one canvas. Assignments stay fixed — lifting is
+ * always the ink, running always the pen — and every series is labelled, so colour never
+ * carries the meaning alone.
  */
 export const SERIES_COLORS = {
   lifting: "var(--ov-series-1)",
@@ -138,6 +139,25 @@ const shortDate = (iso: string) => {
   return `${Number(d)}/${Number(m)}`;
 };
 
+/**
+ * The key a legend or a tooltip gives a series: the mark itself, small. A bar's key is a
+ * square of its fill; a line's is a short stroke of it.
+ */
+function SeriesKey({ color, kind }: { color: string; kind: "line" | "bar" }) {
+  return kind === "bar" ? (
+    <span className="size-2.5 shrink-0" style={{ background: color }} aria-hidden />
+  ) : (
+    <span className="h-0.5 w-3 shrink-0" style={{ background: color }} aria-hidden />
+  );
+}
+
+/**
+ * A time series drawn the way a printed training chart is: hairline axes, a dotted grid, the
+ * series in ink (and the second in pen) with square ends, bars with square corners held a
+ * pixel apart. Points appear only under the finger, where the date and the value are
+ * printed on a small panel; the latest whole figure is set over its bar in the data voice.
+ * Everything drawn is also in the table beneath, newest first.
+ */
 export function Chart({
   title,
   unit,
@@ -246,10 +266,15 @@ export function Chart({
   const hasPartial = series.some((s) => s.points.some((p) => p.partial));
   /** Marked wherever the numbers are read, not only where they are drawn. */
   const partialAt = (i: number) => series.some((s) => s.points[i]?.partial);
-  // A group of bars fills its slice apart from the air either side, and the bars inside it
-  // are held apart by a 2px gap of surface rather than by a stroke drawn around each.
-  const groupWidth = Math.max(4, Math.min(34, band - 8));
-  const slot = Math.max(2, (groupWidth - 2 * (series.length - 1)) / series.length);
+  // A bar is at most 24px thick, a pair at most 14px each, and the bars of a group are held
+  // apart by one pixel of the sheet rather than by a stroke drawn around each; the rest of
+  // the slice is air either side.
+  const slotCap = series.length === 1 ? 24 : 14;
+  const groupWidth = Math.max(
+    4,
+    Math.min(band - 6, series.length * slotCap + (series.length - 1)),
+  );
+  const slot = Math.max(2, (groupWidth - (series.length - 1)) / series.length);
   // The newest whole observation, for the figure printed over it. Only on a single run of
   // bars: over a pair, or over a line that already has a headline above it, it is clutter.
   // A bar that reaches the top tick leaves no room above itself, and the figure is in the
@@ -283,11 +308,7 @@ export function Chart({
                   key={s.name}
                   className="flex min-w-0 items-center gap-1.5 text-xs text-ink-muted"
                 >
-                  <span
-                    className="size-2.5 shrink-0 rounded-full"
-                    style={{ background: s.color }}
-                    aria-hidden
-                  />
+                  <SeriesKey color={s.color} kind={kind} />
                   <span className="min-w-0 [overflow-wrap:anywhere]">{s.name}</span>
                 </li>
               ))}
@@ -308,7 +329,8 @@ export function Chart({
             onPointerDown={onMove}
             onPointerLeave={() => setActiveDate(null)}
           >
-            {ticks.map((t) => (
+            {/* The grid: a dotted hairline at every tick, the baseline and the axis solid. */}
+            {ticks.map((t, k) => (
               <g key={t}>
                 <line
                   x1={PAD.left}
@@ -317,24 +339,33 @@ export function Chart({
                   y2={y(t)}
                   stroke="var(--color-line)"
                   strokeWidth="1"
+                  strokeDasharray={k === 0 ? undefined : "1 3"}
                 />
                 <text
                   x={PAD.left - 6}
                   y={y(t) + 3.5}
                   textAnchor="end"
-                  fontSize="10"
+                  fontSize="11"
                   fill="var(--color-ink-subtle)"
-                  className="tabular-nums"
+                  className="font-data tabular-nums"
                 >
                   {format(t)}
                 </text>
               </g>
             ))}
+            <line
+              x1={PAD.left}
+              x2={PAD.left}
+              y1={y(yMax)}
+              y2={y(yMin)}
+              stroke="var(--color-line)"
+              strokeWidth="1"
+            />
 
             {hasPartial && (
               <defs>
                 {series.map((s, si) => (
-                  /* 45 degrees, in the series' own colour on the surface: a part-week is
+                  /* 45 degrees, in the series' own colour on the sheet: a part-week is
                      told apart from a whole one without being given a second hue. */
                   <pattern
                     key={s.name}
@@ -344,7 +375,7 @@ export function Chart({
                     height="6"
                     patternTransform="rotate(45)"
                   >
-                    <rect width="6" height="6" fill="var(--color-surface)" />
+                    <rect width="6" height="6" fill="var(--color-canvas)" />
                     <line
                       x1="0"
                       y1="0"
@@ -366,11 +397,10 @@ export function Chart({
                     p.value === null ? null : (
                       <rect
                         key={`${s.name}:${i}`}
-                        x={x(i) - groupWidth / 2 + si * (slot + 2)}
+                        x={x(i) - groupWidth / 2 + si * (slot + 1)}
                         y={y(p.value)}
                         width={slot}
                         height={Math.max(0, y(yMin) - y(p.value))}
-                        rx="3"
                         fill={p.partial ? `url(#${patternId}-${si})` : s.color}
                         stroke={p.partial ? s.color : undefined}
                         strokeWidth={p.partial ? 1 : undefined}
@@ -381,30 +411,44 @@ export function Chart({
                 </g>
               ) : (
                 <g key={s.name}>
-                  {segments(s.points).map((run, r) => (
-                    <path
-                      key={`${s.name}:${r}`}
-                      d={run.map((p, k) => `${k ? "L" : "M"}${x(p.i)},${y(p.value)}`).join(" ")}
-                      fill="none"
-                      stroke={s.color}
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  ))}
-                  {s.points.map((p, i) =>
-                    p.value === null ? null : (
-                      <circle
-                        key={`${s.name}:${i}`}
-                        cx={x(i)}
-                        cy={y(p.value)}
-                        r={active === i ? 4.5 : 2.5}
+                  {segments(s.points).map((run, r) =>
+                    run.length === 1 ? (
+                      /* A reading on its own has no line to be part of, so it is a mark:
+                         a small square of the series, the way the line's ends are square. */
+                      <rect
+                        key={`${s.name}:${r}`}
+                        x={x(run[0]!.i) - 2.5}
+                        y={y(run[0]!.value) - 2.5}
+                        width="5"
+                        height="5"
                         fill={s.color}
-                        stroke="var(--color-surface)"
+                      />
+                    ) : (
+                      <path
+                        key={`${s.name}:${r}`}
+                        d={run.map((p, k) => `${k ? "L" : "M"}${x(p.i)},${y(p.value)}`).join(" ")}
+                        fill="none"
+                        stroke={s.color}
                         strokeWidth="2"
+                        strokeLinecap="square"
+                        strokeLinejoin="bevel"
                       />
                     ),
                   )}
+                  {/* The point appears under the finger: a dot of the series ringed with the
+                      sheet, so it reads where the lines cross. */}
+                  {active !== null &&
+                    s.points[active] !== undefined &&
+                    s.points[active]!.value !== null && (
+                      <circle
+                        cx={x(active)}
+                        cy={y(s.points[active]!.value!)}
+                        r="4"
+                        fill={s.color}
+                        stroke="var(--color-canvas)"
+                        strokeWidth="2"
+                      />
+                    )}
                 </g>
               ),
             )}
@@ -427,12 +471,12 @@ export function Chart({
             {endIndex >= 0 && (
               <text
                 x={x(endIndex)}
-                y={y(series[0]!.points[endIndex]!.value!) - 7}
+                y={y(series[0]!.points[endIndex]!.value!) - 6}
                 textAnchor="middle"
-                fontSize="11"
+                fontSize="12"
                 fontWeight="600"
                 fill="var(--color-ink)"
-                className="tabular-nums"
+                className="font-data tabular-nums"
               >
                 {format(series[0]!.points[endIndex]!.value!)}
               </text>
@@ -461,8 +505,9 @@ export function Chart({
                           ? "end"
                           : "middle"
                   }
-                  fontSize="10"
+                  fontSize="11"
                   fill="var(--color-ink-subtle)"
+                  className="font-data tabular-nums"
                 >
                   {shortDate(dates[i]!)}
                 </text>
@@ -474,31 +519,28 @@ export function Chart({
         {active !== null && dates[active] && (
           <div
             role="status"
-            className="pointer-events-none absolute top-0 max-w-full rounded-control border border-line-strong bg-canvas px-2 py-1 text-xs [overflow-wrap:anywhere]"
+            className="pointer-events-none absolute top-0 max-w-full panel px-2 py-1 text-xs [overflow-wrap:anywhere]"
             style={{
               left: Math.max(0, Math.min(width - Math.min(width, 240), x(active) - 120)),
               width: Math.min(width, 240),
             }}
           >
-            <p className="text-ink-subtle">
+            <p className="font-data font-semibold text-ink tabular-nums">
               {formatIsoDate(dates[active]!)}
-              {partialAt(active) && " · so far"}
+              {partialAt(active) && <span className="font-normal text-ink-muted"> · so far</span>}
             </p>
             {series.map((s) => (
-              <p key={s.name} className="flex min-w-0 flex-wrap items-center gap-1.5 tabular-nums">
-                {multi && (
-                  <span
-                    className="size-2 shrink-0 rounded-full"
-                    style={{ background: s.color }}
-                    aria-hidden
-                  />
-                )}
-                <span className="min-w-0 font-medium">
+              <p
+                key={s.name}
+                className="flex min-w-0 flex-wrap items-center gap-x-1.5 tabular-nums"
+              >
+                {multi && <SeriesKey color={s.color} kind={kind} />}
+                <span className="min-w-0 font-data text-sm font-semibold">
                   {s.points[active]?.value === null || s.points[active] === undefined
                     ? "—"
                     : format(s.points[active]!.value!)}
                 </span>
-                <span className="min-w-0 text-ink-subtle">{multi ? s.name : unit}</span>
+                <span className="min-w-0 text-ink-muted">{multi ? s.name : unit}</span>
               </p>
             ))}
           </div>
@@ -547,7 +589,7 @@ export function Chart({
                   {partialAt(i) && <span className="text-ink-subtle"> · so far</span>}
                 </th>
                 {series.map((s) => (
-                  <td key={s.name} className="py-1.5 text-right">
+                  <td key={s.name} className="py-1.5 text-right font-data">
                     {s.points[i]?.value === null || s.points[i] === undefined
                       ? "—"
                       : format(s.points[i]!.value!)}

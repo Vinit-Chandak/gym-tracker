@@ -3,12 +3,12 @@ import { notFound } from "next/navigation";
 
 import { ActivityPlan } from "@/components/activities/activity-plan";
 import { OccurrenceActions } from "@/components/activities/occurrence-actions";
+import { SPORT_ICONS } from "@/components/activities/sport-icons";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import Link from "@/components/ui/app-link";
 import { Badge } from "@/components/ui/badge";
 import { LinkButton } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { ACTIVITY_SPORT_LABELS } from "@/domain/activity";
@@ -56,6 +56,7 @@ export default async function OccurrencePage(
   // One target on the page: the coach's, when it prepared this session inside the approved
   // range, and the programme's otherwise. The two used to be printed one above the other.
   const target = prepared?.prescription ?? occurrence.prescription;
+  const Icon = SPORT_ICONS[occurrence.sport];
 
   return (
     <>
@@ -65,12 +66,22 @@ export default async function OccurrencePage(
         backHref="/training/programme"
       />
       <PageContent>
-        <Card>
+        {/* The target is what the session is: the largest thing on the sheet. */}
+        <section className="box space-y-3 py-4">
           <div className="flex items-start justify-between gap-3">
-            <h2 className="text-lg font-medium">
-              {target ? describePrescription(target) : "No targets set"}
-            </h2>
-            {late && <Badge tone="neutral">Not done</Badge>}
+            <div className="flex min-w-0 items-start gap-3">
+              <Icon scale="row" className="mt-2 shrink-0 text-ink-muted" aria-hidden />
+              <h2
+                className={
+                  target
+                    ? "min-w-0 font-data text-2xl font-semibold [overflow-wrap:anywhere] tabular-nums"
+                    : "min-w-0 text-2xl [overflow-wrap:anywhere]"
+                }
+              >
+                {target ? describePrescription(target) : "No targets set"}
+              </h2>
+            </div>
+            {late && <Badge tone="warning">Not done</Badge>}
           </div>
           {occurrence.originalScheduledOn &&
             occurrence.originalScheduledOn !== occurrence.scheduledOn && (
@@ -79,7 +90,7 @@ export default async function OccurrencePage(
                 against that week.
               </p>
             )}
-        </Card>
+        </section>
 
         {occurrence.resolution.kind !== "logged" && (
           <ActivityPlan
@@ -91,34 +102,38 @@ export default async function OccurrencePage(
         )}
 
         {occurrence.resolution.kind === "logged" ? (
-          <Card>
-            <p className="text-sm text-ink-muted">
+          <section className="box space-y-2 py-4">
+            <p className="text-sm text-ink-muted tabular-nums">
               Logged on {formatIsoDate(occurrence.resolution.occurredOn)}.
             </p>
             <Link
               href={`/training/activities/${occurrence.resolution.activityId}`}
-              className="text-sm text-accent"
+              className="inline-flex min-h-11 items-center text-sm font-medium text-pen"
             >
               See what you logged
             </Link>
-          </Card>
+          </section>
         ) : occurrence.resolution.kind === "legacy_completed" ? (
-          <Card>
+          <section className="box py-4">
             <p className="text-sm text-ink-muted">
               Completed before this was recorded in full. There is no activity behind it, and none
               was invented.
             </p>
-          </Card>
+          </section>
         ) : occurrence.resolution.kind === "cancelled" ? (
-          <Card>
+          <section className="box py-4">
             <p className="text-sm text-ink-muted">
               This session was removed from the programme. It no longer needs to be logged.
             </p>
-          </Card>
+          </section>
         ) : (
           <>
             {occurrence.loggable && (
-              <LinkButton href={`/training/new?occurrence=${occurrence.id}`} className="w-full">
+              <LinkButton
+                href={`/training/new?occurrence=${occurrence.id}`}
+                size="lg"
+                className="w-full"
+              >
                 Log it
               </LinkButton>
             )}

@@ -20,6 +20,12 @@ npm run audit:start  # keep running in terminal 2; http://localhost:3100
 ```
 
 Then run `npm run audit:screens`, `npm run audit:flows` and `npm run audit:db`.
+
+For design work, `npm run audit:dev` runs `next dev` against the same database on port 3100
+(with `npm run audit:auth` in another terminal), and
+`npm run screenshot -- vinit both <prefix> /today /food …` captures those screens on an iPhone
+canvas in both palettes into `output/screenshots/` (`WIDE=1` for the desktop rail, `FULL=1` for
+the full page). The six accounts are listed in [the audit setup](audits/local-56-months.md).
 The runner selects only loopback services, leaves `.env.local` untouched and disables external
 coach dispatch. Accounts, configuration and coverage are documented in the
 [22 September flow audit](audits/2026-09-22-flow-audit.md).

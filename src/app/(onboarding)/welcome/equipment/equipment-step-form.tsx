@@ -1,14 +1,15 @@
 "use client";
 
-import { Search } from "@/components/ui/icons";
 import { useActionState, useMemo, useState } from "react";
 
-import { FormError, SubmitButton } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { FormError, SubmitButton } from "@/components/ui/form";
+import { CheckSquare, Search, Square } from "@/components/ui/icons";
+import { Input } from "@/components/ui/input";
 import type { EquipmentCategory } from "@/domain/types";
 import { EQUIPMENT_CATEGORY_LABELS } from "@/lib/labels";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
+import { cn } from "@/lib/utils";
 import { addStarterEquipmentAction } from "@/server/actions/onboarding";
 import type { EquipmentTypeOption } from "@/server/repositories/equipment";
 import { INITIAL_FORM_STATE } from "@/server/validation/form";
@@ -18,6 +19,12 @@ const ASSUMED: ReadonlySet<EquipmentCategory> = new Set(["free_weight", "bodywei
 
 const CATEGORY_ORDER: readonly EquipmentCategory[] = ["machine", "cable", "cardio", "accessory"];
 
+/**
+ * The tick list of a gym's machines: a search cell, the two bulk actions with the running
+ * count beside them in the data voice, then the machines by category as ruled rows, each a
+ * square that is ticked in ink once chosen. The one highlighter is the submit, and it says
+ * what it will do with what is ticked.
+ */
 export function EquipmentStepForm({
   gymId,
   types,
@@ -63,7 +70,7 @@ export function EquipmentStepForm({
 
       <div className="relative">
         <Search
-          className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-ink-subtle"
+          className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-ink-subtle"
           aria-hidden
         />
         <Input
@@ -93,7 +100,7 @@ export function EquipmentStepForm({
         >
           Clear all
         </Button>
-        <span className="text-sm text-ink-muted" aria-live="polite">
+        <span className="font-data text-sm text-ink-muted tabular-nums" aria-live="polite">
           {selected.size} selected
         </span>
       </div>
@@ -101,28 +108,44 @@ export function EquipmentStepForm({
         <p className="text-sm text-ink-muted">Nothing matches “{query.trim()}”.</p>
       ) : (
         groups.map((group) => (
-          <fieldset key={group.category} className="space-y-2">
-            <legend className="pb-1 text-xs font-medium tracking-wide text-ink-muted uppercase">
+          <fieldset key={group.category} className="min-w-0">
+            <legend className="text-xs font-semibold tracking-[0.08em] text-ink-muted uppercase">
               {EQUIPMENT_CATEGORY_LABELS[group.category]}
             </legend>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {group.items.map((type) => (
-                <label
-                  key={type.id}
-                  className="flex min-h-12 cursor-pointer items-center gap-3 rounded-control border border-transparent bg-surface-raised px-3 py-2 has-checked:border-accent has-checked:bg-accent-soft"
-                >
-                  <input
-                    type="checkbox"
-                    name="equipmentTypeIds"
-                    value={type.id}
-                    checked={selected.has(type.id)}
-                    onChange={() => toggle(type.id)}
-                    className="size-5 shrink-0 accent-[var(--ov-accent)]"
-                  />
-                  <span className="min-w-0 text-sm">{type.name}</span>
-                </label>
-              ))}
-            </div>
+            <ul className="mt-1 ruled-list">
+              {group.items.map((type) => {
+                const on = selected.has(type.id);
+                return (
+                  <li key={type.id}>
+                    <label
+                      className={cn(
+                        "flex min-h-12 cursor-pointer items-center gap-3 py-2 transition-colors duration-[var(--ov-duration-feedback)] has-focus-visible:outline-2 has-focus-visible:-outline-offset-2 has-focus-visible:outline-focus",
+                        on ? "text-ink" : "text-ink-muted",
+                      )}
+                    >
+                      {/* A real checkbox, read by the form and by assistive tech; the square
+                          beside the name is how it is drawn. */}
+                      <input
+                        type="checkbox"
+                        name="equipmentTypeIds"
+                        value={type.id}
+                        checked={on}
+                        onChange={() => toggle(type.id)}
+                        className="sr-only"
+                      />
+                      {on ? (
+                        <CheckSquare scale="row" className="shrink-0 text-ink" aria-hidden />
+                      ) : (
+                        <Square scale="row" className="shrink-0 text-ink-subtle" aria-hidden />
+                      )}
+                      <span className={cn("min-w-0 [overflow-wrap:anywhere]", on && "font-medium")}>
+                        {type.name}
+                      </span>
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
           </fieldset>
         ))
       )}

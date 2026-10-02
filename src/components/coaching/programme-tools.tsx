@@ -11,8 +11,9 @@ import { copyProgramAction, archiveProgramAction } from "@/server/actions/coachi
  *
  * The two edits are the same weight, so they share a row and split it evenly; on a phone the
  * row becomes two full-width buttons rather than two ragged ones. Archiving is the only one
- * that takes something away, so it sits under them and is replaced — not joined — by the
- * question it asks, which keeps one decision on screen at a time.
+ * that takes something away, so it is a word in the red pen under them, and is replaced —
+ * not joined — by the question it asks, on a panel that stands off the page, which keeps one
+ * decision on screen at a time.
  */
 export function ProgrammeTools({ id, active = true }: { id: string; active?: boolean }) {
   const router = useRouter();
@@ -29,7 +30,7 @@ export function ProgrammeTools({ id, active = true }: { id: string; active?: boo
   }
   return (
     <div className="space-y-2">
-      <div className="grid gap-2 min-[420px]:grid-cols-2">
+      <div className="action-row">
         {active && (
           <Button variant="secondary" disabled={busy} onClick={() => copy(false)}>
             Edit future programme
@@ -41,12 +42,16 @@ export function ProgrammeTools({ id, active = true }: { id: string; active?: boo
       </div>
       {active &&
         (archive ? (
-          <div className="space-y-3 rounded-control bg-surface-raised p-3 text-sm">
+          <div
+            role="group"
+            aria-label="Archive this programme?"
+            className="panel space-y-3 panel-padding text-sm"
+          >
             <p>
               Archive this programme and stop scheduling its future sessions? Your completed
               workouts remain in history. You can duplicate the archived programme later.
             </p>
-            <div className="grid gap-2 min-[420px]:grid-cols-2">
+            <div className="action-row">
               <Button
                 variant="danger"
                 disabled={busy}
@@ -68,7 +73,7 @@ export function ProgrammeTools({ id, active = true }: { id: string; active?: boo
         ) : (
           <Button
             variant="ghost"
-            className="flex w-full"
+            className="flex w-full text-danger hover:text-danger"
             disabled={busy}
             onClick={() => setArchive(true)}
           >

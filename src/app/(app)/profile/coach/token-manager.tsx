@@ -17,7 +17,7 @@ function Revoke({ id }: { id: string }) {
   const [pending, startTransition] = useTransition(),
     [error, setError] = useState<string>();
   return (
-    <div>
+    <div className="flex flex-col items-end gap-1">
       <Button
         variant="danger"
         size="sm"
@@ -43,6 +43,11 @@ function Revoke({ id }: { id: string }) {
   );
 }
 
+/**
+ * Tokens for a human coach: the form that mints one, the one-time reveal on a panel that
+ * stands off the page because it is shown once, and the list of what exists. Creating a
+ * token is the one highlighter on the screen.
+ */
 export function TokenManager({
   tokens,
 }: {
@@ -65,9 +70,9 @@ export function TokenManager({
     [copyFailed, setCopyFailed] = useState(false),
     [hidden, setHidden] = useState<string | null>(null);
   return (
-    <div className="space-y-4">
+    <>
       <Card>
-        <h2 className="flex items-center gap-1 text-base font-medium">
+        <h2 className="flex items-center gap-1 text-lg">
           New token
           <InfoTip label="About coach tokens">
             Read-only access to your workouts, runs, recovery and current programme. A token can
@@ -85,7 +90,7 @@ export function TokenManager({
               <option value="365">1 year</option>
             </Select>
           </Field>
-          <Button type="submit" disabled={pending} className="w-full">
+          <Button type="submit" size="lg" disabled={pending} className="w-full">
             {pending ? "Creating…" : "Create token"}
           </Button>
         </form>
@@ -95,15 +100,15 @@ export function TokenManager({
           </p>
         )}
         {state.token && hidden !== state.token && (
-          <div className="space-y-3 rounded-control border border-accent p-3">
+          <div className="panel space-y-3 panel-padding" role="group" aria-label="New coach token">
             <p className="text-sm font-medium">Copy it now; it is shown only once.</p>
             <textarea
               readOnly
               aria-label="New coach token"
               value={state.token}
-              className="min-h-24 w-full rounded-control bg-canvas p-2 font-mono text-sm break-all"
+              className="min-h-24 w-full rounded-control border border-line-strong bg-canvas p-2 font-mono text-sm break-all"
             />
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button
                 variant="secondary"
                 size="sm"
@@ -140,15 +145,15 @@ export function TokenManager({
           </div>
         )}
       </Card>
-      <Card>
-        <h2 className="text-base font-medium">Your tokens</h2>
+      <Card className="space-y-2">
+        <h2 className="text-lg">Your tokens</h2>
         {tokens.length ? (
-          <ul className="divide-y divide-line">
+          <ul className="ruled-list">
             {tokens.map((t) => (
-              <li key={t.id} className="flex items-center justify-between gap-3 py-3">
+              <li key={t.id} className="flex min-h-14 items-center justify-between gap-3 py-2">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{t.name}</p>
-                  <p className="text-xs text-ink-muted">
+                  <p className="font-medium [overflow-wrap:anywhere]">{t.name}</p>
+                  <p className="font-data text-sm text-ink-muted tabular-nums">
                     {t.revokedAt
                       ? "Revoked"
                       : t.expired
@@ -164,6 +169,6 @@ export function TokenManager({
           <p className="text-sm text-ink-muted">No tokens yet.</p>
         )}
       </Card>
-    </div>
+    </>
   );
 }

@@ -4,12 +4,14 @@ import { useState, type ReactNode } from "react";
 
 import { Card } from "@/components/ui/card";
 import { Disclosure } from "@/components/ui/disclosure";
+import { Pencil } from "@/components/ui/icons";
 import { Field, Input, Textarea } from "@/components/ui/input";
 import { Section } from "@/components/ui/section";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select } from "@/components/ui/select";
 import { dateTimeLocalCandidates, formatUtcOffset, timeZoneOffsetMinutes } from "@/lib/time";
 import { EFFORT, TEXT_LIMITS } from "@/domain/activity-limits";
+import { cn } from "@/lib/utils";
 import type { FormState } from "@/server/validation/form";
 
 /**
@@ -24,6 +26,16 @@ import type { FormState } from "@/server/validation/form";
  */
 
 export type ActivityFormValues = Record<string, string>;
+
+/** What the plan asked for, shown beside the form: a title, its lines, and whose hand wrote it. */
+export type ActivityTarget = { title: string; lines: string[]; fromCoach?: boolean };
+
+/** A measure the athlete types, in the data voice, so it reads back at arm's length. */
+export const MEASURE_INPUT_CLASS =
+  "font-data text-lg font-semibold tabular-nums placeholder:font-normal";
+
+/** Hours, minutes and seconds side by side: centred, so the three cells read as one clock. */
+export const TIME_INPUT_CLASS = cn(MEASURE_INPUT_CLASS, "px-1 text-center");
 
 export function useFormValues(state: FormState, initial: ActivityFormValues) {
   return (key: string): string => state.values?.[key] ?? initial[key] ?? "";
@@ -139,6 +151,7 @@ export function DistanceField({
           onChange={(event) => onValueChange(event.target.value)}
           placeholder="5"
           aria-label={label}
+          className={MEASURE_INPUT_CLASS}
         />
         <SegmentedControl
           name="distanceUnit"
@@ -150,6 +163,25 @@ export function DistanceField({
         />
       </div>
     </Field>
+  );
+}
+
+/**
+ * A number the form works out from what was typed — the pace, the speed, the distance the
+ * lengths add up to — in the data voice under a small label, so it reads like the record it
+ * is about to become rather than like a sentence.
+ */
+export function Readout({ label, value, unit }: { label: string; value: string; unit?: string }) {
+  return (
+    <p role="status" className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+      <span className="text-xs font-semibold tracking-[0.08em] text-ink-muted uppercase">
+        {label}
+      </span>{" "}
+      <span className="measure text-xl">
+        {value}
+        {unit && <span className="ml-1 font-sans text-sm font-normal text-ink-muted">{unit}</span>}
+      </span>
+    </p>
   );
 }
 
@@ -238,6 +270,7 @@ export function HeartRateFields({
           inputMode="numeric"
           defaultValue={values("averageHeartRate")}
           placeholder="—"
+          className={MEASURE_INPUT_CLASS}
         />
       </Field>
       <Field label="Maximum heart rate" error={errors?.maxHeartRate}>
@@ -246,6 +279,7 @@ export function HeartRateFields({
           inputMode="numeric"
           defaultValue={values("maxHeartRate")}
           placeholder="—"
+          className={MEASURE_INPUT_CLASS}
         />
       </Field>
     </div>
@@ -255,20 +289,31 @@ export function HeartRateFields({
 /**
  * What the plan asked for, shown beside the form and never inside it.
  *
- * A target is not a result: it stays here, in its own box, so nothing on the page can be
- * mistaken for a measurement of what actually happened.
+ * A target is not a result: it stays here, in its own block, so nothing on the page can be
+ * mistaken for a measurement of what actually happened. The target itself is a measure, so it
+ * is set in the data voice; when the coach wrote it, it is in the coach's hand.
  */
-export function TargetCard({ title, lines }: { title: string; lines: readonly string[] }) {
+export function TargetCard({ title, lines, fromCoach = false }: ActivityTarget) {
   if (lines.length === 0) return null;
+  const [first, ...rest] = lines;
   return (
     <Section title={title}>
-      <Card>
-        {lines.map((line, index) => (
+      <section className="box space-y-2 py-4">
+        <p
+          className={cn(
+            "flex items-start gap-2 font-data text-lg font-semibold [overflow-wrap:anywhere] tabular-nums",
+            fromCoach && "text-pen",
+          )}
+        >
+          {fromCoach && <Pencil className="mt-1 shrink-0" aria-hidden />}
+          <span className="min-w-0">{first}</span>
+        </p>
+        {rest.map((line, index) => (
           <p key={index} className="text-sm [overflow-wrap:anywhere] text-ink-muted">
             {line}
           </p>
         ))}
-      </Card>
+      </section>
     </Section>
   );
 }
@@ -304,18 +349,19 @@ export function ActivityIdentityFields({
  * The answer to "is that right?" for an unusually large entry.
  *
  * It appears only once the server has asked, and it confirms rather than corrects: what was
- * typed is what gets saved (§4.6).
+ * typed is what gets saved (§4.6). A warning that needs a boundary, so it is the one panel on
+ * the form.
  */
 export function LargeEntryConfirmation({ message }: { message?: string }) {
   const asking = Boolean(message && /Confirm the/.test(message));
   if (!asking) return null;
   return (
-    <Card>
-      <p className="text-sm text-warning">{message}</p>
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" name="confirmLarge" value="on" className="size-4" />
+    <div className="panel space-y-1 px-4 py-3">
+      <p className="text-sm font-medium text-warning">{message}</p>
+      <label className="flex min-h-11 items-center gap-2 text-sm">
+        <input type="checkbox" name="confirmLarge" value="on" className="size-5 accent-[var(--ov-pen)]" />
         Yes, that is right.
       </label>
-    </Card>
+    </div>
   );
 }

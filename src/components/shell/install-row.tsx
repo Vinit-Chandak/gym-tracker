@@ -30,34 +30,31 @@ function useStandalone(): boolean | null {
 }
 
 /**
- * The App group of Profile: one row that installs, shown only in a browser tab — never
+ * One row of Profile's Account group that installs, shown only in a browser tab — never
  * inside the installed app. Where the browser has no prompt to offer, the row opens the
- * two-line instructions in a sheet instead of printing them on the page.
+ * two-line instructions in a sheet instead of printing them on the page. It is a list item,
+ * so it sits ruled between its neighbours and takes no space at all once installed.
  */
-export function InstallSection() {
+export function InstallRow() {
   const standalone = useStandalone();
   const { install, available, installed } = useInstallPrompt();
   const [open, setOpen] = useState(false);
   if (standalone !== false || installed) return null;
 
   return (
-    <Section title="App">
-      <List>
-        <li>
-          <button
-            type="button"
-            onClick={async () => {
-              if (!available || !(await install())) setOpen(true);
-            }}
-            aria-haspopup={available ? undefined : "dialog"}
-            className={PRESSABLE_ROW_CLASS}
-          >
-            <RowIcon icon={Download} />
-            <span className="min-w-0 flex-1 font-medium">Install {APP_NAME}</span>
-            <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />
-          </button>
-        </li>
-      </List>
+    <li>
+      <button
+        type="button"
+        onClick={async () => {
+          if (!available || !(await install())) setOpen(true);
+        }}
+        aria-haspopup={available ? undefined : "dialog"}
+        className={PRESSABLE_ROW_CLASS}
+      >
+        <RowIcon icon={Download} />
+        <span className="min-w-0 flex-1 font-medium">Install {APP_NAME}</span>
+        <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />
+      </button>
       {!available && (
         <Sheet open={open} onClose={() => setOpen(false)} title={`Install ${APP_NAME}`}>
           <dl className="space-y-3 text-sm">
@@ -72,6 +69,17 @@ export function InstallSection() {
           </dl>
         </Sheet>
       )}
+    </li>
+  );
+}
+
+/** The same row as a group of its own, for a screen that has no list to put it in. */
+export function InstallSection() {
+  return (
+    <Section title="App">
+      <List>
+        <InstallRow />
+      </List>
     </Section>
   );
 }

@@ -175,7 +175,7 @@ export function CoachRequestPanel({
           different gym, or at this one after something has changed.
         </p>
       )}
-      <ul className="space-y-2" aria-label="Gym">
+      <ul className="min-w-0 ruled-list" aria-label="Gym">
         {gyms.map((gym) => {
           const chosen = gym.id === gymId;
           return (
@@ -185,14 +185,12 @@ export function CoachRequestPanel({
                 onClick={() => setGymId(gym.id)}
                 aria-pressed={chosen}
                 className={cn(
-                  "flex min-h-14 w-full items-center justify-between gap-3 rounded-control border px-4 text-left text-base font-medium",
-                  chosen
-                    ? "border-accent bg-accent-soft text-ink"
-                    : "border-transparent bg-surface-raised text-ink active:bg-accent-soft",
+                  "flex min-h-14 w-full items-center justify-between gap-3 px-1 text-left text-base font-medium transition-colors duration-[var(--ov-duration-feedback)]",
+                  chosen ? "bg-highlight-soft text-ink" : "text-ink active:bg-surface-raised",
                 )}
               >
                 <span className="min-w-0 truncate">{gym.name}</span>
-                {chosen && <Check className="shrink-0 text-accent" aria-hidden />}
+                {chosen && <Check className="shrink-0 text-pen" aria-hidden />}
               </button>
             </li>
           );

@@ -44,7 +44,7 @@ export function RestTimerSetting({ enabled }: { enabled: boolean }) {
         <Switch label="Rest timer" checked={shown} onChange={change} disabled={pending} />
       </Row>
       {error && (
-        <p role="alert" className="px-4 pb-3 text-sm text-danger">
+        <p role="alert" className="pb-3 text-sm text-danger">
           {error}
         </p>
       )}
