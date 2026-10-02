@@ -19,7 +19,7 @@ import {
 
 import { coachingAction } from "./client-action";
 import { ProgramDiffView } from "./program-diff-view";
-import { CoachLine } from "./sheet-bits";
+import { CoachLine, AskLine } from "./sheet-bits";
 
 export type ChangeRequestTag = {
   id: string;
@@ -50,11 +50,9 @@ export type ChangeDetailProps = {
   base: "/welcome/programme" | "/profile/programme";
 };
 
-/** The athlete's own words, short enough to sit on a line of the diff. */
+/** The athlete's own words, whole: on a phone an ask is two lines, and a cut ask reads as a hint. */
 function shortQuote(quote: string): string {
-  const clean = quote.trim();
-  if (clean.length <= 48) return clean;
-  return `${clean.slice(0, 45).trimEnd()}…`;
+  return quote.trim();
 }
 
 /**
@@ -97,8 +95,14 @@ export function ChangeDetail(props: ChangeDetailProps) {
         (day.runs?.ids.some((id) => !attributed.has(id)) ?? false),
     );
   const why = coach && unasked && (props.rationale || props.uncertainties.length > 0);
+  // One ask is printed whole, once, under the headline, and the lines it produced say so;
+  // several asks each ride with their own lines, so a line never needs the list above.
+  const asks = [...new Set(props.requests.map((request) => shortQuote(request.quote)))].filter(
+    (quote) => quote.length > 0,
+  );
   const tags: Record<string, ReactNode> = {};
-  for (const [id, quote] of attributed) tags[id] = <span>“{quote}”</span>;
+  for (const [id, quote] of attributed)
+    tags[id] = asks.length === 1 ? <span>Answers your ask</span> : <span>“{quote}”</span>;
 
   const run = async (work: () => Promise<{ ok: boolean; error?: string }>, done?: () => void) => {
     setBusy(true);
@@ -118,6 +122,7 @@ export function ChangeDetail(props: ChangeDetailProps) {
           {props.headline || (coach ? "The coach's changes" : "Your changes")}
         </h2>
         {props.outcome && <p className="text-sm text-ink-muted">{props.outcome}</p>}
+        {asks.length === 1 && <AskLine>“{asks[0]}”</AskLine>}
         {why && (
           <Disclosure summary="Why" variant="footer">
             <div className="space-y-3">
@@ -160,6 +165,11 @@ export function ChangeDetail(props: ChangeDetailProps) {
               </Field>
             </>
           )}
+          {/* The one thing worth saying before the decision: what approving touches. */}
+          <p className="text-sm text-ink-muted">
+            Applies to every week still to come. Sessions already logged keep what they were
+            prescribed.
+          </p>
           <Button
             size="lg"
             disabled={busy || !startDate}

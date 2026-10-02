@@ -200,6 +200,12 @@ export function WorkoutOverview({
   const [warmupDone, setWarmupDone] = useState(session.warmupCompleted);
   const hues = supersetHues(session.exercises);
   const done = session.exercises.filter((e) => e.completedAt && !e.skippedAt).length;
+  // The first exercise still to do is the session's one primary action: one tap starts it.
+  // Finishing takes the highlighter only once nothing is left to start.
+  const nextId = readOnly
+    ? null
+    : (session.exercises.find((e) => !e.completedAt && !e.skippedAt)?.id ?? null);
+  const allSettled = nextId === null;
 
   return (
     <div className="space-y-[var(--section-gap)]">
@@ -279,6 +285,7 @@ export function WorkoutOverview({
                     style={hue ? supersetStyle(hue) : undefined}
                   >
                     <OrderCell exercise={exercise} hue={hue} />
+                    {hue && <span className="sr-only">In a superset. </span>}
                     <span className="min-w-0 flex-1">
                       <span className="block font-medium [overflow-wrap:anywhere]">
                         {exercise.exercise.name}
@@ -290,7 +297,11 @@ export function WorkoutOverview({
                     <span
                       className={cn(
                         "shrink-0 text-sm font-medium",
-                        action.tone === "accent" ? "text-pen" : "text-ink-muted",
+                        exercise.id === nextId
+                          ? "rounded-control border border-highlight-strong bg-highlight px-2.5 py-1 font-semibold text-on-highlight"
+                          : action.tone === "accent"
+                            ? "text-pen"
+                            : "text-ink-muted",
                       )}
                     >
                       {action.label}
@@ -327,11 +338,21 @@ export function WorkoutOverview({
       <div className="space-y-2">
         {!readOnly &&
           (hasDrafts ? (
-            <Button size="lg" className="w-full" disabled>
+            <Button
+              size="lg"
+              variant={allSettled ? "primary" : "secondary"}
+              className="w-full"
+              disabled
+            >
               Save drafts first
             </Button>
           ) : (
-            <LinkButton href={`/workouts/${session.id}/finish`} size="lg" className="w-full">
+            <LinkButton
+              href={`/workouts/${session.id}/finish`}
+              size="lg"
+              variant={allSettled ? "primary" : "secondary"}
+              className="w-full"
+            >
               Finish session
             </LinkButton>
           ))}

@@ -377,12 +377,11 @@
 
 /*
  * A superset member. The group's pen arrives as --superset-color from the row itself: a
- * 2px rule on the left in that pen and a faint wash behind the row, which is how rows say
- * they belong together without a caption. Browsers without color-mix keep the rule only.
+ * hairline on the left in that pen, which is how rows say they belong together without a
+ * caption. The number in the margin carries the same pen; nothing is washed behind the row.
  */
 @utility superset-row {
-  border-left: 2px solid var(--superset-color, var(--ov-pen));
-  background: color-mix(in srgb, var(--superset-color, var(--ov-pen)) 8%, transparent);
+  border-left: 1px solid var(--superset-color, var(--ov-pen));
 }
 
 /* iPhone notch / home-indicator safe areas (requires viewport-fit=cover). */
@@ -502,7 +501,7 @@ html:has(.app-content) {
   flex-direction: column;
   gap: 0.125rem;
   border-radius: inherit;
-  font-size: clamp(0.625rem, 2.7vw, 0.6875rem);
+  font-size: clamp(0.6875rem, 2.8vw, 0.75rem);
   font-weight: 500;
   letter-spacing: 0.01em;
   color: var(--ov-ink-muted);

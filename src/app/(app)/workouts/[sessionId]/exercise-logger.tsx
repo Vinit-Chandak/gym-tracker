@@ -121,12 +121,14 @@ function suggestionHeadline(exercise: ExerciseVM, unit: string) {
   // On a bodyweight movement the load is what is added, so nothing added is "bodyweight",
   // not "0 kg".
   const bodyweight = exercise.exercise.modality === "bodyweight";
+  // A load is printed to the quarter: the finest plate in either unit. A step converted from
+  // the other unit would otherwise read to the hundredth, which no bar or stack can hold.
   const load = (weight: number | null | undefined) =>
     weight === null || weight === undefined
       ? "the same load"
       : bodyweight && weight === 0
         ? "bodyweight"
-        : `${weight} ${unit}`;
+        : `${Math.round(weight * 4) / 4} ${unit}`;
 
   switch (kind) {
     case "coach": {
@@ -134,6 +136,12 @@ function suggestionHeadline(exercise: ExerciseVM, unit: string) {
       // nothing on record — and there is then no load to hold. Say what it does ask for.
       const known = first?.weight !== null && first?.weight !== undefined;
       const reps = first?.reps !== null && first?.reps !== undefined ? first.reps : null;
+      // The effort the coach asked for travels with the load and the reps: it is the number
+      // that says whether the set was right, and Today already printed it beside them.
+      const effort =
+        reps !== null && first?.rir !== null && first?.rir !== undefined
+          ? ` · RIR ${first.rir}`
+          : "";
       const target = !first
         ? null
         : first.reps === null && first.distanceMeters
@@ -143,10 +151,10 @@ function suggestionHeadline(exercise: ExerciseVM, unit: string) {
           : first.durationSeconds && first.reps === null
             ? `${first.durationSeconds} s`
             : known
-              ? `${load(first.weight)}${reps === null ? "" : ` × ${reps}`}`
+              ? `${load(first.weight)}${reps === null ? "" : ` × ${reps}`}${effort}`
               : reps === null
                 ? null
-                : `${reps} ${reps === 1 ? "rep" : "reps"}`;
+                : `${reps} ${reps === 1 ? "rep" : "reps"}${effort}`;
       const note = exercise.coachNote;
       return {
         kind,
@@ -189,6 +197,8 @@ type LoggerProps = {
   onBack: () => void;
   onDirtyChange: (dirty: boolean) => void;
   onLogged: (restSeconds: number) => void;
+  /** The next exercise still to do, so a completed one hands straight on to it. */
+  next?: { name: string; open: () => void } | null;
 };
 
 /**
@@ -203,6 +213,7 @@ export function ExerciseLogger({
   onBack,
   onDirtyChange,
   onLogged,
+  next = null,
 }: LoggerProps) {
   const [tab, setTab] = useState<LoggerTab>("log");
   const [optionsFor, setOptionsFor] = useState<number | null>(null);
@@ -548,13 +559,21 @@ export function ExerciseLogger({
             {!readOnly && !skipped && (
               <div className="action-row">
                 {completed ? (
-                  <Button
-                    variant="secondary"
-                    onClick={() => setCompletedState(false)}
-                    disabled={pending}
-                  >
-                    Reopen
-                  </Button>
+                  <>
+                    {/* Done here: the next exercise is one tap, under the highlighter. */}
+                    {next && (
+                      <Button onClick={next.open} className="col-span-full">
+                        Next: {next.name}
+                      </Button>
+                    )}
+                    <Button
+                      variant="secondary"
+                      onClick={() => setCompletedState(false)}
+                      disabled={pending}
+                    >
+                      Reopen
+                    </Button>
+                  </>
                 ) : (
                   <>
                     <Button variant="secondary" disabled={!sets.canAddRow} onClick={sets.addRow}>

@@ -103,9 +103,11 @@ export function GymSwitcher({
               >
                 <span className="min-w-0">
                   <span className="block truncate">{gym.name}</span>
-                  <span className="block text-xs font-normal text-ink-muted">
-                    {GYM_KIND_LABELS[gym.kind]}
-                  </span>
+                  {GYM_KIND_LABELS[gym.kind] !== gym.name && (
+                    <span className="block text-xs font-normal text-ink-muted">
+                      {GYM_KIND_LABELS[gym.kind]}
+                    </span>
+                  )}
                 </span>
                 {gym.id === current?.id && <Check className="shrink-0 text-pen" aria-hidden />}
               </button>

@@ -30,12 +30,18 @@ export function ProgramTemplatePicker({
   templates,
   today,
   submitLabel = "Start this programme",
+  submitVariant = "primary",
   finishOnboarding = false,
 }: {
   templates: readonly TemplateOption[];
   /** Today in the user's own time zone, `YYYY-MM-DD`; the default start date. */
   today: string;
   submitLabel?: string;
+  /**
+   * `secondary` where another action on the screen already holds the highlighter (the coach's
+   * way of starting a programme sits above this picker on both screens that show it).
+   */
+  submitVariant?: "primary" | "secondary";
   /** Set on the last onboarding step: adopting also ends setup. */
   finishOnboarding?: boolean;
 }) {
@@ -107,7 +113,9 @@ export function ProgramTemplatePicker({
       </Field>
 
       <FormError message={state.error} />
-      <SubmitButton pendingLabel="Setting up…">{submitLabel}</SubmitButton>
+      <SubmitButton variant={submitVariant} pendingLabel="Setting up…">
+        {submitLabel}
+      </SubmitButton>
     </form>
   );
 }

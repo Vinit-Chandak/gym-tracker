@@ -44,6 +44,7 @@ export default async function WelcomeProgrammePage() {
             }))}
             today={todayInTimeZone(profile.timeZone)}
             submitLabel="Start training"
+            submitVariant="secondary"
             finishOnboarding
           />
         </Disclosure>

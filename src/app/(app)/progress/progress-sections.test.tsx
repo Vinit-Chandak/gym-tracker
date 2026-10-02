@@ -40,14 +40,14 @@ function open(current: string) {
   return within(screen.getByRole("dialog"));
 }
 
-it("lists History among Progress's sections, after Body", () => {
+it("lists History among Progress's sections, after the programme and Body", () => {
   route.search = "";
   render(<ProgressSections value="body" onChange={vi.fn()} action={null} />);
   expect(
     open("Body")
       .getAllByRole("listitem")
       .map((item) => item.textContent),
-  ).toEqual(["Body", "History", "Strength", "Running", "Recovery", "Overview"]);
+  ).toEqual(["Programme", "Body", "History", "Strength", "Running", "Recovery", "Overview"]);
 });
 
 it("switches the Progress page's own sections in place", () => {
@@ -76,7 +76,7 @@ it("goes from History to the Progress page's sections, keeping the query", () =>
   const sheet = open("History");
   expect(sheet.getByRole("button", { name: "History" }).getAttribute("aria-current")).toBe("true");
   expect(sheet.getByRole("link", { name: "Body" }).getAttribute("href")).toBe(
-    "/progress?from=2026-08-01&to=2026-09-25&kind=run",
+    "/progress?from=2026-08-01&to=2026-09-25&kind=run&view=body",
   );
   const overview = sheet.getByRole("link", { name: "Overview" });
   expect(overview.getAttribute("href")).toBe(
@@ -88,6 +88,8 @@ it("goes from History to the Progress page's sections, keeping the query", () =>
 
 it("reads the Progress page's section from its URL, never History", () => {
   expect(pageSection(null)).toBe("body");
+  expect(pageSection(null, "programme")).toBe("programme");
+  expect(pageSection("body", "programme")).toBe("body");
   expect(pageSection("recovery")).toBe("recovery");
   expect(pageSection("overview")).toBe("overview");
   expect(pageSection("history")).toBe("body");

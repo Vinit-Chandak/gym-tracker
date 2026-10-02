@@ -23,9 +23,11 @@ export function ProgressBar({
       aria-label={label}
       className={cn("h-1.5 w-full overflow-hidden rounded-control bg-surface-raised", className)}
     >
+      {/* Drawn at full width and scaled from the left: a change of value moves on the
+          compositor rather than reflowing the row. */}
       <div
-        className="h-full rounded-control bg-pen transition-[width] duration-[var(--ov-duration-sheet)] ease-[var(--ov-ease-out)]"
-        style={{ width: `${percent}%` }}
+        className="h-full w-full origin-left rounded-control bg-pen transition-transform duration-[var(--ov-duration-sheet)] ease-[var(--ov-ease-out)]"
+        style={{ transform: `scaleX(${percent / 100})` }}
       />
     </div>
   );

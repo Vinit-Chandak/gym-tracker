@@ -214,7 +214,8 @@ it("says what an open-ended coach plan asks for instead of a load it never set",
     },
   });
   expect(screen.queryByText(/the same load/)).toBeNull();
-  expect(screen.getByText(/5 reps · Nothing on record/)).toBeTruthy();
+  // The effort the coach asked for rides with the reps, as it does on Today.
+  expect(screen.getByText(/5 reps · RIR 3 · Nothing on record/)).toBeTruthy();
 });
 
 it("preserves decimal metres in the grid and the set options", async () => {

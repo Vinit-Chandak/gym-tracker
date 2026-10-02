@@ -14,7 +14,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
       <div className="w-full max-w-sm space-y-6">
         <header className="text-center">
           <h1 className="text-3xl leading-none">
-            <Wordmark />
+            <Wordmark mark />
           </h1>
           <p className="mt-4 text-balance text-ink-muted">{APP_TAGLINE}</p>
         </header>

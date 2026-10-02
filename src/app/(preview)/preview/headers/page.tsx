@@ -54,13 +54,13 @@ export default function PreviewHeadersPage() {
         >
           <div className="flex box flex-wrap items-baseline gap-x-8 gap-y-4 py-4">
             <p className="text-3xl leading-none">
-              <Wordmark />
+              <Wordmark mark />
             </p>
             <p className="text-2xl">
-              <Wordmark />
+              <Wordmark mark />
             </p>
             <p className="text-xl">
-              <Wordmark />
+              <Wordmark mark />
             </p>
           </div>
         </Section>

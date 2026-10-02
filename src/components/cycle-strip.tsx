@@ -37,7 +37,7 @@ export function CycleStrip({
   todayIndex: number | null;
   behind: number;
 }) {
-  const standing = behind > 0 ? `${behind} behind` : "On track";
+  const standing = behind > 0 ? `${behind} ${behind === 1 ? "day" : "days"} behind` : "On track";
   return (
     <Link
       href="/today/choose"
@@ -53,7 +53,8 @@ export function CycleStrip({
         <p
           className={cn(
             "font-data text-sm font-semibold tabular-nums",
-            behind > 0 ? "text-warning" : "text-success",
+            // A note in the coach's pen when the sequence has slipped; quiet when it has not.
+            behind > 0 ? "text-pen" : "text-ink-muted",
           )}
         >
           {standing}

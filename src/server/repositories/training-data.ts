@@ -1,4 +1,18 @@
-import { and, asc, desc, eq, exists, gte, inArray, isNotNull, lt, lte, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  exists,
+  gte,
+  inArray,
+  isNotNull,
+  lt,
+  lte,
+  ne,
+  sql,
+} from "drizzle-orm";
 
 import {
   activities,
@@ -350,6 +364,36 @@ export async function readTrainingData(
     recovery,
     truncated: workouts.hasMore || runData.hasMore,
   };
+}
+
+/**
+ * Working sets per calendar week from finished workouts started inside `range`: the week's
+ * Monday (in the account's time zone, as an ISO date) to its count, warm-ups excluded. One
+ * aggregate rather than the sessions themselves, because the periodisation chart reads a
+ * whole programme's span, which can hold a year of sets.
+ */
+export async function readWeeklyWorkingSets(
+  db: DbOrTx,
+  userId: string,
+  range: DateRange,
+  timeZone: string,
+): Promise<Map<string, number>> {
+  const week = sql<string>`(date_trunc('week', (${workoutSessions.startedAt} at time zone ${timeZone}))::date)::text`;
+  const rows = await db
+    .select({ week, sets: count() })
+    .from(setLogs)
+    .innerJoin(workoutExercises, eq(workoutExercises.id, setLogs.workoutExerciseId))
+    .innerJoin(workoutSessions, eq(workoutSessions.id, workoutExercises.workoutSessionId))
+    .where(
+      and(
+        eq(workoutSessions.userId, userId),
+        isNotNull(workoutSessions.completedAt),
+        ne(setLogs.setType, "warmup"),
+        inRange(range),
+      ),
+    )
+    .groupBy(sql`1`);
+  return new Map(rows.map((row) => [row.week, Number(row.sets)]));
 }
 
 export type TrainingData = Awaited<ReturnType<typeof readTrainingData>>;

@@ -32,14 +32,6 @@ import { PROGRAMME_VIEWS, type ProgrammeView } from "./programme-views";
 export const metadata: Metadata = { title: "Programme" };
 
 /**
- * The template picker draws its own submit as a primary. On this screen the coach's way in is
- * the one highlighter, so the template's button is quietened to a ruled one from outside: the
- * picker is shared with onboarding and takes no variant of its own.
- */
-const QUIET_SUBMIT =
-  "[&_button[type=submit]]:border-line-strong [&_button[type=submit]]:bg-surface [&_button[type=submit]]:text-ink [&_button[type=submit]]:active:bg-surface-raised";
-
-/**
  * Programmes that have been retired, under everything they were retired in favour of.
  *
  * They used to open the screen, above the programme actually being trained, which put the
@@ -81,7 +73,7 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
   const user = await requireUser();
   const params = await props.searchParams;
   const requested = Array.isArray(params.view) ? params.view[0] : params.view;
-  const view: ProgrammeView = PROGRAMME_VIEWS.find((value) => value === requested) ?? "cycle";
+  const requestedView = PROGRAMME_VIEWS.find((value) => value === requested);
   const profile = await getRequestProfile(user.id, user.email);
   const { overview, changes, archived } = await withUser(
     getDb(),
@@ -109,6 +101,9 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
     weeks: template.blueprint.weeks,
   }));
   const today = todayInTimeZone(profile.timeZone);
+  // The page opens on what waits for the athlete: a proposal or a question first, otherwise
+  // the cycle. A view named in the URL always wins.
+  const view: ProgrammeView = requestedView ?? (changes.waiting > 0 ? "changes" : "cycle");
 
   return (
     <>
@@ -140,30 +135,27 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
                   {overview.progress.skipped > 0 && ` · ${overview.progress.skipped} skipped`}
                 </p>
               </div>
-              <StatTileRow>
-                <StatTile label="Weeks" value={overview.program.weeks} />
-                <StatTile label="Days a cycle" value={overview.days.length} />
-                <StatTile label="Lifting days" value={overview.liftingDays} />
-                <StatTile label="Sets a cycle" value={overview.setsPerCycle} />
-              </StatTileRow>
-              <ProgrammeTools id={overview.program.id} />
-              {(overview.program.notes || overview.projectedEnd) && (
-                <Disclosure summary="How it is meant to go" variant="footer">
-                  <div className="space-y-3">
-                    {overview.program.notes && (
-                      <p className="text-sm [overflow-wrap:anywhere]">{overview.program.notes}</p>
-                    )}
+              {/* The shape of the programme and the tools that change it, folded: the page is
+                  for the cycle and the coach's changes, and starting over is rare. */}
+              <Disclosure summary="Details and tools" variant="footer">
+                <div className="space-y-4">
+                  <StatTileRow>
+                    <StatTile label="Weeks" value={overview.program.weeks} />
+                    <StatTile label="Days a cycle" value={overview.days.length} />
+                    <StatTile label="Lifting days" value={overview.liftingDays} />
+                    <StatTile label="Sets a cycle" value={overview.setsPerCycle} />
+                  </StatTileRow>
+                  {overview.program.notes && (
+                    <p className="text-sm [overflow-wrap:anywhere]">{overview.program.notes}</p>
+                  )}
+                  {overview.projectedEnd && (
                     <DetailList
-                      entries={[
-                        [
-                          "Projected end",
-                          overview.projectedEnd ? formatIsoDate(overview.projectedEnd) : null,
-                        ],
-                      ]}
+                      entries={[["Projected end", formatIsoDate(overview.projectedEnd)]]}
                     />
-                  </div>
-                </Disclosure>
-              )}
+                  )}
+                  <ProgrammeTools id={overview.program.id} />
+                </div>
+              </Disclosure>
             </section>
 
             <ProgrammeTabs view={view} waiting={changes.waiting} />
@@ -201,12 +193,13 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
                     <Disclosure summary="Start a new programme">
                       <div className="space-y-4">
                         <ProgrammeOptions nested />
-                        <div className={`space-y-3 border-t border-line pt-4 ${QUIET_SUBMIT}`}>
+                        <div className="space-y-3 border-t border-line pt-4">
                           <h3 className="text-lg">Or use the suggested template</h3>
                           <ProgramTemplatePicker
                             templates={templates}
                             today={today}
                             submitLabel="Replace my programme"
+                            submitVariant="secondary"
                           />
                         </div>
                       </div>
@@ -231,11 +224,12 @@ export default async function ProgrammeSettingsPage(props: PageProps<"/profile/p
               <ProgrammeOptions />
             </Section>
             <Section title="Or use the suggested template">
-              <div className={`box py-4 ${QUIET_SUBMIT}`}>
+              <div className="box py-4">
                 <ProgramTemplatePicker
                   templates={templates}
                   today={today}
                   submitLabel="Start this programme"
+                  submitVariant="secondary"
                 />
               </div>
             </Section>

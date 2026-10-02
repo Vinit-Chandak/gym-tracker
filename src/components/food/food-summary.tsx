@@ -103,8 +103,8 @@ export function FoodSummary({
           {/* The spaces are for a screen reader, which reads the line as one string; beside
               flex items they take no room on the screen. */}
           <p className="flex min-w-0 flex-wrap items-baseline gap-x-1.5">
-            <span className="measure text-3xl">{formatKcal(eaten.kcal)}</span>{" "}
-            <span className="font-data text-lg text-ink-muted">
+            <span className="measure text-2xl">{formatKcal(eaten.kcal)}</span>{" "}
+            <span className="font-data text-base text-ink-muted">
               / {formatKcal(target.kcal)} kcal
             </span>
           </p>{" "}

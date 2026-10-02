@@ -6,6 +6,7 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { ACTIVITY_SPORT_LABELS } from "@/domain/activity";
 import { trainingAnalytics } from "@/domain/analytics";
+import { addDays, todayInTimeZone } from "@/domain/program-calendar";
 import { weekStart } from "@/domain/running";
 import { readSportTotals } from "@/server/repositories/activity-analytics";
 import { formatDuration, formatPace } from "@/domain/pace";
@@ -16,7 +17,8 @@ import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { seenSetChanges } from "@/server/queries/set-changes";
 import { listBodyWeights } from "@/server/repositories/body-weight";
-import { readTrainingData } from "@/server/repositories/training-data";
+import { getProgramOverview } from "@/server/repositories/schedule";
+import { readTrainingData, readWeeklyWorkingSets } from "@/server/repositories/training-data";
 import { readMuscleVolume } from "@/server/repositories/muscle-volume";
 import { readRecoveryHistory } from "@/server/repositories/recovery-history";
 import {
@@ -26,6 +28,7 @@ import {
 } from "@/server/validation/date-range";
 import Loading from "./loading";
 import { ProgressView } from "./progress-view";
+import type { PeriodisationData } from "@/components/periodisation-chart";
 
 export const metadata: Metadata = { title: "Progress" };
 
@@ -36,6 +39,55 @@ export const metadata: Metadata = { title: "Progress" };
  * a change made elsewhere, on another device or by the coach, can take up to the minute.
  */
 export const unstable_dynamicStaleTime = 60;
+
+/**
+ * The active programme as the periodisation chart reads it: its span in whole weeks, the
+ * work done in each, and where the sequence stands. The span is the programme's own, not the
+ * filter's: the chart is a picture of the plan, and the plan does not move with the dates.
+ */
+async function readPeriodisation(
+  tx: Parameters<typeof readWeeklyWorkingSets>[0],
+  userId: string,
+  timeZone: string,
+  today: string,
+): Promise<PeriodisationData | null> {
+  const overview = await getProgramOverview(tx, userId, timeZone);
+  if (!overview) return null;
+  const daysPerCycle = Math.max(overview.days.length, 1);
+  const startDate = overview.program.startDate ?? today;
+  const endDate =
+    overview.program.endDate ?? addDays(startDate, overview.program.weeks * daysPerCycle - 1);
+  const firstWeek = weekStart(startDate);
+  const lastWeek = weekStart(endDate);
+  // Only weeks that have happened can hold sets; a window past today is asked for nothing.
+  const through = today < addDays(lastWeek, 6) ? today : addDays(lastWeek, 6);
+  let work = new Map<string, number>();
+  if (through >= firstWeek) {
+    // A span the range parser refuses (over a year) draws the plan without its work.
+    let span = null;
+    try {
+      span = parseDateRange({ from: firstWeek, to: through }, timeZone);
+    } catch {
+      span = null;
+    }
+    if (span) work = await readWeeklyWorkingSets(tx, userId, span, timeZone);
+  }
+  const weeks = [];
+  for (let date = firstWeek; date <= lastWeek; date = addDays(date, 7))
+    weeks.push({ date, sets: work.get(date) ?? 0 });
+  return {
+    name: overview.program.name,
+    startDate,
+    endDate,
+    cycles: overview.program.weeks,
+    daysPerCycle,
+    currentCycle: overview.currentCycle,
+    setsPerCycle: overview.setsPerCycle,
+    weeks,
+    today,
+    progress: { completed: overview.progress.completed, total: overview.progress.total },
+  };
+}
 
 export default async function ProgressPage(props: PageProps<"/progress">) {
   const user = await requireUser(),
@@ -76,7 +128,8 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
   const bodyFrom = bodyRange.from;
   const bodyTo = bodyRange.to;
 
-  const [training, body, bodyWeights, totals, recovery] = await withUser(
+  const today = todayInTimeZone(profile.timeZone);
+  const [training, body, bodyWeights, totals, recovery, programme] = await withUser(
     getDb(),
     user.id,
     (tx) =>
@@ -87,6 +140,7 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
         // Complete per-sport totals, from the canonical tables every sport is written to.
         readSportTotals(tx, user.id, { from: range.from, to: range.to }),
         readRecoveryHistory(tx, user.id, range, profile.timeZone),
+        readPeriodisation(tx, user.id, profile.timeZone, today),
       ]),
     { readOnly: true },
   );
@@ -151,6 +205,7 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
           runs={runs}
           options={options}
           selected={selected}
+          programme={programme}
           body={{ from: bodyFrom, to: bodyTo, ...body }}
           unit={preferredUnit}
           // Stored in kilograms, read in the account's own unit: the chart is about the

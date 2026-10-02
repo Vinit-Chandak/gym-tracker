@@ -16,7 +16,6 @@ import { Badge } from "@/components/ui/badge";
 import { LinkButton } from "@/components/ui/button";
 import { ClipboardList, Pencil } from "@/components/ui/icons";
 import { InfoTip } from "@/components/ui/info-tip";
-import { Section } from "@/components/ui/section";
 import { writtenSummaryForSport } from "@/domain/sport-scope";
 import type { SlotStatus } from "@/domain/schedule";
 import type { WarmupDrill } from "@/domain/types";
@@ -96,7 +95,8 @@ function DrillList({ drills }: { drills: readonly WarmupDrill[] }) {
 
 /** What the day is and roughly what it costs, on one line under its name. */
 function daySubtitle(day: ScheduleDay): string | null {
-  const parts = [day.focus, day.timeNote].filter(Boolean);
+  // "70–90 min" stays on one line: a word joiner either side of the dash forbids the break.
+  const parts = [day.focus, day.timeNote?.replaceAll("–", "\u2060–\u2060")].filter(Boolean);
   return parts.length > 0 ? parts.join(" · ") : null;
 }
 
@@ -197,12 +197,13 @@ function PlanLabel({ summary }: { summary: string }) {
 
 /**
  * The primary action, kept within the thumb's reach: it sits below the plan in the sheet
- * and stays on screen while a long plan scrolls under it, on a strip of canvas so the rows
- * never show through.
+ * and stays on screen while a long plan scrolls under it, on a strip of canvas that reaches
+ * the page's gutters and sits flush on whatever owns the bottom of the screen, so no row
+ * shows beside or beneath it. A hairline on top makes the cut the sheet's own.
  */
 function ActionBar({ children }: { children: ReactNode }) {
   return (
-    <div className="sticky bottom-[var(--actions-inset)] z-[1] -mx-1 space-y-2 bg-canvas px-1 py-2">
+    <div className="sticky bottom-[calc(var(--actions-inset)-var(--ov-space-2))] z-[1] -mx-[var(--page-gutter)] space-y-2 border-t border-line bg-canvas px-[var(--page-gutter)] pt-2 pb-[calc(var(--ov-space-2)+0.5rem)]">
       {children}
     </div>
   );
@@ -236,12 +237,9 @@ export function TodayView({
     .filter((gym) => coach?.workflow || gym.kind === "gym")
     .map((gym) => ({ id: gym.id, name: gym.name, isDefault: gym.id === defaultGym?.id }));
 
-  const standing =
-    plan && plan.behind > 0 ? (
-      <Badge tone="warning">{plan.behind} behind</Badge>
-    ) : (
-      <Badge tone="success">On track</Badge>
-    );
+  // Where the sequence stands is written once, on the cycle strip; the block itself says only
+  // what it is. Once today's day is done, the day on offer is marked as what comes next.
+  const standing = plan?.finishedToday ? <Badge>Up next</Badge> : null;
 
   // One programme, with each sport's prescription and actions in its own tab.
   const sessionStatus = plan?.sessionStatus ?? "pending";
@@ -323,7 +321,7 @@ export function TodayView({
         )}
 
         {finishedToday && (
-          <Section title="Today">
+          <section className="min-w-0 space-y-3" aria-label="Today">
             <section className="box py-4">
               <BlockHead
                 title={finishedToday.name}
@@ -343,11 +341,12 @@ export function TodayView({
             <CompletedOccurrences
               occurrences={completed.filter((occurrence) => !isProgramme(occurrence))}
             />
-          </Section>
+          </section>
         )}
 
-        {/* What today asks for, at the top, whatever put it there. */}
-        <Section title={finishedToday ? "Up next" : "Today"}>
+        {/* What today asks for, at the top, whatever put it there. The block carries no label
+            over the day's name: the date is in the top line and the position on the strip. */}
+        <section className="min-w-0 space-y-3" aria-label={finishedToday ? "Up next" : "Today"}>
           {!plan ? (
             <section className="box space-y-4 py-4">
               <div className="flex items-start gap-3">
@@ -540,7 +539,7 @@ export function TodayView({
             />
           ))}
           <CompletedOccurrences occurrences={completed.filter(onOffer)} />
-        </Section>
+        </section>
 
         {/* Everything that is not the day's own decision, one tap behind one row. */}
         {plan && plan.suggestion && day && (

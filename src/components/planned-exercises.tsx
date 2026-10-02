@@ -65,6 +65,7 @@ export function PlanRow({
     >
       <span className="w-5 shrink-0 font-data text-sm font-medium text-ink-subtle tabular-nums">
         {number}
+        {hue && <span className="sr-only">, in a superset</span>}
       </span>
       <div className="min-w-0 flex-1">
         <p

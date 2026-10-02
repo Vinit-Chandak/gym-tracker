@@ -78,6 +78,14 @@ export function WorkoutView({
   // the count comes from storage, so an exercise that is not mounted still counts.
   const hasDrafts = draftCount > 0 || focusedDirty;
 
+  // The exercise a completed one hands on to: the next still to do in the session's order,
+  // or the first left undone when the open one was the last.
+  const remaining = selected
+    ? session.exercises.filter((e) => e.id !== selected.id && !e.completedAt && !e.skippedAt)
+    : [];
+  const next =
+    remaining.find((e) => e.orderIndex > (selected?.orderIndex ?? 0)) ?? remaining[0] ?? null;
+
   return (
     <>
       {selected ? (
@@ -93,6 +101,11 @@ export function WorkoutView({
           onLogged={(seconds) => {
             if (session.restTimerEnabled) startRestTimer(session.id, seconds);
           }}
+          next={
+            next && !readOnly
+              ? { name: next.exercise.name, open: () => openExercise(next.id) }
+              : null
+          }
         />
       ) : (
         <WorkoutOverview

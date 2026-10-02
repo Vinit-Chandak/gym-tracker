@@ -4,6 +4,7 @@ import {
   Bicycle,
   ChevronLeft,
   ChevronRight,
+  ClipboardList,
   Dumbbell,
   Run,
   Waves,
@@ -17,9 +18,11 @@ import Link from "@/components/ui/app-link";
 import { BodyMap } from "@/components/ui/body-map";
 import { DateRangeFields } from "@/components/date-range-fields";
 import { StrengthTrend, type SeriesOption, type StrengthMetric } from "@/components/strength-trend";
-import { Button } from "@/components/ui/button";
+import { PeriodisationChart, type PeriodisationData } from "@/components/periodisation-chart";
+import { Button, LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Chart, SERIES_COLORS, type ChartSeries } from "@/components/ui/chart";
+import { EmptyState } from "@/components/ui/empty-state";
 import { FilterSheet } from "@/components/ui/filter-sheet";
 import { Headline } from "@/components/ui/headline";
 import { InfoTip } from "@/components/ui/info-tip";
@@ -101,6 +104,8 @@ type Props = {
   unit: BodyLoadUnit;
   /** Only the chosen exercise's numbers cross the wire; the rest stay on the server. */
   selected: PerformanceSeries | null;
+  /** The active programme as the periodisation chart reads it, or null without one. */
+  programme: PeriodisationData | null;
 };
 
 const RUN_METRICS = [
@@ -161,6 +166,26 @@ function Label({
   );
 }
 
+/** Where the programme stands, in two lines under its chart: this week's work, and the sequence. */
+function ProgrammeStanding({ programme }: { programme: PeriodisationData }) {
+  const thisWeek = programme.weeks.find(
+    (week) => programme.today >= week.date && programme.today < addIsoDays(week.date, 7),
+  );
+  const planned = Math.round((programme.setsPerCycle * 7) / Math.max(programme.daysPerCycle, 1));
+  return (
+    <ul className="space-y-1 border-t border-line pt-3 font-data text-sm text-ink-muted tabular-nums">
+      <li>
+        <span className="font-semibold text-ink">{thisWeek?.sets ?? 0}</span> working sets this week
+        · the plan asks {planned}
+      </li>
+      <li>
+        <span className="font-semibold text-ink">{programme.progress.completed}</span> of{" "}
+        {programme.progress.total} programme days done
+      </li>
+    </ul>
+  );
+}
+
 export function ProgressView({
   range,
   truncated,
@@ -174,12 +199,14 @@ export function ProgressView({
   body,
   bodyWeight,
   unit,
+  programme,
 }: Props) {
   const router = useRouter();
   const params = useSearchParams();
   const [pending, startTransition] = useTransition();
 
-  const tab = pageSection(params.get("view"));
+  // The programme opens the tab while one is being trained; without one, Body does.
+  const tab = pageSection(params.get("view"), programme ? "programme" : "body");
   const chooseView = (key: "view" | "recovery", value: string) => {
     const next = new URLSearchParams(params.toString());
     next.set(key, value);
@@ -287,6 +314,47 @@ export function ProgressView({
         aria-label={PROGRESS_SECTIONS.find((option) => option.value === tab)!.label}
         className="page-stack min-w-0"
       >
+        {tab === "programme" &&
+          (programme ? (
+            <Label
+              title="The programme"
+              tipLabel="About the periodisation chart"
+              tip="Working sets from finished workouts, week by week, over the programme's cycles. The dashed step is what a week of the programme asks. The highlighted cycle is the one the sequence is on, whatever the calendar says, and the pen line is today."
+              meta={`Cycle ${programme.currentCycle} of ${programme.cycles}`}
+            >
+              <Card>
+                <p className="[overflow-wrap:anywhere]">
+                  <span className="font-medium">{programme.name}</span>
+                  <span className="font-data text-ink-muted tabular-nums">
+                    {" "}
+                    · {formatDateRange(programme.startDate, programme.endDate)}
+                  </span>
+                </p>
+                <PeriodisationChart data={programme} />
+                <ProgrammeStanding programme={programme} />
+              </Card>
+              <Link
+                href="/profile/programme"
+                className="inline-block text-sm font-medium text-pen focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
+              >
+                Open the programme
+              </Link>
+            </Label>
+          ) : (
+            <Card>
+              <EmptyState
+                icon={ClipboardList}
+                title="No programme yet"
+                description="Start one and this sheet shows the work of every week over the programme's cycles."
+                action={
+                  <LinkButton href="/profile/programme" variant="secondary">
+                    Choose a programme
+                  </LinkButton>
+                }
+              />
+            </Card>
+          ))}
+
         {tab === "overview" && (
           <>
             {truncated && (
