@@ -1,0 +1,563 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-02T00:00:00Z",
+  "title": "Design System: Overload",
+  "extensions": {
+    "modes": {
+      "selector": "[data-overload-design=\"sheet\"]",
+      "light": "default; also [data-overload-mode=\"light\"]",
+      "dark": "[data-overload-mode=\"dark\"], or prefers-color-scheme: dark when no explicit mode is set",
+      "forcedColors": "every --ov-* colour maps to a system colour (Canvas, CanvasText, GrayText, LinkText, Highlight, HighlightText); shadows and the grid go to none/transparent",
+      "source": "src/styles/sheet/tokens.css"
+    },
+    "colorMeta": {
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Paper Canvas",
+        "canonical": "#fcfcfb",
+        "graphite": "#141517",
+        "tonalRamp": [
+          "#141517",
+          "#27292d",
+          "#44474c",
+          "#666d74",
+          "#8d9399",
+          "#b4b8bb",
+          "#dcdedd",
+          "#fcfcfb"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Sheet White",
+        "canonical": "#ffffff",
+        "graphite": "#1c1d20"
+      },
+      "surface-raised": {
+        "role": "neutral",
+        "displayName": "Pressed Wash",
+        "canonical": "#f0f1f0",
+        "graphite": "#27292d"
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#15171a",
+        "graphite": "#f1f2f3",
+        "tonalRamp": [
+          "#15171a",
+          "#2b2e33",
+          "#44474c",
+          "#585f66",
+          "#6b7279",
+          "#8d9399",
+          "#aab0b7",
+          "#f1f2f3"
+        ]
+      },
+      "ink-muted": {
+        "role": "neutral",
+        "displayName": "Ink, Muted",
+        "canonical": "#585f66",
+        "graphite": "#aab0b7"
+      },
+      "ink-subtle": {
+        "role": "neutral",
+        "displayName": "Ink, Subtle",
+        "canonical": "#666d74",
+        "graphite": "#9ea4ab"
+      },
+      "ink-ghost": {
+        "role": "neutral",
+        "displayName": "Pencil",
+        "canonical": "#6b7279",
+        "graphite": "#9aa1a8"
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "#dcdedd",
+        "graphite": "#2f3236"
+      },
+      "line-strong": {
+        "role": "neutral",
+        "displayName": "Boundary Hairline",
+        "canonical": "#8d9399",
+        "graphite": "#6e747b"
+      },
+      "grid": {
+        "role": "neutral",
+        "displayName": "Construction Grid",
+        "canonical": "rgb(21 23 26 / 0.16)",
+        "graphite": "rgb(241 242 243 / 0.1)"
+      },
+      "pen": {
+        "role": "secondary",
+        "displayName": "Ballpoint Pen",
+        "canonical": "#2f4bc8",
+        "graphite": "#9db2ff",
+        "tonalRamp": [
+          "oklch(25% 0.14 268)",
+          "oklch(35% 0.17 268)",
+          "#213aa6",
+          "#2f4bc8",
+          "oklch(60% 0.17 268)",
+          "#9db2ff",
+          "#bcc9ff",
+          "#e6eafb"
+        ]
+      },
+      "pen-strong": {
+        "role": "secondary",
+        "displayName": "Pen, Pressed",
+        "canonical": "#213aa6",
+        "graphite": "#bcc9ff"
+      },
+      "pen-soft": {
+        "role": "secondary",
+        "displayName": "Pen Wash",
+        "canonical": "#e6eafb",
+        "graphite": "#22283f"
+      },
+      "highlight": {
+        "role": "primary",
+        "displayName": "Highlighter",
+        "canonical": "#ffd933",
+        "graphite": "#ffe14d",
+        "tonalRamp": [
+          "#3a3514",
+          "#6b5c12",
+          "#a67c00",
+          "#c99d00",
+          "#f2c90f",
+          "#ffd933",
+          "#ffe36b",
+          "#fff3b8"
+        ]
+      },
+      "highlight-strong": {
+        "role": "primary",
+        "displayName": "Highlighter, Pressed",
+        "canonical": "#f2c90f",
+        "graphite": "#fff07a"
+      },
+      "highlight-soft": {
+        "role": "primary",
+        "displayName": "Highlighter Tint",
+        "canonical": "#fff3b8",
+        "graphite": "#3a3514"
+      },
+      "on-highlight": {
+        "role": "primary",
+        "displayName": "Ink on Highlighter",
+        "canonical": "#15171a",
+        "graphite": "#15171a"
+      },
+      "success": {
+        "role": "tertiary",
+        "displayName": "Green Pen",
+        "canonical": "#1d7a4a",
+        "graphite": "#6fd39a"
+      },
+      "warning": {
+        "role": "tertiary",
+        "displayName": "Amber Pen",
+        "canonical": "#8a5a00",
+        "graphite": "#f0c060"
+      },
+      "danger": {
+        "role": "tertiary",
+        "displayName": "Red Pen",
+        "canonical": "#c0282f",
+        "graphite": "#ff8a80"
+      },
+      "focus": {
+        "role": "secondary",
+        "displayName": "Focus Ring",
+        "canonical": "#2f4bc8",
+        "graphite": "#9db2ff"
+      },
+      "series-1": {
+        "role": "neutral",
+        "displayName": "Series: Ink",
+        "canonical": "#15171a",
+        "graphite": "#f1f2f3"
+      },
+      "series-2": {
+        "role": "secondary",
+        "displayName": "Series: Pen",
+        "canonical": "#2f4bc8",
+        "graphite": "#9db2ff"
+      },
+      "series-3": {
+        "role": "primary",
+        "displayName": "Series: Ochre",
+        "canonical": "#a67c00",
+        "graphite": "#ffe14d"
+      },
+      "series-4": {
+        "role": "tertiary",
+        "displayName": "Series: Violet",
+        "canonical": "#8a3fb0",
+        "graphite": "#d3a4ff"
+      },
+      "volume-0": {
+        "role": "neutral",
+        "displayName": "Volume 0",
+        "canonical": "#ebecea",
+        "graphite": "#27292d"
+      },
+      "volume-1": {
+        "role": "primary",
+        "displayName": "Volume 1",
+        "canonical": "#fff3b8",
+        "graphite": "#3a3514"
+      },
+      "volume-2": {
+        "role": "primary",
+        "displayName": "Volume 2",
+        "canonical": "#ffe36b",
+        "graphite": "#6b5c12"
+      },
+      "volume-3": {
+        "role": "primary",
+        "displayName": "Volume 3",
+        "canonical": "#ffd933",
+        "graphite": "#b89e1a"
+      },
+      "volume-4": {
+        "role": "primary",
+        "displayName": "Volume 4",
+        "canonical": "#c99d00",
+        "graphite": "#ffe14d"
+      },
+      "backdrop": {
+        "role": "neutral",
+        "displayName": "Dialog Backdrop",
+        "canonical": "rgb(21 23 26 / 0.5)",
+        "graphite": "rgb(0 0 0 / 0.7)"
+      }
+    },
+    "groupPens": {
+      "purpose": "Eight coloured pens for supersets, taken in order of first appearance; each at least 4.5:1 on its sheet.",
+      "light": [
+        "#2f4bc8",
+        "#b8292e",
+        "#1d7a4a",
+        "#7a3fb0",
+        "#b4551a",
+        "#0f7585",
+        "#a8307d",
+        "#6b5a1a"
+      ],
+      "dark": [
+        "#9db2ff",
+        "#ff9a94",
+        "#7fd9a5",
+        "#d3a4ff",
+        "#ffb27a",
+        "#7ed6e6",
+        "#ff9ed6",
+        "#d9c57a"
+      ]
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The day's name on Today, a chart's headline figure, a block head at its largest."
+      },
+      "headline": { "displayName": "Headline", "purpose": "The page title on a top-level screen." },
+      "title": {
+        "displayName": "Title",
+        "purpose": "A nested screen's title, a block head, the sheet's title, an empty state's heading."
+      },
+      "body": { "displayName": "Body", "purpose": "Running text, row titles, coach lines in pen." },
+      "small": {
+        "displayName": "Small",
+        "purpose": "Subtitles, metadata, segmented and tab labels."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Section headings in spaced capitals, sitting on the rule beneath them; set-grid column heads.",
+        "textTransform": "uppercase"
+      },
+      "data": {
+        "displayName": "Data Voice",
+        "purpose": "Prescriptions, dates, row meta, cycle numbers, axis ticks: Barlow Semi Condensed, tabular."
+      },
+      "measure": {
+        "displayName": "Measure",
+        "purpose": "A stat tile, a rest countdown, a chart headline: the `measure` utility, line-height 1."
+      }
+    },
+    "shadows": [
+      {
+        "name": "sheet-shadow",
+        "value": "0 -8px 32px rgb(21 23 26 / 0.18)",
+        "dark": "0 -8px 32px rgb(0 0 0 / 0.55)",
+        "purpose": "The bottom sheet as it lifts from the bottom edge. The only ambient shadow."
+      },
+      {
+        "name": "nav-shadow",
+        "value": "0 -1px 0 rgb(21 23 26 / 0.08)",
+        "dark": "0 -1px 0 rgb(241 242 243 / 0.1)",
+        "purpose": "A hairline token for the tab bar island; the bar itself draws a line border."
+      },
+      {
+        "name": "note-lift",
+        "value": "0 4px 16px rgb(0 0 0 / 0.14)",
+        "purpose": "The info tip's floating note; a lifted surface, not available to anything at rest on the page."
+      }
+    ],
+    "motion": [
+      {
+        "name": "duration-feedback",
+        "value": "120ms",
+        "purpose": "Press feedback: background, colour, border, transform on every control."
+      },
+      {
+        "name": "duration-ink",
+        "value": "160ms",
+        "purpose": "Ink arriving: a value that just turned from pencil to ink settles in (opacity 0.35 and 2px rise)."
+      },
+      {
+        "name": "duration-tab",
+        "value": "120ms",
+        "purpose": "Tab bar colour and fill crossing to the next tab."
+      },
+      {
+        "name": "duration-sheet",
+        "value": "240ms",
+        "purpose": "The bottom sheet rising; also the progress bar's fill."
+      },
+      {
+        "name": "ease-out",
+        "value": "cubic-bezier(0.23, 1, 0.32, 1)",
+        "purpose": "Arrivals and every feedback transition; --ov-ease-standard is the same curve."
+      },
+      {
+        "name": "ease-in-out",
+        "value": "cubic-bezier(0.77, 0, 0.175, 1)",
+        "purpose": "Things moving on screen."
+      },
+      {
+        "name": "ease-sheet",
+        "value": "cubic-bezier(0.32, 0.72, 0, 1)",
+        "purpose": "The short spring a sheet rises on."
+      },
+      {
+        "name": "route-exit",
+        "value": "110ms",
+        "purpose": "View transition: the old sheet fades out."
+      },
+      {
+        "name": "route-enter",
+        "value": "180ms",
+        "purpose": "View transition: the new sheet fades in."
+      },
+      {
+        "name": "route-move",
+        "value": "240ms",
+        "purpose": "View transition: nav-forward slides the new sheet in 40px from the right and the old 24px left; nav-back reverses; sheet-cross only fades."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "0ms",
+        "purpose": "prefers-reduced-motion zeroes feedback, ink, tab and sheet durations and disables view transitions, the skeleton breathe and the route progress line."
+      }
+    ],
+    "breakpoints": [
+      { "name": "stat-tiles-four-across", "value": "440px" },
+      { "name": "desktop-rail", "value": "64rem" },
+      { "name": "short-landscape", "value": "height < 30rem and width < 64rem" },
+      { "name": "set-grid-tier-2", "value": "container max-width 18rem" },
+      { "name": "set-grid-tier-3", "value": "container max-width 13.625rem" }
+    ],
+    "layout": {
+      "contentMax": "34rem",
+      "pageGutter": "clamp(1rem, 4vw, 1.25rem)",
+      "panelPadding": "clamp(0.875rem, 3.5vw, 1rem)",
+      "sectionGap": "clamp(1.5rem, 5vw, 2rem)",
+      "headerHeight": "3.25rem",
+      "navHeight": "3.75rem",
+      "railWidth": "13rem",
+      "gridDot": "radial-gradient(circle at 1px 1px, var(--ov-grid) 1px, transparent 1.5px) every 20px on the body",
+      "setColumns": "2.5rem minmax(4.5rem, 1.3fr) minmax(3.5rem, 1fr) minmax(3rem, 0.9fr) 2.75rem",
+      "zIndex": { "content": 0, "nav": 40, "timer": 45, "notice": 50, "dialog": 100 }
+    }
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The highlighter: one per screen, black ink on yellow, the thing the thumb goes to.",
+      "html": "<button class=\"ds-btn ds-btn-primary\">Start workout</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; min-height: 2.75rem; padding: 0.5rem 1rem; border-radius: var(--ov-radius-control, 0.25rem); font-family: var(--ov-font-body, Barlow, sans-serif); font-size: 1rem; font-weight: 500; line-height: 1.375; text-align: center; cursor: pointer; user-select: none; transition: background-color 120ms cubic-bezier(0.23, 1, 0.32, 1), color 120ms cubic-bezier(0.23, 1, 0.32, 1), border-color 120ms cubic-bezier(0.23, 1, 0.32, 1), transform 120ms cubic-bezier(0.23, 1, 0.32, 1); } .ds-btn:active { transform: scale(0.98); } .ds-btn:disabled { pointer-events: none; opacity: 0.45; } .ds-btn:focus-visible { outline: 2px solid var(--ov-focus, #2f4bc8); outline-offset: 2px; } .ds-btn-primary { background: var(--ov-highlight, #ffd933); color: var(--ov-on-highlight, #15171a); border: 1px solid var(--ov-highlight-strong, #f2c90f); } .ds-btn-primary:active { background: var(--ov-highlight-strong, #f2c90f); }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Ruled: ink on the sheet inside a hairline.",
+      "html": "<button class=\"ds-btn ds-btn-secondary\">Skip today</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; min-height: 2.75rem; padding: 0.5rem 1rem; border-radius: var(--ov-radius-control, 0.25rem); font-family: var(--ov-font-body, Barlow, sans-serif); font-size: 1rem; font-weight: 500; line-height: 1.375; cursor: pointer; user-select: none; transition: background-color 120ms cubic-bezier(0.23, 1, 0.32, 1), transform 120ms cubic-bezier(0.23, 1, 0.32, 1); } .ds-btn:active { transform: scale(0.98); } .ds-btn:focus-visible { outline: 2px solid var(--ov-focus, #2f4bc8); outline-offset: 2px; } .ds-btn-secondary { background: var(--ov-surface, #ffffff); color: var(--ov-ink, #15171a); border: 1px solid var(--ov-line-strong, #8d9399); } .ds-btn-secondary:hover, .ds-btn-secondary:active { background: var(--ov-surface-raised, #f0f1f0); }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "A tappable word in the pen's blue.",
+      "html": "<button class=\"ds-btn ds-btn-ghost\">More options</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; min-height: 2.75rem; padding: 0.5rem 1rem; border-radius: var(--ov-radius-control, 0.25rem); font-family: var(--ov-font-body, Barlow, sans-serif); font-size: 1rem; font-weight: 500; line-height: 1.375; cursor: pointer; user-select: none; border: 1px solid transparent; transition: background-color 120ms cubic-bezier(0.23, 1, 0.32, 1), color 120ms cubic-bezier(0.23, 1, 0.32, 1), transform 120ms cubic-bezier(0.23, 1, 0.32, 1); } .ds-btn:active { transform: scale(0.98); } .ds-btn:focus-visible { outline: 2px solid var(--ov-focus, #2f4bc8); outline-offset: 2px; } .ds-btn-ghost { background: transparent; color: var(--ov-pen, #2f4bc8); } .ds-btn-ghost:hover { color: var(--ov-pen-strong, #213aa6); } .ds-btn-ghost:active { background: var(--ov-surface-raised, #f0f1f0); }"
+    },
+    {
+      "name": "Danger Button",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "The red pen, outlined so the colour is never the only signal.",
+      "html": "<button class=\"ds-btn ds-btn-danger\">Discard session</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; min-height: 2.75rem; padding: 0.5rem 1rem; border-radius: var(--ov-radius-control, 0.25rem); font-family: var(--ov-font-body, Barlow, sans-serif); font-size: 1rem; font-weight: 500; line-height: 1.375; cursor: pointer; user-select: none; transition: background-color 120ms cubic-bezier(0.23, 1, 0.32, 1), transform 120ms cubic-bezier(0.23, 1, 0.32, 1); } .ds-btn:active { transform: scale(0.98); } .ds-btn:focus-visible { outline: 2px solid var(--ov-focus, #2f4bc8); outline-offset: 2px; } .ds-btn-danger { background: transparent; color: var(--ov-danger, #c0282f); border: 1px solid var(--ov-danger, #c0282f); } .ds-btn-danger:active { background: var(--ov-surface-raised, #f0f1f0); }"
+    },
+    {
+      "name": "Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "A cell on the sheet: white inside a boundary hairline, pencil placeholder, pen on focus.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">Gym name</span><input class=\"ds-input\" type=\"text\" placeholder=\"Iron Works\" /></label>",
+      "css": ".ds-field { display: block; min-width: 0; font-family: var(--ov-font-body, Barlow, sans-serif); } .ds-field-label { display: block; margin-bottom: 0.25rem; font-size: 0.875rem; font-weight: 500; color: var(--ov-ink, #15171a); } .ds-input { height: 2.75rem; width: 100%; min-width: 0; padding: 0 0.75rem; border-radius: var(--ov-radius-control, 0.25rem); border: 1px solid var(--ov-line-strong, #8d9399); background: var(--ov-surface, #ffffff); color: var(--ov-ink, #15171a); font-family: inherit; font-size: max(1rem, 16px); font-variant-numeric: tabular-nums; } .ds-input::placeholder { color: var(--ov-ink-ghost, #6b7279); opacity: 1; } .ds-input:focus { outline: none; border-color: var(--ov-pen, #2f4bc8); box-shadow: 0 0 0 1px var(--ov-pen, #2f4bc8); } .ds-input:disabled { opacity: 0.5; } .ds-input[aria-invalid=\"true\"] { border-color: var(--ov-danger, #c0282f); }"
+    },
+    {
+      "name": "Segmented Control",
+      "kind": "chip",
+      "refersTo": "segmented-cell",
+      "description": "A radio group on a raised track; the chosen cell is inked in, never highlighted.",
+      "html": "<div class=\"ds-segmented\" role=\"radiogroup\" aria-label=\"Effort\"><label class=\"ds-segment\"><input type=\"radio\" name=\"ds-seg\" checked /><span class=\"ds-segment-cell\">RIR</span></label><label class=\"ds-segment\"><input type=\"radio\" name=\"ds-seg\" /><span class=\"ds-segment-cell\">RPE</span></label><label class=\"ds-segment\"><input type=\"radio\" name=\"ds-seg\" /><span class=\"ds-segment-cell\">None</span></label></div>",
+      "css": ".ds-segmented { display: flex; flex-wrap: wrap; gap: 0.25rem; padding: 0.25rem; border-radius: var(--ov-radius-control, 0.25rem); border: 1px solid var(--ov-line, #dcdedd); background: var(--ov-surface-raised, #f0f1f0); font-family: var(--ov-font-body, Barlow, sans-serif); } .ds-segment { position: relative; flex: 1 1 4.75rem; min-width: min(100%, 4.75rem); } .ds-segment input { position: absolute; width: 1px; height: 1px; opacity: 0; } .ds-segment-cell { display: flex; min-height: 2.5rem; align-items: center; justify-content: center; padding: 0.25rem; border-radius: var(--ov-radius-control, 0.25rem); font-size: 0.875rem; font-weight: 500; line-height: 1.25; color: var(--ov-ink-muted, #585f66); user-select: none; cursor: pointer; transition: background-color 120ms cubic-bezier(0.23, 1, 0.32, 1), color 120ms cubic-bezier(0.23, 1, 0.32, 1); } .ds-segment input:checked + .ds-segment-cell { background: var(--ov-ink, #15171a); color: var(--ov-canvas, #fcfcfb); } .ds-segment input:focus-visible + .ds-segment-cell { box-shadow: 0 0 0 2px var(--ov-focus, #2f4bc8); }"
+    },
+    {
+      "name": "Badge",
+      "kind": "chip",
+      "refersTo": "badge-neutral",
+      "description": "A small ruled label, not a pill; highlight is the one filled tone, for the thing that is current.",
+      "html": "<span class=\"ds-badge\">Rest day</span> <span class=\"ds-badge ds-badge-accent\">Proposed</span> <span class=\"ds-badge ds-badge-highlight\">Today</span> <span class=\"ds-badge ds-badge-success\">Done</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; padding: 0.125rem 0.375rem; border-radius: var(--ov-radius-control, 0.25rem); border: 1px solid var(--ov-line-strong, #8d9399); color: var(--ov-ink-muted, #585f66); font-family: var(--ov-font-body, Barlow, sans-serif); font-size: 0.75rem; font-weight: 500; line-height: 1rem; } .ds-badge-accent { border-color: var(--ov-pen, #2f4bc8); color: var(--ov-pen, #2f4bc8); } .ds-badge-highlight { border-color: var(--ov-highlight-strong, #f2c90f); background: var(--ov-highlight, #ffd933); color: var(--ov-on-highlight, #15171a); } .ds-badge-success { border-color: var(--ov-success, #1d7a4a); color: var(--ov-success, #1d7a4a); } .ds-badge-danger { border-color: var(--ov-danger, #c0282f); color: var(--ov-danger, #c0282f); }"
+    },
+    {
+      "name": "Ruled Block with Rows",
+      "kind": "card",
+      "refersTo": "row",
+      "description": "A block on the sheet, ruled above and below and cut into rows; a link row with its chevron and meta.",
+      "html": "<ul class=\"ds-box-rows\"><li><a class=\"ds-row\" href=\"#\"><span class=\"ds-row-main\"><span class=\"ds-row-title\">Lower A</span><span class=\"ds-row-sub\">Squat, RDL, leg press</span></span><span class=\"ds-row-meta\">15 sets</span><svg class=\"ds-row-chevron\" width=\"20\" height=\"20\" viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M181.66 133.66l-80 80a8 8 0 0 1-11.32-11.32L164.69 128 90.34 53.66a8 8 0 0 1 11.32-11.32l80 80a8 8 0 0 1 0 11.32Z\"/></svg></a></li><li><a class=\"ds-row\" href=\"#\"><span class=\"ds-row-main\"><span class=\"ds-row-title\">Upper A</span><span class=\"ds-row-sub\">Bench, row, press</span></span><span class=\"ds-row-meta\">14 sets</span><svg class=\"ds-row-chevron\" width=\"20\" height=\"20\" viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M181.66 133.66l-80 80a8 8 0 0 1-11.32-11.32L164.69 128 90.34 53.66a8 8 0 0 1 11.32-11.32l80 80a8 8 0 0 1 0 11.32Z\"/></svg></a></li></ul>",
+      "css": ".ds-box-rows { list-style: none; margin: 0; padding: 0; min-width: 0; border-top: 1px solid var(--ov-line, #dcdedd); border-bottom: 1px solid var(--ov-line, #dcdedd); font-family: var(--ov-font-body, Barlow, sans-serif); color: var(--ov-ink, #15171a); } .ds-box-rows > li + li { border-top: 1px solid var(--ov-line, #dcdedd); } .ds-row { display: flex; min-height: 3.5rem; width: 100%; align-items: center; gap: 0.75rem; padding: 0.75rem 0; text-align: left; color: inherit; text-decoration: none; transition: background-color 120ms cubic-bezier(0.23, 1, 0.32, 1); } .ds-row:active { background: var(--ov-surface-raised, #f0f1f0); } .ds-row:focus-visible { outline: 2px solid var(--ov-focus, #2f4bc8); outline-offset: -2px; border-radius: var(--ov-radius-control, 0.25rem); } .ds-row-main { display: flex; min-width: 0; flex: 1 1 10rem; flex-direction: column; } .ds-row-title { font-weight: 500; } .ds-row-sub { margin-top: 0.125rem; font-size: 0.875rem; color: var(--ov-ink-muted, #585f66); } .ds-row-meta { margin-left: auto; font-size: 0.875rem; color: var(--ov-ink-muted, #585f66); font-variant-numeric: tabular-nums; } .ds-row-chevron { flex-shrink: 0; color: var(--ov-ink-subtle, #666d74); }"
+    },
+    {
+      "name": "Plan Row",
+      "kind": "custom",
+      "refersTo": "row",
+      "description": "One row of the plan as the sheet writes it: the margin number, the name, the prescription in the data voice, the coach's reason in pen.",
+      "html": "<ol class=\"ds-plan\"><li class=\"ds-plan-row\"><span class=\"ds-plan-n\">1</span><span class=\"ds-plan-body\"><span class=\"ds-plan-name\">Back squat</span><span class=\"ds-plan-rx\">3 × 5–8 @ 1 RIR</span><span class=\"ds-plan-note\">Top set heavier than last week; you had two in reserve.</span></span></li><li class=\"ds-plan-row\"><span class=\"ds-plan-n\">2</span><span class=\"ds-plan-body\"><span class=\"ds-plan-name\">Romanian deadlift</span><span class=\"ds-plan-rx\">3 × 8–12 @ 2 RIR</span></span></li></ol>",
+      "css": ".ds-plan { list-style: none; margin: 0; padding: 0; font-family: var(--ov-font-body, Barlow, sans-serif); color: var(--ov-ink, #15171a); } .ds-plan-row { display: flex; align-items: baseline; gap: 0.75rem; padding: 0.625rem 0; } .ds-plan-row + .ds-plan-row { border-top: 1px solid var(--ov-line, #dcdedd); } .ds-plan-n { width: 1.25rem; flex-shrink: 0; font-family: var(--ov-font-data, 'Barlow Semi Condensed', Barlow, sans-serif); font-size: 0.875rem; font-weight: 500; color: var(--ov-ink-subtle, #666d74); font-variant-numeric: tabular-nums; } .ds-plan-body { display: flex; min-width: 0; flex: 1; flex-direction: column; } .ds-plan-name { font-weight: 500; } .ds-plan-rx { margin-top: 0.125rem; font-family: var(--ov-font-data, 'Barlow Semi Condensed', Barlow, sans-serif); font-size: 0.875rem; color: var(--ov-ink-muted, #585f66); font-variant-numeric: tabular-nums; } .ds-plan-note { margin-top: 0.25rem; font-size: 0.875rem; color: var(--ov-pen, #2f4bc8); }"
+    },
+    {
+      "name": "Cycle Cells",
+      "kind": "custom",
+      "refersTo": "cycle-cell-today",
+      "description": "The number in the margin as a cell: outlined to come, highlighter today, inked once done, struck when skipped.",
+      "html": "<ol class=\"ds-cycle\"><li class=\"ds-cell ds-cell-done\">1</li><li class=\"ds-cell ds-cell-done\">2</li><li class=\"ds-cell ds-cell-skipped\">3</li><li class=\"ds-cell ds-cell-today\">4</li><li class=\"ds-cell\">5</li><li class=\"ds-cell\">6</li></ol>",
+      "css": ".ds-cycle { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0.25rem; } .ds-cell { display: flex; height: 2.75rem; min-width: 0; align-items: center; justify-content: center; border-radius: var(--ov-radius-control, 0.25rem); border: 1px solid var(--ov-line, #dcdedd); color: var(--ov-ink-muted, #585f66); font-family: var(--ov-font-data, 'Barlow Semi Condensed', Barlow, sans-serif); font-size: 0.875rem; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; } .ds-cell-today { border-color: var(--ov-highlight-strong, #f2c90f); background: var(--ov-highlight, #ffd933); color: var(--ov-on-highlight, #15171a); } .ds-cell-done { border-color: var(--ov-ink, #15171a); background: var(--ov-ink, #15171a); color: var(--ov-canvas, #fcfcfb); } .ds-cell-skipped { border-color: var(--ov-line-strong, #8d9399); color: var(--ov-ink-subtle, #666d74); text-decoration: line-through; }"
+    },
+    {
+      "name": "Tab Bar",
+      "kind": "nav",
+      "refersTo": "nav-tab",
+      "description": "Five sheet tabs along the bottom edge, ruled off; the current one filled with the highlighter around icon and label together.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Primary\"><ul class=\"ds-nav-items\"><li><a class=\"ds-nav-link\" href=\"#\" aria-current=\"page\"><span class=\"ds-nav-tab ds-nav-tab-active\"><svg width=\"24\" height=\"24\" viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M208 32h-24a8 8 0 0 0-8 8v16h-96V40a8 8 0 0 0-8-8H48a16 16 0 0 0-16 16v160a16 16 0 0 0 16 16h24a8 8 0 0 0 8-8v-16h96v16a8 8 0 0 0 8 8h24a16 16 0 0 0 16-16V48a16 16 0 0 0-16-16ZM64 208H48V48h16Zm112-24H80V72h96Zm32 24h-16V48h16Z\"/></svg><span>Today</span></span></a></li><li><a class=\"ds-nav-link\" href=\"#\"><span class=\"ds-nav-tab\"><svg width=\"24\" height=\"24\" viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M208 32H48a16 16 0 0 0-16 16v160a16 16 0 0 0 16 16h160a16 16 0 0 0 16-16V48a16 16 0 0 0-16-16Zm0 176H48V48h160ZM72 96a8 8 0 0 1 8-8h96a8 8 0 0 1 0 16H80a8 8 0 0 1-8-8Zm0 32a8 8 0 0 1 8-8h96a8 8 0 0 1 0 16H80a8 8 0 0 1-8-8Zm0 32a8 8 0 0 1 8-8h96a8 8 0 0 1 0 16H80a8 8 0 0 1-8-8Z\"/></svg><span>Plan</span></span></a></li><li><a class=\"ds-nav-link\" href=\"#\"><span class=\"ds-nav-tab\"><svg width=\"24\" height=\"24\" viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M224 200h-8V40a8 8 0 0 0-8-8h-56a8 8 0 0 0-8 8v40H96a8 8 0 0 0-8 8v40H48a8 8 0 0 0-8 8v64h-8a8 8 0 0 0 0 16h192a8 8 0 0 0 0-16ZM160 48h40v152h-40Zm-56 48h40v104h-40Zm-48 48h32v56H56Z\"/></svg><span>Progress</span></span></a></li></ul></nav>",
+      "css": ".ds-nav { background: var(--ov-canvas, #fcfcfb); border-top: 1px solid var(--ov-line, #dcdedd); font-family: var(--ov-font-body, Barlow, sans-serif); } .ds-nav-items { list-style: none; margin: 0; display: flex; height: 3.75rem; padding: 0.375rem 0.25rem; gap: 0.125rem; } .ds-nav-items > li { flex: 1; min-width: 0; } .ds-nav-link { display: block; height: 100%; border-radius: var(--ov-radius-control, 0.25rem); text-decoration: none; user-select: none; } .ds-nav-link:focus-visible { outline: 2px solid var(--ov-focus, #2f4bc8); outline-offset: 2px; } .ds-nav-tab { display: flex; height: 100%; width: 100%; min-width: 0; flex-direction: column; align-items: center; justify-content: center; gap: 0.125rem; padding: 0 0.125rem; border-radius: inherit; font-size: clamp(0.6875rem, 2.8vw, 0.75rem); font-weight: 500; letter-spacing: 0.01em; color: var(--ov-ink-muted, #585f66); transition: background-color 120ms cubic-bezier(0.23, 1, 0.32, 1), color 120ms cubic-bezier(0.23, 1, 0.32, 1), transform 120ms cubic-bezier(0.23, 1, 0.32, 1); } .ds-nav-tab-active { background: var(--ov-highlight, #ffd933); color: var(--ov-on-highlight, #15171a); } .ds-nav-link:active .ds-nav-tab { transform: scale(0.96); } .ds-nav-link:active .ds-nav-tab:not(.ds-nav-tab-active) { background: var(--ov-surface-raised, #f0f1f0); }"
+    },
+    {
+      "name": "Bottom Sheet",
+      "kind": "custom",
+      "refersTo": "sheet-panel",
+      "description": "A sheet that lifts: the one surface that casts a shadow, rising 1.5rem on a short spring.",
+      "html": "<div class=\"ds-sheet-stage\"><div class=\"ds-sheet-panel\"><div class=\"ds-sheet-handle\"></div><div class=\"ds-sheet-head\"><h2 class=\"ds-sheet-title\">Set options</h2><button class=\"ds-sheet-close\" aria-label=\"Close sheet\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M205.66 194.34a8 8 0 0 1-11.32 11.32L128 139.31l-66.34 66.35a8 8 0 0 1-11.32-11.32L116.69 128 50.34 61.66a8 8 0 0 1 11.32-11.32L128 116.69l66.34-66.35a8 8 0 0 1 11.32 11.32L139.31 128Z\"/></svg></button></div><p class=\"ds-sheet-body\">Mark this set as a warm-up, a back-off or a drop set.</p><div class=\"ds-sheet-footer\"><button class=\"ds-btn ds-btn-primary\">Save</button></div></div></div>",
+      "css": ".ds-sheet-stage { background: var(--ov-backdrop, rgb(21 23 26 / 0.5)); padding: 2rem 0 0; } .ds-sheet-panel { display: flex; flex-direction: column; max-width: 32rem; margin: 0 auto; padding: clamp(0.875rem, 3.5vw, 1rem); background: var(--ov-surface, #ffffff); color: var(--ov-ink, #15171a); border-top: 1px solid var(--ov-line, #dcdedd); border-radius: var(--ov-radius-sheet, 0.875rem) var(--ov-radius-sheet, 0.875rem) 0 0; box-shadow: var(--ov-sheet-shadow, 0 -8px 32px rgb(21 23 26 / 0.18)); font-family: var(--ov-font-body, Barlow, sans-serif); animation: ds-sheet-in 240ms cubic-bezier(0.32, 0.72, 0, 1); } @keyframes ds-sheet-in { from { transform: translateY(1.5rem); opacity: 0.4; } } @media (prefers-reduced-motion: reduce) { .ds-sheet-panel { animation: none; } } .ds-sheet-handle { margin: 0 auto 0.75rem; height: 0.25rem; width: 2.25rem; border-radius: 9999px; background: var(--ov-line-strong, #8d9399); } .ds-sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.75rem; } .ds-sheet-title { margin: 0; font-size: 1.125rem; font-weight: 600; line-height: 1.15; letter-spacing: -0.01em; } .ds-sheet-close { display: flex; width: 2.75rem; height: 2.75rem; margin-right: -0.5rem; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: var(--ov-radius-control, 0.25rem); color: var(--ov-ink-muted, #585f66); cursor: pointer; transition: background-color 120ms cubic-bezier(0.23, 1, 0.32, 1); } .ds-sheet-close:active { background: var(--ov-surface-raised, #f0f1f0); } .ds-sheet-body { margin: 0; font-size: 1rem; line-height: 1.5; } .ds-sheet-footer { margin: 0.75rem calc(-1 * clamp(0.875rem, 3.5vw, 1rem)) 0; padding: 0.75rem clamp(0.875rem, 3.5vw, 1rem) 0; border-top: 1px solid var(--ov-line, #dcdedd); } .ds-btn { display: inline-flex; width: 100%; align-items: center; justify-content: center; min-height: 2.75rem; padding: 0.5rem 1rem; border-radius: var(--ov-radius-control, 0.25rem); font: 500 1rem/1.375 inherit; cursor: pointer; } .ds-btn-primary { background: var(--ov-highlight, #ffd933); color: var(--ov-on-highlight, #15171a); border: 1px solid var(--ov-highlight-strong, #f2c90f); } .ds-btn-primary:active { background: var(--ov-highlight-strong, #f2c90f); }"
+    },
+    {
+      "name": "Pencil and Ink",
+      "kind": "custom",
+      "refersTo": "set-cell",
+      "description": "The signature interaction: a pencil prefill in a set cell becomes ink when typed over, and the ink settles in over 160ms.",
+      "html": "<div class=\"ds-setrow\"><span class=\"ds-cell ds-cell-today\">2</span><input class=\"ds-setcell\" type=\"text\" inputmode=\"decimal\" placeholder=\"80\" aria-label=\"Set 2 load, kilograms\" /><input class=\"ds-setcell ds-ink-in\" type=\"text\" inputmode=\"numeric\" value=\"8\" aria-label=\"Set 2 reps\" /><input class=\"ds-setcell\" type=\"text\" inputmode=\"numeric\" placeholder=\"1\" aria-label=\"Set 2 RIR\" /><button class=\"ds-save\" aria-label=\"Save set 2\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 256 256\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M229.66 77.66l-128 128a8 8 0 0 1-11.32 0l-56-56a8 8 0 0 1 11.32-11.32L96 188.69 218.34 66.34a8 8 0 0 1 11.32 11.32Z\"/></svg></button><span class=\"ds-pencil\">last 80 kg × 8</span></div>",
+      "css": ".ds-setrow { display: grid; grid-template-columns: 2.5rem minmax(4.5rem, 1.3fr) minmax(3.5rem, 1fr) minmax(3rem, 0.9fr) 2.75rem; gap: 0.5rem; align-items: center; font-family: var(--ov-font-body, Barlow, sans-serif); color: var(--ov-ink, #15171a); } .ds-cell { display: flex; width: 2.25rem; height: 2.25rem; align-items: center; justify-content: center; border-radius: var(--ov-radius-control, 0.25rem); border: 1px solid var(--ov-line, #dcdedd); font-family: var(--ov-font-data, 'Barlow Semi Condensed', Barlow, sans-serif); font-size: 0.875rem; font-weight: 600; font-variant-numeric: tabular-nums; } .ds-cell-today { border-color: var(--ov-highlight-strong, #f2c90f); background: var(--ov-highlight, #ffd933); color: var(--ov-on-highlight, #15171a); } .ds-setcell { height: 3rem; width: 100%; min-width: 0; padding: 0 0.25rem; text-align: center; border-radius: var(--ov-radius-control, 0.25rem); border: 1px solid var(--ov-line-strong, #8d9399); background: var(--ov-surface, #ffffff); color: var(--ov-ink, #15171a); font-family: var(--ov-font-data, 'Barlow Semi Condensed', Barlow, sans-serif); font-size: 1.125rem; font-weight: 600; font-variant-numeric: tabular-nums; } .ds-setcell::placeholder { font-weight: 400; color: var(--ov-ink-ghost, #6b7279); opacity: 1; } .ds-setcell:focus { outline: none; border-color: var(--ov-pen, #2f4bc8); box-shadow: 0 0 0 1px var(--ov-pen, #2f4bc8); } .ds-save { display: flex; height: 2.75rem; width: 2.75rem; align-items: center; justify-content: center; border-radius: var(--ov-radius-control, 0.25rem); border: 1px solid var(--ov-highlight-strong, #f2c90f); background: var(--ov-highlight, #ffd933); color: var(--ov-on-highlight, #15171a); cursor: pointer; } .ds-ink-in { animation: ds-ink-in 160ms cubic-bezier(0.23, 1, 0.32, 1); } @keyframes ds-ink-in { from { opacity: 0.35; transform: translateY(0.125rem); } } .ds-pencil { grid-column: 1 / -1; font-size: 0.875rem; color: var(--ov-ink-ghost, #6b7279); font-weight: 400; text-decoration: underline dotted; text-decoration-color: var(--ov-line-strong, #8d9399); text-underline-offset: 0.18em; text-decoration-thickness: 1px; } @media (prefers-reduced-motion: reduce) { .ds-ink-in { animation: none; } }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Coach's Plan Sheet",
+    "overview": "Overload is one sheet of paper, not a stack of cards. Every screen is a position on the training plan drawn on the same page: paper-white in daylight, graphite-black at the gym, and in both a faint construction grid (one dot every 20px) shows through the canvas. The sheet is written in four instruments, and the whole system is the discipline of which instrument writes what. Ink is what is true and confirmed. Pencil (a grey with a dotted underline) is what the coach proposes and the athlete has not yet confirmed. Pen (ballpoint blue) is the coach's own hand and every word that can be tapped. The highlighter (fluorescent yellow with black ink on it) marks today, the current step and the one primary action on a screen, and nothing else.\n\nThe density is that of a data document read at arm's length between sets: Barlow for prose, the semi-condensed cut for every measure, tabular numerals wherever a number lives, hairline rules instead of boxes, and nearly square corners (4px). Depth is almost absent; the page is flat and only a sheet that lifts off it (the bottom sheet) casts a shadow. Motion is the sound of a pen: ink settles in over 160ms, a bottom sheet rises on a 240ms spring, a tab crosses in 120ms, and nothing animates on page load.\n\nIt refuses the fitness dashboard (a hero ring, a grid of stat cards, a neon start button, a streak) and the calm-journal opposite (cream paper, serif type, terracotta boxes). The one signature graphic is the periodisation chart: the cycles banded across the span, each week's work as a stepped bar inked over them, the plan as a pencil step, today as a pen line.",
+    "keyCharacteristics": [
+      "One sheet, two palettes (daylight and graphite) with the same semantic tokens; everything is right in both or it is not done.",
+      "Four instruments with fixed meanings: ink (confirmed), pencil (proposed), pen (coach's hand and anything tappable), highlighter (today, current step, one primary action).",
+      "Ruled blocks, never boxes in boxes; the only opaque container is the pinned panel.",
+      "Numbers always in the data voice: Barlow Semi Condensed, tabular, in a column.",
+      "Flat by default; one shadow, cast only by the bottom sheet as it lifts.",
+      "Phosphor regular as the single icon stroke; no glyph icons, no second weight."
+    ],
+    "rules": [
+      {
+        "name": "The One Highlighter Rule",
+        "body": "The highlighter marks today, the current step and the one primary action, and nothing else. A chosen cell in a segmented control is inked in (`ink` on `canvas`), and a marked row or tile in a picker takes `highlight-soft` with a pen check; neither takes the full highlighter. The wordmark carries a highlighter stroke only on the sign-in screens, where there is no today to mark.",
+        "section": "colors"
+      },
+      {
+        "name": "The Pen Is Tappable Rule",
+        "body": "Blue means the coach wrote it or you can press it. No decorative blue; no tappable grey.",
+        "section": "colors"
+      },
+      {
+        "name": "The Pencil Rule",
+        "body": "Anything proposed and not yet confirmed is set in `ink-ghost` at regular weight (placeholders, prefills, the plan's step), and becomes ink the moment the athlete confirms it.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tabular Rule",
+        "body": "`font-variant-numeric: tabular-nums` is set on the body and on every input. A digit never shifts a column.",
+        "section": "typography"
+      },
+      {
+        "name": "The Data Voice Rule",
+        "body": "A number that must be read at a glance is set in Barlow Semi Condensed, 500 or 600, never in the prose cut.",
+        "section": "typography"
+      },
+      {
+        "name": "The 16px Field Rule",
+        "body": "Every input is at least 16px (`max(1rem, 16px)`) so iOS never zooms on focus; zoom itself stays enabled.",
+        "section": "typography"
+      },
+      {
+        "name": "The Only a Lifted Sheet Casts a Shadow Rule",
+        "body": "Nothing at rest on the page has a shadow, a gradient, a blur or a glass effect. A surface earns a shadow only by lifting off the sheet (the bottom sheet, the info note), and loses it in forced-colors mode.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do use exactly one primary (highlighter) button per screen, placed within thumb reach; lists of similar choices are never rows of primaries.",
+      "Do set every number in the data voice (Barlow Semi Condensed, tabular) and keep the body at `tabular-nums`.",
+      "Do group with rules: `box`, `box-rows`, `ruled-list`, `rule-top`, `rule-bottom`; reach for `panel` only when a thing must stand off the page, and never put one inside another.",
+      "Do consume tokens only, through the Tailwind names mapped in globals.css; charts use `series-*`, `volume-*`, `group-*`.",
+      "Do keep targets at 44px (56px rows), show a visible focus ring in pen, wrap text at 200% zoom, and pair every colour with a border, a weight or a word.",
+      "Do make every surface right on both the daylight and graphite sheets before calling it done.",
+      "Do give every link its transition type (`nav-tab`, `nav-forward`, `nav-back`) and animate only transform, opacity and colour, from an already visible state, in 120 to 240ms ease-out.",
+      "Do hold a single still under `prefers-reduced-motion`; the tokens already zero the durations."
+    ],
+    "donts": [
+      "Don't use the highlighter for anything but today, the current step and the one primary action; a chosen segment is inked in and a marked picker row takes `highlight-soft` with a pen check.",
+      "Don't draw cards: no large radii, no resting shadows, no gradients, glass or blur; only a lifting sheet or note casts a shadow.",
+      "Don't set pen blue on anything that is neither the coach's hand nor tappable, and don't make a tappable word grey.",
+      "Don't confirm a proposal visually before the athlete does: a prefill stays in pencil until it is inked over.",
+      "Don't write a raw hex in a component, import an icon from anywhere but `icons.tsx`, or use a second icon weight.",
+      "Don't animate on page load, add a second page-level view transition, or move anything in a chart.",
+      "Don't show a grid of small charts; one plot owns its screen at full width."
+    ]
+  }
+}

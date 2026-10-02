@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 
 /**
  * Supersets are told apart by colour, not by a label. The theme carries eight group hues,
- * each validated on both canvases and kept clear of the copper accent, and a workout's
+ * each validated on both canvases and kept clear of the pen and the highlighter, and a workout's
  * groups take them in order of first appearance: the first superset in any workout is
  * always hue 1, so the same workout looks the same every time it is opened.
  */
