@@ -37,10 +37,10 @@ export function BackLink({ fallback, label }: { fallback: string; label?: string
           router.back();
         }
       }}
-      className="-ml-1.5 flex min-w-0 flex-1 basis-[5.5rem] items-center gap-0.5 self-stretch rounded-control px-1.5 text-accent transition-colors duration-[var(--ov-duration-feedback)] ease-[var(--ov-ease-standard)] active:bg-surface-raised"
+      className="-ml-1.5 flex min-w-0 flex-1 basis-[5.5rem] items-center gap-0.5 self-stretch rounded-control px-1.5 text-pen transition-colors duration-[var(--ov-duration-feedback)] ease-[var(--ov-ease-out)] active:bg-surface-raised"
     >
       <ChevronLeft className="shrink-0" aria-hidden />
-      <span className="text-sm [overflow-wrap:anywhere]">{destination}</span>
+      <span className="text-sm font-medium [overflow-wrap:anywhere]">{destination}</span>
     </Link>
   );
 }

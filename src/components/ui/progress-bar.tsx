@@ -21,9 +21,12 @@ export function ProgressBar({
     <div
       role="img"
       aria-label={label}
-      className={cn("h-1.5 w-full overflow-hidden rounded-full bg-surface-raised", className)}
+      className={cn("h-1.5 w-full overflow-hidden rounded-control bg-surface-raised", className)}
     >
-      <div className="h-full rounded-full bg-accent" style={{ width: `${percent}%` }} />
+      <div
+        className="h-full rounded-control bg-pen transition-[width] duration-[var(--ov-duration-sheet)] ease-[var(--ov-ease-out)]"
+        style={{ width: `${percent}%` }}
+      />
     </div>
   );
 }

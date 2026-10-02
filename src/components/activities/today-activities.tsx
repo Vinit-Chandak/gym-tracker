@@ -1,8 +1,8 @@
 import Link from "@/components/ui/app-link";
 import { Badge } from "@/components/ui/badge";
 import { LinkButton } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Disclosure } from "@/components/ui/disclosure";
+import { Bicycle, Dumbbell, Run, Waves, type AppIcon } from "@/components/ui/icons";
 import { ACTIVITY_SPORT_LABELS } from "@/domain/activity";
 import { describePrescription } from "@/domain/activity-prescription";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
@@ -10,14 +10,20 @@ import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
 /**
  * One scheduled session on Today, whatever put it there (plan §2.3).
  *
- * Two sources meet on this card and neither is allowed to pretend to be the other. Work the
+ * Two sources meet on this row and neither is allowed to pretend to be the other. Work the
  * athlete put on the calendar is here because it is dated today. The programme's own endurance
  * is here because the sequence has reached the day it belongs to — never because its original
- * date happens to be today, which is what showed a run from a day nobody had got to yet
- * (TODAY-01). The caller decides which it is asking for; the card only says so.
+ * date happens to be today. The caller decides which it is asking for; the row only says so.
  *
- * Strength keeps its own card, drawn by Today from the same sequence. These sit beside it.
+ * Strength keeps its own block, drawn by Today from the same sequence. These sit beside it.
  */
+
+const SPORT_ICONS: Record<ScheduledOccurrence["sport"], AppIcon> = {
+  strength: Dumbbell,
+  running: Run,
+  cycling: Bicycle,
+  swimming: Waves,
+};
 
 function line(occurrence: ScheduledOccurrence): string {
   if (occurrence.prescription) return describePrescription(occurrence.prescription);
@@ -34,20 +40,23 @@ export function OccurrenceCard({
   meta?: string | null;
 }) {
   const logged = occurrence.resolution.kind === "logged";
+  const Icon = SPORT_ICONS[occurrence.sport];
+  const detail = [
+    ACTIVITY_SPORT_LABELS[occurrence.sport],
+    occurrence.scheduledLocalTime ? occurrence.scheduledLocalTime.slice(0, 5) : null,
+    meta,
+  ]
+    .filter(Boolean)
+    .join(" · ");
   return (
-    <Card>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs font-medium tracking-wide text-ink-muted uppercase">
-            {ACTIVITY_SPORT_LABELS[occurrence.sport]}
+    <section className="box space-y-3 py-4">
+      <div className="flex items-start gap-3">
+        <Icon scale="row" className="mt-0.5 shrink-0 text-ink-muted" aria-hidden />
+        <div className="min-w-0 flex-1">
+          <h2 className="text-lg font-semibold [overflow-wrap:anywhere]">{line(occurrence)}</h2>
+          <p className="mt-0.5 text-sm [overflow-wrap:anywhere] text-ink-muted tabular-nums">
+            {detail}
           </p>
-          <h2 className="mt-1 text-lg font-medium [overflow-wrap:anywhere]">{line(occurrence)}</h2>
-          {meta && <p className="mt-1.5 text-sm [overflow-wrap:anywhere] text-ink-muted">{meta}</p>}
-          {occurrence.scheduledLocalTime && (
-            <p className="mt-1.5 text-sm text-ink-muted tabular-nums">
-              {occurrence.scheduledLocalTime.slice(0, 5)}
-            </p>
-          )}
         </div>
         {occurrence.disposition === "skipped" ? (
           <Badge tone="neutral">Skipped</Badge>
@@ -58,7 +67,7 @@ export function OccurrenceCard({
       {logged && occurrence.resolution.kind === "logged" ? (
         <Link
           href={`/training/activities/${occurrence.resolution.activityId}`}
-          className="text-sm text-accent"
+          className="inline-flex min-h-11 items-center text-sm font-medium text-pen"
         >
           See what you logged
         </Link>
@@ -71,7 +80,7 @@ export function OccurrenceCard({
           Log it
         </LinkButton>
       )}
-    </Card>
+    </section>
   );
 }
 

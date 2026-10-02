@@ -5,13 +5,14 @@ import { cn } from "@/lib/utils";
 export { Field } from "./field";
 
 /**
- * `line-strong` rather than `line`: this is an essential control boundary, which needs 3:1
- * against the surface behind it, while a separator between rows does not.
+ * A field is a cell on the sheet: an opaque white box inside a hairline strong enough to be
+ * a boundary (3:1 against the sheet), with the pen's blue on focus. 16px text keeps iOS
+ * from zooming in on focus.
  */
 export const INPUT_CLASS =
-  "h-11 min-w-0 w-full rounded-control border border-line-strong bg-surface px-3 text-[length:var(--ov-text-input)] text-ink placeholder:text-ink-ghost focus:border-accent focus:outline-none disabled:opacity-50";
+  "h-11 min-w-0 w-full rounded-control border border-line-strong bg-surface px-3 text-[length:var(--ov-text-input)] text-ink placeholder:text-ink-ghost focus:border-pen focus:ring-1 focus:ring-pen focus:outline-none disabled:opacity-50 aria-invalid:border-danger";
 
-/** Text input sized for thumbs; 16px text keeps iOS from zooming in on focus. */
+/** Text input sized for thumbs. */
 export function Input({ className, ...props }: ComponentProps<"input">) {
   return <input className={cn(INPUT_CLASS, className)} {...props} />;
 }

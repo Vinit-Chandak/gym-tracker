@@ -118,20 +118,20 @@ export function Sheet({ open, onClose, title, children, footer, dismissible = tr
       <div
         ref={panel}
         tabIndex={-1}
-        className="sheet-panel rounded-t-sheet bg-surface panel-padding pb-[max(var(--panel-padding),env(safe-area-inset-bottom))] focus:outline-none"
+        className="sheet-panel rounded-t-sheet border-t border-line bg-surface panel-padding pb-[max(var(--panel-padding),env(safe-area-inset-bottom))] focus:outline-none"
       >
         {/* Contain child margins in both flex and compact block layouts. Otherwise the
             measured header changes height as compact mode toggles and can oscillate. */}
         <div ref={heading} className="flow-root shrink-0">
-          <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-line-strong" aria-hidden />
+          <div className="mx-auto mb-3 h-1 w-9 rounded-full bg-line-strong" aria-hidden />
           <div className="mb-3 flex items-center justify-between gap-3">
-            <h2 className="min-w-0 text-lg font-medium [overflow-wrap:anywhere]">{title}</h2>
+            <h2 className="min-w-0 text-lg font-semibold [overflow-wrap:anywhere]">{title}</h2>
             <button
               type="button"
               aria-label="Close sheet"
               disabled={!dismissible}
               onClick={onClose}
-              className="flex size-11 shrink-0 items-center justify-center rounded-control text-ink-muted disabled:opacity-45"
+              className="-mr-2 flex size-11 shrink-0 items-center justify-center rounded-control text-ink-muted transition-colors duration-[var(--ov-duration-feedback)] active:bg-surface-raised disabled:opacity-45"
             >
               <Close aria-hidden />
             </button>

@@ -8,16 +8,15 @@ import type { SegmentOption } from "./segmented-control";
 const MIN_TAB = "4.75rem";
 
 /**
- * Tabs that wrap into equal-width rows rather than scrolling.
+ * Tabs that wrap into equal-width rows rather than scrolling, on one rule; the current one is
+ * underlined with the highlighter.
  *
  * A horizontal scroller hides destinations behind a gesture with no affordance, and at
  * 320px with five tabs there is always something off-screen. `auto-fit` packs in as many
- * as fit at their minimum and puts the rest on the next row, in the same order every time,
- * so nothing is clipped and no label has to shrink.
+ * as fit at their minimum and puts the rest on the next row, in the same order every time.
  *
  * `action` is a control that belongs to the whole panel rather than to one tab — the
- * filters, in practice. It sits at the trailing edge of the same rule the tabs sit on and
- * takes only its own width, so the tabs wrap around it instead of being pushed off.
+ * filters, in practice. It sits at the trailing edge of the same rule the tabs sit on.
  */
 export function Tabs<V extends string>({
   name,
@@ -73,9 +72,9 @@ export function Tabs<V extends string>({
               refs.current[next]?.focus();
             }}
             className={cn(
-              "min-h-11 min-w-0 border-b-2 px-2 py-2 text-sm font-medium transition-colors duration-[var(--ov-duration-feedback)] focus-visible:-outline-offset-4",
+              "-mb-px min-h-11 min-w-0 border-b-[3px] px-2 py-2 text-sm font-medium transition-colors duration-[var(--ov-duration-feedback)] focus-visible:-outline-offset-4",
               value === option.value
-                ? "border-accent text-accent"
+                ? "border-highlight text-ink"
                 : "border-transparent text-ink-muted hover:text-ink",
             )}
           >

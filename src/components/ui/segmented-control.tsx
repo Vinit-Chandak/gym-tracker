@@ -15,9 +15,9 @@ type SegmentedControlProps<V extends string> = {
   value?: V;
   onChange?: (value: V) => void;
   /**
-   * Lets a chosen pill be tapped again to choose nothing, for a group that is optional. A radio
-   * cannot be unchecked by itself, so an optional rating given by mistake would otherwise stay
-   * given until the record was deleted.
+   * Lets a chosen segment be tapped again to choose nothing, for a group that is optional. A
+   * radio cannot be unchecked by itself, so an optional rating given by mistake would
+   * otherwise stay given until the record was deleted.
    */
   clearable?: boolean;
   /** Preferred number of columns; wraps when the touch targets no longer fit. */
@@ -29,16 +29,16 @@ type SegmentedControlProps<V extends string> = {
   id?: string;
 };
 
-/** Narrowest a pill can be and still hold a word like "Recovery" at 14px, plus its padding. */
-const MIN_PILL = "4.75rem";
+/** Narrowest a segment can be and still hold a word like "Recovery" at 14px, plus its padding. */
+const MIN_SEGMENT = "4.75rem";
 
 /**
- * Radio group rendered as large pills. Works without JavaScript because it is a real
- * radio input; the label is the tap target.
+ * Radio group drawn as a row of cells on a raised track; the chosen cell takes the
+ * highlighter. Works without JavaScript because it is a real radio input; the label is the
+ * tap target.
  *
  * Preferred columns share a row until each would be narrower than a touch target. Flex
- * wrapping responds to the available space and enlarged text, including inside an auto-sized
- * unit selector. Unspecified columns use the label-sized minimum instead.
+ * wrapping responds to the available space and enlarged text.
  */
 export function SegmentedControl<V extends string>({
   name,
@@ -52,14 +52,14 @@ export function SegmentedControl<V extends string>({
   ...accessibility
 }: SegmentedControlProps<V>) {
   const controlled = value !== undefined;
-  // A clearable group holds its own choice, so that tapping the chosen pill can let it go.
+  // A clearable group holds its own choice, so that tapping the chosen cell can let it go.
   const [chosen, setChosen] = useState<V | "">(defaultValue ?? "");
   return (
     <div
       role="radiogroup"
       aria-label={ariaLabel}
       {...accessibility}
-      className="flex min-w-0 flex-wrap gap-1 rounded-control bg-surface-raised p-1"
+      className="flex min-w-0 flex-wrap gap-1 rounded-control border border-line bg-surface-raised p-1"
     >
       {options.map((option) => (
         <label
@@ -68,8 +68,8 @@ export function SegmentedControl<V extends string>({
           style={{
             flexBasis: columns
               ? `calc((100% - ${(columns - 1) * 0.25}rem) / ${columns})`
-              : MIN_PILL,
-            minWidth: `min(100%, ${columns ? "var(--ov-target-min)" : MIN_PILL})`,
+              : MIN_SEGMENT,
+            minWidth: `min(100%, ${columns ? "var(--ov-target-min)" : MIN_SEGMENT})`,
           }}
         >
           <input
@@ -83,7 +83,7 @@ export function SegmentedControl<V extends string>({
                 ? {
                     checked: chosen === option.value,
                     onChange: () => setChosen(option.value),
-                    // A second press on the chosen pill fires a click and no change: the
+                    // A second press on the chosen cell fires a click and no change: the
                     // browser sees nothing to change. That press is what lets it go.
                     onClick: () =>
                       setChosen((current) => (current === option.value ? "" : current)),
@@ -92,8 +92,8 @@ export function SegmentedControl<V extends string>({
           />
           <span
             className={cn(
-              "flex min-h-11 items-center justify-center rounded-control border border-transparent px-1 py-1 text-sm leading-tight font-medium text-ink-muted transition-colors duration-[var(--ov-duration-feedback)] select-none",
-              "peer-checked:border-line-strong peer-checked:bg-accent-soft peer-checked:text-ink",
+              "flex min-h-10 items-center justify-center rounded-control px-1 py-1 text-sm leading-tight font-medium text-ink-muted transition-colors duration-[var(--ov-duration-feedback)] select-none",
+              "peer-checked:bg-highlight peer-checked:text-on-highlight",
               "peer-focus-visible:ring-2 peer-focus-visible:ring-focus",
             )}
           >

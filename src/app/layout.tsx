@@ -6,6 +6,8 @@ import { NavigationHistory } from "@/components/shell/back-link";
 import { APP_DESCRIPTION, APP_NAME } from "@/lib/app";
 import { APPEARANCE_INIT_SCRIPT, CANVAS_DARK, CANVAS_LIGHT } from "@/lib/appearance";
 
+import { barlow, barlowData } from "./fonts";
+
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -55,10 +57,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     // scoped to this element so a real mismatch anywhere else still surfaces.
     <html
       lang="en"
-      className="h-full"
-      data-overload-design="form"
+      className={`h-full ${barlow.variable} ${barlowData.variable}`}
+      data-overload-design="sheet"
       suppressHydrationWarning
-      // color-scheme now comes from the theme files, per mode, so native controls follow.
+      // color-scheme comes from tokens.css, per mode, so native controls follow.
     >
       <body className="flex min-h-full flex-col">
         {/* First thing in the body: it runs while the rest is still being parsed, so an

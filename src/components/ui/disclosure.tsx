@@ -15,9 +15,9 @@ type DisclosureProps = {
    */
   defaultOpen?: boolean;
   /**
-   * `box` is its own box on the page; `inline` is a ruled row inside a box that is
-   * already there; `footer` is the last row of a padded box, taking the box's full width
-   * and its bottom edge, so a closed section adds one hairline and nothing else.
+   * `box` is its own ruled block on the page; `inline` is a ruled row inside a block that is
+   * already there; `footer` is the last row of a block, taking its full width and its bottom
+   * rule, so a closed section adds one hairline and nothing else.
    */
   variant?: "box" | "inline" | "footer";
   className?: string;
@@ -53,37 +53,35 @@ export function Disclosure({
         "group min-w-0",
         variant === "box" && "box",
         variant === "inline" && "border-y border-line",
-        // Full bleed inside a padded box: one rule above it and the box's bottom edge below.
-        variant === "footer" &&
-          "-mx-[var(--panel-padding)] -mb-[var(--panel-padding)] border-t border-line",
+        // Full bleed inside a block: one rule above it and the block's bottom edge below.
+        variant === "footer" && "-mb-4 border-t border-line",
         className,
       )}
     >
       <summary
         className={cn(
-          "flex list-none flex-wrap items-center gap-2 font-medium",
-          variant === "box" && "min-h-14 rounded-card px-4 py-3",
+          "flex list-none flex-wrap items-center gap-2 font-medium transition-colors duration-[var(--ov-duration-feedback)] active:bg-surface-raised",
+          variant === "box" && "min-h-14 py-3",
           variant === "inline" && "min-h-11 py-2 text-sm",
-          variant === "footer" &&
-            "min-h-12 rounded-b-card px-[var(--panel-padding)] py-3 text-sm transition-colors duration-[var(--ov-duration-feedback)] group-open:rounded-b-none active:bg-surface-raised",
+          variant === "footer" && "min-h-12 py-3 text-sm",
         )}
       >
         <ChevronDown
-          className="shrink-0 text-ink-subtle transition-transform duration-[var(--ov-duration-feedback)] group-open:rotate-180"
+          className="shrink-0 text-ink-subtle transition-transform duration-[var(--ov-duration-feedback)] ease-[var(--ov-ease-out)] group-open:rotate-180"
           aria-hidden
         />
         <span className="min-w-0 flex-auto [overflow-wrap:anywhere]">{summary}</span>
         {meta && (
-          <span className="ml-auto max-w-full text-xs [overflow-wrap:anywhere] text-ink-muted tabular-nums">
+          <span className="ml-auto max-w-full text-sm [overflow-wrap:anywhere] text-ink-muted tabular-nums">
             {meta}
           </span>
         )}
       </summary>
       <div
         className={cn(
-          variant === "box" && "border-t border-line px-4 pt-3 pb-4",
+          variant === "box" && "pt-1 pb-4",
           variant === "inline" && "pt-1 pb-3",
-          variant === "footer" && "px-[var(--panel-padding)] pt-1 pb-4",
+          variant === "footer" && "pt-1 pb-4",
         )}
       >
         {children}

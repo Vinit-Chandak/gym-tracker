@@ -63,7 +63,7 @@ function NavItems({ pathname, origin }: { pathname: string; origin: NavOrigin | 
               href={href}
               prefetch
               aria-current={active ? "page" : undefined}
-              className={cn("nav-link", active ? "text-accent" : "text-ink-muted hover:text-ink")}
+              className="nav-link"
             >
               <NavContent label={label} icon={icon} active={active} />
             </Link>
@@ -87,11 +87,11 @@ export function BottomNav({ pathname: standingIn }: { pathname?: string } = {}) 
   return (
     <div className="viewport-chrome">
       <nav aria-label="Primary" className="primary-nav">
-        <div className="hidden px-6 pt-7 pb-3 lg:block">
-          <p className="text-lg font-medium">
+        <div className="hidden px-5 pt-6 pb-2 lg:block">
+          <p className="text-xl">
             <Wordmark />
           </p>
-          <p className="mt-0.5 text-xs text-ink-muted">Your training, in focus.</p>
+          <p className="mt-1 text-xs text-ink-muted">The coach&apos;s sheet.</p>
         </div>
         {/* A request always has its search parameters, so the app never shows the fallback:
             only a prerendered screen, which has none to read, stands on its path alone. */}

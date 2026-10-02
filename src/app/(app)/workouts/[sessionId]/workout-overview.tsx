@@ -1,12 +1,10 @@
 "use client";
 
-import { AiCoach, Check, ChevronDown, ChevronRight } from "@/components/ui/icons";
+import { Check, ChevronDown, ChevronRight, Pencil } from "@/components/ui/icons";
 import { useTransition, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button, LinkButton } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { List } from "@/components/ui/link-row";
 import { InfoTip } from "@/components/ui/info-tip";
 import { formatSets } from "@/domain/sets";
 import { supersetHues, supersetStyle } from "@/lib/superset-colors";
@@ -40,6 +38,34 @@ function progressLine(exercise: ExerciseVM): string {
   const machine = exercise.equipment?.name;
   const values = logged > 0 ? formatSets(exercise.sets) : null;
   return [count, machine, values].filter(Boolean).join(" · ");
+}
+
+/**
+ * The number in the margin, which is also the row's state: outlined while the exercise is
+ * still to do, inked in once it is done, struck when it was skipped.
+ */
+function OrderCell({ exercise, hue }: { exercise: ExerciseVM; hue: number | undefined }) {
+  const done = exercise.completedAt !== null && exercise.skippedAt === null;
+  return (
+    <span
+      className={cn(
+        "flex size-7 shrink-0 items-center justify-center rounded-control border font-data text-sm font-semibold tabular-nums",
+        done
+          ? "border-ink bg-ink text-canvas"
+          : exercise.skippedAt
+            ? "border-line text-ink-ghost line-through"
+            : "border-line text-ink-muted",
+      )}
+      style={
+        hue && !done
+          ? { color: "var(--superset-color)", borderColor: "var(--superset-color)" }
+          : undefined
+      }
+      aria-hidden
+    >
+      {done ? <Check className="!size-4" aria-hidden /> : exercise.orderIndex}
+    </span>
+  );
 }
 
 /**
@@ -84,31 +110,31 @@ function WarmupRow({
 
   return (
     <div className="box">
-      <div className="flex items-center gap-2 pr-3">
+      <div className="flex items-center gap-2">
         <button
           type="button"
           aria-expanded={open}
           onClick={() => setOpen((current) => !current)}
-          className="flex min-h-14 min-w-0 flex-1 items-center gap-2 py-2 pl-4 text-left font-medium"
+          className="flex min-h-14 min-w-0 flex-1 items-center gap-2 py-2 text-left font-medium"
         >
           <ChevronDown
             className={cn(
-              "shrink-0 text-ink-subtle transition-transform duration-[var(--ov-duration-feedback)]",
+              "shrink-0 text-ink-subtle transition-transform duration-[var(--ov-duration-feedback)] ease-[var(--ov-ease-out)]",
               open && "rotate-180",
             )}
             aria-hidden
           />
           <span className="min-w-0 flex-1">Warm-up</span>
-          <span className="shrink-0 text-xs font-normal text-ink-muted tabular-nums">
+          <span className="shrink-0 font-data text-sm font-normal text-ink-muted tabular-nums">
             {coachLines.length > 0
               ? `${coachLines.length} from the coach`
               : `${drills.length} drills`}
           </span>
         </button>
         <Button
-          variant={done ? "secondary" : "primary"}
+          variant="secondary"
           size="sm"
-          className="shrink-0"
+          className={cn("shrink-0", done && "border-success text-success")}
           onClick={toggleDone}
           disabled={pending}
           aria-pressed={done}
@@ -125,7 +151,7 @@ function WarmupRow({
         </Button>
       </div>
       {open && coachLines.length > 0 && (
-        <ol className="border-t border-line px-4 pb-2 text-sm ruled-list">
+        <ol className="border-t border-line pb-2 text-sm ruled-list">
           {coachLines.map((line, index) => (
             <li key={index} className="py-1.5 [overflow-wrap:anywhere]">
               {line}
@@ -134,17 +160,19 @@ function WarmupRow({
         </ol>
       )}
       {open && coachLines.length === 0 && (
-        <ol className="border-t border-line px-4 pb-2 text-sm ruled-list">
+        <ol className="border-t border-line pb-2 text-sm ruled-list">
           {drills.map((drill) => (
             <li key={drill.order} className="flex justify-between gap-3 py-1.5">
               <span className="min-w-0">{drill.name}</span>
-              <span className="shrink-0 text-right text-ink-muted">{drill.dose}</span>
+              <span className="shrink-0 text-right font-data text-ink-muted tabular-nums">
+                {drill.dose}
+              </span>
             </li>
           ))}
         </ol>
       )}
       {error && (
-        <p role="alert" className="px-4 pb-3 text-sm text-danger">
+        <p role="alert" className="pb-3 text-sm text-danger">
           {error}
         </p>
       )}
@@ -171,35 +199,28 @@ export function WorkoutOverview({
 }: OverviewProps) {
   const [warmupDone, setWarmupDone] = useState(session.warmupCompleted);
   const hues = supersetHues(session.exercises);
+  const done = session.exercises.filter((e) => e.completedAt && !e.skippedAt).length;
 
   return (
     <div className="space-y-[var(--section-gap)]">
-      <div className="flex flex-wrap gap-2">
-        <Button variant="secondary" size="sm" onClick={onOpenDetails}>
-          Session details
-        </Button>
-        {!readOnly &&
-          (hasDrafts ? (
-            <Button size="sm" disabled>
-              Save drafts first
-            </Button>
-          ) : (
-            <LinkButton href={`/workouts/${session.id}/finish`} size="sm">
-              Finish session
-            </LinkButton>
-          ))}
-      </div>
+      {/* The coach's sentence for the session, in the coach's hand. */}
+      {session.coachPlan?.summary && (
+        <p className="flex gap-2 [overflow-wrap:anywhere] text-pen">
+          <Pencil className="mt-0.5 shrink-0" aria-hidden />
+          <span>{session.coachPlan.summary}</span>
+        </p>
+      )}
 
       {!readOnly && hasDrafts && (
-        <p role="status" className="text-sm text-warning">
+        <p role="status" className="text-sm font-medium text-warning">
           Unsaved set drafts on this device. Save or remove them before finishing.
         </p>
       )}
 
       {!readOnly && session.warnings.length > 0 && (
-        <Card>
+        <section className="box space-y-3 py-4">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="flex items-center gap-1 text-base font-medium">
+            <h2 className="flex items-center gap-1 text-base font-semibold">
               Recovery check
               <InfoTip label="About the recovery check">
                 Advice only. Nothing here changes the targets you were given; every set is yours to
@@ -216,77 +237,72 @@ export function WorkoutOverview({
               </li>
             ))}
           </ul>
-        </Card>
-      )}
-
-      {/* The coach's sentence for the session, one slim box: the same shape as the gym row
-          on Today, so it reads as context rather than as another decision. */}
-      {session.coachPlan?.summary && (
-        <div className="flex box items-center gap-2 px-3 py-2.5">
-          <AiCoach className="shrink-0 text-accent" aria-hidden />
-          <p className="min-w-0 text-sm [overflow-wrap:anywhere]">{session.coachPlan.summary}</p>
-        </div>
+        </section>
       )}
 
       {!readOnly && (session.warmup || (session.coachPlan?.warmup.length ?? 0) > 0) && (
         <WarmupRow session={session} done={warmupDone} onDone={setWarmupDone} />
       )}
 
-      {session.exercises.length === 0 ? (
-        <p className="text-sm text-ink-muted">No exercises yet.</p>
-      ) : (
-        <List>
-          {session.exercises.map((exercise) => {
-            // A finished session is a record of what happened, so a skipped exercise still says
-            // it was skipped; without that it reads the same as one that was simply never done.
-            const action: { label: string; tone: "accent" | "muted" } = readOnly
-              ? exercise.skippedAt
-                ? { label: "Skipped", tone: "muted" }
-                : { label: "View", tone: "muted" }
-              : rowAction(exercise);
-            const hue = exercise.supersetGroup ? hues.get(exercise.supersetGroup) : undefined;
-            return (
-              <li key={exercise.id}>
-                <button
-                  type="button"
-                  onClick={() => onOpenExercise(exercise.id)}
-                  className={cn(
-                    "flex min-h-14 w-full items-center gap-3 py-3 pr-4 text-left active:bg-surface-raised",
-                    // Rows in a superset share one colour; nothing else marks the group. The
-                    // rule takes 3px of the gutter so the names still line up.
-                    hue ? "pl-[0.8125rem] superset-row" : "pl-4",
-                  )}
-                  style={hue ? supersetStyle(hue) : undefined}
-                >
-                  <span
-                    className="w-5 shrink-0 text-sm text-ink-subtle tabular-nums"
-                    style={hue ? { color: "var(--superset-color)" } : undefined}
-                  >
-                    {exercise.orderIndex}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block font-medium [overflow-wrap:anywhere]">
-                      {exercise.exercise.name}
-                    </span>
-                    <span className="mt-0.5 block text-sm [overflow-wrap:anywhere] text-ink-muted">
-                      {progressLine(exercise)}
-                    </span>
-                  </span>
-                  <span
+      <div>
+        <div className="flex items-baseline justify-between gap-3 pb-1">
+          <p className="text-xs font-semibold tracking-[0.08em] text-ink-muted uppercase">
+            Exercises
+          </p>
+          <p className="font-data text-sm text-ink-muted tabular-nums">
+            {done} of {session.exercises.length} done
+          </p>
+        </div>
+        {session.exercises.length === 0 ? (
+          <p className="py-4 text-sm text-ink-muted rule-bottom rule-top">No exercises yet.</p>
+        ) : (
+          <ol className="box-rows">
+            {session.exercises.map((exercise) => {
+              // A finished session is a record of what happened, so a skipped exercise still
+              // says it was skipped; without that it reads the same as one never done.
+              const action: { label: string; tone: "accent" | "muted" } = readOnly
+                ? exercise.skippedAt
+                  ? { label: "Skipped", tone: "muted" }
+                  : { label: "View", tone: "muted" }
+                : rowAction(exercise);
+              const hue = exercise.supersetGroup ? hues.get(exercise.supersetGroup) : undefined;
+              return (
+                <li key={exercise.id}>
+                  <button
+                    type="button"
+                    onClick={() => onOpenExercise(exercise.id)}
                     className={cn(
-                      "shrink-0 text-sm font-medium",
-                      action.tone === "accent" ? "text-accent" : "text-ink-muted",
+                      "flex min-h-14 w-full items-center gap-3 py-3 text-left transition-colors duration-[var(--ov-duration-feedback)] active:bg-surface-raised",
+                      // Rows in a superset share one pen; nothing else marks the group.
+                      hue && "-ml-2 pl-2 superset-row",
                     )}
+                    style={hue ? supersetStyle(hue) : undefined}
                   >
-                    {action.label}
-                  </span>
-                  <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />
-                </button>
-              </li>
-            );
-          })}
-        </List>
-      )}
+                    <OrderCell exercise={exercise} hue={hue} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-medium [overflow-wrap:anywhere]">
+                        {exercise.exercise.name}
+                      </span>
+                      <span className="mt-0.5 block font-data text-sm [overflow-wrap:anywhere] text-ink-muted tabular-nums">
+                        {progressLine(exercise)}
+                      </span>
+                    </span>
+                    <span
+                      className={cn(
+                        "shrink-0 text-sm font-medium",
+                        action.tone === "accent" ? "text-pen" : "text-ink-muted",
+                      )}
+                    >
+                      {action.label}
+                    </span>
+                    <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+        )}
+      </div>
 
       {!readOnly && (
         <div className="action-row">
@@ -307,6 +323,22 @@ export function WorkoutOverview({
           </Button>
         </div>
       )}
+
+      <div className="space-y-2">
+        {!readOnly &&
+          (hasDrafts ? (
+            <Button size="lg" className="w-full" disabled>
+              Save drafts first
+            </Button>
+          ) : (
+            <LinkButton href={`/workouts/${session.id}/finish`} size="lg" className="w-full">
+              Finish session
+            </LinkButton>
+          ))}
+        <Button variant="ghost" className="w-full" onClick={onOpenDetails}>
+          Session details
+        </Button>
+      </div>
     </div>
   );
 }

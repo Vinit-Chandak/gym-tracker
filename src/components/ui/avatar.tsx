@@ -14,7 +14,7 @@ const SIZE_CLASSES: Record<AvatarSize, string> = {
 
 /**
  * The letter-on-a-circle avatar (ADR 0026). The hue is the username's; the two lightnesses
- * are the theme's, chosen in `foundation.css` so the letter reads on the circle in either
+ * are the theme's, chosen in `tokens.css` so the letter reads on the circle in either
  * palette. Decorative: the name is always written beside it.
  */
 export function Avatar({

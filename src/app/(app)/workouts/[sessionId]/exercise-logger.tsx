@@ -20,6 +20,7 @@ import {
 import { formatSets } from "@/domain/sets";
 import type { PrescriptionType } from "@/domain/types";
 import { formatDay } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import {
   LOAD_UNIT_LABELS,
   MEASURE_UNIT_SUFFIX,
@@ -332,18 +333,17 @@ export function ExerciseLogger({
       <button
         type="button"
         onClick={onBack}
-        className="-ml-1 flex min-h-11 items-center gap-1 text-sm font-medium text-ink-muted"
+        className="-ml-1.5 flex min-h-11 items-center gap-0.5 rounded-control px-1.5 text-sm font-medium text-pen transition-colors duration-[var(--ov-duration-feedback)] active:bg-surface-raised"
       >
         <ChevronLeft aria-hidden />
         All exercises
       </button>
 
-      <Card className="space-y-1">
+      {/* The exercise owns the screen: its name is the largest thing on it. */}
+      <div className="space-y-1">
         <div className="flex items-start justify-between gap-3">
-          <h2 className="min-w-0 text-lg font-medium [overflow-wrap:anywhere]">
-            {exercise.exercise.name}
-          </h2>
-          <div className="flex shrink-0 gap-1">
+          <h2 className="min-w-0 text-2xl [overflow-wrap:anywhere]">{exercise.exercise.name}</h2>
+          <div className="flex shrink-0 gap-1 pt-1">
             {completed && <Badge tone="success">Done</Badge>}
             {skipped && <Badge tone="warning">Skipped</Badge>}
           </div>
@@ -352,7 +352,7 @@ export function ExerciseLogger({
           {equipmentLine(exercise, session.gym.kind)}
           {substituted ? ` · instead of ${plannedName}` : ""}
         </p>
-      </Card>
+      </div>
 
       <Tabs
         name="exercise"
@@ -368,10 +368,12 @@ export function ExerciseLogger({
             {/* What to do and what the rule says, boxed together; the grid itself stays on
                 the page, where its columns have the width they were measured for. */}
             {(prescription || (editable && suggestion)) && (
-              <Card>
+              <div className="space-y-2 py-3 rule-bottom rule-top">
                 {prescription && (
-                  <p className="text-sm font-medium tabular-nums">
-                    {suggestion?.kind === "coach" && "Programme: "}
+                  <p className="font-data text-base font-medium tabular-nums">
+                    {suggestion?.kind === "coach" && (
+                      <span className="text-ink-muted">Programme: </span>
+                    )}
                     {prescription}
                   </p>
                 )}
@@ -381,17 +383,24 @@ export function ExerciseLogger({
                       {SUGGESTION_KIND_LABELS[suggestion.kind]}
                     </Badge>
                     {suggestion.text && (
-                      <p className="min-w-0 text-sm font-medium">{suggestion.text}</p>
+                      <p
+                        className={cn(
+                          "min-w-0 text-sm font-medium",
+                          suggestion.kind === "coach" && "text-pen",
+                        )}
+                      >
+                        {suggestion.text}
+                      </p>
                     )}
                   </div>
                 )}
-              </Card>
+              </div>
             )}
 
             {/* Equipment problems come before the grid: without a machine there is nothing
                 meaningful to log, so the decision has to be the first thing offered. */}
             {needsDecision && exercise.decision && (
-              <div className="space-y-2 rounded-card border border-warning p-3">
+              <div className="panel space-y-2 border-warning p-3">
                 <p className="text-sm font-medium">
                   {availableMachine
                     ? "Choose the registered machine for this exercise"
@@ -509,7 +518,7 @@ export function ExerciseLogger({
             )}
 
             {(readOnly || completed || skipped) && sets.dirty && (
-              <div className="space-y-2 rounded-card border border-warning p-3">
+              <div className="panel space-y-2 border-warning p-3">
                 <p className="text-sm text-warning">
                   {readOnly
                     ? "This workout is finished, so these entries cannot be saved here."
@@ -554,6 +563,7 @@ export function ExerciseLogger({
                     {/* A set still saving does not hold it up: the press waits for the save.
                         A row with unsaved changes does, as it would otherwise be left behind. */}
                     <Button
+                      variant={workingDone ? "primary" : "secondary"}
                       onClick={() => setCompletedState(true)}
                       disabled={
                         pending || (sets.loggedSets.length === 0 && !sets.saving) || sets.editing
@@ -621,7 +631,7 @@ export function ExerciseLogger({
               )}
             <Link
               href={`/exercises/${exercise.exercise.id}`}
-              className="flex min-h-11 items-center font-medium text-accent"
+              className="flex min-h-11 items-center font-medium text-pen"
             >
               Open in the exercise library
             </Link>

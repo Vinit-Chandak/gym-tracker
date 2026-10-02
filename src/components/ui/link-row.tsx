@@ -5,15 +5,18 @@ import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
-/** The geometry every row in a box shares, so links, buttons and switches line up. */
-export const ROW_CLASS = "flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left";
+/**
+ * The geometry every row in a block shares, so links, buttons and switches line up. Rows run
+ * flush with the rules above and below them: the sheet is one column, and its text starts
+ * where its rules start.
+ */
+export const ROW_CLASS = "flex min-h-14 w-full items-center gap-3 px-0 py-3 text-left";
 
 /**
  * A row that reacts to a tap.
  *
  * Its focus ring is drawn inside the row rather than around it. A row runs the full width
- * of whatever holds it, so an outset ring has nowhere to go: inside a sheet or any other
- * scrolling box it is clipped on three sides, leaving one stray line across the row above.
+ * of whatever holds it, so an outset ring has nowhere to go.
  */
 export const PRESSABLE_ROW_CLASS = cn(
   ROW_CLASS,
@@ -67,9 +70,9 @@ export function LinkRow<T extends string>({
         </div>
       </div>
       {/* Move secondary content below the label before it squeezes words into letter stacks. */}
-      <div className="ml-auto flex max-w-full items-center gap-3">
+      <div className="ml-auto flex max-w-full items-center gap-2">
         {meta && (
-          <span className="min-w-0 text-right text-xs [overflow-wrap:anywhere] text-ink-muted tabular-nums">
+          <span className="min-w-0 text-right text-sm [overflow-wrap:anywhere] text-ink-muted tabular-nums">
             {meta}
           </span>
         )}
@@ -115,8 +118,8 @@ export function Row({
 }
 
 /**
- * A box of rows with one outer boundary and one hairline between rows. `plain` drops the
- * box for a list that already sits inside one, such as rows in a disclosure or sheet.
+ * A block of rows, ruled above, below and between. `plain` drops the outer rules for a list
+ * that already sits inside a ruled block, a disclosure or a sheet.
  */
 export function List({
   children,

@@ -74,10 +74,13 @@ export default async function ChooseDayPage() {
                 const exercises = exercisesByDay.get(day.id) ?? [];
                 const start = starts.get(day.id);
                 return (
-                  <li key={day.id} className="space-y-2 px-4 py-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="font-medium [overflow-wrap:anywhere]">{day.name}</p>
+                  <li key={day.id} className="space-y-3 py-4">
+                    <div className="flex items-start gap-3">
+                      <span className="w-6 shrink-0 font-data text-lg leading-tight font-semibold text-ink-subtle tabular-nums">
+                        {day.dayIndex}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-lg font-semibold [overflow-wrap:anywhere]">{day.name}</p>
                         {day.focus && <p className="text-sm text-ink-muted">{day.focus}</p>}
                       </div>
                       {/* Every day starts out pending, so only a changed status earns a badge. */}

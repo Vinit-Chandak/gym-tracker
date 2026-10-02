@@ -19,11 +19,8 @@ type NumberFieldProps = {
 };
 
 /**
- * Number entry with a keypad field and minus/plus steppers, sized for gym use.
- *
- * This is the form control — check-in readings, run distances. The set row uses the
- * compact single-line cell instead and keeps its steppers in the set options sheet, so a
- * logging screen is not three two-storey controls wide.
+ * Number entry with a keypad field and minus/plus steppers, sized for gym use. The value is
+ * set in the data voice so it reads at arm's length; the pencil prefill is the placeholder.
  */
 export function NumberField({
   label,
@@ -65,7 +62,7 @@ export function NumberField({
           onChange={(event) => onChange(sanitizeNumberEntry(event.target.value, inputMode, max))}
           disabled={disabled}
           aria-label={label}
-          className="order-1 col-span-2 h-11 w-full min-w-0 bg-transparent text-center text-[length:var(--ov-text-input)] font-semibold tabular-nums placeholder:font-normal placeholder:text-ink-ghost focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset"
+          className="order-1 col-span-2 h-12 w-full min-w-0 bg-transparent text-center font-data text-xl font-semibold tabular-nums placeholder:font-medium placeholder:text-ink-ghost focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset"
         />
         <button
           type="button"

@@ -170,9 +170,14 @@ export function MoreOptions({
 
   return (
     <>
-      <Button variant="ghost" className="w-full" onClick={() => setOpen(true)}>
-        More options
-      </Button>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className={cn(PRESSABLE_ROW_CLASS, "rule-bottom rule-top")}
+      >
+        <span className="min-w-0 flex-1 font-medium">More options</span>
+        <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />
+      </button>
       <Sheet
         open={open}
         onClose={close}

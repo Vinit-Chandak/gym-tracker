@@ -1,5 +1,5 @@
 import type { Route } from "next";
-import { BarChart, Dumbbell, Food, Footprints, User, type AppIcon } from "@/components/ui/icons";
+import { CalendarCheck, ForkKnife, Run, TrendUp, User, type AppIcon } from "@/components/ui/icons";
 
 export type NavItem = {
   href: Route;
@@ -26,10 +26,10 @@ export type NavItem = {
  * what Progress is for. History is one of Progress's sections now, and the island stays at five.
  */
 export const NAV_ITEMS: readonly NavItem[] = [
-  { href: "/today", label: "Today", icon: Dumbbell },
-  { href: "/training", label: "Training", icon: Footprints },
-  { href: "/food", label: "Food", icon: Food },
-  { href: "/progress", label: "Progress", icon: BarChart },
+  { href: "/today", label: "Today", icon: CalendarCheck },
+  { href: "/training", label: "Training", icon: Run },
+  { href: "/food", label: "Food", icon: ForkKnife },
+  { href: "/progress", label: "Progress", icon: TrendUp },
   { href: "/profile", label: "Profile", icon: User },
 ];
 

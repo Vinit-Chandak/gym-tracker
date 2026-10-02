@@ -35,6 +35,10 @@ type CellProps = {
   onChange: (value: string) => void;
 };
 
+/**
+ * One cell of the sheet. What the coach or the rule proposes sits in it in pencil, as the
+ * placeholder; what the athlete types over it is ink.
+ */
 function NumericCell({ row, field, label, short, ghost, inputMode, max, onChange }: CellProps) {
   return (
     <span className="set-cell">
@@ -48,14 +52,12 @@ function NumericCell({ row, field, label, short, ghost, inputMode, max, onChange
         maxLength={24}
         inputMode={inputMode}
         value={row[field]}
-        // The ghost is the row's own suggestion, shown unconfirmed until it is saved. It is
-        // drawn fainter and lighter than anything typed, so a glance tells the two apart.
         placeholder={ghost ?? ""}
         disabled={row.saving}
         aria-label={label}
         aria-invalid={row.error ? true : undefined}
         onChange={(event) => onChange(sanitizeNumberEntry(event.target.value, inputMode, max))}
-        className="h-11 w-full min-w-0 rounded-control border border-line-strong bg-surface px-1 text-center text-[length:var(--ov-text-input)] font-semibold text-ink tabular-nums placeholder:font-normal placeholder:text-ink-ghost focus:border-accent focus:outline-none disabled:opacity-50"
+        className="h-12 w-full min-w-0 rounded-control border border-line-strong bg-surface px-1 text-center font-data text-lg font-semibold text-ink tabular-nums placeholder:font-normal placeholder:text-ink-ghost focus:border-pen focus:ring-1 focus:ring-pen focus:outline-none disabled:opacity-50 aria-invalid:border-danger"
       />
     </span>
   );
@@ -90,8 +92,10 @@ const MEASURE_FIELD: Record<PrescriptionType, { field: DraftValueField; max: num
  * One row per set: identity and options, load, reps or seconds, RIR, save.
  *
  * The labels and the unit are in the header, once, so the rows themselves are only numbers.
- * Four sets that hold the same values still show four rows, because they are four records —
- * merging them into one "shared" value would lose the ability to change any of them alone.
+ * A set's number is outlined until the set is saved and inked in once it is, so a glance down
+ * the margin says how far the exercise has got. The highlighter sits on the one Save that
+ * matters next; the rows after it wait in outline. Four sets that hold the same values still
+ * show four rows, because they are four records.
  */
 export function SetGrid({
   rows,
@@ -107,10 +111,12 @@ export function SetGrid({
 }: SetGridProps) {
   const middle = { ...MEASURE_FIELD[measure], label: MEASURE_COLUMN_LABELS[measure] };
   const effort = effortMetric(measure);
+  // The next set to save: the first row that is not already on record and unedited.
+  const nextIndex = rows.find((row) => !(row.logged !== null && !row.dirty))?.setIndex ?? null;
 
   return (
     <div className="set-grid">
-      <div className="set-header set-row border-b border-line pb-1 text-sm font-semibold">
+      <div className="set-header set-row border-b border-line pb-1.5 text-xs font-semibold tracking-[0.06em] text-ink-muted uppercase">
         <span className="text-center">Set</span>
         <span className="text-center">{unitLabel}</span>
         <span className="text-center">{middle.label}</span>
@@ -142,6 +148,7 @@ export function SetGrid({
           const g = ghost(row.setIndex);
           const saved = row.logged !== null && !row.dirty;
           const mark = SET_TYPE_MARK[row.setType];
+          const next = row.setIndex === nextIndex;
           return (
             <li key={row.setIndex} className="border-b border-line py-1.5">
               <div className="set-row">
@@ -149,15 +156,25 @@ export function SetGrid({
                   type="button"
                   onClick={() => onOptions(row)}
                   aria-label={`Set ${row.setIndex} options${mark ? `, ${SET_TYPE_LABELS[row.setType].toLowerCase()}` : ""}`}
-                  className="set-identity flex h-11 min-w-0 flex-col items-center justify-center rounded-control border border-line px-3 text-ink-muted active:bg-surface-raised"
+                  className={cn(
+                    "set-identity flex h-12 min-w-0 flex-col items-center justify-center rounded-control border px-2 transition-colors duration-[var(--ov-duration-ink)] ease-[var(--ov-ease-out)] active:bg-surface-raised",
+                    saved ? "ink-in border-ink bg-ink text-canvas" : "border-line text-ink-muted",
+                  )}
                 >
-                  <span className="text-sm font-medium tabular-nums">{row.setIndex}</span>
+                  <span className="font-data text-base leading-none font-semibold tabular-nums">
+                    {row.setIndex}
+                  </span>
                   {mark ? (
-                    <span className="text-[0.625rem] leading-none font-medium text-accent">
+                    <span
+                      className={cn(
+                        "mt-0.5 text-[0.625rem] leading-none font-semibold",
+                        saved ? "text-highlight" : "text-pen",
+                      )}
+                    >
                       {mark}
                     </span>
                   ) : (
-                    <span className="text-[0.625rem] leading-none" aria-hidden>
+                    <span className="mt-0.5 text-[0.625rem] leading-none" aria-hidden>
                       ···
                     </span>
                   )}
@@ -200,13 +217,13 @@ export function SetGrid({
                   {row.saving ? (
                     <span
                       role="status"
-                      className="flex h-11 w-full items-center justify-center text-ink-muted"
+                      className="flex h-12 w-full items-center justify-center text-ink-muted"
                     >
                       <LoaderCircle className="motion-safe:animate-spin" aria-hidden />
                       <span className="sr-only">Saving set {row.setIndex}</span>
                     </span>
                   ) : saved ? (
-                    <span className="flex h-11 w-full items-center justify-center text-success">
+                    <span className="ink-in flex h-12 w-full items-center justify-center text-success">
                       <Check aria-hidden />
                       <span className="sr-only">Set {row.setIndex} saved</span>
                     </span>
@@ -222,10 +239,12 @@ export function SetGrid({
                             : `Save set ${row.setIndex}`
                       }
                       className={cn(
-                        "h-11 w-full rounded-control text-xs font-medium",
+                        "h-12 w-full rounded-control text-sm font-semibold transition-[background-color,transform] duration-[var(--ov-duration-feedback)] ease-[var(--ov-ease-out)] active:scale-[0.97]",
                         row.error
                           ? "border border-danger text-danger active:bg-surface-raised"
-                          : "bg-accent text-on-accent active:bg-accent-strong",
+                          : next || row.dirty
+                            ? "border border-highlight-strong bg-highlight text-on-highlight active:bg-highlight-strong"
+                            : "border border-line-strong bg-surface text-ink active:bg-surface-raised",
                       )}
                     >
                       {row.error ? "Retry" : "Save"}
@@ -251,7 +270,7 @@ export function SetGrid({
                       type="button"
                       onClick={() => onUndoWarmup(row)}
                       aria-label={`Set ${row.setIndex} was a working set`}
-                      className="-my-2 min-h-11 font-medium text-accent underline underline-offset-2"
+                      className="-my-2 min-h-11 font-medium text-pen underline underline-offset-2"
                     >
                       Undo
                     </button>

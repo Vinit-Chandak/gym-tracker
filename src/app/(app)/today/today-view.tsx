@@ -7,14 +7,14 @@ import {
   OccurrenceCard,
 } from "@/components/activities/today-activities";
 import { CoachPlanList, coachPlanSummary } from "@/components/coach-plan";
+import { CycleStrip } from "@/components/cycle-strip";
 import { PlannedExerciseList, planSummary } from "@/components/planned-exercises";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { Wordmark } from "@/components/shell/wordmark";
 import { Badge } from "@/components/ui/badge";
 import { LinkButton } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Disclosure } from "@/components/ui/disclosure";
+import { ClipboardList, Pencil } from "@/components/ui/icons";
 import { InfoTip } from "@/components/ui/info-tip";
 import { Section } from "@/components/ui/section";
 import { writtenSummaryForSport } from "@/domain/sport-scope";
@@ -37,18 +37,16 @@ import {
 } from "./plan-actions";
 
 /**
- * A card's opening block: where in the programme this is, what it is called, and the
- * standing beside it. The eyebrow carries the position so the name can be the largest
- * thing on the card, and every line below it is spaced the same way on every card.
+ * The opening of a block: what it is called, set large, the one line that qualifies it, and
+ * the standing beside it. The position in the programme is not here; the cycle strip above
+ * the page carries it, so the name can be the largest thing on the sheet.
  */
-function CardHead({
-  eyebrow,
+function BlockHead({
   title,
   subtitle,
   note,
   badge,
 }: {
-  eyebrow?: string;
   title: string;
   subtitle?: string | null;
   /** Anything worth knowing that is not worth a line of its own. */
@@ -58,12 +56,7 @@ function CardHead({
   return (
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
-        {eyebrow && (
-          <p className="text-xs font-medium tracking-wide text-ink-muted uppercase">{eyebrow}</p>
-        )}
-        {/* The tip's tap target is taller than the line it sits on, so it gives the
-            height back: a card with a note is spaced exactly like one without. */}
-        <h2 className="mt-1 flex items-center gap-1 text-lg font-medium [overflow-wrap:anywhere]">
+        <h2 className="flex items-center gap-1 text-2xl [overflow-wrap:anywhere]">
           <span className="min-w-0">{title}</span>
           {note && (
             <InfoTip label={`About ${title}`} className="-my-1.5">
@@ -71,20 +64,30 @@ function CardHead({
             </InfoTip>
           )}
         </h2>
-        {subtitle && <p className="mt-1.5 text-sm text-ink-muted">{subtitle}</p>}
+        {subtitle && <p className="mt-1 text-ink-muted">{subtitle}</p>}
       </div>
       {badge}
     </div>
   );
 }
 
+/** A line in the coach's hand: what the coach wrote about today. */
+function CoachLine({ children }: { children: ReactNode }) {
+  return (
+    <p className="flex gap-2 [overflow-wrap:anywhere] text-pen">
+      <Pencil className="mt-0.5 shrink-0" aria-hidden />
+      <span>{children}</span>
+    </p>
+  );
+}
+
 function DrillList({ drills }: { drills: readonly WarmupDrill[] }) {
   return (
-    <ul className="space-y-2.5">
+    <ul className="min-w-0 ruled-list">
       {drills.map((drill) => (
-        <li key={drill.order} className="min-w-0">
-          <p className="text-sm [overflow-wrap:anywhere]">{drill.name}</p>
-          <p className="mt-0.5 text-xs text-ink-muted tabular-nums">{drill.dose}</p>
+        <li key={drill.order} className="flex items-baseline justify-between gap-3 py-2">
+          <p className="min-w-0 [overflow-wrap:anywhere]">{drill.name}</p>
+          <p className="shrink-0 font-data text-sm text-ink-muted tabular-nums">{drill.dose}</p>
         </li>
       ))}
     </ul>
@@ -121,8 +124,8 @@ export type TodayViewProps = {
 };
 
 /**
- * One line under the day's action about the coach, only when there is something to say:
- * that it is planning now, or that its plan was made for another gym.
+ * One line about the coach, only when there is something to say: that it is planning now,
+ * or that its plan was made for another gym.
  */
 function CoachStatus({
   coach,
@@ -182,6 +185,29 @@ function DoneNote({ children }: { children: ReactNode }) {
   return <p className="text-sm text-ink-muted">{children}</p>;
 }
 
+/** The one row that names the list and says what it costs. */
+function PlanLabel({ summary }: { summary: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 pb-1">
+      <p className="text-xs font-semibold tracking-[0.08em] text-ink-muted uppercase">The plan</p>
+      <p className="font-data text-sm text-ink-muted tabular-nums">{summary}</p>
+    </div>
+  );
+}
+
+/**
+ * The primary action, kept within the thumb's reach: it sits below the plan in the sheet
+ * and stays on screen while a long plan scrolls under it, on a strip of canvas so the rows
+ * never show through.
+ */
+function ActionBar({ children }: { children: ReactNode }) {
+  return (
+    <div className="sticky bottom-[var(--actions-inset)] z-[1] -mx-1 space-y-2 bg-canvas px-1 py-2">
+      {children}
+    </div>
+  );
+}
+
 const TASK_BADGE: Record<SlotStatus, ReactNode> = {
   completed: <Badge tone="success">Done</Badge>,
   skipped: <Badge tone="warning">Skipped</Badge>,
@@ -209,10 +235,6 @@ export function TodayView({
   const coachGyms: CoachGym[] = gyms
     .filter((gym) => coach?.workflow || gym.kind === "gym")
     .map((gym) => ({ id: gym.id, name: gym.name, isDefault: gym.id === defaultGym?.id }));
-  const position =
-    plan?.suggestion && day
-      ? `Cycle ${plan.suggestion.slot.cycleIndex} of ${plan.program.weeks} · Day ${day.dayIndex}`
-      : undefined;
 
   const standing =
     plan && plan.behind > 0 ? (
@@ -225,7 +247,7 @@ export function TodayView({
   const sessionStatus = plan?.sessionStatus ?? "pending";
   const restDay = day !== null && !day.includesLifting && !day.includesRun;
   // The open session belongs to the day when it was started from it; anything else — an ad hoc
-  // session, or another day started early — is its own thing and gets its own card.
+  // session, or another day started early — is its own thing and gets its own block.
   const openHere = inProgress !== null && day !== null && inProgress.programDayId === day.id;
   const openElsewhere = inProgress !== null && !openHere;
 
@@ -247,19 +269,32 @@ export function TodayView({
   // What the day on offer's section lists: everything, unless today has a section of its own.
   const onOffer = (occurrence: ScheduledOccurrence) => !finishedToday || isProgramme(occurrence);
 
+  const coachSentence = coachPlan ? writtenSummaryForSport(coachPlan, "workout") : null;
+
   return (
     <>
       <PageHeader title={<Wordmark />} meta={formatIsoWeekdayDay(today)} />
       <PageContent>
+        {/* Where today sits on the plan, before anything else. */}
+        {plan?.suggestion && day && (
+          <CycleStrip
+            days={plan.cycleDays}
+            cycleIndex={plan.suggestion.slot.cycleIndex}
+            cycles={plan.program.weeks}
+            todayIndex={day.dayIndex}
+            behind={plan.behind}
+          />
+        )}
+
         {/* Where you are training. Once a session starts the gym is fixed, and its own
             screens carry it, so this row is about the next session, not the current one. */}
         {gyms.length === 0 ? (
-          <Card>
-            <h2 className="text-lg font-medium">Add a gym to start training</h2>
+          <section className="box space-y-3 py-4">
+            <h2 className="text-lg">Add a gym to start training</h2>
             <LinkButton href="/gyms/new" size="lg" className="w-full">
               Add your first gym
             </LinkButton>
-          </Card>
+          </section>
         ) : (
           <GymSwitcher
             gyms={gyms}
@@ -269,13 +304,12 @@ export function TodayView({
         )}
 
         {openElsewhere && inProgress && (
-          <Card>
-            <CardHead
-              eyebrow="In progress"
+          <section className="panel space-y-3 p-4">
+            <BlockHead
               title={inProgress.dayName ?? "Ad hoc session"}
               subtitle={`${inProgress.gymName} · ${formatDateTime(inProgress.startedAt, timeZone)}`}
               badge={
-                <Badge tone="accent">
+                <Badge tone="highlight">
                   {inProgress.setCount} {inProgress.setCount === 1 ? "set" : "sets"}
                 </Badge>
               }
@@ -285,13 +319,13 @@ export function TodayView({
             </LinkButton>
             {/* A session that has recorded something is finished, never discarded. */}
             {inProgress.setCount === 0 && <DiscardSessionButton sessionId={inProgress.id} />}
-          </Card>
+          </section>
         )}
 
         {finishedToday && (
           <Section title="Today">
-            <Card>
-              <CardHead
+            <section className="box py-4">
+              <BlockHead
                 title={finishedToday.name}
                 subtitle={
                   finishedToday.includesLifting || finishedToday.includesRun
@@ -300,7 +334,7 @@ export function TodayView({
                 }
                 badge={TASK_BADGE.completed}
               />
-            </Card>
+            </section>
             {outstanding
               .filter((occurrence) => !isProgramme(occurrence))
               .map((occurrence) => (
@@ -315,49 +349,53 @@ export function TodayView({
         {/* What today asks for, at the top, whatever put it there. */}
         <Section title={finishedToday ? "Up next" : "Today"}>
           {!plan ? (
-            <Card>
-              <h2 className="text-lg font-medium">No programme</h2>
-              <LinkButton href="/profile/programme" size="lg" className="w-full">
+            <section className="box space-y-4 py-4">
+              <div className="flex items-start gap-3">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-control bg-highlight text-on-highlight">
+                  <ClipboardList aria-hidden />
+                </span>
+                <div className="min-w-0">
+                  <h2 className="text-lg">No programme</h2>
+                  <p className="mt-1 text-sm text-ink-muted">
+                    Choose a programme and the coach writes each day on this sheet.
+                  </p>
+                </div>
+              </div>
+              {/* With no gym yet, adding one is the highlighted step; this waits its turn. */}
+              <LinkButton
+                href="/profile/programme"
+                size="lg"
+                variant={gyms.length === 0 ? "secondary" : "primary"}
+                className="w-full"
+              >
                 Choose a programme
               </LinkButton>
               <StartAdHocButton gymId={defaultGym?.id ?? null} />
-            </Card>
+            </section>
           ) : !plan.suggestion || !day ? (
-            <Card>
-              <CardHead
-                eyebrow="Programme complete"
+            <section className="box space-y-4 py-4">
+              <BlockHead
                 title={plan.program.name}
-                subtitle={`${plan.progress.total} programme days`}
+                subtitle={`Programme complete · ${plan.progress.total} programme days`}
               />
               <LinkButton href="/profile/programme" size="lg" className="w-full">
                 Plan the next block
               </LinkButton>
               <StartAdHocButton gymId={defaultGym?.id ?? null} />
-            </Card>
+            </section>
           ) : (
             <>
-              {/* The workout. Nothing on this card is about the run. */}
+              {/* The workout. Nothing in this block is about the run. */}
               {day.includesLifting && (
-                <Card>
-                  {/* With a coach plan the card's line is the coach's sentence; what the day is
-                    and costs moves behind the tip, so nothing the programme says is lost. */}
-                  <CardHead
-                    eyebrow={position}
+                <article className="box space-y-4 py-4" aria-label={day.name}>
+                  <BlockHead
                     title={day.name}
                     subtitle={
-                      coachPlan
-                        ? (writtenSummaryForSport(coachPlan, "workout") ?? daySubtitle(day))
-                        : day.includesRun
-                          ? planSummary(plan.suggestedExercises)
-                          : daySubtitle(day)
+                      day.includesRun && !coachPlan
+                        ? planSummary(plan.suggestedExercises)
+                        : daySubtitle(day)
                     }
-                    note={
-                      day.includesRun
-                        ? null
-                        : coachPlan
-                          ? [daySubtitle(day), dayNote(day)].filter(Boolean).join(" · ") || null
-                          : dayNote(day)
-                    }
+                    note={day.includesRun ? null : dayNote(day)}
                     badge={
                       <span className="flex shrink-0 flex-wrap justify-end gap-1">
                         {coachPlan && <Badge tone="accent">Coach</Badge>}
@@ -365,43 +403,7 @@ export function TodayView({
                       </span>
                     }
                   />
-                  {openHere && inProgress ? (
-                    <>
-                      <LinkButton
-                        href={`/workouts/${inProgress.id}`}
-                        size="lg"
-                        className="w-full"
-                        aria-label={`Resume session: ${day.name}`}
-                      >
-                        Resume session
-                      </LinkButton>
-                      <p className="text-sm text-ink-muted tabular-nums">
-                        Started {formatDateTime(inProgress.startedAt, timeZone)} ·{" "}
-                        {inProgress.gymName} · {inProgress.setCount}{" "}
-                        {inProgress.setCount === 1 ? "set" : "sets"}
-                      </p>
-                      {inProgress.setCount === 0 && (
-                        <DiscardSessionButton sessionId={inProgress.id} />
-                      )}
-                    </>
-                  ) : sessionStatus === "completed" ? (
-                    <DoneNote>Workout logged. Nothing left to do here today.</DoneNote>
-                  ) : sessionStatus === "skipped" ? (
-                    <DoneNote>Workout skipped.</DoneNote>
-                  ) : (
-                    <>
-                      <StartPlannedButton
-                        gymId={defaultGym?.id ?? null}
-                        programDayId={day.id}
-                        dayIndex={day.dayIndex}
-                        label="Start workout"
-                        dayName={day.name}
-                      />
-                      {defaultGym === null && (
-                        <p className="text-sm text-ink-muted">Choose a gym above to start.</p>
-                      )}
-                    </>
-                  )}
+                  {coachSentence && <CoachLine>{coachSentence}</CoachLine>}
                   {coach && (
                     <CoachStatus
                       coach={coach}
@@ -410,50 +412,104 @@ export function TodayView({
                       timeZone={timeZone}
                     />
                   )}
+                  {openHere && inProgress && (
+                    <p className="text-sm text-ink-muted tabular-nums">
+                      Started {formatDateTime(inProgress.startedAt, timeZone)} ·{" "}
+                      {inProgress.gymName} · {inProgress.setCount}{" "}
+                      {inProgress.setCount === 1 ? "set" : "sets"}
+                    </p>
+                  )}
+                  {sessionStatus === "completed" && (
+                    <DoneNote>Workout logged. Nothing left to do here today.</DoneNote>
+                  )}
+                  {sessionStatus === "skipped" && <DoneNote>Workout skipped.</DoneNote>}
+
+                  {/* The plan itself, in full: it is what the screen is for. */}
                   {coachPlan ? (
-                    <Disclosure
-                      summary="The plan"
-                      meta={coachPlanSummary(coachPlan.exercises, plan.suggestedExercises)}
-                      variant="footer"
-                    >
+                    <div>
+                      <PlanLabel
+                        summary={coachPlanSummary(coachPlan.exercises, plan.suggestedExercises)}
+                      />
                       <CoachPlanList
                         entries={coachPlan.exercises}
                         planned={plan.suggestedExercises}
                         unit={unit}
                         warnings={coachPlan.warnings}
                       />
-                    </Disclosure>
+                    </div>
                   ) : (
                     plan.suggestedExercises.length > 0 && (
-                      <Disclosure
-                        summary="The plan"
-                        meta={planSummary(plan.suggestedExercises)}
-                        variant="footer"
-                      >
+                      <div>
+                        <PlanLabel summary={planSummary(plan.suggestedExercises)} />
                         <PlannedExerciseList exercises={plan.suggestedExercises} />
-                      </Disclosure>
+                      </div>
                     )
                   )}
-                </Card>
+
+                  {openHere && inProgress ? (
+                    <ActionBar>
+                      <LinkButton
+                        href={`/workouts/${inProgress.id}`}
+                        size="lg"
+                        className="w-full"
+                        aria-label={`Resume session: ${day.name}`}
+                      >
+                        Resume session
+                      </LinkButton>
+                      {inProgress.setCount === 0 && (
+                        <DiscardSessionButton sessionId={inProgress.id} />
+                      )}
+                    </ActionBar>
+                  ) : (
+                    sessionStatus === "pending" && (
+                      <ActionBar>
+                        <StartPlannedButton
+                          gymId={defaultGym?.id ?? null}
+                          programDayId={day.id}
+                          dayIndex={day.dayIndex}
+                          label="Start workout"
+                          dayName={day.name}
+                          // A session open elsewhere keeps the highlighter; this one yields.
+                          variant={openElsewhere ? "secondary" : "primary"}
+                        />
+                        {defaultGym === null && (
+                          <p className="text-sm text-ink-muted">Choose a gym above to start.</p>
+                        )}
+                      </ActionBar>
+                    )
+                  )}
+                </article>
               )}
 
               {!day.includesLifting && !restDay && (
-                <Card>
-                  <h2 className="text-lg font-medium">No workout planned for this day</h2>
+                <section className="box space-y-3 py-4">
+                  <h2 className="text-lg">No workout planned for this day</h2>
                   <StartAdHocButton gymId={defaultGym?.id ?? null} />
-                </Card>
+                </section>
               )}
 
               {/* A day that neither lifts nor runs: rest, mobility, and one tick. */}
               {restDay && (
-                <Card>
-                  <CardHead
-                    eyebrow={position}
+                <article className="box space-y-4 py-4" aria-label={day.name}>
+                  <BlockHead
                     title={day.name}
                     subtitle={daySubtitle(day)}
                     note={dayNote(day)}
                     badge={sessionStatus === "pending" ? standing : TASK_BADGE[sessionStatus]}
                   />
+                  {restProtocol && (
+                    <div>
+                      <div className="flex items-baseline justify-between gap-3 pb-1">
+                        <p className="text-xs font-semibold tracking-[0.08em] text-ink-muted uppercase">
+                          {restProtocol.name}
+                        </p>
+                        <p className="font-data text-sm text-ink-muted tabular-nums">
+                          {restProtocol.drills.length} drills
+                        </p>
+                      </div>
+                      <DrillList drills={restProtocol.drills} />
+                    </div>
+                  )}
                   {sessionStatus === "pending" && (
                     <CompleteRestButton dayIndex={day.dayIndex} label="Mark rest day done" />
                   )}
@@ -468,16 +524,7 @@ export function TodayView({
                       label={`Start ${plan.nextTrainingDay.name} instead`}
                     />
                   )}
-                  {restProtocol && (
-                    <Disclosure
-                      summary={restProtocol.name}
-                      meta={`${restProtocol.drills.length} drills`}
-                      variant="footer"
-                    >
-                      <DrillList drills={restProtocol.drills} />
-                    </Disclosure>
-                  )}
-                </Card>
+                </article>
               )}
             </>
           )}
@@ -495,7 +542,7 @@ export function TodayView({
           <CompletedOccurrences occurrences={completed.filter(onOffer)} />
         </Section>
 
-        {/* Everything that is not the day's own decision, one tap behind one control. */}
+        {/* Everything that is not the day's own decision, one tap behind one row. */}
         {plan && plan.suggestion && day && (
           <MoreOptions
             gymId={defaultGym?.id ?? null}

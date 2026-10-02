@@ -1,8 +1,8 @@
 /**
- * Light/dark appearance. One design (Form), three preferences: System, Light and Dark.
+ * Light/dark appearance. One design (the sheet), three preferences: System, Light and Dark.
  *
  * The palette itself is chosen in CSS — `system` is the plain `prefers-color-scheme`
- * media query in foundation.css, so the common case needs no JavaScript at all. Only an
+ * media query in tokens.css, so the common case needs no JavaScript at all. Only an
  * explicit override needs a marker on the document, which is what the initializer below
  * writes. The preference is device-local: no profile column, no request, no cookie, and
  * nothing about a workout or account goes in it.
@@ -20,7 +20,7 @@ export const APPEARANCE_LABELS: Record<Appearance, string> = {
 
 export const APPEARANCE_STORAGE_KEY = "overload:appearance";
 
-/** The document attribute foundation.css keys the explicit palettes off. */
+/** The document attribute tokens.css keys the explicit palettes off. */
 export const APPEARANCE_ATTRIBUTE = "data-overload-mode";
 
 const APPEARANCE_CHANGE_EVENT = "overload:appearance-change";
@@ -28,9 +28,9 @@ const APPEARANCE_CHANGE_EVENT = "overload:appearance-change";
 // metadata updates on navigation undo it. This fallback lasts for the current tab.
 let transientAppearance: Appearance | null = null;
 
-/** Browser chrome colours. These are Form's two canvases, kept in step with form.css. */
-export const CANVAS_LIGHT = "#f4f3ee";
-export const CANVAS_DARK = "#171c1c";
+/** Browser chrome colours: the sheet's two canvases, kept in step with tokens.css. */
+export const CANVAS_LIGHT = "#fcfcfb";
+export const CANVAS_DARK = "#141517";
 
 function parseAppearance(value: unknown): Appearance {
   return APPEARANCE_MODES.includes(value as Appearance) ? (value as Appearance) : "system";

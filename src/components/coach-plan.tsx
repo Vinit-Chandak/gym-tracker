@@ -1,9 +1,9 @@
-import { prescription } from "@/components/planned-exercises";
+import { PlanRow, prescription } from "@/components/planned-exercises";
 import type { PlanWarning } from "@/domain/coach-review";
 import { warningsForSport } from "@/domain/sport-scope";
 import { DetailList } from "@/components/ui/detail-list";
+import { Warning } from "@/components/ui/icons";
 import { planLine, type PlanRun, type StoredPlanExercise } from "@/domain/session-plan";
-import { cn } from "@/lib/utils";
 import type { PlannedExercisePreview, RunTarget } from "@/server/repositories/schedule";
 
 /** "6 exercises · 15 sets" for a coach plan: what it keeps, and the sets it asks for. */
@@ -29,10 +29,10 @@ export function coachPlanSummary(
 }
 
 /**
- * The coach's plan for the day, in the same rhythm as the programme's list: the name over
- * its targets, every entry the same shape. The machine follows the name when the coach chose
- * one, the coach's line comes third only when there is one, and a dropped exercise stays in
- * its place, struck through, so the day still reads in programme order.
+ * The coach's plan for the day, in the same rows as the programme's list: numbered, the name
+ * over its targets, the coach's own line in pen beneath. The machine follows the name when
+ * the coach chose one, and a dropped exercise stays in its place, struck through, so the day
+ * still reads in programme order.
  */
 export function CoachPlanList({
   entries,
@@ -46,9 +46,13 @@ export function CoachPlanList({
   /** What the app noticed about the plan. Advice, under the plan it is about. */
   warnings?: readonly PlanWarning[];
 }) {
+  const unmentioned = planned.filter(
+    (slot) => !entries.some((entry) => entry.slotId === slot.programExerciseId),
+  );
+  const shown = warningsForSport(warnings, "workout");
   return (
     <>
-      <ul className="space-y-2.5">
+      <ol className="min-w-0 ruled-list">
         {entries.map((entry, index) => {
           const slot = entry.slotId
             ? planned.find((p) => p.programExerciseId === entry.slotId)
@@ -63,38 +67,39 @@ export function CoachPlanList({
             ? "Skipped today"
             : (line ?? (slot ? prescription(slot) : "By the rule"));
           return (
-            <li key={`${entry.slotId ?? "added"}-${index}`} className="min-w-0">
-              <p
-                className={cn(
-                  "text-sm [overflow-wrap:anywhere]",
-                  dropped && "text-ink-subtle line-through",
-                )}
-              >
-                {name}
-                {machine && <span className="text-ink-muted"> · {machine}</span>}
-              </p>
-              <p className="mt-0.5 text-xs text-ink-muted tabular-nums">{targets}</p>
-              {entry.note && <p className="mt-0.5 text-xs text-ink-muted">{entry.note}</p>}
-            </li>
+            <PlanRow
+              key={`${entry.slotId ?? "added"}-${index}`}
+              number={index + 1}
+              name={
+                <>
+                  {name}
+                  {machine && <span className="font-normal text-ink-muted"> · {machine}</span>}
+                </>
+              }
+              detail={targets}
+              note={entry.note}
+              struck={dropped}
+            />
           );
         })}
-        {planned
-          .filter((slot) => !entries.some((entry) => entry.slotId === slot.programExerciseId))
-          .map((slot) => (
-            <li key={slot.programExerciseId} className="min-w-0">
-              <p className="text-sm [overflow-wrap:anywhere]">{slot.name}</p>
-              <p className="mt-0.5 text-xs text-ink-muted tabular-nums">{prescription(slot)}</p>
-            </li>
-          ))}
-      </ul>
-      {warningsForSport(warnings, "workout").length > 0 && (
-        <ul className="mt-3 space-y-1 border-t border-line pt-3">
-          {warningsForSport(warnings, "workout").map((warning, index) => (
+        {unmentioned.map((slot, index) => (
+          <PlanRow
+            key={slot.programExerciseId}
+            number={entries.length + index + 1}
+            name={slot.name}
+            detail={prescription(slot)}
+          />
+        ))}
+      </ol>
+      {shown.length > 0 && (
+        <ul className="mt-3 space-y-1.5 border-t border-line pt-3">
+          {shown.map((warning, index) => (
             <li
               key={`${warning.code}-${index}`}
-              className="text-xs [overflow-wrap:anywhere] text-warning"
+              className="flex gap-2 text-sm [overflow-wrap:anywhere] text-warning"
             >
-              {warning.message}
+              <Warning className="mt-0.5 shrink-0" aria-hidden />
+              <span>{warning.message}</span>
             </li>
           ))}
         </ul>

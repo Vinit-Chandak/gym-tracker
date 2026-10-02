@@ -1,16 +1,14 @@
 @import "tailwindcss" source(none);
-/* Foundation first: it declares the semantic --ov-* names form.css fills in. */
-@import "../styles/form/foundation.css";
-@import "../styles/form/form.css";
+/* The sheet's tokens: scale, the two palettes and the mode selection. */
+@import "../styles/sheet/tokens.css";
 @source "../";
 
 /*
- * Form design tokens, exposed under the Tailwind names the app already uses.
+ * The sheet's tokens, exposed under the Tailwind names the app uses.
  *
  * `inline` matters: it makes `bg-canvas` compile to `var(--ov-canvas)` rather than to a
- * frozen copy of whatever `--ov-canvas` happened to be at build time. The light/dark
- * choice then happens where the utility is used, so one component tree serves both modes.
- * Runtime values stay in the imported files; never nest a @theme block under a mode.
+ * frozen copy of whatever `--ov-canvas` happened to be at build time, so one component tree
+ * serves both palettes. Runtime values stay in tokens.css; never nest a @theme under a mode.
  */
 @theme inline {
   --color-canvas: var(--ov-canvas);
@@ -18,12 +16,23 @@
   --color-surface-raised: var(--ov-surface-raised);
   --color-line: var(--ov-line);
   --color-line-strong: var(--ov-line-strong);
+  --color-grid: var(--ov-grid);
 
   --color-ink: var(--ov-ink);
   --color-ink-muted: var(--ov-ink-muted);
   --color-ink-subtle: var(--ov-ink-subtle);
   --color-ink-ghost: var(--ov-ink-ghost);
 
+  /* The coach's pen, and every word that can be tapped. */
+  --color-pen: var(--ov-pen);
+  --color-pen-strong: var(--ov-pen-strong);
+  --color-pen-soft: var(--ov-pen-soft);
+  /* The highlighter: today, the selected thing, the one primary action. */
+  --color-highlight: var(--ov-highlight);
+  --color-highlight-strong: var(--ov-highlight-strong);
+  --color-highlight-soft: var(--ov-highlight-soft);
+  --color-on-highlight: var(--ov-on-highlight);
+  /* Older names, kept so every screen keeps compiling: the accent is the pen. */
   --color-accent: var(--ov-accent);
   --color-accent-strong: var(--ov-accent-strong);
   --color-accent-soft: var(--ov-accent-soft);
@@ -45,7 +54,7 @@
   --color-volume-2: var(--ov-volume-2);
   --color-volume-3: var(--ov-volume-3);
   --color-volume-4: var(--ov-volume-4);
-  /* Superset hues, in the order a workout's groups first appear. */
+  /* Superset pens, in the order a workout's groups first appear. */
   --color-group-1: var(--ov-group-1);
   --color-group-2: var(--ov-group-2);
   --color-group-3: var(--ov-group-3);
@@ -56,6 +65,7 @@
   --color-group-8: var(--ov-group-8);
 
   --font-sans: var(--ov-font-body);
+  --font-data: var(--ov-font-data);
   --font-mono: var(--ov-font-mono);
 
   --radius-card: var(--ov-radius-card);
@@ -63,31 +73,33 @@
   --radius-sheet: var(--ov-radius-sheet);
 
   --text-xs: var(--ov-text-label);
+  --text-xs--line-height: 1rem;
   --text-sm: var(--ov-text-small);
+  --text-sm--line-height: 1.25rem;
   --text-base: var(--ov-text-body);
+  --text-base--line-height: 1.5rem;
   --text-lg: var(--ov-text-section);
   --text-lg--line-height: var(--ov-leading-heading);
   --text-xl: var(--ov-text-title);
   --text-xl--line-height: var(--ov-leading-heading);
+  --text-2xl: var(--ov-text-display);
+  --text-2xl--line-height: var(--ov-leading-tight);
+  --text-3xl: var(--ov-text-measure);
+  --text-3xl--line-height: 1;
+
+  --ease-out: var(--ov-ease-out);
+  --ease-in-out: var(--ov-ease-in-out);
+  --ease-sheet: var(--ov-ease-sheet);
 }
 
-/*
- * Layout names the app's utilities already reference, resolved from the Form scale so
- * spacing comes from tokens rather than a margin chosen per screen.
- */
+/* Layout names the app's utilities reference, resolved from the sheet's scale. */
 :root {
-  /* The row of tabs, and the whole island: the glass is exactly as tall as its tabs. */
   --nav-height: var(--ov-nav-height);
-  /* Side gutters stay independent of the smaller gap below the island. */
-  --nav-inset: var(--ov-space-5);
-  /*
-   * Bring the island 12px closer to the bottom on inset displays, with a 4px minimum gap.
-   * The same gap also positions the resume strip and reserves space in the page below.
-   */
-  --nav-gap: max(var(--ov-space-1), calc(env(safe-area-inset-bottom, 0px) - var(--ov-space-4)));
-  /* Everything the navigation takes off the bottom of the viewport, island and gap. */
+  /* The bar sits on the bottom edge; the home indicator's inset is added inside it. */
+  --nav-gap: env(safe-area-inset-bottom, 0px);
+  /* Everything the navigation takes off the bottom of the viewport. */
   --nav-reserve: calc(var(--nav-height) + var(--nav-gap));
-  --header-height: calc(var(--ov-control-height) + var(--ov-space-6));
+  --header-height: 3.25rem;
   --page-gutter: var(--ov-page-gutter);
   --panel-padding: var(--ov-panel-padding);
   --section-gap: var(--ov-section-gap);
@@ -98,20 +110,34 @@
   html {
     background: var(--ov-canvas);
     -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+    /* An installed app, not a document: no pull-to-refresh and no rubber band on the root. */
+    overscroll-behavior: none;
     scroll-padding-top: calc(var(--header-height) + env(safe-area-inset-top) + 1rem);
   }
 
   body {
-    background: var(--ov-canvas);
     color: var(--ov-ink);
     font-family: var(--ov-font-body);
     font-size: var(--ov-text-body);
     line-height: var(--ov-leading-body);
-    /* Stop the rubber-band bounce in standalone (installed) mode. */
-    overscroll-behavior-y: none;
-    -webkit-tap-highlight-color: transparent;
+    /* The sheet is a data document: every digit sits in a column. */
+    font-variant-numeric: tabular-nums;
+    /* The construction grid: one dot every 20px, faint enough to be texture. */
+    background-color: var(--ov-canvas);
+    background-image: radial-gradient(circle at 1px 1px, var(--ov-grid) 1px, transparent 1.5px);
+    background-size: var(--ov-grid-size) var(--ov-grid-size);
+    overscroll-behavior: none;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    caret-color: var(--ov-pen);
+    accent-color: var(--ov-pen);
+  }
+
+  /* The highlighter is also how a selection reads. */
+  ::selection {
+    background: var(--ov-highlight);
+    color: var(--ov-on-highlight);
   }
 
   h1,
@@ -121,6 +147,11 @@
     font-weight: var(--ov-weight-heading);
     letter-spacing: var(--ov-heading-tracking);
     line-height: var(--ov-leading-heading);
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
   }
 
   a,
@@ -130,9 +161,20 @@
     touch-action: manipulation;
   }
 
+  /* Controls are not content: a long press must never select a label or open a callout. */
+  button,
+  [role="button"],
+  [role="tab"],
+  summary {
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+  }
+
   :focus-visible {
     outline: 2px solid var(--ov-focus);
-    outline-offset: 3px;
+    outline-offset: 2px;
+    border-radius: var(--ov-radius-control);
   }
 
   input,
@@ -140,6 +182,13 @@
   textarea {
     /* iOS Safari zooms into inputs smaller than 16px. Keep them at 16px+. */
     font-size: var(--ov-text-input);
+    font-variant-numeric: tabular-nums;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--ov-ink-ghost);
+    opacity: 1;
   }
 
   /* Fieldsets otherwise use a min-content width, even inside a narrow grid or card. */
@@ -154,16 +203,9 @@
 
   /*
    * iOS puts a native widget inside a date or time field and sizes the field to that widget,
-   * ignoring the width the layout gave it: two side by side then overlap, and the first
-   * one's value disappears under the second. An empty time field is the worst of them — it
-   * measures itself against `--:-- --`, so it ran off the right-hand edge of the screen
-   * rather than merely crowding its neighbour. Dropping the native appearance hands the
-   * width back to the grid, so these fields measure the same on iOS as on Android.
-   *
-   * Every type built on that widget, not just the one that was noticed: they are the same
-   * control underneath, and fixing them one at a time is why each kept coming back. A row to
-   * itself is not enough room either — a `datetime-local` alone in a card still ran past the
-   * card's right-hand edge, because the widget, not the row, decided its width.
+   * ignoring the width the layout gave it: two side by side then overlap. Dropping the native
+   * appearance hands the width back to the grid, so these fields measure the same on iOS as on
+   * Android. Every type built on that widget, not just the one that was noticed.
    */
   input[type="date"],
   input[type="time"],
@@ -172,21 +214,12 @@
   input[type="week"] {
     appearance: none;
     -webkit-appearance: none;
-    /*
-     * A single-cell grid, not a block. With the native appearance gone, Safari lays the value
-     * out at the top of the field's content box rather than on its centre line, so the date of
-     * birth sat higher in its box than the weight and height above it. Centring the cell is
-     * height-agnostic, so it holds whatever the control height becomes. Grid rather than flex
-     * because a grid item still fills the field's width, which keeps Chrome's calendar button
-     * on the right-hand edge instead of trailing the date.
-     */
     display: grid;
     align-items: center;
     min-width: 0;
     max-width: 100%;
   }
 
-  /* Safari centres the value inside that widget and pads it; line it up with other fields. */
   input[type="date"]::-webkit-date-and-time-value,
   input[type="time"]::-webkit-date-and-time-value,
   input[type="datetime-local"]::-webkit-date-and-time-value,
@@ -204,7 +237,17 @@
   summary::-webkit-details-marker {
     display: none;
   }
+
+  /* Desktop scrollbars in the sheet's own greys rather than the browser's. */
+  @media (pointer: fine) {
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: var(--ov-line-strong) transparent;
+    }
+  }
 }
+
+/* ---- Sheet grammar ---------------------------------------------------------------------- */
 
 @utility page-width {
   width: 100%;
@@ -225,12 +268,84 @@
 }
 
 /*
- * The actions of a multi-step form, kept on screen while the form is scrolled.
- *
- * Back and Continue are the whole point of a step, and hunting for them at the bottom of a
- * long one is the same mistake as hiding them. It sticks above whatever else owns the
- * bottom of the screen: the navigation island inside the app, the home indicator during
- * first-run setup, where there is no island to clear.
+ * A block on the sheet: ruled above and below, open at the sides, the grid showing through.
+ * Blocks stacked in a column read as one ruled document; a block never sits inside another.
+ */
+@utility box {
+  min-width: 0;
+  border-top: 1px solid var(--ov-line);
+  border-bottom: 1px solid var(--ov-line);
+}
+
+/* A block of full-bleed rows, each ruled from the next. */
+@utility box-rows {
+  min-width: 0;
+  border-top: 1px solid var(--ov-line);
+  border-bottom: 1px solid var(--ov-line);
+  :where(& > * + *) {
+    border-top: 1px solid var(--ov-line);
+  }
+}
+
+/*
+ * Ruled list: rows separated by one hairline, running the full width of whatever holds
+ * them. Nothing is drawn on the first row's top or the last row's bottom.
+ */
+@utility ruled-list {
+  :where(& > * + *) {
+    border-top: 1px solid var(--ov-line);
+  }
+}
+
+/*
+ * A sheet pinned on the sheet: the one opaque container, for a thing that has to stand off
+ * the page (a proposal awaiting a decision, a form, the session in progress). Used by hand,
+ * never nested, never as the page's default container.
+ */
+@utility panel {
+  min-width: 0;
+  background: var(--ov-surface);
+  border: 1px solid var(--ov-line);
+  border-radius: var(--ov-radius-card);
+}
+
+/* A hairline above or below, for separating without boxing. */
+@utility rule-top {
+  border-top: 1px solid var(--ov-line);
+}
+@utility rule-bottom {
+  border-bottom: 1px solid var(--ov-line);
+}
+
+/* The highlighter laid over a word or a field: black ink on yellow, square-ish ends. */
+@utility highlight {
+  background: var(--ov-highlight);
+  color: var(--ov-on-highlight);
+  border-radius: var(--ov-radius-control);
+}
+
+/* Pencil: a value the coach proposes and the athlete has not yet confirmed. */
+@utility pencil {
+  color: var(--ov-ink-ghost);
+  font-weight: 400;
+  text-decoration: underline dotted;
+  text-decoration-color: var(--ov-line-strong);
+  text-underline-offset: 0.18em;
+  text-decoration-thickness: 1px;
+}
+
+/* The data voice: the semi-condensed cut, tabular, for measures that must be read at a glance. */
+@utility measure {
+  font-family: var(--ov-font-data);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+
+/*
+ * The actions of a multi-step form, kept on screen while the form is scrolled, sitting on
+ * an opaque strip above whatever owns the bottom of the screen.
  */
 :root {
   --actions-inset: max(env(safe-area-inset-bottom, 0px), var(--ov-space-3));
@@ -244,35 +359,41 @@
   position: sticky;
   bottom: var(--actions-inset);
   z-index: 1;
-  border-radius: var(--ov-radius-card);
   background: var(--ov-surface);
+  border-top: 1px solid var(--ov-line);
+  border-bottom: 1px solid var(--ov-line);
   padding: var(--ov-space-3);
-  box-shadow: var(--ov-nav-shadow);
 }
 
 /*
- * Ruled list: rows separated by one hairline, running the full width of whatever holds
- * them. Nothing is drawn on the first row's top or the last row's bottom, so a list adds
- * no line of its own to the box it sits in.
+ * Two actions side by side while they both fit, one per line when they do not. `auto-fit`
+ * with a rem minimum makes that decision follow the text size rather than the viewport.
  */
-@utility ruled-list {
-  :where(& > * + *) {
-    border-top: 1px solid var(--ov-line);
-  }
+@utility action-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 8.5rem), 1fr));
+  gap: var(--ov-space-3);
 }
 
 /*
- * A box: the grouping for anything that belongs together. A shared hairline keeps its
- * boundary visible in both palettes, including when it sits on another surface.
+ * A superset member. The group's pen arrives as --superset-color from the row itself: a
+ * 2px rule on the left in that pen and a faint wash behind the row, which is how rows say
+ * they belong together without a caption. Browsers without color-mix keep the rule only.
  */
-@utility box {
-  min-width: 0;
-  border: 1px solid var(--ov-line);
-  border-radius: var(--ov-radius-card);
-  background: var(--ov-surface);
+@utility superset-row {
+  border-left: 2px solid var(--superset-color, var(--ov-pen));
+  background: color-mix(in srgb, var(--superset-color, var(--ov-pen)) 8%, transparent);
 }
 
-/* Icon dimensions follow the viewport and text size independently of the hit target. */
+/* iPhone notch / home-indicator safe areas (requires viewport-fit=cover). */
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Icon dimensions follow the text size independently of the hit target. */
 .app-icon {
   display: block;
   flex-shrink: 0;
@@ -298,40 +419,16 @@
   color: oklch(var(--ov-avatar-ink-l) var(--ov-avatar-ink-c) var(--avatar-hue));
 }
 
-/*
- * A box of full-bleed rows. The first and last rows take the box's corners themselves,
- * so a pressed row's highlight follows the rounding without the box clipping anything
- * that has to escape it, such as an open info tip.
- */
-@utility box-rows {
-  min-width: 0;
-  border: 1px solid var(--ov-line);
-  border-radius: var(--ov-radius-card);
-  background: var(--ov-surface);
-  :where(& > * + *) {
-    border-top: 1px solid var(--ov-line);
-  }
-  :where(& > :first-child),
-  :where(& > :first-child > *) {
-    border-start-start-radius: inherit;
-    border-start-end-radius: inherit;
-  }
-  :where(& > :last-child),
-  :where(& > :last-child > *) {
-    border-end-start-radius: inherit;
-    border-end-end-radius: inherit;
-  }
-}
+/* ---- The page and the chrome --------------------------------------------------------- */
 
 /*
- * --session-chrome-height is measured and set by the resume strip when there is an active
- * workout, and removed when there is not, so the page reserves the strip's actual height
- * including anything that wrapped at a larger text size.
+ * --session-chrome-height is measured and set by the session line when there is an active
+ * workout, and removed when there is not, so the page reserves the line's actual height.
  */
 .app-content {
   min-width: 0;
   flex: 1;
-  padding-bottom: calc(var(--nav-reserve) + var(--session-chrome-height, 0px) + 1rem);
+  padding-bottom: calc(var(--nav-reserve) + var(--session-chrome-height, 0px) + 1.5rem);
 }
 
 html:has(.app-content) {
@@ -339,46 +436,11 @@ html:has(.app-content) {
 }
 
 /*
- * An island, not a bar: the navigation floats clear of all four edges and the page runs
- * underneath it. Translucency plus a blur is what makes that readable — you can see there
- * is more page below without being able to read it through the labels — so the fallback
- * for a browser without a backdrop filter is an opaque island, never a see-through one.
- */
-.primary-nav {
-  position: fixed;
-  inset: auto max(var(--nav-inset), env(safe-area-inset-right)) var(--nav-gap)
-    max(var(--nav-inset), env(safe-area-inset-left));
-  z-index: var(--ov-z-nav);
-  /* Border-box, so the island measures exactly the height the page reserved for it. */
-  height: var(--nav-height);
-  border: 1px solid var(--ov-line);
-  border-radius: var(--ov-radius-island);
-  background: var(--ov-nav-island);
-  box-shadow: var(--ov-nav-shadow);
-  /* A wider blur than the tint alone would need: the island is half see-through, and the
-     blur is what keeps a label readable over whatever scrolls beneath it. */
-  -webkit-backdrop-filter: blur(1.5rem) saturate(180%);
-  backdrop-filter: blur(1.5rem) saturate(180%);
-}
-
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .primary-nav {
-    background: var(--ov-canvas);
-  }
-}
-
-/*
- * One frame for every piece of mobile chrome: the island and the resume strip share a
- * containing block, so the two can never disagree about where the bottom of the screen is,
- * and the gap below them is stated once.
- *
- * The frame is pinned to all four edges rather than given `height: 100dvh`. A length has to
- * be computed, and on iOS `dvh` is resolved against the wrong viewport until the first
- * scroll settles it — which is exactly the cold-launch offset that put the island below the
- * bottom of the screen and then snapped it back into place the moment the page moved. An
- * `inset: 0` fixed element is sized by the browser itself, against the same viewport it
- * anchors a bottom-fixed element to, so there is no length left to be stale at first paint.
- * The desktop rail retains its normal fixed positioning.
+ * One frame for every piece of mobile chrome: the tab bar and the session line share a
+ * containing block pinned to all four edges, so the two can never disagree about where the
+ * bottom of the screen is. `inset: 0` rather than `100dvh`: on iOS a length resolved against
+ * the wrong viewport until the first scroll is exactly the cold-launch offset that put the
+ * old island below the bottom edge.
  */
 @media (width < 64rem) {
   .viewport-chrome {
@@ -399,27 +461,36 @@ html:has(.app-content) {
   }
 }
 
+/*
+ * The tab bar: five sheet tabs along the bottom edge, flush, ruled off from the page. The
+ * current tab is marked with the highlighter, around its icon and its label together.
+ */
+.primary-nav {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: var(--ov-z-nav);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: var(--ov-nav-island);
+  border-top: 1px solid var(--ov-line);
+}
+
 .nav-items {
   display: flex;
-  height: 100%;
-  /* Keeps a pressed tab's highlight clear of the island's own edge. */
-  padding: 0.25rem;
+  height: var(--nav-height);
+  padding: 0.375rem max(0.25rem, env(safe-area-inset-left)) 0.375rem
+    max(0.25rem, env(safe-area-inset-right));
+  gap: 0.125rem;
 }
 
 /* The tap target: the whole cell, so nothing between two tabs is dead space. */
 .nav-link {
   display: block;
   height: 100%;
-  /* Inside the island's own rounding, so a pressed tab never squares off its corner. */
-  border-radius: calc(var(--ov-radius-island) - 0.25rem);
+  border-radius: var(--ov-radius-control);
   user-select: none;
+  -webkit-user-select: none;
 }
 
-/*
- * The tab itself, and the thing that gets filled when it is selected: one pill around the
- * icon *and* its label. Highlighting the icon alone reads as a stray box floating over a
- * caption that belongs to it.
- */
 .nav-tab {
   display: flex;
   height: 100%;
@@ -431,19 +502,25 @@ html:has(.app-content) {
   flex-direction: column;
   gap: 0.125rem;
   border-radius: inherit;
-  font-size: clamp(0.625rem, 2.7vw, 0.75rem);
+  font-size: clamp(0.625rem, 2.7vw, 0.6875rem);
   font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--ov-ink-muted);
   transition:
-    background-color var(--ov-duration-feedback) var(--ov-ease-standard),
-    color var(--ov-duration-feedback) var(--ov-ease-standard);
+    background-color var(--ov-duration-tab) var(--ov-ease-out),
+    color var(--ov-duration-tab) var(--ov-ease-out),
+    transform var(--ov-duration-feedback) var(--ov-ease-out);
 }
 
 .nav-tab-active {
-  background: var(--ov-accent-soft);
-  color: var(--ov-accent);
+  background: var(--ov-highlight);
+  color: var(--ov-on-highlight);
 }
 
-/* Pressing an unselected tab tints it; pressing the selected one leaves its fill alone. */
+/* Pressing a tab presses it; the selected one keeps its mark. */
+.nav-link:active .nav-tab {
+  transform: scale(0.96);
+}
 .nav-link:active .nav-tab:not(.nav-tab-active) {
   background: var(--ov-surface-raised);
 }
@@ -454,7 +531,7 @@ html:has(.app-content) {
   inset: env(safe-area-inset-top) 0 auto;
   height: 2px;
   overflow: hidden;
-  background: var(--ov-line);
+  background: transparent;
   pointer-events: none;
 }
 
@@ -463,7 +540,7 @@ html:has(.app-content) {
   display: block;
   height: 100%;
   width: 40%;
-  background: var(--ov-accent);
+  background: var(--ov-highlight-strong);
   animation: navigation-progress 1.2s ease-in-out infinite;
 }
 
@@ -488,50 +565,58 @@ html:has(.app-content) {
   }
 }
 
+/* Skeleton rows: a pencil wash that breathes, never a spinner in the middle of content. */
+.skeleton {
+  background: var(--ov-surface-raised);
+  border-radius: var(--ov-radius-control);
+  animation: skeleton-breathe 1.4s ease-in-out infinite;
+}
+
+@keyframes skeleton-breathe {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* Desktop: the tabs become a rail down the left margin of the sheet. */
 @media (min-width: 64rem) {
   :root {
     --nav-height: 0rem;
-    --nav-inset: 0rem;
     --nav-gap: 0rem;
   }
   .app-content {
-    margin-left: 12rem;
+    margin-left: 13rem;
     padding-bottom: calc(2rem + var(--session-chrome-height, 0px));
   }
-  /* A full-height rail rather than an island: there is no thumb to keep clear of here. */
   .primary-nav {
     inset: 0 auto 0 0;
-    width: 12rem;
-    height: auto;
-    border: 0;
+    width: 13rem;
+    padding: 0;
+    border-top: 0;
     border-right: 1px solid var(--ov-line);
-    border-radius: 0;
     background: var(--ov-canvas);
-    box-shadow: none;
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
   }
   .nav-items {
     flex-direction: column;
     height: auto;
-    gap: 0.375rem;
-    padding: 1rem 0.75rem;
+    gap: 0.25rem;
+    padding: 0.75rem;
   }
   .nav-link {
     height: auto;
-    border-radius: var(--ov-radius-control);
   }
   .nav-tab {
     height: auto;
-    min-height: 3rem;
+    min-height: 2.75rem;
     flex-direction: row;
     justify-content: flex-start;
     gap: 0.75rem;
     padding: 0.5rem 0.75rem;
     font-size: var(--ov-text-small);
+    letter-spacing: 0;
   }
   .navigation-progress {
-    left: 12rem;
+    left: 13rem;
   }
 }
 
@@ -539,6 +624,9 @@ html:has(.app-content) {
   .navigation-progress::after {
     animation: none;
     width: 100%;
+  }
+  .skeleton {
+    animation: none;
   }
 }
 
@@ -559,55 +647,21 @@ html:has(.app-content) {
   .viewport-chrome > .primary-nav {
     position: relative;
     inset: auto;
-    margin: 0 var(--page-gutter) max(0.5rem, env(safe-area-inset-bottom));
   }
 }
 
-/* iPhone notch / home-indicator safe areas (requires viewport-fit=cover). */
-@utility pt-safe {
-  padding-top: env(safe-area-inset-top);
-}
-@utility pb-safe {
-  padding-bottom: env(safe-area-inset-bottom);
-}
-/*
- * Two actions side by side while they both fit, one per line when they do not. `auto-fit`
- * with a rem minimum makes that decision follow the text size rather than the viewport, so
- * a long label at 200% takes its own row instead of overflowing a half-width button.
- */
-@utility action-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 8.5rem), 1fr));
-  gap: var(--ov-space-3);
-}
+/* ---- The set grid ------------------------------------------------------------------- */
 
 /*
- * A superset member. The group's hue arrives as --superset-color from the row itself, so
- * one rule serves all eight colours: a rule on the left and a faint wash of the same hue
- * behind the row, which is how two rows say they belong together without a caption.
- * Browsers without color-mix drop the wash and keep the rule. The row sets its own left
- * padding, allowing for the rule, so its text lines up with the rows around it.
- */
-@utility superset-row {
-  border-left: 3px solid var(--superset-color, var(--ov-accent));
-  background: color-mix(in srgb, var(--superset-color, var(--ov-accent)) 10%, transparent);
-}
-
-/*
- * Set grid. One row per set: identity/options, load, reps (or seconds), RIR, save.
- * The header row uses the same class so the labels sit over their own columns.
+ * One row per set: identity/options, load, reps (or seconds), RIR, save. The header row
+ * uses the same class so the labels sit over their own columns.
  *
- * Three tiers, chosen by container queries in `rem` rather than viewport breakpoints. A
- * `rem` query compares the available width against the width the text actually needs, so
- * it reacts to an enlarged root font, which is the case that breaks this layout — the
- * viewport is unchanged while every number gets twice as wide.
- *
- * The thresholds are the tiers' own minimums, not guesses:
- *   17rem     = 2.75 (identity) + 4 + 3.25 + 2.75 (fields) + 2.75 (save) + 4 × 0.375 (gaps)
+ * Three tiers, chosen by container queries in `rem` rather than viewport breakpoints, so the
+ * layout reacts to an enlarged root font, which is the case that breaks it. The thresholds
+ * are the tiers' own minimums:
+ *   17rem     = 2.5 (identity) + 4.5 + 3.5 + 3 (fields) + 2.75 (save) + 4 × 0.5 (gaps), about
  *   13.625rem = the same without the save cell, which has moved to its own line
- * At normal text a 320px phone leaves 18.5rem of container, so the one-line grid holds
- * everywhere; at 200% the same phone leaves 9.25rem and lands in the labelled tier. No
- * value is ever clipped or shrunk to keep a row on one line.
+ * No value is ever clipped or shrunk to keep a row on one line.
  */
 .set-grid {
   container-type: inline-size;
@@ -630,7 +684,7 @@ html:has(.app-content) {
 }
 
 /* Tier 2: the numbers keep their row; saving takes the next one. */
-@container (max-width: 17rem) {
+@container (max-width: 18rem) {
   .set-row {
     grid-template-columns: var(--ov-target-min) 1fr 1fr 1fr;
   }
@@ -639,11 +693,7 @@ html:has(.app-content) {
   }
 }
 
-/*
- * Tier 3: one value per line, each beside its own label. Three numeric fields cannot share
- * a 320px row at 200% text — a four-digit load alone wants most of it — so the row grows
- * downwards instead, and the column header gives way to per-field labels.
- */
+/* Tier 3: one value per line, each beside its own label. */
 @container (max-width: 13.625rem) {
   .set-row {
     grid-template-columns: minmax(0, auto) minmax(0, 1fr);
@@ -662,7 +712,8 @@ html:has(.app-content) {
   }
 }
 
-/* Bottom sheet on top of the native <dialog>. */
+/* ---- The bottom sheet, on the native <dialog> ---------------------------------------- */
+
 dialog.sheet {
   position: fixed;
   inset: auto 0 var(--sheet-bottom, 0px) 0;
@@ -677,10 +728,10 @@ dialog.sheet {
   overflow: hidden;
   overscroll-behavior: contain;
 }
+
 /*
  * The native modal makes the page inert, but does not lock its scroll position. Lock the
  * root while any sheet is open; closing a nested sheet keeps the underlying sheet locked.
- * Overflow clipping preserves the page's scroll position when the sheet closes.
  */
 html:has(dialog.sheet[open]),
 html:has(dialog.sheet[open]) body {
@@ -688,12 +739,8 @@ html:has(dialog.sheet[open]) body {
   overscroll-behavior: none;
 }
 
-/*
- * ::backdrop inherits from its originating element in current browsers; the literal is
- * the fallback for the ones where it still inherits from nothing.
- */
 dialog.sheet::backdrop {
-  background: var(--ov-backdrop, rgb(0 0 0 / 0.64));
+  background: var(--ov-backdrop, rgb(0 0 0 / 0.6));
 }
 
 .sheet-panel {
@@ -702,6 +749,7 @@ dialog.sheet::backdrop {
   max-height: var(--sheet-height, 90dvh);
   padding-left: max(var(--panel-padding), env(safe-area-inset-left));
   padding-right: max(var(--panel-padding), env(safe-area-inset-right));
+  box-shadow: var(--ov-sheet-shadow);
 }
 
 .sheet-panel[data-compact="true"] {
@@ -715,17 +763,31 @@ dialog.sheet::backdrop {
 }
 
 /*
- * A short rise that explains where the sheet came from. A keyframe rather than a
+ * The sheet rises on a short spring from just below where it lands. A keyframe rather than a
  * transition because <dialog> goes from display:none to open in one step; reduced motion
  * zeroes --ov-duration-sheet, so the panel simply appears.
  */
 dialog.sheet[open] .sheet-panel {
-  animation: sheet-in var(--ov-duration-sheet) var(--ov-ease-standard);
+  animation: sheet-in var(--ov-duration-sheet) var(--ov-ease-sheet);
 }
 
 @keyframes sheet-in {
   from {
-    transform: translateY(0.75rem);
-    opacity: 0.6;
+    transform: translateY(1.5rem);
+    opacity: 0.4;
   }
+}
+
+/* ---- Ink arriving --------------------------------------------------------------------- */
+
+/* A value that just turned from pencil to ink: the ink settles in rather than blinking on. */
+@keyframes ink-in {
+  from {
+    opacity: 0.35;
+    transform: translateY(0.125rem);
+  }
+}
+
+.ink-in {
+  animation: ink-in var(--ov-duration-ink) var(--ov-ease-out);
 }

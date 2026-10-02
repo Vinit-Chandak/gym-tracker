@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import { MEASURE_UNIT_SUFFIX, rangeLabel } from "@/lib/labels";
 import { supersetHues, supersetStyle, type SupersetHue } from "@/lib/superset-colors";
 import { cn } from "@/lib/utils";
@@ -34,54 +36,70 @@ export function planSummary(exercises: readonly PlannedExercisePreview[]): strin
   return `${count} ${count === 1 ? "exercise" : "exercises"} · ${sets} ${sets === 1 ? "set" : "sets"}`;
 }
 
-type Block = { key: string; hue?: SupersetHue; items: PlannedExercisePreview[] };
-
-/** Consecutive members of one superset, gathered so the group is drawn once, not per row. */
-function blocks(exercises: readonly PlannedExercisePreview[]): Block[] {
-  const hues = supersetHues(exercises);
-  const grouped: Block[] = [];
-  for (const exercise of exercises) {
-    const hue = exercise.supersetGroup ? hues.get(exercise.supersetGroup) : undefined;
-    const last = grouped[grouped.length - 1];
-    if (hue && last && last.hue === hue) last.items.push(exercise);
-    else grouped.push({ key: exercise.programExerciseId, hue, items: [exercise] });
-  }
-  return grouped;
+/**
+ * One row of the plan as the sheet writes it: the number in the margin, the name, and the
+ * prescription in the data voice beneath. Every row is the same shape whatever the name's
+ * length, so the eye finds the prescriptions in one column. A superset's rows share a rule
+ * in their group's pen down the left, which is how rows say they belong together.
+ */
+export function PlanRow({
+  number,
+  name,
+  detail,
+  note,
+  hue,
+  struck = false,
+}: {
+  number: number;
+  name: ReactNode;
+  detail: string;
+  /** The coach's line about this exercise, in the coach's hand. */
+  note?: string | null;
+  hue?: SupersetHue;
+  struck?: boolean;
+}) {
+  return (
+    <li
+      className={cn("flex min-w-0 items-baseline gap-3 py-2.5", hue && "-ml-2 pl-2 superset-row")}
+      style={hue ? supersetStyle(hue) : undefined}
+    >
+      <span className="w-5 shrink-0 font-data text-sm font-medium text-ink-subtle tabular-nums">
+        {number}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p
+          className={cn(
+            "font-medium [overflow-wrap:anywhere]",
+            struck && "text-ink-subtle line-through",
+          )}
+        >
+          {name}
+        </p>
+        <p className="mt-0.5 font-data text-sm text-ink-muted tabular-nums">{detail}</p>
+        {note && <p className="mt-1 text-sm [overflow-wrap:anywhere] text-pen">{note}</p>}
+      </div>
+    </li>
+  );
 }
 
-/**
- * A day's exercises: one two-line entry each, the name over its prescription.
- *
- * Every entry is the same height whatever the name's length, which is the whole point. A
- * name and a prescription sharing one line only wrap on the long names, so a list of them
- * is part one-line rows and part two, with a rule between each — there is no rhythm to read
- * down. Here the eye finds the prescriptions in one column, and a superset takes a single
- * tinted bracket around its group rather than a marker on each of its rows.
- */
+/** A day's exercises, numbered, in programme order. */
 export function PlannedExerciseList({
   exercises,
 }: {
   exercises: readonly PlannedExercisePreview[];
 }) {
+  const hues = supersetHues(exercises);
   return (
-    <ul className="space-y-2.5">
-      {blocks(exercises).map((block) => (
-        <li
-          key={block.key}
-          className={cn(
-            "min-w-0",
-            block.hue && "space-y-2.5 rounded-r-control py-2 pl-2.5 superset-row",
-          )}
-          style={block.hue ? supersetStyle(block.hue) : undefined}
-        >
-          {block.items.map((exercise) => (
-            <div key={exercise.programExerciseId} className="min-w-0">
-              <p className="text-sm [overflow-wrap:anywhere]">{exercise.name}</p>
-              <p className="mt-0.5 text-xs text-ink-muted tabular-nums">{prescription(exercise)}</p>
-            </div>
-          ))}
-        </li>
+    <ol className="min-w-0 ruled-list">
+      {exercises.map((exercise, index) => (
+        <PlanRow
+          key={exercise.programExerciseId}
+          number={index + 1}
+          name={exercise.name}
+          detail={prescription(exercise)}
+          hue={exercise.supersetGroup ? hues.get(exercise.supersetGroup) : undefined}
+        />
       ))}
-    </ul>
+    </ol>
   );
 }

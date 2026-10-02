@@ -1,0 +1,411 @@
+/*
+ * The sheet: Overload's one design, in daylight and at the gym.
+ *
+ * Every screen is a position on the training plan, drawn on one sheet of paper with a faint
+ * construction grid showing through. Ink is what is true and confirmed; pencil is what the
+ * coach proposes and the athlete has not yet confirmed; pen is the coach's own hand and every
+ * word that can be tapped; the highlighter marks today, the selected thing and the one primary
+ * action on a screen, and nothing else.
+ *
+ * Components consume the semantic --ov-* names only. The two palettes below are private to
+ * this file. globals.css exposes the semantic names to Tailwind.
+ */
+:where([data-overload-design="sheet"]) {
+  /* Type. Barlow is self-hosted from src/app/fonts (next/font/local sets the two families). */
+  --ov-font-body: var(--font-barlow), "Barlow", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --ov-font-data: var(--font-barlow-sc), "Barlow Semi Condensed", var(--ov-font-body);
+  --ov-font-heading: var(--ov-font-body);
+  --ov-font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  --ov-weight-heading: 600;
+  --ov-heading-tracking: -0.01em;
+
+  /* A fixed rem scale, ratio about 1.2; product UI, not a poster. */
+  --ov-text-label: 0.75rem;
+  --ov-text-small: 0.875rem;
+  --ov-text-body: 1rem;
+  --ov-text-input: max(1rem, 16px);
+  --ov-text-section: 1.125rem;
+  --ov-text-title: 1.5rem;
+  --ov-text-display: 2rem;
+  --ov-text-measure: 2.75rem;
+  --ov-leading-body: 1.5;
+  --ov-leading-heading: 1.15;
+  --ov-leading-tight: 1.1;
+
+  /* Space, on a 4px base. */
+  --ov-space-1: 0.25rem;
+  --ov-space-2: 0.5rem;
+  --ov-space-3: 0.75rem;
+  --ov-space-4: 1rem;
+  --ov-space-5: 1.25rem;
+  --ov-space-6: 1.5rem;
+  --ov-space-7: 2rem;
+  --ov-space-8: 2.5rem;
+  --ov-page-gutter: clamp(1rem, 4vw, 1.25rem);
+  --ov-panel-padding: clamp(0.875rem, 3.5vw, 1rem);
+  --ov-section-gap: clamp(1.5rem, 5vw, 2rem);
+  --ov-row-gap: 0.5rem;
+  --ov-control-height: 2.75rem;
+  --ov-target-min: 2.75rem;
+  --ov-icon-control: 1.25rem;
+  --ov-icon-navigation: 1.5rem;
+  --ov-icon-row: 1.375rem;
+  --ov-icon-feature: 1.75rem;
+  --ov-content-max: 34rem;
+  --ov-nav-height: 3.75rem;
+  --ov-set-columns: 2.5rem minmax(4.5rem, 1.3fr) minmax(3.5rem, 1fr) minmax(3rem, 0.9fr) 2.75rem;
+
+  /* Corners: a sheet has nearly square corners; only a lifted sheet rounds its top. */
+  --ov-radius-card: 0.375rem;
+  --ov-radius-control: 0.25rem;
+  --ov-radius-sheet: 0.875rem;
+  --ov-radius-island: 0.375rem;
+
+  /* The construction grid: a dot every 20px, faint enough to be texture, not a pattern. */
+  --ov-grid-size: 20px;
+
+  /* Motion. One ease-out for arrivals, one in-out for things moving on screen, a short spring
+     for a sheet rising. Nothing animates on page load. */
+  --ov-duration-instant: 0ms;
+  --ov-duration-feedback: 120ms;
+  --ov-duration-ink: 160ms;
+  --ov-duration-tab: 120ms;
+  --ov-duration-sheet: 240ms;
+  --ov-ease-standard: cubic-bezier(0.23, 1, 0.32, 1);
+  --ov-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ov-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ov-ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
+  --ov-z-content: 0;
+  --ov-z-nav: 40;
+  --ov-z-timer: 45;
+  --ov-z-notice: 50;
+  --ov-z-dialog: 100;
+
+  /* ---- Daylight sheet ------------------------------------------------------------------ */
+  --ov-light-canvas: #fcfcfb;
+  --ov-light-surface: #ffffff;
+  --ov-light-surface-raised: #f0f1f0;
+  --ov-light-ink: #15171a;
+  --ov-light-ink-muted: #585f66;
+  --ov-light-ink-subtle: #666d74;
+  /* Pencil: proposed, not yet confirmed. Still 4.5:1, told apart by weight and a pencil rule. */
+  --ov-light-ink-ghost: #6b7279;
+  --ov-light-line: #dcdedd;
+  --ov-light-line-strong: #8d9399;
+  --ov-light-grid: rgb(21 23 26 / 0.16);
+  /* The coach's pen: ballpoint blue, and every tappable word. */
+  --ov-light-pen: #2f4bc8;
+  --ov-light-pen-strong: #213aa6;
+  --ov-light-pen-soft: #e6eafb;
+  /* The highlighter: a yellow field with black ink on it; the primary action and today. */
+  --ov-light-highlight: #ffd933;
+  --ov-light-highlight-strong: #f2c90f;
+  --ov-light-highlight-soft: #fff3b8;
+  --ov-light-on-highlight: #15171a;
+  --ov-light-success: #1d7a4a;
+  --ov-light-warning: #8a5a00;
+  --ov-light-danger: #c0282f;
+  --ov-light-over: #c0282f;
+  --ov-light-focus: #2f4bc8;
+  /* Charts: ink first, then the pen, then the highlighter deepened to an ochre that holds 3:1. */
+  --ov-light-series-1: #15171a;
+  --ov-light-series-2: #2f4bc8;
+  --ov-light-series-3: #a67c00;
+  --ov-light-series-4: #8a3fb0;
+  /* Muscle volume: the highlighter laid down in passes, then ink. */
+  --ov-light-volume-0: #ebecea;
+  --ov-light-volume-1: #fff3b8;
+  --ov-light-volume-2: #ffe36b;
+  --ov-light-volume-3: #ffd933;
+  --ov-light-volume-4: #c99d00;
+  --ov-light-backdrop: rgb(21 23 26 / 0.5);
+  --ov-light-nav-island: #ffffff;
+  --ov-light-nav-shadow: 0 -1px 0 rgb(21 23 26 / 0.08);
+  --ov-light-sheet-shadow: 0 -8px 32px rgb(21 23 26 / 0.18);
+  /* Eight coloured pens for supersets, each at least 4.5:1 on white. */
+  --ov-light-group-1: #2f4bc8;
+  --ov-light-group-2: #b8292e;
+  --ov-light-group-3: #1d7a4a;
+  --ov-light-group-4: #7a3fb0;
+  --ov-light-group-5: #b4551a;
+  --ov-light-group-6: #0f7585;
+  --ov-light-group-7: #a8307d;
+  --ov-light-group-8: #6b5a1a;
+
+  /* ---- Gym sheet (graphite) ------------------------------------------------------------ */
+  --ov-dark-canvas: #141517;
+  --ov-dark-surface: #1c1d20;
+  --ov-dark-surface-raised: #27292d;
+  --ov-dark-ink: #f1f2f3;
+  --ov-dark-ink-muted: #aab0b7;
+  --ov-dark-ink-subtle: #9ea4ab;
+  --ov-dark-ink-ghost: #9aa1a8;
+  --ov-dark-line: #2f3236;
+  --ov-dark-line-strong: #6e747b;
+  --ov-dark-grid: rgb(241 242 243 / 0.1);
+  --ov-dark-pen: #9db2ff;
+  --ov-dark-pen-strong: #bcc9ff;
+  --ov-dark-pen-soft: #22283f;
+  --ov-dark-highlight: #ffe14d;
+  --ov-dark-highlight-strong: #fff07a;
+  --ov-dark-highlight-soft: #3a3514;
+  --ov-dark-on-highlight: #15171a;
+  --ov-dark-success: #6fd39a;
+  --ov-dark-warning: #f0c060;
+  --ov-dark-danger: #ff8a80;
+  --ov-dark-over: #ff8a80;
+  --ov-dark-focus: #9db2ff;
+  --ov-dark-series-1: #f1f2f3;
+  --ov-dark-series-2: #9db2ff;
+  --ov-dark-series-3: #ffe14d;
+  --ov-dark-series-4: #d3a4ff;
+  --ov-dark-volume-0: #27292d;
+  --ov-dark-volume-1: #3a3514;
+  --ov-dark-volume-2: #6b5c12;
+  --ov-dark-volume-3: #b89e1a;
+  --ov-dark-volume-4: #ffe14d;
+  --ov-dark-backdrop: rgb(0 0 0 / 0.7);
+  --ov-dark-nav-island: #141517;
+  --ov-dark-nav-shadow: 0 -1px 0 rgb(241 242 243 / 0.1);
+  --ov-dark-sheet-shadow: 0 -8px 32px rgb(0 0 0 / 0.55);
+  --ov-dark-group-1: #9db2ff;
+  --ov-dark-group-2: #ff9a94;
+  --ov-dark-group-3: #7fd9a5;
+  --ov-dark-group-4: #d3a4ff;
+  --ov-dark-group-5: #ffb27a;
+  --ov-dark-group-6: #7ed6e6;
+  --ov-dark-group-7: #ff9ed6;
+  --ov-dark-group-8: #d9c57a;
+
+  /* Avatars: the hue is the person's, these lightnesses are the palette's. */
+  --ov-avatar-surface-l: 0.9;
+  --ov-avatar-surface-c: 0.05;
+  --ov-avatar-ink-l: 0.38;
+  --ov-avatar-ink-c: 0.12;
+}
+
+/* ---- Mode selection: daylight by default, graphite by preference or by the system ------- */
+:where([data-overload-design="sheet"]) {
+  color-scheme: light;
+  --ov-canvas: var(--ov-light-canvas);
+  --ov-surface: var(--ov-light-surface);
+  --ov-surface-raised: var(--ov-light-surface-raised);
+  --ov-ink: var(--ov-light-ink);
+  --ov-ink-muted: var(--ov-light-ink-muted);
+  --ov-ink-subtle: var(--ov-light-ink-subtle);
+  --ov-ink-ghost: var(--ov-light-ink-ghost);
+  --ov-line: var(--ov-light-line);
+  --ov-line-strong: var(--ov-light-line-strong);
+  --ov-grid: var(--ov-light-grid);
+  --ov-pen: var(--ov-light-pen);
+  --ov-pen-strong: var(--ov-light-pen-strong);
+  --ov-pen-soft: var(--ov-light-pen-soft);
+  --ov-highlight: var(--ov-light-highlight);
+  --ov-highlight-strong: var(--ov-light-highlight-strong);
+  --ov-highlight-soft: var(--ov-light-highlight-soft);
+  --ov-on-highlight: var(--ov-light-on-highlight);
+  --ov-success: var(--ov-light-success);
+  --ov-warning: var(--ov-light-warning);
+  --ov-danger: var(--ov-light-danger);
+  --ov-over: var(--ov-light-over);
+  --ov-focus: var(--ov-light-focus);
+  --ov-series-1: var(--ov-light-series-1);
+  --ov-series-2: var(--ov-light-series-2);
+  --ov-series-3: var(--ov-light-series-3);
+  --ov-series-4: var(--ov-light-series-4);
+  --ov-volume-0: var(--ov-light-volume-0);
+  --ov-volume-1: var(--ov-light-volume-1);
+  --ov-volume-2: var(--ov-light-volume-2);
+  --ov-volume-3: var(--ov-light-volume-3);
+  --ov-volume-4: var(--ov-light-volume-4);
+  --ov-backdrop: var(--ov-light-backdrop);
+  --ov-nav-island: var(--ov-light-nav-island);
+  --ov-nav-shadow: var(--ov-light-nav-shadow);
+  --ov-sheet-shadow: var(--ov-light-sheet-shadow);
+  --ov-group-1: var(--ov-light-group-1);
+  --ov-group-2: var(--ov-light-group-2);
+  --ov-group-3: var(--ov-light-group-3);
+  --ov-group-4: var(--ov-light-group-4);
+  --ov-group-5: var(--ov-light-group-5);
+  --ov-group-6: var(--ov-light-group-6);
+  --ov-group-7: var(--ov-light-group-7);
+  --ov-group-8: var(--ov-light-group-8);
+}
+
+/* System, including an absent or invalid preference; explicit Light and Dark are excluded. */
+@media (prefers-color-scheme: dark) {
+  :where(
+    [data-overload-design="sheet"]:not([data-overload-mode="light"]):not(
+        [data-overload-mode="dark"]
+      )
+  ) {
+    color-scheme: dark;
+    --ov-canvas: var(--ov-dark-canvas);
+    --ov-surface: var(--ov-dark-surface);
+    --ov-surface-raised: var(--ov-dark-surface-raised);
+    --ov-ink: var(--ov-dark-ink);
+    --ov-ink-muted: var(--ov-dark-ink-muted);
+    --ov-ink-subtle: var(--ov-dark-ink-subtle);
+    --ov-ink-ghost: var(--ov-dark-ink-ghost);
+    --ov-line: var(--ov-dark-line);
+    --ov-line-strong: var(--ov-dark-line-strong);
+    --ov-grid: var(--ov-dark-grid);
+    --ov-pen: var(--ov-dark-pen);
+    --ov-pen-strong: var(--ov-dark-pen-strong);
+    --ov-pen-soft: var(--ov-dark-pen-soft);
+    --ov-highlight: var(--ov-dark-highlight);
+    --ov-highlight-strong: var(--ov-dark-highlight-strong);
+    --ov-highlight-soft: var(--ov-dark-highlight-soft);
+    --ov-on-highlight: var(--ov-dark-on-highlight);
+    --ov-success: var(--ov-dark-success);
+    --ov-warning: var(--ov-dark-warning);
+    --ov-danger: var(--ov-dark-danger);
+    --ov-over: var(--ov-dark-over);
+    --ov-focus: var(--ov-dark-focus);
+    --ov-series-1: var(--ov-dark-series-1);
+    --ov-series-2: var(--ov-dark-series-2);
+    --ov-series-3: var(--ov-dark-series-3);
+    --ov-series-4: var(--ov-dark-series-4);
+    --ov-volume-0: var(--ov-dark-volume-0);
+    --ov-volume-1: var(--ov-dark-volume-1);
+    --ov-volume-2: var(--ov-dark-volume-2);
+    --ov-volume-3: var(--ov-dark-volume-3);
+    --ov-volume-4: var(--ov-dark-volume-4);
+    --ov-backdrop: var(--ov-dark-backdrop);
+    --ov-nav-island: var(--ov-dark-nav-island);
+    --ov-nav-shadow: var(--ov-dark-nav-shadow);
+    --ov-sheet-shadow: var(--ov-dark-sheet-shadow);
+    --ov-group-1: var(--ov-dark-group-1);
+    --ov-group-2: var(--ov-dark-group-2);
+    --ov-group-3: var(--ov-dark-group-3);
+    --ov-group-4: var(--ov-dark-group-4);
+    --ov-group-5: var(--ov-dark-group-5);
+    --ov-group-6: var(--ov-dark-group-6);
+    --ov-group-7: var(--ov-dark-group-7);
+    --ov-group-8: var(--ov-dark-group-8);
+    --ov-avatar-surface-l: 0.32;
+    --ov-avatar-surface-c: 0.06;
+    --ov-avatar-ink-l: 0.9;
+    --ov-avatar-ink-c: 0.08;
+  }
+}
+
+:where([data-overload-design="sheet"][data-overload-mode="dark"]) {
+  color-scheme: dark;
+  --ov-canvas: var(--ov-dark-canvas);
+  --ov-surface: var(--ov-dark-surface);
+  --ov-surface-raised: var(--ov-dark-surface-raised);
+  --ov-ink: var(--ov-dark-ink);
+  --ov-ink-muted: var(--ov-dark-ink-muted);
+  --ov-ink-subtle: var(--ov-dark-ink-subtle);
+  --ov-ink-ghost: var(--ov-dark-ink-ghost);
+  --ov-line: var(--ov-dark-line);
+  --ov-line-strong: var(--ov-dark-line-strong);
+  --ov-grid: var(--ov-dark-grid);
+  --ov-pen: var(--ov-dark-pen);
+  --ov-pen-strong: var(--ov-dark-pen-strong);
+  --ov-pen-soft: var(--ov-dark-pen-soft);
+  --ov-highlight: var(--ov-dark-highlight);
+  --ov-highlight-strong: var(--ov-dark-highlight-strong);
+  --ov-highlight-soft: var(--ov-dark-highlight-soft);
+  --ov-on-highlight: var(--ov-dark-on-highlight);
+  --ov-success: var(--ov-dark-success);
+  --ov-warning: var(--ov-dark-warning);
+  --ov-danger: var(--ov-dark-danger);
+  --ov-over: var(--ov-dark-over);
+  --ov-focus: var(--ov-dark-focus);
+  --ov-series-1: var(--ov-dark-series-1);
+  --ov-series-2: var(--ov-dark-series-2);
+  --ov-series-3: var(--ov-dark-series-3);
+  --ov-series-4: var(--ov-dark-series-4);
+  --ov-volume-0: var(--ov-dark-volume-0);
+  --ov-volume-1: var(--ov-dark-volume-1);
+  --ov-volume-2: var(--ov-dark-volume-2);
+  --ov-volume-3: var(--ov-dark-volume-3);
+  --ov-volume-4: var(--ov-dark-volume-4);
+  --ov-backdrop: var(--ov-dark-backdrop);
+  --ov-nav-island: var(--ov-dark-nav-island);
+  --ov-nav-shadow: var(--ov-dark-nav-shadow);
+  --ov-sheet-shadow: var(--ov-dark-sheet-shadow);
+  --ov-group-1: var(--ov-dark-group-1);
+  --ov-group-2: var(--ov-dark-group-2);
+  --ov-group-3: var(--ov-dark-group-3);
+  --ov-group-4: var(--ov-dark-group-4);
+  --ov-group-5: var(--ov-dark-group-5);
+  --ov-group-6: var(--ov-dark-group-6);
+  --ov-group-7: var(--ov-dark-group-7);
+  --ov-group-8: var(--ov-dark-group-8);
+  --ov-avatar-surface-l: 0.32;
+  --ov-avatar-surface-c: 0.06;
+  --ov-avatar-ink-l: 0.9;
+  --ov-avatar-ink-c: 0.08;
+}
+
+/* The accent names the rest of the code still uses are the pen and the highlighter. */
+:where([data-overload-design="sheet"]) {
+  --ov-accent: var(--ov-pen);
+  --ov-accent-strong: var(--ov-pen-strong);
+  --ov-accent-soft: var(--ov-pen-soft);
+  --ov-on-accent: #ffffff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where([data-overload-design="sheet"]) {
+    --ov-duration-feedback: 0ms;
+    --ov-duration-ink: 0ms;
+    --ov-duration-tab: 0ms;
+    --ov-duration-sheet: 0ms;
+  }
+}
+
+/* Equal, low selector specificity: these critical system colours win in every mode. */
+@media (forced-colors: active) {
+  :where([data-overload-design="sheet"]) {
+    --ov-canvas: Canvas;
+    --ov-surface: Canvas;
+    --ov-surface-raised: Canvas;
+    --ov-ink: CanvasText;
+    --ov-ink-muted: CanvasText;
+    --ov-ink-subtle: CanvasText;
+    --ov-ink-ghost: GrayText;
+    --ov-line: GrayText;
+    --ov-line-strong: ButtonText;
+    --ov-grid: transparent;
+    --ov-pen: LinkText;
+    --ov-pen-strong: LinkText;
+    --ov-pen-soft: Canvas;
+    --ov-highlight: Highlight;
+    --ov-highlight-strong: Highlight;
+    --ov-highlight-soft: Canvas;
+    --ov-on-highlight: HighlightText;
+    --ov-accent: LinkText;
+    --ov-accent-strong: LinkText;
+    --ov-accent-soft: Canvas;
+    --ov-on-accent: Canvas;
+    --ov-nav-island: Canvas;
+    --ov-nav-shadow: none;
+    --ov-sheet-shadow: none;
+    --ov-success: CanvasText;
+    --ov-warning: CanvasText;
+    --ov-danger: CanvasText;
+    --ov-over: CanvasText;
+    --ov-focus: Highlight;
+    --ov-series-1: CanvasText;
+    --ov-series-2: LinkText;
+    --ov-series-3: CanvasText;
+    --ov-series-4: LinkText;
+    --ov-volume-0: Canvas;
+    --ov-volume-1: GrayText;
+    --ov-volume-2: CanvasText;
+    --ov-volume-3: Highlight;
+    --ov-volume-4: Highlight;
+    --ov-group-1: Highlight;
+    --ov-group-2: Highlight;
+    --ov-group-3: Highlight;
+    --ov-group-4: Highlight;
+    --ov-group-5: Highlight;
+    --ov-group-6: Highlight;
+    --ov-group-7: Highlight;
+    --ov-group-8: Highlight;
+  }
+}

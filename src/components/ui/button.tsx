@@ -7,11 +7,18 @@ import { cn } from "@/lib/utils";
 export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 export type ButtonSize = "sm" | "md" | "lg";
 
+/**
+ * Four pens for four kinds of action. The primary is the highlighter: one per screen, black
+ * ink on yellow, the thing the thumb goes to. Secondary is ruled: ink on the sheet inside a
+ * hairline. Ghost is a tappable word in the pen's blue. Danger is the red pen, outlined so
+ * the colour is never the only signal.
+ */
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
-  primary: "bg-accent text-on-accent active:bg-accent-strong",
-  secondary: "bg-surface text-ink border border-line-strong hover:bg-surface-raised",
-  ghost: "bg-transparent text-ink-muted hover:text-ink active:bg-surface-raised",
-  // Border rather than a tinted fill: at 3:1 the outline carries the meaning on its own.
+  primary:
+    "bg-highlight text-on-highlight border border-highlight-strong active:bg-highlight-strong",
+  secondary:
+    "bg-surface text-ink border border-line-strong hover:bg-surface-raised active:bg-surface-raised",
+  ghost: "bg-transparent text-pen hover:text-pen-strong active:bg-surface-raised",
   danger: "bg-transparent text-danger border border-danger active:bg-surface-raised",
 };
 
@@ -28,7 +35,9 @@ export function buttonClassName(
   className?: string,
 ): string {
   return cn(
-    "inline-flex max-w-full items-center justify-center gap-2 rounded-control text-center leading-snug font-medium [overflow-wrap:anywhere] transition-colors duration-[var(--ov-duration-feedback)] ease-[var(--ov-ease-standard)] select-none disabled:pointer-events-none disabled:opacity-45",
+    "inline-flex max-w-full items-center justify-center gap-2 rounded-control text-center leading-snug font-medium [overflow-wrap:anywhere] select-none",
+    "transition-[background-color,color,transform,border-color] duration-[var(--ov-duration-feedback)] ease-[var(--ov-ease-out)] active:scale-[0.98]",
+    "disabled:pointer-events-none disabled:opacity-45",
     VARIANT_CLASSES[variant],
     SIZE_CLASSES[size],
     className,
