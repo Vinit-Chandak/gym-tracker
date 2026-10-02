@@ -4,6 +4,7 @@ import { warningsForSport } from "@/domain/sport-scope";
 import { DetailList } from "@/components/ui/detail-list";
 import { Warning } from "@/components/ui/icons";
 import { planLine, type PlanRun, type StoredPlanExercise } from "@/domain/session-plan";
+import { supersetHues } from "@/lib/superset-colors";
 import type { PlannedExercisePreview, RunTarget } from "@/server/repositories/schedule";
 
 /** "6 exercises · 15 sets" for a coach plan: what it keeps, and the sets it asks for. */
@@ -50,6 +51,8 @@ export function CoachPlanList({
     (slot) => !entries.some((entry) => entry.slotId === slot.programExerciseId),
   );
   const shown = warningsForSport(warnings, "workout");
+  // A pair the coach wants back to back shares one pen, as it does in the programme's list.
+  const hues = supersetHues(entries);
   return (
     <>
       <ol className="min-w-0 ruled-list">
@@ -79,6 +82,7 @@ export function CoachPlanList({
               detail={targets}
               note={entry.note}
               struck={dropped}
+              hue={entry.supersetGroup ? hues.get(entry.supersetGroup) : undefined}
             />
           );
         })}
