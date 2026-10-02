@@ -1,220 +1,598 @@
-// Sample content for every artboard, taken from the repository (never invented):
-// - Today: src/app/(preview)/preview/page.tsx (Fri 11 Sept 2026, Easy Run + Arms, Cycle 1 of 8 · Day 3)
-// - Logging: src/db/seed/data/program.ts (Upper A bench) + features.md sample sets and labels
-// - Progress: scripts/dev/seed-audit-history.ts recomputed for 6 Jul – 30 Sept 2026 (account "vinit")
-// - Food: src/app/(preview)/preview/food/page.tsx (Fri 25 Sept 2026)
+// Content for every board, taken from the repository and never invented. Where a figure is worked
+// out (a warm-up ramp, a pace, a total) it is worked out with the app's own rule, named beside it.
+//
+// - Today: src/app/(preview)/preview/page.tsx (Fri 11 Sept 2026, Easy Run + Arms, 2 of 56 done)
+// - The workout and logging: src/db/seed/data/program.ts (Upper A) and src/server/repositories/
+//   sessions.test.ts (the bench press across Upper A's first three cycles, the Hold it earns)
+// - Warm-up ramp: src/db/seed/data/warmups.ts ("40% × 8; 55–60% × 5; 70–75% × 2–3") applied by
+//   src/domain/warmup-ramp.ts to 62.5 kg, in 2.5 kg steps
+// - Progress, the calendar and history: the audit database overload_audit_20260929, account
+//   "vinit", as scripts/dev/audit.mjs seeds it (seed-audit-history, -boundaries, -multisport and
+//   seed-people; seed-people and -multisport dated from a 29 Sept setup, which the audit's 1,123
+//   body-weight readings imply)
+// - Food: src/app/(preview)/preview/food/page.tsx (Fri 25 Sept 2026; ?state=over for the heap)
 
 export const today = {
   date: "Fri 11 Sept",
   gym: { name: "Anytime Fitness", kind: "Gym" },
-  otherGym: { name: "Home", kind: "Home" },
-  where: "Cycle 1 of 8 · Day 3",
+  gyms: [
+    ["Anytime Fitness", "gym", true],
+    ["Samsung Gym", "gym"],
+    ["Society Gym", "gym"],
+    ["Home", "home"],
+    ["Outdoor", "outdoor"],
+  ],
   programme: "8-Week Strength + Aesthetics Hybrid",
+  cycle: 1,
+  cycles: 8,
+  dayIndex: 3,
+  daysDone: 2, // of 56
   day: "Easy Run + Arms",
   focus: "Aerobic + arms/forearms",
   time: "70–100 min",
   effort: "1–2 RIR arms",
   notes: "Run first, arms after",
-  status: "On track",
-  planSummary: "4 exercises · 11 sets",
   plan: [
-    { name: "Barbell curl", rx: "3 × 8–12 @ 1–2 RIR" },
-    { name: "Rope triceps pushdown", rx: "3 × 12–15 @ 1 RIR" },
-    { name: "Farmer’s carry", rx: "3 × 20–40 m", superset: "Forearms" },
-    { name: "Wrist curl", rx: "2 × 12–20 @ 1 RIR", superset: "Forearms" },
+    { name: "Barbell curl", sets: 3, rx: "3 × 8–12 @ 1–2", modality: "barbell" },
+    { name: "Rope triceps pushdown", sets: 3, rx: "3 × 12–15 @ 1", modality: "cable" },
+    {
+      name: "Farmer’s carry",
+      sets: 3,
+      rx: "3 × 20–40 m",
+      modality: "dumbbell",
+      superset: "forearms",
+    },
+    {
+      name: "Wrist curl",
+      sets: 2,
+      rx: "2 × 12–20 @ 1",
+      modality: "dumbbell",
+      superset: "forearms",
+    },
   ],
   run: {
-    sport: "Run",
-    target: "25–30 min",
-    part: "Part of Easy Run + Arms",
+    name: "Run",
+    target: "25–30",
+    unit: "min",
     note: "Talk-test; slower than push pace",
+    minutes: 30,
   },
-  // Programme days, in cycle order (src/db/seed/data/program.ts)
-  cycleDays: [
-    "Lower A",
-    "Upper A",
-    "Easy Run + Arms",
-    "Lower B",
-    "Upper B",
-    "Easy Run + Light Upper",
-    "Rest + Mobility",
-  ],
-  cycleDone: 2, // progress.completed in the preview fixture
 };
 
-export const log = {
+// The cycle's seven days (program.ts), for Training and the cycle mark on Today.
+export const cycle = [
+  {
+    name: "Lower A",
+    focus: "Squat + quads",
+    time: "70–90 min",
+    columns: [3, 3, 3, 2, 3, 2],
+    warm: 6,
+  },
+  {
+    name: "Upper A",
+    focus: "Bench + back",
+    time: "70–90 min",
+    columns: [4, 3, 3, 2, 3, 2, 2],
+    warm: 4,
+  },
+  // day 3 as the preview plans it (src/app/(preview)/preview/page.tsx), so it matches Today
+  {
+    name: "Easy Run + Arms",
+    focus: "Aerobic + arms/forearms",
+    time: "70–100 min",
+    columns: [3, 3, [3, 2]],
+    run: "25–30 min",
+    minutes: 30,
+  },
+  {
+    name: "Lower B",
+    focus: "Deadlift + posterior chain",
+    time: "70–90 min",
+    columns: [3, 2, 2, 2, 2, 2],
+  },
+  {
+    name: "Upper B",
+    focus: "Pull-up + incline + shoulders",
+    time: "70–90 min",
+    columns: [3, 4, 2, 2, 3, 2, 2],
+  },
+  {
+    name: "Easy Run + Light Upper",
+    focus: "Aerobic + delts/core",
+    time: "60–90 min",
+    columns: [2, 2, 2, 2, 2],
+    run: "25–30 min",
+    minutes: 30,
+  },
+  { name: "Rest + Mobility", focus: "Recovery", time: "10–15 min", drills: 7 },
+];
+
+// Upper A (program.ts), with each exercise's modality (exercises.ts) and machine at Anytime Fitness
+// (src/db/test/fixtures.ts). The bench is open: warm-ups done, sets 1 and 2 saved.
+export const upperA = {
   session: "Upper A",
+  focus: "Bench + back",
+  time: "70–90 min",
   gym: "Anytime Fitness",
+  warmup: { name: "Upper-body warm-up", drills: 4 },
+  exercises: [
+    {
+      name: "Barbell bench press",
+      modality: "barbell",
+      sets: 4,
+      rx: "4 × 3–5 @ 2",
+      done: 2,
+      state: "open",
+      last: "62.5 kg × 4",
+    },
+    { name: "Pull-up", modality: "bodyweight", sets: 3, rx: "3 × 6–10 @ 1–2" },
+    {
+      name: "Seated cable row",
+      modality: "cable",
+      machine: "Cable station",
+      sets: 3,
+      rx: "3 × 6–10 @ 1–2",
+    },
+    { name: "Incline dumbbell press", modality: "dumbbell", sets: 2, rx: "2 × 8–12 @ 1–2" },
+    {
+      name: "Cable lateral raise",
+      modality: "cable",
+      machine: "Cable station",
+      sets: 3,
+      rx: "3 × 12–20 @ 1",
+    },
+    {
+      name: "Reverse pec deck",
+      modality: "machine",
+      machine: "Pec deck",
+      sets: 2,
+      rx: "2 × 12–20 @ 1",
+    },
+    {
+      name: "Overhead cable triceps extension",
+      modality: "cable",
+      machine: "Cable station",
+      sets: 2,
+      rx: "2 × 10–15 @ 1",
+    },
+  ],
+};
+
+// Logging the bench, Upper A's third cycle (sessions.test.ts "holds after a miss"): the rule holds
+// 62.5 kg × 3 @ 2 with the reason progression.ts gives when a set had more in hand than it showed.
+export const bench = {
   exercise: "Barbell bench press",
-  equipment: "Free weights",
-  progress: "2 of 4 sets",
-  rx: "4 × 3–5 @ 2 RIR · rest 3–4 min",
-  suggestion: { kind: "Hold", line: "Keep 62.5 kg", detail: "62.5 kg × 3 @ 2 RIR" },
+  modality: "barbell",
+  back: "Upper A",
+  unit: "kg",
+  rx: "4 × 3–5 @ 2",
+  rest: "3–4 min",
+  // the first compound ramp, offered as warm-ups in front of 62.5 kg (warmup-ramp.ts)
+  warmups: [
+    { n: "W", v: "25", reps: 8 },
+    { n: "W", v: "35", reps: 5 },
+    { n: "W", v: "45", reps: 3 },
+  ],
+  // sets 1 and 2 as sessions.test.ts logs them (features.md's sample)
   sets: [
-    { n: 1, type: "Working", kg: "60", reps: "5", rir: "2", saved: true },
-    { n: 2, type: "Working", kg: "62.5", reps: "4", rir: "1", saved: true },
+    { n: 1, v: "60", reps: 5, rir: 2 },
+    { n: 2, v: "62.5", reps: 4, rir: 1 },
   ],
-  next: { n: 3, type: "Working", kg: "62.5", reps: "3" },
-  rest: { remaining: "2:14", total: 180, left: 134 },
-  previous: "Previous on this machine: 60 kg × 5, 62.5 kg × 4 · 8 Sep",
-  cue: "Stable upper back; controlled touch",
-  targetLoad: "Pick the load by RIR, not by a number",
-  progression: "+2.5 kg after 4×5",
-  record: { line: "Barbell bench press · Est. 1RM 88 kg (was 85 kg)" },
-};
-
-export const progress = {
-  range: "6 Jul – 30 Sept 2026",
-  sections: ["Overview", "History", "Strength", "Running", "Recovery", "Body"],
-  totals: [
-    {
-      sport: "Strength",
-      line: "22 sessions · 22 days · 18 h 54 min",
-      sessions: 22,
-      time: "18 h 54 min",
-    },
-    {
-      sport: "Running",
-      line: "11 sessions · 11 days · 4 h 31 min · 45 km",
-      sessions: 11,
-      time: "4 h 31 min",
-      dist: "45 km",
-    },
-    {
-      sport: "Cycling",
-      line: "3 sessions · 3 days · 2 h 30 min · 3 without a distance",
-      sessions: 3,
-      time: "2 h 30 min",
-      note: "3 without a distance",
-    },
-    {
-      sport: "Swimming",
-      line: "3 sessions · 3 days · 1 h 30 min · 3.1 km",
-      sessions: 3,
-      time: "1 h 30 min",
-      dist: "3.1 km",
-    },
+  next: { n: 3, load: "62.5", reps: "3", target: 2 },
+  todo: [{ n: 4 }],
+  suggestion: {
+    kind: "Hold",
+    reason: "Same weight: aim for the reps you had in hand last time.",
+    basis: "Based on this exercise, cycle 2.",
+  },
+  restNow: { time: "2:14", frac: 0.74, aria: "Rest, 2 minutes 14 seconds left" },
+  technique: [
+    ["Cue", "Stable upper back; controlled touch"],
+    ["Target load", "Pick the load by RIR, not by a number"],
+    ["Progression", "+2.5 kg after 4×5"],
   ],
-  // Monday weeks; the last is this week so far (the seed has nothing in it yet).
-  weeks: [
-    { w: "6 Jul", lift: 2, run: 2 },
-    { w: "13 Jul", lift: 2, run: 0 },
-    { w: "20 Jul", lift: 2, run: 1 },
-    { w: "27 Jul", lift: 1, run: 1 },
-    { w: "3 Aug", lift: 2, run: 1 },
-    { w: "10 Aug", lift: 2, run: 1 },
-    { w: "17 Aug", lift: 2, run: 0 },
-    { w: "24 Aug", lift: 1, run: 1 },
-    { w: "31 Aug", lift: 2, run: 2 },
-    { w: "7 Sept", lift: 2, run: 1 },
-    { w: "14 Sept", lift: 2, run: 0 },
-    { w: "21 Sept", lift: 2, run: 1 },
-    { w: "28 Sept", lift: 0, run: 0, soFar: true },
-  ],
-  weights: [
-    ["8 Jul", 76.05],
-    ["15 Jul", 76.1],
-    ["22 Jul", 76.51],
-    ["28 Jul", 76.32],
-    ["1 Aug", 75.96],
-    ["8 Aug", 76.17],
-    ["15 Aug", 76.67],
-    ["22 Aug", 77.21],
-    ["28 Aug", 77.01],
-    ["1 Sep", 76.28],
-    ["8 Sep", 76.83],
-    ["15 Sep", 77.32],
-    ["22 Sep", 77.5],
-    ["28 Sep", 77.47],
+  // Upper A's earlier cycles at Anytime Fitness (sessions.test.ts): every set, in the app's notation
+  history: [
+    {
+      when: "Cycle 2",
+      note: "Last time",
+      sets: [
+        ["62.5", 2, 1],
+        ["62.5", 3, 1],
+        ["62.5", 3, 1],
+        ["62.5", 3, 1],
+      ],
+    },
+    {
+      when: "Cycle 1",
+      sets: [
+        ["60", 5, 2],
+        ["60", 5, 2],
+        ["60", 5, 2],
+        ["60", 5, 2],
+      ],
+    },
   ],
 };
 
+// Logging in pounds (scripts/dev/audit-workout.mjs): High-bar barbell squat at 135 and 140 lb.
+export const squatLb = {
+  exercise: "High-bar barbell squat",
+  modality: "barbell",
+  back: "Lower A",
+  unit: "lb",
+  rx: "3 × 4–6 @ 2–3",
+  rest: "3–4 min",
+  warmups: [],
+  sets: [
+    { n: 1, v: "135", reps: 5, rir: 2 },
+    { n: 2, v: "140", reps: 6, rir: 2 },
+  ],
+  next: { n: 3, load: "140", reps: "6", target: "2–3" },
+  todo: [],
+  restNow: { time: "3:00", frac: 1, aria: "Rest, 3 minutes left" },
+};
+
+// The coach's Lower A at Anytime Fitness (src/server/repositories/coach-plans.test.ts). "@" is kept
+// for RIR alone: a load the coach set leads the line.
+export const lowerA = {
+  session: "Lower A",
+  focus: "Squat + quads",
+  time: "70–90 min",
+  gym: "Anytime Fitness",
+  warmup: ["Bike 4 min", "Squat ramp 40 kg × 6, 50 kg × 3"],
+  entries: [
+    {
+      name: "High-bar barbell squat",
+      modality: "barbell",
+      sets: 3,
+      rx: "60 kg · 3 × 5 @ 2, 2, 1",
+      note: "Add 2.5 kg after clean sets.",
+    },
+    {
+      name: "Horizontal leg press",
+      modality: "machine",
+      sets: 1,
+      rx: "100 kg · 1 × 10 @ 2",
+      instead: "45° leg press",
+    },
+    { name: "Seated leg curl", modality: "machine", sets: 3, rx: "3 × 8–12 @ 1–2" },
+    { name: "Leg extension", modality: "machine", sets: 2, rx: "2 × 10–15 @ 1–2" },
+    { name: "Smith machine calf raise", modality: "smith_machine", sets: 3, rx: "3 × 8–15 @ 1–2" },
+    {
+      name: "Cable crunch",
+      modality: "cable",
+      sets: 2,
+      dropped: true,
+      note: "Back is sore today.",
+    },
+    {
+      name: "Face pull",
+      modality: "cable",
+      machine: "Cable station",
+      sets: 1,
+      rx: "15 kg · 1 × 15 @ 2",
+      added: true,
+      note: "Light, for the shoulders.",
+    },
+  ],
+};
+
+// Easy Run + Arms as the preview's open session (?state=training: 4 exercises, 5 sets saved), its
+// forearms superset grouped. The preview stores no set values, so the rows show only how many.
+export const armsWorkout = {
+  session: "Easy Run + Arms",
+  gym: "Anytime Fitness",
+  time: "70–100 min",
+  exercises: [
+    {
+      name: "Barbell curl",
+      modality: "barbell",
+      sets: 3,
+      done: 3,
+      rx: "3 × 8–12 @ 1–2",
+      state: "done",
+    },
+    {
+      name: "Rope triceps pushdown",
+      modality: "cable",
+      machine: "Cable station",
+      sets: 3,
+      done: 2,
+      rx: "3 × 12–15 @ 1",
+      state: "open",
+    },
+    {
+      name: "Farmer’s carry",
+      modality: "dumbbell",
+      sets: 3,
+      done: 0,
+      rx: "3 × 20–40 m",
+      superset: "forearms",
+    },
+    {
+      name: "Wrist curl",
+      modality: "dumbbell",
+      sets: 2,
+      done: 0,
+      rx: "2 × 12–20 @ 1",
+      superset: "forearms",
+    },
+  ],
+};
+
+// ---------- the account "vinit": September 2026, every activity of every day ----------
+// sport, minutes, km or m, indoor; s = which seed (H history, P people, M multisport, B boundaries)
+const S = (sport, o = {}) => ({ sport, ...o });
+export const september = {
+  1: [S("strength", { min: 42, name: "Ad hoc session", sets: 9 })],
+  2: [S("run", { km: 3, time: "17:18", pace: "5:46", indoor: true })],
+  4: [
+    S("run", { km: 3.1, time: "21:00", pace: "6:46" }),
+    S("strength", { min: 48, name: "Ad hoc session", sets: 9 }),
+  ],
+  5: [S("strength", { min: 62, name: "Push", sets: 15 })],
+  6: [
+    S("run", { km: 4, time: "23:44", pace: "5:56", indoor: true }),
+    S("strength", { min: 55, name: "Pull", sets: 14 }),
+  ],
+  7: [S("strength", { min: 70, name: "Legs", sets: 13 })],
+  8: [S("strength", { min: 54, name: "Ad hoc session", sets: 9 })],
+  10: [S("run", { km: 5, time: "30:30", pace: "6:06", indoor: true })],
+  11: [
+    S("run", { km: 4, time: "26:30", pace: "6:38" }),
+    S("strength", { min: 60, name: "Ad hoc session", sets: 9 }),
+  ],
+  12: [S("strength", { min: 62, name: "Push", sets: 15 })],
+  13: [S("strength", { min: 55, name: "Pull", sets: 14 })],
+  14: [S("ride", { min: 60, indoor: true }), S("strength", { min: 70, name: "Legs", sets: 13 })],
+  15: [S("strength", { min: 42, name: "Ad hoc session", sets: 9 })],
+  18: [
+    S("run", { km: 2.7, time: "18:12", pace: "6:44" }),
+    S("strength", { min: 48, name: "Ad hoc session", sets: 9 }),
+  ],
+  19: [S("strength", { min: 62, name: "Push", sets: 15 })],
+  20: [
+    S("swim", { m: 800, time: "30:00", indoor: true }),
+    S("strength", { min: 55, name: "Pull", sets: 14 }),
+  ],
+  21: [S("strength", { min: 70, name: "Legs", sets: 13 })],
+  22: [S("strength", { min: 54, name: "Ad hoc session", sets: 9 })],
+  25: [
+    S("run", { km: 5, time: "33:00", pace: "6:36" }),
+    S("swim", { m: 1500, time: "30:00" }),
+    S("strength", { min: 60, name: "Ad hoc session", sets: 9 }),
+  ],
+  26: [
+    S("swim", { m: 1000, time: "20:00", indoor: true }),
+    S("run", { km: 4, time: "24:24", pace: "6:06", indoor: true }),
+    S("swim", { m: 1000, time: "30:00", indoor: true }),
+    S("strength", { min: 62, name: "Push", sets: 15 }),
+  ],
+  27: [
+    S("ride", { min: 30, indoor: true }),
+    S("ride", { min: 15, km: 0, indoor: true }),
+    S("strength", { min: 55, name: "Pull", sets: 14 }),
+  ],
+  28: [S("ride", { min: 70, km: 25 }), S("strength", { min: 70, name: "Legs", sets: 13 })],
+};
+// August 2026 for the scrolling calendar (same seeds)
+export const august = {
+  1: [S("strength", { min: 42 })],
+  2: [S("run", { km: 3 })],
+  4: [S("strength", { min: 48 })],
+  6: [S("run", { km: 4 })],
+  8: [S("strength", { min: 54 })],
+  10: [S("run", { km: 5 })],
+  11: [S("strength", { min: 60 })],
+  14: [S("ride", { min: 50, indoor: true })],
+  15: [S("strength", { min: 42 })],
+  18: [S("strength", { min: 48 })],
+  20: [S("swim", { m: 1200, indoor: true })],
+  22: [S("strength", { min: 54 }), S("strength", { min: 62 })],
+  23: [S("strength", { min: 55 })],
+  24: [S("strength", { min: 70 })],
+  25: [S("strength", { min: 60 })],
+  26: [S("run", { km: 4 })],
+  29: [S("strength", { min: 62 })],
+  30: [S("strength", { min: 55 })],
+  31: [S("strength", { min: 70 })],
+};
+// Totals for September, worked out from the days above.
+export const septTotals = {
+  strength: { sessions: 20 },
+  run: { sessions: 8, km: "30.8" },
+  ride: { sessions: 4, km: "25" },
+  swim: { sessions: 4, km: "4.3" },
+};
+// Fri 25 Sept, the day the scrolling calendar opens: a run, a swim and a lift.
+export const day25 = {
+  date: "Fri 25 Sept",
+  items: [
+    { sport: "run", title: "Outdoor · 5 km", meta: "33:00 · 6:36/km", time: "06:00" },
+    { sport: "swim", title: "Open water · 1,500 m", meta: "30:00 · Mixed", time: "13:30" },
+    {
+      sport: "strength",
+      title: "Ad hoc session",
+      meta: "Anytime Fitness · 60 min · 9 sets",
+      time: "19:00",
+    },
+  ],
+};
+// Tue 8 Sept, a finished workout with four records (seed-audit-history.ts, idx 2)
+export const sept8 = {
+  title: "Ad hoc session",
+  date: "Tue 8 Sept",
+  time: "19:00–19:54",
+  gym: "Anytime Fitness",
+  minutes: 54,
+  checkin: "7.5 h · 5 · 3 · 3",
+  volume: "2,580",
+  exercises: [
+    {
+      name: "Barbell bench press",
+      modality: "barbell",
+      warm: ["37.8", 10],
+      sets: [
+        ["63", 10, 2],
+        ["63", 10, 2],
+      ],
+    },
+    {
+      name: "Goblet squat",
+      modality: "dumbbell",
+      warm: ["39.6", 10],
+      sets: [
+        ["66", 10, 2],
+        ["66", 10, 2],
+      ],
+    },
+    {
+      name: "Plank",
+      modality: "bodyweight",
+      timed: true,
+      sets: [
+        ["60 s", "RPE 3"],
+        ["60 s", "RPE 3"],
+        ["60 s", "RPE 3"],
+      ],
+    },
+  ],
+  records: [
+    ["Barbell bench press", "Est. 1RM", "84", "kg", "82.7 kg"],
+    ["Barbell bench press", "Best set", "630", "kg", "620 kg"],
+    ["Goblet squat", "Est. 1RM", "88", "kg", "86.7 kg"],
+    ["Goblet squat", "Best set", "660", "kg", "650 kg"],
+  ],
+};
+// The summary right after Finish: Upper A with the records card's own sample (records-card.test.tsx).
+export const upperDone = {
+  title: "Upper A",
+  gym: "Anytime Fitness",
+  records: [
+    ["Barbell bench press", "Est. 1RM", "88", "kg", "85 kg"],
+    ["Pull-up", "Most reps", "12", "reps", "11 reps"],
+  ],
+};
+// Barbell bench press, the account's whole record at Anytime Fitness: 454 sessions over 56 months.
+export const benchLife = {
+  sessions: 454,
+  since: "Feb 2022",
+  // the heaviest working set of each month, Feb 2022 to Sept 2026: the history seed's working load
+  // (Math.round(30 + 0.6 × month)), and in Aug and Sept 2026 seed-people's push days (62.5, 72.5)
+  months: Array.from({ length: 56 }, (_, m) =>
+    m === 54 ? 62.5 : m === 55 ? 72.5 : Math.round(30 + 0.6 * m),
+  ),
+  recent: [
+    {
+      date: "Sat 26 Sept",
+      top: "72.5 kg × 6",
+      e1rm: "87",
+      sets: "W 40 × 10 · 72.5 × 6 × 3 · 67.5 × 8",
+    },
+    { date: "Fri 25 Sept", top: "63 kg × 9", e1rm: "81.9", sets: "W 37.8 × 9 · 63 × 9 @ 2 × 2" },
+    { date: "Tue 22 Sept", top: "63 kg × 8", e1rm: "79.8", sets: "W 37.8 × 8 · 63 × 8 @ 2 × 2" },
+    { date: "Sat 19 Sept", top: "70 kg × 6", e1rm: "84", sets: "W 40 × 10 · 70 × 6 × 3 · 65 × 8" },
+    { date: "Fri 18 Sept", top: "63 kg × 10", e1rm: "84", sets: "W 37.8 × 10 · 63 × 10 × 2" },
+    { date: "Tue 15 Sept", top: "63 kg × 9", e1rm: "81.9", sets: "W 37.8 × 9 · 63 × 9 @ 2 × 2" },
+  ],
+};
+// Runs in the history (seed-audit-history.ts and seed-people.ts)
+export const runs = [
+  { date: "Sat 26 Sept", where: "Treadmill", km: 4, time: "24:24", pace: "6:06", effort: "4/5" },
+  { date: "Fri 25 Sept", where: "Outdoor", km: 5, time: "33:00", pace: "6:36", effort: "Not sure" },
+  {
+    date: "Fri 18 Sept",
+    where: "Outdoor",
+    km: 2.7,
+    time: "18:12",
+    pace: "6:44",
+    effort: "Not sure",
+  },
+];
+// The 2 Aug run in full (history seed): its title and note
+export const run2Aug = {
+  title: "Easy session before work",
+  date: "Sun 2 Aug, 17:30",
+  where: "Outdoor",
+  km: "3",
+  time: "17:20",
+  pace: "5:47",
+  effort: "2/5",
+  hr: "138 / 169",
+  note: "Comfortable effort; stopped with energy left for tomorrow.",
+};
+// Body weight, Jul–Sept 2026 (seed-audit-history.ts; 30 Aug from seed-people.ts)
+export const weights = [
+  ["1 Jul", 76.37],
+  ["8 Jul", 76.05],
+  ["15 Jul", 76.1],
+  ["22 Jul", 76.51],
+  ["28 Jul", 76.32],
+  ["1 Aug", 75.96],
+  ["8 Aug", 76.17],
+  ["15 Aug", 76.67],
+  ["22 Aug", 77.21],
+  ["28 Aug", 77.01],
+  ["30 Aug", 76.4],
+  ["1 Sept", 76.28],
+  ["8 Sept", 76.83],
+  ["15 Sept", 77.32],
+  ["22 Sept", 77.5],
+  ["28 Sept", 77.47],
+];
+
+// ---------- food: Fri 25 Sept (src/app/(preview)/preview/food/page.tsx) ----------
 export const food = {
   date: "Fri 25 Sept",
-  kcal: {
-    eaten: "1,152.5",
-    target: "2,300",
-    left: "1,147.5",
-    eatenN: 1152.5,
-    targetN: 2300,
-    bandLo: 2070,
-    bandHi: 2530,
-  },
+  target: 2300,
+  band: [2070, 2530],
   macros: [
     { name: "Carbs", eaten: 86, target: 297, kind: "limit" },
     { name: "Fat", eaten: 24, target: 64, kind: "limit" },
     { name: "Protein", eaten: 53, target: 134, kind: "minimum" },
   ],
-  // The strip: seven days ending on today (ADR 0037), Sat 19 – Fri 25 Sept 2026.
-  // Marks from the fixture's HISTORY against the 2,070–2,530 band: met, over, logged (under) or none.
+  // seven days ending today (ADR 0037), marked against the 2,070–2,530 band
   week: [
-    { d: "S", n: 19, state: "met", kcal: 2405 },
+    { d: "S", n: 19, state: "met" },
     { d: "S", n: 20, state: "none" },
-    { d: "M", n: 21, state: "logged", kcal: 1990 },
-    { d: "T", n: 22, state: "met", kcal: 2280 },
-    { d: "W", n: 23, state: "met", kcal: 2350 },
-    { d: "T", n: 24, state: "met", kcal: 2120 },
+    { d: "M", n: 21, state: "logged" },
+    { d: "T", n: 22, state: "met" },
+    { d: "W", n: 23, state: "met" },
+    { d: "T", n: 24, state: "met" },
     { d: "F", n: 25, state: "today" },
   ],
-  month: "September",
   meals: [
     {
       name: "Breakfast",
-      kcal: "445",
-      items: [
-        ["Milk", "300 ml", "156"],
-        ["Morning dry fruits", "1 serving", "150"],
-        ["MuscleBlaze Biozyme whey", "1 scoop", "139"],
-      ],
+      kcal: 445,
+      items: ["Milk", "Morning dry fruits", "MuscleBlaze Biozyme whey"],
       saved: "Usual breakfast",
     },
-    { name: "Morning snack", kcal: null, items: [] },
-    {
-      name: "Lunch",
-      kcal: "647.5",
-      items: [
-        ["Home food", "2 servings", "400"],
-        ["Cooked chickpea", "150 g", "247.5"],
-      ],
-    },
-    { name: "Afternoon snack", kcal: "60", items: [["Fruit", "1 piece", "60"]] },
-    { name: "Evening snack", kcal: null, items: [] },
-    { name: "Dinner", kcal: null, items: [] },
-    { name: "Late-night snack", kcal: null, items: [] },
+    { name: "Morning snack", kcal: 0, items: [] },
+    { name: "Lunch", kcal: 647.5, items: ["Home food", "Cooked chickpea"] },
+    { name: "Afternoon snack", kcal: 60, items: ["Fruit"] },
+    { name: "Evening snack", kcal: 0, items: [] },
+    { name: "Dinner", kcal: 0, items: [] },
+    { name: "Late-night snack", kcal: 0, items: [] },
   ],
   myFoods: "10 foods · 2 meals",
   targets: "2,300 kcal",
 };
-
-// The workout, one tap back from logging: Upper A from src/db/seed/data/program.ts, at the
-// moment the logging artboards show (bench sets 1 and 2 saved). Warm-up from warmups.ts.
-export const workout = {
-  session: "Upper A",
-  gym: "Anytime Fitness",
-  warmup: { name: "Upper-body warm-up", drills: 4, done: true },
-  exercises: [
-    {
-      name: "Barbell bench press",
-      equipment: "Free weights",
-      sets: 4,
-      done: 2,
-      so: "60×5, 62.5×4",
-      state: "open",
-    },
-    { name: "Pull-up", sets: 3, done: 0, state: "todo" },
-    { name: "Seated cable row", sets: 3, done: 0, state: "todo" },
-    { name: "Incline dumbbell press", sets: 2, done: 0, state: "todo" },
-    { name: "Cable lateral raise", sets: 3, done: 0, state: "todo" },
-    { name: "Reverse pec deck", sets: 2, done: 0, state: "todo" },
-    { name: "Overhead cable triceps extension", sets: 2, done: 0, state: "todo" },
+// ?state=over: dinner adds Home food × 4 (800 kcal) and Oats 150 g (583.5 kcal): 2,536 kcal, 236 over.
+export const foodOver = {
+  macros: [
+    { name: "Carbs", eaten: 185, target: 297, kind: "limit" },
+    { name: "Fat", eaten: 35, target: 64, kind: "limit" },
+    { name: "Protein", eaten: 78, target: 134, kind: "minimum" },
   ],
+  dinner: { name: "Dinner", kcal: 1383.5, items: ["Home food", "Oats"] },
+  total: 2536,
 };
 
-// Real copy for the states (src/app/(app)/error.tsx, set-grid.tsx, use-set-rows.ts,
-// navigation-feedback.tsx, today-view.tsx, and features.md).
+// Real copy for the states (src/app/(app)/error.tsx, set-grid.tsx, use-set-rows.ts, today-view.tsx).
 export const copy = {
-  offline:
-    "You’re offline. Set and activity drafts stay on this device; retry saving when connected.",
+  offline: "You’re offline. Reconnect and try again. Unsaved set drafts stay on this device.",
   setFailed: "Connection lost. Your entries are still here. Retry saving when connected.",
   slow: "Taking longer than usual…",
   errorTitle: "Something went wrong",
@@ -225,4 +603,413 @@ export const copy = {
   noGymAction: "Add your first gym",
   noTarget: "No daily target yet",
   noTargetGoal: "Build muscle · 55 / 25 / 20",
+};
+
+// Equipment, from an exercise's modality (src/domain/types.ts) to its glyph.
+export const EQUIP = {
+  barbell: "kettlebell",
+  dumbbell: "kettlebell",
+  bodyweight: "bodyweight",
+  cable: "cable",
+  machine: "machine",
+  smith_machine: "smith",
+  mobility: "kettlebell",
+};
+
+// ---------- Training: a day of the programme opened (src/db/seed/data/program.ts, Upper B) ----------
+export const upperB = {
+  name: "Upper B",
+  day: 5,
+  focus: "Pull-up + incline + shoulders",
+  time: "70–90 min",
+  effort: "1–3 RIR",
+  notes: "Pull-up strength",
+  warmup: { name: "Upper-body warm-up", drills: 4 },
+  exercises: [
+    {
+      name: "Incline barbell bench press",
+      modality: "barbell",
+      sets: 3,
+      rx: "3 × 4–6 @ 2",
+      rest: "3 min",
+      cue: "Low incline",
+    },
+    {
+      name: "Pull-up",
+      modality: "bodyweight",
+      sets: 4,
+      rx: "4 × 4–6 @ 2",
+      rest: "2–3 min",
+      cue: "Full ROM",
+    },
+    {
+      name: "Lat pulldown",
+      modality: "machine",
+      sets: 2,
+      rx: "2 × 8–12 @ 1–2",
+      rest: "2 min",
+      cue: "To upper chest",
+    },
+    {
+      name: "Seated cable row",
+      modality: "cable",
+      sets: 2,
+      rx: "2 × 8–12 @ 1–2",
+      rest: "2 min",
+      cue: "No back rocking",
+    },
+    {
+      name: "Seated dumbbell shoulder press",
+      modality: "dumbbell",
+      sets: 3,
+      rx: "3 × 6–10 @ 1–2",
+      rest: "2 min",
+      cue: "Back supported",
+    },
+    {
+      name: "Pec deck chest fly",
+      modality: "machine",
+      sets: 2,
+      rx: "2 × 10–15 @ 1",
+      rest: "90 s",
+      cue: "Controlled stretch",
+    },
+    {
+      name: "Dumbbell lateral raise",
+      modality: "dumbbell",
+      sets: 2,
+      rx: "2 × 12–20 @ 1",
+      rest: "60–90 s",
+      cue: "Control down",
+    },
+  ],
+};
+
+// ---------- the session, more of it ----------
+// Farmer's carry in the forearms superset, as the preview's set grid suggests it (32 kg × 30 m;
+// src/app/(preview)/preview/logging/page.tsx). A distance set is rated by RPE (src/domain/effort.ts).
+export const carry = {
+  exercise: "Farmer’s carry",
+  partner: "Wrist curl",
+  modality: "dumbbell",
+  back: "Easy Run + Arms",
+  rx: "3 × 20–40 m",
+  rest: "90 s",
+  load: "32",
+  metres: "30",
+};
+// Add exercise, searching "pull up" (src/lib/exercise-search.ts run over the seeded library)
+export const pullUpSearch = {
+  query: "pull up",
+  best: [
+    ["Pull-up", "bodyweight", "Lats, Biceps"],
+    ["Assisted pull-up (machine)", "machine", "Lats, Biceps"],
+    ["Scapular pull-up", "bodyweight", "Lats, Traps"],
+    ["Neutral-grip pull-up", "bodyweight", "Lats, Biceps"],
+    ["Towel pull-up", "bodyweight", "Forearms, Lats"],
+  ],
+  other: [["Chin-up", "bodyweight", "Biceps, Lats"]],
+  chosen: "Assisted pull-up (machine)",
+  machine: "Assisted pull-up machine",
+};
+// Choose a fallback for Lower A's leg extension, which Anytime Fitness has no machine for
+// (src/db/test/fixtures.ts), searching "quads"; the leg extension itself is left out.
+export const quadSearch = {
+  query: "quads",
+  best: [["Foam roll quads", "bodyweight", "Quads"]],
+  other: [
+    ["High-bar barbell squat", "barbell", "Quads, Glutes"],
+    ["Split squat (supported)", "bodyweight", "Quads, Glutes"],
+    ["45° leg press", "machine", "Quads, Glutes"],
+    ["Horizontal leg press", "machine", "Quads, Glutes"],
+    ["Front squat", "barbell", "Quads"],
+    ["Sumo deadlift", "barbell", "Glutes, Quads"],
+    ["Trap-bar deadlift", "barbell", "Quads, Glutes"],
+    ["Smith machine squat", "smith_machine", "Quads, Glutes"],
+    ["Goblet squat", "dumbbell", "Quads, Glutes"],
+  ],
+  chosen: "Split squat (supported)",
+};
+
+// ---------- other sports: the multisport seed's ride and swim (seed-audit-multisport.ts) ----------
+export const ride = { where: 0, time: "1:10:00", km: "25", speed: "21.4", effort: 3, assist: 1 };
+export const swim = {
+  where: 0,
+  time: "20:00",
+  poolLength: "25",
+  lengths: "40",
+  total: "1,000",
+  effort: 3,
+};
+
+// ---------- Progress: History, Running, Body, Recovery ----------
+// History, newest first, as /progress/history lists them for vinit on 29 Sept (the audit database):
+// each row the page's own title, time and meta (src/app/(app)/progress/history/page.tsx).
+export const historyDays = [
+  {
+    day: "Mon 28 Sept",
+    rows: [
+      { sport: "strength", title: "Ad hoc session", time: "19:00", meta: "13 sets", sets: 13 },
+      { sport: "ride", title: "Ride · 25 km", time: "13:30", meta: "1:10:00", extra: "Effort 3" },
+    ],
+  },
+  {
+    day: "Sun 27 Sept",
+    rows: [
+      {
+        sport: "strength",
+        title: "Ad hoc session",
+        time: "19:00",
+        meta: "14 sets",
+        extra: "Sleep 7 h",
+        sets: 14,
+      },
+      { sport: "ride", indoor: true, title: "Ride · 0 km", time: "17:30", meta: "15:00" },
+      { sport: "ride", indoor: true, title: "Ride", time: "13:30", meta: "30:00" },
+      {
+        sport: "recovery",
+        title: "Recovery · 2026-09-27",
+        meta: "",
+        extra: "Sleep 7.5 h · Fatigue 4 · Soreness 2",
+      },
+    ],
+  },
+  {
+    day: "Sat 26 Sept",
+    rows: [
+      { sport: "strength", title: "Ad hoc session", time: "19:00", meta: "15 sets", sets: 15 },
+      {
+        sport: "run",
+        indoor: true,
+        title: "Treadmill · 4 km",
+        time: "17:30",
+        meta: "24:24 · 6:06/km",
+        extra: "Effort 4",
+      },
+      { sport: "swim", indoor: true, title: "Swim · 1 km", time: "17:30", meta: "30:00" },
+      {
+        sport: "swim",
+        indoor: true,
+        title: "Swim · 1 km",
+        time: "13:30",
+        meta: "20:00",
+        extra: "Effort 3",
+      },
+    ],
+  },
+];
+// Every September run (history and people seeds), in date order
+export const septRuns = [
+  { d: 2, where: "Treadmill", km: 3, time: "17:18", pace: "5:46", min: 17.3 },
+  { d: 4, where: "Outdoor", km: 3.1, time: "21:00", pace: "6:46", min: 21 },
+  { d: 6, where: "Treadmill", km: 4, time: "23:44", pace: "5:56", min: 23.7 },
+  { d: 10, where: "Treadmill", km: 5, time: "30:30", pace: "6:06", min: 30.5 },
+  { d: 11, where: "Outdoor", km: 4, time: "26:30", pace: "6:38", min: 26.5 },
+  { d: 18, where: "Outdoor", km: 2.7, time: "18:12", pace: "6:44", min: 18.2 },
+  { d: 25, where: "Outdoor", km: 5, time: "33:00", pace: "6:36", min: 33 },
+  { d: 26, where: "Treadmill", km: 4, time: "24:24", pace: "6:06", min: 24.4 },
+];
+// Check-ins, 15–28 Sept: each response kept apart, a day's daily reading and its workout check-in
+// both (src/domain/recovery.ts); sleep h, quality, fatigue, soreness; null where it was not asked
+export const recovery = [
+  { d: 15, src: "daily", sleep: 7.5, q: 4, f: 4, s: 2 },
+  { d: 15, src: "workout", sleep: 7, q: 4, f: 1, s: 2 },
+  { d: 18, src: "workout", f: 2 },
+  { d: 19, src: "workout", sleep: 6.5, q: 3, f: 1, s: 2 },
+  { d: 20, src: "workout", f: 2 },
+  { d: 21, src: "daily", sleep: 7.5, q: 4, s: 2 },
+  { d: 21, src: "workout", sleep: 7.5, q: 5, f: 3, s: 2 },
+  { d: 22, src: "workout", sleep: 6.5, q: 3, f: 3, s: 1 },
+  { d: 27, src: "daily", sleep: 7.5, q: 4, f: 4, s: 2 },
+  { d: 27, src: "workout", sleep: 7, q: 4, f: 2, s: 2 },
+  { d: 28, src: "workout", f: 3 },
+];
+
+// ---------- Food: adding to a meal (src/app/(preview)/preview/food/page.tsx) ----------
+export const foodLibrary = {
+  saved: [
+    { name: "Post-workout shake", items: ["MuscleBlaze Biozyme whey", "Milk"], kcal: "338.5" },
+    {
+      name: "Usual breakfast",
+      items: ["Milk", "Morning dry fruits", "MuscleBlaze Biozyme whey"],
+      kcal: "445",
+    },
+  ],
+  // my foods, the most lately eaten first: name, portion, kcal
+  foods: [
+    ["Fruit", "1 piece", "60"],
+    ["Cooked chickpea", "100 g", "165"],
+    ["Home food", "1 serving", "200"],
+    ["MuscleBlaze Biozyme whey", "1 scoop", "139"],
+    ["Morning dry fruits", "1 serving", "150"],
+    ["Milk", "100 ml", "52"],
+    ["Oats", "100 g", "389"],
+    ["Amul high protein milk", "250 ml", "225"],
+    ["Amul protein blueberry shake", "200 ml", "138"],
+    ["Paneer", "100 g", "265"],
+  ],
+  // Oats, 150 g of it: 389 kcal and 66.3 / 6.9 / 16.9 g per 100 g, grams rounded as formatMacros does
+  oats: {
+    amount: "150",
+    unit: "g",
+    kcal: "583.5",
+    per: "100 g",
+    perKcal: "389",
+    perMacros: "Carbs 66 g · Fat 7 g · Protein 17 g",
+    macros: [
+      ["Carbs", "99"],
+      ["Fat", "10"],
+      ["Protein", "25"],
+    ],
+  },
+};
+
+// ---------- Profile, people, places ----------
+// vinit, from seed-people.ts: following shreyash and priya, followed by shreyash, priya's request waiting
+export const me = {
+  name: "Vinit Chandak",
+  handle: "vinit",
+  followers: 1,
+  following: 2,
+  requests: 1,
+  weight: "77.47",
+  height: "175",
+};
+// Friends' recent activity on 29 Sept, from seed-people.ts (runs at 06:00, workouts at 19:00),
+// summarised as activity-row.tsx writes them; a workout's volume is its working sets' kg × reps.
+export const feed = [
+  {
+    who: "Priya Menon",
+    initial: "P",
+    day: "Sun 27 Sept",
+    sport: "run",
+    text: "Run · 5 km · 27:48 · 5:34 /km",
+  },
+  {
+    who: "Shreyash Laddha",
+    initial: "S",
+    day: "Fri 25 Sept",
+    sport: "strength",
+    text: "Workout · 11 sets · 3,945 kg",
+    sets: 11,
+  },
+  {
+    who: "Priya Menon",
+    initial: "P",
+    day: "Thu 24 Sept",
+    sport: "strength",
+    text: "Workout · 9 sets · 852 kg",
+    sets: 9,
+  },
+  {
+    who: "Priya Menon",
+    initial: "P",
+    day: "Wed 23 Sept",
+    sport: "run",
+    text: "Run · 10 km · 1:01:00 · 6:06 /km",
+  },
+  {
+    who: "Shreyash Laddha",
+    initial: "S",
+    day: "Wed 23 Sept",
+    sport: "strength",
+    text: "Workout · 14 sets · 3,250 kg",
+    sets: 14,
+  },
+];
+// The fixture gyms and Anytime Fitness's machines (src/db/test/fixtures.ts)
+export const gymList = [
+  { name: "Anytime Fitness", kind: "gym", meta: "7 machines", def: true },
+  { name: "Samsung Gym", kind: "gym", meta: "No equipment yet" },
+  { name: "Society Gym", kind: "gym", meta: "No equipment yet" },
+  { name: "Outdoor", kind: "outdoor", meta: "No equipment yet" },
+  { name: "Home", kind: "home", meta: "No equipment yet" },
+];
+export const machines = [
+  { name: "Smith machine", glyph: "smith", load: "Plate-loaded", step: "+2.5 kg" },
+  { name: "Cable station", glyph: "cable", load: "Weight stack" },
+  { name: "Assisted pull-up machine", glyph: "machine", load: "Weight stack" },
+  { name: "Seated leg curl", glyph: "machine", load: "Weight stack" },
+  { name: "Pec deck", glyph: "machine", load: "Pec deck (fly / reverse fly) · Weight stack" },
+  { name: "45° leg press", glyph: "machine", load: "Plate-loaded" },
+  { name: "Horizontal leg press", glyph: "machine", load: "Plate-loaded" },
+];
+export const unavailable = ["Hip thrust / glute drive machine", "Standing calf raise machine"];
+// The first-run machine list (equipment-types.ts), its first rows, with the fixture's machines ticked
+export const machineCatalogue = {
+  Machines: [
+    "Smith machine",
+    "Chest press machine",
+    "Incline press machine",
+    "Shoulder press machine",
+    "Assisted dip machine",
+    "Seated dip machine",
+    "Iso-lateral plate-loaded press",
+    "Iso-lateral plate-loaded row",
+    "Shrug machine",
+    "Lat pulldown",
+    "Chest-supported row machine",
+    "Assisted pull-up machine",
+  ],
+  ticked: [
+    "Smith machine",
+    "Assisted pull-up machine",
+    "Seated leg curl",
+    "Pec deck (fly / reverse fly)",
+    "45° leg press",
+    "Horizontal leg press",
+    "Cable station",
+  ],
+};
+// The coach's change (src/app/(preview)/preview/coaching/page.tsx, ?view=changes)
+export const change = {
+  headline: "Swaps your barbell curl for a cable curl and adds a cable crunch.",
+  ask: "Can I have Bayesian cable curls?",
+  why: "Bayesian cable curls go in on your upper day. Core work needs one answer before I can place it.",
+  programme: [["Length", "6 weeks", "8 weeks"]],
+  days: [
+    {
+      name: "Upper",
+      when: "Monday",
+      fields: [["Time", "45 min", "50 min"]],
+      ops: [
+        {
+          op: "Changed",
+          name: "Barbell bench press",
+          lines: [
+            ["Sets", "3", "4"],
+            ["Rest", "3 min", "3–4 min"],
+          ],
+          note: "Progression: Add 2.5 kg once all four sets reach eight at the prescribed effort.",
+        },
+        {
+          op: "Replaced",
+          name: "Barbell curl",
+          to: "Cable curl",
+          lines: [["Reps", "8–12", "10–15"]],
+          tag: true,
+        },
+        { op: "Moved to another day", name: "Cable lateral raise", note: "Now on Lower" },
+        { op: "Added", name: "Cable crunch", rx: "3 × 10–15 reps · RIR 1–2 · rest 60–90 s" },
+      ],
+    },
+    {
+      name: "Lower",
+      when: "Wednesday",
+      ops: [{ op: "Moved here", name: "Cable lateral raise", note: "Was on Upper" }],
+    },
+    {
+      name: "Easy run",
+      when: "Saturday",
+      ops: [
+        {
+          op: "Run · week 1",
+          lines: [
+            ["Minutes", "30", "35"],
+            ["Distance", "—", "5 km"],
+          ],
+        },
+      ],
+    },
+  ],
 };

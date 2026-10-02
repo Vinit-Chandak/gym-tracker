@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-02T10:35:09Z",
+  "generatedAt": "2026-10-02T13:25:07Z",
   "title": "Design System: Overload",
   "extensions": {
     "colorMeta": {
@@ -379,6 +379,36 @@
           "#e9eeff"
         ]
       },
+      "mark-warm-up": {
+        "role": "neutral",
+        "displayName": "Warm-up Mark",
+        "canonical": "#c9c4b8",
+        "tonalRamp": [
+          "#0d0b06",
+          "#29261f",
+          "#48453c",
+          "#6a665c",
+          "#8d897e",
+          "#b2aea3",
+          "#d5d1c6",
+          "#f2eee4"
+        ]
+      },
+      "mark-warm-up-dark": {
+        "role": "neutral",
+        "displayName": "Warm-up Mark, dark",
+        "canonical": "#4a463e",
+        "tonalRamp": [
+          "#0d0b07",
+          "#292620",
+          "#48453e",
+          "#6a665e",
+          "#8d8980",
+          "#b2ada5",
+          "#d5d0c8",
+          "#f2eee6"
+        ]
+      },
       "print-paper": {
         "role": "neutral",
         "displayName": "Print Paper",
@@ -439,6 +469,21 @@
           "#f4eee0"
         ]
       },
+      "print-warm-up": {
+        "role": "neutral",
+        "displayName": "Print Warm-up",
+        "canonical": "#d8d2c4",
+        "tonalRamp": [
+          "#0e0b05",
+          "#2a261e",
+          "#49453a",
+          "#6b665a",
+          "#8e897c",
+          "#b3ada1",
+          "#d6d1c5",
+          "#f3eee3"
+        ]
+      },
       "print-paper-dark": {
         "role": "neutral",
         "displayName": "Print Paper (dark)",
@@ -497,6 +542,21 @@
           "#a9a49b",
           "#ccc7bd",
           "#f3eee4"
+        ]
+      },
+      "print-warm-up-dark": {
+        "role": "neutral",
+        "displayName": "Print Warm-up, dark",
+        "canonical": "#4a463e",
+        "tonalRamp": [
+          "#0d0b07",
+          "#292620",
+          "#48453e",
+          "#6a665e",
+          "#8d8980",
+          "#b2ada5",
+          "#d5d0c8",
+          "#f2eee6"
         ]
       },
       "print-strength": {
@@ -966,45 +1026,69 @@
       }
     },
     "typographyMeta": {
-      "figure-xl": {
-        "displayName": "Figure XL",
-        "purpose": "The one big number on a print or a summary, such as calories left."
+      "title": {
+        "displayName": "Title",
+        "purpose": "A destination's name; 32 px under 360 pt."
       },
       "display": {
         "displayName": "Display",
-        "purpose": "Screen and exercise titles; steps down for long names, never below 26 px."
+        "purpose": "A nested screen's or an exercise's name; steps down 4, then to 26, then wraps."
+      },
+      "sheet-title": {
+        "displayName": "Sheet Title",
+        "purpose": "A sheet's name: Why, Finish, Appearance."
+      },
+      "figure-xl": {
+        "displayName": "Figure XL",
+        "purpose": "The screen's one figure, 56 px, on the ground above its print: kcal left or over, the latest body weight."
       },
       "entry": {
         "displayName": "Entry",
-        "purpose": "Load and reps in the steppers; 46 px on tall screens, stepping down to fit."
+        "purpose": "Load, reps and RIR in the docked entry, and a portion's amount; 46 px on 440 pt, never below 28."
+      },
+      "figure-l": {
+        "displayName": "Figure L",
+        "purpose": "A stat, and the figure of a row's stepper, 26 px."
       },
       "figure": {
         "displayName": "Figure",
-        "purpose": "Rest, set tiles, RIR digits and totals, 20 to 30 px."
+        "purpose": "Ledger rows, list figures, totals and paces, 20 px."
+      },
+      "figure-s": {
+        "displayName": "Figure S",
+        "purpose": "The rest pill and the session strip, 17 px."
       },
       "heading": {
         "displayName": "Heading",
-        "purpose": "Set headings, sheet titles, a note's title."
+        "purpose": "Set headings, a row's name, the coach's question."
       },
       "body": {
         "displayName": "Body",
-        "purpose": "Coach text and everything read; two lines inline at most."
+        "purpose": "Coach text and everything read; two lines inline, then More."
+      },
+      "meta": {
+        "displayName": "Meta",
+        "purpose": "A meta line, ink 2, each fact led by its glyph."
+      },
+      "meta-small": {
+        "displayName": "Meta Small",
+        "purpose": "A row's second line, ink 2."
       },
       "caption": {
         "displayName": "Caption",
-        "purpose": "Meta lines and labels over controls, 13 to 15 px, 500 to 700."
+        "purpose": "A section's name, ink 2."
       },
       "button": {
         "displayName": "Button",
-        "purpose": "Button labels; 15 px on buttons under 52 pt tall."
+        "purpose": "Every button label."
       },
       "tab": {
-        "displayName": "Tab label",
-        "purpose": "Tab bar labels; 12 px under 360 pt wide, 700 where you are."
+        "displayName": "Tab",
+        "purpose": "Tab bar labels; 12 px under 360 pt, 700 where you are."
       },
       "print-label": {
-        "displayName": "Print label",
-        "purpose": "Names on prints; values beside them at 500 in the print label colour."
+        "displayName": "Print Label",
+        "purpose": "The few labels a chart prints; never under 12 px."
       }
     },
     "shadows": [
@@ -1018,12 +1102,17 @@
       {
         "name": "press",
         "value": "120ms cubic-bezier(0.23, 1, 0.32, 1)",
-        "purpose": "Scale 0.97 on touch-down; no scale with reduced motion."
+        "purpose": "Scale 0.97 on touch-down; none with reduced motion."
+      },
+      {
+        "name": "saving",
+        "value": "until the server answers",
+        "purpose": "The mark turns and Save reads Saving…; nothing inks early."
       },
       {
         "name": "ink",
         "value": "420ms cubic-bezier(0.65, 0, 0.35, 1)",
-        "purpose": "A tile or a shape fills with pigment from its bottom edge, like ink rolled on."
+        "purpose": "Pigment rolls up a set's mark on the server's answer; a success haptic on the same frame."
       },
       {
         "name": "swap-out",
@@ -1033,11 +1122,11 @@
       {
         "name": "swap-in",
         "value": "120ms ease-out",
-        "purpose": "The replacement label or figure arrives."
+        "purpose": "The replacement arrives: the next set takes the outline."
       },
       {
         "name": "sheet",
-        "value": "spring, response 0.4s, damping 0.92",
+        "value": "spring, response 0.4s, bounce 0.08",
         "purpose": "Sheets rise from the bottom edge and follow the finger."
       },
       {
@@ -1046,36 +1135,41 @@
         "purpose": "The scrim fades in under a sheet."
       },
       {
-        "name": "day-ink-stagger",
-        "value": "80ms",
-        "purpose": "The day inks up one shape at a time when Today next shows."
+        "name": "rest",
+        "value": "linear",
+        "purpose": "The rest dial empties clockwise from twelve; at zero the pill reads Go for 60 s."
       },
       {
         "name": "reduced",
-        "value": "150ms cross-fade",
-        "purpose": "With reduced motion nothing moves: states cross-fade in place."
+        "value": "cuts and 150ms fades",
+        "purpose": "With reduced motion nothing moves; states change in place."
       }
     ],
     "breakpoints": [
       {
         "name": "narrow",
         "value": "360px",
-        "purpose": "Under 360 pt wide: 16 pt gutters, smaller titles and tab labels."
+        "purpose": "Under 360 pt wide: 16 pt gutters, 32 px titles, 12 px tab labels, the steppers stack."
+      },
+      {
+        "name": "android",
+        "value": "360px",
+        "purpose": "360 × 800 dp: the steppers keep one row with narrower operators."
       },
       {
         "name": "tiny-height",
         "value": "600px",
-        "purpose": "Under 600 pt tall: Today's print is 88 pt."
+        "purpose": "Under 600 pt tall: Today's print is 96 pt."
       },
       {
         "name": "short-height",
         "value": "800px",
-        "purpose": "Under 800 pt tall: detail folds behind a tap."
+        "purpose": "Under 800 pt tall: the print shortens and the day's note folds."
       },
       {
         "name": "tall-height",
         "value": "860px",
-        "purpose": "860 pt tall and over: bigger figures, tiles and RIR segments."
+        "purpose": "860 pt and over: the room goes to the print and the entry."
       }
     ]
   },
@@ -1084,132 +1178,144 @@
       "name": "Primary Button",
       "kind": "button",
       "refersTo": "button-primary",
-      "description": "Ink with white text: the one action that moves the session on.",
-      "html": "<button class=\"ds-btn-primary\" type=\"button\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" aria-hidden=\"true\" style=\"stroke-width: 2px; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; display: block\"><path d=\"M8.5 6.2v11.6a.7.7 0 0 0 1.1.6l9-5.8a.7.7 0 0 0 0-1.2l-9-5.8a.7.7 0 0 0-1.1.6z\"/></svg>Start workout</button>",
-      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 56px; padding: 0 20px; border: 0; border-radius: 14px; background: #16171b; color: #ffffff; font-family: 'Atkinson Hyperlegible Next', system-ui, sans-serif; font-size: 17px; font-weight: 700; cursor: pointer; transition: transform 120ms cubic-bezier(0.23, 1, 0.32, 1); } .ds-btn-primary:hover { background: #34353b; } .ds-btn-primary:active { transform: scale(0.97); } .ds-btn-primary:focus-visible { outline: 3px solid #16171b; outline-offset: 2px; box-shadow: 0 0 0 2px #ffffff; } @media (prefers-reduced-motion: reduce) { .ds-btn-primary:active { transform: none; } }"
+      "description": "Ink, on-ink text; the one main action (Start workout, Save set 3).",
+      "html": "<button class=\"ds-btn-primary\">Start workout</button>",
+      "css": ".ds-btn-primary { display:inline-flex; align-items:center; justify-content:center; height:56px; padding:0 20px; border:0; border-radius:14px; background:#16171b; color:#ffffff; font:700 17px/1 'Atkinson Hyperlegible Next', system-ui, sans-serif; cursor:pointer; transition:transform 120ms cubic-bezier(0.23,1,0.32,1); } .ds-btn-primary:active { transform:scale(0.97); } .ds-btn-primary:focus-visible { outline:3px solid #16171b; outline-offset:2px; box-shadow:0 0 0 2px #ffffff; }"
     },
     {
       "name": "Tonal Button",
       "kind": "button",
       "refersTo": "button-tonal",
-      "description": "Surface with ink text: a secondary action beside a row (Log it, Retry).",
-      "html": "<button class=\"ds-btn-tonal\" type=\"button\">Log it</button>",
-      "css": ".ds-btn-tonal { display: inline-flex; align-items: center; justify-content: center; height: 56px; padding: 0 20px; border: 0; border-radius: 14px; background: #f4f4f5; color: #16171b; font-family: 'Atkinson Hyperlegible Next', system-ui, sans-serif; font-size: 17px; font-weight: 700; cursor: pointer; transition: transform 120ms cubic-bezier(0.23, 1, 0.32, 1); } .ds-btn-tonal:hover { background: #e9e9ec; } .ds-btn-tonal:active { transform: scale(0.97); } .ds-btn-tonal:focus-visible { outline: 3px solid #16171b; outline-offset: 2px; box-shadow: 0 0 0 2px #ffffff; } @media (prefers-reduced-motion: reduce) { .ds-btn-tonal:active { transform: none; } }"
+      "description": "Surface, ink text: a secondary action (Log it).",
+      "html": "<button class=\"ds-btn-tonal\">Log it</button>",
+      "css": ".ds-btn-tonal { display:inline-flex; align-items:center; justify-content:center; height:44px; padding:0 16px; border:0; border-radius:14px; background:#f4f4f5; color:#16171b; font:700 15px/1 'Atkinson Hyperlegible Next', system-ui, sans-serif; cursor:pointer; transition:transform 120ms cubic-bezier(0.23,1,0.32,1); } .ds-btn-tonal:active { transform:scale(0.97); } .ds-btn-tonal:focus-visible { outline:3px solid #16171b; outline-offset:2px; }"
     },
     {
       "name": "Waiting Button",
       "kind": "button",
       "refersTo": "button-waiting",
-      "description": "Tonal with ink 2 text: Save while it waits on RIR, saying what it needs.",
-      "html": "<button class=\"ds-btn-waiting\" type=\"button\">Choose RIR to save</button>",
-      "css": ".ds-btn-waiting { display: flex; align-items: center; justify-content: center; width: 100%; max-width: 362px; height: 56px; padding: 0 20px; border: 0; border-radius: 14px; background: #f4f4f5; color: #5b5d64; font-family: 'Atkinson Hyperlegible Next', system-ui, sans-serif; font-size: 17px; font-weight: 700; cursor: pointer; transition: transform 120ms cubic-bezier(0.23, 1, 0.32, 1); } .ds-btn-waiting:hover { background: #e9e9ec; } .ds-btn-waiting:active { transform: scale(0.97); } .ds-btn-waiting:focus-visible { outline: 3px solid #16171b; outline-offset: 2px; box-shadow: 0 0 0 2px #ffffff; } @media (prefers-reduced-motion: reduce) { .ds-btn-waiting:active { transform: none; } }"
-    },
-    {
-      "name": "Set Tiles",
-      "kind": "custom",
-      "refersTo": "set-tile-saved",
-      "description": "One row of sets: saved sets inked in ultramarine, the current set outlined, the rest thinned.",
-      "html": "<ol class=\"ds-tiles\" aria-label=\"Sets, 2 of 4 saved\"><li><button class=\"ds-tile ds-tile-saved\" type=\"button\" aria-label=\"Set 1: 60 kg, 5 reps, 2 RIR, saved. Edit\"><span class=\"ds-tile-label\">Set 1</span><span class=\"ds-tile-figure\">60</span><span class=\"ds-tile-label\">× 5 @ 2</span></button></li><li><button class=\"ds-tile ds-tile-saved\" type=\"button\" aria-label=\"Set 2: 62.5 kg, 4 reps, 1 RIR, saved. Edit\"><span class=\"ds-tile-label\">Set 2</span><span class=\"ds-tile-figure\">62.5</span><span class=\"ds-tile-label\">× 4 @ 1</span></button></li><li><div class=\"ds-tile ds-tile-current\" aria-current=\"step\"><span class=\"ds-tile-text\">Set 3</span><span class=\"ds-tile-now\">Now</span><span class=\"ds-tile-target\">3–5 @ 2</span></div></li><li><div class=\"ds-tile ds-tile-todo\"><span class=\"ds-tile-text\">Set 4</span><span class=\"ds-tile-now\">To do</span><span class=\"ds-tile-target\">3–5 @ 2</span></div></li></ol>",
-      "css": ".ds-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; max-width: 362px; margin: 0; padding: 0; list-style: none; } .ds-tiles li { display: grid; } .ds-tile { box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; height: 78px; padding: 8px 10px 9px; border: 0; border-radius: 4px; text-align: left; font-family: 'Atkinson Hyperlegible Next', system-ui, sans-serif; transition: transform 120ms cubic-bezier(0.23, 1, 0.32, 1); } .ds-tile-saved { background: #2b40c8; color: #ffffff; cursor: pointer; } .ds-tile-saved:active { transform: scale(0.97); } .ds-tile-saved:focus-visible { outline: 3px solid #16171b; outline-offset: 2px; box-shadow: 0 0 0 2px #ffffff; } .ds-tile-label { font-size: 12px; font-weight: 700; color: #dde1fb; white-space: nowrap; font-variant-numeric: tabular-nums lining-nums; } .ds-tile-figure { font-family: 'Jost', system-ui, sans-serif; font-size: 24px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums lining-nums; } .ds-tile-current { background: #ffffff; color: #16171b; border: 2.5px solid #16171b; padding: 6px 8px 7px; } .ds-tile-todo { background: #9aaaf0; color: #16171b; } .ds-tile-text { font-size: 12px; font-weight: 700; } .ds-tile-now { font-size: 15px; font-weight: 700; } .ds-tile-target { font-size: 13px; font-weight: 500; white-space: nowrap; font-variant-numeric: tabular-nums lining-nums; } .ds-tile-current .ds-tile-target { color: #5b5d64; } @media (prefers-reduced-motion: reduce) { .ds-tile-saved:active { transform: none; } }"
+      "description": "A button waiting on something: Choose RIR to save, Saving….",
+      "html": "<button class=\"ds-btn-waiting\" aria-disabled=\"true\">Choose RIR to save</button>",
+      "css": ".ds-btn-waiting { display:inline-flex; align-items:center; justify-content:center; height:56px; padding:0 20px; border:0; border-radius:14px; background:#f4f4f5; color:#5b5d64; font:700 17px/1 'Atkinson Hyperlegible Next', system-ui, sans-serif; }"
     },
     {
       "name": "Stepper",
       "kind": "input",
-      "refersTo": "stepper",
-      "description": "Load or reps: a suggested value in ink 2 with a dotted underline until it is touched.",
-      "html": "<div class=\"ds-stepper\" role=\"group\" aria-label=\"Load in kg\"><span class=\"ds-stepper-label\" aria-hidden=\"true\">Load · kg</span><div class=\"ds-stepper-row\"><button class=\"ds-stepper-btn\" type=\"button\" aria-label=\"Less load, 2.5 kg\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" aria-hidden=\"true\" style=\"stroke-width: 2px; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; display: block\"><path d=\"M5 12h14\"/></svg></button><output class=\"ds-stepper-value\" aria-label=\"Load 62.5 kg, suggested, not yet confirmed\">62.5</output><button class=\"ds-stepper-btn\" type=\"button\" aria-label=\"More load, 2.5 kg\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" aria-hidden=\"true\" style=\"stroke-width: 2px; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; display: block\"><path d=\"M12 5v14M5 12h14\"/></svg></button></div></div>",
-      "css": ".ds-stepper { max-width: 220px; padding: 9px 6px 8px; border-radius: 18px; background: #f4f4f5; color: #16171b; } .ds-stepper-label { display: block; padding-left: 8px; font-family: 'Atkinson Hyperlegible Next', system-ui, sans-serif; font-size: 13px; font-weight: 700; color: #5b5d64; } .ds-stepper-row { display: flex; align-items: center; gap: 2px; margin-top: 2px; } .ds-stepper-btn { display: grid; place-items: center; flex-shrink: 0; width: 44px; height: 44px; border: 0; border-radius: 12px; background: #ffffff; color: #16171b; cursor: pointer; transition: transform 120ms cubic-bezier(0.23, 1, 0.32, 1); } .ds-stepper-btn:hover { background: #e9e9ec; } .ds-stepper-btn:active { transform: scale(0.97); } .ds-stepper-btn:focus-visible { outline: 3px solid #16171b; outline-offset: 2px; box-shadow: 0 0 0 2px #ffffff; } .ds-stepper-value { flex: 1 1 auto; min-width: 0; text-align: center; font-family: 'Jost', system-ui, sans-serif; font-size: 40px; font-weight: 600; line-height: 1.15; color: #5b5d64; text-decoration: underline dotted 2px; text-underline-offset: 7px; font-variant-numeric: tabular-nums lining-nums; } @media (prefers-reduced-motion: reduce) { .ds-stepper-btn:active { transform: none; } }"
+      "refersTo": "stepper-figure",
+      "description": "A figure, its unit, two 44-pt round buttons; suggested in ink 2 with a dotted underline until touched.",
+      "html": "<div class=\"ds-step\"><output class=\"ds-step-fig\">62.5</output><span class=\"ds-step-unit\">kg</span><span class=\"ds-step-btns\"><button aria-label=\"Less load\">−</button><button aria-label=\"More load\">+</button></span></div>",
+      "css": ".ds-step { display:inline-flex; flex-direction:column; align-items:center; gap:6px; } .ds-step-fig { font:600 42px/1.1 'Jost', system-ui, sans-serif; font-variant-numeric:tabular-nums lining-nums; color:#5b5d64; text-decoration:underline dotted 2px; text-underline-offset:6px; } .ds-step-unit { font:600 13px 'Atkinson Hyperlegible Next', system-ui, sans-serif; color:#5b5d64; } .ds-step-btns { display:flex; gap:8px; } .ds-step-btns button { width:44px; height:44px; border-radius:22px; border:0; background:#f4f4f5; color:#16171b; font:500 22px/1 'Atkinson Hyperlegible Next', system-ui, sans-serif; cursor:pointer; } .ds-step-btns button:focus-visible { outline:3px solid #16171b; outline-offset:2px; }"
     },
     {
-      "name": "RIR Control",
-      "kind": "chip",
-      "refersTo": "rir-segment-chosen",
-      "description": "Seven segments in a surface tray; the chosen one in ink, a dot under the target.",
-      "html": "<div class=\"ds-rir\" role=\"radiogroup\" aria-label=\"RIR, reps in reserve\" aria-required=\"true\"><button class=\"ds-rir-seg\" type=\"button\" role=\"radio\" aria-checked=\"false\" tabindex=\"-1\" aria-label=\"0 reps in reserve\">0</button><button class=\"ds-rir-seg\" type=\"button\" role=\"radio\" aria-checked=\"false\" tabindex=\"-1\" aria-label=\"1 rep in reserve\">1</button><button class=\"ds-rir-seg\" type=\"button\" role=\"radio\" aria-checked=\"true\" tabindex=\"0\" aria-label=\"2 reps in reserve, the target\">2<span class=\"ds-rir-dot\" aria-hidden=\"true\"></span></button><button class=\"ds-rir-seg\" type=\"button\" role=\"radio\" aria-checked=\"false\" tabindex=\"-1\" aria-label=\"3 reps in reserve\">3</button><button class=\"ds-rir-seg\" type=\"button\" role=\"radio\" aria-checked=\"false\" tabindex=\"-1\" aria-label=\"4 reps in reserve\">4</button><button class=\"ds-rir-seg\" type=\"button\" role=\"radio\" aria-checked=\"false\" tabindex=\"-1\" aria-label=\"5 reps in reserve\">5</button><button class=\"ds-rir-seg\" type=\"button\" role=\"radio\" aria-checked=\"false\" tabindex=\"-1\" aria-label=\"6 or more reps in reserve, then 6 to 10\">6+</button></div>",
-      "css": ".ds-rir { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; max-width: 362px; padding: 4px; border-radius: 14px; background: #f4f4f5; } .ds-rir-seg { position: relative; display: grid; place-items: center; min-width: 0; height: 48px; border: 0; border-radius: 10px; background: transparent; color: #16171b; font-family: 'Jost', system-ui, sans-serif; font-size: 22px; font-weight: 600; line-height: 1; cursor: pointer; font-variant-numeric: tabular-nums lining-nums; transition: transform 120ms cubic-bezier(0.23, 1, 0.32, 1); } .ds-rir-seg:hover { background: #e9e9ec; } .ds-rir-seg[aria-checked=\"true\"] { background: #16171b; color: #ffffff; } .ds-rir-seg:active { transform: scale(0.97); } .ds-rir-seg:focus-visible { outline: 3px solid #16171b; outline-offset: 2px; box-shadow: 0 0 0 2px #ffffff; } .ds-rir-dot { position: absolute; left: 50%; bottom: 6px; width: 4px; height: 4px; margin-left: -2px; border-radius: 2px; background: currentColor; } @media (prefers-reduced-motion: reduce) { .ds-rir-seg:active { transform: none; } }"
+      "name": "Ledger",
+      "kind": "custom",
+      "refersTo": "ledger-row",
+      "description": "One row per set: number, 12-px mark (warm-up grey, saved ultramarine, current outlined, to do thinned), the set in notation.",
+      "html": "<ol class=\"ds-ledger\"><li><span>W</span><i class=\"warm\"></i><b class=\"dim\">25 × 8</b></li><li><span>1</span><i class=\"done\"></i><b>60 × 5 @ 2</b></li><li class=\"now\"><span>3</span><i class=\"cur\"></i><b></b></li><li><span>4</span><i class=\"todo\"></i><b></b></li></ol>",
+      "css": ".ds-ledger { list-style:none; margin:0; padding:0; width:320px; } .ds-ledger li { display:flex; align-items:center; height:40px; border-bottom:1px solid #e6e6e9; font:700 15px 'Atkinson Hyperlegible Next', system-ui, sans-serif; color:#16171b; } .ds-ledger li.now { background:#f4f4f5; border-radius:10px; padding:0 8px; margin:0 -8px; } .ds-ledger span { width:26px; } .ds-ledger i { display:block; width:12px; height:12px; margin:0 16px 0 4px; box-sizing:border-box; } .ds-ledger i.warm { background:#c9c4b8; } .ds-ledger i.done { background:#2b40c8; } .ds-ledger i.cur { width:14px; height:14px; border:2.5px solid #16171b; } .ds-ledger i.todo { background:#9aaaf0; border:1.5px solid #2b40c8; } .ds-ledger b { font:600 19px/1 'Jost', system-ui, sans-serif; font-variant-numeric:tabular-nums; } .ds-ledger b.dim { color:#5b5d64; font-size:17px; }"
+    },
+    {
+      "name": "Rest Pill",
+      "kind": "custom",
+      "refersTo": "rest-pill",
+      "description": "Rest in the session's header: a dial that empties from twelve, and the time.",
+      "html": "<button class=\"ds-rest\" aria-label=\"Rest, 2 minutes 14 seconds left\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 18 18\" aria-hidden=\"true\"><circle cx=\"9\" cy=\"9\" r=\"8\" fill=\"none\" stroke=\"#16171b\" stroke-width=\"1.6\"/><path d=\"M9 9V2.8A6.2 6.2 0 1 1 3.1 10.9Z\" fill=\"#16171b\"/></svg><span>2:14</span></button>",
+      "css": ".ds-rest { display:inline-flex; align-items:center; gap:7px; height:36px; padding:0 12px 0 9px; border:0; border-radius:18px; background:#f4f4f5; color:#16171b; font:600 17px/1 'Jost', system-ui, sans-serif; font-variant-numeric:tabular-nums; cursor:pointer; } .ds-rest:focus-visible { outline:3px solid #16171b; outline-offset:2px; }"
     },
     {
       "name": "Coach Note",
       "kind": "card",
       "refersTo": "coach-note",
-      "description": "One quiet grey block for everything the coach writes: attributed, two lines, then More.",
-      "html": "<aside class=\"ds-coach\" aria-label=\"From the coach\"><p class=\"ds-coach-head\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" aria-hidden=\"true\" style=\"stroke-width: 2px; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; display: block\"><path d=\"M4.5 5.5h15v10h-8l-4.5 3.5v-3.5h-2.5z\"/></svg>Coach <span class=\"ds-coach-context\">· a change to your programme</span></p><p class=\"ds-coach-text\">Swaps your barbell curl for a cable curl and adds a cable crunch. Bayesian cable curls go in on your upper day. Core work needs one answer before I can place it.</p><button class=\"ds-coach-more\" type=\"button\" aria-haspopup=\"dialog\">More</button></aside>",
-      "css": ".ds-coach { max-width: 362px; padding: 12px 14px; border-radius: 14px; background: #f4f4f5; color: #16171b; } .ds-coach-head { display: flex; align-items: center; gap: 6px; margin: 0; font-family: 'Atkinson Hyperlegible Next', system-ui, sans-serif; font-size: 13px; font-weight: 700; } .ds-coach-context { font-weight: 500; color: #5b5d64; } .ds-coach-text { margin: 4px 0 0; font-family: 'Atkinson Hyperlegible Next', system-ui, sans-serif; font-size: 16px; font-weight: 500; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; } .ds-coach-more { height: 44px; min-width: 44px; margin: -4px 0 -10px -6px; padding: 0 6px; border: 0; background: none; color: #16171b; font-family: 'Atkinson Hyperlegible Next', system-ui, sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; } .ds-coach-more:hover { text-decoration: underline; } .ds-coach-more:focus-visible { outline: 3px solid #16171b; outline-offset: 2px; box-shadow: 0 0 0 2px #ffffff; }"
+      "description": "Words the coach writes, or the app's own advice under its name: attributed, quiet, two lines then More.",
+      "html": "<aside class=\"ds-note\"><p class=\"ds-note-who\">Recovery check</p><p class=\"ds-note-head\">Sleep 5 h</p><p>Hold loads today rather than adding, and keep the RIR honest.</p></aside>",
+      "css": ".ds-note { max-width:362px; padding:12px 14px; border-radius:14px; background:#f4f4f5; color:#16171b; font:500 15px/1.45 'Atkinson Hyperlegible Next', system-ui, sans-serif; } .ds-note p { margin:0; } .ds-note-who { font-weight:700; font-size:13px; } .ds-note-head { font-weight:700; font-size:17px; margin-top:6px !important; }"
     },
     {
       "name": "Text Field",
       "kind": "input",
       "refersTo": "field",
-      "description": "A 52 pt field with its label above and help below; 16 px text at every width.",
-      "html": "<label class=\"ds-field\"><span class=\"ds-field-top\"><span class=\"ds-field-label\">Anything the coach should know</span><span class=\"ds-field-hint\">Optional</span></span><input class=\"ds-field-input\" type=\"text\" name=\"coach-note\" autocomplete=\"off\" placeholder=\"Short on time, knee is sore, …\"><span class=\"ds-field-hint\">3 requests a day.</span></label>",
-      "css": ".ds-field { display: flex; flex-direction: column; gap: 6px; max-width: 362px; font-family: 'Atkinson Hyperlegible Next', system-ui, sans-serif; color: #16171b; } .ds-field-top { display: flex; justify-content: space-between; } .ds-field-label { font-size: 14px; font-weight: 700; } .ds-field-hint { font-size: 13px; font-weight: 500; color: #5b5d64; } .ds-field-input { box-sizing: border-box; height: 52px; padding: 0 16px; border: 1.5px solid #85878e; border-radius: 14px; background: #ffffff; color: #16171b; font-family: 'Atkinson Hyperlegible Next', system-ui, sans-serif; font-size: 16px; font-weight: 500; caret-color: #16171b; } .ds-field-input::placeholder { color: #5b5d64; } .ds-field-input:hover { border-color: #5b5d64; } .ds-field-input:focus-visible { outline: 3px solid #16171b; outline-offset: 2px; border-color: #16171b; }"
+      "description": "Label above, 52 pt, a control border, 16-px text.",
+      "html": "<label class=\"ds-field\"><span>Name</span><input value=\"Anytime Fitness\"></label>",
+      "css": ".ds-field { display:flex; flex-direction:column; gap:6px; width:320px; font:700 14px 'Atkinson Hyperlegible Next', system-ui, sans-serif; color:#16171b; } .ds-field input { height:52px; padding:0 16px; border:1.5px solid #85878e; border-radius:14px; background:#ffffff; color:#16171b; font:500 16px 'Atkinson Hyperlegible Next', system-ui, sans-serif; } .ds-field input:focus-visible { outline:3px solid #16171b; outline-offset:2px; }"
     },
     {
       "name": "Tab Bar",
       "kind": "nav",
       "refersTo": "tab-bar",
-      "description": "Five destinations drawn from the print forms: outlined, filled and ink where you are.",
-      "html": "<nav class=\"ds-tabs\" aria-label=\"Destinations\"><a class=\"ds-tab\" href=\"#\" aria-current=\"page\"><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" aria-hidden=\"true\" style=\"stroke-width: 2px; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; display: block\"><circle cx=\"16\" cy=\"11\" r=\"5\" fill=\"currentColor\"/><rect x=\"3.5\" y=\"9\" width=\"7\" height=\"7\" rx=\"0.6\" fill=\"currentColor\"/><path d=\"M3 19.5h18\"/></svg><span>Today</span></a><a class=\"ds-tab\" href=\"#\"><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" aria-hidden=\"true\" style=\"stroke-width: 2px; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; display: block\"><rect x=\"3\" y=\"8.5\" width=\"5\" height=\"7\" rx=\"0.6\"/><rect x=\"9.5\" y=\"8.5\" width=\"5\" height=\"7\" rx=\"0.6\"/><rect x=\"16\" y=\"8.5\" width=\"5\" height=\"7\" rx=\"0.6\"/></svg><span>Training</span></a><a class=\"ds-tab\" href=\"#\"><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" aria-hidden=\"true\" style=\"stroke-width: 2px; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; display: block\"><path d=\"M3.5 9.5h17a8.5 8.5 0 0 1-17 0z\"/></svg><span>Food</span></a><a class=\"ds-tab\" href=\"#\"><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" aria-hidden=\"true\" style=\"stroke-width: 2px; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; display: block\"><rect x=\"4\" y=\"4\" width=\"7\" height=\"7\" rx=\"0.6\"/><circle cx=\"16.5\" cy=\"7.5\" r=\"3.5\"/><circle cx=\"7.5\" cy=\"16.5\" r=\"3.5\"/><rect x=\"13\" y=\"13\" width=\"7\" height=\"7\" rx=\"0.6\"/></svg><span>Progress</span></a><a class=\"ds-tab\" href=\"#\"><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" aria-hidden=\"true\" style=\"stroke-width: 2px; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; display: block\"><circle cx=\"12\" cy=\"8\" r=\"4\"/><path d=\"M4.5 20.5a7.5 7.5 0 0 1 15 0z\"/></svg><span>Profile</span></a></nav>",
-      "css": ".ds-tabs { box-sizing: border-box; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); max-width: 402px; height: 74px; padding: 4px 6px 20px; background: #ffffff; border-top: 1px solid #e6e6e9; } .ds-tab { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; height: 50px; min-width: 0; color: #5b5d64; text-decoration: none; font-family: 'Atkinson Hyperlegible Next', system-ui, sans-serif; font-size: 13px; font-weight: 600; transition: transform 120ms cubic-bezier(0.23, 1, 0.32, 1); } .ds-tab[aria-current] { color: #16171b; font-weight: 700; } .ds-tab:hover { color: #16171b; } .ds-tab:active { transform: scale(0.97); } .ds-tab:focus-visible { outline: 3px solid #16171b; outline-offset: 2px; box-shadow: 0 0 0 2px #ffffff; } @media (prefers-reduced-motion: reduce) { .ds-tab:active { transform: none; } }"
+      "description": "Five destinations, 64 pt: icons from the first forms, filled and 700 where you are.",
+      "html": "<nav class=\"ds-tabs\"><a aria-current=\"page\"><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><circle cx=\"16\" cy=\"11\" r=\"5\" fill=\"currentColor\"/><rect x=\"3.5\" y=\"9\" width=\"7\" height=\"7\" rx=\"0.6\" fill=\"currentColor\"/><path d=\"M3 19.5h18\"/></svg>Today</a><a><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><rect x=\"3\" y=\"8.5\" width=\"5\" height=\"7\" rx=\"0.6\"/><rect x=\"9.5\" y=\"8.5\" width=\"5\" height=\"7\" rx=\"0.6\"/><rect x=\"16\" y=\"8.5\" width=\"5\" height=\"7\" rx=\"0.6\"/></svg>Training</a><a><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M3.5 9.5h17a8.5 8.5 0 0 1-17 0z\"/></svg>Food</a></nav>",
+      "css": ".ds-tabs { display:grid; grid-template-columns:repeat(3, 1fr); height:64px; padding:4px 6px 12px; box-sizing:border-box; border-top:1px solid #e6e6e9; background:#ffffff; } .ds-tabs a { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; height:48px; color:#5b5d64; font:600 13px/1 'Atkinson Hyperlegible Next', system-ui, sans-serif; text-decoration:none; } .ds-tabs a[aria-current] { color:#16171b; font-weight:700; }"
     },
     {
       "name": "Session Strip",
       "kind": "custom",
       "refersTo": "session-strip",
-      "description": "The unfinished workout above the tab bar, with rest as one figure; the only shadow.",
-      "html": "<aside class=\"ds-strip\" aria-label=\"Workout in progress\"><div class=\"ds-strip-text\"><span class=\"ds-strip-name\">Upper A</span><span class=\"ds-strip-gym\">Anytime Fitness</span></div><p class=\"ds-strip-rest\"><span>Rest</span><span class=\"ds-strip-time\" role=\"timer\" aria-label=\"Rest, 2 minutes 14 seconds left\">2:14</span></p><a class=\"ds-strip-resume\" href=\"#\">Resume</a></aside>",
-      "css": ".ds-strip { box-sizing: border-box; display: flex; align-items: center; gap: 12px; max-width: 362px; height: 56px; padding: 0 6px 0 16px; border-radius: 16px; background: #16171b; color: #ffffff; box-shadow: 0 10px 28px rgba(22, 23, 27, 0.2); font-family: 'Atkinson Hyperlegible Next', system-ui, sans-serif; } .ds-strip-text { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; } .ds-strip-name { font-size: 16px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .ds-strip-gym { font-size: 13px; font-weight: 500; color: #b4b6bd; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .ds-strip-rest { display: flex; align-items: baseline; gap: 6px; flex-shrink: 0; margin: 0; font-size: 13px; font-weight: 600; color: #b4b6bd; } .ds-strip-time { font-family: 'Jost', system-ui, sans-serif; font-size: 20px; font-weight: 600; line-height: 1; color: #ffffff; font-variant-numeric: tabular-nums lining-nums; } .ds-strip-resume { display: flex; align-items: center; flex-shrink: 0; height: 44px; padding: 0 16px; border-radius: 12px; background: #ffffff; color: #16171b; font-size: 15px; font-weight: 700; text-decoration: none; transition: transform 120ms cubic-bezier(0.23, 1, 0.32, 1); } .ds-strip-resume:hover { background: #f4f4f5; } .ds-strip-resume:active { transform: scale(0.97); } .ds-strip-resume:focus-visible { outline: 3px solid #ffffff; outline-offset: 2px; } @media (prefers-reduced-motion: reduce) { .ds-strip-resume:active { transform: none; } }"
+      "description": "A minimised session on every screen: its mark, name, rest and Resume; the one shadow.",
+      "html": "<aside class=\"ds-strip\"><i></i><b>Upper A</b><span>2:14</span><a>Resume</a></aside>",
+      "css": ".ds-strip { display:flex; align-items:center; gap:10px; width:362px; height:52px; padding:0 4px 0 14px; box-sizing:border-box; border-radius:16px; background:#16171b; color:#ffffff; box-shadow:0 10px 28px rgba(22,23,27,0.2); font:700 16px 'Atkinson Hyperlegible Next', system-ui, sans-serif; } .ds-strip i { width:14px; height:14px; background:#2b40c8; } .ds-strip b { flex:1; } .ds-strip span { font:600 18px/1 'Jost', system-ui, sans-serif; font-variant-numeric:tabular-nums; } .ds-strip a { display:flex; align-items:center; height:44px; padding:0 14px; border-radius:12px; background:#ffffff; color:#16171b; font-size:15px; }"
     }
   ],
   "narrative": {
     "northStar": "The art is your training",
-    "overview": "Overload is a black-and-white instrument that stays out of the way between sets: ink on white, light ink on near-black in dark, two typefaces, flat surfaces and hairlines. The only colour is the art. Prints are generative, Bauhaus-like compositions drawn from what the athlete has logged and nothing else, so the art is the record and the reward at once. A day's print says what is owed and fills with ink as it is done; a quarter's print is the season's training.\n\nThe prints have a grammar. Each family of sport is one shape in one pigment: a slab for load, a disc on foot, a dome on wheels, a wave in water, a quarter disc for practice, a bowl for food and a triangle, reserved, for play. Context, structure and size mean the same on every shape, and state is thinned, full or dashed. The grammar grows with the app: a sport the app does not know yet gets its family's plain shape and its own name, so anything logged can be printed on day one. Nothing is drawn as a sequence: the parts of a day, the exercises of a workout and the meals are rows taken in any order.\n\nMotion is ink, not decoration: a press answers a touch, pigment rolls into a shape when something is done, words swap in place, sheets follow the finger. With reduced motion nothing moves; state changes cross-fade in 150 ms.",
+    "overview": "Overload is a black-and-white instrument that stays out of the way between sets: ink on white, light ink on near-black in dark, two typefaces, flat surfaces and hairlines. The only colour is the art. Prints are generative, Bauhaus-like compositions drawn from what the athlete has logged and nothing else, so the art is the record and the reward at once. A day's print says what is owed and fills with ink as it is done; a month's print holds every activity of every day.\n\nThe prints have a grammar, and it grows with the app. How the body moves gives the form and its pigment: a block for load, a stride for on foot, a wheel for on wheels, a wave for in water, a fan for practice, a bowl for food and a triangle, reserved, for play. Every form stands on one module grid and one ground line. State is thinned (to do), full (done) or dashed (skipped); context (indoors, structure, size) means the same on every form; a new sport is its family's form with one cut. A print carries no words: the rows under it are its legend, each led by a small copy of its part.\n\nThe interface says as little as it can. State is shown by ink rather than words, nothing is said twice on one screen, and everything starts at one left edge. Motion is ink, not decoration: a press answers a touch, pigment rolls into a mark when the server has the set, words swap in place, sheets follow the finger.",
     "keyCharacteristics": [
-      "A black-and-white interface; colour only ever means a family of sport.",
-      "Prints drawn from real records, with one grammar for every sport, today's and those to come.",
+      "A black-and-white interface; colour only ever means a family of sport, as a print or a mark.",
+      "Prints drawn from real records, on one module grid, with one grammar for every sport.",
+      "Minimal words: no repeated information, no state said in words where ink says it.",
+      "One left edge: a 20-pt mark column and names 12 after it, on every list.",
       "Jost for titles and figures, Atkinson Hyperlegible Next for everything read.",
       "Flat: hairlines and tonal surfaces, one shadow, sheets over a scrim.",
-      "Every screen laid out from the device: figures fit rather than truncate, detail folds on short screens, and nothing a thumb needs is pushed off the screen."
+      "Laid out from the device: figures fit rather than truncate, text wraps rather than runs off, layouts fold rather than drop."
     ],
     "rules": [
       {
         "name": "The Black-and-White Rule",
-        "body": "The interface is ink on ground. Colour appears only in prints (the app's mark is one) and in sport marks, and each pigment means one family of sport. A pigment never marks status, an error, a link, emphasis or decoration: warnings and failures are drawn in ink.",
+        "body": "The interface is ink on ground. Colour appears only in prints and in sport marks (and the app's mark), and each pigment means one family of sport. A pigment never marks status, an error, a link, emphasis, a selection or a chart of anything but a sport: warnings, failures, selected text and the latest point of a chart are ink.",
         "section": "colors"
       },
       {
         "name": "The Thinned, Full, Dashed Rule",
-        "body": "Thinned pigment (the `-todo` tints; on dark paper, a 50% mix into the paper) is to do; full pigment is done; a dashed edge is skipped. Dashed means skipped and nothing else.",
+        "body": "Thinned pigment with an edge of the full pigment is to do; full pigment is done; a dashed edge is skipped. A warm-up is grey. Dashed means skipped and nothing else.",
         "section": "colors"
       },
       {
         "name": "The Quiet Dark Rule",
-        "body": "In dark, prints are pulled on near-black paper with lighter pigments and light ink, so the art is never the brightest thing on the screen. System, Light and Dark all take the same tokens; dark swaps every token that has a `-dark` value to it, and the rest (ultramarine on a saved set, cadmium) stay as they are.",
+        "body": "In dark, prints are pulled on near-black paper with lighter pigments and light ink, so the art is never the brightest thing on the screen. Dark swaps every token that has a `-dark` value to it.",
         "section": "colors"
       },
       {
         "name": "The Two Voices Rule",
-        "body": "Jost for titles and figures only; Atkinson Hyperlegible Next for every word read. A number inside a sentence stays in Atkinson, with its slashed zero; a range inside a Jost figure takes Atkinson's en dash, because Jost's is as long as an em dash.",
+        "body": "Jost for titles and figures only; Atkinson Hyperlegible Next for every word read. A number inside a sentence stays in Atkinson; a range inside a Jost figure takes Atkinson's en dash, because Jost's is as long as an em dash.",
         "section": "typography"
       },
       {
         "name": "The Figures Never Truncate Rule",
-        "body": "A figure steps down until it fits: never an ellipsis, never a wrap. Fit is measured, not guessed: Jost 600's tabular digits are 0.614 em, its point and comma 0.32 em. Load and reps share one size, and a row of set tiles shares one size.",
+        "body": "A figure keeps one line and steps down until it fits: never an ellipsis, never a wrap. Jost 600's tabular digits are 0.614 em, its point and comma 0.32 em.",
         "section": "typography"
       },
       {
-        "name": "The 16 Px Floor Rule",
-        "body": "Nothing typed or entered is under 16 px, at any width.",
+        "name": "The Text Never Runs Off Rule",
+        "body": "Every text column may shrink (`min-width: 0`) and wraps (`overflow-wrap: anywhere`); a row grows rather than clipping. A button at large text sizes grows and wraps.",
+        "section": "typography"
+      },
+      {
+        "name": "The Floors Rule",
+        "body": "Nothing typed or entered is under 16 px; no label is under 12 px.",
         "section": "typography"
       },
       {
         "name": "The Docked Entry Rule",
-        "body": "On logging, RIR and Save are always on the first screen. A long exercise name, more sets or a wide figure scrolls the record, never the entry.",
+        "body": "On logging, the steppers and Save are on the first screen at every size, and nothing a thumb needs is under the tab bar, because there is none.",
         "section": "layout"
       },
       {
-        "name": "The Fold, Never Shrink Rule",
-        "body": "When height runs out, detail folds behind a tap. Targets (44 pt), entry text (16 px) and figures keep their size.",
+        "name": "The One Left Edge Rule",
+        "body": "Marks in one column, names at one edge, on every list of every screen.",
+        "section": "layout"
+      },
+      {
+        "name": "The Fold, Never Drop Rule",
+        "body": "When room runs out, a layout folds (steppers stack, a note folds behind a tap); it never drops the equipment, the target or the suggestion, and never shrinks a target under 44 pt.",
         "section": "layout"
       },
       {
@@ -1219,29 +1325,40 @@
       },
       {
         "name": "The Square Print Rule",
-        "body": "Prints have square corners (`prints`, 0 px); only the interface is rounded.",
+        "body": "Prints have square corners; only the interface is rounded.",
+        "section": "shapes"
+      },
+      {
+        "name": "The One Ground Rule",
+        "body": "Every form in a print stands on one ground line, on one module grid; tops and rows line up and shapes never overlap.",
         "section": "shapes"
       },
       {
         "name": "The One Cut Rule",
-        "body": "A sport is its family's shape with one change cut into the shape, never into the ground under it. It must read at 12 px beside its name, and colour never carries it alone.",
+        "body": "A sport is its family's form with one cut: the paper shows through (walk: the stride opened; hike: a peak cut out; spin: the wheel cut in four; row: the waves cut by two oars; yoga: an arc cut in; climbing: steps cut in; racket sports: a ball punched out). Never an addition, never into the ground; it must read at 12 px beside its name.",
+        "section": "shapes"
+      },
+      {
+        "name": "The No Words on a Print Rule",
+        "body": "A print carries no words; the rows under it are its legend.",
         "section": "shapes"
       }
     ],
     "dos": [
       "Do take every figure and line of copy from the repository's seed, preview, test and audit data; a print draws only what was logged.",
-      "Do give a new sport its family's shape with one cut, check it reads at 12 px beside its name, and name it in words as well.",
-      "Do swap a word or a figure in place: out in 80 ms, then the new one in over 120 ms, never both at once.",
-      "Do lay a new screen out at 320, 375, 402 and 440 pt wide, in light and dark, and at 200% text, before calling it done.",
-      "Do build the sheet spring with CSS (`linear()`) or the platform first; a spring or gesture library is adopted once, app-wide, with its gzip cost recorded here."
+      "Do lead every row with its mark in the mark column, and start every name at one edge.",
+      "Do let ink say state: a mark's fill, an outline, a dashed edge; keep words for what ink cannot say.",
+      "Do give a new sport its family's form with one cut, and check it reads at 12 px.",
+      "Do lay a new screen out at 320, 375, 402 and 440 pt and Android's 360 dp, in light and dark, and at 200% text, before calling it done.",
+      "Do swap a word or a figure in place: out in 80 ms, then in over 120 ms, never both at once."
     ],
     "donts": [
-      "Don't use a pigment for anything but a family of sport: not for errors, warnings, links, emphasis or charts of other things.",
+      "Don't use a pigment for anything but a family of sport: not for errors, warnings, links, emphasis, selection or charts of other things.",
+      "Don't say the same thing twice on a screen, or put words on a print.",
       "Don't draw a dashed edge for anything but skipped.",
-      "Don't put coach text on a print, in colour, or between the steppers and Save.",
-      "Don't truncate a figure, shrink a target under 44 pt or entry text under 16 px to make a layout fit.",
-      "Don't add a second shadow, or box list rows into cards.",
-      "Don't pre-fill RIR or show a suggested value in ink before it is touched.",
+      "Don't ink a set before the server has it, pre-fill RIR, or show a suggested value in ink.",
+      "Don't truncate a figure, shrink a target under 44 pt, or drop a fact to make a layout fit.",
+      "Don't indent a list, box rows into cards, or add a second shadow.",
       "Don't let the art be the brightest thing on a dark screen."
     ]
   }

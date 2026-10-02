@@ -2,10 +2,10 @@
 
 <!-- impeccable:product-schema 1 -->
 
-Written on 2 October 2026 from the repository, without the usual interview. Lines marked
-_(inferred)_ are readings of the code and documents that the owner has not confirmed;
-_Undecided_ marks what nobody has decided yet. Confirm or correct them before they steer a
-decision.
+Written on 2 October 2026 from the repository, without the usual interview. The lines first
+marked _(inferred)_ were checked the same day against the code and against the owner's notes on
+the Form v2 canvas: kept where the code bears them out, corrected where it did not, and marked
+with their evidence. _Undecided_ marks what nobody has decided yet.
 
 ## Platform
 
@@ -36,15 +36,22 @@ What success means has not been written down. _Undecided._
 
 ## Positioning
 
-_(inferred)_ What a neighbouring tracker could not truthfully copy:
+What a neighbouring tracker could not truthfully copy (checked against the code, 2 October 2026):
 
 - **History per gym and per machine.** A machine's stack numbers are its own: never converted,
-  never mixed with another gym's, never compared or ranked between friends.
+  never mixed with another gym's, never compared or ranked between friends (machine and cable
+  exercises are `equipment_specific` in the seeded library and left out of leaderboards and
+  comparisons: `src/domain/leaderboard.ts`, `src/domain/shared-stats.ts`).
 - **A suggestion for every exercise, with its reason.** Add load, Hold, Repeat, Reduce, Step
-  back and the rest come from the athlete's own history, and why is one tap away.
-- **A coach that plans the session** from the last sessions, the programme, the check-ins and
-  recovery, for the gym the athlete will train at
-  ([ADR 0018](docs/decisions/0018-ai-house-coach.md)).
+  back, Add time, Add distance and Starting guess come from the athlete's own history; an
+  exercise with none says so ("No history"). Why is one tap away (`src/lib/labels.ts`,
+  `src/domain/progression.ts`).
+- **A coach that writes the programme and prepares each session.** It drafts a programme from
+  the athlete's answers, prepares each session overnight for the gym the athlete will train at,
+  and reviews the programme each week; a change to the split or schedule waits for the
+  athlete's approval ([ADR 0018](docs/decisions/0018-ai-house-coach.md),
+  `docs/coach-automation.md`, `src/app/(app)/profile/ai-coach/`). Corrected: the first reading
+  had it only planning the next session.
 - **One record for every sport a day owes:** lifting, running, cycling, swimming, mobility and
   food on the same day, each its own task.
 
@@ -109,12 +116,13 @@ excess recorded in `DESIGN.md` with its reason ([overload-ui](.claude/skills/ove
 
 All real, all in the repository:
 
-- The shared library: 268 exercises, 92 kinds of machine, warm-up protocols and the programme
-  templates (`src/db/seed/data/`).
+- The shared library: 276 exercises, 93 kinds of equipment, warm-up protocols and the
+  programme templates (`src/db/seed/data/`).
 - Development previews of Today, logging, coaching and food against fixed data
   (`src/app/(preview)/preview/`).
-- Six audit accounts with 56 months of history ([local audit setup](docs/audits/local-56-months.md),
-  `scripts/dev/seed-audit.ts`, `scripts/dev/seed-audit-history.ts`).
+- Six audit accounts, four of them with 56 months of history
+  ([local audit setup](docs/audits/local-56-months.md), `scripts/dev/seed-audit.ts`,
+  `scripts/dev/seed-audit-history.ts`).
 - Sample content for each core screen, with its source, in
   [the feature inventory](docs/ui-redesign/revamp/features.md).
 - The coach's plans and texts in tests and previews (`src/server/repositories/coach-plans.test.ts`,
@@ -125,7 +133,7 @@ in a design comes from the sources above; nothing is invented.
 
 ## Product Principles
 
-_(inferred from the decisions above)_
+Checked against the decisions above and the owner's notes (2 October 2026):
 
 1. **Every set is its own record.** Nothing is shared between sets, pre-filled as effort or
    merged to save space.
@@ -136,6 +144,8 @@ _(inferred from the decisions above)_
    gap is unknown, never zero.
 5. **Yours unless shared.** A friend sees a short, separate list, and only once allowed to
    follow.
+6. **Say it once.** A screen says each thing once, in as few words as it needs, and shows state
+   rather than spelling it out. Added from the owner's notes on the Form v2 canvas.
 
 ## Accessibility & Inclusion
 

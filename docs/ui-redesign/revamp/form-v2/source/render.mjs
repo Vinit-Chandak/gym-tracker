@@ -1,12 +1,22 @@
 // Screenshots every board in ../canvas into ../screenshots at its canvas size, and the signature
-// moment at a few points of its loop. Fonts load from Google Fonts, so run it online.
+// moment at the points of its loop that show each step.
 // Usage: node docs/ui-redesign/revamp/form-v2/source/render.mjs [--scale=2] [--measure] [name ...]
-//   --scale=N   device pixel ratio of the PNGs (default 2; the tall boards always render at 1)
-//   --measure   write the rendered height of the scrolling boards to heights.json, then rebuild
+//   --scale=N   device pixel ratio of the phone boards (default 2; the wide boards render at 1)
+//   --measure   write the rendered height of the whole-scroll boards to heights.json, then build
+//               again and render again
 //   name ...    only boards whose file name contains one of these
-// Set CHROMIUM_PATH to use a browser other than Playwright's own.
+// Uses Playwright's own Chromium, or CHROMIUM_PATH. The fonts come from Google Fonts: they are
+// fetched by Node (which honours the proxy and its certificates, with NODE_USE_ENV_PROXY=1 where a
+// proxy is in use) and handed to the page.
 import { chromium } from "@playwright/test";
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import {
+  readFileSync,
+  writeFileSync,
+  mkdirSync,
+  existsSync,
+  readdirSync,
+  unlinkSync,
+} from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -18,41 +28,56 @@ const scale = Number((args.find((a) => a.startsWith("--scale=")) || "--scale=2")
 const measure = args.includes("--measure");
 const filters = args.filter((a) => !a.startsWith("--"));
 const { boards, order } = JSON.parse(readFileSync(path.join(CANVAS, "canvas.json"), "utf8"));
-// Boards drawn as a whole scroll, whose height is measured rather than set.
-const TALL = new Set([
-  "Form-System.dc.html",
-  "Form-About.dc.html",
-  "Form-Alphabet.dc.html",
-  "Form-Coach.dc.html",
-  "Form-Log-Large.dc.html",
-  "Form-Log-320.dc.html",
-  "Form-Food-320.dc.html",
-]);
-// The signature moment, at the points of its 8 s loop that show each step.
-const MOMENT_AT = [500, 1450, 1780, 1960, 2400];
+const HFILE = path.join(HERE, "heights.json");
+const TALL = existsSync(HFILE) ? JSON.parse(readFileSync(HFILE, "utf8")) : {};
+// the signature moment, at armed, saving, inking, inked and the next set (ms into its 8 s loop)
+const MOMENT_AT = [500, 1600, 2150, 2400, 2800];
 
 mkdirSync(OUT, { recursive: true });
-const browser = await chromium.launch(
-  process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {},
-);
+if (!filters.length && !measure)
+  for (const f of readdirSync(OUT))
+    if (f.endsWith(".png") && !order.includes(f.replace(/(@\d+ms)?\.png$/, ".dc.html")))
+      unlinkSync(path.join(OUT, f));
+const executablePath =
+  process.env.CHROMIUM_PATH ||
+  (existsSync("/opt/pw-browsers/chromium") ? "/opt/pw-browsers/chromium" : undefined);
+const browser = await chromium.launch(executablePath ? { executablePath } : {});
+const fontCache = new Map();
 const heights = {};
 for (const file of order.filter((f) => !filters.length || filters.some((x) => f.includes(x)))) {
   const b = boards[file],
     name = file.replace(".dc.html", "");
-  const dpr = TALL.has(file) && b.w > 402 ? 1 : scale;
   const page = await browser.newPage({
     viewport: { width: b.w, height: b.h },
-    deviceScaleFactor: dpr,
+    deviceScaleFactor: b.w > 440 ? 1 : scale,
+  });
+  await page.route(/^https:\/\/fonts\.(googleapis|gstatic)\.com\//, async (route) => {
+    const url = route.request().url();
+    if (!fontCache.has(url)) {
+      const res = await fetch(url, {
+        headers: { "user-agent": await page.evaluate(() => navigator.userAgent) },
+      });
+      fontCache.set(url, {
+        status: res.status,
+        type: res.headers.get("content-type") || "",
+        body: Buffer.from(await res.arrayBuffer()),
+      });
+    }
+    const c = fontCache.get(url);
+    await route.fulfill({
+      status: c.status,
+      headers: { "content-type": c.type, "access-control-allow-origin": "*" },
+      body: c.body,
+    });
   });
   await page.goto(pathToFileURL(path.join(CANVAS, file)).href, { waitUntil: "networkidle" });
   await page.evaluate(() => document.fonts.ready);
-  if (measure && TALL.has(file)) {
+  if (measure && TALL[file] !== undefined)
     heights[file] = await page.evaluate(() =>
       Math.ceil(document.querySelector("x-dc > div").getBoundingClientRect().height),
     );
-  }
   const clip = { x: 0, y: 0, width: b.w, height: b.h };
-  if (name === "Form-Moment") {
+  if (name === "Moment") {
     for (const ms of MOMENT_AT) {
       await page.evaluate((t) => {
         for (const a of document.getAnimations()) {
@@ -74,8 +99,6 @@ for (const file of order.filter((f) => !filters.length || filters.some((x) => f.
 }
 await browser.close();
 if (measure) {
-  const file = path.join(HERE, "heights.json");
-  const all = { ...JSON.parse(readFileSync(file, "utf8")), ...heights };
-  writeFileSync(file, JSON.stringify(all, null, 2) + "\n");
-  console.log("heights", heights, "- rebuild with build.mjs, then render again");
+  writeFileSync(HFILE, JSON.stringify({ ...TALL, ...heights }, null, 2) + "\n");
+  console.log("heights", heights, "- build again, then render again");
 }

@@ -1,0 +1,40 @@
+{
+  "method": "Five isolated assessments of the last canvas: a design review, the Impeccable detector, native readiness, accessibility, and craft and economy. Then a fresh-eyes review and the detector on this one.",
+  "scores": [
+    [
+      "Last canvas · heuristics",
+      "29/40",
+      "A design review of its 24 boards (DESIGN.md had said 28)."
+    ],
+    [
+      "Last canvas · detector",
+      "150",
+      "Findings: 3 warnings (cramped padding twice, a flat type step) and 147 advisories."
+    ],
+    ["This canvas · heuristics", "…", "Pending the fresh review."],
+    ["This canvas · detector", "…", "Pending the scan."]
+  ],
+  "fixed": [
+    "A set showed Saved before it was saved: the mark now turns while the server answers, Save reads Saving…, and the ink lands on the answer.",
+    "Logging lost the entry at 320 pt and at 200% text: the session covers the tab bar, the steppers keep one row down to 360, stack below it, and the 200% board keeps the equipment, the target and the suggestion.",
+    "No typed entry: tapping a figure types it, on the decimal pad.",
+    "“@” meant both RIR and load: it is RIR only; a load the coach set leads the line.",
+    "Two breaks of the Black-and-White rule: the weight chart’s point and text selection are ink.",
+    "Prints restated their lists and their shapes did not line up: one module grid and one ground; no words on prints; the rows are their legend.",
+    "Actions hid in the overflow: Technique and History are tabs, Add set ends the ledger, Add exercise and Superset sit under the workout’s list, and Today’s More options is drawn.",
+    "No Android size and no safe-area rule: Android boards, inset rules and a platform board.",
+    "The end of a session was not drawn: Finish, then the summary with its print and records.",
+    "Row and Racket broke One Cut: every variant is now a single cut."
+  ],
+  "fresh": ["Pending."],
+  "sources": [
+    "Today and its run: the preview Today (src/app/(preview)/preview/page.tsx), Fri 11 Sept 2026, Easy Run + Arms.",
+    "The programme: src/db/seed/data/program.ts (8-Week Strength + Aesthetics Hybrid) and its warm-ups (warmups.ts).",
+    "Logging the bench: src/server/repositories/sessions.test.ts (Upper A over three cycles and the Hold it earns); the warm-up ramp from src/domain/warmup-ramp.ts.",
+    "Progress, the calendar, History, Running, Body and Recovery: the audit database for vinit on 29 Sept 2026, as scripts/dev/audit.mjs seeds it.",
+    "Food: the food preview (Fri 25 Sept 2026) and its over state.",
+    "The coach: scripts/dev/seed-audit.ts (vinit’s question, notes and memo) and the coaching preview’s proposed change.",
+    "Friends: scripts/dev/seed-people.ts. Gyms and machines: src/db/test/fixtures.ts. The first run: the onboarding pages and equipment-types.ts.",
+    "Search results: src/lib/exercise-search.ts, run over the 276 seeded exercises."
+  ]
+}

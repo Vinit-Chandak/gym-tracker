@@ -2,266 +2,919 @@
   "v": 3,
   "createdOnFiles": {
     "v": 1,
-    "at": "2026-10-01T05:49:17Z"
+    "at": "2026-10-02T09:00:00Z"
   },
-  "title": "Overload revamp: Form v2",
+  "title": "Overload revamp: Form v2, refined",
   "launch": {
     "view": "canvas",
-    "page": "form"
+    "page": "readme"
   },
   "pages": [
     {
-      "id": "form",
-      "name": "Form (the art is your training)"
+      "id": "readme",
+      "name": "Read me"
+    },
+    {
+      "id": "session",
+      "name": "Today and the session"
+    },
+    {
+      "id": "training",
+      "name": "Training"
+    },
+    {
+      "id": "progress",
+      "name": "Progress"
+    },
+    {
+      "id": "food",
+      "name": "Food"
+    },
+    {
+      "id": "profile",
+      "name": "Profile, coach, people"
+    },
+    {
+      "id": "first-run",
+      "name": "First run"
+    },
+    {
+      "id": "sizes",
+      "name": "Sizes, themes, platforms"
+    },
+    {
+      "id": "system",
+      "name": "System"
     }
   ],
   "boards": {
-    "Form-Today-Light.dc.html": {
+    "Main.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1400,
+      "h": 3393,
+      "title": "Read me: Form v2, refined",
+      "page": "readme"
+    },
+    "Today.dc.html": {
       "x": 0,
       "y": 0,
       "w": 402,
       "h": 874,
-      "title": "Form · Today · light",
-      "page": "form",
+      "title": "Today",
+      "page": "session",
       "is_interactive": true
     },
-    "Form-Workout-Light.dc.html": {
+    "Today-Coach.dc.html": {
       "x": 482,
       "y": 0,
       "w": 402,
       "h": 874,
-      "title": "Form · The workout, grouped by state · light",
-      "page": "form",
+      "title": "Today, the coach planning",
+      "page": "session",
       "is_interactive": true
     },
-    "Form-Log-Light.dc.html": {
+    "Today-More-options.dc.html": {
       "x": 964,
       "y": 0,
       "w": 402,
       "h": 874,
-      "title": "Form · Logging a set · light",
-      "page": "form",
+      "title": "Today › More options",
+      "page": "session",
       "is_interactive": true
     },
-    "Form-Why.dc.html": {
+    "Check-in.dc.html": {
       "x": 1446,
       "y": 0,
       "w": 402,
       "h": 874,
-      "title": "Form · Why keep 62.5 kg: the suggestion, explained",
-      "page": "form",
+      "title": "Check-in before the session",
+      "page": "session",
       "is_interactive": true
     },
-    "Form-Workout-Coach.dc.html": {
+    "Workout.dc.html": {
+      "x": 0,
+      "y": 1254,
+      "w": 402,
+      "h": 874,
+      "title": "The workout: Upper A in progress",
+      "page": "session",
+      "is_interactive": true
+    },
+    "Workout-Superset.dc.html": {
+      "x": 482,
+      "y": 1254,
+      "w": 402,
+      "h": 874,
+      "title": "The workout: a superset to do",
+      "page": "session",
+      "is_interactive": true
+    },
+    "Workout-Coach.dc.html": {
+      "x": 964,
+      "y": 1254,
+      "w": 402,
+      "h": 874,
+      "title": "The workout the coach planned",
+      "page": "session",
+      "is_interactive": true
+    },
+    "Add-exercise.dc.html": {
+      "x": 1446,
+      "y": 1254,
+      "w": 402,
+      "h": 874,
+      "title": "Add exercise",
+      "page": "session",
+      "is_interactive": true
+    },
+    "Fallback.dc.html": {
       "x": 1928,
-      "y": 0,
+      "y": 1254,
       "w": 402,
       "h": 874,
-      "title": "Form · The workout the coach planned (Lower A, from the coach-plan test)",
-      "page": "form",
+      "title": "Choose a fallback",
+      "page": "session",
       "is_interactive": true
     },
-    "Form-Progress-Light.dc.html": {
+    "Log-Warm-ups.dc.html": {
+      "x": 0,
+      "y": 2508,
+      "w": 402,
+      "h": 874,
+      "title": "Logging: the warm-ups first",
+      "page": "session",
+      "is_interactive": true
+    },
+    "Log.dc.html": {
+      "x": 482,
+      "y": 2508,
+      "w": 402,
+      "h": 874,
+      "title": "Logging a set",
+      "page": "session",
+      "is_interactive": true
+    },
+    "Log-Typing.dc.html": {
+      "x": 964,
+      "y": 2508,
+      "w": 402,
+      "h": 874,
+      "title": "Logging: typing a load",
+      "page": "session",
+      "is_interactive": true
+    },
+    "Moment.dc.html": {
+      "x": 1446,
+      "y": 2508,
+      "w": 402,
+      "h": 874,
+      "title": "Signature: a set is inked",
+      "page": "session",
+      "is_interactive": true
+    },
+    "Moment-Reduced.dc.html": {
+      "x": 1928,
+      "y": 2508,
+      "w": 402,
+      "h": 874,
+      "title": "Signature, reduced motion",
+      "page": "session",
+      "is_interactive": true
+    },
+    "Why.dc.html": {
       "x": 2410,
-      "y": 0,
+      "y": 2508,
       "w": 402,
       "h": 874,
-      "title": "Form · Progress · light",
-      "page": "form",
+      "title": "Why: the suggestion, explained",
+      "page": "session",
       "is_interactive": true
     },
-    "Form-Food-Light.dc.html": {
+    "Technique.dc.html": {
       "x": 2892,
-      "y": 0,
+      "y": 2508,
       "w": 402,
       "h": 874,
-      "title": "Form · Food · light",
-      "page": "form",
+      "title": "Technique",
+      "page": "session",
       "is_interactive": true
     },
-    "Form-About.dc.html": {
+    "History.dc.html": {
       "x": 3374,
-      "y": 0,
-      "w": 640,
-      "h": 1617,
-      "title": "Form · How the art is made, and how it holds up",
-      "page": "form"
-    },
-    "Form-Today-Dark.dc.html": {
-      "x": 0,
-      "y": 994,
+      "y": 2508,
       "w": 402,
       "h": 874,
-      "title": "Form · Today · dark",
-      "page": "form",
+      "title": "History, every session",
+      "page": "session",
       "is_interactive": true
     },
-    "Form-Log-Dark.dc.html": {
+    "Superset-Log.dc.html": {
+      "x": 3856,
+      "y": 2508,
+      "w": 402,
+      "h": 874,
+      "title": "Logging a superset",
+      "page": "session",
+      "is_interactive": true
+    },
+    "Finish.dc.html": {
+      "x": 0,
+      "y": 3762,
+      "w": 402,
+      "h": 874,
+      "title": "Finish",
+      "page": "session",
+      "is_interactive": true
+    },
+    "Summary.dc.html": {
       "x": 482,
-      "y": 994,
+      "y": 3762,
       "w": 402,
       "h": 874,
-      "title": "Form · Logging a set · dark, RIR chosen",
-      "page": "form",
+      "title": "The session, finished",
+      "page": "session",
       "is_interactive": true
     },
-    "Form-Moment.dc.html": {
+    "Offline.dc.html": {
       "x": 964,
-      "y": 994,
+      "y": 3762,
       "w": 402,
       "h": 874,
-      "title": "Form · Signature: a set is inked",
-      "page": "form",
+      "title": "Offline",
+      "page": "session",
       "is_interactive": true
     },
-    "Form-Moment-Reduced.dc.html": {
+    "Training.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 402,
+      "h": 874,
+      "title": "Training",
+      "page": "training",
+      "is_interactive": true
+    },
+    "Programme-Day.dc.html": {
+      "x": 482,
+      "y": 0,
+      "w": 402,
+      "h": 874,
+      "title": "A day of the programme: Upper B",
+      "page": "training",
+      "is_interactive": true
+    },
+    "Log-Run.dc.html": {
+      "x": 964,
+      "y": 0,
+      "w": 402,
+      "h": 874,
+      "title": "Log a run",
+      "page": "training",
+      "is_interactive": true
+    },
+    "Log-Ride.dc.html": {
       "x": 1446,
-      "y": 994,
+      "y": 0,
       "w": 402,
       "h": 874,
-      "title": "Form · Signature, reduced motion",
-      "page": "form",
+      "title": "Log a ride",
+      "page": "training",
       "is_interactive": true
     },
-    "Form-Coach.dc.html": {
+    "Log-Swim.dc.html": {
       "x": 1928,
-      "y": 994,
-      "w": 402,
-      "h": 3448,
-      "title": "Form · Coach notes: lengths, states and where they go",
-      "page": "form"
-    },
-    "Form-Log-Large.dc.html": {
-      "x": 2410,
-      "y": 994,
-      "w": 402,
-      "h": 2058,
-      "title": "Form · Logging a set at 200% text, the whole scroll: the entry first",
-      "page": "form"
-    },
-    "Form-Today-Coach.dc.html": {
-      "x": 2892,
-      "y": 994,
+      "y": 0,
       "w": 402,
       "h": 874,
-      "title": "Form · Today with the coach’s status: the plan folds to one line",
-      "page": "form",
+      "title": "Log a swim",
+      "page": "training",
       "is_interactive": true
     },
-    "Form-Today-375.dc.html": {
+    "Run.dc.html": {
+      "x": 2410,
+      "y": 0,
+      "w": 402,
+      "h": 874,
+      "title": "A run, read back",
+      "page": "training",
+      "is_interactive": true
+    },
+    "Progress.dc.html": {
       "x": 0,
-      "y": 1988,
+      "y": 0,
+      "w": 402,
+      "h": 874,
+      "title": "Progress",
+      "page": "progress",
+      "is_interactive": true
+    },
+    "Calendar.dc.html": {
+      "x": 482,
+      "y": 0,
+      "w": 402,
+      "h": 874,
+      "title": "The calendar",
+      "page": "progress",
+      "is_interactive": true
+    },
+    "Day.dc.html": {
+      "x": 964,
+      "y": 0,
+      "w": 402,
+      "h": 874,
+      "title": "A day: Fri 25 Sept",
+      "page": "progress",
+      "is_interactive": true
+    },
+    "Past-Workout.dc.html": {
+      "x": 1446,
+      "y": 0,
+      "w": 402,
+      "h": 874,
+      "title": "A past workout: Tue 8 Sept",
+      "page": "progress",
+      "is_interactive": true
+    },
+    "Progress-History.dc.html": {
+      "x": 0,
+      "y": 1254,
+      "w": 402,
+      "h": 874,
+      "title": "Progress › History",
+      "page": "progress",
+      "is_interactive": true
+    },
+    "Running.dc.html": {
+      "x": 482,
+      "y": 1254,
+      "w": 402,
+      "h": 874,
+      "title": "Progress › Running",
+      "page": "progress",
+      "is_interactive": true
+    },
+    "Recovery.dc.html": {
+      "x": 964,
+      "y": 1254,
+      "w": 402,
+      "h": 874,
+      "title": "Progress › Recovery",
+      "page": "progress",
+      "is_interactive": true
+    },
+    "Body.dc.html": {
+      "x": 1446,
+      "y": 1254,
+      "w": 402,
+      "h": 874,
+      "title": "Progress › Body",
+      "page": "progress",
+      "is_interactive": true
+    },
+    "Exercise.dc.html": {
+      "x": 1928,
+      "y": 1254,
+      "w": 402,
+      "h": 874,
+      "title": "An exercise, its whole life",
+      "page": "progress",
+      "is_interactive": true
+    },
+    "Food.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 402,
+      "h": 874,
+      "title": "Food",
+      "page": "food",
+      "is_interactive": true
+    },
+    "Food-Over.dc.html": {
+      "x": 482,
+      "y": 0,
+      "w": 402,
+      "h": 874,
+      "title": "Food, over the target",
+      "page": "food",
+      "is_interactive": true
+    },
+    "Dinner.dc.html": {
+      "x": 964,
+      "y": 0,
+      "w": 402,
+      "h": 874,
+      "title": "Adding to dinner",
+      "page": "food",
+      "is_interactive": true
+    },
+    "Portion.dc.html": {
+      "x": 1446,
+      "y": 0,
+      "w": 402,
+      "h": 874,
+      "title": "A portion",
+      "page": "food",
+      "is_interactive": true
+    },
+    "Profile.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 402,
+      "h": 874,
+      "title": "Profile",
+      "page": "profile",
+      "is_interactive": true
+    },
+    "Edit-profile.dc.html": {
+      "x": 482,
+      "y": 0,
+      "w": 402,
+      "h": 874,
+      "title": "Edit profile",
+      "page": "profile",
+      "is_interactive": true
+    },
+    "Appearance.dc.html": {
+      "x": 964,
+      "y": 0,
+      "w": 402,
+      "h": 874,
+      "title": "Appearance",
+      "page": "profile",
+      "is_interactive": true
+    },
+    "Privacy.dc.html": {
+      "x": 1446,
+      "y": 0,
+      "w": 402,
+      "h": 874,
+      "title": "Privacy",
+      "page": "profile",
+      "is_interactive": true
+    },
+    "Delete-account.dc.html": {
+      "x": 1928,
+      "y": 0,
+      "w": 402,
+      "h": 874,
+      "title": "Delete account",
+      "page": "profile",
+      "is_interactive": true
+    },
+    "AI-coach.dc.html": {
+      "x": 0,
+      "y": 1254,
+      "w": 402,
+      "h": 874,
+      "title": "The AI coach",
+      "page": "profile",
+      "is_interactive": true
+    },
+    "Programme-change.dc.html": {
+      "x": 482,
+      "y": 1254,
+      "w": 402,
+      "h": 874,
+      "title": "The coach’s proposed change",
+      "page": "profile",
+      "is_interactive": true
+    },
+    "Friends.dc.html": {
+      "x": 964,
+      "y": 1254,
+      "w": 402,
+      "h": 874,
+      "title": "Friends",
+      "page": "profile",
+      "is_interactive": true
+    },
+    "Gyms.dc.html": {
+      "x": 1446,
+      "y": 1254,
+      "w": 402,
+      "h": 874,
+      "title": "Gyms",
+      "page": "profile",
+      "is_interactive": true
+    },
+    "Gym.dc.html": {
+      "x": 1928,
+      "y": 1254,
+      "w": 402,
+      "h": 874,
+      "title": "A gym and its machines",
+      "page": "profile",
+      "is_interactive": true
+    },
+    "Welcome.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 402,
+      "h": 874,
+      "title": "Welcome",
+      "page": "first-run",
+      "is_interactive": true
+    },
+    "Sports.dc.html": {
+      "x": 482,
+      "y": 0,
+      "w": 402,
+      "h": 874,
+      "title": "Your sports",
+      "page": "first-run",
+      "is_interactive": true
+    },
+    "Gym-step.dc.html": {
+      "x": 964,
+      "y": 0,
+      "w": 402,
+      "h": 874,
+      "title": "Your gym",
+      "page": "first-run",
+      "is_interactive": true
+    },
+    "Machines.dc.html": {
+      "x": 1446,
+      "y": 0,
+      "w": 402,
+      "h": 874,
+      "title": "Its machines",
+      "page": "first-run",
+      "is_interactive": true
+    },
+    "Plan.dc.html": {
+      "x": 1928,
+      "y": 0,
+      "w": 402,
+      "h": 874,
+      "title": "Choose a programme",
+      "page": "first-run",
+      "is_interactive": true
+    },
+    "Today-Dark.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 402,
+      "h": 874,
+      "title": "Today, dark",
+      "page": "sizes",
+      "is_interactive": true
+    },
+    "Workout-Dark.dc.html": {
+      "x": 482,
+      "y": 0,
+      "w": 402,
+      "h": 874,
+      "title": "The workout, dark",
+      "page": "sizes",
+      "is_interactive": true
+    },
+    "Log-Dark.dc.html": {
+      "x": 964,
+      "y": 0,
+      "w": 402,
+      "h": 874,
+      "title": "Logging, dark, RIR chosen",
+      "page": "sizes",
+      "is_interactive": true
+    },
+    "Food-Dark.dc.html": {
+      "x": 1446,
+      "y": 0,
+      "w": 402,
+      "h": 874,
+      "title": "Food, dark",
+      "page": "sizes",
+      "is_interactive": true
+    },
+    "Progress-Dark.dc.html": {
+      "x": 1928,
+      "y": 0,
+      "w": 402,
+      "h": 874,
+      "title": "Progress, dark",
+      "page": "sizes",
+      "is_interactive": true
+    },
+    "Today-375.dc.html": {
+      "x": 0,
+      "y": 1254,
       "w": 375,
       "h": 667,
-      "title": "Form · Today at 375 × 667: no home indicator, the plan one tap away",
-      "page": "form",
+      "title": "Today at 375 × 667",
+      "page": "sizes",
       "is_interactive": true
     },
-    "Form-Log-Pounds-375.dc.html": {
+    "Log-Pounds-375.dc.html": {
       "x": 455,
-      "y": 1988,
+      "y": 1254,
       "w": 375,
       "h": 667,
-      "title": "Form · Logging in pounds at 375 × 667: 140 lb, from the repository’s pounds audit",
-      "page": "form",
+      "title": "Logging in pounds at 375 × 667",
+      "page": "sizes",
       "is_interactive": true
     },
-    "Form-Today-440.dc.html": {
+    "Today-320.dc.html": {
       "x": 910,
-      "y": 1988,
-      "w": 440,
-      "h": 956,
-      "title": "Form · Today at 440 × 956",
-      "page": "form",
-      "is_interactive": true
-    },
-    "Form-Workout-440.dc.html": {
-      "x": 1430,
-      "y": 1988,
-      "w": 440,
-      "h": 956,
-      "title": "Form · The workout at 440 × 956",
-      "page": "form",
-      "is_interactive": true
-    },
-    "Form-Today-320.dc.html": {
-      "x": 0,
-      "y": 4562,
+      "y": 1254,
       "w": 320,
       "h": 568,
-      "title": "Form · Today at 320 × 568: the print gives way, the plan folds",
-      "page": "form",
+      "title": "Today at 320 × 568",
+      "page": "sizes",
       "is_interactive": true
     },
-    "Form-Log-320.dc.html": {
-      "x": 400,
-      "y": 4562,
+    "Log-Pounds-320.dc.html": {
+      "x": 1310,
+      "y": 1254,
       "w": 320,
-      "h": 831,
-      "title": "Form · Logging in pounds at 320 × 568, the whole scroll: steppers stack, RIR takes two rows",
-      "page": "form",
+      "h": 754,
+      "title": "Logging in pounds at 320, the whole scroll",
+      "page": "sizes",
       "is_interactive": true
     },
-    "Form-Food-320.dc.html": {
-      "x": 800,
-      "y": 4562,
+    "Food-320.dc.html": {
+      "x": 1710,
+      "y": 1254,
       "w": 320,
-      "h": 1131,
-      "title": "Form · Food at 320 × 568, the whole scroll: the days scroll, opened at today",
-      "page": "form",
+      "h": 1039,
+      "title": "Food at 320, the whole scroll",
+      "page": "sizes",
       "is_interactive": true
     },
-    "Form-Alphabet.dc.html": {
-      "x": 1200,
-      "y": 4562,
-      "w": 1400,
-      "h": 3470,
-      "title": "Form · The alphabet: how the art grows with the app",
-      "page": "form"
-    },
-    "Form-System.dc.html": {
+    "Today-440.dc.html": {
       "x": 0,
-      "y": 8152,
-      "w": 1846,
-      "h": 6918,
-      "title": "Form · System sheet",
-      "page": "form"
+      "y": 2673,
+      "w": 440,
+      "h": 956,
+      "title": "Today at 440 × 956",
+      "page": "sizes",
+      "is_interactive": true
+    },
+    "Workout-440.dc.html": {
+      "x": 520,
+      "y": 2673,
+      "w": 440,
+      "h": 956,
+      "title": "The workout at 440 × 956",
+      "page": "sizes",
+      "is_interactive": true
+    },
+    "Today-Android.dc.html": {
+      "x": 1040,
+      "y": 2673,
+      "w": 360,
+      "h": 800,
+      "title": "Today on Android, 360 × 800",
+      "page": "sizes",
+      "is_interactive": true
+    },
+    "Log-Android.dc.html": {
+      "x": 1480,
+      "y": 2673,
+      "w": 360,
+      "h": 800,
+      "title": "Logging on Android, 360 × 800",
+      "page": "sizes",
+      "is_interactive": true
+    },
+    "Log-200.dc.html": {
+      "x": 1920,
+      "y": 2673,
+      "w": 402,
+      "h": 1589,
+      "title": "Logging at 200% text, the whole scroll",
+      "page": "sizes",
+      "is_interactive": true
+    },
+    "System.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1600,
+      "h": 6640,
+      "title": "The system",
+      "page": "system"
+    },
+    "Alphabet.dc.html": {
+      "x": 1680,
+      "y": 0,
+      "w": 1400,
+      "h": 3915,
+      "title": "The alphabet",
+      "page": "system"
+    },
+    "Platforms.dc.html": {
+      "x": 3160,
+      "y": 0,
+      "w": 1400,
+      "h": 3405,
+      "title": "iOS and Android",
+      "page": "system"
     }
   },
   "order": [
-    "Form-Today-Light.dc.html",
-    "Form-Workout-Light.dc.html",
-    "Form-Log-Light.dc.html",
-    "Form-Why.dc.html",
-    "Form-Workout-Coach.dc.html",
-    "Form-Progress-Light.dc.html",
-    "Form-Food-Light.dc.html",
-    "Form-About.dc.html",
-    "Form-Today-Dark.dc.html",
-    "Form-Log-Dark.dc.html",
-    "Form-Moment.dc.html",
-    "Form-Moment-Reduced.dc.html",
-    "Form-Coach.dc.html",
-    "Form-Log-Large.dc.html",
-    "Form-Today-Coach.dc.html",
-    "Form-Today-375.dc.html",
-    "Form-Log-Pounds-375.dc.html",
-    "Form-Today-440.dc.html",
-    "Form-Workout-440.dc.html",
-    "Form-Today-320.dc.html",
-    "Form-Log-320.dc.html",
-    "Form-Food-320.dc.html",
-    "Form-Alphabet.dc.html",
-    "Form-System.dc.html"
+    "Main.dc.html",
+    "Today.dc.html",
+    "Today-Coach.dc.html",
+    "Today-More-options.dc.html",
+    "Check-in.dc.html",
+    "Workout.dc.html",
+    "Workout-Superset.dc.html",
+    "Workout-Coach.dc.html",
+    "Add-exercise.dc.html",
+    "Fallback.dc.html",
+    "Log-Warm-ups.dc.html",
+    "Log.dc.html",
+    "Log-Typing.dc.html",
+    "Moment.dc.html",
+    "Moment-Reduced.dc.html",
+    "Why.dc.html",
+    "Technique.dc.html",
+    "History.dc.html",
+    "Superset-Log.dc.html",
+    "Finish.dc.html",
+    "Summary.dc.html",
+    "Offline.dc.html",
+    "Training.dc.html",
+    "Programme-Day.dc.html",
+    "Log-Run.dc.html",
+    "Log-Ride.dc.html",
+    "Log-Swim.dc.html",
+    "Run.dc.html",
+    "Progress.dc.html",
+    "Calendar.dc.html",
+    "Day.dc.html",
+    "Past-Workout.dc.html",
+    "Progress-History.dc.html",
+    "Running.dc.html",
+    "Recovery.dc.html",
+    "Body.dc.html",
+    "Exercise.dc.html",
+    "Food.dc.html",
+    "Food-Over.dc.html",
+    "Dinner.dc.html",
+    "Portion.dc.html",
+    "Profile.dc.html",
+    "Edit-profile.dc.html",
+    "Appearance.dc.html",
+    "Privacy.dc.html",
+    "Delete-account.dc.html",
+    "AI-coach.dc.html",
+    "Programme-change.dc.html",
+    "Friends.dc.html",
+    "Gyms.dc.html",
+    "Gym.dc.html",
+    "Welcome.dc.html",
+    "Sports.dc.html",
+    "Gym-step.dc.html",
+    "Machines.dc.html",
+    "Plan.dc.html",
+    "Today-Dark.dc.html",
+    "Workout-Dark.dc.html",
+    "Log-Dark.dc.html",
+    "Food-Dark.dc.html",
+    "Progress-Dark.dc.html",
+    "Today-375.dc.html",
+    "Log-Pounds-375.dc.html",
+    "Today-320.dc.html",
+    "Log-Pounds-320.dc.html",
+    "Food-320.dc.html",
+    "Today-440.dc.html",
+    "Workout-440.dc.html",
+    "Today-Android.dc.html",
+    "Log-Android.dc.html",
+    "Log-200.dc.html",
+    "System.dc.html",
+    "Alphabet.dc.html",
+    "Platforms.dc.html"
   ],
   "notes": {
-    "form_title": {
+    "readme_0": {
       "x": 0,
-      "y": -300,
-      "text": "Form — the art is your training. Black and white; every colour is printed by what you did",
+      "y": -260,
+      "text": "What changed after your notes, how to read the canvas, and what the critiques found",
       "kind": "title1",
       "maxW": 1848,
-      "page": "form"
+      "page": "readme"
+    },
+    "session_0": {
+      "x": 0,
+      "y": -260,
+      "text": "Today, then the session: a layer over the tabs, from Start to the summary",
+      "kind": "title1",
+      "maxW": 1848,
+      "page": "session"
+    },
+    "session_1": {
+      "x": 0,
+      "y": 994,
+      "text": "The workout",
+      "kind": "title1",
+      "maxW": 1848,
+      "page": "session"
+    },
+    "session_2": {
+      "x": 0,
+      "y": 2248,
+      "text": "Logging a set",
+      "kind": "title1",
+      "maxW": 1848,
+      "page": "session"
+    },
+    "session_3": {
+      "x": 0,
+      "y": 3502,
+      "text": "Finishing",
+      "kind": "title1",
+      "maxW": 1848,
+      "page": "session"
+    },
+    "training_0": {
+      "x": 0,
+      "y": -260,
+      "text": "Training: the programme as prints, and the other sports",
+      "kind": "title1",
+      "maxW": 1848,
+      "page": "training"
+    },
+    "progress_0": {
+      "x": 0,
+      "y": -260,
+      "text": "Progress: one month, every activity of every day",
+      "kind": "title1",
+      "maxW": 1848,
+      "page": "progress"
+    },
+    "progress_1": {
+      "x": 0,
+      "y": 994,
+      "text": "The sections",
+      "kind": "title1",
+      "maxW": 1848,
+      "page": "progress"
+    },
+    "food_0": {
+      "x": 0,
+      "y": -260,
+      "text": "Food: the day’s bowl, filled meal by meal",
+      "kind": "title1",
+      "maxW": 1848,
+      "page": "food"
+    },
+    "profile_0": {
+      "x": 0,
+      "y": -260,
+      "text": "Profile: the person and their settings, the coach, people and places",
+      "kind": "title1",
+      "maxW": 1848,
+      "page": "profile"
+    },
+    "profile_1": {
+      "x": 0,
+      "y": 994,
+      "text": "The coach, people and places",
+      "kind": "title1",
+      "maxW": 1848,
+      "page": "profile"
+    },
+    "first-run_0": {
+      "x": 0,
+      "y": -260,
+      "text": "The first run: five short steps",
+      "kind": "title1",
+      "maxW": 1848,
+      "page": "first-run"
+    },
+    "sizes_0": {
+      "x": 0,
+      "y": -260,
+      "text": "The same screens dark, small, large, on Android and at 200% text",
+      "kind": "title1",
+      "maxW": 1848,
+      "page": "sizes"
+    },
+    "sizes_1": {
+      "x": 0,
+      "y": 994,
+      "text": "Small phones",
+      "kind": "title1",
+      "maxW": 1848,
+      "page": "sizes"
+    },
+    "sizes_2": {
+      "x": 0,
+      "y": 2413,
+      "text": "Large, Android, 200% text",
+      "kind": "title1",
+      "maxW": 1848,
+      "page": "sizes"
+    },
+    "system_0": {
+      "x": 0,
+      "y": -260,
+      "text": "The system, the alphabet, and iOS and Android",
+      "kind": "title1",
+      "maxW": 1848,
+      "page": "system"
     }
   },
   "designSystems": []
