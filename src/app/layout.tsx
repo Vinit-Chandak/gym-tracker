@@ -1,12 +1,28 @@
 import type { Metadata, Viewport } from "next";
+import { Atkinson_Hyperlegible_Next, Jost } from "next/font/google";
 import { AppearanceSync } from "@/components/shell/appearance-sync";
 import { PwaProvider } from "@/components/shell/pwa-provider";
 import { NavigationHistory } from "@/components/shell/back-link";
 
 import { APP_DESCRIPTION, APP_NAME } from "@/lib/app";
 import { APPEARANCE_INIT_SCRIPT, CANVAS_DARK, CANVAS_LIGHT } from "@/lib/appearance";
+import { PLATFORM_INIT_SCRIPT } from "@/lib/platform";
+import { cn } from "@/lib/utils";
 
 import "./globals.css";
+
+/*
+ * The two voices (DESIGN.md, Typography): Jost for titles and figures, Atkinson Hyperlegible
+ * Next for every word read. Both are variable and under the SIL Open Font License, so the
+ * native apps can embed the same files. next/font serves them from this origin, so the
+ * installed app never asks Google for them, and sizes the fallback to match while they load.
+ */
+const jost = Jost({ subsets: ["latin"], variable: "--font-jost", display: "swap" });
+const atkinson = Atkinson_Hyperlegible_Next({
+  subsets: ["latin"],
+  variable: "--font-atkinson",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   applicationName: APP_NAME,
@@ -19,9 +35,9 @@ export const metadata: Metadata = {
      * bottom of the screen: it lifts the web view under the status bar without making it any
      * taller, so a 402x874 iPhone ran the whole app in 402x812 and left the navigation island
      * floating 62px — one status bar — clear of the bottom edge, over a strip of manifest
-     * colour no page could reach. It also paints the clock white whatever is under it, which
-     * on Form's light canvas is white on cream. `default` hands the status bar back to iOS,
-     * which tints it with the theme-colour this app already keeps in step with the palette.
+     * colour no page could reach. It also paints the clock white whatever is under it.
+     * `default` hands the status bar back to iOS, which tints it with the theme-colour this
+     * app already keeps in step with the palette.
      */
     statusBarStyle: "default",
     title: APP_NAME,
@@ -51,19 +67,23 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    // The initializer writes data-overload-mode before React hydrates. Suppression is
-    // scoped to this element so a real mismatch anywhere else still surfaces.
+    // The initializers write data-overload-mode and data-overload-platform before React
+    // hydrates. Suppression is scoped to this element so a real mismatch anywhere else still
+    // surfaces.
     <html
       lang="en"
-      className="h-full"
-      data-overload-design="form"
+      className={cn("h-full", jost.variable, atkinson.variable)}
+      data-overload-design="form-v2"
       suppressHydrationWarning
-      // color-scheme now comes from the theme files, per mode, so native controls follow.
+      // color-scheme comes from the theme files, per mode, so native controls follow.
     >
       <body className="flex min-h-full flex-col">
         {/* First thing in the body: it runs while the rest is still being parsed, so an
-            explicit Light or Dark choice is in place before anything is painted. */}
-        <script dangerouslySetInnerHTML={{ __html: APPEARANCE_INIT_SCRIPT }} />
+            explicit Light or Dark choice, and Android's larger targets, are in place before
+            anything is painted. */}
+        <script
+          dangerouslySetInnerHTML={{ __html: APPEARANCE_INIT_SCRIPT + PLATFORM_INIT_SCRIPT }}
+        />
         <AppearanceSync />
         <NavigationHistory />
         <PwaProvider>{children}</PwaProvider>

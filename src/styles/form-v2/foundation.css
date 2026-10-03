@@ -1,0 +1,369 @@
+/*
+ * Form v2: the scale, the type ramp, the radii, motion, and the light/dark selection.
+ * Imported after palette.css from src/app/globals.css. Values are DESIGN.md's; components
+ * read the semantic --ov-* names, and the per-mode palette inputs stay private to this pair.
+ *
+ * Every screen is laid out from its device, so lengths are points (px). Type is the
+ * exception: it follows the reader's text size, which the app's audits drive through the root
+ * font size. Words double at 200% text; Jost's figures and titles grow by less (by half, a
+ * quarter for the log, three quarters for titles), as the 200% logging board draws them, so a
+ * figure still fits the column it stands in. Controls grow by 20 pt at 200% to fit their text.
+ */
+:where([data-overload-design="form-v2"]) {
+  /* The two voices: Jost for titles and figures, Atkinson Hyperlegible Next for every word
+     read. The --font-* names are next/font's, set on the document in layout.tsx. */
+  --ov-font-display: var(--font-jost), system-ui, sans-serif;
+  --ov-font-text: var(--font-atkinson), system-ui, sans-serif;
+  --ov-font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  --ov-figures: "tnum" 1, "lnum" 1;
+  --ov-title-tracking: -0.012em;
+
+  /* The type ramp, at 100% text. size = P·(1 − k) px + P·k / 16 rem grows by k at 200%. */
+  --ov-type-title: calc(9px + 1.6875rem); /* 36, k 0.75 */
+  --ov-type-display: calc(8.5px + 1.59375rem); /* 34, k 0.75 */
+  --ov-type-sheet-title: calc(7px + 1.3125rem); /* 28, k 0.75 */
+  --ov-type-figure-xl: calc(28px + 1.75rem); /* 56, k 0.5 */
+  --ov-type-entry: calc(21px + 1.3125rem); /* 42, k 0.5 */
+  --ov-type-log: calc(24px + 0.5rem); /* 32, k 0.25 */
+  --ov-type-figure-l: calc(13px + 0.8125rem); /* 26, k 0.5 */
+  --ov-type-figure: calc(10px + 0.625rem); /* 20, k 0.5 */
+  --ov-type-figure-s: 1.0625rem; /* 17, k 1: the rest pill doubles with its words */
+  --ov-type-heading: 1.0625rem; /* 17 */
+  --ov-type-body: 1rem; /* 16 */
+  --ov-type-meta: 0.9375rem; /* 15 */
+  --ov-type-meta-small: 0.875rem; /* 14 */
+  --ov-type-caption: 0.8125rem; /* 13 */
+  --ov-type-button: 1.0625rem; /* 17 */
+  --ov-type-tab: 0.8125rem; /* 13; 12 under 360 pt */
+  --ov-type-print-label: 0.75rem; /* 12 */
+  /* The Floors Rule: nothing typed or entered is under 16 px. */
+  --ov-type-input: max(16px, 1rem);
+
+  /* Spacing, in points. */
+  --ov-space-4: 4px;
+  --ov-space-6: 6px;
+  --ov-space-8: 8px;
+  --ov-space-10: 10px;
+  --ov-space-12: 12px;
+  --ov-space-14: 14px;
+  --ov-space-16: 16px;
+  --ov-space-20: 20px;
+  --ov-space-24: 24px;
+  /* Gutters are 20 pt, 16 under 360 pt wide. */
+  --ov-gutter: 20px;
+  /* A list that mixes sports gives its marks this column; names start 12 pt after it. */
+  --ov-mark-column: 20px;
+
+  /* What a control adds at larger text: nothing at 100%, 20 pt at 200%. */
+  --ov-grow: max(0px, calc(1.25rem - 20px));
+  /* Every target is 44 pt at least (48 dp on Android, below), and grows with its text. */
+  --ov-target: calc(44px + var(--ov-grow));
+  --ov-target-header: calc(44px + var(--ov-grow) * 0.6);
+  --ov-button: calc(56px + var(--ov-grow));
+  --ov-button-short: calc(44px + var(--ov-grow));
+  --ov-tab-bar: 64px;
+
+  /* Rounded by role; prints are cut square. */
+  --ov-radius-print: 0px;
+  --ov-radius-indicator: 2px;
+  --ov-radius-checkbox: 6px;
+  --ov-radius-tag: 8px;
+  --ov-radius-row: 10px;
+  --ov-radius-segment: 11px;
+  --ov-radius-key: 12px;
+  --ov-radius-control: 14px;
+  --ov-radius-card: 16px;
+  --ov-radius-rest-pill: 18px;
+  --ov-radius-sheet: 24px;
+  --ov-radius-full: 9999px;
+
+  /* Motion: a press answers a touch, a set lands when the server has it, words swap in place. */
+  --ov-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ov-duration-press: 120ms;
+  --ov-duration-swap-out: 80ms;
+  --ov-duration-swap-in: 120ms;
+  --ov-duration-write: 220ms;
+  --ov-duration-scrim: 200ms;
+  /* With reduced motion nothing moves: states change in place, or fade in 150 ms. */
+  --ov-duration-fade: 150ms;
+  --ov-press-scale: 0.97;
+
+  --ov-z-content: 0;
+  --ov-z-nav: 40;
+  --ov-z-timer: 45;
+  --ov-z-notice: 50;
+  --ov-z-dialog: 100;
+
+  /* Pigments that are the same in both modes. */
+  --ov-ultra: #2b40c8;
+  --ov-on-ultra: #ffffff;
+  --ov-on-ultra-2: #dde1fb;
+  --ov-print-ochre: #c98712;
+  --ov-print-straw: #f7d47e;
+  --ov-on-food: #16171b;
+
+  color-scheme: light;
+  --ov-ground: var(--ov-light-ground);
+  --ov-surface: var(--ov-light-surface);
+  --ov-surface-2: var(--ov-light-surface-2);
+  --ov-ink: var(--ov-light-ink);
+  --ov-ink-2: var(--ov-light-ink-2);
+  --ov-control: var(--ov-light-control);
+  --ov-hair: var(--ov-light-hair);
+  --ov-on-ink: var(--ov-light-on-ink);
+  --ov-on-ink-2: var(--ov-light-on-ink-2);
+  --ov-scrim: var(--ov-light-scrim);
+  --ov-ultra-t: var(--ov-light-ultra-t);
+  --ov-mark-warm-up: var(--ov-light-mark-warm-up);
+  --ov-shadow-floating: var(--ov-light-shadow-floating);
+  --ov-paper: var(--ov-light-paper);
+  --ov-print-ink: var(--ov-light-print-ink);
+  --ov-print-label: var(--ov-light-print-label);
+  --ov-print-dot: var(--ov-light-print-dot);
+  --ov-print-warm-up: var(--ov-light-print-warm-up);
+  --ov-print-strength: var(--ov-light-print-strength);
+  --ov-print-run: var(--ov-light-print-run);
+  --ov-print-ride: var(--ov-light-print-ride);
+  --ov-print-swim: var(--ov-light-print-swim);
+  --ov-print-mobility: var(--ov-light-print-mobility);
+  --ov-print-food: var(--ov-light-print-food);
+  --ov-print-play: var(--ov-light-print-play);
+  --ov-print-strength-todo: var(--ov-light-print-strength-todo);
+  --ov-print-run-todo: var(--ov-light-print-run-todo);
+  --ov-print-ride-todo: var(--ov-light-print-ride-todo);
+  --ov-print-swim-todo: var(--ov-light-print-swim-todo);
+  --ov-print-mobility-todo: var(--ov-light-print-mobility-todo);
+  --ov-print-food-todo: var(--ov-light-print-food-todo);
+  --ov-print-play-todo: var(--ov-light-print-play-todo);
+  --ov-grain-blend: var(--ov-light-grain-blend);
+  --ov-grain-multiply: var(--ov-light-grain-multiply);
+  --ov-grain-screen: var(--ov-light-grain-screen);
+
+  /*
+   * Form's names, still read by the screens that have no Form v2 board, now resolved from
+   * Form v2 (decided 3 October 2026: the whole app takes the new palette and type at once).
+   * The Black-and-White Rule makes every action, status and chart ink: a pigment only ever
+   * means a family of sport.
+   */
+  --ov-canvas: var(--ov-ground);
+  --ov-surface-raised: var(--ov-surface-2);
+  --ov-ink-muted: var(--ov-ink-2);
+  --ov-ink-subtle: var(--ov-ink-2);
+  --ov-ink-ghost: var(--ov-control);
+  --ov-line: var(--ov-hair);
+  --ov-line-strong: var(--ov-control);
+  --ov-accent: var(--ov-ink);
+  --ov-accent-strong: var(--ov-ink);
+  --ov-on-accent: var(--ov-on-ink);
+  --ov-accent-soft: var(--ov-surface);
+  --ov-success: var(--ov-ink);
+  --ov-warning: var(--ov-ink);
+  --ov-danger: var(--ov-ink);
+  --ov-over: var(--ov-ink);
+  --ov-focus: var(--ov-ink);
+  /* Charts are ink: the latest reading in ink, the rest in control. */
+  --ov-series-1: var(--ov-ink);
+  --ov-series-2: var(--ov-control);
+  --ov-series-3: var(--ov-ink-2);
+  --ov-series-4: var(--ov-on-ink-2);
+  /* Working sets on the body map, none to 15+, as greys from the palette. */
+  --ov-volume-0: var(--ov-surface-2);
+  --ov-volume-1: var(--ov-on-ink-2);
+  --ov-volume-2: var(--ov-control);
+  --ov-volume-3: var(--ov-ink-2);
+  --ov-volume-4: var(--ov-ink);
+  --ov-backdrop: var(--ov-scrim);
+  --ov-nav-island: var(--ov-ground);
+  --ov-nav-shadow: none;
+  /* A superset is a bracket in ink, not a hue. */
+  --ov-group-1: var(--ov-ink);
+  --ov-group-2: var(--ov-ink);
+  --ov-group-3: var(--ov-ink);
+  --ov-group-4: var(--ov-ink);
+  --ov-group-5: var(--ov-ink);
+  --ov-group-6: var(--ov-ink);
+  --ov-group-7: var(--ov-ink);
+  --ov-group-8: var(--ov-ink);
+  /* Avatars lose their hue: a grey disc and ink initials. */
+  --ov-avatar-surface-l: 0.95;
+  --ov-avatar-surface-c: 0;
+  --ov-avatar-ink-l: 0.25;
+  --ov-avatar-ink-c: 0;
+
+  --ov-font-body: var(--ov-font-text);
+  --ov-font-heading: var(--ov-font-display);
+  --ov-weight-heading: 700;
+  --ov-heading-tracking: var(--ov-title-tracking);
+  --ov-text-label: var(--ov-type-caption);
+  --ov-text-small: var(--ov-type-meta-small);
+  --ov-text-body: var(--ov-type-body);
+  --ov-text-input: var(--ov-type-input);
+  --ov-text-title: var(--ov-type-sheet-title);
+  --ov-text-section: var(--ov-type-heading);
+  --ov-leading-body: 1.45;
+  --ov-leading-heading: 1.05;
+  --ov-radius-island: var(--ov-radius-card);
+
+  /* Form's rem-based layout names, kept for the screens that still use them. */
+  --ov-space-1: 0.25rem;
+  --ov-space-2: 0.375rem;
+  --ov-space-3: 0.5rem;
+  --ov-space-5: 1rem;
+  --ov-space-7: 1.5rem;
+  --ov-page-gutter: var(--ov-gutter);
+  --ov-panel-padding: 14px;
+  --ov-section-gap: 24px;
+  --ov-row-gap: 0.375rem;
+  --ov-control-height: 2.75rem;
+  --ov-target-min: max(44px, 2.75rem);
+  --ov-icon-control: 1.25rem;
+  --ov-icon-navigation: 1.5rem;
+  --ov-icon-row: 1.5rem;
+  --ov-icon-feature: 1.75rem;
+  --ov-content-max: 32rem;
+  --ov-nav-height: var(--ov-tab-bar);
+  --ov-set-columns: 2.75rem minmax(4rem, 1.25fr) minmax(3.25rem, 1fr) minmax(2.75rem, 0.85fr)
+    2.75rem;
+  --ov-duration-instant: 0ms;
+  --ov-duration-feedback: var(--ov-duration-press);
+  --ov-duration-sheet: 180ms;
+  --ov-ease-standard: var(--ov-ease-out);
+}
+
+/* Under 360 pt wide: 16-pt gutters, 32-px titles, 12-px tab labels. */
+@media (width < 360px) {
+  :where([data-overload-design="form-v2"]) {
+    --ov-gutter: 16px;
+    --ov-type-title: calc(8px + 1.5rem); /* 32, k 0.75 */
+    --ov-type-tab: 0.75rem; /* 12 */
+  }
+}
+
+/* Android's targets are 48 dp; the platform is read before the first paint (layout.tsx). */
+:where([data-overload-design="form-v2"][data-overload-platform="android"]) {
+  --ov-target: calc(48px + var(--ov-grow));
+  --ov-target-header: calc(48px + var(--ov-grow) * 0.6);
+}
+
+/* System, including an absent or invalid preference; an explicit Light or Dark is excluded. */
+@media (prefers-color-scheme: dark) {
+  :where(
+    [data-overload-design="form-v2"]:not([data-overload-mode="light"]):not(
+        [data-overload-mode="dark"]
+      )
+  ) {
+    color-scheme: dark;
+    --ov-ground: var(--ov-dark-ground);
+    --ov-surface: var(--ov-dark-surface);
+    --ov-surface-2: var(--ov-dark-surface-2);
+    --ov-ink: var(--ov-dark-ink);
+    --ov-ink-2: var(--ov-dark-ink-2);
+    --ov-control: var(--ov-dark-control);
+    --ov-hair: var(--ov-dark-hair);
+    --ov-on-ink: var(--ov-dark-on-ink);
+    --ov-on-ink-2: var(--ov-dark-on-ink-2);
+    --ov-scrim: var(--ov-dark-scrim);
+    --ov-ultra-t: var(--ov-dark-ultra-t);
+    --ov-mark-warm-up: var(--ov-dark-mark-warm-up);
+    --ov-shadow-floating: var(--ov-dark-shadow-floating);
+    --ov-paper: var(--ov-dark-paper);
+    --ov-print-ink: var(--ov-dark-print-ink);
+    --ov-print-label: var(--ov-dark-print-label);
+    --ov-print-dot: var(--ov-dark-print-dot);
+    --ov-print-warm-up: var(--ov-dark-print-warm-up);
+    --ov-print-strength: var(--ov-dark-print-strength);
+    --ov-print-run: var(--ov-dark-print-run);
+    --ov-print-ride: var(--ov-dark-print-ride);
+    --ov-print-swim: var(--ov-dark-print-swim);
+    --ov-print-mobility: var(--ov-dark-print-mobility);
+    --ov-print-food: var(--ov-dark-print-food);
+    --ov-print-play: var(--ov-dark-print-play);
+    --ov-print-strength-todo: var(--ov-dark-print-strength-todo);
+    --ov-print-run-todo: var(--ov-dark-print-run-todo);
+    --ov-print-ride-todo: var(--ov-dark-print-ride-todo);
+    --ov-print-swim-todo: var(--ov-dark-print-swim-todo);
+    --ov-print-mobility-todo: var(--ov-dark-print-mobility-todo);
+    --ov-print-food-todo: var(--ov-dark-print-food-todo);
+    --ov-print-play-todo: var(--ov-dark-print-play-todo);
+    --ov-grain-blend: var(--ov-dark-grain-blend);
+    --ov-grain-multiply: var(--ov-dark-grain-multiply);
+    --ov-grain-screen: var(--ov-dark-grain-screen);
+    --ov-avatar-surface-l: 0.3;
+    --ov-avatar-ink-l: 0.92;
+  }
+}
+
+:where([data-overload-design="form-v2"][data-overload-mode="dark"]) {
+  color-scheme: dark;
+  --ov-ground: var(--ov-dark-ground);
+  --ov-surface: var(--ov-dark-surface);
+  --ov-surface-2: var(--ov-dark-surface-2);
+  --ov-ink: var(--ov-dark-ink);
+  --ov-ink-2: var(--ov-dark-ink-2);
+  --ov-control: var(--ov-dark-control);
+  --ov-hair: var(--ov-dark-hair);
+  --ov-on-ink: var(--ov-dark-on-ink);
+  --ov-on-ink-2: var(--ov-dark-on-ink-2);
+  --ov-scrim: var(--ov-dark-scrim);
+  --ov-ultra-t: var(--ov-dark-ultra-t);
+  --ov-mark-warm-up: var(--ov-dark-mark-warm-up);
+  --ov-shadow-floating: var(--ov-dark-shadow-floating);
+  --ov-paper: var(--ov-dark-paper);
+  --ov-print-ink: var(--ov-dark-print-ink);
+  --ov-print-label: var(--ov-dark-print-label);
+  --ov-print-dot: var(--ov-dark-print-dot);
+  --ov-print-warm-up: var(--ov-dark-print-warm-up);
+  --ov-print-strength: var(--ov-dark-print-strength);
+  --ov-print-run: var(--ov-dark-print-run);
+  --ov-print-ride: var(--ov-dark-print-ride);
+  --ov-print-swim: var(--ov-dark-print-swim);
+  --ov-print-mobility: var(--ov-dark-print-mobility);
+  --ov-print-food: var(--ov-dark-print-food);
+  --ov-print-play: var(--ov-dark-print-play);
+  --ov-print-strength-todo: var(--ov-dark-print-strength-todo);
+  --ov-print-run-todo: var(--ov-dark-print-run-todo);
+  --ov-print-ride-todo: var(--ov-dark-print-ride-todo);
+  --ov-print-swim-todo: var(--ov-dark-print-swim-todo);
+  --ov-print-mobility-todo: var(--ov-dark-print-mobility-todo);
+  --ov-print-food-todo: var(--ov-dark-print-food-todo);
+  --ov-print-play-todo: var(--ov-dark-print-play-todo);
+  --ov-grain-blend: var(--ov-dark-grain-blend);
+  --ov-grain-multiply: var(--ov-dark-grain-multiply);
+  --ov-grain-screen: var(--ov-dark-grain-screen);
+  --ov-avatar-surface-l: 0.3;
+  --ov-avatar-ink-l: 0.92;
+}
+
+/* With reduced motion nothing moves: a press does not scale, a set appears, a sheet fades. */
+@media (prefers-reduced-motion: reduce) {
+  :where([data-overload-design="form-v2"]) {
+    --ov-duration-press: 0ms;
+    --ov-duration-write: 0ms;
+    --ov-duration-swap-out: 0ms;
+    --ov-duration-swap-in: var(--ov-duration-fade);
+    --ov-duration-sheet: 0ms;
+    --ov-press-scale: 1;
+  }
+}
+
+/* Equal, low selector specificity: these system colours win in every mode. */
+@media (forced-colors: active) {
+  :where([data-overload-design="form-v2"]) {
+    --ov-ground: Canvas;
+    --ov-surface: Canvas;
+    --ov-surface-2: Canvas;
+    --ov-ink: CanvasText;
+    --ov-ink-2: CanvasText;
+    --ov-control: ButtonText;
+    --ov-hair: GrayText;
+    --ov-on-ink: HighlightText;
+    --ov-on-ink-2: HighlightText;
+    --ov-accent: Highlight;
+    --ov-accent-strong: Highlight;
+    --ov-on-accent: HighlightText;
+    --ov-focus: Highlight;
+    --ov-series-2: LinkText;
+    --ov-volume-3: Highlight;
+    --ov-volume-4: Highlight;
+  }
+}

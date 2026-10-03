@@ -1,18 +1,71 @@
 @import "tailwindcss" source(none);
-/* Foundation first: it declares the semantic --ov-* names form.css fills in. */
-@import "../styles/form/foundation.css";
-@import "../styles/form/form.css";
+/* The palettes first: foundation.css picks the light or dark set from them. */
+@import "../styles/form-v2/palette.css";
+@import "../styles/form-v2/foundation.css";
 @source "../";
 
 /*
- * Form design tokens, exposed under the Tailwind names the app already uses.
+ * Form v2's tokens (DESIGN.md), exposed as Tailwind names.
  *
- * `inline` matters: it makes `bg-canvas` compile to `var(--ov-canvas)` rather than to a
- * frozen copy of whatever `--ov-canvas` happened to be at build time. The light/dark
+ * `inline` matters: it makes `bg-ground` compile to `var(--ov-ground)` rather than to a
+ * frozen copy of whatever `--ov-ground` happened to be at build time. The light/dark
  * choice then happens where the utility is used, so one component tree serves both modes.
  * Runtime values stay in the imported files; never nest a @theme block under a mode.
  */
 @theme inline {
+  /* The interface: ink on ground. */
+  --color-ground: var(--ov-ground);
+  --color-surface-2: var(--ov-surface-2);
+  --color-ink-2: var(--ov-ink-2);
+  --color-control: var(--ov-control);
+  --color-hair: var(--ov-hair);
+  --color-on-ink: var(--ov-on-ink);
+  --color-on-ink-2: var(--ov-on-ink-2);
+  --color-scrim: var(--ov-scrim);
+  --color-ultra: var(--ov-ultra);
+  --color-on-ultra: var(--ov-on-ultra);
+  --color-ultra-t: var(--ov-ultra-t);
+  --color-mark-warm-up: var(--ov-mark-warm-up);
+
+  /* The art: paper, its ink, and the pigments, full (done) and thinned (to do). */
+  --color-paper: var(--ov-paper);
+  --color-print-ink: var(--ov-print-ink);
+  --color-print-label: var(--ov-print-label);
+  --color-print-dot: var(--ov-print-dot);
+  --color-print-warm-up: var(--ov-print-warm-up);
+  --color-print-strength: var(--ov-print-strength);
+  --color-print-run: var(--ov-print-run);
+  --color-print-ride: var(--ov-print-ride);
+  --color-print-swim: var(--ov-print-swim);
+  --color-print-mobility: var(--ov-print-mobility);
+  --color-print-food: var(--ov-print-food);
+  --color-print-play: var(--ov-print-play);
+  --color-print-strength-todo: var(--ov-print-strength-todo);
+  --color-print-run-todo: var(--ov-print-run-todo);
+  --color-print-ride-todo: var(--ov-print-ride-todo);
+  --color-print-swim-todo: var(--ov-print-swim-todo);
+  --color-print-mobility-todo: var(--ov-print-mobility-todo);
+  --color-print-food-todo: var(--ov-print-food-todo);
+  --color-print-play-todo: var(--ov-print-play-todo);
+  --color-print-ochre: var(--ov-print-ochre);
+  --color-print-straw: var(--ov-print-straw);
+  --color-on-food: var(--ov-on-food);
+
+  --font-display: var(--ov-font-display);
+  --font-text: var(--ov-font-text);
+
+  --radius-print: var(--ov-radius-print);
+  --radius-indicator: var(--ov-radius-indicator);
+  --radius-checkbox: var(--ov-radius-checkbox);
+  --radius-tag: var(--ov-radius-tag);
+  --radius-row: var(--ov-radius-row);
+  --radius-segment: var(--ov-radius-segment);
+  --radius-key: var(--ov-radius-key);
+  --radius-rest-pill: var(--ov-radius-rest-pill);
+
+  --shadow-floating: var(--ov-shadow-floating);
+
+  /* Form's names, which the screens without a Form v2 board still use (foundation.css). */
   --color-canvas: var(--ov-canvas);
   --color-surface: var(--ov-surface);
   --color-surface-raised: var(--ov-surface-raised);
@@ -63,12 +116,139 @@
   --radius-sheet: var(--ov-radius-sheet);
 
   --text-xs: var(--ov-text-label);
+  --text-xs--line-height: 1.3;
   --text-sm: var(--ov-text-small);
+  --text-sm--line-height: 1.35;
   --text-base: var(--ov-text-body);
+  --text-base--line-height: 1.45;
   --text-lg: var(--ov-text-section);
-  --text-lg--line-height: var(--ov-leading-heading);
+  --text-lg--line-height: 1.3;
   --text-xl: var(--ov-text-title);
   --text-xl--line-height: var(--ov-leading-heading);
+  --text-2xl: var(--ov-type-display);
+  --text-2xl--line-height: var(--ov-leading-heading);
+}
+
+/*
+ * The type ramp's roles (DESIGN.md, Typography). Jost carries titles and figures, tabular and
+ * lining; Atkinson Hyperlegible Next carries every word read. A role sets the whole voice, so a
+ * screen names the role rather than a size, a weight and a family.
+ */
+@utility type-title {
+  font-family: var(--ov-font-display);
+  font-size: var(--ov-type-title);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: var(--ov-title-tracking);
+}
+@utility type-display {
+  font-family: var(--ov-font-display);
+  font-size: var(--ov-type-display);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: var(--ov-title-tracking);
+}
+@utility type-sheet-title {
+  font-family: var(--ov-font-display);
+  font-size: var(--ov-type-sheet-title);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: var(--ov-title-tracking);
+}
+@utility type-figure-xl {
+  font-family: var(--ov-font-display);
+  font-size: var(--ov-type-figure-xl);
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+@utility type-entry {
+  font-family: var(--ov-font-display);
+  font-size: var(--ov-type-entry);
+  font-weight: 600;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+@utility type-log {
+  font-family: var(--ov-font-display);
+  font-size: var(--ov-type-log);
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+@utility type-figure-l {
+  font-family: var(--ov-font-display);
+  font-size: var(--ov-type-figure-l);
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+@utility type-figure {
+  font-family: var(--ov-font-display);
+  font-size: var(--ov-type-figure);
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+@utility type-figure-s {
+  font-family: var(--ov-font-display);
+  font-size: var(--ov-type-figure-s);
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+@utility type-heading {
+  font-family: var(--ov-font-text);
+  font-size: var(--ov-type-heading);
+  font-weight: 700;
+  line-height: 1.3;
+}
+@utility type-body {
+  font-family: var(--ov-font-text);
+  font-size: var(--ov-type-body);
+  font-weight: 500;
+  line-height: 1.45;
+}
+@utility type-meta {
+  font-family: var(--ov-font-text);
+  font-size: var(--ov-type-meta);
+  font-weight: 500;
+  line-height: 1.4;
+}
+@utility type-meta-small {
+  font-family: var(--ov-font-text);
+  font-size: var(--ov-type-meta-small);
+  font-weight: 500;
+  line-height: 1.35;
+}
+@utility type-caption {
+  font-family: var(--ov-font-text);
+  font-size: var(--ov-type-caption);
+  font-weight: 700;
+  line-height: 1.3;
+}
+@utility type-button {
+  font-family: var(--ov-font-text);
+  font-size: var(--ov-type-button);
+  font-weight: 700;
+  line-height: 1;
+}
+@utility type-tab {
+  font-family: var(--ov-font-text);
+  font-size: var(--ov-type-tab);
+  font-weight: 600;
+  line-height: 1;
+}
+@utility type-print-label {
+  font-family: var(--ov-font-text);
+  font-size: var(--ov-type-print-label);
+  font-weight: 700;
+  line-height: 1;
+}
+/* A figure inside words keeps Jost's tabular lining digits without the role's size. */
+@utility figures {
+  font-family: var(--ov-font-display);
+  font-variant-numeric: tabular-nums lining-nums;
 }
 
 /*
@@ -104,9 +284,10 @@
   body {
     background: var(--ov-canvas);
     color: var(--ov-ink);
-    font-family: var(--ov-font-body);
-    font-size: var(--ov-text-body);
-    line-height: var(--ov-leading-body);
+    font-family: var(--ov-font-text);
+    font-size: var(--ov-type-body);
+    font-weight: 500;
+    line-height: 1.45;
     /* Stop the rubber-band bounce in standalone (installed) mode. */
     overscroll-behavior-y: none;
     -webkit-tap-highlight-color: transparent;
@@ -114,13 +295,24 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
-  h1,
+  /* A page's name is a title in Jost; every other heading is a word read, in Atkinson. */
+  h1 {
+    font-family: var(--ov-font-display);
+    font-weight: 700;
+    letter-spacing: var(--ov-title-tracking);
+    line-height: var(--ov-leading-heading);
+  }
+
   h2,
   h3 {
-    font-family: var(--ov-font-heading);
-    font-weight: var(--ov-weight-heading);
-    letter-spacing: var(--ov-heading-tracking);
-    line-height: var(--ov-leading-heading);
+    font-weight: 700;
+    line-height: 1.3;
+  }
+
+  /* Selected text is ink, in both modes: a pigment never marks a selection. */
+  ::selection {
+    background: var(--ov-ink);
+    color: var(--ov-on-ink);
   }
 
   a,
@@ -130,9 +322,23 @@
     touch-action: manipulation;
   }
 
+  /*
+   * Every control answers a press: it scales to 0.97 in 120 ms (none with reduced motion).
+   * The individual `scale` property, so a control's own transform is left alone, and
+   * zero-specificity selectors, so a component that wants something else simply says so.
+   */
+  :where(a, button, summary, [role="button"], [role="tab"]) {
+    transition: scale var(--ov-duration-press) var(--ov-ease-out);
+  }
+  :where(a, button, summary, [role="button"], [role="tab"]):where(:active):where(:not(:disabled)) {
+    scale: var(--ov-press-scale);
+  }
+
+  /* Focus: a 3-px ink outline at a 2-px offset, ringed in ground so it shows on ink. */
   :focus-visible {
-    outline: 2px solid var(--ov-focus);
-    outline-offset: 3px;
+    outline: 3px solid var(--ov-focus);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 2px var(--ov-ground);
   }
 
   input,
