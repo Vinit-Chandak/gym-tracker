@@ -29,6 +29,125 @@
   margin-top: calc((1lh - 8px - 0.5rem) / 2);
 }
 
+/* ---------- a screen's opening ---------- */
+/* A destination: its title and at most one action, 52 pt from 4 under the top. */
+.page-header-top {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 4px;
+}
+/* The action reaches 10 pt into the gutter, so its glyph stands on the content's edge. */
+.page-header-top > .page-header-action:has(> button:only-child, > a:only-child) {
+  margin-right: -10px;
+}
+/* A nested screen: the way back, named, on a 48-pt bar, then the title under it. */
+.page-header-bar {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  gap: 6px;
+  margin: 0 -12px;
+}
+.page-header-bar > .page-header-action {
+  margin-left: auto;
+  padding-right: 2px;
+}
+.page-header-action {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+}
+.back-link {
+  display: flex;
+  min-width: 0;
+  min-height: var(--ov-target-header);
+  flex-shrink: 1;
+  align-items: center;
+  gap: 2px;
+  padding: 0 8px 0 4px;
+  border-radius: var(--ov-radius-control);
+  font-size: var(--ov-type-heading);
+  font-weight: 700;
+}
+.back-link > svg {
+  flex-shrink: 0;
+}
+.back-link-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- a screen's sections, its filters, a sheet's rows ---------- */
+/* One button naming the section you are in, on surface; the range it shows beside it. */
+.section-select {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+.section-select-button {
+  display: inline-flex;
+  min-width: 0;
+  min-height: var(--ov-target);
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px 0 14px;
+  border-radius: var(--ov-radius-control);
+  background: var(--ov-surface);
+  font-size: var(--ov-type-body);
+  font-weight: 700;
+  text-align: left;
+}
+.section-select-button > svg {
+  flex-shrink: 0;
+}
+/* The funnel, a 44-pt target; a count of the filters set rides on its shoulder. */
+.filter-button {
+  position: relative;
+  display: grid;
+  width: var(--ov-target);
+  height: var(--ov-target);
+  flex-shrink: 0;
+  place-items: center;
+}
+.filter-count {
+  position: absolute;
+  top: 4px;
+  right: 2px;
+  display: grid;
+  min-width: calc(18px + var(--ov-grow) * 0.5);
+  height: calc(18px + var(--ov-grow) * 0.5);
+  place-items: center;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--ov-ink);
+  color: var(--ov-on-ink);
+  font-size: var(--ov-type-print-label);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+/* A choice in a sheet: its words, 17 pt, on a 56-pt row under a hairline. */
+.sheet-row {
+  display: flex;
+  width: 100%;
+  min-height: calc(56px + var(--ov-grow));
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--ov-hair);
+  font-size: var(--ov-type-heading);
+  font-weight: 600;
+  text-align: left;
+}
+li:last-child > .sheet-row {
+  border-bottom: 0;
+}
+
 /* ---------- one exercise row everywhere ---------- */
 .plan-row {
   display: flex;

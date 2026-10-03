@@ -1,15 +1,14 @@
 import type { Metadata } from "next";
 import { FreshAfterSets } from "@/components/fresh-after-sets";
-import { PageContent } from "@/components/shell/page-content";
-import { PageHeader } from "@/components/shell/page-header";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { ACTIVITY_SPORT_LABELS } from "@/domain/activity";
 import { trainingAnalytics } from "@/domain/analytics";
 import { weekStart } from "@/domain/running";
-import { readSportTotals } from "@/server/repositories/activity-analytics";
+import { todayInTimeZone } from "@/domain/program-calendar";
+import { readActivityDays, readSportTotals } from "@/server/repositories/activity-analytics";
 import { formatDuration, formatPace } from "@/domain/pace";
-import { formatDateRange, formatDateTime, formatRunKm } from "@/lib/format";
+import { formatDateTime, formatRunKm } from "@/lib/format";
 import { originQuery } from "@/lib/nav";
 import { fromKilograms } from "@/lib/units";
 import { requireUser } from "@/server/auth";
@@ -76,7 +75,11 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
   const bodyFrom = bodyRange.from;
   const bodyTo = bodyRange.to;
 
-  const [training, body, bodyWeights, totals, recovery] = await withUser(
+  // Overview's month is this month, whatever the range: the calendar on paper (DESIGN.md, The
+  // month), every activity of every day so far.
+  const today = todayInTimeZone(profile.timeZone);
+  const month = today.slice(0, 7);
+  const [training, body, bodyWeights, totals, recovery, monthActivities] = await withUser(
     getDb(),
     user.id,
     (tx) =>
@@ -87,6 +90,7 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
         // Complete per-sport totals, from the canonical tables every sport is written to.
         readSportTotals(tx, user.id, { from: range.from, to: range.to }),
         readRecoveryHistory(tx, user.id, range, profile.timeZone),
+        readActivityDays(tx, user.id, { from: `${month}-01`, to: today }),
       ]),
     { readOnly: true },
   );
@@ -132,14 +136,20 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
 
   return (
     <FreshAfterSets seen={seen} loading={<Loading />}>
-      <PageHeader title="Progress" meta={formatDateRange(range.from, range.to)} />
-      <PageContent>
-        {(rangeError || weekError) && (
-          <p role="alert" className="text-sm text-danger">
-            {rangeError || weekError}
-          </p>
-        )}
+      <div className="progress page-width pt-safe">
         <ProgressView
+          error={rangeError || weekError || null}
+          month={{
+            month,
+            today: Number(today.slice(8, 10)),
+            activities: monthActivities.items.map((item) => ({
+              sport: item.sport,
+              occurredOn: item.occurredOn,
+              durationMs: item.durationMs,
+              distanceMetres: item.distanceMetres,
+              environment: item.environment,
+            })),
+          }}
           range={range}
           truncated={analytics.truncated}
           sportTotals={sportTotals}
@@ -158,7 +168,7 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
             value: fromKilograms(weightKg, preferredUnit),
           }))}
         />
-      </PageContent>
+      </div>
     </FreshAfterSets>
   );
 }

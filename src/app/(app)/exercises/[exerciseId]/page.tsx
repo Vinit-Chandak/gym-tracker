@@ -1,12 +1,10 @@
 import { SubmitButton } from "@/components/ui/form";
 import { ExternalLink } from "@/components/ui/icons";
 import type { Metadata } from "next";
-import Link from "@/components/ui/app-link";
 import { notFound } from "next/navigation";
 
 import { AvailabilityBadge } from "@/components/availability-badge";
 import { FriendsBoardCard } from "@/components/friends-board-card";
-import { ExerciseBestsTiles } from "@/components/records-card";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -22,15 +20,13 @@ import type { Resolution } from "@/domain/equipment-resolution";
 import { performanceSeries } from "@/domain/analytics";
 import { topWithYou } from "@/domain/leaderboard";
 import { isComparable, primaryMetric } from "@/domain/shared-stats";
-import { formatSets } from "@/domain/sets";
-import { formatDay, formatKilograms } from "@/lib/format";
+import { formatKilograms } from "@/lib/format";
 import { setInUnit } from "@/lib/units";
 import {
   EXERCISE_CATEGORY_LABELS,
   EXERCISE_MODALITY_LABELS,
   LOAD_PORTABILITY_HELP,
   LOAD_PORTABILITY_LABELS,
-  LOAD_UNIT_LABELS,
   MEASURE_COLUMN_LABELS,
   MEASURE_UNIT_SUFFIX,
   MUSCLE_LABELS,
@@ -48,11 +44,13 @@ import {
   type ExerciseGymAvailability,
 } from "@/server/repositories/availability";
 import { getExercise, type ExerciseProgramUsage } from "@/server/repositories/exercises";
+import { readExerciseLife } from "@/server/repositories/exercise-life";
 import { readExerciseBests } from "@/server/repositories/shared-stats";
 import { readWorkouts, TRAINING_RECORD_LIMIT } from "@/server/repositories/training-data";
 import { parseDateRangeOrDefault } from "@/server/validation/date-range";
 import { requireUuid } from "@/server/validation/params";
 
+import { ExerciseLife } from "./exercise-life";
 import { ExerciseTrend } from "./exercise-trend";
 
 export const metadata: Metadata = { title: "Exercise" };
@@ -109,9 +107,16 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
       const circle = isComparable(exercise)
         ? await loadCircle(tx, { id: user.id, username: requestProfile.username })
         : [];
-      const [availability, performances, charted, bests, profile] = await Promise.all([
+      // A movement whose load means the same everywhere is read across gyms and machines; one
+      // bound to its machine is read on the machine it was last done on.
+      const latest = await recentPerformances(tx, user.id, exerciseId);
+      const machine =
+        exercise.loadPortability === "global"
+          ? null
+          : (latest.find((performance) => performance.equipmentInstanceId)?.equipmentInstanceId ??
+            null);
+      const [availability, charted, bests, profile, life] = await Promise.all([
         exerciseAvailability(tx, user.id, exerciseId, exercise),
-        recentPerformances(tx, user.id, exerciseId),
         // Only the sessions this movement was actually in, so the trend costs a page about
         // one exercise a read about one exercise.
         readWorkouts(tx, user.id, range, 0, TRAINING_RECORD_LIMIT, {
@@ -126,7 +131,9 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
             )
           : new Map(),
         requestProfile,
+        readExerciseLife(tx, user.id, exerciseId, requestProfile.timeZone, machine),
       ]);
+      const performances = latest;
       // The Friends' leaderboard (plan §3.12) once there is someone to rank against and
       // anyone in the circle has logged the movement; nothing dead ships.
       const board =
@@ -138,6 +145,11 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
         bests: bests.get(user.id) ?? [],
         board: board.some((row) => row.value !== null) ? topWithYou(board, user.id, 3) : [],
         series: performanceSeries(charted.workouts, profile.timeZone, exerciseId),
+        life,
+        machineName: machine
+          ? (latest.find((performance) => performance.equipmentInstanceId === machine)
+              ?.equipmentInstanceName ?? null)
+          : null,
         timeZone: profile.timeZone,
         unit: profile.preferredUnit === "lb" ? ("lb" as const) : ("kg" as const),
       };
@@ -145,7 +157,18 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
     { readOnly: true },
   );
   if (!data) notFound();
-  const { exercise, availability, performances, bests, board, series, timeZone, unit } = data;
+  const {
+    exercise,
+    availability,
+    performances,
+    bests,
+    board,
+    series,
+    timeZone,
+    unit,
+    life,
+    machineName,
+  } = data;
   // One machine's loads are not another's, so each is its own series and the corner picker
   // chooses between them. Only the chosen one's points cross the wire.
   const machines = series.map(({ id, name, machine, unit: loadUnit }) => ({
@@ -168,7 +191,26 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
   return (
     <>
       <PageHeader title={exercise.name} backHref="/exercises" />
-      <PageContent>
+      <PageContent className="!pt-0">
+        <ExerciseLife
+          exercise={exercise}
+          life={life}
+          machineName={machineName}
+          bests={bests}
+          unit={unit}
+          timeZone={timeZone}
+          performances={performances.map((performance) => ({
+            id: performance.workoutExerciseId,
+            sessionId: performance.workoutSessionId,
+            performedAt: performance.performedAt.toISOString(),
+            gymName: performance.gymName,
+            machineName: performance.equipmentInstanceName,
+            sets: performance.sets.map((set) =>
+              exercise.loadPortability === "global" ? setInUnit(set, unit) : set,
+            ),
+          }))}
+        />
+
         <Card>
           <div className="flex flex-wrap items-center gap-2">
             <Badge>{EXERCISE_CATEGORY_LABELS[exercise.category]}</Badge>
@@ -274,8 +316,6 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
           </Card>
         )}
 
-        <ExerciseBestsTiles exercise={exercise} bests={bests} unit={unit} />
-
         {board.length > 0 && (
           <FriendsBoardCard
             exercise={exercise}
@@ -292,52 +332,6 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
           </p>
         )}
         <ExerciseTrend range={range} machines={machines} selected={selected} />
-
-        <Card>
-          <h2 className="flex items-center gap-1 text-base font-medium">
-            Recent sessions
-            {exercise.loadPortability !== "global" && (
-              <InfoTip label="About recent sessions">
-                Progression compares sets on the same machine only; other machines are listed for
-                reference.
-              </InfoTip>
-            )}
-          </h2>
-          {performances.length === 0 ? (
-            <p className="text-sm text-ink-muted">Not logged yet.</p>
-          ) : (
-            <ul className="divide-y divide-line">
-              {performances.map((performance) => (
-                <li key={performance.workoutExerciseId}>
-                  <Link
-                    href={`/workouts/${performance.workoutSessionId}`}
-                    className="block space-y-0.5 py-2"
-                  >
-                    <div className="flex justify-between gap-3 text-sm">
-                      <span className="font-medium">
-                        {formatDay(performance.performedAt, timeZone)}
-                      </span>
-                      <span className="min-w-0 truncate text-ink-muted">
-                        {performance.gymName}
-                        {performance.equipmentInstanceName
-                          ? ` · ${performance.equipmentInstanceName}`
-                          : ""}
-                      </span>
-                    </div>
-                    <p className="text-sm [overflow-wrap:anywhere] text-ink-muted tabular-nums">
-                      {formatSets(
-                        performance.sets.map((set) =>
-                          exercise.loadPortability === "global" ? setInUnit(set, unit) : set,
-                        ),
-                        (loadUnit) => LOAD_UNIT_LABELS[loadUnit],
-                      )}
-                    </p>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
 
         <Section title="Availability by gym">
           {availability.length === 0 && (

@@ -1,13 +1,11 @@
 "use client";
 
 import type { Route } from "next";
-import { ChevronDown } from "@/components/ui/icons";
 import { useState, type ReactNode } from "react";
 
 import Link from "@/components/ui/app-link";
-import { cn } from "@/lib/utils";
 
-import { PRESSABLE_ROW_CLASS } from "./link-row";
+import { Glyph } from "./glyphs";
 import { Sheet } from "./sheet";
 
 export type SectionOption<V extends string> = {
@@ -23,8 +21,9 @@ export type SectionOption<V extends string> = {
 };
 
 /**
- * One screen's sections behind a single control, with whatever belongs to the whole screen
- * beside it — the filters, in practice.
+ * One screen's sections behind a single control (DESIGN.md, Navigation: one button naming the
+ * current one, which opens a sheet of them), with whatever belongs to the whole screen beside
+ * it: the range the section shows, in practice.
  *
  * Five destinations as tabs cost two rows of a phone's width, which is a strip of chrome
  * taller than some of the panels underneath it. Naming only the section you are in takes
@@ -51,33 +50,32 @@ export function SectionSelect<V extends string>({
   const [open, setOpen] = useState(false);
   const current = options.find((option) => option.value === value);
   return (
-    <div className="flex min-w-0 items-center gap-2">
+    <div className="section-select">
       <button
         type="button"
         onClick={() => setOpen(true)}
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-label={current ? `${label}: ${current.label}` : label}
-        className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-control border border-line-strong bg-surface px-3 text-left font-medium transition-colors duration-[var(--ov-duration-feedback)] active:bg-surface-raised"
+        className="section-select-button"
       >
-        <span className="min-w-0 flex-1 truncate">{current?.label}</span>
-        <ChevronDown
-          className={cn(
-            "shrink-0 text-ink-subtle transition-transform duration-[var(--ov-duration-feedback)]",
-            open && "rotate-180",
-          )}
-          aria-hidden
-        />
+        <span className="min-w-0 [overflow-wrap:anywhere]">{current?.label}</span>
+        <Glyph name="chevronDown" className="glyph-18" />
       </button>
       {action}
       <Sheet open={open} onClose={() => setOpen(false)} title={label}>
-        <ul className="min-w-0 ruled-list">
+        <ul className="min-w-0">
           {options.map((option) => {
             const selected = option.value === value;
-            const className = cn(PRESSABLE_ROW_CLASS, selected && "text-accent");
-            // The section you are in is in the accent colour, and named as current to a screen
+            const className = "sheet-row";
+            // The section you are in carries a check, and is named as current to a screen
             // reader; the control that opened the sheet already names it too.
-            const content = <span className="min-w-0 flex-1 font-medium">{option.label}</span>;
+            const content = (
+              <>
+                <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">{option.label}</span>
+                {selected && <Glyph name="check" className="glyph-20" />}
+              </>
+            );
             return (
               <li key={option.value}>
                 {option.href && !selected ? (

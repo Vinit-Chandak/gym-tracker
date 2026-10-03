@@ -1,14 +1,13 @@
 "use client";
 
-import { SlidersHorizontal } from "@/components/ui/icons";
 import { useState, type ReactNode } from "react";
 
-import { cn } from "@/lib/utils";
-
+import { Glyph } from "./glyphs";
 import { Sheet } from "./sheet";
 
 /**
- * Every filter a screen has, behind one control that sits beside its tabs.
+ * Every filter a screen has, behind one control: the funnel, at the end of the screen's title
+ * (DESIGN.md, Navigation), with a count of the filters set.
  *
  * The panel is the bottom sheet, so it is always inside the screen whatever the device: it
  * is anchored to the bottom edge, capped at 90dvh and scrolls its own content, rather than
@@ -25,7 +24,7 @@ export function FilterSheet({
 }: {
   /** Names the panel, and the button that opens it. */
   title: string;
-  /** Visible beside the icon where the screen is wide enough for it. */
+  /** The control's name, said with the summary. */
   label?: string;
   /** What the filters currently say, for the button's accessible name: the date range. */
   summary?: string;
@@ -42,16 +41,14 @@ export function FilterSheet({
         onClick={() => setOpen(true)}
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={summary ? `${label}: ${summary}` : label}
-        className={cn(
-          "flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-control px-2 text-sm font-medium transition-colors duration-[var(--ov-duration-feedback)] active:bg-surface-raised",
-          count > 0 ? "text-accent" : "text-ink-muted hover:text-ink",
-        )}
+        aria-label={`${summary ? `${label}: ${summary}` : label}${
+          count > 0 ? `, ${count} set` : ""
+        }`}
+        className="filter-button"
       >
-        <SlidersHorizontal className="shrink-0" aria-hidden />
-        <span className="hidden min-[24rem]:inline">{label}</span>
+        <Glyph name="filter" className="glyph-24" />
         {count > 0 && (
-          <span className="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-medium text-on-accent tabular-nums">
+          <span aria-hidden className="filter-count">
             {count}
           </span>
         )}

@@ -4,6 +4,7 @@
 @import "../styles/form-v2/foundation.css";
 @import "../styles/form-v2/session.css";
 @import "../styles/form-v2/rows.css";
+@import "../styles/form-v2/progress.css";
 @source "../";
 
 /*
@@ -767,9 +768,6 @@ html:has(.app-content) {
   }
   html {
     scroll-padding-top: 1rem;
-  }
-  .page-header {
-    position: static;
   }
   .viewport-chrome:not(.viewport-chrome-session) {
     position: static;

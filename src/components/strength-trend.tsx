@@ -2,12 +2,13 @@
 
 import type { ReactNode } from "react";
 
-import { Chart, SERIES_COLORS } from "@/components/ui/chart";
 import { Headline } from "@/components/ui/headline";
+import { ChartValues, InkLine } from "@/components/ui/ink-chart";
 import { InfoTip } from "@/components/ui/info-tip";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select } from "@/components/ui/select";
 import type { PerformanceSeries } from "@/domain/analytics";
+import { formatIsoDay, formatIsoShortDay } from "@/lib/format";
 import { LOAD_UNIT_LABELS } from "@/lib/labels";
 
 export type SeriesOption = {
@@ -143,19 +144,57 @@ export function StrengthTrend({
                 </InfoTip>
               </span>
             </div>
-            <Chart
-              title={STRENGTH_METRICS.find((m) => m.value === metric)!.label}
+            <StrengthLine
+              points={selected[metric]}
+              label={STRENGTH_METRICS.find((m) => m.value === metric)!.label}
               unit={metric === "volume" ? `${unit} × reps` : unit}
-              caption={false}
-              series={[
-                { name: selected.name, color: SERIES_COLORS.lifting, points: selected[metric] },
-              ]}
+              name={selected.name}
             />
           </div>
         </>
       ) : (
         empty
       )}
+    </>
+  );
+}
+
+/** One measurement of one exercise over the range, in ink, its readings behind View values. */
+function StrengthLine({
+  points,
+  label,
+  unit,
+  name,
+}: {
+  points: PerformanceSeries["load"];
+  label: string;
+  unit: string;
+  name: string;
+}) {
+  const known = points.filter((point) => point.value !== null);
+  const round = (value: number) => Math.round(value * 10) / 10;
+  if (known.length === 0)
+    return <p className="mt-3 type-meta text-ink-2">Nothing recorded for {label} in this range.</p>;
+  const first = known[0]!;
+  const last = known.at(-1)!;
+  return (
+    <>
+      <InkLine
+        className="mt-2"
+        points={points}
+        label={`${name}, ${label.toLowerCase()} per session: ${known.length} sessions from ${formatIsoDay(
+          first.date,
+        )} to ${formatIsoDay(last.date)}, latest ${round(last.value!)} ${unit}`}
+        format={(value) => String(round(value))}
+        ends={[formatIsoShortDay(first.date), formatIsoShortDay(last.date)]}
+      />
+      <ChartValues
+        rows={[...known].reverse().map((point, index) => ({
+          key: `${point.date}-${index}`,
+          date: formatIsoDay(point.date),
+          value: `${round(point.value!)} ${unit}`,
+        }))}
+      />
     </>
   );
 }

@@ -113,9 +113,12 @@ export function TodayPrint({
   );
 }
 
-/** A meta line: facts, each led by its glyph, in ink 2 (DESIGN.md, Rows and marks). */
+/**
+ * A meta line: facts, each led by its glyph, in ink 2 (DESIGN.md, Rows and marks). A block
+ * rather than a paragraph, because a fact can be a choice that opens a sheet.
+ */
 export function MetaLine({ children, className }: { children: ReactNode; className?: string }) {
-  return <p className={cn("meta-line", className)}>{children}</p>;
+  return <div className={cn("meta-line", className)}>{children}</div>;
 }
 
 export function Fact({

@@ -9,7 +9,7 @@ import {
   swimmingActivityDetails,
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
-import { ACTIVITY_SPORTS, type ActivitySport } from "@/domain/activity";
+import { ACTIVITY_SPORTS, type ActivitySport, type SwimStroke } from "@/domain/activity";
 import { adherenceBySport, resolveOccurrence } from "@/domain/occurrences";
 import type { AdherenceCounts } from "@/domain/occurrences";
 
@@ -304,6 +304,72 @@ export async function listActivityPage(
     items,
     nextCursor: rows.length > limit && last ? encodeCursor(last) : null,
   };
+}
+
+/** The most a calendar reads at once: a year of one activity a day, with room to spare. */
+export const CALENDAR_LIMIT = 1500;
+
+/**
+ * Every completed activity between two local dates, oldest first, for the calendar: what each
+ * day holds (Progress's month, the calendar page, a day). Unpaged, because a month or a year is
+ * read whole to be drawn whole; `CALENDAR_LIMIT` bounds it, and `truncated` says when it bit.
+ */
+export async function readActivityDays(
+  tx: DbOrTx,
+  userId: string,
+  range: { from: string; to: string },
+): Promise<{ items: (ActivityListItem & { stroke: SwimStroke | null })[]; truncated: boolean }> {
+  const rows = await tx
+    .select({
+      stroke: swimmingActivityDetails.stroke,
+      id: activities.id,
+      sport: activities.sport,
+      startedAt: activities.startedAt,
+      occurredOn: activities.occurredOn,
+      durationMs: activities.durationMs,
+      effortValue: activities.effortValue,
+      effortStatus: activities.effortStatus,
+      title: activities.title,
+      occurrenceId: activities.occurrenceId,
+      performedRevisionId: activities.performedRevisionId,
+      distanceMetres: DISTANCE,
+      environment: sql<string | null>`coalesce(
+        ${runningActivityDetails.environment}::text,
+        ${cyclingActivityDetails.environment}::text,
+        ${swimmingActivityDetails.environment}::text
+      )`,
+    })
+    .from(activities)
+    .leftJoin(runningActivityDetails, eq(runningActivityDetails.activityId, activities.id))
+    .leftJoin(cyclingActivityDetails, eq(cyclingActivityDetails.activityId, activities.id))
+    .leftJoin(swimmingActivityDetails, eq(swimmingActivityDetails.activityId, activities.id))
+    .where(
+      and(
+        eq(activities.userId, userId),
+        eq(activities.status, "completed"),
+        gte(activities.occurredOn, range.from),
+        lte(activities.occurredOn, range.to),
+      ),
+    )
+    .orderBy(asc(activities.startedAt), asc(activities.id))
+    .limit(CALENDAR_LIMIT + 1);
+
+  return {
+    items: rows.slice(0, CALENDAR_LIMIT).map((row) => ({
+      ...row,
+      distanceMetres: row.distanceMetres === null ? null : Number(row.distanceMetres),
+    })),
+    truncated: rows.length > CALENDAR_LIMIT,
+  };
+}
+
+/** The local date of a user's first completed activity, where the calendar begins. */
+export async function readFirstActivityDay(tx: DbOrTx, userId: string): Promise<string | null> {
+  const [row] = await tx
+    .select({ first: sql<string | null>`min(${activities.occurredOn})::text` })
+    .from(activities)
+    .where(and(eq(activities.userId, userId), eq(activities.status, "completed")));
+  return row?.first ?? null;
 }
 
 export class InvalidCursorError extends Error {

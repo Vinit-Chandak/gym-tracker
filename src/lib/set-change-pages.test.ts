@@ -28,6 +28,7 @@ const SHOWS_NO_SETS: Record<string, string> = {
   "src/app/(app)/workouts/[sessionId]/exercises/[workoutExerciseId]/substitute/page.tsx":
     "the exercise being replaced and the gym",
   "src/app/(app)/exercises/[exerciseId]/page.tsx": "finished workouts only (`completedOnly`)",
+  "src/app/(app)/progress/day/[date]/page.tsx": "finished workouts only (`completedOnly`)",
   "src/components/shell/session-status.tsx": "the open workout's name",
 };
 

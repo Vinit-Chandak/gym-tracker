@@ -1,27 +1,30 @@
 import type { Route } from "next";
-import { BackLink } from "./back-link";
 import type { ReactNode } from "react";
 
+import { FitTitle } from "@/components/ui/fit-title";
+
+import { BackLink } from "./back-link";
+
 type PageHeaderProps<T extends string> = {
-  /** The screen's name. Today gives the app's own, as a `<Wordmark />`. */
+  /** The screen's name. */
   title: ReactNode;
-  /** The date Today is, the range History and Progress are drawn over, the gym a form is for. */
+  /** The one fact that qualifies it: the range Progress is drawn over, the gym a form is for. */
   meta?: string;
   /** Fallback for a direct link; otherwise Back returns to the previous browser entry. */
   backHref?: Route<T>;
   /** What to call that destination, when the section it sits in is vaguer than the page. */
   backLabel?: string;
-  /** Optional trailing control, e.g. an "Add" button. */
+  /** At most one control: beside a destination's title, or at the end of a nested screen's bar. */
   action?: ReactNode;
 };
 
 /**
- * Every screen's opening line: what this is, and the one fact that qualifies it.
+ * Every screen's opening (DESIGN.md, Navigation), in two shapes, scrolling with the page:
  *
- * A masthead rather than a stack. The title owns the line and its meta hangs off the far
- * end of the same baseline, so the eye reads one row instead of dropping through a small
- * uppercase line to get to the name. The rule underneath separates the header from content
- * scrolling beneath it, which a colour alone cannot do while both are canvas.
+ * - a destination (Training, Profile) has its title, Jost 36 (32 under 360 pt), and at most
+ *   one action beside it;
+ * - a nested screen has a back link that names where it goes, then its name as the screen's
+ *   display title, stepping down for a long name, and its one fact under it.
  */
 export function PageHeader<T extends string>({
   title,
@@ -30,61 +33,41 @@ export function PageHeader<T extends string>({
   backLabel,
   action,
 }: PageHeaderProps<T>) {
-  return (
-    <header className="page-header sticky top-0 z-30 border-b border-line bg-canvas pt-safe">
-      {backHref ? (
-        <NestedBar
-          title={title}
-          meta={meta}
-          backHref={backHref}
-          backLabel={backLabel}
-          action={action}
-        />
-      ) : (
-        <div className="page-width flex min-h-[var(--header-height)] flex-wrap items-center gap-3 py-2.5">
-          <div className="flex min-w-0 flex-[1_1_12rem] flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-            <h1 className="max-w-full shrink-0 text-xl [overflow-wrap:anywhere]">{title}</h1>
+  if (!backHref)
+    return (
+      <header className="page-header page-width pt-safe">
+        <div className="page-header-top">
+          <div className="min-w-0">
+            <h1 className="type-title [overflow-wrap:anywhere]">{title}</h1>
             {meta && (
-              <p className="min-w-0 text-sm [overflow-wrap:anywhere] text-ink-muted tabular-nums">
+              <p className="mt-1 type-meta-small [overflow-wrap:anywhere] text-ink-2 tabular-nums">
                 {meta}
               </p>
             )}
           </div>
-          {action && <div className="max-w-full">{action}</div>}
+          {action && <div className="page-header-action">{action}</div>}
         </div>
+      </header>
+    );
+
+  return (
+    <header className="page-header page-width pt-safe">
+      <div className="page-header-bar">
+        <BackLink fallback={backHref} label={backLabel} />
+        {action && <div className="page-header-action">{action}</div>}
+      </div>
+      {typeof title === "string" ? (
+        <FitTitle as="h1" sizes={{ base: 34, narrow: 30 }} className="mt-0.5">
+          {title}
+        </FitTitle>
+      ) : (
+        <h1 className="mt-0.5 type-display [overflow-wrap:anywhere]">{title}</h1>
+      )}
+      {meta && (
+        <p className="meta-line mt-1 [overflow-wrap:anywhere]">
+          <span className="min-w-0">{meta}</span>
+        </p>
       )}
     </header>
-  );
-}
-
-/**
- * One level down: a compact bar with the way back named beside its chevron.
- *
- * The title sits between two flexible cells, so it is centred whatever is beside it and you
- * can tell at a glance that this screen is inside another. Naming the destination is what a
- * lone chevron could only hint at, and it gives the control a label worth 44px of its own.
- */
-function NestedBar<T extends string>({
-  title,
-  meta,
-  backHref,
-  backLabel,
-  action,
-}: {
-  title: ReactNode;
-  meta?: string;
-  backHref: Route<T>;
-  backLabel?: string;
-  action?: ReactNode;
-}) {
-  return (
-    <div className="page-width flex min-h-[3.25rem] flex-wrap items-center gap-2 py-1">
-      <BackLink fallback={backHref} label={backLabel} />
-      <h1 className="max-w-full shrink-0 text-lg [overflow-wrap:anywhere]">{title}</h1>
-      <div className="flex min-w-0 flex-1 basis-[5.5rem] items-center justify-end gap-2">
-        {meta && <p className="min-w-0 text-sm [overflow-wrap:anywhere] text-ink-muted">{meta}</p>}
-        {action}
-      </div>
-    </div>
   );
 }

@@ -11,6 +11,7 @@ import { Select } from "@/components/ui/select";
 import { SWIM_STROKES } from "@/domain/activity";
 import { formatPaceSeconds } from "@/domain/activity-metrics";
 import { formatDistance, toMetres } from "@/lib/distance-units";
+import { SWIM_STROKE_LABELS } from "@/lib/labels";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
 import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
 
@@ -57,15 +58,7 @@ const POOL_UNITS = [
   { value: "yd", label: "yd" },
 ];
 
-const STROKE_LABELS: Record<string, string> = {
-  freestyle: "Freestyle",
-  backstroke: "Backstroke",
-  breaststroke: "Breaststroke",
-  butterfly: "Butterfly",
-  mixed: "Mixed",
-  drill: "Drill",
-  unspecified: "Not stated",
-};
+const STROKE_LABELS: Record<string, string> = SWIM_STROKE_LABELS;
 
 type Props = {
   action: (previous: FormState, formData: FormData) => Promise<FormState>;

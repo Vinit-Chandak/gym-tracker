@@ -40,27 +40,43 @@ function open(current: string) {
   return within(screen.getByRole("dialog"));
 }
 
-it("lists History among Progress's sections, after Body", () => {
+it("lists Progress's sections as the design orders them, Overview first", () => {
   route.search = "";
-  render(<ProgressSections value="body" onChange={vi.fn()} action={null} />);
+  render(<ProgressSections value="overview" onChange={vi.fn()} filters={null} />);
   expect(
-    open("Body")
+    open("Overview")
       .getAllByRole("listitem")
       .map((item) => item.textContent),
-  ).toEqual(["Body", "History", "Strength", "Running", "Recovery", "Overview"]);
+  ).toEqual(["Overview", "History", "Strength", "Running", "Recovery", "Body"]);
+});
+
+it("is Progress's opening: the title, the funnel, the section and its range", () => {
+  route.search = "view=running";
+  render(
+    <ProgressSections
+      value="running"
+      onChange={vi.fn()}
+      filters={<button type="button">Filters</button>}
+      range="6 Jul – 29 Sept 2026"
+    />,
+  );
+  expect(screen.getByRole("heading", { level: 1, name: "Progress" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Filters" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Progress section: Running" })).toBeTruthy();
+  expect(screen.getByText("6 Jul – 29 Sept 2026")).toBeTruthy();
 });
 
 it("switches the Progress page's own sections in place", () => {
   route.search = "view=strength";
   const onChange = vi.fn();
-  render(<ProgressSections value="strength" onChange={onChange} action={null} />);
+  render(<ProgressSections value="strength" onChange={onChange} filters={null} />);
   fireEvent.click(open("Strength").getByRole("button", { name: "Recovery" }));
   expect(onChange).toHaveBeenCalledWith("recovery");
 });
 
 it("opens History as a page of its own, loaded ahead, with the same dates", () => {
   route.search = "view=strength&from=2026-08-01&to=2026-09-25&series=abc";
-  render(<ProgressSections value="strength" onChange={vi.fn()} action={null} />);
+  render(<ProgressSections value="strength" onChange={vi.fn()} filters={null} />);
   const history = open("Strength").getByRole("link", { name: "History" });
   expect(history.getAttribute("href")).toBe(
     "/progress/history?from=2026-08-01&to=2026-09-25&series=abc",
@@ -72,24 +88,24 @@ it("opens History as a page of its own, loaded ahead, with the same dates", () =
 
 it("goes from History to the Progress page's sections, keeping the query", () => {
   route.search = "from=2026-08-01&to=2026-09-25&kind=run";
-  render(<ProgressSections value="history" action={null} />);
+  render(<ProgressSections value="history" filters={null} />);
   const sheet = open("History");
   expect(sheet.getByRole("button", { name: "History" }).getAttribute("aria-current")).toBe("true");
-  expect(sheet.getByRole("link", { name: "Body" }).getAttribute("href")).toBe(
+  expect(sheet.getByRole("link", { name: "Overview" }).getAttribute("href")).toBe(
     "/progress?from=2026-08-01&to=2026-09-25&kind=run",
   );
-  const overview = sheet.getByRole("link", { name: "Overview" });
-  expect(overview.getAttribute("href")).toBe(
-    "/progress?from=2026-08-01&to=2026-09-25&kind=run&view=overview",
+  const body = sheet.getByRole("link", { name: "Body" });
+  expect(body.getAttribute("href")).toBe(
+    "/progress?from=2026-08-01&to=2026-09-25&kind=run&view=body",
   );
   // Only History is loaded whole ahead of the tap.
-  expect(overview.dataset.prefetch).toBe("auto");
+  expect(body.dataset.prefetch).toBe("auto");
 });
 
-it("reads the Progress page's section from its URL, never History", () => {
-  expect(pageSection(null)).toBe("body");
+it("reads the Progress page's section from its URL, Overview when it names none", () => {
+  expect(pageSection(null)).toBe("overview");
   expect(pageSection("recovery")).toBe("recovery");
-  expect(pageSection("overview")).toBe("overview");
-  expect(pageSection("history")).toBe("body");
-  expect(pageSection("elsewhere")).toBe("body");
+  expect(pageSection("body")).toBe("body");
+  expect(pageSection("history")).toBe("overview");
+  expect(pageSection("elsewhere")).toBe("overview");
 });

@@ -4,16 +4,17 @@ import { useSearchParams, type ReadonlyURLSearchParams } from "next/navigation";
 import { useMemo } from "react";
 import type { Route } from "next";
 
+import { Art } from "@/components/art/art";
+import type { Sport } from "@/components/art/geometry";
 import { DateRangeFields } from "@/components/date-range-fields";
-import { Badge } from "@/components/ui/badge";
+import Link from "@/components/ui/app-link";
 import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/empty-state";
 import { FilterSheet } from "@/components/ui/filter-sheet";
+import { Glyph } from "@/components/ui/glyphs";
 import { Field } from "@/components/ui/input";
-import { LinkRow, List } from "@/components/ui/link-row";
 import { Select } from "@/components/ui/select";
-import { formatDateRange } from "@/lib/format";
-import { CalendarDays } from "@/components/ui/icons";
+import { formatDateRange, formatIsoWeekdayDay } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 import { ProgressSections } from "../progress-sections";
 
@@ -21,8 +22,12 @@ export type HistoryItem = {
   id: string;
   /** Every sport history holds, plus the recovery readings that are not training at all. */
   kind: "workout" | "run" | "cycling" | "swimming" | "recovery";
+  /** When it began, for the order; a recovery reading has only its date. */
   date: string;
+  /** The local day it is listed under. */
+  day: string;
   title: string;
+  /** Its time and where: "19:00 · Anytime Fitness"; a recovery reading's answers. */
   subtitle: string;
   href?: Route<`/workouts/${string}` | `/runs/${string}` | `/training/activities/${string}`>;
   meta: string;
@@ -33,13 +38,21 @@ export type HistoryItem = {
 
 type Filters = { kind: string; gym: string; exercise: string; machine: string };
 
-/** What each row calls itself. Exhaustive: a sport added later has to be named here. */
+/** What each row's mark says aloud. Exhaustive: a sport added later has to be named here. */
 const KIND_LABELS: Record<HistoryItem["kind"], string> = {
   workout: "Workout",
   run: "Run",
   cycling: "Ride",
   swimming: "Swim",
   recovery: "Recovery",
+};
+
+/** Each sport's mark; recovery, which is not training, is the moon. */
+const KIND_MARKS: Record<Exclude<HistoryItem["kind"], "recovery">, Sport> = {
+  workout: "strength",
+  run: "run",
+  cycling: "ride",
+  swimming: "swim",
 };
 
 const EMPTY: Filters = { kind: "all", gym: "", exercise: "", machine: "" };
@@ -68,11 +81,14 @@ function fromSearch(params: URLSearchParams | ReadonlyURLSearchParams): Filters 
 }
 
 export function HistoryView({
+  error = null,
   range,
   items,
   gyms,
   truncated,
 }: {
+  /** A range the reader asked for that could not be read. */
+  error?: string | null;
   /** The dates the server read, changed from inside the filter sheet. */
   range: { from: string; to: string };
   items: HistoryItem[];
@@ -142,14 +158,22 @@ export function HistoryView({
     (key) => filters[key] !== EMPTY[key],
   ).length;
 
+  // The entries under their days, newest first (board Progress-History).
+  const days = shown.reduce<{ day: string; items: HistoryItem[] }[]>((all, item) => {
+    const last = all.at(-1);
+    if (last?.day === item.day) last.items.push(item);
+    else all.push({ day: item.day, items: [item] });
+    return all;
+  }, []);
+
   return (
-    <div className="page-stack">
+    <>
       {/* History is one of Progress's sections (ADR 0034), so it is chosen where they are, with
-          one control beside it for everything that narrows the list. The panel is a sheet, so
-          it opens inside the screen on any device. */}
+          one control at the end of the title for everything that narrows the list. */}
       <ProgressSections
         value="history"
-        action={
+        range={formatDateRange(range.from, range.to)}
+        filters={
           <FilterSheet
             title="Filters"
             summary={formatDateRange(range.from, range.to)}
@@ -158,7 +182,7 @@ export function HistoryView({
             {(close) => (
               <>
                 <DateRangeFields from={range.from} to={range.to} onApplied={close} />
-                <div className="grid gap-3 border-t border-line pt-4 sm:grid-cols-2">
+                <div className="grid gap-3 border-t border-hair pt-4 sm:grid-cols-2">
                   <Field label="Activity">
                     <Select
                       value={filters.kind}
@@ -215,7 +239,7 @@ export function HistoryView({
                   </Field>
                 </div>
                 {active > 0 && (
-                  <Button variant="ghost" size="sm" className="w-full" onClick={() => apply(EMPTY)}>
+                  <Button variant="text" className="w-full" onClick={() => apply(EMPTY)}>
                     Clear filters
                   </Button>
                 )}
@@ -225,58 +249,95 @@ export function HistoryView({
         }
       />
 
-      <div className="space-y-3">
-        {truncated && (
-          <p role="status" className="text-sm text-warning">
-            Showing the newest records only. Narrow the dates to see every entry; the totals in
-            Overview cover the whole period whatever this list shows.
-          </p>
-        )}
-        <p role="status" className="pl-1 text-sm text-ink-muted tabular-nums">
-          {shown.length} {shown.length === 1 ? "entry" : "entries"}
+      {error && (
+        <p role="alert" className="mt-3 flex items-start gap-2 type-meta font-semibold">
+          <Glyph name="warn" className="mt-px glyph-18" />
+          {error}
         </p>
-        {shown.length ? (
-          <List>
-            {shown.map((item) => (
-              <li key={item.id}>
-                {item.href ? (
-                  <LinkRow
-                    prefetch="intent"
-                    href={item.href}
-                    title={item.title}
-                    subtitle={item.subtitle}
-                    meta={item.meta}
-                    badge={<Badge>{KIND_LABELS[item.kind]}</Badge>}
-                  />
-                ) : (
-                  <div className="space-y-1 px-4 py-3">
-                    <p className="flex flex-wrap items-center gap-2 font-medium">
-                      {item.title} <Badge>Recovery</Badge>
-                    </p>
-                    <p className="text-sm text-ink-muted">{item.subtitle}</p>
-                  </div>
-                )}
-                {item.recovery && (
-                  <p className="px-4 pb-3 text-xs text-ink-muted">{item.recovery}</p>
-                )}
-              </li>
-            ))}
-          </List>
-        ) : (
-          <EmptyState
-            icon={CalendarDays}
-            title="No matching activity"
-            description="Try a wider date range or clear the filters."
-            action={
-              active > 0 ? (
-                <Button variant="secondary" size="sm" onClick={() => apply(EMPTY)}>
-                  Clear filters
-                </Button>
-              ) : undefined
-            }
-          />
-        )}
-      </div>
-    </div>
+      )}
+      {truncated && (
+        <p role="status" className="mt-3 type-meta text-ink-2">
+          Showing the newest records only. Narrow the dates to see every entry; the totals in
+          Overview cover the whole period whatever this list shows.
+        </p>
+      )}
+      <p role="status" className="mt-3 type-meta-small text-ink-2 tabular-nums">
+        {shown.length} {shown.length === 1 ? "entry" : "entries"}
+      </p>
+      {shown.length > 0 ? (
+        days.map((group) => (
+          <section key={group.day} aria-labelledby={`history-${group.day}`}>
+            <h2 id={`history-${group.day}`} className="caption-head mt-3.5">
+              {formatIsoWeekdayDay(group.day)}
+            </h2>
+            <ul>
+              {group.items.map((item, index) => {
+                const last = index === group.items.length - 1;
+                const line = [item.subtitle, item.recovery].filter(Boolean).join(" · ");
+                const content = (
+                  <>
+                    <span className="mark-cell">
+                      {item.kind === "recovery" ? (
+                        <Glyph name="moon" label="Recovery" className="glyph-18" />
+                      ) : (
+                        <Art
+                          kind="mark"
+                          sport={KIND_MARKS[item.kind]}
+                          size={16}
+                          label={KIND_LABELS[item.kind]}
+                        />
+                      )}
+                    </span>
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      {/* The figure stands beside the name while both fit, under it when not. */}
+                      <span className="flex flex-wrap items-baseline justify-between gap-x-2.5">
+                        <span className="plan-row-name min-w-[min(100%,9rem)] flex-1 [overflow-wrap:anywhere] tabular-nums">
+                          {item.title}
+                        </span>
+                        {item.meta && (
+                          <span className="shrink-0 type-meta font-semibold tabular-nums">
+                            {item.meta}
+                          </span>
+                        )}
+                      </span>
+                      {line && (
+                        <span className="type-meta-small [overflow-wrap:anywhere] text-ink-2 tabular-nums">
+                          {line}
+                        </span>
+                      )}
+                    </span>
+                  </>
+                );
+                return (
+                  <li key={item.id}>
+                    {item.href ? (
+                      <Link
+                        prefetch="intent"
+                        href={item.href}
+                        className={cn("history-row", last && "plan-row-last")}
+                      >
+                        {content}
+                      </Link>
+                    ) : (
+                      <div className={cn("history-row", last && "plan-row-last")}>{content}</div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        ))
+      ) : (
+        <div className="mt-6">
+          <h2 className="type-heading">No matching activity</h2>
+          <p className="mt-1 type-body text-ink-2">Try a wider date range or clear the filters.</p>
+          {active > 0 && (
+            <Button variant="tonal" className="mt-3" onClick={() => apply(EMPTY)}>
+              Clear filters
+            </Button>
+          )}
+        </div>
+      )}
+    </>
   );
 }
