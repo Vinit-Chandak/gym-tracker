@@ -164,10 +164,12 @@
   margin-inline: calc(-1 * var(--ov-gutter));
 }
 /* The months below the screen are laid out as they scroll into view: the calendar opens on its
-   last month without first building every month before it. */
-.calendar-section {
+   last month without first building every month before it. The paper is what is skipped, and it
+   clips at its own box, so where it runs to the screen's edges it is cut there and nowhere
+   nearer. */
+.calendar-section > .month-paper {
   content-visibility: auto;
-  contain-intrinsic-size: auto 430px;
+  contain-intrinsic-size: auto 318px;
 }
 
 /* ---------- Running: the runs ---------- */
