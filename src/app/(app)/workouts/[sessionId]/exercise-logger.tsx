@@ -326,6 +326,10 @@ export function ExerciseLogger({
   const body = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLDivElement>(null);
   const dock = useRef<HTMLDivElement>(null);
+  const doneHead = useRef<HTMLParagraphElement>(null);
+  // Complete pressed in the message slot: focus follows the exercise to its Done line.
+  const focusDone = useRef(false);
+  const shownTab = useRef(tab);
   const box = useMeasure(layer, probe);
   const android = useSyncExternalStore(
     noSubscription,
@@ -488,6 +492,33 @@ export function ExerciseLogger({
     if (room.tight && !folded && element) element.scrollTop = element.scrollHeight;
   }, [room.tight, folded]);
 
+  // A tab that opens shows its tabs, scrolled back to them where the title, tabs and log scroll
+  // together; the Log comes back at its latest set, above the entry, as it stands after a set
+  // lands. The screen still opens on the exercise's name.
+  useLayoutEffect(() => {
+    const bodyEl = body.current;
+    if (shownTab.current === tab || !bodyEl) return;
+    shownTab.current = tab;
+    if (tab === "log") {
+      const lines = bodyEl.querySelectorAll(".log [data-set]");
+      lines[lines.length - 1]?.scrollIntoView?.({ block: "nearest" });
+      return;
+    }
+    const tabsEl = bodyEl.querySelector(".session-tabs");
+    if (!tabsEl) return;
+    const top =
+      tabsEl.getBoundingClientRect().top - bodyEl.getBoundingClientRect().top + bodyEl.scrollTop;
+    if (bodyEl.scrollTop > top) bodyEl.scrollTop = top;
+  }, [tab]);
+
+  // Complete pressed in the slot takes the slot with it: once the exercise reads Done, focus goes
+  // to that line.
+  useEffect(() => {
+    if (!focusDone.current || !doneHead.current) return;
+    focusDone.current = false;
+    doneHead.current.focus();
+  }, [completing, completed]);
+
   // ---------- what the header and the meta line say ----------
   const dayName = session.day?.name ?? "Ad hoc session";
   const plannedName = exercise.planned?.plannedExerciseName;
@@ -601,6 +632,7 @@ export function ExerciseLogger({
       setMessage(null);
       setCompleted(value);
       setSkipped(false);
+      setAnnounced(value ? `${exercise.exercise.name} done.` : "");
     });
 
   const skip = (reason: string) =>
@@ -785,7 +817,10 @@ export function ExerciseLogger({
           className="entry-slot-action"
           aria-label={`Complete ${exercise.exercise.name}`}
           disabled={pending}
-          onClick={() => setCompletedState(true)}
+          onClick={() => {
+            focusDone.current = true;
+            setCompletedState(true);
+          }}
         >
           Complete
         </button>
@@ -1250,7 +1285,7 @@ export function ExerciseLogger({
             <section aria-label={exercise.exercise.name} className="entry">
               {message && slotMessage("warn", message, "alert")}
               <div className="entry-head">
-                <p className="flex items-center gap-2 type-heading">
+                <p ref={doneHead} tabIndex={-1} className="flex items-center gap-2 type-heading">
                   {completed && <Glyph name="check" className="glyph-20" />}
                   {completed ? "Done" : skipped ? "Skipped" : ""}
                 </p>

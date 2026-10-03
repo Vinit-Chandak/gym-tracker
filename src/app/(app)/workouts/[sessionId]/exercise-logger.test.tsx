@@ -723,6 +723,20 @@ it("shows an exercise done the moment Complete is pressed, before the server ans
   expect(screen.getByRole("button", { name: "Reopen" })).toBeTruthy();
 });
 
+it("offers Complete once the planned sets are in, and keeps focus with the exercise as it completes", async () => {
+  actions.complete.mockResolvedValueOnce({ ok: true });
+  const sets = [1, 2, 3].map((setIndex) => ({ ...saved, id: `set-${setIndex}`, setIndex }));
+  renderLogger({ exercise: { planned: benchSlot, sets } });
+  expect(screen.getByText(/^3 of 3 sets done\./)).toBeTruthy();
+  const complete = screen.getByRole("button", { name: "Complete Bench press" });
+  complete.focus();
+  fireEvent.click(complete);
+  // The slot goes with the entry; focus goes to the line that says the exercise is done.
+  await waitFor(() => expect(document.activeElement?.textContent).toBe("Done"));
+  expect(actions.complete).toHaveBeenCalledWith("slot", true);
+  await waitFor(() => expect(screen.getByRole("status").textContent).toBe("Bench press done."));
+});
+
 it("puts an exercise back, and says why, when completing it fails", async () => {
   actions.complete.mockResolvedValueOnce({ ok: false, error: "That session no longer exists." });
   renderLogger({ exercise: { sets: [saved] } });
