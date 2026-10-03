@@ -1,77 +1,107 @@
 import Link from "@/components/ui/app-link";
-import { Badge } from "@/components/ui/badge";
 import { LinkButton } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Disclosure } from "@/components/ui/disclosure";
+import { FigureText } from "@/components/ui/figure-text";
+import { Glyph } from "@/components/ui/glyphs";
 import { ACTIVITY_SPORT_LABELS } from "@/domain/activity";
 import { describePrescription } from "@/domain/activity-prescription";
+import { enduranceName, enduranceNote, enduranceTarget } from "./endurance-line";
+import { cn } from "@/lib/utils";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
 
 /**
- * One scheduled session on Today, whatever put it there (plan §2.3).
+ * One scheduled session on Today, whatever put it there (plan §2.3), as a row of the day's
+ * list (DESIGN.md, Today): its name and what it asks for, its note under them, and Log it.
  *
- * Two sources meet on this card and neither is allowed to pretend to be the other. Work the
- * athlete put on the calendar is here because it is dated today. The programme's own endurance
- * is here because the sequence has reached the day it belongs to — never because its original
- * date happens to be today, which is what showed a run from a day nobody had got to yet
- * (TODAY-01). The caller decides which it is asking for; the card only says so.
- *
- * Strength keeps its own card, drawn by Today from the same sequence. These sit beside it.
+ * Two sources meet here and neither is allowed to pretend to be the other. Work the athlete put
+ * on the calendar is here because it is dated today. The programme's own endurance is here
+ * because the sequence has reached the day it belongs to — never because its original date
+ * happens to be today, which is what showed a run from a day nobody had got to yet (TODAY-01).
+ * The caller decides which it is asking for; the row only says so.
  */
-
-function line(occurrence: ScheduledOccurrence): string {
-  if (occurrence.prescription) return describePrescription(occurrence.prescription);
-  return ACTIVITY_SPORT_LABELS[occurrence.sport];
-}
-
-export function OccurrenceCard({
+export function OccurrenceRow({
   occurrence,
   meta,
+  last = false,
 }: {
   /** `preparedByCoach` when the prescription is the coach's preparation for today. */
   occurrence: ScheduledOccurrence & { preparedByCoach?: boolean };
-  /** Where this came from, when that is not obvious — the programme day it belongs to. */
+  /** Where this came from, when that is not obvious: the programme day it belongs to. */
   meta?: string | null;
+  last?: boolean;
 }) {
   const logged = occurrence.resolution.kind === "logged";
+  const skipped = occurrence.disposition === "skipped";
+  const target = enduranceTarget(occurrence.prescription);
+  const note = enduranceNote(occurrence.prescription);
+  const name =
+    occurrence.sport === "strength"
+      ? ACTIVITY_SPORT_LABELS.strength
+      : enduranceName(occurrence.sport);
+  const second = [
+    note,
+    meta,
+    occurrence.scheduledLocalTime ? occurrence.scheduledLocalTime.slice(0, 5) : null,
+  ].filter(Boolean);
   return (
-    <Card>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs font-medium tracking-wide text-ink-muted uppercase">
-            {ACTIVITY_SPORT_LABELS[occurrence.sport]}
-          </p>
-          <h2 className="mt-1 text-lg font-medium [overflow-wrap:anywhere]">{line(occurrence)}</h2>
-          {meta && <p className="mt-1.5 text-sm [overflow-wrap:anywhere] text-ink-muted">{meta}</p>}
-          {occurrence.scheduledLocalTime && (
-            <p className="mt-1.5 text-sm text-ink-muted tabular-nums">
-              {occurrence.scheduledLocalTime.slice(0, 5)}
-            </p>
+    <li className={cn("plan-row today-endurance", last && "plan-row-last")}>
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="flex flex-wrap items-baseline gap-x-2">
+          <span
+            className={cn(
+              "text-[length:var(--ov-type-heading)] font-bold",
+              skipped && "text-ink-2",
+            )}
+          >
+            {name}
+          </span>
+          {target ? (
+            <span className="whitespace-nowrap">
+              <span className="type-figure">
+                <FigureText>{target.figure}</FigureText>
+              </span>{" "}
+              <span className="type-meta-small font-semibold text-ink-2">{target.unit}</span>
+            </span>
+          ) : (
+            occurrence.prescription && (
+              <span className="type-meta-small text-ink-2">
+                {describePrescription(occurrence.prescription)}
+              </span>
+            )
           )}
-        </div>
-        {occurrence.disposition === "skipped" ? (
-          <Badge tone="neutral">Skipped</Badge>
-        ) : (
-          occurrence.preparedByCoach && <Badge tone="accent">Coach</Badge>
+        </span>
+        {second.length > 0 && (
+          <span className="mt-0.5 type-meta-small [overflow-wrap:anywhere] text-ink-2 tabular-nums">
+            {second.join(" · ")}
+          </span>
         )}
-      </div>
-      {logged && occurrence.resolution.kind === "logged" ? (
+        {occurrence.preparedByCoach && !skipped && (
+          <span className="mt-0.5 flex items-center gap-1.5 type-meta-small text-ink-2">
+            <Glyph name="coach" className="glyph-14" />
+            Prepared by the coach
+          </span>
+        )}
+      </span>
+      {skipped ? (
+        <span className="shrink-0 type-meta-small font-semibold text-ink-2">Skipped</span>
+      ) : logged && occurrence.resolution.kind === "logged" ? (
         <Link
           href={`/training/activities/${occurrence.resolution.activityId}`}
-          className="text-sm text-accent"
+          className="flex min-h-11 shrink-0 items-center gap-1 type-meta-small font-bold"
         >
           See what you logged
+          <Glyph name="chevronRight" className="glyph-16" />
         </Link>
       ) : (
         <LinkButton
           href={`/training/new?occurrence=${occurrence.id}`}
-          variant="secondary"
-          className="w-full"
+          variant="tonal"
+          className="shrink-0"
         >
           Log it
         </LinkButton>
       )}
-    </Card>
+    </li>
   );
 }
 
@@ -88,11 +118,15 @@ export function CompletedOccurrences({
   if (occurrences.length === 0) return null;
   return (
     <Disclosure summary="Completed" meta={`${occurrences.length}`}>
-      <div className="space-y-3">
-        {occurrences.map((occurrence) => (
-          <OccurrenceCard key={occurrence.id} occurrence={occurrence} />
+      <ul>
+        {occurrences.map((occurrence, index) => (
+          <OccurrenceRow
+            key={occurrence.id}
+            occurrence={occurrence}
+            last={index === occurrences.length - 1}
+          />
         ))}
-      </div>
+      </ul>
     </Disclosure>
   );
 }

@@ -3,6 +3,7 @@
 @import "../styles/form-v2/palette.css";
 @import "../styles/form-v2/foundation.css";
 @import "../styles/form-v2/session.css";
+@import "../styles/form-v2/rows.css";
 @source "../";
 
 /*
@@ -253,6 +254,10 @@
   width: calc(7px + 0.4375rem);
   height: calc(7px + 0.4375rem);
 }
+@utility glyph-15 {
+  width: calc(7.5px + 0.46875rem);
+  height: calc(7.5px + 0.46875rem);
+}
 @utility glyph-16 {
   width: calc(8px + 0.5rem);
   height: calc(8px + 0.5rem);
@@ -284,17 +289,14 @@
  * spacing comes from tokens rather than a margin chosen per screen.
  */
 :root {
-  /* The row of tabs, and the whole island: the glass is exactly as tall as its tabs. */
-  --nav-height: var(--ov-nav-height);
-  /* Side gutters stay independent of the smaller gap below the island. */
-  --nav-inset: var(--ov-space-5);
-  /*
-   * Bring the island 12px closer to the bottom on inset displays, with a 4px minimum gap.
-   * The same gap also positions the resume strip and reserves space in the page below.
-   */
-  --nav-gap: max(var(--ov-space-1), calc(env(safe-area-inset-bottom, 0px) - var(--ov-space-4)));
-  /* Everything the navigation takes off the bottom of the viewport, island and gap. */
-  --nav-reserve: calc(var(--nav-height) + var(--nav-gap));
+  /* Under the targets: 17 pt above the home indicator's edge, or 11 where there is none. */
+  --nav-foot: max(11px, calc(env(safe-area-inset-bottom, 0px) - 17px));
+  /* The tab bar: a hairline and 2, the targets, the foot. */
+  --nav-height: calc(3px + var(--ov-target) + var(--nav-foot));
+  --nav-inset: 0px;
+  --nav-gap: 0px;
+  /* Everything the navigation takes off the bottom of the viewport. */
+  --nav-reserve: var(--nav-height);
   --header-height: calc(var(--ov-control-height) + var(--ov-space-6));
   --page-gutter: var(--ov-page-gutter);
   --panel-padding: var(--ov-panel-padding);
@@ -578,37 +580,29 @@ html:has(.app-content) {
  * is more page below without being able to read it through the labels — so the fallback
  * for a browser without a backdrop filter is an opaque island, never a see-through one.
  */
+/*
+ * The tab bar (DESIGN.md, Layout): ground under a hairline, five 44-pt targets (48 dp on
+ * Android), then 17 pt, so the targets end 4 clear of the home indicator, or 11 where there is
+ * none: 64 pt in all.
+ */
 .primary-nav {
   position: fixed;
-  inset: auto max(var(--nav-inset), env(safe-area-inset-right)) var(--nav-gap)
-    max(var(--nav-inset), env(safe-area-inset-left));
+  inset: auto 0 0 0;
   z-index: var(--ov-z-nav);
-  /* Border-box, so the island measures exactly the height the page reserved for it. */
   height: var(--nav-height);
-  border: 1px solid var(--ov-line);
-  border-radius: var(--ov-radius-island);
-  background: var(--ov-nav-island);
-  box-shadow: var(--ov-nav-shadow);
-  /* A wider blur than the tint alone would need: the island is half see-through, and the
-     blur is what keeps a label readable over whatever scrolls beneath it. */
-  -webkit-backdrop-filter: blur(1.5rem) saturate(180%);
-  backdrop-filter: blur(1.5rem) saturate(180%);
-}
-
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .primary-nav {
-    background: var(--ov-canvas);
-  }
+  padding: 2px max(6px, env(safe-area-inset-right)) var(--nav-foot)
+    max(6px, env(safe-area-inset-left));
+  border-top: 1px solid var(--ov-hair);
+  background: var(--ov-ground);
 }
 
 /*
- * One frame for every piece of mobile chrome: the island and the resume strip share a
- * containing block, so the two can never disagree about where the bottom of the screen is,
- * and the gap below them is stated once.
+ * One frame for every piece of mobile chrome: the tab bar and the session strip share a
+ * containing block, so the two can never disagree about where the bottom of the screen is.
  *
  * The frame is pinned to all four edges rather than given `height: 100dvh`. A length has to
  * be computed, and on iOS `dvh` is resolved against the wrong viewport until the first
- * scroll settles it — which is exactly the cold-launch offset that put the island below the
+ * scroll settles it — which is exactly the cold-launch offset that put the bar below the
  * bottom of the screen and then snapped it back into place the moment the page moved. An
  * `inset: 0` fixed element is sized by the browser itself, against the same viewport it
  * anchors a bottom-fixed element to, so there is no length left to be stale at first paint.
@@ -634,52 +628,43 @@ html:has(.app-content) {
 }
 
 .nav-items {
-  display: flex;
-  height: 100%;
-  /* Keeps a pressed tab's highlight clear of the island's own edge. */
-  padding: 0.25rem;
+  display: grid;
+  height: var(--ov-target);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 /* The tap target: the whole cell, so nothing between two tabs is dead space. */
 .nav-link {
-  display: block;
-  height: 100%;
-  /* Inside the island's own rounding, so a pressed tab never squares off its corner. */
-  border-radius: calc(var(--ov-radius-island) - 0.25rem);
-  user-select: none;
-}
-
-/*
- * The tab itself, and the thing that gets filled when it is selected: one pill around the
- * icon *and* its label. Highlighting the icon alone reads as a stray box floating over a
- * caption that belongs to it.
- */
-.nav-tab {
   display: flex;
   height: 100%;
-  width: 100%;
   min-width: 0;
-  padding-inline: 0.125rem;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  flex-direction: column;
-  gap: 0.125rem;
-  border-radius: inherit;
-  font-size: clamp(0.625rem, 2.7vw, 0.75rem);
-  font-weight: 500;
-  transition:
-    background-color var(--ov-duration-feedback) var(--ov-ease-standard),
-    color var(--ov-duration-feedback) var(--ov-ease-standard);
+  gap: 3px;
+  color: var(--ov-ink-2);
+  user-select: none;
 }
-
-.nav-tab-active {
-  background: var(--ov-accent-soft);
-  color: var(--ov-accent);
+.nav-link[aria-current] {
+  color: var(--ov-ink);
 }
-
-/* Pressing an unselected tab tints it; pressing the selected one leaves its fill alone. */
-.nav-link:active .nav-tab:not(.nav-tab-active) {
-  background: var(--ov-surface-raised);
+/* The glyphs and labels keep their size at large text, as the system's tab bars do; the
+   targets grow. */
+.nav-glyph {
+  width: 24px;
+  height: 24px;
+}
+.nav-label {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: min(var(--ov-type-tab), 15px);
+  font-weight: 600;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nav-link[aria-current] .nav-label {
+  font-weight: 700;
 }
 
 .navigation-progress {
@@ -732,37 +717,36 @@ html:has(.app-content) {
     margin-left: 12rem;
     padding-bottom: calc(2rem + var(--session-chrome-height, 0px));
   }
-  /* A full-height rail rather than an island: there is no thumb to keep clear of here. */
+  /* A full-height rail rather than a bar: there is no thumb to keep clear of here. */
   .primary-nav {
     inset: 0 auto 0 0;
     width: 12rem;
     height: auto;
-    border: 0;
-    border-right: 1px solid var(--ov-line);
-    border-radius: 0;
-    background: var(--ov-canvas);
-    box-shadow: none;
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
+    padding: 0;
+    border-top: 0;
+    border-right: 1px solid var(--ov-hair);
   }
   .nav-items {
-    flex-direction: column;
+    display: flex;
     height: auto;
+    flex-direction: column;
     gap: 0.375rem;
     padding: 1rem 0.75rem;
   }
   .nav-link {
-    height: auto;
-    border-radius: var(--ov-radius-control);
-  }
-  .nav-tab {
     height: auto;
     min-height: 3rem;
     flex-direction: row;
     justify-content: flex-start;
     gap: 0.75rem;
     padding: 0.5rem 0.75rem;
-    font-size: var(--ov-text-small);
+    border-radius: var(--ov-radius-control);
+  }
+  .nav-link[aria-current] {
+    background: var(--ov-surface);
+  }
+  .nav-label {
+    font-size: var(--ov-type-meta);
   }
   .navigation-progress {
     left: 12rem;
@@ -793,7 +777,6 @@ html:has(.app-content) {
   .viewport-chrome > .primary-nav {
     position: relative;
     inset: auto;
-    margin: 0 var(--page-gutter) max(0.5rem, env(safe-area-inset-bottom));
   }
 }
 

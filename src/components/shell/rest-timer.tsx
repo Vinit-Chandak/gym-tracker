@@ -140,31 +140,37 @@ function useRest(sessionId: string) {
   return { remaining, total, stop, extend };
 }
 
-/**
- * Countdown row. It reads a deadline rather than counting down a stored number, so it stays
- * correct across a route change, a backgrounded tab or a reload — only the displayed seconds
- * tick. `SessionChrome` positions it above the navigation; it draws no bar of its own, so it
- * cannot become a second resume strip.
- */
-export function RestTimer({ sessionId }: { sessionId: string }) {
-  const { remaining, stop, extend } = useRest(sessionId);
-  if (remaining === null) return null;
+/** Seconds of rest left (0 while it says Go), or null when no rest runs. */
+export function useRestRemaining(sessionId: string): number | null {
+  return useRest(sessionId).remaining;
+}
 
+/**
+ * The rest on the session strip (DESIGN.md, The session strip): the dial and the time, on ink.
+ * It reads a deadline rather than counting down a stored number, so it stays right across a
+ * route change, a backgrounded tab or a reload; only the shown seconds tick. Its controls are
+ * the pill's, in the session's header.
+ */
+export function RestTime({ sessionId }: { sessionId: string }) {
+  const { remaining, total } = useRest(sessionId);
+  if (remaining === null) return null;
+  const go = remaining === 0;
+  const fraction = total ? Math.min(1, (remaining * 1000) / total) : 1;
   return (
-    <div role="timer" className="border-t border-hair bg-surface">
-      <div className="page-width flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-1.5">
-        <span className="type-caption text-ink-2">Rest</span>
-        <span className="type-figure-s">{remaining === 0 ? "Go" : formatDuration(remaining)}</span>
-        <div className="flex gap-1">
-          <Button variant="secondary" size="sm" onClick={extend}>
-            +30 s
-          </Button>
-          <Button variant="ghost" size="sm" onClick={stop}>
-            Stop
-          </Button>
-        </div>
-      </div>
-    </div>
+    <span className="flex shrink-0 items-center gap-1.5">
+      {go ? (
+        <Glyph name="rest" className="glyph-16" />
+      ) : (
+        <RestDial fraction={fraction} className="glyph-16" />
+      )}
+      <span
+        role="timer"
+        aria-label={go ? "Rest over" : `Rest, ${spokenTime(remaining)} left`}
+        className="type-figure-s"
+      >
+        {go ? "Go" : formatDuration(remaining)}
+      </span>
+    </span>
   );
 }
 

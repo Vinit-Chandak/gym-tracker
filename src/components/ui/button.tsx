@@ -68,15 +68,18 @@ export function LinkButton<T extends string>({
   size = "md",
   className,
   children,
+  "aria-label": label,
 }: {
   href: Route<T>;
   variant?: ButtonVariant;
   size?: ButtonSize;
   className?: string;
   children: ReactNode;
+  /** Adds to what the link says when the screen has several of it (keep its words in it). */
+  "aria-label"?: string;
 }) {
   return (
-    <Link href={href} className={buttonClassName(variant, size, className)}>
+    <Link href={href} aria-label={label} className={buttonClassName(variant, size, className)}>
       {children}
     </Link>
   );

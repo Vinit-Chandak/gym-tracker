@@ -11,6 +11,7 @@ import { exercises } from "@/db/schema";
 import { withUser } from "@/db/with-user";
 import { prescriptionTypeOf, type ProgramBlueprint } from "@/domain/program-blueprint";
 import { progress } from "@/domain/schedule";
+import type { ExerciseModality } from "@/domain/types";
 import { requireUser } from "@/server/auth";
 import { sharedWarmupProtocols } from "@/server/queries/reference";
 import { getProgramDraft } from "@/server/repositories/program-drafts";
@@ -29,7 +30,7 @@ export const metadata: Metadata = { title: "Full programme" };
  */
 function daysOf(
   blueprint: ProgramBlueprint,
-  names: ReadonlyMap<string, string>,
+  names: ReadonlyMap<string, { name: string; modality: ExerciseModality }>,
   warmups: ReadonlyMap<string, string>,
   week: number,
 ): ProgramDayPlan[] {
@@ -58,7 +59,8 @@ function daysOf(
         exercises: day.exercises.map((exercise, index) => ({
           programExerciseId: `${day.dayIndex}-${index}`,
           exerciseId: exercise.exerciseSlug,
-          name: names.get(exercise.exerciseSlug) ?? exercise.exerciseSlug,
+          name: names.get(exercise.exerciseSlug)?.name ?? exercise.exerciseSlug,
+          modality: names.get(exercise.exerciseSlug)?.modality ?? null,
           sets: exercise.sets,
           prescriptionType: prescriptionTypeOf(exercise),
           repMin: exercise.reps?.[0] ?? null,
@@ -106,7 +108,7 @@ export default async function DraftProgrammePage({ params }: { params: Promise<{
       if (!draft) return null;
       const [library, warmups, schedule] = await Promise.all([
         tx
-          .select({ slug: exercises.slug, name: exercises.name })
+          .select({ slug: exercises.slug, name: exercises.name, modality: exercises.modality })
           .from(exercises)
           .where(or(isNull(exercises.userId), eq(exercises.userId, user.id))),
         sharedWarmupProtocols(tx),
@@ -123,7 +125,7 @@ export default async function DraftProgrammePage({ params }: { params: Promise<{
   if (!data) notFound();
   const days = daysOf(
     data.draft.blueprint,
-    new Map(data.library.map((row) => [row.slug, row.name])),
+    new Map(data.library.map((row) => [row.slug, { name: row.name, modality: row.modality }])),
     new Map(data.warmups.map((row) => [row.slug, row.name])),
     data.week,
   );

@@ -59,29 +59,25 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
   const { session: data, records } = found;
 
   const title = data.day?.name ?? "Ad hoc session";
+  const backHref = (data.completedAt && origin ? originPath(origin) : "/today") as Route;
   // Remount the client view whenever the server-side shape of the session changes.
   const viewKey = data.exercises
     .map((e) => `${e.id}:${e.exercise.id}:${e.equipment?.id ?? ""}:${e.skippedAt ?? ""}`)
     .join("|");
 
   return (
-    // The gym is said once, in the header. The logger never repeats it. The cycle is left to
-    // Today and the programme, where it places the day; beside a gym's name it only crowded the
-    // title. Back goes to Today, which is where a workout is started and finished, unless the
-    // session was opened from somewhere else that said so. An exercise in focus is a layer over
-    // all of this, with its own header.
+    // An open workout is the session's layer over the tabs (DESIGN.md, The session): its title,
+    // the gym and the day's time once, and Minimise back to Today, which is where a workout is
+    // started and finished. A finished one is a page with a header, whose Back goes wherever it
+    // was opened from when that said so. An exercise in focus is a layer of its own.
     <WorkoutView
       key={`${viewKey}:${data.completedAt ?? "open"}:${data.preferredUnit}`}
       session={data}
       seenSetChanges={seen}
       userId={user.id}
-      header={
-        <PageHeader
-          title={title}
-          meta={data.gym.name}
-          backHref={(data.completedAt && origin ? originPath(origin) : "/today") as Route}
-        />
-      }
+      title={title}
+      backHref={backHref}
+      header={<PageHeader title={title} meta={data.gym.name} backHref={backHref} />}
       intro={
         data.completedAt ? (
           <>

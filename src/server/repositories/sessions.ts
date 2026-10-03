@@ -384,7 +384,14 @@ export type SessionExercise = {
 export type SessionDetail = {
   id: string;
   gym: { id: string; name: string; kind: typeof gyms.$inferSelect.kind };
-  day: { id: string; name: string; focus: string | null; includesRun: boolean } | null;
+  day: {
+    id: string;
+    name: string;
+    focus: string | null;
+    includesRun: boolean;
+    /** How long the day takes, as the programme says it ("70–90 min"). */
+    timeNote: string | null;
+  } | null;
   cycleIndex: number | null;
   startedAt: Date;
   completedAt: Date | null;
@@ -440,6 +447,7 @@ export async function getSessionDetail(
         name: programDays.name,
         focus: programDays.focus,
         includesRun: programDays.includesRun,
+        timeNote: programDays.timeNote,
         warmupProtocolId: programDays.warmupProtocolId,
       },
     })
@@ -747,6 +755,7 @@ export async function getSessionDetail(
           name: session.day.name,
           focus: session.day.focus,
           includesRun: session.day.includesRun,
+          timeNote: session.day.timeNote,
         }
       : null,
     cycleIndex: session.session.cycleIndex,

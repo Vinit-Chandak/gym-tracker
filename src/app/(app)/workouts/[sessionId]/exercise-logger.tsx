@@ -838,6 +838,7 @@ export function ExerciseLogger({
       style={layerStyle}
     >
       <span ref={probe} aria-hidden className="session-probe" />
+      <h1 className="sr-only">{exercise.exercise.name}</h1>
       <header ref={header} className="session-header">
         <button type="button" onClick={onBack} className="session-back">
           <Glyph name="chevronLeft" className="glyph-22" />

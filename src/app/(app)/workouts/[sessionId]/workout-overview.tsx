@@ -1,62 +1,111 @@
 "use client";
 
-import { AiCoach, Check, ChevronDown, ChevronRight } from "@/components/ui/icons";
-import { useTransition, useState } from "react";
+import type { Route } from "next";
+import {
+  useLayoutEffect,
+  useRef,
+  useState,
+  useTransition,
+  type ReactNode,
+  type RefObject,
+} from "react";
 
-import { Badge } from "@/components/ui/badge";
+import { Art } from "@/components/art/art";
+import type { PrintPart, StrengthColumn } from "@/components/art/geometry";
+import { targetsLine } from "@/components/planned-exercises";
+import { RestPill } from "@/components/shell/rest-timer";
+import Link from "@/components/ui/app-link";
 import { Button, LinkButton } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { List } from "@/components/ui/link-row";
-import { InfoTip } from "@/components/ui/info-tip";
-import { formatSets } from "@/domain/sets";
-import { supersetHues, supersetStyle } from "@/lib/superset-colors";
+import { CoachNote } from "@/components/ui/coach-note";
+import { FitTitle } from "@/components/ui/fit-title";
+import { GLYPH_LABELS, Glyph } from "@/components/ui/glyphs";
+import { Sheet } from "@/components/ui/sheet";
+import { formatSet } from "@/domain/sets";
+import { LOAD_UNIT_LABELS } from "@/lib/labels";
+import { attempted } from "@/lib/offline-submit";
 import { cn } from "@/lib/utils";
 import { setWarmupCompletedAction } from "@/server/actions/sessions";
 
+import {
+  equipmentGlyph,
+  equipmentLine,
+  isWarmup,
+  plannedSets,
+  prescriptionLabel,
+} from "./logger-model";
+import { MoreSheet, type MoreOption } from "./logger-sheets";
 import type { ExerciseVM, SessionVM } from "./view-model";
-import { attempted } from "@/lib/offline-submit";
 
-/** What the row's action says, which is also what tapping it does. */
-function rowAction(exercise: ExerciseVM): { label: string; tone: "accent" | "muted" } {
-  if (exercise.skippedAt) return { label: "Skipped", tone: "muted" };
-  if (exercise.completedAt) return { label: "Done", tone: "muted" };
-  return exercise.sets.length > 0
-    ? { label: "Resume", tone: "accent" }
-    : { label: "Start", tone: "accent" };
-}
+/** Sets of the work done so far, warm-ups aside. */
+const workDone = (exercise: ExerciseVM) => exercise.sets.filter((set) => !isWarmup(set.setType));
 
-/** Progress and machine on one line. Status lives in the action, so it is not repeated here. */
-function progressLine(exercise: ExerciseVM): string {
-  const logged = exercise.sets.filter((set) => set.setType !== "warmup").length;
-  const coachTargets = exercise.suggestion?.kind === "coach" ? exercise.suggestion.sets : [];
-  const planned =
-    coachTargets.length > 0
-      ? coachTargets.filter((set) => set.setType !== "warmup").length
-      : (exercise.planned?.sets ?? null);
-  const count =
-    planned !== null
-      ? `${logged} of ${planned} ${planned === 1 ? "set" : "sets"}`
-      : `${logged} ${logged === 1 ? "set" : "sets"}`;
-  const machine = exercise.equipment?.name;
-  const values = logged > 0 ? formatSets(exercise.sets) : null;
-  return [count, machine, values].filter(Boolean).join(" · ");
-}
+/** An exercise under way: some of its work is in, and it is neither done nor dropped. */
+const underWay = (exercise: ExerciseVM) =>
+  !exercise.completedAt && !exercise.skippedAt && workDone(exercise).length > 0;
 
 /**
- * One row, closed by default: the drills are there when wanted, and marking the warm-up
- * done needs no opening. A native <details> cannot hold a second button in its summary,
- * so the toggle and the action are siblings on the same line.
+ * What a row says under the name (DESIGN.md, Rows and marks): for the exercise under way, the
+ * sets so far ("60 kg × 4, 60 kg × 4"); otherwise its prescription, the coach's when the coach
+ * wrote it ("60 kg · 3 × 5 @ 2, 2, 1 RIR").
  */
-function WarmupRow({
+function rowLine(exercise: ExerciseVM, unitLabel: string, readOnly: boolean): string {
+  const done = workDone(exercise);
+  if ((readOnly || underWay(exercise)) && done.length > 0)
+    return done.map((set) => formatSet(set, LOAD_UNIT_LABELS[set.unit])).join(", ");
+  if (exercise.suggestion?.kind === "coach") {
+    const line = targetsLine(
+      exercise.suggestion.sets,
+      unitLabel,
+      exercise.planned?.perSide ?? false,
+    );
+    if (line) return line;
+  }
+  return prescriptionLabel(exercise) ?? equipmentLine(exercise, "gym");
+}
+
+/** The workout's plan as a print: the warm-up's fan, then a column of sets for each exercise. */
+function workoutParts(session: SessionVM, warmupDone: boolean): PrintPart[] {
+  const parts: PrintPart[] = [];
+  const blades = session.coachPlan?.warmup.length || session.warmup?.drills.length || 0;
+  if (blades > 0)
+    parts.push({
+      kind: "mobility",
+      segments: blades,
+      segmentsDone: warmupDone ? blades : 0,
+      state: warmupDone ? "done" : "todo",
+      modules: 3,
+    });
+  const columns: StrengthColumn[] = [];
+  session.exercises.forEach((exercise, index) => {
+    const done = workDone(exercise).length;
+    const sets = Math.max(plannedSets(exercise) ?? 0, done);
+    if (sets === 0) return;
+    const next = session.exercises[index + 1];
+    columns.push({
+      sets,
+      done,
+      skipped: exercise.skippedAt !== null,
+      pair: exercise.supersetGroup !== null && next?.supersetGroup === exercise.supersetGroup,
+    });
+  });
+  if (columns.length > 0) parts.push({ kind: "strength", columns });
+  return parts;
+}
+
+/** The warm-up, opened: its drills (or the coach's lines) and Mark done. */
+function WarmupSheet({
+  open,
   session,
   done,
   onDone,
+  onClose,
 }: {
+  open: boolean;
   session: SessionVM;
   done: boolean;
   onDone: (done: boolean) => void;
+  onClose: () => void;
 }) {
-  const [open, setOpen] = useState(false);
   // The coach's warm-up replaces the protocol for this session; the protocol stays on the
   // programme day rather than being listed twice here.
   const coachLines = session.coachPlan?.warmup ?? [];
@@ -83,72 +132,69 @@ function WarmupRow({
     });
 
   return (
-    <div className="box">
-      <div className="flex items-center gap-2 pr-3">
-        <button
-          type="button"
-          aria-expanded={open}
-          onClick={() => setOpen((current) => !current)}
-          className="flex min-h-14 min-w-0 flex-1 items-center gap-2 py-2 pl-4 text-left font-medium"
-        >
-          <ChevronDown
-            className={cn(
-              "shrink-0 text-ink-subtle transition-transform duration-[var(--ov-duration-feedback)]",
-              open && "rotate-180",
-            )}
-            aria-hidden
-          />
-          <span className="min-w-0 flex-1">Warm-up</span>
-          <span className="shrink-0 text-xs font-normal text-ink-muted tabular-nums">
+    <Sheet
+      open={open}
+      onClose={onClose}
+      title={coachLines.length > 0 ? "Warm-up" : (session.warmup?.name ?? "Warm-up")}
+    >
+      {open && (
+        <div className="mt-1">
+          <ol>
             {coachLines.length > 0
-              ? `${coachLines.length} from the coach`
-              : `${drills.length} drills`}
-          </span>
-        </button>
-        <Button
-          variant={done ? "secondary" : "primary"}
-          size="sm"
-          className="shrink-0"
-          onClick={toggleDone}
-          disabled={pending}
-          aria-pressed={done}
-        >
-          {pending ? (
-            "Saving…"
-          ) : done ? (
-            <>
-              Done <Check aria-hidden />
-            </>
-          ) : (
-            "Mark done"
+              ? coachLines.map((line, index) => (
+                  <li
+                    key={index}
+                    className={cn(
+                      "py-2.5 [overflow-wrap:anywhere]",
+                      index < coachLines.length - 1 && "border-b border-hair",
+                    )}
+                  >
+                    {line}
+                  </li>
+                ))
+              : drills.map((drill, index) => (
+                  <li
+                    key={drill.order}
+                    className={cn(
+                      "flex justify-between gap-3 py-2.5",
+                      index < drills.length - 1 && "border-b border-hair",
+                    )}
+                  >
+                    <span className="min-w-0 font-bold [overflow-wrap:anywhere]">{drill.name}</span>
+                    <span className="shrink-0 text-right type-meta text-ink-2 tabular-nums">
+                      {drill.dose}
+                    </span>
+                  </li>
+                ))}
+          </ol>
+          {error && (
+            <p role="alert" className="mt-2 flex items-start gap-2 type-meta font-semibold">
+              <Glyph name="warn" className="mt-px glyph-18" />
+              {error}
+            </p>
           )}
-        </Button>
-      </div>
-      {open && coachLines.length > 0 && (
-        <ol className="border-t border-line px-4 pb-2 text-sm ruled-list">
-          {coachLines.map((line, index) => (
-            <li key={index} className="py-1.5 [overflow-wrap:anywhere]">
-              {line}
-            </li>
-          ))}
-        </ol>
+          <Button
+            variant={done ? "tonal" : "primary"}
+            size="lg"
+            className="mt-4 w-full"
+            onClick={toggleDone}
+            disabled={pending}
+            aria-pressed={done}
+          >
+            {pending ? (
+              "Saving…"
+            ) : done ? (
+              <>
+                <Glyph name="check" className="glyph-20" />
+                Done
+              </>
+            ) : (
+              "Mark done"
+            )}
+          </Button>
+        </div>
       )}
-      {open && coachLines.length === 0 && (
-        <ol className="border-t border-line px-4 pb-2 text-sm ruled-list">
-          {drills.map((drill) => (
-            <li key={drill.order} className="flex justify-between gap-3 py-1.5">
-              <span className="min-w-0">{drill.name}</span>
-              <span className="shrink-0 text-right text-ink-muted">{drill.dose}</span>
-            </li>
-          ))}
-        </ol>
-      )}
-      {error && (
-        <p role="alert" className="px-4 pb-3 text-sm text-danger">
-          {error}
-        </p>
-      )}
-    </div>
+    </Sheet>
   );
 }
 
@@ -159,8 +205,22 @@ type OverviewProps = {
   onOpenExercise: (workoutExerciseId: string) => void;
   onOpenDetails: () => void;
   onEditSuperset: (group: string | null) => void;
+  /** The day's name, or "Ad hoc session". */
+  title?: string;
+  /** Where minimising goes: Today, or wherever the session was opened from. */
+  backHref?: Route;
+  /** An open workout is the session's layer over the tabs; a finished one is a page. */
+  layer?: boolean;
+  /** Where the layer's list was scrolled to, kept while an exercise is open. */
+  listScrollRef?: RefObject<number>;
 };
 
+/**
+ * The workout (DESIGN.md, The session; boards Workout, Workout-Superset, Workout-Coach): the
+ * day's name and where, its plan as a print with the sets inked as they are done, the app's
+ * advice, then the warm-up and the exercises in the programme's order. A row says where it
+ * stands only when that is news: a check when done, Resume on one under way, Skipped.
+ */
 export function WorkoutOverview({
   session,
   readOnly,
@@ -168,145 +228,350 @@ export function WorkoutOverview({
   onOpenExercise,
   onOpenDetails,
   onEditSuperset,
+  title = session.day?.name ?? "Ad hoc session",
+  backHref = "/today",
+  layer = false,
+  listScrollRef,
 }: OverviewProps) {
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLElement>(null);
+  const actionsRef = useRef<HTMLSpanElement>(null);
+  // Folded, never dropped: when the reader's text is so large that Minimise, the rest pill,
+  // Finish and More cannot share a line, the pill and Finish stand on a line of their own.
+  const [stacked, setStacked] = useState(false);
+  useLayoutEffect(() => {
+    const header = headerRef.current;
+    const actions = actionsRef.current;
+    if (!header || !actions) return;
+    const measure = () => {
+      const style = getComputedStyle(header);
+      const room =
+        header.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+      const gap = parseFloat(style.columnGap) || 0;
+      const target = header.querySelector(".session-icon-button")?.getBoundingClientRect().width;
+      // Minimise and More reach 10 pt into the gutters; three gaps stand around the spacer.
+      const need = 2 * (target ?? 44) - 20 + 3 * gap + actions.getBoundingClientRect().width;
+      setStacked(need > room + 0.5);
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(header);
+    observer.observe(actions);
+    return () => observer.disconnect();
+  }, []);
+  // Back from an exercise, the list is where it was left, so a long workout does not restart
+  // at the top.
+  useLayoutEffect(() => {
+    if (bodyRef.current && listScrollRef) bodyRef.current.scrollTop = listScrollRef.current;
+  }, [listScrollRef]);
   const [warmupDone, setWarmupDone] = useState(session.warmupCompleted);
-  const hues = supersetHues(session.exercises);
+  const [sheet, setSheet] = useState<"more" | "warmup" | null>(null);
+  const unitLabel = LOAD_UNIT_LABELS[session.preferredUnit];
+  const coachPlanned = session.coachPlan !== null;
+  const heading = coachPlanned ? `${title}, planned by the coach` : title;
+  const blades = session.coachPlan?.warmup.length || session.warmup?.drills.length || 0;
+  const hasWarmup = session.warmup !== null || (session.coachPlan?.warmup.length ?? 0) > 0;
+  // The coach's warm-up stands in for the protocol, so it does not take the protocol's name.
+  const warmupName = session.coachPlan?.warmup.length
+    ? "Warm-up"
+    : (session.warmup?.name ?? "Warm-up");
+  const groups = session.exercises.reduce<ExerciseVM[][]>((all, exercise) => {
+    const last = all.at(-1);
+    if (exercise.supersetGroup && last?.[0]?.supersetGroup === exercise.supersetGroup)
+      last.push(exercise);
+    else all.push([exercise]);
+    return all;
+  }, []);
 
-  return (
-    <div className="space-y-[var(--section-gap)]">
-      <div className="flex flex-wrap gap-2">
-        <Button variant="secondary" size="sm" onClick={onOpenDetails}>
-          Session details
-        </Button>
-        {!readOnly &&
-          (hasDrafts ? (
-            <Button size="sm" disabled>
-              Save drafts first
-            </Button>
+  const row = (exercise: ExerciseVM, last: boolean) => {
+    const done = exercise.completedAt !== null;
+    const skipped = exercise.skippedAt !== null;
+    const open = !readOnly && underWay(exercise);
+    const planned = exercise.planned?.plannedExerciseName;
+    const instead =
+      planned !== undefined && planned !== exercise.exercise.name && !open && !done
+        ? planned
+        : null;
+    const working = workDone(exercise).length;
+    const of = plannedSets(exercise);
+    const glyph = equipmentGlyph(exercise);
+    const coachAdded = exercise.suggestion?.kind === "coach" && exercise.planned === null;
+    return (
+      <li key={exercise.id}>
+        <button
+          type="button"
+          onClick={() => onOpenExercise(exercise.id)}
+          className={cn("plan-row workout-row w-full text-left", last && "plan-row-last")}
+        >
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span
+              className={cn(
+                "plan-row-name [overflow-wrap:anywhere]",
+                (done || skipped) && !readOnly && "text-ink-2",
+              )}
+            >
+              {exercise.exercise.name}
+            </span>
+            {!skipped && (
+              <span className="meta-line plan-row-meta">
+                <span className="meta-fact">
+                  <Glyph name={glyph} label={GLYPH_LABELS[glyph]} className="glyph-16" />
+                  <span>{rowLine(exercise, unitLabel, readOnly)}</span>
+                  {instead && <span>instead of {instead}</span>}
+                </span>
+              </span>
+            )}
+            {exercise.coachNote && (
+              <span className="plan-row-note">
+                <Glyph name="coach" label="Coach:" className="mt-0.5 glyph-15" />
+                <span className="line-clamp-2 min-w-0">
+                  {coachAdded ? "Added. " : ""}
+                  {exercise.coachNote}
+                </span>
+              </span>
+            )}
+          </span>
+          {open ? (
+            <>
+              <span className="sr-only">
+                , in progress, {working}
+                {of !== null ? ` of ${of}` : ""} sets done. Resume
+              </span>
+              <span aria-hidden className="workout-resume">
+                Resume
+              </span>
+            </>
+          ) : done ? (
+            <Glyph name="check" label="Done" className="glyph-20 shrink-0" />
+          ) : skipped ? (
+            <span className="shrink-0 type-meta-small font-semibold text-ink-2">Skipped</span>
+          ) : null}
+        </button>
+      </li>
+    );
+  };
+
+  const more: MoreOption[] = [
+    { glyph: "note", label: "Session details", onSelect: onOpenDetails },
+    ...(!readOnly
+      ? ([
+          {
+            glyph: "plus",
+            label: "Add exercise",
+            href: `/workouts/${session.id}/add-exercise` as Route,
+          },
+          {
+            glyph: "link",
+            label: "Superset",
+            onSelect: () => onEditSuperset(null),
+            disabled: session.exercises.length < 2,
+          },
+        ] satisfies MoreOption[])
+      : []),
+  ];
+
+  const content: ReactNode = (
+    <>
+      {layer && (
+        <>
+          <h1 className="sr-only">{heading}</h1>
+          <FitTitle sizes={{ base: 34, narrow: 30 }} room={30} className="mt-0.5">
+            {title}
+          </FitTitle>
+        </>
+      )}
+      <p className="meta-line mt-1">
+        {/* A finished workout's header already names the gym. */}
+        {layer && (
+          <span className="meta-fact">
+            <Glyph name="pin" label="Gym" className="glyph-16" />
+            {session.gym.name}
+          </span>
+        )}
+        {session.day?.timeNote && (
+          <span className="meta-fact">
+            <Glyph name="rest" className="glyph-16" />
+            {session.day.timeNote}
+          </span>
+        )}
+        {coachPlanned && (
+          <span className="meta-fact">
+            <Glyph name="coach" className="glyph-16" />
+            Planned by the coach
+          </span>
+        )}
+      </p>
+      <figure className="workout-print m-0">
+        <Art
+          kind="print"
+          parts={workoutParts(session, warmupDone)}
+          label={`${title}: ${
+            hasWarmup ? `the warm-up ${warmupDone ? "done" : "to do"}, ` : ""
+          }${session.exercises.length} exercises as columns of their sets, the sets done inked`}
+          className="size-full"
+        />
+      </figure>
+
+      {!readOnly && session.warnings.length > 0 && (
+        <CoachNote
+          who="Recovery check"
+          tone="check"
+          small
+          className="mt-3"
+          title={session.warnings.length === 1 ? session.warnings[0]!.title : undefined}
+        >
+          {session.warnings.length === 1 ? (
+            session.warnings[0]!.advice
           ) : (
-            <LinkButton href={`/workouts/${session.id}/finish`} size="sm">
-              Finish session
-            </LinkButton>
-          ))}
-      </div>
-
+            <ul className="space-y-1">
+              {session.warnings.map((warning) => (
+                <li key={warning.code}>
+                  <span className="font-bold">{warning.title}.</span> {warning.advice}
+                </li>
+              ))}
+            </ul>
+          )}
+        </CoachNote>
+      )}
+      {session.coachPlan?.summary && (
+        <CoachNote small clamp className="mt-3">
+          {session.coachPlan.summary}
+        </CoachNote>
+      )}
       {!readOnly && hasDrafts && (
-        <p role="status" className="text-sm text-warning">
+        <p role="status" className="mt-3 flex items-start gap-2 type-meta font-semibold">
+          <Glyph name="warn" className="mt-px glyph-18" />
           Unsaved set drafts on this device. Save or remove them before finishing.
         </p>
       )}
 
-      {!readOnly && session.warnings.length > 0 && (
-        <Card>
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="flex items-center gap-1 text-base font-medium">
-              Recovery check
-              <InfoTip label="About the recovery check">
-                Advice only. Nothing here changes the targets you were given; every set is yours to
-                set as you find it.
-              </InfoTip>
-            </h2>
-            <Badge tone="warning">Advice</Badge>
-          </div>
-          <ul className="space-y-2 text-sm">
-            {session.warnings.map((warning) => (
-              <li key={warning.code}>
-                <span className="font-medium">{warning.title}.</span>{" "}
-                <span className="text-ink-muted">{warning.advice}</span>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
-
-      {/* The coach's sentence for the session, one slim box: the same shape as the gym row
-          on Today, so it reads as context rather than as another decision. */}
-      {session.coachPlan?.summary && (
-        <div className="flex box items-center gap-2 px-3 py-2.5">
-          <AiCoach className="shrink-0 text-accent" aria-hidden />
-          <p className="min-w-0 text-sm [overflow-wrap:anywhere]">{session.coachPlan.summary}</p>
-        </div>
-      )}
-
-      {!readOnly && (session.warmup || (session.coachPlan?.warmup.length ?? 0) > 0) && (
-        <WarmupRow session={session} done={warmupDone} onDone={setWarmupDone} />
-      )}
-
-      {session.exercises.length === 0 ? (
-        <p className="text-sm text-ink-muted">No exercises yet.</p>
+      {session.exercises.length === 0 && !hasWarmup ? (
+        <p className="mt-3 type-body text-ink-2">No exercises yet.</p>
       ) : (
-        <List>
-          {session.exercises.map((exercise) => {
-            // A finished session is a record of what happened, so a skipped exercise still says
-            // it was skipped; without that it reads the same as one that was simply never done.
-            const action: { label: string; tone: "accent" | "muted" } = readOnly
-              ? exercise.skippedAt
-                ? { label: "Skipped", tone: "muted" }
-                : { label: "View", tone: "muted" }
-              : rowAction(exercise);
-            const hue = exercise.supersetGroup ? hues.get(exercise.supersetGroup) : undefined;
+        <ul aria-label={heading} className="mt-2">
+          {!readOnly && hasWarmup && (
+            <li>
+              <button
+                type="button"
+                aria-haspopup="dialog"
+                onClick={() => setSheet("warmup")}
+                className={cn(
+                  "plan-row workout-row workout-warmup w-full text-left",
+                  session.exercises.length === 0 && "plan-row-last",
+                )}
+              >
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className={cn("plan-row-name", warmupDone && "text-ink-2")}>
+                    {warmupName}
+                  </span>
+                  <span className="type-meta-small [overflow-wrap:anywhere] text-ink-2 tabular-nums">
+                    {session.coachPlan?.warmup.length
+                      ? session.coachPlan.warmup.join(" · ")
+                      : `${blades} ${blades === 1 ? "drill" : "drills"}`}
+                  </span>
+                </span>
+                {warmupDone && <Glyph name="check" label="Done" className="glyph-20 shrink-0" />}
+              </button>
+            </li>
+          )}
+          {groups.map((group, index) => {
+            const lastGroup = index === groups.length - 1;
+            if (group.length === 1) return row(group[0]!, lastGroup);
             return (
-              <li key={exercise.id}>
-                <button
-                  type="button"
-                  onClick={() => onOpenExercise(exercise.id)}
-                  className={cn(
-                    "flex min-h-14 w-full items-center gap-3 py-3 pr-4 text-left active:bg-surface-raised",
-                    // Rows in a superset share one colour; nothing else marks the group. The
-                    // rule takes 3px of the gutter so the names still line up.
-                    hue ? "pl-[0.8125rem] superset-row" : "pl-4",
-                  )}
-                  style={hue ? supersetStyle(hue) : undefined}
-                >
-                  <span
-                    className="w-5 shrink-0 text-sm text-ink-subtle tabular-nums"
-                    style={hue ? { color: "var(--superset-color)" } : undefined}
-                  >
-                    {exercise.orderIndex}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block font-medium [overflow-wrap:anywhere]">
-                      {exercise.exercise.name}
-                    </span>
-                    <span className="mt-0.5 block text-sm [overflow-wrap:anywhere] text-ink-muted">
-                      {progressLine(exercise)}
-                    </span>
-                  </span>
-                  <span
-                    className={cn(
-                      "shrink-0 text-sm font-medium",
-                      action.tone === "accent" ? "text-accent" : "text-ink-muted",
-                    )}
-                  >
-                    {action.label}
-                  </span>
-                  <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />
-                </button>
+              <li key={group[0]!.id} className="superset-group">
+                <ul aria-label={`Superset: ${group.map((x) => x.exercise.name).join(" and ")}`}>
+                  {group.map((exercise, at) => row(exercise, lastGroup && at === group.length - 1))}
+                </ul>
+                <span role="img" aria-label="Superset" className="superset-bracket" />
               </li>
             );
           })}
-        </List>
+        </ul>
       )}
 
       {!readOnly && (
-        <div className="action-row">
-          <LinkButton
-            href={`/workouts/${session.id}/add-exercise`}
-            variant="secondary"
-            className="w-full"
-          >
+        <div className="mt-2.5 flex flex-wrap gap-2">
+          <LinkButton href={`/workouts/${session.id}/add-exercise`} variant="tonal" size="sm">
+            <Glyph name="plus" className="glyph-18" />
             Add exercise
           </LinkButton>
           <Button
-            variant="secondary"
-            className="w-full"
+            variant="tonal"
+            size="sm"
             disabled={session.exercises.length < 2}
             onClick={() => onEditSuperset(null)}
           >
-            {hues.size > 0 ? "Supersets" : "Superset"}
+            <Glyph name="link" className="glyph-18" />
+            Superset
           </Button>
         </div>
       )}
+      {readOnly && (
+        <div className="mt-3">
+          <Button variant="tonal" size="sm" onClick={onOpenDetails}>
+            <Glyph name="note" className="glyph-18" />
+            Session details
+          </Button>
+        </div>
+      )}
+
+      <WarmupSheet
+        open={sheet === "warmup"}
+        session={session}
+        done={warmupDone}
+        onDone={setWarmupDone}
+        onClose={() => setSheet(null)}
+      />
+      <MoreSheet open={sheet === "more"} options={more} onClose={() => setSheet(null)} />
+    </>
+  );
+
+  if (!layer) return <div className="workout-page">{content}</div>;
+
+  return (
+    <div className="session-layer workout-layer">
+      <header ref={headerRef} className="session-header workout-header" data-stacked={stacked}>
+        <Link
+          href={backHref}
+          aria-label="Minimise the workout"
+          className="session-icon-button -ml-2.5"
+        >
+          <Glyph name="chevronDown" className="glyph-24" />
+        </Link>
+        <span className="flex-1" />
+        <span ref={actionsRef} className="workout-head-actions">
+          {session.restTimerEnabled && <RestPill sessionId={session.id} />}
+          {hasDrafts ? (
+            <span aria-disabled="true" className="finish-pill">
+              <span className="text-ink-2">Finish</span>
+            </span>
+          ) : (
+            <Link href={`/workouts/${session.id}/finish`} className="finish-pill">
+              <span>Finish</span>
+            </Link>
+          )}
+        </span>
+        <button
+          type="button"
+          aria-haspopup="dialog"
+          aria-label="Session details, add exercise, superset"
+          onClick={() => setSheet("more")}
+          className="session-icon-button -mr-2.5"
+        >
+          <Glyph name="more" className="glyph-24" />
+        </button>
+      </header>
+      <div
+        ref={bodyRef}
+        className="session-body workout-body"
+        data-scroll="true"
+        onScroll={(event) => {
+          if (listScrollRef) listScrollRef.current = event.currentTarget.scrollTop;
+        }}
+      >
+        {content}
+      </div>
     </div>
   );
 }

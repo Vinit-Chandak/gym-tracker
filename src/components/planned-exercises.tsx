@@ -85,3 +85,48 @@ export function PlannedExerciseList({
     </ul>
   );
 }
+
+type TargetLike = {
+  setType: string;
+  weight: number | null;
+  reps: number | null;
+  rir: number | null;
+  rpe?: number | null;
+  durationSeconds: number | null;
+  distanceMeters: number | null;
+};
+
+/**
+ * Targets a coach wrote, as a row says them: the load leads, then the sets, and "@" is RIR
+ * alone ("60 kg · 3 × 5 @ 2, 2, 1 RIR"); a set rated by effort says RPE ("32 kg · 3 × 30 m ·
+ * RPE 7"). Warm-ups are left out unless they are all there is. Null when nothing is set.
+ */
+export function targetsLine(
+  sets: readonly TargetLike[],
+  unit: string,
+  perSide = false,
+): string | null {
+  const working = sets.filter((set) => set.setType !== "warmup");
+  const shown = working.length > 0 ? working : sets;
+  const first = shown[0];
+  if (!first) return null;
+  const all = <T,>(pick: (set: TargetLike) => T) => shown.every((set) => pick(set) === pick(first));
+  const list = <T,>(pick: (set: TargetLike) => T, joiner: string) =>
+    all(pick) ? `${pick(first) ?? "—"}` : shown.map((set) => pick(set) ?? "—").join(joiner);
+  const load = first.weight === null ? "" : `${list((set) => set.weight, "/")} ${unit} · `;
+  const volume =
+    first.reps === null && first.distanceMeters !== null
+      ? `${list((set) => set.distanceMeters, "/")} m`
+      : first.reps === null && first.durationSeconds !== null
+        ? `${list((set) => set.durationSeconds, "/")} s`
+        : list((set) => set.reps, "/");
+  const effort =
+    first.reps === null
+      ? first.rpe != null
+        ? ` · RPE ${list((set) => set.rpe ?? null, ", ")}`
+        : ""
+      : first.rir === null
+        ? ""
+        : ` @ ${list((set) => set.rir, ", ")} RIR`;
+  return `${load}${shown.length} × ${volume}${perSide ? " per side" : ""}${effort}`;
+}

@@ -142,7 +142,9 @@ it("shows a saved set in the list, in the reopened exercise and on Back, without
   const view = () => <WorkoutView session={rendered} seenSetChanges={seen} userId="user" />;
   actions.log.mockResolvedValue({ ok: true, set: saved });
   const page = render(view());
-  expect(screen.getByText("0 sets")).toBeTruthy();
+  // A row says where it stands only when that is news: nothing until a set is in.
+  expect(screen.getByText("Free weights")).toBeTruthy();
+  expect(screen.queryByText("Resume")).toBeNull();
 
   fireEvent.click(screen.getByRole("button", { name: /Bench press/ }));
   page.rerender(view());
@@ -150,7 +152,7 @@ it("shows a saved set in the list, in the reopened exercise and on Back, without
 
   fireEvent.click(screen.getByRole("button", { name: BACK }));
   page.rerender(view());
-  expect(screen.getByText("1 set · 60×5")).toBeTruthy();
+  expect(screen.getByText("60 kg × 5")).toBeTruthy();
   expect(screen.getByText("Resume")).toBeTruthy();
 
   fireEvent.click(screen.getByRole("button", { name: /Bench press/ }));
@@ -181,7 +183,7 @@ it("takes a render that already holds the set as it is", async () => {
   render(
     <WorkoutView session={workout(id, [saved])} seenSetChanges={setChangesMade()} userId="user" />,
   );
-  expect(screen.getByText("1 set · 60×5")).toBeTruthy();
+  expect(screen.getByText("60 kg × 5")).toBeTruthy();
 });
 
 it("drops a deleted set from the list", async () => {
@@ -198,8 +200,8 @@ it("drops a deleted set from the list", async () => {
 
   fireEvent.click(screen.getByRole("button", { name: BACK }));
   page.rerender(<WorkoutView session={rendered} seenSetChanges={seen} userId="user" />);
-  expect(screen.getByText("0 sets")).toBeTruthy();
-  expect(screen.getByText("Start")).toBeTruthy();
+  expect(screen.queryByText("60 kg × 5")).toBeNull();
+  expect(screen.queryByText("Resume")).toBeNull();
 });
 
 it("brings the list up to date when a save lands after the exercise was left", async () => {
@@ -213,7 +215,7 @@ it("brings the list up to date when a save lands after the exercise was left", a
 
   fireEvent.click(screen.getByRole("button", { name: BACK }));
   page.rerender(<WorkoutView session={rendered} seenSetChanges={seen} userId="user" />);
-  expect(screen.getByText("0 sets")).toBeTruthy();
+  expect(screen.queryByText("Resume")).toBeNull();
   await act(async () => land({ ok: true, set: saved }));
-  expect(screen.getByText("1 set · 60×5")).toBeTruthy();
+  expect(screen.getByText("60 kg × 5")).toBeTruthy();
 });

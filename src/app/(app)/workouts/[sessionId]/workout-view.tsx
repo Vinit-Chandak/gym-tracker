@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 
@@ -35,15 +36,24 @@ export function WorkoutView({
   userId,
   header,
   intro,
+  title,
+  backHref,
 }: {
   session: SessionVM;
   /** How many of this browser's set changes the render already held. */
   seenSetChanges: number;
   userId: string;
-  /** The workout's own header, for the list: an exercise in focus is a layer with its own. */
+  /**
+   * The finished workout's header. An open workout is the session's layer, with its own, as is
+   * an exercise in focus.
+   */
   header?: ReactNode;
   /** What stands above the list once the workout is finished: its records, Save as routine. */
   intro?: ReactNode;
+  /** The day's name, or "Ad hoc session". */
+  title?: string;
+  /** Where minimising the open workout goes. */
+  backHref?: Route;
 }) {
   const changes = useSetChanges();
   const session = useMemo(
@@ -65,7 +75,8 @@ export function WorkoutView({
   const onDirtyChange = useCallback((dirty: boolean) => setFocusedDirty(dirty), []);
 
   const openExercise = (id: string) => {
-    listScroll.current = window.scrollY;
+    // An open workout's list scrolls in its layer and keeps its own place there.
+    if (readOnly) listScroll.current = window.scrollY;
     const params = new URLSearchParams(searchParams.toString());
     params.set(EXERCISE_PARAM, id);
     window.history.pushState(null, "", `?${params.toString()}`);
@@ -78,7 +89,7 @@ export function WorkoutView({
     const query = params.toString();
     window.history.pushState(null, "", query ? `?${query}` : window.location.pathname);
     // The list comes back where it was left, so a long workout does not restart at the top.
-    window.scrollTo({ top: listScroll.current });
+    if (readOnly) window.scrollTo({ top: listScroll.current });
   };
 
   // A draft anywhere in the session blocks finishing, whether or not its exercise is open:
@@ -87,7 +98,7 @@ export function WorkoutView({
 
   return (
     <>
-      {!selected && header}
+      {!selected && readOnly && header}
       <PageContent>
         {!selected && intro}
         {selected ? (
@@ -113,6 +124,10 @@ export function WorkoutView({
             onOpenExercise={openExercise}
             onOpenDetails={() => setDetailsOpen(true)}
             onEditSuperset={(group) => setSupersetFor({ group })}
+            title={title}
+            backHref={backHref}
+            layer={!readOnly}
+            listScrollRef={listScroll}
           />
         )}
       </PageContent>

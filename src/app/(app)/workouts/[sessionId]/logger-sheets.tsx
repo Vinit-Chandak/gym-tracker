@@ -6,6 +6,7 @@ import { useState, type ReactNode } from "react";
 import Link from "@/components/ui/app-link";
 import { Button } from "@/components/ui/button";
 import { Glyph, type GlyphName } from "@/components/ui/glyphs";
+import { FigureText } from "@/components/ui/figure-text";
 import { Field, Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Sheet } from "@/components/ui/sheet";
@@ -85,7 +86,7 @@ export function WhySheet({
                   </span>{" "}
                 </>
               )}
-              {why.figures.count}
+              {why.figures.count && <FigureText>{why.figures.count}</FigureText>}
               {why.figures.effort && (
                 <>
                   {" "}
