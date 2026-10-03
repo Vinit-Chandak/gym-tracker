@@ -6,7 +6,7 @@
 // opens on its own print and its entries.
 import { s } from "./lib.mjs";
 import * as K from "./kit.mjs";
-import { dayPrint, PIG } from "./art.mjs";
+import { dayPrint, form, palFor } from "./art.mjs";
 import { september, august, septTotals, day25, benchLife } from "./data.mjs";
 
 const { txt, num, title, icon, tn } = K;
@@ -19,11 +19,28 @@ export function progressHeader(t, dv, section, range = "") {
 <div style="${s({ display: "flex", "align-items": "center", "justify-content": "space-between", gap: 12, "flex-wrap": "wrap", "margin-top": 4 })}"><button type="button" aria-haspopup="dialog" aria-label="Progress section: ${section}" style="${s({ display: "inline-flex", "align-items": "center", gap: 6, height: 44, padding: "0 12px 0 14px", "border-radius": 14, background: t.surface })}; ${txt(16, 700)}">${section}${icon("chevronDown", 18)}</button>${range ? `<span style="${txt(14, 600, { color: t.ink2 })}; ${tn}">${range}</span>` : ""}</div>`;
 }
 
-// The calendar: interface, not a print. Dates in ink on the ground, a hairline between weeks; each
-// day a link named with what it holds, its marks right under its date, two to a row, and past
-// `fit` a +N. Today is ringed; days to come are quieter and cannot be opened.
+// The calendar, in the first calendar's style: pulled on paper like a print, the weekdays across
+// the top, a day with nothing in it a dot, and each activity its sport's mark, so a month reads as
+// a pattern before it is read as dates. A day's marks stand together in its cell, one to four (two
+// rows of two), and past four it says +N. Today is ringed; days to come are left blank and cannot
+// be opened. Every past day is a link named with what it holds. The overview shows the pattern
+// alone; the calendar page adds each date, small, in the corner of its cell.
 const WD = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec"];
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
 const sportName = {
   strength: "lifting",
   run: "run",
@@ -44,6 +61,45 @@ const said = (x) => {
             : sportName[x.sport] || x.sport;
   return `${what}${x.indoor ? " indoors" : ""}`;
 };
+// One sport's mark on the calendar's paper, its box s tall; a run's track is longer than tall.
+const markW = (x, sz) => (x.sport === "run" ? sz * 1.6 : sz);
+function calMark(t, x, cx, cy, sz) {
+  const w = markW(x, sz),
+    h = x.sport === "run" ? sz * 0.85 : sz;
+  return form(x.sport, cx - w / 2, cy - h / 2, w, h, { indoor: !!x.indoor, paper: t.paper });
+}
+// A day's marks as one group centred in its cell: one large, two side by side, three or four in
+// two rows of two; past four, three and +N.
+function dayMarks(t, list, W, H, { fit = 4 } = {}) {
+  const P = palFor(t.paper);
+  const n = list.length;
+  const cx = W / 2,
+    cy = H / 2;
+  // the marks grow with the cell: one at 40% of its height, two a little smaller, four smaller still
+  const one = Math.min(22, Math.round(H * 0.4));
+  if (n === 1) return calMark(t, list[0], cx, cy, one);
+  const shown = n > fit ? list.slice(0, fit - 1) : list;
+  const more = n - shown.length;
+  const sz = shown.length === 2 ? Math.round(one * 0.8) : Math.round(one * 0.64),
+    gap = 4;
+  const rowsOf = shown.length <= 2 ? [shown] : [shown.slice(0, 2), shown.slice(2, 4)];
+  let o = "";
+  rowsOf.forEach((rw, ri) => {
+    const ws = rw.map((x) => markW(x, sz));
+    const items = rw.length + (ri === rowsOf.length - 1 && more ? 1 : 0);
+    const plusW = more && ri === rowsOf.length - 1 ? 16 : 0;
+    const tot = ws.reduce((a, b) => a + b, 0) + plusW + gap * (items - 1);
+    let x = cx - tot / 2;
+    const y = rowsOf.length === 1 ? cy : cy + (ri ? 1 : -1) * (sz / 2 + 2.5);
+    rw.forEach((a, k) => {
+      o += calMark(t, a, x + ws[k] / 2, y, sz);
+      x += ws[k] + gap;
+    });
+    if (plusW)
+      o += `<text x="${(x + plusW / 2).toFixed(1)}" y="${(y + 4).toFixed(1)}" text-anchor="middle" style="font-family:'Atkinson Hyperlegible Next',sans-serif;font-size:12px;font-weight:700;fill:${P.ink}">+${more}</text>`;
+  });
+  return o;
+}
 export function monthGrid(
   t,
   {
@@ -51,52 +107,55 @@ export function monthGrid(
     month,
     days,
     today = null,
-    cellH = 56,
-    mark = 13,
+    cellH = 46,
     fit = 4,
     weekdays = true,
+    numbers = false,
     open = {},
     label = null,
   } = {},
 ) {
+  const P = palFor(t.paper);
   const first = new Date(Date.UTC(year, month, 1));
   const nDays = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
   const lead = (first.getUTCDay() + 6) % 7; // Monday first
   const rows = Math.ceil((lead + nDays) / 7);
-  const gap = Math.max(3, Math.round(mark * 0.24));
+  const SW = 48; // each day's drawing, centred in its cell
   const cell = (dom) => {
     const wd = WD[(lead + dom - 1) % 7];
     const name = `${wd} ${dom} ${MON[month]}`;
     const list = days[dom] || [];
     const future = today !== null && dom > today;
     const isToday = dom === today;
-    const shown = list.length > fit ? list.slice(0, fit - 1) : list;
-    const more = list.length - shown.length;
-    const marks = shown.map((x) => K.stateMark(t, x.sport, mark, { indoor: x.indoor })).join("");
-    const plus = more
-      ? `<span style="${txt(12, 700)}; line-height: ${mark}px">+${more}</span>`
+    const top = numbers ? 8 : 0;
+    const art = list.length
+      ? dayMarks(t, list, SW, cellH - top, { fit })
+      : future
+        ? ""
+        : `<circle cx="${SW / 2}" cy="${(cellH - top) / 2}" r="2" fill="${P.dot}"/>`;
+    const svg = art
+      ? `<svg width="${SW}" height="${cellH - top}" viewBox="0 0 ${SW} ${cellH - top}" aria-hidden="true" style="display:block;overflow:visible">${art}</svg>`
       : "";
-    const date = `<span style="${txt(13, isToday ? 800 : future ? 500 : 600, { color: future ? t.ink2 : t.ink, "line-height": 1 })}; ${tn}">${dom}</span>`;
-    const inner = `${date}${list.length ? `<span aria-hidden="true" style="${s({ display: "grid", "grid-template-columns": `repeat(2, max-content)`, gap, "margin-top": 5, "align-items": "end" })}">${marks}${plus}</span>` : !future ? `<span aria-hidden="true" style="${s({ width: 3, height: 3, "border-radius": 9999, background: t.control, "margin-top": 8, "margin-left": 1 })}"></span>` : ""}`;
-    const box = `display:flex;flex-direction:column;align-items:flex-start;min-height:${cellH}px;padding:6px 5px 4px;min-width:0${isToday ? `;box-shadow:inset 0 0 0 1.5px ${t.ink};border-radius:10px` : ""}`;
-    if (future) return `<span style="${box}">${inner}</span>`;
+    const date = numbers
+      ? `<span aria-hidden="true" style="${s({ position: "absolute", left: 6, top: 4 })}; ${txt(12, isToday ? 800 : 600, { color: isToday ? P.ink : P.label, "line-height": 1 })}; ${tn}">${dom}</span>`
+      : "";
+    const ring = isToday
+      ? `<span aria-hidden="true" style="${s({ position: "absolute", inset: 3, border: `1.5px solid ${P.ink}`, "border-radius": 10 })}"></span>`
+      : "";
+    const box = `position:relative;display:flex;align-items:center;justify-content:center;height:${cellH}px;padding-top:${top}px;min-width:0`;
+    if (future) return `<span aria-hidden="true" style="${box}">${date}</span>`;
     const said_ = list.length ? list.map(said).join(", ") : "nothing logged";
-    return `<a href="${open[dom] || "#"}" aria-label="${name}${isToday ? ", today" : ""}: ${said_}" style="${box}">${inner}</a>`;
+    return `<a href="${open[dom] || "#"}" aria-label="${name}${isToday ? ", today" : ""}: ${said_}" style="${box}">${ring}${date}${svg}</a>`;
   };
   const cells = [];
   for (let i = 0; i < rows * 7; i++) {
     const dom = i - lead + 1;
     cells.push(dom >= 1 && dom <= nDays ? cell(dom) : `<span aria-hidden="true"></span>`);
   }
-  const weeks = Array.from(
-    { length: rows },
-    (_, r) =>
-      `<div style="${s({ display: "grid", "grid-template-columns": "repeat(7, minmax(0,1fr))", "border-top": `1px solid ${t.hair}` })}">${cells.slice(r * 7, r * 7 + 7).join("")}</div>`,
-  ).join("");
   const head = weekdays
-    ? `<div aria-hidden="true" style="${s({ display: "grid", "grid-template-columns": "repeat(7, minmax(0,1fr))", height: 22, "align-items": "center" })}">${["M", "T", "W", "T", "F", "S", "S"].map((d) => `<span style="${txt(12, 700, { color: t.ink2 })}; padding-left: 5px">${d}</span>`).join("")}</div>`
+    ? `<div aria-hidden="true" style="${s({ display: "grid", "grid-template-columns": "repeat(7, minmax(0,1fr))", height: 24, "align-items": "center" })}">${["M", "T", "W", "T", "F", "S", "S"].map((d) => `<span style="${txt(12, 700, { color: P.label, "text-align": "center" })}">${d}</span>`).join("")}</div>`
     : "";
-  return `<div role="group" aria-label="${label || `${["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][month]} ${year}`}">${head}${weeks}</div>`;
+  return `<div role="group" aria-label="${label || `${MONTHS[month]} ${year}`}" style="${s({ background: t.paper, padding: "6px 6px 8px" })}">${head}<div style="${s({ display: "grid", "grid-template-columns": "repeat(7, minmax(0,1fr))" })}">${cells.join("")}</div></div>`;
 }
 
 export function progressScreen(t, dv = K.D) {
@@ -106,8 +165,7 @@ export function progressScreen(t, dv = K.D) {
     month: 8,
     days: september,
     today: 29,
-    cellH: narrow ? 50 : K.short(dv) ? 52 : K.roomy(dv) ? 62 : 56,
-    mark: narrow ? 11 : 13,
+    cellH: narrow ? 42 : K.short(dv) ? 44 : K.roomy(dv) ? 58 : 50,
     open: { 25: "Day.dc.html" },
     label: "September 2026, every activity of every day",
   });
@@ -124,11 +182,11 @@ ${cal}
   return K.root(t, body, { label: "Progress", dv });
 }
 
-// The calendar: months one after another, scrolling, the cells larger; it opens on this month.
+// The calendar: months one after another, scrolling, each on its paper with its dates; it opens on
+// this month.
 export function calendarScreen(t, dv = K.D) {
   const month = (name, m, days, today = null) =>
-    `<section aria-labelledby="m-${m}"><h3 id="m-${m}" style="${s({ padding: "14px 0 6px" })}; ${txt(17, 700)}">${name}</h3>${monthGrid(t, { year: 2026, month: m, days, today, cellH: 62, mark: 15, weekdays: false, open: { 25: "Day.dc.html" } })}</section>`;
-  const wk = `<div aria-hidden="true" style="${s({ display: "grid", "grid-template-columns": "repeat(7, minmax(0,1fr))", height: 26, "align-items": "center", "border-bottom": `1px solid ${t.hair}` })}">${["M", "T", "W", "T", "F", "S", "S"].map((d) => `<span style="${txt(12, 700, { color: t.ink2 })}; padding-left: 5px">${d}</span>`).join("")}</div>`;
+    `<section aria-labelledby="m-${m}"><h3 id="m-${m}" style="${s({ padding: "14px 0 6px" })}; ${txt(17, 700)}">${name}</h3>${monthGrid(t, { year: 2026, month: m, days, today, cellH: 56, numbers: true, open: { 25: "Day.dc.html" } })}</section>`;
   const legend = `<p aria-hidden="true" style="${s({ display: "flex", gap: 14, "align-items": "center", "flex-wrap": "wrap", "margin-top": 6 })}; ${txt(13, 600, { color: t.ink2 })}">${[
     ["strength", "Lifting"],
     ["run", "Run"],
@@ -137,15 +195,16 @@ export function calendarScreen(t, dv = K.D) {
   ]
     .map(
       ([k, l]) =>
-        `<span style="display:inline-flex;align-items:center;gap:5px">${K.stateMark(t, k, 12)}${l}</span>`,
+        `<span style="display:inline-flex;align-items:center;gap:5px">${K.stateMark(t, k, 14)}${l}</span>`,
     )
-    .join("")}</p>`;
+    .join(
+      "",
+    )}<span style="display:inline-flex;align-items:center;gap:5px">${K.stateMark(t, "run", 14, { indoor: true })}Indoors</span></p>`;
   // August scrolled most of the way off the top, September below it
   const inner = `${K.nestedHeader(t, "Progress")}
 <h2 style="${title(34)}; margin-top: 2px">Calendar</h2>
 ${legend}
-<div style="margin-top:8px">${wk}</div>
-<div style="${s({ height: 170, overflow: "hidden", position: "relative" })}"><div style="position:absolute;left:0;right:0;bottom:0">${month("August", 7, august)}</div></div>
+<div style="${s({ height: 150, overflow: "hidden", position: "relative", "margin-top": 4 })}"><div style="position:absolute;left:0;right:0;bottom:0">${month("August", 7, august)}</div></div>
 ${month("September", 8, september, 29)}`;
   return K.root(
     t,
@@ -178,7 +237,7 @@ export function dayScreen(t, dv = K.D) {
       "Fri 25 Sept in full ink, in the day’s order: an outdoor run, an open-water swim, three exercises",
   });
   const row = (sport, ttl, meta, time, opts = {}) =>
-    `<li><a href="#" style="${s({ display: "flex", "align-items": "center", gap: 12, "min-height": 60, padding: "8px 0", "border-bottom": `1px solid ${t.hair}` })}">${K.markCell(sport === "strength" ? K.colMark(t, 3, 3) : K.stateMark(t, sport, 18, opts))}<span style="${s({ display: "flex", "flex-direction": "column", flex: "1 1 auto", "min-width": 0 })}"><span class="wrap" style="${txt(16, 700)}; ${tn}">${ttl}</span><span class="wrap" style="${txt(14, 500, { color: t.ink2 })}; ${tn}">${meta}</span></span><span style="${txt(14, 600, { color: t.ink2 })}; ${tn}">${time}</span></a></li>`;
+    `<li><a href="#" style="${s({ display: "flex", "align-items": "center", gap: 12, "min-height": 60, padding: "8px 0", "border-bottom": `1px solid ${t.hair}` })}">${K.markCell(K.stateMark(t, sport, 18, opts))}<span style="${s({ display: "flex", "flex-direction": "column", flex: "1 1 auto", "min-width": 0 })}"><span class="wrap" style="${txt(16, 700)}; ${tn}">${ttl}</span><span class="wrap" style="${txt(14, 500, { color: t.ink2 })}; ${tn}">${meta}</span></span><span style="${txt(14, 600, { color: t.ink2 })}; ${tn}">${time}</span></a></li>`;
   const inner = `${K.nestedHeader(t, "Calendar")}
 <h2 style="${title(34)}; margin-top: 2px">${day25.date}</h2>
 ${K.printFrame(print, { mt: 12 })}
@@ -195,24 +254,22 @@ export function exerciseScreen(t, dv = K.D) {
   const G = K.gut(dv),
     cw = dv.W - 2 * G;
   const m = benchLife.months;
+  // the heaviest working set of each month, as bars in ink on the ground like every Progress
+  // chart: control grey, the latest month in ink; its first and latest figures said once, above
   const w = cw,
-    h = 150,
-    pad = 14,
-    ground = h - 22,
-    top = 26;
-  const lo = 0,
-    hi = Math.max(...m);
-  const bw = (w - 2 * pad) / m.length;
+    h = 132,
+    top = 8,
+    bottom = h - 2;
+  const hi = Math.max(...m);
+  const bw = w / m.length;
   const bars = m
     .map((v, i) => {
-      const bh = ((v - lo) / (hi - lo)) * (ground - top);
-      return `<rect x="${(pad + i * bw + 0.6).toFixed(1)}" y="${(ground - bh).toFixed(1)}" width="${(bw - 1.2).toFixed(1)}" height="${bh.toFixed(1)}" fill="${t.scheme === "dark" ? t.marks.strength : PIG.ultra}"/>`;
+      const bh = (v / hi) * (bottom - top);
+      const last = i === m.length - 1;
+      return `<rect x="${(i * bw + 0.7).toFixed(1)}" y="${(bottom - bh).toFixed(1)}" width="${(bw - 1.4).toFixed(1)}" height="${bh.toFixed(1)}" rx="1" fill="${last ? t.ink : t.control}"/>`;
     })
     .join("");
-  const P =
-    t.scheme === "dark" ? { ink: "#ece7dc", label: "#b4ad9f" } : { ink: PIG.ink, label: PIG.label };
-  const F = "font-family:'Atkinson Hyperlegible Next',sans-serif";
-  const chart = `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="The heaviest working set each month, from 30 kg in February 2022 to 72.5 kg in September 2026" style="display:block;width:100%;height:auto"><rect width="${w}" height="${h}" fill="${t.paper}"/>${bars}<rect x="${pad - 4}" y="${ground}" width="${w - 2 * pad + 8}" height="3" fill="${P.ink}"/><text x="${pad}" y="${h - 6}" style="${F};font-size:12px;font-weight:600;fill:${P.label}">Feb 2022</text><text x="${w - pad}" y="${h - 6}" text-anchor="end" style="${F};font-size:12px;font-weight:600;fill:${P.label}">Sept 2026</text><text x="${pad}" y="18" style="${F};font-size:12px;font-weight:700;fill:${P.ink}">30 → 72.5 kg</text></svg>`;
+  const chart = `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="The heaviest working set each month, from 30 kg in February 2022 to 72.5 kg in September 2026" style="display:block;width:100%;height:auto"><line x1="0" x2="${w}" y1="${bottom}" y2="${bottom}" stroke="${t.hair}" stroke-width="1"/>${bars}</svg>`;
   const recent = benchLife.recent
     .map(
       (r) =>
@@ -224,7 +281,9 @@ export function exerciseScreen(t, dv = K.D) {
   const inner = `${K.nestedHeader(t, "History")}
 <h2 style="${title(34)}; margin-top: 2px">Barbell bench press</h2>
 ${K.metaLine(t, [`${K.equip(t, "dumbbell", "Free weights")}<span>Barbell</span>`, `${icon("pin", 16)}<span>Anytime Fitness</span>`], { mt: 4 })}
-${K.printFrame(chart, { mt: 12 })}
+<p style="${s({ display: "flex", "justify-content": "space-between", "align-items": "baseline", gap: 8, "margin-top": 14 })}"><span style="${txt(13, 700, { color: t.ink2 })}">Heaviest set each month</span><span style="${txt(13, 500, { color: t.ink2 })}; ${tn}">30 → 72.5 kg</span></p>
+<div style="margin-top:8px">${chart}</div>
+<p aria-hidden="true" style="${s({ display: "flex", "justify-content": "space-between", "margin-top": 4 })}; ${txt(12, 600, { color: t.ink2 })}"><span>Feb 2022</span><span>Sept 2026</span></p>
 <div style="${s({ display: "grid", "grid-template-columns": "repeat(3, minmax(0,1fr))", gap: 10, "margin-top": 12 })}">${stat(benchLife.sessions, "", "Sessions")}${stat("87", "kg", "Best est. 1RM")}${stat("72.5", "kg", "Top weight")}</div>
 <h3 style="${txt(13, 700, { color: t.ink2 })}; margin: 16px 0 2px">Latest</h3>
 <ul>${recent}</ul>`;

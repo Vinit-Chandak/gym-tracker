@@ -5,7 +5,7 @@
 // history and people seeds, program.ts, the food preview and the app's own formatters.
 import { s, esc } from "./lib.mjs";
 import * as K from "./kit.mjs";
-import { dayPrint, paperOpen, palFor, bowlFigure } from "./art.mjs";
+import { dayPrint, bowlFigure } from "./art.mjs";
 import * as SE from "./session.mjs";
 import { todayScreen, planRow } from "./today.mjs";
 import { seg, labelled } from "./more.mjs";
@@ -52,8 +52,8 @@ const pinned = (t, dv, html, { bottom = null } = {}) => {
 export function moreOptionsScreen(t, dv = K.D) {
   const opt = (ic, label, { last = false } = {}) =>
     `<li><a href="#" style="${s({ display: "flex", "align-items": "center", gap: 12, "min-height": 56, "border-bottom": last ? 0 : `1px solid ${t.hair}` })}">${K.markCell(`<span style="display:grid">${icon(ic, 22)}</span>`)}<span class="wrap" style="${txt(17, 600, { flex: "1 1 auto" })}">${label}</span>${K.chev(t)}</a></li>`;
-  // skipping stands apart, led by what it does to the day: a dashed mark
-  const skip = `<li style="${s({ "margin-top": 14, "padding-top": 6, "border-top": `1px solid ${t.hair}` })}"><a href="#" style="${s({ display: "flex", "align-items": "center", gap: 12, "min-height": 56 })}">${K.markCell(K.stateMark(t, "strength", 18, { state: "skipped" }))}<span class="wrap" style="${txt(17, 700, { flex: "1 1 auto" })}">Skip this session</span>${K.chev(t)}</a></li>`;
+  // skipping stands apart from the rest, led by its own glyph
+  const skip = `<li style="${s({ "margin-top": 14, "padding-top": 6, "border-top": `1px solid ${t.hair}` })}"><a href="#" style="${s({ display: "flex", "align-items": "center", gap: 12, "min-height": 56 })}">${K.markCell(`<span style="display:grid">${icon("skip", 22)}</span>`)}<span class="wrap" style="${txt(17, 700, { flex: "1 1 auto" })}">Skip this session</span>${K.chev(t)}</a></li>`;
   const inner = `${sheetHead(t, "mo-title", "More options")}<ul style="margin-top:4px">${opt("calendar", "Train another day")}${opt("plus", "Start an ad hoc session")}${opt("coach", "Prepare this session", { last: true })}${skip}</ul>`;
   return K.root(t, `${under(todayScreen(t, dv))}${K.sheet(t, inner, { dv, id: "mo-title" })}`, {
     label: "Today",
@@ -62,8 +62,8 @@ export function moreOptionsScreen(t, dv = K.D) {
 }
 
 // ---------- THE SESSION: a superset, being logged ----------
-// The carry is measured in metres and rated by RPE. Its partner is named where the flow goes next:
-// beside the set being entered, an arrow to the wrist curl.
+// The carry is measured in metres and rated by RPE. Nothing is logged yet, so the log holds one line:
+// the partner the flow goes to after each set, the wrist curl, with its prescription.
 export function supersetLogScreen(t, dv = K.D) {
   const X = carry;
   const cw = dv.W - 2 * K.gut(dv);
@@ -71,9 +71,9 @@ export function supersetLogScreen(t, dv = K.D) {
 <h2 style="${title(K.titleSize(X.exercise, cw, dv.W < 360 ? 28 : 32), { lh: 1.05 })}; margin-top: 2px">${X.exercise}</h2>
 ${K.metaLine(t, [`${K.equip(t, "dumbbell", "Free weights")}<span>${K.dashes(X.rx).replace(/<span[^>]*>–<\/span>/g, "–")}</span>`, `${icon("rest", 16)}<span>${X.rest}</span>`], { mt: 4 })}
 <div style="margin-top:6px">${K.tabs(t, ["Log", "Technique", "History"], 0, { dv, id: "Exercise detail" })}</div>
-${SE.panel(0, `<div role="group" aria-label="Superset: ${esc(X.exercise)} and ${esc(X.partner)}" style="${K.SS_GROUP}; margin-top: 6px"><ol aria-label="Sets">${SE.ledgerRow(t, { n: 1, kind: "now" }, { now: true })}${SE.ledgerRow(t, { n: 2, kind: "todo" })}${SE.ledgerRow(t, { n: 3, kind: "todo" })}</ol><section aria-label="Then ${esc(X.partner)}" style="margin-top:12px"><h3 style="${s({ display: "flex", "align-items": "baseline", "justify-content": "space-between", gap: 8 })}"><span style="${txt(15, 700)}">${X.partner}</span><span style="${txt(14, 500, { color: t.ink2 })}; ${tn}">2 × 12–20 @ 1</span></h3><ol>${SE.ledgerRow(t, { n: 1, kind: "todo" })}${SE.ledgerRow(t, { n: 2, kind: "todo" })}</ol></section>${K.supersetBracket(t, "Superset")}</div>`)}`;
+${SE.panel(0, `<p aria-label="Superset: after each set, ${esc(X.partner)}, 2 × 12–20 @ 1" style="${s({ display: "flex", "align-items": "center", gap: 8, "min-height": 44, "margin-top": 8 })}"><span style="${s({ display: "grid", color: t.ink2 })}">${icon("link", 18)}</span><span style="${txt(16, 700)}">Then ${X.partner}</span><span style="${txt(14, 500, { color: t.ink2 })}; ${tn}">2 × 12–20 @ 1</span></p>`)}`;
   const three = (cw - 36) / 3 >= 100;
-  const size = three ? 40 : 34;
+  const size = three ? 42 : 34;
   const load = K.stepFigure(t, {
     value: X.load,
     unit: "kg",
@@ -100,13 +100,12 @@ ${SE.panel(0, `<div role="group" aria-label="Superset: ${esc(X.exercise)} and ${
     inc: "One more",
   });
   const op = (c) =>
-    `<span aria-hidden="true" style="${s({ "padding-top": Math.round(size * 0.32), color: t.ink2, "text-align": "center" })}; ${txt(Math.round(size * 0.5), 500)}">${c}</span>`;
+    `<span aria-hidden="true" style="${s({ "padding-top": Math.round(size * 0.32), color: t.ink2, "text-align": "center" })}; ${txt(K.onRamp(size * 0.5), 500)}">${c}</span>`;
   const figures = three
     ? `<div style="${s({ display: "grid", "grid-template-columns": "minmax(0,1fr) 18px minmax(0,1fr) 18px minmax(0,1fr)", "align-items": "start" })}">${load}${op("×")}${dist}${op("·")}${rpe}</div>`
     : `<div style="${s({ display: "flex", "flex-direction": "column", gap: 10 })}">${load}<div style="${s({ display: "grid", "grid-template-columns": "minmax(0,1fr) 18px minmax(0,1fr)", "align-items": "start" })}">${dist}${op("·")}${rpe}</div></div>`;
-  const next = `<span aria-label="Superset: then ${esc(X.partner)}" style="${s({ display: "inline-flex", "align-items": "center", gap: 5, color: t.ink2 })}; ${txt(15, 600)}">${icon("arrowRight", 16)}<span class="nb">${X.partner}</span></span>`;
-  const ent = `<section aria-label="Set 1" style="${s({ display: "flex", "flex-direction": "column", gap: K.short(dv) ? 8 : 12, "padding-top": 10, "border-top": `1px solid ${t.hair}`, "flex-shrink": 0, background: t.ground })}">
-<div style="${s({ display: "flex", "align-items": "center", gap: 10, height: 44 })}"><h3 style="${txt(17, 700)}">Set 1</h3>${next}<span style="flex:1 1 auto"></span><button type="button" aria-haspopup="dialog" aria-label="Set options: type, notes, remove" style="${s({ width: 44, height: 44, display: "grid", "place-items": "center", color: t.ink2, "margin-right": -10 })}">${icon("sliders", 20)}</button></div>
+  const ent = `<section aria-label="Set 1 of 3" style="${s({ display: "flex", "flex-direction": "column", gap: K.short(dv) ? 8 : 12, "padding-top": 10, "border-top": `1px solid ${t.hair}`, "flex-shrink": 0, background: t.ground })}">
+<div style="${s({ display: "flex", "align-items": "center", gap: 10, height: 44 })}"><h3 style="${txt(17, 700)}; ${tn}">Set 1 <span style="color:${t.ink2}">of 3</span></h3><span style="flex:1 1 auto"></span><button type="button" aria-haspopup="dialog" aria-label="Set options: add a set, type, notes, remove" style="${s({ width: 44, height: 44, display: "grid", "place-items": "center", color: t.ink2, "margin-right": -10 })}">${icon("sliders", 20)}</button></div>
 ${figures}
 <div style="margin-top:2px">${SE.saveWaiting(t, { id: "rpe-hint", need: SE.RPE_NEEDED })}</div></section>`;
   const G = K.gut(dv);
@@ -230,7 +229,7 @@ export function rideLogScreen(t, dv = K.D) {
       ride.where,
       { label: "Where" },
     ),
-    rows: `${figRow(t, "Duration", ride.time, "", "A minute less", "A minute more")}${figRow(t, "Distance", ride.km, "km", "Less, 0.1 km", "More, 0.1 km", `Overall average ${ride.speed} km/h`)}`,
+    rows: `${figRow(t, "Duration", ride.time, "", "A minute less", "A minute more")}${figRow(t, "Distance", ride.km, "km", "Less, 0.1 km", "More, 0.1 km", `Optional · overall average ${ride.speed} km/h`)}`,
     extra: `${effortRow(t, ride.effort)}<div style="padding:8px 0 4px">${labelled(t, "Assistance", seg(t, ["Not sure", "Unassisted", "Assisted"], ride.assist, "Assistance", { size: 15 }))}</div>`,
     save: "Save activity",
     label: "Log a ride",
@@ -324,44 +323,48 @@ export function historyListScreen(t, dv = K.D) {
     "8 Jul – 29 Sept 2026",
   );
 }
-// Running: the weeks as strides, as tall as the distance run; then every run, its stride its context.
+// Running: the weeks as bars in ink, then every run. Progress charts are interface, drawn in ink on
+// the ground like Body and Recovery; the art stays in the calendar and on each day's record.
 export function runningScreen(t, dv = K.D) {
-  // The weeks of the range as strides, as tall as the distance run (analytics.ts's Monday weeks);
-  // this week, still running, a thinned stub. Then every run, its stride its context.
+  // the weeks of the range (analytics.ts's Monday weeks), each a bar as tall as the distance run,
+  // in control grey; this week, still running, in ink. Scale lines at 5 and 10 km, their labels in
+  // a margin column so no bar runs under them.
   const G = K.gut(dv),
     cw = dv.W - 2 * G;
   const weeks = runWeeks;
-  const h = 128,
-    pad = 14,
-    ground = h - 14,
-    top = 14,
-    max = Math.max(...weeks.map(([, km]) => km));
-  const P = palFor(t.paper);
-  const PO = paperOpen(cw, h, {
-    paper: t.paper,
-    label: `Weekly distance, 13 weeks from 6 July: ${weeks.map(([, km]) => km).join(", ")} km, this week so far`,
-  });
-  const slot = (cw - 2 * pad) / weeks.length;
-  const strides = weeks
+  const h = 132,
+    padL = 26,
+    bottom = h - 2,
+    top = 10,
+    max = 11;
+  const yv = (km) => bottom - (km / max) * (bottom - top);
+  const slot = (cw - padL) / weeks.length;
+  const F = "font-family:'Atkinson Hyperlegible Next',sans-serif";
+  const bars = weeks
     .map(([, km, now], i) => {
-      const hh = (km / max) * (ground - top);
-      const x = pad + i * slot + 3;
-      if (!km)
-        return `<rect x="${(x + slot / 2 - 6).toFixed(1)}" y="${ground - 2}" width="8" height="2" fill="${now ? P.tint.run : P.label}"/>`;
-      const body = (slot - 6) * 0.6,
-        lean = Math.min(hh * 0.34, slot - 6 - body);
-      return `<path d="M${x.toFixed(1)} ${ground}L${(x + lean).toFixed(1)} ${(ground - hh).toFixed(1)}H${(x + lean + body).toFixed(1)}L${(x + body).toFixed(1)} ${ground}Z" fill="${P.col.run}"/>`;
+      const bw = Math.min(14, slot * 0.56),
+        x = padL + i * slot + (slot - bw) / 2;
+      const hh = Math.max(now ? 3 : 0, bottom - yv(km));
+      return hh
+        ? `<rect x="${x.toFixed(1)}" y="${(bottom - hh).toFixed(1)}" width="${bw.toFixed(1)}" height="${hh.toFixed(1)}" rx="${Math.min(3, hh / 2).toFixed(1)}" fill="${now ? t.ink : t.control}"/>`
+        : "";
     })
     .join("");
-  const chart = `${PO.open}${strides}<rect x="${pad - 4}" y="${ground}" width="${cw - 2 * pad + 8}" height="3" fill="${P.ink}"/>${PO.grain}${PO.end}`;
+  const scale = [5, 10]
+    .map(
+      (v) =>
+        `<line x1="${padL - 4}" x2="${cw}" y1="${yv(v).toFixed(1)}" y2="${yv(v).toFixed(1)}" stroke="${t.hair}" stroke-width="1"/><text x="0" y="${(yv(v) + 4).toFixed(1)}" style="${F};font-size:12px;font-weight:600;fill:${t.ink2}">${v}</text>`,
+    )
+    .join("");
+  const chart = `<svg width="${cw}" height="${h}" viewBox="0 0 ${cw} ${h}" role="img" aria-label="Weekly distance, 13 weeks from 6 July: ${weeks.map(([, km]) => km).join(", ")} km, this week so far" style="display:block;width:100%;height:auto">${scale}<line x1="${padL - 4}" x2="${cw}" y1="${bottom}" y2="${bottom}" stroke="${t.hair}" stroke-width="1"/>${bars}</svg>`;
   const rowFor = (r, last) => {
     const indoor = r.where === "Treadmill";
-    return `<li><a href="#" style="${s({ display: "flex", "align-items": "center", gap: 12, "min-height": 56, padding: "7px 0", "border-bottom": last ? 0 : `1px solid ${t.hair}` })}">${K.markCell(K.stateMark(t, "run", 16, { indoor, label: r.where }))}<span style="${s({ display: "flex", "flex-direction": "column", flex: "1 1 auto", "min-width": 0 })}"><span style="${s({ display: "flex", "justify-content": "space-between", gap: 10, "align-items": "baseline" })}"><span style="${num(20)}">${r.km} <span style="${txt(13, 600, { color: t.ink2 })}">km</span></span><span class="nb" style="${num(17)}">${r.pace} <span style="${txt(13, 600, { color: t.ink2 })}">/km</span></span></span><span class="wrap" style="${txt(14, 500, { color: t.ink2 })}; ${tn}">${r.when} · ${r.time}</span></span></a></li>`;
+    return `<li><a href="#" style="${s({ display: "flex", "flex-direction": "column", "justify-content": "center", "min-height": 56, padding: "7px 0", "border-bottom": last ? 0 : `1px solid ${t.hair}` })}"><span style="${s({ display: "flex", "justify-content": "space-between", gap: 10, "align-items": "baseline" })}"><span style="${num(20)}">${r.km} <span style="${txt(13, 600, { color: t.ink2 })}">km</span></span><span class="nb" style="${num(17)}">${r.pace} <span style="${txt(13, 600, { color: t.ink2 })}">/km</span></span></span>${K.metaLine(t, [`${K.equip(t, indoor ? "treadmill" : "outdoor", r.where)}<span>${r.when} · ${r.time}</span>`], { size: 14, mt: 1 })}</a></li>`;
   };
   const inner = `<div style="margin-top:12px">${seg(t, ["Distance", "Duration", "Pace"], 0, "Running measurement", { h: 44, size: 15 })}</div>
-<h3 style="${s({ display: "flex", "justify-content": "space-between", "align-items": "baseline", gap: 8, margin: "14px 0 6px" })}"><span style="${txt(13, 700, { color: t.ink2 })}">Weekly distance (km)</span><span style="${txt(13, 500, { color: t.ink2 })}; ${tn}">13 weeks · this week so far</span></h3>
-${K.printFrame(chart)}
-<p aria-hidden="true" style="${s({ display: "flex", "justify-content": "space-between", "margin-top": 4 })}; ${txt(12, 600, { color: t.ink2 })}"><span>6 Jul</span><span>28 Sept</span></p>
+<h3 style="${s({ display: "flex", "justify-content": "space-between", "align-items": "baseline", gap: 8, margin: "14px 0 8px" })}"><span style="${txt(13, 700, { color: t.ink2 })}">Weekly distance (km)</span><span style="${txt(13, 500, { color: t.ink2 })}; ${tn}">13 weeks · this week so far</span></h3>
+${chart}
+<p aria-hidden="true" style="${s({ display: "flex", "justify-content": "space-between", "margin-top": 4, "padding-left": 26 })}; ${txt(12, 600, { color: t.ink2 })}"><span>6 Jul</span><span>28 Sept</span></p>
 ${K.caption(t, "Runs", { mt: 16 })}<ul>${rangeRuns.map((r, i) => rowFor(r, i === rangeRuns.length - 1)).join("")}</ul>`;
   return progressScreenOf(t, dv, 3, inner, "Progress", "6 Jul – 29 Sept 2026");
 }

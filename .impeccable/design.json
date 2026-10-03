@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-02T14:37:56Z",
+  "generatedAt": "2026-10-03T06:27:34Z",
   "title": "Design System: Overload",
   "extensions": {
     "colorMeta": {
@@ -1040,19 +1040,23 @@
       },
       "figure-xl": {
         "displayName": "Figure XL",
-        "purpose": "The screen's one figure, 56 px, on the ground above its print: kcal left or over, the latest body weight."
+        "purpose": "The screen's one figure, 56 px, on the ground above its print: the kcal eaten, the latest body weight."
       },
       "entry": {
         "displayName": "Entry",
         "purpose": "Load, reps and RIR in the docked entry, and a portion's amount; 46 px on 440 pt, never below 28."
       },
+      "log": {
+        "displayName": "Log",
+        "purpose": "A set done, in the log, 32 px; its load, reps and RIR stand in the entry's columns."
+      },
       "figure-l": {
         "displayName": "Figure L",
-        "purpose": "A stat, and the figure of a row's stepper, 26 px."
+        "purpose": "A stat, a set in History, and the figure of a row's stepper, 26 px."
       },
       "figure": {
         "displayName": "Figure",
-        "purpose": "Ledger rows, list figures, totals and paces, 20 px."
+        "purpose": "The warm-ups' line, list figures, totals and paces, 20 px."
       },
       "figure-s": {
         "displayName": "Figure S",
@@ -1215,12 +1219,12 @@
       "css": ".ds-step { display:inline-flex; flex-direction:column; align-items:center; gap:6px; } .ds-step-fig { font:600 42px/1.1 'Jost', system-ui, sans-serif; font-variant-numeric:tabular-nums lining-nums; color:#5b5d64; text-decoration:underline dotted 2px; text-underline-offset:6px; } .ds-step-unit { font:600 13px 'Atkinson Hyperlegible Next', system-ui, sans-serif; color:#5b5d64; } .ds-step-btns { display:flex; gap:8px; } .ds-step-btns button { width:44px; height:44px; border-radius:22px; border:0; background:#f4f4f5; color:#16171b; font:500 22px/1 'Atkinson Hyperlegible Next', system-ui, sans-serif; cursor:pointer; } .ds-step-btns button:focus-visible { outline:3px solid #16171b; outline-offset:2px; }"
     },
     {
-      "name": "Ledger",
+      "name": "Log",
       "kind": "custom",
-      "refersTo": "ledger-row",
-      "description": "One row per set: number, 12-px mark (warm-up grey, saved ultramarine, current outlined, to do thinned), the set in notation.",
-      "html": "<ol class=\"ds-ledger\"><li><span>W</span><i class=\"warm\"></i><b class=\"dim\">25 × 8</b></li><li><span>1</span><i class=\"done\"></i><b>60 × 5 @ 2</b></li><li class=\"now\"><span>3</span><i class=\"cur\"></i><b></b></li><li><span>4</span><i class=\"todo\"></i><b></b></li></ol>",
-      "css": ".ds-ledger { list-style:none; margin:0; padding:0; width:320px; } .ds-ledger li { display:flex; align-items:center; height:44px; border-bottom:1px solid #e6e6e9; font:700 15px 'Atkinson Hyperlegible Next', system-ui, sans-serif; color:#16171b; } .ds-ledger li.now { background:#f4f4f5; border-radius:10px; padding:0 8px; margin:0 -8px; } .ds-ledger span { width:26px; } .ds-ledger i { display:block; width:12px; height:12px; margin:0 16px 0 4px; box-sizing:border-box; } .ds-ledger i.warm { background:#c9c4b8; } .ds-ledger i.done { background:#2b40c8; } .ds-ledger i.cur { width:14px; height:14px; border:2.5px solid #16171b; } .ds-ledger i.todo { background:#9aaaf0; border:1.5px solid #2b40c8; } .ds-ledger b { font:600 20px/1 'Jost', system-ui, sans-serif; font-variant-numeric:tabular-nums; } .ds-ledger b.dim { color:#5b5d64; font-size:17px; }"
+      "refersTo": "log-line",
+      "description": "The sets so far and nothing else: the warm-ups on one line in ink 2, then a line per set done, its figures in the entry's three columns. No boxes, no rows for sets to come.",
+      "html": "<ol class=\"ds-log\"><li class=\"warm\"><span>W</span><b>25 × 8</b><b>35 × 5</b><b>45 × 3</b></li><li class=\"set\"><span>1</span><b>60</b><i>×</i><b>4</b><i>@</i><b>2</b></li><li class=\"set\"><span>2</span><b>60</b><i>×</i><b>4</b><i>@</i><b>2</b></li></ol>",
+      "css": ".ds-log { list-style:none; margin:0; padding:0; width:340px; } .ds-log li { display:flex; align-items:baseline; font:700 15px 'Atkinson Hyperlegible Next', system-ui, sans-serif; color:#5b5d64; } .ds-log li.warm { gap:18px; min-height:44px; } .ds-log li.warm b { font:600 20px/1 'Jost', system-ui, sans-serif; font-variant-numeric:tabular-nums; color:#5b5d64; } .ds-log li.set { display:grid; grid-template-columns:0 1fr 18px 1fr 18px 1fr; min-height:58px; } .ds-log li.set b { font:600 32px/1 'Jost', system-ui, sans-serif; font-variant-numeric:tabular-nums; color:#16171b; text-align:center; } .ds-log li.set i { font:600 18px 'Atkinson Hyperlegible Next', system-ui, sans-serif; font-style:normal; color:#5b5d64; text-align:center; }"
     },
     {
       "name": "Rest Pill",
@@ -1265,12 +1269,12 @@
   ],
   "narrative": {
     "northStar": "The art is your training",
-    "overview": "Overload is a black-and-white instrument that stays out of the way between sets: ink on white, light ink on near-black in dark, two typefaces, flat surfaces and hairlines. The only colour is the art. Prints are generative, Bauhaus-like compositions drawn from what the athlete has logged and nothing else, so the art is the record and the reward at once. A day's print says what is owed and fills with ink as it is done; a month's print holds every activity of every day.\n\nThe prints have a grammar, and it grows with the app. How the body moves gives the form and its pigment: a block for load, a stride for on foot, a wheel for on wheels, a wave for in water, a fan for practice, a bowl for food and a triangle, reserved, for play. Every form stands on one module grid and one ground line. State is thinned (to do), full (done) or dashed (skipped); context (indoors, structure, size) means the same on every form; a new sport is its family's form with one cut. A print carries no words: the rows under it are its legend, each led by a small copy of its part.\n\nThe interface says as little as it can. State is shown by ink rather than words, nothing is said twice on one screen, and everything starts at one left edge. Motion is ink, not decoration: a press answers a touch, pigment rolls into a mark when the server has the set, words swap in place, sheets follow the finger.",
+    "overview": "Overload is a black-and-white instrument that stays out of the way between sets: ink on white, light ink on near-black in dark, two typefaces, flat surfaces and hairlines. The only colour is the art. Prints are generative, Bauhaus-like compositions drawn from what the athlete has logged and nothing else, so the art is the record and the reward at once. A day's print says what is owed and fills with ink as it is done; a month's print holds every activity of every day.\n\nThe prints have a grammar, and it grows with the app. How the body moves gives the form and its pigment: a block for load, a track for on foot, a wheel for on wheels, a wave for in water, a fan for practice, a bowl for food and a triangle, reserved, for play. Every form stands on one module grid and one baseline, with nothing drawn under it, and the composition sits in the middle of its paper. State is thinned (to do), full (done) or dashed (skipped); context (indoors, structure, size) means the same on every form; a new sport is its family's form with one cut. A print carries no words: the rows under it name its parts in the same order.\n\nThe interface says as little as it can. State is shown by ink rather than words, nothing is said twice on one screen, and every name starts at one left edge. Motion is ink, not decoration: a press answers a touch, a set lands in the log when the server has it, words swap in place, sheets follow the finger.",
     "keyCharacteristics": [
       "A black-and-white interface; colour only ever means a family of sport, as a print or a mark.",
       "Prints drawn from real records, on one module grid, with one grammar for every sport.",
       "Minimal words: no repeated information, no state said in words where ink says it.",
-      "One left edge: a 20-pt mark column and names 12 after it, on every list.",
+      "One left edge: every name starts at the gutter; a mark leads a row only where it names a sport.",
       "Jost for titles and figures, Atkinson Hyperlegible Next for everything read.",
       "Flat: hairlines and tonal surfaces, one shadow, sheets over a scrim.",
       "Laid out from the device: figures fit rather than truncate, text wraps rather than runs off, layouts fold rather than drop."
@@ -1278,7 +1282,7 @@
     "rules": [
       {
         "name": "The Black-and-White Rule",
-        "body": "The interface is ink on ground. Colour appears only in prints and in sport marks (and the app's mark), and each pigment means one family of sport. A pigment never marks status, an error, a link, emphasis, a selection or a chart of anything but a sport: warnings, failures, selected text and the latest point of a chart are ink.",
+        "body": "The interface is ink on ground. Colour appears only in prints and in sport marks (and the app's mark), and each pigment means one family of sport. A pigment never marks status, an error, a link, emphasis, a selection or a chart: warnings, failures, selected text and every Progress chart are ink. The calendar is not a chart: it is pulled on paper, and its marks are the sports' own.",
         "section": "colors"
       },
       {
@@ -1318,7 +1322,7 @@
       },
       {
         "name": "The One Left Edge Rule",
-        "body": "Marks in one column, names at one edge, on every list of every screen.",
+        "body": "Names at one edge on every list of every screen; marks, where a list has them, in one column.",
         "section": "layout"
       },
       {
@@ -1337,34 +1341,35 @@
         "section": "shapes"
       },
       {
-        "name": "The One Ground Rule",
-        "body": "Every form in a print stands on one ground line, on one module grid; tops and rows line up and shapes never overlap.",
+        "name": "The One Baseline Rule",
+        "body": "Every form in a print stands on one baseline, on one module grid, with nothing drawn under it; tops and rows line up, shapes never overlap, and the composition sits in the middle of its paper.",
         "section": "shapes"
       },
       {
         "name": "The One Cut Rule",
-        "body": "A sport is its family's form with one cut: the paper shows through (walk: the stride opened; hike: a peak cut out; spin: the wheel cut in four; row: the waves cut by two oars; yoga: an arc cut in; climbing: steps cut in; racket sports: a ball punched out). Never an addition, never into the ground; it must read at 12 px beside its name.",
+        "body": "A sport is its family's form with one cut: the paper shows through (walk: the track's lane opened at its end; hike: a peak cut out; spin: the wheel cut in four; row: the waves cut by two oars; yoga: an arc cut in; climbing: steps cut in; racket sports: a ball punched out). Never an addition, never under the form; it must read at 12 px beside its name.",
         "section": "shapes"
       },
       {
         "name": "The No Words on a Print Rule",
-        "body": "A print carries no words; the rows under it are its legend.",
+        "body": "A print carries no words; the rows under it name its parts in the same order.",
         "section": "shapes"
       }
     ],
     "dos": [
       "Do take every figure from the repository's seed, preview, test and audit data, and every interface string from the app's own screens; where a design needs a string the app does not have yet, say so. A print draws only what was logged.",
-      "Do lead every row with its mark in the mark column, and start every name at one edge.",
+      "Do start every name at one edge, and lead a row with a mark only where it names a sport in a list that mixes them.",
       "Do let ink say state: a mark's fill, an outline, a dashed edge; keep words for what ink cannot say.",
       "Do give a new sport its family's form with one cut, and check it reads at 12 px.",
       "Do lay a new screen out at 320, 375, 402 and 440 pt and Android's 360 dp, in light and dark, and at 200% text, before calling it done.",
       "Do swap a word or a figure in place: out in 80 ms, then in over 120 ms, never both at once."
     ],
     "donts": [
-      "Don't use a pigment for anything but a family of sport: not for errors, warnings, links, emphasis, selection or charts of other things.",
-      "Don't say the same thing twice on a screen, or put words on a print.",
+      "Don't use a pigment for anything but a family of sport: not for errors, warnings, links, emphasis, selection or Progress charts.",
+      "Don't say the same thing twice on a screen, or put words on a print; don't draw a box or a mark beside a name to say what its words already say.",
+      "Don't draw a line under a print, or set its composition against one edge of the paper.",
       "Don't draw a dashed edge for anything but skipped.",
-      "Don't ink a set before the server has it, pre-fill RIR, or show a suggested value in ink.",
+      "Don't write a set to the log before the server has it, pre-fill RIR, or show a suggested value in ink.",
       "Don't truncate a figure, shrink a target under 44 pt, or drop a fact to make a layout fit.",
       "Don't indent a list, box rows into cards, or add a second shadow.",
       "Don't let the art be the brightest thing on a dark screen."

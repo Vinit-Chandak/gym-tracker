@@ -101,6 +101,12 @@ typography:
     fontWeight: 600
     lineHeight: 1.1
     fontFeature: '"tnum" 1, "lnum" 1'
+  log:
+    fontFamily: "'Jost', system-ui, sans-serif"
+    fontSize: "32px"
+    fontWeight: 600
+    lineHeight: 1
+    fontFeature: '"tnum" 1, "lnum" 1'
   figure-l:
     fontFamily: "'Jost', system-ui, sans-serif"
     fontSize: "26px"
@@ -229,23 +235,14 @@ components:
   stepper-figure-touched:
     textColor: "{colors.ink}"
     typography: "{typography.entry}"
-  ledger-row:
+  log-line:
     textColor: "{colors.ink}"
+    typography: "{typography.log}"
+    height: "58px"
+  log-warm-ups:
+    textColor: "{colors.ink-2}"
     typography: "{typography.figure}"
     height: "44px"
-  ledger-row-current:
-    backgroundColor: "{colors.surface}"
-    rounded: "{rounded.row}"
-    height: "44px"
-  set-mark-done:
-    backgroundColor: "{colors.ultra}"
-    size: "12px"
-  set-mark-todo:
-    backgroundColor: "{colors.ultra-t}"
-    size: "12px"
-  set-mark-warm-up:
-    backgroundColor: "{colors.mark-warm-up}"
-    size: "12px"
   rest-pill:
     backgroundColor: "{colors.surface}"
     textColor: "{colors.ink}"
@@ -343,17 +340,17 @@ and nothing else, so the art is the record and the reward at once. A day's print
 owed and fills with ink as it is done; a month's print holds every activity of every day.
 
 The prints have a grammar, and it grows with the app. How the body moves gives the form and its
-pigment: a block for load, a stride for on foot, a wheel for on wheels, a wave for in water, a
+pigment: a block for load, a track for on foot, a wheel for on wheels, a wave for in water, a
 fan for practice, a bowl for food and a triangle, reserved, for play. Every form stands on one
-module grid and one ground line. State is thinned (to do), full (done) or dashed (skipped);
-context (indoors, structure, size) means the same on every form; a new sport is its family's
-form with one cut. A print carries no words: the rows under it are its legend, each led by a
-small copy of its part.
+module grid and one baseline, with nothing drawn under it, and the composition sits in the middle
+of its paper. State is thinned (to do), full (done) or dashed (skipped); context (indoors,
+structure, size) means the same on every form; a new sport is its family's form with one cut. A
+print carries no words: the rows under it name its parts in the same order.
 
 The interface says as little as it can. State is shown by ink rather than words, nothing is said
-twice on one screen, and everything starts at one left edge. Motion is ink, not decoration: a
-press answers a touch, pigment rolls into a mark when the server has the set, words swap in
-place, sheets follow the finger.
+twice on one screen, and every name starts at one left edge. Motion is ink, not decoration: a
+press answers a touch, a set lands in the log when the server has it, words swap in place,
+sheets follow the finger.
 
 **Status.** Refined on the Claude Design canvas "Overload revamp: Form v2, refined" (2 October 2026) and not yet built. The boards, generated tokens, screenshots and the generator they come
 from are in [`docs/ui-redesign/revamp/form-v2/`](docs/ui-redesign/revamp/form-v2/README.md).
@@ -365,7 +362,7 @@ not yet rebuilt keep Form's tokens and limits.
 - A black-and-white interface; colour only ever means a family of sport, as a print or a mark.
 - Prints drawn from real records, on one module grid, with one grammar for every sport.
 - Minimal words: no repeated information, no state said in words where ink says it.
-- One left edge: a 20-pt mark column and names 12 after it, on every list.
+- One left edge: every name starts at the gutter; a mark leads a row only where it names a sport.
 - Jost for titles and figures, Atkinson Hyperlegible Next for everything read.
 - Flat: hairlines and tonal surfaces, one shadow, sheets over a scrim.
 - Laid out from the device: figures fit rather than truncate, text wraps rather than runs off,
@@ -377,15 +374,15 @@ Ink and white for the interface; seven artist's pigments, on warm paper, for the
 
 ### Primary
 
-- **Press Ink** (`ink`; `ink-dark` in dark): all text, the primary button, what is chosen, the
-  current set's outline, selected text, the focus ring, and every chart of something that is not
-  a sport (body weight, sleep). On ink, text is **On-ink**.
+- **Press Ink** (`ink`; `ink-dark` in dark): all text, the primary button, what is chosen,
+  selected text, the focus ring, and every Progress chart (distance, the heaviest set, body
+  weight, sleep). On ink, text is **On-ink**.
 
 ### Secondary
 
-- **Ultramarine** (`ultra`, the same in both themes): load. A saved set's mark in the ledger
-  (12 px square), a lifting record, and the strength part of every print. Thinned (`ultra-t`;
-  `ultra-t-dark`), with an edge of the full pigment, it is a set still to do.
+- **Ultramarine** (`ultra`, the same in both themes): load. The strength part of every print,
+  and lifting's mark where a list mixes sports. Thinned (`ultra-t`; `ultra-t-dark`), with an
+  edge of the full pigment, it is a set still to do.
 
 ### Tertiary
 
@@ -401,12 +398,13 @@ lighter pigments for dark paper:
   (`print-ochre`) to **Straw** (`print-straw`); text on it is `on-food`.
 - **Umber** (`print-play`): play, reserved (climbing, racket sports).
 
-In the interface a sport's mark, the small form leading its row, takes the same pigment.
+In the interface a sport's mark, the small form leading a row where a list mixes sports, takes the
+same pigment.
 
 ### Neutral
 
 - **Ground** (`ground`): the page. **Surface** (`surface`): round buttons, tonal buttons, tiles,
-  the rest pill, the current ledger row, coach notes. **Surface 2** (`surface-2`): pressed, the
+  the rest pill, coach notes. **Surface 2** (`surface-2`): pressed, the
   switch's off track.
 - **Ink 2** (`ink-2`): secondary text, suggested values, captions, unchosen tabs.
 - **Control** (`control`): borders of fields and outline buttons, an RIR not yet chosen.
@@ -414,16 +412,17 @@ In the interface a sport's mark, the small form leading its row, takes the same 
 - **Warm-up** (`mark-warm-up` on the ground; `print-warm-up` on paper): a warm-up set, done but
   not counted.
 - **Print Paper** (`print-paper`; `print-paper-dark`), **Print Ink**, **Print Label** and
-  **Print Dot**: the ground, the ground line, the few labels and the empty-day dot of every
-  print. The paper has a grain: multiply at 6% in light, screen at 4.5% in dark.
+  **Print Dot**: the paper of every print and of the calendar, the platform under an indoor
+  form, the calendar's weekday letters and dates, and its empty-day dot. The paper has a grain: multiply at 6% in light, screen at 4.5% in dark.
 - **Scrim** (`scrim`; `scrim-dark`): under every sheet.
 
 ### Named Rules
 
 **The Black-and-White Rule.** The interface is ink on ground. Colour appears only in prints and
 in sport marks (and the app's mark), and each pigment means one family of sport. A pigment never
-marks status, an error, a link, emphasis, a selection or a chart of anything but a sport:
-warnings, failures, selected text and the latest point of a chart are ink.
+marks status, an error, a link, emphasis, a selection or a chart: warnings, failures, selected
+text and every Progress chart are ink. The calendar is not a chart: it is pulled on paper, and its
+marks are the sports' own.
 
 **The Thinned, Full, Dashed Rule.** Thinned pigment with an edge of the full pigment is to do;
 full pigment is done; a dashed edge is skipped. A warm-up is grey. Dashed means skipped and
@@ -450,15 +449,17 @@ the coach included. Both are under the SIL Open Font License, so the native apps
 - **Display** (700, 34 px, 1.05): a nested screen's or an exercise's name. A long name steps
   down 4, then to 26, then wraps to two lines.
 - **Sheet title** (700, 28 px, 1.05): a sheet's name (Why, Finish, Appearance).
-- **Figure XL** (600, 56 px): the screen's one figure, on the ground above its print (kcal left
-  or over on Food, the latest body weight).
-- **Entry** (600, 42 px; 46 on 440 pt): load, reps and RIR in the docked entry and a portion's
-  amount, stepping down to fit, never below 28.
-- **Figure L** (600, 26 px, tabular): a stat, and the figure of a row's stepper (sleep, a run's
-  distance, body weight at the finish).
-- **Figure** (600, 20 px, tabular): ledger rows, list figures, totals, paces; **Figure S**
+- **Figure XL** (600, 56 px): the screen's one figure, on the ground above its print (the kcal
+  eaten on Food, the latest body weight).
+- **Entry** (600, 42 px): load, reps and RIR in the docked entry and a portion's amount,
+  stepping down the ramp to fit, never below 28.
+- **Log** (600, 32 px, tabular): a set done, in the log, its figures in the entry's columns;
+  28 for pounds at 375 pt, 20 at 320.
+- **Figure L** (600, 26 px, tabular): a stat, a set in History, and the figure of a row's
+  stepper (sleep, a run's distance, body weight at the finish).
+- **Figure** (600, 20 px, tabular): the warm-ups' line, list figures, totals, paces; **Figure S**
   (17 px) in the rest pill and the session strip.
-- **Heading** (700, 16 to 17 px): "Set 3", a row's name, the coach's question.
+- **Heading** (700, 16 to 17 px): "Set 3 of 4", a row's name, the coach's question.
 - **Body** (500, 15 to 16 px, 1.45): coach text and everything read; two lines inline, then More.
 - **Meta** (500, 15 px, ink 2): a meta line, each fact led by its glyph; **Meta small** (14 px)
   for a row's second line.
@@ -472,7 +473,9 @@ word read. A number inside a sentence stays in Atkinson; a range inside a Jost f
 Atkinson's en dash, because Jost's is as long as an em dash.
 
 **The Figures Never Truncate Rule.** A figure keeps one line and steps down until it fits: never
-an ellipsis, never a wrap. Jost 600's tabular digits are 0.614 em, its point and comma 0.32 em.
+an ellipsis, never a wrap. It steps down the ramp (42, 36, 34, 32, 28, 26, 20), never to a size
+in between, so a narrow screen shows the same few sizes as a wide one. Jost 600's tabular digits
+are 0.614 em, its point and comma 0.32 em.
 
 **The Text Never Runs Off Rule.** Every text column may shrink (`min-width: 0`) and wraps
 (`overflow-wrap: anywhere`); a row grows rather than clipping. A button at large text sizes
@@ -487,16 +490,18 @@ Every screen is laid out from its device rather than scaled from one size: 402 �
 (20 pt top), and Android at 360 × 800 dp (28 top, a 16-dp gesture handle). Gutters are 20 pt, 16
 under 360 pt wide.
 
-- **One left edge:** every list shares a 20-pt mark column, and names start 12 pt after it. No
-  list is indented, boxed or carded; rows are separated by `hair` rules.
+- **One left edge:** every name starts at the gutter. A row carries no mark beside its name
+  unless the mark names a sport in a list that mixes them (History, a day, Friends); such a list
+  gives its marks a 20-pt column and its names one edge 12 pt after it. No list is indented,
+  boxed or carded; rows are separated by `hair` rules.
 - **Tab bar:** 64 pt: 3, then 44-pt targets, then 17, so the targets end 4 clear of the home
   indicator (11 where there is none). On iOS and Android the system bar is used.
 - **The session:** starting a workout opens a full-screen layer over the tabs, from the check-in
   to the summary. Minimised, it is the session strip on every screen.
-- **Logging:** the title, meta line and tabs stay; the ledger takes the room above the entry, and
-  when it needs more it keeps its end in view (the set being entered, the sets left, Add set)
-  while earlier rows pass under the tabs, so a cut never falls between two sets and reads as a
-  missing one. The entry (the set, three steppers, Save) is docked to the safe area. The steppers stay in one
+- **Logging:** the title, meta line and tabs stay; the log takes the room above the entry, and
+  when it needs more it keeps its latest sets in view while earlier lines pass under the tabs, so
+  a cut never falls between two sets and reads as a missing one. The entry (the set, three
+  steppers, Save) is docked to the safe area, its columns the log's columns. The steppers stay in one
   row while each column holds its figure and two buttons 8 apart (44 pt on iOS, 48 dp on
   Android): 375 pt keeps one row, 360 dp and 320 pt put load above reps and RIR. At 200% text
   load takes a row, reps and RIR share the next, and the entry comes first.
@@ -506,13 +511,18 @@ under 360 pt wide.
   them and fades under them.
 - **Prints:** one module grid: a module is a square; an exercise a column of its sets; 0.14 of a
   module between sets, 0.34 between exercises, 0.14 between a superset's two columns, a whole
-  module between parts, which stand in the order of the rows under them from the print's left
-  edge; one 3-px ground line. Every other form is a whole number of modules tall, gaps included;
-  a wheel, a fan and a bowl are as wide as they are tall.
-- **The month:** a calendar, not a print: dates in ink on the ground, a hairline between weeks,
-  only the marks in pigment. Each day is a link named with what it holds, its marks right under
-  its date, two to a row, `+N` past four; today is ringed; days to come are quieter and are not
-  links. The totals under it name each sport.
+  module between parts, which stand in the order of the rows under them on one baseline. No line
+  is drawn under them, and the whole composition is centred on its paper, across and down. Every
+  other form is a whole number of modules tall, gaps included; a wheel, a fan and a bowl are as
+  wide as they are tall; a run's track is a module tall and a module longer for every 20
+  minutes.
+- **The month:** the first calendar's style: pulled on paper like a print, the weekdays across
+  the top, a dot for a day with nothing in it, each activity its sport's mark. A day's marks
+  stand together in its cell: one at 40% of its height, two side by side, three or four in two
+  rows; past four, `+N`. A bar under a mark means indoors. Today is ringed; days to come are
+  blank and are not links; every past day is a link named with what it holds. The overview
+  shows the pattern alone; the calendar page adds each date, small, in its cell's corner. The
+  totals under the overview name each sport, so they are its legend.
 - **Heights:** short screens (under 800 pt) shorten the print and fold the day's note; tall
   screens (860 pt and over) give the room to the print and the entry.
 
@@ -521,8 +531,8 @@ under 360 pt wide.
 **The Docked Entry Rule.** On logging, the steppers and Save are on the first screen at every
 size, and nothing a thumb needs is under the tab bar, because there is none.
 
-**The One Left Edge Rule.** Marks in one column, names at one edge, on every list of every
-screen.
+**The One Left Edge Rule.** Names at one edge on every list of every screen; marks, where a list
+has them, in one column.
 
 **The Fold, Never Drop Rule.** When room runs out, a layout folds (steppers stack, a note folds
 behind a tap); it never drops the equipment, the target or the suggestion, and never shrinks a
@@ -545,17 +555,18 @@ does it with ink, tone or a scrim.
 
 ## Shapes
 
-The interface is rounded by role: a tab's underline 2 px, checkboxes 6, tags 8, the current
-ledger row and badges 10 (`row`), keys 12, buttons, fields, tiles and notes 14 (`control`),
+The interface is rounded by role: a tab's underline 2 px, checkboxes 6, tags 8, badges 10
+(`row`), keys 12, buttons, fields, tiles and notes 14 (`control`),
 cards 16, the rest pill 18, sheets 24 (top corners), round buttons and avatars full. A control inside a tray takes the tray's radius minus its inset
 (segments 11 in a 14 tray with a 3 inset). Prints are cut square.
 
-The print forms are geometric primitives standing on the ground line: the block (a square
-module; a column of them is an exercise), the stride (a parallelogram leaning forward by a third
-of its height, its body a module for every 15 minutes), the wheel (a ring as thick as a tyre),
+The print forms are geometric primitives standing on one baseline: the block (a square module; a
+column of them is an exercise), the track (a running track seen from above: a stadium with its
+lane cut in, a module tall and a module longer for every 20 minutes), the wheel (a ring as thick
+as a tyre),
 the wave (two crests), the fan (a quarter disc cut into drills), the bowl (a half disc whose area
 is the day's target) and the triangle. Context reads the same on every form: a platform under it
-is indoors (a treadmill, an indoor bike, a pool); segments are its structure (sets, intervals,
+is indoors (a track on a platform is a treadmill; an indoor bike; a pool); segments are its structure (sets, intervals,
 drills); size is time or distance in whole modules. Past the target, food heaps above the bowl's
 rim as one symmetric lens; at twice the target it closes the circle.
 
@@ -563,22 +574,26 @@ Icons sit on a 24-unit grid with a 2.0 stroke and round caps and joins, ink only
 destination icons are drawn from the first forms: outlined, filled where you are. Equipment
 (free weights as a dumbbell, machine, cable, Smith machine, bodyweight) and where (outdoors,
 treadmill, indoor bike, pool, open water, home) are glyphs, each with its name for screen
-readers. The mark is an ultramarine slab and a vermilion disc on an ink line; the app icon is
+readers. The mark is an ultramarine slab and a vermilion disc on an ink line (the name's mark,
+kept from the first alphabet; it is not a print); the app icon is
 the mark on paper (light) or ink (dark), with corners of 22.5% of its size.
 
 ### Named Rules
 
 **The Square Print Rule.** Prints have square corners; only the interface is rounded.
 
-**The One Ground Rule.** Every form in a print stands on one ground line, on one module grid;
-tops and rows line up and shapes never overlap.
+**The One Baseline Rule.** Every form in a print stands on one baseline, on one module grid, with
+nothing drawn under it; tops and rows line up, shapes never overlap, and the composition sits in
+the middle of its paper.
 
 **The One Cut Rule.** A sport is its family's form with one cut: the paper shows through
-(walk: the stride opened; hike: a peak cut out; spin: the wheel cut in four; row: the waves cut
-by two oars; yoga: an arc cut in; climbing: steps cut in; racket sports: a ball punched out).
-Never an addition, never into the ground; it must read at 12 px beside its name.
+(walk: the track's lane opened at its end; hike: a peak cut out; spin: the wheel cut in four;
+row: the waves cut by two oars; yoga: an arc cut in; climbing: steps cut in; racket sports: a
+ball punched out). Never an addition, never under the form; it must read at 12 px beside its
+name.
 
-**The No Words on a Print Rule.** A print carries no words; the rows under it are its legend.
+**The No Words on a Print Rule.** A print carries no words; the rows under it name its parts in
+the same order.
 
 ## Components
 
@@ -596,22 +611,26 @@ and every control answers a press.
   surface, a glyph (− and +).
 - **Destructive:** a 2-px ink outline, its glyph leading (Delete everything); grey until it is
   confirmed, never in the primary place. An option that discards a day (Skip this session) stands
-  apart from the others, led by what it does: a dashed mark.
+  apart from the others, under a rule, led by the skip glyph.
 - **Press:** scale 0.97 in 120 ms, `cubic-bezier(0.23, 1, 0.32, 1)`; none with reduced motion.
 - **Focus:** a 3-px ink outline at 2-px offset, ringed in ground so it shows on ink.
 
-### The ledger (signature)
+### The log (signature)
 
-- One row per set, 44 pt: the set's number (W for a warm-up), its 12-px mark, then the set in
-  the app's notation, "60 × 4 @ 2"; "@" is RIR alone, and a set rated by effort says RPE 8. A
-  warm-up's mark is grey and its figures ink 2; a saved
-  set's mark is ultramarine; the set being entered is outlined in ink on a surface row; a set to
-  do is thinned ultramarine with its edge. Add set ends the list.
-- **A set is inked:** Save presses (120 ms) and reads Saving…; the mark turns while the server
-  answers; on its answer ultramarine rolls up the mark (420 ms, `cubic-bezier(0.65, 0, 0.35,
-1)`), the row takes its figures, Save reads Saved, then the next set takes the outline, the
-  values go back to suggestions, RIR empties and rest restarts. Nothing inks before the server
-  has it; a failure keeps the entries and offers Retry.
+- What has been lifted so far, in the app's notation, and nothing else. The warm-ups on one line
+  (W, then "25 × 8 · 35 × 5 · 45 × 3") in Figure and ink 2; then each set done on a line of its
+  own, 58 pt: its number at the edge in ink 2, then its load, reps and RIR in Log (32 px), each
+  standing in the entry's column below, so the entry reads as the log's next line. "@" is RIR
+  alone; a set rated by effort says RPE 8. Each line opens its set to edit.
+- No boxes, marks or rows for sets not yet done: the entry says which set comes next and of how
+  many ("Set 3 of 4"). Add a set is in Set options.
+- History lists every session newest first, its sets in the same lines (Figure L).
+- **A set is written:** Save presses (120 ms) and reads Saving… while the server answers; on its
+  answer the set lands as the log's next line, rising 10 pt as it fades in (220 ms,
+  `cubic-bezier(0.23, 1, 0.32, 1)`), and Save reads Saved; then the entry turns to the next set,
+  the values go back to suggestions, RIR empties and rest restarts. With reduced motion the line
+  appears. Nothing is written before the server has it; a failure keeps the entries and offers
+  Retry.
 
 ### Steppers
 
@@ -637,15 +656,17 @@ and every control answers a press.
 
 ### Rows and marks
 
-- A row is led by a small copy of its part of the print: an exercise by a column of its sets
-  (done from the bottom up), a run, ride or swim by its form, warm-up drills by the fan, a
-  setting by its glyph. One exercise row everywhere: its column mark, the name, and under it the
-  equipment's glyph and the prescription (Today, a programme day, the workout).
-- A superset is a 2-px ink bracket in the left gutter, 8 pt from the edge, joining the pair,
-  beside a list's marks or a ledger's set numbers.
-- A meta line is facts led by glyphs: "[dumbbell] 4 × 3–5 @ 2 · [dial] 3–4 min".
-- **Records:** a list in ink, each led by its exercise's mark: the metric and what it was, the
-  new figure trailing. Never a pigment tile.
+- One exercise row everywhere: the name, and under it the equipment's glyph and the
+  prescription (Today, a programme day, the workout, Finish). No mark beside it: its sets are
+  said once in the prescription and drawn once in the print. Where it stands is said only when it
+  is news: a check when done, Resume on the one under way, Skipped when dropped.
+- A mark (the sport's form, in its state) leads a row only where a list mixes sports and the
+  words do not name it (History, a day, Friends). A setting or a menu option is led by its glyph.
+- A superset is a 2-px ink bracket in the left gutter, 8 pt from the edge, joining the pair.
+- A meta line is facts led by glyphs: "[dumbbell] 4 × 3–5 @ 2 · [dial] 3–4 min"; a run's says
+  treadmill or outdoors with its glyph.
+- **Records:** a list in ink: the exercise, the metric and what it was, the new figure trailing.
+  Never a pigment tile.
 
 ### Coach note
 
@@ -684,11 +705,16 @@ and every control answers a press.
 ### Prints (signature)
 
 - Drawn from the account's records and nothing else, on print paper with square corners.
-- **The day:** Today's hero and every record's header: thinned parts inking as they are done.
-- **The month** is the calendar, interface rather than print: only its marks are pigment.
+- **The day:** Today's hero and every record's header: thinned parts inking as they are done,
+  centred on the paper.
+- **The month:** the calendar, pulled on paper in the first calendar's style: marks and dots,
+  the weekdays across the top (see Layout).
+- **Progress charts** are not prints: distance, the heaviest set, body weight and sleep are drawn
+  in ink on the ground, the latest reading in ink and the rest in `control`, scale labels in a
+  margin column.
 - **The bowl:** Food: the day's target filled meal by meal, the bowl alone and centred on its
-  paper, its figure (kcal left or over) on the ground above it; the paper keeps air above the
-  rim, or the heap's height when that is more. A portion being added shows as a thinned layer
+  paper, the day's one figure (the kcal eaten) on the ground above it; the paper keeps air above
+  the rim, or the heap's height when that is more. A portion being added shows as a thinned layer
   before it is logged.
 
 ## Do's and Don'ts
@@ -698,7 +724,8 @@ and every control answers a press.
 - **Do** take every figure from the repository's seed, preview, test and audit data, and every
   interface string from the app's own screens; where a design needs a string the app does not
   have yet, say so. A print draws only what was logged.
-- **Do** lead every row with its mark in the mark column, and start every name at one edge.
+- **Do** start every name at one edge, and lead a row with a mark only where it names a sport in
+  a list that mixes them.
 - **Do** let ink say state: a mark's fill, an outline, a dashed edge; keep words for what ink
   cannot say.
 - **Do** give a new sport its family's form with one cut, and check it reads at 12 px.
@@ -709,10 +736,13 @@ and every control answers a press.
 ### Don't:
 
 - **Don't** use a pigment for anything but a family of sport: not for errors, warnings, links,
-  emphasis, selection or charts of other things.
-- **Don't** say the same thing twice on a screen, or put words on a print.
+  emphasis, selection or Progress charts.
+- **Don't** say the same thing twice on a screen, or put words on a print; don't draw a box or a
+  mark beside a name to say what its words already say.
+- **Don't** draw a line under a print, or set its composition against one edge of the paper.
 - **Don't** draw a dashed edge for anything but skipped.
-- **Don't** ink a set before the server has it, pre-fill RIR, or show a suggested value in ink.
+- **Don't** write a set to the log before the server has it, pre-fill RIR, or show a suggested
+  value in ink.
 - **Don't** truncate a figure, shrink a target under 44 pt, or drop a fact to make a layout fit.
 - **Don't** indent a list, box rows into cards, or add a second shadow.
 - **Don't** let the art be the brightest thing on a dark screen.

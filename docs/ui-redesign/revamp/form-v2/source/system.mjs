@@ -2,7 +2,7 @@
 import { s, esc, ratio } from "./lib.mjs";
 import * as K from "./kit.mjs";
 import { ICON_ORDER, LABELS } from "./icons.mjs";
-import { PIG, PAL, FAMILY, markSvg, form, dayPrint } from "./art.mjs";
+import { PAL, FAMILY, markSvg, form, dayPrint } from "./art.mjs";
 import * as SE from "./session.mjs";
 import { dayBowl } from "./food.mjs";
 import { planRow } from "./today.mjs";
@@ -10,6 +10,11 @@ import { seg } from "./more.mjs";
 import { weights, copy as C, today as TD } from "./data.mjs";
 
 const TP = TD.plan;
+const WARMUPS = [
+  { v: "25", reps: 8 },
+  { v: "35", reps: 5 },
+  { v: "45", reps: 3 },
+];
 
 export const SW = 1600;
 const { txt, num, title, icon, tn } = K;
@@ -92,7 +97,7 @@ function colour() {
       .join("");
     return `<ul style="${s({ display: "grid", "grid-template-columns": "repeat(7, minmax(0,1fr))", gap: 2 })}">${cells}</ul>`;
   };
-  return section(`${H2("Colour", "The interface is black and white; it stays out of the way. Colour means a family of sport and only ever appears as a print or a mark made from what was logged. To do is the pigment thinned, with an edge of the full pigment; done is full; skipped is a dashed edge. Charts of things that are not sport (body weight, sleep) are ink.")}
+  return section(`${H2("Colour", "The interface is black and white; it stays out of the way. Colour means a family of sport and only ever appears as a print or a mark made from what was logged. To do is the pigment thinned, with an edge of the full pigment; done is full; skipped is a dashed edge. Progress charts (distance, the heaviest set, body weight, sleep) are interface, so they are ink.")}
 <div style="${s({ display: "flex", gap: GAP })}">${panel(L, "Light")}${panel(Dk, "Dark")}</div>
 ${small("Pigments on light paper: to do, done, skipped")}${pig("light")}
 ${small("The same prints pulled on dark paper: lighter pigments, light ink, so a print is never the brightest thing on a dark screen")}${pig("dark")}`);
@@ -113,7 +118,7 @@ function type() {
       title(34),
       "Barbell bench press",
     ],
-    ["Figure XL", "Jost 600 · 40–64, sized to the room it has · tabular", num(56), "1,147.5"],
+    ["Figure XL", "Jost 600 · 40–64, sized to the room it has · tabular", num(56), "1,152.5"],
     [
       "Entry",
       "Jost 600 · 46 or 42, down to 28 to fit, never truncated; Atkinson’s en dash inside a range",
@@ -173,7 +178,7 @@ function metrics() {
   const rad = `<div style="${s({ display: "flex", "flex-direction": "column", gap: 10 })}">${small("Radii (pt)")}<div style="${s({ display: "flex", "align-items": "flex-start", gap: 14 })}">${radii.map(([v, n]) => `<div style="${s({ display: "flex", "flex-direction": "column", "align-items": "center", gap: 6, width: 72 })}"><span style="${s({ width: 56, height: 56, "border-top-left-radius": v, border: `2px solid ${L.ink}`, "border-right": 0, "border-bottom": 0 })}"></span><span style="${txt(12, 600, { color: L.ink2, "text-align": "center" })}">${v}<br>${n}</span></div>`).join("")}</div></div>`;
   const elev = `<div style="${s({ display: "flex", "flex-direction": "column", gap: 10 })}">${small("Elevation: one shadow")}<div style="${s({ display: "flex", gap: 22, "align-items": "center" })}"><div style="${s({ display: "flex", "flex-direction": "column", "align-items": "center", gap: 8 })}"><span style="${s({ width: 120, height: 48, background: L.ink, "border-radius": 16, "box-shadow": L.float })}"></span><span style="${txt(12, 600, { color: L.ink2 })}">The session strip, light only</span></div><div style="${s({ display: "flex", "flex-direction": "column", "align-items": "center", gap: 8 })}"><span style="${s({ position: "relative", width: 120, height: 64, background: L.scrim, "border-radius": 8, overflow: "hidden" })}"><span style="${s({ position: "absolute", left: 0, right: 0, bottom: 0, height: 36, background: L.ground, "border-radius": "14px 14px 0 0" })}"></span></span><span style="${txt(12, 600, { color: L.ink2 })}">A sheet: a scrim, no shadow</span></div></div></div>`;
   const layout = `<div style="${s({ display: "flex", "flex-direction": "column", gap: 8, "max-width": 520 })}">${small("Layout")}<ul style="${s({ display: "flex", "flex-direction": "column", gap: 6 })}; ${txt(14, 500)}">${[
-    "Gutter 20 pt, 16 under 360 pt. One left edge: every list shares a 20-pt mark column, names start 12 after it.",
+    "Gutter 20 pt, 16 under 360 pt. One left edge: names start at the gutter; only a list that mixes sports gives its marks a 20-pt column.",
     "Targets 44 pt (48 dp on Android, grown by hit area, not by drawing).",
     "Tab bar 64 pt: 44-pt targets on a hairline, ending 4 clear of the home indicator. The session is a layer over it.",
     "Pinned actions sit 8 above the safe area or 12 above the tab bar; the content fades under them.",
@@ -196,8 +201,8 @@ function components() {
     `<div style="${s({ width, "max-width": "100%" })}">${inner}</div>`;
   const buttons = `<div style="${s({ display: "flex", "flex-direction": "column", gap: 10, width: 362 })}"><button type="button" style="${K.BTN(t, "primary")}">${icon("play", 20)}Start workout</button><div style="${s({ display: "flex", gap: 10 })}"><button type="button" style="${K.BTN(t, "tonal")}; flex: 1 1 0">Log it</button><button type="button" aria-disabled="true" style="${K.BTN(t, "waiting")}; flex: 1.6 1 0">${SE.SAVE}</button></div><div style="${s({ display: "flex", gap: 10, "align-items": "center" })}"><a href="#" style="${s({ display: "flex", "align-items": "center", height: 44 })}"><span style="${K.BTN(t, "outline", { h: 36 })}; padding: 0 14px; font-size: 15px">Finish</span></a><button type="button" style="${K.BTN(t, "text", { h: 44 })}">Skip for now</button>${K.roundBtn(t, "plus", "More")}${K.roundBtn(t, "minus", "Less")}</div></div>`;
   const steppers = `<div style="${s({ display: "grid", "grid-template-columns": "repeat(3, minmax(0,1fr))", gap: 8, width: 362 })}">${K.stepFigure(t, { value: "62.5", unit: "kg", state: "suggested", hint: "", dec: "Less", inc: "More", size: 40 })}${K.stepFigure(t, { value: "62.5", unit: "kg", state: "touched", dec: "Less", inc: "More", size: 40 })}${K.stepFigure(t, { value: "", unit: "RIR", state: "empty", hint: "target 2", dec: "Less", inc: "More", size: 40 })}</div><p style="${txt(13, 500, { color: t.ink2 })}">Suggested (ink 2, dotted) until touched; then ink, because it is what Save records. RIR starts empty, its target beside it: tap the dash to take the target, or − and + for one either side. Tapping a figure types it.</p>`;
-  const ledgerRows = `<ol style="width:362px">${SE.ledgerRow(t, { n: "W", v: "25", reps: 8, kind: "warm" })}${SE.ledgerRow(t, { n: 1, v: "60", reps: 4, rir: 2, kind: "done" })}${SE.ledgerRow(t, { n: 2, kind: "now" }, { now: true })}${SE.ledgerRow(t, { n: 3, kind: "todo" })}</ol><p style="${txt(13, 500, { color: t.ink2 })}">A warm-up is grey, done is ultramarine, the set being entered is outlined, to do is thinned with its edge.</p>`;
-  const rows = `<ul style="width:362px">${SE.warmRow(t, { name: "Upper-body warm-up", sub: "4 drills", drills: 4, done: true })}${planRow(t, { ...TP[0], done: 3 })}${planRow(t, { ...TP[1], done: 1 })}<li style="${K.SS_GROUP}"><ul>${planRow(t, TP[2])}${planRow(t, TP[3], { last: true })}</ul>${K.supersetBracket(t)}</li></ul><p style="${txt(13, 500, { color: t.ink2 })}">A row is led by a small copy of its part of the print. A superset is a bracket down the mark column.</p>`;
+  const ledgerRows = `<ol style="width:362px">${SE.warmLine(t, WARMUPS)}${SE.setRow(t, { n: 1, v: "60", reps: 4, rir: 2 })}${SE.setRow(t, { n: 2, v: "60", reps: 4, rir: 2 })}</ol><p style="${txt(13, 500, { color: t.ink2 })}">The sets so far in the app’s notation: the warm-ups on one line in ink 2, then a line for each working set. Nothing is drawn for a set not yet done; each line opens its set to edit.</p>`;
+  const rows = `<ul style="width:362px">${SE.warmRow(t, { name: "Upper-body warm-up", sub: "4 drills", done: true })}${planRow(t, TP[0])}${planRow(t, TP[1])}<li style="${K.SS_GROUP}"><ul>${planRow(t, TP[2])}${planRow(t, TP[3], { last: true })}</ul>${K.supersetBracket(t)}</li></ul><p style="${txt(13, 500, { color: t.ink2 })}">A row names its part of the print, in the print’s order, and carries no mark of its own: the sets are said once, in the prescription. A superset is a bracket in the gutter.</p>`;
   const rest = `<div style="${s({ display: "flex", gap: 12, "align-items": "center" })}">${K.restPill(t, { time: "2:14", frac: 0.74 })}${K.restPill(t, { time: "0:30", frac: 0.17 })}${K.restPill(t, { go: true, timeHtml: "Go", aria: "Rest over" })}</div><div style="${s({ position: "relative", height: 60, width: 402, "margin-left": -20 })}">${K.strip(t, { dv, bottom: 4 })}</div><p style="${txt(13, 500, { color: t.ink2 })}">Rest lives in one place: a pill in the session’s header, a dial that empties from twelve. Minimised, the session is a strip on every screen.</p>`;
   const tabbar = `<div style="${s({ position: "relative", height: K.navH(dv), width: 402, "margin-left": -20, background: t.ground })}">${K.navbar(t, "today", { dv })}</div><p style="${txt(13, 500, { color: t.ink2 })}">64 pt: 44-pt targets on a hairline, ending 4 clear of the home indicator.</p>`;
   const fields = `<div style="${s({ display: "flex", "flex-direction": "column", gap: 12, width: 362 })}">${K.field(t, "Name", { value: "Anytime Fitness" })}${seg(t, ["Distance", "Duration", "Pace"], 0, "Measure", { h: 44, size: 15 })}<div style="${s({ display: "flex", "align-items": "center", "justify-content": "space-between" })}"><span style="${txt(16, 600)}">Rest timer</span>${K.toggle(t, true, "Rest timer")}</div>${K.iconChoice(
@@ -232,7 +237,7 @@ function components() {
     hi = 77.7;
   const px = (i) => 8 + (i / (pts.length - 1)) * (cw - 24);
   const py = (v) => ch - 14 - ((v - lo) / (hi - lo)) * (ch - 28);
-  const chart = `<svg width="${cw}" height="${ch}" viewBox="0 0 ${cw} ${ch}" role="img" aria-label="Body weight, 8 July to 28 September" style="display:block"><path d="${pts.map((v, i) => `${i ? "L" : "M"}${px(i).toFixed(1)} ${py(v).toFixed(1)}`).join("")}" fill="none" stroke="${t.ink}" stroke-width="2"/>${pts.map((v, i) => (i === pts.length - 1 ? `<circle cx="${px(i).toFixed(1)}" cy="${py(v).toFixed(1)}" r="5.5" fill="${t.ink}"/>` : `<circle cx="${px(i).toFixed(1)}" cy="${py(v).toFixed(1)}" r="2.4" fill="${t.ground}" stroke="${t.ink}" stroke-width="1.5"/>`)).join("")}</svg><p style="${txt(13, 500, { color: t.ink2 })}">Charts that are not sport are ink: the latest reading is an ink dot, not a pigment.</p>`;
+  const chart = `<svg width="${cw}" height="${ch}" viewBox="0 0 ${cw} ${ch}" role="img" aria-label="Body weight, 8 July to 28 September" style="display:block"><path d="${pts.map((v, i) => `${i ? "L" : "M"}${px(i).toFixed(1)} ${py(v).toFixed(1)}`).join("")}" fill="none" stroke="${t.ink}" stroke-width="2"/>${pts.map((v, i) => (i === pts.length - 1 ? `<circle cx="${px(i).toFixed(1)}" cy="${py(v).toFixed(1)}" r="5.5" fill="${t.ink}"/>` : `<circle cx="${px(i).toFixed(1)}" cy="${py(v).toFixed(1)}" r="2.4" fill="${t.ground}" stroke="${t.ink}" stroke-width="1.5"/>`)).join("")}</svg><p style="${txt(13, 500, { color: t.ink2 })}">Progress charts are ink: the latest reading in ink, the rest quieter; the art stays in the calendar and each day’s record.</p>`;
   const sheetDemo = `<div style="${s({ position: "relative", height: 180, width: 362, overflow: "hidden", "border-radius": 14, background: t.scrim })}"><div style="${s({ position: "absolute", left: 0, right: 0, bottom: 0, height: 150, background: t.ground, "border-radius": "24px 24px 0 0", padding: "8px 20px" })}"><span style="${s({ display: "block", width: 36, height: 5, "border-radius": 9999, background: t.surface2, margin: "0 auto 8px" })}"></span><div style="${s({ display: "flex", "align-items": "center" })}"><span style="${title(28)}; flex: 1 1 auto">More options</span>${icon("close", 20)}</div><p style="${s({ display: "flex", "align-items": "center", gap: 12, height: 52, "border-bottom": `1px solid ${t.hair}` })}; ${txt(17, 600)}">${icon("calendar", 22)}Train another day</p></div></div>`;
   const keyboard = `<p style="${txt(14, 500)}">Tap a figure to type it: the decimal pad with Previous, Next and Done; the figure being typed is selected, in ink.</p><div style="${s({ display: "flex", "align-items": "center", gap: 10 })}"><span style="${s({ display: "inline-flex", padding: "4px 12px", "border-radius": 12, border: `2.5px solid ${t.ink}` })}"><span style="${num(36, { lh: 1.1 })}; background: ${t.ink}; color: ${t.onInk}; padding: 0 3px; border-radius: 2px">62.5</span></span><span style="${txt(13, 600, { color: t.ink2 })}">kg</span></div>`;
   return section(`${H2("Components", "Drawn at their size by the code that draws the screens.")}
@@ -242,8 +247,8 @@ ${grid(
     tile("Buttons: ink, tonal, waiting, outline, text, round", buttons),
     tile("Steppers: suggested, touched, empty", steppers),
     tile("Typing a figure", keyboard),
-    tile("The ledger: one row per set", ledgerRows),
-    tile("Rows and their marks", rows),
+    tile("The log: a line per set", ledgerRows),
+    tile("Rows: a name and its prescription", rows),
     tile("Rest and the session strip", rest),
     tile("The tab bar", tabbar),
     tile("Fields and choices", fields),
@@ -261,10 +266,9 @@ function states() {
   const t = L;
   const quiet = (label) =>
     `<button type="button" style="${K.BTN(t, "outline", { h: 44 })}; font-size: 15px; align-self: flex-start">${label}</button>`;
-  const sq = 12;
-  const saving = `<ol style="width:362px">${SE.ledgerRow(t, { n: 3, kind: "now" }, { swap: `<span style="${s({ position: "relative", width: sq, height: sq, background: PIG.ultraT, border: `1.5px solid ${t.marks.strength}`, display: "block" })}"><svg width="${sq}" height="${sq}" viewBox="0 0 24 24" aria-hidden="true" style="position:absolute;inset:-1.5px;display:block" fill="none" stroke="${t.ink}" stroke-width="4" stroke-linecap="round"><path d="M12 4a8 8 0 1 1-8 8"/></svg></span>` }).replace('aria-current="step"', "")}</ol><button type="button" aria-disabled="true" style="${K.BTN(t, "waiting")}; width: 362px">Saving…</button><p style="${txt(13, 500, { color: t.ink2 })}">Nothing inks before the server has it. Saving… also stops a second tap.</p>`;
-  const failed = `<ol style="width:362px">${SE.ledgerRow(t, { n: 3, kind: "now" }, { swap: `<span style="display:grid;color:${t.ink}">${K.icon("warn", 16)}</span>` }).replace('aria-current="step"', "")}</ol><p role="alert" style="${txt(15, 600)}">${C.setFailed}</p>${quiet("Retry")}`;
-  const warm = `<ol style="width:362px">${SE.ledgerRow(t, { n: "W", v: "40", reps: 8, kind: "warm" })}</ol><p style="${txt(14, 500, { color: t.ink2 })}">${C.warmup}</p><button type="button" style="${s({ height: 44, "text-decoration": "underline", "text-underline-offset": 3, "align-self": "flex-start" })}; ${txt(15, 700)}">Undo</button>`;
+  const saving = `<ol style="width:362px">${SE.setRow(t, { n: 1, v: "60", reps: 4, rir: 2 })}${SE.setRow(t, { n: 2, v: "60", reps: 4, rir: 2 })}</ol><button type="button" aria-disabled="true" style="${K.BTN(t, "waiting")}; width: 362px">Saving…</button><p style="${txt(13, 500, { color: t.ink2 })}">Nothing is written before the server has it: the set joins the log on its answer. Saving… also stops a second tap.</p>`;
+  const failed = `<p role="alert" style="${s({ display: "flex", gap: 8, "align-items": "flex-start" })}; ${txt(15, 600)}"><span style="${s({ display: "grid", "flex-shrink": 0, "margin-top": 1 })}">${K.icon("warn", 18)}</span><span>${C.setFailed}</span></p>${quiet("Retry")}`;
+  const warm = `<ol style="width:362px">${SE.warmLine(t, [{ v: "40", reps: 8 }])}</ol><p style="${txt(14, 500, { color: t.ink2 })}">${C.warmup}</p><button type="button" style="${s({ height: 44, "text-decoration": "underline", "text-underline-offset": 3, "align-self": "flex-start" })}; ${txt(15, 700)}">Undo</button>`;
   const offline = `<div style="${s({ display: "flex", gap: 10, padding: "12px 14px", "border-radius": 14, background: t.surface })}"><span style="display:grid">${icon("offline", 20)}</span><p style="${txt(14, 600)}">You’re offline. Reconnect to load this page.</p></div>`;
   const slow = `<div aria-hidden="true" style="${s({ display: "flex", "flex-direction": "column", gap: 8 })}"><span style="${s({ height: 72, background: t.surface, "border-radius": 0 })}"></span><span style="${s({ height: 14, width: "62%", background: t.surface, "border-radius": 2 })}"></span><span style="${s({ height: 14, width: "84%", background: t.surface, "border-radius": 2 })}"></span></div><p role="status" style="${txt(14, 600, { color: t.ink2 })}">${C.slow}</p>${quiet("Retry loading")}`;
   const noGym = `<p style="${title(26)}">${C.noGymTitle}</p><button type="button" style="${K.BTN(t, "primary")}">${icon("plus", 20)}${C.noGymAction}</button>`;
@@ -274,8 +278,8 @@ function states() {
     h: 110,
     paper: t.paper,
     parts: [
-      { kind: "strength", columns: [3, 3, 3, 2].map((n, i) => ({ n, done: n, pair: i === 2 })) },
       { kind: "run", minutes: 30, done: true },
+      { kind: "strength", columns: [3, 3, 3, 2].map((n, i) => ({ n, done: n, pair: i === 2 })) },
     ],
     ariaLabel: "Today’s print, in full ink",
   })}<p style="${txt(15, 700)}">${C.done}</p>`;
@@ -294,17 +298,17 @@ function motion() {
     ],
     [
       "Saving",
-      "until the server answers · the mark turns, Save reads Saving…",
-      "Never inks early; a failed save keeps the entries.",
+      "until the server answers · Save reads Saving…",
+      "Nothing is written early; a failed save keeps the entries.",
     ],
     [
-      "Ink",
-      "420 ms · cubic-bezier(0.65, 0, 0.35, 1) · pigment rolls up the mark",
-      "On the server’s answer; a success haptic on the same frame. Reduced motion: a cut.",
+      "Write",
+      "220 ms · cubic-bezier(0.23, 1, 0.32, 1) · the set rises 10 pt into its line as it fades in",
+      "On the server’s answer; a success haptic on the same frame. Reduced motion: it appears.",
     ],
     [
       "Swap",
-      "out 80 ms, in 120 ms · the next set takes the outline",
+      "out 80 ms, in 120 ms · the entry turns to the next set",
       "Values go back to suggestions, RIR empties, rest restarts.",
     ],
     ["Sheet", "spring 0.4 s, bounce 0.08 · scrim fades 200 ms", "Reduced motion: a fade."],

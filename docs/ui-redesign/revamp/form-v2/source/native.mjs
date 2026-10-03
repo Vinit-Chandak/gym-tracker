@@ -18,7 +18,7 @@ const code = (x) =>
   `<code style="${s({ "font-family": "ui-monospace, monospace", "font-size": 13, background: L.surface, padding: "1px 5px", "border-radius": 6 })}">${esc(x)}</code>`;
 
 function shells() {
-  return section(`${H2("One design, three shells", "The content is Form v2 everywhere: prints, marks, the ledger, steppers, the ink moment. The chrome is the platform’s: on iOS and Android the system draws bars, sheets and keyboards, and Form lives inside them.")}
+  return section(`${H2("One design, three shells", "The content is Form v2 everywhere: prints, marks, the log, steppers, the moment a set is written. The chrome is the platform’s: on iOS and Android the system draws bars, sheets and keyboards, and Form lives inside them.")}
 ${table(
   ["", "iOS (SwiftUI)", "Android (Compose)", "Web app (now)"],
   [
@@ -173,8 +173,8 @@ ${table(
     ["At a limit", `${code(".warning")}`, `${code("REJECT")}`, ""],
     ["RIR chosen", `${code(".selection")}`, `${code("CLOCK_TICK")}`, ""],
     [
-      "A set inked",
-      `${code(".success")}, on the frame the mark inks, not on the press`,
+      "A set written",
+      `${code(".success")}, on the frame the set lands in the log, not on the press`,
       `${code("CONFIRM")}`,
       "",
     ],

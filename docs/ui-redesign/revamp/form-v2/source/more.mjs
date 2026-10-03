@@ -97,7 +97,7 @@ ${sect(t, "Tell the coach", `${note("Next week I can train on Saturday as well."
 // The programme lives under Training now, so Profile is the person and their settings. Units and
 // time zone stay in Edit profile, where the app keeps them.
 export const avatar = (t, letter, size = 56) =>
-  `<span aria-hidden="true" style="${s({ width: size, height: size, "border-radius": 9999, background: t.surface, color: t.ink, display: "grid", "place-items": "center", "flex-shrink": 0 })}; ${title(Math.round(size * 0.46), { lh: 1 })}">${letter}</span>`;
+  `<span aria-hidden="true" style="${s({ width: size, height: size, "border-radius": 9999, background: t.surface, color: t.ink, display: "grid", "place-items": "center", "flex-shrink": 0 })}; ${title(K.onRamp(size * 0.46), { lh: 1 })}">${letter}</span>`;
 export function profileScreen(t, dv = K.D) {
   // the account's real state: date of birth and goal unset, so the card asks for them, once
   const person = `<div style="${s({ display: "flex", "align-items": "flex-start", gap: 12, "margin-top": 6 })}"><a href="#" style="${s({ display: "flex", "align-items": "center", gap: 14, flex: "1 1 auto", "min-width": 0 })}">${avatar(t, "V")}<span style="${s({ display: "flex", "flex-direction": "column", "min-width": 0 })}"><span class="wrap" style="${txt(20, 700)}">${me.name}</span><span class="wrap" style="${txt(14, 500, { color: t.ink2 })}; ${tn}">@${me.handle} · ${me.followers} follower · ${me.following} following</span></span></a><a href="Edit-profile.dc.html" aria-label="Edit profile" style="${s({ width: 44, height: 44, display: "grid", "place-items": "center", "border-radius": 9999, background: t.surface, "flex-shrink": 0 })}">${icon("edit", 20)}</a></div>

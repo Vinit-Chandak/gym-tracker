@@ -30,7 +30,7 @@ const filters = args.filter((a) => !a.startsWith("--"));
 const { boards, order } = JSON.parse(readFileSync(path.join(CANVAS, "canvas.json"), "utf8"));
 const HFILE = path.join(HERE, "heights.json");
 const TALL = existsSync(HFILE) ? JSON.parse(readFileSync(HFILE, "utf8")) : {};
-// the signature moment, at armed, saving, inking, inked and the next set (ms into its 8 s loop)
+// the signature moment, at armed, saving, landing, saved and the next set (ms into its 8 s loop)
 const MOMENT_AT = [500, 1600, 2150, 2400, 2800];
 
 mkdirSync(OUT, { recursive: true });

@@ -2,8 +2,9 @@
 //
 // The bowl is the target. Each meal is a layer of the bowl, by area; past the target the food
 // heaps above the rim as one symmetric mound (at twice the target the heap closes the circle), so
-// "over" reads at a glance without a second colour or a broken shape. The rows below are the
-// bowl's legend: each meal is led by its own layer, and nothing on the print repeats them.
+// "over" reads at a glance without a second colour or a broken shape. The screen's one figure is
+// what was eaten: how far that is from the target is the bowl's to show, not a second number. The
+// rows below are the bowl's legend: each meal is led by its own layer.
 import { s } from "./lib.mjs";
 import * as K from "./kit.mjs";
 import { bowlPrint, palFor } from "./art.mjs";
@@ -84,10 +85,10 @@ export function foodScreen(t, dv = K.D, { over = false, whole = false } = {}) {
     : F.meals;
   const eaten = meals.filter((m) => m.kcal).map((m) => [m.name, m.kcal]);
   const total = eaten.reduce((a, [, k]) => a + k, 0);
-  const left = F.target - total;
   const P = palFor(t.paper);
   const fmt = (n) => n.toLocaleString("en-GB", { maximumFractionDigits: 1 });
-  const figure = `<p style="${s({ display: "flex", "align-items": "baseline", "flex-wrap": "wrap", gap: "0 10px", "margin-top": 16 })}"><span class="nb" style="${num(56)}">${fmt(over ? total - F.target : left)}</span><span style="${txt(17, 700)}">${over ? "kcal over" : "kcal left"}</span></p>`;
+  // the day's one figure is what was eaten; how far it is from the target is the bowl's to show
+  const figure = `<p style="${s({ display: "flex", "align-items": "baseline", "flex-wrap": "wrap", gap: "0 10px", "margin-top": 16 })}"><span class="nb" style="${num(56)}">${fmt(total)}</span><span style="${txt(17, 700)}">kcal<span class="sr"> eaten</span></span></p>`;
   const print = bowlPrint({
     w: cw,
     paper: t.paper,

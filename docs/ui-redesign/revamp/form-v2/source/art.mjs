@@ -2,22 +2,24 @@
 //
 // The grammar is generative, so it grows with the app:
 //   FAMILY  — how the body moves — gives the primitive and the pigment:
-//             load = block (ultramarine) · on foot = stride (vermilion) · on wheels = wheel (violet)
+//             load = block (ultramarine) · on foot = track (vermilion) · on wheels = wheel (violet)
 //             in water = wave (viridian) · practice = fan (rose) · food = bowl (cadmium)
 //             (play, for court, wall and field sports later, is reserved: umber triangles)
-//   SPORT   — one cut into its family's primitive (walk = an open stride, hike = a stride with a
-//             peak cut out, spin = a wheel cut in four, row = the waves cut by two oars, yoga = a
-//             fan with an arc cut in, racket = a triangle with a ball punched out …).
-//             A variant never touches the ground: that belongs to context.
+//   SPORT   — one cut into its family's primitive (walk = the track's lane opened at its end,
+//             hike = a track with a peak cut out, spin = a wheel cut in four, row = the waves cut by
+//             two oars, yoga = a fan with an arc cut in, racket = a triangle with a ball punched
+//             out …). A variant never touches what stands under a form: that belongs to context.
 //   CONTEXT — modifiers that mean the same on every form:
-//             a platform under it = indoors, on a machine or in a pool
+//             a platform under it = indoors, on a machine or in a pool (a track on a platform is
+//             a treadmill)
 //             segments = its structure: sets, intervals, laps, drills
 //             size = how long or how far, in whole modules
 //   STATE   — thinned pigment = still to do · full ink = done · dashed edge = skipped
 //
-// Every print is laid out on one module grid: a square module, one gap, one ground line. A set of
-// lifting is one module; an exercise is a column of its sets standing on the ground; every other
-// form stands on the same ground, as tall as a whole number of modules, so tops and rows line up.
+// Every print is laid out on one module grid: a square module and one gap. A set of lifting is one
+// module; an exercise is a column of its sets; every other form stands on the same baseline, as tall
+// as a whole number of modules, so tops and rows line up. No line is drawn under them: the baseline
+// is where the shapes stand, not a stroke. The whole composition sits in the middle of its paper.
 // Shapes never overlap, and a print carries no text unless it is asked to.
 
 export const PIG = {
@@ -113,7 +115,7 @@ export const palFor = (paper) => (paper === PAL.dark.paper ? PAL.dark : PAL.ligh
 // Each family, its form and the sports it holds today and later.
 export const FAMILY = {
   strength: { family: "Load", form: "block", name: "Lifting" },
-  run: { family: "On foot", form: "stride", name: "Running" },
+  run: { family: "On foot", form: "track", name: "Running" },
   ride: { family: "On wheels", form: "wheel", name: "Cycling" },
   swim: { family: "In water", form: "wave", name: "Swimming" },
   mobility: { family: "Practice", form: "fan", name: "Mobility" },
@@ -137,7 +139,8 @@ let uid = 0;
 const nextId = (p) => `${p}${++uid}`;
 const f1 = (n) => +(+n).toFixed(1);
 const FONT = "font-family:'Atkinson Hyperlegible Next',sans-serif";
-export const SLANT = 0.34; // the stride leans forward by a third of its height
+// A run's track grows longer with its time: a module, and another for every 20 minutes.
+export const trackModules = (minutes = 30) => Math.min(5, Math.max(1.8, 1 + minutes / 20));
 
 // Paper with a faint grain under every label, so labels stay crisp.
 export function paperOpen(w, h, { paper = PIG.paper, label = null } = {}) {
@@ -212,30 +215,50 @@ export function form(
       out += isTodo(k)
         ? `<rect x="${f1(x + k * (uw + gap) + 0.6)}" y="${f1(top + 0.6)}" width="${f1(uw - 1.2)}" height="${f1(hh - 1.2)}" fill="${fillFor(k)}"${edge(k)}/>`
         : `<rect x="${f1(x + k * (uw + gap))}" y="${f1(top)}" width="${f1(uw)}" height="${f1(hh)}" fill="${fillFor(k)}"${dash}/>`;
-  } else if (shape === "stride") {
-    // a parallelogram leaning forward; segments are slanted bars (splits, intervals)
-    const hh = fill
-        ? h - plat - (plat ? Math.max(1.5, S * 0.06) : 0)
-        : Math.min(h - plat, w <= h ? w * 0.84 : h),
+  } else if (shape === "track") {
+    // a running track seen from above: a stadium lying on the baseline, its lane cut in paper. In a
+    // mark's square it is a little over half as tall as wide; in a print it fills its box and grows
+    // longer with the run's time. Segments (intervals, laps) are cut straight across it.
+    const gp = plat ? Math.max(1.5, S * 0.06) : 0;
+    const hh = fill ? h - plat - gp : Math.min(h - plat - gp, w * 0.56),
       top = base - hh,
-      o = hh * SLANT * (fill ? 1 : w <= h ? 1.2 : 1),
-      n = Math.max(1, segments || 1),
-      gap = n > 1 ? Math.max(1.5, S * 0.05) : 0,
-      bw = (w - o - gap * (n - 1)) / n;
-    for (let k = 0; k < n; k++) {
-      const x0 = x + k * (bw + gap);
-      if (v && v.op === "open") {
-        // walk: the stride drawn open, lighter than a run
-        const t = Math.max(1.5, hh * 0.22);
-        out += `<path d="M${f1(x0 + o)} ${f1(top)}H${f1(x0 + o + bw)}L${f1(x0 + bw)} ${f1(base)}H${f1(x0)}Z M${f1(x0 + o + t * 1.2)} ${f1(top + t)}L${f1(x0 + t * 1.2 + t * SLANT)} ${f1(base - t)}H${f1(x0 + bw - t * 1.2)}L${f1(x0 + o + bw - t * 1.2 - t * SLANT)} ${f1(top + t)}Z" fill="${fillFor(k)}" fill-rule="evenodd"${dash}/>`;
-      } else
-        out += `<path d="M${f1(x0 + o)} ${f1(top)}H${f1(x0 + o + bw)}L${f1(x0 + bw)} ${f1(base)}H${f1(x0)}Z" fill="${fillFor(k)}"${isTodo(k) ? edge(k) : dash}/>`;
+      r = hh / 2,
+      cy = top + r,
+      x0 = x,
+      x1 = x + w;
+    const stad = (rr) =>
+      `M${f1(x0 + r)} ${f1(cy - rr)}H${f1(x1 - r)}A${f1(rr)} ${f1(rr)} 0 0 1 ${f1(x1 - r)} ${f1(cy + rr)}H${f1(x0 + r)}A${f1(rr)} ${f1(rr)} 0 0 1 ${f1(x0 + r)} ${f1(cy - rr)}Z`;
+    const laneW = f1(Math.max(1.1, hh * 0.075));
+    const lane = `<path d="${stad(r * 0.44)}" fill="none" stroke="${cut}" stroke-width="${laneW}"/>`;
+    const n = Math.max(1, segments || 1);
+    if (state === "skipped")
+      out += `<path d="${stad(r - sw / 2)}" fill="none" stroke="${C}" stroke-width="${sw}" stroke-dasharray="${f1(S * 0.09)} ${f1(S * 0.07)}"/>`;
+    else if (n === 1)
+      out += isTodo(0)
+        ? `<path d="${stad(r - 0.6)}" fill="${T}"${edge(0)}/>${lane}`
+        : `<path d="${stad(r)}" fill="${C}"/>${lane}`;
+    else {
+      // done segments in full, the rest thinned, each cut from the next by a line of paper
+      const cl = nextId("track");
+      const sx = (k) => x0 + ((x1 - x0) * k) / n;
+      out += `<defs><clipPath id="${cl}"><path d="${stad(r)}"/></clipPath></defs><g clip-path="url(#${cl})">`;
+      for (let k = 0; k < n; k++)
+        out += `<rect x="${f1(sx(k))}" y="${f1(top)}" width="${f1(sx(k + 1) - sx(k))}" height="${f1(hh)}" fill="${k < done ? C : T}"/>`;
+      for (let k = 1; k < n; k++)
+        out += `<path d="M${f1(sx(k))} ${f1(top)}V${f1(top + hh)}" stroke="${cut}" stroke-width="${cutW}"/>`;
+      out += `</g>`;
+      if (done < n)
+        out += `<path d="${stad(r - 0.6)}" fill="none" stroke="${C}" stroke-width="1.2"/>`;
+      out += lane;
     }
+    if (v && v.op === "open")
+      // walk: the lane runs out through the track's front end, an open loop
+      out += `<path d="M${f1(x1 - r)} ${f1(cy)}H${f1(x1 + 0.5)}" stroke="${cut}" stroke-width="${f1(Math.max(1.6, hh * 0.16))}"/>`;
     if (v && v.op === "peak") {
       // hike: a peak cut deep into the top edge
-      const mx = x + o + (w - o) * 0.5,
-        pw = (w - o) * 0.36;
-      out += `<path d="M${f1(mx - pw / 2)} ${f1(top - 0.5)}L${f1(mx)} ${f1(top + hh * 0.42)}L${f1(mx + pw / 2)} ${f1(top - 0.5)}Z" fill="${cut}"/>`;
+      const mx = (x0 + x1) / 2,
+        pw = Math.min(hh * 0.9, (x1 - x0) * 0.36);
+      out += `<path d="M${f1(mx - pw / 2)} ${f1(top - 0.5)}L${f1(mx)} ${f1(top + hh * 0.5)}L${f1(mx + pw / 2)} ${f1(top - 0.5)}Z" fill="${cut}"/>`;
     }
   } else if (shape === "wheel") {
     // a ring, thick as a tyre; segments are arcs (intervals)
@@ -351,9 +374,8 @@ function formModules(p, cap) {
   // width in modules of a non-strength form whose height is `hm` modules (≤ cap)
   const minutes = p.minutes || 0;
   const hm = Math.max(1, Math.min(cap, p.modules || cap));
-  // a run's body grows with its time, a module for every 15 minutes (1 to 3), plus its lean
-  if (p.kind === "run")
-    return { hm, wm: hm * SLANT + Math.min(3, Math.max(1.4, (minutes || 30) / 15)) };
+  // a run's track is a module tall and grows longer with its time
+  if (p.kind === "run") return { hm: 1, wm: trackModules(minutes || 30) };
   // a wheel, a fan or a bowl is as wide as it is tall: hm modules and the gaps between them
   const side = hm + (hm - 1) * 0.14;
   if (p.kind === "ride" || p.kind === "spin") return { hm, wm: side };
@@ -369,14 +391,13 @@ export function dayPrint({
   labels = false,
   maxModule = 44,
 } = {}) {
-  // Parts stand in the order of the rows under the print, from its left edge, a module apart.
+  // Parts stand in the order of the rows under the print, a module apart, on one baseline; the
+  // composition is centred on its paper, across and down. Nothing is drawn under it.
   const P = palFor(paper),
     PO = paperOpen(w, h, { paper, label: ariaLabel });
   const pad = Math.max(16, Math.round(Math.min(w, 400) * 0.055));
-  const groundH = 3,
-    ground = h - Math.max(18, Math.round(h * 0.11)),
-    labelBand = labels ? 26 : 0,
-    top = Math.max(16, Math.round(h * 0.1)) + labelBand;
+  const labelBand = labels ? 26 : 0;
+  const vpad = Math.max(12, Math.round(h * 0.1));
   const str = parts.find((p) => p.kind === "strength");
   const cols = str ? columnsOf(str) : [];
   const cap = Math.max(2, str ? Math.max(...cols.map((c) => c.n)) : 3);
@@ -390,14 +411,20 @@ export function dayPrint({
     strWm += 1;
     if (i < cols.length - 1) strWm += c.pair ? pairG : colG;
   });
-  const fm = parts.map((p) => (p.kind === "strength" ? { wm: strWm } : formModules(p, cap)));
-  const totalWm = fm.reduce((a, q) => a + q.wm, 0) + partG * Math.max(0, parts.length - 1);
   const capHm = cap + (cap - 1) * g;
-  const u = Math.min(maxModule, (w - 2 * pad) / totalWm, (ground - 4 - top) / capHm);
-  let x = pad;
+  const fm = parts.map((p) =>
+    p.kind === "strength" ? { wm: strWm, hm: capHm } : formModules(p, cap),
+  );
+  // a form's height in modules, its gaps included
+  const tall = (q) => (q.hm >= capHm ? q.hm : q.hm + (q.hm - 1) * g);
+  const totalWm = fm.reduce((a, q) => a + q.wm, 0) + partG * Math.max(0, parts.length - 1);
+  const maxHm = Math.max(...fm.map(tall));
+  const u = Math.min(maxModule, (w - 2 * pad) / totalWm, (h - 2 * vpad - labelBand) / maxHm);
+  const base = labelBand + (h - labelBand + maxHm * u) / 2;
+  let x = (w - totalWm * u) / 2;
   let art = "",
     labs = "";
-  const labelY = top - 10;
+  const labelY = base - maxHm * u - 10;
   const lab = (lx, name, fig) =>
     `<text x="${f1(lx)}" y="${f1(labelY)}" style="${FONT};font-size:12px;font-weight:700;fill:${P.ink}">${name}${fig ? ` <tspan style="font-weight:500;fill:${P.label}">${fig}</tspan>` : ""}</text>`;
   parts.forEach((p, pi) => {
@@ -405,7 +432,7 @@ export function dayPrint({
       const sx = x;
       cols.forEach((c, i) => {
         for (let k = 0; k < c.n; k++) {
-          const yy = ground - (k + 1) * u - k * g * u;
+          const yy = base - (k + 1) * u - k * g * u;
           // warm-up sets are the foot of a column: done in grey, to do as a grey outline
           const isWarm = typeof c.warm === "number" ? k < c.warm : !!c.warm;
           const state = c.skipped ? "skipped" : k < c.done ? "done" : "todo";
@@ -426,10 +453,10 @@ export function dayPrint({
       });
       if (labels) labs += lab(sx, p.name, p.figure);
     } else {
-      const { hm, wm } = fm[pi];
-      const fw = wm * u,
-        fh = hm * u + (hm - 1) * g * u;
-      art += form(p.kind, x, ground - fh, fw, fh, {
+      const q = fm[pi];
+      const fw = q.wm * u,
+        fh = tall(q) * u;
+      art += form(p.kind, x, base - fh, fw, fh, {
         state: p.state || (p.done ? "done" : "todo"),
         indoor: p.indoor,
         segments: p.segments || 0,
@@ -442,7 +469,7 @@ export function dayPrint({
     }
     x += partG * u;
   });
-  return `${PO.open}${art}<rect x="${f1(pad - 6)}" y="${f1(ground)}" width="${f1(w - 2 * pad + 12)}" height="${groundH}" fill="${P.ink}"/>${PO.grain}${labs}${PO.end}`;
+  return `${PO.open}${art}${PO.grain}${labs}${PO.end}`;
 }
 
 // ---------- the bowl: the day's food, filled meal by meal; past the target it heaps ----------

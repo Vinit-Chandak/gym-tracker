@@ -154,7 +154,7 @@ const PAGES = [
           ),
           scr("Log.dc.html", "Logging a set", () => SE.logScreen(L, d)),
           scr("Log-Typing.dc.html", "Logging: typing a load", () => VA.logTypingScreen(L, d)),
-          scr("Moment.dc.html", "Signature: a set is inked", () => SE.momentScreen(L, d), {
+          scr("Moment.dc.html", "Signature: a set is written", () => SE.momentScreen(L, d), {
             css: SE.momentCss(L),
           }),
           scr("Moment-Reduced.dc.html", "Signature, reduced motion", () => SE.momentScreen(L, d), {
@@ -535,7 +535,8 @@ const tokens = {
       betweenColumns: 0.34,
       supersetPair: 0.14,
       betweenParts: 1,
-      ground: "3 px ink",
+      baseline: "one, with nothing drawn under it; the composition centred on its paper",
+      track: "a module tall, a module longer for every 20 minutes",
     },
     states: {
       toDo: "the pigment thinned, with an edge of the full pigment",
@@ -550,6 +551,7 @@ const tokens = {
     sheetTitle: "Jost 700 28/1.05",
     figureXL: "Jost 600 56/1, tabular lining",
     entry: "Jost 600 42 (46 on 440 pt), down to 28 to fit",
+    log: "Jost 600 32/1, tabular lining; in the entry's columns",
     figureL: "Jost 600 26/1, tabular lining",
     figure: "Jost 600 20/1, tabular lining",
     figureS: "Jost 600 17/1, tabular lining",
@@ -587,7 +589,8 @@ const tokens = {
   layout: {
     devices: DV,
     gutter: "20 pt; 16 under 360 pt",
-    markColumn: "20 pt, names 12 after it",
+    leftEdge:
+      "names start at the gutter; only a list that mixes sports gives its marks a 20-pt column, names 12 after it",
     tabBar:
       "64 pt: 3 + 44-pt targets + 17 (11 without a home indicator), the targets 4 clear of the indicator",
     targetsMin: "44 pt (48 dp on Android)",

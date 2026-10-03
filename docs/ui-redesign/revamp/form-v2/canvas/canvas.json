@@ -52,7 +52,7 @@
       "x": 0,
       "y": 0,
       "w": 1400,
-      "h": 3720,
+      "h": 4458,
       "title": "Read me: Form v2, refined",
       "page": "readme"
     },
@@ -169,7 +169,7 @@
       "y": 2508,
       "w": 402,
       "h": 874,
-      "title": "Signature: a set is inked",
+      "title": "Signature: a set is written",
       "page": "session",
       "is_interactive": true
     },
@@ -627,7 +627,7 @@
       "x": 1310,
       "y": 1254,
       "w": 320,
-      "h": 774,
+      "h": 677,
       "title": "Logging in pounds at 320, the whole scroll",
       "page": "sizes",
       "is_interactive": true
@@ -681,7 +681,7 @@
       "x": 1920,
       "y": 2673,
       "w": 402,
-      "h": 1657,
+      "h": 1362,
       "title": "Logging at 200% text, the whole scroll",
       "page": "sizes",
       "is_interactive": true
@@ -690,7 +690,7 @@
       "x": 0,
       "y": 0,
       "w": 1600,
-      "h": 6693,
+      "h": 6805,
       "title": "The system",
       "page": "system"
     },
@@ -698,7 +698,7 @@
       "x": 1680,
       "y": 0,
       "w": 1400,
-      "h": 3933,
+      "h": 3987,
       "title": "The alphabet",
       "page": "system"
     },
@@ -706,7 +706,7 @@
       "x": 3160,
       "y": 0,
       "w": 1400,
-      "h": 3508,
+      "h": 3528,
       "title": "iOS and Android",
       "page": "system"
     }

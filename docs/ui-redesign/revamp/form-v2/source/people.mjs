@@ -17,10 +17,7 @@ export function friendsScreen(t, dv = K.D) {
   const tile = (ic, label, badge = "") =>
     `<a href="#" style="${s({ position: "relative", display: "flex", "flex-direction": "column", "justify-content": "space-between", height: 84, padding: "12px 12px 10px", "border-radius": 14, background: t.surface, "min-width": 0 })}"><span style="display:grid;justify-items:start">${icon(ic, 24)}</span><span class="nb" style="${txt(15, 700)}">${label}</span>${badge ? `<span style="${s({ position: "absolute", top: 10, right: 10, padding: "3px 9px", "border-radius": 10, background: t.ink, color: t.onInk })}; ${txt(13, 700)}">${badge}</span>` : ""}</a>`;
   const rowFor = (r, last) => {
-    const lead =
-      r.sport === "strength"
-        ? K.colMark(t, Math.min(4, r.sets > 12 ? 4 : 3), Math.min(4, r.sets > 12 ? 4 : 3))
-        : K.stateMark(t, r.sport, 16);
+    const lead = K.stateMark(t, r.sport, 16);
     return `<li><a href="#" style="${s({ display: "flex", "align-items": "center", gap: 12, "min-height": 64, padding: "8px 0", "border-bottom": last ? 0 : `1px solid ${t.hair}` })}">${avatar(t, r.initial, 40)}<span style="${s({ display: "flex", "flex-direction": "column", flex: "1 1 auto", "min-width": 0, gap: 2 })}"><span style="${s({ display: "flex", "justify-content": "space-between", gap: 8, "align-items": "baseline" })}"><span class="wrap" style="${txt(16, 700)}">${r.who}</span><span class="nb" style="${txt(13, 600, { color: t.ink2 })}">${r.day}</span></span><span style="${s({ display: "flex", "align-items": "center", gap: 8 })}"><span style="${s({ display: "grid", width: 16, "justify-items": "center", "flex-shrink": 0 })}">${lead}</span><span class="wrap" style="${txt(14, 500, { color: t.ink2 })}; ${tn}">${r.text}</span></span></span></a></li>`;
   };
   const inner = `${K.nestedHeader(t, "Profile")}
@@ -37,7 +34,7 @@ ${sect(t, "Recent activity", feed.map((r, i) => rowFor(r, i === feed.length - 1)
 // ---------- GYMS: each place as its kind of glyph, the default marked ----------
 // a gym is a place, so its pin, as on Today; outdoors and home keep their own glyphs
 const KIND = { gym: ["pin", "Gym"], outdoor: ["outdoor", "Outdoor"], home: ["indoor", "Home"] };
-// "Add …" ends its list, on the list's edge, as Add set ends the ledger
+// "Add …" ends its list, on the list's edge
 const addRow = (t, label) =>
   `<li><button type="button" style="${s({ display: "flex", "align-items": "center", gap: 12, width: "100%", "min-height": 52, color: t.ink })}; ${txt(16, 700)}">${K.markCell(`<span style="display:grid">${icon("plus", 20)}</span>`)}${label}</button></li>`;
 export function gymsScreen(t, dv = K.D) {

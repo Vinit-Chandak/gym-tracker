@@ -138,6 +138,10 @@ export const em = (str) =>
   );
 export const fit = (str, avail, max = 40, min = 24) =>
   Math.max(min, Math.min(max, Math.floor(avail / em(str))));
+// The type ramp's sizes. A figure that has to shrink to fit steps down to the next of them, never
+// to a size in between, so a narrow screen shows the same few sizes as a wide one.
+export const RAMP = [12, 13, 14, 15, 16, 17, 20, 26, 28, 32, 34, 36, 42, 56];
+export const onRamp = (px) => RAMP.filter((r) => r <= px).pop() ?? RAMP[0];
 // Jost's en dash is as long as an em dash: ranges inside a figure take Atkinson's.
 export const dashes = (str) =>
   String(str).replace(/–/g, `<span style="font-family:${FONTS.text};font-weight:500">–</span>`);
@@ -404,7 +408,7 @@ export function tabs(
   const G = gut(dv);
   const bar = (on) =>
     on
-      ? `<span aria-hidden="true" style="${s({ position: "absolute", left: scroll ? 0 : 10, right: scroll ? 0 : 10, bottom: -1, height: 2.5, background: t.ink, "border-radius": 2 })}"></span>`
+      ? `<span aria-hidden="true" style="${s({ position: "absolute", left: scroll ? 0 : 10, right: scroll ? 0 : 10, bottom: -1, height: 2.5, background: t.ink, "border-radius": 2 })};"></span>`
       : "";
   if (!scroll) {
     const cells = items
@@ -519,7 +523,7 @@ export function stepFigure(
   {
     value,
     unit,
-    size = 40,
+    size = 42,
     state = "suggested",
     dec,
     inc,
@@ -583,10 +587,11 @@ export const field = (
       : `<span style="${s({ position: "relative", display: "block" })}"><input type="${type}" value="${esc(value)}" placeholder="${esc(placeholder)}" style="${s({ width: "100%", height: 52, padding: `0 ${suffix ? 44 : 16}px 0 16px`, "border-radius": 14, border: `1.5px solid ${t.control}`, background: t.ground, color: t.ink, "font-family": FONTS.text, "font-size": 16 })}">${suffix ? `<span style="${s({ position: "absolute", right: 16, top: 0, bottom: 0, display: "flex", "align-items": "center", color: t.ink2 })}; ${txt(15, 600)}">${suffix}</span>` : ""}</span>`
   }${help ? `<span style="${txt(13, 500, { color: t.ink2 })}">${help}</span>` : ""}</label>`;
 
-// ---------- row marks: a list row is led by a small copy of its part of the print ----------
-// An exercise is a column of its sets, done from the bottom up; a run, ride, swim or drill is its
-// form. Marks carry their item's state (thinned with an edge, full, dashed), so a row needs no
-// "To do", "Done" or "2 of 4 sets" in words. Every list shares one mark column and one name edge.
+// ---------- row marks: a sport's form, where a list mixes sports ----------
+// A row is led by a mark only where the mark says something the words do not: which sport, in a list
+// that mixes them (History, a day, Friends, a calendar's legend). An exercise row carries none: its
+// sets are in its prescription and in the print. Marks carry their item's state (thinned with an
+// edge, full, dashed). A list with marks gives them one column, and its names one edge.
 export const MARK_COL = 20; // the mark column; names start 12 after it
 import { form as artForm } from "./art.mjs";
 const tintOf = (t, k) =>
@@ -647,7 +652,7 @@ export function stateMark(
   });
   return `<svg width="${size}" height="${size}" viewBox="${-pad} ${-pad} ${size + 2 * pad} ${size + 2 * pad}" ${label ? `role="img" aria-label="${esc(label)}"` : 'aria-hidden="true"'} style="display:block;flex-shrink:0;overflow:visible">${svgInner}</svg>`;
 }
-// The mark column: the mark centred in it, so every name in every list starts at one edge.
+// The mark column: the mark centred in it, so every name in a marked list starts at one edge.
 export const markCell = (inner) =>
   `<span style="${s({ width: MARK_COL, display: "flex", "justify-content": "center", "align-items": "center", "flex-shrink": 0 })}">${inner}</span>`;
 // Equipment as a glyph in a meta line, with its name for screen readers.
@@ -662,9 +667,8 @@ export const metaLine = (t, parts, { size = 15, mt = 4 } = {}) =>
         `<span style="${s({ display: "inline-flex", "align-items": "center", gap: 5, "white-space": "nowrap" })}">${p}</span>`,
     )
     .join("")}</p>`;
-// The superset bracket: a hairline in ink joining the pair. It stands in the left gutter, 8 pt
-// from the edge, wherever the pair is listed: beside the marks of a list, beside the set numbers
-// of a ledger.
+// The superset bracket: a hairline in ink joining the pair, in the left gutter, 8 pt from the edge,
+// wherever the pair is listed.
 // A superset's group reaches 12 pt into the gutter and pads it back, so its bracket stands in the
 // gutter while staying inside the group's own box.
 export const SS_GROUP = "position:relative; margin-left:-12px; padding-left:12px";
