@@ -149,8 +149,8 @@ const PAGES = [
       {
         title: "Logging a set",
         boards: [
-          scr("Log-Warm-ups.dc.html", "Logging: the warm-ups first", () =>
-            SE.logScreen(L, d, { start: true }),
+          scr("Log-Warm-ups.dc.html", "Logging: warm-up 2 of 3", () =>
+            SE.logScreen(L, d, { warm: 1 }),
           ),
           scr("Log.dc.html", "Logging a set", () => SE.logScreen(L, d)),
           scr("Log-Typing.dc.html", "Logging: typing a load", () => VA.logTypingScreen(L, d)),
@@ -323,8 +323,8 @@ const PAGES = [
           }),
           scr(
             "Log-Pounds-375.dc.html",
-            "Logging in pounds at 375 × 667",
-            () => SE.logScreen(L, DV.d375, { S: squatLb }),
+            "Logging in pounds at 375 × 667, Save tapped before RIR",
+            () => SE.logScreen(L, DV.d375, { S: squatLb, need: true }),
             { dv: DV.d375 },
           ),
           scr("Today-320.dc.html", "Today at 320 × 568", () => TO.todayScreen(L, DV.d320), {
@@ -368,12 +368,7 @@ const PAGES = [
             () => SE.logScreen(L, DV.a360),
             { dv: DV.a360 },
           ),
-          scr(
-            "Log-200.dc.html",
-            "Logging at 200% text, the whole scroll",
-            () => VA.largeLogScreen(L),
-            { tall: true, fallback: 1900 },
-          ),
+          scr("Log-200.dc.html", "Logging at 200% text", () => VA.largeLogScreen(L)),
         ],
       },
     ],

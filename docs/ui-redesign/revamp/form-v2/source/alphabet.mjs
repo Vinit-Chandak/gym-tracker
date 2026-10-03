@@ -29,7 +29,7 @@ const sub = (text) =>
 const swatch = (sport, size = 96, opts = {}, box = 140) => {
   const track = sport === "run" || VARIANT[sport]?.base === "run";
   const w = track ? size * 1.45 : size,
-    h = track ? size * 0.81 + (opts.indoor ? size * 0.16 : 0) : size;
+    h = track ? size * 0.81 : size;
   return `<svg width="${box}" height="${box}" viewBox="0 0 ${box} ${box}" aria-hidden="true" style="display:block"><rect width="${box}" height="${box}" fill="${P.paper}"/>${form(sport, (box - w) / 2, (box - h) / 2, w, h, { paper: P.paper, ...opts })}</svg>`;
 };
 const section = (inner) =>
@@ -59,7 +59,7 @@ function variants() {
   const cells = Object.entries(VARIANT)
     .map(
       ([k, v]) =>
-        `<li style="${s({ display: "flex", "flex-direction": "column", gap: 8, "min-width": 0 })}">${swatch(k, 72, {}, 120)}${cap(v.name)}${sub({ open: "The lane opened at its end", peak: "A peak cut out", hub: "The wheel cut in four", oar: "Cut twice, as oars", single: "One crest", arc: "An arc cut in", steps: "The side cut into steps", ball: "A ball punched out" }[v.op])}</li>`,
+        `<li style="${s({ display: "flex", "flex-direction": "column", gap: 8, "min-width": 0 })}">${swatch(k, 72, {}, 120)}${cap(v.name)}${sub({ open: "The lane opened at its end", peak: "A peak cut out", hub: "The wheel cut in four", oar: "Cut twice, as oars", blade: "Cut once, aslant, as a blade", arc: "An arc cut in", steps: "The side cut into steps", ball: "A ball punched out" }[v.op])}</li>`,
     )
     .join("");
   return section(
@@ -95,7 +95,7 @@ function states() {
     [block(3, 0), "To do: thinned, with an edge of the full pigment"],
     [block(3, 1), "In progress: done from the bottom up"],
     [block(3, 3), "Done: full pigment"],
-    [block(3, 3, { warm: true }), "A warm-up: done, but not counted; grey"],
+    [block(3, 3, { warm: true }), "A warm-up: done, but not in the volume; grey"],
     [block(3, 0, { skipped: true }), "Skipped: a dashed edge"],
   ];
   return section(`${H2("State", "Three states, the same on every form: thinned is to do, full is done, a dashed edge is skipped. To do keeps an edge of its full pigment, so to do and done differ in more than lightness.")}
@@ -113,8 +113,11 @@ function context() {
       parts: [{ kind: "run", minutes: min, done: true }],
       ariaLabel: "",
     });
-  return section(`${H2("Context", "Modifiers that mean the same on every form. A platform under it: indoors, on a machine, in a pool; a track on a platform is a treadmill. Segments: its structure (sets, intervals, laps, drills). Size: how long, in whole modules.")}
-<ul style="${s({ display: "grid", "grid-template-columns": "repeat(8, minmax(0,1fr))", gap: 16 })}">${row("run", "Outdoors", {})}${row("run", "Treadmill", { indoor: true })}${row("ride", "Outdoors", {})}${row("ride", "Indoor bike", { indoor: true })}${row("swim", "Open water", {})}${row("swim", "Pool", { indoor: true })}${row("run", "Intervals", { segments: 4 })}${row("ride", "Intervals", { segments: 4 })}</ul>
+  // where it happened is said by a glyph on the row, never drawn under the form
+  const place = (ic, label) =>
+    `<li style="${s({ display: "flex", "flex-direction": "column", gap: 8 })}"><span style="${s({ display: "grid", "place-items": "center", width: 104, height: 104, background: P.paper, color: L.ink })}">${K.icon(ic, 34)}</span>${sub(label)}</li>`;
+  return section(`${H2("Context", "Modifiers that mean the same on every form. Segments: its structure (sets, intervals, laps, drills). Size: how long, in whole modules. Where it happened is not drawn, since nothing stands under a form: the row under the print says it with a glyph.")}
+<ul style="${s({ display: "grid", "grid-template-columns": "repeat(8, minmax(0,1fr))", gap: 16 })}">${row("run", "Intervals", { segments: 4 })}${row("ride", "Intervals", { segments: 4 })}${row("swim", "Laps", { segments: 4 })}${place("outdoor", "Outdoors")}${place("treadmill", "Treadmill")}${place("trainer", "Indoor bike")}${place("pool", "Pool")}${place("openwater", "Open water")}</ul>
 <div style="${s({ display: "grid", "grid-template-columns": "repeat(3, minmax(0,1fr))", gap: 16, "max-width": 720 })}">${[20, 40, 60].map((m) => `<div style="${s({ display: "flex", "flex-direction": "column", gap: 8 })}">${runOf(m)}${sub(`${m} minutes: a track ${trackModules(m)} modules long, one more for every 20`)}</div>`).join("")}</div>`);
 }
 // The module grid, drawn with its measures. Nothing is drawn under the shapes: the baseline is
@@ -242,7 +245,6 @@ function month() {
   const rules = [
     "The month is pulled on paper like a print: the weekdays across the top, a dot for a day with nothing in it, a mark for each activity. It reads as a pattern before it is read as dates.",
     "A day’s marks stand together in its cell: one large, two side by side, three or four in two rows; past four, +N.",
-    "A bar under a mark means indoors: a treadmill, an indoor bike, a pool.",
     "Today is ringed; days to come are left blank and cannot be opened. Each day is a link named with what it holds: “Fri 25 Sept: run 5 km, swim 1,500 m, lifting 60 min”.",
     "The calendar page adds each date, small, in its cell’s corner, and scrolls month after month.",
   ];

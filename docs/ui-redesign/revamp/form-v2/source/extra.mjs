@@ -71,45 +71,57 @@ export function supersetLogScreen(t, dv = K.D) {
 <h2 style="${title(K.titleSize(X.exercise, cw, dv.W < 360 ? 28 : 32), { lh: 1.05 })}; margin-top: 2px">${X.exercise}</h2>
 ${K.metaLine(t, [`${K.equip(t, "dumbbell", "Free weights")}<span>${K.dashes(X.rx).replace(/<span[^>]*>–<\/span>/g, "–")}</span>`, `${icon("rest", 16)}<span>${X.rest}</span>`], { mt: 4 })}
 <div style="margin-top:6px">${K.tabs(t, ["Log", "Technique", "History"], 0, { dv, id: "Exercise detail" })}</div>
-${SE.panel(0, `<p aria-label="Superset: after each set, ${esc(X.partner)}, 2 × 12–20 @ 1" style="${s({ display: "flex", "align-items": "center", gap: 8, "min-height": 44, "margin-top": 8 })}"><span style="${s({ display: "grid", color: t.ink2 })}">${icon("link", 18)}</span><span style="${txt(16, 700)}">Then ${X.partner}</span><span style="${txt(14, 500, { color: t.ink2 })}; ${tn}">2 × 12–20 @ 1</span></p>`)}`;
-  const three = (cw - 36) / 3 >= 100;
-  const size = three ? 42 : 34;
+${SE.panel(0, `<p aria-label="Superset: after each set, ${esc(X.partner)}, 2 × 12–20 @ 1 RIR" style="${s({ display: "flex", "align-items": "center", gap: 8, "min-height": 44, "margin-top": 8, "margin-bottom": 8 })}"><span style="${s({ display: "grid", color: t.ink2 })}">${icon("link", 18)}</span><span style="${txt(16, 700)}">Then ${X.partner}</span><span style="${txt(14, 500, { color: t.ink2 })}; ${tn}">2 × 12–20 @ 1 RIR</span></p>`, "margin-top:auto")}`;
+  // the entry on the log's grid, as for a lift: the set's number column empty, then load, metres
+  // and RPE; − and + under each figure while the column holds both, over and under it otherwise
+  const bsize = dv.android ? 48 : 44;
+  const opW = cw < 340 ? 14 : 18,
+    colW = (cw - SE.NUM_W - 2 * opW) / 3;
+  const vertical = colW < 2 * bsize + 8;
+  const size = K.onRamp(K.fit(X.load, colW - 6, 42, 28));
+  const common = { size, bsize, vertical };
   const load = K.stepFigure(t, {
+    ...common,
     value: X.load,
     unit: "kg",
-    size,
     state: "suggested",
     dec: "Less load, 2.5 kg",
     inc: "More load, 2.5 kg",
+    name: `${X.load} kilograms, suggested. Type a load`,
   });
   const dist = K.stepFigure(t, {
+    ...common,
     value: X.metres,
     unit: "m",
-    size,
     state: "suggested",
     dec: "5 metres less",
     inc: "5 metres more",
+    name: `${X.metres} metres, suggested. Type metres`,
   });
   const rpe = K.stepFigure(t, {
+    ...common,
     value: "",
     unit: "RPE",
-    size,
     state: "empty",
     hint: "1–10",
-    dec: "One less",
-    inc: "One more",
+    tag: K.infoTip(t, "What RPE means"),
+    dec: "RPE one lower",
+    inc: "RPE one higher",
+    name: "RPE not set, 1 very easy to 10 maximal. Type RPE",
   });
+  const opTop =
+    (vertical ? bsize + 4 : 0) +
+    Math.max(0, Math.round((44 - size * 1.1) / 2)) +
+    Math.round(size * 0.32);
   const op = (c) =>
-    `<span aria-hidden="true" style="${s({ "padding-top": Math.round(size * 0.32), color: t.ink2, "text-align": "center" })}; ${txt(K.onRamp(size * 0.5), 500)}">${c}</span>`;
-  const figures = three
-    ? `<div style="${s({ display: "grid", "grid-template-columns": "minmax(0,1fr) 18px minmax(0,1fr) 18px minmax(0,1fr)", "align-items": "start" })}">${load}${op("×")}${dist}${op("·")}${rpe}</div>`
-    : `<div style="${s({ display: "flex", "flex-direction": "column", gap: 10 })}">${load}<div style="${s({ display: "grid", "grid-template-columns": "minmax(0,1fr) 18px minmax(0,1fr)", "align-items": "start" })}">${dist}${op("·")}${rpe}</div></div>`;
+    `<span aria-hidden="true" style="${s({ "padding-top": opTop, color: t.ink2, "text-align": "center" })}; ${txt(K.onRamp(size * 0.5), 500)}">${c}</span>`;
+  const figures = `<div style="${s({ display: "grid", "grid-template-columns": SE.gridCols(opW), "align-items": "start" })}"><span></span>${load}${op("×")}${dist}${op("·")}${rpe}</div>`;
   const ent = `<section aria-label="Set 1 of 3" style="${s({ display: "flex", "flex-direction": "column", gap: K.short(dv) ? 8 : 12, "padding-top": 10, "border-top": `1px solid ${t.hair}`, "flex-shrink": 0, background: t.ground })}">
 <div style="${s({ display: "flex", "align-items": "center", gap: 10, height: 44 })}"><h3 style="${txt(17, 700)}; ${tn}">Set 1 <span style="color:${t.ink2}">of 3</span></h3><span style="flex:1 1 auto"></span><button type="button" aria-haspopup="dialog" aria-label="Set options: add a set, type, notes, remove" style="${s({ width: 44, height: 44, display: "grid", "place-items": "center", color: t.ink2, "margin-right": -10 })}">${icon("sliders", 20)}</button></div>
 ${figures}
 <div style="margin-top:2px">${SE.saveWaiting(t, { id: "rpe-hint", need: SE.RPE_NEEDED })}</div></section>`;
   const G = K.gut(dv);
-  const inner = `<div style="${s({ flex: "1 1 auto", "min-height": 0, overflow: "hidden", position: "relative", margin: `0 -${G}px`, padding: `0 ${G}px` })}">${head}${K.fadeTo(t, 18)}</div>${ent}`;
+  const inner = `<div style="${s({ flex: "1 1 auto", "min-height": 0, overflow: "hidden", display: "flex", "flex-direction": "column", margin: `0 -${G}px`, padding: `0 ${G}px` })}">${head}</div>${ent}`;
   return K.root(t, SE.sessionMain(t, inner, dv, { flex: true, fade: false }), {
     label: "Farmer’s carry",
     dv,
@@ -121,7 +133,8 @@ function results(t, sections, chosen) {
   const rowFor = ([name, modality, muscles], last) => {
     const on = name === chosen;
     const g = glyphOf(modality);
-    return `<li><button type="button" aria-pressed="${on}" style="${s({ display: "flex", "align-items": "center", gap: 12, width: "100%", "min-height": 56, padding: "7px 0", "text-align": "left", "border-bottom": last ? 0 : `1px solid ${t.hair}` })}">${K.markCell(`<span role="img" aria-label="${NAMES[g]}" style="display:grid">${icon(g, 21)}</span>`)}<span style="${s({ display: "flex", "flex-direction": "column", flex: "1 1 auto", "min-width": 0 })}"><span class="wrap" style="${txt(16, 700)}">${name}</span><span class="wrap" style="${txt(14, 500, { color: t.ink2 })}">${muscles}</span></span>${on ? `<span aria-label="Chosen" style="${s({ width: 26, height: 26, "border-radius": 9999, background: t.ink, color: t.onInk, display: "grid", "place-items": "center", "flex-shrink": 0 })}">${icon("check", 15)}</span>` : ""}</button></li>`;
+    // the name at the gutter; its equipment's glyph leads the second line, as on the workout's rows
+    return `<li><button type="button" aria-pressed="${on}" style="${s({ display: "flex", "align-items": "center", gap: 12, width: "100%", "min-height": 56, padding: "7px 0", "text-align": "left", "border-bottom": last ? 0 : `1px solid ${t.hair}` })}"><span style="${s({ display: "flex", "flex-direction": "column", flex: "1 1 auto", "min-width": 0 })}"><span class="wrap" style="${txt(16, 700)}">${name}</span><span class="wrap" style="${s({ display: "flex", "align-items": "center", gap: 6, "margin-top": 2 })}; ${txt(14, 500, { color: t.ink2 })}">${K.equip(t, g, NAMES[g])}<span>${muscles}</span></span></span>${on ? `<span aria-label="Chosen" style="${s({ width: 26, height: 26, "border-radius": 9999, background: t.ink, color: t.onInk, display: "grid", "place-items": "center", "flex-shrink": 0 })}">${icon("check", 15)}</span>` : ""}</button></li>`;
   };
   return sections
     .map(
@@ -229,7 +242,7 @@ export function rideLogScreen(t, dv = K.D) {
       ride.where,
       { label: "Where" },
     ),
-    rows: `${figRow(t, "Duration", ride.time, "", "A minute less", "A minute more")}${figRow(t, "Distance", ride.km, "km", "Less, 0.1 km", "More, 0.1 km", `Optional · overall average ${ride.speed} km/h`)}`,
+    rows: `${figRow(t, "Duration", ride.time, "", "A minute less", "A minute more")}${figRow(t, "Distance", ride.km, "km", "Less, 0.1 km", "More, 0.1 km", `Optional · overall average ${ride.speed}\u00a0km/h`)}`,
     extra: `${effortRow(t, ride.effort)}<div style="padding:8px 0 4px">${labelled(t, "Assistance", seg(t, ["Not sure", "Unassisted", "Assisted"], ride.assist, "Assistance", { size: 15 }))}</div>`,
     save: "Save activity",
     label: "Log a ride",
@@ -373,9 +386,10 @@ export function bodyScreen(t, dv = K.D) {
   const G = K.gut(dv),
     cw = dv.W - 2 * G;
   const pts = weights.filter(([d]) => d !== "1 Jul");
+  // the scale in the left margin, as on every Progress chart
   const h = 170,
-    padL = 14,
-    padR = 26,
+    padL = 26,
+    padR = 14,
     top = 18,
     bottom = h - 26;
   const lo = 75.8,
@@ -397,7 +411,7 @@ export function bodyScreen(t, dv = K.D) {
   const grid = [76, 77]
     .map(
       (v) =>
-        `<line x1="${padL}" x2="${cw - padR}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" stroke="${t.hair}" stroke-width="1"/><text x="${cw - padR + 4}" y="${(y(v) + 4).toFixed(1)}" style="${F};font-size:12px;font-weight:600;fill:${t.ink2}">${v}</text>`,
+        `<line x1="${padL}" x2="${cw - padR}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" stroke="${t.hair}" stroke-width="1"/><text x="0" y="${(y(v) + 4).toFixed(1)}" style="${F};font-size:12px;font-weight:600;fill:${t.ink2}">${v}</text>`,
     )
     .join("");
   const chart = `<svg width="${cw}" height="${h}" viewBox="0 0 ${cw} ${h}" role="img" aria-label="Body weight, 15 readings from 8 July to 28 September, from 76.1 to 77.5 kg" style="display:block;width:100%;height:auto">${grid}<path d="${path}" fill="none" stroke="${t.ink}" stroke-width="2" stroke-linejoin="round"/>${dots}<circle cx="${x(pts.length - 1).toFixed(1)}" cy="${y(lastV).toFixed(1)}" r="5.5" fill="${t.ink}"/><text x="${padL}" y="${h - 6}" style="${F};font-size:12px;font-weight:600;fill:${t.ink2}">8 Jul</text><text x="${x(pts.length - 1).toFixed(1)}" y="${h - 6}" text-anchor="end" style="${F};font-size:12px;font-weight:600;fill:${t.ink2}">${lastD}</text></svg>`;
@@ -451,10 +465,9 @@ export function recoveryScreen(t, dv = K.D) {
 
 // ---------- FOOD: adding to a meal, and a portion ----------
 export function mealScreen(t, dv = K.D) {
-  // every row on one name edge: a glyph in the mark column where the row has one, else the column
-  // left empty
-  const rowFor = (lead, name, sub, trail, last = false) =>
-    `<li><button type="button" style="${s({ display: "flex", "align-items": "center", gap: 12, width: "100%", "min-height": 58, padding: "7px 0", "text-align": "left", "border-bottom": last ? 0 : `1px solid ${t.hair}` })}">${K.markCell(lead ? `<span style="display:grid">${lead}</span>` : "")}<span style="${s({ display: "flex", "flex-direction": "column", flex: "1 1 auto", "min-width": 0 })}"><span class="wrap" style="${txt(16, 700)}">${name}</span><span class="wrap" style="${txt(14, 500, { color: t.ink2 })}; ${tn}">${sub}</span></span>${trail}</button></li>`;
+  // every name at the gutter; a row's glyph (a saved meal's star, Quick add's bolt) follows its name
+  const rowFor = (glyph, name, sub, trail, last = false) =>
+    `<li><button type="button" style="${s({ display: "flex", "align-items": "center", gap: 12, width: "100%", "min-height": 58, padding: "7px 0", "text-align": "left", "border-bottom": last ? 0 : `1px solid ${t.hair}` })}"><span style="${s({ display: "flex", "flex-direction": "column", flex: "1 1 auto", "min-width": 0 })}"><span class="wrap" style="${s({ display: "flex", "align-items": "center", gap: 6 })}; ${txt(16, 700)}">${name}${glyph ? `<span style="${s({ display: "grid", color: t.ink2, "flex-shrink": 0 })}">${glyph}</span>` : ""}</span><span class="wrap" style="${txt(14, 500, { color: t.ink2 })}; ${tn}">${sub}</span></span>${trail}</button></li>`;
   const plus = `<span aria-hidden="true" style="${s({ width: 36, height: 36, "border-radius": 18, background: t.surface, display: "grid", "place-items": "center", "flex-shrink": 0 })}">${icon("plus", 18)}</span>`;
   const kcal = (k) =>
     `<span class="nb" style="${num(20)}">${k} <span style="${txt(13, 600, { color: t.ink2 })}">kcal</span></span>`;
@@ -462,8 +475,8 @@ export function mealScreen(t, dv = K.D) {
 <h2 style="${title(34)}; margin-top: 2px">Dinner</h2>
 <label style="${s({ display: "flex", "align-items": "center", gap: 10, height: 50, padding: "0 14px", "border-radius": 14, border: `1.5px solid ${t.control}`, "margin-top": 12 })}"><span style="display:grid;color:${t.ink2}">${icon("search", 20)}</span><span class="sr">Search your foods and saved meals</span><span aria-hidden="true" style="${txt(16, 500, { color: t.ink2 })}">Search your foods</span></label>
 <ul style="margin-top:6px">
-${rowFor(icon("bolt", 20), "Quick add", "Calories and macros, just this once", "")}
-${FL.saved.map((m) => rowFor(K.named("star", 18, "Saved meal"), m.name, m.items.join(", "), kcal(m.kcal))).join("")}
+${rowFor(icon("bolt", 16), "Quick add", "Calories and macros, just this once", "")}
+${FL.saved.map((m) => rowFor(K.named("star", 16, "Saved meal"), m.name, m.items.join(", "), kcal(m.kcal))).join("")}
 ${FL.foods.map(([n, p, k], i) => rowFor("", n, `${p} · ${k} kcal`, plus, i === FL.foods.length - 1)).join("")}
 </ul>`;
   return K.root(
@@ -488,8 +501,8 @@ export function portionScreen(t, dv = K.D) {
     paper: t.paper,
     rimW: 2.5,
   });
-  const bowl = `<svg width="${w}" height="${hh}" viewBox="0 0 ${w} ${hh}" role="img" aria-label="Today’s bowl with the oats in: 1,736 of 2,300 kcal" style="display:block;flex-shrink:0;border-radius:10px;background:${t.paper}">${fig.svg}</svg>`;
-  const amount = `<div style="${s({ display: "flex", "align-items": "center", "justify-content": "space-between", gap: 12, padding: "6px 0" })}">${K.roundBtn(t, "minus", "Less")}<output style="${s({ display: "flex", "align-items": "baseline", gap: 4 })}"><span style="${num(42)}">${O.amount}</span><span style="${txt(16, 600, { color: t.ink2 })}">${O.unit}</span></output>${K.roundBtn(t, "plus", "More")}</div>`;
+  const bowl = `<svg width="${w}" height="${hh}" viewBox="0 0 ${w} ${hh}" role="img" aria-label="Today’s bowl with the oats in: 1,736 of 2,300 kcal" style="display:block;flex-shrink:0;background:${t.paper}">${fig.svg}</svg>`;
+  const amount = `<div style="${s({ display: "flex", "align-items": "center", "justify-content": "space-between", gap: 12, padding: "6px 0" })}">${K.roundBtn(t, "minus", "Less oats")}<output style="${s({ display: "flex", "align-items": "baseline", gap: 4 })}"><span style="${num(42)}">${O.amount}</span><span style="${txt(16, 600, { color: t.ink2 })}">${O.unit}</span></output>${K.roundBtn(t, "plus", "More oats")}</div>`;
   const inner = `${sheetHead(t, "po-title", "Oats")}
 <p style="${txt(14, 500, { color: t.ink2 })}; margin-top: 2px; ${tn}">Per ${O.per} · ${O.perKcal} kcal · ${O.perMacros}</p>
 <p style="${txt(14, 700)}; margin-top: 16px">Amount eaten</p>

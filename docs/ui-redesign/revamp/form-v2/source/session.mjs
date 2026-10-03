@@ -58,7 +58,7 @@ function exRow(t, x, { open = false, done = false, skipped = false, last = false
     ? ""
     : open && x.last
       ? `${gl}<span>${x.last}</span>`
-      : `${gl}<span>${x.rx}</span>${!open && !done && x.instead ? `<span style="display:inline-flex;align-items:center;gap:4px">${K.equip(t, "swap", "Instead of")}${x.instead}</span>` : ""}`;
+      : `${gl}<span>${x.rx}</span>${!open && !done && x.instead ? `<span>instead of ${x.instead}</span>` : ""}`;
   const note = x.note
     ? `<span style="${s({ display: "flex", gap: 6, "align-items": "flex-start", "margin-top": 3 })}; ${txt(14, 500)}"><span style="${s({ display: "grid", "flex-shrink": 0, "margin-top": 2 })}">${icon("coach", 15, { label: "Coach:" })}</span><span style="${K.clamp(2)}">${x.added ? "Added. " : ""}${x.note}</span></span>`
     : "";
@@ -69,7 +69,7 @@ function exRow(t, x, { open = false, done = false, skipped = false, last = false
       : skipped
         ? `<span style="${txt(14, 600, { color: t.ink2 })}; flex-shrink: 0">Skipped</span>`
         : "";
-  return `<li><a href="#" style="${s({ display: "flex", "align-items": "center", gap: 12, "min-height": 58, padding: "8px 0", "border-bottom": last ? 0 : `1px solid ${t.hair}` })}"><span style="${s({ display: "flex", "flex-direction": "column", flex: "1 1 auto", "min-width": 0 })}"><span class="wrap" style="${txt(16, 700, { "line-height": 1.25, color: skipped || done ? t.ink2 : t.ink })}">${x.name}</span>${sub ? K.metaLine(t, [sub], { size: 14, mt: 2 }) : ""}${note}</span>${trail}</a></li>`;
+  return `<li><a href="${open ? "Log.dc.html" : "#"}" style="${s({ display: "flex", "align-items": "center", gap: 12, "min-height": 58, padding: "8px 0", "border-bottom": last ? 0 : `1px solid ${t.hair}` })}"><span style="${s({ display: "flex", "flex-direction": "column", flex: "1 1 auto", "min-width": 0 })}"><span class="wrap" style="${txt(16, 700, { "line-height": 1.25, color: skipped || done ? t.ink2 : t.ink })}">${x.name}</span>${sub ? K.metaLine(t, [sub], { size: 14, mt: 2 }) : ""}${note}</span>${trail}</a></li>`;
 }
 function warmRow(t, { name, sub, done, last = false }) {
   return `<li><a href="#" style="${s({ display: "flex", "align-items": "center", gap: 12, "min-height": 56, padding: "8px 0", "border-bottom": last ? 0 : `1px solid ${t.hair}` })}"><span style="${s({ display: "flex", "flex-direction": "column", flex: "1 1 auto", "min-width": 0 })}"><span style="${txt(16, 700, { color: done ? t.ink2 : t.ink })}">${name}</span><span class="wrap" style="${txt(14, 500, { color: t.ink2 })}; ${tn}">${sub}</span></span>${done ? `<span role="img" aria-label="Done" style="${s({ display: "grid", "flex-shrink": 0, color: t.ink })}">${icon("check", 20)}</span>` : ""}</a></li>`;
@@ -136,7 +136,6 @@ ${addRow(t)}`;
 ${meta(X)}
 ${print(
   [
-    { kind: "mobility", segments: 5, segDone: 0, modules: 3 },
     {
       kind: "strength",
       columns: X.exercises.map((x, i) => ({
@@ -146,9 +145,9 @@ ${print(
       })),
     },
   ],
-  "Easy Run + Arms: the run warm-up to do, barbell curl inked, two sets of the pushdown, the forearms superset to do",
+  "Easy Run + Arms: barbell curl inked, two sets of the pushdown, the forearms superset to do",
 )}
-<ul aria-label="Easy Run + Arms" style="margin-top:8px">${warmRow(t, { name: "Run warm-up", sub: "5 drills", drills: 5, done: false })}${single
+<ul aria-label="Easy Run + Arms" style="margin-top:8px">${single
       .map((x) => exRow(t, x, { dv, open: x.state === "open", done: x.state === "done" }))
       .join("")}${superset(
       t,
@@ -159,8 +158,8 @@ ${addRow(t)}`;
     label = "Easy Run + Arms";
   } else {
     const X = lowerA;
-    inner = `${sessionHeader(t, { left: minimise(t), finish: true, rest: false })}${ttl(X.session, `<span role="img" aria-label="Planned by the coach" style="display:grid;color:${t.ink}">${icon("coach", 22)}</span>`)}
-${meta(X)}
+    inner = `${sessionHeader(t, { left: minimise(t), finish: true, rest: false })}${ttl(X.session)}
+${K.metaLine(t, [`${icon("pin", 16)}<span>${X.gym}</span>`, `${icon("rest", 16)}<span>${X.time}</span>`, `${icon("coach", 16)}<span>Planned by the coach</span>`], { mt: 4 })}
 ${print(
   [
     { kind: "mobility", segments: 2, segDone: 0, modules: 3 },
@@ -201,46 +200,63 @@ export function notation(t, r, { size = 22, color = null } = {}) {
       : "";
   return `<span class="nb" style="${num(size)}${color ? `; color: ${color}` : ""}">${r.v} ${op("×")} ${r.reps}${eff}</span>`;
 }
-// One working set: its number at the edge, then its figures in the entry's three columns (load,
-// reps, RIR), so every set done stands over the one being entered and the entry reads as the log's
-// next line. The operators are quieter than the figures; a set rated by effort says RPE.
-export function setRow(t, r, { unit = "kg", size = 32, cls = "", opW = 18 } = {}) {
-  const aria = `Set ${r.n}: ${r.v} ${unitNameOf(unit)}, ${r.reps} reps, ${r.rpe ? `RPE ${r.rpe}` : RIR_NAME(String(r.rir))}. Edit`;
-  const f = (v) => `<span style="${num(size)}; text-align: center; min-width: 0">${v}</span>`;
+// One working set: its number in a column of its own at the edge, then its figures in the entry's
+// three columns (load, reps, RIR), so every set done stands over the one being entered and the
+// entry reads as the log's next line. The operators are quieter than the figures; a set rated by
+// effort says RPE. A line is 44 pt at least, and in the log it opens its set to edit.
+export const NUM_W = 18;
+export const gridCols = (opW) =>
+  `${NUM_W}px minmax(0,1fr) ${opW}px minmax(0,1fr) ${opW}px minmax(0,1fr)`;
+export function setRow(t, r, { unit = "kg", size = 32, cls = "", opW = 18, edit = true } = {}) {
+  const said = `Set ${r.n}: ${r.v} ${unitNameOf(unit)}, ${r.reps} reps, ${r.rpe ? `RPE ${r.rpe}` : RIR_NAME(String(r.rir))}`;
+  const f = (v) =>
+    `<span aria-hidden="true" style="${num(size)}; text-align: center; min-width: 0">${v}</span>`;
   const op = (c) =>
     `<span aria-hidden="true" style="${txt(K.onRamp(size * 0.55), 600, { color: t.ink2, "text-align": "center" })}">${c}</span>`;
   const eff = r.rpe
     ? `${op("·")}${f(`<span style="${txt(K.onRamp(size * 0.5), 600, { color: t.ink2 })}">RPE</span> ${r.rpe}`)}`
     : `${op("@")}${f(r.rir)}`;
-  return `<li${cls ? ` class="${cls}"` : ""}><button type="button" aria-label="${esc(aria)}" style="${s({ display: "grid", "grid-template-columns": `0 minmax(0,1fr) ${opW}px minmax(0,1fr) ${opW}px minmax(0,1fr)`, "align-items": "baseline", width: "100%", "min-height": Math.round(size * 1.8), padding: "10px 0 8px" })}"><span aria-hidden="true" style="${txt(15, 700, { color: t.ink2, "white-space": "nowrap" })}; ${tn}">${r.n}</span>${f(r.v)}${op("×")}${f(r.reps)}${eff}</button></li>`;
+  const style = s({
+    display: "grid",
+    "grid-template-columns": gridCols(opW),
+    "align-items": "baseline",
+    width: "100%",
+    "min-height": Math.max(44, Math.round(size * 1.8)),
+    padding: "10px 0 8px",
+  });
+  const cells = `<span aria-hidden="true" style="${txt(15, 700, { color: t.ink2, "white-space": "nowrap" })}; ${tn}">${r.n}</span>${f(r.v)}${op("×")}${f(r.reps)}${eff}`;
+  const c = cls ? ` class="${cls}"` : "";
+  return edit
+    ? `<li${c}><button type="button" aria-label="${esc(`${said}. Edit`)}" style="${style}">${cells}</button></li>`
+    : `<li${c} style="${style}"><span class="sr">${said}</span>${cells}</li>`;
 }
-// The warm-ups on one line, in ink 2: done before the work and never counted. While one is being
-// entered it is in ink.
+// The warm-ups done, on one line in ink 2: done before the work and never in the volume. One not
+// yet done is not drawn: the entry says which warm-up comes next, and of how many.
 export function warmLine(t, warmups, { unit = "kg", current = -1 } = {}) {
-  if (!warmups.length) return "";
-  const items = warmups
-    .map((w, i) => {
-      const now = i === current;
-      const aria = `Warm-up: ${w.v} ${unitNameOf(unit)}, ${w.reps} reps${now ? ", being entered below" : current >= 0 && i > current ? ", to do" : ". Edit"}`;
-      return `<button type="button" aria-label="${esc(aria)}"${now ? ' aria-current="step"' : ""} style="${s({ display: "inline-flex", "align-items": "baseline", "min-height": 44, padding: "10px 0 6px" })}">${notation(t, w, { size: 20, color: now ? t.ink : t.ink2 })}</button>`;
-    })
+  const done = current >= 0 ? warmups.slice(0, current) : warmups;
+  if (!done.length) return "";
+  const items = done
+    .map(
+      (w) =>
+        `<button type="button" aria-label="${esc(`Warm-up: ${w.v} ${unitNameOf(unit)}, ${w.reps} reps. Edit`)}" style="${s({ display: "inline-flex", "align-items": "baseline", "min-height": 44, padding: "10px 0 6px" })}">${notation(t, w, { size: 20, color: t.ink2 })}</button>`,
+    )
     .join("");
   return `<li style="${s({ display: "flex", "align-items": "baseline" })}"><span aria-hidden="true" style="${s({ width: LABEL_W, "flex-shrink": 0, color: t.ink2 })}; ${txt(15, 700)}">W</span><span role="group" aria-label="Warm-ups" style="${s({ display: "flex", "flex-wrap": "wrap", "column-gap": 20 })}">${items}</span></li>`;
 }
-// the operators' column, as wide as the entry's
+// the operators' column, as wide as the entry's; a figure's column, as wide as the entry's
 const opWOf = (dv) => (dv.W - 2 * K.gut(dv) < 340 ? 14 : 18);
-// the log's figures fit their column with room for the set's number beside them: at most 32 pt
-// (26 in History), stepping down on a narrow screen rather than running into the number
+const colOf = (dv) => (dv.W - 2 * K.gut(dv) - NUM_W - 2 * opWOf(dv)) / 3;
+// the log's figures fit their column: at most 32 pt (26 in History), stepping down the ramp on a
+// narrow screen until the widest load fits
 const logSize = (dv, loads, max = 32) => {
-  const colW = (dv.W - 2 * K.gut(dv) - 2 * opWOf(dv)) / 3;
   const widest = Math.max(...loads.map((v) => K.em(String(v))), 1);
-  return K.onRamp(Math.max(20, Math.min(max, Math.floor((colW - 44) / widest))));
+  return K.onRamp(Math.max(20, Math.min(max, Math.floor((colOf(dv) - 8) / widest))));
 };
-export function ledger(t, S, { start = false, rows = null, dv = K.D } = {}) {
+export function ledger(t, S, { start = false, warm = start ? 0 : -1, rows = null, dv = K.D } = {}) {
   const items =
     rows ??
-    `${warmLine(t, S.warmups, { unit: S.unit, current: start ? 0 : -1 })}${
-      start
+    `${warmLine(t, S.warmups, { unit: S.unit, current: warm })}${
+      warm >= 0
         ? ""
         : S.sets
             .map((x) =>
@@ -255,45 +271,51 @@ export function ledger(t, S, { start = false, rows = null, dv = K.D } = {}) {
             )
             .join("")
     }`;
-  return `<ol aria-label="Sets" style="margin-top:8px; flex: 1 0 auto">${items}</ol>`;
+  // the list stands on the entry: its latest line 8 pt over the entry's rule, the room above it
+  return `<ol aria-label="Sets" style="margin-top:8px; padding-bottom: 8px; flex: 0 0 auto">${items}</ol>`;
 }
 // How many working sets this exercise has today: done, the one being entered, and those to come.
 const setsOf = (S) => S.sets.length + 1 + (S.todo || []).length;
-// The entry reads as the notation it records: load × reps @ RIR. Three steppers in one row while
-// each column holds its figure and two 44 pt buttons (at least 100 pt); otherwise load takes the
-// first row and reps and RIR share the second.
+// The entry reads as the notation it records, load × reps @ RIR, in the log's columns: the set's
+// number column stays empty, so each figure stands under the same figure of every set done. Each
+// figure is a button (a tap types it; the empty RIR's dash takes the target) with − and + under it
+// while its column holds both, 8 apart (44 pt on iOS, 48 dp on Android). Narrower than that (360
+// dp, 320 pt), + stands over the figure and − under it, and the columns still hold.
 export function entry(
   t,
   S,
   dv,
   {
     armed = false,
+    touched = false,
     start = false,
+    warm = start ? 0 : -1,
     swaps = null,
     saveHtml = null,
     rirHtml = null,
     headHtml = null,
     vals = null,
     swapTo = {},
+    need = false,
+    rirSwap = null,
   } = {},
 ) {
-  const cw = dv.W - 2 * K.gut(dv);
-  // three steppers side by side while each column holds its figure and two buttons 8 apart (44 pt
-  // on iOS, 48 dp on Android); the operators narrow first. 375 pt keeps one row; 360 dp Android
-  // and 320 pt stack: load first, then reps and RIR.
   const bsize = dv.android ? 48 : 44,
     bgap = 8;
-  const opW = cw < 340 ? 14 : 18,
-    colW = (cw - 2 * opW) / 3;
-  const three = colW >= 2 * bsize + bgap;
-  const size = K.onRamp(K.fit(S.next.load, (three ? colW : cw * 0.6) - 14, 42, 28));
+  const opW = opWOf(dv),
+    colW = colOf(dv);
+  const vertical = colW < 2 * bsize + bgap;
+  const size = K.onRamp(K.fit(S.next.load, colW - 6, 42, 28));
   const unit = S.unit;
   const loadStep = unit === "lb" ? "5 lb" : "2.5 kg";
-  const st = armed ? "touched" : "suggested";
+  const st = touched ? "touched" : "suggested";
   const sw = swaps || {};
-  const w0 = S.warmups[0] || {};
+  const w = warm >= 0 ? S.warmups[warm] || {} : null;
+  const sugg = st === "suggested" ? ", suggested" : "";
+  const loadV = w ? w.v : (vals?.load ?? S.next.load);
+  const repsV = w ? String(w.reps) : (vals?.reps ?? S.next.reps);
   const load = K.stepFigure(t, {
-    value: start ? w0.v : (vals?.load ?? S.next.load),
+    value: loadV,
     swapTo: swapTo.load,
     bsize,
     unit,
@@ -303,9 +325,11 @@ export function entry(
     inc: `More load, ${loadStep}`,
     swapCls: sw.load,
     bgap,
+    vertical,
+    name: `${loadV} ${unitNameOf(unit)}${sugg}. Type a load`,
   });
   const reps = K.stepFigure(t, {
-    value: start ? String(w0.reps) : (vals?.reps ?? S.next.reps),
+    value: repsV,
     swapTo: swapTo.reps,
     bsize,
     unit: "reps",
@@ -315,40 +339,56 @@ export function entry(
     inc: "One rep more",
     swapCls: sw.reps,
     bgap,
+    vertical,
+    name: `${repsV} reps${sugg}. Type reps`,
   });
+  const target = String(S.next.target);
+  const rirV = target.split("–")[0];
   const rir =
     rirHtml ||
     K.stepFigure(t, {
-      value: armed ? String(S.next.target).split("–")[0] : "",
+      value: armed || rirSwap ? rirV : "",
       unit: "RIR",
       size,
       state: armed ? "touched" : "empty",
-      hint: start ? "optional" : `target ${S.next.target}`,
+      swapCls: rirSwap,
+      swapTo: "",
+      swapState: "empty",
+      hint: w ? "optional" : `target ${target}`,
+      tag: K.infoTip(t, "What RIR means"),
       dec: "One rep less in reserve",
       inc: "One rep more in reserve",
       bgap,
       bsize,
+      vertical,
+      name: armed
+        ? `${RIR_NAME(rirV)}. Type RIR`
+        : w
+          ? "RIR not set, optional for a warm-up. Type RIR"
+          : `RIR not set, target ${target}. Use the target`,
     });
+  const opTop =
+    (vertical ? bsize + 4 : 0) +
+    Math.max(0, Math.round((44 - size * 1.1) / 2)) +
+    Math.round(size * 0.32);
   const op = (c) =>
-    `<span aria-hidden="true" style="${s({ "padding-top": Math.round(size * 0.32), color: t.ink2, "text-align": "center" })}; ${txt(K.onRamp(size * 0.5), 500)}">${c}</span>`;
-  const figures = three
-    ? `<div style="${s({ display: "grid", "grid-template-columns": `minmax(0,1fr) ${opW}px minmax(0,1fr) ${opW}px minmax(0,1fr)`, "align-items": "start" })}">${load}${op("×")}${reps}${op("@")}${rir}</div>`
-    : `<div style="${s({ display: "flex", "flex-direction": "column", gap: 10 })}">${load}<div style="${s({ display: "grid", "grid-template-columns": "minmax(0,1fr) 18px minmax(0,1fr)", "align-items": "start" })}">${reps}${op("@")}${rir}</div></div>`;
+    `<span aria-hidden="true" style="${s({ "padding-top": opTop, color: t.ink2, "text-align": "center" })}; ${txt(K.onRamp(size * 0.5), 500)}">${c}</span>`;
+  const figures = `<div style="${s({ display: "grid", "grid-template-columns": gridCols(opW), "align-items": "start" })}"><span></span>${load}${op("×")}${reps}${op("@")}${rir}</div>`;
   const tag =
-    start || !S.suggestion
+    w || !S.suggestion
       ? ""
       : `<a href="Why.dc.html" aria-haspopup="dialog" aria-label="${esc(`${S.suggestion.kind}: why ${S.next.load} ${S.unit} × ${S.next.reps}`)}" style="${s({ display: "inline-flex", "align-items": "center", height: 44 })}"><span style="${s({ display: "inline-flex", "align-items": "center", gap: 5, height: 30, padding: "0 9px 0 10px", "border-radius": 8, border: `1.5px solid ${t.ink}` })}; ${txt(14, 700)}">${S.suggestion.kind}${icon("info", 16)}</span></a>`;
   const save =
     saveHtml ||
-    (start || armed
+    (w || armed
       ? `<button type="button" style="${K.BTN(t, "primary")}; width: 100%">${SAVE}</button>`
-      : saveWaiting(t));
+      : saveWaiting(t, { shown: need }));
   const heading =
     headHtml ||
-    (start
-      ? `Warm-up 1 <span style="color:${t.ink2}">of ${S.warmups.length}</span>`
+    (w
+      ? `Warm-up ${warm + 1} <span style="color:${t.ink2}">of ${S.warmups.length}</span>`
       : `Set ${S.next.n} <span style="color:${t.ink2}">of ${setsOf(S)}</span>`);
-  return `<section aria-label="${start ? "Warm-up 1" : `Set ${S.next.n} of ${setsOf(S)}`}" style="${s({ display: "flex", "flex-direction": "column", gap: K.short(dv) ? 8 : 12, "padding-top": 10, "border-top": `1px solid ${t.hair}`, "flex-shrink": 0, background: t.ground })}">
+  return `<section aria-label="${w ? `Warm-up ${warm + 1} of ${S.warmups.length}` : `Set ${S.next.n} of ${setsOf(S)}`}" style="${s({ display: "flex", "flex-direction": "column", gap: K.short(dv) ? 8 : 12, "padding-top": 10, "border-top": `1px solid ${t.hair}`, "flex-shrink": 0, background: t.ground })}">
 <div style="${s({ display: "flex", "align-items": "center", gap: 10, height: 44 })}"><h3 style="${txt(17, 700)}; ${tn}">${heading}</h3>${tag}<span style="flex:1 1 auto"></span><button type="button" aria-haspopup="dialog" aria-label="Set options: add a set, type, notes, remove" style="${s({ width: 44, height: 44, display: "grid", "place-items": "center", color: t.ink2, "margin-right": -10 })}">${icon("sliders", 20)}</button></div>
 ${figures}
 <div style="margin-top:2px">${save}</div>
@@ -359,8 +399,16 @@ ${figures}
 export const SAVE = "Save";
 export const RIR_NEEDED = "Enter RIR: estimate how many more good reps you could do.";
 export const RPE_NEEDED = "Enter effort from 1 (very easy) to 10 (maximal).";
-export const saveWaiting = (t, { id = "rir-hint", need = RIR_NEEDED, style = "" } = {}) =>
-  `<button type="button" aria-disabled="true" aria-describedby="${id}" style="${K.BTN(t, "waiting")}; width: 100%${style}">${SAVE}</button><span id="${id}" class="sr">${need}</span>`;
+// After a tap on the waiting Save, the sentence shows under it as the app's row error does, in ink.
+export const saveWaiting = (
+  t,
+  { id = "rir-hint", need = RIR_NEEDED, style = "", shown = false } = {},
+) =>
+  `<button type="button" aria-disabled="true" aria-describedby="${id}" style="${K.BTN(t, "waiting")}; width: 100%${style}">${SAVE}</button>${
+    shown
+      ? `<p id="${id}" role="alert" style="${s({ display: "flex", gap: 8, "align-items": "flex-start", "margin-top": 10 })}; ${txt(15, 600, { "line-height": 1.4 })}"><span style="${s({ display: "grid", "flex-shrink": 0, "margin-top": 1 })}">${icon("info", 18)}</span><span>${need}</span></p>`
+      : `<span id="${id}" class="sr">${need}</span>`
+  }`;
 export const panel = (active, inner, style = "") =>
   `<div role="tabpanel" id="panel" aria-labelledby="panel-tab-${active}"${style ? ` style="${style}"` : ""}>${inner}</div>`;
 function logHeader(t, S, dv, active = 0, { restOpts = {} } = {}) {
@@ -379,6 +427,8 @@ export function logScreen(
     S = bench,
     armed = false,
     start = false,
+    warm = start ? 0 : -1,
+    need = false,
     whole = false,
     restOpts = {},
     entryOpts = {},
@@ -386,8 +436,8 @@ export function logScreen(
   } = {},
 ) {
   const head = logHeader(t, S, dv, 0, { restOpts });
-  const list = ledger(t, S, { start, rows, dv });
-  const ent = entry(t, S, dv, { armed, start, ...entryOpts });
+  const list = ledger(t, S, { warm, rows, dv });
+  const ent = entry(t, S, dv, { armed, warm, need, ...entryOpts });
   if (whole)
     return K.root(
       t,
@@ -401,7 +451,7 @@ export function logScreen(
   // sets, just above the entry) and the earlier lines pass under the tabs, as a list scrolled to
   // its foot does. A cut that falls between two lines would read as a missing set.
   const G = K.gut(dv);
-  const inner = `${head}${panel(0, list, s({ flex: "1 1 auto", "min-height": 0, display: "flex", "flex-direction": "column-reverse", overflow: "hidden", margin: `0 -${G}px`, padding: `0 ${G}px` }))}${ent}`;
+  const inner = `${head}${panel(0, `${K.fadeFrom(t)}${list}`, s({ position: "relative", flex: "1 1 auto", "min-height": 0, display: "flex", "flex-direction": "column-reverse", overflow: "hidden", margin: `0 -${G}px`, padding: `0 ${G}px` }))}${ent}`;
   return K.root(t, sessionMain(t, inner, dv, { flex: true, fade: false }), {
     label: S.exercise,
     dv,
@@ -418,7 +468,7 @@ export function techniqueScreen(t, dv = K.D, { S = bench } = {}) {
   return K.root(t, sessionMain(t, inner, dv), { label: S.exercise, dv });
 }
 // History: every session of this exercise, newest first, each set as it was logged, in the same
-// lines as Log. The sessions test that drives logging has no dates, so each session is named by
+// lines as Log. History is read, not edited: its lines are not buttons. The sessions test that drives logging has no dates, so each session is named by
 // its cycle; the reason for today's suggestion lives on the suggestion's tag, not here.
 export function historyScreen(t, dv = K.D, { S = bench } = {}) {
   const sessions = S.history
@@ -437,6 +487,7 @@ export function historyScreen(t, dv = K.D, { S = bench } = {}) {
                   26,
                 ),
                 opW: opWOf(dv),
+                edit: false,
               },
             ),
           )
@@ -472,34 +523,40 @@ ${S.suggestion.advice ? `<p style="${txt(16, 500, { "line-height": 1.45 })}; mar
 // set 3.
 export function momentScreen(t, dv = K.D) {
   const S = bench;
+  // two layers in one place; the one not showing is hidden, so it is out of the tree too
   const sw = (a, b, ca, cb) =>
-    `<span style="display:inline-grid"><span class="${ca}" style="grid-area:1/1">${a}</span><span class="${cb}" aria-hidden="true" style="grid-area:1/1">${b}</span></span>`;
-  const rows = `${warmLine(t, S.warmups)}${S.sets.map((x) => setRow(t, x)).join("")}${setRow(t, { n: 3, v: "60", reps: 4, rir: 2 }, { cls: "row3" })}`;
+    `<span style="display:inline-grid"><span class="${ca}" style="grid-area:1/1">${a}</span><span class="${cb}" style="grid-area:1/1">${b}</span></span>`;
+  const size = logSize(dv, [...S.sets.map((y) => y.v), "60"]);
+  const rows = `${warmLine(t, S.warmups, { unit: S.unit })}${S.sets.map((x) => setRow(t, x, { unit: S.unit, opW: opWOf(dv), size })).join("")}${setRow(t, { n: 3, v: "60", reps: 4, rir: 2 }, { unit: S.unit, opW: opWOf(dv), size, cls: "row3" })}`;
   const head = sw(
     `Set 3 <span style="color:${t.ink2}">of 4</span>`,
     `Set 4 <span style="color:${t.ink2}">of 4</span>`,
     "h3a",
     "h4a",
   );
-  const rirSel = `<div role="group" aria-label="RIR" style="${s({ display: "flex", "flex-direction": "column", "align-items": "center", gap: 6 })}"><output style="display:block;text-align:center">${sw(`<span style="${num(42, { lh: 1.1 })}">2</span>`, `<span style="${num(42, { lh: 1.1 })}; color: ${t.control}">–</span>`, "r2", "r0")}</output><span style="${txt(13, 600, { color: t.ink2 })}">RIR · target 2</span><span style="${s({ display: "flex", gap: 8, "margin-top": 2 })}">${K.roundBtn(t, "minus", "One rep less in reserve")}${K.roundBtn(t, "plus", "One rep more in reserve")}</span></div>`;
   const saveHtml = `<div style="display:grid">
 <span class="sv-wait" aria-hidden="true" style="${K.BTN(t, "waiting")}; grid-area: 1/1">${SAVE}</span>
 <span class="sv-saving" aria-hidden="true" style="${K.BTN(t, "waiting")}; grid-area: 1/1">Saving…</span>
 <span class="sv-saved" aria-hidden="true" style="${K.BTN(t, "waiting")}; grid-area: 1/1; color: ${t.ink}">${icon("check", 20)}Saved</span>
 <button type="button" class="sv-armed" style="${K.BTN(t, "primary")}; grid-area: 1/1">${SAVE}</button>
 </div>`;
-  const record = `${logHeader(t, S, dv, 0, { restOpts: { timeHtml: sw("2:14", "3:00", "t1", "t2") } })}${panel(0, `<ol aria-label="Sets" style="margin-top:8px">${rows}</ol>`)}`;
+  // the pill starts again at 3:00 with its dial full, as the set lands
+  const restOpts = {
+    timeHtml: sw("2:14", "3:00", "t1", "t2"),
+    ringHtml: sw(K.restRing(t, 0.74), K.restRing(t, 1), "t1", "t2"),
+  };
   const ent = entry(t, S, dv, {
-    armed: true,
+    touched: true,
     swaps: { load: ["va", "vb"], reps: ["va", "vb"] },
     vals: { load: "60", reps: "4" },
     swapTo: { load: S.next.load, reps: S.next.reps },
+    rirSwap: ["r2", "r0"],
     saveHtml,
-    rirHtml: rirSel,
     headHtml: head,
   });
   const G = K.gut(dv);
-  const inner = `<div style="${s({ flex: "1 1 auto", "min-height": 0, overflow: "hidden", position: "relative", margin: `0 -${G}px`, padding: `0 ${G}px` })}">${record}</div>${ent}<p class="sr" role="status">Set 3 saved: 60 kilograms, 4 reps, 2 in reserve. Rest 3:00.</p>`;
+  const list = `<ol aria-label="Sets" style="margin-top:8px; padding-bottom: 8px; flex: 0 0 auto">${rows}</ol>`;
+  const inner = `${logHeader(t, S, dv, 0, { restOpts })}${panel(0, `${K.fadeFrom(t)}${list}`, s({ position: "relative", flex: "1 1 auto", "min-height": 0, display: "flex", "flex-direction": "column-reverse", overflow: "hidden", margin: `0 -${G}px`, padding: `0 ${G}px` }))}${ent}<p class="sr" role="status">Set 3 saved: 60 kilograms, 4 reps, 2 in reserve. Rest 3:00.</p>`;
   return K.root(t, sessionMain(t, inner, dv, { flex: true, fade: false }), {
     label: S.exercise,
     dv,
@@ -510,11 +567,12 @@ export function momentCss(t, { reduced = false } = {}) {
     pct = (sec) => ((sec / Lp) * 100).toFixed(3) + "%";
   const END = 7.2,
     RESET = 7.5;
-  // a layer that is not showing is not there at all: opacity and visibility swap together
+  // a layer that is not showing is not there at all: opacity and visibility change together. A
+  // word leaves in 80 ms and the next arrives in 120 ms, after it
   const show = (cls, on, off = END) =>
-    `@keyframes ${cls}{0%,${pct(on - 0.001)}{opacity:0;visibility:hidden}${pct(on)},${pct(off)}{opacity:1;visibility:visible}${pct(off + 0.001)},100%{opacity:0;visibility:hidden}}.${cls}{opacity:0;visibility:hidden;animation:${cls} ${Lp}s linear infinite}`;
+    `@keyframes ${cls}{0%,${pct(on - 0.001)}{opacity:0;visibility:hidden}${pct(on)}{opacity:0;visibility:visible}${pct(on + 0.12)},${pct(off)}{opacity:1;visibility:visible}${pct(off + 0.001)},100%{opacity:0;visibility:hidden}}.${cls}{opacity:0;visibility:hidden;animation:${cls} ${Lp}s linear infinite}`;
   const hide = (cls, off, on = RESET) =>
-    `@keyframes ${cls}{0%,${pct(off - 0.001)}{opacity:1;visibility:visible}${pct(off)},${pct(on - 0.001)}{opacity:0;visibility:hidden}${pct(on)},100%{opacity:1;visibility:visible}}.${cls}{animation:${cls} ${Lp}s linear infinite}`;
+    `@keyframes ${cls}{0%,${pct(off)}{opacity:1;visibility:visible}${pct(off + 0.08)},${pct(on - 0.001)}{opacity:0;visibility:hidden}${pct(on)},100%{opacity:1;visibility:visible}}.${cls}{animation:${cls} ${Lp}s linear infinite}`;
   // timeline (s): armed 0–1.2 · press 1.2–1.32 · saving 1.32–1.95 · the line lands 1.95–2.17 ·
   // swaps 2.45–2.65
   const common = `
@@ -565,7 +623,7 @@ export function checkInScreen(t, dv = K.D) {
 <p style="${txt(15, 500, { color: t.ink2 })}; margin-top: 4px">Optional</p>
 <section aria-labelledby="ci-sleep">${K.caption(t, "Sleep", { id: "ci-sleep", mt: 12 })}${sleep}${scale(t, "Quality", ["poor", "great"], 3, "q")}</section>
 <section aria-labelledby="ci-feel">${K.caption(t, "How you feel", { id: "ci-feel", mt: 14 })}${scale(t, "General fatigue", ["fresh", "wrecked"], 5, "f")}${scale(t, "Soreness", ["none", "severe"], 2, "so")}</section>`;
-  const foot = `<div style="${s({ position: "absolute", left: K.gut(dv), right: K.gut(dv), bottom: dv.bottom + 8, display: "flex", "flex-direction": "column", gap: 4 })}"><button type="button" style="${K.BTN(t, "primary")}">Save and start</button><a href="#" style="${s({ display: "grid", "place-items": "center", height: 44 })}; ${txt(15, 700)}">Skip check-in</a></div>`;
+  const foot = `<div style="${s({ position: "absolute", left: K.gut(dv), right: K.gut(dv), bottom: dv.bottom + 8, display: "flex", "flex-direction": "column", gap: 4 })}"><a href="Workout.dc.html" style="${K.BTN(t, "primary")}">Save and start</a><a href="#" style="${s({ display: "grid", "place-items": "center", height: 44 })}; ${txt(15, 700)}">Skip check-in</a></div>`;
   return K.root(t, `${sessionMain(t, inner, dv, { bottom: dv.bottom + 8 + 56 + 48 + 8 })}${foot}`, {
     label: "How are you today?",
     dv,
@@ -636,7 +694,7 @@ ${K.metaLine(t, [`${icon("pin", 16)}<span>${X.gym}</span>`], { mt: 0 })}
 <h3 style="${txt(13, 700, { color: t.ink2 })}; margin-top: 12px">Not done</h3>
 ${notDone(t)}
 <div style="${s({ display: "flex", "flex-direction": "column", gap: 14, "margin-top": 14 })}">${K.field(t, "Notes", { rows: 2, placeholder: "How it went, anything the coach should know…", help: "Your coach reads these" })}${K.field(t, "Body weight (kg)", { help: "Optional — recorded as today’s reading" })}</div>
-<button type="button" style="${K.BTN(t, "primary")}; width: 100%; margin-top: 16px">Finish session</button>`;
+<a href="Summary.dc.html" style="${K.BTN(t, "primary")}; width: 100%; margin-top: 16px">Finish session</a>`;
   return K.root(
     t,
     `${sessionMain(t, under, dv)}${K.sheet(t, inner, { dv, id: "fin-title", top: 64 })}`,

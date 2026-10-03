@@ -57,16 +57,19 @@ function dayStrip(t, dv, week = F.week) {
     spacer = cw - shown * 44 - (shown - 1) * gap;
   return `<div style="${s({ position: "relative", margin: `0 -${G}px` })}"><div style="${s({ "overflow-x": "auto", "scrollbar-width": "none", direction: "rtl" })}"><div style="${s({ display: "grid", "grid-template-columns": "repeat(7, 44px)", gap, width: "max-content", direction: "ltr", padding: `0 ${G + spacer}px 0 ${G}px` })}">${cells}</div></div><span aria-hidden="true" style="${s({ position: "absolute", left: 0, top: 0, bottom: 0, width: G - 2, background: `linear-gradient(to right, ${t.ground}, ${K.rgba0(t.ground)})`, "pointer-events": "none" })}"></span></div>`;
 }
-// A macro: what was eaten, against its limit (≤) or its minimum (≥), on a rail. Over a limit, the
-// ink runs past a tick at the target, so it never reads like the bowl's heap.
+// A macro: what was eaten over its target, as the app writes it ("86 / 297 g"), on a rail. Over a
+// limit, the ink runs past a tick at the target, so it never reads like the bowl's heap.
 const macro = (t, m) => {
   const isMin = m.kind === "minimum",
     f = Math.min(1, m.eaten / m.target);
-  return `<li style="min-width:0"><a href="#" aria-label="${m.name}: ${m.eaten} of ${m.target} grams, ${isMin ? "at least" : "up to"}. Open the breakdown." style="${s({ display: "flex", "flex-direction": "column", gap: 2, "min-height": 44 })}"><span style="${txt(14, 700)}">${m.name}</span><span class="nb" style="${s({ display: "flex", "align-items": "baseline", gap: 4 })}"><span style="${num(26)}">${m.eaten}</span><span style="${txt(13, 600, { color: t.ink2 })}; ${tn}">${isMin ? "≥" : "≤"} ${m.target} g</span></span><span aria-hidden="true" style="${s({ position: "relative", height: 4, "margin-top": 4 })}"><span style="${s({ position: "absolute", left: 0, right: 0, top: 1, height: 2, background: t.control })}"></span><span style="${s({ position: "absolute", left: 0, top: 0, bottom: 0, width: `${(f * 100).toFixed(1)}%`, background: t.ink })}"></span></span></a></li>`;
+  const stated =
+    isMin && m.eaten >= m.target ? ", reached" : !isMin && m.eaten > m.target ? ", over" : "";
+  return `<li style="min-width:0"><a href="#" aria-label="${m.name}: ${m.eaten} of ${m.target} g${stated}. Open the breakdown." style="${s({ display: "flex", "flex-direction": "column", gap: 2, "min-height": 44 })}"><span style="${txt(14, 700)}">${m.name}</span><span class="nb" style="${s({ display: "flex", "align-items": "baseline", gap: 4 })}"><span style="${num(26)}">${m.eaten}</span><span style="${txt(13, 600, { color: t.ink2 })}; ${tn}">/ ${m.target} g</span></span><span aria-hidden="true" style="${s({ position: "relative", height: 4, "margin-top": 4 })}"><span style="${s({ position: "absolute", left: 0, right: 0, top: 1, height: 2, background: t.control })}"></span><span style="${s({ position: "absolute", left: 0, top: 0, bottom: 0, width: `${(f * 100).toFixed(1)}%`, background: t.ink })}"></span></span></a></li>`;
 };
 // A meal row: its layer as the mark, its foods, its calories; an empty meal is its name and +.
 const meal = (t, m, i, strata) => {
-  const sw = `<span aria-hidden="true" style="${s({ width: 14, height: 9, background: m.kcal ? strata[i % 3] : "transparent", border: m.kcal ? 0 : `1.5px solid ${t.control}`, "border-radius": "0 0 7px 7px" })}"></span>`;
+  // the meal's layer as a small bowl, edged in ink so the palest layers hold on white
+  const sw = `<span aria-hidden="true" style="${s({ width: 14, height: 9, background: m.kcal ? strata[i % 3] : "transparent", border: m.kcal ? `1px solid ${t.ink}` : `1.5px solid ${t.control}`, "border-top": 0, "border-radius": "0 0 7px 7px" })}"></span>`;
   if (!m.kcal)
     return `<li><a href="#" aria-label="${m.name}: nothing yet. Add" style="${s({ display: "flex", "align-items": "center", gap: 12, "min-height": 46, "border-bottom": `1px solid ${t.hair}` })}">${K.markCell(sw)}<span style="${txt(16, 600, { color: t.ink2, flex: "1 1 auto" })}">${m.name}</span><span style="${s({ width: 36, height: 36, "border-radius": 18, background: t.surface, display: "grid", "place-items": "center" })}">${icon("plus", 18)}</span></a></li>`;
   return `<li><a href="#" style="${s({ display: "flex", "align-items": "center", gap: 12, "min-height": 58, padding: "7px 0", "border-bottom": `1px solid ${t.hair}` })}">${K.markCell(sw)}<span style="${s({ display: "flex", "flex-direction": "column", flex: "1 1 auto", "min-width": 0 })}"><span style="${txt(16, 700)}">${m.name}</span><span class="wrap" style="${txt(14, 500, { color: t.ink2, "line-height": 1.35 })}">${m.items.join(" · ")}</span></span><span class="nb" style="${num(20)}">${m.kcal.toLocaleString("en-GB")}</span></a></li>`;

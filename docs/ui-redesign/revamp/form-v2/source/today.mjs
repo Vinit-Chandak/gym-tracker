@@ -83,16 +83,14 @@ ${K.printFrame(print, { mt: 2 })}
 </section>
 ${
   coach
-    ? coach.tone === "planning"
-      ? `<p role="status" style="${s({ display: "flex", gap: 8, "align-items": "flex-start", "margin-top": 10, color: t.ink2 })}; ${txt(15, 500, { "line-height": 1.4 })}"><span style="${s({ display: "grid", "flex-shrink": 0, "margin-top": 1, color: t.ink })}">${icon("coach", 18)}</span><span>${coach.text}</span></p>`
-      : `<div style="margin-top:10px">${K.coachNote(t, { ...coach, dv, size: 15 })}</div>`
+    ? `<div${coach.tone === "planning" ? ' role="status"' : ""} style="margin-top:10px">${K.coachNote(t, { ...coach, dv, size: 15 })}</div>`
     : ""
 }
 <ul aria-label="Today: the run first, then the arms" style="margin-top:${coach ? 10 : 8}px">${runRow}${plan}</ul>`,
     { dv, bottom: pinned + 56 + 8, fade: tiny ? 12 : true },
   )}
 <div style="${s({ position: "absolute", left: G, right: G, bottom: pinned, display: "flex", gap: 10 })}">
-  <button type="button" style="${K.BTN(t, "primary")}; flex: 1 1 auto; min-width: 0">${icon("play", 20)}Start workout</button>
+  <a href="Check-in.dc.html" style="${K.BTN(t, "primary")}; flex: 1 1 auto; min-width: 0">${icon("play", 20)}Start workout</a>
   <button type="button" aria-label="More options: another day, ad hoc, the coach, skip" aria-haspopup="dialog" style="${K.BTN(t, "tonal", { w: 56 })}">${icon("more", 24)}</button>
 </div>
 ${K.navbar(t, "today", { dv })}`;

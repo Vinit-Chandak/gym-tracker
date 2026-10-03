@@ -206,7 +206,9 @@ const FORM_ICONS = {
           `<rect x="${x}" y="5.5" width="5" height="5.5" rx="0.6"${F_(f)}/><rect x="${x}" y="13" width="5" height="5.5" rx="0.6"${F_(f)}/>`,
       )
       .join(""),
-  food: (f) => `<path d="M2.5 8h19a9.5 9.5 0 0 1-19 0z"${F_(f)}/>`,
+  // the bowl with its heap, as tall as the other destinations
+  food: (f) =>
+    `<path d="M2.5 10.5h19a9.5 9 0 0 1-19 0z"${F_(f)}/><path d="M7 10.5a5 4.6 0 0 1 10 0"${F_(f)}/>`,
   progress: (f) =>
     `<rect x="4" y="4" width="7" height="7" rx="0.6"${F_(f)}/><circle cx="16.5" cy="7.5" r="3.5"${F_(f)}/><circle cx="7.5" cy="16.5" r="3.5"${F_(f)}/><rect x="13" y="13" width="7" height="7" rx="0.6"${F_(f)}/>`,
   profile: (f) =>
@@ -303,7 +305,7 @@ export function navbar(t, active, { nested = false, dv = D, pos = "absolute" } =
     const on = key === active;
     return `<a href="${links[key] || "#"}" ${on ? `aria-current="${nested ? "true" : "page"}"` : ""} style="${s({ display: "flex", "flex-direction": "column", "align-items": "center", "justify-content": "center", gap: 3, height: 44, "min-width": 0, color: on ? t.ink : t.ink2 })}">${icon(key, 24, { filled: on })}<span class="nb" style="${txt(lab, on ? 700 : 600, { "line-height": 1 })}">${label}</span></a>`;
   }).join("");
-  return `<nav aria-label="Destinations" style="${s({ position: pos, left: 0, right: 0, bottom: 0, height: NB, padding: `3px 6px ${NB - 47}px`, display: "grid", "grid-template-columns": "repeat(5, minmax(0, 1fr))", background: t.ground, "border-top": `1px solid ${t.hair}`, "z-index": 3 })}">${items}</nav>`;
+  return `<nav aria-label="Destinations" style="${s({ position: pos, left: 0, right: 0, bottom: 0, height: NB, padding: `2px 6px ${NB - 46}px`, display: "grid", "grid-template-columns": "repeat(5, minmax(0, 1fr))", background: t.ground, "border-top": `1px solid ${t.hair}`, "z-index": 3 })}">${items}</nav>`;
 }
 // The rest timer as a pill: a ring that empties and the time. One tap opens +30 s and Stop. It sits
 // in the header of the workout and of logging; elsewhere the session strip carries it.
@@ -327,10 +329,13 @@ export function restPill(
     aria = "Rest, 2 minutes 14 seconds left. Add 30 seconds or stop",
     go = false,
     timeHtml = null,
+    ringHtml = null,
   } = {},
 ) {
-  // the pill is 36 pt to see and 44 to touch
-  return `<button type="button" aria-haspopup="dialog" aria-label="${aria}" style="${s({ display: "flex", "align-items": "center", height: 44, "flex-shrink": 0 })}"><span style="${s({ display: "flex", "align-items": "center", gap: 7, height: 36, padding: "0 12px 0 9px", "border-radius": 18, background: go ? t.ink : t.surface, color: go ? t.onInk : t.ink })}">${go ? icon("rest", 18) : restRing(t, frac)}<span role="timer" style="${num(17)}">${timeHtml || time}</span></span></button>`;
+  // the pill is 36 pt to see and 44 to touch; a pill whose time changes on screen is named by the
+  // time it shows
+  const live = !!ringHtml;
+  return `<button type="button" aria-haspopup="dialog"${live ? "" : ` aria-label="${aria}"`} style="${s({ position: "relative", display: "flex", "align-items": "center", height: 44, "flex-shrink": 0 })}">${live ? `<span class="sr">Rest,</span>` : ""}<span style="${s({ display: "flex", "align-items": "center", gap: 7, height: 36, padding: "0 12px 0 9px", "border-radius": 18, background: go ? t.ink : t.surface, color: go ? t.onInk : t.ink })}">${go ? icon("rest", 18) : ringHtml || restRing(t, frac)}<span role="timer" style="${num(17)}">${timeHtml || time}</span></span>${live ? `<span class="sr">left. Add 30 seconds or stop</span>` : ""}</button>`;
 }
 export const stripH = 52;
 export function strip(
@@ -350,6 +355,9 @@ export function root(t, inner, { label, dv = D, height = null } = {}) {
 }
 export const rgba0 = (hex) =>
   `rgba(${parseInt(hex.slice(1, 3), 16)}, ${parseInt(hex.slice(3, 5), 16)}, ${parseInt(hex.slice(5, 7), 16)}, 0)`;
+// the soft edge where a list kept at its end passes under what is above it
+export const fadeFrom = (t, h = 20) =>
+  `<span aria-hidden="true" style="${s({ position: "absolute", left: 0, right: 0, top: 0, height: h, background: `linear-gradient(to top, ${rgba0(t.ground)}, ${t.ground})`, "pointer-events": "none", "z-index": 1 })}"></span>`;
 export const fadeTo = (t, h = 24) =>
   `<div aria-hidden="true" style="${s({ position: "absolute", left: 0, right: 0, bottom: 0, height: h, background: `linear-gradient(to bottom, ${rgba0(t.ground)}, ${t.ground})`, "pointer-events": "none" })}"></div>`;
 // The scrolling body of a screen. It stops above whatever is pinned below it and fades under it.
@@ -517,7 +525,13 @@ export function sheet(t, inner, { dv = D, top = null, id = "sheet-title", height
 
 // ---------- input: the stepper ----------
 // A figure with its unit under it and two round buttons. Suggested (ink 2, dotted) until touched;
-// then ink, because it is what Save records. Empty shows an en dash and what the target is.
+// then ink, because it is what Save records. Empty shows an en dash and what the target is. The
+// figure is itself a button: a tap types it, and an empty RIR's dash takes its target. Where the
+// column is too narrow for − and + side by side, they stand over and under the figure (+ above,
+// − below), so the three columns survive on the narrowest phone. The unit takes one line and the
+// hint a second, under it, in every column, so the buttons line up whatever the hint.
+export const infoTip = (t, label, { glyph = 15 } = {}) =>
+  `<button type="button" aria-haspopup="dialog" aria-label="${esc(label)}" style="${s({ display: "inline-grid", "place-items": "center", width: 44, height: 44, margin: "-13px -14px -13px -12px", color: t.ink2, "flex-shrink": 0 })}">${icon("info", glyph)}</button>`;
 export function stepFigure(
   t,
   {
@@ -532,24 +546,38 @@ export function stepFigure(
     w = null,
     swapCls = null,
     swapTo = null,
+    swapState = "suggested",
     bgap = 8,
     bsize = 44,
+    vertical = false,
+    name = null,
+    lines = 2,
   } = {},
 ) {
-  const shown =
-    state === "empty"
+  const fig = (v, st) =>
+    st === "empty"
       ? `<span style="${num(size, { lh: 1.1 })}; color: ${t.control}">–</span>`
-      : state === "suggested"
-        ? `<span style="${num(size, { lh: 1.1 })}; color: ${t.ink2}; text-decoration: underline dotted 2px; text-underline-offset: 6px">${value}</span>`
-        : `<span style="${num(size, { lh: 1.1 })}; color: ${t.ink}">${value}</span>`;
-  const swap = swapCls
-    ? `<span style="display:inline-grid"><span class="${swapCls[0]}" style="grid-area:1/1"><span style="${num(size, { lh: 1.1 })}; color: ${t.ink}">${value}</span></span><span class="${swapCls[1]}" aria-hidden="true" style="grid-area:1/1"><span style="${num(size, { lh: 1.1 })}; color: ${t.ink2}; text-decoration: underline dotted 2px; text-underline-offset: 6px">${swapTo ?? value}</span></span></span>`
-    : shown;
-  return `<div role="group" aria-label="${esc(unit)}" style="${s({ display: "flex", "flex-direction": "column", "align-items": "center", gap: 6, "min-width": 0, width: w ?? undefined })}">
-<output aria-label="${esc(`${state === "empty" ? "not set" : value} ${unit}${state === "suggested" ? ", suggested, not yet confirmed" : ""}`)}" style="${s({ display: "block", "text-align": "center", "white-space": "nowrap" })}">${swap}</output>
-<span style="${s({ display: "flex", "align-items": "center", gap: 5, "min-height": 18 })}; ${txt(13, 600, { color: t.ink2 })}"><span class="nb">${unit}</span>${hint ? `<span class="nb" style="${s({ color: t.ink2, "font-weight": 500 })}">· ${hint}</span>` : ""}${tag || ""}</span>
-<span style="${s({ display: "flex", gap: bgap, "margin-top": 2 })}">${roundBtn(t, "minus", dec, { size: bsize })}${roundBtn(t, "plus", inc, { size: bsize })}</span>
-</div>`;
+      : st === "suggested"
+        ? `<span style="${num(size, { lh: 1.1 })}; color: ${t.ink2}; text-decoration: underline dotted 2px; text-underline-offset: 6px">${v}</span>`
+        : `<span style="${num(size, { lh: 1.1 })}; color: ${t.ink}">${v}</span>`;
+  // a figure that changes on screen (the moment a set is saved) is read from what shows: each
+  // layer names itself, and the one hidden is out of the tree
+  const shown = swapCls
+    ? `<span style="display:inline-grid"><span class="${swapCls[0]}" style="grid-area:1/1">${fig(value, state === "empty" ? "touched" : state)}<span class="sr"> ${unit}</span></span><span class="${swapCls[1]}" style="grid-area:1/1">${fig(swapTo ?? value, swapState)}<span class="sr">${swapState === "empty" ? ` ${unit} not set` : ` ${unit}, suggested`}</span></span></span>`
+    : fig(value, state);
+  const label =
+    name ??
+    (state === "empty"
+      ? `${unit} not set${hint ? `, ${hint}` : ""}. Use the target`
+      : `${value} ${unit}${state === "suggested" ? ", suggested" : ""}. Type ${unit}`);
+  const figure = `<button type="button"${swapCls ? "" : ` aria-label="${esc(label)}"`} style="${s({ display: "flex", "align-items": "center", "justify-content": "center", "min-height": 44, "min-width": 44, "white-space": "nowrap" })}">${shown}</button>`;
+  const units = `<span style="${s({ display: "flex", "flex-direction": "column", "align-items": "center", "min-height": lines * 17 })}; ${txt(13, 600, { color: t.ink2, "line-height": 1.3 })}"><span class="nb" style="${s({ display: "flex", "align-items": "center", gap: 4 })}">${unit}${tag || ""}</span>${hint ? `<span class="nb" style="${s({ "font-weight": 500 })}">${hint}</span>` : ""}</span>`;
+  const minus = roundBtn(t, "minus", dec, { size: bsize });
+  const plus = roundBtn(t, "plus", inc, { size: bsize });
+  const inner = vertical
+    ? `${plus}${figure}${minus}${units}`
+    : `${figure}${units}<span style="${s({ display: "flex", gap: bgap, "margin-top": 2 })}">${minus}${plus}</span>`;
+  return `<div role="group" aria-label="${esc(unit)}" style="${s({ display: "flex", "flex-direction": "column", "align-items": "center", gap: vertical ? 4 : 6, "min-width": 0, width: w ?? undefined })}">${inner}</div>`;
 }
 // A choice drawn as glyphs: two or three toggles, each an icon with a short word under it.
 export function iconChoice(t, items, chosen = 0, { label = "Where", size = 26 } = {}) {
@@ -636,13 +664,12 @@ export function stateMark(
   t,
   sport,
   size = 16,
-  { state = "done", indoor = false, segments = 0, done = 0, label = null } = {},
+  { state = "done", segments = 0, done = 0, label = null } = {},
 ) {
   const k = sport === "lift" ? "strength" : sport;
   const pad = 1;
   const svgInner = artForm(k, 0, 0, size, size, {
     state,
-    indoor,
     segments,
     done,
     col: t.marks[k],
@@ -658,7 +685,7 @@ export const markCell = (inner) =>
 // Equipment as a glyph in a meta line, with its name for screen readers.
 export const equip = (t, glyphName, label, size = 16) =>
   `<span role="img" aria-label="${esc(label)}" style="${s({ display: "inline-grid", color: t.ink2, "vertical-align": "-3px" })}">${icon(glyphName, size)}</span>`;
-// A meta line of facts, each a glyph and a figure: "[dumbbell] 4 × 3–5 @ 2 · [rest] 3–4 min".
+// A meta line of facts, each a glyph and a figure: "[dumbbell] 4 × 3–5 @ 2 RIR · [rest] 3–4 min".
 export const metaLine = (t, parts, { size = 15, mt = 4 } = {}) =>
   `<p style="${s({ display: "flex", "align-items": "center", "flex-wrap": "wrap", gap: "2px 12px", "margin-top": mt, color: t.ink2 })}; ${txt(size, 500)}; ${tn}">${parts
     .filter(Boolean)

@@ -49,17 +49,18 @@ ${pageTitle(t, "Gyms")}
     { label: "Gyms", dv },
   );
 }
-// A gym: how the programme fits it, then its machines, each led by its kind of equipment, in the
-// app's order (93 at the default gym, so the list scrolls on; Add machine heads it).
+// A gym: how the programme fits it, then its machines in the app's order (93 at the default gym,
+// so the list scrolls on; Add machine heads it): each name at the gutter, its kind of equipment
+// leading the second line, as on the workout's rows.
 export function gymScreen(t, dv = K.D) {
   const rowFor = (m) =>
-    `<li><a href="#" style="${s({ display: "flex", "align-items": "center", gap: 12, "min-height": 56, padding: "7px 0", "border-bottom": `1px solid ${t.hair}` })}">${K.markCell(`<span style="display:grid">${icon(m.glyph, 21)}</span>`)}<span style="${s({ display: "flex", "flex-direction": "column", flex: "1 1 auto", "min-width": 0 })}"><span class="wrap" style="${txt(16, 700)}">${m.name}</span><span class="wrap" style="${txt(14, 500, { color: t.ink2 })}">${m.load}</span></span>${m.step ? `<span style="${txt(15, 700)}; ${tn}">${m.step}</span>` : ""}${K.chev(t)}</a></li>`;
+    `<li><a href="#" style="${s({ display: "flex", "align-items": "center", gap: 12, "min-height": 56, padding: "7px 0", "border-bottom": `1px solid ${t.hair}` })}"><span style="${s({ display: "flex", "flex-direction": "column", flex: "1 1 auto", "min-width": 0 })}"><span class="wrap" style="${txt(16, 700)}">${m.name}</span><span class="wrap" style="${s({ display: "flex", "align-items": "center", gap: 6 })}; ${txt(14, 500, { color: t.ink2 })}"><span style="display:grid">${icon(m.glyph, 16)}</span>${m.load}</span></span>${m.step ? `<span style="${txt(15, 700)}; ${tn}">${m.step}</span>` : ""}${K.chev(t)}</a></li>`;
   const fit = `<a href="#" style="${s({ display: "flex", "align-items": "center", gap: 12, "min-height": 60, padding: "8px 0", "border-bottom": `1px solid ${t.hair}`, "margin-top": 10 })}">${K.markCell(`<span style="display:grid">${icon("table", 21)}</span>`)}<span style="${s({ display: "flex", "flex-direction": "column", flex: "1 1 auto", "min-width": 0 })}"><span style="${txt(16, 700)}">Programme fit</span><span style="${txt(14, 500, { color: t.ink2 })}; ${tn}">${programmeFit}</span></span>${K.chev(t)}</a>`;
   const inner = `${K.nestedHeader(t, "Gyms", `<button type="button" style="${K.BTN(t, "text", { h: 44 })}; margin-right: 6px; font-size: 16px">Edit</button>`)}
 ${pageTitle(t, "Anytime Fitness")}
 ${K.metaLine(t, [`${icon("pin", 16)}<span>Gym</span>`, `${icon("check", 16)}<span>Default gym</span>`], { mt: 4 })}
 ${fit}
-<div style="${s({ display: "flex", "align-items": "center", "justify-content": "space-between", "margin-top": 14 })}">${K.caption(t, `${machineCount} machines`, { mt: 0 })}<button type="button" style="${s({ display: "flex", "align-items": "center", gap: 6, height: 44, "margin-right": -4 })}; ${txt(15, 700)}">${icon("plus", 18)}Add machine</button></div>
+<div style="${s({ display: "flex", "align-items": "center", "justify-content": "space-between", "margin-top": 14 })}">${K.caption(t, `${machineCount} machines`, { mt: 0 })}<button type="button" style="${s({ display: "flex", "align-items": "center", gap: 6, height: 44 })}; ${txt(15, 700)}">${icon("plus", 18)}Add machine</button></div>
 <ul>${machines.map(rowFor).join("")}</ul>`;
   return K.root(
     t,
@@ -80,7 +81,7 @@ ${sw("Share training with followers", "Off means followers see your profile card
 ${sw("Share body weight for relative strength", "On means followers who also share theirs see “per kg of body weight” rows and rankings.", true)}
 ${sw("Let people find me by email", "Off means the exact-email lookup does not return you; username search still does.", true, { last: true })}
 </ul>
-<ul style="margin-top:14px">${sw("Share cycling with followers", "", true, { lead: K.stateMark(t, "ride", 16) })}${sw("Share swimming with followers", "", true, { lead: K.stateMark(t, "swim", 16), last: true })}</ul>
+<ul style="margin-top:14px">${sw("Share cycling with followers", "", true)}${sw("Share swimming with followers", "", true, { last: true })}</ul>
 <p style="${txt(14, 500, { color: t.ink2, "line-height": 1.35 })}; margin-top: 2px">Both share the date, duration and known distance. Share training with followers must also be on.</p>
 ${sect(t, "", `${setRow(t, "people", "What a follower can see")}${setRow(t, "lock", "What nobody can see", { last: true })}`, { mt: 12 })}`;
   return K.root(
@@ -117,20 +118,23 @@ const OP = {
 };
 export function programmeChangeScreen(t, dv = K.D) {
   const G = K.gut(dv);
-  const arrow = `<span aria-label="becomes" style="${s({ display: "inline-grid", color: t.ink2, "vertical-align": "-3px", margin: "0 4px" })}">${icon("arrowRight", 15)}</span>`;
+  // the old value struck and the new one in ink; both are said, "was" and "becomes"
+  const arrow = `<span aria-hidden="true" style="${s({ display: "inline-grid", color: t.ink2, "vertical-align": "-3px", margin: "0 4px" })}">${icon("arrowRight", 15)}</span><span class="sr">, becomes </span>`;
   const field = ([k, a, b]) =>
-    `<p style="${txt(15, 500, { color: t.ink2 })}; ${tn}">${k} <span style="text-decoration:line-through">${a}</span>${arrow}<span style="${s({ color: t.ink, "font-weight": 700 })}">${b}</span></p>`;
+    `<p style="${txt(15, 500, { color: t.ink2 })}; ${tn}">${k} <span class="sr">was </span><span style="text-decoration:line-through">${a}</span>${arrow}<span style="${s({ color: t.ink, "font-weight": 700 })}">${b}</span></p>`;
+  // each change at the gutter: what kind of change, led by its glyph, then what it changes
   const op = (o, last) => {
-    const lead = OP[o.op] ? icon(OP[o.op], 18) : K.stateMark(t, "run", 16);
+    const lead = OP[o.op] ? icon(OP[o.op], 14) : K.stateMark(t, "run", 14);
     const name = o.to ? `${o.name}${arrow}${o.to}` : o.name || "";
-    return `<li style="${s({ display: "flex", gap: 12, padding: "10px 0", "border-bottom": last ? 0 : `1px solid ${t.hair}` })}">${K.markCell(`<span style="display:grid;padding-top:2px">${lead}</span>`).replace("align-items: center", "align-items: flex-start")}<span style="${s({ display: "flex", "flex-direction": "column", gap: 2, flex: "1 1 auto", "min-width": 0 })}"><span style="${txt(12, 700, { color: t.ink2, "letter-spacing": "0.02em" })}">${o.op}</span>${name ? `<span class="wrap" style="${txt(16, 700)}">${name}</span>` : ""}${(o.lines || []).map(field).join("")}${o.rx ? `<p style="${txt(15, 500, { color: t.ink2 })}; ${tn}">${o.rx}</p>` : ""}${o.note ? `<p style="${txt(14, 500, { color: t.ink2 })}">${o.note}</p>` : ""}${o.tag ? `<p style="margin-top:4px"><span style="${s({ display: "inline-block", padding: "3px 9px", "border-radius": 8, background: t.surface })}; ${txt(13, 600)}">“${CH.ask}”</span></p>` : ""}</span></li>`;
+    return `<li style="${s({ padding: "10px 0", "border-bottom": last ? 0 : `1px solid ${t.hair}` })}"><span style="${s({ display: "flex", "flex-direction": "column", gap: 2, "min-width": 0 })}"><span style="${s({ display: "flex", "align-items": "center", gap: 6 })}; ${txt(12, 700, { color: t.ink2, "letter-spacing": "0.02em" })}"><span aria-hidden="true" style="display:grid">${lead}</span>${o.op}</span>${name ? `<span class="wrap" style="${txt(16, 700)}">${name}</span>` : ""}${(o.lines || []).map(field).join("")}${o.rx ? `<p style="${txt(15, 500, { color: t.ink2 })}; ${tn}">${o.rx}</p>` : ""}${o.note ? `<p style="${txt(14, 500, { color: t.ink2 })}">${o.note}</p>` : ""}${o.tag ? `<p style="margin-top:4px"><span style="${s({ display: "inline-block", padding: "3px 9px", "border-radius": 8, background: t.surface })}; ${txt(13, 600)}">“${CH.ask}”</span></p>` : ""}</span></li>`;
   };
+  // each day a section under a rule, at the gutter, not a card
   const day = (d) =>
-    `<section style="${s({ "margin-top": 14, padding: "4px 14px 6px", "border-radius": 14, border: `1.5px solid ${t.hair}` })}"><h3 style="${s({ display: "flex", "justify-content": "space-between", "align-items": "baseline", height: 40 })}"><span style="${txt(17, 700)}">${d.name}</span><span style="${txt(14, 600, { color: t.ink2 })}">${d.when}</span></h3>${(d.fields || []).map((f) => `<div style="padding-bottom:6px">${field(f)}</div>`).join("")}<ul style="border-top:1px solid ${t.hair}">${d.ops.map((o, i) => op(o, i === d.ops.length - 1)).join("")}</ul></section>`;
+    `<section style="${s({ "margin-top": 14, "padding-top": 6, "border-top": `1.5px solid ${t.ink}` })}"><h3 style="${s({ display: "flex", "justify-content": "space-between", "align-items": "baseline", height: 40 })}"><span style="${txt(17, 700)}">${d.name}</span><span style="${txt(14, 600, { color: t.ink2 })}">${d.when}</span></h3>${(d.fields || []).map((f) => `<div style="padding-bottom:6px">${field(f)}</div>`).join("")}<ul style="border-top:1px solid ${t.hair}">${d.ops.map((o, i) => op(o, i === d.ops.length - 1)).join("")}</ul></section>`;
   const inner = `${K.nestedHeader(t, "Profile")}
 <h2 style="${title(26, { lh: 1.15 })}; margin-top: 2px">${CH.headline}</h2>
 <details style="margin-top:10px"><summary style="${s({ display: "flex", "align-items": "center", gap: 6, height: 44, "list-style": "none", cursor: "pointer" })}; ${txt(15, 700)}">${icon("info", 18)}Why</summary></details>
-<section style="${s({ "margin-top": 4, padding: "4px 14px 8px", "border-radius": 14, border: `1.5px solid ${t.hair}` })}"><h3 style="${s({ display: "flex", "align-items": "center", height: 40 })}; ${txt(17, 700)}">Programme</h3>${CH.programme.map(field).join("")}</section>
+<section style="${s({ "margin-top": 4, padding: "6px 0", "border-top": `1.5px solid ${t.ink}` })}"><h3 style="${s({ display: "flex", "align-items": "center", height: 40 })}; ${txt(17, 700)}">Programme</h3>${CH.programme.map(field).join("")}</section>
 ${CH.days.map(day).join("")}
 <p style="${txt(14, 500, { color: t.ink2 })}; margin-top: 14px">This changes the programme's structure, so it starts a new block.</p>`;
   const foot = `<div style="${s({ position: "absolute", left: G, right: G, bottom: K.navH(dv) + 10, display: "flex", "flex-direction": "column", gap: 4, background: t.ground })}"><div style="${s({ display: "flex", gap: 8 })}"><button type="button" style="${K.BTN(t, "primary")}; flex: 1 1 auto">Approve</button><button type="button" style="${K.BTN(t, "tonal")}">Decline</button></div><button type="button" style="${s({ height: 44 })}; ${txt(15, 700)}">Ask for changes</button></div>`;

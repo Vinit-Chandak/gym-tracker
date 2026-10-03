@@ -15,7 +15,7 @@ const { txt, num, title, icon, tn } = K;
 // is clipped and six choices never crowd the screen.
 export const SECTIONS = ["Overview", "History", "Strength", "Running", "Recovery", "Body"];
 export function progressHeader(t, dv, section, range = "") {
-  return `${K.topHeader(t, dv, "Progress", K.iconBtn(t, "sliders", "Filters: dates, activity, gym", { "margin-right": -10 }))}
+  return `${K.topHeader(t, dv, "Progress", K.iconBtn(t, "filter", "Filters: dates, activity, gym", { "margin-right": -10 }))}
 <div style="${s({ display: "flex", "align-items": "center", "justify-content": "space-between", gap: 12, "flex-wrap": "wrap", "margin-top": 4 })}"><button type="button" aria-haspopup="dialog" aria-label="Progress section: ${section}" style="${s({ display: "inline-flex", "align-items": "center", gap: 6, height: 44, padding: "0 12px 0 14px", "border-radius": 14, background: t.surface })}; ${txt(16, 700)}">${section}${icon("chevronDown", 18)}</button>${range ? `<span style="${txt(14, 600, { color: t.ink2 })}; ${tn}">${range}</span>` : ""}</div>`;
 }
 
@@ -66,7 +66,7 @@ const markW = (x, sz) => (x.sport === "run" ? sz * 1.6 : sz);
 function calMark(t, x, cx, cy, sz) {
   const w = markW(x, sz),
     h = x.sport === "run" ? sz * 0.85 : sz;
-  return form(x.sport, cx - w / 2, cy - h / 2, w, h, { indoor: !!x.indoor, paper: t.paper });
+  return form(x.sport, cx - w / 2, cy - h / 2, w, h, { paper: t.paper });
 }
 // A day's marks as one group centred in its cell: one large, two side by side, three or four in
 // two rows of two; past four, three and +N.
@@ -127,7 +127,7 @@ export function monthGrid(
     const list = days[dom] || [];
     const future = today !== null && dom > today;
     const isToday = dom === today;
-    const top = numbers ? 8 : 0;
+    const top = numbers ? 12 : 0;
     const art = list.length
       ? dayMarks(t, list, SW, cellH - top, { fit })
       : future
@@ -137,7 +137,7 @@ export function monthGrid(
       ? `<svg width="${SW}" height="${cellH - top}" viewBox="0 0 ${SW} ${cellH - top}" aria-hidden="true" style="display:block;overflow:visible">${art}</svg>`
       : "";
     const date = numbers
-      ? `<span aria-hidden="true" style="${s({ position: "absolute", left: 6, top: 4 })}; ${txt(12, isToday ? 800 : 600, { color: isToday ? P.ink : P.label, "line-height": 1 })}; ${tn}">${dom}</span>`
+      ? `<span aria-hidden="true" style="${s({ position: "absolute", left: 8, top: 7 })}; ${num(13, { wt: isToday ? 700 : 500 })}; color: ${isToday ? P.ink : P.label}">${dom}</span>`
       : "";
     const ring = isToday
       ? `<span aria-hidden="true" style="${s({ position: "absolute", inset: 3, border: `1.5px solid ${P.ink}`, "border-radius": 10 })}"></span>`
@@ -178,7 +178,7 @@ export function progressScreen(t, dv = K.D) {
 ${cal}
 </section>
 <section aria-labelledby="tot" style="margin-top:12px;border-top:1px solid ${t.hair};padding-top:12px"><h3 id="tot" class="sr">Sessions in September</h3><ul style="${s({ display: "grid", "grid-template-columns": "repeat(4, minmax(0,1fr))", gap: 8 })}">${stat("strength", septTotals.strength.sessions, "Lifting")}${stat("run", septTotals.run.sessions, "Runs", `${septTotals.run.km} km`)}${stat("ride", septTotals.ride.sessions, "Rides", `${septTotals.ride.km} km`)}${stat("swim", septTotals.swim.sessions, "Swims", `${septTotals.swim.km} km`)}</ul></section>`;
-  const body = `${K.screenMain(t, inner, { dv, bottom: K.navH(dv) + 8 + K.stripH + 6 })}${K.strip(t, { dv })}${K.navbar(t, "progress", { dv })}`;
+  const body = `${K.screenMain(t, inner, { dv, bottom: K.navH(dv) + 8 })}${K.navbar(t, "progress", { dv })}`;
   return K.root(t, body, { label: "Progress", dv });
 }
 
@@ -186,7 +186,7 @@ ${cal}
 // this month.
 export function calendarScreen(t, dv = K.D) {
   const month = (name, m, days, today = null) =>
-    `<section aria-labelledby="m-${m}"><h3 id="m-${m}" style="${s({ padding: "14px 0 6px" })}; ${txt(17, 700)}">${name}</h3>${monthGrid(t, { year: 2026, month: m, days, today, cellH: 56, numbers: true, open: { 25: "Day.dc.html" } })}</section>`;
+    `<section aria-labelledby="m-${m}"><h3 id="m-${m}" style="${s({ padding: "14px 0 6px" })}; ${txt(17, 700)}">${name}</h3>${monthGrid(t, { year: 2026, month: m, days, today, cellH: 56, numbers: true, open: m === 8 ? { 25: "Day.dc.html" } : {} })}</section>`;
   const legend = `<p aria-hidden="true" style="${s({ display: "flex", gap: 14, "align-items": "center", "flex-wrap": "wrap", "margin-top": 6 })}; ${txt(13, 600, { color: t.ink2 })}">${[
     ["strength", "Lifting"],
     ["run", "Run"],
@@ -197,9 +197,7 @@ export function calendarScreen(t, dv = K.D) {
       ([k, l]) =>
         `<span style="display:inline-flex;align-items:center;gap:5px">${K.stateMark(t, k, 14)}${l}</span>`,
     )
-    .join(
-      "",
-    )}<span style="display:inline-flex;align-items:center;gap:5px">${K.stateMark(t, "run", 14, { indoor: true })}Indoors</span></p>`;
+    .join("")}</p>`;
   // August scrolled most of the way off the top, September below it
   const inner = `${K.nestedHeader(t, "Progress")}
 <h2 style="${title(34)}; margin-top: 2px">Calendar</h2>
@@ -256,20 +254,29 @@ export function exerciseScreen(t, dv = K.D) {
   const m = benchLife.months;
   // the heaviest working set of each month, as bars in ink on the ground like every Progress
   // chart: control grey, the latest month in ink; its first and latest figures said once, above
+  // the scale in the left margin, as on every Progress chart
   const w = cw,
     h = 132,
     top = 8,
-    bottom = h - 2;
-  const hi = Math.max(...m);
-  const bw = w / m.length;
+    bottom = h - 2,
+    padL = 26;
+  const hi = 80;
+  const bw = (w - padL) / m.length;
+  const yOf = (v) => bottom - (v / hi) * (bottom - top);
   const bars = m
     .map((v, i) => {
-      const bh = (v / hi) * (bottom - top);
       const last = i === m.length - 1;
-      return `<rect x="${(i * bw + 0.7).toFixed(1)}" y="${(bottom - bh).toFixed(1)}" width="${(bw - 1.4).toFixed(1)}" height="${bh.toFixed(1)}" rx="1" fill="${last ? t.ink : t.control}"/>`;
+      return `<rect x="${(padL + i * bw + 0.7).toFixed(1)}" y="${yOf(v).toFixed(1)}" width="${(bw - 1.4).toFixed(1)}" height="${(bottom - yOf(v)).toFixed(1)}" rx="1" fill="${last ? t.ink : t.control}"/>`;
     })
     .join("");
-  const chart = `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="The heaviest working set each month, from 30 kg in February 2022 to 72.5 kg in September 2026" style="display:block;width:100%;height:auto"><line x1="0" x2="${w}" y1="${bottom}" y2="${bottom}" stroke="${t.hair}" stroke-width="1"/>${bars}</svg>`;
+  const F = "font-family:'Atkinson Hyperlegible Next',sans-serif";
+  const scale = [40, 80]
+    .map(
+      (v) =>
+        `<line x1="${padL}" x2="${w}" y1="${yOf(v).toFixed(1)}" y2="${yOf(v).toFixed(1)}" stroke="${t.hair}" stroke-width="1"/><text x="0" y="${(yOf(v) + 4).toFixed(1)}" style="${F};font-size:12px;font-weight:600;fill:${t.ink2}">${v}</text>`,
+    )
+    .join("");
+  const chart = `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="The heaviest working set each month, from 30 kg in February 2022 to 72.5 kg in September 2026" style="display:block;width:100%;height:auto">${scale}<line x1="${padL}" x2="${w}" y1="${bottom}" y2="${bottom}" stroke="${t.hair}" stroke-width="1"/>${bars}</svg>`;
   const recent = benchLife.recent
     .map(
       (r) =>
@@ -280,7 +287,7 @@ export function exerciseScreen(t, dv = K.D) {
     `<div style="${s({ display: "flex", "flex-direction": "column", "min-width": 0 })}"><span class="nb" style="${s({ display: "flex", "align-items": "baseline", gap: 3 })}"><span style="${num(26)}">${n}</span><span style="${txt(13, 600, { color: t.ink2 })}">${u}</span></span><span style="${txt(13, 500, { color: t.ink2 })}">${l}</span></div>`;
   const inner = `${K.nestedHeader(t, "History")}
 <h2 style="${title(34)}; margin-top: 2px">Barbell bench press</h2>
-${K.metaLine(t, [`${K.equip(t, "dumbbell", "Free weights")}<span>Barbell</span>`, `${icon("pin", 16)}<span>Anytime Fitness</span>`], { mt: 4 })}
+${K.metaLine(t, [`<span aria-hidden="true" style="display:inline-grid">${icon("dumbbell", 16)}</span><span>Free weights</span>`, `${icon("pin", 16)}<span>Anytime Fitness</span>`], { mt: 4 })}
 <p style="${s({ display: "flex", "justify-content": "space-between", "align-items": "baseline", gap: 8, "margin-top": 14 })}"><span style="${txt(13, 700, { color: t.ink2 })}">Heaviest set each month</span><span style="${txt(13, 500, { color: t.ink2 })}; ${tn}">30 → 72.5 kg</span></p>
 <div style="margin-top:8px">${chart}</div>
 <p aria-hidden="true" style="${s({ display: "flex", "justify-content": "space-between", "margin-top": 4 })}; ${txt(12, 600, { color: t.ink2 })}"><span>Feb 2022</span><span>Sept 2026</span></p>

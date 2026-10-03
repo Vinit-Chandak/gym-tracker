@@ -22,6 +22,8 @@ const GLYPHS = {
   timer: `<circle cx="12" cy="13.5" r="7.5"/><path d="M12 13.5V9.8M9.5 3h5"/>`,
   stop: `<rect x="6.5" y="6.5" width="11" height="11" rx="2.5"/>`,
   sliders: `<path d="M4 8h9M17 8h3M4 16h3M11 16h9"/><circle cx="15" cy="8" r="2"/><circle cx="9" cy="16" r="2"/>`,
+  // Filters: a funnel, so it is never the sliders of Set options
+  filter: `<path d="M4 5.5h16l-6.2 7.3v5.4l-3.6 2.3v-7.7z"/>`,
   info: `<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5"/>${dot(12, 7.8, 1.25)}`,
   history: `<path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 4.5V8H8"/><path d="M12 8.5V12l2.5 1.5"/>`,
   cue: `<rect x="4.5" y="4" width="15" height="16" rx="3"/><path d="M8.5 9h7M8.5 12.5h7M8.5 16h4"/>`,
@@ -69,7 +71,7 @@ const GLYPHS = {
   outdoor: `<path d="M3 18h18"/><path d="M7.4 18a4.6 4.6 0 0 1 9.2 0"/><path d="M12 9.6V7.4M7.6 12.2L6.1 10.7M16.4 12.2l1.5-1.5"/>`,
   treadmill: `<path d="M3.5 19.5h12.8a1.7 1.7 0 0 0 0-3.4H3.5a1.7 1.7 0 0 0 0 3.4z"/><path d="M17.2 16.2L19.4 6.5h-4.2"/>`,
   // an indoor bike: a wheel held up by a stand from its hub, on the floor
-  trainer: `<circle cx="12" cy="9.5" r="6"/><circle cx="12" cy="9.5" r="1.3"/><path d="M12 9.5L6.8 20.5M12 9.5l5.2 11M4 20.5h16"/>`,
+  trainer: `<path d="M3.5 20.5h17"/><path d="M7 20.5L9.6 8.2"/><path d="M6.8 7.6h5.4"/><path d="M8.9 12.4h7.4"/><path d="M16.3 20.5V5.2h3.2"/><circle cx="16.3" cy="15.6" r="2.9"/>`,
   pool: `<path d="M3.5 6.5h17M3.5 17.5h17"/><path d="M3.5 12c1.4 0 2.1-1.4 4.2-1.4s2.8 1.4 4.3 1.4 2.2-1.4 4.3-1.4 2.8 1.4 4.2 1.4"/>`,
   openwater: `<path d="M3.5 10c1.4 0 2.1-1.4 4.2-1.4s2.8 1.4 4.3 1.4 2.2-1.4 4.3-1.4 2.8 1.4 4.2 1.4"/><path d="M3.5 15.5c1.4 0 2.1-1.4 4.2-1.4s2.8 1.4 4.3 1.4 2.2-1.4 4.3-1.4 2.8 1.4 4.2 1.4"/>`,
   indoor: `<path d="M4 11L12 4.5l8 6.5"/><path d="M6 9.5v10h12v-10"/>`,
@@ -114,7 +116,8 @@ export const LABELS = {
   timer: "Timer",
   rest: "Rest",
   stop: "Stop",
-  sliders: "Filters, set options",
+  sliders: "Set options",
+  filter: "Filters",
   info: "Why, help",
   history: "History",
   cue: "Technique",

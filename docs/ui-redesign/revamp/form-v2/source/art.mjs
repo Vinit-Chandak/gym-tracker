@@ -10,11 +10,11 @@
 //             two oars, yoga = a fan with an arc cut in, racket = a triangle with a ball punched
 //             out …). A variant never touches what stands under a form: that belongs to context.
 //   CONTEXT — modifiers that mean the same on every form:
-//             a platform under it = indoors, on a machine or in a pool (a track on a platform is
-//             a treadmill)
 //             segments = its structure: sets, intervals, laps, drills
 //             size = how long or how far, in whole modules
 //   STATE   — thinned pigment = still to do · full ink = done · dashed edge = skipped
+// Where it happened (indoors or out, a treadmill, a pool) is not drawn: nothing stands under a
+// form. The rows under a print say it, in a glyph.
 //
 // Every print is laid out on one module grid: a square module and one gap. A set of lifting is one
 // module; an exercise is a column of its sets; every other form stands on the same baseline, as tall
@@ -24,7 +24,7 @@
 
 export const PIG = {
   paper: "#f2eee5",
-  dot: "#cfc9bc",
+  dot: "#8d8980", // 3:1 on the paper: an empty day, and the edge of a warm-up block
   ink: "#16171b",
   label: "#615c50",
   ultra: "#2b40c8",
@@ -93,14 +93,14 @@ export const PAL = {
       food: PIG.cadT,
       play: PIG.umberT,
     },
-    warm: "#d8d2c4", // a warm-up set: done, but not counted
+    warm: "#d8d2c4", // a warm-up set: done, but not in the volume
     strata: [PIG.ochre, PIG.cad, PIG.straw],
   },
   dark: {
     paper: DARK_PAPER,
     ink: "#ece7dc",
     label: "#b4ad9f",
-    dot: "#4a463e",
+    dot: "#716b5f",
     grain: { blend: "screen", rgb: "0.95 0.93 0.9", opacity: 0.045 },
     col: DARK_COL,
     tint: Object.fromEntries(
@@ -129,7 +129,7 @@ export const VARIANT = {
   hike: { base: "run", op: "peak", name: "Hike" },
   spin: { base: "ride", op: "hub", name: "Spin class" },
   row: { base: "swim", op: "oar", name: "Row" },
-  paddle: { base: "swim", op: "single", name: "Paddle" },
+  paddle: { base: "swim", op: "blade", name: "Paddle" },
   yoga: { base: "mobility", op: "arc", name: "Yoga" },
   climb: { base: "play", op: "steps", name: "Climbing" },
   racket: { base: "play", op: "ball", name: "Racket sports" },
@@ -168,7 +168,6 @@ export function form(
     state = "done",
     segments = 0,
     done = 0,
-    indoor = false,
     paper = PIG.paper,
     col = null,
     tint = null,
@@ -184,8 +183,7 @@ export function form(
     T = tint || P.tint[key],
     INK = ink || P.ink;
   const S = Math.min(w, h);
-  const plat = indoor ? Math.max(2, S * 0.09) : 0;
-  const base = y + h - (plat ? plat + Math.max(1.5, S * 0.06) : 0);
+  const base = y + h;
   const fillFor = (k) =>
     state === "skipped" ? "none" : state === "todo" ? T : segments ? (k < done ? C : T) : C;
   // a to-do part keeps a thin edge of its full pigment, so to do and done differ in more than lightness
@@ -204,9 +202,7 @@ export function form(
   let out = "";
   if (shape === "block") {
     // a block: square at mark size; in a box wider than tall it is a slab cut into its sets
-    const hh = fill
-        ? h - plat - (plat ? Math.max(1.5, S * 0.06) : 0)
-        : Math.min(h - plat, w <= h ? w * 0.84 : h),
+    const hh = fill ? h : Math.min(h, w <= h ? w * 0.84 : h),
       top = base - hh,
       n = Math.max(1, segments || 1),
       gap = n > 1 ? Math.max(1.5, S * 0.06) : 0,
@@ -219,8 +215,7 @@ export function form(
     // a running track seen from above: a stadium lying on the baseline, its lane cut in paper. In a
     // mark's square it is a little over half as tall as wide; in a print it fills its box and grows
     // longer with the run's time. Segments (intervals, laps) are cut straight across it.
-    const gp = plat ? Math.max(1.5, S * 0.06) : 0;
-    const hh = fill ? h - plat - gp : Math.min(h - plat - gp, w * 0.56),
+    const hh = fill ? h : Math.min(h, w * 0.56),
       top = base - hh,
       r = hh / 2,
       cy = top + r,
@@ -262,7 +257,7 @@ export function form(
     }
   } else if (shape === "wheel") {
     // a ring, thick as a tyre; segments are arcs (intervals)
-    const d = Math.min(w, h - plat),
+    const d = Math.min(w, h),
       r = d / 2,
       cx = x + w / 2,
       cy = base - r,
@@ -287,12 +282,13 @@ export function form(
       out += `<path d="M${f1(cx - r)} ${f1(cy)}H${f1(cx + r)}M${f1(cx)} ${f1(cy - r)}V${f1(cy + r)}" stroke="${cut}" stroke-width="${f1(Math.max(1.4, r * 0.16))}"/>`;
   } else if (shape === "wave") {
     // two crests of water filling the box: the lower one's trough and stroke stand on the ground,
-    // the upper one's crest meets the top, a band of paper between; a paddle is one heavier crest,
-    // a row the two crests cut by two oars. Skipped is the crests as a thin dashed line.
+    // the upper one's crest meets the top, a band of paper between; a paddle is the two crests cut
+    // once, aslant, as a blade enters the water; a row the two crests cut by two oars. Skipped is
+    // the crests as a thin dashed line.
     const ww = Math.min(w, h * 1.6),
       x0 = x + (w - ww) / 2,
       k = ww / 4,
-      m = Math.min(h - plat, ww) * (fill ? 1 : 0.84),
+      m = Math.min(h, ww) * (fill ? 1 : 0.84),
       amp = m * 0.22,
       stw = Math.max(1.6, m * 0.15);
     const crest = (yy) =>
@@ -303,8 +299,8 @@ export function form(
     const wc = state === "todo" ? T : C;
     if (state === "skipped")
       out += `<path d="${crest(hi)} ${crest(lo)}" fill="none" stroke="${C}" stroke-width="${sw}" stroke-linecap="butt" stroke-dasharray="${f1(S * 0.09)} ${f1(S * 0.07)}"/>`;
-    else if (v && v.op === "single")
-      out += `<path d="${crest(base - (amp + stw * 1.35) / 2)}" fill="none" stroke="${wc}" stroke-width="${f1(stw * 1.35)}" stroke-linecap="round"/>`;
+    else if (v && v.op === "blade")
+      out += `<path d="${crest(hi)} ${crest(lo)}" fill="none" stroke="${wc}" stroke-width="${f1(stw)}" stroke-linecap="round"/><path d="M${f1(x0 + ww * 0.6)} ${f1(base - m)}L${f1(x0 + ww * 0.4)} ${f1(base)}" stroke="${cut}" stroke-width="${f1(Math.max(1.6, stw * 0.55))}"/>`;
     else if (v && v.op === "oar")
       // row: the two crests, cut twice straight down, as oars cut the water
       out += `<path d="${crest(hi)} ${crest(lo)}" fill="none" stroke="${wc}" stroke-width="${f1(stw)}" stroke-linecap="round"/>${[0.36, 0.64].map((f) => `<path d="M${f1(x0 + ww * f)} ${f1(base - m)}V${f1(base)}" stroke="${cut}" stroke-width="${f1(Math.max(1.6, stw * 0.55))}"/>`).join("")}`;
@@ -313,7 +309,7 @@ export function form(
     else
       out += `<path d="${crest(hi)} ${crest(lo)}" fill="none" stroke="${wc}" stroke-width="${f1(stw)}" stroke-linecap="round"/>`;
   } else if (shape === "fan") {
-    const r = Math.min(w, h - plat),
+    const r = Math.min(w, h),
       ox = x,
       oy = base,
       n = Math.max(1, segments || 1);
@@ -327,14 +323,14 @@ export function form(
       out += `<path d="M${f1(ox)} ${f1(oy - ar)}A${f1(ar)} ${f1(ar)} 0 0 1 ${f1(ox + ar)} ${f1(oy)}" fill="none" stroke="${cut}" stroke-width="${f1(Math.max(1.6, S * 0.08))}"/>`;
     }
   } else if (shape === "bowl") {
-    const r = Math.min(w / 2, h - plat),
+    const r = Math.min(w / 2, h),
       cx = x + w / 2,
       top = base - r;
     out += `<path d="M${f1(cx - r)} ${f1(top)}h${f1(2 * r)}a${f1(r)} ${f1(r)} 0 0 1 ${f1(-2 * r)} 0z" fill="${fillFor(0)}"${isTodo(0) ? ` stroke="${INK}" stroke-width="1.2"` : dash}/>`;
   } else if (shape === "triangle") {
-    const tw = Math.min(w, (h - plat) * 1.1),
+    const tw = Math.min(w, h * 1.1),
       x0 = x + (w - tw) / 2,
-      th = Math.min(h - plat, tw * 0.9);
+      th = Math.min(h, tw * 0.9);
     if (v && v.op === "steps") {
       const st = 4,
         sw2 = tw / st;
@@ -349,8 +345,6 @@ export function form(
         out += `<circle cx="${f1(x0 + tw / 2)}" cy="${f1(base - th * 0.36)}" r="${f1(tw * 0.13)}" fill="${cut}"/>`;
     }
   }
-  if (plat)
-    out += `<rect x="${f1(x - S * 0.04)}" y="${f1(y + h - plat)}" width="${f1(w + S * 0.08)}" height="${f1(plat)}" fill="${INK}"/>`;
   return out;
 }
 // A mark in a square: the small form beside a name (lists, legends, the alphabet).
@@ -433,7 +427,7 @@ export function dayPrint({
       cols.forEach((c, i) => {
         for (let k = 0; k < c.n; k++) {
           const yy = base - (k + 1) * u - k * g * u;
-          // warm-up sets are the foot of a column: done in grey, to do as a grey outline
+          // warm-up sets are the foot of a column: done in grey with a 3:1 edge, to do as an outline
           const isWarm = typeof c.warm === "number" ? k < c.warm : !!c.warm;
           const state = c.skipped ? "skipped" : k < c.done ? "done" : "todo";
           const ew = f1(Math.max(1.2, Math.min(1.8, u * 0.07)));
@@ -441,7 +435,7 @@ export function dayPrint({
             ? `<rect x="${f1(x + 0.9)}" y="${f1(yy + 0.9)}" width="${f1(u - 1.8)}" height="${f1(u - 1.8)}" fill="none" stroke="${P.col.strength}" stroke-width="1.8" stroke-dasharray="${f1(u * 0.16)} ${f1(u * 0.12)}"/>`
             : isWarm
               ? state === "done"
-                ? `<rect x="${f1(x)}" y="${f1(yy)}" width="${f1(u)}" height="${f1(u)}" fill="${P.warm}"/>`
+                ? `<rect x="${f1(x + 0.75)}" y="${f1(yy + 0.75)}" width="${f1(u - 1.5)}" height="${f1(u - 1.5)}" fill="${P.warm}" stroke="${P.dot}" stroke-width="${ew}"/>`
                 : `<rect x="${f1(x + 0.75)}" y="${f1(yy + 0.75)}" width="${f1(u - 1.5)}" height="${f1(u - 1.5)}" fill="none" stroke="${P.label}" stroke-width="${ew}"/>`
               : state === "done"
                 ? `<rect x="${f1(x)}" y="${f1(yy)}" width="${f1(u)}" height="${f1(u)}" fill="${P.col.strength}"/>`
@@ -458,7 +452,6 @@ export function dayPrint({
         fh = tall(q) * u;
       art += form(p.kind, x, base - fh, fw, fh, {
         state: p.state || (p.done ? "done" : "todo"),
-        indoor: p.indoor,
         segments: p.segments || 0,
         done: p.segDone || 0,
         paper,

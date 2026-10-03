@@ -32,12 +32,12 @@ colors:
   print-paper: "#f2eee5"
   print-ink: "#16171b"
   print-label: "#615c50"
-  print-dot: "#cfc9bc"
+  print-dot: "#8d8980"
   print-warm-up: "#d8d2c4"
   print-paper-dark: "#23211d"
   print-ink-dark: "#ece7dc"
   print-label-dark: "#b4ad9f"
-  print-dot-dark: "#4a463e"
+  print-dot-dark: "#716b5f"
   print-warm-up-dark: "#4a463e"
   print-strength: "#2b40c8"
   print-run: "#e5432a"
@@ -343,8 +343,8 @@ The prints have a grammar, and it grows with the app. How the body moves gives t
 pigment: a block for load, a track for on foot, a wheel for on wheels, a wave for in water, a
 fan for practice, a bowl for food and a triangle, reserved, for play. Every form stands on one
 module grid and one baseline, with nothing drawn under it, and the composition sits in the middle
-of its paper. State is thinned (to do), full (done) or dashed (skipped); context (indoors,
-structure, size) means the same on every form; a new sport is its family's form with one cut. A
+of its paper. State is thinned (to do), full (done) or dashed (skipped); context (structure,
+size) means the same on every form; a new sport is its family's form with one cut. A
 print carries no words: the rows under it name its parts in the same order.
 
 The interface says as little as it can. State is shown by ink rather than words, nothing is said
@@ -410,10 +410,10 @@ same pigment.
 - **Control** (`control`): borders of fields and outline buttons, an RIR not yet chosen.
 - **Hair** (`hair`): row rules and the tab bar's top edge.
 - **Warm-up** (`mark-warm-up` on the ground; `print-warm-up` on paper): a warm-up set, done but
-  not counted.
+  not in the volume.
 - **Print Paper** (`print-paper`; `print-paper-dark`), **Print Ink**, **Print Label** and
-  **Print Dot**: the paper of every print and of the calendar, the platform under an indoor
-  form, the calendar's weekday letters and dates, and its empty-day dot. The paper has a grain: multiply at 6% in light, screen at 4.5% in dark.
+  **Print Dot**: the paper of every print and of the calendar, the calendar's weekday letters
+  and dates, and (Print Dot, 3:1 on the paper) its empty-day dot and the edge of a warm-up block. The paper has a grain: multiply at 6% in light, screen at 4.5% in dark.
 - **Scrim** (`scrim`; `scrim-dark`): under every sheet.
 
 ### Named Rules
@@ -494,17 +494,21 @@ under 360 pt wide.
   unless the mark names a sport in a list that mixes them (History, a day, Friends); such a list
   gives its marks a 20-pt column and its names one edge 12 pt after it. No list is indented,
   boxed or carded; rows are separated by `hair` rules.
-- **Tab bar:** 64 pt: 3, then 44-pt targets, then 17, so the targets end 4 clear of the home
-  indicator (11 where there is none). On iOS and Android the system bar is used.
+- **Tab bar:** 64 pt: a hairline and 2, then 44-pt targets, then 17, so the targets end 4 clear
+  of the home indicator (11 where there is none). On iOS and Android the system bar is used.
 - **The session:** starting a workout opens a full-screen layer over the tabs, from the check-in
   to the summary. Minimised, it is the session strip on every screen.
-- **Logging:** the title, meta line and tabs stay; the log takes the room above the entry, and
-  when it needs more it keeps its latest sets in view while earlier lines pass under the tabs, so
-  a cut never falls between two sets and reads as a missing one. The entry (the set, three
-  steppers, Save) is docked to the safe area, its columns the log's columns. The steppers stay in one
-  row while each column holds its figure and two buttons 8 apart (44 pt on iOS, 48 dp on
-  Android): 375 pt keeps one row, 360 dp and 320 pt put load above reps and RIR. At 200% text
-  load takes a row, reps and RIR share the next, and the entry comes first.
+- **Logging:** the title, meta line and tabs stay. The log stands on the entry, its latest line
+  8 pt over the entry's rule and the room above it; when it needs more, earlier lines pass under
+  the tabs behind a soft edge. The entry (the set, three steppers, Save) is docked to the safe
+  area. The log and the entry share one grid: an 18-pt column for the set's number (empty in the
+  entry), then load, reps and RIR with the operators between, so every figure stands over the
+  same figure below at every width. − and + sit side by side under a figure while its column
+  holds both 8 apart (44 pt on iOS, 48 dp on Android: 375 pt and up); in a narrower column (360
+  dp, 320 pt) the plus stands over the figure and the minus under it, and the columns still hold.
+  At 200% text the entry stays docked, whole (the set and its tag, load on a row, reps and RIR
+  side by side, Save); the header stays, and the title, tabs and log scroll between, kept at their
+  end.
 - **Typing:** tapping a figure types it, on the decimal pad; above the pad stay the figures, on
   one baseline, and Save, with the keyboard's Previous, Next and Done.
 - **Pinned actions:** 8 pt above the safe area, or 12 above the tab bar; the content stops above
@@ -519,9 +523,10 @@ under 360 pt wide.
 - **The month:** the first calendar's style: pulled on paper like a print, the weekdays across
   the top, a dot for a day with nothing in it, each activity its sport's mark. A day's marks
   stand together in its cell: one at 40% of its height, two side by side, three or four in two
-  rows; past four, `+N`. A bar under a mark means indoors. Today is ringed; days to come are
+  rows; past four, `+N`. Nothing is drawn under a mark. Today is ringed; days to come are
   blank and are not links; every past day is a link named with what it holds. The overview
-  shows the pattern alone; the calendar page adds each date, small, in its cell's corner. The
+  shows the pattern alone; the calendar page adds each date, small, in Jost, in its cell's corner
+  and inside today's ring. The
   totals under the overview name each sport, so they are its legend.
 - **Heights:** short screens (under 800 pt) shorten the print and fold the day's note; tall
   screens (860 pt and over) give the room to the print and the entry.
@@ -565,9 +570,10 @@ column of them is an exercise), the track (a running track seen from above: a st
 lane cut in, a module tall and a module longer for every 20 minutes), the wheel (a ring as thick
 as a tyre),
 the wave (two crests), the fan (a quarter disc cut into drills), the bowl (a half disc whose area
-is the day's target) and the triangle. Context reads the same on every form: a platform under it
-is indoors (a track on a platform is a treadmill; an indoor bike; a pool); segments are its structure (sets, intervals,
-drills); size is time or distance in whole modules. Past the target, food heaps above the bowl's
+is the day's target) and the triangle. Context reads the same on every form: segments are its
+structure (sets, intervals, laps, drills); size is time or distance in whole modules. Where it
+happened (indoors or out, a treadmill, a pool) is not drawn, since nothing stands under a form:
+the row under the print says it with a glyph. Past the target, food heaps above the bowl's
 rim as one symmetric lens; at twice the target it closes the circle.
 
 Icons sit on a 24-unit grid with a 2.0 stroke and round caps and joins, ink only. The five
@@ -617,14 +623,16 @@ and every control answers a press.
 
 ### The log (signature)
 
-- What has been lifted so far, in the app's notation, and nothing else. The warm-ups on one line
-  (W, then "25 × 8 · 35 × 5 · 45 × 3") in Figure and ink 2; then each set done on a line of its
-  own, 58 pt: its number at the edge in ink 2, then its load, reps and RIR in Log (32 px), each
-  standing in the entry's column below, so the entry reads as the log's next line. "@" is RIR
-  alone; a set rated by effort says RPE 8. Each line opens its set to edit.
-- No boxes, marks or rows for sets not yet done: the entry says which set comes next and of how
-  many ("Set 3 of 4"). Add a set is in Set options.
-- History lists every session newest first, its sets in the same lines (Figure L).
+- What has been lifted so far, in the app's notation, and nothing else. The warm-ups done on one
+  line (W, then "25 × 8 · 35 × 5 · 45 × 3") in Figure and ink 2; then each set done on a line of
+  its own, 44 pt at least (58 at 32 px): its number in ink 2 in an 18-pt column at the edge, then
+  its load, reps and RIR in Log (32 px, stepping down the ramp until the widest load fits its
+  column), each standing over the same figure in the entry, so the entry reads as the log's next
+  line. "@" is RIR alone; a set rated by effort says RPE 8. Each line opens its set to edit.
+- No boxes, marks or rows for anything not yet done, warm-ups included: the entry says which comes
+  next and of how many ("Warm-up 2 of 3", "Set 3 of 4"). Add a set is in Set options.
+- History lists every session newest first, its sets in the same lines (Figure L). History is
+  read, not edited: its lines are not buttons.
 - **A set is written:** Save presses (120 ms) and reads Saving… while the server answers; on its
   answer the set lands as the log's next line, rising 10 pt as it fades in (220 ms,
   `cubic-bezier(0.23, 1, 0.32, 1)`), and Save reads Saved; then the entry turns to the next set,
@@ -634,15 +642,20 @@ and every control answers a press.
 
 ### Steppers
 
-- A figure with its unit under it and two round buttons, 44 pt (48 dp on Android) and 8 apart;
-  load steps by the machine's real increment (2.5 kg, 5 lb), reps by 1, metres by 5.
+- A figure with its unit under it (and its hint on a line of its own, so every column's buttons
+  line up) and two round buttons, 44 pt (48 dp on Android) and 8 apart; under 375 pt, + over the
+  figure and − under it. Load steps by the machine's real increment (2.5 kg, 5 lb), reps by 1,
+  metres by 5.
+- **The figure is a button:** a tap types it, on the decimal pad; its name says its value, that
+  it is suggested, and what a tap does ("62.5 kilograms, suggested. Type a load").
 - **Suggested until touched:** ink 2 with a dotted underline; then ink, because it is what Save
-  records.
-- **RIR:** a stepper like the others, empty (an en dash in `control`) with its target beside its
-  unit; tapping the dash takes the target, − and + go one either side of it. Save waits, grey,
-  until it is set, and the app's sentence for a missing RIR describes it ("Enter RIR: estimate
-  how many more good reps you could do."). Timed and distance sets take RPE, 1 to 10, the same
-  way.
+  records. Choosing RIR touches only RIR.
+- **RIR:** a stepper like the others, empty (an en dash in `control`) with its target under its
+  unit and ⓘ beside RIR, which opens the app's own words for what RIR means; tapping the dash
+  takes the target ("RIR not set, target 2. Use the target"), − and + go one either side of it.
+  Save waits, grey, until it is set; tapped, the app's sentence for a missing RIR shows under it
+  ("Enter RIR: estimate how many more good reps you could do."). Timed and distance sets take
+  RPE, 1 to 10, the same way.
 - **In a row:** a label (and its hint) left; −, the value in a fixed 120-pt column, + right, so
   the buttons line up row under row (hours slept, a run's distance and duration).
 
@@ -650,7 +663,8 @@ and every control answers a press.
 
 - **The pill:** surface, 36 pt in a 44-pt target, a dial that empties clockwise from twelve and
   the time. One tap
-  opens +30 s and Stop. At zero it reads Go for 60 s. It lives in the session's header.
+  opens +30 s and Stop. At zero it reads Go for 60 s. It lives in the session's header. When a
+  set is saved it starts again, its dial full.
 - **The session strip:** ink, 52 pt, `card` corners: the session's mark and name, the dial and
   the time, Resume on on-ink. The system's one shadow.
 
@@ -663,8 +677,11 @@ and every control answers a press.
 - A mark (the sport's form, in its state) leads a row only where a list mixes sports and the
   words do not name it (History, a day, Friends). A setting or a menu option is led by its glyph.
 - A superset is a 2-px ink bracket in the left gutter, 8 pt from the edge, joining the pair.
-- A meta line is facts led by glyphs: "[dumbbell] 4 × 3–5 @ 2 · [dial] 3–4 min"; a run's says
-  treadmill or outdoors with its glyph.
+- A meta line is facts led by glyphs: "[dumbbell] 4 × 3–5 @ 2 RIR · [dial] 3–4 min"; a run's
+  says treadmill or outdoors with its glyph. A prescription writes RIR, as the app does.
+- A list to choose from (search results, a gym's machines) puts each name at the gutter and the
+  equipment's glyph at the head of its second line; a row's own glyph (a saved meal's star)
+  follows its name.
 - **Records:** a list in ink: the exercise, the metric and what it was, the new figure trailing.
   Never a pigment tile.
 
@@ -673,7 +690,7 @@ and every control answers a press.
 - One quiet block: surface, 14-px corners, 12 × 14 padding; the speech glyph and "Coach" (or the
   app's own advice under its name, such as Recovery check), an optional heading, then body text.
   Two lines at most, More opens the rest. At most one per screen; never on a print, never in
-  colour.
+  colour. The coach planning is the same block, its glyph a dial that waits.
 
 ### Inputs and choices
 
@@ -686,7 +703,9 @@ and every control answers a press.
 ### Navigation
 
 - **Tab bar:** Today, Training, Food, Progress, Profile on ground under a `hair` rule; 24-pt
-  icons over 13-pt labels. Where you are is ink, its icon filled and its label 700.
+  icons over 13-pt labels, each as tall as the others (Food is the bowl with its heap). Where you
+  are is ink, its icon filled and its label 700. Filters is a funnel; Set options are the
+  sliders.
 - **Headers:** a destination has its title and at most one action; a nested screen has a back
   link that names where it goes; a session screen has its back or minimise, the rest pill, and
   at most Finish and More.
@@ -706,12 +725,14 @@ and every control answers a press.
 
 - Drawn from the account's records and nothing else, on print paper with square corners.
 - **The day:** Today's hero and every record's header: thinned parts inking as they are done,
-  centred on the paper.
+  centred on the paper. A plan's print (Today, a programme day, the workout under way) draws the
+  work planned; a record's (the summary, a past workout, a day) draws what was done, its warm-up
+  sets in grey at the foot of their columns.
 - **The month:** the calendar, pulled on paper in the first calendar's style: marks and dots,
   the weekdays across the top (see Layout).
 - **Progress charts** are not prints: distance, the heaviest set, body weight and sleep are drawn
-  in ink on the ground, the latest reading in ink and the rest in `control`, scale labels in a
-  margin column.
+  in ink on the ground, the latest reading in ink and the rest in `control`, scale labels in the
+  left margin on every chart.
 - **The bowl:** Food: the day's target filled meal by meal, the bowl alone and centred on its
   paper, the day's one figure (the kcal eaten) on the ground above it; the paper keeps air above
   the rim, or the heap's height when that is more. A portion being added shows as a thinned layer

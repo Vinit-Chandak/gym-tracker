@@ -75,7 +75,7 @@ export function coachScreen(t, dv = K.D) {
 <p style="${txt(16, 700, { "line-height": 1.35 })}">“Add squat practice. Can we move core work to another day?”</p>
 <p style="${txt(16, 500, { "line-height": 1.4 })}">Which day works best for your core work?</p>
 <label><span class="sr">Your answer to the coach</span><textarea rows="2" placeholder="Your answer" style="${s({ width: "100%", "min-height": 70, padding: "12px 14px", "border-radius": 14, border: `1.5px solid ${t.control}`, background: t.ground, color: t.ink, "font-family": K.FONTS.text, "font-size": 16, resize: "none", display: "block" })}"></textarea></label>
-<div style="${s({ display: "flex", gap: 6, "flex-wrap": "wrap", "align-items": "center" })}"><button type="button" aria-disabled="true" style="${K.BTN(t, "waiting", { h: 44 })}; padding: 0 18px; font-size: 15px">Send answer</button><button type="button" style="${K.BTN(t, "text", { h: 44 })}; font-size: 15px; color: ${t.ink2}">I no longer want this</button></div></div>`;
+<div style="${s({ display: "flex", gap: "6px 18px", "flex-wrap": "wrap", "align-items": "center" })}"><button type="button" aria-disabled="true" style="${K.BTN(t, "waiting", { h: 44 })}; padding: 0 18px; font-size: 15px">Send answer</button><button type="button" style="${K.BTN(t, "text", { h: 44 })}; padding: 0; font-size: 15px; color: ${t.ink2}">I no longer want this</button></div></div>`;
   const change = `<li><a href="#" style="${s({ display: "flex", "align-items": "center", gap: 12, "min-height": 62, padding: "8px 0" })}">${K.markCell(`<span style="display:grid">${icon("plus", 20)}</span>`)}<span style="${s({ display: "flex", "flex-direction": "column", flex: "1 1 auto", "min-width": 0 })}"><span style="${txt(16, 700)}">Add squat practice</span><span class="wrap" style="${txt(14, 500, { color: t.ink2 })}">Add the requested squat practice and one set to the first movement.</span></span>${K.chev(t)}</a></li>`;
   const note = (text, outcome, last = false) =>
     `<li style="${s({ padding: "10px 0", "border-bottom": last ? 0 : `1px solid ${t.hair}` })}"><p style="${txt(15, 600, { "line-height": 1.4 })}">${text}</p><p style="${txt(13, 500, { color: t.ink2 })}; margin-top: 2px">${outcome}</p></li>`;
@@ -105,7 +105,7 @@ export function profileScreen(t, dv = K.D) {
   const inner = `${K.topHeader(t, dv, "Profile")}
 ${person}
 ${sect(t, "", setRow(t, "people", "Friends", { badge: `${me.requests} request`, last: true }), { mt: 8 })}
-${sect(t, "Training", `${setRow(t, "table", "Programme")}${setRow(t, "pin", "Gyms and machines")}${setRow(t, "book", "Exercise library")}${setRow(t, "rest", "Rest timer", { trail: K.toggle(t, false, "Rest timer") })}${setRow(t, "coach", "AI coach", { last: true })}`)}
+${sect(t, "Training", `${setRow(t, "table", "Programme")}${setRow(t, "pin", "Gyms and machines")}${setRow(t, "book", "Exercise library")}${setRow(t, "rest", "Rest timer", { trail: K.toggle(t, true, "Rest timer") })}${setRow(t, "coach", "AI coach", { last: true })}`)}
 ${sect(t, "Preferences", `${setRow(t, "contrast", "Appearance", { value: "System" })}${setRow(t, "lock", "Privacy", { last: true })}`)}
 ${sect(t, "Account", `${setRow(t, "password", "Password")}${setRow(t, "key", "Coach access", { last: true })}`)}
 ${sect(t, "", `${setRow(t, "exit", "Sign out", { trail: "" })}${setRow(t, "trash", "Delete account", { last: true })}`, { mt: 14 })}`;
@@ -206,8 +206,8 @@ export function welcomeScreen(t, dv = K.D) {
     ],
     ariaLabel: "A print: lifting, a run, a ride and a swim",
   });
-  // the print's key, once: each form beside its sport
-  const key = `<p style="${s({ display: "flex", "flex-wrap": "wrap", gap: "4px 14px", "margin-top": 8 })}; ${txt(13, 600, { color: t.ink2 })}">${[
+  // the print's key, once: each form beside its sport, held to the print and set off from the title
+  const key = `<p style="${s({ display: "flex", "flex-wrap": "wrap", gap: "4px 14px", "margin-top": 6, "margin-bottom": 16 })}; ${txt(13, 600, { color: t.ink2 })}">${[
     ["strength", "Lifting"],
     ["run", "Running"],
     ["ride", "Cycling"],
@@ -244,7 +244,7 @@ ${labelled(
   K.iconChoice(
     t,
     [
-      ["machine", "Gym"],
+      ["pin", "Gym"],
       ["outdoor", "Outdoor"],
       ["indoor", "Home"],
     ],

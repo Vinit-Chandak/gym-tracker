@@ -28,7 +28,7 @@ const LATEST = [
   ],
   [
     "The logging page: rethink it from the ground up; keep the timer and the entry",
-    "Log is the sets so far and nothing else: the warm-ups on one quiet line, then each set done as a line of figures standing in the entry’s three columns, so the entry reads as the log’s next line. No boxes and no rows for sets not yet done; the entry says Set 3 of 4. The rest pill and the steppers stay.",
+    "Log is the sets so far and nothing else: the warm-ups done on one quiet line, then each set done as a line of figures over the entry’s three columns, standing just above the entry, so it reads as the log’s next line. No boxes and no rows for anything not yet done; the entry says Set 3 of 4. The rest pill and the RIR entry stay; at every width and at 200% text the columns and the docked entry hold.",
     "Log · History · the moment · every size",
   ],
   [
@@ -38,17 +38,17 @@ const LATEST = [
   ],
   [
     "The run’s art looks weird: a better shape for running; that line goes everywhere",
-    "Running is a track: a stadium with its lane cut in, a module tall and a module longer for every 20 minutes; on a platform it is a treadmill. No line is drawn under any print.",
+    "Running is a track: a stadium with its lane cut in, a module tall and a module longer for every 20 minutes. Nothing is drawn under any art, on any page: where a run happened is said by its row’s glyph.",
     "Alphabet · Run · Day · Today",
   ],
   [
     "The calendar looks bad: the old one was better",
-    "The old calendar’s paper, weekday letters, dots and marks, for one month: a day’s marks stand together, one to four, and a bar under a mark means indoors. The calendar page adds each date, small, in its corner.",
+    "The old calendar’s paper, weekday letters, dots and marks, for one month: a day’s marks stand together, one to four, with nothing under them. The calendar page adds each date, small, in its corner.",
     "Progress · Calendar",
   ],
   [
     "The Running page’s art is horrible: a new shape, or no art on Progress",
-    "Progress charts are ink: the weeks as grey bars, this week in ink, scale lines labelled in a margin; each run says treadmill or outdoors with a glyph. The art stays in the calendar and on each day’s record.",
+    "Progress charts are ink: the weeks as grey bars, this week in ink, the scale in the left margin as on every chart; each run says treadmill or outdoors with a glyph. The art stays in the calendar and on each day’s record.",
     "Running · Exercise",
   ],
   [
@@ -58,7 +58,7 @@ const LATEST = [
   ],
   [
     "Why was the score low? Fix the reviews’ verdicts and raise it",
-    "What the reviews found, why the score was 26, what changed, and a new review of this canvas: see Critiques, below.",
+    "Why the scores were 26 and 28, each verdict and what changed, and a third review of this canvas: see Critiques, below.",
     "Read me",
   ],
 ];
@@ -161,8 +161,14 @@ export function readmeBoard({ pages: PAGES = [], boardCount = 0 } = {}) {
     .join("");
   const score = (label, v, note) =>
     `<div style="${s({ display: "flex", "flex-direction": "column", gap: 4, padding: "16px 0", "border-top": `2px solid ${L.ink}` })}"><span style="${txt(14, 700, { color: L.ink2 })}">${label}</span><span style="${K.num(44)}">${v}</span><span style="${txt(14, 500, { color: L.ink2, "line-height": 1.4 })}">${note}</span></div>`;
+  const bullets = (list) =>
+    `<ul style="${s({ display: "flex", "flex-direction": "column", gap: 8, "margin-top": 10 })}">${list.map((x) => `<li style="${s({ display: "flex", gap: 10 })}; ${txt(15, 500, { "line-height": 1.45 })}"><span style="${s({ width: 7, height: 7, background: L.ink, "margin-top": 8, "flex-shrink": 0 })}"></span><span>${x}</span></li>`).join("")}</ul>`;
+  const head = (text) => `<p style="${txt(15, 700)}">${text}</p>`;
+  // each of the first review's verdicts, and where it stands now
+  const verdicts = `<ul style="${s({ "margin-top": 10, "border-top": `1px solid ${L.hair}` })}">${CR.gNow.map(([item, now]) => `<li style="${s({ display: "grid", "grid-template-columns": "minmax(0,1.1fr) minmax(0,1fr)", gap: 16, padding: "8px 0", "border-bottom": `1px solid ${L.hair}` })}; ${txt(15, 500, { "line-height": 1.4 })}"><span>${item}</span><span style="${txt(15, now.startsWith("Fixed") ? 700 : 500, { color: now.startsWith("Fixed") ? L.ink : L.ink2, "line-height": 1.4 })}">${now}</span></li>`).join("")}</ul>`;
   const critique = `<div style="${s({ display: "grid", "grid-template-columns": "repeat(4, minmax(0,1fr))", gap: GAP })}">${CR.scores.map(([l, v, n]) => score(l, v, n)).join("")}</div>
-<div style="${s({ display: "grid", "grid-template-columns": "repeat(2, minmax(0,1fr))", gap: 40, "margin-top": 8 })}"><div>${`<p style="${txt(15, 700)}">What the reviews found on the last canvas, and what changed</p>`}<ul style="${s({ display: "flex", "flex-direction": "column", gap: 8, "margin-top": 10 })}">${CR.fixed.map((x) => `<li style="${s({ display: "flex", gap: 10 })}; ${txt(15, 500, { "line-height": 1.45 })}"><span style="${s({ width: 7, height: 7, background: L.ink, "margin-top": 8, "flex-shrink": 0 })}"></span><span>${x}</span></li>`).join("")}</ul></div><div>${`<p style="${txt(15, 700)}">What the fresh review and the audit found on this canvas, and what changed</p>`}<ul style="${s({ display: "flex", "flex-direction": "column", gap: 8, "margin-top": 10 })}">${CR.fresh.map((x) => `<li style="${s({ display: "flex", gap: 10 })}; ${txt(15, 500, { "line-height": 1.45 })}"><span style="${s({ width: 7, height: 7, background: L.ink, "margin-top": 8, "flex-shrink": 0 })}"></span><span>${x}</span></li>`).join("")}</ul></div></div>`;
+<div style="${s({ display: "grid", "grid-template-columns": "repeat(2, minmax(0,1fr))", gap: 40, "margin-top": 8 })}"><div>${head("Why the scores were low")}${bullets(CR.why)}<div style="margin-top:24px">${head("Kept on purpose")}${bullets(CR.kept)}</div></div><div>${head("The first review’s verdicts, now")}${verdicts}</div></div>
+<div>${head("What the second review found, and what changed")}<div style="${s({ display: "grid", "grid-template-columns": "repeat(2, minmax(0,1fr))", gap: "0 40px" })}">${bullets(CR.fixed.slice(0, Math.ceil(CR.fixed.length / 2)))}${bullets(CR.fixed.slice(Math.ceil(CR.fixed.length / 2)))}</div></div>`;
   return `<div style="${s({ width: RW, padding: PAD, background: L.ground, color: L.ink, "font-family": K.FONTS.text, display: "flex", "flex-direction": "column", gap: 56, "-webkit-font-smoothing": "antialiased" })}">
 <header style="${s({ display: "flex", "flex-direction": "column", gap: 24 })}"><div style="${s({ display: "flex", "justify-content": "space-between", "align-items": "flex-end", gap: 24 })}"><div><h1 style="${title(72, { lh: 1 })}">Form v2, refined</h1><p style="${txt(19, 500, { color: L.ink2, "line-height": 1.45, "max-width": 900 })}; margin-top: 12px">The art is your training. The interface is black and white and stays out of the way; every colour is a print made from what was logged. This canvas redraws Form after your notes: a new alphabet with the run as a track, logging as the sets themselves, the old calendar back on its paper, and the rest of the app in the same language.</p></div>${K.wordmark(L, 28)}</div>${K.printFrame(hero)}</header>
 ${section(`${H2("Your latest notes, and what changed")}${table(LATEST)}`)}

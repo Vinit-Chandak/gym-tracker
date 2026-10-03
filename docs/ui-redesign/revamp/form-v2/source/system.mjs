@@ -121,7 +121,7 @@ function type() {
     ["Figure XL", "Jost 600 · 40–64, sized to the room it has · tabular", num(56), "1,152.5"],
     [
       "Entry",
-      "Jost 600 · 46 or 42, down to 28 to fit, never truncated; Atkinson’s en dash inside a range",
+      "Jost 600 · 42, stepping down the ramp to 28 to fit, never truncated; Atkinson’s en dash inside a range",
       num(42, { lh: 1.1 }),
       "62.5 × 3 @ 2",
     ],
@@ -142,7 +142,7 @@ function type() {
       "Meta",
       "Atkinson 500 · 14–15 · ink 2, glyph first",
       txt(15, 500, { color: L.ink2 }) + "; " + tn,
-      "4 × 3–5 @ 2 · 3–4 min",
+      "4 × 3–5 @ 2 RIR · 3–4 min",
     ],
     [
       "Caption",
@@ -200,7 +200,14 @@ function components() {
   const w = (inner, width = 362) =>
     `<div style="${s({ width, "max-width": "100%" })}">${inner}</div>`;
   const buttons = `<div style="${s({ display: "flex", "flex-direction": "column", gap: 10, width: 362 })}"><button type="button" style="${K.BTN(t, "primary")}">${icon("play", 20)}Start workout</button><div style="${s({ display: "flex", gap: 10 })}"><button type="button" style="${K.BTN(t, "tonal")}; flex: 1 1 0">Log it</button><button type="button" aria-disabled="true" style="${K.BTN(t, "waiting")}; flex: 1.6 1 0">${SE.SAVE}</button></div><div style="${s({ display: "flex", gap: 10, "align-items": "center" })}"><a href="#" style="${s({ display: "flex", "align-items": "center", height: 44 })}"><span style="${K.BTN(t, "outline", { h: 36 })}; padding: 0 14px; font-size: 15px">Finish</span></a><button type="button" style="${K.BTN(t, "text", { h: 44 })}">Skip for now</button>${K.roundBtn(t, "plus", "More")}${K.roundBtn(t, "minus", "Less")}</div></div>`;
-  const steppers = `<div style="${s({ display: "grid", "grid-template-columns": "repeat(3, minmax(0,1fr))", gap: 8, width: 362 })}">${K.stepFigure(t, { value: "62.5", unit: "kg", state: "suggested", hint: "", dec: "Less", inc: "More", size: 40 })}${K.stepFigure(t, { value: "62.5", unit: "kg", state: "touched", dec: "Less", inc: "More", size: 40 })}${K.stepFigure(t, { value: "", unit: "RIR", state: "empty", hint: "target 2", dec: "Less", inc: "More", size: 40 })}</div><p style="${txt(13, 500, { color: t.ink2 })}">Suggested (ink 2, dotted) until touched; then ink, because it is what Save records. RIR starts empty, its target beside it: tap the dash to take the target, or − and + for one either side. Tapping a figure types it.</p>`;
+  const stp = (o) =>
+    K.stepFigure(t, {
+      size: 42,
+      dec: o.unit === "RIR" ? "One rep less in reserve" : "Less load, 2.5 kg",
+      inc: o.unit === "RIR" ? "One rep more in reserve" : "More load, 2.5 kg",
+      ...o,
+    });
+  const steppers = `<div style="${s({ display: "grid", "grid-template-columns": "repeat(3, minmax(0,1fr))", gap: 8, width: 362 })}">${stp({ value: "62.5", unit: "kg", state: "suggested" })}${stp({ value: "62.5", unit: "kg", state: "touched" })}${stp({ value: "", unit: "RIR", state: "empty", hint: "target 2", tag: K.infoTip(t, "What RIR means") })}</div><div style="${s({ display: "flex", gap: 24, "align-items": "flex-start", "margin-top": 4 })}"><div style="flex:0 0 92px">${stp({ value: "140", unit: "lb", state: "suggested", vertical: true, size: 36, dec: "Less load, 5 lb", inc: "More load, 5 lb" })}</div><p style="${txt(13, 500, { color: t.ink2 })}">Suggested (ink 2, dotted) until touched; then ink, because it is what Save records. RIR starts empty, its target under it: tap the dash to take the target, or − and + for one either side; ⓘ says what RIR means. Tapping a figure types it. Where a column cannot hold − and + side by side (360 dp, 320 pt), + stands over the figure and − under it, so the three columns hold.</p></div>`;
   const ledgerRows = `<ol style="width:362px">${SE.warmLine(t, WARMUPS)}${SE.setRow(t, { n: 1, v: "60", reps: 4, rir: 2 })}${SE.setRow(t, { n: 2, v: "60", reps: 4, rir: 2 })}</ol><p style="${txt(13, 500, { color: t.ink2 })}">The sets so far in the app’s notation: the warm-ups on one line in ink 2, then a line for each working set. Nothing is drawn for a set not yet done; each line opens its set to edit.</p>`;
   const rows = `<ul style="width:362px">${SE.warmRow(t, { name: "Upper-body warm-up", sub: "4 drills", done: true })}${planRow(t, TP[0])}${planRow(t, TP[1])}<li style="${K.SS_GROUP}"><ul>${planRow(t, TP[2])}${planRow(t, TP[3], { last: true })}</ul>${K.supersetBracket(t)}</li></ul><p style="${txt(13, 500, { color: t.ink2 })}">A row names its part of the print, in the print’s order, and carries no mark of its own: the sets are said once, in the prescription. A superset is a bracket in the gutter.</p>`;
   const rest = `<div style="${s({ display: "flex", gap: 12, "align-items": "center" })}">${K.restPill(t, { time: "2:14", frac: 0.74 })}${K.restPill(t, { time: "0:30", frac: 0.17 })}${K.restPill(t, { go: true, timeHtml: "Go", aria: "Rest over" })}</div><div style="${s({ position: "relative", height: 60, width: 402, "margin-left": -20 })}">${K.strip(t, { dv, bottom: 4 })}</div><p style="${txt(13, 500, { color: t.ink2 })}">Rest lives in one place: a pill in the session’s header, a dial that empties from twelve. Minimised, the session is a strip on every screen.</p>`;

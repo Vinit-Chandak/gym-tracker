@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-03T06:27:34Z",
+  "generatedAt": "2026-10-03T07:43:31Z",
   "title": "Design System: Overload",
   "extensions": {
     "colorMeta": {
@@ -457,7 +457,7 @@
       "print-dot": {
         "role": "neutral",
         "displayName": "Print Dot",
-        "canonical": "#cfc9bc",
+        "canonical": "#8d8980",
         "tonalRamp": [
           "#0f0b03",
           "#28231a",
@@ -532,7 +532,7 @@
       "print-dot-dark": {
         "role": "neutral",
         "displayName": "Print Dot (dark)",
-        "canonical": "#4a463e",
+        "canonical": "#716b5f",
         "tonalRamp": [
           "#0e0b05",
           "#27241c",
@@ -1044,7 +1044,7 @@
       },
       "entry": {
         "displayName": "Entry",
-        "purpose": "Load, reps and RIR in the docked entry, and a portion's amount; 46 px on 440 pt, never below 28."
+        "purpose": "Load, reps and RIR in the docked entry, and a portion's amount; steps down the ramp to fit, never below 28."
       },
       "log": {
         "displayName": "Log",
@@ -1153,12 +1153,12 @@
       {
         "name": "narrow",
         "value": "360px",
-        "purpose": "Under 360 pt wide: 16 pt gutters, 32 px titles, 12 px tab labels, the steppers stack."
+        "purpose": "Under 360 pt wide: 16 pt gutters, 32 px titles, 12 px tab labels; + stands over each figure and − under it, so the log's columns hold."
       },
       {
         "name": "android",
         "value": "360px",
-        "purpose": "360 × 800 dp: the steppers keep one row with narrower operators."
+        "purpose": "360 × 800 dp: 48-dp buttons, + over each figure and − under it; the three columns hold."
       },
       {
         "name": "tiny-height",
@@ -1198,7 +1198,7 @@
       "name": "Waiting Button",
       "kind": "button",
       "refersTo": "button-waiting",
-      "description": "A button waiting on something: Save while RIR is empty (the app's sentence for a missing RIR describes it), Saving….",
+      "description": "A button waiting on something: Save while RIR is empty (the app's sentence for a missing RIR describes it, and shows under it after a tap), Saving….",
       "html": "<button class=\"ds-btn-waiting\" aria-disabled=\"true\" aria-describedby=\"rir-need\">Save</button><span id=\"rir-need\" hidden>Enter RIR: estimate how many more good reps you could do.</span>",
       "css": ".ds-btn-waiting { display:inline-flex; align-items:center; justify-content:center; height:56px; padding:0 20px; border:0; border-radius:14px; background:#f4f4f5; color:#5b5d64; font:700 17px/1 'Atkinson Hyperlegible Next', system-ui, sans-serif; }"
     },
@@ -1214,17 +1214,17 @@
       "name": "Stepper",
       "kind": "input",
       "refersTo": "stepper-figure",
-      "description": "A figure, its unit, two 44-pt round buttons; suggested in ink 2 with a dotted underline until touched.",
-      "html": "<div class=\"ds-step\"><output class=\"ds-step-fig\">62.5</output><span class=\"ds-step-unit\">kg</span><span class=\"ds-step-btns\"><button aria-label=\"Less load\">−</button><button aria-label=\"More load\">+</button></span></div>",
-      "css": ".ds-step { display:inline-flex; flex-direction:column; align-items:center; gap:6px; } .ds-step-fig { font:600 42px/1.1 'Jost', system-ui, sans-serif; font-variant-numeric:tabular-nums lining-nums; color:#5b5d64; text-decoration:underline dotted 2px; text-underline-offset:6px; } .ds-step-unit { font:600 13px 'Atkinson Hyperlegible Next', system-ui, sans-serif; color:#5b5d64; } .ds-step-btns { display:flex; gap:8px; } .ds-step-btns button { width:44px; height:44px; border-radius:22px; border:0; background:#f4f4f5; color:#16171b; font:500 22px/1 'Atkinson Hyperlegible Next', system-ui, sans-serif; cursor:pointer; } .ds-step-btns button:focus-visible { outline:3px solid #16171b; outline-offset:2px; }"
+      "description": "A figure (itself a button: a tap types it, an empty RIR's dash takes the target), its unit and hint, two 44-pt round buttons side by side, or + over and − under it below 375 pt; suggested in ink 2 with a dotted underline until touched.",
+      "html": "<div class=\"ds-step\"><button class=\"ds-step-fig\" aria-label=\"62.5 kilograms, suggested. Type a load\">62.5</button><span class=\"ds-step-unit\">kg</span><span class=\"ds-step-btns\"><button aria-label=\"Less load\">−</button><button aria-label=\"More load\">+</button></span></div>",
+      "css": ".ds-step { display:inline-flex; flex-direction:column; align-items:center; gap:6px; } .ds-step-fig { border:0; background:none; padding:0; min-height:44px; font:600 42px/1.1 'Jost', system-ui, sans-serif; font-variant-numeric:tabular-nums lining-nums; color:#5b5d64; text-decoration:underline dotted 2px; text-underline-offset:6px; } .ds-step-unit { font:600 13px 'Atkinson Hyperlegible Next', system-ui, sans-serif; color:#5b5d64; } .ds-step-btns { display:flex; gap:8px; } .ds-step-btns button { width:44px; height:44px; border-radius:22px; border:0; background:#f4f4f5; color:#16171b; font:500 22px/1 'Atkinson Hyperlegible Next', system-ui, sans-serif; cursor:pointer; } .ds-step-btns button:focus-visible { outline:3px solid #16171b; outline-offset:2px; }"
     },
     {
       "name": "Log",
       "kind": "custom",
       "refersTo": "log-line",
-      "description": "The sets so far and nothing else: the warm-ups on one line in ink 2, then a line per set done, its figures in the entry's three columns. No boxes, no rows for sets to come.",
+      "description": "The sets so far and nothing else: the warm-ups done on one line in ink 2, then a line per set done, 44 pt at least: its number in an 18-pt column, its figures over the entry's. No boxes, no rows for anything to come; the list stands on the entry.",
       "html": "<ol class=\"ds-log\"><li class=\"warm\"><span>W</span><b>25 × 8</b><b>35 × 5</b><b>45 × 3</b></li><li class=\"set\"><span>1</span><b>60</b><i>×</i><b>4</b><i>@</i><b>2</b></li><li class=\"set\"><span>2</span><b>60</b><i>×</i><b>4</b><i>@</i><b>2</b></li></ol>",
-      "css": ".ds-log { list-style:none; margin:0; padding:0; width:340px; } .ds-log li { display:flex; align-items:baseline; font:700 15px 'Atkinson Hyperlegible Next', system-ui, sans-serif; color:#5b5d64; } .ds-log li.warm { gap:18px; min-height:44px; } .ds-log li.warm b { font:600 20px/1 'Jost', system-ui, sans-serif; font-variant-numeric:tabular-nums; color:#5b5d64; } .ds-log li.set { display:grid; grid-template-columns:0 1fr 18px 1fr 18px 1fr; min-height:58px; } .ds-log li.set b { font:600 32px/1 'Jost', system-ui, sans-serif; font-variant-numeric:tabular-nums; color:#16171b; text-align:center; } .ds-log li.set i { font:600 18px 'Atkinson Hyperlegible Next', system-ui, sans-serif; font-style:normal; color:#5b5d64; text-align:center; }"
+      "css": ".ds-log { list-style:none; margin:0; padding:0; width:340px; } .ds-log li { display:flex; align-items:baseline; font:700 15px 'Atkinson Hyperlegible Next', system-ui, sans-serif; color:#5b5d64; } .ds-log li.warm { gap:18px; min-height:44px; } .ds-log li.warm b { font:600 20px/1 'Jost', system-ui, sans-serif; font-variant-numeric:tabular-nums; color:#5b5d64; } .ds-log li.set { display:grid; grid-template-columns:18px 1fr 18px 1fr 18px 1fr; min-height:58px; } .ds-log li.set b { font:600 32px/1 'Jost', system-ui, sans-serif; font-variant-numeric:tabular-nums; color:#16171b; text-align:center; } .ds-log li.set i { font:600 17px 'Atkinson Hyperlegible Next', system-ui, sans-serif; font-style:normal; color:#5b5d64; text-align:center; }"
     },
     {
       "name": "Rest Pill",
@@ -1269,7 +1269,7 @@
   ],
   "narrative": {
     "northStar": "The art is your training",
-    "overview": "Overload is a black-and-white instrument that stays out of the way between sets: ink on white, light ink on near-black in dark, two typefaces, flat surfaces and hairlines. The only colour is the art. Prints are generative, Bauhaus-like compositions drawn from what the athlete has logged and nothing else, so the art is the record and the reward at once. A day's print says what is owed and fills with ink as it is done; a month's print holds every activity of every day.\n\nThe prints have a grammar, and it grows with the app. How the body moves gives the form and its pigment: a block for load, a track for on foot, a wheel for on wheels, a wave for in water, a fan for practice, a bowl for food and a triangle, reserved, for play. Every form stands on one module grid and one baseline, with nothing drawn under it, and the composition sits in the middle of its paper. State is thinned (to do), full (done) or dashed (skipped); context (indoors, structure, size) means the same on every form; a new sport is its family's form with one cut. A print carries no words: the rows under it name its parts in the same order.\n\nThe interface says as little as it can. State is shown by ink rather than words, nothing is said twice on one screen, and every name starts at one left edge. Motion is ink, not decoration: a press answers a touch, a set lands in the log when the server has it, words swap in place, sheets follow the finger.",
+    "overview": "Overload is a black-and-white instrument that stays out of the way between sets: ink on white, light ink on near-black in dark, two typefaces, flat surfaces and hairlines. The only colour is the art. Prints are generative, Bauhaus-like compositions drawn from what the athlete has logged and nothing else, so the art is the record and the reward at once. A day's print says what is owed and fills with ink as it is done; a month's print holds every activity of every day.\n\nThe prints have a grammar, and it grows with the app. How the body moves gives the form and its pigment: a block for load, a track for on foot, a wheel for on wheels, a wave for in water, a fan for practice, a bowl for food and a triangle, reserved, for play. Every form stands on one module grid and one baseline, with nothing drawn under it, and the composition sits in the middle of its paper. State is thinned (to do), full (done) or dashed (skipped); context (structure, size) means the same on every form; a new sport is its family's form with one cut. A print carries no words: the rows under it name its parts in the same order.\n\nThe interface says as little as it can. State is shown by ink rather than words, nothing is said twice on one screen, and every name starts at one left edge. Motion is ink, not decoration: a press answers a touch, a set lands in the log when the server has it, words swap in place, sheets follow the finger.",
     "keyCharacteristics": [
       "A black-and-white interface; colour only ever means a family of sport, as a print or a mark.",
       "Prints drawn from real records, on one module grid, with one grammar for every sport.",
@@ -1302,7 +1302,7 @@
       },
       {
         "name": "The Figures Never Truncate Rule",
-        "body": "A figure keeps one line and steps down until it fits: never an ellipsis, never a wrap. Jost 600's tabular digits are 0.614 em, its point and comma 0.32 em.",
+        "body": "A figure keeps one line and steps down until it fits: never an ellipsis, never a wrap. It steps down the ramp (42, 36, 34, 32, 28, 26, 20), never to a size in between, so a narrow screen shows the same few sizes as a wide one. Jost 600's tabular digits are 0.614 em, its point and comma 0.32 em.",
         "section": "typography"
       },
       {
