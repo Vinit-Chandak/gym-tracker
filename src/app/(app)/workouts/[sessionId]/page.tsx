@@ -22,7 +22,10 @@ export const metadata: Metadata = { title: "Session" };
 export default async function SessionPage(props: PageProps<"/workouts/[sessionId]">) {
   const { sessionId } = await props.params;
   requireUuid(sessionId);
-  const origin = parseOrigin((await props.searchParams)[ORIGIN_PARAM]);
+  const searchParams = await props.searchParams;
+  const origin = parseOrigin(searchParams[ORIGIN_PARAM]);
+  // Finish session lands here saying so: the summary, once (board Summary).
+  const justFinished = searchParams.finished === "1";
   const user = await requireUser();
   const requestProfile = await getRequestProfile(user.id, user.email);
   // The sets saved after this render are added by the browser, which knows which ones it holds.
@@ -78,14 +81,9 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
       title={title}
       backHref={backHref}
       header={<PageHeader title={title} meta={data.gym.name} backHref={backHref} />}
-      intro={
-        data.completedAt ? (
-          <>
-            <SessionRecordsCard records={records} unit={data.preferredUnit} />
-            <SaveWorkoutRoutine sessionId={sessionId} name={title} />
-          </>
-        ) : null
-      }
+      justFinished={justFinished}
+      records={<SessionRecordsCard records={records} unit={data.preferredUnit} />}
+      routine={data.completedAt ? <SaveWorkoutRoutine sessionId={sessionId} name={title} /> : null}
     />
   );
 }

@@ -250,6 +250,37 @@ li:last-child > .sheet-row {
 .pinned-actions-row > .pinned-more {
   margin-left: auto;
 }
+/* The action over a quieter way out, each the full width (board Check-in). */
+.pinned-actions-stack {
+  display: flex;
+  max-width: var(--ov-content-max);
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 auto;
+}
+/* A way out in words, as tall as a target: Skip check-in. */
+.text-action {
+  display: grid;
+  min-height: var(--ov-target);
+  place-items: center;
+  font-size: var(--ov-type-meta);
+  font-weight: 700;
+}
+/* A draft kept on this device, after the last field: what happened, and the way to drop it. */
+.draft-notice {
+  display: flex;
+  margin-top: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 12px;
+}
+.draft-notice > p {
+  min-width: 0;
+  flex: 1 1 12rem;
+}
+.draft-notice > .text-action {
+  margin-left: auto;
+}
 @media (height < 600px) {
   .pinned-actions {
     padding-bottom: 10px;
@@ -265,6 +296,225 @@ li:last-child > .sheet-row {
   .pinned-actions {
     left: 12rem;
   }
+}
+
+/* ---------- a row that opens a page or holds a setting (boards Training, Profile) ---------- */
+/* Its glyph in the mark column, its name, what it is set to, a chevron; 50 pt, a hairline
+   between rows and none after the last. */
+.nav-row {
+  display: flex;
+  min-height: 50px;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--ov-hair);
+}
+.nav-row-item:last-child > .nav-row {
+  border-bottom: 0;
+}
+.nav-row-label {
+  min-width: 0;
+  flex: 1 1 auto;
+  font-size: var(--ov-type-body);
+  font-weight: 600;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+/* A row with a second line is taller, its name in bold (boards Gyms, Gym). */
+.nav-row:has(.nav-row-sub) {
+  min-height: 60px;
+  padding: 8px 0;
+}
+.nav-row-label-bold {
+  font-weight: 700;
+}
+.nav-row-sub {
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-meta-small);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+/* What marks a row out, in an ink outline: Default. */
+.nav-row-tag {
+  flex-shrink: 0;
+  padding: 3px 9px;
+  border: 1.5px solid var(--ov-ink);
+  border-radius: 8px;
+  font-size: var(--ov-type-caption);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.nav-row-value {
+  min-width: 0;
+  flex: 0 1 auto;
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-meta);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+.nav-row-badge {
+  flex-shrink: 0;
+  padding: 3px 9px;
+  border-radius: 10px;
+  background: var(--ov-ink);
+  color: var(--ov-on-ink);
+  font-size: var(--ov-type-caption);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.nav-row-chevron {
+  margin-right: -2px;
+  color: var(--ov-ink-2);
+}
+
+/* ---------- a person at the head of their page (board Profile) ---------- */
+.person-card-head {
+  display: flex;
+  align-items: center;
+  margin-top: 6px;
+  gap: 14px;
+}
+.person-card-avatar {
+  width: 56px;
+  height: 56px;
+  font-family: var(--ov-font-display);
+  font-size: 1.625rem;
+  font-weight: 700;
+}
+.person-card-text {
+  min-width: 0;
+  flex: 1 1 auto;
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-meta-small);
+  font-weight: 500;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.person-card-name {
+  display: block;
+  color: var(--ov-ink);
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+/* A detail still missing, said once under the person, as the way to add it. */
+.person-card-warning {
+  display: flex;
+  min-height: var(--ov-target);
+  align-items: center;
+  margin-top: 6px;
+  gap: 8px;
+  font-size: var(--ov-type-meta);
+  font-weight: 700;
+  line-height: 1.3;
+}
+/* A glyph in a round surface button: Edit profile. */
+.round-icon-button {
+  display: grid;
+  width: var(--ov-target);
+  height: var(--ov-target);
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 9999px;
+  background: var(--ov-surface);
+}
+
+/* ---------- Edit profile ---------- */
+/* The account's email: a fact, not a field, its value at the end of a ruled row. */
+.profile-email {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  margin-top: 10px;
+  border-bottom: 1px solid var(--ov-hair);
+  font-size: var(--ov-type-meta);
+  gap: 12px;
+}
+.profile-still-to-add {
+  display: flex;
+  align-items: flex-start;
+  margin-top: 12px;
+  font-size: var(--ov-type-meta);
+  font-weight: 600;
+  gap: 8px;
+  line-height: 1.4;
+}
+
+/* A setting that is a switch, with what it means under its name (board Privacy). */
+.switch-row {
+  border-bottom: 1px solid var(--ov-hair);
+}
+.switch-row:last-child {
+  border-bottom: 0;
+}
+.switch-row-main {
+  display: flex;
+  min-height: 64px;
+  align-items: center;
+  padding: 10px 0;
+  gap: 12px;
+}
+.switch-row-text {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+.switch-row-label {
+  font-size: var(--ov-type-body);
+  font-weight: 700;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.switch-row-effect {
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-meta-small);
+  font-weight: 500;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- a switch (boards Profile, Privacy) ---------- */
+.switch {
+  display: grid;
+  width: 51px;
+  height: var(--ov-target);
+  flex-shrink: 0;
+  align-items: center;
+}
+.switch:disabled {
+  opacity: 0.5;
+}
+.switch-track {
+  position: relative;
+  display: block;
+  width: 51px;
+  height: 31px;
+  border-radius: 16px;
+  background: var(--ov-surface-2);
+  transition: background-color var(--ov-duration-feedback);
+}
+.switch-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 25px;
+  height: 25px;
+  border-radius: 9999px;
+  background: var(--ov-ground);
+  box-shadow: 0 0 0 1px var(--ov-hair);
+  transition: transform var(--ov-duration-feedback);
+}
+.switch[aria-checked="true"] .switch-track {
+  background: var(--ov-ink);
+}
+.switch[aria-checked="true"] .switch-knob {
+  background: var(--ov-on-ink);
+  box-shadow: none;
+  transform: translateX(20px);
 }
 
 /* ---------- the session strip, on every screen while a workout is minimised ---------- */
@@ -496,4 +746,421 @@ li:last-child > .sheet-row {
 }
 .workout-page .workout-print {
   margin-top: 16px;
+}
+
+/* ---------- a figure in a row, and a 1–5 scale (boards Check-in, Log a ride) ---------- */
+/* The name at the gutter; −, the figure in a 120-pt column, + at the end. Where both cannot
+   share a line, the stepper folds under the name, at the end. */
+.row-stepper {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--ov-hair);
+}
+.row-stepper-text {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 8rem;
+  flex-direction: column;
+  font-size: var(--ov-type-body);
+  line-height: 1.4;
+}
+.row-stepper-hint {
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-caption);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.row-stepper-control {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  margin-left: auto;
+}
+.row-stepper-figure {
+  display: flex;
+  width: calc(120px + var(--ov-grow) * 2);
+  min-width: 0;
+  align-items: baseline;
+  justify-content: center;
+  gap: 3px;
+}
+.row-stepper-figure > .figure-input {
+  max-width: 100%;
+  font-family: var(--ov-font-display);
+  font-size: var(--ov-type-figure-l);
+  font-weight: 600;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.row-stepper-unit {
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-caption);
+  font-weight: 600;
+}
+
+/* A 1–5 scale: its name, the five in a tray, and what 1 and 5 mean under their own ends. */
+.scale {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--ov-hair);
+}
+.scale-name {
+  font-size: var(--ov-type-body);
+  font-weight: 700;
+  line-height: 1.4;
+}
+.scale [role="radiogroup"] > label > span {
+  min-height: calc(46px + var(--ov-grow));
+  font-family: var(--ov-font-display);
+  font-size: var(--ov-type-figure);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.scale-ends {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0 12px;
+  padding: 0 6px;
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-caption);
+  font-weight: 600;
+}
+
+/* ---------- a search over a list to choose from (boards Add exercise, Add fallback) ---------- */
+/* 50 pt, its glyph inside at the left; ink-edged once something is typed, with a way to clear it. */
+.search-box {
+  display: flex;
+  min-height: calc(50px + var(--ov-grow));
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 0 6px 0 14px;
+  border: 1.5px solid var(--ov-control);
+  border-radius: 14px;
+}
+.search-box[data-filled="true"],
+.search-box:focus-within {
+  border-color: var(--ov-ink);
+}
+.search-box > svg {
+  flex-shrink: 0;
+  color: var(--ov-ink-2);
+}
+.search-box-input {
+  min-width: 0;
+  flex: 1 1 auto;
+  align-self: stretch;
+  border: 0;
+  background: transparent;
+  color: var(--ov-ink);
+  font-size: var(--ov-type-input);
+  font-weight: 600;
+  outline: none;
+  appearance: none;
+}
+.search-box-input::placeholder {
+  color: var(--ov-ink-2);
+  font-weight: 500;
+  opacity: 1;
+}
+.search-box-input::-webkit-search-cancel-button {
+  display: none;
+}
+.search-box-clear {
+  display: grid;
+  width: var(--ov-target);
+  height: var(--ov-target);
+  flex-shrink: 0;
+  place-items: center;
+  color: var(--ov-ink-2);
+}
+
+/* A result: the name at the gutter; its equipment's glyph leads the second line, as the
+   workout's rows do; the chosen one carries a check. */
+.picker-row {
+  display: flex;
+  min-height: 56px;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--ov-hair);
+  cursor: pointer;
+}
+li:last-child > .picker-row {
+  border-bottom: 0;
+}
+.picker-row:has(:focus-visible) {
+  outline: 3px solid var(--ov-ink);
+  outline-offset: 2px;
+}
+.picker-row-text {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+.picker-row-name {
+  font-size: var(--ov-type-body);
+  font-weight: 700;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.picker-row-meta {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 2px;
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-meta-small);
+  font-weight: 500;
+  line-height: 1.35;
+}
+.picker-row-meta > svg {
+  flex-shrink: 0;
+  margin-top: calc((1lh - 8px - 0.5rem) / 2);
+}
+.picker-chosen {
+  display: grid;
+  width: calc(26px + var(--ov-grow) * 0.5);
+  height: calc(26px + var(--ov-grow) * 0.5);
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: var(--ov-radius-full);
+  background: var(--ov-ink);
+  color: var(--ov-on-ink);
+}
+
+/* What stands over a pinned action: where the exercise will be done, a choice as a row. */
+.pinned-fact {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--ov-type-meta);
+  font-weight: 600;
+}
+.pinned-fact > svg {
+  flex-shrink: 0;
+}
+.select-row {
+  position: relative;
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: var(--ov-type-body);
+}
+.select-row-value {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+.select-row-value > svg {
+  flex-shrink: 0;
+}
+/* The platform's picker, over the whole row and unseen: the row is what is drawn. */
+.select-row-native {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  cursor: pointer;
+  font-size: var(--ov-type-input);
+}
+.select-row:has(.select-row-native:focus-visible) {
+  outline: 3px solid var(--ov-ink);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+/* A yes or no in words, its box at the gutter. */
+.check-row {
+  display: flex;
+  min-height: var(--ov-target);
+  align-items: center;
+  gap: 10px;
+  font-size: var(--ov-type-meta);
+  font-weight: 600;
+}
+.check-row-box {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  accent-color: var(--ov-ink);
+}
+
+/* A row that opens in place (board Summary: Save or repeat this workout). */
+.disclosure {
+  border-bottom: 1px solid var(--ov-hair);
+}
+.disclosure-summary {
+  display: flex;
+  min-height: 56px;
+  align-items: center;
+  gap: 12px;
+  font-size: var(--ov-type-body);
+  cursor: pointer;
+  list-style: none;
+}
+.disclosure-summary::-webkit-details-marker {
+  display: none;
+}
+.disclosure-chevron {
+  flex-shrink: 0;
+}
+.disclosure[open] .disclosure-chevron {
+  rotate: 180deg;
+}
+
+/* ---------- the one error a screen can meet (board Offline) ---------- */
+.error-page-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: clamp(24px, 15vh, 128px);
+}
+.error-page-glyph {
+  display: grid;
+  width: calc(64px + var(--ov-grow));
+  height: calc(64px + var(--ov-grow));
+  place-items: center;
+  border-radius: var(--ov-radius-full);
+  background: var(--ov-surface);
+}
+.error-page-title {
+  font-family: var(--ov-font-display);
+  font-size: calc(6.5px + 1.21875rem);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: var(--ov-title-tracking);
+}
+.error-page-text {
+  font-size: var(--ov-type-heading);
+  font-weight: 500;
+  line-height: 1.45;
+}
+/* A unit that can be changed (km or mi): its word, a target of its own; pressing it says the
+   distance in the other. */
+.row-stepper-unit-button {
+  min-height: var(--ov-target);
+  padding: 0 4px;
+  margin: 0 -4px;
+}
+
+/* ---------- logging an activity (boards Log a run, a ride, a swim) ---------- */
+/* Where: two tiles, each its glyph and its word, the chosen one in ink. */
+.where-choice {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 5.5rem), 1fr));
+  gap: 8px;
+}
+.where-choice-option {
+  display: block;
+  min-width: 0;
+}
+.where-choice-tile {
+  display: flex;
+  min-height: calc(76px + var(--ov-grow));
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 14px;
+  background: var(--ov-surface);
+  color: var(--ov-ink);
+  font-size: var(--ov-type-meta-small);
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
+}
+.peer:checked + .where-choice-tile {
+  background: var(--ov-ink);
+  color: var(--ov-on-ink);
+}
+.peer:focus-visible + .where-choice-tile {
+  outline: 3px solid var(--ov-ink);
+  outline-offset: 2px;
+}
+/* Effort: its name and what the ends mean on one line, then the tray. */
+.effort-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 0 4px;
+}
+.effort-field-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0 12px;
+  font-size: var(--ov-type-body);
+}
+.effort-field-ends {
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-caption);
+  font-weight: 500;
+}
+.effort-field .scale {
+  padding: 0;
+  border: 0;
+}
+/* Not sure is a word in a tray of figures: Atkinson, 14 pt. */
+.effort-field .scale [role="radiogroup"] > label:last-child > span {
+  font-family: var(--ov-font-text);
+  font-size: var(--ov-type-meta-small);
+  font-weight: 700;
+}
+/* Everything optional behind one row: + and its words in ink 2. */
+.more-details-summary {
+  display: flex;
+  min-height: var(--ov-target);
+  align-items: center;
+  gap: 10px;
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-body);
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+.more-details-summary::-webkit-details-marker {
+  display: none;
+}
+/* What the plan asked for, on surface: its figure, then how it is meant to feel. */
+.target-card {
+  padding: 12px 14px;
+  border-radius: var(--ov-radius-card);
+  background: var(--ov-surface);
+}
+.target-card-unit {
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-heading);
+  font-weight: 500;
+}
+/* Five figures and Not sure, which takes the room its words need (1.6 of a figure's). */
+.effort-field [role="radiogroup"] > label {
+  flex: 1 1 0% !important;
+}
+.effort-field [role="radiogroup"] > label:last-child {
+  flex-grow: 1.6 !important;
+}
+/* A word as a nested screen's one action, at the end of its bar: Edit. */
+.header-text-action {
+  display: flex;
+  min-height: var(--ov-target-header, var(--ov-target));
+  align-items: center;
+  padding: 0 10px;
+  font-size: var(--ov-type-button);
+  font-weight: 700;
 }

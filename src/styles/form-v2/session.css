@@ -912,3 +912,103 @@ button.log-line {
 .session-layer[data-spill="true"] .log-edge {
   display: none;
 }
+
+/* ---------- a page of the session's own (boards Check-in, Add exercise, Add fallback) ---------- */
+/* The session is a layer over the tabs from the check-in to the summary: its pages have no tab
+   bar, and what is pinned to their foot stands on the safe area. */
+html:has(.session-page) .viewport-chrome {
+  display: none;
+}
+html:has(.session-page) {
+  --nav-reserve: env(safe-area-inset-bottom, 0px);
+}
+.session-page-body {
+  padding-bottom: 24px;
+}
+/* What a session recorded (boards Finish, Summary, Past workout): the exercise, its sets under
+   it in ink; what it did not do, named once in ink 2. */
+.record-row {
+  display: flex;
+  min-height: 52px;
+  flex-direction: column;
+  justify-content: center;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--ov-hair);
+}
+.record-row-name {
+  font-size: var(--ov-type-body);
+  font-weight: 700;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.record-row-sets {
+  font-size: var(--ov-type-meta-small);
+  font-weight: 500;
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums lining-nums;
+  overflow-wrap: anywhere;
+}
+.not-done {
+  padding: 6px 0 10px;
+  border-bottom: 1px solid var(--ov-hair);
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-meta);
+  font-weight: 500;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+/* A row that comes to a figure (records): the name and what it is at the gutter, the figure
+   trailing in Jost with its unit. */
+.figure-row {
+  display: flex;
+  min-height: 52px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--ov-hair);
+}
+.figure-row-text {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 10rem;
+  flex-direction: column;
+}
+.figure-row-meta {
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-meta-small);
+  font-weight: 500;
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums lining-nums;
+  overflow-wrap: anywhere;
+}
+.figure-row-value {
+  margin-left: auto;
+  white-space: nowrap;
+}
+.figure-row-unit {
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-caption);
+  font-weight: 600;
+}
+/* A finished workout (boards Summary, Past workout): its print, then three stats in a row. */
+.finished-print {
+  height: calc(120px + 3rem);
+  margin: 4px 0 0;
+}
+/* Opened again later, the record's print is a band, as a day's is (board Past workout). */
+.finished-print[data-past="true"] {
+  height: calc(90px + 1.875rem);
+}
+/* Three across, and four check-in readings; fewer, never squeezed, as the text grows. */
+.finished-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 5.5rem), 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+.finished-check-in {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 4.25rem), 1fr));
+  gap: 8px;
+}

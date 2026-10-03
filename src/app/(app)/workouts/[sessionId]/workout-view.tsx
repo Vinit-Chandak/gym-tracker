@@ -10,6 +10,7 @@ import { startRestTimer } from "@/components/shell/rest-timer";
 import { useSessionDrafts } from "@/components/use-session-drafts";
 
 import { ExerciseLogger } from "./exercise-logger";
+import { FinishedWorkout } from "./finished-workout";
 import { SessionDetails } from "./session-details";
 import { SupersetSheet } from "./superset-sheet";
 import { WorkoutOverview } from "./workout-overview";
@@ -38,6 +39,9 @@ export function WorkoutView({
   intro,
   title,
   backHref,
+  justFinished = false,
+  records,
+  routine,
 }: {
   session: SessionVM;
   /** How many of this browser's set changes the render already held. */
@@ -52,8 +56,13 @@ export function WorkoutView({
   intro?: ReactNode;
   /** The day's name, or "Ad hoc session". */
   title?: string;
-  /** Where minimising the open workout goes. */
+  /** Where minimising the open workout goes, or Back from a finished one. */
   backHref?: Route;
+  /** A finished workout seen straight after Finish session (board Summary). */
+  justFinished?: boolean;
+  /** A finished workout's records and Save or repeat, which its page places. */
+  records?: ReactNode;
+  routine?: ReactNode;
 }) {
   const changes = useSetChanges();
   const session = useMemo(
@@ -95,6 +104,29 @@ export function WorkoutView({
   // A draft anywhere in the session blocks finishing, whether or not its exercise is open:
   // the count comes from storage, so an exercise that is not mounted still counts.
   const hasDrafts = draftCount > 0 || focusedDirty;
+
+  // A finished workout's list is its record (boards Summary, Past workout).
+  if (readOnly && !selected)
+    return (
+      <>
+        <FinishedWorkout
+          session={session}
+          title={title ?? "Ad hoc session"}
+          justFinished={justFinished}
+          backHref={backHref ?? "/today"}
+          records={records}
+          routine={routine}
+          onOpenExercise={openExercise}
+          onOpenDetails={() => setDetailsOpen(true)}
+        />
+        <SessionDetails
+          open={detailsOpen}
+          onClose={() => setDetailsOpen(false)}
+          session={session}
+          readOnly={readOnly}
+        />
+      </>
+    );
 
   return (
     <>

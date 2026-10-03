@@ -24,7 +24,6 @@ const READS = [
 
 /** Files that call one of them and show none of the sets: what each shows instead. */
 const SHOWS_NO_SETS: Record<string, string> = {
-  "src/app/(app)/training/page.tsx": "a link to the open workout",
   "src/app/(app)/workouts/[sessionId]/exercises/[workoutExerciseId]/substitute/page.tsx":
     "the exercise being replaced and the gym",
   "src/app/(app)/exercises/[exerciseId]/page.tsx": "finished workouts only (`completedOnly`)",

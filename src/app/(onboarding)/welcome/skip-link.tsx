@@ -10,25 +10,17 @@ import { completeOnboardingAction } from "@/server/actions/profile";
  */
 export function SkipLink({ href, label = "Skip for now" }: { href: Route; label?: string }) {
   return (
-    <div className="flex justify-center">
-      <Link
-        href={href}
-        className="min-h-11 px-4 py-3 text-sm text-ink-subtle underline-offset-4 hover:underline"
-      >
-        {label}
-      </Link>
-    </div>
+    <Link href={href} className="text-action">
+      {label}
+    </Link>
   );
 }
 
 /** Ends setup from the last step: everything skipped is on the Profile tab. */
 export function FinishSetupLink({ label }: { label: string }) {
   return (
-    <form action={completeOnboardingAction} className="flex justify-center">
-      <button
-        type="submit"
-        className="min-h-11 px-4 text-sm text-ink-subtle underline-offset-4 hover:underline"
-      >
+    <form action={completeOnboardingAction}>
+      <button type="submit" className="text-action w-full">
         {label}
       </button>
     </form>

@@ -1,7 +1,6 @@
+import { Art } from "@/components/art/art";
 import Link from "@/components/ui/app-link";
 import { Avatar } from "@/components/ui/avatar";
-import { ChevronRight } from "@/components/ui/icons";
-import { PRESSABLE_ROW_CLASS } from "@/components/ui/link-row";
 import { formatDuration, formatPace } from "@/domain/pace";
 import type { TrainingSport } from "@/domain/sport-scope";
 import type { BodyLoadUnit } from "@/domain/types";
@@ -44,9 +43,17 @@ function summary(row: Activity, unit: BodyLoadUnit): string[] {
   }
 }
 
+/** Each shared sport's form, as its mark beside the line. */
+const MARK: Record<TrainingSport, "strength" | "run" | "ride" | "swim"> = {
+  workout: "strength",
+  run: "run",
+  cycle: "ride",
+  swim: "swim",
+};
+
 /**
- * One line of recent activity (plan §3.4): who, what, and when, opening the person's page.
- * Nothing here can be reacted to.
+ * One line of recent activity (plan §3.4; board Friends): who, when, and what, led by the
+ * sport's mark, opening the person's page. Nothing here can be reacted to.
  */
 export function ActivityRow({
   row,
@@ -64,21 +71,26 @@ export function ActivityRow({
     <Link
       href={`/u/${person.username}/activities/${row.id}`}
       prefetch="intent"
-      className={PRESSABLE_ROW_CLASS}
+      className="activity-row"
     >
-      <Avatar username={person.username} displayName={person.displayName} size="row" />
-      <span className="min-w-0 flex-1">
-        <span className="flex flex-wrap items-baseline justify-between gap-x-2">
-          <span className="font-medium [overflow-wrap:anywhere]">
-            {person.displayName || person.username}
-          </span>
-          <span className="text-xs text-ink-muted">{formatRelativeDay(row.occurredOn, today)}</span>
+      <Avatar
+        username={person.username}
+        displayName={person.displayName}
+        size="row"
+        className="activity-row-avatar"
+      />
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="flex items-baseline justify-between gap-2">
+          <span className="activity-row-name">{person.displayName || person.username}</span>
+          <span className="activity-row-day">{formatRelativeDay(row.occurredOn, today)}</span>
         </span>
-        <span className="block text-sm [overflow-wrap:anywhere] text-ink-muted tabular-nums">
-          {summary(row, unit).join(" · ")}
+        <span className="flex items-center gap-2">
+          <span className="grid w-4 shrink-0 justify-items-center">
+            <Art kind="mark" sport={MARK[row.sport]} size={16} />
+          </span>
+          <span className="activity-row-text">{summary(row, unit).join(" · ")}</span>
         </span>
       </span>
-      <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />
     </Link>
   );
 }

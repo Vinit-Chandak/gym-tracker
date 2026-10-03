@@ -1,9 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Route } from "next";
 import { notFound } from "next/navigation";
 
 import { ActivityEditor } from "@/components/activities/activity-editor";
-import { PageContent } from "@/components/shell/page-content";
-import { PageHeader } from "@/components/shell/page-header";
+import { SessionPage } from "@/components/shell/session-page";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { activityFormValues } from "@/lib/activity-form-values";
@@ -31,45 +30,42 @@ export default async function EditActivityPage(
   const actual = activity.actual;
   const noun = actual.sport === "running" ? "run" : actual.sport === "cycling" ? "ride" : "swim";
   return (
-    <>
-      <PageHeader
-        title={`Correct the ${noun}`}
-        backHref={`/training/activities/${activityId}${originQuery(origin)}`}
+    // As it was logged (boards Log a run, a ride, a swim): a layer over the tabs, Save pinned.
+    <SessionPage
+      title={`Correct the ${noun}`}
+      back={{ href: `/training/activities/${activityId}${originQuery(origin)}` as Route }}
+    >
+      <ActivityEditor
+        userId={user.id}
+        sport={actual.sport}
+        activityId={activityId}
+        origin={origin}
+        action={saveActivityAction.bind(null, activityId)}
+        submissionKey={crypto.randomUUID()}
+        occurrence={
+          activity.origin.kind === "planned"
+            ? {
+                id: activity.origin.occurrenceId,
+                revisionId: activity.origin.performedRevisionId,
+                planId: activity.origin.performedPlanId,
+              }
+            : null
+        }
+        expectedRevision={activity.revision}
+        initial={{
+          ...activityFormValues(actual),
+          recordedTimeZone: activity.recordedTimeZone,
+          startedAtOffsetMinutes: String(
+            timeZoneOffsetMinutes(activity.recordedTimeZone, activity.startedAt),
+          ),
+          startedAt: toDateTimeLocal(activity.startedAt, activity.recordedTimeZone),
+          effort: activity.effort.status === "reported" ? String(activity.effort.value) : "unsure",
+          title: activity.title ?? "",
+          notes: activity.notes ?? "",
+          outcome: activity.outcome,
+        }}
+        submitLabel="Save changes"
       />
-      <PageContent>
-        <ActivityEditor
-          userId={user.id}
-          sport={actual.sport}
-          activityId={activityId}
-          origin={origin}
-          action={saveActivityAction.bind(null, activityId)}
-          submissionKey={crypto.randomUUID()}
-          occurrence={
-            activity.origin.kind === "planned"
-              ? {
-                  id: activity.origin.occurrenceId,
-                  revisionId: activity.origin.performedRevisionId,
-                  planId: activity.origin.performedPlanId,
-                }
-              : null
-          }
-          expectedRevision={activity.revision}
-          initial={{
-            ...activityFormValues(actual),
-            recordedTimeZone: activity.recordedTimeZone,
-            startedAtOffsetMinutes: String(
-              timeZoneOffsetMinutes(activity.recordedTimeZone, activity.startedAt),
-            ),
-            startedAt: toDateTimeLocal(activity.startedAt, activity.recordedTimeZone),
-            effort:
-              activity.effort.status === "reported" ? String(activity.effort.value) : "unsure",
-            title: activity.title ?? "",
-            notes: activity.notes ?? "",
-            outcome: activity.outcome,
-          }}
-          submitLabel="Save changes"
-        />
-      </PageContent>
-    </>
+    </SessionPage>
   );
 }

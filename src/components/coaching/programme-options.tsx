@@ -2,91 +2,66 @@
 import { coachingAction } from "./client-action";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
-import { useState, type ReactNode } from "react";
-import { Button, LinkButton } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { useState } from "react";
+import { NavRow } from "@/components/ui/nav-row";
 import { chooseTrainingModeAction } from "@/server/actions/coaching-workflow";
 
 /**
- * The two ways to get a programme, and on the first run a third way to skip having one.
- *
- * `nested` is for a section that is already a box — Profile folds these away behind "Start a
- * new programme" — where a card inside a card inside a section draws three edges around one
- * choice. There they are ruled rows in the box that already exists; on their own, on the
- * first-run screen, they keep the box each.
+ * The two ways to get a programme (board Plan): rows, each its glyph, what it is, and a line on
+ * what that means. On the first run the third way, not having one, is the foot's.
  */
 export function ProgrammeOptions({
   onboarding = false,
-  nested = false,
 }: {
   onboarding?: boolean;
+  /** Kept for callers inside a box; the rows draw no box of their own. */
   nested?: boolean;
 }) {
-  const router = useRouter();
-  const [error, setError] = useState<string | null>(null),
-    [busy, setBusy] = useState(false);
   const base = onboarding ? "/welcome/programme" : "/profile/programme";
   return (
-    <div className={nested ? "ruled-list" : "space-y-3"}>
-      <Option nested={nested} title="Create your own programme">
-        <p className="text-sm text-ink-muted">
-          Answer a few questions and the coach writes it. You review the draft before you start.
-        </p>
-        <LinkButton href={`${base}/create` as Route} className="flex w-full">
-          Create with the coach
-        </LinkButton>
-      </Option>
-      <Option nested={nested} title="Build it yourself">
-        <p className="text-sm text-ink-muted">
-          Choose your own days, exercises and targets. No AI run needed.
-        </p>
-        <LinkButton href={`${base}/manual` as Route} variant="secondary" className="flex w-full">
-          Build a programme
-        </LinkButton>
-      </Option>
-      {onboarding && (
-        <Button
-          disabled={busy}
-          variant="ghost"
-          className="flex w-full"
-          onClick={async () => {
-            setBusy(true);
-            const result = await coachingAction(() => chooseTrainingModeAction("track"));
-            if (result.ok) router.push("/today");
-            else setError(result.error);
-            setBusy(false);
-          }}
-        >
-          Just track my workouts
-        </Button>
-      )}
-      {error && (
-        <p role="alert" className="text-sm text-danger">
-          {error}
-        </p>
-      )}
-    </div>
+    <ul>
+      <NavRow
+        href={`${base}/create` as Route}
+        glyph="coach"
+        label="Create with the coach"
+        sub="Answer a few questions and the coach writes it."
+      />
+      <NavRow
+        href={`${base}/manual` as Route}
+        glyph="edit"
+        label="Build it yourself"
+        sub="Choose your own days, exercises and targets."
+      />
+    </ul>
   );
 }
 
-function Option({
-  title,
-  nested,
-  children,
-}: {
-  title: string;
-  nested: boolean;
-  children: ReactNode;
-}) {
-  const body = (
+/** The first run's way past having a programme: log workouts as they come. */
+export function JustTrackButton() {
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  return (
     <>
-      <h3 className={nested ? "font-medium" : "text-lg font-medium"}>{title}</h3>
-      {children}
+      <button
+        type="button"
+        disabled={busy}
+        className="text-action w-full"
+        onClick={async () => {
+          setBusy(true);
+          const result = await coachingAction(() => chooseTrainingModeAction("track"));
+          if (result.ok) router.push("/today");
+          else setError(result.error);
+          setBusy(false);
+        }}
+      >
+        Just track my workouts
+      </button>
+      {error && (
+        <p role="alert" className="type-meta-small font-semibold">
+          {error}
+        </p>
+      )}
     </>
-  );
-  return nested ? (
-    <div className="space-y-2 py-3 first:pt-0 last:pb-0">{body}</div>
-  ) : (
-    <Card>{body}</Card>
   );
 }

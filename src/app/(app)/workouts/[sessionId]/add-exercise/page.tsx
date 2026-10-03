@@ -1,12 +1,12 @@
-import type { Metadata } from "next";
+import type { Metadata, Route } from "next";
 import { notFound, redirect } from "next/navigation";
 
-import { PageContent } from "@/components/shell/page-content";
-import { PageHeader } from "@/components/shell/page-header";
+import { SessionPage } from "@/components/shell/session-page";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { addExerciseAction } from "@/server/actions/sessions";
 import { requireUser } from "@/server/auth";
+import { sessionPageHeader } from "@/server/queries/session-page";
 import { listEquipmentForGym, machinesByExerciseAtGym } from "@/server/repositories/equipment";
 import { listExercises } from "@/server/repositories/exercises";
 import { getSessionRecord } from "@/server/repositories/sessions";
@@ -22,6 +22,7 @@ export default async function AddExercisePage(
   const { sessionId } = await props.params;
   requireUuid(sessionId);
   const user = await requireUser();
+  const header = sessionPageHeader(user, sessionId);
   const data = await withUser(
     getDb(),
     user.id,
@@ -45,18 +46,22 @@ export default async function AddExercisePage(
   if (!data) notFound();
   if (data.session.completedAt) redirect(`/workouts/${sessionId}`);
 
+  const { name, restTimerEnabled } = await header;
+
+  // Board Add exercise: the session's page, its way back named by the session.
   return (
-    <>
-      <PageHeader title="Add exercise" backHref={`/workouts/${sessionId}`} />
-      <PageContent>
-        <PickExerciseForm
-          action={addExerciseAction.bind(null, sessionId)}
-          exercises={data.exercises}
-          machines={data.machines.map((m) => ({ id: m.id, name: m.name }))}
-          machinesByExercise={data.machinesByExercise}
-          submitLabel="Add to session"
-        />
-      </PageContent>
-    </>
+    <SessionPage
+      title="Add exercise"
+      back={{ href: `/workouts/${sessionId}` as Route, label: name }}
+      rest={restTimerEnabled ? sessionId : null}
+    >
+      <PickExerciseForm
+        action={addExerciseAction.bind(null, sessionId)}
+        exercises={data.exercises}
+        machines={data.machines.map((m) => ({ id: m.id, name: m.name }))}
+        machinesByExercise={data.machinesByExercise}
+        submitLabel="Add to session"
+      />
+    </SessionPage>
   );
 }

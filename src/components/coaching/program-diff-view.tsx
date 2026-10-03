@@ -1,15 +1,7 @@
 import type { ReactNode } from "react";
 
-import { Card } from "@/components/ui/card";
-import {
-  ArrowRight,
-  ArrowsDownUp,
-  Footprints,
-  Minus,
-  Plus,
-  SlidersHorizontal,
-  type AppIcon,
-} from "@/components/ui/icons";
+import { Art } from "@/components/art/art";
+import { Glyph, type GlyphName } from "@/components/ui/glyphs";
 import type { DayOperation, DiffField } from "@/domain/program-diff";
 import {
   weeksLabel,
@@ -19,7 +11,6 @@ import {
   type SummaryLine,
 } from "@/domain/program-change-summary";
 import { WEEKDAY_NAMES } from "@/lib/labels";
-import { cn } from "@/lib/utils";
 
 /**
  * A programme change, as the difference it actually is.
@@ -29,9 +20,9 @@ import { cn } from "@/lib/utils";
  * the coach rewrote are there, folded, because they are read on the run itself; the targets
  * that decide whether to say yes are not.
  *
- * Every row says what happened in a word as well as in a colour, because a colour alone is
- * not a sentence — not to somebody who cannot tell these two apart, and not in forced-colours
- * mode, where the palette collapses to two inks by design.
+ * Each day is a section under an ink rule (board Programme change), and each change in it says
+ * what happened in a word led by its glyph, then what it changes: a value that changes reads
+ * "old → new", the old struck and the new in ink, and both are said aloud.
  */
 
 type Names = Readonly<Record<string, string>>;
@@ -63,108 +54,75 @@ function readable(field: DiffField, names: Names): SummaryLine {
   return { field: field.field, label: field.label, from: field.from, to: field.to };
 }
 
-/** "Sets: 2 → 3", or just the new wording where the old one is not worth reading. */
+/** "Sets 3 → 4", the old struck and the new in ink; prose is its new wording alone. */
 function Lines({ lines }: { lines: readonly SummaryLine[] }) {
   if (!lines.length) return null;
   return (
-    <ul className="mt-1 space-y-0.5">
-      {lines.map((line) => (
-        <li key={line.field} className="text-sm [overflow-wrap:anywhere] text-ink-muted">
-          <span className="text-ink">{line.label}:</span>{" "}
-          {line.from !== null && (
-            <>
-              <span className="line-through decoration-ink-subtle">{line.from}</span>{" "}
-              <span aria-hidden>→</span>
-              <span className="sr-only">changes to</span>{" "}
-            </>
-          )}
-          <span className="text-ink">{line.to}</span>
-        </li>
-      ))}
+    <ul className="diff-lines">
+      {lines.map((line) =>
+        line.from !== null ? (
+          <li key={line.field} className="diff-line">
+            <span>{line.label}</span> <span className="sr-only">was </span>
+            <span className="line-through">{line.from}</span>
+            <Glyph name="arrowRight" className="diff-arrow glyph-15" />
+            <span className="sr-only">, becomes </span>
+            <span className="diff-new">{line.to}</span>
+          </li>
+        ) : (
+          <li key={line.field} className="diff-note">
+            <span>{line.label}:</span> {line.to}
+          </li>
+        ),
+      )}
     </ul>
   );
 }
 
-type Tone = "added" | "removed" | "plain";
-
-/**
- * One side of a change: a ruled edge in its semantic colour, on the ordinary surface.
- *
- * The name itself stays in ordinary ink, because it is the thing being read, and the removed
- * side is simply quieter.
- */
-function Side({ tone, name, targets }: { tone: Tone; name: string; targets?: string }) {
-  return (
-    <div
-      className={cn(
-        "min-w-0 rounded-control border-l-2 bg-surface-raised px-2.5 py-1.5",
-        tone === "added" && "border-success",
-        tone === "removed" && "border-danger",
-        tone === "plain" && "border-line-strong",
-      )}
-    >
-      <p
-        className={cn(
-          "font-medium [overflow-wrap:anywhere]",
-          tone === "removed" && "text-ink-muted",
-        )}
-      >
-        {name}
-      </p>
-      {targets && (
-        <p className="mt-0.5 text-sm [overflow-wrap:anywhere] text-ink-muted">{targets}</p>
-      )}
-    </div>
-  );
-}
-
-/**
- * What happened, in a word above it.
- *
- * The word comes first and is never optional: in forced-colours mode the whole palette
- * collapses to two inks by design, and a row that says only "green" has said nothing.
- */
+/** What happened, in a word led by its glyph, then what it happened to and why. */
 function Operation({
-  icon: Icon,
+  glyph,
+  mark,
   label,
-  tone = "plain",
   reason,
   children,
 }: {
-  icon: AppIcon;
+  glyph?: GlyphName;
+  /** A sport's mark in place of a glyph: a run's weeks. */
+  mark?: ReactNode;
   label: string;
-  tone?: Tone;
-  /** Which ask this line answers, shown under it and aligned with it rather than with the row. */
+  /** Which ask this line answers, shown under it, inside the same row. */
   reason?: ReactNode;
   children: ReactNode;
 }) {
   return (
-    <li className="flex min-w-0 gap-3 py-3 first:pt-0 last:pb-0">
-      <Icon
-        scale="row"
-        className={cn(
-          "mt-0.5 shrink-0",
-          tone === "added" ? "text-success" : tone === "removed" ? "text-danger" : "text-ink-muted",
-        )}
-        aria-hidden
-      />
-      <div className="min-w-0 flex-1">
-        <p
-          className={cn(
-            "text-xs font-medium tracking-wide uppercase",
-            tone === "added"
-              ? "text-success"
-              : tone === "removed"
-                ? "text-danger"
-                : "text-ink-muted",
-          )}
-        >
-          {label}
-        </p>
-        <div className="mt-1 min-w-0">{children}</div>
-        {reason && <div className="mt-1.5 min-w-0 text-sm text-ink-muted">{reason}</div>}
-      </div>
+    <li className="diff-op">
+      <p className="diff-op-kind">
+        <span aria-hidden className="grid">
+          {mark ?? (glyph && <Glyph name={glyph} className="glyph-14" />)}
+        </span>
+        {label}
+      </p>
+      <div className="min-w-0">{children}</div>
+      {reason && <div className="diff-reason">{reason}</div>}
     </li>
+  );
+}
+
+/** An exercise's name, and what it asks for when that is the news. */
+function Named({
+  name,
+  targets,
+  gone = false,
+}: {
+  name: ReactNode;
+  targets?: string;
+  gone?: boolean;
+}) {
+  return (
+    <>
+      <p className={gone ? "diff-name text-ink-2" : "diff-name"}>{name}</p>
+      {targets && <p className="diff-targets">{targets}</p>}
+    </>
   );
 }
 
@@ -184,88 +142,61 @@ function OperationRow({
   switch (operation.kind) {
     case "added":
       return (
-        <Operation icon={Plus} label="Added" tone="added" {...op}>
-          <Side
-            tone="added"
-            name={nameOf(names, operation.to.exerciseSlug)}
-            targets={operation.to.targets}
-          />
+        <Operation glyph="plus" label="Added" {...op}>
+          <Named name={nameOf(names, operation.to.exerciseSlug)} targets={operation.to.targets} />
         </Operation>
       );
     case "removed":
       return (
-        <Operation icon={Minus} label="Removed" tone="removed" {...op}>
-          <Side
-            tone="removed"
+        <Operation glyph="minus" label="Removed" {...op}>
+          <Named
             name={nameOf(names, operation.from.exerciseSlug)}
             targets={operation.from.targets}
+            gone
           />
         </Operation>
       );
     case "replaced":
       return (
-        <Operation icon={ArrowRight} label="Replaced" {...op}>
-          {/* Stacked on a phone, side by side once there is room for both names. */}
-          <div className="grid items-center gap-2 sm:grid-cols-[1fr_auto_1fr]">
-            <Side
-              tone="removed"
-              name={nameOf(names, operation.from.exerciseSlug)}
-              targets={operation.from.targets}
-            />
-            <ArrowRight
-              className="mx-auto shrink-0 rotate-90 text-ink-subtle sm:rotate-0"
-              aria-hidden
-            />
-            <Side
-              tone="added"
-              name={nameOf(names, operation.to.exerciseSlug)}
-              targets={operation.to.targets}
-            />
-          </div>
+        <Operation glyph="swap" label="Replaced" {...op}>
+          <p className="diff-name">
+            <span>{nameOf(names, operation.from.exerciseSlug)}</span>
+            <Glyph name="arrowRight" className="diff-arrow glyph-15" />
+            <span className="sr-only">, becomes </span>
+            <span>{nameOf(names, operation.to.exerciseSlug)}</span>
+          </p>
           {fields(operation.fields)}
         </Operation>
       );
     case "retargeted":
       return (
-        <Operation icon={SlidersHorizontal} label="Changed" {...op}>
-          <p className="font-medium [overflow-wrap:anywhere]">
-            {nameOf(names, operation.to.exerciseSlug)}
-          </p>
+        <Operation glyph="edit" label="Changed" {...op}>
+          <Named name={nameOf(names, operation.to.exerciseSlug)} />
           {fields(operation.fields)}
         </Operation>
       );
     case "reordered":
       return (
-        <Operation icon={ArrowsDownUp} label="Moved" {...op}>
-          <p className="font-medium [overflow-wrap:anywhere]">
-            {nameOf(names, operation.to.exerciseSlug)}
-          </p>
-          <p className="mt-0.5 text-sm text-ink-muted tabular-nums">
+        <Operation glyph="swap" label="Moved" {...op}>
+          <Named name={nameOf(names, operation.to.exerciseSlug)} />
+          <p className="diff-targets">
             Position {operation.from.position} → {operation.to.position} in this day
           </p>
         </Operation>
       );
     case "moved_out":
       return (
-        <Operation icon={ArrowRight} label="Moved to another day" {...op}>
-          <p className="font-medium [overflow-wrap:anywhere]">
-            {nameOf(names, operation.to.exerciseSlug)}
-          </p>
-          <p className="mt-0.5 text-sm [overflow-wrap:anywhere] text-ink-muted">
-            Now on {operation.otherDayName}
-          </p>
+        <Operation glyph="arrowRight" label="Moved to another day" {...op}>
+          <Named name={nameOf(names, operation.to.exerciseSlug)} />
+          <p className="diff-note">Now on {operation.otherDayName}</p>
           {fields(operation.fields)}
         </Operation>
       );
     case "moved_in":
       return (
-        <Operation icon={ArrowRight} label="Moved here" {...op}>
-          <p className="font-medium [overflow-wrap:anywhere]">
-            {nameOf(names, operation.to.exerciseSlug)}
-          </p>
-          <p className="mt-0.5 text-sm [overflow-wrap:anywhere] text-ink-muted">
-            Was on {operation.otherDayName}
-          </p>
+        <Operation glyph="arrowRight" label="Moved here" {...op}>
+          <Named name={nameOf(names, operation.to.exerciseSlug)} />
+          <p className="diff-note">Was on {operation.otherDayName}</p>
           {fields(operation.fields)}
         </Operation>
       );
@@ -286,15 +217,15 @@ function RunEntry({ runs, reason }: { runs: RunSummary; reason?: ReactNode }) {
   // weeks between are left as they were.
   const label = `${runs.weeks.length === 1 ? "Run" : "Runs"} · ${weeksLabel(runs.weeks)}`;
   return (
-    <Operation icon={Footprints} label={label} reason={reason}>
+    <Operation mark={<Art kind="mark" sport="run" size={14} />} label={label} reason={reason}>
       {runs.lines.length > 0 ? (
         <Lines lines={runs.lines} />
       ) : (
-        <p className="text-sm text-ink-muted">Instructions only</p>
+        <p className="diff-targets">Instructions only</p>
       )}
       {runs.notes.length > 0 && (
         <details className="group mt-1">
-          <summary className="flex min-h-11 cursor-pointer list-none items-center text-sm text-ink-muted underline-offset-4 hover:underline">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center type-meta-small font-bold">
             {runs.notes.length === 1
               ? `New ${runs.notes[0]!.label.toLowerCase()} note`
               : `New run notes (${runs.notes.map((note) => note.label.toLowerCase()).join(", ")})`}
@@ -327,17 +258,21 @@ function DayGroup({
   // A day added, removed or renamed for an ask carries the ask's words, as a slot does.
   const dayReason = reasons[`day:${day.key}`];
   return (
-    <Card>
-      <div>
-        <h3 className="font-medium [overflow-wrap:anywhere]">{day.name}</h3>
-        <p className="mt-0.5 text-sm text-ink-muted">
+    <section className="diff-section">
+      <h3 className="diff-section-head">
+        <span className="min-w-0 [overflow-wrap:anywhere]">{day.name}</span>
+        <span className="diff-section-when">
           {[weekday, status].filter(Boolean).join(" · ") || "Changed"}
-        </p>
-        {dayReason && <div className="mt-1.5">{dayReason}</div>}
-      </div>
-      {day.fields.length > 0 && <Lines lines={day.fields.map((field) => readable(field, names))} />}
+        </span>
+      </h3>
+      {dayReason && <div className="diff-reason mb-1.5">{dayReason}</div>}
+      {day.fields.length > 0 && (
+        <div className="pb-1.5">
+          <Lines lines={day.fields.map((field) => readable(field, names))} />
+        </div>
+      )}
       {(day.operations.length > 0 || day.runs) && (
-        <ul className="ruled-list">
+        <ul className="diff-ops">
           {day.operations.map((operation) => (
             <OperationRow
               key={`${operation.kind}:${operation.id}`}
@@ -349,7 +284,7 @@ function DayGroup({
           {day.runs && <RunEntry runs={day.runs} reason={runReason} />}
         </ul>
       )}
-    </Card>
+    </section>
   );
 }
 
@@ -369,27 +304,27 @@ export function ProgramDiffView({
 }) {
   if (summary.empty)
     return (
-      <Card>
-        <h3 className="font-medium">
+      <section className="diff-section">
+        <h3 className="diff-section-head">
           {summary.descriptionChanged
             ? "Only the programme's description changes"
             : "No programme changes"}
         </h3>
-        {emptyReason && <div className="text-sm [overflow-wrap:anywhere]">{emptyReason}</div>}
-      </Card>
+        {emptyReason && <div className="type-meta [overflow-wrap:anywhere]">{emptyReason}</div>}
+      </section>
     );
   // A longer block or a new name made for an ask: the ask's words, once, under the change.
   const programReason = summary.program
     .map((field) => reasons[`program:${field.field}`])
     .find(Boolean);
   return (
-    <div className="space-y-3">
+    <div>
       {summary.program.length > 0 && (
-        <Card>
-          <h3 className="font-medium">Programme</h3>
+        <section className="diff-section">
+          <h3 className="diff-section-head">Programme</h3>
           <Lines lines={summary.program.map((field) => readable(field, names))} />
-          {programReason && <div>{programReason}</div>}
-        </Card>
+          {programReason && <div className="diff-reason">{programReason}</div>}
+        </section>
       )}
       {summary.days.map((day) => (
         <DayGroup key={day.key} day={day} names={names} reasons={reasons} />

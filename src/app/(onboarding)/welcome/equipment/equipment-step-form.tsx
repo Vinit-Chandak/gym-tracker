@@ -1,17 +1,19 @@
 "use client";
 
-import { Search } from "@/components/ui/icons";
 import { useActionState, useMemo, useState } from "react";
 
-import { FormError, SubmitButton } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { FormError, SubmitButton } from "@/components/ui/form";
+import { Glyph } from "@/components/ui/glyphs";
+import { PinnedActions } from "@/components/ui/pinned-actions";
 import type { EquipmentCategory } from "@/domain/types";
 import { EQUIPMENT_CATEGORY_LABELS } from "@/lib/labels";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
 import { addStarterEquipmentAction } from "@/server/actions/onboarding";
 import type { EquipmentTypeOption } from "@/server/repositories/equipment";
 import { INITIAL_FORM_STATE } from "@/server/validation/form";
+
+import { SkipLink } from "../skip-link";
 
 /** Free weights and bodyweight need no machine registered, so ticking them would be noise. */
 const ASSUMED: ReadonlySet<EquipmentCategory> = new Set(["free_weight", "bodyweight"]);
@@ -57,26 +59,28 @@ export function EquipmentStepForm({
       return next;
     });
 
+  // Board Machines: the search, Select all and Clear all with the count, then the catalogue as
+  // ticks, two to a row, grouped; Add and continue, or skip, pinned.
   return (
-    <form action={formAction} className="space-y-4">
+    <form action={formAction}>
       <input type="hidden" name="gymId" value={gymId} />
 
-      <div className="relative">
-        <Search
-          className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-ink-subtle"
-          aria-hidden
-        />
-        <Input
+      <div className="search-box mt-0.5" data-filled={query ? "true" : undefined}>
+        <Glyph name="search" className="glyph-20" />
+        <input
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Find a machine"
           aria-label="Find a machine"
-          className="pl-10"
+          className="search-box-input"
+          autoCapitalize="none"
+          autoCorrect="off"
+          enterKeyHint="search"
         />
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="mt-2 flex flex-wrap items-center gap-1">
         <Button
           variant="secondary"
           size="sm"
@@ -86,56 +90,56 @@ export function EquipmentStepForm({
           Select all machines
         </Button>
         <Button
-          variant="ghost"
+          variant="text"
           size="sm"
           disabled={selected.size === 0}
           onClick={() => setSelected(new Set())}
         >
           Clear all
         </Button>
-        <span className="text-sm text-ink-muted" aria-live="polite">
+        <span className="ml-auto type-meta-small font-bold tabular-nums" role="status">
           {selected.size} selected
         </span>
       </div>
       {groups.length === 0 ? (
-        <p className="text-sm text-ink-muted">Nothing matches “{query.trim()}”.</p>
+        <p className="mt-3 type-meta text-ink-2">Nothing matches “{query.trim()}”.</p>
       ) : (
         groups.map((group) => (
-          <fieldset key={group.category} className="space-y-2">
-            <legend className="pb-1 text-xs font-medium tracking-wide text-ink-muted uppercase">
+          <fieldset key={group.category}>
+            <legend className="caption-head mt-3">
               {EQUIPMENT_CATEGORY_LABELS[group.category]}
             </legend>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <ul className="tick-grid">
               {group.items.map((type) => (
-                <label
-                  key={type.id}
-                  className="flex min-h-12 cursor-pointer items-center gap-3 rounded-control border border-transparent bg-surface-raised px-3 py-2 has-checked:border-accent has-checked:bg-accent-soft"
-                >
-                  <input
-                    type="checkbox"
-                    name="equipmentTypeIds"
-                    value={type.id}
-                    checked={selected.has(type.id)}
-                    onChange={() => toggle(type.id)}
-                    className="size-5 shrink-0 accent-[var(--ov-accent)]"
-                  />
-                  <span className="min-w-0 text-sm">{type.name}</span>
-                </label>
+                <li key={type.id}>
+                  <label className="tick-tile">
+                    <input
+                      type="checkbox"
+                      name="equipmentTypeIds"
+                      value={type.id}
+                      checked={selected.has(type.id)}
+                      onChange={() => toggle(type.id)}
+                      className="peer sr-only"
+                    />
+                    <span aria-hidden className="tick-box">
+                      <Glyph name="check" className="glyph-15" />
+                    </span>
+                    <span className="min-w-0 [overflow-wrap:anywhere]">{type.name}</span>
+                  </label>
+                </li>
               ))}
-            </div>
+            </ul>
           </fieldset>
         ))
       )}
 
-      <FormError message={state.formError} />
-      <p className="text-sm text-ink-muted" aria-live="polite">
-        {selected.size === 0
-          ? "Nothing ticked yet."
-          : `${selected.size} ${selected.size === 1 ? "machine" : "machines"} selected.`}
-      </p>
-      <SubmitButton pendingLabel="Adding…">
-        {selected.size === 0 ? "Continue without machines" : "Add and continue"}
-      </SubmitButton>
+      <PinnedActions stack>
+        <FormError message={state.formError} />
+        <SubmitButton pendingLabel="Adding…">
+          {selected.size === 0 ? "Continue without machines" : "Add and continue"}
+        </SubmitButton>
+        <SkipLink href="/welcome/programme" />
+      </PinnedActions>
     </form>
   );
 }

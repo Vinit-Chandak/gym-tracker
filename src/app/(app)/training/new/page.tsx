@@ -3,8 +3,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { ActivityEditor } from "@/components/activities/activity-editor";
 import { OccurrenceSettled } from "@/components/activities/occurrence-settled";
-import { PageContent } from "@/components/shell/page-content";
-import { PageHeader } from "@/components/shell/page-header";
+import { SessionPage } from "@/components/shell/session-page";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { isActivitySport, isEnduranceSport, type EnduranceSport } from "@/domain/activity";
@@ -110,23 +109,22 @@ export default async function NewActivityPage(props: PageProps<"/training/new">)
     submitLabel: "Save activity",
   };
 
+  // Boards Log a run, a ride, a swim: a layer over the tabs, its way back naming where it was
+  // opened from (Today for the day's run, Training otherwise), Save pinned at its foot.
   return (
-    <>
-      <PageHeader title={`Log a ${sportNoun(sport)}`} backHref="/training" />
-      <PageContent>
-        <ActivityEditor
-          {...shared}
-          userId={user.id}
-          sport={sport}
-          initial={{
-            ...initial,
-            environment: sport === "swimming" ? "pool" : "outdoor",
-            assistance: "unknown",
-            distanceMethod: "unknown",
-          }}
-        />
-      </PageContent>
-    </>
+    <SessionPage title={`Log a ${sportNoun(sport)}`} back={{ href: "/training" }}>
+      <ActivityEditor
+        {...shared}
+        userId={user.id}
+        sport={sport}
+        initial={{
+          ...initial,
+          environment: sport === "swimming" ? "pool" : "outdoor",
+          assistance: "unknown",
+          distanceMethod: "unknown",
+        }}
+      />
+    </SessionPage>
   );
 }
 

@@ -39,8 +39,12 @@ it("says each record in the reader's unit, with what it was before", () => {
   expect(screen.getByRole("link", { name: "Barbell bench press" }).getAttribute("href")).toBe(
     "/exercises/bench",
   );
-  expect(screen.getByText(/Est\. 1RM/).textContent).toContain("194 lb (was 187.4 lb)");
-  expect(screen.getByText(/Most reps/).textContent).toContain("12 reps (was 11 reps)");
+  // The metric and what it was under the exercise, the new figure trailing.
+  const rows = screen.getAllByRole("listitem").map((row) => row.textContent?.replace(/\s+/g, " "));
+  expect(rows).toEqual([
+    "Barbell bench press Est. 1RM · was 187.4 lb 194 lb",
+    "Pull-up Most reps · was 11 reps 12 reps",
+  ]);
 });
 
 it("renders nothing at all when a session set no records", () => {

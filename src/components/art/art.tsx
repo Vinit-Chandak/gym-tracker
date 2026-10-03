@@ -33,6 +33,7 @@ export type ArtProps =
       /** A module shared by a page of prints, so they compare at a glance. */
       module?: number;
       fallback?: { width: number; height: number };
+      /** Hears the largest module the print fits at, for a page of prints to share the least. */
       onModule?: (module: number) => void;
     }
   | {

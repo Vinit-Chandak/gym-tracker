@@ -1,8 +1,7 @@
 import type { PrintPart, StrengthColumn } from "@/components/art/geometry";
-import type { GlyphName } from "@/components/ui/glyphs";
+import { modalityGlyph, type GlyphName } from "@/components/ui/glyphs";
 import { enduranceMinutes } from "@/components/activities/endurance-line";
 import type { ActivitySport } from "@/domain/activity";
-import type { ExerciseModality } from "@/domain/types";
 import type { StoredPlanExercise } from "@/domain/session-plan";
 import { prescription, targetsLine, volumeRange } from "@/components/planned-exercises";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
@@ -50,27 +49,6 @@ const PRINT_SPORT: Record<Exclude<ActivitySport, "strength">, "run" | "ride" | "
 };
 
 // ---------- the exercises, as rows ----------
-
-/** Equipment as its glyph, from what the movement is done with. */
-export function modalityGlyph(modality: ExerciseModality | null | undefined): GlyphName | null {
-  switch (modality) {
-    case "barbell":
-    case "dumbbell":
-      return "dumbbell";
-    case "cable":
-      return "cable";
-    case "machine":
-    case "cardio":
-      return "machine";
-    case "smith_machine":
-      return "smith";
-    case "bodyweight":
-    case "mobility":
-      return "bodyweight";
-    default:
-      return null;
-  }
-}
 
 export type PlanRowModel = {
   key: string;

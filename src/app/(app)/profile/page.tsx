@@ -1,25 +1,12 @@
-import {
-  BookOpen,
-  ClipboardList,
-  KeyRound,
-  Link2,
-  Lock,
-  MapPin,
-  AiCoach,
-  Trash,
-  Users,
-} from "@/components/ui/icons";
 import type { Metadata } from "next";
 
 import { PersonCard } from "@/components/person-card";
 import { AppearanceRow } from "@/components/shell/appearance-row";
 import { InstallSection } from "@/components/shell/install-row";
-import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
-import { Badge } from "@/components/ui/badge";
-import { LinkButton } from "@/components/ui/button";
-import { LinkRow, List } from "@/components/ui/link-row";
-import { Section } from "@/components/ui/section";
+import Link from "@/components/ui/app-link";
+import { Glyph } from "@/components/ui/glyphs";
+import { NavRow } from "@/components/ui/nav-row";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { requireUser } from "@/server/auth";
@@ -58,104 +45,83 @@ export default async function ProfilePage() {
     { readOnly: true },
   );
 
+  // Board Profile: the person, then rows in the order they are needed: who you know, what you
+  // train, how it looks and who can see it, the account, and the way out. A row says only
+  // where it goes, or what it is set to; everything behind it has its own page.
   return (
     <>
       <PageHeader title="Profile" />
-      {/* Boxes of rows, in the order they are needed: who you are, what you train, how it
-          looks, who can get in, the app itself, and the way out. A row says only where it
-          goes; everything behind it has its own page. */}
-      <PageContent>
-        {/* The header card is what a friend sees of you (ADR 0026), and your avatar or name
-            opens the rest of it: your page as a follower sees it. The warning is said here
-            rather than only behind the link: a detail nobody knows is missing is a detail
-            nobody adds. */}
+      <div className="page-width pb-8">
+        {/* What a friend sees of you (ADR 0026); your avatar or name opens your page as a
+            follower sees it. A detail still missing is said here rather than only behind Edit
+            profile: a detail nobody knows is missing is a detail nobody adds. */}
         <PersonCard
           person={profile}
           counts={counts}
           countsLinkToFriends
           href={`/u/${profile.username}`}
-          warning={missing.length > 0 ? `Add your ${listSentence(missing)}` : undefined}
-        >
-          <LinkButton href="/profile/edit" variant="secondary" size="sm" className="w-full">
-            Edit profile
-          </LinkButton>
-        </PersonCard>
+          action={
+            <Link href="/profile/edit" aria-label="Edit profile" className="round-icon-button">
+              <Glyph name="edit" className="glyph-20" />
+            </Link>
+          }
+        />
+        {missing.length > 0 && (
+          <Link href="/profile/edit" className="person-card-warning">
+            <Glyph name="warn" className="glyph-18 shrink-0" />
+            <span className="min-w-0">Add your {listSentence(missing)}</span>
+          </Link>
+        )}
 
-        <List>
-          <li>
-            <LinkRow
-              href="/profile/friends"
-              icon={Users}
-              title="Friends"
-              badge={
-                requests > 0 && (
-                  <Badge tone="accent">
-                    {requests} {requests === 1 ? "request" : "requests"}
-                  </Badge>
-                )
-              }
-            />
-          </li>
-        </List>
+        <ul className="mt-0.5">
+          <NavRow
+            href="/profile/friends"
+            glyph="people"
+            label="Friends"
+            badge={requests > 0 && `${requests} ${requests === 1 ? "request" : "requests"}`}
+          />
+        </ul>
 
-        <Section title="Training">
-          <List>
-            <li>
-              <LinkRow href="/profile/programme" icon={ClipboardList} title="Programme" />
-            </li>
-            <li>
-              <LinkRow href="/gyms" icon={MapPin} title="Gyms and machines" />
-            </li>
-            <li>
-              <LinkRow href="/exercises" icon={BookOpen} title="Exercise library" />
-            </li>
-            <li>
-              <RestTimerSetting enabled={profile.restTimerEnabled} />
-            </li>
-            <li>
-              <LinkRow href="/profile/ai-coach" icon={AiCoach} title="AI coach" />
-            </li>
-          </List>
-        </Section>
+        <section aria-labelledby="profile-training">
+          <h2 id="profile-training" className="caption-head mt-4.5">
+            Training
+          </h2>
+          <ul>
+            <NavRow href="/profile/programme" glyph="table" label="Programme" />
+            <NavRow href="/gyms" glyph="pin" label="Gyms and machines" />
+            <NavRow href="/exercises" glyph="book" label="Exercise library" />
+            <RestTimerSetting enabled={profile.restTimerEnabled} />
+            <NavRow href="/profile/ai-coach" glyph="coach" label="AI coach" />
+          </ul>
+        </section>
 
-        <Section title="Preferences">
-          <List>
-            <li>
-              <AppearanceRow />
-            </li>
-            <li>
-              <LinkRow href="/profile/privacy" icon={Lock} title="Privacy" />
-            </li>
-          </List>
-        </Section>
+        <section aria-labelledby="profile-preferences">
+          <h2 id="profile-preferences" className="caption-head mt-4.5">
+            Preferences
+          </h2>
+          <ul>
+            <AppearanceRow />
+            <NavRow href="/profile/privacy" glyph="lock" label="Privacy" />
+          </ul>
+        </section>
 
-        <Section title="Account">
-          <List>
-            <li>
-              <LinkRow href="/profile/password" icon={KeyRound} title="Password" />
-            </li>
-            <li>
-              <LinkRow href="/profile/coach" icon={Link2} title="Coach access" />
-            </li>
-          </List>
-        </Section>
+        <section aria-labelledby="profile-account">
+          <h2 id="profile-account" className="caption-head mt-4.5">
+            Account
+          </h2>
+          <ul>
+            <NavRow href="/profile/password" glyph="password" label="Password" />
+            <NavRow href="/profile/coach" glyph="key" label="Coach access" />
+          </ul>
+        </section>
 
         <InstallSection />
 
-        <List>
-          <li>
-            <SignOutRow />
-          </li>
-          <li>
-            <LinkRow
-              href="/profile/delete-account"
-              icon={Trash}
-              title="Delete account"
-              tone="danger"
-            />
-          </li>
-        </List>
-      </PageContent>
+        <ul className="mt-3">
+          <SignOutRow />
+          <NavRow href="/profile/delete-account" glyph="trash" label="Delete account" />
+        </ul>
+      </div>
     </>
   );
 }

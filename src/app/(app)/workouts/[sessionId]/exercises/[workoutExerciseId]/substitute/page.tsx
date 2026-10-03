@@ -1,12 +1,12 @@
-import type { Metadata } from "next";
+import type { Metadata, Route } from "next";
 import { notFound, redirect } from "next/navigation";
 
-import { PageContent } from "@/components/shell/page-content";
-import { PageHeader } from "@/components/shell/page-header";
+import { SessionPage } from "@/components/shell/session-page";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { substituteExerciseAction } from "@/server/actions/sessions";
 import { requireUser } from "@/server/auth";
+import { getRequestProfile } from "@/server/queries/request-profile";
 import { listEquipmentForGym, machinesByExerciseAtGym } from "@/server/repositories/equipment";
 import { listExercises } from "@/server/repositories/exercises";
 import { getSessionDetail } from "@/server/repositories/sessions";
@@ -49,33 +49,40 @@ export default async function SubstitutePage(
   if (data.session.completedAt) redirect(`/workouts/${sessionId}`);
   const plannedExerciseId = data.slot.planned ? data.slot.exercise.id : null;
 
+  const { restTimerEnabled } = await getRequestProfile(user.id, user.email ?? null);
+
   return (
-    <>
-      {/* Returning lands back on the workout, which is where the request came from. */}
-      <PageHeader
-        title="Choose a fallback"
-        backHref={`/workouts/${sessionId}?exercise=${workoutExerciseId}`}
-        backLabel="Exercise"
+    // No board: Add fallback's page, the session's own. Returning lands back on the exercise,
+    // which is where the request came from.
+    <SessionPage
+      title="Choose a fallback"
+      meta={
+        <span className="min-w-0">
+          Instead of <span className="font-bold text-ink">{data.slot.exercise.name}</span> at{" "}
+          {data.session.gym.name}
+        </span>
+      }
+      back={{
+        href: `/workouts/${sessionId}?exercise=${workoutExerciseId}` as Route,
+        label: data.slot.exercise.name,
+      }}
+      rest={restTimerEnabled ? sessionId : null}
+    >
+      <PickExerciseForm
+        action={substituteExerciseAction.bind(
+          null,
+          sessionId,
+          workoutExerciseId,
+          data.session.gym.id,
+          plannedExerciseId,
+        )}
+        exercises={data.exercises}
+        machines={data.machines.map((m) => ({ id: m.id, name: m.name }))}
+        machinesByExercise={data.machinesByExercise}
+        submitLabel="Use this instead"
+        remember={plannedExerciseId !== null}
+        long
       />
-      <PageContent>
-        <p className="px-1 text-sm text-ink-muted">
-          Instead of {data.slot.exercise.name} at {data.session.gym.name}.
-        </p>
-        <PickExerciseForm
-          action={substituteExerciseAction.bind(
-            null,
-            sessionId,
-            workoutExerciseId,
-            data.session.gym.id,
-            plannedExerciseId,
-          )}
-          exercises={data.exercises}
-          machines={data.machines.map((m) => ({ id: m.id, name: m.name }))}
-          machinesByExercise={data.machinesByExercise}
-          submitLabel="Use this instead"
-          remember={plannedExerciseId !== null}
-        />
-      </PageContent>
-    </>
+    </SessionPage>
   );
 }

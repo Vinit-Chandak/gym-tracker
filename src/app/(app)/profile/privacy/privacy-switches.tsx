@@ -2,7 +2,6 @@
 
 import { useOptimistic, useState, useTransition } from "react";
 
-import { List, Row } from "@/components/ui/link-row";
 import { Switch } from "@/components/ui/switch";
 import { attempted } from "@/lib/offline-submit";
 import { setPrivacyAction } from "@/server/actions/privacy";
@@ -39,39 +38,45 @@ const SWITCHES: readonly { setting: PrivacyKey; label: string; effect: string }[
 
 export function PrivacySwitches({ values }: { values: PrivacyValues }) {
   return (
-    <List>
+    <ul>
       {SWITCHES.map((row) => (
-        <li key={row.setting}>
-          <SavedSwitch
-            {...row}
-            enabled={values[row.setting]}
-            save={(next) => setPrivacyAction(row.setting, next)}
-          />
-        </li>
+        <SavedSwitch
+          key={row.setting}
+          {...row}
+          enabled={values[row.setting]}
+          save={(next) => setPrivacyAction(row.setting, next)}
+        />
       ))}
-    </List>
+    </ul>
   );
 }
 
-/** Additional sports require explicit consent as well as the global training switch. */
+/**
+ * Additional sports require explicit consent as well as the global training switch (board
+ * Privacy): a switch each, and what both share said once under them.
+ */
 export function SportSharingSwitches({
   values,
 }: {
   values: Record<"cycling" | "swimming", boolean>;
 }) {
   return (
-    <List>
-      {(["cycling", "swimming"] as const).map((sport) => (
-        <li key={sport}>
+    <>
+      <ul>
+        {(["cycling", "swimming"] as const).map((sport) => (
           <SavedSwitch
+            key={sport}
             label={`Share ${sport} with followers`}
-            effect="Share the date, duration and known distance. Share training with followers must also be on."
             enabled={values[sport]}
             save={(next) => setSportSharingAction(sport, next)}
           />
-        </li>
-      ))}
-    </List>
+        ))}
+      </ul>
+      <p className="mt-0.5 type-meta-small leading-[1.35] text-ink-2">
+        Both share the date, duration and known distance. Share training with followers must also be
+        on.
+      </p>
+    </>
   );
 }
 
@@ -82,7 +87,7 @@ function SavedSwitch({
   save,
 }: {
   label: string;
-  effect: string;
+  effect?: string;
   enabled: boolean;
   save: (next: boolean) => Promise<void>;
 }) {
@@ -103,15 +108,19 @@ function SavedSwitch({
       if (!outcome.ok) startTransition(() => setError(outcome.message));
     });
   return (
-    <div>
-      <Row title={label} subtitle={effect}>
+    <li className="switch-row">
+      <div className="switch-row-main">
+        <span className="switch-row-text">
+          <span className="switch-row-label">{label}</span>
+          {effect && <span className="switch-row-effect">{effect}</span>}
+        </span>
         <Switch label={label} checked={shown} onChange={change} disabled={pending} />
-      </Row>
+      </div>
       {error && (
-        <p role="alert" className="px-4 pb-3 text-sm text-danger">
+        <p role="alert" className="pb-1 type-meta-small font-semibold">
           {error}
         </p>
       )}
-    </div>
+    </li>
   );
 }

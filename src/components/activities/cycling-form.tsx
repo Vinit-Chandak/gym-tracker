@@ -1,11 +1,11 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, type ReactNode } from "react";
 
-import { Card } from "@/components/ui/card";
 import { FormError, SubmitButton } from "@/components/ui/form";
 import { Field, Input } from "@/components/ui/input";
-import { Section } from "@/components/ui/section";
+import { IconChoice } from "@/components/ui/icon-choice";
+import { PinnedActions } from "@/components/ui/pinned-actions";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { formatSpeed, speedMetresPerSecond } from "@/domain/activity-metrics";
 import { toMetres } from "@/lib/distance-units";
@@ -16,11 +16,14 @@ import {
   ActivityIdentityFields,
   ActivityStartFields,
   DistanceField,
+  DurationField,
+  durationFromParts,
   EffortField,
   HeartRateFields,
   LargeEntryConfirmation,
   MoreDetails,
   NotesFields,
+  parseDuration,
   TargetCard,
   useFormValues,
   type ActivityFormValues,
@@ -38,9 +41,9 @@ import {
  */
 
 const ENVIRONMENTS = [
-  { value: "outdoor", label: "Outdoor" },
-  { value: "indoor", label: "Indoor" },
-];
+  { value: "outdoor", label: "Outdoor", glyph: "outdoor" },
+  { value: "indoor", label: "Indoor", glyph: "trainer" },
+] as const;
 
 const ASSISTANCE = [
   { value: "unknown", label: "Not sure" },
@@ -61,6 +64,8 @@ type Props = {
   target?: { title: string; lines: string[] } | null;
   expectedRevision?: number | null;
   submitLabel: string;
+  /** The draft kept on this device, said after the last field. */
+  notice?: ReactNode;
 };
 
 export function CyclingForm({
@@ -71,25 +76,28 @@ export function CyclingForm({
   target = null,
   expectedRevision = null,
   submitLabel,
+  notice,
 }: Props) {
   const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
   const values = useFormValues(state, initial);
   const [distance, setDistance] = useState(() => values("distanceValue"));
   const [unit, setUnit] = useState(() => values("distanceUnit") || "km");
-  const [hours, setHours] = useState(() => values("hours"));
-  const [minutes, setMinutes] = useState(() => values("minutes"));
-  const [seconds, setSeconds] = useState(() => values("seconds"));
+  const [duration, setDuration] = useState(() =>
+    durationFromParts(values("hours"), values("minutes"), values("seconds")),
+  );
 
-  const durationMs =
-    (Number(hours || 0) * 3600 + Number(minutes || 0) * 60 + Number(seconds || 0)) * 1000;
+  const durationMs = (parseDuration(duration) ?? 0) * 1000;
   const metres =
     distance.trim() === ""
       ? null
       : toMetres(Number(distance.replace(",", ".")), unit as "km" | "mi");
   const speed = metres === null ? null : speedMetresPerSecond(metres, durationMs);
+  const errors = state.fieldErrors;
 
+  // Board Log a ride: where, the time, the distance if it is known and the speed it makes, how
+  // hard it felt and whether it was assisted; everything optional behind one row; Save.
   return (
-    <form action={formAction} className="space-y-[var(--section-gap)]">
+    <form action={formAction}>
       <input type="hidden" name="sport" value="cycling" />
       <input type="hidden" name="outcome" value={values("outcome") || "logged"} />
       <input type="hidden" name="resourceId" value={values("resourceId")} />
@@ -98,146 +106,114 @@ export function CyclingForm({
         occurrence={occurrence}
         expectedRevision={expectedRevision}
       />
-      {target && <TargetCard title={target.title} lines={target.lines} />}
+      {target && (
+        <div className="mt-3">
+          <TargetCard title={target.title} lines={target.lines} />
+        </div>
+      )}
 
-      <Section title="The ride">
-        <Card>
-          <ActivityStartFields values={values} errors={state.fieldErrors} />
-
-          <Field group label="Where">
-            <SegmentedControl
-              name="environment"
-              aria-label="Where"
-              options={ENVIRONMENTS}
-              defaultValue={values("environment") || "outdoor"}
-              columns={2}
-            />
-          </Field>
-
-          <Field
-            group
-            label="Duration"
-            error={
-              state.fieldErrors?.duration ??
-              state.fieldErrors?.hours ??
-              state.fieldErrors?.minutes ??
-              state.fieldErrors?.seconds
-            }
-          >
-            <div className="grid grid-cols-3 gap-2">
-              <Field label="Hours">
-                <Input
-                  name="hours"
-                  inputMode="numeric"
-                  value={hours}
-                  onChange={(event) => setHours(event.target.value)}
-                  placeholder="1"
-                />
-              </Field>
-              <Field label="Minutes">
-                <Input
-                  name="minutes"
-                  inputMode="numeric"
-                  value={minutes}
-                  onChange={(event) => setMinutes(event.target.value)}
-                  placeholder="30"
-                />
-              </Field>
-              <Field label="Seconds">
-                <Input
-                  name="seconds"
-                  inputMode="numeric"
-                  value={seconds}
-                  onChange={(event) => setSeconds(event.target.value)}
-                  placeholder="0"
-                />
-              </Field>
-            </div>
-          </Field>
-
-          <DistanceField
-            value={distance}
-            unit={unit}
-            onValueChange={setDistance}
-            onUnitChange={setUnit}
-            units={DISTANCE_UNITS}
-            hint="Optional — leave it blank if you do not know"
-            error={state.fieldErrors?.distance ?? state.fieldErrors?.distanceValue}
+      <div className="mt-3">
+        <IconChoice
+          name="environment"
+          options={ENVIRONMENTS}
+          defaultValue={values("environment") || "outdoor"}
+        />
+      </div>
+      <div className="mt-1.5">
+        <DurationField
+          value={duration}
+          onChange={setDuration}
+          error={errors?.duration ?? errors?.hours ?? errors?.minutes ?? errors?.seconds}
+        />
+        <DistanceField
+          value={distance}
+          unit={unit}
+          onValueChange={setDistance}
+          onUnitChange={setUnit}
+          units={DISTANCE_UNITS}
+          hint={
+            speed !== null ? (
+              <span role="status">
+                Optional · overall average {formatSpeed(speed, unit as "km" | "mi")}
+              </span>
+            ) : (
+              "Optional"
+            )
+          }
+          error={errors?.distance ?? errors?.distanceValue}
+        />
+        <EffortField value={values("effort")} error={errors?.effort} />
+        <div className="space-y-1.5 pt-3 pb-1">
+          <p id="ride-assistance" className="type-meta-small font-bold">
+            Assistance
+          </p>
+          <SegmentedControl
+            name="assistance"
+            aria-labelledby="ride-assistance"
+            options={ASSISTANCE}
+            defaultValue={values("assistance") || "unknown"}
+            columns={3}
           />
-          {speed !== null ? (
-            <p role="status" className="text-sm text-ink-muted tabular-nums">
-              Overall average {formatSpeed(speed, unit as "km" | "mi")}
-            </p>
-          ) : (
-            <p className="text-sm text-ink-muted">
-              Without a distance there is no speed to work out, and none is guessed.
+          {errors?.assistance && (
+            <p role="alert" className="type-meta-small font-semibold">
+              {errors.assistance}
             </p>
           )}
-        </Card>
-      </Section>
+        </div>
+      </div>
 
-      <Section title="Effort">
-        <Card>
-          <EffortField value={values("effort")} error={state.fieldErrors?.effort} />
-          <Field group label="Assistance" error={state.fieldErrors?.assistance}>
-            <SegmentedControl
-              name="assistance"
-              aria-label="Assistance"
-              options={ASSISTANCE}
-              defaultValue={values("assistance") || "unknown"}
-              columns={3}
-            />
-          </Field>
-        </Card>
-      </Section>
-
-      <Section title="Details">
-        <MoreDetails
-          hasErrors={[
-            "averagePowerWatts",
-            "averageCadenceRpm",
-            "elevationGainMetres",
-            "averageHeartRate",
-            "maxHeartRate",
-          ].some((field) => Boolean(state.fieldErrors?.[field]))}
-        >
-          <div className="grid grid-cols-2 gap-2">
-            <Field label="Average power W" error={state.fieldErrors?.averagePowerWatts}>
-              <Input
-                name="averagePowerWatts"
-                inputMode="decimal"
-                defaultValue={values("averagePowerWatts")}
-                placeholder="—"
-              />
-            </Field>
-            <Field label="Average cadence rpm" error={state.fieldErrors?.averageCadenceRpm}>
-              <Input
-                name="averageCadenceRpm"
-                inputMode="decimal"
-                defaultValue={values("averageCadenceRpm")}
-                placeholder="—"
-              />
-            </Field>
-          </div>
-          <Field label="Elevation gain m" error={state.fieldErrors?.elevationGainMetres}>
+      <MoreDetails
+        hasErrors={[
+          "startedAt",
+          "startedAtOffsetMinutes",
+          "recordedTimeZone",
+          "averagePowerWatts",
+          "averageCadenceRpm",
+          "elevationGainMetres",
+          "averageHeartRate",
+          "maxHeartRate",
+          "title",
+          "notes",
+        ].some((field) => Boolean(errors?.[field]))}
+      >
+        <ActivityStartFields values={values} errors={errors} />
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="Average power W" error={errors?.averagePowerWatts}>
             <Input
-              name="elevationGainMetres"
+              name="averagePowerWatts"
               inputMode="decimal"
-              defaultValue={values("elevationGainMetres")}
+              defaultValue={values("averagePowerWatts")}
               placeholder="—"
             />
           </Field>
-          <HeartRateFields values={values} errors={state.fieldErrors} />
-        </MoreDetails>
-      </Section>
+          <Field label="Average cadence rpm" error={errors?.averageCadenceRpm}>
+            <Input
+              name="averageCadenceRpm"
+              inputMode="decimal"
+              defaultValue={values("averageCadenceRpm")}
+              placeholder="—"
+            />
+          </Field>
+        </div>
+        <Field label="Elevation gain m" error={errors?.elevationGainMetres}>
+          <Input
+            name="elevationGainMetres"
+            inputMode="decimal"
+            defaultValue={values("elevationGainMetres")}
+            placeholder="—"
+          />
+        </Field>
+        <HeartRateFields values={values} errors={errors} />
+        <NotesFields values={values} errors={errors} />
+      </MoreDetails>
 
-      <NotesFields values={values} errors={state.fieldErrors} />
+      {notice}
 
-      <div className="space-y-2">
-        <LargeEntryConfirmation message={state.formError} />
+      <PinnedActions stack>
         <FormError message={state.formError} />
+        <LargeEntryConfirmation message={state.formError} />
         <SubmitButton pendingLabel="Saving…">{submitLabel}</SubmitButton>
-      </div>
+      </PinnedActions>
     </form>
   );
 }

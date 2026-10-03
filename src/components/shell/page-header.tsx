@@ -9,7 +9,7 @@ type PageHeaderProps<T extends string> = {
   /** The screen's name. */
   title: ReactNode;
   /** The one fact that qualifies it: the range Progress is drawn over, the gym a form is for. */
-  meta?: string;
+  meta?: ReactNode;
   /**
    * The fact is said with the title rather than shown under it, where the screen already shows
    * it (a meal of today's: board Dinner).
@@ -67,7 +67,7 @@ export function PageHeader<T extends string>({
           as="h1"
           sizes={{ base: 34, narrow: 30 }}
           className="mt-0.5"
-          said={metaHidden ? meta : undefined}
+          said={metaHidden && typeof meta === "string" ? meta : undefined}
         >
           {title}
         </FitTitle>
@@ -75,8 +75,9 @@ export function PageHeader<T extends string>({
         <h1 className="mt-0.5 type-display [overflow-wrap:anywhere]">{title}</h1>
       )}
       {meta && !metaHidden && (
+        // Words are one fact; facts given as elements are laid out by the line.
         <p className="meta-line mt-1 [overflow-wrap:anywhere]">
-          <span className="min-w-0">{meta}</span>
+          {typeof meta === "string" ? <span className="min-w-0">{meta}</span> : meta}
         </p>
       )}
     </header>

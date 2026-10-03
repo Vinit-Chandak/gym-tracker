@@ -1,9 +1,8 @@
 "use client";
 
-import { Check, ChevronRight, SunMoon } from "@/components/ui/icons";
 import { useState, useSyncExternalStore } from "react";
 
-import { PRESSABLE_ROW_CLASS, RowIcon } from "@/components/ui/link-row";
+import { Glyph, type GlyphName } from "@/components/ui/glyphs";
 import { Sheet } from "@/components/ui/sheet";
 import {
   APPEARANCE_LABELS,
@@ -13,7 +12,6 @@ import {
   subscribeAppearance,
   type Appearance,
 } from "@/lib/appearance";
-import { cn } from "@/lib/utils";
 
 /**
  * The colours are already right when this mounts — the pre-paint initializer saw to that.
@@ -24,7 +22,16 @@ function useAppearance(): Appearance {
   return useSyncExternalStore(subscribeAppearance, readStoredAppearance, () => "system" as const);
 }
 
-/** A Profile row that shows the current mode and opens the three choices in a sheet. */
+const MODE_GLYPH: Record<Appearance, GlyphName> = {
+  system: "contrast",
+  light: "sun",
+  dark: "moon",
+};
+
+/**
+ * A Profile row that shows the current mode and opens the three choices in a sheet (board
+ * Appearance): each its glyph and its word, the chosen one checked in ink.
+ */
 export function AppearanceRow() {
   const appearance = useAppearance();
   const [open, setOpen] = useState(false);
@@ -35,41 +42,48 @@ export function AppearanceRow() {
   };
 
   return (
-    <>
+    <li className="nav-row-item">
       <button
         type="button"
         onClick={() => setOpen(true)}
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-label={`Appearance: ${APPEARANCE_LABELS[appearance]}`}
-        className={PRESSABLE_ROW_CLASS}
+        className="nav-row w-full text-left"
       >
-        <RowIcon icon={SunMoon} />
-        <span className="min-w-0 flex-1 font-medium">Appearance</span>
-        <span className="shrink-0 text-sm text-ink-muted">{APPEARANCE_LABELS[appearance]}</span>
-        <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />
+        <span className="mark-cell">
+          <Glyph name="contrast" className="glyph-20" />
+        </span>
+        <span className="nav-row-label">Appearance</span>
+        <span className="nav-row-value">{APPEARANCE_LABELS[appearance]}</span>
+        <Glyph name="chevronRight" className="nav-row-chevron glyph-20 shrink-0" />
       </button>
 
       <Sheet open={open} onClose={() => setOpen(false)} title="Appearance">
-        <ul className="ruled-list">
+        <ul role="radiogroup" aria-label="Appearance" className="mt-1">
           {APPEARANCE_MODES.map((mode) => (
             <li key={mode}>
               <button
                 type="button"
+                role="radio"
+                aria-checked={appearance === mode}
                 onClick={() => choose(mode)}
-                aria-pressed={appearance === mode}
-                className={cn(
-                  "flex min-h-14 w-full items-center justify-between gap-3 px-1 text-left font-medium active:bg-surface-raised",
-                  appearance === mode ? "text-ink" : "text-ink-muted",
-                )}
+                className="sheet-row"
               >
-                {APPEARANCE_LABELS[mode]}
-                {appearance === mode && <Check className="shrink-0 text-accent" aria-hidden />}
+                <span className="mark-cell">
+                  <Glyph name={MODE_GLYPH[mode]} className="glyph-22" />
+                </span>
+                <span className="min-w-0 flex-1">{APPEARANCE_LABELS[mode]}</span>
+                {appearance === mode && (
+                  <span aria-hidden className="picker-chosen">
+                    <Glyph name="check" className="glyph-15" />
+                  </span>
+                )}
               </button>
             </li>
           ))}
         </ul>
       </Sheet>
-    </>
+    </li>
   );
 }

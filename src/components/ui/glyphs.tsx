@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode, SVGProps } from "react";
 
+import type { ExerciseModality, GymKind } from "@/domain/types";
 import { cn } from "@/lib/utils";
 
 /**
@@ -302,6 +303,32 @@ const DESTINATIONS = {
 
 export type GlyphName = keyof typeof GLYPHS | keyof typeof DESTINATIONS;
 export type Destination = keyof typeof DESTINATIONS;
+
+/** A gym is a place, so its pin, as on Today; outdoors and home keep their own glyphs. */
+export function gymKindGlyph(kind: GymKind): GlyphName {
+  return kind === "outdoor" ? "outdoor" : kind === "home" ? "indoor" : "pin";
+}
+
+/** Equipment as its glyph, from what the movement is done with (DESIGN.md, Shapes). */
+export function modalityGlyph(modality: ExerciseModality | null | undefined): GlyphName | null {
+  switch (modality) {
+    case "barbell":
+    case "dumbbell":
+      return "dumbbell";
+    case "cable":
+      return "cable";
+    case "machine":
+    case "cardio":
+      return "machine";
+    case "smith_machine":
+      return "smith";
+    case "bodyweight":
+    case "mobility":
+      return "bodyweight";
+    default:
+      return null;
+  }
+}
 
 /** What each glyph means, for a glyph that carries meaning on its own (DESIGN.md, Shapes). */
 export const GLYPH_LABELS: Readonly<Record<GlyphName, string>> = {

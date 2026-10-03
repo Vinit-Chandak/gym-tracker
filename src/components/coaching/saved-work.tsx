@@ -1,7 +1,5 @@
 import type { Route } from "next";
-import { Badge } from "@/components/ui/badge";
-import { LinkRow, List } from "@/components/ui/link-row";
-import { Section } from "@/components/ui/section";
+import { NavRow } from "@/components/ui/nav-row";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { requireProfiledUser } from "@/server/auth";
@@ -49,45 +47,43 @@ export async function SavedProgrammeWork({ onboarding = false }: { onboarding?: 
     .slice(0, 3);
   if (!intake && !newProgrammes.length && !waiting.length) return null;
   return (
-    <Section title="Your saved work">
-      <List>
+    <section aria-labelledby="saved-work">
+      <h2 id="saved-work" className="caption-head mt-3.5">
+        Your saved work
+      </h2>
+      <ul>
         {newProgrammes.map((draft) => (
-          <li key={draft.id}>
-            <LinkRow
-              href={`${base}/drafts/${draft.id}` as Route}
-              title={draft.blueprint.name}
-              subtitle="A draft programme, ready for you to review and start"
-            />
-          </li>
+          <NavRow
+            key={draft.id}
+            href={`${base}/drafts/${draft.id}` as Route}
+            glyph="table"
+            label={draft.blueprint.name}
+            sub="A draft programme, ready for you to review and start"
+          />
         ))}
         {waiting.map((job) => (
-          <li key={job.id}>
-            <LinkRow
-              href={`${base}/jobs/${job.id}` as Route}
-              title="Programme request"
-              subtitle={
-                job.status === "needs_input"
-                  ? "The coach has asked you something"
-                  : "The coach is writing your programme"
-              }
-              badge={
-                job.status === "needs_input" ? (
-                  <Badge tone="warning">Needs your answer</Badge>
-                ) : undefined
-              }
-            />
-          </li>
+          <NavRow
+            key={job.id}
+            href={`${base}/jobs/${job.id}` as Route}
+            glyph="coach"
+            label="Programme request"
+            sub={
+              job.status === "needs_input"
+                ? "The coach has asked you something"
+                : "The coach is writing your programme"
+            }
+            badge={job.status === "needs_input" ? "Needs your answer" : undefined}
+          />
         ))}
         {intake && (
-          <li>
-            <LinkRow
-              href={`${base}/create` as Route}
-              title="Your answers to the coach"
-              subtitle="Continue where you left off"
-            />
-          </li>
+          <NavRow
+            href={`${base}/create` as Route}
+            glyph="note"
+            label="Your answers to the coach"
+            sub="Continue where you left off"
+          />
         )}
-      </List>
-    </Section>
+      </ul>
+    </section>
   );
 }

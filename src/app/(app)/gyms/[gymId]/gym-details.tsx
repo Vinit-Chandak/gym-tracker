@@ -1,22 +1,15 @@
-import { SubmitButton } from "@/components/ui/form";
-import { Dumbbell } from "@/components/ui/icons";
-
-import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
-import { Badge } from "@/components/ui/badge";
-import { LinkButton } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Disclosure } from "@/components/ui/disclosure";
-import { EmptyState } from "@/components/ui/empty-state";
+import Link from "@/components/ui/app-link";
+import { SubmitButton } from "@/components/ui/form";
+import { Glyph, gymKindGlyph, type GlyphName } from "@/components/ui/glyphs";
 import { InfoTip } from "@/components/ui/info-tip";
-import { LinkRow, List } from "@/components/ui/link-row";
-import { Section } from "@/components/ui/section";
+import { NavRow } from "@/components/ui/nav-row";
 import { Select } from "@/components/ui/select";
 import {
   AVAILABILITY_LABELS,
   EQUIPMENT_CATEGORY_LABELS,
+  equipmentCountLabel,
   GYM_KIND_LABELS,
-  LOAD_UNIT_LABELS,
   RESISTANCE_MODE_LABELS,
 } from "@/lib/labels";
 import {
@@ -41,42 +34,58 @@ export type GymDetailData = {
   types: Awaited<ReturnType<typeof listEquipmentTypes>>;
   availability: Awaited<ReturnType<typeof gymAvailability>>;
 };
-function EquipmentRows({
-  gymId,
-  items,
-  plain = false,
-}: {
-  gymId: string;
-  items: EquipmentListItem[];
-  plain?: boolean;
-}) {
+/** A machine's glyph: a cable station its cable; otherwise what loads it. */
+function machineGlyph(item: EquipmentListItem): GlyphName {
+  if (item.typeCategory === "cable") return "cable";
+  switch (item.resistanceMode) {
+    case "plate_loaded":
+    case "selectorized":
+      return "machine";
+    case "bodyweight":
+      return "bodyweight";
+    case "cardio":
+      return "trainer";
+    default:
+      return "dumbbell";
+  }
+}
+
+function EquipmentRows({ gymId, items }: { gymId: string; items: EquipmentListItem[] }) {
   return (
-    <List plain={plain}>
+    <ul>
       {items.map((item) => (
-        <li key={item.id}>
-          <LinkRow
+        <li key={item.id} className="nav-row-item">
+          <Link
             prefetch="intent"
             href={`/gyms/${gymId}/equipment/${item.id}`}
-            title={item.name}
-            // Machines are usually named after their type, so only add it when it differs.
-            subtitle={
-              item.typeName === item.name
-                ? RESISTANCE_MODE_LABELS[item.resistanceMode]
-                : `${item.typeName} · ${RESISTANCE_MODE_LABELS[item.resistanceMode]}`
-            }
-            // A bare unit on every row is noise; the step is the part worth showing.
-            meta={
-              item.loadIncrement !== null
-                ? `+${item.loadIncrement} ${LOAD_UNIT_LABELS[item.unit]}`
-                : undefined
-            }
-          />
+            className="nav-row machine-row"
+          >
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="nav-row-label nav-row-label-bold">{item.name}</span>
+              <span className="meta-line">
+                <span className="meta-fact">
+                  <Glyph name={machineGlyph(item)} className="glyph-16" />
+                  {/* Machines are usually named after their type, so only add it when it
+                      differs. */}
+                  {item.typeName === item.name
+                    ? RESISTANCE_MODE_LABELS[item.resistanceMode]
+                    : `${item.typeName} · ${RESISTANCE_MODE_LABELS[item.resistanceMode]}`}
+                </span>
+              </span>
+            </span>
+            <Glyph name="chevronRight" className="nav-row-chevron glyph-20 shrink-0" />
+          </Link>
         </li>
       ))}
-    </List>
+    </ul>
   );
 }
 
+/**
+ * A gym (board Gym): its name, its kind and whether it is the default; how the programme fits
+ * it; then its machines, each with its glyph and how it is loaded, Add machine beside the count.
+ * Below what the board draws: what the gym lacks, and archiving it.
+ */
 export function GymDetails({ data }: { data: GymDetailData }) {
   const { gym, equipment, absent, types, availability } = data;
   const activeEquipment = equipment.filter((item) => item.isActive);
@@ -106,151 +115,173 @@ export function GymDetails({ data }: { data: GymDetailData }) {
         title={gym.name}
         backHref="/gyms"
         action={
-          <LinkButton href={`/gyms/${gym.id}/edit`} variant="secondary" size="sm">
+          <Link href={`/gyms/${gym.id}/edit`} className="header-text-action">
             Edit
-          </LinkButton>
+          </Link>
+        }
+        meta={
+          <>
+            <span className="meta-fact">
+              <Glyph name={gymKindGlyph(gym.kind)} className="glyph-16" />
+              {GYM_KIND_LABELS[gym.kind]}
+            </span>
+            {gym.isDefault && (
+              <span className="meta-fact">
+                <Glyph name="check" className="glyph-16" />
+                Default gym
+              </span>
+            )}
+            {!gym.isActive && <span className="meta-fact">Archived</span>}
+          </>
         }
       />
-      <PageContent>
-        <Card>
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge>{GYM_KIND_LABELS[gym.kind]}</Badge>
-            {gym.isDefault && <Badge tone="accent">Default gym</Badge>}
-            {!gym.isActive && <Badge tone="danger">Archived</Badge>}
-          </div>
-          {gym.address && <p className="text-sm text-ink-muted">{gym.address}</p>}
-          {gym.notes && <p className="text-sm whitespace-pre-line">{gym.notes}</p>}
-          {gym.isActive && !gym.isDefault && (
-            <form action={setDefaultGymAction.bind(null, gym.id)}>
-              <SubmitButton variant="secondary" className="w-full">
-                Make default gym
-              </SubmitButton>
-            </form>
-          )}
-          {!gym.isActive && (
-            <form action={setGymActiveAction.bind(null, gym.id, true)}>
-              <SubmitButton variant="secondary" className="w-full">
-                Restore gym
-              </SubmitButton>
-            </form>
-          )}
-        </Card>
+      <div className="page-width pb-8">
+        {gym.address && <p className="mt-1 type-meta text-ink-2">{gym.address}</p>}
+        {gym.notes && <p className="mt-1 type-meta whitespace-pre-line">{gym.notes}</p>}
+        {gym.isActive && !gym.isDefault && (
+          <form action={setDefaultGymAction.bind(null, gym.id)} className="mt-3">
+            <SubmitButton variant="secondary" className="w-full">
+              Make default gym
+            </SubmitButton>
+          </form>
+        )}
+        {!gym.isActive && (
+          <form action={setGymActiveAction.bind(null, gym.id, true)} className="mt-3">
+            <SubmitButton variant="secondary" className="w-full">
+              Restore gym
+            </SubmitButton>
+          </form>
+        )}
 
-        <List>
-          <li>
-            <LinkRow href={`/gyms/${gym.id}/programme`} title="Programme fit" subtitle={fitLabel} />
-          </li>
-        </List>
+        <ul className="mt-2.5 border-b border-hair">
+          <NavRow
+            href={`/gyms/${gym.id}/programme`}
+            glyph="table"
+            label="Programme fit"
+            sub={fitLabel}
+          />
+        </ul>
 
-        <Section
-          title="Equipment"
-          info="Barbells, dumbbells and bodyweight count as available at every gym; only machines and cable stations need registering."
-          action={
-            gym.isActive ? (
-              <LinkButton href={`/gyms/${gym.id}/equipment/new`} size="sm">
+        <section aria-labelledby="gym-machines">
+          <div className="list-head">
+            <h2 id="gym-machines" className="caption-head mb-0 flex items-center gap-1">
+              {equipmentCountLabel(activeEquipment.length)}
+              <InfoTip label="About machines">
+                Barbells, dumbbells and bodyweight count as available at every gym; only machines
+                and cable stations need registering.
+              </InfoTip>
+            </h2>
+            {gym.isActive && (
+              <Link href={`/gyms/${gym.id}/equipment/new`} className="list-head-action">
+                <Glyph name="plus" className="glyph-20" />
                 Add machine
-              </LinkButton>
-            ) : undefined
-          }
-        >
+              </Link>
+            )}
+          </div>
           {activeEquipment.length === 0 ? (
-            <EmptyState
-              icon={Dumbbell}
-              title="No machines yet"
-              description="Add each machine or cable station you use here."
-            />
+            <p className="mt-1 type-meta text-ink-2">
+              No machines yet. Add each machine or cable station you use here.
+            </p>
           ) : (
             <EquipmentRows gymId={gym.id} items={activeEquipment} />
           )}
           {/* Archived machines stay out of new logging but remain in the record. */}
           {archivedEquipment.length > 0 && (
-            <Disclosure summary="Archived machines" meta={String(archivedEquipment.length)}>
-              <EquipmentRows gymId={gym.id} items={archivedEquipment} plain />
-            </Disclosure>
+            <details className="disclosure mt-2">
+              <summary className="disclosure-summary">
+                <span className="min-w-0 flex-1 font-bold">Archived machines</span>
+                <span className="type-meta text-ink-2 tabular-nums">
+                  {archivedEquipment.length}
+                </span>
+                <Glyph name="chevronDown" className="disclosure-chevron glyph-18 shrink-0" />
+              </summary>
+              <EquipmentRows gymId={gym.id} items={archivedEquipment} />
+            </details>
           )}
-        </Section>
+        </section>
 
         {gym.kind === "gym" && (
-          <Section
-            title="Unavailable equipment"
-            info="Mark what this gym lacks so the programme suggests alternatives instead of asking."
-          >
-            <Card>
-              {absent.length === 0 && absentCandidates.length === 0 && (
-                <p className="text-sm text-ink-muted">Nothing marked unavailable.</p>
-              )}
-              {absent.length > 0 && (
-                <ul className="divide-y divide-line">
-                  {absent.map((item) => (
-                    <li
-                      key={item.equipmentTypeId}
-                      className="flex items-center justify-between gap-3 py-1.5"
-                    >
-                      <span className="text-sm">{item.typeName}</span>
-                      <form
-                        className="shrink-0"
-                        action={unmarkEquipmentAbsentAction.bind(
-                          null,
-                          gym.id,
-                          item.equipmentTypeId,
-                        )}
-                      >
-                        <SubmitButton variant="ghost" size="sm">
-                          Remove
-                        </SubmitButton>
-                      </form>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {gym.isActive && absentCandidates.length > 0 && (
-                <form
-                  action={markEquipmentAbsentFromFormAction.bind(null, gym.id)}
-                  className="space-y-1.5"
-                >
-                  <label
-                    htmlFor="absent-equipment"
-                    className="block text-sm font-medium text-ink-muted"
+          <section aria-labelledby="gym-unavailable">
+            <h2 id="gym-unavailable" className="caption-head mt-4.5 flex items-center gap-1">
+              Unavailable equipment
+              <InfoTip label="About unavailable equipment">
+                Mark what this gym lacks so the programme suggests alternatives instead of asking.
+              </InfoTip>
+            </h2>
+            {absent.length === 0 && absentCandidates.length === 0 && (
+              <p className="type-meta text-ink-2">Nothing marked unavailable.</p>
+            )}
+            {absent.length > 0 && (
+              <ul>
+                {absent.map((item) => (
+                  <li
+                    key={item.equipmentTypeId}
+                    className="flex min-h-[var(--ov-target)] items-center justify-between gap-3 border-b border-hair"
                   >
-                    Mark equipment unavailable
-                  </label>
-                  {/* The select carries the long equipment names, so it takes the row. */}
-                  <div className="flex items-center gap-2">
-                    <Select
-                      id="absent-equipment"
-                      name="equipmentTypeId"
-                      required
-                      defaultValue=""
-                      wrapperClassName="min-w-0 flex-1"
+                    <span className="type-meta font-semibold">{item.typeName}</span>
+                    <form
+                      className="shrink-0"
+                      action={unmarkEquipmentAbsentAction.bind(null, gym.id, item.equipmentTypeId)}
                     >
-                      <option value="">Choose equipment…</option>
-                      {absentCandidates.map((group) => (
-                        <optgroup
-                          key={group.category}
-                          label={EQUIPMENT_CATEGORY_LABELS[group.category]}
-                        >
-                          {group.items.map((type) => (
-                            <option key={type.id} value={type.id}>
-                              {type.name}
-                            </option>
-                          ))}
-                        </optgroup>
-                      ))}
-                    </Select>
-                    <SubmitButton variant="secondary" size="md" className="w-auto shrink-0">
-                      Add
-                    </SubmitButton>
-                  </div>
-                </form>
-              )}
-            </Card>
-          </Section>
+                      <SubmitButton variant="text" size="sm" className="w-auto">
+                        Remove
+                      </SubmitButton>
+                    </form>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {gym.isActive && absentCandidates.length > 0 && (
+              <form
+                action={markEquipmentAbsentFromFormAction.bind(null, gym.id)}
+                className="mt-2 space-y-1.5"
+              >
+                <label
+                  htmlFor="absent-equipment"
+                  className="block text-[length:var(--ov-type-meta-small)] font-bold"
+                >
+                  Mark equipment unavailable
+                </label>
+                {/* The select carries the long equipment names, so it takes the row. */}
+                <div className="flex items-center gap-2">
+                  <Select
+                    id="absent-equipment"
+                    name="equipmentTypeId"
+                    required
+                    defaultValue=""
+                    wrapperClassName="min-w-0 flex-1"
+                  >
+                    <option value="">Choose equipment…</option>
+                    {absentCandidates.map((group) => (
+                      <optgroup
+                        key={group.category}
+                        label={EQUIPMENT_CATEGORY_LABELS[group.category]}
+                      >
+                        {group.items.map((type) => (
+                          <option key={type.id} value={type.id}>
+                            {type.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </Select>
+                  <SubmitButton variant="secondary" size="md" className="w-auto shrink-0">
+                    Add
+                  </SubmitButton>
+                </div>
+              </form>
+            )}
+          </section>
         )}
 
         {gym.isActive && (
-          <Disclosure summary="Gym options">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="flex items-center gap-1 text-sm">
+          <details className="disclosure mt-4">
+            <summary className="disclosure-summary">
+              <span className="min-w-0 flex-1 font-bold">Gym options</span>
+              <Glyph name="chevronDown" className="disclosure-chevron glyph-18 shrink-0" />
+            </summary>
+            <div className="flex flex-wrap items-center justify-between gap-3 pb-2">
+              <p className="flex items-center gap-1 type-meta">
                 Archive gym
                 <InfoTip label="About archiving">
                   Hides it from pickers. History stays, and it can be restored any time.
@@ -262,9 +293,9 @@ export function GymDetails({ data }: { data: GymDetailData }) {
                 </SubmitButton>
               </form>
             </div>
-          </Disclosure>
+          </details>
         )}
-      </PageContent>
+      </div>
     </>
   );
 }

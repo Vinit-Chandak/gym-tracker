@@ -1,14 +1,13 @@
 import type { Metadata } from "next";
 
-import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
-import { Card } from "@/components/ui/card";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { listSportPreferences } from "@/server/repositories/sport-preferences";
 
+import { PrivacyListRow } from "./privacy-list";
 import { PrivacySwitches, SportSharingSwitches } from "./privacy-switches";
 
 export const metadata: Metadata = { title: "Privacy" };
@@ -32,7 +31,7 @@ const NEVER = [
 ];
 
 /**
- * Privacy (plan §3.7): the promise in plain words above the switches that keep it, because a
+ * Privacy (plan §3.7): the switches, and the promise in plain words behind them, because a
  * privacy screen that does not say what it protects is decoration.
  */
 export default async function PrivacyPage() {
@@ -42,43 +41,35 @@ export default async function PrivacyPage() {
     readOnly: true,
   });
 
+  // Board Privacy: the switches that keep the promise first, each saying what Off (or On)
+  // means; then the promise itself, in full, behind two rows.
   return (
     <>
       <PageHeader title="Privacy" backHref="/profile" />
-      <PageContent>
-        <Card>
-          <div>
-            <h2 className="font-medium">What a follower can see</h2>
-            <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-ink-muted">
-              {VISIBLE.map((line) => (
-                <li key={line}>{line}</li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <h2 className="font-medium">What nobody can see</h2>
-            <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-ink-muted">
-              {NEVER.map((line) => (
-                <li key={line}>{line}</li>
-              ))}
-            </ul>
-          </div>
-        </Card>
-        <PrivacySwitches
-          values={{
-            followApproval: profile.followApproval,
-            shareTraining: profile.shareTraining,
-            shareBodyWeight: profile.shareBodyWeight,
-            discoverableByEmail: profile.discoverableByEmail,
-          }}
-        />
-        <SportSharingSwitches
-          values={{
-            cycling: sports.find((sport) => sport.sport === "cycling")!.shareStats,
-            swimming: sports.find((sport) => sport.sport === "swimming")!.shareStats,
-          }}
-        />
-      </PageContent>
+      <div className="page-width pb-8">
+        <div className="mt-2">
+          <PrivacySwitches
+            values={{
+              followApproval: profile.followApproval,
+              shareTraining: profile.shareTraining,
+              shareBodyWeight: profile.shareBodyWeight,
+              discoverableByEmail: profile.discoverableByEmail,
+            }}
+          />
+        </div>
+        <div className="mt-3.5">
+          <SportSharingSwitches
+            values={{
+              cycling: sports.find((sport) => sport.sport === "cycling")!.shareStats,
+              swimming: sports.find((sport) => sport.sport === "swimming")!.shareStats,
+            }}
+          />
+        </div>
+        <ul className="mt-1.5">
+          <PrivacyListRow glyph="people" title="What a follower can see" lines={VISIBLE} />
+          <PrivacyListRow glyph="lock" title="What nobody can see" lines={NEVER} />
+        </ul>
+      </div>
     </>
   );
 }

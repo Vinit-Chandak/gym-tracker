@@ -120,6 +120,9 @@ it("gives one proposal one row, carrying the words of the ask it answers", async
       title: "Doubles your direct core work: 4 → 8 sets a week.",
       fromCoach: true,
       asks: ["more core"],
+      answers: ["More direct core work"],
+      rationale: expect.stringMatching(/^You currently have two direct core slots/),
+      lead: "edit",
     },
   ]);
   expect(data.questions).toEqual([]);

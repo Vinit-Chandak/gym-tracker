@@ -3,10 +3,10 @@
 import { useActionState, useState } from "react";
 
 import { ExercisePicker } from "@/components/exercise-picker";
-import { Card } from "@/components/ui/card";
 import { FormError, SubmitButton } from "@/components/ui/form";
-import { Field } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { Glyph } from "@/components/ui/glyphs";
+import { PinnedActions } from "@/components/ui/pinned-actions";
+import { SelectRow } from "@/components/ui/select-row";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
 import type { ExerciseListItem } from "@/server/repositories/exercises";
 import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
@@ -23,8 +23,15 @@ type Props = {
   /** Renders a "remember as fallback" checkbox for substitutions. */
   remember?: boolean;
   exerciseFieldName?: string;
+  /** Name the chosen exercise under the search and count each group (a long list). */
+  long?: boolean;
 };
 
+/**
+ * Choosing an exercise for the session (board Add exercise): the search and its results, then,
+ * pinned at the foot, where it will be done and the button that adds it. The machine question
+ * answers itself where it can: one machine is named, none is said, and only two or more ask.
+ */
 export function PickExerciseForm({
   action,
   exercises,
@@ -33,6 +40,7 @@ export function PickExerciseForm({
   submitLabel,
   remember = false,
   exerciseFieldName = "exerciseId",
+  long = false,
 }: Props) {
   const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
   const [exerciseId, setExerciseId] = useState(state.values?.[exerciseFieldName] ?? "");
@@ -42,72 +50,56 @@ export function PickExerciseForm({
   const chosen = exercises.find((e) => e.id === exerciseId);
 
   return (
-    <form action={formAction} className="space-y-[var(--section-gap)]">
+    <form action={formAction}>
       <ExercisePicker
         name={exerciseFieldName}
         exercises={exercises}
         value={exerciseId}
         onChange={setExerciseId}
         error={state.fieldErrors?.[exerciseFieldName]}
+        long={long}
       />
 
-      {/*
-        The machine question is asked only when there is a decision to make. One applicable
-        machine is not a choice, and an exercise that uses none should not be handed a list.
-      */}
-      <Card>
+      <PinnedActions stack>
+        {/*
+          The machine question is asked only when there is a decision to make. One applicable
+          machine is not a choice, and an exercise that uses none should not be handed a list.
+        */}
         {chosen &&
           (applicable.length > 1 ? (
-            <Field
+            <SelectRow
               label="Machine"
-              info="History is kept per machine, so the load you lifted stays comparable."
-              htmlFor="equipment-instance"
+              name="equipmentInstanceId"
+              defaultValue={state.values?.equipmentInstanceId ?? ""}
               error={state.fieldErrors?.equipmentInstanceId}
-            >
-              <Select
-                id="equipment-instance"
-                name="equipmentInstanceId"
-                defaultValue={state.values?.equipmentInstanceId ?? ""}
-              >
-                <option value="">Not on a machine</option>
-                {applicable.map((machine) => (
-                  <option key={machine.id} value={machine.id}>
-                    {machine.name}
-                  </option>
-                ))}
-              </Select>
-            </Field>
+              options={[
+                { value: "", label: "Not on a machine" },
+                ...applicable.map((machine) => ({ value: machine.id, label: machine.name })),
+              ]}
+            />
           ) : applicable.length === 1 ? (
-            <>
+            <p className="pinned-fact">
               <input type="hidden" name="equipmentInstanceId" value={applicable[0]!.id} />
-              <p className="text-sm text-ink-muted">
-                On <span className="font-medium text-ink">{applicable[0]!.name}</span>
-              </p>
-            </>
+              <Glyph name="machine" className="glyph-18" />
+              <span className="min-w-0 [overflow-wrap:anywhere]">On {applicable[0]!.name}</span>
+            </p>
           ) : (
-            <>
+            <p className="pinned-fact text-ink-2">
               <input type="hidden" name="equipmentInstanceId" value="" />
-              <p className="text-sm text-ink-muted">
-                {chosen.requiresEquipment ? "No machine registered here." : "No machine needed."}
-              </p>
-            </>
+              {chosen.requiresEquipment ? "No machine registered here." : "No machine needed."}
+            </p>
           ))}
 
         {remember && (
-          <label className="flex min-h-11 items-center gap-3 text-sm">
-            <input
-              type="checkbox"
-              name="remember"
-              defaultChecked
-              className="size-5 accent-[var(--ov-accent)]"
-            />
+          <label className="check-row">
+            <input type="checkbox" name="remember" defaultChecked className="check-row-box" />
             Remember this as the fallback at this gym
           </label>
         )}
 
         <FormError message={state.formError} />
         <SubmitButton disabled={!exerciseId}>{submitLabel}</SubmitButton>
-      </Card>
+      </PinnedActions>
     </form>
   );
 }

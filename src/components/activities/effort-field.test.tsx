@@ -2,9 +2,6 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 
-import { Card } from "@/components/ui/card";
-import { Section } from "@/components/ui/section";
-
 import { EffortField } from "./activity-form-fields";
 import { RunningForm } from "./running-form";
 
@@ -43,21 +40,13 @@ it("keeps the chosen answer when the form comes back with an error elsewhere", (
   expect(chosen.defaultChecked).toBe(true);
 });
 
-it("names the field for a screen reader without printing the word twice", () => {
-  render(
-    <Section title="Effort">
-      <Card>
-        <EffortField value="" />
-      </Card>
-    </Section>,
-  );
-  // One visible "Effort" — the section heading. The field's own label is still in the
-  // accessibility tree, which is what `getByRole` below reads it by.
+it("names the field for a screen reader by the word it prints, once", () => {
+  render(<EffortField value="" />);
+  // One visible "Effort": the field's own name at the gutter, which the scale is labelled by.
   const visible = screen
     .getAllByText("Effort")
     .filter((node) => !node.closest(".sr-only") && !node.classList.contains("sr-only"));
   expect(visible).toHaveLength(1);
-  expect(visible[0]?.tagName).toBe("H2");
   expect(screen.getByRole("radiogroup", { name: "Effort" })).toBeTruthy();
 });
 

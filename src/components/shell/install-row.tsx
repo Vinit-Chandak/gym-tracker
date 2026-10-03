@@ -1,11 +1,10 @@
 "use client";
 
-import { ChevronRight, Download } from "@/components/ui/icons";
+import { Download } from "@/components/ui/icons";
 import { useEffect, useState } from "react";
 import { useInstallPrompt } from "@/components/shell/pwa-provider";
 
-import { List, PRESSABLE_ROW_CLASS, RowIcon } from "@/components/ui/link-row";
-import { Section } from "@/components/ui/section";
+import { Glyph } from "@/components/ui/glyphs";
 import { Sheet } from "@/components/ui/sheet";
 import { APP_NAME } from "@/lib/app";
 
@@ -41,37 +40,45 @@ export function InstallSection() {
   if (standalone !== false || installed) return null;
 
   return (
-    <Section title="App">
-      <List>
-        <li>
+    <section aria-labelledby="profile-app">
+      <h2 id="profile-app" className="caption-head mt-4.5">
+        App
+      </h2>
+      <ul>
+        <li className="nav-row-item">
           <button
             type="button"
             onClick={async () => {
               if (!available || !(await install())) setOpen(true);
             }}
             aria-haspopup={available ? undefined : "dialog"}
-            className={PRESSABLE_ROW_CLASS}
+            className="nav-row w-full text-left"
           >
-            <RowIcon icon={Download} />
-            <span className="min-w-0 flex-1 font-medium">Install {APP_NAME}</span>
-            <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />
+            <span className="mark-cell">
+              <Download
+                scale="row"
+                style={{ width: "calc(10px + 0.625rem)", height: "calc(10px + 0.625rem)" }}
+              />
+            </span>
+            <span className="nav-row-label">Install {APP_NAME}</span>
+            <Glyph name="chevronRight" className="nav-row-chevron glyph-20 shrink-0" />
           </button>
         </li>
-      </List>
+      </ul>
       {!available && (
         <Sheet open={open} onClose={() => setOpen(false)} title={`Install ${APP_NAME}`}>
-          <dl className="space-y-3 text-sm">
+          <dl className="space-y-3 type-meta">
             <div>
-              <dt className="font-medium">Android</dt>
-              <dd className="text-ink-muted">Chrome menu ⋮ → Add to Home screen</dd>
+              <dt className="font-bold">Android</dt>
+              <dd className="text-ink-2">Chrome menu ⋮ → Add to Home screen</dd>
             </div>
             <div>
-              <dt className="font-medium">iPhone and iPad</dt>
-              <dd className="text-ink-muted">Safari Share → Add to Home Screen</dd>
+              <dt className="font-bold">iPhone and iPad</dt>
+              <dd className="text-ink-2">Safari Share → Add to Home Screen</dd>
             </div>
           </dl>
         </Sheet>
       )}
-    </Section>
+    </section>
   );
 }

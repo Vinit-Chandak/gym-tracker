@@ -352,10 +352,9 @@ twice on one screen, and every name starts at one left edge. Motion is ink, not 
 press answers a touch, a set lands in the log when the server has it, words swap in place,
 sheets follow the finger.
 
-**Status.** Refined on the Claude Design canvas "Overload revamp: Form v2, refined" (2 October 2026) and not yet built. The boards, generated tokens, screenshots and the generator they come
+**Status.** Refined on the Claude Design canvas "Overload revamp: Form v2, refined" (2 October 2026) and built in the app (3 October 2026): every board's screen, and the screens no board draws restyled in the same tokens. The boards, generated tokens, screenshots and the generator they come
 from are in [`docs/ui-redesign/revamp/form-v2/`](docs/ui-redesign/revamp/form-v2/README.md).
-This file is normative: change the generator's tokens and this frontmatter together. Screens
-not yet rebuilt keep Form's tokens and limits.
+This file is normative: change the generator's tokens and this frontmatter together.
 
 **Key Characteristics:**
 

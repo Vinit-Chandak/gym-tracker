@@ -6,6 +6,9 @@
 @import "../styles/form-v2/rows.css";
 @import "../styles/form-v2/progress.css";
 @import "../styles/form-v2/food.css";
+@import "../styles/form-v2/training.css";
+@import "../styles/form-v2/people.css";
+@import "../styles/form-v2/onboarding.css";
 @source "../";
 
 /*
@@ -279,6 +282,14 @@
 @utility glyph-24 {
   width: calc(12px + 0.75rem);
   height: calc(12px + 0.75rem);
+}
+@utility glyph-26 {
+  width: calc(13px + 0.8125rem);
+  height: calc(13px + 0.8125rem);
+}
+@utility glyph-30 {
+  width: calc(15px + 0.9375rem);
+  height: calc(15px + 0.9375rem);
 }
 /* A figure inside words keeps Jost's tabular lining digits without the role's size. */
 @utility figures {

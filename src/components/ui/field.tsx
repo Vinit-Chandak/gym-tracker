@@ -27,6 +27,8 @@ type FieldProps = {
    */
   labelHidden?: boolean;
   info?: ReactNode;
+  /** A word at the end of the label's line: "Optional" (board Welcome). */
+  aside?: ReactNode;
   htmlFor?: string;
 };
 
@@ -37,6 +39,7 @@ export function Field({
   error,
   hint,
   info,
+  aside,
   htmlFor,
   group,
   labelHidden,
@@ -75,6 +78,11 @@ export function Field({
           </label>
         )}
         {info && <InfoTip label={`About ${label.toLowerCase()}`}>{info}</InfoTip>}
+        {aside && (
+          <span className="ml-auto shrink-0 text-[length:var(--ov-type-meta-small)] font-medium text-ink-2">
+            {aside}
+          </span>
+        )}
       </div>
       {controls.map((child) => {
         if (child !== control || !isValidElement<ControlProps>(child)) return child;

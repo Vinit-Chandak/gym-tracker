@@ -24,9 +24,12 @@ export function BackLink({ fallback, label }: { fallback: string; label?: string
     () => previousPageFrom(window.location.pathname),
     () => null,
   );
-  const destination = previous
-    ? (sectionLabel(previous) ?? "Back")
-    : (label ?? sectionLabel(fallback) ?? "Back");
+  // Back to the page it names, the given name holds (a session's own pages name the session);
+  // anywhere else, the section it returns to names it.
+  const destination =
+    previous && previous !== fallback
+      ? (sectionLabel(previous) ?? "Back")
+      : (label ?? sectionLabel(fallback) ?? "Back");
   return (
     <Link
       href={(previous ?? fallback) as Route}

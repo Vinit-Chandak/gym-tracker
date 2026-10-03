@@ -10,7 +10,14 @@ import { useEffect, useRef, type ReactNode } from "react";
  * under the action rather than the action's words breaking up; the page is told how tall the
  * pinned actions are, so its last row still clears them.
  */
-export function PinnedActions({ children }: { children: ReactNode }) {
+export function PinnedActions({
+  children,
+  stack = false,
+}: {
+  children: ReactNode;
+  /** One under another, full width: the action, then a quieter way out (Skip check-in). */
+  stack?: boolean;
+}) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -32,7 +39,7 @@ export function PinnedActions({ children }: { children: ReactNode }) {
 
   return (
     <div ref={ref} className="pinned-actions">
-      <div className="pinned-actions-row">{children}</div>
+      <div className={stack ? "pinned-actions-stack" : "pinned-actions-row"}>{children}</div>
     </div>
   );
 }

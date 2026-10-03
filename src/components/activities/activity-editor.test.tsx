@@ -22,7 +22,7 @@ const props = {
 it("restores raw inputs and the retry key after unmount, then clears only on acknowledged save", async () => {
   const action = vi.fn().mockResolvedValue({ savedActivityId: "saved-id" });
   const first = render(<ActivityEditor {...props} action={action} />);
-  fireEvent.change(await screen.findByLabelText("Minutes", { exact: true }), {
+  fireEvent.change(await screen.findByLabelText("Duration"), {
     target: { value: "42" },
   });
   fireEvent.click(screen.getByRole("radio", { name: "3" }));
@@ -33,7 +33,8 @@ it("restores raw inputs and the retry key after unmount, then clears only on ack
   first.unmount();
   render(<ActivityEditor {...props} submissionKey="new-server-key" action={action} />);
   expect(await screen.findByText(/Restored your unsaved/)).toBeTruthy();
-  expect((screen.getByLabelText("Minutes", { exact: true }) as HTMLInputElement).value).toBe("42");
+  // Typed as bare minutes, kept as the minutes it posts, and shown again as the clock writes it.
+  expect((screen.getByLabelText("Duration") as HTMLInputElement).value).toBe("42:00");
   fireEvent.click(screen.getByRole("button", { name: "Save activity" }));
   await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith("/training/activities/saved-id"));
   expect(action.mock.calls[0]![1].get("submissionKey")).toBe(stored.submissionKey);
@@ -49,7 +50,7 @@ it("keeps a failed save through reload without exposing another account's draft"
   const first = render(
     <ActivityEditor {...props} action={async () => ({ formError: "Try again" })} />,
   );
-  const input = await screen.findByLabelText("Minutes", { exact: true });
+  const input = await screen.findByLabelText("Duration");
   expect((input as HTMLInputElement).value).toBe("");
   fireEvent.change(input, { target: { value: "17" } });
   fireEvent.click(screen.getByRole("radio", { name: "3" }));
@@ -57,9 +58,7 @@ it("keeps a failed save through reload without exposing another account's draft"
   await screen.findByText("Try again");
   first.unmount();
   render(<ActivityEditor {...props} action={async () => ({})} />);
-  expect(
-    ((await screen.findByLabelText("Minutes", { exact: true })) as HTMLInputElement).value,
-  ).toBe("17");
+  expect(((await screen.findByLabelText("Duration")) as HTMLInputElement).value).toBe("17:00");
   expect(readDrafts(localStorage, "athlete-b").drafts).toHaveLength(1);
 });
 
@@ -86,15 +85,15 @@ it("restores the opening revision, so reloading a stale edit cannot silently ove
 it("keeps drafts separate when navigating to another sport on the same page", async () => {
   const action = vi.fn().mockResolvedValue({ formError: "Try again" });
   const editor = render(<ActivityEditor {...props} action={action} />);
-  fireEvent.change(await screen.findByLabelText("Minutes", { exact: true }), {
+  fireEvent.change(await screen.findByLabelText("Duration"), {
     target: { value: "42" },
   });
   await waitFor(() => expect(readDrafts(localStorage, props.userId).drafts).toHaveLength(1));
   editor.rerender(
     <ActivityEditor {...props} sport="running" submissionKey="running-key" action={action} />,
   );
-  expect((screen.getByLabelText("Minutes", { exact: true }) as HTMLInputElement).value).toBe("");
-  fireEvent.change(screen.getByLabelText("Minutes", { exact: true }), {
+  expect((screen.getByLabelText("Duration") as HTMLInputElement).value).toBe("");
+  fireEvent.change(screen.getByLabelText("Duration"), {
     target: { value: "23" },
   });
   fireEvent.click(screen.getByRole("button", { name: "Save activity" }));
@@ -109,7 +108,7 @@ it("changes scheduled identity while retaining a draft through same-session refr
   const action = vi.fn().mockResolvedValue({ formError: "Try again" });
   const occurrence = { id: "morning", revisionId: "original-revision" };
   const editor = render(<ActivityEditor {...props} occurrence={occurrence} action={action} />);
-  fireEvent.change(await screen.findByLabelText("Minutes", { exact: true }), {
+  fireEvent.change(await screen.findByLabelText("Duration"), {
     target: { value: "42" },
   });
   editor.rerender(
@@ -119,7 +118,7 @@ it("changes scheduled identity while retaining a draft through same-session refr
       action={action}
     />,
   );
-  expect((screen.getByLabelText("Minutes", { exact: true }) as HTMLInputElement).value).toBe("42");
+  expect((screen.getByLabelText("Duration") as HTMLInputElement).value).toBe("42");
   editor.rerender(
     <ActivityEditor
       {...props}
@@ -127,7 +126,7 @@ it("changes scheduled identity while retaining a draft through same-session refr
       action={action}
     />,
   );
-  expect((screen.getByLabelText("Minutes", { exact: true }) as HTMLInputElement).value).toBe("");
+  expect((screen.getByLabelText("Duration") as HTMLInputElement).value).toBe("");
   fireEvent.click(screen.getByRole("button", { name: "Save activity" }));
   await screen.findByText("Try again");
   expect(action.mock.calls[0]![1].get("occurrenceId")).toBe("evening");

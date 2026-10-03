@@ -2,12 +2,21 @@
 
 import { useActionState, useState } from "react";
 
-import { Card } from "@/components/ui/card";
+import { Art } from "@/components/art/art";
 import { FormError, SubmitButton } from "@/components/ui/form";
+import { Glyph } from "@/components/ui/glyphs";
+import { PinnedActions } from "@/components/ui/pinned-actions";
 import { ACTIVITY_SPORT_LABELS, type ActivitySport } from "@/domain/activity";
-import { cn } from "@/lib/utils";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
 import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
+
+/** Each sport's form, as its mark on the tile. */
+const SPORT_MARK: Record<ActivitySport, "strength" | "run" | "ride" | "swim"> = {
+  strength: "strength",
+  running: "run",
+  cycling: "ride",
+  swimming: "swim",
+};
 
 /**
  * Choosing the sports this account trains (SPORT-01).
@@ -32,44 +41,48 @@ export function SportChoice({
   const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
   const [chosen, setChosen] = useState<ActivitySport[]>(() => [...enabled]);
 
+  // Board Sports: a tile each, the chosen in ink with its mark on a ground square and a check;
+  // the note under them; the action pinned.
   return (
-    <form action={formAction} className="space-y-3">
+    <form action={formAction}>
       <input type="hidden" name="sports" value={chosen.join(",")} />
-      <Card>
-        <div className="grid grid-cols-2 gap-2">
-          {sports.map((sport) => {
-            const on = chosen.includes(sport);
-            return (
-              <button
-                key={sport}
-                type="button"
-                aria-pressed={on}
-                onClick={() =>
-                  setChosen((current) =>
-                    current.includes(sport)
-                      ? current.filter((item) => item !== sport)
-                      : [...current, sport],
-                  )
-                }
-                className={cn(
-                  "h-11 rounded-control border px-3 text-sm",
-                  on
-                    ? "border-accent bg-accent-soft text-accent"
-                    : "border-line-strong text-ink-muted",
-                )}
-              >
-                {ACTIVITY_SPORT_LABELS[sport]}
-              </button>
-            );
-          })}
-        </div>
-        <p className="text-sm text-ink-muted">
-          {note ??
-            "Turning a sport off tidies your shortcuts. Your history, templates and anything already in your programme stay as they are."}
-        </p>
-      </Card>
-      <FormError message={state.formError} />
-      <SubmitButton pendingLabel="Saving…">{submitLabel}</SubmitButton>
+      <div role="group" aria-label="Sports" className="sport-tiles">
+        {sports.map((sport) => {
+          const on = chosen.includes(sport);
+          return (
+            <button
+              key={sport}
+              type="button"
+              role="checkbox"
+              aria-checked={on}
+              onClick={() =>
+                setChosen((current) =>
+                  current.includes(sport)
+                    ? current.filter((item) => item !== sport)
+                    : [...current, sport],
+                )
+              }
+              className="sport-tile"
+            >
+              <span className="sport-tile-mark">
+                <Art kind="mark" sport={SPORT_MARK[sport]} size={28} state={on ? "done" : "todo"} />
+              </span>
+              <span className="flex w-full items-center justify-between gap-2">
+                <span className="sport-tile-word">{ACTIVITY_SPORT_LABELS[sport]}</span>
+                {on && <Glyph name="check" className="glyph-20 shrink-0" />}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <p className="onboarding-sub mt-3.5">
+        {note ??
+          "Turning a sport off tidies your shortcuts. Your history, templates and anything already in your programme stay as they are."}
+      </p>
+      <PinnedActions stack>
+        <FormError message={state.formError} />
+        <SubmitButton pendingLabel="Saving…">{submitLabel}</SubmitButton>
+      </PinnedActions>
     </form>
   );
 }

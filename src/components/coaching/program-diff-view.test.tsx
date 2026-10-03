@@ -102,7 +102,7 @@ it("shows only the changed day, with a word beside every colour", () => {
   expect(screen.getByText("Barbell curl")).toBeTruthy();
   expect(screen.getByText("Cable curl")).toBeTruthy();
   expect(screen.getByText("Cable crunch")).toBeTruthy();
-  expect(screen.getByText("Sets:")).toBeTruthy();
+  expect(screen.getByText("Sets")).toBeTruthy();
 });
 
 it("says the programme is unchanged rather than printing it again", () => {
@@ -201,7 +201,7 @@ it("folds a run's weeks into one entry and leaves the finished weeks out", () =>
   );
   expect(screen.getByText("Runs · weeks 3–6")).toBeTruthy();
   expect(screen.queryByText(/week 1/)).toBeNull();
-  expect(screen.getAllByText(/Minutes:/)).toHaveLength(1);
+  expect(screen.getAllByText("Minutes")).toHaveLength(1);
   expect(screen.getByText("15–17 in week 3, building to 18–20 by week 6")).toBeTruthy();
   // The rewritten instructions are there, once, folded.
   expect(screen.getAllByText("Walk whenever the breathing tightens.")).toHaveLength(1);

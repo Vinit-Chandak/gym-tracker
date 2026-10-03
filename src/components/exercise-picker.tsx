@@ -1,11 +1,10 @@
 "use client";
 
-import { Search } from "@/components/ui/icons";
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 
-import { Input } from "@/components/ui/input";
+import { GLYPH_LABELS, Glyph, modalityGlyph } from "@/components/ui/glyphs";
 import { exerciseSections } from "@/lib/exercise-search";
-import { EXERCISE_MODALITY_LABELS, MUSCLE_LABELS } from "@/lib/labels";
+import { MUSCLE_LABELS } from "@/lib/labels";
 import type { ExerciseListItem } from "@/server/repositories/exercises";
 
 type ExercisePickerProps = {
@@ -15,106 +14,125 @@ type ExercisePickerProps = {
   value: string;
   onChange: (exerciseId: string) => void;
   error?: string;
+  /**
+   * Name the chosen exercise under the search (board Add fallback), where the list is long
+   * enough to scroll it out of sight, and count each group.
+   */
+  long?: boolean;
 };
 
 /**
- * Search first, then grouped results: by body region when nothing is typed, and by how well
- * each exercise answers the search when something is, names first. The whole view is one
- * scroll region, so a long catalogue never becomes a list scrolling inside a sheet scrolling
- * inside a page.
+ * Search first, then grouped results (boards Add exercise, Add fallback): by body region when
+ * nothing is typed, and by how well each exercise answers the search when something is, names
+ * first. Each row is the name at the gutter and, under it, its equipment's glyph and the muscles
+ * it works; the chosen one carries a check. The whole view is one scroll region, so a long
+ * catalogue never becomes a list scrolling inside a sheet scrolling inside a page.
  *
  * Nothing is filtered out for being unavailable at the current gym: an exercise you cannot
  * do here is still an exercise, and the machine question is asked separately.
  */
-export function ExercisePicker({ name, exercises, value, onChange, error }: ExercisePickerProps) {
+export function ExercisePicker({
+  name,
+  exercises,
+  value,
+  onChange,
+  error,
+  long = false,
+}: ExercisePickerProps) {
+  const id = useId();
   const [query, setQuery] = useState("");
   const groups = useMemo(() => exerciseSections(exercises, query), [exercises, query]);
   const selected = exercises.find((e) => e.id === value);
 
   return (
-    <div className="space-y-3">
-      <div className="relative">
-        <Search className="absolute top-1/2 left-3 -translate-y-1/2 text-ink-subtle" aria-hidden />
-        <Input
+    <div>
+      <div className="search-box" data-filled={query ? "true" : undefined}>
+        <Glyph name="search" className="glyph-20" />
+        <input
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search name, muscle or equipment"
           aria-label="Search exercises"
-          className="pl-9"
+          className="search-box-input"
           autoCapitalize="none"
           autoCorrect="off"
           enterKeyHint="search"
         />
-      </div>
-
-      <div className="flex min-h-11 items-center justify-between gap-3">
-        <p className="min-w-0 text-sm">
-          <span className="text-ink-muted">Selected: </span>
-          <span className="font-medium [overflow-wrap:anywhere]">
-            {selected?.name ?? "nothing yet"}
-          </span>
-        </p>
-        {selected && (
+        {query && (
           <button
             type="button"
-            onClick={() => onChange("")}
-            className="min-h-11 shrink-0 px-2 text-sm font-medium text-ink-muted"
+            aria-label="Clear the search"
+            onClick={() => setQuery("")}
+            className="search-box-clear"
           >
-            Clear
+            <Glyph name="close" className="glyph-18" />
           </button>
         )}
       </div>
 
+      {long && selected && (
+        <p className="mt-2 type-meta-small text-ink-2">
+          Selected:{" "}
+          <span className="font-bold [overflow-wrap:anywhere] text-ink">{selected.name}</span>
+        </p>
+      )}
+
       {error && (
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="mt-2 type-meta-small font-semibold">
           {error}
         </p>
       )}
 
       {/* An empty catalogue and a query that matches nothing are different problems. */}
       {exercises.length === 0 ? (
-        <p className="text-sm text-ink-muted">No exercises in the library.</p>
+        <p className="mt-3 type-meta text-ink-2">No exercises in the library.</p>
       ) : groups.length === 0 ? (
-        <p className="text-sm text-ink-muted">Nothing matches “{query}”.</p>
+        <p className="mt-3 type-meta text-ink-2">Nothing matches “{query}”.</p>
       ) : (
         groups.map((group) => (
-          <section key={group.key}>
-            <h3 className="px-1 pb-1.5 text-xs font-medium tracking-wide text-ink-muted uppercase">
+          <section key={group.key} aria-labelledby={`${id}-${group.key}`}>
+            <h3 id={`${id}-${group.key}`} className="caption-head mt-3.5">
               {group.title}
+              {long && group.key !== "name" && (
+                <span className="tabular-nums"> · {group.items.length}</span>
+              )}
             </h3>
-            <ul className="box-rows">
-              {group.items.map((exercise) => (
-                <li key={exercise.id}>
-                  {/* The label carries the chosen state so the box's rounding applies to it. */}
-                  <label className="block has-checked:bg-accent-soft has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-focus">
-                    <input
-                      type="radio"
-                      name={name}
-                      value={exercise.id}
-                      checked={value === exercise.id}
-                      onChange={() => onChange(exercise.id)}
-                      className="sr-only"
-                    />
-                    <span className="flex min-h-14 items-center gap-3 px-4 py-2.5">
-                      <span className="min-w-0 flex-1">
-                        <span className="block font-medium [overflow-wrap:anywhere]">
-                          {exercise.name}
-                        </span>
-                        <span className="block text-sm [overflow-wrap:anywhere] text-ink-muted">
-                          {EXERCISE_MODALITY_LABELS[exercise.modality]} ·{" "}
-                          {exercise.primaryMuscles.map((m) => MUSCLE_LABELS[m]).join(", ")}
+            <ul>
+              {group.items.map((exercise) => {
+                const glyph = modalityGlyph(exercise.modality);
+                const chosen = value === exercise.id;
+                return (
+                  <li key={exercise.id}>
+                    <label className="picker-row">
+                      <input
+                        type="radio"
+                        name={name}
+                        value={exercise.id}
+                        checked={chosen}
+                        onChange={() => onChange(exercise.id)}
+                        className="peer sr-only"
+                      />
+                      <span className="picker-row-text">
+                        <span className="picker-row-name">{exercise.name}</span>
+                        <span className="picker-row-meta">
+                          {glyph && (
+                            <Glyph name={glyph} label={GLYPH_LABELS[glyph]} className="glyph-16" />
+                          )}
+                          <span>
+                            {exercise.primaryMuscles.map((m) => MUSCLE_LABELS[m]).join(", ")}
+                          </span>
                         </span>
                       </span>
-                      {value === exercise.id && (
-                        <span className="shrink-0 pr-2 text-sm font-medium text-accent">
-                          Chosen
+                      {chosen && (
+                        <span aria-hidden className="picker-chosen">
+                          <Glyph name="check" className="glyph-15" />
                         </span>
                       )}
-                    </span>
-                  </label>
-                </li>
-              ))}
+                    </label>
+                  </li>
+                );
+              })}
             </ul>
           </section>
         ))

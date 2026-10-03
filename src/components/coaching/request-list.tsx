@@ -5,8 +5,8 @@ import type { Route } from "next";
 
 import Link from "@/components/ui/app-link";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { SpeechTextarea } from "@/components/ui/dictation";
+import { Glyph } from "@/components/ui/glyphs";
 import { PLAN_LIMITS } from "@/domain/plan-limits";
 import type { RequestState } from "@/domain/program-request";
 import { formatIsoDay } from "@/lib/format";
@@ -64,22 +64,33 @@ function waitingLine(request: RequestView): string {
 export function RequestList({
   requests,
   base = "/profile/programme",
+  label,
 }: {
   requests: readonly RequestView[];
   base?: string;
+  /** What each card is, where no heading above says it (board AI coach: "Needs your answer"). */
+  label?: string;
 }) {
   return (
     <ul className="space-y-3">
       {requests.map((request) => (
         <li key={request.id}>
-          <RequestRow request={request} base={base} />
+          <RequestRow request={request} base={base} label={label} />
         </li>
       ))}
     </ul>
   );
 }
 
-function RequestRow({ request, base }: { request: RequestView; base: string }) {
+function RequestRow({
+  request,
+  base,
+  label,
+}: {
+  request: RequestView;
+  base: string;
+  label?: string;
+}) {
   const [answer, setAnswer] = useState("");
   const [noteId, setNoteId] = useState(() => crypto.randomUUID());
   const [busy, setBusy] = useState(false);
@@ -95,72 +106,88 @@ function RequestRow({ request, base }: { request: RequestView; base: string }) {
     setBusy(false);
   };
 
+  // Board AI coach: on surface, the ask in the athlete's words, the coach's question, the box
+  // to answer in, then Send answer and the way out on one line.
   return (
-    <Card>
-      <p className="font-medium [overflow-wrap:anywhere]">“{request.quote}”</p>
+    <div className="request-card">
+      {label && (
+        <p className="request-card-label">
+          <Glyph name="coach" className="glyph-16" />
+          {label}
+        </p>
+      )}
+      <p className="request-card-quote">“{request.quote}”</p>
       {settled ? (
-        <p className="text-sm [overflow-wrap:anywhere] text-ink-muted">
+        <p className="type-meta-small [overflow-wrap:anywhere] text-ink-2">
           {[settled, request.outcome || request.detail].filter(Boolean).join(" — ")}
           {request.settledOn && <span className="tabular-nums"> · {request.settledOn}</span>}
         </p>
       ) : request.state === "needs_answer" ? (
-        request.detail && <p className="text-sm [overflow-wrap:anywhere]">{request.detail}</p>
+        request.detail && <p className="type-body [overflow-wrap:anywhere]">{request.detail}</p>
       ) : (
-        <p className="text-sm text-ink-muted tabular-nums">{waitingLine(request)}</p>
+        <p className="type-meta-small text-ink-2 tabular-nums">{waitingLine(request)}</p>
       )}
       {settled && request.draftId && (
         <Link
           href={`${base}/drafts/${request.draftId}` as Route}
-          className="flex min-h-11 items-center text-sm text-accent underline-offset-4 hover:underline"
+          className="flex min-h-11 items-center type-meta font-bold underline underline-offset-4"
         >
           See the change
         </Link>
       )}
       {request.state === "needs_answer" && (
-        <div className="space-y-2">
+        <div className="request-card-answer">
           <SpeechTextarea
             label="your answer to the coach"
-            rows={3}
+            rows={2}
             maxLength={PLAN_LIMITS.memo}
             placeholder="Your answer"
             value={answer}
             onChange={setAnswer}
           />
-          <Button
-            className="flex w-full"
-            disabled={busy || answer.trim().length === 0}
-            onClick={() =>
-              act(async () => {
-                const result = await coachingAction(() =>
-                  answerProgramRequestAction(request.id, answer, noteId),
-                );
-                if (result.ok) {
-                  setAnswer("");
-                  setNoteId(crypto.randomUUID());
-                }
-                return result;
-              })
-            }
-          >
-            {busy ? "Sending…" : "Send answer"}
-          </Button>
         </div>
       )}
-      {withdrawable && (
-        <Button
-          variant="ghost"
-          className="flex w-full"
-          disabled={busy}
-          onClick={() => act(() => coachingAction(() => withdrawProgramRequestAction(request.id)))}
-        >
-          I no longer want this
-        </Button>
+      {(request.state === "needs_answer" || withdrawable) && (
+        <div className="request-card-actions">
+          {request.state === "needs_answer" && (
+            <Button
+              variant={answer.trim().length === 0 ? "waiting" : "primary"}
+              className={answer.trim().length === 0 ? "bg-ground" : undefined}
+              disabled={busy || answer.trim().length === 0}
+              onClick={() =>
+                act(async () => {
+                  const result = await coachingAction(() =>
+                    answerProgramRequestAction(request.id, answer, noteId),
+                  );
+                  if (result.ok) {
+                    setAnswer("");
+                    setNoteId(crypto.randomUUID());
+                  }
+                  return result;
+                })
+              }
+            >
+              {busy ? "Sending…" : "Send answer"}
+            </Button>
+          )}
+          {withdrawable && (
+            <Button
+              variant="text"
+              disabled={busy}
+              onClick={() =>
+                act(() => coachingAction(() => withdrawProgramRequestAction(request.id)))
+              }
+            >
+              I no longer want this
+            </Button>
+          )}
+        </div>
       )}
       {error && (
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="type-meta-small font-semibold">
           {error}
         </p>
       )}
-    </Card>
+    </div>
   );
 }

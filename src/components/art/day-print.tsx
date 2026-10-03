@@ -79,7 +79,10 @@ export function DayPrint({
   maxModule?: number;
   module?: number;
   fallback?: { width: number; height: number };
-  /** Hears the module the print was drawn at, so a page of prints can share the smallest. */
+  /**
+   * Hears the largest module the print fits its box at, whatever `module` it is drawn at, so a
+   * page of prints can draw every one at the smallest (board Training).
+   */
   onModule?: (module: number) => void;
 }) {
   const id = svgId(useId());
@@ -103,10 +106,11 @@ export function DayPrint({
     return () => observer.disconnect();
   }, []);
 
-  const layout = dayPrint({ ...size, parts, maxModule, module });
+  const fitted = dayPrint({ ...size, parts, maxModule });
+  const layout = module === undefined ? fitted : dayPrint({ ...size, parts, maxModule, module });
   useLayoutEffect(() => {
-    onModule?.(layout.module);
-  }, [layout.module, onModule]);
+    onModule?.(fitted.module);
+  }, [fitted.module, onModule]);
 
   return (
     <div
