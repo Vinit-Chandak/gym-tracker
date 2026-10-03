@@ -1,46 +1,72 @@
 "use client";
 
-import { ChevronLeft } from "@/components/ui/icons";
-import { useEffect, useOptimistic, useState, useTransition } from "react";
+import type { Route } from "next";
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useOptimistic,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  useTransition,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
+import { flushSync } from "react-dom";
 
+import { RestPill } from "@/components/shell/rest-timer";
 import Link from "@/components/ui/app-link";
-import { Badge } from "@/components/ui/badge";
 import { Button, LinkButton } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Disclosure } from "@/components/ui/disclosure";
-import { Input } from "@/components/ui/input";
-import { SetTable } from "@/components/ui/set-table";
-import { Sheet } from "@/components/ui/sheet";
+import { rampSize, titleSize } from "@/components/ui/fit";
+import { Glyph } from "@/components/ui/glyphs";
 import { Tabs } from "@/components/ui/tabs";
-import {
-  REGRESSION_WARNING_STREAK,
-  WORKING_SET_TYPES,
-  type SuggestionKind,
-} from "@/domain/progression";
-import { formatSets } from "@/domain/sets";
-import type { PrescriptionType } from "@/domain/types";
+import { useMeasure } from "@/components/ui/use-width";
+import { effortError, effortMetric, RIR_HELP, RPE_HELP } from "@/domain/effort";
+import { REGRESSION_WARNING_STREAK, WORKING_SET_TYPES } from "@/domain/progression";
+import { SET_LIMITS } from "@/domain/sets";
+import type { LoadUnit, PrescriptionType, SetType } from "@/domain/types";
 import { formatDay } from "@/lib/format";
-import {
-  LOAD_UNIT_LABELS,
-  MEASURE_UNIT_SUFFIX,
-  rangeLabel,
-  restLabel,
-  SUGGESTION_KIND_LABELS,
-} from "@/lib/labels";
-import type { DraftValueField } from "@/lib/workout-drafts";
-import {
-  applyFallbackAction,
-  setExerciseCompletedAction,
-  skipExerciseAction,
-} from "@/server/actions/sessions";
-
-import { ExerciseHistory } from "./exercise-history";
-import { NextLoad, nextLoadQuestion } from "./next-load";
-import { SetGrid } from "./set-grid";
-import { SetOptions } from "./set-options";
-import { useSetRows, type RowState } from "./use-set-rows";
-import type { ExerciseVM, SessionVM } from "./view-model";
+import { LOAD_UNIT_LABELS, SUGGESTION_KIND_LABELS } from "@/lib/labels";
 import { attempted } from "@/lib/offline-submit";
+import { PLATFORM_ATTRIBUTE } from "@/lib/platform";
+import type { DraftValueField } from "@/lib/workout-drafts";
+
+import { Entry, type EntryField } from "./entry";
+import { ExerciseHistory } from "./exercise-history";
+import { Log, unitName } from "./log";
+import { useLoggerActions } from "./logger-actions";
+import {
+  entryHeading,
+  entrySize,
+  equipmentGlyph,
+  equipmentLine,
+  gutterFor,
+  isWarmup,
+  logSize,
+  measureOf,
+  perSetLabel,
+  prescriptionLabel,
+  restText,
+  rirTarget,
+  rirTargetLabel,
+  setNumber,
+  supersetNext,
+  volumeRange,
+} from "./logger-model";
+import {
+  EffortSheet,
+  MoreSheet,
+  SetEditSheet,
+  SetOptionsSheet,
+  SkipSheet,
+  WhySheet,
+  type MoreOption,
+  type WhyContent,
+} from "./logger-sheets";
+import { NextLoad, nextLoadQuestion } from "./next-load";
+import { useSetRows, type Ghost, type RowState } from "./use-set-rows";
+import type { ExerciseVM, SessionVM } from "./view-model";
 
 const TABS = [
   { value: "log", label: "Log" },
@@ -50,134 +76,195 @@ const TABS = [
 
 type LoggerTab = (typeof TABS)[number]["value"];
 
-/**
- * What one exercise is counted in. The programme slot decides; an exercise added on the spot
- * falls back to what the library says the movement is measured in, so a carry asks for metres
- * rather than for reps it does not have.
- */
-function measureOf(exercise: ExerciseVM): PrescriptionType {
-  return exercise.planned?.prescriptionType ?? exercise.exercise.defaultPrescriptionType;
-}
+/** The app's own sentences for a missing effort (src/domain/effort.ts). */
+const RIR_NEEDED = effortError({
+  setType: "working",
+  reps: 1,
+  durationSeconds: null,
+  rir: null,
+})!;
+const RPE_NEEDED = effortError({
+  setType: "working",
+  reps: null,
+  durationSeconds: 1,
+  rir: null,
+  rpe: null,
+})!;
+const isEffortMessage = (message: string | null) =>
+  message === RIR_NEEDED ||
+  message === RPE_NEEDED ||
+  (message?.startsWith("Review and re-enter actual") ?? false);
 
-/** The plan's range in the exercise's own measure: "3 × 8–12", "2 × 20–45 s", "3 × 20–30 m". */
-function volumeRange(exercise: ExerciseVM): string | null {
-  const p = exercise.planned;
-  if (!p) return null;
-  const suffix = MEASURE_UNIT_SUFFIX[p.prescriptionType];
-  switch (p.prescriptionType) {
-    case "duration":
-      return rangeLabel(p.durationMinSeconds, p.durationMaxSeconds, suffix);
-    case "distance":
-      return rangeLabel(p.distanceMinMeters, p.distanceMaxMeters, suffix);
-    default:
-      return rangeLabel(p.repMin, p.repMax);
-  }
-}
+const STORAGE_UNAVAILABLE =
+  "Browser storage is unavailable. Keep this page open until your sets are saved.";
+const AUTO_WARMUP = "Saved as a warm-up: well under today’s working weight, with no RIR.";
+const DECLINE =
+  "Repeated comparable decline. Keep the baseline pending coach review and reassess current recovery.";
 
-function prescriptionLine(exercise: ExerciseVM): string | null {
-  const p = exercise.planned;
-  if (!p) return null;
-  const volume = `${p.sets} × ${volumeRange(exercise)}`;
-  return `${volume}${p.perSide ? " per side" : ""}${p.prescriptionType === "reps" ? ` @ ${rangeLabel(p.rirMin, p.rirMax)} RIR` : " · report RPE"} · rest ${restLabel(p.restMinSeconds, p.restMaxSeconds)}`;
-}
+const rirName = (value: string) =>
+  value === "1" ? "1 rep in reserve" : `${value} reps in reserve`;
 
-/** The machine, or what stands in for one. The gym itself is session context, not row chrome. */
-function equipmentLine(exercise: ExerciseVM, gymKind: string): string {
-  if (exercise.equipment) return exercise.equipment.name;
-  if (!exercise.exercise.requiresEquipment) return "No equipment";
-  if (
-    gymKind === "gym" &&
-    ["barbell", "dumbbell", "bodyweight", "mobility"].includes(exercise.exercise.modality)
-  ) {
-    return exercise.exercise.modality === "bodyweight" ? "Bodyweight" : "Free weights";
-  }
-  return "Machine not chosen";
-}
+const noSubscription = () => () => {};
 
-function suggestionTone(kind: SuggestionKind): "neutral" | "accent" | "success" | "warning" {
-  switch (kind) {
-    case "increase":
-      return "success";
-    case "reduce":
-    case "revert":
-    case "repeat":
-      return "warning";
-    case "hold":
-    case "extend":
-    case "lengthen":
-    case "coach":
-      return "accent";
-    default:
-      return "neutral";
-  }
-}
+type Sheet =
+  | { kind: "why" }
+  | { kind: "effort" }
+  | { kind: "options" }
+  | { kind: "edit"; setIndex: number }
+  | { kind: "more" }
+  | { kind: "skip" };
 
-function suggestionHeadline(exercise: ExerciseVM, unit: string) {
-  const suggestion = exercise.suggestion;
-  if (!suggestion) return null;
-  const kind: SuggestionKind = suggestion.kind;
-  const first = suggestion.sets.find((s) => WORKING_SET_TYPES.has(s.setType)) ?? suggestion.sets[0];
-  // On a bodyweight movement the load is what is added, so nothing added is "bodyweight",
-  // not "0 kg".
+/** The three fields a set is written in: load, what it counts, and effort. */
+function fieldsFor(
+  exercise: ExerciseVM,
+  measure: PrescriptionType,
+  row: RowState | null,
+  unit: LoadUnit,
+): [EntryField, EntryField, EntryField] {
+  const loadUnit = row?.unit ?? unit;
   const bodyweight = exercise.exercise.modality === "bodyweight";
-  const load = (weight: number | null | undefined) =>
-    weight === null || weight === undefined
-      ? "the same load"
-      : bodyweight && weight === 0
-        ? "bodyweight"
-        : `${weight} ${unit}`;
+  const label = LOAD_UNIT_LABELS[loadUnit];
+  const said = unitName(loadUnit);
+  const step = `${exercise.weightStep} ${label}`;
+  const suggested = (state: string) => (state === "suggested" ? ", suggested" : "");
+  const load: EntryField = {
+    field: "weight",
+    unit: `${bodyweight ? "+" : ""}${label}`,
+    hint: null,
+    foldHint: null,
+    inputLabel: said ? `Load in ${said}` : "Load",
+    inputMode: "decimal",
+    max: SET_LIMITS.weight,
+    min: 0,
+    step: exercise.weightStep,
+    less: `Less load, ${step}`,
+    more: `More load, ${step}`,
+    name: (value, state) =>
+      state === "empty"
+        ? "Load not set. Type a load"
+        : `${value}${said ? ` ${said}` : ""}${suggested(state)}. Type a load`,
+    target: null,
+    info: null,
+  };
+  const range = volumeRange(exercise);
+  const count: EntryField =
+    measure === "duration"
+      ? {
+          field: "duration",
+          unit: "s",
+          hint: null,
+          foldHint: range ? `target ${range}` : null,
+          inputLabel: "Seconds",
+          inputMode: "numeric",
+          max: SET_LIMITS.durationSeconds,
+          min: 0,
+          step: 5,
+          less: "5 seconds less",
+          more: "5 seconds more",
+          name: (value, state) =>
+            state === "empty"
+              ? "Seconds not set. Type seconds"
+              : `${value} seconds${suggested(state)}. Type seconds`,
+          target: null,
+          info: null,
+        }
+      : measure === "distance"
+        ? {
+            field: "distance",
+            unit: "m",
+            hint: null,
+            foldHint: range ? `target ${range}` : null,
+            inputLabel: "Metres",
+            inputMode: "decimal",
+            max: SET_LIMITS.distanceMeters,
+            min: 0,
+            step: 5,
+            less: "5 metres less",
+            more: "5 metres more",
+            name: (value, state) =>
+              state === "empty"
+                ? "Metres not set. Type metres"
+                : `${value} metres${suggested(state)}. Type metres`,
+            target: null,
+            info: null,
+          }
+        : {
+            field: "reps",
+            unit: "reps",
+            hint: null,
+            foldHint: range ? `target ${range}` : null,
+            inputLabel: "Reps",
+            inputMode: "numeric",
+            max: SET_LIMITS.reps,
+            min: 0,
+            step: 1,
+            less: "One rep fewer",
+            more: "One rep more",
+            name: (value, state) =>
+              state === "empty"
+                ? "Reps not set. Type reps"
+                : `${value} reps${suggested(state)}. Type reps`,
+            target: null,
+            info: null,
+          };
+  const warmup = row !== null && isWarmup(row.setType);
+  const effort: EntryField =
+    effortMetric(measure) === "rir"
+      ? (() => {
+          const target = row && !warmup ? rirTarget(exercise, row.setIndex) : null;
+          const targetLabel = row && !warmup ? rirTargetLabel(exercise, row.setIndex) : null;
+          return {
+            field: "rir",
+            unit: "RIR",
+            hint: warmup ? "optional" : targetLabel ? `target ${targetLabel}` : null,
+            foldHint: null,
+            inputLabel: "RIR",
+            inputMode: "decimal",
+            max: SET_LIMITS.rir,
+            min: 0,
+            step: 1,
+            less: "One rep less in reserve",
+            more: "One rep more in reserve",
+            name: (value, state) =>
+              state !== "empty"
+                ? `${rirName(value)}. Type RIR`
+                : warmup
+                  ? "RIR not set, optional for a warm-up. Type RIR"
+                  : targetLabel
+                    ? `RIR not set, target ${targetLabel}. Use the target`
+                    : "RIR not set. Type RIR",
+            target,
+            info: "What RIR means",
+          };
+        })()
+      : {
+          field: "rpe",
+          unit: "RPE",
+          hint: warmup ? "optional" : "1–10",
+          foldHint: null,
+          inputLabel: "RPE",
+          inputMode: "decimal",
+          max: SET_LIMITS.rpe,
+          min: 1,
+          step: 1,
+          less: "RPE one lower",
+          more: "RPE one higher",
+          name: (value, state) =>
+            state !== "empty"
+              ? `RPE ${value}. Type RPE`
+              : warmup
+                ? "RPE not set, optional for a warm-up. Type RPE"
+                : "RPE not set, 1 very easy to 10 maximal. Type RPE",
+          target: null,
+          info: "What RPE means",
+        };
+  return [load, count, effort];
+}
 
-  switch (kind) {
-    case "coach": {
-      // A coach plan may deliberately leave the load open — a first session, or a machine with
-      // nothing on record — and there is then no load to hold. Say what it does ask for.
-      const known = first?.weight !== null && first?.weight !== undefined;
-      const reps = first?.reps !== null && first?.reps !== undefined ? first.reps : null;
-      const target = !first
-        ? null
-        : first.reps === null && first.distanceMeters
-          ? known
-            ? `${load(first.weight)} × ${first.distanceMeters} m`
-            : `${first.distanceMeters} m`
-          : first.durationSeconds && first.reps === null
-            ? `${first.durationSeconds} s`
-            : known
-              ? `${load(first.weight)}${reps === null ? "" : ` × ${reps}`}`
-              : reps === null
-                ? null
-                : `${reps} ${reps === 1 ? "rep" : "reps"}`;
-      const note = exercise.coachNote;
-      return {
-        kind,
-        text: note ? (target ? `${target} · ${note}` : note) : target ? `Next: ${target}` : "",
-      };
-    }
-    case "increase":
-      return {
-        kind,
-        text: `Next: ${load(first?.weight)}${first?.reps !== null && first?.reps !== undefined ? ` × ${first.reps}+` : ""}`,
-      };
-    case "reduce":
-      return { kind, text: `Drop to ${load(first?.weight)}` };
-    case "revert":
-      return { kind, text: `Back to ${load(first?.weight)}` };
-    case "extend":
-      return {
-        kind,
-        text: first?.durationSeconds ? `Next: ${first.durationSeconds} s per set` : "Add time",
-      };
-    case "lengthen":
-      return {
-        kind,
-        text: first?.distanceMeters ? `Next: ${first.distanceMeters} m per set` : "Add distance",
-      };
-    case "transfer":
-      return { kind, text: `Start near ${load(first?.weight)}` };
-    case "start":
-      return { kind, text: "Go by the target note and RIR" };
-    default:
-      return { kind, text: `Keep ${load(first?.weight)}` };
-  }
+/** What a figure shows in the entry: the value typed, or the suggestion; effort only typed. */
+function shownText(row: RowState, ghost: Ghost, field: DraftValueField, effort: boolean): string {
+  if (row.touched.has(field)) return row[field] || "–";
+  return (effort ? undefined : ghost[field]) || "–";
 }
 
 type LoggerProps = {
@@ -188,11 +275,15 @@ type LoggerProps = {
   onBack: () => void;
   onDirtyChange: (dirty: boolean) => void;
   onLogged: (restSeconds: number) => void;
+  /** Opens the workout's superset sheet with this exercise's group. */
+  onEditSuperset?: (group: string | null) => void;
 };
 
 /**
- * One exercise, in focus. Everything here belongs to this exercise: the workout's gym,
- * programme and day are session context and are not repeated per set.
+ * Logging one exercise (DESIGN.md, Logging): a full-screen layer over the tabs with its own
+ * header (back to the workout, the rest pill, More), the exercise's name and range, three tabs,
+ * the log under them and the entry docked at the foot. Everything here belongs to this exercise:
+ * the workout's gym, programme and day are session context and are not repeated per set.
  */
 export function ExerciseLogger({
   exercise,
@@ -202,46 +293,247 @@ export function ExerciseLogger({
   onBack,
   onDirtyChange,
   onLogged,
+  onEditSuperset,
 }: LoggerProps) {
+  const actions = useLoggerActions();
   const [tab, setTab] = useState<LoggerTab>("log");
-  const [optionsFor, setOptionsFor] = useState<number | null>(null);
+  const [sheet, setSheet] = useState<Sheet | null>(null);
+  const [typing, setTyping] = useState<DraftValueField | null>(null);
   const [savedCompleted, setCompleted] = useState(exercise.completedAt !== null);
   // Completing or reopening shows at once, while the server is told; a failure puts it back.
   const [completed, showCompleted] = useOptimistic(savedCompleted);
   // Pressed while a set is still on its way: the exercise completes once that set has landed.
   const [completing, showCompleting] = useOptimistic(false);
   const [skipped, setSkipped] = useState(exercise.skippedAt !== null);
-  const [skipOpen, setSkipOpen] = useState(false);
-  const [skipReason, setSkipReason] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  // The moment a set is written: the sets that landed while this screen was open rise into
+  // place, and Save reads Saved for a beat.
+  const [landed, setLanded] = useState<ReadonlySet<number>>(() => new Set());
+  const [flash, setFlash] = useState<number | null>(null);
+  const [lastSaved, setLastSaved] = useState<number | null>(null);
+  const hintId = useId();
+
+  const layer = useRef<HTMLDivElement>(null);
+  const probe = useRef<HTMLSpanElement>(null);
+  const scroller = useRef<HTMLDivElement>(null);
+  const header = useRef<HTMLElement>(null);
+  const body = useRef<HTMLDivElement>(null);
+  const frame = useRef<HTMLDivElement>(null);
+  const dock = useRef<HTMLDivElement>(null);
+  const box = useMeasure(layer, probe);
+  const android = useSyncExternalStore(
+    noSubscription,
+    () => document.documentElement.getAttribute(PLATFORM_ATTRIBUTE) === "android",
+    () => false,
+  );
 
   const measure = measureOf(exercise);
-  const unit = LOAD_UNIT_LABELS[exercise.equipment?.unit ?? session.preferredUnit];
-  const unitLabel = exercise.exercise.modality === "bodyweight" ? `+${unit}` : unit;
+  const effort = effortMetric(measure);
+  const unit: LoadUnit = exercise.equipment?.unit ?? session.preferredUnit;
+  const unitLabel = LOAD_UNIT_LABELS[unit];
 
   const sets = useSetRows({
     exercise,
     userId,
     sessionId: session.id,
     measure,
-    unit: exercise.equipment?.unit ?? session.preferredUnit,
+    unit,
     onLogged,
+    onSaved: (setIndex, added) => {
+      setLastSaved(setIndex);
+      if (added) {
+        setLanded((current) => new Set(current).add(setIndex));
+        setFlash(setIndex);
+      } else setSheet((current) => (current?.kind === "edit" ? null : current));
+    },
   });
 
   useEffect(() => {
     onDirtyChange(sets.dirty);
   }, [sets.dirty, onDirtyChange]);
 
+  // Save reads Saved for half a second, then turns to the next set's Save.
+  useEffect(() => {
+    if (flash === null) return;
+    const timer = setTimeout(() => setFlash(null), 500);
+    return () => clearTimeout(timer);
+  }, [flash]);
+
+  // While a figure is typed, the layer is the visual viewport, so the entry and Save stand
+  // above the keyboard.
+  useEffect(() => {
+    const element = layer.current;
+    const viewport = window.visualViewport;
+    if (typing === null || !element || !viewport) return;
+    const sync = () => {
+      element.style.setProperty("--session-top", `${viewport.offsetTop}px`);
+      element.style.setProperty("--session-height", `${viewport.height}px`);
+    };
+    sync();
+    viewport.addEventListener("resize", sync);
+    viewport.addEventListener("scroll", sync);
+    return () => {
+      viewport.removeEventListener("resize", sync);
+      viewport.removeEventListener("scroll", sync);
+      element.style.removeProperty("--session-top");
+      element.style.removeProperty("--session-height");
+    };
+  }, [typing]);
+
+  const editable = !readOnly && !skipped && !completed;
+  const entryRow = editable ? (sets.rows.find((row) => row.logged === null) ?? null) : null;
+  const heading = entryRow ? entryHeading(sets.rows, entryRow, exercise) : null;
+  const ghost = entryRow ? sets.ghost(entryRow.setIndex) : {};
+  const fields = fieldsFor(exercise, measure, entryRow, unit);
+
+  // The log's soft top edge shows once its earlier lines pass under the tabs.
+  const [overflow, setOverflow] = useState(false);
+  useEffect(() => {
+    const element = scroller.current;
+    if (!element) return;
+    // The observer reports once as it starts, and again whenever the log or its frame resizes.
+    const check = () => setOverflow(element.scrollHeight > element.clientHeight + 1);
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(check);
+    observer.observe(element);
+    if (element.firstElementChild) observer.observe(element.firstElementChild);
+    return () => observer.disconnect();
+  }, [tab]);
+
+  // ---------- sizes: the figures fit their columns at the reader's text size ----------
+  const scale = box.root / 16;
+  const figureGrow = 0.5 + 0.5 * scale;
+  const logGrow = 0.75 + 0.25 * scale;
+  const titleGrow = 0.25 + 0.75 * scale;
+  // Text so large that three columns cannot hold folds the entry (session.css, 14rem).
+  const folded = box.width < 14 * box.root;
+  const content = box.width - 2 * gutterFor(box.width);
+  const target = (android ? 48 : 44) + Math.max(0, 1.25 * box.root - 20);
+  const size =
+    folded || !entryRow
+      ? 42
+      : entrySize(
+          fields.map((field) => shownText(entryRow, ghost, field.field, field.info !== null)),
+          box.width,
+          figureGrow,
+        );
+  const loads = sets.loggedSets
+    .filter((set) => !isWarmup(set.setType))
+    .map((set) => (set.weight === null ? "–" : String(set.weight)));
+  const lineSize = folded ? 32 : logSize(loads, box.width, logGrow);
+  const titleBase = box.width < 360 ? 28 : box.height < 800 ? 30 : 32;
+  const titlePx = folded
+    ? titleBase
+    : titleSize(exercise.exercise.name, content / titleGrow, titleBase);
+
+  // ---------- room: a short screen folds the log, a very short one lets the entry scroll ----------
+  const [room, setRoom] = useState<{ tight: boolean; spill: boolean }>({
+    tight: false,
+    spill: false,
+  });
+  const oneLine = Math.max(44, lineSize * logGrow * 1.8) + 16;
+  const hasLog = sets.loggedSets.length > 0;
+  useLayoutEffect(() => {
+    const layerEl = layer.current;
+    const headerEl = header.current;
+    const bodyEl = body.current;
+    if (!layerEl || !headerEl || !bodyEl) return;
+    const measureRoom = () => {
+      const inset = parseFloat(getComputedStyle(layerEl).paddingTop) || 0;
+      const available = layerEl.clientHeight - inset - headerEl.offsetHeight;
+      const docked = dock.current?.offsetHeight ?? 0;
+      const frameEl = frame.current;
+      const above = frameEl
+        ? frameEl.getBoundingClientRect().top -
+          bodyEl.getBoundingClientRect().top +
+          bodyEl.scrollTop
+        : 0;
+      const spill = docked > available;
+      const tight = !spill && hasLog && frameEl !== null && available - docked - above < oneLine;
+      setRoom((current) =>
+        current.spill === spill && current.tight === tight ? current : { spill, tight },
+      );
+    };
+    measureRoom();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measureRoom);
+    for (const element of [layerEl, headerEl, dock.current, ...bodyEl.children])
+      if (element) observer.observe(element);
+    return () => observer.disconnect();
+  }, [oneLine, hasLog, tab]);
+
+  // ---------- what the header and the meta line say ----------
+  const dayName = session.day?.name ?? "Ad hoc session";
+  const plannedName = exercise.planned?.plannedExerciseName;
+  const substituted = plannedName !== undefined && plannedName !== exercise.exercise.name;
+  const glyph = equipmentGlyph(exercise);
+  const equipment = equipmentLine(exercise, session.gym.kind);
+  const range = tab === "log" ? perSetLabel(exercise) : prescriptionLabel(exercise);
+  const rest = restText(exercise);
+  const facts: ReactNode[] = [
+    <>
+      <Glyph name={glyph} label={equipment} className="glyph-16" />
+      <span>{range ?? equipment}</span>
+    </>,
+  ];
+  if (rest)
+    facts.push(
+      <>
+        <Glyph name="rest" className="glyph-16" />
+        <span>{rest}</span>
+      </>,
+    );
+  // A machine of this gym, or the lack of one, is said in words: the glyph says only its kind.
+  if (range !== null && (exercise.equipment || equipment === "Machine not chosen"))
+    facts.push(<span>{exercise.equipment ? `on ${equipment}` : equipment}</span>);
+  if (substituted) facts.push(<span>instead of {plannedName}</span>);
+
+  // ---------- the suggestion, its tag and Why ----------
+  const suggestion = exercise.suggestion;
+  const kindLabel = suggestion ? SUGGESTION_KIND_LABELS[suggestion.kind] : null;
+  const bodyweight = exercise.exercise.modality === "bodyweight";
+  const countField = fields[1].field;
+  const whyLoad = ghost.weight && !(bodyweight && Number(ghost.weight) === 0) ? ghost.weight : null;
+  const whyCount = ghost[countField]
+    ? `${ghost[countField]}${measure === "duration" ? " s" : measure === "distance" ? " m" : ""}`
+    : null;
+  const whyEffort =
+    entryRow && effort === "rir" ? rirTargetLabel(exercise, entryRow.setIndex) : null;
+  const why: WhyContent | null =
+    suggestion && kindLabel
+      ? {
+          tag: kindLabel,
+          figures: { load: whyLoad, unit: unitLabel, count: whyCount, effort: whyEffort },
+          reason:
+            suggestion.kind === "coach" && exercise.coachNote ? null : suggestion.reason || null,
+          advice: suggestion.advice,
+          coachNote: exercise.coachNote,
+          warning: null,
+          basis: exercise.basis
+            ? `Based on ${
+                suggestion.basis === "other_equipment"
+                  ? `${exercise.basis.equipmentName ?? "another machine"} at ${exercise.basis.gymName}`
+                  : "this exercise"
+              }, ${formatDay(exercise.basis.performedAt, session.timeZone)}.`
+            : null,
+        }
+      : null;
+  const tagName =
+    kindLabel &&
+    `${kindLabel}: why ${[
+      whyLoad ? `${whyLoad} ${unitName(unit) || unitLabel}` : null,
+      whyCount ?? null,
+    ]
+      .filter(Boolean)
+      .join(" × ")}`.trim();
+
+  // ---------- completing, skipping, a fallback ----------
   const needsDecision = exercise.decision !== null && !skipped && !readOnly;
   const availableMachine =
     exercise.decision?.resolution.status === "direct"
       ? exercise.decision.resolution.equipmentInstance
       : null;
-  const editable = !readOnly && !skipped && !completed;
-  const optionsRow = sets.rows.find((row) => row.setIndex === optionsFor) ?? null;
-  const suggestion = suggestionHeadline(exercise, unit);
-  const prescription = prescriptionLine(exercise);
   // Once this exercise's working sets are in, a stack whose next stop nobody knows asks for
   // it under the sets (ADR 0028); nothing is asked mid-exercise or of plates.
   const loggedWorking = sets.loggedSets.filter((set) => WORKING_SET_TYPES.has(set.setType));
@@ -257,8 +549,6 @@ export function ExerciseLogger({
           loggedWorking.map((set) => set.weight),
         )
       : null;
-  const plannedName = exercise.planned?.plannedExerciseName;
-  const substituted = plannedName !== undefined && plannedName !== exercise.exercise.name;
 
   const setCompletedState = (value: boolean) =>
     startTransition(async () => {
@@ -272,7 +562,7 @@ export function ExerciseLogger({
         sets.ensureOpenRow();
       }
       const outcome = await attempted(
-        () => setExerciseCompletedAction(exercise.id, value),
+        () => actions.setCompleted(exercise.id, value),
         "Connection lost. Your entries are still here. Try again when connected.",
       );
       if (!outcome.ok) {
@@ -283,14 +573,15 @@ export function ExerciseLogger({
         setMessage(outcome.value.error);
         return;
       }
+      setMessage(null);
       setCompleted(value);
       setSkipped(false);
     });
 
-  const skip = () =>
+  const skip = (reason: string) =>
     startTransition(async () => {
       const outcome = await attempted(
-        () => skipExerciseAction(exercise.id, skipReason.trim() || null),
+        () => actions.skip(exercise.id, reason.trim() || null),
         "Connection lost. Try again when connected.",
       );
       if (!outcome.ok) {
@@ -301,15 +592,16 @@ export function ExerciseLogger({
         setMessage(outcome.value.error);
         return;
       }
+      setMessage(null);
       setSkipped(true);
-      setSkipOpen(false);
+      setSheet(null);
     });
 
   const applyFallback = (exerciseId: string, instanceId: string | null, name: string) =>
     startTransition(async () => {
       const outcome = await attempted(
         () =>
-          applyFallbackAction(
+          actions.applyFallback(
             exercise.id,
             exerciseId,
             instanceId,
@@ -317,397 +609,630 @@ export function ExerciseLogger({
           ),
         "Connection lost. Try again when connected.",
       );
-      if (!outcome.ok) {
-        setMessage(outcome.message);
-        return;
-      }
-      if (!outcome.value.ok) {
-        setMessage(outcome.value.error);
-        return;
-      }
+      if (!outcome.ok) setMessage(outcome.message);
+      else if (!outcome.value.ok) setMessage(outcome.value.error);
     });
 
+  // ---------- the entry's edits and Save ----------
+  const editEntry = (patch: Partial<RowState>, touch: DraftValueField) => {
+    if (!entryRow) return;
+    // Entering the effort Save was waiting for clears the sentence that asked for it.
+    const clears =
+      (touch === "rir" || touch === "rpe") && isEffortMessage(entryRow.error)
+        ? { error: null }
+        : {};
+    sets.editRow(entryRow, { ...patch, ...clears }, touch);
+  };
+
+  const startTyping = (field: DraftValueField) => {
+    // The inputs must exist before the focus moves to one, inside the tap, or iOS keeps its
+    // keyboard down.
+    flushSync(() => setTyping(field));
+  };
+
+  const effortValue = (row: RowState) =>
+    row.touched.has(effort) && row[effort].trim() !== "" ? row[effort] : null;
+  const waitingForEffort =
+    entryRow !== null && !isWarmup(entryRow.setType) && effortValue(entryRow) === null;
+  const alert =
+    entryRow !== null && (entryRow.error === RIR_NEEDED || entryRow.error === RPE_NEEDED);
+
+  const save = () => {
+    if (!entryRow || entryRow.saving) return;
+    sets.logRow(entryRow);
+    setTyping(null);
+  };
+
+  const autoWarmupRow =
+    lastSaved === null
+      ? null
+      : (sets.rows.find(
+          (row) =>
+            row.setIndex === lastSaved && row.autoWarmup && row.setType === "warmup" && !row.dirty,
+        ) ?? null);
+  const partner = supersetNext(session, exercise);
+
+  // The one slot over Save: every message about Save stands here, so Save never moves.
+  // Only the entry's own sentence describes Save; the others stand in the slot unnamed.
+  const slotMessage = (
+    glyphName: "info" | "warn",
+    text: string,
+    role: "alert" | "status",
+    id?: string,
+  ) => (
+    <p id={id} role={role} className="entry-slot entry-slot-message">
+      <Glyph name={glyphName} className="mt-px glyph-18" />
+      <span className="min-w-0 [overflow-wrap:anywhere]">{text}</span>
+    </p>
+  );
+  const slot: ReactNode = entryRow?.error ? (
+    slotMessage(isEffortMessage(entryRow.error) ? "info" : "warn", entryRow.error, "alert", hintId)
+  ) : message ? (
+    slotMessage("warn", message, "alert")
+  ) : autoWarmupRow ? (
+    <p role="status" className="entry-slot entry-slot-message">
+      <Glyph name="info" className="mt-px glyph-18" />
+      <span className="min-w-0">
+        {AUTO_WARMUP}{" "}
+        <button
+          type="button"
+          className="entry-slot-action"
+          aria-label={`Set ${setNumber(sets.rows, { ...autoWarmupRow, setType: "working" })} was a working set`}
+          onClick={() => {
+            sets.undoWarmup(autoWarmupRow);
+            setSheet({ kind: "edit", setIndex: autoWarmupRow.setIndex });
+          }}
+        >
+          Undo
+        </button>
+      </span>
+    </p>
+  ) : sets.storageError ? (
+    slotMessage("warn", STORAGE_UNAVAILABLE, "alert")
+  ) : partner ? (
+    <p
+      className="entry-slot entry-slot-next"
+      aria-label={`Superset: after each set, ${partner.exercise.name}${
+        prescriptionLabel(partner) ? `, ${prescriptionLabel(partner)}` : ""
+      }`}
+    >
+      <Glyph name="link" className="glyph-18 text-ink-2" />
+      <span className="font-bold">Then {partner.exercise.name}</span>
+      {prescriptionLabel(partner) && (
+        <span className="type-meta-small text-ink-2 tabular-nums">
+          {prescriptionLabel(partner)}
+        </span>
+      )}
+    </p>
+  ) : null;
+  const quietHint =
+    waitingForEffort && !entryRow?.error ? (
+      <span id={hintId} className="sr-only">
+        {effort === "rir" ? RIR_NEEDED : RPE_NEEDED}
+      </span>
+    ) : null;
+
+  const saveButton = (() => {
+    if (!entryRow) return null;
+    if (completing)
+      return (
+        <Button variant="waiting" size="lg" className="w-full" aria-disabled>
+          Completing…
+        </Button>
+      );
+    if (entryRow.saving)
+      return (
+        <Button variant="waiting" size="lg" className="w-full" aria-disabled>
+          Saving…
+        </Button>
+      );
+    if (flash !== null)
+      return (
+        <Button variant="waiting" size="lg" className="w-full text-ink" aria-disabled>
+          <Glyph name="check" className="glyph-20" />
+          Saved
+        </Button>
+      );
+    if (waitingForEffort)
+      return (
+        <Button
+          variant="waiting"
+          size="lg"
+          className="w-full"
+          aria-disabled
+          aria-describedby={hintId}
+          onClick={save}
+        >
+          Save
+        </Button>
+      );
+    const which = heading?.kind === "warmup" ? `warm-up ${heading.n}` : `set ${heading?.n ?? ""}`;
+    return entryRow.error ? (
+      <Button size="lg" className="w-full" aria-label={`Retry saving ${which}`} onClick={save}>
+        Retry
+      </Button>
+    ) : (
+      <Button size="lg" className="w-full" onClick={save}>
+        Save
+      </Button>
+    );
+  })();
+
+  // ---------- sheets ----------
+  const editRow =
+    sheet?.kind === "edit"
+      ? (sets.rows.find((row) => row.setIndex === sheet.setIndex) ?? null)
+      : null;
+  const editTitle = editRow
+    ? isWarmup(editRow.setType)
+      ? `Warm-up ${sets.rows.filter((row) => isWarmup(row.setType) && row.setIndex <= editRow.setIndex).length}`
+      : `Set ${setNumber(sets.rows, editRow)}`
+    : "Set";
+  const optionsTitle = heading
+    ? `${heading.kind === "warmup" ? "Warm-up" : "Set"} ${heading.n}`
+    : "Set";
+
+  const more: MoreOption[] = [];
+  if (!readOnly && !skipped) {
+    if (completed)
+      more.push({
+        glyph: "undo",
+        label: "Reopen",
+        onSelect: () => setCompletedState(false),
+        disabled: pending,
+      });
+    else
+      more.push({
+        glyph: "check",
+        label: "Complete",
+        onSelect: () => setCompletedState(true),
+        // A set still saving does not hold it up: the press waits for the save. A row with
+        // unsaved changes does, as it would otherwise be left behind.
+        disabled: pending || (sets.loggedSets.length === 0 && !sets.saving) || sets.editing,
+      });
+  }
+  if (!readOnly && onEditSuperset)
+    more.push({
+      glyph: "link",
+      label: "Superset",
+      onSelect: () => onEditSuperset(exercise.supersetGroup),
+    });
+  if (!readOnly && !completed && !skipped && sets.loggedSets.length === 0 && !sets.dirty)
+    more.push({
+      glyph: "swap",
+      label: "Choose a fallback",
+      href: `/workouts/${session.id}/exercises/${exercise.id}/substitute` as Route,
+    });
+  if (!readOnly && skipped)
+    more.push({ glyph: "undo", label: "Unskip", onSelect: () => setCompletedState(false) });
+  if (!readOnly && !completed && !skipped && sets.loggedSets.length === 0)
+    more.push({
+      glyph: "skip",
+      label: "Skip exercise",
+      onSelect: () => setSheet({ kind: "skip" }),
+      disabled: pending || sets.dirty,
+      apart: true,
+    });
+
+  const effortHelp =
+    effort === "rir"
+      ? `${exercise.exercise.rirNote ?? RIR_HELP}${
+          exercise.planned && (exercise.planned.rirMin !== null || exercise.planned.rirMax !== null)
+            ? ` Today's target is ${rirTargetLabel(exercise, entryRow?.setIndex ?? 0)} RIR.`
+            : ""
+        }`
+      : RPE_HELP;
+
+  const layerStyle = {
+    "--session-title": rampSize(titlePx, 0.75),
+  } as CSSProperties;
+
   return (
-    <div className="space-y-4">
-      <button
-        type="button"
-        onClick={onBack}
-        className="-ml-1 flex min-h-11 items-center gap-1 text-sm font-medium text-ink-muted"
-      >
-        <ChevronLeft aria-hidden />
-        All exercises
-      </button>
+    <div
+      ref={layer}
+      className="session-layer"
+      data-typing={typing !== null}
+      data-folded={folded}
+      data-tight={room.tight}
+      data-spill={room.spill}
+      style={layerStyle}
+    >
+      <span ref={probe} aria-hidden className="session-probe" />
+      <header ref={header} className="session-header">
+        <button type="button" onClick={onBack} className="session-back">
+          <Glyph name="chevronLeft" className="glyph-22" />
+          <span>{dayName}</span>
+        </button>
+        <span className="flex-1" />
+        {session.restTimerEnabled && <RestPill sessionId={session.id} />}
+        {more.length > 0 && (
+          <button
+            type="button"
+            aria-haspopup="dialog"
+            aria-label="Complete, skip, superset, substitute"
+            className="session-icon-button -mr-2.5"
+            onClick={() => setSheet({ kind: "more" })}
+          >
+            <Glyph name="more" className="glyph-24" />
+          </button>
+        )}
+      </header>
 
-      <Card className="space-y-1">
-        <div className="flex items-start justify-between gap-3">
-          <h2 className="min-w-0 text-lg font-medium [overflow-wrap:anywhere]">
-            {exercise.exercise.name}
-          </h2>
-          <div className="flex shrink-0 gap-1">
-            {completed && <Badge tone="success">Done</Badge>}
-            {skipped && <Badge tone="warning">Skipped</Badge>}
-          </div>
-        </div>
-        <p className="text-sm text-ink-muted">
-          {equipmentLine(exercise, session.gym.kind)}
-          {substituted ? ` · instead of ${plannedName}` : ""}
+      <div ref={body} className="session-body" data-scroll={tab !== "log"}>
+        <h2 className="session-title">{exercise.exercise.name}</h2>
+        <p className="session-meta">
+          {facts.map((fact, index) => (
+            <span key={index} className="session-fact">
+              {fact}
+            </span>
+          ))}
         </p>
-      </Card>
+        <div className="session-tabs">
+          <Tabs
+            name="exercise"
+            label="Exercise detail"
+            options={TABS}
+            value={tab}
+            onChange={(value) => {
+              setTyping(null);
+              setTab(value);
+            }}
+          />
+        </div>
 
-      <Tabs
-        name="exercise"
-        label="Exercise detail"
-        options={TABS}
-        value={tab}
-        onChange={(value) => setTab(value)}
-      />
-
-      <div id="exercise-panel" role="tabpanel" aria-labelledby={`exercise-${tab}-tab`}>
-        {tab === "log" && (
-          <div className="space-y-3">
-            {/* What to do and what the rule says, boxed together; the grid itself stays on
-                the page, where its columns have the width they were measured for. */}
-            {(prescription || (editable && suggestion)) && (
-              <Card>
-                {prescription && (
-                  <p className="text-sm font-medium tabular-nums">
-                    {suggestion?.kind === "coach" && "Programme: "}
-                    {prescription}
+        <div
+          id="exercise-panel"
+          role="tabpanel"
+          aria-labelledby={`exercise-${tab}-tab`}
+          className="session-panel"
+          data-tab={tab}
+        >
+          {tab === "log" && (
+            <>
+              {/* Equipment problems come before the sets: without a machine there is nothing
+                  meaningful to log, so the decision is the first thing offered. */}
+              {needsDecision && exercise.decision && (
+                <div className="mt-2 space-y-2 rounded-control bg-surface px-3.5 py-3">
+                  <p className="type-heading">
+                    {availableMachine
+                      ? "Choose the registered machine for this exercise"
+                      : exercise.decision.resolution.status === "unavailable"
+                        ? "Not available at this gym"
+                        : `Needs ${exercise.decision.missingTypes.map((t) => t.name.toLowerCase()).join(" or ") || "a machine"} — not registered at ${session.gym.name}`}
                   </p>
-                )}
-                {editable && suggestion && (
-                  <div className="flex items-start gap-2">
-                    <Badge tone={suggestionTone(suggestion.kind)}>
-                      {SUGGESTION_KIND_LABELS[suggestion.kind]}
-                    </Badge>
-                    {suggestion.text && (
-                      <p className="min-w-0 text-sm font-medium">{suggestion.text}</p>
-                    )}
-                  </div>
-                )}
-              </Card>
-            )}
-
-            {/* Equipment problems come before the grid: without a machine there is nothing
-                meaningful to log, so the decision has to be the first thing offered. */}
-            {needsDecision && exercise.decision && (
-              <div className="space-y-2 rounded-card border border-warning p-3">
-                <p className="text-sm font-medium">
-                  {availableMachine
-                    ? "Choose the registered machine for this exercise"
-                    : exercise.decision.resolution.status === "unavailable"
-                      ? "Not available at this gym"
-                      : `Needs ${exercise.decision.missingTypes.map((t) => t.name.toLowerCase()).join(" or ") || "a machine"} — not registered at ${session.gym.name}`}
-                </p>
-                {availableMachine && (
-                  <Button
-                    variant="secondary"
-                    className="w-full"
-                    disabled={pending || sets.dirty}
-                    onClick={() =>
-                      applyFallback(
-                        exercise.exercise.id,
-                        availableMachine.id,
-                        exercise.exercise.name,
-                      )
-                    }
-                  >
-                    Use {availableMachine.name}
-                  </Button>
-                )}
-                {exercise.decision.fallbackOptions.map((option) => (
-                  <Button
-                    key={option.fallbackId}
-                    variant="secondary"
-                    className="w-full"
-                    disabled={!option.available || pending || sets.dirty}
-                    onClick={() =>
-                      applyFallback(
-                        option.exerciseId,
-                        option.equipmentInstanceId,
-                        option.exerciseName,
-                      )
-                    }
-                  >
-                    {option.available ? "Use" : "Not possible here:"} {option.exerciseName}
-                    {option.equipmentInstanceName ? ` on ${option.equipmentInstanceName}` : ""}
-                  </Button>
-                ))}
-                <div className="action-row">
-                  {sets.dirty ? (
-                    <Button disabled variant="secondary" size="sm">
-                      Save or remove drafts first
+                  {availableMachine && (
+                    <Button
+                      variant="primary"
+                      className="w-full"
+                      disabled={pending || sets.dirty}
+                      onClick={() =>
+                        applyFallback(
+                          exercise.exercise.id,
+                          availableMachine.id,
+                          exercise.exercise.name,
+                        )
+                      }
+                    >
+                      Use {availableMachine.name}
                     </Button>
-                  ) : (
+                  )}
+                  {exercise.decision.fallbackOptions.map((option) => (
+                    <Button
+                      key={option.fallbackId}
+                      variant="tonal"
+                      className="w-full bg-ground"
+                      disabled={!option.available || pending || sets.dirty}
+                      onClick={() =>
+                        applyFallback(
+                          option.exerciseId,
+                          option.equipmentInstanceId,
+                          option.exerciseName,
+                        )
+                      }
+                    >
+                      {option.available ? "Use" : "Not possible here:"} {option.exerciseName}
+                      {option.equipmentInstanceName ? ` on ${option.equipmentInstanceName}` : ""}
+                    </Button>
+                  ))}
+                  <div className="flex flex-wrap gap-2">
+                    {sets.dirty ? (
+                      <Button disabled variant="text" size="sm">
+                        Save or remove drafts first
+                      </Button>
+                    ) : (
+                      <LinkButton
+                        href={`/workouts/${session.id}/exercises/${exercise.id}/substitute`}
+                        variant="text"
+                        size="sm"
+                      >
+                        Add a fallback
+                      </LinkButton>
+                    )}
+                    {/* Carries the workout along, so registering it lands back here. */}
                     <LinkButton
-                      href={`/workouts/${session.id}/exercises/${exercise.id}/substitute`}
-                      variant="secondary"
+                      href={`/gyms/${session.gym.id}/equipment/new?session=${session.id}&exercise=${exercise.id}`}
+                      variant="text"
                       size="sm"
                     >
-                      Add a fallback
+                      Register machine
                     </LinkButton>
-                  )}
-                  {/* Carries the workout along, so registering it lands back here. */}
-                  <LinkButton
-                    href={`/gyms/${session.gym.id}/equipment/new?session=${session.id}&exercise=${exercise.id}`}
-                    variant="ghost"
-                    size="sm"
-                  >
-                    Register machine
-                  </LinkButton>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {sets.storageError && (
-              <p role="alert" className="text-sm text-warning">
-                Browser storage is unavailable. Keep this page open until your sets are saved.
-              </p>
-            )}
+              {exercise.coachNote && editable && (
+                <aside
+                  aria-label="From the coach"
+                  className="mt-2 rounded-control bg-surface px-3.5 py-3"
+                >
+                  <p className="flex items-center gap-1.5 type-caption text-ink">
+                    <Glyph name="coach" className="glyph-16" />
+                    Coach
+                  </p>
+                  <p className="mt-1 line-clamp-2 type-body">{exercise.coachNote}</p>
+                  {why && exercise.coachNote.length > 76 && (
+                    <button
+                      type="button"
+                      aria-haspopup="dialog"
+                      className="-my-2.5 -ml-1.5 min-h-11 min-w-11 px-1.5 font-bold"
+                      onClick={() => setSheet({ kind: "why" })}
+                    >
+                      More
+                    </button>
+                  )}
+                </aside>
+              )}
 
-            {skipped ? (
-              <p className="text-sm text-ink-muted">
-                Skipped{exercise.notes ? `: ${exercise.notes}` : ""}.
-              </p>
-            ) : editable ? (
-              <SetGrid
-                rows={sets.rows}
-                ghost={sets.ghost}
-                unitLabel={unitLabel}
-                measure={measure}
-                rirNote={exercise.exercise.rirNote}
-                rirTarget={
-                  exercise.planned &&
-                  (exercise.planned.rirMin !== null || exercise.planned.rirMax !== null)
-                    ? rangeLabel(exercise.planned.rirMin, exercise.planned.rirMax)
-                    : null
-                }
-                onEdit={sets.editRow}
-                onSave={sets.logRow}
-                onOptions={(row) => setOptionsFor(row.setIndex)}
-                onUndoWarmup={sets.undoWarmup}
-              />
-            ) : (
-              <SetTable sets={sets.loggedSets} unitLabel={unitLabel} />
-            )}
-
-            {nextLoad && exercise.equipment && (
-              <NextLoad
-                key={`${exercise.equipment.id}:${nextLoad.from}`}
-                equipmentInstanceId={exercise.equipment.id}
-                from={nextLoad.from}
-                guess={nextLoad.guess}
-                unitLabel={unit}
-                assisted={exercise.equipment.ladder?.assisted ?? false}
-              />
-            )}
-
-            {message && (
-              <p role="alert" className="text-sm text-danger">
-                {message}
-              </p>
-            )}
-
-            {(readOnly || completed || skipped) && sets.dirty && (
-              <div className="space-y-2 rounded-card border border-warning p-3">
-                <p className="text-sm text-warning">
-                  {readOnly
-                    ? "This workout is finished, so these entries cannot be saved here."
-                    : "Unsaved drafts on this device. Reopen the exercise to retry saving."}
+              {skipped && (
+                <p className="mt-3 type-body text-ink-2">
+                  Skipped{exercise.notes ? `: ${exercise.notes}` : ""}.
                 </p>
-                {sets.rows
-                  .filter((r) => r.dirty)
-                  .map((row) => (
-                    <div key={row.setIndex} className="text-sm">
-                      <p>
-                        Set {row.setIndex}: {row.weight || "—"} {unit} ·{" "}
-                        {measure === "duration"
-                          ? `${row.duration || "—"} s`
-                          : measure === "distance"
-                            ? `${row.distance || "—"} m`
-                            : `${row.reps || "—"} reps`}{" "}
-                        · {measure === "reps" ? `RIR ${row.rir || "—"}` : `RPE ${row.rpe || "—"}`}
-                      </p>
-                      <Button variant="ghost" size="sm" onClick={() => sets.restore(row)}>
-                        Discard this local draft
-                      </Button>
+              )}
+
+              {(readOnly || completed || skipped) && sets.dirty && (
+                <div className="mt-2 space-y-2 rounded-control bg-surface px-3.5 py-3">
+                  <p className="flex items-start gap-1.5 type-meta-small font-semibold">
+                    <Glyph name="warn" className="mt-0.5 glyph-16" />
+                    {readOnly
+                      ? "This workout is finished, so these entries cannot be saved here."
+                      : "Unsaved drafts on this device. Reopen the exercise to retry saving."}
+                  </p>
+                  {sets.rows
+                    .filter((row) => row.dirty)
+                    .map((row) => (
+                      <div key={row.setIndex} className="type-meta-small">
+                        <p className="tabular-nums">
+                          Set {row.setIndex}: {row.weight || "—"} {unitLabel} ·{" "}
+                          {measure === "duration"
+                            ? `${row.duration || "—"} s`
+                            : measure === "distance"
+                              ? `${row.distance || "—"} m`
+                              : `${row.reps || "—"} reps`}{" "}
+                          · {effort === "rir" ? `RIR ${row.rir || "—"}` : `RPE ${row.rpe || "—"}`}
+                        </p>
+                        <Button
+                          variant="text"
+                          size="sm"
+                          className="-ml-2.5"
+                          onClick={() => sets.restore(row)}
+                        >
+                          Discard this local draft
+                        </Button>
+                      </div>
+                    ))}
+                </div>
+              )}
+
+              <div ref={frame} className="log-frame" data-overflow={overflow}>
+                <div ref={scroller} className="log-scroll">
+                  <Log
+                    rows={sets.rows}
+                    measure={measure}
+                    size={lineSize}
+                    landed={landed}
+                    onOpen={
+                      editable
+                        ? (row) => setSheet({ kind: "edit", setIndex: row.setIndex })
+                        : undefined
+                    }
+                  >
+                    {nextLoad && exercise.equipment && (
+                      <div className="pt-2 pb-1">
+                        <NextLoad
+                          key={`${exercise.equipment.id}:${nextLoad.from}`}
+                          equipmentInstanceId={exercise.equipment.id}
+                          from={nextLoad.from}
+                          guess={nextLoad.guess}
+                          unitLabel={unitLabel}
+                          assisted={exercise.equipment.ladder?.assisted ?? false}
+                        />
+                      </div>
+                    )}
+                  </Log>
+                </div>
+                <span aria-hidden className="log-edge" />
+              </div>
+            </>
+          )}
+
+          {tab === "technique" && (
+            <div className="pb-6">
+              <dl className="mt-1">
+                {[
+                  ["Cue", exercise.planned?.keyCue],
+                  ["Target load", exercise.planned?.targetLoadNote],
+                  ["Progression", exercise.planned?.progressionNotes],
+                  ["Substitution", exercise.substitutionReason],
+                ]
+                  .filter((entry): entry is [string, string] => Boolean(entry[1]))
+                  .map(([term, value]) => (
+                    <div key={term} className="border-b border-hair py-3">
+                      <dt className="type-caption text-ink-2">{term}</dt>
+                      <dd className="mt-0.5 text-[length:calc(1px+1rem)] leading-[1.4] font-medium tabular-nums">
+                        {value}
+                      </dd>
                     </div>
                   ))}
-              </div>
-            )}
+              </dl>
+              {!exercise.planned?.keyCue &&
+                !exercise.planned?.targetLoadNote &&
+                !exercise.planned?.progressionNotes && (
+                  <p className="py-3 type-body text-ink-2">No cues in the programme.</p>
+                )}
+              <Link
+                href={`/exercises/${exercise.exercise.id}`}
+                className="flex min-h-[calc(52px+var(--ov-grow))] items-center justify-between font-bold"
+              >
+                Open in the exercise library
+                <Glyph name="chevronRight" className="glyph-20" />
+              </Link>
+            </div>
+          )}
 
-            {!readOnly && !skipped && (
-              <div className="action-row">
-                {completed ? (
+          {tab === "history" && (
+            <div className="pb-6">
+              {exercise.regressionStreak >= REGRESSION_WARNING_STREAK && (
+                <p className="mt-3 flex items-start gap-1.5 type-meta-small font-semibold">
+                  <Glyph name="warn" className="mt-0.5 glyph-16" />
+                  <span>{DECLINE}</span>
+                </p>
+              )}
+              <ExerciseHistory
+                exerciseId={exercise.exercise.id}
+                workoutExerciseId={exercise.id}
+                loadPortability={exercise.exercise.loadPortability}
+                preferredUnit={session.preferredUnit}
+                timeZone={session.timeZone}
+                measure={measure}
+                width={box.width}
+                grow={logGrow}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {tab === "log" && !readOnly && (
+        <div ref={dock} className="entry-dock">
+          {entryRow && heading ? (
+            <Entry
+              row={entryRow}
+              heading={heading}
+              ghost={ghost}
+              measure={measure}
+              fields={fields}
+              size={size}
+              tag={
+                why && tagName && suggestion?.kind !== undefined
+                  ? { label: kindLabel!, name: tagName, onOpen: () => setSheet({ kind: "why" }) }
+                  : null
+              }
+              typing={typing}
+              metrics={{ figure: size * figureGrow, target }}
+              alert={alert}
+              onEdit={editEntry}
+              onType={startTyping}
+              onTypingEnd={() => setTyping(null)}
+              onOptions={() => setSheet({ kind: "options" })}
+              onInfo={() => setSheet({ kind: "effort" })}
+            >
+              {slot}
+              {quietHint}
+              {saveButton}
+            </Entry>
+          ) : completed || skipped || completing ? (
+            <section aria-label={exercise.exercise.name} className="entry">
+              <div className="entry-head">
+                <p className="flex items-center gap-2 type-heading">
+                  {completed && <Glyph name="check" className="glyph-20" />}
+                  {completed ? "Done" : skipped ? "Skipped" : ""}
+                </p>
+              </div>
+              <div className="entry-save">
+                {message && slotMessage("warn", message, "alert")}
+                {completing && !completed ? (
+                  <Button variant="waiting" size="lg" className="w-full" aria-disabled>
+                    Completing…
+                  </Button>
+                ) : (
                   <Button
-                    variant="secondary"
+                    variant="tonal"
+                    size="lg"
+                    className="w-full"
                     onClick={() => setCompletedState(false)}
                     disabled={pending}
                   >
-                    Reopen
-                  </Button>
-                ) : (
-                  <>
-                    <Button variant="secondary" disabled={!sets.canAddRow} onClick={sets.addRow}>
-                      Add set
-                    </Button>
-                    {/* A set still saving does not hold it up: the press waits for the save.
-                        A row with unsaved changes does, as it would otherwise be left behind. */}
-                    <Button
-                      onClick={() => setCompletedState(true)}
-                      disabled={
-                        pending || (sets.loggedSets.length === 0 && !sets.saving) || sets.editing
-                      }
-                    >
-                      {completing ? "Completing…" : "Complete"}
-                    </Button>
-                  </>
-                )}
-                {!completed && sets.loggedSets.length === 0 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="col-span-full"
-                    onClick={() => setSkipOpen(true)}
-                    disabled={pending || sets.dirty}
-                  >
-                    Skip exercise
+                    {completed ? "Reopen" : "Unskip"}
                   </Button>
                 )}
               </div>
-            )}
-            {!readOnly && skipped && (
-              <Button
-                variant="secondary"
-                onClick={() => setCompletedState(false)}
-                disabled={pending}
-              >
-                Unskip
-              </Button>
-            )}
-          </div>
-        )}
-
-        {tab === "technique" && (
-          <Card className="text-sm">
-            {exercise.planned?.keyCue && (
-              <p>
-                <span className="text-ink-muted">Cue: </span>
-                {exercise.planned.keyCue}
-              </p>
-            )}
-            {exercise.planned?.targetLoadNote && (
-              <p>
-                <span className="text-ink-muted">Target load: </span>
-                {exercise.planned.targetLoadNote}
-              </p>
-            )}
-            {exercise.planned?.progressionNotes && (
-              <p>
-                <span className="text-ink-muted">Progression: </span>
-                {exercise.planned.progressionNotes}
-              </p>
-            )}
-            {exercise.substitutionReason && (
-              <p>
-                <span className="text-ink-muted">Substitution: </span>
-                {exercise.substitutionReason}
-              </p>
-            )}
-            {!exercise.planned?.keyCue &&
-              !exercise.planned?.targetLoadNote &&
-              !exercise.planned?.progressionNotes && (
-                <p className="text-ink-muted">No cues in the programme.</p>
-              )}
-            <Link
-              href={`/exercises/${exercise.exercise.id}`}
-              className="flex min-h-11 items-center font-medium text-accent"
-            >
-              Open in the exercise library
-            </Link>
-          </Card>
-        )}
-
-        {tab === "history" && (
-          <Card className="text-sm">
-            <p>
-              {exercise.previous
-                ? `${exercise.previous.sameMachine ? "Previous on this machine" : "Previous"}: ${formatSets(exercise.previous.sets)} · ${formatDay(exercise.previous.performedAt, session.timeZone)}${exercise.previous.sameMachine ? "" : ` · ${exercise.previous.gymName}`}`
-                : "No previous comparable session."}
-            </p>
-            {exercise.regressionStreak >= REGRESSION_WARNING_STREAK && (
-              <p className="text-warning">
-                Repeated comparable decline. Keep the baseline pending coach review and reassess
-                current recovery.
-              </p>
-            )}
-            {/* While the exercise is being logged, the coach's own note is on the Log tab
-                beside its targets, so here only the rule's reasoning, and what the numbers were
-                judged against, are new. Once it is done the Log tab no longer shows it, and
-                this is where it stays. */}
-            {exercise.suggestion &&
-              (exercise.suggestion.kind !== "coach" || !editable || exercise.basis) && (
-                <Disclosure summary="Why this suggestion" variant="inline">
-                  <div className="space-y-1 text-sm text-ink-muted">
-                    {(exercise.suggestion.kind !== "coach" || !editable) && (
-                      <p>{exercise.suggestion.reason}</p>
-                    )}
-                    {exercise.suggestion.advice && <p>{exercise.suggestion.advice}</p>}
-                    {exercise.basis && (
-                      <p>
-                        Based on{" "}
-                        {exercise.suggestion.basis === "other_equipment"
-                          ? `${exercise.basis.equipmentName ?? "another machine"} at ${exercise.basis.gymName}`
-                          : "this exercise"}
-                        , {formatDay(exercise.basis.performedAt, session.timeZone)}.
-                      </p>
-                    )}
-                  </div>
-                </Disclosure>
-              )}
-            {exercise.previous && <SetTable sets={exercise.previous.sets} unitLabel={unitLabel} />}
-            <ExerciseHistory
-              exerciseId={exercise.exercise.id}
-              workoutExerciseId={exercise.id}
-              loadPortability={exercise.exercise.loadPortability}
-              preferredUnit={session.preferredUnit}
-              timeZone={session.timeZone}
-            />
-          </Card>
-        )}
-      </div>
-
-      <SetOptions
-        row={optionsRow}
-        ghost={optionsRow ? sets.ghost(optionsRow.setIndex) : {}}
-        unitLabel={unitLabel}
-        weightStep={exercise.weightStep}
-        measure={measure}
-        onEdit={
-          sets.editRow as (row: RowState, patch: Partial<RowState>, touch?: DraftValueField) => void
-        }
-        onDelete={sets.removeRow}
-        onClose={() => setOptionsFor(null)}
-      />
-
-      <Sheet
-        open={skipOpen}
-        onClose={() => setSkipOpen(false)}
-        title={`Skip ${exercise.exercise.name}?`}
-      >
-        <div className="space-y-3">
-          <Input
-            value={skipReason}
-            onChange={(event) => setSkipReason(event.target.value)}
-            placeholder="Reason (optional)"
-            maxLength={200}
-            aria-label="Skip reason"
-          />
-          <Button variant="danger" size="lg" className="w-full" onClick={skip} disabled={pending}>
-            Skip exercise
-          </Button>
+            </section>
+          ) : editable ? (
+            <section aria-label="Sets" className="entry">
+              <div className="entry-save">
+                {message && slotMessage("warn", message, "alert")}
+                <Button
+                  variant="tonal"
+                  size="lg"
+                  className="w-full"
+                  disabled={!sets.canAddRow}
+                  onClick={sets.addRow}
+                >
+                  <Glyph name="plus" className="glyph-18" />
+                  Add set
+                </Button>
+              </div>
+            </section>
+          ) : null}
         </div>
-      </Sheet>
+      )}
+
+      <WhySheet
+        open={sheet?.kind === "why"}
+        why={why}
+        onClose={() => setSheet(null)}
+        onHistory={() => {
+          setSheet(null);
+          setTab("history");
+        }}
+      />
+      <EffortSheet
+        open={sheet?.kind === "effort"}
+        title={effort === "rir" ? "What RIR means" : "What RPE means"}
+        text={effortHelp}
+        onClose={() => setSheet(null)}
+      />
+      <SetOptionsSheet
+        row={sheet?.kind === "options" ? entryRow : null}
+        title={optionsTitle}
+        canAdd={sets.canAddRow}
+        onType={(row, setType: SetType) => sets.editRow(row, { setType })}
+        onAdd={sets.addRow}
+        onRemove={sets.removeRow}
+        onClose={() => setSheet(null)}
+      />
+      <SetEditSheet
+        row={editRow}
+        title={editTitle}
+        fields={editRow ? fieldsFor(exercise, measure, editRow, unit) : []}
+        onUpdate={sets.logRow}
+        onDelete={sets.removeRow}
+        onDiscard={sets.restore}
+        onClose={() => {
+          // A sentence about a change that never left the sheet goes with it; a change that
+          // did not reach the server stays with its set.
+          if (editRow && !editRow.dirty && editRow.error && !editRow.saving) sets.restore(editRow);
+          setSheet(null);
+        }}
+      />
+      <MoreSheet open={sheet?.kind === "more"} options={more} onClose={() => setSheet(null)} />
+      <SkipSheet
+        open={sheet?.kind === "skip"}
+        name={exercise.exercise.name}
+        pending={pending}
+        onSkip={skip}
+        onClose={() => setSheet(null)}
+      />
     </div>
   );
 }

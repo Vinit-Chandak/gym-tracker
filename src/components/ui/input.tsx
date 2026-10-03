@@ -5,11 +5,11 @@ import { cn } from "@/lib/utils";
 export { Field } from "./field";
 
 /**
- * `line-strong` rather than `line`: this is an essential control boundary, which needs 3:1
- * against the surface behind it, while a separator between rows does not.
+ * A field (DESIGN.md, Inputs): 52 pt, ground, a 1.5-px control border, 14-px corners, 16-px
+ * text. The control border is an essential boundary, 3:1 against the ground; focus inks it.
  */
 export const INPUT_CLASS =
-  "h-11 min-w-0 w-full rounded-control border border-line-strong bg-surface px-3 text-[length:var(--ov-text-input)] text-ink placeholder:text-ink-ghost focus:border-accent focus:outline-none disabled:opacity-50";
+  "min-h-[calc(52px+var(--ov-grow))] min-w-0 w-full rounded-control border-[1.5px] border-control bg-ground px-4 text-[length:var(--ov-type-input)] text-ink placeholder:text-ink-2 focus:border-ink focus:outline-none disabled:text-ink-2";
 
 /** Text input sized for thumbs; 16px text keeps iOS from zooming in on focus. */
 export function Input({ className, ...props }: ComponentProps<"input">) {

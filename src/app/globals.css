@@ -2,6 +2,7 @@
 /* The palettes first: foundation.css picks the light or dark set from them. */
 @import "../styles/form-v2/palette.css";
 @import "../styles/form-v2/foundation.css";
+@import "../styles/form-v2/session.css";
 @source "../";
 
 /*
@@ -244,6 +245,33 @@
   font-size: var(--ov-type-print-label);
   font-weight: 700;
   line-height: 1;
+}
+/*
+ * Glyphs grow with the reader's text by half, as figures do: 20 pt at 100%, 30 at 200%.
+ */
+@utility glyph-14 {
+  width: calc(7px + 0.4375rem);
+  height: calc(7px + 0.4375rem);
+}
+@utility glyph-16 {
+  width: calc(8px + 0.5rem);
+  height: calc(8px + 0.5rem);
+}
+@utility glyph-18 {
+  width: calc(9px + 0.5625rem);
+  height: calc(9px + 0.5625rem);
+}
+@utility glyph-20 {
+  width: calc(10px + 0.625rem);
+  height: calc(10px + 0.625rem);
+}
+@utility glyph-22 {
+  width: calc(11px + 0.6875rem);
+  height: calc(11px + 0.6875rem);
+}
+@utility glyph-24 {
+  width: calc(12px + 0.75rem);
+  height: calc(12px + 0.75rem);
 }
 /* A figure inside words keeps Jost's tabular lining digits without the role's size. */
 @utility figures {
@@ -800,75 +828,11 @@ html:has(.app-content) {
 }
 
 /*
- * Set grid. One row per set: identity/options, load, reps (or seconds), RIR, save.
- * The header row uses the same class so the labels sit over their own columns.
- *
- * Three tiers, chosen by container queries in `rem` rather than viewport breakpoints. A
- * `rem` query compares the available width against the width the text actually needs, so
- * it reacts to an enlarged root font, which is the case that breaks this layout — the
- * viewport is unchanged while every number gets twice as wide.
- *
- * The thresholds are the tiers' own minimums, not guesses:
- *   17rem     = 2.75 (identity) + 4 + 3.25 + 2.75 (fields) + 2.75 (save) + 4 × 0.375 (gaps)
- *   13.625rem = the same without the save cell, which has moved to its own line
- * At normal text a 320px phone leaves 18.5rem of container, so the one-line grid holds
- * everywhere; at 200% the same phone leaves 9.25rem and lands in the labelled tier. No
- * value is ever clipped or shrunk to keep a row on one line.
+ * Sheets (DESIGN.md, Sheets): a native <dialog> rising from the bottom over the scrim, ground
+ * with 24-px top corners, a grabber, the title and Close; no shadow. The panel rises on a spring
+ * (a 0.4-s response, 0.08 bounce) while the scrim fades in over 200 ms; with reduced motion the
+ * sheet fades.
  */
-.set-grid {
-  container-type: inline-size;
-}
-
-.set-row {
-  display: grid;
-  grid-template-columns: var(--ov-set-columns);
-  gap: var(--ov-space-2);
-  align-items: center;
-}
-
-/* The cell is a pass-through so its input stays a direct grid item in every tier. */
-.set-cell {
-  display: contents;
-}
-
-.set-cell-label {
-  display: none;
-}
-
-/* Tier 2: the numbers keep their row; saving takes the next one. */
-@container (max-width: 17rem) {
-  .set-row {
-    grid-template-columns: var(--ov-target-min) 1fr 1fr 1fr;
-  }
-  .set-row > .set-save {
-    grid-column: 1 / -1;
-  }
-}
-
-/*
- * Tier 3: one value per line, each beside its own label. Three numeric fields cannot share
- * a 320px row at 200% text — a four-digit load alone wants most of it — so the row grows
- * downwards instead, and the column header gives way to per-field labels.
- */
-@container (max-width: 13.625rem) {
-  .set-row {
-    grid-template-columns: minmax(0, auto) minmax(0, 1fr);
-  }
-  .set-row > .set-identity,
-  .set-row > .set-save {
-    grid-column: 1 / -1;
-  }
-  .set-cell-label {
-    display: block;
-    font-size: var(--ov-text-small);
-    color: var(--ov-ink-muted);
-  }
-  .set-header {
-    display: none;
-  }
-}
-
-/* Bottom sheet on top of the native <dialog>. */
 dialog.sheet {
   position: fixed;
   inset: auto 0 var(--sheet-bottom, 0px) 0;
@@ -899,15 +863,20 @@ html:has(dialog.sheet[open]) body {
  * the fallback for the ones where it still inherits from nothing.
  */
 dialog.sheet::backdrop {
-  background: var(--ov-backdrop, rgb(0 0 0 / 0.64));
+  background: var(--ov-scrim, rgb(0 0 0 / 0.4));
+}
+dialog.sheet[open]::backdrop {
+  animation: scrim-in var(--ov-duration-scrim) ease-out;
 }
 
 .sheet-panel {
   display: flex;
   flex-direction: column;
   max-height: var(--sheet-height, 90dvh);
-  padding-left: max(var(--panel-padding), env(safe-area-inset-left));
-  padding-right: max(var(--panel-padding), env(safe-area-inset-right));
+  padding: 8px max(var(--ov-gutter), env(safe-area-inset-right))
+    calc(env(safe-area-inset-bottom) + 16px) max(var(--ov-gutter), env(safe-area-inset-left));
+  border-radius: var(--ov-radius-sheet) var(--ov-radius-sheet) 0 0;
+  background: var(--ov-ground);
 }
 
 .sheet-panel[data-compact="true"] {
@@ -920,18 +889,28 @@ dialog.sheet::backdrop {
   overflow: visible;
 }
 
-/*
- * A short rise that explains where the sheet came from. A keyframe rather than a
- * transition because <dialog> goes from display:none to open in one step; reduced motion
- * zeroes --ov-duration-sheet, so the panel simply appears.
- */
+/* A keyframe rather than a transition: <dialog> goes from display:none to open in one step. */
 dialog.sheet[open] .sheet-panel {
-  animation: sheet-in var(--ov-duration-sheet) var(--ov-ease-standard);
+  animation: sheet-rise var(--ov-duration-sheet-rise) var(--ov-ease-spring);
 }
 
-@keyframes sheet-in {
+@keyframes sheet-rise {
   from {
-    transform: translateY(0.75rem);
-    opacity: 0.6;
+    translate: 0 100%;
+  }
+}
+@keyframes scrim-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes sheet-fade {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  dialog.sheet[open] .sheet-panel {
+    animation: sheet-fade var(--ov-duration-fade) ease-out;
   }
 }

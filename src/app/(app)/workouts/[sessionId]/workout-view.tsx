@@ -1,9 +1,10 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { useSetChanges } from "@/components/set-changes";
+import { PageContent } from "@/components/shell/page-content";
 import { startRestTimer } from "@/components/shell/rest-timer";
 import { useSessionDrafts } from "@/components/use-session-drafts";
 
@@ -32,11 +33,17 @@ export function WorkoutView({
   session: rendered,
   seenSetChanges,
   userId,
+  header,
+  intro,
 }: {
   session: SessionVM;
   /** How many of this browser's set changes the render already held. */
   seenSetChanges: number;
   userId: string;
+  /** The workout's own header, for the list: an exercise in focus is a layer with its own. */
+  header?: ReactNode;
+  /** What stands above the list once the workout is finished: its records, Save as routine. */
+  intro?: ReactNode;
 }) {
   const changes = useSetChanges();
   const session = useMemo(
@@ -80,30 +87,35 @@ export function WorkoutView({
 
   return (
     <>
-      {selected ? (
-        <ExerciseLogger
-          // Remount when the slot's identity changes, so drafts stay scoped to it.
-          key={`${selected.id}:${selected.exercise.id}:${selected.equipment?.id ?? "none"}`}
-          exercise={selected}
-          session={session}
-          userId={userId}
-          readOnly={readOnly}
-          onBack={backToList}
-          onDirtyChange={onDirtyChange}
-          onLogged={(seconds) => {
-            if (session.restTimerEnabled) startRestTimer(session.id, seconds);
-          }}
-        />
-      ) : (
-        <WorkoutOverview
-          session={session}
-          readOnly={readOnly}
-          hasDrafts={hasDrafts}
-          onOpenExercise={openExercise}
-          onOpenDetails={() => setDetailsOpen(true)}
-          onEditSuperset={(group) => setSupersetFor({ group })}
-        />
-      )}
+      {!selected && header}
+      <PageContent>
+        {!selected && intro}
+        {selected ? (
+          <ExerciseLogger
+            // Remount when the slot's identity changes, so drafts stay scoped to it.
+            key={`${selected.id}:${selected.exercise.id}:${selected.equipment?.id ?? "none"}`}
+            exercise={selected}
+            session={session}
+            userId={userId}
+            readOnly={readOnly}
+            onBack={backToList}
+            onDirtyChange={onDirtyChange}
+            onLogged={(seconds) => {
+              if (session.restTimerEnabled) startRestTimer(session.id, seconds);
+            }}
+            onEditSuperset={readOnly ? undefined : (group) => setSupersetFor({ group })}
+          />
+        ) : (
+          <WorkoutOverview
+            session={session}
+            readOnly={readOnly}
+            hasDrafts={hasDrafts}
+            onOpenExercise={openExercise}
+            onOpenDetails={() => setDetailsOpen(true)}
+            onEditSuperset={(group) => setSupersetFor({ group })}
+          />
+        )}
+      </PageContent>
 
       <SessionDetails
         open={detailsOpen}

@@ -3,7 +3,6 @@ import { SaveWorkoutRoutine } from "@/components/coaching/routines";
 import { notFound } from "next/navigation";
 
 import { SessionRecordsCard } from "@/components/records-card";
-import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
@@ -66,26 +65,31 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
     .join("|");
 
   return (
-    <>
-      {/* The gym is said once, here. The logger below never repeats it. The cycle is left to
-          Today and the programme, where it places the day; beside a gym's name it only crowded
-          the title. Back goes to Today, which is where a workout is started and finished, unless
-          the session was opened from somewhere else that said so. */}
-      <PageHeader
-        title={title}
-        meta={data.gym.name}
-        backHref={(data.completedAt && origin ? originPath(origin) : "/today") as Route}
-      />
-      <PageContent>
-        {data.completedAt && <SessionRecordsCard records={records} unit={data.preferredUnit} />}
-        {data.completedAt && <SaveWorkoutRoutine sessionId={sessionId} name={title} />}
-        <WorkoutView
-          key={`${viewKey}:${data.completedAt ?? "open"}:${data.preferredUnit}`}
-          session={data}
-          seenSetChanges={seen}
-          userId={user.id}
+    // The gym is said once, in the header. The logger never repeats it. The cycle is left to
+    // Today and the programme, where it places the day; beside a gym's name it only crowded the
+    // title. Back goes to Today, which is where a workout is started and finished, unless the
+    // session was opened from somewhere else that said so. An exercise in focus is a layer over
+    // all of this, with its own header.
+    <WorkoutView
+      key={`${viewKey}:${data.completedAt ?? "open"}:${data.preferredUnit}`}
+      session={data}
+      seenSetChanges={seen}
+      userId={user.id}
+      header={
+        <PageHeader
+          title={title}
+          meta={data.gym.name}
+          backHref={(data.completedAt && origin ? originPath(origin) : "/today") as Route}
         />
-      </PageContent>
-    </>
+      }
+      intro={
+        data.completedAt ? (
+          <>
+            <SessionRecordsCard records={records} unit={data.preferredUnit} />
+            <SaveWorkoutRoutine sessionId={sessionId} name={title} />
+          </>
+        ) : null
+      }
+    />
   );
 }

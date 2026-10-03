@@ -84,6 +84,29 @@
   --ov-duration-swap-in: 120ms;
   --ov-duration-write: 220ms;
   --ov-duration-scrim: 200ms;
+  /* Sheets rise on a spring: a 0.4-s response with 0.08 bounce, drawn as its curve. */
+  --ov-duration-sheet-rise: 420ms;
+  --ov-ease-spring: linear(
+    0,
+    0.0535,
+    0.1719,
+    0.312,
+    0.4497,
+    0.573,
+    0.677,
+    0.7611,
+    0.827,
+    0.8773,
+    0.9148,
+    0.9421,
+    0.9616,
+    0.9753,
+    0.9846,
+    0.9909,
+    0.9949,
+    0.9975,
+    1
+  );
   /* With reduced motion nothing moves: states change in place, or fade in 150 ms. */
   --ov-duration-fade: 150ms;
   --ov-press-scale: 0.97;
@@ -222,8 +245,6 @@
   --ov-icon-feature: 1.75rem;
   --ov-content-max: 32rem;
   --ov-nav-height: var(--ov-tab-bar);
-  --ov-set-columns: 2.75rem minmax(4rem, 1.25fr) minmax(3.25rem, 1fr) minmax(2.75rem, 0.85fr)
-    2.75rem;
   --ov-duration-instant: 0ms;
   --ov-duration-feedback: var(--ov-duration-press);
   --ov-duration-sheet: 180ms;
@@ -342,6 +363,7 @@
     --ov-duration-swap-out: 0ms;
     --ov-duration-swap-in: var(--ov-duration-fade);
     --ov-duration-sheet: 0ms;
+    --ov-duration-sheet-rise: 0ms;
     --ov-press-scale: 1;
   }
 }

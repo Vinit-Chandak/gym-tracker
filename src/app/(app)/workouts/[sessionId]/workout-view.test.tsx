@@ -117,14 +117,23 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-async function saveFirstSet() {
-  fireEvent.change(screen.getByRole("textbox", { name: "Set 1 load, kg" }), {
+/** Types set 1's load, reps and RIR into the entry and presses Save. */
+function enterFirstSet() {
+  fireEvent.click(screen.getByRole("button", { name: /Type a load$/ }));
+  fireEvent.change(screen.getByRole("textbox", { name: "Load in kilograms" }), {
     target: { value: "60" },
   });
-  fireEvent.change(screen.getByRole("textbox", { name: "Set 1 reps" }), { target: { value: "5" } });
-  fireEvent.change(screen.getByRole("textbox", { name: "Set 1 RIR" }), { target: { value: "2" } });
-  fireEvent.click(screen.getByRole("button", { name: "Save set 1" }));
-  await screen.findByText("Set 1 saved");
+  fireEvent.change(screen.getByRole("textbox", { name: "Reps" }), { target: { value: "5" } });
+  fireEvent.change(screen.getByRole("textbox", { name: "RIR" }), { target: { value: "2" } });
+  fireEvent.click(screen.getByRole("button", { name: "Save" }));
+}
+const LINE = "Set 1: 60 kilograms, 5 reps, 2 reps in reserve. Edit";
+/** Back to the workout: the logger's back link names it (an ad hoc session here). */
+const BACK = "Ad hoc session";
+
+async function saveFirstSet() {
+  enterFirstSet();
+  await screen.findByRole("button", { name: LINE });
 }
 
 it("shows a saved set in the list, in the reopened exercise and on Back, without a new render", async () => {
@@ -139,20 +148,20 @@ it("shows a saved set in the list, in the reopened exercise and on Back, without
   page.rerender(view());
   await saveFirstSet();
 
-  fireEvent.click(screen.getByRole("button", { name: "All exercises" }));
+  fireEvent.click(screen.getByRole("button", { name: BACK }));
   page.rerender(view());
   expect(screen.getByText("1 set · 60×5")).toBeTruthy();
   expect(screen.getByText("Resume")).toBeTruthy();
 
   fireEvent.click(screen.getByRole("button", { name: /Bench press/ }));
   page.rerender(view());
-  expect(screen.getByText("Set 1 saved")).toBeTruthy();
+  expect(screen.getByRole("button", { name: LINE })).toBeTruthy();
 
   // Back to this page brings the same render out of the browser's copy.
   page.unmount();
   render(view());
-  expect(screen.getByText("Set 1 saved")).toBeTruthy();
-  expect(screen.getAllByRole("button", { name: /^Set \d options/ })).toHaveLength(2);
+  expect(screen.getAllByRole("button", { name: LINE })).toHaveLength(1);
+  expect(screen.getByRole("region", { name: "Set 2" })).toBeTruthy();
 });
 
 it("takes a render that already holds the set as it is", async () => {
@@ -182,12 +191,12 @@ it("drops a deleted set from the list", async () => {
   actions.remove.mockResolvedValue({ ok: true });
   window.history.replaceState(null, "", "/workouts/session?exercise=slot");
   const page = render(<WorkoutView session={rendered} seenSetChanges={seen} userId="user" />);
-  fireEvent.click(screen.getByRole("button", { name: "Set 1 options" }));
-  fireEvent.click(screen.getByRole("button", { name: "Remove set 1" }));
+  fireEvent.click(screen.getByRole("button", { name: LINE }));
+  fireEvent.click(screen.getByRole("button", { name: "Delete this set" }));
   await vi.waitFor(() => expect(actions.remove).toHaveBeenCalledWith("slot", 1, saved.completedAt));
   await vi.waitFor(() => expect(setChangesMade()).toBeGreaterThan(seen));
 
-  fireEvent.click(screen.getByRole("button", { name: "All exercises" }));
+  fireEvent.click(screen.getByRole("button", { name: BACK }));
   page.rerender(<WorkoutView session={rendered} seenSetChanges={seen} userId="user" />);
   expect(screen.getByText("0 sets")).toBeTruthy();
   expect(screen.getByText("Start")).toBeTruthy();
@@ -200,11 +209,9 @@ it("brings the list up to date when a save lands after the exercise was left", a
   actions.log.mockReturnValue(new Promise((resolve) => (land = resolve)));
   window.history.replaceState(null, "", "/workouts/session?exercise=slot");
   const page = render(<WorkoutView session={rendered} seenSetChanges={seen} userId="user" />);
-  fireEvent.change(screen.getByRole("textbox", { name: "Set 1 reps" }), { target: { value: "5" } });
-  fireEvent.change(screen.getByRole("textbox", { name: "Set 1 RIR" }), { target: { value: "2" } });
-  fireEvent.click(screen.getByRole("button", { name: "Save set 1" }));
+  enterFirstSet();
 
-  fireEvent.click(screen.getByRole("button", { name: "All exercises" }));
+  fireEvent.click(screen.getByRole("button", { name: BACK }));
   page.rerender(<WorkoutView session={rendered} seenSetChanges={seen} userId="user" />);
   expect(screen.getByText("0 sets")).toBeTruthy();
   await act(async () => land({ ok: true, set: saved }));
