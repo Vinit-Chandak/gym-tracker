@@ -233,11 +233,14 @@ function Month({
   const cells = monthCells(year, monthNumber - 1);
   const top = dates ? 12 : 0;
   const markHeight = cellHeight - top;
+  // A date is a Jost figure: it grows by half with the reader's text (13 at 100%, 19.5 at
+  // 200%), and its cell grows by as much, so the marks keep their room under it.
+  const dateGrow = dates ? "max(0px, calc(0.40625rem - 6.5px))" : "0px";
   return (
     <div
       role="group"
       aria-label={label ?? `${MONTH_NAMES[monthNumber - 1]} ${year}`}
-      className={cn("bg-paper px-1.5 pt-1.5 pb-2", className)}
+      className={cn("month-paper bg-paper px-1.5 pt-1.5 pb-2", className)}
     >
       <div aria-hidden className="grid h-6 grid-cols-7 items-center">
         {WEEKDAYS.map((letter, i) => (
@@ -253,12 +256,15 @@ function Month({
           const future = today !== null && day > today;
           const isToday = day === today;
           const box = "relative flex min-w-0 items-center justify-center";
-          const style = { height: cellHeight, paddingTop: top };
+          const style = {
+            height: `calc(${cellHeight}px + ${dateGrow})`,
+            paddingTop: `calc(${top}px + ${dateGrow})`,
+          };
           const date = dates && (
             <span
               aria-hidden
               className={cn(
-                "absolute top-[7px] left-2 figures text-[0.8125rem] leading-none",
+                "absolute top-[7px] left-2 figures text-[length:calc(6.5px+0.40625rem)] leading-none",
                 isToday ? "font-bold text-print-ink" : "font-medium text-print-label",
               )}
             >

@@ -37,9 +37,11 @@ export function bowlLabel(meals: readonly MealTotal[], eaten: number, target: nu
 
 /**
  * The day at the top of the Food screen (ADR 0036; board Food): its one figure, the kcal
- * eaten, then the bowl, the target filled meal by meal and heaped past it, then the
- * macronutrients. How far the day is from its target is the bowl's to show, not a second
- * number. Without a target there is no bowl to fill, so the figure stands alone.
+ * eaten, written against its target as the macronutrients are ("1,152.5 / 2,300 kcal"), then
+ * the bowl, the target filled meal by meal and heaped past it, then the macronutrients. How far
+ * the day is from its target is the bowl's to show, not a second figure; the target itself stays
+ * on the first screen (the feature inventory's eaten-against-the-target). Without a target there
+ * is no bowl to fill, so the figure stands alone.
  */
 export function FoodSummary({
   eaten,
@@ -56,7 +58,13 @@ export function FoodSummary({
       <p className="food-eaten">
         <span className="type-figure-xl whitespace-nowrap">{formatKcal(eaten.kcal)}</span>{" "}
         <span className="food-eaten-unit">
-          kcal<span className="sr-only"> eaten</span>
+          {target && (
+            <span aria-hidden className="food-eaten-of">
+              / {formatKcal(target.kcal)}{" "}
+            </span>
+          )}
+          kcal
+          <span className="sr-only"> eaten{target ? ` of ${formatKcal(target.kcal)}` : ""}</span>
         </span>
       </p>
       {target && (

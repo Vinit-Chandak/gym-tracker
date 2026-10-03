@@ -73,12 +73,13 @@ const HOME: Food = {
 const read = (element: Element) => element.textContent?.replace(/\s+/g, " ").trim();
 
 describe("the day", () => {
-  it("says what was eaten as its one figure, and leaves where that stands to the bowl", () => {
+  it("says what was eaten as its one figure, against its target, and leaves where that stands to the bowl", () => {
     const entries = [entry("breakfast", WHEY, 2), entry("lunch", HOME, 3)];
     render(<FoodSummary eaten={eaten(878)} target={TARGET} entries={entries} />);
-    expect(read(screen.getByText(/^kcal/).parentElement!)).toBe("878 kcal eaten");
-    // Nothing left, no goal and no target written out: the bowl is the target.
-    expect(document.body.textContent).not.toMatch(/left|over|Goal|2,400/);
+    // "878 / 2,400 kcal" on the screen, "878 kcal eaten of 2,400" aloud.
+    expect(read(screen.getByText(/^kcal/).parentElement!)).toBe("878 / 2,400 kcal eaten of 2,400");
+    // Nothing left, over or met is written out: where the day stands is the bowl's to show.
+    expect(document.body.textContent).not.toMatch(/left|over|Goal/);
     expect(
       screen.getByRole("img", {
         name: "The bowl, filled by Breakfast 278 kcal, Lunch 600 kcal: 878 of 2,400 kcal.",

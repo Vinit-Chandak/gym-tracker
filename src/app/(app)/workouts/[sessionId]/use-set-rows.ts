@@ -217,7 +217,8 @@ type Options = {
   /** A new set is on the server: rest starts again from here, never before. */
   onLogged: (restSeconds: number) => void;
   /** The server has a set this screen sent: a new one, or a change to one it had. */
-  onSaved?: (setIndex: number, added: boolean) => void;
+  /** The server has the set: its row, whether it was a new set, and the set as saved. */
+  onSaved?: (setIndex: number, added: boolean, saved: { set: SetVM; autoWarmup: boolean }) => void;
 };
 
 /**
@@ -516,7 +517,7 @@ export function useSetRows({
       });
       if (!row.logged)
         onLogged(exercise.coachRestSeconds ?? exercise.planned?.restMinSeconds ?? 90);
-      onSaved?.(row.setIndex, !row.logged);
+      onSaved?.(row.setIndex, !row.logged, { set: setInUnit(result.set, unit), autoWarmup });
     });
   };
 

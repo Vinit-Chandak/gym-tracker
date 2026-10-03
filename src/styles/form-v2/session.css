@@ -197,7 +197,7 @@ html:has(.session-layer) body {
 .log-line {
   display: grid;
   width: 100%;
-  min-height: max(44px, calc(var(--log-size, 32px) * 1.8));
+  min-height: max(var(--ov-target), calc(var(--log-size, 32px) * 1.8));
   grid-template-columns: 18px minmax(0, 1fr) var(--op) minmax(0, 1fr) var(--op) minmax(0, 1fr);
   align-items: baseline;
   padding: 10px 0 8px;
@@ -271,7 +271,7 @@ button.log-line {
 }
 .log-warm-item {
   display: inline-flex;
-  min-height: 44px;
+  min-height: var(--ov-target);
   align-items: baseline;
   padding: 10px 0 6px;
 }
@@ -345,7 +345,7 @@ button.log-line {
 /* The suggestion's tag: an outline that names it and opens Why. */
 .entry-tag {
   display: inline-flex;
-  min-height: 44px;
+  min-height: var(--ov-target);
   align-items: center;
 }
 .entry-tag > span {
@@ -412,7 +412,7 @@ button.log-line {
 }
 .stepper-figure {
   display: flex;
-  min-width: 44px;
+  min-width: var(--ov-target);
   min-height: var(--ov-target);
   font-family: var(--ov-font-display);
   font-size: var(--entry-size, 42px);
@@ -443,9 +443,11 @@ button.log-line {
 .stepper-units-line {
   white-space: nowrap;
 }
+/* The hint is read, never tapped: ⓘ's full target reaches under it and keeps the tap. */
 .stepper-hint {
   font-weight: 500;
   font-variant-numeric: tabular-nums lining-nums;
+  pointer-events: none;
 }
 .stepper-hint-fold {
   display: none;
@@ -519,8 +521,14 @@ button.log-line {
   caret-color: var(--ov-ink);
   outline: none;
 }
+/* A suggested value stays ink 2 while its neighbour is typed (DESIGN.md: suggested until
+   touched); the field being typed shows only its solid rule. */
+.figure-input.figure-suggested {
+  color: var(--ov-ink-2);
+}
 .figure-input:focus {
   border-bottom-color: var(--ov-ink);
+  text-decoration: none;
 }
 .figure-input::selection {
   background: var(--ov-ink);
@@ -538,15 +546,16 @@ button.log-line {
   margin-top: 0;
 }
 
-/* The one slot over Save: every message about Save stands here, so Save never moves. */
 .entry-save {
   margin-top: 2px;
 }
+/* The one message slot, at the head of the entry under its rule: every message about Save
+   stands here. The entry is docked from its foot, so a message that comes or goes moves the
+   rule above it and nothing a thumb is reaching for: not a stepper, not Save. */
 .entry-slot {
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  margin-bottom: 10px;
 }
 .entry-slot-message {
   font-size: var(--ov-type-meta);
@@ -566,7 +575,6 @@ button.log-line {
   min-height: 32px;
   flex-wrap: wrap;
   align-items: center;
-  margin-bottom: 8px;
   font-size: var(--ov-type-body);
   line-height: 1.3;
 }
@@ -720,6 +728,9 @@ button.log-line {
   .entry {
     gap: 0;
     padding-top: 6px;
+  }
+  .entry > .entry-slot {
+    margin: 2px 0 8px;
   }
   .entry-head {
     min-height: var(--ov-target-header);
@@ -921,6 +932,12 @@ html:has(.session-page) .viewport-chrome {
 }
 html:has(.session-page) {
   --nav-reserve: env(safe-area-inset-bottom, 0px);
+}
+/* With no tab bar the pinned actions stand on the safe area, 8 pt above it, in ground down to
+   the screen's foot, so nothing scrolls into the strip under Save (DESIGN.md, Layout). */
+html:has(.session-page) .pinned-actions {
+  bottom: 0;
+  padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
 }
 .session-page-body {
   padding-bottom: 24px;

@@ -413,7 +413,7 @@ export function TodayView({
         <header className="today-head">
           <p className="type-heading tabular-nums">{formatIsoWeekdayDay(today)}</p>
           {plan && plan.suggestion && day && (
-            <CycleMark cells={cycleCells(plan)} label={cycleLabel(plan)} />
+            <CycleMark cells={cycleCells(plan)} label={cycleLabel(plan)} behind={plan.behind} />
           )}
         </header>
 

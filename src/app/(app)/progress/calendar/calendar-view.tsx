@@ -80,7 +80,12 @@ export function CalendarView({
             ]),
           );
           return (
-            <section key={month} id={`month-${month}`} aria-labelledby={`month-name-${month}`}>
+            <section
+              key={month}
+              id={`month-${month}`}
+              aria-labelledby={`month-name-${month}`}
+              className="calendar-section"
+            >
               <h2 id={`month-name-${month}`} className="calendar-month">
                 {name}
               </h2>

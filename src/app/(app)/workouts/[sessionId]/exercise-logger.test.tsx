@@ -367,11 +367,16 @@ it("turns to the next set, and starts rest, only once the server has the set", a
   expect(entry("Set 1")).toBeTruthy();
   expect(screen.queryByRole("button", { name: /^Set 1: / })).toBeNull();
   expect(onLogged).not.toHaveBeenCalled();
+  // Said as well as drawn (WCAG 4.1.3), on one status line that stays on the page.
+  expect(screen.getByRole("status").textContent).toBe("Saving set 1");
   await act(async () => reply.answer({ ok: true, set: saved }));
   expect(
     screen.getByRole("button", { name: "Set 1: 60 kilograms, 5 reps, 2 reps in reserve. Edit" }),
   ).toBeTruthy();
   expect(entry("Set 2")).toBeTruthy();
+  expect(screen.getByRole("status").textContent).toBe(
+    "Set 1 saved: 60 kilograms, 5 reps, 2 reps in reserve. Set 2 next.",
+  );
   expect(onLogged).toHaveBeenCalledWith(90);
   // The values go back to suggestions and RIR empties.
   expect(screen.getByRole("button", { name: "RIR not set. Type RIR" })).toBeTruthy();
@@ -666,11 +671,17 @@ it("saves a light set with no RIR before the work as a warm-up, says so, and tak
     weight: 60,
     rir: null,
   });
-  await screen.findByText(/Saved as a warm-up/);
+  // Said on the status line as it lands, and drawn over the entry with its way back.
+  await waitFor(() =>
+    expect(screen.getByRole("status").textContent).toMatch(
+      /^Saved as a warm-up: .*\. Set 1 of 3 next\.$/,
+    ),
+  );
+  expect(screen.getByText(/Saved as a warm-up/, { selector: ".entry-slot span" })).toBeTruthy();
 
   // It was a working set after all: back it goes, and it is saved again with its RIR.
   press("Set 1 was a working set");
-  expect(screen.queryByText(/Saved as a warm-up/)).toBeNull();
+  expect(screen.queryByText(/Saved as a warm-up/, { selector: ".entry-slot span" })).toBeNull();
   const sheet = screen.getByRole("dialog", { name: "Set 1" });
   expect(within(sheet).getByRole("combobox", { name: "Type" })).toHaveProperty("value", "working");
   fireEvent.change(within(sheet).getByRole("textbox", { name: "RIR" }), { target: { value: "3" } });

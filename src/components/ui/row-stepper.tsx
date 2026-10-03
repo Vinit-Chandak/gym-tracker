@@ -132,7 +132,14 @@ export function RowStepper({
         >
           <Glyph name="minus" className="glyph-20" />
         </button>
-        <span className="row-stepper-figure">
+        {/* The whole column is the value's target: a tap beside the figure types it too. */}
+        <span
+          className="row-stepper-figure"
+          onClick={(event) => {
+            if (event.target === event.currentTarget)
+              (document.getElementById(id) as HTMLInputElement | null)?.focus();
+          }}
+        >
           <input
             id={id}
             name={name}

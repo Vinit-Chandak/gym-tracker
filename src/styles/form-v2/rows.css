@@ -488,6 +488,9 @@ li:last-child > .sheet-row {
 .switch:disabled {
   opacity: 0.5;
 }
+/* Off, the track is surface 2 inside a control edge, as a field is, so the switch is seen
+   against the ground (WCAG 1.4.11: 3.6:1 light, 4.1:1 dark); on, it is ink. Only the knob
+   moves; the colours change at once. */
 .switch-track {
   position: relative;
   display: block;
@@ -495,7 +498,7 @@ li:last-child > .sheet-row {
   height: 31px;
   border-radius: 16px;
   background: var(--ov-surface-2);
-  transition: background-color var(--ov-duration-feedback);
+  box-shadow: inset 0 0 0 1.5px var(--ov-control);
 }
 .switch-knob {
   position: absolute;
@@ -505,11 +508,12 @@ li:last-child > .sheet-row {
   height: 25px;
   border-radius: 9999px;
   background: var(--ov-ground);
-  box-shadow: 0 0 0 1px var(--ov-hair);
+  box-shadow: 0 0 0 1.5px var(--ov-control);
   transition: transform var(--ov-duration-feedback);
 }
 .switch[aria-checked="true"] .switch-track {
   background: var(--ov-ink);
+  box-shadow: none;
 }
 .switch[aria-checked="true"] .switch-knob {
   background: var(--ov-on-ink);
@@ -592,9 +596,10 @@ li:last-child > .sheet-row {
 .today-head {
   display: flex;
   min-height: var(--ov-target-header);
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 0 8px;
 }
 /* The day's print, as tall as the screen can give it. */
 .today-print {
@@ -780,15 +785,21 @@ li:last-child > .sheet-row {
   align-items: center;
   margin-left: auto;
 }
+/* The value's fixed column. The whole column is the field's target: a tap anywhere in it types
+   the value (row-stepper.tsx), and the field itself is never smaller than a target. */
 .row-stepper-figure {
   display: flex;
   width: calc(120px + var(--ov-grow) * 2);
   min-width: 0;
+  min-height: var(--ov-target);
   align-items: baseline;
   justify-content: center;
   gap: 3px;
+  cursor: text;
 }
 .row-stepper-figure > .figure-input {
+  min-width: var(--ov-target);
+  min-height: var(--ov-target);
   max-width: 100%;
   font-family: var(--ov-font-display);
   font-size: var(--ov-type-figure-l);
@@ -816,7 +827,7 @@ li:last-child > .sheet-row {
   line-height: 1.4;
 }
 .scale [role="radiogroup"] > label > span {
-  min-height: calc(46px + var(--ov-grow));
+  min-height: max(var(--ov-target), calc(46px + var(--ov-grow)));
   font-family: var(--ov-font-display);
   font-size: var(--ov-type-figure);
   font-weight: 600;
@@ -1052,9 +1063,10 @@ li:last-child > .picker-row {
 /* A unit that can be changed (km or mi): its word, a target of its own; pressing it says the
    distance in the other. */
 .row-stepper-unit-button {
+  min-width: var(--ov-target);
   min-height: var(--ov-target);
   padding: 0 4px;
-  margin: 0 -4px;
+  cursor: pointer;
 }
 
 /* ---------- logging an activity (boards Log a run, a ride, a swim) ---------- */

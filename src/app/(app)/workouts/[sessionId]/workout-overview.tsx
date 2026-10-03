@@ -272,6 +272,9 @@ export function WorkoutOverview({
   const heading = coachPlanned ? `${title}, planned by the coach` : title;
   const blades = session.coachPlan?.warmup.length || session.warmup?.drills.length || 0;
   const hasWarmup = session.warmup !== null || (session.coachPlan?.warmup.length ?? 0) > 0;
+  const parts = workoutParts(session, warmupDone);
+  const strength = parts.find((part) => part.kind === "strength");
+  const columns = strength?.kind === "strength" ? strength.columns.length : 0;
   // The coach's warm-up stands in for the protocol, so it does not take the protocol's name.
   const warmupName = session.coachPlan?.warmup.length
     ? "Warm-up"
@@ -402,16 +405,25 @@ export function WorkoutOverview({
           </span>
         )}
       </p>
-      <figure className="workout-print m-0">
-        <Art
-          kind="print"
-          parts={workoutParts(session, warmupDone)}
-          label={`${title}: ${
-            hasWarmup ? `the warm-up ${warmupDone ? "done" : "to do"}, ` : ""
-          }${session.exercises.length} exercises as columns of their sets, the sets done inked`}
-          className="size-full"
-        />
-      </figure>
+      {/* A print draws only what is planned or done: an ad hoc session with nothing yet has no
+          print, rather than an empty paper (DESIGN.md, Prints). */}
+      {parts.length > 0 && (
+        <figure className="workout-print m-0">
+          <Art
+            kind="print"
+            parts={parts}
+            label={`${title}: ${[
+              hasWarmup ? `the warm-up ${warmupDone ? "done" : "to do"}` : null,
+              columns > 0
+                ? `${columns} ${columns === 1 ? "exercise" : "exercises"} as columns of their sets, the sets done inked`
+                : null,
+            ]
+              .filter(Boolean)
+              .join(", ")}`}
+            className="size-full"
+          />
+        </figure>
+      )}
 
       {!readOnly && session.warnings.length > 0 && (
         <CoachNote

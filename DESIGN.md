@@ -404,7 +404,7 @@ same pigment.
 
 - **Ground** (`ground`): the page. **Surface** (`surface`): round buttons, tonal buttons, tiles,
   the rest pill, coach notes. **Surface 2** (`surface-2`): pressed, the
-  switch's off track.
+  switch's off track (inside a `control` edge, so the switch is seen on the ground).
 - **Ink 2** (`ink-2`): secondary text, suggested values, captions, unchosen tabs.
 - **Control** (`control`): borders of fields and outline buttons, an RIR not yet chosen.
 - **Hair** (`hair`): row rules and the tab bar's top edge.
@@ -501,8 +501,8 @@ under 360 pt wide.
 - **Logging:** the title, meta line and tabs stay; on the Log tab the meta line gives the range
   a set aims at (3–5 reps), since how many sets and the RIR target are the entry's (Technique and
   History, with no entry, give the whole prescription). The log starts under the tabs and fills
-  down towards the entry, which is docked at the foot, whole (the set, three steppers, the one
-  message slot, Save), so nothing a thumb needs moves when a set lands and no room opens above
+  down towards the entry, which is docked at the foot, whole (the one message slot, the set, three
+  steppers, Save), so nothing a thumb needs moves when a set lands and no room opens above
   the sets; the room still to fill sits between the latest set and the entry. When the log needs
   more room than the screen has, it keeps its latest sets in view and earlier lines pass under the
   tabs behind a soft edge (the platform's scroll-edge effect). The log and the entry share one grid: an 18-pt column for the set's number (empty in the
@@ -511,12 +511,16 @@ under 360 pt wide.
   holds both 8 apart (44 pt on iOS, 48 dp on Android: 375 pt and up); in a narrower column (360
   dp, 320 pt) the plus stands over the figure and the minus under it, and the columns still hold.
   At 200% text the entry stays docked, whole (the set and its tag, load on a row, reps and RIR
-  side by side, Save); the header stays, and the title, tabs and log scroll between, kept at their
-  end.
+  side by side, Save); the header stays, and the title, tabs and log scroll between. The screen
+  opens on the exercise's name; each set that lands is brought into view above the entry, so the
+  log is kept at its end while logging. A screen too short for a line of the log (320 × 568 with a
+  message) scrolls the same way, kept at its end.
 - **Typing:** tapping a figure types it, on the decimal pad; above the pad stay the figures, on
   one baseline, and Save, with the keyboard's Previous, Next and Done.
-- **Pinned actions:** 8 pt above the safe area, or 12 above the tab bar; the content stops above
-  them and fades under them.
+- **Pinned actions:** 8 pt above the safe area, in ground down to the screen's foot, or 12 above
+  the tab bar; the content stops above them and fades under them, and what the keyboard focuses
+  is scrolled clear of them. Where large text puts the tab bar at the end of the page, they ride
+  the screen's foot and come to rest above the bar.
 - **Prints:** one module grid: a module is a square; an exercise a column of its sets; 0.14 of a
   module between sets, 0.34 between exercises, 0.14 between a superset's two columns, a whole
   module between parts, which stand in the order of the rows under them on one baseline. No line
@@ -530,7 +534,9 @@ under 360 pt wide.
   rows; past four, `+N`. Nothing is drawn under a mark. Today is ringed; days to come are
   blank and are not links; every past day is a link named with what it holds. The overview
   shows the pattern alone; the calendar page adds each date, small, in Jost, in its cell's corner
-  and inside today's ring. The
+  and inside today's ring; a date grows with the reader's text as a figure does (by half) and its
+  cell grows with it, so marks never sit under a date. Every day is a full target: under 375 pt,
+  and on Android, the month's paper runs to the screen's edges. The
   totals under the overview name each sport, so they are its legend.
 - **Heights:** short screens (under 800 pt) shorten the print and fold the day's note; tall
   screens (860 pt and over) give the room to the print and the entry.
@@ -643,12 +649,16 @@ and every control answers a press.
   fades in (220 ms, `cubic-bezier(0.23, 1, 0.32, 1)`), and Save reads Saved. On the same beat the
   entry turns to the next set (the values back to suggestions, RIR empty) and rest restarts, its
   dial full; nothing in the entry moves. With reduced motion the line appears. Nothing is written
-  before the server has it.
+  before the server has it. A screen reader hears it on one status line: "Saving set 3", then
+  "Set 3 saved: 60 kilograms, 4 reps, 2 reps in reserve. Set 4 of 4 next."
 - **A save that fails:** the entries stay as typed, in ink; nothing is added to the log and rest
   does not start; the app's sentence ("Connection lost. Your entries are still here. Retry
-  saving when connected.") stands in the slot over Save, and Save reads Retry, as the app's does.
-- **The slot over Save:** every message about Save stands in one place, over it, so Save never
-  moves: the missing RIR, a failed save, and where a superset goes next ("Then Wrist curl").
+  saving when connected.") stands in the message slot, and Save reads Retry, as the app's does.
+- **The message slot:** every message about Save stands in one place, at the head of the entry
+  under its rule. The entry is docked from its foot, so a message that comes or goes moves only
+  the rule above it, never a stepper or Save under the thumb: the missing RIR, a failed save, the
+  plan's last set in ("4 of 4 sets done.", with Complete beside it), and where a superset goes
+  next ("Then Wrist curl").
 
 ### Steppers
 
@@ -665,7 +675,7 @@ and every control answers a press.
   and the buttons), which opens the app's own words for what RIR means; tapping the dash
   takes the target ("RIR not set, target 2. Use the target"), − and + go one either side of it.
   Save waits, grey, until it is set; tapped, the app's sentence for a missing RIR ("Enter RIR:
-  estimate how many more good reps you could do.") shows in the slot over it, and the dash inks
+  estimate how many more good reps you could do.") shows in the message slot, and the dash inks
   to say what is missing. Timed and distance sets take RPE, 1 to 10, the same way.
 - **In a row:** a label (and its hint) left; −, the value in a fixed 120-pt column, + right, so
   the buttons line up row under row (hours slept, a run's distance and duration).
@@ -707,8 +717,10 @@ and every control answers a press.
 
 - **Field:** 52 pt, ground, a 1.5-px control border, 14-px corners, 16-px text; the label above
   (14, 700) with Optional at its end; help below in caption. A search field leads with the glyph.
-- **Segmented:** surface tray, 3-px inset; the chosen segment ink. **Switch:** 51 × 31, ink when
-  on, in a 44-pt target. **Glyph choice:** two or three tiles, a glyph over a word, the chosen one ink (Outdoor,
+- **Segmented:** surface tray, 3-px inset; the chosen segment ink; a segment is never narrower
+  than its longest word, and the tray folds onto a second row before a word would break.
+  **Switch:** 51 × 31: off, surface 2 inside a 1.5-px control edge, the knob ringed in control;
+  ink when on; in a 44-pt target. **Glyph choice:** two or three tiles, a glyph over a word, the chosen one ink (Outdoor,
   Treadmill). **Ticks:** tiles that turn ink when ticked (machines).
 
 ### Navigation
@@ -719,7 +731,8 @@ and every control answers a press.
   sliders.
 - **Headers:** a destination has its title and at most one action; a nested screen has a back
   link that names where it goes; a session screen has its back or minimise, the rest pill, and
-  at most Finish and More.
+  at most Finish and More. Today's head is the date and the cycle as seven squares, wordless while
+  the programme is on track; behind is news, so "25 behind" stands beside the squares.
 - **Tabs:** panels of one screen (Log, Technique, History) are a tablist over a tab panel: words
   on a hairline, where you are ink and underlined.
 - **Sections:** pages of their own are chosen by one button naming the current one, which opens a
@@ -747,7 +760,8 @@ and every control answers a press.
   in ink on the ground, the latest reading in ink and the rest in `control`, scale labels in the
   left margin on every chart.
 - **The bowl:** Food: the day's target filled meal by meal, the bowl alone and centred on its
-  paper, the day's one figure (the kcal eaten) on the ground above it; the paper keeps air above
+  paper, the day's one figure (the kcal eaten, written against its target as the macronutrients
+  are: "1,152.5 / 2,300 kcal") on the ground above it; the paper keeps air above
   the rim, or the heap's height when that is more. A portion being added shows as a thinned layer
   before it is logged.
 

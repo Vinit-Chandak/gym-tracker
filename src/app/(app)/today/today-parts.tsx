@@ -13,15 +13,19 @@ import { groupRows } from "./today-model";
 /**
  * The cycle as squares (DESIGN.md: the programme's position is seven squares, not a sentence):
  * the days done in ink, today ringed, a skipped day dashed, the rest a hairline. They stay
- * wordless; their name, "behind" included, is read aloud.
+ * wordless while the programme is on track. Behind is news, so it is said beside them, as the
+ * app always has ("25 behind"; the feature inventory's Today status); their name says it too.
  */
 export function CycleMark({
   cells,
   label,
+  behind = 0,
   href = "/profile/programme",
 }: {
   cells: readonly CycleCell[];
   label: string;
+  /** Days the programme is behind, said beside the squares when there are any. */
+  behind?: number;
   href?: Route;
 }) {
   const sq = 9;
@@ -31,8 +35,13 @@ export function CycleMark({
     <Link
       href={href}
       aria-label={label}
-      className="-mr-0.5 flex min-h-[var(--ov-target-header)] shrink-0 items-center gap-2 px-0.5"
+      className="-mr-0.5 ml-auto flex min-h-[var(--ov-target-header)] shrink-0 items-center gap-2 px-0.5"
     >
+      {behind > 0 && (
+        <span className="type-meta-small whitespace-nowrap text-ink-2 tabular-nums">
+          {behind} behind
+        </span>
+      )}
       <svg
         aria-hidden
         width={width}

@@ -130,15 +130,17 @@ export function Sheet({
             measured header changes height as compact mode toggles and can oscillate. */}
         <div ref={heading} className="flow-root shrink-0">
           <div className="mx-auto mb-2 h-[5px] w-9 rounded-full bg-surface-2" aria-hidden />
-          <div className="mb-1 flex items-center gap-2.5">
-            {lead}
-            <h2 className="min-w-0 flex-1 type-sheet-title [overflow-wrap:anywhere]">{title}</h2>
+          {/* The lead (Why's tag), the title and Close on one line; where the text is too large
+              for the title to keep its words whole beside the tag, the tag stands over it. */}
+          <div className="sheet-head mb-1">
+            {lead && <div className="sheet-head-lead">{lead}</div>}
+            <h2 className="sheet-head-title type-sheet-title">{title}</h2>
             <button
               type="button"
               aria-label="Close sheet"
               disabled={!dismissible}
               onClick={onClose}
-              className="-mr-2.5 grid size-[var(--ov-target-header)] shrink-0 place-items-center text-ink disabled:text-control"
+              className="sheet-head-close -mr-2.5 grid size-[var(--ov-target-header)] shrink-0 place-items-center text-ink disabled:text-control"
             >
               <Close aria-hidden />
             </button>

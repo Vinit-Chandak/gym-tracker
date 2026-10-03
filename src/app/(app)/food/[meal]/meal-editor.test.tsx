@@ -192,7 +192,8 @@ it("keeps the sheet and its amount when the connection drops, and retries as the
   expect(sheet().open).toBe(true);
   expect(inSheet().getByLabelText("Amount eaten")).toHaveProperty("value", "1.5");
 
-  fireEvent.click(inSheet().getByRole("button", { name: "Add to Breakfast" }));
+  // The failure is said inside the save's transition; Add comes back once it ends.
+  fireEvent.click(await inSheet().findByRole("button", { name: "Add to Breakfast" }));
   await waitFor(() => expect(sheet().open).toBe(false));
   const [first, second] = vi.mocked(logFoodAction).mock.calls.map(([draft]) => draft);
   expect(second).toEqual(first);

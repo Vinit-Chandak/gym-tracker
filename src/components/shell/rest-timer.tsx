@@ -228,10 +228,15 @@ export function RestPill({ sessionId }: { sessionId: string }) {
       <button
         type="button"
         aria-haspopup="dialog"
+        // The name carries the visible time, as a voice or switch user reads it (WCAG 2.5.3).
+        aria-label={
+          go
+            ? "Rest over: Go. Add 30 seconds or stop"
+            : `Rest, ${time} left. Add 30 seconds or stop`
+        }
         onClick={() => setOpen(true)}
         className="relative flex min-h-[var(--ov-target-header)] shrink-0 items-center"
       >
-        <span className="sr-only">{go ? "Rest over." : "Rest,"}</span>
         <span
           className={cn(
             "flex min-h-[calc(36px+var(--ov-grow))] items-center gap-[calc(4px+0.1875rem)] rounded-rest-pill pr-[calc(8px+0.25rem)] pl-[calc(6px+0.1875rem)]",
@@ -243,12 +248,7 @@ export function RestPill({ sessionId }: { sessionId: string }) {
           ) : (
             <RestDial fraction={fraction} className="glyph-18" />
           )}
-          <span role="timer" className="type-figure-s">
-            {time}
-          </span>
-        </span>
-        <span className="sr-only">
-          {go ? "Add 30 seconds or stop" : "left. Add 30 seconds or stop"}
+          <span className="type-figure-s">{time}</span>
         </span>
       </button>
       <Sheet open={open} onClose={() => setOpen(false)} title="Rest">

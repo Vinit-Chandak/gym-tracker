@@ -213,13 +213,14 @@ function WarmItem({
       type="button"
       className="log-warm-item"
       data-landed={landed}
+      data-set={row.setIndex}
       aria-label={`${said}. Edit`}
       onClick={() => onOpen(row)}
     >
       <WarmNotation set={set} measure={measure} />
     </button>
   ) : (
-    <span className="log-warm-item" data-landed={landed}>
+    <span className="log-warm-item" data-landed={landed} data-set={row.setIndex}>
       <span className="sr-only">{said}</span>
       <WarmNotation set={set} measure={measure} />
     </span>
@@ -253,13 +254,14 @@ function LogLine({
           type="button"
           className="log-line"
           data-landed={landed}
+          data-set={row.setIndex}
           aria-label={`${said}. Edit`}
           onClick={() => onOpen(row)}
         >
           <SetCells n={n} set={set} measure={measure} />
         </button>
       ) : (
-        <div className="log-line" data-landed={landed}>
+        <div className="log-line" data-landed={landed} data-set={row.setIndex}>
           <span className="sr-only">{said}</span>
           <SetCells n={n} set={set} measure={measure} />
         </div>

@@ -38,6 +38,7 @@ import {
   formatMinutes,
 } from "@/lib/format";
 import { MUSCLE_LABELS } from "@/lib/labels";
+import { PLATFORM_ATTRIBUTE } from "@/lib/platform";
 
 import { pageSection, PROGRESS_SECTIONS, ProgressSections } from "./progress-sections";
 import { RecoveryProgress } from "./recovery-progress";
@@ -266,7 +267,8 @@ export function ProgressView({
         )}
 
         {tab === "strength" && (
-          <div className="mt-3">
+          // 12 pt between the exercise, the measurement and the chart, as the card gave them.
+          <div className="mt-3 space-y-3">
             <StrengthTrend
               selected={selected}
               machines={machinesForExercise}
@@ -518,14 +520,23 @@ const subscribeResize = (onChange: () => void) => {
  * The calendar's cells are as tall as the phone gives them (the generator's rule): 42 pt under
  * 360 wide, 44 on a short screen, 58 on a tall one, 50 otherwise.
  */
+const noSubscription = () => () => {};
+
+/** Each day is a link, so its cell is never shorter than a target: 44 pt, 48 dp on Android. */
 function useCellHeight(): number {
   const size = useSyncExternalStore(
     subscribeResize,
     () => `${window.innerWidth}x${window.innerHeight}`,
     () => "402x874",
   );
+  const android = useSyncExternalStore(
+    noSubscription,
+    () => document.documentElement.getAttribute(PLATFORM_ATTRIBUTE) === "android",
+    () => false,
+  );
   const [width, height] = size.split("x").map(Number) as [number, number];
-  return width < 360 ? 42 : height < 800 ? 44 : height >= 860 ? 58 : 50;
+  const fit = width < 360 || height < 800 ? 44 : height >= 860 ? 58 : 50;
+  return Math.max(android ? 48 : 44, fit);
 }
 
 function Overview({

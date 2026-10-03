@@ -62,18 +62,22 @@ type EntryProps = {
   onTypingEnd: () => void;
   onOptions: () => void;
   onInfo: (field: EntryField) => void;
-  /** The one slot over Save, and Save. */
+  /** The one message slot, at the head of the entry: a message never moves a stepper or Save. */
+  slot: ReactNode;
+  /** Save, and what is said about it only to a screen reader. */
   children: ReactNode;
 };
 
 export const inputId = (base: string, field: DraftValueField) => `${base}-${field}`;
 
 /**
- * The entry, docked at the foot (DESIGN.md, Logging and Steppers): the set and its tag, then
- * load, reps and RIR on the log's grid with the operators between, so it reads as the notation
- * it records, then the one message slot and Save. Each figure is a button: a tap types it, and
- * the empty effort's dash takes its target. − and + sit under a figure while its column holds
- * both; narrower, + stands over it and − under it (session.css decides, by the layer's width).
+ * The entry, docked at the foot (DESIGN.md, Logging and Steppers): the one message slot under
+ * its rule, the set and its tag, then load, reps and RIR on the log's grid with the operators
+ * between, so it reads as the notation it records, then Save. The entry grows upwards from Save,
+ * so a message that comes or goes moves nothing a thumb is reaching for. Each figure is a button:
+ * a tap types it, and the empty effort's dash takes its target. − and + sit under a figure while
+ * its column holds both; narrower, + stands over it and − under it (session.css decides, by the
+ * layer's width).
  */
 export function Entry({
   row,
@@ -91,6 +95,7 @@ export function Entry({
   onTypingEnd,
   onOptions,
   onInfo,
+  slot,
   children,
 }: EntryProps) {
   const base = useId();
@@ -248,6 +253,7 @@ export function Entry({
 
   return (
     <section aria-label={title} className="entry" style={style}>
+      {slot}
       <div className="entry-head">
         <div className="entry-title">
           <h3 className="type-heading tabular-nums">

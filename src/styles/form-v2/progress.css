@@ -152,6 +152,23 @@
   font-size: var(--ov-type-heading);
   font-weight: 700;
 }
+/* Every past day of the month is a link: under 375 pt, and with Android's 48-dp targets, the
+   month's paper runs to the screen's edges so each of its seven days keeps a full target
+   ((320 − 12) / 7 = 44 pt; (360 − 12) / 7 = 49.7 dp). */
+@media (width < 375px) {
+  .month-paper {
+    margin-inline: calc(-1 * var(--ov-gutter));
+  }
+}
+:where([data-overload-platform="android"]) .month-paper {
+  margin-inline: calc(-1 * var(--ov-gutter));
+}
+/* The months below the screen are laid out as they scroll into view: the calendar opens on its
+   last month without first building every month before it. */
+.calendar-section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 430px;
+}
 
 /* ---------- Running: the runs ---------- */
 .run-row {

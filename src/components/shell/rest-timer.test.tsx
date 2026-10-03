@@ -39,11 +39,12 @@ it("keeps a usable countdown when storage writes fail", () => {
   expect(screen.getByRole("timer").textContent).toContain("0:30");
   view.unmount();
   render(<RestPill sessionId="storage-limited" />);
-  expect(screen.getByRole("timer").textContent).toContain("0:30");
+  // The pill's name carries its visible time (WCAG 2.5.3).
+  expect(screen.getByRole("button", { name: /^Rest, 0:30 left\./ })).toBeTruthy();
   fireEvent.click(openPill().getByRole("button", { name: "+30 s", hidden: true }));
   expect(screen.getAllByText("1:00").length).toBeGreaterThan(0);
   fireEvent.click(openPill().getByRole("button", { name: "Stop", hidden: true }));
-  expect(screen.queryByRole("timer")).toBeNull();
+  expect(screen.queryByRole("button", { name: /^Rest/ })).toBeNull();
 });
 
 it("can stop a persisted timer after access to storage is blocked", () => {
@@ -53,9 +54,9 @@ it("can stop a persisted timer after access to storage is blocked", () => {
     throw new DOMException("Blocked", "SecurityError");
   });
   fireEvent.click(openPill().getByRole("button", { name: "Stop", hidden: true }));
-  expect(screen.queryByRole("timer")).toBeNull();
+  expect(screen.queryByRole("button", { name: /^Rest/ })).toBeNull();
   act(() => vi.advanceTimersByTime(1000));
-  expect(screen.queryByRole("timer")).toBeNull();
+  expect(screen.queryByRole("button", { name: /^Rest/ })).toBeNull();
 });
 
 it("names the strip's time as the time left", () => {

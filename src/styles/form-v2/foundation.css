@@ -264,6 +264,7 @@
 :where([data-overload-design="form-v2"][data-overload-platform="android"]) {
   --ov-target: calc(48px + var(--ov-grow));
   --ov-target-header: calc(48px + var(--ov-grow) * 0.6);
+  --ov-button-short: calc(48px + var(--ov-grow));
 }
 
 /* System, including an absent or invalid preference; an explicit Light or Dark is excluded. */
