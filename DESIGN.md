@@ -500,11 +500,11 @@ under 360 pt wide.
 - **The session:** starting a workout opens a full-screen layer over the tabs, from the check-in
   to the summary. Minimised, it is the session strip on every screen.
 - **Logging:** the title, meta line and tabs stay; the meta line gives the range a set aims at
-  (3–5 reps), since how many sets and the RIR target are the entry's. The log stands on the
-  entry, its latest line
-  8 pt over the entry's rule and the room above it; when it needs more, earlier lines pass under
-  the tabs behind a soft edge. The entry (the set, three steppers, Save) is docked to the safe
-  area. The log and the entry share one grid: an 18-pt column for the set's number (empty in the
+  (3–5 reps), since how many sets and the RIR target are the entry's. The log starts under the
+  tabs and the entry follows it, its rule 8 pt under the latest line; Save keeps the foot of the
+  screen, above the safe area, so the room left over is above Save and never above the sets.
+  When the log needs more room than the screen has, the entry meets Save, the log keeps its
+  latest sets in view and earlier lines pass under the tabs. The log and the entry share one grid: an 18-pt column for the set's number (empty in the
   entry), then load, reps and RIR with the operators between, so every figure stands over the
   same figure below at every width. − and + sit side by side under a figure while its column
   holds both 8 apart (44 pt on iOS, 48 dp on Android: 375 pt and up); in a narrower column (360
@@ -638,8 +638,8 @@ and every control answers a press.
 - History lists every session newest first, its sets in the same lines (Figure L). History is
   read, not edited: its lines are not buttons.
 - **A set is written:** Save presses (120 ms) and reads Saving… while the server answers; on its
-  answer the set lands as the log's next line, opening its own room so the lines above rise with
-  it, rising 10 pt as it fades in (220 ms, `cubic-bezier(0.23, 1, 0.32, 1)`), and Save reads
+  answer the set lands as the log's next line, opening its own room so the entry moves down a
+  line while Save stays where the thumb is, rising 10 pt as it fades in (220 ms, `cubic-bezier(0.23, 1, 0.32, 1)`), and Save reads
   Saved; then the entry turns to the next set, the values go back to suggestions, RIR empties and
   rest restarts, its dial full. With reduced motion the line appears. Nothing is written before
   the server has it.
