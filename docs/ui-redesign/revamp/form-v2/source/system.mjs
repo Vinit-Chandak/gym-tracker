@@ -118,7 +118,7 @@ function type() {
       title(34),
       "Barbell bench press",
     ],
-    ["Figure XL", "Jost 600 · 40–64, sized to the room it has · tabular", num(56), "1,152.5"],
+    ["Figure XL", "Jost 600 · 56, stepping down the ramp to fit · tabular", num(56), "1,152.5"],
     [
       "Entry",
       "Jost 600 · 42, stepping down the ramp to 28 to fit, never truncated; Atkinson’s en dash inside a range",

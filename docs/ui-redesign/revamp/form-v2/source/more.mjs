@@ -34,23 +34,40 @@ export function trainingScreen(t, dv = K.D) {
   const G = K.gut(dv),
     cw = dv.W - 2 * G,
     gap = 10;
-  const tile = (d, i) => {
-    const wide = i === T.dayIndex - 1;
+  // every day on one module, the smallest any day needs, so the week compares at a glance
+  const partsOf = (d, i) => {
     const done = i < T.daysDone;
     const cols = (d.columns || []).flatMap((c) =>
       Array.isArray(c)
         ? c.map((n, j) => ({ n, done: done ? n : 0, pair: j === 0 }))
         : [{ n: c, done: done ? c : 0 }],
     );
-    // in the day's order: an easy-run day runs first, as its name and notes say
     const parts = [];
     if (d.run) parts.push({ kind: "run", minutes: d.minutes, done });
     if (cols.length) parts.push({ kind: "strength", columns: cols });
     if (d.drills)
       parts.push({ kind: "mobility", segments: d.drills, segDone: done ? d.drills : 0, done });
-    const tw = wide ? cw : (cw - gap) / 2;
+    return parts;
+  };
+  const sizeOf = (i) => {
+    const wide = i === T.dayIndex - 1;
+    return { w: wide ? cw : (cw - gap) / 2, h: wide ? 92 : 64 };
+  };
+  const U = Math.min(
+    ...cycle.map((d, i) => {
+      const o = {};
+      dayPrint({ ...sizeOf(i), paper: t.paper, parts: partsOf(d, i), ariaLabel: "", out: o });
+      return o.u;
+    }),
+  );
+  const tile = (d, i) => {
+    const wide = i === T.dayIndex - 1;
+    const done = i < T.daysDone;
+    // in the day's order: an easy-run day runs first, as its name and notes say
+    const parts = partsOf(d, i);
+    const tw = sizeOf(i).w;
     const state = done ? "done" : wide ? "next" : "to do";
-    return `<li style="${s({ "min-width": 0, "grid-column": wide ? "1 / -1" : undefined })}"><a href="#" aria-label="Day ${i + 1}, ${esc(d.name)}, ${state}" style="display:block"><div style="${s({ "line-height": 0, outline: wide ? `2.5px solid ${t.ink}` : undefined, "outline-offset": wide ? 2 : undefined })}">${dayPrint({ w: tw, h: wide ? 92 : 64, paper: t.paper, parts, ariaLabel: "" })}</div><span style="${s({ display: "flex", "justify-content": "space-between", "align-items": "baseline", gap: 8, "margin-top": 6 })}"><span class="wrap" style="${txt(14, 700, { "line-height": 1.25 })}">${d.name}</span>${wide ? `<span class="nb" style="${txt(13, 700)}">Next</span>` : ""}</span></a></li>`;
+    return `<li style="${s({ "min-width": 0, "grid-column": wide ? "1 / -1" : undefined })}"><a href="#" aria-label="Day ${i + 1}, ${esc(d.name)}, ${state}" style="display:block"><div style="${s({ "line-height": 0, outline: wide ? `2.5px solid ${t.ink}` : undefined, "outline-offset": wide ? 2 : undefined })}">${dayPrint({ w: tw, h: wide ? 92 : 64, paper: t.paper, parts, ariaLabel: "", maxModule: U })}</div><span style="${s({ display: "flex", "justify-content": "space-between", "align-items": "baseline", gap: 8, "margin-top": 6 })}"><span class="wrap" style="${txt(14, 700, { "line-height": 1.25 })}">${d.name}</span>${wide ? `<span class="nb" style="${txt(13, 700)}">Next</span>` : ""}</span></a></li>`;
   };
   const inner = `${K.topHeader(t, dv, "Training", K.iconBtn(t, "plus", "Schedule an activity", { "margin-right": -10 }))}
 <section aria-labelledby="prog" style="margin-top:4px">
@@ -75,7 +92,7 @@ export function coachScreen(t, dv = K.D) {
 <p style="${txt(16, 700, { "line-height": 1.35 })}">“Add squat practice. Can we move core work to another day?”</p>
 <p style="${txt(16, 500, { "line-height": 1.4 })}">Which day works best for your core work?</p>
 <label><span class="sr">Your answer to the coach</span><textarea rows="2" placeholder="Your answer" style="${s({ width: "100%", "min-height": 70, padding: "12px 14px", "border-radius": 14, border: `1.5px solid ${t.control}`, background: t.ground, color: t.ink, "font-family": K.FONTS.text, "font-size": 16, resize: "none", display: "block" })}"></textarea></label>
-<div style="${s({ display: "flex", gap: "6px 18px", "flex-wrap": "wrap", "align-items": "center" })}"><button type="button" aria-disabled="true" style="${K.BTN(t, "waiting", { h: 44 })}; padding: 0 18px; font-size: 15px">Send answer</button><button type="button" style="${K.BTN(t, "text", { h: 44 })}; padding: 0; font-size: 15px; color: ${t.ink2}">I no longer want this</button></div></div>`;
+<div style="${s({ display: "flex", gap: "6px 18px", "flex-wrap": "wrap", "align-items": "center" })}"><button type="button" aria-disabled="true" style="${K.BTN(t, "waiting", { h: 44 })}; padding: 0 18px; font-size: 15px; background: ${t.ground}">Send answer</button><button type="button" style="${K.BTN(t, "text", { h: 44 })}; padding: 0; font-size: 15px; color: ${t.ink}">I no longer want this</button></div></div>`;
   const change = `<li><a href="#" style="${s({ display: "flex", "align-items": "center", gap: 12, "min-height": 62, padding: "8px 0" })}">${K.markCell(`<span style="display:grid">${icon("plus", 20)}</span>`)}<span style="${s({ display: "flex", "flex-direction": "column", flex: "1 1 auto", "min-width": 0 })}"><span style="${txt(16, 700)}">Add squat practice</span><span class="wrap" style="${txt(14, 500, { color: t.ink2 })}">Add the requested squat practice and one set to the first movement.</span></span>${K.chev(t)}</a></li>`;
   const note = (text, outcome, last = false) =>
     `<li style="${s({ padding: "10px 0", "border-bottom": last ? 0 : `1px solid ${t.hair}` })}"><p style="${txt(15, 600, { "line-height": 1.4 })}">${text}</p><p style="${txt(13, 500, { color: t.ink2 })}; margin-top: 2px">${outcome}</p></li>`;
@@ -85,7 +102,7 @@ export function coachScreen(t, dv = K.D) {
 ${sect(t, "Waiting for you", change)}
 <section>${K.caption(t, "What the coach knows", { mt: 14 })}<p style="${txt(16, 500, { "line-height": 1.45 })}; margin-top: 4px">Prefers training after work. Keep sessions within an hour.</p></section>
 ${sect(t, "Tell the coach", `${note("Next week I can train on Saturday as well.", "Not read yet")}${note("I prefer training after work.", "Remembered")}${note("Add squat practice. Can we move core work to another day?", "Queued for your programme review — Squat practice proposed; a question remains about core work.", true)}`)}`;
-  const ask = `<div style="${s({ position: "absolute", left: G, right: G, bottom: K.navH(dv) + 10, display: "flex", gap: 8, "align-items": "center", padding: "6px 6px 6px 16px", "border-radius": 16, border: `1.5px solid ${t.control}`, background: t.ground })}"><label class="wrap" style="${s({ flex: "1 1 auto", "min-width": 0 })}"><span class="sr">Notes for the coach</span><span aria-hidden="true" style="${txt(16, 500, { color: t.ink2 })}">Notes for the coach</span></label><button type="button" aria-label="Send note" style="${s({ width: 44, height: 44, "border-radius": 12, background: t.ink, color: t.onInk, display: "grid", "place-items": "center", "flex-shrink": 0 })}">${icon("send", 20)}</button></div>`;
+  const ask = `<div style="${s({ position: "absolute", left: G, right: G, bottom: K.navH(dv) + 10, display: "flex", gap: 8, "align-items": "center", padding: "6px 6px 6px 16px", "border-radius": 16, border: `1.5px solid ${t.control}`, background: t.ground })}"><label class="wrap" style="${s({ flex: "1 1 auto", "min-width": 0 })}"><span class="sr">Notes for the coach</span><span aria-hidden="true" style="${txt(16, 500, { color: t.ink2 })}">Notes for the coach</span></label><button type="button" aria-label="Send note" aria-disabled="true" style="${s({ width: 44, height: 44, "border-radius": 12, background: t.surface, color: t.ink2, display: "grid", "place-items": "center", "flex-shrink": 0 })}">${icon("send", 20)}</button></div>`;
   return K.root(
     t,
     `${K.screenMain(t, inner, { dv, bottom: K.navH(dv) + 10 + 58 + 8 })}${ask}${K.navbar(t, "profile", { dv, nested: true })}`,
@@ -143,7 +160,7 @@ ${K.field(t, "Name", { value: me.name })}
 ${K.field(t, "Username", { value: me.handle, help: "3 to 20 characters: lowercase letters, digits, dots and underscores." })}
 ${K.field(t, "Time zone", { value: "Asia/Kolkata" })}
 ${labelled(t, "Units", seg(t, ["kg (kilograms)", "lb (pounds)"], 0, "Units", { size: 15 }), { note: "Height in centimetres." })}
-<div style="${s({ display: "grid", "grid-template-columns": "repeat(2, minmax(0,1fr))", gap: 12 })}">${K.field(t, "Body weight (kg)", { value: me.weight })}${K.field(t, "Height (cm)", { value: me.height })}</div>
+<div style="${s({ display: "grid", "grid-template-columns": "repeat(2, minmax(0,1fr))", gap: 12 })}">${K.field(t, "Body weight (kg)", { value: me.weight, mode: "decimal" })}${K.field(t, "Height (cm)", { value: me.height, mode: "decimal" })}</div>
 ${K.field(t, "Date of birth", { placeholder: "dd/mm/yyyy", help: "So training load can be read against your age" })}
 ${labelled(t, "Sex", `<div role="radiogroup" aria-label="Sex" style="${s({ display: "grid", "grid-template-columns": "repeat(2, minmax(0,1fr))", gap: 2, padding: 3, background: t.surface, "border-radius": 14 })}">${["Female", "Male", "Other", "Prefer not to say"].map((x) => `<button type="button" role="radio" aria-checked="false" style="${s({ "min-height": 44, "border-radius": 11, padding: "4px 6px" })}; ${txt(15, 700)}">${x}</button>`).join("")}</div>`)}
 ${select("Training goal", "Choose a goal")}
@@ -163,7 +180,7 @@ const steps = (t, at) =>
   ]
     .map(
       (n, i) =>
-        `<li aria-label="${n}, ${i < at ? "completed" : i === at ? "current step" : "not started"}" style="${s({ width: i === at ? 22 : 8, height: 8, "border-radius": 9999, background: i <= at ? t.ink : t.surface2 })}"></li>`,
+        `<li aria-label="${n}, ${i < at ? "completed" : i === at ? "current step" : "not started"}" style="${s({ width: i === at ? 22 : 8, height: 8, "border-radius": 9999, background: i <= at ? t.ink : t.control })}"></li>`,
     )
     .join("")}</ol>`;
 function onboardFrame(t, dv, at, inner, foot, { label }) {

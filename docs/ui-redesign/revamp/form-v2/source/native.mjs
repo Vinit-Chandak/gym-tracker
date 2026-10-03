@@ -99,7 +99,7 @@ function textRules() {
     ],
     [
       "Figures step down",
-      "A figure keeps one line and steps down to fit its column (62.5 at 46 pt on the 440 board, 41 at 402, 39 at 375), never truncated, never an ellipsis.",
+      "A figure keeps one line and steps down the type ramp to fit its column (62.5 at 42 pt from 375 up, 36 at 360 dp and 320 pt), never to a size in between, never truncated, never an ellipsis.",
     ],
     [
       "Titles step down, then wrap",
@@ -157,7 +157,7 @@ ${table(
   ],
   ["160px", "", "", ""],
 )}
-<p style="${txt(14, 500, { color: L.ink2 })}">At accessibility sizes (iOS ${code("isAccessibilitySize")}, Android font scale 1.5 and up) the logging screen takes the 200% layout: the entry first with load beside its buttons, reps and RIR under it, the ledger below, Save pinned.</p>`);
+<p style="${txt(14, 500, { color: L.ink2 })}">At accessibility sizes (iOS ${code("isAccessibilitySize")}, Android font scale 1.5 and up) the logging screen takes the 200% layout: the entry stays docked whole above the home indicator (the set and its tag, load beside its buttons, reps and RIR side by side, Save), the header stays, and the title, tabs and log scroll between, kept at their end.</p>`);
 }
 function haptics() {
   return section(`${H2("Haptics and motion")}

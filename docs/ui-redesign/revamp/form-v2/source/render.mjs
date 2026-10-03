@@ -72,10 +72,15 @@ for (const file of order.filter((f) => !filters.length || filters.some((x) => f.
   });
   await page.goto(pathToFileURL(path.join(CANVAS, file)).href, { waitUntil: "networkidle" });
   await page.evaluate(() => document.fonts.ready);
-  if (measure && TALL[file] !== undefined)
-    heights[file] = await page.evaluate(() =>
-      Math.ceil(document.querySelector("x-dc > div").getBoundingClientRect().height),
-    );
+  const drawn = await page.evaluate(() =>
+    Math.ceil(document.querySelector("x-dc > div").getBoundingClientRect().height),
+  );
+  if (measure && TALL[file] !== undefined) heights[file] = drawn;
+  // a board must never run past its own frame: say so, and fail, unless this run measures it
+  else if (drawn > b.h + 1) {
+    console.error(`${name}: drawn ${drawn} pt in a ${b.h} pt frame; run --measure ${name}`);
+    process.exitCode = 1;
+  }
   const clip = { x: 0, y: 0, width: b.w, height: b.h };
   if (name === "Moment") {
     for (const ms of MOMENT_AT) {

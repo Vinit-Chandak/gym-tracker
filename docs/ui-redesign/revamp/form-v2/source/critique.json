@@ -1,5 +1,5 @@
 {
-  "method": "Three fresh-eyes reviews, each blind to the last: G read the canvas before round 1’s fixes, J the canvas after your second notes, and K this one. Each scores Nielsen’s ten heuristics from 0 to 4 (40 in all), checks cognitive load and your notes one by one, and measures every board in a browser; a string or figure traced to the app’s code is not counted against the design. The Impeccable detector also ran on canvas/.",
+  "method": "Three fresh-eyes reviews, each blind to the last: G read the canvas before round 1’s fixes, J the canvas after your second notes, and K the canvas after J’s fixes. Each scores Nielsen’s ten heuristics from 0 to 4 (40 in all), checks cognitive load and your notes one by one, and measures every board in a browser; a string or figure traced to the app’s code is not counted against the design. The Impeccable detector also ran on canvas/.",
   "scores": [
     [
       "G · before round 1’s fixes",
@@ -12,14 +12,14 @@
       "No P0. Four P1s: the 200% log, the set number against five-character loads, the indoors bar, this read-me."
     ],
     [
-      "K · this canvas",
-      "—",
-      "The third review, of this canvas; its score is added when it reports."
+      "K · after J’s fixes",
+      "32/40",
+      "No P0. Of J’s 23 issues, 19 fixed and 4 partly; Match and Control at 4. Its one P1, the read-me cut by its frame, was a stale copy; renders now fail on it."
     ],
     [
       "Detector",
-      "59",
-      "From 108 last round. 17 warnings: 14 where a selected tab’s bar sits on its hairline, 2 from the Moment’s stacked layers, 1 spacing (Programme-Day); 42 advisories, for board headings and drawings off the type and radius scales."
+      "60",
+      "From 108 last round. 18 warnings: 15 where a selected tab’s bar sits on its hairline, 2 from the Moment’s stacked layers, 1 spacing (Programme-Day); 42 advisories, for board headings and drawings off the type and radius scales."
     ]
   ],
   "why": [
@@ -86,5 +86,23 @@
     "The coach: scripts/dev/seed-audit.ts (vinit’s question, notes and memo) and the coaching preview’s proposed change.",
     "Friends: scripts/dev/seed-people.ts. The first run: the onboarding pages and equipment-types.ts.",
     "Search results: src/lib/exercise-search.ts, run over the 276 seeded exercises."
+  ],
+  "kFixed": [
+    "A save that fails is drawn where it happens (Log-Failed): the entries stay in ink, nothing is added to the log, rest does not start, and the app’s sentence stands over Save.",
+    "The RIR ⓘ’s target no longer touches the figure above it or the buttons below.",
+    "At 200% the reps show their target (3–5) under them, as RIR shows its own.",
+    "Typing keeps column-wide 44-pt figures and the entry’s rule, with the log 8 pt above it.",
+    "The Moment starts from the log at rest: the new line opens its own room as it lands, and the lines above rise with it.",
+    "Logging no longer says anything twice: the header gives the range a set aims at (3–5 reps); how many sets and the RIR target are the entry’s.",
+    "Training draws the whole week on one module, so the days compare at a glance.",
+    "The coach’s change opens on its reason, the coach’s own words.",
+    "Platforms and DESIGN.md match the boards: the 200% layout, the ramp’s figure sizes, Figure XL, a track’s length in modules.",
+    "Smaller: Send note waits for a note; steps not started meet 3:1; body weight and height take the decimal pad; meal figures say kcal; the row under way says how far it is; a past workout lists its sets as the app does."
+  ],
+  "kOpen": [
+    "200% is drawn for logging only; Workout, Food, Training and Progress at 200% are still to draw.",
+    "The pounds and superset boards show suggested figures without a suggestion tag: the repository gives no kind for those two exercises.",
+    "Still to draw: the end of an exercise after its last set, and a 320 × 568 first screen of the log.",
+    "Smaller: the picker’s choice drawn two ways; Sports’ unchosen marks thinned; no key for Food’s week strip; “latest” on Recovery’s tiles; the bodyweight and cable glyphs; most buttons still link to “#”."
   ]
 }

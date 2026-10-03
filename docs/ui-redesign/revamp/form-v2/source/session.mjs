@@ -12,7 +12,17 @@
 import { s, esc } from "./lib.mjs";
 import * as K from "./kit.mjs";
 import { dayPrint } from "./art.mjs";
-import { upperA, upperA3, armsWorkout, lowerA, bench, sept8, run2Aug, EQUIP } from "./data.mjs";
+import {
+  upperA,
+  upperA3,
+  armsWorkout,
+  lowerA,
+  bench,
+  sept8,
+  run2Aug,
+  EQUIP,
+  copy as C,
+} from "./data.mjs";
 
 const { txt, num, title, icon, tn } = K;
 const glyphFor = (m) => EQUIP[m] || "dumbbell";
@@ -63,7 +73,7 @@ function exRow(t, x, { open = false, done = false, skipped = false, last = false
     ? `<span style="${s({ display: "flex", gap: 6, "align-items": "flex-start", "margin-top": 3 })}; ${txt(14, 500)}"><span style="${s({ display: "grid", "flex-shrink": 0, "margin-top": 2 })}">${icon("coach", 15, { label: "Coach:" })}</span><span style="${K.clamp(2)}">${x.added ? "Added. " : ""}${x.note}</span></span>`
     : "";
   const trail = open
-    ? `<span aria-hidden="true" style="${K.BTN(t, "primary", { h: 44 })}; padding: 0 16px; font-size: 15px">Resume</span>`
+    ? `<span class="sr">, in progress, ${x.done || 0} of ${x.sets} sets done. Resume</span><span aria-hidden="true" style="${K.BTN(t, "primary", { h: 44 })}; padding: 0 16px; font-size: 15px">Resume</span>`
     : done
       ? `<span role="img" aria-label="Done" style="${s({ display: "grid", "flex-shrink": 0, color: t.ink })}">${icon("check", 20)}</span>`
       : skipped
@@ -411,12 +421,18 @@ export const saveWaiting = (
   }`;
 export const panel = (active, inner, style = "") =>
   `<div role="tabpanel" id="panel" aria-labelledby="panel-tab-${active}"${style ? ` style="${style}"` : ""}>${inner}</div>`;
+// While logging, the header gives the range a set aims at; how many sets and the RIR target are
+// the entry's ("Set 3 of 4", "target 2"), so they are not said twice.
+export const perSet = (rx) => {
+  const r = rx.replace(/^\d+\s*×\s*/, "").replace(/\s*@.*$/, "");
+  return /^[\d–-]+$/.test(r) ? `${r} reps` : r;
+};
 function logHeader(t, S, dv, active = 0, { restOpts = {} } = {}) {
   const cw = dv.W - 2 * K.gut(dv);
   const glyph = glyphFor(S.modality);
   return `${sessionHeader(t, { left: backTo(t, S.back), more: "Complete, skip, superset, substitute", restOpts })}
 <h2 style="${title(K.titleSize(S.exercise, cw, dv.W < 360 ? 28 : K.short(dv) ? 30 : 32), { lh: 1.05 })}; margin-top: 2px">${S.exercise}</h2>
-${K.metaLine(t, [`${K.equip(t, glyph, equipName(S.modality))}<span>${S.rx}</span>`, `${icon("rest", 16)}<span>${S.rest}</span>`], { mt: 4 })}
+${K.metaLine(t, [`${K.equip(t, glyph, equipName(S.modality))}<span>${perSet(S.rx)}</span>`, `${icon("rest", 16)}<span>${S.rest}</span>`], { mt: 4 })}
 <div style="margin-top:6px">${K.tabs(t, ["Log", "Technique", "History"], active, { dv, id: "Exercise detail" })}</div>`;
 }
 export { logHeader };
@@ -429,6 +445,7 @@ export function logScreen(
     start = false,
     warm = start ? 0 : -1,
     need = false,
+    failed = false,
     whole = false,
     restOpts = {},
     entryOpts = {},
@@ -437,7 +454,17 @@ export function logScreen(
 ) {
   const head = logHeader(t, S, dv, 0, { restOpts });
   const list = ledger(t, S, { warm, rows, dv });
-  const ent = entry(t, S, dv, { armed, warm, need, ...entryOpts });
+  // A save that failed: nothing is added to the log and rest does not start; the entries stay as
+  // they were typed, in ink, and the app's sentence stands over Save, which tries again.
+  const failedOpts = failed
+    ? {
+        armed: true,
+        touched: true,
+        vals: { load: "60", reps: "4" },
+        saveHtml: `<p role="alert" style="${s({ display: "flex", gap: 8, "align-items": "flex-start", "margin-bottom": 10 })}; ${txt(15, 600, { "line-height": 1.4 })}"><span style="${s({ display: "grid", "flex-shrink": 0, "margin-top": 1 })}">${icon("warn", 18)}</span><span>${C.setFailed}</span></p><button type="button" style="${K.BTN(t, "primary")}; width: 100%">${SAVE}</button>`,
+      }
+    : {};
+  const ent = entry(t, S, dv, { armed, warm, need, ...failedOpts, ...entryOpts });
   if (whole)
     return K.root(
       t,
@@ -588,11 +615,16 @@ ${hide("va", 2.45)}
 ${show("vb", 2.53)}
 ${hide("t1", 2.0)}
 ${show("t2", 2.08)}`;
-  if (reduced) return `${common}\n${show("row3", 1.95)}`;
+  // the new line opens its own room as it lands, so the lines above it rise with it: the moment
+  // starts from the log at rest, exactly as Log shows it
+  const H = 58;
+  if (reduced)
+    return `${common}
+@keyframes row3{0%,${pct(1.949)}{opacity:0;visibility:hidden;max-height:0}${pct(1.95)},${pct(END)}{opacity:1;visibility:visible;max-height:${H}px}${pct(END + 0.001)},100%{opacity:0;visibility:hidden;max-height:0}}.row3{opacity:0;visibility:hidden;max-height:0;overflow:hidden;animation:row3 ${Lp}s linear infinite}`;
   return `${common}
-@keyframes row3{0%,${pct(1.949)}{opacity:0;visibility:hidden;transform:translateY(10px)}${pct(1.95)}{opacity:0;visibility:visible;transform:translateY(10px)}${pct(2.17)},${pct(END)}{opacity:1;visibility:visible;transform:none}${pct(END + 0.001)},100%{opacity:0;visibility:hidden;transform:translateY(10px)}}.row3{opacity:0;visibility:hidden;animation:row3 ${Lp}s cubic-bezier(0.23,1,0.32,1) infinite}
+@keyframes row3{0%,${pct(1.949)}{opacity:0;visibility:hidden;max-height:0;transform:translateY(10px)}${pct(1.95)}{opacity:0;visibility:visible;max-height:0;transform:translateY(10px)}${pct(2.17)},${pct(END)}{opacity:1;visibility:visible;max-height:${H}px;transform:none}${pct(END + 0.001)},100%{opacity:0;visibility:hidden;max-height:0;transform:translateY(10px)}}.row3{opacity:0;visibility:hidden;max-height:0;overflow:hidden;animation:row3 ${Lp}s cubic-bezier(0.23,1,0.32,1) infinite}
 @keyframes press{0%,${pct(1.2)}{transform:scale(1)}${pct(1.26)}{transform:scale(0.97)}${pct(1.32)},100%{transform:scale(1)}}.sv-armed{animation:press ${Lp}s cubic-bezier(0.23,1,0.32,1) infinite, sv-armed ${Lp}s linear infinite}
-@keyframes row3cut{0%,${pct(1.949)}{opacity:0;visibility:hidden}${pct(1.95)},${pct(END)}{opacity:1;visibility:visible}${pct(END + 0.001)},100%{opacity:0;visibility:hidden}}
+@keyframes row3cut{0%,${pct(1.949)}{opacity:0;visibility:hidden;max-height:0}${pct(1.95)},${pct(END)}{opacity:1;visibility:visible;max-height:${H}px}${pct(END + 0.001)},100%{opacity:0;visibility:hidden;max-height:0}}
 @media (prefers-reduced-motion: reduce){.sv-armed{animation:sv-armed ${Lp}s linear infinite}.row3{animation:row3cut ${Lp}s linear infinite;transform:none}}`;
 }
 
@@ -637,17 +669,14 @@ const sessionCols = (X) =>
     done: x.sets.length + (x.warm ? 1 : 0),
     warm: x.warm ? 1 : 0,
   }));
+// each exercise's sets as the app lists a past session's (formatSets): its working sets, each
+// with its unit, after a comma; the warm-ups are the grey blocks in the print above
 function recordedRows(t, X) {
   return X.exercises
     .map((x) => {
       const sets = x.timed
-        ? `${x.sets[0][0]} × ${x.sets.length}`
-        : [
-            x.warm ? `<span style="color:${t.ink2}">W ${x.warm[0]} × ${x.warm[1]}</span>` : "",
-            ...x.sets.map(([v, r]) => `${v} × ${r}`),
-          ]
-            .filter(Boolean)
-            .join(" · ");
+        ? x.sets.map(([v]) => v).join(", ")
+        : x.sets.map(([v, r]) => `${v} kg × ${r}`).join(", ");
       return `<li style="${s({ display: "flex", "flex-direction": "column", "justify-content": "center", "min-height": 52, padding: "6px 0", "border-bottom": `1px solid ${t.hair}` })}"><span class="wrap" style="${txt(16, 700)}">${x.name}</span><span class="wrap" style="${txt(14, 500)}; ${tn}">${sets}</span></li>`;
     })
     .join("");
@@ -693,7 +722,7 @@ ${K.metaLine(t, [`${icon("pin", 16)}<span>${X.gym}</span>`], { mt: 0 })}
 <ul>${finishedRows(t, X)}</ul>
 <h3 style="${txt(13, 700, { color: t.ink2 })}; margin-top: 12px">Not done</h3>
 ${notDone(t)}
-<div style="${s({ display: "flex", "flex-direction": "column", gap: 14, "margin-top": 14 })}">${K.field(t, "Notes", { rows: 2, placeholder: "How it went, anything the coach should know…", help: "Your coach reads these" })}${K.field(t, "Body weight (kg)", { help: "Optional — recorded as today’s reading" })}</div>
+<div style="${s({ display: "flex", "flex-direction": "column", gap: 14, "margin-top": 14 })}">${K.field(t, "Notes", { rows: 2, placeholder: "How it went, anything the coach should know…", help: "Your coach reads these" })}${K.field(t, "Body weight (kg)", { help: "Optional — recorded as today’s reading", mode: "decimal" })}</div>
 <a href="Summary.dc.html" style="${K.BTN(t, "primary")}; width: 100%; margin-top: 16px">Finish session</a>`;
   return K.root(
     t,

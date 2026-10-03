@@ -384,9 +384,11 @@ export function dayPrint({
   ariaLabel = null,
   labels = false,
   maxModule = 44,
+  out = null,
 } = {}) {
   // Parts stand in the order of the rows under the print, a module apart, on one baseline; the
-  // composition is centred on its paper, across and down. Nothing is drawn under it.
+  // composition is centred on its paper, across and down. Nothing is drawn under it. `out`, if
+  // given, receives the module the print was drawn at, so a page of prints can share one.
   const P = palFor(paper),
     PO = paperOpen(w, h, { paper, label: ariaLabel });
   const pad = Math.max(16, Math.round(Math.min(w, 400) * 0.055));
@@ -414,6 +416,7 @@ export function dayPrint({
   const totalWm = fm.reduce((a, q) => a + q.wm, 0) + partG * Math.max(0, parts.length - 1);
   const maxHm = Math.max(...fm.map(tall));
   const u = Math.min(maxModule, (w - 2 * pad) / totalWm, (h - 2 * vpad - labelBand) / maxHm);
+  if (out) out.u = u;
   const base = labelBand + (h - labelBand + maxHm * u) / 2;
   let x = (w - totalWm * u) / 2;
   let art = "",

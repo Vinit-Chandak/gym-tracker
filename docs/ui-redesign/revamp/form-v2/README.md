@@ -58,7 +58,7 @@ And the earlier notes, as the canvas answers them now:
 | Progress congested: one month, every activity, a calendar    | One month on paper, its marks and dots; the calendar scrolls month by month; a day opens on its print                               |
 | Less padding under the tab bar                               | 64 pt: 44-pt targets ending 4 clear of the home indicator                                                                           |
 | Over-full food without breaking the bowl                     | The food heaps above the rim as one symmetric mound                                                                                 |
-| More pages, the coach among them                             | 74 boards: the AI coach and its proposed change, Training, Friends, Gyms, the first run, every Progress section and more            |
+| More pages, the coach among them                             | 75 boards: the AI coach and its proposed change, Training, Friends, Gyms, the first run, every Progress section and more            |
 | Native apps; text never runs off                             | An iOS and Android board, Android-size boards, typed entry, wrap and fit rules                                                      |
 | The weight chart's coloured point; blue text selection       | Both ink                                                                                                                            |
 
@@ -67,7 +67,7 @@ And the earlier notes, as the canvas answers them now:
 | Path                                       | What it is                                                                                         |
 | ------------------------------------------ | -------------------------------------------------------------------------------------------------- |
 | [`screenshots/`](screenshots/)             | Every board (phone boards at 2×, wide boards at 1×) and five frames of the signature moment        |
-| [`canvas/`](canvas/)                       | The 74 boards as on the canvas, and the `canvas.json` that places them on nine pages               |
+| [`canvas/`](canvas/)                       | The 75 boards as on the canvas, and the `canvas.json` that places them on nine pages               |
 | [`tokens/tokens.css`](tokens/tokens.css)   | Colour (light and dark), print palettes, fonts, radii, spacing and motion as CSS custom properties |
 | [`tokens/tokens.json`](tokens/tokens.json) | The same, plus the type roles, the print grid and the layout rules                                 |
 | [`source/`](source/)                       | The generator the boards are drawn with (below)                                                    |
@@ -154,15 +154,18 @@ Fonts through Node, so it works behind a proxy (`NODE_USE_ENV_PROXY=1`).
 
 ## How it was checked
 
-The last canvas had five separate reviews (design, the Impeccable detector, native readiness,
-accessibility, craft and economy); what they found and what changed is on the read-me board.
-This canvas then had three more checks, and every finding they confirmed was fixed:
+Three fresh-eyes reviews, each blind to the last, scored the canvas on Nielsen's ten heuristics
+(0 to 4 each, 40 in all), cognitive load and the owner's notes, and measured every board in a
+browser (targets, contrast, clipping, the log's columns at every width, accessible names). A
+string or figure traced to the app's code is not counted against the design.
 
-| Check                                                                                                                                                                                            | Result                                                                                                                                                                                           |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| A fresh-eyes review of all 74 boards: Nielsen's heuristics, cognitive load, your notes one by one, three personas                                                                                | 26/40 before the fixes (29/40 for the last canvas's 24 boards, so not like-for-like); two P0s (print geometry, pounds read as kilograms) and six P1s                                             |
-| An audit of accessibility, craft and data: every string grepped against `src/`, every figure recomputed from the seeds and tests, `exercise-search.ts` re-run, every board rendered and measured | Five high findings (search results, three sessions in one flow, misattributed sets, pounds, the calendar), seven medium, five accessibility and six craft                                        |
-| The Impeccable detector on `canvas/`                                                                                                                                                             | 108 findings: 17 warnings, all intended (14 where a selected tab's bar sits on its hairline, 2 where the ink fills its mark, 1 spacing), and 91 advisories (fitted figure sizes, print drawings) |
+| Review                    | Score | What it found                                                                                                                                                                                                             |
+| ------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| G, before round 1's fixes | 26/40 | Two P0s (print geometry; pounds read as kilograms) and six P1s; points lost on consistency, recognition, matching lifters' notation and help                                                                              |
+| J, after the second notes | 28/40 | No P0; four P1s (the 200% log; the set number against five-character loads; the indoors bar, a line under the art; the read-me), eight P2s, eleven P3s. All fixed or partly                                               |
+| K, after J's fixes        | 32/40 | No P0; 19 of J's 23 issues fixed, 4 partly; its one P1 (the read-me cut by its frame) came from a stale copy. Its P2s were then fixed except two (more 200% boards; tags the repository gives no kind for); not re-scored |
+| The Impeccable detector   | 60    | From 108: 18 warnings (15 where a selected tab's bar sits on its hairline, 2 from the Moment's stacked layers, 1 spacing) and 42 advisories (headings and drawings off-scale)                                             |
 
-The scores and the full list are in [`source/critique.json`](source/critique.json) and on the
-read-me board; the review is also kept in `.impeccable/critique/`.
+Why the scores were low, each verdict's status, what changed after each review, and what is still
+open are on the read-me board and in [`source/critique.json`](source/critique.json); the reviews
+are kept in `.impeccable/critique/`. A render now fails when a board runs past its own frame.

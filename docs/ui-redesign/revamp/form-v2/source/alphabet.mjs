@@ -116,7 +116,7 @@ function context() {
   // where it happened is said by a glyph on the row, never drawn under the form
   const place = (ic, label) =>
     `<li style="${s({ display: "flex", "flex-direction": "column", gap: 8 })}"><span style="${s({ display: "grid", "place-items": "center", width: 104, height: 104, background: P.paper, color: L.ink })}">${K.icon(ic, 34)}</span>${sub(label)}</li>`;
-  return section(`${H2("Context", "Modifiers that mean the same on every form. Segments: its structure (sets, intervals, laps, drills). Size: how long, in whole modules. Where it happened is not drawn, since nothing stands under a form: the row under the print says it with a glyph.")}
+  return section(`${H2("Context", "Modifiers that mean the same on every form. Segments: its structure (sets, intervals, laps, drills). Size: how long, in modules (a run's track grows a module for every 20 minutes). Where it happened is not drawn, since nothing stands under a form: the row under the print says it with a glyph.")}
 <ul style="${s({ display: "grid", "grid-template-columns": "repeat(8, minmax(0,1fr))", gap: 16 })}">${row("run", "Intervals", { segments: 4 })}${row("ride", "Intervals", { segments: 4 })}${row("swim", "Laps", { segments: 4 })}${place("outdoor", "Outdoors")}${place("treadmill", "Treadmill")}${place("trainer", "Indoor bike")}${place("pool", "Pool")}${place("openwater", "Open water")}</ul>
 <div style="${s({ display: "grid", "grid-template-columns": "repeat(3, minmax(0,1fr))", gap: 16, "max-width": 720 })}">${[20, 40, 60].map((m) => `<div style="${s({ display: "flex", "flex-direction": "column", gap: 8 })}">${runOf(m)}${sub(`${m} minutes: a track ${trackModules(m)} modules long, one more for every 20`)}</div>`).join("")}</div>`);
 }

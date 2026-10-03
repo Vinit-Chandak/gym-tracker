@@ -52,7 +52,7 @@
       "x": 0,
       "y": 0,
       "w": 1400,
-      "h": 5118,
+      "h": 5586,
       "title": "Read me: Form v2, refined",
       "page": "readme"
     },
@@ -155,8 +155,17 @@
       "page": "session",
       "is_interactive": true
     },
-    "Log-Typing.dc.html": {
+    "Log-Failed.dc.html": {
       "x": 964,
+      "y": 2508,
+      "w": 402,
+      "h": 874,
+      "title": "Logging: a save that failed",
+      "page": "session",
+      "is_interactive": true
+    },
+    "Log-Typing.dc.html": {
+      "x": 1446,
       "y": 2508,
       "w": 402,
       "h": 874,
@@ -165,7 +174,7 @@
       "is_interactive": true
     },
     "Moment.dc.html": {
-      "x": 1446,
+      "x": 1928,
       "y": 2508,
       "w": 402,
       "h": 874,
@@ -174,7 +183,7 @@
       "is_interactive": true
     },
     "Moment-Reduced.dc.html": {
-      "x": 1928,
+      "x": 2410,
       "y": 2508,
       "w": 402,
       "h": 874,
@@ -183,7 +192,7 @@
       "is_interactive": true
     },
     "Why.dc.html": {
-      "x": 2410,
+      "x": 2892,
       "y": 2508,
       "w": 402,
       "h": 874,
@@ -192,7 +201,7 @@
       "is_interactive": true
     },
     "Technique.dc.html": {
-      "x": 2892,
+      "x": 3374,
       "y": 2508,
       "w": 402,
       "h": 874,
@@ -201,7 +210,7 @@
       "is_interactive": true
     },
     "History.dc.html": {
-      "x": 3374,
+      "x": 3856,
       "y": 2508,
       "w": 402,
       "h": 874,
@@ -210,7 +219,7 @@
       "is_interactive": true
     },
     "Superset-Log.dc.html": {
-      "x": 3856,
+      "x": 4338,
       "y": 2508,
       "w": 402,
       "h": 874,
@@ -627,7 +636,7 @@
       "x": 1310,
       "y": 1254,
       "w": 320,
-      "h": 646,
+      "h": 649,
       "title": "Logging in pounds at 320, the whole scroll",
       "page": "sizes",
       "is_interactive": true
@@ -690,7 +699,7 @@
       "x": 0,
       "y": 0,
       "w": 1600,
-      "h": 6941,
+      "h": 6946,
       "title": "The system",
       "page": "system"
     },
@@ -698,7 +707,7 @@
       "x": 1680,
       "y": 0,
       "w": 1400,
-      "h": 3987,
+      "h": 4010,
       "title": "The alphabet",
       "page": "system"
     },
@@ -706,7 +715,7 @@
       "x": 3160,
       "y": 0,
       "w": 1400,
-      "h": 3528,
+      "h": 3550,
       "title": "iOS and Android",
       "page": "system"
     }
@@ -724,6 +733,7 @@
     "Fallback.dc.html",
     "Log-Warm-ups.dc.html",
     "Log.dc.html",
+    "Log-Failed.dc.html",
     "Log-Typing.dc.html",
     "Moment.dc.html",
     "Moment-Reduced.dc.html",

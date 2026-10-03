@@ -530,8 +530,10 @@ export function sheet(t, inner, { dv = D, top = null, id = "sheet-title", height
 // column is too narrow for − and + side by side, they stand over and under the figure (+ above,
 // − below), so the three columns survive on the narrowest phone. The unit takes one line and the
 // hint a second, under it, in every column, so the buttons line up whatever the hint.
+// ⓘ beside a label: 44 wide and 32 tall, so its target meets no other (the figure above it, the
+// buttons below it, with the gaps the stepper keeps)
 export const infoTip = (t, label, { glyph = 15 } = {}) =>
-  `<button type="button" aria-haspopup="dialog" aria-label="${esc(label)}" style="${s({ display: "inline-grid", "place-items": "center", width: 44, height: 44, margin: "-13px -14px -13px -12px", color: t.ink2, "flex-shrink": 0 })}">${icon("info", glyph)}</button>`;
+  `<button type="button" aria-haspopup="dialog" aria-label="${esc(label)}" style="${s({ display: "inline-grid", "place-items": "center", width: 44, height: 32, margin: "-8px -14px -8px -12px", color: t.ink2, "flex-shrink": 0 })}">${icon("info", glyph)}</button>`;
 export function stepFigure(
   t,
   {
@@ -574,9 +576,10 @@ export function stepFigure(
   const units = `<span style="${s({ display: "flex", "flex-direction": "column", "align-items": "center", "min-height": lines * 17 })}; ${txt(13, 600, { color: t.ink2, "line-height": 1.3 })}"><span class="nb" style="${s({ display: "flex", "align-items": "center", gap: 4 })}">${unit}${tag || ""}</span>${hint ? `<span class="nb" style="${s({ "font-weight": 500 })}">${hint}</span>` : ""}</span>`;
   const minus = roundBtn(t, "minus", dec, { size: bsize });
   const plus = roundBtn(t, "plus", inc, { size: bsize });
+  // the label's ⓘ keeps 8 clear of the figure and of the buttons
   const inner = vertical
-    ? `${plus}${figure}${minus}${units}`
-    : `${figure}${units}<span style="${s({ display: "flex", gap: bgap, "margin-top": 2 })}">${minus}${plus}</span>`;
+    ? `${plus}${figure}${minus}<span style="margin-top:4px">${units}</span>`
+    : `${figure}<span style="margin-top:2px">${units}</span><span style="${s({ display: "flex", gap: bgap, "margin-top": 2 })}">${minus}${plus}</span>`;
   return `<div role="group" aria-label="${esc(unit)}" style="${s({ display: "flex", "flex-direction": "column", "align-items": "center", gap: vertical ? 4 : 6, "min-width": 0, width: w ?? undefined })}">${inner}</div>`;
 }
 // A choice drawn as glyphs: two or three toggles, each an icon with a short word under it.
@@ -607,12 +610,13 @@ export const field = (
     type = "text",
     rows = 0,
     suffix = null,
+    mode = null,
   } = {},
 ) =>
   `<label style="${s({ display: "flex", "flex-direction": "column", gap: 6 })}"><span style="${s({ display: "flex", "justify-content": "space-between" })}"><span style="${txt(14, 700)}">${label}</span>${optional ? `<span style="${txt(13, 500, { color: t.ink2 })}">Optional</span>` : ""}</span>${
     rows
       ? `<textarea rows="${rows}" placeholder="${esc(placeholder)}" style="${s({ "min-height": 24 * rows + 26, padding: "12px 14px", "border-radius": 14, border: `1.5px solid ${t.control}`, background: t.ground, color: t.ink, "font-family": FONTS.text, "font-size": 16, resize: "none" })}">${esc(value)}</textarea>`
-      : `<span style="${s({ position: "relative", display: "block" })}"><input type="${type}" value="${esc(value)}" placeholder="${esc(placeholder)}" style="${s({ width: "100%", height: 52, padding: `0 ${suffix ? 44 : 16}px 0 16px`, "border-radius": 14, border: `1.5px solid ${t.control}`, background: t.ground, color: t.ink, "font-family": FONTS.text, "font-size": 16 })}">${suffix ? `<span style="${s({ position: "absolute", right: 16, top: 0, bottom: 0, display: "flex", "align-items": "center", color: t.ink2 })}; ${txt(15, 600)}">${suffix}</span>` : ""}</span>`
+      : `<span style="${s({ position: "relative", display: "block" })}"><input type="${type}"${mode ? ` inputmode="${mode}"` : ""} value="${esc(value)}" placeholder="${esc(placeholder)}" style="${s({ width: "100%", height: 52, padding: `0 ${suffix ? 44 : 16}px 0 16px`, "border-radius": 14, border: `1.5px solid ${t.control}`, background: t.ground, color: t.ink, "font-family": FONTS.text, "font-size": 16 })}">${suffix ? `<span style="${s({ position: "absolute", right: 16, top: 0, bottom: 0, display: "flex", "align-items": "center", color: t.ink2 })}; ${txt(15, 600)}">${suffix}</span>` : ""}</span>`
   }${help ? `<span style="${txt(13, 500, { color: t.ink2 })}">${help}</span>` : ""}</label>`;
 
 // ---------- row marks: a sport's form, where a list mixes sports ----------

@@ -133,7 +133,7 @@ export function programmeChangeScreen(t, dv = K.D) {
     `<section style="${s({ "margin-top": 14, "padding-top": 6, "border-top": `1.5px solid ${t.ink}` })}"><h3 style="${s({ display: "flex", "justify-content": "space-between", "align-items": "baseline", height: 40 })}"><span style="${txt(17, 700)}">${d.name}</span><span style="${txt(14, 600, { color: t.ink2 })}">${d.when}</span></h3>${(d.fields || []).map((f) => `<div style="padding-bottom:6px">${field(f)}</div>`).join("")}<ul style="border-top:1px solid ${t.hair}">${d.ops.map((o, i) => op(o, i === d.ops.length - 1)).join("")}</ul></section>`;
   const inner = `${K.nestedHeader(t, "Profile")}
 <h2 style="${title(26, { lh: 1.15 })}; margin-top: 2px">${CH.headline}</h2>
-<details style="margin-top:10px"><summary style="${s({ display: "flex", "align-items": "center", gap: 6, height: 44, "list-style": "none", cursor: "pointer" })}; ${txt(15, 700)}">${icon("info", 18)}Why</summary></details>
+<details open style="margin-top:10px"><summary style="${s({ display: "flex", "align-items": "center", gap: 6, height: 44, "list-style": "none", cursor: "pointer" })}; ${txt(15, 700)}">${icon("info", 18)}Why</summary><p style="${txt(15, 500, { "line-height": 1.45 })}; margin: 0 0 10px">${CH.why}</p></details>
 <section style="${s({ "margin-top": 4, padding: "6px 0", "border-top": `1.5px solid ${t.ink}` })}"><h3 style="${s({ display: "flex", "align-items": "center", height: 40 })}; ${txt(17, 700)}">Programme</h3>${CH.programme.map(field).join("")}</section>
 ${CH.days.map(day).join("")}
 <p style="${txt(14, 500, { color: t.ink2 })}; margin-top: 14px">This changes the programme's structure, so it starts a new block.</p>`;

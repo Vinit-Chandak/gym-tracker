@@ -454,7 +454,8 @@ the coach included. Both are under the SIL Open Font License, so the native apps
 - **Entry** (600, 42 px): load, reps and RIR in the docked entry and a portion's amount,
   stepping down the ramp to fit, never below 28.
 - **Log** (600, 32 px, tabular): a set done, in the log, its figures in the entry's columns;
-  28 for pounds at 375 pt, 20 at 320.
+  stepping down the ramp until the widest load fits its column (a five-character load, 102.5,
+  takes 28 at 360 dp and 26 at 320 pt).
 - **Figure L** (600, 26 px, tabular): a stat, a set in History, and the figure of a row's
   stepper (sleep, a run's distance, body weight at the finish).
 - **Figure** (600, 20 px, tabular): the warm-ups' line, list figures, totals, paces; **Figure S**
@@ -498,7 +499,9 @@ under 360 pt wide.
   of the home indicator (11 where there is none). On iOS and Android the system bar is used.
 - **The session:** starting a workout opens a full-screen layer over the tabs, from the check-in
   to the summary. Minimised, it is the session strip on every screen.
-- **Logging:** the title, meta line and tabs stay. The log stands on the entry, its latest line
+- **Logging:** the title, meta line and tabs stay; the meta line gives the range a set aims at
+  (3–5 reps), since how many sets and the RIR target are the entry's. The log stands on the
+  entry, its latest line
   8 pt over the entry's rule and the room above it; when it needs more, earlier lines pass under
   the tabs behind a soft edge. The entry (the set, three steppers, Save) is docked to the safe
   area. The log and the entry share one grid: an 18-pt column for the set's number (empty in the
@@ -571,7 +574,8 @@ lane cut in, a module tall and a module longer for every 20 minutes), the wheel 
 as a tyre),
 the wave (two crests), the fan (a quarter disc cut into drills), the bowl (a half disc whose area
 is the day's target) and the triangle. Context reads the same on every form: segments are its
-structure (sets, intervals, laps, drills); size is time or distance in whole modules. Where it
+structure (sets, intervals, laps, drills); size is time or distance in modules (a run's track
+grows a module for every 20 minutes). Where it
 happened (indoors or out, a treadmill, a pool) is not drawn, since nothing stands under a form:
 the row under the print says it with a glyph. Past the target, food heaps above the bowl's
 rim as one symmetric lens; at twice the target it closes the circle.
@@ -634,11 +638,14 @@ and every control answers a press.
 - History lists every session newest first, its sets in the same lines (Figure L). History is
   read, not edited: its lines are not buttons.
 - **A set is written:** Save presses (120 ms) and reads Saving… while the server answers; on its
-  answer the set lands as the log's next line, rising 10 pt as it fades in (220 ms,
-  `cubic-bezier(0.23, 1, 0.32, 1)`), and Save reads Saved; then the entry turns to the next set,
-  the values go back to suggestions, RIR empties and rest restarts. With reduced motion the line
-  appears. Nothing is written before the server has it; a failure keeps the entries and offers
-  Retry.
+  answer the set lands as the log's next line, opening its own room so the lines above rise with
+  it, rising 10 pt as it fades in (220 ms, `cubic-bezier(0.23, 1, 0.32, 1)`), and Save reads
+  Saved; then the entry turns to the next set, the values go back to suggestions, RIR empties and
+  rest restarts, its dial full. With reduced motion the line appears. Nothing is written before
+  the server has it.
+- **A save that fails:** the entries stay as typed, in ink; nothing is added to the log and rest
+  does not start; the app's sentence ("Connection lost. Your entries are still here. Retry
+  saving when connected.") stands over Save, which tries again.
 
 ### Steppers
 
@@ -651,7 +658,8 @@ and every control answers a press.
 - **Suggested until touched:** ink 2 with a dotted underline; then ink, because it is what Save
   records. Choosing RIR touches only RIR.
 - **RIR:** a stepper like the others, empty (an en dash in `control`) with its target under its
-  unit and ⓘ beside RIR, which opens the app's own words for what RIR means; tapping the dash
+  unit and ⓘ beside RIR (44 wide and 32 tall, its target clear of the figure and the buttons),
+  which opens the app's own words for what RIR means; tapping the dash
   takes the target ("RIR not set, target 2. Use the target"), − and + go one either side of it.
   Save waits, grey, until it is set; tapped, the app's sentence for a missing RIR shows under it
   ("Enter RIR: estimate how many more good reps you could do."). Timed and distance sets take
@@ -725,7 +733,9 @@ and every control answers a press.
 
 - Drawn from the account's records and nothing else, on print paper with square corners.
 - **The day:** Today's hero and every record's header: thinned parts inking as they are done,
-  centred on the paper. A plan's print (Today, a programme day, the workout under way) draws the
+  centred on the paper. A page of prints (Training's week) shares one module, the smallest any of
+  them needs, so they compare at a glance. A plan's print (Today, a programme day, the workout
+  under way) draws the
   work planned; a record's (the summary, a past workout, a day) draws what was done, its warm-up
   sets in grey at the foot of their columns.
 - **The month:** the calendar, pulled on paper in the first calendar's style: marks and dots,

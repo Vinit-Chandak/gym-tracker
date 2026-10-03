@@ -69,7 +69,7 @@ export function supersetLogScreen(t, dv = K.D) {
   const cw = dv.W - 2 * K.gut(dv);
   const head = `${SE.sessionHeader(t, { left: SE.backTo(t, X.back), rest: false, more: "Complete, skip, superset, substitute" })}
 <h2 style="${title(K.titleSize(X.exercise, cw, dv.W < 360 ? 28 : 32), { lh: 1.05 })}; margin-top: 2px">${X.exercise}</h2>
-${K.metaLine(t, [`${K.equip(t, "dumbbell", "Free weights")}<span>${K.dashes(X.rx).replace(/<span[^>]*>–<\/span>/g, "–")}</span>`, `${icon("rest", 16)}<span>${X.rest}</span>`], { mt: 4 })}
+${K.metaLine(t, [`${K.equip(t, "dumbbell", "Free weights")}<span>${SE.perSet(X.rx)}</span>`, `${icon("rest", 16)}<span>${X.rest}</span>`], { mt: 4 })}
 <div style="margin-top:6px">${K.tabs(t, ["Log", "Technique", "History"], 0, { dv, id: "Exercise detail" })}</div>
 ${SE.panel(0, `<p aria-label="Superset: after each set, ${esc(X.partner)}, 2 × 12–20 @ 1 RIR" style="${s({ display: "flex", "align-items": "center", gap: 8, "min-height": 44, "margin-top": 8, "margin-bottom": 8 })}"><span style="${s({ display: "grid", color: t.ink2 })}">${icon("link", 18)}</span><span style="${txt(16, 700)}">Then ${X.partner}</span><span style="${txt(14, 500, { color: t.ink2 })}; ${tn}">2 × 12–20 @ 1 RIR</span></p>`, "margin-top:auto")}`;
   // the entry on the log's grid, as for a lift: the set's number column empty, then load, metres

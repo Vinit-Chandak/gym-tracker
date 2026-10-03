@@ -153,6 +153,9 @@ const PAGES = [
             SE.logScreen(L, d, { warm: 1 }),
           ),
           scr("Log.dc.html", "Logging a set", () => SE.logScreen(L, d)),
+          scr("Log-Failed.dc.html", "Logging: a save that failed", () =>
+            SE.logScreen(L, d, { failed: true }),
+          ),
           scr("Log-Typing.dc.html", "Logging: typing a load", () => VA.logTypingScreen(L, d)),
           scr("Moment.dc.html", "Signature: a set is written", () => SE.momentScreen(L, d), {
             css: SE.momentCss(L),
