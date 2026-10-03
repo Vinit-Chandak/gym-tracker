@@ -72,58 +72,68 @@ const HOME: Food = {
 /** Text as it reads on the screen, one space between the parts of a row. */
 const read = (element: Element) => element.textContent?.replace(/\s+/g, " ").trim();
 
-describe("the summary", () => {
-  it("shows exact kcal at the fractional edges of the goal band", () => {
-    const target = macroTargets({ dailyKcal: 501, proteinPerKg: 1.8, fatPercent: 25 }, null, null);
-    render(<FoodSummary eaten={eaten(551.2)} target={target} entries={[]} />);
-    expect(screen.getByText("50.2 over")).toBeTruthy();
-    expect(screen.getByRole("img").getAttribute("aria-label")).toBe(
-      "551.2 of 501 kcal. The goal is met from 450.9 to 551.1 kcal.",
-    );
-  });
-
-  it("says what is left beside the total while the day is under the goal", () => {
-    render(<FoodSummary eaten={eaten(1200)} target={TARGET} entries={[]} />);
-    expect(read(document.body)).toMatch(/^1,200 \/ 2,400 kcal 1,200 left/);
-    expect(screen.queryByText("Goal met")).toBeNull();
-    // The band's ends are drawn on the bar, and named to a screen reader, but not written out.
-    expect(read(document.body)).not.toMatch(/Goal \d|2,160|2,640/);
+describe("the day", () => {
+  it("says what was eaten as its one figure, and leaves where that stands to the bowl", () => {
+    const entries = [entry("breakfast", WHEY, 2), entry("lunch", HOME, 3)];
+    render(<FoodSummary eaten={eaten(878)} target={TARGET} entries={entries} />);
+    expect(read(screen.getByText(/^kcal/).parentElement!)).toBe("878 kcal eaten");
+    // Nothing left, no goal and no target written out: the bowl is the target.
+    expect(document.body.textContent).not.toMatch(/left|over|Goal|2,400/);
     expect(
       screen.getByRole("img", {
-        name: "1,200 of 2,400 kcal. The goal is met from 2,160 to 2,640 kcal.",
+        name: "The bowl, filled by Breakfast 278 kcal, Lunch 600 kcal: 878 of 2,400 kcal.",
       }),
     ).toBeTruthy();
   });
 
-  it("marks the goal met anywhere in the band, either side of the target", () => {
-    render(<FoodSummary eaten={eaten(2160)} target={TARGET} entries={[]} />);
-    expect(screen.getByText("Goal met")).toBeTruthy();
-    expect(read(document.body)).not.toContain("left");
-    cleanup();
-    render(<FoodSummary eaten={eaten(2500)} target={TARGET} entries={[]} />);
-    expect(screen.getByText("Goal met")).toBeTruthy();
-    expect(read(document.body)).not.toMatch(/left|over/);
+  it("heaps the bowl over its rim past the target, to the tenth of a kcal", () => {
+    const target = macroTargets({ dailyKcal: 501, proteinPerKg: 1.8, fatPercent: 25 }, null, null);
+    render(
+      <FoodSummary eaten={eaten(551.2)} target={target} entries={[entry("dinner", MILK, 1060)]} />,
+    );
+    expect(screen.getByRole("img").getAttribute("aria-label")).toBe(
+      "The bowl heaped over its rim, filled by Dinner 551.2 kcal: 551.2 of 501 kcal.",
+    );
   });
 
-  it("marks a day past the band as over, and by how much", () => {
-    render(<FoodSummary eaten={eaten(2641)} target={TARGET} entries={[]} />);
-    expect(screen.getByText("241 over")).toBeTruthy();
-    expect(screen.queryByText("Goal met")).toBeNull();
+  it("says an empty bowl is empty", () => {
+    render(<FoodSummary eaten={eaten(0)} target={TARGET} entries={[]} />);
+    expect(screen.getByRole("img", { name: "The bowl, empty: 0 of 2,400 kcal." })).toBeTruthy();
+  });
+
+  it("draws no bowl and no macronutrients without a target, only what was eaten", () => {
+    render(<FoodSummary eaten={eaten(300)} target={null} entries={[entry("lunch", HOME, 1.5)]} />);
+    expect(read(document.body)).toBe("300 kcal eaten");
+    expect(screen.queryByRole("img")).toBeNull();
+    expect(screen.queryByRole("list")).toBeNull();
   });
 
   it("gives each macronutrient its grams against its target, in the split's order", () => {
     render(<FoodSummary eaten={eaten(1200)} target={TARGET} entries={[]} />);
     const macros = within(screen.getByRole("list", { name: "Carbs, fat and protein" }));
-    expect(macros.getAllByRole("button").map((button) => button.textContent)).toEqual([
-      "Carbs150 / 315 g",
-      "Fat50 / 67 g",
-      "Protein90 / 135 g",
+    expect(macros.getAllByRole("button").map(read)).toEqual([
+      "Carbs 150 / 315 g",
+      "Fat 50 / 67 g",
+      "Protein 90 / 135 g",
     ]);
   });
 });
 
-describe("a macronutrient's bar", () => {
-  it("turns carbohydrate and fat red past their targets, and protein green once reached", () => {
+const ink = (button: HTMLElement) =>
+  (button.querySelector(".macro-rail-ink") as HTMLElement).style.width;
+const tick = (button: HTMLElement) => button.querySelector<HTMLElement>(".macro-rail-tick");
+
+describe("a macronutrient's rail", () => {
+  it("fills with what was eaten of its target", () => {
+    render(<FoodSummary eaten={eaten(1200)} target={TARGET} entries={[]} />);
+    expect(screen.getAllByRole("button").map(ink)).toEqual([
+      `${(150 / TARGET.carbsG) * 100}%`,
+      `${(50 / TARGET.fatG) * 100}%`,
+      `${(90 / TARGET.proteinG) * 100}%`,
+    ]);
+  });
+
+  it("runs on past a tick at a limit passed, and says over or reached by name", () => {
     render(
       <FoodSummary
         eaten={eaten(2300, { carbsG: 315, fatG: 70, proteinG: 140 })}
@@ -134,32 +144,17 @@ describe("a macronutrient's bar", () => {
     const carbs = screen.getByRole("button", { name: "Carbs: 315 of 315 g" });
     const fat = screen.getByRole("button", { name: "Fat: 70 of 67 g, over" });
     const protein = screen.getByRole("button", { name: "Protein: 140 of 135 g, reached" });
-    // Each row's bar: its own colour at the target, red past it, green once protein is reached.
-    const fill = (button: HTMLElement) =>
-      button.querySelector("span[aria-hidden] > span")!.className;
-    expect(fill(carbs)).toContain("bg-series-2");
-    expect(fill(fat)).toContain("bg-over");
-    expect(fill(protein)).toContain("bg-success");
-    expect(fat.querySelector(".text-over")).toBeTruthy();
-    expect(carbs.querySelector(".text-over")).toBeNull();
-    // A target eaten colours the name as its bar is coloured, and nothing is added beside it.
-    const name = (button: HTMLElement, text: string) =>
-      within(button).getByText(text, { selector: "span" }).className;
-    expect(name(carbs, "Carbs")).toContain("text-series-2");
-    expect(name(fat, "Fat")).toContain("text-over");
-    expect(name(protein, "Protein")).toContain("text-success");
+    // At its target a limit is full; past it the rail is what was eaten, the target a tick.
+    expect(ink(carbs)).toBe("100%");
+    expect(tick(carbs)).toBeNull();
+    expect(ink(fat)).toBe("100%");
+    expect(tick(fat)!.style.left).toBe(`${(TARGET.fatG / 70) * 100}%`);
+    // Protein is a minimum: reaching it fills the rail, and there is nothing to pass.
+    expect(ink(protein)).toBe("100%");
+    expect(tick(protein)).toBeNull();
+    // Ink alone says it: nothing is drawn beside a name.
     for (const button of [carbs, fat, protein])
-      expect(button.querySelectorAll("svg")).toHaveLength(1);
-  });
-
-  it("leaves a name muted while its target is still ahead", () => {
-    render(<FoodSummary eaten={eaten(1200)} target={TARGET} entries={[]} />);
-    for (const label of ["Carbs", "Fat", "Protein"]) {
-      const button = screen.getByRole("button", { name: new RegExp(`^${label}:`) });
-      expect(within(button).getByText(label, { selector: "span" }).className).toContain(
-        "text-ink-muted",
-      );
-    }
+      expect(button.querySelectorAll("svg")).toHaveLength(0);
   });
 
   it("opens today's foods as plain rows, ranked by what they gave", () => {

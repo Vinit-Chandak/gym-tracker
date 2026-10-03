@@ -107,6 +107,18 @@
 .section-select-button > svg {
   flex-shrink: 0;
 }
+/* A glyph as a control: a 44-pt target (48 dp on Android), the glyph centred in it. */
+.icon-button {
+  display: grid;
+  width: var(--ov-target);
+  height: var(--ov-target);
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: var(--ov-radius-control);
+}
+.icon-button:disabled {
+  color: var(--ov-control);
+}
 /* The funnel, a 44-pt target; a count of the filters set rides on its shoulder. */
 .filter-button {
   position: relative;

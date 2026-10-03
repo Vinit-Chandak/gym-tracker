@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 
-import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
@@ -25,14 +24,14 @@ export default async function TargetsPage() {
   return (
     <>
       <PageHeader title="Targets" backHref="/food" />
-      <PageContent>
+      <div className="meal-page page-width pt-3">
         <TargetsForm
           targets={targets}
           bodyWeightKg={profile.bodyWeightKg}
           unit={profile.preferredUnit === "lb" ? "lb" : "kg"}
           goal={profile.trainingGoal}
         />
-      </PageContent>
+      </div>
     </>
   );
 }

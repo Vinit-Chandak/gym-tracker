@@ -379,6 +379,7 @@ export function FoodSheet({
               onChange={setEaten}
               unit={unit}
               portionAmount={portion ?? 1}
+              name={fields.name}
               error={errors.amount}
               disabled={busy}
             />

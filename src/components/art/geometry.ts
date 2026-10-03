@@ -911,14 +911,17 @@ export function bowlPrint({
   meals,
   target,
   maxRadius = 100,
+  pad = 18,
+  rimWidth = 3,
 }: {
   width: number;
   meals: readonly BowlMeal[];
   target: number;
   maxRadius?: number;
+  /** The paper's margin round the bowl: 18 for the day's print, less for a small one. */
+  pad?: number;
+  rimWidth?: number;
 }): { height: number; figure: BowlFigure } {
-  const rimWidth = 3;
-  const pad = 18;
   const r = Math.round(Math.min(maxRadius, (width - 2 * pad) / 2 - rimWidth * 3));
   const total = meals.reduce((a, m) => a + m.kcal, 0);
   const heap = heapHeight(target > 0 ? (total - target) / target : 0, r);

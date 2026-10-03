@@ -1,0 +1,549 @@
+/*
+ * Food (boards Food, Food-Over, Food-320, Food-Dark): the days under the header, the kcal eaten
+ * over its bowl, the macronutrients, the meals each led by its layer of the bowl, and the
+ * account's two pages at the foot.
+ */
+
+.food {
+  padding-bottom: 24px;
+  container-type: inline-size;
+}
+
+/* ---------- the days under the header ---------- */
+/* Seven days fill the width while each keeps 44 pt; narrower, the days scroll (board Food-320). */
+.food-strip {
+  position: relative;
+  margin-top: 8px;
+  container-type: inline-size;
+}
+/* Laid out from the right, so the strip rests on today and earlier weeks are a swipe away. */
+.food-strip-scroller {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  direction: rtl;
+}
+.food-strip-scroller::-webkit-scrollbar {
+  display: none;
+}
+.food-strip-weeks {
+  display: flex;
+  width: max-content;
+  flex-direction: row-reverse;
+  gap: 4px;
+  direction: ltr;
+}
+.food-strip-week {
+  display: grid;
+  width: 100cqw;
+  flex-shrink: 0;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  scroll-snap-align: start;
+}
+.food-strip-fade {
+  display: none;
+}
+/* Under seven days of 2.75 rem and their gaps: the latest whole days from the gutter, the one
+   before them waiting behind a fade in the gutter, never cut through. */
+@container (width < 20.75rem) {
+  .food-strip-scroller {
+    margin: 0 calc(-1 * var(--ov-gutter));
+    scroll-padding-inline: var(--ov-gutter);
+    scroll-snap-type: none;
+  }
+  .food-strip-weeks {
+    gap: 3px;
+    padding: 0 var(--ov-gutter);
+  }
+  .food-strip-week {
+    width: auto;
+    grid-template-columns: repeat(7, var(--food-day, 2.75rem));
+    gap: 3px;
+  }
+  .food-strip-fade {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: calc(-1 * var(--ov-gutter));
+    display: block;
+    width: calc(var(--ov-gutter) - 2px);
+    background: linear-gradient(to right, var(--ov-ground), transparent);
+    pointer-events: none;
+  }
+}
+
+/* A day: its weekday, its date in Jost and its bowl; the day on screen in ink, today ringed. */
+.food-day {
+  display: flex;
+  min-width: 44px;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 0 8px;
+  border-radius: 14px;
+  color: var(--ov-ink);
+}
+.food-day-letter {
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-print-label);
+  font-weight: 600;
+  line-height: 1.4;
+}
+.food-day-on {
+  background: var(--ov-ink);
+  color: var(--ov-on-ink);
+}
+.food-day-on .food-day-letter {
+  color: var(--ov-on-ink-2);
+}
+.food-day-today {
+  box-shadow: inset 0 0 0 1.5px var(--ov-ink);
+}
+.food-day-later {
+  color: var(--ov-ink-2);
+}
+/* 22 × 17.5 at 100% text, growing by half with it, as glyphs do. */
+.food-day-mark {
+  display: block;
+  width: calc(11px + 0.6875rem);
+  height: calc(8.75px + 0.546875rem);
+  overflow: visible;
+}
+
+/* The calendar sheet: the month between its arrows, the weekdays, then the days. */
+.food-calendar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 -10px;
+}
+.food-calendar-letters,
+.food-calendar-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  column-gap: 2px;
+}
+.food-calendar-letters {
+  margin-top: 4px;
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-print-label);
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+}
+.food-calendar-days {
+  row-gap: 4px;
+  margin-top: 4px;
+}
+.food-calendar-days .food-day {
+  min-width: 0;
+}
+
+/* ---------- the day: the kcal eaten, the bowl, the macronutrients ---------- */
+.food-eaten {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 10px;
+  margin-top: 16px;
+}
+/* Figure XL, never cut: at large text on a narrow phone it steps down to fit the line. */
+.food-eaten > .type-figure-xl {
+  font-size: min(var(--ov-type-figure-xl), 22cqi);
+}
+.food-eaten-unit {
+  font-size: var(--ov-type-heading);
+  font-weight: 700;
+}
+
+.food-macros {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 14px;
+}
+@media (width < 360px) {
+  .food-macros {
+    gap: 12px;
+  }
+}
+/* At large text three columns no longer hold a name each: the macronutrients stand one under
+   another, the rails full width. Never at 100%, where a phone's content is 288 pt or more. */
+@container (width < 15rem) {
+  .food-macros {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+}
+.food-macro {
+  display: flex;
+  width: 100%;
+  min-height: var(--ov-target);
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+}
+.food-macro-name {
+  font-size: var(--ov-type-meta-small);
+  font-weight: 700;
+  line-height: 1.4;
+}
+/* "86 / 297 g": the target folds under the figure where the column is too narrow for both. */
+.food-macro-figure {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 4px;
+}
+.food-macro-of {
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-caption);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums lining-nums;
+  white-space: nowrap;
+}
+/* A rail: a 2-pt `control` line, what was eaten in ink over it; past a limit, a tick. */
+.macro-rail {
+  position: relative;
+  display: block;
+  height: 4px;
+  margin-top: 4px;
+}
+.macro-rail::before {
+  position: absolute;
+  top: 1px;
+  right: 0;
+  left: 0;
+  height: 2px;
+  background: var(--ov-control);
+  content: "";
+}
+.macro-rail-ink {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  background: var(--ov-ink);
+}
+.macro-rail-tick {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--ov-ink);
+}
+
+/* A macronutrient's sheet: the grams against the target and where that leaves the day. */
+.macro-sheet-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+  margin-bottom: 10px;
+}
+.macro-sheet-of {
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-meta);
+  font-weight: 600;
+}
+.macro-sheet-row {
+  display: flex;
+  min-height: 56px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--ov-hair);
+}
+.macro-sheet-row:last-child {
+  border-bottom: 0;
+}
+
+/* Until there is a target, asking for one stands where the bowl would be. */
+.food-no-target {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+/* ---------- the meals ---------- */
+.food-meals {
+  margin-top: 8px;
+}
+.meal-row {
+  display: flex;
+  min-height: 58px;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--ov-hair);
+}
+.meal-row-text {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+.meal-row-name {
+  font-size: var(--ov-type-body);
+  font-weight: 700;
+  line-height: 1.4;
+}
+.meal-row-foods {
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-meta-small);
+  font-weight: 500;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+/* The meal's layer as a small bowl, edged in ink so the palest layers hold on white. */
+.meal-swatch {
+  display: block;
+  width: calc(7px + 0.4375rem);
+  height: calc(4.5px + 0.28125rem);
+  border: 1px solid var(--ov-ink);
+  border-top: 0;
+  border-radius: 0 0 50% 50% / 0 0 78% 78%;
+}
+/* A meal with nothing in it: an empty bowl, its name in ink 2, and a plus. */
+.meal-row-empty {
+  min-height: 46px;
+  padding: 0;
+}
+.meal-row-empty .meal-swatch {
+  border: 1.5px solid var(--ov-control);
+  border-top: 0;
+}
+.meal-row-empty .meal-row-name {
+  flex: 1 1 auto;
+  color: var(--ov-ink-2);
+  font-weight: 600;
+}
+.meal-add {
+  display: grid;
+  width: calc(36px + var(--ov-grow));
+  height: calc(36px + var(--ov-grow));
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: var(--ov-radius-full);
+  background: var(--ov-surface);
+}
+
+/* ---------- the account's pages: the targets, My foods ---------- */
+.food-tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+.food-tile {
+  display: flex;
+  min-width: 0;
+  min-height: 52px;
+  flex: 1 1 8rem;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border-radius: 14px;
+  background: var(--ov-surface);
+  font-size: var(--ov-type-meta-small);
+  line-height: 1.4;
+}
+.food-tile > svg {
+  flex-shrink: 0;
+}
+.food-tile-line {
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-caption);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums lining-nums;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- a meal's page (board Dinner) and a portion (board Portion) ---------- */
+.meal-page {
+  padding-bottom: 24px;
+}
+/* What the meal comes to, the star that saves it beside it. */
+/* Margins round these are set where they stand (the page's utilities), since they open a
+   screen in one place and follow a list in another. */
+.meal-total {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+.star-button {
+  display: inline-flex;
+  min-height: var(--ov-target);
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px 0 12px;
+  border-radius: var(--ov-radius-control);
+  background: var(--ov-surface);
+  font-size: var(--ov-type-meta);
+  font-weight: 700;
+}
+.star-button:active {
+  background: var(--ov-surface-2);
+}
+.meal-entries {
+  margin-top: 6px;
+}
+
+/* Search your foods: a 50-pt field, its glyph inside it at the left. */
+.food-search {
+  position: relative;
+}
+.food-search > svg {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  color: var(--ov-ink-2);
+  pointer-events: none;
+  translate: 0 -50%;
+}
+.food-search-input {
+  width: 100%;
+  height: calc(50px + var(--ov-grow));
+  padding: 0 14px 0 calc(24px + 0.625rem + 10px);
+  border: 1.5px solid var(--ov-control);
+  border-radius: 14px;
+  background: transparent;
+  color: var(--ov-ink);
+  font-size: var(--ov-type-input);
+  font-weight: 500;
+  appearance: none;
+}
+.food-search-input::placeholder {
+  color: var(--ov-ink-2);
+  opacity: 1;
+}
+.food-search-input:focus {
+  border-color: var(--ov-ink);
+  outline: none;
+}
+.food-search-input::-webkit-search-cancel-button {
+  display: none;
+}
+
+/* A row to add from: the name at the gutter, its own glyph after it, what it is under it. */
+.food-row {
+  display: flex;
+  width: 100%;
+  min-height: 58px;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--ov-hair);
+  text-align: left;
+}
+.food-list > li:last-child > .food-row,
+.food-list > li.food-row:last-child {
+  border-bottom: 0;
+}
+.food-row-text {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+.food-row-name {
+  min-width: 0;
+  font-size: var(--ov-type-body);
+  font-weight: 700;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+/* A row's own glyph follows its name's last word, wherever the name wraps. */
+.food-row-glyph {
+  display: inline-block;
+  margin-left: 6px;
+  color: var(--ov-ink-2);
+  vertical-align: -2px;
+}
+/* A row that comes to a figure folds it under its words at large text, never squeezes them. */
+.food-row:has(> .food-row-kcal) {
+  flex-wrap: wrap;
+}
+.food-row:has(> .food-row-kcal) > .food-row-text {
+  flex: 1 1 10rem;
+}
+.food-row-meta {
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-meta-small);
+  font-weight: 500;
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums lining-nums;
+  overflow-wrap: anywhere;
+}
+.food-row-kcal {
+  flex-shrink: 0;
+  margin-left: auto;
+  white-space: nowrap;
+}
+.food-row-unit {
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-caption);
+  font-weight: 600;
+}
+
+/* The amount: − and + at the ends, the figure and its unit between them. */
+.amount-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+}
+.amount-figure {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 4px;
+}
+/* Entry type (Jost 600, 42 pt), as the logging page writes a load: `.figure-input` inherits
+   its font from where it stands, and here it stands beside a unit in words. */
+.amount-figure > .figure-input {
+  max-width: 100%;
+  font-family: var(--ov-font-display);
+  font-size: var(--ov-type-entry);
+  font-weight: 600;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.amount-unit {
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-body);
+  font-weight: 600;
+}
+/* What it comes to: the day's bowl with it in, its kcal and macros beside. */
+.food-preview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+}
+/* At large text the figures go under the bowl rather than squeeze beside it. */
+.food-preview > div:last-child {
+  flex: 1 1 10rem;
+}
+.food-preview-bowl {
+  width: 108px;
+  flex-shrink: 0;
+}
+.food-preview-unit {
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-meta-small);
+  font-weight: 600;
+}

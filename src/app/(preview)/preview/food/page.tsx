@@ -3,8 +3,8 @@ import type { Metadata, Route } from "next";
 import { FoodView, type FoodLinks } from "@/app/(app)/food/food-view";
 import { MealView } from "@/app/(app)/food/[meal]/meal-view";
 import { MealBuilder } from "@/app/(app)/food/my-foods/meals/meal-builder";
-import { MyFoodsView } from "@/app/(app)/food/my-foods/my-foods-view";
 import { TargetsForm } from "@/app/(app)/food/targets/targets-form";
+import { mealTotals } from "@/components/food/food-summary";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { foodDayFrom, type FoodDayTotal } from "@/domain/food-days";
@@ -26,6 +26,7 @@ import type {
 } from "@/server/repositories/nutrition";
 
 import { PreviewShell } from "../../preview-shell";
+import { MyFoodsPreview } from "./my-foods-preview";
 
 export const metadata: Metadata = { title: "Preview · Food" };
 
@@ -178,6 +179,7 @@ export default async function FoodPreviewPage(props: PageProps<"/preview/food">)
             entries: fresh ? [] : DAY.filter((logged) => logged.meal === meal),
             ...(fresh ? EMPTY : LIBRARY),
           }}
+          day={{ meals: mealTotals(fresh ? [] : DAY), targetKcal: TARGETS.dailyKcal }}
         />
       </PreviewShell>
     );
@@ -204,15 +206,9 @@ export default async function FoodPreviewPage(props: PageProps<"/preview/food">)
     return (
       <PreviewShell tab="/food">
         <PageHeader title="My foods" backHref="/preview/food" />
-        <PageContent>
-          <MyFoodsView
-            library={fresh ? EMPTY : LIBRARY}
-            links={{
-              newMeal: "/preview/food?page=meal&state=new" as Route,
-              meal: () => "/preview/food?page=meal" as Route,
-            }}
-          />
-        </PageContent>
+        <div className="meal-page page-width">
+          <MyFoodsPreview library={fresh ? EMPTY : LIBRARY} />
+        </div>
       </PreviewShell>
     );
   }

@@ -5,15 +5,11 @@ import { useOptimistic, useState, useTransition } from "react";
 
 import { FoodSheet } from "@/components/food/food-sheet";
 import Link from "@/components/ui/app-link";
-import { ChevronRight, Plus, Search, Star } from "@/components/ui/icons";
-import { Input } from "@/components/ui/input";
-import { PRESSABLE_ROW_CLASS } from "@/components/ui/link-row";
-import { Section } from "@/components/ui/section";
+import { Glyph } from "@/components/ui/glyphs";
 import { SwipeRow } from "@/components/ui/swipe-row";
 import { addUp, eaten } from "@/domain/nutrition";
 import { formatKcal, formatPortion } from "@/lib/format";
 import { attempted } from "@/lib/offline-submit";
-import { cn } from "@/lib/utils";
 import { deleteFoodAction, deleteSavedMealAction } from "@/server/actions/nutrition";
 import type { FoodRecord, Library, SavedMealRecord } from "@/server/repositories/nutrition";
 
@@ -39,7 +35,8 @@ function contents(meal: SavedMealRecord): string {
  * My foods (ADR 0035): every food and saved meal the account keeps, made, corrected and removed
  * here without logging anything. Meals come first, then foods, the most lately eaten first; a
  * meal opens a page of its own, a food its sheet. Swiping either aside offers Remove, which still
- * takes a tap; a food's sheet can remove it too, and a meal's page can delete it.
+ * takes a tap; a food's sheet can remove it too, and a meal's page can delete it. The rows are
+ * a meal page's (board Dinner): every name at the gutter, a saved meal's star after its name.
  */
 export function MyFoodsView({
   library,
@@ -98,21 +95,25 @@ export function MyFoodsView({
   const newName = shownFoods.length === 0 && shownMeals.length === 0 ? query.trim() : "";
   const view = sheet.view;
 
+  const add = (
+    <span aria-hidden className="meal-add">
+      <Glyph name="plus" className="glyph-18" />
+    </span>
+  );
+  const opens = <Glyph name="chevronRight" className="glyph-18 shrink-0 text-ink-2" />;
+
   return (
     <>
       {(library.foods.length > 0 || library.savedMeals.length > 0) && (
-        <div className="relative">
-          <Search
-            className="absolute top-1/2 left-3 -translate-y-1/2 text-ink-subtle"
-            aria-hidden
-          />
-          <Input
+        <div className="food-search mt-3">
+          <Glyph name="search" className="glyph-20" />
+          <input
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search your foods"
             aria-label="Search your foods and meals"
-            className="pl-9"
+            className="food-search-input"
             autoCapitalize="none"
             autoCorrect="off"
             enterKeyHint="search"
@@ -120,7 +121,7 @@ export function MyFoodsView({
         </div>
       )}
 
-      <ul className="box-rows">
+      <ul className="food-list mt-1.5">
         <li>
           <button
             type="button"
@@ -131,35 +132,36 @@ export function MyFoodsView({
                 view: { kind: "library", name: newName },
               }))
             }
-            className={cn(PRESSABLE_ROW_CLASS, "font-medium text-accent")}
+            className="food-row"
           >
-            <Plus className="shrink-0" aria-hidden />
-            <span className="min-w-0 [overflow-wrap:anywhere]">
-              {newName ? `New food “${newName}”` : "New food"}
+            <span className="food-row-text">
+              <span className="food-row-name">
+                {newName ? `New food “${newName}”` : "New food"}
+              </span>
             </span>
+            {add}
           </button>
         </li>
         <li>
-          <Link
-            href={links.newMeal}
-            prefetch="intent"
-            className={cn(PRESSABLE_ROW_CLASS, "font-medium text-accent")}
-          >
-            <Plus className="shrink-0" aria-hidden />
-            <span className="min-w-0">New meal</span>
+          <Link href={links.newMeal} prefetch="intent" className="food-row">
+            <span className="food-row-text">
+              <span className="food-row-name">New meal</span>
+            </span>
+            {add}
           </Link>
         </li>
       </ul>
 
       {error && (
-        <p role="alert" className="px-1 text-sm text-danger">
+        <p role="alert" className="mt-3 type-meta-small font-semibold">
           {error}
         </p>
       )}
 
       {shownMeals.length > 0 && (
-        <Section title="Meals">
-          <ul className="box-rows" aria-label="Meals">
+        <section className="mt-5">
+          <h2 className="caption-head">Meals</h2>
+          <ul aria-label="Meals">
             {shownMeals.map((meal) => (
               <li key={meal.id}>
                 <SwipeRow
@@ -167,36 +169,29 @@ export function MyFoodsView({
                   actionLabel={`Remove ${meal.name}`}
                   onAction={() => remove(meal, "meal")}
                 >
-                  <Link
-                    href={links.meal(meal.id)}
-                    prefetch="intent"
-                    className={cn(PRESSABLE_ROW_CLASS, "flex-wrap")}
-                  >
+                  <Link href={links.meal(meal.id)} prefetch="intent" className="food-row">
                     {/* The spaces are for the link's name, which a screen reader reads as one
                         string; beside flex items they take no room on the screen. */}
-                    <span className="flex min-w-0 flex-[1_1_10rem] flex-wrap items-center gap-3">
-                      <Star className="shrink-0 text-accent" aria-hidden />
-                      <span className="min-w-0 flex-[1_1_8rem]">
-                        <span className="block font-medium [overflow-wrap:anywhere]">
-                          {meal.name}
-                        </span>{" "}
-                        <span className="block text-sm text-ink-muted tabular-nums">
-                          {contents(meal)}
-                        </span>
-                      </span>
+                    <span className="food-row-text">
+                      <span className="food-row-name">
+                        {meal.name}
+                        <Glyph name="star" className="food-row-glyph glyph-16" />
+                      </span>{" "}
+                      <span className="food-row-meta">{contents(meal)}</span>
                     </span>
-                    <ChevronRight className="ml-auto shrink-0 text-ink-subtle" aria-hidden />
+                    {opens}
                   </Link>
                 </SwipeRow>
               </li>
             ))}
           </ul>
-        </Section>
+        </section>
       )}
 
       {shownFoods.length > 0 && (
-        <Section title="Foods">
-          <ul className="box-rows" aria-label="Foods">
+        <section className="mt-5">
+          <h2 className="caption-head">Foods</h2>
+          <ul aria-label="Foods">
             {shownFoods.map((food) => (
               <li key={food.id}>
                 <SwipeRow
@@ -213,24 +208,22 @@ export function MyFoodsView({
                         view: { kind: "edit", food },
                       }))
                     }
-                    className={PRESSABLE_ROW_CLASS}
+                    className="food-row"
                   >
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-medium [overflow-wrap:anywhere]">
-                        {food.name}
-                      </span>{" "}
-                      <span className="block text-sm text-ink-muted tabular-nums">
+                    <span className="food-row-text">
+                      <span className="food-row-name">{food.name}</span>{" "}
+                      <span className="food-row-meta">
                         {formatPortion(food.portionAmount, food.unit)} · {formatKcal(food.kcal)}{" "}
                         kcal
                       </span>
                     </span>
-                    <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />
+                    {opens}
                   </button>
                 </SwipeRow>
               </li>
             ))}
           </ul>
-        </Section>
+        </section>
       )}
 
       <p aria-live="polite" className="sr-only">

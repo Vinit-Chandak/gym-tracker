@@ -10,6 +10,11 @@ type PageHeaderProps<T extends string> = {
   title: ReactNode;
   /** The one fact that qualifies it: the range Progress is drawn over, the gym a form is for. */
   meta?: string;
+  /**
+   * The fact is said with the title rather than shown under it, where the screen already shows
+   * it (a meal of today's: board Dinner).
+   */
+  metaHidden?: boolean;
   /** Fallback for a direct link; otherwise Back returns to the previous browser entry. */
   backHref?: Route<T>;
   /** What to call that destination, when the section it sits in is vaguer than the page. */
@@ -29,6 +34,7 @@ type PageHeaderProps<T extends string> = {
 export function PageHeader<T extends string>({
   title,
   meta,
+  metaHidden = false,
   backHref,
   backLabel,
   action,
@@ -57,13 +63,18 @@ export function PageHeader<T extends string>({
         {action && <div className="page-header-action">{action}</div>}
       </div>
       {typeof title === "string" ? (
-        <FitTitle as="h1" sizes={{ base: 34, narrow: 30 }} className="mt-0.5">
+        <FitTitle
+          as="h1"
+          sizes={{ base: 34, narrow: 30 }}
+          className="mt-0.5"
+          said={metaHidden ? meta : undefined}
+        >
           {title}
         </FitTitle>
       ) : (
         <h1 className="mt-0.5 type-display [overflow-wrap:anywhere]">{title}</h1>
       )}
-      {meta && (
+      {meta && !metaHidden && (
         <p className="meta-line mt-1 [overflow-wrap:anywhere]">
           <span className="min-w-0">{meta}</span>
         </p>

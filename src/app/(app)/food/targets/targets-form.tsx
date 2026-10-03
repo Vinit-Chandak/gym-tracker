@@ -119,7 +119,7 @@ export function TargetsForm({
   return (
     // After a failed save the form goes on showing what was typed, rather than being reset.
     <form action={formAction} onReset={(event) => event.preventDefault()} className="space-y-4">
-      <div className="box space-y-4 panel-padding">
+      <div className="space-y-5">
         <Field label="Daily target, kcal" error={state.fieldErrors?.dailyKcal}>
           <Input
             name="dailyKcal"
@@ -136,9 +136,9 @@ export function TargetsForm({
         </Field>
 
         <div className="min-w-0 space-y-1.5">
-          <p className="text-sm font-medium text-ink-muted">Goal</p>
+          <p className="text-[length:var(--ov-type-meta-small)] font-bold">Goal</p>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className={goal ? undefined : "text-ink-muted"}>
+            <p className={goal ? "font-semibold" : "text-ink-2"}>
               {goal ? TRAINING_GOAL_LABELS[goal] : "Not set"}
             </p>
             {offerSplit && fromSplit && (
@@ -201,22 +201,22 @@ export function TargetsForm({
         </Field>
 
         {!weighed && (
-          <p className="text-sm text-ink-muted">
+          <p className="type-meta-small text-ink-2">
             There is no body weight on your profile yet, so protein is{" "}
             {Math.round(split.protein * 100)}% of the target until there is.{" "}
-            <Link href="/profile/edit" className="text-accent underline underline-offset-2">
+            <Link href="/profile/edit" className="font-bold underline underline-offset-2">
               Add it in your profile
             </Link>
           </p>
         )}
         {preview && (
-          <p className="text-sm tabular-nums">
+          <p className="type-meta-small font-semibold tabular-nums">
             Carbs {formatFoodAmount(preview.carbsG)} g · Fat {formatFoodAmount(preview.fatG)} g ·
             Protein {formatFoodAmount(preview.proteinG)} g
           </p>
         )}
         {preview?.overBudget && (
-          <p className="text-sm text-warning">
+          <p className="type-meta-small font-semibold">
             Protein and fat alone come to more than {formatFoodAmount(preview.kcal)} kcal, so there
             is nothing left for carbs.
           </p>

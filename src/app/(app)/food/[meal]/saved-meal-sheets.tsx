@@ -85,7 +85,7 @@ export function SaveMealSheet({
       footer={
         <div className="space-y-3">
           {formError && (
-            <p role="alert" className="text-sm text-danger">
+            <p role="alert" className="type-meta-small font-semibold">
               {formError}
             </p>
           )}
@@ -103,7 +103,7 @@ export function SaveMealSheet({
           if (!saving) save();
         }}
       >
-        <p className="text-sm text-ink-muted tabular-nums">
+        <p className="type-meta-small text-ink-2 tabular-nums">
           {place.mealLabel}: {contents(foods)}
         </p>
         <Field
@@ -197,7 +197,7 @@ export function SavedMealSheet({
         <div className="space-y-3">
           <Preview amounts={addUp(saved.items.map(eaten))} />
           {formError && (
-            <p role="alert" className="text-sm text-danger">
+            <p role="alert" className="type-meta-small font-semibold">
               {formError}
             </p>
           )}
@@ -208,17 +208,16 @@ export function SavedMealSheet({
       }
     >
       <div className="space-y-4 pb-1">
-        <ul className="ruled-list">
+        <ul className="food-list">
           {saved.items.map((item, index) => (
-            <li key={index} className="flex flex-wrap items-baseline justify-between gap-3 py-2.5">
-              <span className="min-w-0 flex-[1_1_10rem] [overflow-wrap:anywhere]">
-                {item.name}{" "}
-                <span className="text-sm text-ink-muted">
-                  {formatPortion(item.amount, item.unit)}
-                </span>
+            <li key={index} className="food-row">
+              <span className="food-row-text">
+                <span className="food-row-name">{item.name}</span>{" "}
+                <span className="food-row-meta">{formatPortion(item.amount, item.unit)}</span>
               </span>{" "}
-              <span className="ml-auto max-w-full text-sm tabular-nums">
-                {formatKcal(eaten(item).kcal)} kcal
+              <span className="food-row-kcal">
+                <span className="type-figure">{formatKcal(eaten(item).kcal)}</span>{" "}
+                <span className="food-row-unit">kcal</span>
               </span>
             </li>
           ))}

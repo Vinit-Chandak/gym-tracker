@@ -27,6 +27,7 @@ export function FitTitle({
   id,
   className,
   room = 0,
+  said,
 }: {
   children: string;
   sizes: TitleSizes;
@@ -35,6 +36,8 @@ export function FitTitle({
   className?: string;
   /** Points the line keeps for something beside the name. */
   room?: number;
+  /** Words a screen reader hears after the name, not shown: the day a meal page adds to. */
+  said?: string;
 }) {
   const ref = useRef<HTMLElement>(null);
   const [size, setSize] = useState(sizes.base);
@@ -70,6 +73,7 @@ export function FitTitle({
       style={{ fontSize: rampSize(size, 0.75) }}
     >
       {children}
+      {said && <span className="sr-only">, {said}</span>}
     </Tag>
   );
 }

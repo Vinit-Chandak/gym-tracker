@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 
+import type { BowlMeal } from "@/components/art/geometry";
 import { Button } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
 import { scaleFood, type Food, type Meal } from "@/domain/nutrition";
@@ -10,6 +11,7 @@ import { attempted, OFFLINE_SUBMIT_MESSAGE } from "@/lib/offline-submit";
 import { deleteEntryAction, logFoodAction, updateEntryAction } from "@/server/actions/nutrition";
 
 import { AmountField, Preview, typedAmount } from "@/components/food/amount-field";
+import type { MealTotal } from "@/components/food/food-summary";
 
 /**
  * What the sheet changes: a food from My foods logged in a meal, or an entry already there. A
@@ -19,10 +21,31 @@ export type PortionTarget =
   | { kind: "log"; foodId: string; eatenOn: string; meal: Meal; mealLabel: string }
   | { kind: "entry"; entryId: string };
 
+/** The day a portion goes into: its meals in the order they are eaten, and its target. */
+export type FoodDayBowl = { meals: readonly MealTotal[]; targetKcal: number | null };
+
 /**
- * How much of a food (ADR 0033): the food's portion and what it holds, the amount eaten in the
- * food's own unit, and what that comes to, worked out as it is typed. The figures scale; nothing
- * else needs saying.
+ * The day's meals as the bowl fills with them, the portion on top, thinned until it is logged
+ * (board Portion). A portion that changes an entry takes the entry's own kcal out of its meal
+ * first, so the bowl shows the day as it will be.
+ */
+export function bowlWithPortion(
+  day: FoodDayBowl,
+  meal: Meal,
+  kcal: number,
+  replacing = 0,
+): BowlMeal[] {
+  const logged = day.meals.flatMap((total) => {
+    const left = total.meal === meal ? total.kcal - replacing : total.kcal;
+    return left > 0.05 ? [{ kcal: left }] : [];
+  });
+  return kcal > 0 ? [...logged, { kcal, pending: true }] : logged;
+}
+
+/**
+ * How much of a food (ADR 0033; board Portion): what the food's portion holds, the amount eaten
+ * in the food's own unit, and what that comes to, worked out as it is typed, beside the day's
+ * bowl with it in. The figures scale; nothing else needs saying.
  *
  * Mounted afresh for every opening, so it always starts from the food it was opened for.
  */
@@ -32,6 +55,8 @@ export function PortionSheet({
   food,
   amount,
   target,
+  day,
+  meal,
   onDone,
 }: {
   open: boolean;
@@ -41,6 +66,9 @@ export function PortionSheet({
   /** The amount the sheet opens with: the food's portion, or what the entry holds. */
   amount: number;
   target: PortionTarget;
+  /** The day it goes into and the meal, for the bowl; none in a preview without a day. */
+  day?: FoodDayBowl;
+  meal: Meal;
   /** Said once the change is made; `added` when a food went into the meal. */
   onDone: (said: string, added: boolean) => void;
 }) {
@@ -56,6 +84,12 @@ export function PortionSheet({
   const busy = saving || removing;
   const current = typedAmount(value);
   const macros = formatMacros(food);
+  const amounts = scaleFood(food, current ?? 0);
+  // An entry being changed is in the day already, at the amount it opened with.
+  const replacing = target.kind === "entry" ? scaleFood(food, amount).kcal : 0;
+  const filled =
+    day && day.targetKcal !== null ? bowlWithPortion(day, meal, amounts.kcal, replacing) : null;
+  const dayKcal = filled?.reduce((sum, layer) => sum + layer.kcal, 0) ?? 0;
 
   // A refused amount is where the eye and the caret go.
   useEffect(() => {
@@ -124,9 +158,20 @@ export function PortionSheet({
       title={food.name}
       footer={
         <div className="space-y-3">
-          <Preview amounts={scaleFood(food, current ?? 0)} />
+          <Preview
+            amounts={amounts}
+            bowl={
+              filled && day?.targetKcal
+                ? {
+                    meals: filled,
+                    target: day.targetKcal,
+                    label: `The bowl with ${food.name} in: ${formatKcal(dayKcal)} of ${formatKcal(day.targetKcal)} kcal`,
+                  }
+                : undefined
+            }
+          />
           {formError && (
-            <p role="alert" className="text-sm text-danger">
+            <p role="alert" className="type-meta-small font-semibold">
               {formError}
             </p>
           )}
@@ -151,10 +196,9 @@ export function PortionSheet({
           if (!busy) save();
         }}
       >
-        <p className="text-sm text-ink-muted tabular-nums">
-          Per {formatPortion(food.portionAmount, food.unit)}
-          <br />
-          {formatKcal(food.kcal)} kcal{macros && ` · ${macros}`}
+        <p className="type-meta-small text-ink-2 tabular-nums">
+          Per {formatPortion(food.portionAmount, food.unit)} · {formatKcal(food.kcal)} kcal
+          {macros && ` · ${macros}`}
         </p>
         <AmountField
           label="Amount eaten"
@@ -162,6 +206,7 @@ export function PortionSheet({
           onChange={setValue}
           unit={food.unit}
           portionAmount={food.portionAmount}
+          name={food.name}
           error={error}
           disabled={busy}
         />

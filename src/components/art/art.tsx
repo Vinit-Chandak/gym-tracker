@@ -56,6 +56,9 @@ export type ArtProps =
       label?: string;
       className?: string;
       maxRadius?: number;
+      /** A small print (a portion's sheet): less paper round the bowl, a finer rim. */
+      pad?: number;
+      rimWidth?: number;
     }
   | {
       /** A month on paper: the weekdays across the top, a dot for an empty day, a mark each. */
@@ -143,13 +146,15 @@ function Bowl({
   label,
   className,
   maxRadius = 100,
+  pad = 18,
+  rimWidth = 3,
 }: Extract<ArtProps, { kind: "bowl" }>) {
   const id = svgId(useId());
   // The bowl's radius is capped well inside a phone's width, so the bowl is laid out on the
   // narrowest box that gives it its full size and centred on paper of any width: nothing here
   // needs the paper measured.
-  const width = 2 * maxRadius + 54;
-  const { height, figure } = bowlPrint({ width, meals, target, maxRadius });
+  const width = 2 * (maxRadius + pad + rimWidth * 3);
+  const { height, figure } = bowlPrint({ width, meals, target, maxRadius, pad, rimWidth });
   return (
     <div
       role={label ? "img" : undefined}
