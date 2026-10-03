@@ -530,10 +530,10 @@ export function sheet(t, inner, { dv = D, top = null, id = "sheet-title", height
 // column is too narrow for − and + side by side, they stand over and under the figure (+ above,
 // − below), so the three columns survive on the narrowest phone. The unit takes one line and the
 // hint a second, under it, in every column, so the buttons line up whatever the hint.
-// ⓘ beside a label: 44 wide and 32 tall, so its target meets no other (the figure above it, the
-// buttons below it, with the gaps the stepper keeps)
-export const infoTip = (t, label, { glyph = 15 } = {}) =>
-  `<button type="button" aria-haspopup="dialog" aria-label="${esc(label)}" style="${s({ display: "inline-grid", "place-items": "center", width: 44, height: 32, margin: "-8px -14px -8px -12px", color: t.ink2, "flex-shrink": 0 })}">${icon("info", glyph)}</button>`;
+// ⓘ beside a label: a full 44-pt target (48 dp on Android), centred on its line; the stepper keeps
+// it 4 pt or more clear of the figure and of the buttons
+export const infoTip = (t, label, { glyph = 15, size = 44 } = {}) =>
+  `<button type="button" aria-haspopup="dialog" aria-label="${esc(label)}" style="${s({ display: "inline-grid", "place-items": "center", width: size, height: size, margin: `${-(size - 17) / 2}px ${-(size - 16) / 2}px ${-(size - 17) / 2}px ${-(size - 20) / 2}px`, color: t.ink2, "flex-shrink": 0 })}">${icon("info", glyph)}</button>`;
 export function stepFigure(
   t,
   {
@@ -554,11 +554,13 @@ export function stepFigure(
     vertical = false,
     name = null,
     lines = 2,
+    alert = false,
+    room = false,
   } = {},
 ) {
   const fig = (v, st) =>
     st === "empty"
-      ? `<span style="${num(size, { lh: 1.1 })}; color: ${t.control}">–</span>`
+      ? `<span style="${num(size, { lh: 1.1 })}; color: ${alert ? t.ink : t.control}">–</span>`
       : st === "suggested"
         ? `<span style="${num(size, { lh: 1.1 })}; color: ${t.ink2}; text-decoration: underline dotted 2px; text-underline-offset: 6px">${v}</span>`
         : `<span style="${num(size, { lh: 1.1 })}; color: ${t.ink}">${v}</span>`;
@@ -576,10 +578,14 @@ export function stepFigure(
   const units = `<span style="${s({ display: "flex", "flex-direction": "column", "align-items": "center", "min-height": lines * 17 })}; ${txt(13, 600, { color: t.ink2, "line-height": 1.3 })}"><span class="nb" style="${s({ display: "flex", "align-items": "center", gap: 4 })}">${unit}${tag || ""}</span>${hint ? `<span class="nb" style="${s({ "font-weight": 500 })}">${hint}</span>` : ""}</span>`;
   const minus = roundBtn(t, "minus", dec, { size: bsize });
   const plus = roundBtn(t, "plus", inc, { size: bsize });
-  // the label's ⓘ keeps 8 clear of the figure and of the buttons
+  // with an ⓘ on its first line, the units stand far enough down that its target clears what
+  // is above it by 4 pt (the ⓘ is as tall as a button, centred on a 17-pt line); the columns
+  // beside it keep the same room (`room`), so their buttons stay on one line
+  const clear =
+    tag || room ? Math.ceil(bsize / 2 - 8.5 + 4) - (vertical ? 4 : 6) : vertical ? 4 : 2;
   const inner = vertical
-    ? `${plus}${figure}${minus}<span style="margin-top:4px">${units}</span>`
-    : `${figure}<span style="margin-top:2px">${units}</span><span style="${s({ display: "flex", gap: bgap, "margin-top": 2 })}">${minus}${plus}</span>`;
+    ? `${plus}${figure}${minus}<span style="margin-top:${clear}px">${units}</span>`
+    : `${figure}<span style="margin-top:${clear}px">${units}</span><span style="${s({ display: "flex", gap: bgap, "margin-top": 2 })}">${minus}${plus}</span>`;
   return `<div role="group" aria-label="${esc(unit)}" style="${s({ display: "flex", "flex-direction": "column", "align-items": "center", gap: vertical ? 4 : 6, "min-width": 0, width: w ?? undefined })}">${inner}</div>`;
 }
 // A choice drawn as glyphs: two or three toggles, each an icon with a short word under it.

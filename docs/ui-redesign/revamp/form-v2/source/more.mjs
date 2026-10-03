@@ -67,7 +67,7 @@ export function trainingScreen(t, dv = K.D) {
     const parts = partsOf(d, i);
     const tw = sizeOf(i).w;
     const state = done ? "done" : wide ? "next" : "to do";
-    return `<li style="${s({ "min-width": 0, "grid-column": wide ? "1 / -1" : undefined })}"><a href="#" aria-label="Day ${i + 1}, ${esc(d.name)}, ${state}" style="display:block"><div style="${s({ "line-height": 0, outline: wide ? `2.5px solid ${t.ink}` : undefined, "outline-offset": wide ? 2 : undefined })}">${dayPrint({ w: tw, h: wide ? 92 : 64, paper: t.paper, parts, ariaLabel: "", maxModule: U })}</div><span style="${s({ display: "flex", "justify-content": "space-between", "align-items": "baseline", gap: 8, "margin-top": 6 })}"><span class="wrap" style="${txt(14, 700, { "line-height": 1.25 })}">${d.name}</span>${wide ? `<span class="nb" style="${txt(13, 700)}">Next</span>` : ""}</span></a></li>`;
+    return `<li style="${s({ "min-width": 0, "grid-column": wide ? "1 / -1" : undefined })}"><a href="#" aria-label="Day ${i + 1}, ${esc(d.name)}, ${state}" style="display:block"><div style="line-height:0">${dayPrint({ w: tw, h: wide ? 92 : 64, paper: t.paper, parts, ariaLabel: "", maxModule: U })}</div><span style="${s({ display: "flex", "justify-content": "space-between", "align-items": "baseline", gap: 8, "margin-top": 6 })}"><span class="wrap" style="${txt(14, 700, { "line-height": 1.25 })}">${d.name}</span>${wide ? `<span class="nb" style="${txt(13, 700)}">Next</span>` : ""}</span></a></li>`;
   };
   const inner = `${K.topHeader(t, dv, "Training", K.iconBtn(t, "plus", "Schedule an activity", { "margin-right": -10 }))}
 <section aria-labelledby="prog" style="margin-top:4px">
@@ -96,7 +96,7 @@ export function coachScreen(t, dv = K.D) {
   const change = `<li><a href="#" style="${s({ display: "flex", "align-items": "center", gap: 12, "min-height": 62, padding: "8px 0" })}">${K.markCell(`<span style="display:grid">${icon("plus", 20)}</span>`)}<span style="${s({ display: "flex", "flex-direction": "column", flex: "1 1 auto", "min-width": 0 })}"><span style="${txt(16, 700)}">Add squat practice</span><span class="wrap" style="${txt(14, 500, { color: t.ink2 })}">Add the requested squat practice and one set to the first movement.</span></span>${K.chev(t)}</a></li>`;
   const note = (text, outcome, last = false) =>
     `<li style="${s({ padding: "10px 0", "border-bottom": last ? 0 : `1px solid ${t.hair}` })}"><p style="${txt(15, 600, { "line-height": 1.4 })}">${text}</p><p style="${txt(13, 500, { color: t.ink2 })}; margin-top: 2px">${outcome}</p></li>`;
-  const inner = `${K.nestedHeader(t, "Profile", `<span style="margin-right:-10px">${K.iconBtn(t, "more", "Goals, availability and reports; programme changes and requests")}</span>`)}
+  const inner = `${K.nestedHeader(t, "Profile", `<span>${K.iconBtn(t, "more", "Goals, availability and reports; programme changes and requests")}</span>`)}
 <div style="${s({ display: "flex", "align-items": "center", "justify-content": "space-between", gap: 12, "margin-top": 2 })}"><h2 style="${s({ display: "flex", "align-items": "center", gap: 6 })}; ${title(34)}">AI coach<button type="button" aria-label="About the AI coach" aria-haspopup="dialog" style="${s({ width: 44, height: 44, display: "grid", "place-items": "center", color: t.ink2, "margin-left": -4 })}">${icon("info", 20)}</button></h2>${K.toggle(t, true, "AI coach")}</div>
 <div style="margin-top:8px">${answer}</div>
 ${sect(t, "Waiting for you", change)}

@@ -115,7 +115,7 @@ function textRules() {
     ],
     [
       "Layouts fold, never drop",
-      "Three steppers to a row while each column holds its figure and two buttons (375 pt and up). At 320 pt and on 360-dp Android load takes a row, and reps and RIR share the next. The equipment line, the target and the suggestion always stay.",
+      "Three steppers to a row at every width, in the log's columns: − and + side by side under each figure while its column holds both (375 pt and up); at 320 pt and on 360-dp Android + stands over the figure and − under it. The equipment line, the target and the suggestion always stay.",
     ],
   ];
   return section(

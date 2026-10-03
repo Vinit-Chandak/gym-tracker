@@ -203,6 +203,7 @@ function components() {
   const stp = (o) =>
     K.stepFigure(t, {
       size: 42,
+      room: true,
       dec: o.unit === "RIR" ? "One rep less in reserve" : "Less load, 2.5 kg",
       inc: o.unit === "RIR" ? "One rep more in reserve" : "More load, 2.5 kg",
       ...o,

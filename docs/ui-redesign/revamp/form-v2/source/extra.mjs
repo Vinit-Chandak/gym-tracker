@@ -71,7 +71,7 @@ export function supersetLogScreen(t, dv = K.D) {
 <h2 style="${title(K.titleSize(X.exercise, cw, dv.W < 360 ? 28 : 32), { lh: 1.05 })}; margin-top: 2px">${X.exercise}</h2>
 ${K.metaLine(t, [`${K.equip(t, "dumbbell", "Free weights")}<span>${SE.perSet(X.rx)}</span>`, `${icon("rest", 16)}<span>${X.rest}</span>`], { mt: 4 })}
 <div style="margin-top:6px">${K.tabs(t, ["Log", "Technique", "History"], 0, { dv, id: "Exercise detail" })}</div>
-${SE.panel(0, `<p aria-label="Superset: after each set, ${esc(X.partner)}, 2 × 12–20 @ 1 RIR" style="${s({ display: "flex", "align-items": "center", gap: 8, "min-height": 44, "margin-top": 8, "margin-bottom": 8 })}"><span style="${s({ display: "grid", color: t.ink2 })}">${icon("link", 18)}</span><span style="${txt(16, 700)}">Then ${X.partner}</span><span style="${txt(14, 500, { color: t.ink2 })}; ${tn}">2 × 12–20 @ 1 RIR</span></p>`)}`;
+${SE.panel(0, "")}`;
   // the entry on the log's grid, as for a lift: the set's number column empty, then load, metres
   // and RPE; − and + under each figure while the column holds both, over and under it otherwise
   const bsize = dv.android ? 48 : 44;
@@ -79,7 +79,7 @@ ${SE.panel(0, `<p aria-label="Superset: after each set, ${esc(X.partner)}, 2 × 
     colW = (cw - SE.NUM_W - 2 * opW) / 3;
   const vertical = colW < 2 * bsize + 8;
   const size = K.onRamp(K.fit(X.load, colW - 6, 42, 28));
-  const common = { size, bsize, vertical };
+  const common = { size, bsize, vertical, room: true };
   const load = K.stepFigure(t, {
     ...common,
     value: X.load,
@@ -104,7 +104,7 @@ ${SE.panel(0, `<p aria-label="Superset: after each set, ${esc(X.partner)}, 2 × 
     unit: "RPE",
     state: "empty",
     hint: "1–10",
-    tag: K.infoTip(t, "What RPE means"),
+    tag: K.infoTip(t, "What RPE means", { size: bsize }),
     dec: "RPE one lower",
     inc: "RPE one higher",
     name: "RPE not set, 1 very easy to 10 maximal. Type RPE",
@@ -116,12 +116,12 @@ ${SE.panel(0, `<p aria-label="Superset: after each set, ${esc(X.partner)}, 2 × 
   const op = (c) =>
     `<span aria-hidden="true" style="${s({ "padding-top": opTop, color: t.ink2, "text-align": "center" })}; ${txt(K.onRamp(size * 0.5), 500)}">${c}</span>`;
   const figures = `<div style="${s({ display: "grid", "grid-template-columns": SE.gridCols(opW), "align-items": "start" })}"><span></span>${load}${op("×")}${dist}${op("·")}${rpe}</div>`;
-  const ent = `<section aria-label="Set 1 of 3" style="${s({ display: "flex", "flex-direction": "column", gap: K.short(dv) ? 8 : 12, "padding-top": 10, "border-top": `1px solid ${t.hair}`, flex: "1 0 auto", background: t.ground })}">
+  const ent = `<section aria-label="Set 1 of 3" style="${s({ display: "flex", "flex-direction": "column", gap: K.short(dv) ? 8 : 12, "padding-top": 10, "border-top": `1px solid ${t.hair}`, "flex-shrink": 0, background: t.ground })}">
 <div style="${s({ display: "flex", "align-items": "center", gap: 10, height: 44 })}"><h3 style="${txt(17, 700)}; ${tn}">Set 1 <span style="color:${t.ink2}">of 3</span></h3><span style="flex:1 1 auto"></span><button type="button" aria-haspopup="dialog" aria-label="Set options: add a set, type, notes, remove" style="${s({ width: 44, height: 44, display: "grid", "place-items": "center", color: t.ink2, "margin-right": -10 })}">${icon("sliders", 20)}</button></div>
 ${figures}
-<div style="margin-top:auto">${SE.saveWaiting(t, { id: "rpe-hint", need: SE.RPE_NEEDED })}</div></section>`;
+<div style="margin-top:2px"><p aria-label="Superset: after each set, ${esc(X.partner)}, 2 × 12–20 @ 1 RIR" style="${s({ display: "flex", "align-items": "center", gap: 8, "min-height": 32, "margin-bottom": 8 })}"><span style="${s({ display: "grid", color: t.ink2 })}">${icon("link", 18)}</span><span style="${txt(16, 700)}">Then ${X.partner}</span><span style="${txt(14, 500, { color: t.ink2 })}; ${tn}">2 × 12–20 @ 1 RIR</span></p>${SE.saveWaiting(t, { id: "rpe-hint", need: SE.RPE_NEEDED })}</div></section>`;
   const G = K.gut(dv);
-  const inner = `<div style="${s({ flex: "0 1 auto", "min-height": 0, overflow: "hidden", display: "flex", "flex-direction": "column", margin: `0 -${G}px`, padding: `0 ${G}px` })}">${head}</div>${ent}`;
+  const inner = `<div style="${s({ flex: "1 1 auto", "min-height": 0, overflow: "hidden", display: "flex", "flex-direction": "column", margin: `0 -${G}px`, padding: `0 ${G}px` })}">${head}</div>${ent}`;
   return K.root(t, SE.sessionMain(t, inner, dv, { flex: true, fade: false }), {
     label: "Farmer’s carry",
     dv,

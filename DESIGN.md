@@ -499,12 +499,14 @@ under 360 pt wide.
   of the home indicator (11 where there is none). On iOS and Android the system bar is used.
 - **The session:** starting a workout opens a full-screen layer over the tabs, from the check-in
   to the summary. Minimised, it is the session strip on every screen.
-- **Logging:** the title, meta line and tabs stay; the meta line gives the range a set aims at
-  (3–5 reps), since how many sets and the RIR target are the entry's. The log starts under the
-  tabs and the entry follows it, its rule 8 pt under the latest line; Save keeps the foot of the
-  screen, above the safe area, so the room left over is above Save and never above the sets.
-  When the log needs more room than the screen has, the entry meets Save, the log keeps its
-  latest sets in view and earlier lines pass under the tabs. The log and the entry share one grid: an 18-pt column for the set's number (empty in the
+- **Logging:** the title, meta line and tabs stay; on the Log tab the meta line gives the range
+  a set aims at (3–5 reps), since how many sets and the RIR target are the entry's (Technique and
+  History, with no entry, give the whole prescription). The log starts under the tabs and fills
+  down towards the entry, which is docked at the foot, whole (the set, three steppers, the one
+  message slot, Save), so nothing a thumb needs moves when a set lands and no room opens above
+  the sets; the room still to fill sits between the latest set and the entry. When the log needs
+  more room than the screen has, it keeps its latest sets in view and earlier lines pass under the
+  tabs behind a soft edge (the platform's scroll-edge effect). The log and the entry share one grid: an 18-pt column for the set's number (empty in the
   entry), then load, reps and RIR with the operators between, so every figure stands over the
   same figure below at every width. − and + sit side by side under a figure while its column
   holds both 8 apart (44 pt on iOS, 48 dp on Android: 375 pt and up); in a narrower column (360
@@ -638,14 +640,16 @@ and every control answers a press.
 - History lists every session newest first, its sets in the same lines (Figure L). History is
   read, not edited: its lines are not buttons.
 - **A set is written:** Save presses (120 ms) and reads Saving… while the server answers; on its
-  answer the set lands as the log's next line, opening its own room so the entry moves down a
-  line while Save stays where the thumb is, rising 10 pt as it fades in (220 ms, `cubic-bezier(0.23, 1, 0.32, 1)`), and Save reads
-  Saved; then the entry turns to the next set, the values go back to suggestions, RIR empties and
-  rest restarts, its dial full. With reduced motion the line appears. Nothing is written before
-  the server has it.
+  answer the set lands as the log's next line, in the room above the entry, rising 10 pt as it
+  fades in (220 ms, `cubic-bezier(0.23, 1, 0.32, 1)`), and Save reads Saved. On the same beat the
+  entry turns to the next set (the values back to suggestions, RIR empty) and rest restarts, its
+  dial full; nothing in the entry moves. With reduced motion the line appears. Nothing is written
+  before the server has it.
 - **A save that fails:** the entries stay as typed, in ink; nothing is added to the log and rest
   does not start; the app's sentence ("Connection lost. Your entries are still here. Retry
-  saving when connected.") stands over Save, which tries again.
+  saving when connected.") stands in the slot over Save, and Save reads Retry, as the app's does.
+- **The slot over Save:** every message about Save stands in one place, over it, so Save never
+  moves: the missing RIR, a failed save, and where a superset goes next ("Then Wrist curl").
 
 ### Steppers
 
@@ -658,12 +662,12 @@ and every control answers a press.
 - **Suggested until touched:** ink 2 with a dotted underline; then ink, because it is what Save
   records. Choosing RIR touches only RIR.
 - **RIR:** a stepper like the others, empty (an en dash in `control`) with its target under its
-  unit and ⓘ beside RIR (44 wide and 32 tall, its target clear of the figure and the buttons),
-  which opens the app's own words for what RIR means; tapping the dash
+  unit and ⓘ beside RIR (a full 44-pt target, 48 dp on Android, kept 4 pt clear of the figure
+  and the buttons), which opens the app's own words for what RIR means; tapping the dash
   takes the target ("RIR not set, target 2. Use the target"), − and + go one either side of it.
-  Save waits, grey, until it is set; tapped, the app's sentence for a missing RIR shows under it
-  ("Enter RIR: estimate how many more good reps you could do."). Timed and distance sets take
-  RPE, 1 to 10, the same way.
+  Save waits, grey, until it is set; tapped, the app's sentence for a missing RIR ("Enter RIR:
+  estimate how many more good reps you could do.") shows in the slot over it, and the dash inks
+  to say what is missing. Timed and distance sets take RPE, 1 to 10, the same way.
 - **In a row:** a label (and its hint) left; −, the value in a fixed 120-pt column, + right, so
   the buttons line up row under row (hours slept, a run's distance and duration).
 

@@ -17,6 +17,11 @@
       "No P0. Of J’s 23 issues, 19 fixed and 4 partly; Match and Control at 4. Its one P1, the read-me cut by its frame, was a stale copy; renders now fail on it."
     ],
     [
+      "L · the changed boards only",
+      "33/40",
+      "A scoped review of the 31 boards changed after K, so not comparable with the whole-canvas scores. No P0; its P1 (the entry riding up the screen) and its P2s were then fixed."
+    ],
+    [
       "Detector",
       "60",
       "From 108 last round. 18 warnings: 15 where a selected tab’s bar sits on its hairline, 2 from the Moment’s stacked layers, 1 spacing (Programme-Day); 42 advisories, for board headings and drawings off the type and radius scales."
@@ -59,7 +64,7 @@
     "Logging at 200%: the whole entry stays docked above the home indicator, with the log scrolling above it; the dash is a button; RIR over its target.",
     "The set number has its own 18-pt column in the log and the entry, so “102.5” never touches it; the log’s figures step down the type ramp to fit.",
     "No line under any art: the indoors bar is gone from every form and calendar mark; a row’s glyph says treadmill or outdoors.",
-    "The log and the entry sit together: the log starts under the tabs, the entry follows its latest line, and Save keeps the foot of the screen, so no room opens above the sets.",
+    "The log’s place: J wanted no gap between the log and the entry, and your question about the room above the sets settled it: the log fills down from the tabs towards the entry, which stays docked at the foot with Save.",
     "Only warm-ups done are drawn; the entry says “Warm-up 2 of 3”. Choosing RIR no longer makes the suggested load look confirmed.",
     "At 360 and 320, + stands over each figure and − under it, so the log’s columns hold; every log line is 44 pt or more.",
     "Every figure is a named button (“62.5 kilograms, suggested. Type a load”); ⓘ beside RIR gives the app’s own explanation; a tap on the waiting Save shows the app’s sentence for a missing RIR.",
@@ -92,7 +97,7 @@
     "The RIR ⓘ’s target no longer touches the figure above it or the buttons below.",
     "At 200% the reps show their target (3–5) under them, as RIR shows its own.",
     "Typing keeps column-wide 44-pt figures and the entry’s rule, with the log 8 pt above it.",
-    "The Moment starts from the log at rest: the new line opens its own room as it lands, the entry moves down a line, and Save stays where the thumb is.",
+    "The Moment starts from the log at rest, as Log shows it.",
     "Logging no longer says anything twice: the header gives the range a set aims at (3–5 reps); how many sets and the RIR target are the entry’s.",
     "Training draws the whole week on one module, so the days compare at a glance.",
     "The coach’s change opens on its reason, the coach’s own words.",
@@ -102,7 +107,16 @@
   "kOpen": [
     "200% is drawn for logging only; Workout, Food, Training and Progress at 200% are still to draw.",
     "The pounds and superset boards show suggested figures without a suggestion tag: the repository gives no kind for those two exercises.",
-    "Still to draw: the end of an exercise after its last set, and a 320 × 568 first screen of the log.",
-    "Smaller: the picker’s choice drawn two ways; Sports’ unchosen marks thinned; no key for Food’s week strip; “latest” on Recovery’s tiles; the bodyweight and cable glyphs; most buttons still link to “#”."
+    "Still to draw: the end of an exercise after its last set; a 320 × 568 first screen of the log; a log long enough to pass under the tabs; the offline save.",
+    "Smaller: the picker’s choice drawn two ways; Sports’ unchosen marks thinned; no key for Food’s week strip; “latest” on Recovery’s tiles; the bodyweight and cable glyphs; Appearance’s radios inside a list; most buttons still link to “#”."
+  ],
+  "lFixed": [
+    "The entry docks at the foot again, whole, and the log fills down from the tabs towards it: no room above the sets, and nothing a thumb needs moves when a set lands.",
+    "Every message about Save stands in one slot over it (the missing RIR, a failed save, a superset’s “Then Wrist curl”), so Save never moves; a missing RIR also inks the dash.",
+    "The RIR ⓘ is a full 44-pt target again (48 dp on Android), 4 pt clear of the figure and the buttons, with the three columns’ buttons on one line.",
+    "A failed save reads Retry, as the app’s does.",
+    "At 200% the first screen names the exercise and its range; the board has its main landmark.",
+    "The Moment turns to the next set on the beat the line lands, so the saved set is not shown twice.",
+    "Technique and History give the whole prescription; Training’s next day is said once; AI coach’s More sits on the gutter; Platforms describes the steppers as the boards draw them."
   ]
 }

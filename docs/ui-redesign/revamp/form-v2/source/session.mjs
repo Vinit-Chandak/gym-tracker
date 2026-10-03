@@ -281,8 +281,8 @@ export function ledger(t, S, { start = false, warm = start ? 0 : -1, rows = null
             )
             .join("")
     }`;
-  // the list starts under the tabs and the entry follows it, its rule 8 pt under the latest line;
-  // Save keeps the foot of the screen, so the room left over is above Save, never above the sets
+  // the list starts under the tabs and fills down towards the entry, which stays docked at the
+  // foot with Save: nothing a thumb needs moves when a set lands, and no room opens above the sets
   return `<ol aria-label="Sets" style="margin-top:8px; padding-bottom: 8px; flex: 0 0 auto">${items}</ol>`;
 }
 // How many working sets this exercise has today: done, the one being entered, and those to come.
@@ -337,6 +337,7 @@ export function entry(
     swapCls: sw.load,
     bgap,
     vertical,
+    room: true,
     name: `${loadV} ${unitNameOf(unit)}${sugg}. Type a load`,
   });
   const reps = K.stepFigure(t, {
@@ -351,6 +352,7 @@ export function entry(
     swapCls: sw.reps,
     bgap,
     vertical,
+    room: true,
     name: `${repsV} reps${sugg}. Type reps`,
   });
   const target = String(S.next.target);
@@ -365,8 +367,9 @@ export function entry(
       swapCls: rirSwap,
       swapTo: "",
       swapState: "empty",
+      alert: need,
       hint: w ? "optional" : `target ${target}`,
-      tag: K.infoTip(t, "What RIR means"),
+      tag: K.infoTip(t, "What RIR means", { size: bsize }),
       dec: "One rep less in reserve",
       inc: "One rep more in reserve",
       bgap,
@@ -399,10 +402,10 @@ export function entry(
     (w
       ? `Warm-up ${warm + 1} <span style="color:${t.ink2}">of ${S.warmups.length}</span>`
       : `Set ${S.next.n} <span style="color:${t.ink2}">of ${setsOf(S)}</span>`);
-  return `<section aria-label="${w ? `Warm-up ${warm + 1} of ${S.warmups.length}` : `Set ${S.next.n} of ${setsOf(S)}`}" style="${s({ display: "flex", "flex-direction": "column", gap: K.short(dv) ? 8 : 12, "padding-top": 10, "border-top": `1px solid ${t.hair}`, flex: "1 0 auto", background: t.ground })}">
+  return `<section aria-label="${w ? `Warm-up ${warm + 1} of ${S.warmups.length}` : `Set ${S.next.n} of ${setsOf(S)}`}" style="${s({ display: "flex", "flex-direction": "column", gap: K.short(dv) ? 8 : 12, "padding-top": 10, "border-top": `1px solid ${t.hair}`, "flex-shrink": 0, background: t.ground })}">
 <div style="${s({ display: "flex", "align-items": "center", gap: 10, height: 44 })}"><h3 style="${txt(17, 700)}; ${tn}">${heading}</h3>${tag}<span style="flex:1 1 auto"></span><button type="button" aria-haspopup="dialog" aria-label="Set options: add a set, type, notes, remove" style="${s({ width: 44, height: 44, display: "grid", "place-items": "center", color: t.ink2, "margin-right": -10 })}">${icon("sliders", 20)}</button></div>
 ${figures}
-<div style="margin-top:auto">${save}</div>
+<div style="margin-top:2px">${save}</div>
 </section>`;
 }
 // Save, in the app's words (set-grid.tsx). Until RIR is chosen it waits, grey, and the app's own
@@ -410,20 +413,22 @@ ${figures}
 export const SAVE = "Save";
 export const RIR_NEEDED = "Enter RIR: estimate how many more good reps you could do.";
 export const RPE_NEEDED = "Enter effort from 1 (very easy) to 10 (maximal).";
-// After a tap on the waiting Save, the sentence shows under it as the app's row error does, in ink.
+// After a tap on the waiting Save, the sentence shows in the one slot over Save, in ink, so Save
+// never moves; the empty RIR's dash inks with it, to say what is missing.
 export const saveWaiting = (
   t,
   { id = "rir-hint", need = RIR_NEEDED, style = "", shown = false } = {},
 ) =>
-  `<button type="button" aria-disabled="true" aria-describedby="${id}" style="${K.BTN(t, "waiting")}; width: 100%${style}">${SAVE}</button>${
+  `${
     shown
-      ? `<p id="${id}" role="alert" style="${s({ display: "flex", gap: 8, "align-items": "flex-start", "margin-top": 10 })}; ${txt(15, 600, { "line-height": 1.4 })}"><span style="${s({ display: "grid", "flex-shrink": 0, "margin-top": 1 })}">${icon("info", 18)}</span><span>${need}</span></p>`
+      ? `<p id="${id}" role="alert" style="${s({ display: "flex", gap: 8, "align-items": "flex-start", "margin-bottom": 10 })}; ${txt(15, 600, { "line-height": 1.4 })}"><span style="${s({ display: "grid", "flex-shrink": 0, "margin-top": 1 })}">${icon("info", 18)}</span><span>${need}</span></p>`
       : `<span id="${id}" class="sr">${need}</span>`
-  }`;
+  }<button type="button" aria-disabled="true" aria-describedby="${id}" style="${K.BTN(t, "waiting")}; width: 100%${style}">${SAVE}</button>`;
 export const panel = (active, inner, style = "") =>
   `<div role="tabpanel" id="panel" aria-labelledby="panel-tab-${active}"${style ? ` style="${style}"` : ""}>${inner}</div>`;
-// While logging, the header gives the range a set aims at; how many sets and the RIR target are
-// the entry's ("Set 3 of 4", "target 2"), so they are not said twice.
+// On the Log tab the header gives the range a set aims at; how many sets and the RIR target are
+// the entry's ("Set 3 of 4", "target 2"), so they are not said twice. Technique and History have
+// no entry, so there the header gives the whole prescription.
 export const perSet = (rx) => {
   const r = rx.replace(/^\d+\s*×\s*/, "").replace(/\s*@.*$/, "");
   return /^[\d–-]+$/.test(r) ? `${r} reps` : r;
@@ -433,7 +438,7 @@ function logHeader(t, S, dv, active = 0, { restOpts = {} } = {}) {
   const glyph = glyphFor(S.modality);
   return `${sessionHeader(t, { left: backTo(t, S.back), more: "Complete, skip, superset, substitute", restOpts })}
 <h2 style="${title(K.titleSize(S.exercise, cw, dv.W < 360 ? 28 : K.short(dv) ? 30 : 32), { lh: 1.05 })}; margin-top: 2px">${S.exercise}</h2>
-${K.metaLine(t, [`${K.equip(t, glyph, equipName(S.modality))}<span>${perSet(S.rx)}</span>`, `${icon("rest", 16)}<span>${S.rest}</span>`], { mt: 4 })}
+${K.metaLine(t, [`${K.equip(t, glyph, equipName(S.modality))}<span>${active === 0 ? perSet(S.rx) : S.rx}</span>`, `${icon("rest", 16)}<span>${S.rest}</span>`], { mt: 4 })}
 <div style="margin-top:6px">${K.tabs(t, ["Log", "Technique", "History"], active, { dv, id: "Exercise detail" })}</div>`;
 }
 export { logHeader };
@@ -462,14 +467,14 @@ export function logScreen(
         armed: true,
         touched: true,
         vals: { load: "60", reps: "4" },
-        saveHtml: `<p role="alert" style="${s({ display: "flex", gap: 8, "align-items": "flex-start", "margin-bottom": 10 })}; ${txt(15, 600, { "line-height": 1.4 })}"><span style="${s({ display: "grid", "flex-shrink": 0, "margin-top": 1 })}">${icon("warn", 18)}</span><span>${C.setFailed}</span></p><button type="button" style="${K.BTN(t, "primary")}; width: 100%">${SAVE}</button>`,
+        saveHtml: `<p role="alert" style="${s({ display: "flex", gap: 8, "align-items": "flex-start", "margin-bottom": 10 })}; ${txt(15, 600, { "line-height": 1.4 })}"><span style="${s({ display: "grid", "flex-shrink": 0, "margin-top": 1 })}">${icon("warn", 18)}</span><span>${C.setFailed}</span></p><button type="button" aria-label="Retry saving set ${S.next.n}" style="${K.BTN(t, "primary")}; width: 100%">Retry</button>`,
       }
     : {};
   const ent = entry(t, S, dv, { armed, warm, need, ...failedOpts, ...entryOpts });
   if (whole)
     return K.root(
       t,
-      K.screenMain(t, `${head}${panel(0, list)}<div style="margin-top:10px">${ent}</div>`, {
+      K.screenMain(t, `${head}${panel(0, list)}${ent}`, {
         dv,
         whole: true,
       }),
@@ -479,7 +484,7 @@ export function logScreen(
   // sets, just above the entry) and the earlier lines pass under the tabs, as a list scrolled to
   // its foot does. A cut that falls between two lines would read as a missing set.
   const G = K.gut(dv);
-  const inner = `${head}${panel(0, list, s({ flex: "0 1 auto", "min-height": 0, display: "flex", "flex-direction": "column-reverse", overflow: "hidden", margin: `0 -${G}px`, padding: `0 ${G}px` }))}${ent}`;
+  const inner = `${head}${panel(0, list, s({ flex: "1 1 auto", "min-height": 0, display: "flex", "flex-direction": "column-reverse", "justify-content": "safe flex-end", overflow: "hidden", margin: `0 -${G}px`, padding: `0 ${G}px` }))}${ent}`;
   return K.root(t, sessionMain(t, inner, dv, { flex: true, fade: false }), {
     label: S.exercise,
     dv,
@@ -584,7 +589,7 @@ export function momentScreen(t, dv = K.D) {
   });
   const G = K.gut(dv);
   const list = `<ol aria-label="Sets" style="margin-top:8px; padding-bottom: 8px; flex: 0 0 auto">${rows}</ol>`;
-  const inner = `${logHeader(t, S, dv, 0, { restOpts })}${panel(0, list, s({ flex: "0 1 auto", "min-height": 0, display: "flex", "flex-direction": "column-reverse", overflow: "hidden", margin: `0 -${G}px`, padding: `0 ${G}px` }))}${ent}<p class="sr" role="status">Set 3 saved: 60 kilograms, 4 reps, 2 in reserve. Rest 3:00.</p>`;
+  const inner = `${logHeader(t, S, dv, 0, { restOpts })}${panel(0, list, s({ flex: "1 1 auto", "min-height": 0, display: "flex", "flex-direction": "column-reverse", "justify-content": "safe flex-end", overflow: "hidden", margin: `0 -${G}px`, padding: `0 ${G}px` }))}${ent}<p class="sr" role="status">Set 3 saved: 60 kilograms, 4 reps, 2 in reserve. Rest 3:00.</p>`;
   return K.root(t, sessionMain(t, inner, dv, { flex: true, fade: false }), {
     label: S.exercise,
     dv,
@@ -601,19 +606,19 @@ export function momentCss(t, { reduced = false } = {}) {
     `@keyframes ${cls}{0%,${pct(on - 0.001)}{opacity:0;visibility:hidden}${pct(on)}{opacity:0;visibility:visible}${pct(on + 0.12)},${pct(off)}{opacity:1;visibility:visible}${pct(off + 0.001)},100%{opacity:0;visibility:hidden}}.${cls}{opacity:0;visibility:hidden;animation:${cls} ${Lp}s linear infinite}`;
   const hide = (cls, off, on = RESET) =>
     `@keyframes ${cls}{0%,${pct(off)}{opacity:1;visibility:visible}${pct(off + 0.08)},${pct(on - 0.001)}{opacity:0;visibility:hidden}${pct(on)},100%{opacity:1;visibility:visible}}.${cls}{animation:${cls} ${Lp}s linear infinite}`;
-  // timeline (s): armed 0–1.2 · press 1.2–1.32 · saving 1.32–1.95 · the line lands 1.95–2.17 ·
-  // swaps 2.45–2.65
+  // timeline (s): armed 0–1.2 · press 1.2–1.32 · saving 1.32–1.95 · the line lands 1.95–2.17,
+  // and on that beat the entry turns to the next set and rest starts again (2.0–2.2)
   const common = `
 ${hide("sv-armed", 1.32)}
 ${show("sv-saving", 1.32, 1.95)}
 ${show("sv-saved", 1.95, 2.45)}
 ${show("sv-wait", 2.45)}
-${hide("h3a", 2.45)}
-${show("h4a", 2.53)}
-${hide("r2", 2.45)}
-${show("r0", 2.53)}
-${hide("va", 2.45)}
-${show("vb", 2.53)}
+${hide("h3a", 2.0)}
+${show("h4a", 2.08)}
+${hide("r2", 2.0)}
+${show("r0", 2.08)}
+${hide("va", 2.0)}
+${show("vb", 2.08)}
 ${hide("t1", 2.0)}
 ${show("t2", 2.08)}`;
   // the new line opens its own room as it lands, so the entry moves down a line while Save stays
