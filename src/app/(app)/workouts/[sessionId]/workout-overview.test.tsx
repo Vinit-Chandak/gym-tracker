@@ -41,6 +41,16 @@ function exercise(name: string, patch: Partial<ExerciseVM> = {}): ExerciseVM {
       requiresEquipment: true,
       defaultPrescriptionType: "reps",
       rirNote: null,
+      defaults: {
+        repMin: null,
+        repMax: null,
+        durationMinSeconds: null,
+        durationMaxSeconds: null,
+        distanceMinMeters: null,
+        distanceMaxMeters: null,
+        rir: null,
+        restSeconds: null,
+      },
     },
     equipment: null,
     planned: {
@@ -77,6 +87,7 @@ function exercise(name: string, patch: Partial<ExerciseVM> = {}): ExerciseVM {
     decision: null,
     coachNote: null,
     coachRestSeconds: null,
+    guidance: null,
     ...patch,
   };
 }
@@ -298,4 +309,65 @@ it("names a few additions in full and many by count", async () => {
   expect(addedLine(["Leg press"])).toBe("Added Leg press.");
   expect(addedLine(["A", "B", "C", "D"])).toBe("Added A, B, C and D.");
   expect(addedLine(["A", "B", "C", "D", "E", "F"])).toBe("Added 6 exercises: A, B, C and 3 more.");
+});
+
+it("takes each row's numbers from one source: the coach's, the programme's or the defaults", () => {
+  const coached: ExerciseVM["suggestion"] = {
+    kind: "coach",
+    basis: "exercise",
+    reason: "Coach plan for today",
+    advice: null,
+    loadIncrement: 5,
+    sets: [1, 2, 3].map((setIndex) => ({
+      setIndex,
+      setType: "working" as const,
+      weight: 100,
+      reps: 5,
+      rir: 2,
+      durationSeconds: null,
+      distanceMeters: null,
+    })),
+  };
+  show({
+    session: {
+      ...SESSION,
+      coachPlan: { summary: null, warmup: [], generatedAt: "2026-09-29T06:00:00.000Z" },
+      exercises: [
+        // Planned by the coach on a machine that counts in pounds: the coach's sets, its unit.
+        exercise("Leg press", {
+          equipment: { id: "lp", name: "Leg press 2", unit: "lb", ladder: null },
+          suggestion: coached,
+          coachRestSeconds: 150,
+        }),
+        // The coach left this one's sets to the programme.
+        exercise("Seated leg curl"),
+        // Added on the spot: the exercise's own defaults.
+        exercise("Cable lateral raise", {
+          planned: null,
+          exercise: {
+            ...exercise("Cable lateral raise").exercise,
+            defaults: {
+              repMin: 12,
+              repMax: 20,
+              durationMinSeconds: null,
+              durationMaxSeconds: null,
+              distanceMinMeters: null,
+              distanceMaxMeters: null,
+              rir: 2,
+              restSeconds: 60,
+            },
+          },
+        }),
+      ],
+    },
+  });
+  expect(screen.getByRole("button", { name: /Leg press/ }).textContent).toContain(
+    "100 lb · 3 × 5 @ 2 RIR",
+  );
+  expect(screen.getByRole("button", { name: /Seated leg curl/ }).textContent).toContain(
+    "4 × 3–5 @ 2 RIR",
+  );
+  expect(screen.getByRole("button", { name: /Cable lateral raise/ }).textContent).toContain(
+    "12–20 reps @ 2 RIR",
+  );
 });

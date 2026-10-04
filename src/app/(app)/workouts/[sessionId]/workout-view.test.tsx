@@ -42,6 +42,16 @@ const exercise: ExerciseVM = {
     requiresEquipment: true,
     defaultPrescriptionType: "reps",
     rirNote: null,
+    defaults: {
+      repMin: null,
+      repMax: null,
+      durationMinSeconds: null,
+      durationMaxSeconds: null,
+      distanceMinMeters: null,
+      distanceMaxMeters: null,
+      rir: null,
+      restSeconds: null,
+    },
   },
   equipment: null,
   planned: null,
@@ -59,6 +69,7 @@ const exercise: ExerciseVM = {
   decision: null,
   coachNote: null,
   coachRestSeconds: null,
+  guidance: null,
 };
 
 function workout(id: string, sets: SetVM[] = []): SessionVM {

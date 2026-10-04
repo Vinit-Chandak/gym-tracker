@@ -18,7 +18,7 @@ has touched a hosted database, and nothing has been merged or deployed.
 | 2    | Resolver and every consumer, absence reconciliation, the coach's backup rule            | done        |
 | 3    | Add several exercises (receipts) and pinned actions on Add machine                      | done        |
 | 4    | Experience question, machine steps, combinations, workout confirmation                  | done        |
-| 5    | Illustrations, guides, Technique, the coach's numbers in the header and list            | not started |
+| 5    | Illustrations, guides, Technique, the coach's numbers in the header and list            | in progress |
 | 6    | Acceptance tests, screens, fresh review, draft PR                                       | not started |
 
 ## Calls made where the plan left room
@@ -212,6 +212,56 @@ has touched a hosted database, and nothing has been merged or deployed.
   only while nothing is logged.
 - "Register machine" in the decision block reads "Register with details", since "Yes, it's here"
   and "Available" now register too.
+
+## Step 5: what landed
+
+- **Drawings.** After the pilot, set A (21 machines) and set C (38 free weights, bars, benches,
+  racks and small equipment) were drawn to the pilot's spec by subagents, checked by
+  `drawings.test.ts`, and registered in `EQUIPMENT_ART` as drafts. The leg press's sled and
+  footplate and the hack squat's carriage and footplate lost the upholstery tone, which the spec
+  keeps for pads. Set B (the remaining machines and cables, cardio, the draft types and the draft
+  combinations) is being drawn the same way; a restart lost its first attempt.
+- **Guides.** 58 drafted guides in three batches (`src/db/seed/data/guides/batch-{a,b,c}.ts`),
+  written for Overload and checked against ACE, NASM, ExRx, clinical and journal sources, each with a
+  candidate YouTube demonstration (59 links: the pec deck fly has two) confirmed to exist through
+  YouTube's oEmbed but not watched. They cover all 34 template exercises and fallbacks, the
+  machines people meet first and the movements beginner programmes use. Every one is a draft and
+  every video a candidate; the seed lays them down everywhere and only screens where drafts are
+  shown display them. The catalogue report counts 58 drafts, 0 published and 218 honest gaps.
+- **The data path**, chosen by measurement: the guide text comes with the workout page from the
+  cached reader (`guidanceByExercise`), respecting `includeGuidance`, so Technique reads even if
+  the connection drops mid-session. Measured on the local audit database with drafts shown:
+  the template's Lower A (seven exercises, six with guides) is 20.5 KB of session data (5.7 KB
+  gzipped), of which the guidance is 8.1 KB (2.7 KB gzipped); eight guides from the manifests
+  come to 9.8 KB (3.2 KB gzipped). Reading on tab open would save that at the cost of a request
+  and a retry state on a gym's connection, so the guide comes with the page.
+- **One renderer** (`src/components/exercise-guide.tsx`, data from `src/lib/guidance.ts`) in the
+  workout's Technique tab and on the library page: Setup, Steps, Cues, Common mistakes, How to
+  log, then "Programme cue" in the workout, then "Watch demonstration" (opens YouTube) and "Open
+  in the exercise library". "Guide not available yet." where there is none; a custom exercise
+  shows "Your notes". The programme's target-load and progression notes and the substitution
+  reason left Technique. The library page's "How to do it" adds where the guide was checked.
+- **Today's targets.** `perSetLabel`, `prescriptionLabel`, `restText` and the new
+  `restSecondsOf` and `countTargetLabel` (`logger-model.ts`) take every figure from one source:
+  the coach's sets and rest when the coach planned the session (an exercise the coach added
+  included), else the programme's, else the exercise's own defaults for an exercise added on the
+  spot (now carried as `exercise.defaults`). The header, the workout list, the superset's "Then
+  …" line, the entry's target hint and the rest timer all read them.
+- Docs: the feature inventory's Technique entry, `DESIGN.md` (Guides; one source for figures).
+- Tests: the renderer and `guidanceOf`, the session's guidance end to end with drafts on and off,
+  the header helpers for coach-planned, programme-only and ad hoc exercises, the workout list,
+  and the logger's header and Technique tab.
+
+### Calls made in step 5
+
+- A shared exercise's old form note and form link stay visible ("Notes", "Read a form guide")
+  while no guide is shown for it, so production loses nothing it shows today while every guide
+  waits for review; once a guide is visible it replaces them.
+- Sources are listed in the library, not in the workout's Technique, which stays short.
+- A draft guide or candidate video carries "Draft for review" wherever drafts are shown, so the
+  owner can tell what awaits approval.
+- The coach's per-side override is not yet carried into the workout, as before; per side still
+  follows the slot.
 
 ## Next
 

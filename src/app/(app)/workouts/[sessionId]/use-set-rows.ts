@@ -20,6 +20,7 @@ import {
 import { attempted } from "@/lib/offline-submit";
 
 import { useLoggerActions } from "./logger-actions";
+import { restSecondsOf } from "./logger-model";
 import type { ExerciseVM, SetVM } from "./view-model";
 
 const MAX_SETS = 50;
@@ -515,8 +516,7 @@ export function useSetRows({
         setIndex: row.setIndex,
         set: result.set,
       });
-      if (!row.logged)
-        onLogged(exercise.coachRestSeconds ?? exercise.planned?.restMinSeconds ?? 90);
+      if (!row.logged) onLogged(restSecondsOf(exercise) ?? 90);
       onSaved?.(row.setIndex, !row.logged, { set: setInUnit(result.set, unit), autoWarmup });
     });
   };

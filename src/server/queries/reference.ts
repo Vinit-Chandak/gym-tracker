@@ -151,18 +151,33 @@ export const sharedMedia = remembered<MediaRow[]>((db) =>
   db.select().from(exerciseMedia).orderBy(asc(exerciseMedia.position)),
 );
 
+/** Guides and demonstrations for several exercises in one read of the cache, as drafts allow. */
+export async function guidanceByExercise(
+  db: DbOrTx,
+  exerciseIds: readonly string[],
+  drafts: boolean,
+): Promise<Map<string, { guide: GuideRow | null; media: MediaRow[] }>> {
+  const wanted = new Set(exerciseIds);
+  const found = new Map<string, { guide: GuideRow | null; media: MediaRow[] }>();
+  if (wanted.size === 0) return found;
+  const [guides, media] = await Promise.all([sharedGuides(db), sharedMedia(db)]);
+  for (const id of wanted) found.set(id, { guide: null, media: [] });
+  for (const guide of guides)
+    if (wanted.has(guide.exerciseId) && (drafts || guide.status === "published"))
+      found.get(guide.exerciseId)!.guide = guide;
+  for (const item of media)
+    if (wanted.has(item.exerciseId) && (drafts || item.status === "approved"))
+      found.get(item.exerciseId)!.media.push(item);
+  return found;
+}
+
 /** One guide and its demonstrations, as drafts allow: null and [] where there is none to show. */
 export async function guidanceFor(
   db: DbOrTx,
   exerciseId: string,
   drafts: boolean,
 ): Promise<{ guide: GuideRow | null; media: MediaRow[] }> {
-  const [guides, media] = await Promise.all([sharedGuides(db), sharedMedia(db)]);
-  const guide = guides.find((g) => g.exerciseId === exerciseId) ?? null;
-  return {
-    guide: guide && (drafts || guide.status === "published") ? guide : null,
-    media: media.filter((m) => m.exerciseId === exerciseId && (drafts || m.status === "approved")),
-  };
+  return (await guidanceByExercise(db, [exerciseId], drafts)).get(exerciseId)!;
 }
 
 /** An equipment type by slug, from the cached catalogue. */

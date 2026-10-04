@@ -27,9 +27,11 @@ import {
 import type { LoadLadder } from "@/domain/load-steps";
 import type { LoadUnit, SetType, WarmupDrill } from "@/domain/types";
 import { sessionHistories, type ComparablePerformance } from "@/server/queries/comparable";
-import { getWarmupProtocol } from "@/server/queries/reference";
+import { guidanceByExercise, getWarmupProtocol } from "@/server/queries/reference";
 
 import type { TrainingRecord } from "@/domain/records";
+import { showsDrafts } from "@/lib/drafts";
+import { guidanceOf, type ExerciseGuidance } from "@/lib/guidance";
 
 import { closeStrengthParent, discardStrengthParent, openStrengthParent } from "./activities";
 import { decideExercisesAtGym, resolvePlannedDay, type ExerciseDecision } from "./availability";
@@ -330,6 +332,11 @@ export type SessionExercise = {
     defaultPrescriptionType: typeof exercises.$inferSelect.defaultPrescriptionType;
     /** What RIR means for this movement, in its own words; null falls back to the general one. */
     rirNote: string | null;
+    /**
+     * What the library says the movement is normally done in, for an exercise nothing planned:
+     * its range in its own measure, RIR and rest (plan: today's targets, ad hoc exercises).
+     */
+    defaults: ExerciseDefaultsVM;
   };
   equipment: {
     id: string;
@@ -379,6 +386,23 @@ export type SessionExercise = {
   coachNote: string | null;
   /** Rest the coach asked for, in place of the programme's target. */
   coachRestSeconds: number | null;
+  /**
+   * How to do it (plan: exercise technique and media): the guide, how to log, the exercise's own
+   * notes and demonstrations, as drafts allow. Null when the read leaves guidance out.
+   */
+  guidance: ExerciseGuidance | null;
+};
+
+/** An exercise's own defaults, as the workout reads them. */
+export type ExerciseDefaultsVM = {
+  repMin: number | null;
+  repMax: number | null;
+  durationMinSeconds: number | null;
+  durationMaxSeconds: number | null;
+  distanceMinMeters: number | null;
+  distanceMaxMeters: number | null;
+  rir: number | null;
+  restSeconds: number | null;
 };
 
 export type SessionDetail = {
@@ -505,7 +529,12 @@ export async function getSessionDetail(
           defaultDistanceMinMeters: exercises.defaultDistanceMinMeters,
           defaultDistanceMaxMeters: exercises.defaultDistanceMaxMeters,
           defaultRir: exercises.defaultRir,
+          defaultRestSeconds: exercises.defaultRestSeconds,
           rirNote: exercises.rirNote,
+          userId: exercises.userId,
+          formNotes: exercises.formNotes,
+          formUrl: exercises.formUrl,
+          logNote: exercises.logNote,
         },
         equipment: {
           id: equipmentInstances.id,
@@ -572,7 +601,7 @@ export async function getSessionDetail(
     ? rows.filter((row) => row.exercise.requiresEquipment && !row.equipment && !row.we.skippedAt)
     : [];
   // History and machine decisions depend on the slots but not on each other.
-  const [histories, decisions, coachingChanges, ladders] = await Promise.all([
+  const [histories, decisions, coachingChanges, ladders, guidance] = await Promise.all([
     includeGuidance
       ? sessionHistories(
           db,
@@ -605,6 +634,15 @@ export async function getSessionDetail(
       userId,
       rows.flatMap((row) => (row.equipment?.id ? [row.equipment.id] : [])),
     ),
+    // Every exercise's guide comes with the page from the cached library (plan: the guide data
+    // path, chosen by measurement), so Technique reads even if the connection drops mid-session.
+    includeGuidance
+      ? guidanceByExercise(
+          db,
+          rows.map((row) => row.exercise.id),
+          showsDrafts(),
+        )
+      : Promise.resolve(new Map<string, { guide: null; media: [] }>()),
   ]);
   // The day's warm-up ends in a ramp on its first lift (ADR 0038). Written into the rule's
   // targets for that lift as warm-ups, the logger offers them as warm-up rows, so the ramp is
@@ -703,6 +741,16 @@ export async function getSessionDetail(
         requiresEquipment: row.exercise.requiresEquipment,
         defaultPrescriptionType: row.exercise.defaultPrescriptionType,
         rirNote: row.exercise.rirNote,
+        defaults: {
+          repMin: row.exercise.defaultRepMin,
+          repMax: row.exercise.defaultRepMax,
+          durationMinSeconds: row.exercise.defaultDurationMinSeconds,
+          durationMaxSeconds: row.exercise.defaultDurationMaxSeconds,
+          distanceMinMeters: row.exercise.defaultDistanceMinMeters,
+          distanceMaxMeters: row.exercise.defaultDistanceMaxMeters,
+          rir: row.exercise.defaultRir,
+          restSeconds: row.exercise.defaultRestSeconds,
+        },
       },
       equipment: row.equipment?.id
         ? {
@@ -752,6 +800,13 @@ export async function getSessionDetail(
       decision,
       coachNote: entry?.note || null,
       coachRestSeconds: entry?.restSeconds ?? null,
+      guidance: includeGuidance
+        ? guidanceOf(
+            row.exercise,
+            guidance.get(row.exercise.id)?.guide ?? null,
+            guidance.get(row.exercise.id)?.media ?? [],
+          )
+        : null,
     });
   }
 

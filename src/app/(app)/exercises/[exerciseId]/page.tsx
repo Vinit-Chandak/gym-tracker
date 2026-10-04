@@ -1,14 +1,14 @@
 import { SubmitButton } from "@/components/ui/form";
-import { ExternalLink } from "@/components/ui/icons";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { AvailabilityBadge } from "@/components/availability-badge";
+import { ExerciseGuide } from "@/components/exercise-guide";
 import { FriendsBoardCard } from "@/components/friends-board-card";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
-import { buttonClassName, LinkButton } from "@/components/ui/button";
+import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { InfoTip } from "@/components/ui/info-tip";
 import { Section } from "@/components/ui/section";
@@ -20,7 +20,9 @@ import type { Resolution } from "@/domain/equipment-resolution";
 import { performanceSeries } from "@/domain/analytics";
 import { topWithYou } from "@/domain/leaderboard";
 import { isComparable, primaryMetric } from "@/domain/shared-stats";
+import { showsDrafts } from "@/lib/drafts";
 import { formatKilograms } from "@/lib/format";
+import { guidanceOf } from "@/lib/guidance";
 import { setInUnit } from "@/lib/units";
 import {
   EXERCISE_CATEGORY_LABELS,
@@ -37,6 +39,7 @@ import {
 import { setPreferredMachineAction } from "@/server/actions/availability";
 import { requireUser } from "@/server/auth";
 import { loadCircle, rankExercise } from "@/server/queries/leaderboard";
+import { guidanceFor } from "@/server/queries/reference";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { recentPerformances } from "@/server/queries/comparable";
 import {
@@ -135,7 +138,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
           ? null
           : (latest.find((performance) => performance.equipmentInstanceId)?.equipmentInstanceId ??
             null);
-      const [availability, charted, bests, profile, life] = await Promise.all([
+      const [availability, charted, bests, profile, life, written] = await Promise.all([
         exerciseAvailability(tx, user.id, exerciseId, exercise),
         // Only the sessions this movement was actually in, so the trend costs a page about
         // one exercise a read about one exercise.
@@ -152,6 +155,8 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
           : new Map(),
         requestProfile,
         readExerciseLife(tx, user.id, exerciseId, requestProfile.timeZone, machine),
+        // The guide and its demonstrations, from the cached library; drafts only where shown.
+        guidanceFor(tx, exerciseId, showsDrafts()),
       ]);
       const performances = latest;
       // The Friends' leaderboard (plan §3.12) once there is someone to rank against and
@@ -160,6 +165,8 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
         circle.length > 1 ? rankExercise(circle, bests, new Map(), primaryMetric(exercise)) : [];
       return {
         exercise,
+        guidance: guidanceOf(exercise, written.guide, written.media),
+        sources: written.guide?.sources ?? [],
         availability,
         performances,
         bests: bests.get(user.id) ?? [],
@@ -179,6 +186,8 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
   if (!data) notFound();
   const {
     exercise,
+    guidance,
+    sources,
     availability,
     performances,
     bests,
@@ -287,22 +296,15 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
               }
             />
           </StatTileRow>
-
-          {exercise.formNotes && (
-            <p className="text-sm whitespace-pre-line">{exercise.formNotes}</p>
-          )}
-          {exercise.formUrl && (
-            <a
-              href={exercise.formUrl}
-              target="_blank"
-              rel="noreferrer"
-              className={buttonClassName("secondary", "md", "w-full")}
-            >
-              Form guide
-              <ExternalLink aria-hidden />
-            </a>
-          )}
         </Card>
+
+        {/* The same guide the workout's Technique shows (plan: exercise technique and media),
+            with where it was checked. */}
+        <Section title="How to do it">
+          <div className="px-1">
+            <ExerciseGuide guidance={guidance} sources={sources} />
+          </div>
+        </Section>
 
         <Card>
           <h2 className="text-base font-medium">Equipment</h2>

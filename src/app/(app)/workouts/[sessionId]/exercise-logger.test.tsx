@@ -58,6 +58,16 @@ const exercise: ExerciseVM = {
     requiresEquipment: true,
     defaultPrescriptionType: "reps",
     rirNote: null,
+    defaults: {
+      repMin: null,
+      repMax: null,
+      durationMinSeconds: null,
+      durationMaxSeconds: null,
+      distanceMinMeters: null,
+      distanceMaxMeters: null,
+      rir: null,
+      restSeconds: null,
+    },
   },
   equipment: null,
   planned: null,
@@ -75,6 +85,7 @@ const exercise: ExerciseVM = {
   decision: null,
   coachNote: null,
   coachRestSeconds: null,
+  guidance: null,
 };
 
 const session: SessionVM = {
@@ -782,4 +793,122 @@ it("keeps an exercise open when the set it was waiting on does not save", async 
   expect((screen.getByRole("button", { name: "Complete" }) as HTMLButtonElement).disabled).toBe(
     true,
   );
+});
+
+const programmeSlot: NonNullable<ExerciseVM["planned"]> = {
+  programExerciseId: "planned",
+  plannedExerciseName: "Bench press",
+  sets: 4,
+  prescriptionType: "reps",
+  repMin: 3,
+  repMax: 5,
+  durationMinSeconds: null,
+  durationMaxSeconds: null,
+  distanceMinMeters: null,
+  distanceMaxMeters: null,
+  perSide: false,
+  rirMin: 2,
+  rirMax: 2,
+  restMinSeconds: 180,
+  restMaxSeconds: 240,
+  targetLoadNote: "About 75% of your best.",
+  progressionNotes: "Add 2.5 kg when every set reaches 5.",
+  keyCue: "Pause on the chest.",
+};
+
+it("says the coach's numbers under the name when the coach planned the session", () => {
+  renderLogger({
+    exercise: {
+      planned: programmeSlot,
+      coachRestSeconds: 150,
+      suggestion: {
+        kind: "coach",
+        basis: "exercise",
+        reason: "Coach plan for today",
+        advice: null,
+        loadIncrement: 2.5,
+        sets: [1, 2, 3].map((setIndex) => ({ ...saved, setIndex, weight: 60, reps: 5, rir: 2 })),
+      },
+    },
+  });
+  // The programme says 3–5 reps and 3–4 min; the coach wrote 5 reps and 150 s.
+  expect(screen.getByText("5 reps")).toBeTruthy();
+  expect(screen.getByText("2.5 min")).toBeTruthy();
+  expect(screen.queryByText("3–5 reps")).toBeNull();
+  expect(screen.queryByText("3–4 min")).toBeNull();
+  fireEvent.click(screen.getByRole("tab", { name: "Technique" }));
+  expect(screen.getByText("60 kg · 3 × 5 @ 2 RIR")).toBeTruthy();
+});
+
+it("shows the guide and the programme's cue in Technique, and none of the programme's notes", () => {
+  renderLogger({
+    exercise: {
+      planned: { ...programmeSlot, plannedExerciseName: "Dumbbell bench press" },
+      substitutionReason: "No free bench",
+      guidance: {
+        guide: {
+          status: "published",
+          setup: "Lie on the bench with your eyes under the bar.",
+          steps: ["Unrack the bar.", "Lower it to your chest.", "Press it back up."],
+          cues: ["Feet down.", "Wrists straight."],
+          mistakes: ["Bouncing the bar.", "Flaring the elbows."],
+        },
+        logNote: "Log the bar and plates together.",
+        notes: null,
+        ownNotes: false,
+        formUrl: null,
+        demonstrations: [
+          {
+            title: "How to bench press",
+            channel: "Coach Channel",
+            url: "https://www.youtube.com/watch?v=abcdefghijk",
+            status: "approved",
+          },
+        ],
+      },
+    },
+  });
+  fireEvent.click(screen.getByRole("tab", { name: "Technique" }));
+  const terms = screen.getAllByRole("term").map((term) => term.textContent);
+  expect(terms).toEqual([
+    "Setup",
+    "Steps",
+    "Cues",
+    "Common mistakes",
+    "How to log",
+    "Programme cue",
+  ]);
+  expect(screen.getByText("Pause on the chest.")).toBeTruthy();
+  // The programme's load and progression notes and the substitution reason leave the workout;
+  // the line under the name already says what the exercise stands in for.
+  expect(screen.queryByText("About 75% of your best.")).toBeNull();
+  expect(screen.queryByText("Add 2.5 kg when every set reaches 5.")).toBeNull();
+  expect(screen.queryByText("No free bench")).toBeNull();
+  expect(screen.queryByText("No cues in the programme.")).toBeNull();
+  expect(screen.getByText("instead of Dumbbell bench press")).toBeTruthy();
+  expect(screen.getByRole("link", { name: /Watch demonstration/ }).getAttribute("href")).toBe(
+    "https://www.youtube.com/watch?v=abcdefghijk",
+  );
+  expect(
+    screen.getByRole("link", { name: "Open in the exercise library" }).getAttribute("href"),
+  ).toBe("/exercises/bench");
+});
+
+it("says honestly when an exercise has no guide yet, keeping how to log it", () => {
+  renderLogger({
+    exercise: {
+      guidance: {
+        guide: null,
+        logNote: "Load is per dumbbell.",
+        notes: null,
+        ownNotes: false,
+        formUrl: null,
+        demonstrations: [],
+      },
+    },
+  });
+  fireEvent.click(screen.getByRole("tab", { name: "Technique" }));
+  expect(screen.getByText("Guide not available yet.")).toBeTruthy();
+  expect(screen.getByText("Load is per dumbbell.")).toBeTruthy();
+  expect(screen.getByRole("link", { name: "Open in the exercise library" })).toBeTruthy();
 });

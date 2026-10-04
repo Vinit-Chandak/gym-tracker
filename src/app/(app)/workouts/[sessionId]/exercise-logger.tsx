@@ -15,8 +15,8 @@ import {
 } from "react";
 import { flushSync } from "react-dom";
 
+import { ExerciseGuide } from "@/components/exercise-guide";
 import { RestPill } from "@/components/shell/rest-timer";
-import Link from "@/components/ui/app-link";
 import { Button } from "@/components/ui/button";
 import { rampSize, titleSize } from "@/components/ui/fit";
 import { Glyph } from "@/components/ui/glyphs";
@@ -27,6 +27,7 @@ import { REGRESSION_WARNING_STREAK, WORKING_SET_TYPES } from "@/domain/progressi
 import { SET_LIMITS } from "@/domain/sets";
 import type { LoadUnit, PrescriptionType, SetType } from "@/domain/types";
 import { formatDay } from "@/lib/format";
+import { NO_GUIDANCE } from "@/lib/guidance";
 import { LOAD_UNIT_LABELS, SUGGESTION_KIND_LABELS } from "@/lib/labels";
 import { attempted } from "@/lib/offline-submit";
 import { PLATFORM_ATTRIBUTE } from "@/lib/platform";
@@ -37,6 +38,7 @@ import { ExerciseHistory } from "./exercise-history";
 import { Log, setSaid, unitName, warmSaid } from "./log";
 import { useLoggerActions } from "./logger-actions";
 import {
+  countTargetLabel,
   entryHeading,
   entrySize,
   equipmentGlyph,
@@ -54,7 +56,6 @@ import {
   rirTargetLabel,
   setNumber,
   supersetNext,
-  volumeRange,
 } from "./logger-model";
 import {
   EffortSheet,
@@ -150,14 +151,14 @@ function fieldsFor(
     target: null,
     info: null,
   };
-  const range = volumeRange(exercise);
+  const target = countTargetLabel(exercise, row?.setIndex ?? null);
   const count: EntryField =
     measure === "duration"
       ? {
           field: "duration",
           unit: "s",
           hint: null,
-          foldHint: range ? `target ${range}` : null,
+          foldHint: target ? `target ${target}` : null,
           inputLabel: "Seconds",
           inputMode: "numeric",
           max: SET_LIMITS.durationSeconds,
@@ -177,7 +178,7 @@ function fieldsFor(
             field: "distance",
             unit: "m",
             hint: null,
-            foldHint: range ? `target ${range}` : null,
+            foldHint: target ? `target ${target}` : null,
             inputLabel: "Metres",
             inputMode: "decimal",
             max: SET_LIMITS.distanceMeters,
@@ -196,7 +197,7 @@ function fieldsFor(
             field: "reps",
             unit: "reps",
             hint: null,
-            foldHint: range ? `target ${range}` : null,
+            foldHint: target ? `target ${target}` : null,
             inputLabel: "Reps",
             inputMode: "numeric",
             max: SET_LIMITS.reps,
@@ -532,7 +533,7 @@ export function ExerciseLogger({
   const substituted = plannedName !== undefined && plannedName !== exercise.exercise.name;
   const glyph = equipmentGlyph(exercise);
   const equipment = equipmentLine(exercise);
-  const range = tab === "log" ? perSetLabel(exercise) : prescriptionLabel(exercise);
+  const range = tab === "log" ? perSetLabel(exercise) : prescriptionLabel(exercise, unitLabel);
   const rest = restText(exercise);
   const facts: ReactNode[] = [
     <>
@@ -770,6 +771,9 @@ export function ExerciseLogger({
             row.setIndex === lastSaved && row.autoWarmup && row.setType === "warmup" && !row.dirty,
         ) ?? null);
   const partner = supersetNext(session, exercise);
+  const partnerLine = partner
+    ? prescriptionLabel(partner, LOAD_UNIT_LABELS[partner.equipment?.unit ?? session.preferredUnit])
+    : null;
 
   // The one message slot, at the head of the entry: every message about Save stands here, and
   // the entry grows upwards from Save, so neither Save nor a stepper moves when one comes or
@@ -833,15 +837,13 @@ export function ExerciseLogger({
     <p
       className="entry-slot entry-slot-next"
       aria-label={`Superset: after each set, ${partner.exercise.name}${
-        prescriptionLabel(partner) ? `, ${prescriptionLabel(partner)}` : ""
+        partnerLine ? `, ${partnerLine}` : ""
       }`}
     >
       <Glyph name="link" className="glyph-18 text-ink-2" />
       <span className="font-bold">Then {partner.exercise.name}</span>
-      {prescriptionLabel(partner) && (
-        <span className="type-meta-small text-ink-2 tabular-nums">
-          {prescriptionLabel(partner)}
-        </span>
+      {partnerLine && (
+        <span className="type-meta-small text-ink-2 tabular-nums">{partnerLine}</span>
       )}
     </p>
   ) : null;
@@ -1151,35 +1153,15 @@ export function ExerciseLogger({
 
           {tab === "technique" && (
             <div className="pb-6">
-              <dl className="mt-1">
-                {[
-                  ["Cue", exercise.planned?.keyCue],
-                  ["Target load", exercise.planned?.targetLoadNote],
-                  ["Progression", exercise.planned?.progressionNotes],
-                  ["Substitution", exercise.substitutionReason],
-                ]
-                  .filter((entry): entry is [string, string] => Boolean(entry[1]))
-                  .map(([term, value]) => (
-                    <div key={term} className="border-b border-hair py-3">
-                      <dt className="type-caption text-ink-2">{term}</dt>
-                      <dd className="mt-0.5 text-[length:calc(1px+1rem)] leading-[1.4] font-medium tabular-nums">
-                        {value}
-                      </dd>
-                    </div>
-                  ))}
-              </dl>
-              {!exercise.planned?.keyCue &&
-                !exercise.planned?.targetLoadNote &&
-                !exercise.planned?.progressionNotes && (
-                  <p className="py-3 type-body text-ink-2">No cues in the programme.</p>
-                )}
-              <Link
-                href={`/exercises/${exercise.exercise.id}`}
-                className="flex min-h-[calc(52px+var(--ov-grow))] items-center justify-between font-bold"
-              >
-                Open in the exercise library
-                <Glyph name="chevronRight" className="glyph-20" />
-              </Link>
+              {/* The exercise's guide, the same as the library's, then the programme's cue
+                  (plan: Technique). The programme's load and progression notes and the
+                  substitution reason are not repeated here: the line under the name says
+                  "instead of", and the notes stay in the programme. */}
+              <ExerciseGuide
+                guidance={exercise.guidance ?? NO_GUIDANCE}
+                programmeCue={exercise.planned?.keyCue ?? null}
+                libraryHref={`/exercises/${exercise.exercise.id}` as Route}
+              />
             </div>
           )}
 

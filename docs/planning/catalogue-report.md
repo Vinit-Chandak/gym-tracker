@@ -21,9 +21,9 @@ production deploy leaves out until they are approved.
 | Gym basics (assumed at a gym) | 18 | – |
 | Starter presets | 3 | – |
 | Aliases | 540 | 107 |
-| Guides | 0 | 0 |
-| Demonstration links | 0 | 0 |
-| Drawings | 8 | 8 |
+| Guides | 58 | 58 |
+| Demonstration links | 59 | 59 |
+| Drawings | 67 | 67 |
 
 ## Deployed catalogue
 
@@ -495,22 +495,22 @@ None.
 | State | Exercises |
 | --- | --- |
 | Published guide | 0 |
-| Draft guide awaiting review | 0 |
-| No guide yet (honest gap) | 276 |
+| Draft guide awaiting review | 58 |
+| No guide yet (honest gap) | 218 |
 | A How to log note | 35 |
 | A legacy form cue (shown until a guide is published) | 31 |
 | A legacy form link | 8 |
-| At least one demonstration link | 0 |
+| At least one demonstration link | 58 |
 | Draft exercises awaiting approval (not counted above) | 12 |
 
-Template exercises and fallbacks without a guide: `high-bar-squat`, `leg-press-45`, `seated-leg-curl`, `leg-extension`, `smith-machine-calf-raise`, `leg-press-calf-press`, `cable-crunch`, `barbell-bench-press`, `pull-up`, `seated-cable-row`, `incline-db-press`, `cable-lateral-raise`, `reverse-pec-deck`, `overhead-cable-triceps-extension`, `preacher-curl`, `cable-triceps-pushdown`, `hammer-curl`, `single-arm-overhead-cable-triceps-extension`, `wrist-curl`, `reverse-wrist-curl`, `conventional-deadlift`, `db-romanian-deadlift`, `split-squat`, `leg-press-horizontal`, `hip-abduction`, `incline-barbell-bench`, `lat-pulldown`, `seated-db-shoulder-press`, `pec-deck-fly`, `db-lateral-raise`, `face-pull`, `incline-db-curl`, `reverse-curl`, `side-plank`.
+Template exercises and fallbacks without a guide: none.
 
 Guides without a demonstration link: none.
 
 ## Missing assets
 
-- Shown in the machines step (basics, presets, combinations) without a drawing: `iso_lateral_press`, `incline_press_machine`, `smith_machine`, `assisted_dip_chin`, `hip_abduction`, `hip_adduction`, `calf_raise_machine`, `seated_calf_raise`, `preacher_bench`, `chest_supported_row_machine`, `ab_crunch_machine`, `hip_thrust_machine`, `kettlebells`, `resistance_bands`, `adjustable_bench`, `flat_bench`, `pull_up_bar`, `barbell`, `weight_plates`, `power_rack`, `ab_wheel`, `jump_rope`, `foam_roller`, `dip_station`, `plyo_box`, `ez_bar`, `decline_bench`, `back_extension_bench`, `lat_pulldown`, `seated_row_cable`, `leg_extension`, `pec_deck`, `lat_pulldown_low_row`, `leg_extension_curl`.
-- Other types without a drawing: 54.
+- Shown in the machines step (basics, presets, combinations) without a drawing: `hip_abduction`, `hip_adduction`, `calf_raise_machine`, `seated_calf_raise`, `ab_crunch_machine`, `hip_thrust_machine`, `seated_row_cable`, `leg_extension`.
+- Other types without a drawing: 21.
 - Draft types and combinations without a drawing: `high_row_machine`, `seated_row_machine`, `decline_press_machine`, `lever_squat_machine`, `multi_hip_machine`, `flat_bench_press_station`, `incline_bench_press_station`, `military_press_bench`, `leg_extension_lying_curl`, `hip_abduction_adduction`, `multi_press`, `leg_press_hack_squat`, `biceps_triceps_machine`, `knee_raise_dip_pull_up_tower`, `ab_crunch_back_extension`, `chest_press_lat_pulldown`.
 - Types without a description: none.
 

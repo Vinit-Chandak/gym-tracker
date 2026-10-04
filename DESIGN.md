@@ -527,7 +527,9 @@ under 360 pt wide.
   to the summary. Minimised, it is the session strip on every screen.
 - **Logging:** the title, meta line and tabs stay; on the Log tab the meta line gives the range
   a set aims at (3–5 reps), since how many sets and the RIR target are the entry's (Technique and
-  History, with no entry, give the whole prescription). The log starts under the tabs and fills
+  History, with no entry, give the whole prescription). Every figure has one source: the coach's
+  plan when the coach planned the session (5 reps, its rest), else the programme's, else the
+  exercise's own defaults. The log starts under the tabs and fills
   down towards the entry, which is docked at the foot, whole (the one message slot, the set, three
   steppers, Save), so nothing a thumb needs moves when a set lands and no room opens above
   the sets; the room still to fill sits between the latest set and the entry. When the log needs
@@ -850,6 +852,22 @@ and every control answers a press.
   elsewhere a tile shows its name and purpose, never a placeholder.
 - Never the brightest thing on a dark screen, and never a sport's pigment: ink only says what a
   machine is, never whether it is available.
+
+### Guides (Technique and the library)
+
+- One renderer for the workout's Technique tab and the exercise's library page (plan:
+  onboarding, equipment and technique): caption over text under hairlines, as the Technique
+  board draws it. Setup, Steps (numbered), Cues and Common mistakes, then How to log, then
+  "Programme cue" in the workout. Text at body size with 1.45 leading; captions in ink 2.
+- No guide says "Guide not available yet." in ink 2 and keeps everything else written about the
+  exercise; nothing is invented to fill the space. A custom exercise's notes stand as "Your
+  notes".
+- A demonstration is a row that opens YouTube: "Watch demonstration", the channel under it. No
+  thumbnail, no embedded player: a video's colour would be the only colour on the screen. An
+  in-app player waits for testing on real phones and the owner's approval, and would mount only
+  when asked for, never in a list.
+- A draft guide or a candidate video, shown only where drafts are, carries an outline tag,
+  "Draft for review". The library says where the guide was checked, by publisher.
 
 ### Prints (signature)
 

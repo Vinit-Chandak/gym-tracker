@@ -66,6 +66,7 @@ const base = {
   decision: null,
   coachNote: null,
   coachRestSeconds: null,
+  guidance: null,
   supersetGroup: null,
   equipment: null,
 } satisfies Partial<ExerciseVM>;
@@ -129,6 +130,16 @@ function bench(scenario: Scenario): ExerciseVM {
       requiresEquipment: true,
       defaultPrescriptionType: "reps",
       rirNote: null,
+      defaults: {
+        repMin: null,
+        repMax: null,
+        durationMinSeconds: null,
+        durationMaxSeconds: null,
+        distanceMinMeters: null,
+        distanceMaxMeters: null,
+        rir: null,
+        restSeconds: null,
+      },
     },
     planned: slot({
       plannedExerciseName: "Barbell bench press",
@@ -172,6 +183,16 @@ function squat(): ExerciseVM {
       requiresEquipment: true,
       defaultPrescriptionType: "reps",
       rirNote: null,
+      defaults: {
+        repMin: null,
+        repMax: null,
+        durationMinSeconds: null,
+        durationMaxSeconds: null,
+        distanceMinMeters: null,
+        distanceMaxMeters: null,
+        rir: null,
+        restSeconds: null,
+      },
     },
     planned: slot({
       plannedExerciseName: "High-bar barbell squat",
@@ -209,6 +230,16 @@ function carry(): ExerciseVM[] {
         requiresEquipment: true,
         defaultPrescriptionType: "distance",
         rirNote: null,
+        defaults: {
+          repMin: null,
+          repMax: null,
+          durationMinSeconds: null,
+          durationMaxSeconds: null,
+          distanceMinMeters: null,
+          distanceMaxMeters: null,
+          rir: null,
+          restSeconds: null,
+        },
       },
       planned: slot({
         plannedExerciseName: "Farmer’s carry",
@@ -260,6 +291,16 @@ function carry(): ExerciseVM[] {
         requiresEquipment: true,
         defaultPrescriptionType: "reps",
         rirNote: null,
+        defaults: {
+          repMin: null,
+          repMax: null,
+          durationMinSeconds: null,
+          durationMaxSeconds: null,
+          distanceMinMeters: null,
+          distanceMaxMeters: null,
+          rir: null,
+          restSeconds: null,
+        },
       },
       planned: slot({
         plannedExerciseName: "Wrist curl",
@@ -295,6 +336,16 @@ function machineToSettle(scenario: "basic" | "unknown", art: PreviewArt): Exerci
     requiresEquipment: true,
     defaultPrescriptionType: "reps" as const,
     rirNote: null,
+    defaults: {
+      repMin: null,
+      repMax: null,
+      durationMinSeconds: null,
+      durationMaxSeconds: null,
+      distanceMinMeters: null,
+      distanceMaxMeters: null,
+      rir: null,
+      restSeconds: null,
+    },
   };
   return {
     ...base,

@@ -13,7 +13,6 @@ import {
 
 import { Art } from "@/components/art/art";
 import type { PrintPart, StrengthColumn } from "@/components/art/geometry";
-import { targetsLine } from "@/components/planned-exercises";
 import { RestPill } from "@/components/shell/rest-timer";
 import Link from "@/components/ui/app-link";
 import { Button, LinkButton } from "@/components/ui/button";
@@ -48,21 +47,14 @@ const underWay = (exercise: ExerciseVM) =>
 /**
  * What a row says under the name (DESIGN.md, Rows and marks): for the exercise under way, the
  * sets so far ("60 kg × 4, 60 kg × 4"); otherwise its prescription, the coach's when the coach
- * wrote it ("60 kg · 3 × 5 @ 2, 2, 1 RIR").
+ * wrote it ("60 kg · 3 × 5 @ 2, 2, 1 RIR"), else the programme's, else the exercise's defaults.
  */
-function rowLine(exercise: ExerciseVM, unitLabel: string, readOnly: boolean): string {
+function rowLine(exercise: ExerciseVM, session: SessionVM, readOnly: boolean): string {
   const done = workDone(exercise);
   if ((readOnly || underWay(exercise)) && done.length > 0)
     return done.map((set) => formatSet(set, LOAD_UNIT_LABELS[set.unit])).join(", ");
-  if (exercise.suggestion?.kind === "coach") {
-    const line = targetsLine(
-      exercise.suggestion.sets,
-      unitLabel,
-      exercise.planned?.perSide ?? false,
-    );
-    if (line) return line;
-  }
-  return prescriptionLabel(exercise) ?? equipmentLine(exercise);
+  const unitLabel = LOAD_UNIT_LABELS[exercise.equipment?.unit ?? session.preferredUnit];
+  return prescriptionLabel(exercise, unitLabel) ?? equipmentLine(exercise);
 }
 
 /** The workout's plan as a print: the warm-up's fan, then a column of sets for each exercise. */
@@ -399,7 +391,6 @@ export function WorkoutOverview({
   }, [firstAdded, addedWords]);
   const [warmupDone, setWarmupDone] = useState(session.warmupCompleted);
   const [sheet, setSheet] = useState<"more" | "warmup" | null>(null);
-  const unitLabel = LOAD_UNIT_LABELS[session.preferredUnit];
   const coachPlanned = session.coachPlan !== null;
   const heading = coachPlanned ? `${title}, planned by the coach` : title;
   const blades = session.coachPlan?.warmup.length || session.warmup?.drills.length || 0;
@@ -453,7 +444,7 @@ export function WorkoutOverview({
               <span className="meta-line plan-row-meta">
                 <span className="meta-fact">
                   <Glyph name={glyph} label={GLYPH_LABELS[glyph]} className="glyph-16" />
-                  <span>{rowLine(exercise, unitLabel, readOnly)}</span>
+                  <span>{rowLine(exercise, session, readOnly)}</span>
                   {instead && <span>instead of {instead}</span>}
                 </span>
               </span>

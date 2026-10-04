@@ -70,6 +70,16 @@ function exercise(slot: Slot, index: number): ExerciseVM {
       requiresEquipment: slot.modality !== "bodyweight",
       defaultPrescriptionType: distance ? "distance" : "reps",
       rirNote: null,
+      defaults: {
+        repMin: null,
+        repMax: null,
+        durationMinSeconds: null,
+        durationMaxSeconds: null,
+        distanceMinMeters: null,
+        distanceMaxMeters: null,
+        rir: null,
+        restSeconds: null,
+      },
     },
     equipment: slot.machine
       ? { id: `${slug}-machine`, name: slot.machine, unit: "kg", ladder: null }
@@ -119,6 +129,7 @@ function exercise(slot: Slot, index: number): ExerciseVM {
     decision: null,
     coachNote: slot.coach?.note ?? null,
     coachRestSeconds: null,
+    guidance: null,
   };
 }
 

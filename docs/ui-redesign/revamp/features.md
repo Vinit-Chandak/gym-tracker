@@ -188,13 +188,22 @@ than adding, and keep the RIR honest").
 - **Set options** for a row: its type, steppers for load (in the machine's real increments),
   reps (1), seconds (5), metres (5) and effort (1), and remove the row or delete the set.
 - **Saving a set** confirms it, adds an empty row for the next, and starts the rest timer: the
-  coach's rest, else the plan's, else 90 s. A light first set saved without effort before any
+  coach's rest, else the plan's, else the exercise's own default, else 90 s. A light first set saved without effort before any
   working set becomes a warm-up, with Undo.
 - **Also:** edit a saved set (Update), add a set (up to 50), Complete the exercise (Reopen
   afterwards), Skip it with an optional reason before any set is logged, and on a machine
   whose next weight is unknown, record it ("Next up from 45 kg").
-- **Technique:** the cue, target load, progression and substitution for the movement, and a
-  link to the exercise library.
+- **Technique** (owner decision, 4 October 2026): the exercise's guide, the same as the
+  library's (Setup, Steps, Cues, Common mistakes), then How to log, then "Programme cue" when the
+  slot has one, then "Watch demonstration" (opens YouTube) and "Open in the exercise library". No
+  guide yet says "Guide not available yet." and keeps what is written about the exercise; a
+  custom exercise shows its own notes. The programme's target-load and progression notes and the
+  substitution reason are no longer shown in the workout: the line under the name says "instead
+  of …", the coach's note explains a coach's swap, and the notes stay in the programme.
+- **Today's targets:** when the coach planned the session, the line under the name, the
+  workout list and the rest are the coach's, like the entry, the RIR target, the set count and
+  the timer; without a coach plan they are the programme's; an exercise added on the spot shows
+  its own defaults.
 - **History:** the previous comparable session on this machine ("Previous on this machine:
   60 kg × 5, 62.5 kg × 4 · 8 Sep"), a warning after two sessions in decline, and why today's
   suggestion is what it is.

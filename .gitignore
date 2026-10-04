@@ -53,3 +53,6 @@ next-env.d.ts
 
 # keep the example env file tracked
 !.env.example
+
+# Claude Code's agent worktrees: whole checkouts of this repository, never part of it
+.claude/worktrees/
