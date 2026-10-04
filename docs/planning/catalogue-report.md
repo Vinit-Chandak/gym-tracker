@@ -5,21 +5,25 @@ rather than edit. Counts are repository facts, not a production audit.
 
 ## Reference counts
 
+Counts take in the catalogue additions awaiting the owner; the drafts column is what the
+production deploy leaves out until they are approved.
+
 | Record | Count | Of which drafts |
 | --- | --- | --- |
-| Equipment types | 93 | 0 |
-| Exercises | 276 | 0 |
+| Equipment types | 101 | 8 |
+| Exercises | 288 | 12 |
 | Inactive exercises | 0 | – |
-| Requirement alternatives | 455 | – |
-| Exercises with types used together | 52 | – |
+| Requirement alternatives | 480 | 25 |
+| Exercises with types used together | 52 | 0 |
 | Corrected mappings | 120 | – |
-| Combination machines | 3 | 0 |
+| Combination machines | 11 | 8 |
 | Families | 5 | – |
 | Gym basics (assumed at a gym) | 18 | – |
 | Starter presets | 3 | – |
+| Aliases | 540 | 107 |
 | Guides | 0 | 0 |
 | Demonstration links | 0 | 0 |
-| Drawings | 0 | 0 |
+| Drawings | 8 | 8 |
 
 ## Deployed catalogue
 
@@ -28,10 +32,124 @@ available, so missing or unexpected deployed slugs were not compared. Run this s
 `--database <url>` against a database you may read to add that comparison; it refuses any
 database that is not on this machine.
 
+## Awaiting the owner's approval
+
+The catalogue additions researched in [catalogue-additions.md](catalogue-additions.md), each
+marked `review: "draft"` in its manifest. They are seeded only into a database on this machine
+and into tests that ask for drafts; the production deploy leaves them out, and with them every
+way to do an exercise and every alias that depends on them. Approving one is taking away its
+`review: "draft"`, or moving a drafted alias into the published entry; the list in
+`src/db/seed/seed.test.ts` (`AWAITING`) says what is still waiting.
+
+### Equipment types (8)
+
+| Type | Name | Category | Default | Family | Exercises on it |
+| --- | --- | --- | --- | --- | --- |
+| `high_row_machine` | High row machine | machine | plate_loaded, kg | – | `machine-high-row` |
+| `seated_row_machine` | Seated row machine | machine | selectorized, kg | – | `chest-supported-row` |
+| `decline_press_machine` | Decline press machine | machine | plate_loaded, kg | `chest_press` | `decline-press-machine` |
+| `lever_squat_machine` | Lever squat machine | machine | plate_loaded, kg | – | `lever-squat` |
+| `multi_hip_machine` | Multi-hip machine | machine | selectorized, kg | – | `glute-kickback-machine` |
+| `flat_bench_press_station` | Flat bench press station | accessory | bodyweight, kg | – | `barbell-bench-press`, `close-grip-bench-press`, `flat-db-press` |
+| `incline_bench_press_station` | Incline bench press station | accessory | bodyweight, kg | – | `incline-barbell-bench`, `incline-db-press` |
+| `military_press_bench` | Military press bench | accessory | bodyweight, kg | – | `seated-db-shoulder-press`, `seated-barbell-press` |
+
+### Combination machines (8)
+
+| Combination | Name | Types, display type first | Aliases |
+| --- | --- | --- | --- |
+| `leg_extension_lying_curl` | Leg extension and lying curl | `leg_extension`, `leg_curl_lying` | Leg extension and prone leg curl; Leg curl extension machine |
+| `hip_abduction_adduction` | Hip abduction and adduction | `hip_abduction`, `hip_adduction` | Abductor adductor machine; Inner and outer thigh machine; Hip abductor adductor |
+| `multi_press` | Multi-press | `chest_press_machine`, `incline_press_machine`, `shoulder_press_machine` | Multi press machine; Chest and shoulder press machine; Multi chest press |
+| `leg_press_hack_squat` | Leg press and hack squat | `leg_press_45`, `hack_squat` | Leg press cum hack squat; Hack squat leg press |
+| `biceps_triceps_machine` | Biceps and triceps machine | `biceps_curl_machine`, `triceps_extension_machine` | – |
+| `knee_raise_dip_pull_up_tower` | Knee raise, dip and pull-up tower | `captains_chair`, `dip_station`, `pull_up_bar` | Power tower; Vertical knee raise dip chin; Knee raise dip chin station; Chin dip leg raise station |
+| `ab_crunch_back_extension` | Ab crunch and back extension | `ab_crunch_machine`, `back_extension_machine` | Ab and back machine; Low back abdominal |
+| `chest_press_lat_pulldown` | Chest press and lat pulldown | `chest_press_machine`, `lat_pulldown` | Seated chest press and lat pull down |
+
+### Exercises (12)
+
+| Exercise | Name | Modality | Measured in | Equipment |
+| --- | --- | --- | --- | --- |
+| `incline-push-up` | Incline push-up | bodyweight | reps | bodyweight · flat_bench · plyo_box · smith_machine |
+| `kneeling-push-up` | Kneeling push-up | bodyweight | reps | bodyweight |
+| `burpee` | Burpee | bodyweight | reps | bodyweight |
+| `mountain-climber` | Mountain climber | bodyweight | duration | bodyweight |
+| `jump-squat` | Jump squat | bodyweight | reps | bodyweight |
+| `db-sumo-squat` | Dumbbell sumo squat | dumbbell | reps | dumbbells · kettlebells |
+| `hindu-push-up` | Hindu push-up | bodyweight | reps | bodyweight |
+| `hindu-squat` | Hindu squat | bodyweight | reps | bodyweight |
+| `decline-press-machine` | Decline press machine | machine | reps | decline_press_machine |
+| `lever-squat` | Lever squat | machine | reps | lever_squat_machine |
+| `machine-high-row` | Machine high row | machine | reps | high_row_machine |
+| `medicine-ball-slam` | Medicine ball slam | cardio | reps | medicine_ball |
+
+### Ways to do a published exercise on a draft type (9)
+
+Production keeps the published ways; each way below waits, whole, with its draft type.
+
+| Exercise | Published ways | Waiting with its type |
+| --- | --- | --- |
+| `barbell-bench-press` | (barbell + flat_bench + power_rack) | (barbell + flat_bench_press_station) |
+| `incline-barbell-bench` | (barbell + adjustable_bench + power_rack) | (barbell + incline_bench_press_station) |
+| `close-grip-bench-press` | (barbell + flat_bench + power_rack) | (barbell + flat_bench_press_station) |
+| `incline-db-press` | (dumbbells + adjustable_bench) | (dumbbells + incline_bench_press_station) |
+| `seated-db-shoulder-press` | (dumbbells + adjustable_bench) | (dumbbells + military_press_bench) |
+| `chest-supported-row` | chest_supported_row_machine | seated_row_machine |
+| `flat-db-press` | (dumbbells + flat_bench) | (dumbbells + flat_bench_press_station) |
+| `glute-kickback-machine` | glute_kickback_machine | multi_hip_machine |
+| `seated-barbell-press` | (barbell + adjustable_bench + power_rack) | (barbell + military_press_bench) |
+
+### Drafted aliases of published items (47)
+
+| Item | Aliases awaiting approval |
+| --- | --- |
+| type `barbell` | Olympic rod; Weightlifting rod; Gym rod |
+| type `ez_bar` | Curl rod; Zigzag rod |
+| type `dumbbells` | Dumbbell rods |
+| type `landmine` | T-bar pivot |
+| type `captains_chair` | Vertical knee up |
+| type `chest_press_machine` | Vertical chest press |
+| type `functional_trainer` | Multi-functional station; Twin adjustable pulley; Functional training tower |
+| type `seated_row_cable` | Long pull row; Long pull; Ground pulley row |
+| type `lat_pulldown` | High lat pulley; Lat pulley |
+| type `t_bar_row` | T-arm machine; Incline T-bar row; Chest-supported T-bar row |
+| type `pec_deck` | Pec dec; Peck deck; Pec fly rear delt |
+| type `preacher_bench` | Curl bench |
+| type `hack_squat` | Hack slide |
+| type `glute_kickback_machine` | Glute isolator |
+| type `back_extension_bench` | Hyper extension |
+| type `decline_bench` | Olympic decline bench |
+| type `decline_ab_bench` | Ab board; Abdominal board; Abdominal bench |
+| type `elliptical` | Elliptical cross trainer |
+| type `stair_climber` | Step-up climber |
+| combination `lat_pulldown_low_row` | Lat pulldown with rowing; Pull down and low row |
+| combination `assisted_dip_chin` | Chin dip assist; Weight assisted chin dip; Dipping and chinning |
+| combination `leg_extension_curl` | Seated leg extension leg curl; Dual station leg curl extension |
+| exercise `hip-abduction` | Outer thigh |
+| exercise `hip-adduction` | Inner thigh |
+| exercise `seated-cable-row` | Long pull row |
+| exercise `chest-supported-row` | Seated row machine; Low row machine |
+| exercise `pec-deck-fly` | Pec dec fly |
+| exercise `stationary-bike` | Exercise cycle |
+
+### Names to move on approval (3)
+
+The research would move these names to a draft item. Moving one now would take it out of
+production's search while the item it moves to is not there, so it stays where it is until
+the owner approves that item.
+
+| Name | Now on | Moves to |
+| --- | --- | --- |
+| Seated row machine | type `chest_supported_row_machine` | type `seated_row_machine` |
+| Bench press station | type `flat_bench` | type `flat_bench_press_station` |
+| Power tower | type `captains_chair` | combination `knee_raise_dip_pull_up_tower` |
+
 ## Every mapping, classified
 
 Classes are the plan's (Mappings) plus the repairs the requirement model allowed. A group in
-brackets is used together, its first type the primary; `·` separates alternatives.
+brackets is used together, its first type the primary; `·` separates alternatives. This is
+what production seeds: the drafts, and the ways that wait for a draft type, are listed above.
 
 | Class | Meaning | Exercises |
 | --- | --- | --- |
@@ -342,6 +460,8 @@ brackets is used together, its first type the primary; `·` separates alternativ
 
 - Referenced by no exercise: `medicine_ball`, `swiss_bar`, `dip_belt`.
 - Only ever a supporting implement, never a primary: none.
+- Of the unused, those a draft exercise would use: `medicine_ball` (`medicine-ball-slam`).
+- Draft types no exercise uses: none.
 
 ## Duplicate and alias candidates
 
@@ -353,11 +473,22 @@ side by side with their pictures rather than guessing.
 | roman chair | type `captains_chair` (alias); type `back_extension_bench` (alias) |
 | lat machine | type `lat_pulldown` (alias); combination `lat_pulldown_low_row` (alias) |
 
+Once the drafts are seeded, also:
+
+| Name | Means |
+| --- | --- |
+| power tower | type `captains_chair` (alias); combination `knee_raise_dip_pull_up_tower` (alias, draft) |
+| seated row machine | type `chest_supported_row_machine` (alias); type `seated_row_machine` (draft) |
+
 Exercise names and aliases shared by more than one exercise:
 
 | Name | Exercises |
 | --- | --- |
 | french press | `skull-crusher`, `ez-bar-overhead-extension` |
+
+Once the drafts are seeded, also:
+
+None.
 
 ## Guidance
 
@@ -370,6 +501,7 @@ Exercise names and aliases shared by more than one exercise:
 | A legacy form cue (shown until a guide is published) | 31 |
 | A legacy form link | 8 |
 | At least one demonstration link | 0 |
+| Draft exercises awaiting approval (not counted above) | 12 |
 
 Template exercises and fallbacks without a guide: `high-bar-squat`, `leg-press-45`, `seated-leg-curl`, `leg-extension`, `smith-machine-calf-raise`, `leg-press-calf-press`, `cable-crunch`, `barbell-bench-press`, `pull-up`, `seated-cable-row`, `incline-db-press`, `cable-lateral-raise`, `reverse-pec-deck`, `overhead-cable-triceps-extension`, `preacher-curl`, `cable-triceps-pushdown`, `hammer-curl`, `single-arm-overhead-cable-triceps-extension`, `wrist-curl`, `reverse-wrist-curl`, `conventional-deadlift`, `db-romanian-deadlift`, `split-squat`, `leg-press-horizontal`, `hip-abduction`, `incline-barbell-bench`, `lat-pulldown`, `seated-db-shoulder-press`, `pec-deck-fly`, `db-lateral-raise`, `face-pull`, `incline-db-curl`, `reverse-curl`, `side-plank`.
 
@@ -377,7 +509,8 @@ Guides without a demonstration link: none.
 
 ## Missing assets
 
-- Shown in the machines step (basics, presets, combinations) without a drawing: `chest_press_machine`, `iso_lateral_press`, `incline_press_machine`, `shoulder_press_machine`, `smith_machine`, `assisted_dip_chin`, `hip_abduction`, `hip_adduction`, `calf_raise_machine`, `seated_calf_raise`, `hack_squat`, `preacher_bench`, `chest_supported_row_machine`, `ab_crunch_machine`, `hip_thrust_machine`, `dumbbells`, `kettlebells`, `resistance_bands`, `adjustable_bench`, `flat_bench`, `pull_up_bar`, `barbell`, `weight_plates`, `power_rack`, `ab_wheel`, `jump_rope`, `foam_roller`, `dip_station`, `plyo_box`, `ez_bar`, `decline_bench`, `back_extension_bench`, `cable_station`, `lat_pulldown`, `seated_row_cable`, `leg_press_45`, `leg_extension`, `leg_curl_seated`, `pec_deck`, `lat_pulldown_low_row`, `leg_extension_curl`.
-- Other types without a drawing: 55.
+- Shown in the machines step (basics, presets, combinations) without a drawing: `iso_lateral_press`, `incline_press_machine`, `smith_machine`, `assisted_dip_chin`, `hip_abduction`, `hip_adduction`, `calf_raise_machine`, `seated_calf_raise`, `preacher_bench`, `chest_supported_row_machine`, `ab_crunch_machine`, `hip_thrust_machine`, `kettlebells`, `resistance_bands`, `adjustable_bench`, `flat_bench`, `pull_up_bar`, `barbell`, `weight_plates`, `power_rack`, `ab_wheel`, `jump_rope`, `foam_roller`, `dip_station`, `plyo_box`, `ez_bar`, `decline_bench`, `back_extension_bench`, `lat_pulldown`, `seated_row_cable`, `leg_extension`, `pec_deck`, `lat_pulldown_low_row`, `leg_extension_curl`.
+- Other types without a drawing: 54.
+- Draft types and combinations without a drawing: `high_row_machine`, `seated_row_machine`, `decline_press_machine`, `lever_squat_machine`, `multi_hip_machine`, `flat_bench_press_station`, `incline_bench_press_station`, `military_press_bench`, `leg_extension_lying_curl`, `hip_abduction_adduction`, `multi_press`, `leg_press_hack_squat`, `biceps_triceps_machine`, `knee_raise_dip_pull_up_tower`, `ab_crunch_back_extension`, `chest_press_lat_pulldown`.
 - Types without a description: none.
 

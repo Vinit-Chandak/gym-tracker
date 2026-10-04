@@ -22,6 +22,9 @@ const type = (
   defaultUnit: LoadUnit = "kg",
 ): EquipmentTypeSeed => ({ slug, name, category, defaultResistanceMode, defaultUnit, sortOrder });
 
+/** A type the owner has not approved yet; approving it is deleting the wrapper. */
+const draft = (entry: EquipmentTypeSeed): EquipmentTypeSeed => ({ ...entry, review: "draft" });
+
 /**
  * The shared catalogue of equipment every gym is built from. These are kinds of machine, not
  * machines: the specific pec deck at your gym is an `equipment_instances` row that points here,
@@ -141,12 +144,37 @@ const CATALOGUE: readonly EquipmentTypeSeed[] = [
   type("elliptical", "Elliptical", "cardio", "cardio", 115, "none"),
   type("stair_climber", "Stair climber", "cardio", "cardio", 116, "none"),
   type("ski_erg", "Ski erg", "cardio", "cardio", 117, "none"),
+
+  // --- Awaiting the owner's approval ------------------------------------------------------------
+  // Catalogue additions (docs/planning/catalogue-additions.md, 2.1): seeded only where drafts are,
+  // so production never sees them until the wrapper goes. Each sorts at the end of its section.
+  draft(type("high_row_machine", "High row machine", "machine", "plate_loaded", 39)),
+  draft(type("seated_row_machine", "Seated row machine", "machine", "selectorized", 49)),
+  draft(type("decline_press_machine", "Decline press machine", "machine", "plate_loaded", 58)),
+  draft(type("lever_squat_machine", "Lever squat machine", "machine", "plate_loaded", 84)),
+  draft(type("multi_hip_machine", "Multi-hip machine", "machine", "selectorized", 85)),
+  draft(
+    type("flat_bench_press_station", "Flat bench press station", "accessory", "bodyweight", 104),
+  ),
+  draft(
+    type(
+      "incline_bench_press_station",
+      "Incline bench press station",
+      "accessory",
+      "bodyweight",
+      105,
+    ),
+  ),
+  draft(type("military_press_bench", "Military press bench", "accessory", "bodyweight", 106)),
 ];
 
 /**
  * Kinds of machine whose variants are materially different (plan: onboarding flow, item 4): a
  * beginner says which one their gym has, and a workout offers "A different one". The first
  * member is the one a gym is assumed to have where the family is a basic.
+ *
+ * A member may be a draft type: where drafts are not seeded it is left out with its type, and the
+ * family is simply the members that are there. A draft is never a family's first member.
  */
 export const EQUIPMENT_FAMILIES: Readonly<Record<string, { name: string; members: string[] }>> = {
   leg_press: {
@@ -159,7 +187,12 @@ export const EQUIPMENT_FAMILIES: Readonly<Record<string, { name: string; members
   },
   chest_press: {
     name: "Chest press",
-    members: ["chest_press_machine", "iso_lateral_press", "incline_press_machine"],
+    members: [
+      "chest_press_machine",
+      "iso_lateral_press",
+      "incline_press_machine",
+      "decline_press_machine",
+    ],
   },
   cable: {
     name: "Cable machine",

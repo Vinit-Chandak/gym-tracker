@@ -16,12 +16,12 @@ import {
 } from "../schema";
 import type { DbOrTx } from "../types";
 import { ASSUMED_EQUIPMENT } from "./data/assumed-equipment";
-import { EQUIPMENT_COMBINATIONS } from "./data/equipment-combinations";
-import { EQUIPMENT_DESCRIPTIONS } from "./data/equipment-descriptions";
+import { DRAFT_COMBINATION_ALIASES, EQUIPMENT_COMBINATIONS } from "./data/equipment-combinations";
+import { DRAFT_EQUIPMENT_ALIASES, EQUIPMENT_DESCRIPTIONS } from "./data/equipment-descriptions";
 import { EQUIPMENT_PRESETS } from "./data/equipment-presets";
 import { EQUIPMENT_TYPES } from "./data/equipment-types";
-import { EXERCISE_ALIASES } from "./data/exercise-aliases";
-import { EXERCISES, requirementGroups } from "./data/exercises";
+import { DRAFT_EXERCISE_ALIASES, EXERCISE_ALIASES } from "./data/exercise-aliases";
+import { EXERCISES, requirementGroups, type ExerciseSeed } from "./data/exercises";
 import { GUIDES, MEDIA } from "./data/guides";
 import { WARMUP_PROTOCOLS } from "./data/warmups";
 
@@ -40,33 +40,66 @@ export type ReferenceSeedSummary = {
 export type ReferenceSeedOptions = {
   /**
    * Seed the catalogue additions still awaiting the owner's approval (`review: "draft"`), and
-   * everything that points at them. Off unless asked for: the production deploy never asks, so
-   * a draft never reaches the production database. The local seeder asks for a loopback database.
+   * everything that points at them: a way to do a published exercise on a draft type, and the
+   * aliases drafted for published items (`DRAFT_*_ALIASES`). Off unless asked for: the production
+   * deploy never asks, so a draft never reaches the production database. The local seeder asks
+   * for a loopback database.
    */
   drafts?: boolean;
   /** Tests only: runs inside the seed's transaction after every write, before it commits. */
   beforeCommit?: (tx: DbOrTx) => Promise<void>;
 };
 
+/**
+ * One exercise as an environment seeds it, or null for a draft it leaves out. A published
+ * exercise may gain a way to do it on a draft type, and that way waits with the type: where the
+ * type is not seeded, the alternative goes whole, because dropping only the type would change what
+ * the group asks for or leave it without its primary. A published exercise always keeps a way to
+ * be done, and a type no manifest knows is a mistake wherever it appears.
+ */
+export function seededExercise(
+  exercise: ExerciseSeed,
+  environment: { drafts: boolean; seeded: ReadonlySet<string>; known: ReadonlySet<string> },
+): ExerciseSeed | null {
+  if (!environment.drafts && exercise.review === "draft") return null;
+  const unseeded = new Set<string>();
+  const equipment = exercise.equipment.filter((alternative) => {
+    const group = typeof alternative === "string" ? [alternative] : alternative;
+    const unknown = group.filter((slug) => !environment.known.has(slug));
+    if (unknown.length > 0)
+      throw new Error(`Exercise "${exercise.slug}" names unknown equipment: ${unknown.join(", ")}`);
+    for (const slug of group) if (!environment.seeded.has(slug)) unseeded.add(slug);
+    return group.every((slug) => environment.seeded.has(slug));
+  });
+  if (equipment.length === exercise.equipment.length) return exercise;
+  if (equipment.length > 0) return { ...exercise, equipment };
+  if (exercise.review === "draft") return null;
+  throw new Error(
+    `Exercise "${exercise.slug}" needs unseeded equipment for every way to do it: ` +
+      [...unseeded].join(", "),
+  );
+}
+
 /** The manifests as one environment sees them: drafts kept or dropped, with what depends on them. */
 export function referenceManifests(options: ReferenceSeedOptions = {}) {
   const drafts = options.drafts ?? false;
   const types = EQUIPMENT_TYPES.filter((type) => drafts || type.review !== "draft");
   const typeSlugs = new Set(types.map((type) => type.slug));
-  const exerciseList = EXERCISES.filter((exercise) => {
-    if (!drafts && exercise.review === "draft") return false;
-    const unknown = requirementGroups(exercise)
-      .flat()
-      .filter((slug) => !typeSlugs.has(slug));
-    if (unknown.length === 0) return true;
-    // A published exercise may never depend on something that is not published yet.
-    if (exercise.review !== "draft")
-      throw new Error(
-        `Exercise "${exercise.slug}" needs unseeded equipment: ${unknown.join(", ")}`,
-      );
-    return false;
+  const environment = {
+    drafts,
+    seeded: typeSlugs,
+    known: new Set(EQUIPMENT_TYPES.map((type) => type.slug)),
+  };
+  const exerciseList = EXERCISES.flatMap((exercise) => {
+    const seeded = seededExercise(exercise, environment);
+    return seeded ? [seeded] : [];
   });
   const exerciseSlugs = new Set(exerciseList.map((exercise) => exercise.slug));
+  // Aliases still awaiting the owner join a published item's own only where drafts are seeded.
+  const withDrafted = (
+    published: readonly string[] | undefined,
+    drafted: readonly string[] | undefined,
+  ): string[] => [...(published ?? []), ...(drafts ? (drafted ?? []) : [])];
   const combinations = EQUIPMENT_COMBINATIONS.filter((combination) => {
     if (!drafts && combination.review === "draft") return false;
     const unknown = combination.types.filter((slug) => !typeSlugs.has(slug));
@@ -76,7 +109,10 @@ export function referenceManifests(options: ReferenceSeedOptions = {}) {
         `Combination "${combination.slug}" needs unseeded types: ${unknown.join(", ")}`,
       );
     return false;
-  });
+  }).map((combination) => ({
+    ...combination,
+    aliases: withDrafted(combination.aliases, DRAFT_COMBINATION_ALIASES[combination.slug]),
+  }));
   const combinationSlugs = new Set(combinations.map((combination) => combination.slug));
   const families = new Set(types.flatMap((type) => (type.family ? [type.family] : [])));
   // A preset is published, but may name a draft so a development build shows it in place.
@@ -94,6 +130,20 @@ export function referenceManifests(options: ReferenceSeedOptions = {}) {
     types,
     exercises: exerciseList,
     combinations,
+    /** Every seeded type's aliases, by slug. */
+    equipmentAliases: Object.fromEntries(
+      types.map((type) => [
+        type.slug,
+        withDrafted(EQUIPMENT_DESCRIPTIONS[type.slug]?.aliases, DRAFT_EQUIPMENT_ALIASES[type.slug]),
+      ]),
+    ),
+    /** Every seeded exercise's aliases, by slug. */
+    exerciseAliases: Object.fromEntries(
+      exerciseList.map((exercise) => [
+        exercise.slug,
+        withDrafted(EXERCISE_ALIASES[exercise.slug], DRAFT_EXERCISE_ALIASES[exercise.slug]),
+      ]),
+    ),
     presets,
     assumed: Object.entries(ASSUMED_EQUIPMENT).flatMap(([gymKind, slugs]) =>
       slugs
@@ -143,7 +193,7 @@ async function seedManifests(
           defaultResistanceMode: t.defaultResistanceMode,
           defaultUnit: t.defaultUnit,
           sortOrder: t.sortOrder,
-          aliases: [...(description?.aliases ?? [])],
+          aliases: manifests.equipmentAliases[t.slug] ?? [],
           purpose: description?.purpose ?? null,
           identification: description?.identification ?? null,
           family: t.family ?? null,
@@ -213,7 +263,7 @@ async function seedManifests(
         formNotes: e.formNotes ?? null,
         formUrl: e.formUrl ?? null,
         logNote: e.logNote ?? null,
-        aliases: [...(EXERCISE_ALIASES[e.slug] ?? [])],
+        aliases: manifests.exerciseAliases[e.slug] ?? [],
         isActive: e.isActive ?? true,
       })),
     )

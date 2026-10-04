@@ -602,4 +602,98 @@ export const EQUIPMENT_DESCRIPTIONS: Readonly<Record<string, EquipmentDescriptio
       "A tall, narrow upright unit on a floor stand or a wall, with two handles on cords that come down from a fan at the top.",
     aliases: ["Ski ergometer", "Ski machine"],
   },
+
+  // --- Awaiting the owner's approval ------------------------------------------------------------
+  // The draft types (docs/planning/catalogue-additions.md, 2.1), seeded only with their type.
+  high_row_machine: {
+    purpose: "Pulls handles down and back from overhead, for the upper back",
+    identification:
+      "A seat with thigh pads under two handles set high in front, each on its own plate-loaded lever arm; a lat pulldown has one bar on a cable.",
+    aliases: ["Iso-lateral high row"],
+  },
+  seated_row_machine: {
+    purpose: "Rows to the ribs from a seat, chest on a pad, against a weight stack",
+    identification:
+      "A seat and an upright chest pad facing two handles at chest height, with a weight stack beside it. No footplate or long cable, and no plate horns.",
+    aliases: ["Low row machine", "Seated rowing machine", "Vertical row", "Pin-loaded seated row"],
+  },
+  decline_press_machine: {
+    purpose: "Presses forward and down from a reclined seat, for the lower chest",
+    identification:
+      "A seat with a thigh roller and a reclined back pad; the handles start at lower-chest height and move down and forward, usually on two plate-loaded arms.",
+    aliases: ["Decline chest press", "Iso-lateral decline press"],
+  },
+  lever_squat_machine: {
+    purpose: "Plate-loaded squats with the shoulder pads on a pivoting lever",
+    identification:
+      "You stand under shoulder pads at the end of a long lever hinged at the far end, plates on the lever. A hack squat has a sled on rails, a pendulum squat a swinging back pad.",
+    aliases: ["V-squat", "Super squat", "Power squat", "Leverage squat"],
+  },
+  multi_hip_machine: {
+    purpose: "Moves one leg forward, back, out or in against a padded lever",
+    identification:
+      "A standing platform with hand grips and one padded lever at thigh height, whose pivot at hip level turns to four positions; a glute kickback machine only kicks back.",
+    aliases: ["Multi hip", "Total hip", "Hip machine", "Rear kick machine"],
+  },
+  flat_bench_press_station: {
+    purpose: "A flat bench with built-in bar holders for the barbell bench press",
+    identification:
+      "A flat padded bench with two uprights holding the bar at the head end, often with a spotter step. The back does not tilt, and it is not a cage.",
+    aliases: ["Olympic flat bench", "Bench press bench", "Bench press machine", "Flat bench press"],
+  },
+  incline_bench_press_station: {
+    purpose: "A fixed incline bench with bar holders for incline barbell pressing",
+    identification:
+      "A backrest fixed at about 30–45° with a seat and uprights behind the head to hold the bar, often with a spotter platform; an adjustable bench has no uprights.",
+    aliases: ["Olympic incline bench", "Incline bench press bench"],
+  },
+  military_press_bench: {
+    purpose: "An upright seat with bar holders for the seated barbell shoulder press",
+    identification:
+      "A near-vertical back pad and seat with uprights above shoulder height to hold the bar, often with a footrest.",
+    aliases: ["Olympic military bench", "Shoulder press bench"],
+  },
 };
+
+/**
+ * Local names for types already in the catalogue that still await the owner's approval
+ * (docs/planning/catalogue-additions.md, 3). They join a type's aliases only where drafts are
+ * seeded; approving one is moving it into the type's entry above. Brand names stay out, and a
+ * name that only respells one the type already answers to in search is left out too.
+ */
+export const DRAFT_EQUIPMENT_ALIASES: Readonly<Record<string, readonly string[]>> = {
+  barbell: ["Olympic rod", "Weightlifting rod", "Gym rod"],
+  ez_bar: ["Curl rod", "Zigzag rod"],
+  dumbbells: ["Dumbbell rods"],
+  landmine: ["T-bar pivot"],
+  captains_chair: ["Vertical knee up"],
+  chest_press_machine: ["Vertical chest press"],
+  functional_trainer: [
+    "Multi-functional station",
+    "Twin adjustable pulley",
+    "Functional training tower",
+  ],
+  seated_row_cable: ["Long pull row", "Long pull", "Ground pulley row"],
+  lat_pulldown: ["High lat pulley", "Lat pulley"],
+  t_bar_row: ["T-arm machine", "Incline T-bar row", "Chest-supported T-bar row"],
+  pec_deck: ["Pec dec", "Peck deck", "Pec fly rear delt"],
+  preacher_bench: ["Curl bench"],
+  hack_squat: ["Hack slide"],
+  glute_kickback_machine: ["Glute isolator"],
+  back_extension_bench: ["Hyper extension"],
+  decline_bench: ["Olympic decline bench"],
+  decline_ab_bench: ["Ab board", "Abdominal board", "Abdominal bench"],
+  elliptical: ["Elliptical cross trainer"],
+  stair_climber: ["Step-up climber"],
+};
+
+/**
+ * Names the research would move to a draft item once it is approved (docs/planning/
+ * catalogue-additions.md, 2.4). Moving one before then would take it out of production's search
+ * while the item it moves to is not there, so each stays where it is until the owner approves.
+ */
+export const PROPOSED_ALIAS_MOVES: readonly { alias: string; from: string; to: string }[] = [
+  { alias: "Seated row machine", from: "chest_supported_row_machine", to: "seated_row_machine" },
+  { alias: "Bench press station", from: "flat_bench", to: "flat_bench_press_station" },
+  { alias: "Power tower", from: "captains_chair", to: "knee_raise_dip_pull_up_tower" },
+];

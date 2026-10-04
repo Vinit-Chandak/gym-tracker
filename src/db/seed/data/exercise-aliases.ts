@@ -149,4 +149,31 @@ export const EXERCISE_ALIASES: Readonly<Record<string, readonly string[]>> = {
   "db-curl": ["Biceps curl", "Dumbbell biceps curl", "Alternating dumbbell curl"],
   "neutral-grip-lat-pulldown": ["Parallel-grip pulldown", "Hammer-grip pulldown"],
   "chest-dip": ["Chest dip", "Forward-lean dip"],
+
+  // Exercises awaiting the owner's approval: seeded only with them, where drafts are.
+  "incline-push-up": ["Hands-elevated push-up", "Bench push-up", "Wall push-up"],
+  "kneeling-push-up": ["Knee push-up", "Modified push-up"],
+  "mountain-climber": ["Climbers"],
+  "jump-squat": ["Squat jump"],
+  "db-sumo-squat": ["Sumo squat", "Plié squat"],
+  "hindu-push-up": ["Dand"],
+  "hindu-squat": ["Baithak", "Bethak"],
+  "decline-press-machine": ["Decline chest press"],
+  "lever-squat": ["V-squat", "Super squat", "Power squat"],
+  "machine-high-row": ["High row", "Iso-lateral high row"],
+  "medicine-ball-slam": ["Ball slam", "Overhead slam"],
+};
+
+/**
+ * Local names for published exercises that still await the owner's approval
+ * (docs/planning/catalogue-additions.md, 3). They join an exercise's aliases only where drafts
+ * are seeded; approving one is moving it into `EXERCISE_ALIASES`.
+ */
+export const DRAFT_EXERCISE_ALIASES: Readonly<Record<string, readonly string[]>> = {
+  "hip-abduction": ["Outer thigh"],
+  "hip-adduction": ["Inner thigh"],
+  "seated-cable-row": ["Long pull row"],
+  "chest-supported-row": ["Seated row machine", "Low row machine"],
+  "pec-deck-fly": ["Pec dec fly"],
+  "stationary-bike": ["Exercise cycle"],
 };
