@@ -4,6 +4,7 @@ import { useId, useState, type ReactNode } from "react";
 
 import { sanitizeNumberEntry } from "@/domain/sets";
 
+import { FigureInput } from "./figure-input";
 import { emWidth } from "./fit";
 import { Glyph } from "./glyphs";
 
@@ -140,12 +141,10 @@ export function RowStepper({
               (document.getElementById(id) as HTMLInputElement | null)?.focus();
           }}
         >
-          <input
+          <FigureInput
             id={id}
             name={name}
-            type="text"
             inputMode={inputMode}
-            autoComplete="off"
             value={value}
             placeholder={placeholder}
             aria-invalid={error ? true : undefined}
@@ -153,11 +152,6 @@ export function RowStepper({
               [hint ? hintId : null, error ? errorId : null].filter(Boolean).join(" ") || undefined
             }
             onChange={(event) => set(clean(event.target.value))}
-            onFocus={(event) => {
-              const input = event.currentTarget;
-              requestAnimationFrame(() => input.select());
-            }}
-            className="figure-input"
             style={{ width: `${Math.max(0.9, emWidth(value || placeholder)) + 0.08}em` }}
           />
           {unit &&

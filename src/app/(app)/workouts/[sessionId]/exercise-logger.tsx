@@ -380,7 +380,8 @@ export function ExerciseLogger({
   }, [flash]);
 
   // While a figure is typed, the layer is the visual viewport, so the entry and Save stand
-  // above the keyboard.
+  // above the keyboard. The installed app on iOS can settle the viewport after its last event
+  // says so, so it is read again as the keyboard finishes coming up.
   useEffect(() => {
     const element = layer.current;
     const viewport = window.visualViewport;
@@ -390,9 +391,11 @@ export function ExerciseLogger({
       element.style.setProperty("--session-height", `${viewport.height}px`);
     };
     sync();
+    const timers = [120, 400, 900].map((delay) => window.setTimeout(sync, delay));
     viewport.addEventListener("resize", sync);
     viewport.addEventListener("scroll", sync);
     return () => {
+      timers.forEach(clearTimeout);
       viewport.removeEventListener("resize", sync);
       viewport.removeEventListener("scroll", sync);
       element.style.removeProperty("--session-top");

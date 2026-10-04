@@ -4,6 +4,7 @@ import { useId } from "react";
 
 import { Art } from "@/components/art/art";
 import type { BowlMeal } from "@/components/art/geometry";
+import { FigureInput } from "@/components/ui/figure-input";
 import { emWidth } from "@/components/ui/fit";
 import { Glyph } from "@/components/ui/glyphs";
 import { NUTRITION_LIMITS, toHundredth, type FoodAmounts, type FoodUnit } from "@/domain/nutrition";
@@ -87,11 +88,9 @@ export function AmountField({
           <Glyph name="minus" className="glyph-20" />
         </button>
         <span className="amount-figure">
-          <input
+          <FigureInput
             id={id}
-            type="text"
             inputMode="decimal"
-            autoComplete="off"
             value={value}
             disabled={disabled}
             aria-invalid={error ? true : undefined}
@@ -99,11 +98,6 @@ export function AmountField({
             onChange={(event) =>
               onChange(sanitizeNumberEntry(event.target.value, "decimal", NUTRITION_LIMITS.amount))
             }
-            onFocus={(event) => {
-              const input = event.currentTarget;
-              requestAnimationFrame(() => input.select());
-            }}
-            className="figure-input"
             style={{ width: `${Math.max(0.9, emWidth(value || "0")) + 0.08}em` }}
           />
           <span className="amount-unit" aria-hidden>

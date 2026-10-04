@@ -543,7 +543,9 @@ under 360 pt wide.
   what stands over the log (the coach's note) scrolls too, from the name, so the entry never
   covers it, and what runs on under the entry fades into the ground at the scroll's edge.
 - **Typing:** tapping a figure types it, on the decimal pad; above the pad stay the figures, on
-  one baseline, and Save, with the keyboard's Previous, Next and Done.
+  one baseline, and Save, with the keyboard's Previous, Next and Done. The figure typed stands
+  over its solid rule with no caret, selected in ink until the first key, which replaces it (a
+  delete clears it); the same holds wherever a figure is typed (a stepper's, a food's amount).
 - **Pinned actions:** (not on Today, whose cards carry their own) 8 pt above the safe area, in
   ground down to the screen's foot, or 12 above the tab bar; the content stops above them and fades under them, and what the keyboard focuses
   is scrolled clear of them. Where large text puts the tab bar at the end of the page, they ride

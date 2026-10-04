@@ -324,6 +324,19 @@
     scroll-padding-top: calc(var(--header-height) + env(safe-area-inset-top) + 1rem);
   }
 
+  /*
+   * The installed app on iOS 26 and 27, drawn under the status bar: once the keyboard has been
+   * up, WebKit can hand the page back a viewport a status bar short (874 pt becomes 812 on a
+   * 402×874 iPhone) and keep it until the app is closed, so the tab bar, Save and every sheet
+   * stand 62 pt clear of the bottom of the screen on every page. A page only as tall as that
+   * viewport (`height: 100%`) holds it short; a page as tall as the screen lets WebKit grow it
+   * back. Only where the page is under the status bar (a top inset): an app drawn below the bar
+   * is shorter than the screen, and would scroll by the bar.
+   */
+  html[data-overload-standalone] {
+    min-height: calc(100lvh * sign(env(safe-area-inset-top)));
+  }
+
   body {
     background: var(--ov-canvas);
     color: var(--ov-ink);

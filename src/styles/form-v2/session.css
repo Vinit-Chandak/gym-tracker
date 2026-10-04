@@ -506,7 +506,8 @@ button.log-line {
   color: var(--ov-ink);
 }
 
-/* Typing a figure: the value selected in ink over a solid rule; the buttons step aside. */
+/* Typing a figure: the value selected in ink over a solid rule; the buttons step aside. No
+   caret: the first key replaces the figure (FigureInput), and the rule says which is typed. */
 .figure-input {
   display: inline-block;
   min-width: 1ch;
@@ -518,7 +519,7 @@ button.log-line {
   color: inherit;
   font: inherit;
   text-align: center;
-  caret-color: var(--ov-ink);
+  caret-color: transparent;
   outline: none;
 }
 /* A suggested value stays ink 2 while its neighbour is typed (DESIGN.md: suggested until
@@ -530,7 +531,8 @@ button.log-line {
   border-bottom-color: var(--ov-ink);
   text-decoration: none;
 }
-.figure-input::selection {
+.figure-input::selection,
+.figure-input[data-replacing] {
   background: var(--ov-ink);
   color: var(--ov-on-ink);
 }

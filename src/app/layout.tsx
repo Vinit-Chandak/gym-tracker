@@ -3,6 +3,7 @@ import { Atkinson_Hyperlegible_Next, Jost } from "next/font/google";
 import { AppearanceSync } from "@/components/shell/appearance-sync";
 import { PwaProvider } from "@/components/shell/pwa-provider";
 import { NavigationHistory } from "@/components/shell/back-link";
+import { ViewportSettle } from "@/components/shell/viewport-settle";
 
 import { APP_DESCRIPTION, APP_NAME } from "@/lib/app";
 import { APPEARANCE_INIT_SCRIPT, CANVAS_DARK, CANVAS_LIGHT } from "@/lib/appearance";
@@ -67,9 +68,9 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    // The initializers write data-overload-mode and data-overload-platform before React
-    // hydrates. Suppression is scoped to this element so a real mismatch anywhere else still
-    // surfaces.
+    // The initializers write data-overload-mode, data-overload-platform and
+    // data-overload-standalone before React hydrates. Suppression is scoped to this element so
+    // a real mismatch anywhere else still surfaces.
     <html
       lang="en"
       className={cn("h-full", jost.variable, atkinson.variable)}
@@ -79,13 +80,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="flex min-h-full flex-col">
         {/* First thing in the body: it runs while the rest is still being parsed, so an
-            explicit Light or Dark choice, and Android's larger targets, are in place before
-            anything is painted. */}
+            explicit Light or Dark choice, Android's larger targets and the installed app's
+            page height are in place before anything is painted. */}
         <script
           dangerouslySetInnerHTML={{ __html: APPEARANCE_INIT_SCRIPT + PLATFORM_INIT_SCRIPT }}
         />
         <AppearanceSync />
         <NavigationHistory />
+        <ViewportSettle />
         <PwaProvider>{children}</PwaProvider>
       </body>
     </html>
