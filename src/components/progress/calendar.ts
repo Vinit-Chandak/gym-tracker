@@ -13,7 +13,7 @@ export type DayActivity = {
   environment: string | null;
 };
 
-/** Each sport as the art draws it: lifting a block, a run a track, a ride a wheel, a swim a wave. */
+/** Each sport as the art draws it: lifting a block, a run a runner, a ride a wheel, a swim a wave. */
 export const ART_SPORT: Record<ActivitySport, Sport> = {
   strength: "strength",
   running: "run",
@@ -143,7 +143,7 @@ export function monthEnd(month: string): string {
 
 /** One thing done on a day, as its print draws it. */
 export type DayPiece =
-  | { sport: Exclude<ActivitySport, "strength">; minutes: number | null }
+  | { sport: Exclude<ActivitySport, "strength"> }
   | { sport: "strength"; columns: readonly StrengthColumn[] };
 
 /**
@@ -163,11 +163,7 @@ export function dayParts(pieces: readonly DayPiece[]): PrintPart[] {
       }
       continue;
     }
-    parts.push({
-      kind: ART_SPORT[piece.sport] as "run" | "ride" | "swim",
-      state: "done",
-      ...(piece.minutes ? { minutes: piece.minutes } : {}),
-    });
+    parts.push({ kind: ART_SPORT[piece.sport] as "run" | "ride" | "swim", state: "done" });
   }
   return parts.filter((part) => part.kind !== "strength" || part.columns.length > 0);
 }

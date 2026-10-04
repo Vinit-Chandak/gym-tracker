@@ -4,7 +4,6 @@ import { Art, type CalendarEntry } from "@/components/art/art";
 import {
   FAMILIES,
   FAMILY,
-  trackModules,
   VARIANT,
   VARIANTS,
   type FormState,
@@ -18,7 +17,8 @@ export const metadata: Metadata = { title: "Preview · The alphabet" };
  * The art component drawing the Alphabet board
  * (docs/ui-redesign/revamp/form-v2/screenshots/Alphabet.png): the families, one cut per sport,
  * the states, context, a day, a month and the bowl, with the board's own figures, so the two
- * can be compared section by section.
+ * can be compared section by section. The runner, the month's tiles and its icons came after
+ * the board (DESIGN.md, Shapes and Layout).
  */
 const HOLDS: Record<(typeof FAMILIES)[number], string> = {
   strength: "Lifting",
@@ -30,8 +30,6 @@ const HOLDS: Record<(typeof FAMILIES)[number], string> = {
   play: "Reserved: Climbing · Racket sports",
 };
 const CUTS = {
-  open: "The lane opened at its end",
-  peak: "A peak cut out",
   hub: "The wheel cut in four",
   oar: "Cut twice, as oars",
   blade: "Cut once, aslant, as a blade",
@@ -79,7 +77,7 @@ const SEPTEMBER: Record<number, CalendarEntry[]> = {
 const DAYS: [PrintPart[], string][] = [
   [
     [
-      { kind: "run", minutes: 30 },
+      { kind: "run" },
       {
         kind: "strength",
         columns: [
@@ -104,8 +102,8 @@ const DAYS: [PrintPart[], string][] = [
   ],
   [
     [
-      { kind: "run", minutes: 33, state: "done" },
-      { kind: "swim", minutes: 30, state: "done" },
+      { kind: "run", state: "done" },
+      { kind: "swim", state: "done" },
       {
         kind: "strength",
         columns: [
@@ -204,17 +202,22 @@ export default function ArtPreviewPage() {
 
       <Section
         title="One cut per sport"
-        note="A sport the app adds later is its family’s form with one cut, never an addition: the paper shows through where the cut is."
+        note="A sport the app adds later is its family’s form with one cut, never an addition: the paper shows through where the cut is. A cut does not read on the runner, a figure: walking and hiking print as it until they are drawn."
       >
         <ul className="grid grid-cols-[repeat(auto-fill,minmax(7.5rem,1fr))] gap-4">
-          {VARIANTS.map((variant) => (
-            <Swatch
-              key={variant}
-              sport={variant}
-              size={48}
-              label={`${VARIANT[variant].name} — ${CUTS[VARIANT[variant].cut]}`}
-            />
-          ))}
+          {VARIANTS.flatMap((variant) => {
+            const cut = VARIANT[variant].cut;
+            return cut
+              ? [
+                  <Swatch
+                    key={variant}
+                    sport={variant}
+                    size={48}
+                    label={`${VARIANT[variant].name} — ${CUTS[cut]}`}
+                  />,
+                ]
+              : [];
+          })}
         </ul>
       </Section>
 
@@ -245,27 +248,11 @@ export default function ArtPreviewPage() {
 
       <Section
         title="Context"
-        note="Segments are its structure (sets, intervals, laps, drills); size is how long, in modules: a run’s track grows a module for every 20 minutes."
+        note="Segments are its structure (sets, intervals, laps, drills); size is how long, in whole modules. The runner is one fixed drawing, two modules tall in a print: a print does not measure a run."
       >
         <ul className="grid grid-cols-[repeat(auto-fill,minmax(6.5rem,1fr))] gap-4">
-          <Swatch sport="run" size={44} label="Intervals" segments={4} />
           <Swatch sport="ride" size={44} label="Intervals" segments={4} />
           <Swatch sport="swim" size={44} label="Laps" segments={4} />
-        </ul>
-        <ul className="grid max-w-[45rem] grid-cols-[repeat(auto-fill,minmax(12rem,1fr))] gap-4">
-          {[20, 40, 60].map((minutes) => (
-            <li key={minutes} className="flex flex-col gap-2">
-              <Art
-                kind="print"
-                parts={[{ kind: "run", minutes, state: "done" }]}
-                className="h-[104px]"
-                fallback={{ width: 220, height: 104 }}
-              />
-              <span className="type-meta-small text-ink-2">
-                {minutes} minutes: a track {trackModules(minutes)} modules long
-              </span>
-            </li>
-          ))}
         </ul>
       </Section>
 
@@ -289,10 +276,21 @@ export default function ArtPreviewPage() {
         </ul>
       </Section>
 
-      <Section title="A month">
+      <Section
+        title="A month"
+        note="Each day a tile of paper, an icon for each activity, told apart by shape: a dumbbell, the runner, a cyclist and a swimmer. A day with nothing in it is a paler sheet; today is ringed; days to come are outlines."
+      >
+        <ul className="flex flex-wrap gap-x-6 gap-y-3">
+          {(["strength", "run", "ride", "swim"] as const).map((sport) => (
+            <li key={sport} className="flex items-center gap-2 type-meta-small text-ink-2">
+              <Art kind="icon" sport={sport} size={24} />
+              {FAMILY[sport].name}
+            </li>
+          ))}
+        </ul>
         <div className="grid max-w-[60rem] grid-cols-[repeat(auto-fill,minmax(18rem,1fr))] items-start gap-10">
-          <Art kind="month" month="2026-09" days={SEPTEMBER} today={29} cellHeight={54} />
-          <Art kind="month" month="2026-09" days={SEPTEMBER} today={29} cellHeight={56} dates />
+          <Art kind="month" month="2026-09" days={SEPTEMBER} today={29} cellHeight={50} />
+          <Art kind="month" month="2026-09" days={SEPTEMBER} today={29} cellHeight={58} dates />
         </div>
       </Section>
 

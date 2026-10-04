@@ -41,9 +41,9 @@ export default async function WelcomePage() {
                 { sets: 3, done: 3 },
               ],
             },
-            { kind: "run", minutes: 30, state: "done" },
+            { kind: "run", state: "done" },
             { kind: "ride", state: "done" },
-            { kind: "swim", minutes: 30, state: "done" },
+            { kind: "swim", state: "done" },
           ]}
           className="size-full"
         />

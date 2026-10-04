@@ -28,13 +28,12 @@ export function dayStateWord(plan: Pick<ProgramDayPlan, "isNext" | "status">): s
  * two standing closer.
  */
 export function programmeDayParts(
-  plan: Pick<ProgramDayPlan, "day" | "exercises" | "run" | "status">,
+  plan: Pick<ProgramDayPlan, "day" | "exercises" | "status">,
   { drills = 0, warmup = false }: { drills?: number; warmup?: boolean } = {},
 ): PrintPart[] {
   const state = dayState(plan.status);
   const parts: PrintPart[] = [];
-  if (plan.day.includesRun)
-    parts.push({ kind: "run", minutes: plan.run?.durationMaxMinutes, state });
+  if (plan.day.includesRun) parts.push({ kind: "run", state });
   if (drills > 0 && (warmup || !plan.day.includesLifting))
     parts.push({
       kind: "mobility",

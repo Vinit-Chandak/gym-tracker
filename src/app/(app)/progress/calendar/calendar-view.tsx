@@ -4,22 +4,20 @@ import type { Route } from "next";
 import { useLayoutEffect } from "react";
 
 import { Art } from "@/components/art/art";
-import { ART_SPORT, monthDays, type DayActivity } from "@/components/progress/calendar";
+import {
+  ART_SPORT,
+  monthDays,
+  tally,
+  tallyName,
+  type DayActivity,
+} from "@/components/progress/calendar";
 import { PageHeader } from "@/components/shell/page-header";
 import { formatIsoMonth } from "@/lib/format";
 
-/** The legend: each sport's mark and its name (board Calendar). */
-const LEGEND = [
-  ["strength", "Lifting"],
-  ["running", "Run"],
-  ["cycling", "Ride"],
-  ["swimming", "Swim"],
-] as const;
-
 /**
- * The months on paper, with their dates, oldest first, opening on this month: the header and
- * the legend stay while the months pass under them, as the board draws the month before
- * scrolling off the top.
+ * The months, a tile for each day with its date, oldest first, opening on this month: the
+ * header stays while the months pass under it. Each month says how many
+ * of each sport it holds, each count led by its icon, so the counts are its key.
  */
 export function CalendarView({
   months,
@@ -51,14 +49,6 @@ export function CalendarView({
     <div className="calendar">
       <div className="calendar-head">
         <PageHeader title="Calendar" backHref="/progress" />
-        <p aria-hidden className="calendar-legend page-width">
-          {LEGEND.map(([sport, name]) => (
-            <span key={sport}>
-              <Art kind="mark" sport={ART_SPORT[sport]} size={14} />
-              {name}
-            </span>
-          ))}
-        </p>
       </div>
       <div className="page-width">
         {truncated && (
@@ -79,6 +69,7 @@ export function CalendarView({
               `/progress/day/${month}-${String(i + 1).padStart(2, "0")}` as Route,
             ]),
           );
+          const counts = tally(activities.filter((a) => a.occurredOn.startsWith(month)));
           return (
             <section
               key={month}
@@ -86,16 +77,27 @@ export function CalendarView({
               aria-labelledby={`month-name-${month}`}
               className="calendar-section"
             >
-              <h2 id={`month-name-${month}`} className="calendar-month">
-                {name}
-              </h2>
+              <div className="calendar-month">
+                <h2 id={`month-name-${month}`}>{name}</h2>
+                {counts.length > 0 && (
+                  <ul aria-label={`In ${formatIsoMonth(month, "")}`} className="calendar-counts">
+                    {counts.map((entry) => (
+                      <li key={entry.sport}>
+                        <Art kind="icon" sport={ART_SPORT[entry.sport]} />
+                        {entry.count}
+                        <span className="sr-only"> {tallyName(entry.sport, entry.count)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
               <Art
                 kind="month"
                 month={month}
                 days={monthDays(activities, month)}
                 today={current ? day : null}
                 dates
-                cellHeight={56}
+                cellHeight={58}
                 links={links}
                 label={`${formatIsoMonth(month, "")}, every activity of every day`}
               />

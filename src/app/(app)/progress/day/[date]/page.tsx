@@ -66,7 +66,6 @@ export default async function DayPage(props: PageProps<"/progress/day/[date]">) 
   const entries: Entry[] = [
     ...endurance.map((item): Entry => {
       const seconds = item.durationMs === null ? null : Math.round(item.durationMs / 1000);
-      const minutes = item.durationMs === null ? null : Math.round(item.durationMs / 60_000);
       const place =
         item.sport === "running"
           ? (RUN_PLACE[item.environment ?? ""] ?? "Run")
@@ -96,7 +95,7 @@ export default async function DayPage(props: PageProps<"/progress/day/[date]">) 
           .filter(Boolean)
           .join(" · "),
         href: `/training/activities/${item.id}` as Route,
-        piece: { sport: item.sport as Exclude<ActivitySport, "strength">, minutes },
+        piece: { sport: item.sport as Exclude<ActivitySport, "strength"> },
       };
     }),
     ...workouts.map((workout): Entry => {

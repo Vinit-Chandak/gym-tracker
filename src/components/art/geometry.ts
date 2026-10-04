@@ -9,11 +9,12 @@
  *
  * The grammar (DESIGN.md, Shapes and Prints):
  * - FAMILY, how the body moves, gives the form and its pigment: load is a block, on foot a
- *   track, on wheels a wheel, in water a wave, practice a fan, food a bowl, play a triangle.
- * - SPORT: a family's form with one cut, the paper showing through (walk, hike, spin, row,
- *   paddle, yoga, climbing, racket sports).
+ *   runner, on wheels a wheel, in water a wave, practice a fan, food a bowl, play a triangle.
+ * - SPORT: a family's form with one cut, the paper showing through (spin, row, paddle, yoga,
+ *   climbing, racket sports). The runner is a figure, which a cut cannot read on: walking and
+ *   hiking print as the runner until they are drawn.
  * - CONTEXT means the same on every form: segments are its structure (sets, intervals, laps,
- *   drills); size is how long, in whole modules.
+ *   drills); size is how long, in whole modules. The runner is one fixed drawing.
  * - STATE: thinned pigment with an edge of the full one is to do, full is done, a dashed edge
  *   is skipped. A warm-up is grey.
  * Every form stands on one baseline, on one module grid, with nothing drawn under it, and the
@@ -38,15 +39,15 @@ export type Variant = (typeof VARIANTS)[number];
 /** Anything that prints: a family, or a sport that is its family's form with one cut. */
 export type Sport = Family | Variant;
 
-export type FormName = "block" | "track" | "wheel" | "wave" | "fan" | "bowl" | "triangle";
-export type Cut = "open" | "peak" | "hub" | "oar" | "blade" | "arc" | "steps" | "ball";
+export type FormName = "block" | "runner" | "wheel" | "wave" | "fan" | "bowl" | "triangle";
+export type Cut = "hub" | "oar" | "blade" | "arc" | "steps" | "ball";
 
 /** Thinned with an edge of the full pigment is to do; full is done; a dashed edge is skipped. */
 export type FormState = "todo" | "done" | "skipped";
 
 export const FAMILY: Readonly<Record<Family, { family: string; form: FormName; name: string }>> = {
   strength: { family: "Load", form: "block", name: "Lifting" },
-  run: { family: "On foot", form: "track", name: "Running" },
+  run: { family: "On foot", form: "runner", name: "Running" },
   ride: { family: "On wheels", form: "wheel", name: "Cycling" },
   swim: { family: "In water", form: "wave", name: "Swimming" },
   mobility: { family: "Practice", form: "fan", name: "Mobility" },
@@ -54,10 +55,13 @@ export const FAMILY: Readonly<Record<Family, { family: string; form: FormName; n
   play: { family: "Play", form: "triangle", name: "Play" },
 };
 
-/** A sport the app may add later: its family's form with one cut. */
-export const VARIANT: Readonly<Record<Variant, { base: Family; cut: Cut; name: string }>> = {
-  walk: { base: "run", cut: "open", name: "Walk" },
-  hike: { base: "run", cut: "peak", name: "Hike" },
+/**
+ * A sport the app may add later: its family's form with one cut. Walking and hiking have none
+ * yet: a cut does not read on the runner, so they print as it until they are drawn.
+ */
+export const VARIANT: Readonly<Record<Variant, { base: Family; cut: Cut | null; name: string }>> = {
+  walk: { base: "run", cut: null, name: "Walk" },
+  hike: { base: "run", cut: null, name: "Hike" },
   spin: { base: "ride", cut: "hub", name: "Spin class" },
   row: { base: "swim", cut: "oar", name: "Row" },
   paddle: { base: "swim", cut: "blade", name: "Paddle" },
@@ -95,7 +99,7 @@ export type Paintable = {
 };
 
 export type Shape =
-  | ({ kind: "rect"; x: number; y: number; width: number; height: number } & Paintable)
+  | ({ kind: "rect"; x: number; y: number; width: number; height: number; rx?: number } & Paintable)
   | ({ kind: "path"; d: string } & Paintable)
   | ({ kind: "circle"; cx: number; cy: number; r: number } & Paintable)
   | { kind: "clip"; clip: string; shapes: Shape[] }
@@ -106,10 +110,26 @@ export const f1 = (n: number): number => Math.round(n * 10) / 10;
 
 const todoOf = (family: Family): Paint => `${family}-todo`;
 
-/** A run's track grows longer with its time: a module, and another for every 20 minutes. */
-export function trackModules(minutes = 30): number {
-  return Math.min(5, Math.max(1.8, 1 + minutes / 20));
+/**
+ * A path drawn on the glyph's 24-unit grid, in absolute commands with each point an "x y" pair,
+ * placed at (x, y) and scaled by k.
+ */
+function onGrid(d: string, x: number, y: number, k: number): string {
+  return d.replace(
+    /(-?[\d.]+) (-?[\d.]+)/g,
+    (_, px: string, py: string) => `${f1(x + Number(px) * k)} ${f1(y + Number(py) * k)}`,
+  );
 }
+
+/** The runner on the glyph's grid: the torso, the arms swinging, the knee up, the back leg long. */
+const RUNNER =
+  "M13.2 7.6L10.6 13.8M13.2 7.6L16.5 10.7L19.5 9.1M13.2 7.6L9.3 9.2L7.7 12.7M10.6 13.8L15 16.4L14.1 21.8M10.6 13.8L8.3 18.2L3.7 18.8";
+/** Its head, a disc. */
+const RUNNER_HEAD = { cx: 15.6, cy: 3.6 } as const;
+/** How far it is lowered to stand on the bottom of its box: the front foot, at its widest line. */
+const RUNNER_DROP = 0.25;
+/** In a print the runner is two modules tall, the same every day: a print does not measure a run. */
+const RUNNER_MODULES = 2;
 
 export type FormOptions = {
   state?: FormState;
@@ -186,85 +206,47 @@ export function form(
             },
       );
     }
-  } else if (shape === "track") {
-    // A running track seen from above: a stadium lying on the baseline, its lane cut in paper.
-    // In a mark's square it is a little over half as tall as wide; in a print it fills its box
-    // and grows longer with the run's time. Segments (intervals, laps) are cut straight across.
-    const hh = fill ? h : Math.min(h, w * 0.56);
-    const top = base - hh;
-    const r = hh / 2;
-    const cy = top + r;
-    const x0 = x;
-    const x1 = x + w;
-    const stad = (rr: number) =>
-      `M${f1(x0 + r)} ${f1(cy - rr)}H${f1(x1 - r)}A${f1(rr)} ${f1(rr)} 0 0 1 ${f1(x1 - r)} ${f1(cy + rr)}H${f1(x0 + r)}A${f1(rr)} ${f1(rr)} 0 0 1 ${f1(x0 + r)} ${f1(cy - rr)}Z`;
-    const lane: Shape = {
+  } else if (shape === "runner") {
+    // A runner, the glyph's figure scaled to the box and standing on its bottom edge: one fixed
+    // drawing, with no segments and no length. To do is a line of the thinned pigment inside an
+    // edge of the full one; skipped is that edge dashed, the paper inside it.
+    const k = S / 24;
+    const gx = x + (w - S) / 2;
+    const gy = base - S + RUNNER_DROP * k;
+    const limbs = onGrid(RUNNER, gx, gy, k);
+    const head = { cx: f1(gx + RUNNER_HEAD.cx * k), cy: f1(gy + RUNNER_HEAD.cy * k) };
+    const line = (paint: Paint, width: number, more: Paintable = {}): Shape => ({
       kind: "path",
-      d: stad(r * 0.44),
+      d: limbs,
       fill: "none",
-      stroke: "cut",
-      strokeWidth: f1(Math.max(1.1, hh * 0.075)),
-    };
-    const n = Math.max(1, segments || 1);
-    if (state === "skipped") {
-      out.push({
-        kind: "path",
-        d: stad(r - sw / 2),
-        fill: "none",
-        stroke: C,
-        strokeWidth: sw,
-        dash: dashed,
-      });
-    } else if (n === 1) {
+      stroke: paint,
+      strokeWidth: f1(width * k),
+      linecap: "round",
+      linejoin: "round",
+      ...more,
+    });
+    if (state === "skipped")
       out.push(
-        isTodo(0)
-          ? { kind: "path", d: stad(r - 0.6), fill: T, ...edge(0) }
-          : { kind: "path", d: stad(r), fill: C },
-        lane,
+        line(C, 3.9, { linecap: "butt", dash: [f1(1.4 * k), f1(1.1 * k)] }),
+        line("cut", 2.1),
+        {
+          kind: "circle",
+          ...head,
+          r: f1(2.1 * k),
+          fill: "cut",
+          stroke: C,
+          strokeWidth: f1(0.8 * k),
+          dash: [f1(1.1 * k), f1(0.9 * k)],
+        },
       );
-    } else {
-      // Done segments in full, the rest thinned, each cut from the next by a line of paper.
-      const sx = (k: number) => x0 + ((x1 - x0) * k) / n;
-      const inside: Shape[] = [];
-      for (let k = 0; k < n; k++)
-        inside.push({
-          kind: "rect",
-          x: f1(sx(k)),
-          y: f1(top),
-          width: f1(sx(k + 1) - sx(k)),
-          height: f1(hh),
-          fill: k < done ? C : T,
-        });
-      for (let k = 1; k < n; k++)
-        inside.push({
-          kind: "path",
-          d: `M${f1(sx(k))} ${f1(top)}V${f1(top + hh)}`,
-          stroke: "cut",
-          strokeWidth: cutW,
-        });
-      out.push({ kind: "clip", clip: stad(r), shapes: inside });
-      if (done < n)
-        out.push({ kind: "path", d: stad(r - 0.6), fill: "none", stroke: C, strokeWidth: 1.2 });
-      out.push(lane);
-    }
-    if (cut === "open")
-      // Walk: the lane runs out through the track's front end, an open loop.
-      out.push({
-        kind: "path",
-        d: `M${f1(x1 - r)} ${f1(cy)}H${f1(x1 + 0.5)}`,
-        stroke: "cut",
-        strokeWidth: f1(Math.max(1.6, hh * 0.16)),
-      });
-    if (cut === "peak") {
-      // Hike: a peak cut deep into the top edge.
-      const mx = (x0 + x1) / 2;
-      const pw = Math.min(hh * 0.9, (x1 - x0) * 0.36);
-      out.push({
-        kind: "path",
-        d: `M${f1(mx - pw / 2)} ${f1(top - 0.5)}L${f1(mx)} ${f1(top + hh * 0.5)}L${f1(mx + pw / 2)} ${f1(top - 0.5)}Z`,
-        fill: "cut",
-      });
-    }
+    else if (state === "todo")
+      out.push(
+        line(C, 3.9),
+        line(T, 2.1),
+        { kind: "circle", ...head, r: f1(2.5 * k), fill: C },
+        { kind: "circle", ...head, r: f1(1.8 * k), fill: T },
+      );
+    else out.push(line(C, 2.9), { kind: "circle", ...head, r: f1(2.5 * k), fill: C });
   } else if (shape === "wheel") {
     // A ring, thick as a tyre; segments are its arcs (intervals).
     const d = Math.min(w, h);
@@ -536,9 +518,7 @@ export type PrintPart =
   | {
       kind: Exclude<Sport, "strength" | "food">;
       state?: FormState;
-      /** A run's time, which sets its track's length. */
-      minutes?: number;
-      /** How tall, in whole modules (at most the tallest column). */
+      /** How tall, in whole modules (at most the tallest column); a runner is always two. */
       modules?: number;
       segments?: number;
       segmentsDone?: number;
@@ -551,10 +531,9 @@ type Size = { wm: number; hm: number };
 
 function partModules(part: Exclude<PrintPart, { kind: "strength" }>, cap: number): Size {
   const family = familyOf(part.kind);
-  // A run's track is a module tall and grows longer with its time.
-  if (family === "run") return { hm: 1, wm: trackModules(part.minutes || 30) };
-  const hm = Math.max(1, Math.min(cap, part.modules || cap));
-  // A wheel, a fan and a bowl are as wide as they are tall: hm modules and the gaps between.
+  const hm = family === "run" ? RUNNER_MODULES : Math.max(1, Math.min(cap, part.modules || cap));
+  // A runner, a wheel, a fan and a bowl are as wide as they are tall: hm modules and the gaps
+  // between.
   const side = hm + (hm - 1) * GAPS.set;
   if (family === "swim") return { hm, wm: side * 1.5 };
   return { hm, wm: side };
@@ -933,7 +912,7 @@ export function bowlPrint({
   };
 }
 
-// ---------- the month: the first calendar's style, pulled on paper ----------
+// ---------- the month: a tile for each day, an icon for each activity ----------
 
 /** Monday first: the cells of a month, `null` before the first and after the last day. */
 export function monthCells(year: number, month: number): (number | null)[] {
@@ -947,52 +926,105 @@ export function monthCells(year: number, month: number): (number | null)[] {
   });
 }
 
-/** One sport's mark on the calendar's paper, its box `size` tall; a run's track is longer. */
-const markWidth = (sport: Sport, size: number) => (familyOf(sport) === "run" ? size * 1.6 : size);
-
-function calendarMark(sport: Sport, cx: number, cy: number, size: number): Shape[] {
-  const w = markWidth(sport, size);
-  const h = familyOf(sport) === "run" ? size * 0.85 : size;
-  return form(sport, cx - w / 2, cy - h / 2, w, h);
-}
+/** The dumbbell's plates on the glyph's grid, x, y, width, height and corner. */
+const PLATES = [
+  [4.6, 6.2, 3.6, 11.6, 1.4],
+  [15.8, 6.2, 3.6, 11.6, 1.4],
+  [1.6, 8.8, 2.8, 6.4, 1.2],
+  [19.6, 8.8, 2.8, 6.4, 1.2],
+] as const;
+/** The cyclist's body and limbs, the swimmer's and the water under the swimmer. */
+const CYCLIST = "M9.4 9.6L14.4 7.8L17.4 11.2M9.4 9.6L12.8 13.4L11.2 17.4M14.4 7.8L12.2 6.8";
+const SWIMMER = "M8.6 13.6C10 9 16.2 7 20.2 10.4M8.8 13.8L16.4 14.4";
+const WATER = "M2.4 18.6Q4.8 16 7.2 18.6T12 18.6T16.8 18.6T21.6 18.6";
 
 /**
- * A day's marks as one group centred in its cell: one at 40% of its height, two side by side,
- * three or four in two rows of two; past four, three and +N. Nothing is drawn under a mark.
+ * A sport's icon on the calendar, in a square box `size` wide at (x, y), drawn on the glyph's
+ * 24-unit grid in the sport's pigment: lifting a dumbbell, a run the runner (its own form),
+ * a ride a cyclist and a swim a swimmer. They are told apart by their shape, so the month
+ * never asks a reader to tell its pigments apart. A sport with no icon draws its form.
  */
-export function dayMarks(
-  sports: readonly Sport[],
-  width: number,
-  height: number,
-  fit = 4,
-): Shape[] {
-  const n = sports.length;
-  const cx = width / 2;
-  const cy = height / 2;
-  // The marks grow with the cell: one at 40% of its height, two a little smaller, four smaller.
-  const one = Math.min(22, Math.round(height * 0.4));
-  if (n === 0) return [];
-  if (n === 1) return calendarMark(sports[0]!, cx, cy, one);
-  const shown = n > fit ? sports.slice(0, fit - 1) : sports.slice();
-  const more = n - shown.length;
-  const size = shown.length === 2 ? Math.round(one * 0.8) : Math.round(one * 0.64);
-  const gap = 4;
-  const rows = shown.length <= 2 ? [shown] : [shown.slice(0, 2), shown.slice(2, 4)];
+export function calendarIcon(sport: Sport, x: number, y: number, size: number): Shape[] {
+  const family = familyOf(sport);
+  const k = size / 24;
+  const at = (cx: number, cy: number, r: number) => ({
+    cx: f1(x + cx * k),
+    cy: f1(y + cy * k),
+    r: f1(r * k),
+  });
+  const line = (d: string, width: number): Shape => ({
+    kind: "path",
+    d: onGrid(d, x, y, k),
+    fill: "none",
+    stroke: family,
+    strokeWidth: f1(width * k),
+    linecap: "round",
+    linejoin: "round",
+  });
+  const wheel = (cx: number): Shape => ({
+    kind: "circle",
+    ...at(cx, 17.4, 4),
+    fill: "none",
+    stroke: family,
+    strokeWidth: f1(2.3 * k),
+  });
+  switch (family) {
+    case "strength":
+      return [
+        line("M7 12L17 12", 2.8),
+        ...PLATES.map(([px, py, pw, ph, r]): Shape => ({
+          kind: "rect",
+          x: f1(x + px * k),
+          y: f1(y + py * k),
+          width: f1(pw * k),
+          height: f1(ph * k),
+          rx: f1(r * k),
+          fill: family,
+        })),
+      ];
+    case "ride":
+      return [
+        wheel(5.4),
+        wheel(18.6),
+        line(CYCLIST, 2.6),
+        { kind: "circle", ...at(16.4, 4.4, 2.3), fill: family },
+      ];
+    case "swim":
+      return [
+        line(WATER, 2.4),
+        line(SWIMMER, 2.6),
+        { kind: "circle", ...at(6, 11, 2.3), fill: family },
+      ];
+    default:
+      return form(sport, x, y, size, size);
+  }
+}
+
+/** The calendar's icons are 16 pt, 3 apart, so four stand in a 35-pt square. */
+export const ICON = { size: 16, gap: 3 } as const;
+
+/**
+ * A day's icons, one for each activity in the order they were done, as one group centred on
+ * (cx, cy): one, or two side by side; three or four in two rows of two; past four, three and
+ * +N. Every icon is the same size whatever the day holds.
+ */
+export function dayIcons(sports: readonly Sport[], cx: number, cy: number): Shape[] {
+  const { size, gap } = ICON;
+  const shown = sports.length > 4 ? sports.slice(0, 3) : sports;
+  const more = sports.length - shown.length;
+  const items: (Sport | null)[] = more ? [...shown, null] : [...shown];
+  const rows = items.length > 2 ? [items.slice(0, 2), items.slice(2)] : [items];
+  const block = rows.length * size + (rows.length - 1) * gap;
   const out: Shape[] = [];
   rows.forEach((row, ri) => {
-    const widths = row.map((s) => markWidth(s, size));
-    const last = ri === rows.length - 1;
-    const plusW = more && last ? 16 : 0;
-    const items = row.length + (plusW ? 1 : 0);
-    const total = widths.reduce((a, b) => a + b, 0) + plusW + gap * (items - 1);
-    let x = cx - total / 2;
-    const y = rows.length === 1 ? cy : cy + (ri ? 1 : -1) * (size / 2 + 2.5);
-    row.forEach((s, k) => {
-      const w = widths[k]!;
-      out.push(...calendarMark(s, x + w / 2, y, size));
-      x += w + gap;
+    const y = cy - block / 2 + ri * (size + gap);
+    const total = row.length * size + (row.length - 1) * gap;
+    row.forEach((sport, j) => {
+      const x = cx - total / 2 + j * (size + gap);
+      if (sport) out.push(...calendarIcon(sport, x, y, size));
+      else
+        out.push({ kind: "text", x: f1(x + size / 2), y: f1(y + size / 2 + 4), text: `+${more}` });
     });
-    if (plusW) out.push({ kind: "text", x: f1(x + plusW / 2), y: f1(y + 4), text: `+${more}` });
   });
   return out;
 }
