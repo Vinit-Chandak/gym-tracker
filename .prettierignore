@@ -8,6 +8,8 @@ coverage
 package-lock.json
 # Written by drizzle-kit, wholesale, every time a migration is generated.
 src/db/migrations
+# Written by scripts/equipment-art.ts, wholesale, from the drawings' vector sources.
+src/components/equipment-art/drawings.generated.ts
 public/icons
 *.png
 *.ico

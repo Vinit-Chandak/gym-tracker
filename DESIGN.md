@@ -826,6 +826,25 @@ and every control answers a press.
   and a scrollable dialog was scrolled to it, so the sheet jumped up, vanished and dropped in.
 - Why explains the suggestion and stops: History is the tab behind it, never linked again.
 
+### Illustrations (equipment)
+
+- Line drawings of equipment, so a beginner can recognise a machine by its picture (plan:
+  onboarding, equipment and technique). One colour, `currentColor`, laid over the ink with a
+  mask: a drawing swaps in dark, inverts in a chosen tile and keeps the system's text colour in
+  forced colours. The glyphs' grammar: a 2.0 stroke on a 120 × 90 frame, round caps and joins;
+  one tonal level (0.14) for upholstery and nothing else; no colour, no gradient, no dash (a
+  dashed edge means skipped), no words. A plain side elevation, every machine facing right, at
+  one shared scale on one implied floor; free weights at their own close-up scale.
+- Where: starter tiles, the basics' Review, the identification sheet and the workout's
+  confirmation. Never beside a name in an ordinary row: names keep the one left edge, and rows
+  keep the equipment glyph at the head of their second line.
+- Beside its name a drawing is decorative (hidden from screen readers); the identification
+  sheet says the distinguishing features in words. A tile's details control sits beside its
+  label, never inside it. A drawing the owner has not approved is shown only where drafts are;
+  elsewhere a tile shows its name and purpose, never a placeholder.
+- Never the brightest thing on a dark screen, and never a sport's pigment: ink only says what a
+  machine is, never whether it is available.
+
 ### Prints (signature)
 
 - Drawn from the account's records and nothing else, on print paper with square corners.

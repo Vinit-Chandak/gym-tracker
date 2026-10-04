@@ -18,4 +18,15 @@ export type ArtEntry = {
 };
 
 /** Keyed by drawing, which is the equipment type's or combination's slug. */
-export const EQUIPMENT_ART: Readonly<Record<string, ArtEntry>> = {};
+export const EQUIPMENT_ART: Readonly<Record<string, ArtEntry>> = {
+  // The pilot (docs/planning/equipment-art-pilot.md): three confusable pairs, a cable station and
+  // free weights, drawn first for the owner and two or three beginners to try.
+  leg_press_45: { status: "draft", pilot: true },
+  hack_squat: { status: "draft", pilot: true },
+  leg_curl_seated: { status: "draft", pilot: true },
+  leg_curl_lying: { status: "draft", pilot: true },
+  chest_press_machine: { status: "draft", pilot: true },
+  shoulder_press_machine: { status: "draft", pilot: true },
+  cable_station: { status: "draft", pilot: true },
+  dumbbells: { status: "draft", pilot: true },
+};

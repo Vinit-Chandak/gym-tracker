@@ -1474,3 +1474,22 @@ li:last-child > .picker-row {
   font-size: var(--ov-type-button);
   font-weight: 700;
 }
+
+/* ---------- equipment drawings (DESIGN.md, Illustrations) ---------- */
+/* A line drawing laid over the ink with a mask: it takes `currentColor`, so it swaps in dark
+   and inverts in a chosen tile. 4:3, like the drawings' own frame, so a tile keeps its room
+   while the drawing arrives. In forced colours it keeps the system's text colour. */
+.equipment-art {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background-color: currentColor;
+  -webkit-mask: var(--equipment-art) center / contain no-repeat;
+  mask: var(--equipment-art) center / contain no-repeat;
+}
+@media (forced-colors: active) {
+  .equipment-art {
+    background-color: CanvasText;
+    forced-color-adjust: none;
+  }
+}
