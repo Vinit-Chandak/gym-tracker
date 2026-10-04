@@ -1,24 +1,42 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
 
 import { GLYPH_LABELS, Glyph, modalityGlyph } from "@/components/ui/glyphs";
 import { exerciseSections } from "@/lib/exercise-search";
 import { MUSCLE_LABELS } from "@/lib/labels";
 import type { ExerciseListItem } from "@/server/repositories/exercises";
 
-type ExercisePickerProps = {
+type SingleChoice = {
+  mode?: "single";
   name: string;
-  exercises: ExerciseListItem[];
   /** The chosen exercise id, or "" for none. */
   value: string;
   onChange: (exerciseId: string) => void;
-  error?: string;
   /**
    * Name the chosen exercise under the search (board Add fallback), where the list is long
    * enough to scroll it out of sight, and count each group.
    */
   long?: boolean;
+};
+
+/**
+ * Several at once (plan: "Add several exercises in one submission"): rows are checkboxes, and
+ * the selection lives with the caller, in the order it was made, so it survives every search.
+ * The checkboxes carry no name: what is chosen, and in what order, is the caller's to submit.
+ */
+type SeveralChoices = {
+  mode: "multiple";
+  /** The chosen exercise ids, in the order they were chosen. */
+  selected: readonly string[];
+  onToggle: (exerciseId: string) => void;
+  /** A word under a row's muscles, such as "In this workout"; null for none. */
+  note?: (exercise: ExerciseListItem) => string | null;
+};
+
+type ExercisePickerProps = (SingleChoice | SeveralChoices) & {
+  exercises: ExerciseListItem[];
+  error?: string;
 };
 
 /**
@@ -30,25 +48,27 @@ type ExercisePickerProps = {
  *
  * Nothing is filtered out for being unavailable at the current gym: an exercise you cannot
  * do here is still an exercise, and the machine question is asked separately.
+ *
+ * Choosing several, each chosen row carries its place in the order instead of a check, and
+ * choosing one while the search is being typed in closes the keyboard, so the count and the
+ * action pinned at the foot are in sight again.
  */
-export function ExercisePicker({
-  name,
-  exercises,
-  value,
-  onChange,
-  error,
-  long = false,
-}: ExercisePickerProps) {
+export function ExercisePicker(props: ExercisePickerProps) {
+  const { exercises, error } = props;
+  const several = props.mode === "multiple";
+  const long = !several && (props.long ?? false);
   const id = useId();
+  const search = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const groups = useMemo(() => exerciseSections(exercises, query), [exercises, query]);
-  const selected = exercises.find((e) => e.id === value);
+  const selected = several ? undefined : exercises.find((e) => e.id === props.value);
 
   return (
     <div>
       <div className="search-box" data-filled={query ? "true" : undefined}>
         <Glyph name="search" className="glyph-20" />
         <input
+          ref={search}
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
@@ -101,18 +121,32 @@ export function ExercisePicker({
             <ul>
               {group.items.map((exercise) => {
                 const glyph = modalityGlyph(exercise.modality);
-                const chosen = value === exercise.id;
+                const place = several ? props.selected.indexOf(exercise.id) + 1 : 0;
+                const chosen = several ? place > 0 : props.value === exercise.id;
+                const note = several ? (props.note?.(exercise) ?? null) : null;
                 return (
                   <li key={exercise.id}>
                     <label className="picker-row">
-                      <input
-                        type="radio"
-                        name={name}
-                        value={exercise.id}
-                        checked={chosen}
-                        onChange={() => onChange(exercise.id)}
-                        className="peer sr-only"
-                      />
+                      {several ? (
+                        <input
+                          type="checkbox"
+                          checked={chosen}
+                          onChange={() => {
+                            props.onToggle(exercise.id);
+                            if (document.activeElement === search.current) search.current?.blur();
+                          }}
+                          className="peer sr-only"
+                        />
+                      ) : (
+                        <input
+                          type="radio"
+                          name={props.name}
+                          value={exercise.id}
+                          checked={chosen}
+                          onChange={() => props.onChange(exercise.id)}
+                          className="peer sr-only"
+                        />
+                      )}
                       <span className="picker-row-text">
                         <span className="picker-row-name">{exercise.name}</span>
                         <span className="picker-row-meta">
@@ -123,11 +157,18 @@ export function ExercisePicker({
                             {exercise.primaryMuscles.map((m) => MUSCLE_LABELS[m]).join(", ")}
                           </span>
                         </span>
+                        {note && <span className="picker-row-note">{note}</span>}
                       </span>
-                      {chosen && (
-                        <span aria-hidden className="picker-chosen">
-                          <Glyph name="check" className="glyph-15" />
+                      {several ? (
+                        <span aria-hidden className="picker-tick" data-on={chosen || undefined}>
+                          {chosen && <span className="tabular-nums">{place}</span>}
                         </span>
+                      ) : (
+                        chosen && (
+                          <span aria-hidden className="picker-chosen">
+                            <Glyph name="check" className="glyph-15" />
+                          </span>
+                        )
                       )}
                     </label>
                   </li>

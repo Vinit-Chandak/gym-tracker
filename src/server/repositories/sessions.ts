@@ -423,6 +423,22 @@ export async function getSessionRecord(db: DbOrTx, userId: string, sessionId: st
   return row ?? null;
 }
 
+/** The exercises a session already holds, in its order: Add exercise says which are in it. */
+export async function sessionExerciseIds(
+  db: DbOrTx,
+  userId: string,
+  sessionId: string,
+): Promise<string[]> {
+  const rows = await db
+    .select({ exerciseId: workoutExercises.exerciseId })
+    .from(workoutExercises)
+    .where(
+      and(eq(workoutExercises.workoutSessionId, sessionId), eq(workoutExercises.userId, userId)),
+    )
+    .orderBy(asc(workoutExercises.orderIndex));
+  return rows.map((row) => row.exerciseId);
+}
+
 export async function getSessionDetail(
   db: DbOrTx,
   userId: string,
@@ -804,30 +820,40 @@ export class WorkoutSelectionError extends Error {
 /**
  * Picker choices can become stale, and action arguments can be changed outside the picker.
  * Foreign keys only prove an ID exists; they do not enforce its visibility under RLS or that
- * a machine belongs to this gym and supports this movement.
+ * a machine belongs to this gym and supports this movement. Every choice of a batch is checked
+ * before anything is written: the exercises in one read, the machines against one compatibility
+ * read of the gym, so one bad item refuses the whole batch.
  */
 async function requireWorkoutSelection(
   db: DbOrTx,
   userId: string,
   gymId: string,
-  input: { exerciseId: string; equipmentInstanceId: string | null },
+  input: WorkoutSelection | readonly WorkoutSelection[],
 ): Promise<void> {
-  const [exercise] = await db
+  const items: readonly WorkoutSelection[] = Array.isArray(input) ? input : [input];
+  const ids = [...new Set(items.map((item) => item.exerciseId))];
+  const found = await db
     .select({ id: exercises.id })
     .from(exercises)
     .where(
       and(
-        eq(exercises.id, input.exerciseId),
+        inArray(exercises.id, ids),
         eq(exercises.isActive, true),
         or(isNull(exercises.userId), eq(exercises.userId, userId)),
       ),
-    )
-    .limit(1);
-  if (!exercise) throw new WorkoutSelectionError("Choose an available exercise and try again.");
-  if (input.equipmentInstanceId) {
+    );
+  if (found.length !== ids.length)
+    throw new WorkoutSelectionError("Choose an available exercise and try again.");
+  if (items.some((item) => item.equipmentInstanceId)) {
     const compatible = await machinesByExerciseAtGym(db, userId, gymId);
-    if (!compatible[input.exerciseId]?.includes(input.equipmentInstanceId)) {
-      throw new WorkoutSelectionError("Choose an available machine for this exercise at this gym.");
+    for (const item of items) {
+      if (
+        item.equipmentInstanceId &&
+        !compatible[item.exerciseId]?.includes(item.equipmentInstanceId)
+      )
+        throw new WorkoutSelectionError(
+          "Choose an available machine for this exercise at this gym.",
+        );
     }
   }
 }
@@ -1259,30 +1285,64 @@ export async function removeSupersetGroup(
     );
 }
 
-export async function addExerciseToSession(
+/** An exercise to add to a session, and the machine it will be done on, if any. */
+export type WorkoutSelection = { exerciseId: string; equipmentInstanceId: string | null };
+
+/** The most exercises one submission adds: a whole session's worth, not a catalogue. */
+export const MAX_EXERCISES_PER_ADD = 20;
+
+/**
+ * Adds exercises to an open session, after everything it already holds, in the order given
+ * (plan: "Add several exercises in one submission"). The whole batch is checked first, then
+ * written in one statement with contiguous places; nothing is reordered, and the session's row
+ * lock keeps a concurrent addition from taking the same places. A single exercise is a batch of
+ * one. The same exercise twice in one batch is refused; one already in the workout is not, since
+ * doing it again is a choice people make.
+ */
+export async function addExercisesToSession(
   db: DbOrTx,
   userId: string,
   sessionId: string,
-  input: { exerciseId: string; equipmentInstanceId: string | null },
-): Promise<{ workoutExerciseId: string }> {
+  items: readonly WorkoutSelection[],
+): Promise<{ workoutExerciseIds: string[] }> {
+  if (items.length === 0) throw new WorkoutSelectionError("Choose an exercise.");
+  if (items.length > MAX_EXERCISES_PER_ADD)
+    throw new WorkoutSelectionError(`Add at most ${MAX_EXERCISES_PER_ADD} exercises at a time.`);
+  if (new Set(items.map((item) => item.exerciseId)).size !== items.length)
+    throw new WorkoutSelectionError("Choose each exercise once.");
   const session = await requireOpenSession(db, userId, sessionId);
-  await requireWorkoutSelection(db, userId, session.gymId, input);
+  await requireWorkoutSelection(db, userId, session.gymId, items);
   const [last] = await db
     .select({ maxOrder: max(workoutExercises.orderIndex) })
     .from(workoutExercises)
     .where(eq(workoutExercises.workoutSessionId, sessionId));
-  const [row] = await db
+  const first = (last?.maxOrder ?? 0) + 1;
+  const rows = await db
     .insert(workoutExercises)
-    .values({
-      userId,
-      workoutSessionId: sessionId,
-      exerciseId: input.exerciseId,
-      equipmentInstanceId: input.equipmentInstanceId,
-      orderIndex: (last?.maxOrder ?? 0) + 1,
-    })
-    .returning({ id: workoutExercises.id });
-  if (!row) throw new Error("Workout exercise insert returned no row");
-  return { workoutExerciseId: row.id };
+    .values(
+      items.map((item, index) => ({
+        userId,
+        workoutSessionId: sessionId,
+        exerciseId: item.exerciseId,
+        equipmentInstanceId: item.equipmentInstanceId,
+        orderIndex: first + index,
+      })),
+    )
+    .returning({ id: workoutExercises.id, orderIndex: workoutExercises.orderIndex });
+  if (rows.length !== items.length) throw new Error("Workout exercise insert returned no row");
+  return {
+    workoutExerciseIds: [...rows].sort((a, b) => a.orderIndex - b.orderIndex).map((row) => row.id),
+  };
+}
+
+export async function addExerciseToSession(
+  db: DbOrTx,
+  userId: string,
+  sessionId: string,
+  input: WorkoutSelection,
+): Promise<{ workoutExerciseId: string }> {
+  const { workoutExerciseIds } = await addExercisesToSession(db, userId, sessionId, [input]);
+  return { workoutExerciseId: workoutExerciseIds[0]! };
 }
 
 export type FinishInput = { notes: string | null; bodyWeightKg: number | null };

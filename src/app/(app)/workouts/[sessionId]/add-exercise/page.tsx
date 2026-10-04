@@ -4,15 +4,15 @@ import { notFound, redirect } from "next/navigation";
 import { SessionPage } from "@/components/shell/session-page";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
-import { addExerciseAction } from "@/server/actions/sessions";
+import { addExercisesAction } from "@/server/actions/sessions";
 import { requireUser } from "@/server/auth";
 import { sessionPageHeader } from "@/server/queries/session-page";
 import { listEquipmentForGym, machinesByExerciseAtGym } from "@/server/repositories/equipment";
-import { listExercises } from "@/server/repositories/exercises";
-import { getSessionRecord } from "@/server/repositories/sessions";
+import { listExercises, preferredMachinesAtGym } from "@/server/repositories/exercises";
+import { getSessionRecord, sessionExerciseIds } from "@/server/repositories/sessions";
 import { requireUuid } from "@/server/validation/params";
 
-import { PickExerciseForm } from "./add-exercise-form";
+import { AddExercisesForm } from "./add-exercises-form";
 
 export const metadata: Metadata = { title: "Add exercise" };
 
@@ -29,16 +29,21 @@ export default async function AddExercisePage(
     async (tx) => {
       const session = await getSessionRecord(tx, user.id, sessionId);
       if (!session) return null;
-      const [exercises, machines, machinesByExercise] = await Promise.all([
-        listExercises(tx),
-        listEquipmentForGym(tx, user.id, session.gymId),
-        machinesByExerciseAtGym(tx, user.id, session.gymId),
-      ]);
+      const [exercises, machines, machinesByExercise, preferredMachines, inWorkout] =
+        await Promise.all([
+          listExercises(tx),
+          listEquipmentForGym(tx, user.id, session.gymId),
+          machinesByExerciseAtGym(tx, user.id, session.gymId),
+          preferredMachinesAtGym(tx, user.id, session.gymId),
+          sessionExerciseIds(tx, user.id, sessionId),
+        ]);
       return {
         session,
         exercises: exercises.filter((e) => e.isActive),
         machines: machines.filter((m) => m.isActive),
         machinesByExercise,
+        preferredMachines,
+        inWorkout,
       };
     },
     { readOnly: true },
@@ -55,12 +60,13 @@ export default async function AddExercisePage(
       back={{ href: `/workouts/${sessionId}` as Route, label: name }}
       rest={restTimerEnabled ? sessionId : null}
     >
-      <PickExerciseForm
-        action={addExerciseAction.bind(null, sessionId)}
+      <AddExercisesForm
+        action={addExercisesAction.bind(null, sessionId)}
         exercises={data.exercises}
         machines={data.machines.map((m) => ({ id: m.id, name: m.name }))}
         machinesByExercise={data.machinesByExercise}
-        submitLabel="Add to session"
+        preferredMachines={data.preferredMachines}
+        inWorkout={data.inWorkout}
       />
     </SessionPage>
   );

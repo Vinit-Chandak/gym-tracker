@@ -2,7 +2,7 @@
 
 import type { Route } from "next";
 import { useSearchParams } from "next/navigation";
-import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { useSetChanges } from "@/components/set-changes";
 import { PageContent } from "@/components/shell/page-content";
@@ -18,6 +18,9 @@ import { withSetChanges, type SessionVM } from "./view-model";
 
 /** Which exercise is open, if any. A record's id, never a position in the array. */
 const EXERCISE_PARAM = "exercise";
+
+/** How many exercises Add exercise just added, said once on arrival and then dropped. */
+const ADDED_PARAM = "added";
 
 /**
  * The workout: a list of exercises, and one of them in focus.
@@ -81,9 +84,23 @@ export function WorkoutView({
   const selectedId = searchParams.get(EXERCISE_PARAM);
   const selected = session.exercises.find((exercise) => exercise.id === selectedId) ?? null;
 
+  // Add exercise lands here with how many it added: the list says which, once. The count is
+  // taken as the view mounts and dropped from the address, so a reload does not say it again.
+  const [added, setAdded] = useState(() =>
+    readOnly ? 0 : Math.max(0, Math.trunc(Number(searchParams.get(ADDED_PARAM)) || 0)),
+  );
+  useEffect(() => {
+    if (!searchParams.has(ADDED_PARAM)) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete(ADDED_PARAM);
+    const query = params.toString();
+    window.history.replaceState(null, "", query ? `?${query}` : window.location.pathname);
+  }, [searchParams]);
+
   const onDirtyChange = useCallback((dirty: boolean) => setFocusedDirty(dirty), []);
 
   const openExercise = (id: string) => {
+    setAdded(0);
     // An open workout's list scrolls in its layer and keeps its own place there.
     if (readOnly) listScroll.current = window.scrollY;
     const params = new URLSearchParams(searchParams.toString());
@@ -160,6 +177,7 @@ export function WorkoutView({
             backHref={backHref}
             layer={!readOnly}
             listScrollRef={listScroll}
+            added={added}
           />
         )}
       </PageContent>

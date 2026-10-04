@@ -1160,6 +1160,92 @@ li:last-child > .picker-row {
   color: var(--ov-on-ink);
 }
 
+/* Choosing several (Add exercise): an empty ring at the row's end; chosen, an ink disc holding
+   its place in the order. The disc fills in 120 ms and its figure fades in as a swap does; with
+   reduced motion both are immediate. In forced colours the ring and the disc keep their edge. */
+.picker-tick {
+  display: grid;
+  width: calc(26px + var(--ov-grow) * 0.5);
+  height: calc(26px + var(--ov-grow) * 0.5);
+  flex-shrink: 0;
+  place-items: center;
+  border: 1.5px solid var(--ov-control);
+  border-radius: var(--ov-radius-full);
+  font-family: var(--ov-font-display);
+  font-size: var(--ov-type-meta-small);
+  font-weight: 700;
+  line-height: 1;
+  transition:
+    background-color var(--ov-duration-press) var(--ov-ease-out),
+    border-color var(--ov-duration-press) var(--ov-ease-out);
+}
+.picker-tick[data-on] {
+  border-color: var(--ov-ink);
+  background: var(--ov-ink);
+  color: var(--ov-on-ink);
+}
+.picker-tick[data-on] > span {
+  animation: swap-in var(--ov-duration-swap-in) var(--ov-ease-out);
+}
+/* A word about a row that is news to the choice: "In this workout". */
+.picker-row-note {
+  margin-top: 2px;
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-meta-small);
+  font-weight: 600;
+  line-height: 1.35;
+}
+/* What a selection adds up to, over the action that adds it: the count at the gutter and Review
+   at the end, one row a thumb can reach, which opens the selection to check or change. */
+.pinned-summary {
+  display: flex;
+  width: 100%;
+  min-height: var(--ov-target);
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: var(--ov-type-meta);
+  font-weight: 600;
+  text-align: left;
+}
+.pinned-summary-action {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 2px;
+  font-weight: 700;
+}
+.pinned-summary:focus-visible {
+  outline: 3px solid var(--ov-ink);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+/* The selection opened to check (Add exercise's review): each exercise at the gutter with its
+   Remove at the end, and under it where it will be done, or the machine question. */
+.review-list {
+  margin-top: 4px;
+}
+.review-row {
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--ov-hair);
+}
+.review-row:last-child {
+  border-bottom: 0;
+}
+.review-remove {
+  display: grid;
+  width: var(--ov-target);
+  height: var(--ov-target);
+  flex-shrink: 0;
+  margin-right: -10px;
+  place-items: center;
+  border-radius: var(--ov-radius-full);
+  color: var(--ov-ink);
+}
+.review-remove:focus-visible {
+  outline: 3px solid var(--ov-ink);
+  outline-offset: -3px;
+}
 /* What stands over a pinned action: where the exercise will be done, a choice as a row. */
 .pinned-fact {
   display: flex;

@@ -19,7 +19,8 @@ export function SelectRow({
   error,
 }: {
   label: string;
-  name: string;
+  /** Left out when the choice is held by the caller and submitted another way. */
+  name?: string;
   options: readonly { value: string; label: string }[];
   defaultValue?: string;
   /** Controlled value; pair with `onChange`. */

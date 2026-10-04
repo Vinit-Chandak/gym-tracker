@@ -2,6 +2,7 @@
 
 import type { Route } from "next";
 import {
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -314,7 +315,17 @@ type OverviewProps = {
   layer?: boolean;
   /** Where the layer's list was scrolled to, kept while an exercise is open. */
   listScrollRef?: RefObject<number>;
+  /** How many exercises Add exercise just put at the end of the list, to say so once. */
+  added?: number;
 };
+
+/** What Add exercise just added, in words: every name for a few, the first ones for many. */
+export function addedLine(names: readonly string[]): string {
+  if (names.length === 0) return "";
+  if (names.length === 1) return `Added ${names[0]}.`;
+  if (names.length <= 4) return `Added ${names.slice(0, -1).join(", ")} and ${names.at(-1)}.`;
+  return `Added ${names.length} exercises: ${names.slice(0, 3).join(", ")} and ${names.length - 3} more.`;
+}
 
 /**
  * The workout (DESIGN.md, The session; boards Workout, Workout-Superset, Workout-Coach): the
@@ -333,6 +344,7 @@ export function WorkoutOverview({
   backHref = "/today",
   layer = false,
   listScrollRef,
+  added = 0,
 }: OverviewProps) {
   const bodyRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLElement>(null);
@@ -366,6 +378,25 @@ export function WorkoutOverview({
   useLayoutEffect(() => {
     if (bodyRef.current && listScrollRef) bodyRef.current.scrollTop = listScrollRef.current;
   }, [listScrollRef]);
+  // What was just added stands at the end of the list: the status line under it names them as
+  // the list arrives, and focus goes to the first of them, so the next Tab, or the next swipe of
+  // a screen reader, is on what was added.
+  const justAdded = added > 0 && !readOnly ? session.exercises.slice(-added) : [];
+  const firstAdded = justAdded[0]?.id ?? null;
+  const addedWords = addedLine(justAdded.map((exercise) => exercise.exercise.name));
+  const [announced, setAnnounced] = useState("");
+  useEffect(() => {
+    if (!firstAdded) return;
+    // A tick after mounting, so the status line is in place before its words arrive and a
+    // screen reader hears them.
+    const timer = setTimeout(() => {
+      setAnnounced(addedWords);
+      bodyRef.current
+        ?.querySelector<HTMLElement>(`[data-workout-exercise="${firstAdded}"]`)
+        ?.focus();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [firstAdded, addedWords]);
   const [warmupDone, setWarmupDone] = useState(session.warmupCompleted);
   const [sheet, setSheet] = useState<"more" | "warmup" | null>(null);
   const unitLabel = LOAD_UNIT_LABELS[session.preferredUnit];
@@ -405,6 +436,7 @@ export function WorkoutOverview({
       <li key={exercise.id}>
         <button
           type="button"
+          data-workout-exercise={exercise.id}
           onClick={() => onOpenExercise(exercise.id)}
           className={cn("plan-row workout-row w-full text-left", last && "plan-row-last")}
         >
@@ -595,6 +627,11 @@ export function WorkoutOverview({
         </ul>
       )}
 
+      {!readOnly && (
+        <p role="status" className={cn("type-meta font-semibold", announced && "mt-2")}>
+          {announced}
+        </p>
+      )}
       {!readOnly && (
         <div className="mt-2.5 flex flex-wrap gap-2">
           <LinkButton href={`/workouts/${session.id}/add-exercise`} variant="tonal" size="sm">

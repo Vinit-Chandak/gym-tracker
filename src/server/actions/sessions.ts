@@ -30,7 +30,7 @@ import {
   reopenSkippedSession,
 } from "@/server/repositories/schedule";
 import {
-  addExerciseToSession,
+  addExercisesToSession,
   deleteSet,
   discardSession,
   ExerciseHasSetsError,
@@ -45,6 +45,7 @@ import {
   SessionHasSetsError,
   SessionNotFoundError,
   setExerciseCompleted,
+  MAX_EXERCISES_PER_ADD,
   SupersetGroupError,
   WorkoutSelectionError,
   setWarmupCompleted,
@@ -54,6 +55,10 @@ import {
   substituteExercise,
   type SessionSet,
 } from "@/server/repositories/sessions";
+import {
+  submitWorkoutOnce,
+  WorkoutSubmissionConflictError,
+} from "@/server/repositories/workout-receipts";
 import { formValues, parseForm, type FormState } from "@/server/validation/form";
 import { eq } from "drizzle-orm";
 
@@ -99,6 +104,7 @@ function describe(error: unknown): string {
   if (error instanceof WorkoutSelectionError) return error.message;
   if (error instanceof ExerciseHasSetsError) return error.message;
   if (error instanceof SetConflictError) return error.message;
+  if (error instanceof WorkoutSubmissionConflictError) return error.message;
   if (error instanceof SessionNotFoundError) return "That session no longer exists.";
   return "Something went wrong. Please try again.";
 }
@@ -435,31 +441,70 @@ export async function substituteExerciseAction(
   redirect(`/workouts/${sessionId}`);
 }
 
-const addExerciseSchema = z.object({
-  exerciseId: z.uuid({ error: "Choose an exercise." }),
-  equipmentInstanceId: z.preprocess(
-    (value) => (typeof value === "string" && value.length > 0 ? value : null),
-    z.uuid().nullable(),
-  ),
-});
+/**
+ * What Add exercise sends: the exercises in the order they were chosen, each with its machine
+ * ("" for none), as two lists of the same length, and the form's submission key. `parseForm`
+ * keeps only the last value of a repeated name, so the lists are read with `getAll`.
+ */
+const addExercisesSchema = z
+  .object({
+    submissionKey: z.uuid({ error: "Reload the page and try again." }),
+    exerciseIds: z
+      .array(z.uuid({ error: "Choose an available exercise and try again." }))
+      .min(1, "Choose an exercise.")
+      .max(MAX_EXERCISES_PER_ADD, `Add at most ${MAX_EXERCISES_PER_ADD} exercises at a time.`),
+    machineIds: z.array(
+      z.union([z.literal("").transform(() => null), z.uuid({ error: "Choose a machine again." })]),
+    ),
+  })
+  .refine((form) => form.machineIds.length === form.exerciseIds.length, {
+    message: "Something in the form is not valid.",
+    path: ["machineIds"],
+  })
+  .refine((form) => new Set(form.exerciseIds).size === form.exerciseIds.length, {
+    message: "Choose each exercise once.",
+    path: ["exerciseIds"],
+  });
 
-export async function addExerciseAction(
+/**
+ * Adds the chosen exercises to the session in one go (plan: "Add several exercises in one
+ * submission"), then lands on the workout saying what was added. Retry-safe: the submission key
+ * is minted once per form, and a retry after a lost reply finds its receipt, adds nothing again
+ * and still lands on the workout; the same key with another selection is refused. The form keeps
+ * its selection in its own state, so nothing here echoes values back.
+ */
+export async function addExercisesAction(
   sessionId: string,
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
   const user = await requireUser();
-  const parsed = parseForm(addExerciseSchema, formData);
-  if (!parsed.success) return parsed.state;
+  const parsed = addExercisesSchema.safeParse({
+    submissionKey: formData.get("submissionKey"),
+    exerciseIds: formData.getAll("exerciseId"),
+    machineIds: formData.getAll("equipmentInstanceId"),
+  });
+  if (!parsed.success) return { formError: parsed.error.issues[0]?.message };
+  const { submissionKey, exerciseIds, machineIds } = parsed.data;
+  const items = exerciseIds.map((exerciseId, index) => ({
+    exerciseId,
+    equipmentInstanceId: machineIds[index] ?? null,
+  }));
   try {
     await withUser(getDb(), user.id, (tx) =>
-      addExerciseToSession(tx, user.id, sessionId, parsed.data),
+      submitWorkoutOnce(
+        tx,
+        user.id,
+        submissionKey,
+        { kind: "add-exercises", sessionId, items },
+        () => addExercisesToSession(tx, user.id, sessionId, items),
+      ),
     );
   } catch (error) {
-    return { formError: describe(error), values: formValues(formData) };
+    return { formError: describe(error) };
   }
   revalidateSession(sessionId);
-  redirect(`/workouts/${sessionId}`);
+  redirect(`/workouts/${sessionId}?added=${items.length}`);
 }
 
 /**

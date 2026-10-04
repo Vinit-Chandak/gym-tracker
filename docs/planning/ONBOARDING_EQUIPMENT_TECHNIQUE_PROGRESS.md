@@ -16,7 +16,7 @@ has touched a hosted database, and nothing has been merged or deployed.
 | ---- | --------------------------------------------------------------------------------------- | ----------- |
 | 1    | Catalogue report, requirement model, basics, machine types, ADRs, atomic seed, tables   | done        |
 | 2    | Resolver and every consumer, absence reconciliation, the coach's backup rule            | done        |
-| 3    | Add several exercises (receipts) and pinned actions on Add machine                      | not started |
+| 3    | Add several exercises (receipts) and pinned actions on Add machine                      | done        |
 | 4    | Experience question, machine steps, combinations, workout confirmation                  | not started |
 | 5    | Illustrations, guides, Technique, the coach's numbers in the header and list            | not started |
 | 6    | Acceptance tests, screens, fresh review, draft PR                                       | not started |
@@ -109,6 +109,50 @@ has touched a hosted database, and nothing has been merged or deployed.
 - Custom free-weight exercises resolve by their modality (no user requirement rows are written).
 - Home and outdoor locations assume nothing: an unanswered machine there is unknown (owner
   decision S2).
+
+## Step 3: what landed
+
+- **Add several exercises at once** (`add-exercise/add-exercises-form.tsx`, `addExercisesAction`,
+  `addExercisesToSession`). The picker has a multiple mode whose rows are checkboxes (no name of
+  their own); the selection lives in the form, in the order it was made, so it survives every
+  search and every failed save. Each chosen row shows its place in the order. Pinned at the foot:
+  "3 selected · Review", which opens the selection in a sheet to check or remove, and "Add 3".
+  Add adds straight away unless several machines here can do an exercise and nobody has chosen;
+  then a short sheet asks only those questions ("Which machine?"), each starting at "Machine not
+  chosen". One machine is named, none is said ("Machine not chosen" or "No machine needed"), and
+  the athlete's own "use this machine" choice is kept without asking. An exercise already in the
+  workout says so and can still be added. Twenty at most.
+- **Server**: the ordered lists are read with `getAll`; one `withUser` transaction holds the
+  session lock, checks every exercise in one read and every machine against one compatibility
+  read, and inserts contiguous places in one statement. One bad item refuses the batch. A single
+  exercise is a batch of one (`addExerciseToSession` calls it).
+- **Receipts**: migration `0046_workout_submission_receipts` (additive, re-runnable; rehearsed
+  twice on the local copy) and `submitWorkoutOnce`, the food pattern of ADR 0032. A retry with the
+  same key and payload adds nothing and still lands on the workout; the same key with another
+  selection is refused; the key is minted once per visit.
+- **After adding**: the workout lands with `?added=N`, says "Added Leg press and Leg curl." in a
+  status line under the list (filled a tick after mounting, so it is announced), moves focus to the
+  first added row, and drops the parameter from the address.
+- **Add machine** pins its action (`EquipmentForm`, so Save changes on a machine's page too).
+- **Forms keep their state after an action** (`useKeptForm`). React resets a form after its action
+  while committing, with its own events off, so the `onReset={preventDefault}` pattern never ran:
+  a failed save put controlled selects, radios and checkboxes back to their defaults on screen and
+  in the next submit. Add exercise, Choose a fallback, the gym fallback form and Add machine now
+  cancel the reset with a listener on the element. The profile and targets forms carry the same
+  dead `onReset` and are left for a follow-up (outside this plan).
+- Tests: the action end to end on PGlite (`add-exercises.test.ts`: order, machines, replay,
+  conflict, intentional repeat, cross-gym machine, another account's exercise, duplicates, the
+  limit, concurrent additions), and component tests for the picker in both modes, Add, Substitute,
+  the gym fallback form, PinnedActions, Add machine and the added line.
+
+### Calls made in step 3
+
+- Substitute keeps its single choice; its empty machine option now reads "Machine not chosen" for
+  an exercise that needs a machine instead of "Not on a machine" (copy only).
+- The Add machine form keeps its native type select for now; the searchable, illustrated chooser
+  comes with the machines step (step 4).
+- Not verified: the owner's scrolling report on the deployed build on a physical phone, and the
+  keyboard behaviour on iPhone and Android.
 
 ## Next
 

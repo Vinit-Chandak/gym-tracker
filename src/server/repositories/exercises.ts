@@ -252,6 +252,38 @@ export async function listPreferredMachines(
     );
 }
 
+/**
+ * The machine set for each exercise at one gym ("use this machine"), keyed by exercise. Add
+ * exercise names it rather than asking which of several machines to use.
+ */
+export async function preferredMachinesAtGym(
+  db: DbOrTx,
+  userId: string,
+  gymId: string,
+): Promise<Record<string, string>> {
+  const rows = await db
+    .select({
+      exerciseId: exerciseEquipmentOptions.exerciseId,
+      equipmentInstanceId: exerciseEquipmentOptions.equipmentInstanceId,
+    })
+    .from(exerciseEquipmentOptions)
+    .innerJoin(
+      equipmentInstances,
+      eq(equipmentInstances.id, exerciseEquipmentOptions.equipmentInstanceId),
+    )
+    .where(
+      and(
+        eq(exerciseEquipmentOptions.userId, userId),
+        eq(equipmentInstances.gymId, gymId),
+        eq(equipmentInstances.isActive, true),
+      ),
+    );
+  const preferred: Record<string, string> = {};
+  for (const row of rows)
+    if (row.equipmentInstanceId) preferred[row.exerciseId] = row.equipmentInstanceId;
+  return preferred;
+}
+
 export class MachineNotAtGymError extends Error {
   constructor() {
     super("That machine is not registered at this gym.");

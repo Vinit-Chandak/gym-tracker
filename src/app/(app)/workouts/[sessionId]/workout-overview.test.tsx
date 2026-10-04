@@ -283,3 +283,19 @@ it("writes the coach's warm-up out whole on its row, with no sheet to repeat it"
   expect(screen.queryByRole("button", { name: /Before the bench/ })).toBeNull();
   expect(screen.getByRole("button", { name: "Mark warm-up done" })).toBeTruthy();
 });
+
+it("says what Add exercise just added, and takes focus to the first of them", async () => {
+  show({ added: 2 });
+  // The status line is in place before its words arrive, so a screen reader hears them.
+  const line = await screen.findByText("Added Cable crunch and Face pull.");
+  expect(line.getAttribute("role")).toBe("status");
+  expect(document.activeElement).toBe(screen.getByRole("button", { name: /Cable crunch/ }));
+});
+
+it("names a few additions in full and many by count", async () => {
+  const { addedLine } = await import("./workout-overview");
+  expect(addedLine([])).toBe("");
+  expect(addedLine(["Leg press"])).toBe("Added Leg press.");
+  expect(addedLine(["A", "B", "C", "D"])).toBe("Added A, B, C and D.");
+  expect(addedLine(["A", "B", "C", "D", "E", "F"])).toBe("Added 6 exercises: A, B, C and 3 more.");
+});

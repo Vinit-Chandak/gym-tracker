@@ -8,6 +8,7 @@ import {
   jsonb,
   numeric,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -15,7 +16,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { activities } from "./activities";
-import { ownerPolicy, timestamps } from "./common";
+import { ownerPolicy, serverWritePolicies, timestamps } from "./common";
 import { loadUnitEnum, setTypeEnum } from "./enums";
 import { exercises } from "./exercises";
 import { equipmentInstances, gyms } from "./gyms";
@@ -133,6 +134,27 @@ export const workoutExercises = pgTable(
       sql`superset_group is null or (length(superset_group) between 1 and 60)`,
     ),
     ownerPolicy("workout_exercises"),
+  ],
+).enableRLS();
+
+/**
+ * Exercises added to a session in one submission keep a receipt, as food does (ADR 0032): a
+ * retry after a lost reply finds its own receipt and adds nothing again, and the same key sent
+ * with a different selection is refused. A receipt outlives the exercises it added.
+ */
+export const workoutSubmissionReceipts = pgTable(
+  "workout_submission_receipts",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    submissionKey: uuid("submission_key").notNull(),
+    payloadDigest: text("payload_digest").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.submissionKey] }),
+    ...serverWritePolicies("workout_submission_receipts"),
   ],
 ).enableRLS();
 
