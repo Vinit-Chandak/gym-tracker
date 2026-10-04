@@ -9,7 +9,8 @@ const FIVE = ["1", "2", "3", "4", "5"].map((value) => ({ value, label: value }))
 /**
  * A 1–5 answer (board Check-in): its name, the five in a tray, the chosen one in ink, and what 1
  * and 5 mean under their own ends, so which way is better is read where the finger goes (the
- * app's scales do not all run the same way).
+ * app's scales do not all run the same way). Every answer is optional and blank means unknown,
+ * so the chosen one is let go by tapping it again: a mis-tap never stands as a reading.
  */
 export function ScaleField({
   label,
@@ -36,6 +37,7 @@ export function ScaleField({
         options={FIVE}
         defaultValue={defaultValue || undefined}
         columns={5}
+        clearable
         aria-labelledby={id}
         aria-describedby={`${id}-ends${error ? ` ${id}-error` : ""}`}
         aria-invalid={error ? true : undefined}

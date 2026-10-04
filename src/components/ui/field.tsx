@@ -89,7 +89,9 @@ export function Field({
         return cloneElement(child, {
           id: controlId,
           ...(group && child.type === "div" ? { role: child.props.role ?? "group" } : {}),
-          "aria-invalid": error ? true : undefined,
+          // A control can be marked by a sentence that is not its own (a sign-in that did not
+          // work is about both fields), so its own mark stands when the field has no error.
+          "aria-invalid": error ? true : child.props["aria-invalid"],
           "aria-labelledby": group ? labelId : child.props["aria-labelledby"],
           "aria-describedby":
             [child.props["aria-describedby"], error || hint ? feedbackId : undefined]

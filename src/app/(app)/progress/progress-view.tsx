@@ -481,7 +481,7 @@ export function ProgressView({
                   aria-label="Previous week"
                   disabled={pending}
                   onClick={() => stepWeek(-7)}
-                  className="session-icon-button -ml-2.5 disabled:text-ink-2"
+                  className="session-icon-button -ml-[10px] disabled:text-ink-2"
                 >
                   <Glyph name="chevronLeft" className="glyph-22" />
                 </button>
@@ -493,7 +493,7 @@ export function ProgressView({
                   aria-label="Next week"
                   disabled={pending}
                   onClick={() => stepWeek(7)}
-                  className="session-icon-button -mr-2.5 disabled:text-ink-2"
+                  className="session-icon-button -mr-[10px] disabled:text-ink-2"
                 >
                   <Glyph name="chevronRight" className="glyph-22" />
                 </button>

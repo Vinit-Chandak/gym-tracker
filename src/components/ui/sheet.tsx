@@ -141,7 +141,7 @@ export function Sheet({
               aria-label="Close sheet"
               disabled={!dismissible}
               onClick={onClose}
-              className="sheet-head-close -mr-2.5 grid size-[var(--ov-target-header)] shrink-0 place-items-center text-ink disabled:text-control"
+              className="sheet-head-close -mr-[10px] grid size-[var(--ov-target-header)] shrink-0 place-items-center text-ink disabled:text-control"
             >
               <Close aria-hidden />
             </button>

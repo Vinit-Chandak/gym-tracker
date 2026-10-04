@@ -217,7 +217,7 @@ export function MoreOptions({
           asking === "skip" && skip
             ? `Skip ${skip.dayName}?`
             : asking === "coach"
-              ? "Plan with the coach"
+              ? coachLabel
               : "More options"
         }
       >

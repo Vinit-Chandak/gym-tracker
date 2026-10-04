@@ -8,6 +8,7 @@ import { UNPLANNED_SESSION } from "@/lib/labels";
 import { startSessionAction, type StartRequest } from "@/server/actions/sessions";
 import { requireUser } from "@/server/auth";
 import { getActiveSession } from "@/server/queries/active-session";
+import { lastSleepHours } from "@/server/repositories/recovery-history";
 import { getSchedule } from "@/server/repositories/schedule";
 
 import { CheckInForm } from "../check-in-form";
@@ -47,11 +48,20 @@ export default async function StartPage(props: PageProps<"/workouts/start">) {
   const user = await requireUser();
   const start = startRequest(await props.searchParams);
   if (!start) redirect("/today");
-  const [open, schedule] = await Promise.all([
+  const [open, { schedule, sleep }] = await Promise.all([
     getActiveSession(user.id),
-    start.kind === "planned"
-      ? withUser(getDb(), user.id, (tx) => getSchedule(tx, user.id), { readOnly: true })
-      : Promise.resolve(null),
+    withUser(
+      getDb(),
+      user.id,
+      async (tx) => {
+        const [schedule, sleep] = await Promise.all([
+          start.kind === "planned" ? getSchedule(tx, user.id) : null,
+          lastSleepHours(tx, user.id),
+        ]);
+        return { schedule, sleep };
+      },
+      { readOnly: true },
+    ),
   ]);
   if (open) redirect(`/workouts/${open.id}`);
   const name =
@@ -66,7 +76,12 @@ export default async function StartPage(props: PageProps<"/workouts/start">) {
       meta={`Before ${name} · Optional`}
       back={{ href: "/today", label: "Today" }}
     >
-      <CheckInForm action={startSessionAction.bind(null, start)} initial={EMPTY} mode="start" />
+      <CheckInForm
+        action={startSessionAction.bind(null, start)}
+        initial={EMPTY}
+        mode="start"
+        lastSleepHours={sleep}
+      />
     </SessionPage>
   );
 }

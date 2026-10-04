@@ -195,6 +195,7 @@ it("drops a deleted set from the list", async () => {
   const page = render(<WorkoutView session={rendered} seenSetChanges={seen} userId="user" />);
   fireEvent.click(screen.getByRole("button", { name: LINE }));
   fireEvent.click(screen.getByRole("button", { name: "Delete this set" }));
+  fireEvent.click(screen.getByRole("button", { name: "Delete it" }));
   await vi.waitFor(() => expect(actions.remove).toHaveBeenCalledWith("slot", 1, saved.completedAt));
   await vi.waitFor(() => expect(setChangesMade()).toBeGreaterThan(seen));
 

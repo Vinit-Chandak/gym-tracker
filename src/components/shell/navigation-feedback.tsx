@@ -45,7 +45,7 @@ export function NavigationFeedback({ href }: { href: string }) {
 }
 
 /** The URL has committed, but the page's data may still be loading behind Suspense. */
-export function LoadingMessage({ title }: { title: string }) {
+export function LoadingMessage({ title, what }: { title: string; what?: string }) {
   const online = useOnline();
   const slow = useSlowLoad();
   return (
@@ -55,7 +55,7 @@ export function LoadingMessage({ title }: { title: string }) {
           ? "You’re offline. Reconnect to load this page."
           : slow
             ? "Taking longer than usual…"
-            : `Loading ${title === "Loading" ? "page" : title.toLowerCase()}…`}
+            : `Loading ${what ?? (title === "Loading" ? "page" : title.toLowerCase())}…`}
       </p>
       {online && (
         <a

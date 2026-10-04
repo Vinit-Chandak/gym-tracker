@@ -293,7 +293,7 @@ it("removes the set being entered from its options without leaving a draft behin
   press("One rep more");
   expect(localStorage.getItem(draftKey(context))).toContain('"reps":"1"');
   press("Set options: add a set, type, remove");
-  press("Remove this row");
+  press("Remove this set");
   await waitFor(() => expect(localStorage.getItem(draftKey(context))).toBeNull());
   expect(screen.getByRole("button", { name: "Reps not set. Type reps" })).toBeTruthy();
 });
@@ -303,6 +303,9 @@ it("deletes only the version of a logged set that the athlete is looking at", as
   renderLogger({ exercise: { sets: [saved] } });
   press("Set 1: 60 kilograms, 5 reps, 2 reps in reserve. Edit");
   press("Delete this set");
+  // It asks once, in place: a logged set cannot be brought back.
+  expect(actions.remove).not.toHaveBeenCalled();
+  press("Delete it");
   await waitFor(() => expect(actions.remove).toHaveBeenCalledWith("slot", 1, saved.completedAt));
   await screen.findByText("This set changed on another device.");
   // The set stays as the server has it.
@@ -469,7 +472,7 @@ it("takes the target when the empty RIR's dash is tapped, and steps either side 
   renderLogger({ exercise: { planned: benchSlot } });
   press("RIR not set, target 2. Use the target");
   expect(screen.getByRole("button", { name: "2 reps in reserve. Type RIR" })).toBeTruthy();
-  press("One rep less in reserve");
+  press("One less in reserve");
   expect(screen.getByRole("button", { name: "1 rep in reserve. Type RIR" })).toBeTruthy();
 });
 

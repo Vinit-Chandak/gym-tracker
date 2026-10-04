@@ -7,6 +7,7 @@ import { ActivityCard } from "@/components/ui/activity-card";
 import { LinkButton } from "@/components/ui/button";
 import { CoachNote } from "@/components/ui/coach-note";
 import { FitTitle } from "@/components/ui/fit-title";
+import { Figures } from "@/components/ui/figures";
 import { Glyph } from "@/components/ui/glyphs";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { writtenSummaryForSport } from "@/domain/sport-scope";
@@ -146,16 +147,13 @@ function Empty({ title, children }: { title: string; children?: ReactNode }) {
 }
 
 /** "Started 17:23", or with its day when the session was left open from another one. */
-function started(session: SessionSummary, today: string, timeZone: string): string {
+/** "17:23", or with its day when the session was left open from another one. */
+function startedAt(session: SessionSummary, today: string, timeZone: string): string {
   const startedOn = todayInTimeZone(timeZone, new Date(session.startedAt));
-  return `Started ${
-    startedOn === today
-      ? formatTime(session.startedAt, timeZone)
-      : formatDateTime(session.startedAt, timeZone)
-  }`;
+  return startedOn === today
+    ? formatTime(session.startedAt, timeZone)
+    : formatDateTime(session.startedAt, timeZone);
 }
-
-const sets = (count: number) => `${count} ${count === 1 ? "set" : "sets"}`;
 
 /** "In progress · Started 17:23 · 0 sets", each part kept whole when the line wraps. */
 function Progress({
@@ -169,9 +167,16 @@ function Progress({
 }) {
   return (
     <>
+      {/* The figures in Jost, whose zero is plain (DESIGN.md, Typography): "0 sets", not "Ø". */}
       <span className="whitespace-nowrap">In progress</span> ·{" "}
-      <span className="whitespace-nowrap">{started(session, today, timeZone)}</span> ·{" "}
-      <span className="whitespace-nowrap">{sets(session.setCount)}</span>
+      <span className="whitespace-nowrap">
+        Started <Figures>{startedAt(session, today, timeZone)}</Figures>
+      </span>{" "}
+      ·{" "}
+      <span className="whitespace-nowrap">
+        <span className="figures">{session.setCount}</span>{" "}
+        {session.setCount === 1 ? "set" : "sets"}
+      </span>
     </>
   );
 }
@@ -198,7 +203,12 @@ export function TodayView({
   const coachPlan = coach?.plan && coach.matchesGym && !coach.pending ? coach.plan : null;
   const coachGyms: CoachGym[] = gyms
     .filter((gym) => coach?.workflow || gym.kind === "gym")
-    .map((gym) => ({ id: gym.id, name: gym.name, isDefault: gym.id === defaultGym?.id }));
+    .map((gym) => ({
+      id: gym.id,
+      name: gym.name,
+      kind: gym.kind,
+      isDefault: gym.id === defaultGym?.id,
+    }));
 
   const sessionStatus = plan?.sessionStatus ?? "pending";
   const restDay = day !== null && !day.includesLifting && !day.includesRun;
@@ -339,7 +349,11 @@ export function TodayView({
                 />
               )
             )}
-            {day.timeNote && <Fact glyph="rest">{day.timeNote}</Fact>}
+            {day.timeNote && (
+              <Fact glyph="rest">
+                <Figures>{day.timeNote}</Figures>
+              </Fact>
+            )}
             {day.focus && <Fact glyph="target">{day.focus}</Fact>}
             {coachPlan && <Fact glyph="coach">Planned by the coach</Fact>}
           </>
@@ -378,7 +392,7 @@ export function TodayView({
                 </CoachNote>
               )}
               <ul aria-label={`${day.name}: the exercises`} className="activity-card-passage">
-                <PlanRows rows={rows} notes="glyph" isLast />
+                <PlanRows rows={rows} notes="none" isLast />
               </ul>
             </div>
           ) : undefined
@@ -438,7 +452,11 @@ export function TodayView({
         facts={
           (day.timeNote || day.focus) && (
             <>
-              {day.timeNote && <Fact glyph="rest">{day.timeNote}</Fact>}
+              {day.timeNote && (
+                <Fact glyph="rest">
+                  <Figures>{day.timeNote}</Figures>
+                </Fact>
+              )}
               {day.focus && <Fact glyph="target">{day.focus}</Fact>}
             </>
           )

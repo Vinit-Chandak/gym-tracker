@@ -4,7 +4,7 @@ import type { ComponentProps } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import type { ExerciseVM, SessionVM, SetVM } from "./view-model";
-import { WorkoutOverview } from "./workout-overview";
+import { draftsWarning, WorkoutOverview } from "./workout-overview";
 
 const actions = vi.hoisted(() => ({ warmup: vi.fn() }));
 vi.mock("@/components/ui/app-link", () => ({
@@ -159,7 +159,6 @@ function show(patch: Partial<ComponentProps<typeof WorkoutOverview>> = {}) {
     <WorkoutOverview
       session={SESSION}
       readOnly={false}
-      hasDrafts={false}
       onOpenExercise={open}
       onOpenDetails={() => {}}
       onEditSuperset={() => {}}
@@ -200,10 +199,24 @@ it("is the session's layer: Minimise to Today, Finish and More", () => {
   expect(screen.getByText("70–90 min")).toBeTruthy();
 });
 
-it("holds Finish back while a set draft is unsaved", () => {
-  show({ hasDrafts: true });
+it("holds Finish back while a set draft is unsaved, and says where", () => {
+  show({ drafts: { count: 1, names: ["Barbell bench press"] } });
   expect(screen.queryByRole("link", { name: "Finish" })).toBeNull();
-  expect(screen.getByText(/Unsaved set drafts on this device/)).toBeTruthy();
+  const finish = screen.getByRole("button", { name: "Finish" });
+  expect(finish.getAttribute("aria-disabled")).toBe("true");
+  const why = document.getElementById(finish.getAttribute("aria-describedby")!);
+  expect(why?.textContent).toBe(
+    "A set in Barbell bench press is not saved yet. Save or remove it before finishing.",
+  );
+});
+
+it("names every exercise holding drafts, and none it cannot find", () => {
+  expect(draftsWarning({ count: 3, names: ["Barbell bench press", "Plank"] })).toBe(
+    "Sets in Barbell bench press and Plank are not saved yet. Save or remove them before finishing.",
+  );
+  expect(draftsWarning({ count: 2, names: [] })).toBe(
+    "Sets on this device are not saved yet. Save or remove them before finishing.",
+  );
 });
 
 it("says where a row stands only when that is news", () => {

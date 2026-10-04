@@ -25,6 +25,8 @@ type Props = {
    * it edits the check-in already given, and the header's back is the way out unchanged.
    */
   mode: "start" | "edit";
+  /** The hours given at the last check-in that had them, where a blank's − and + start. */
+  lastSleepHours?: number | null;
 };
 
 /** Skip check-in: a second submit, so the session starts the same way, answering nothing. */
@@ -53,7 +55,7 @@ function SkipButton() {
  * beside 1 fresh to 5 wrecked — and the two answers contradicted each other as often as
  * not. How you feel is now two scales that read the same way: 1 is fine, 5 is the worst.
  */
-export function CheckInForm({ action, initial, mode }: Props) {
+export function CheckInForm({ action, initial, mode, lastSleepHours = null }: Props) {
   const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
   const value = (key: keyof Props["initial"]) => state.values?.[key] ?? initial[key];
 
@@ -65,8 +67,11 @@ export function CheckInForm({ action, initial, mode }: Props) {
         </h2>
         <RowStepper
           label="Hours last night"
+          hint={lastSleepHours !== null ? `Last time ${lastSleepHours} h` : undefined}
           name="sleepHours"
           defaultValue={value("sleepHours")}
+          unit="h"
+          start={lastSleepHours}
           step={0.5}
           max={24}
           less="Half an hour less"

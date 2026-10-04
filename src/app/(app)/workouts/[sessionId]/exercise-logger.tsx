@@ -19,15 +19,17 @@ import { RestPill } from "@/components/shell/rest-timer";
 import Link from "@/components/ui/app-link";
 import { Button, LinkButton } from "@/components/ui/button";
 import { rampSize, titleSize } from "@/components/ui/fit";
+import { CoachNoteMore } from "@/components/ui/coach-note-more";
 import { Glyph } from "@/components/ui/glyphs";
 import { Tabs } from "@/components/ui/tabs";
 import { useMeasure } from "@/components/ui/use-width";
 import { effortError, effortMetric, RIR_HELP, RPE_HELP } from "@/domain/effort";
 import { REGRESSION_WARNING_STREAK, WORKING_SET_TYPES } from "@/domain/progression";
-import { SET_LIMITS } from "@/domain/sets";
+import { formatSets, SET_LIMITS } from "@/domain/sets";
 import type { LoadUnit, PrescriptionType, SetType } from "@/domain/types";
 import { formatDay } from "@/lib/format";
 import { LOAD_UNIT_LABELS, SUGGESTION_KIND_LABELS, UNPLANNED_SESSION } from "@/lib/labels";
+import { setInUnit } from "@/lib/units";
 import { attempted } from "@/lib/offline-submit";
 import { PLATFORM_ATTRIBUTE } from "@/lib/platform";
 import type { DraftValueField } from "@/lib/workout-drafts";
@@ -132,7 +134,8 @@ function fieldsFor(
   const suggested = (state: string) => (state === "suggested" ? ", suggested" : "");
   const load: EntryField = {
     field: "weight",
-    unit: `${bodyweight ? "+" : ""}${label}`,
+    // On a bodyweight exercise the load is what is added: "kg added", not "0 +kg".
+    unit: bodyweight ? `${label} added` : label,
     hint: null,
     foldHint: null,
     inputLabel: said ? `Load in ${said}` : "Load",
@@ -226,8 +229,9 @@ function fieldsFor(
             max: SET_LIMITS.rir,
             min: 0,
             step: 1,
-            less: "One rep less in reserve",
-            more: "One rep more in reserve",
+            // Not "One rep more", which the reps say: a voice or a reader tells them apart.
+            less: "One less in reserve",
+            more: "One more in reserve",
             name: (value, state) =>
               state !== "empty"
                 ? `${rirName(value)}. Type RIR`
@@ -583,7 +587,12 @@ export function ExerciseLogger({
                 suggestion.basis === "other_equipment"
                   ? `${exercise.basis.equipmentName ?? "another machine"} at ${exercise.basis.gymName}`
                   : "this exercise"
-              }, ${formatDay(exercise.basis.performedAt, session.timeZone)}.`
+              }, ${formatDay(exercise.basis.performedAt, session.timeZone)}${
+                // The sets it read, so the reason can be checked against what was done.
+                exercise.basis.sets.length > 0
+                  ? `: ${formatSets(exercise.basis.sets.map((set) => setInUnit(set, unit)))}`
+                  : ""
+              }.`
             : null,
         }
       : null;
@@ -952,11 +961,12 @@ export function ExerciseLogger({
       glyph: "link",
       label: "Superset",
       onSelect: () => onEditSuperset(exercise.supersetGroup),
+      opens: true,
     });
   if (!readOnly && !completed && !skipped && sets.loggedSets.length === 0 && !sets.dirty)
     more.push({
       glyph: "swap",
-      label: "Choose a fallback",
+      label: "Swap the exercise",
       href: `/workouts/${session.id}/exercises/${exercise.id}/substitute` as Route,
     });
   if (!readOnly && skipped)
@@ -967,6 +977,7 @@ export function ExerciseLogger({
       label: "Skip exercise",
       onSelect: () => setSheet({ kind: "skip" }),
       disabled: pending || sets.dirty,
+      opens: true,
       apart: true,
     });
 
@@ -994,7 +1005,6 @@ export function ExerciseLogger({
       style={layerStyle}
     >
       <span ref={probe} aria-hidden className="session-probe" />
-      <h1 className="sr-only">{exercise.exercise.name}</h1>
       <p role="status" className="sr-only">
         {spoken}
       </p>
@@ -1010,7 +1020,7 @@ export function ExerciseLogger({
             type="button"
             aria-haspopup="dialog"
             aria-label="Complete, skip, superset, substitute"
-            className="session-icon-button -mr-2.5"
+            className="session-icon-button -mr-[10px]"
             onClick={() => setSheet({ kind: "more" })}
           >
             <Glyph name="more" className="glyph-24" />
@@ -1019,7 +1029,8 @@ export function ExerciseLogger({
       </header>
 
       <div ref={body} className="session-body" data-scroll={tab !== "log"}>
-        <h2 className="session-title">{exercise.exercise.name}</h2>
+        {/* One heading, the name on the screen (not a hidden one beside it). */}
+        <h1 className="session-title">{exercise.exercise.name}</h1>
         <p className="session-meta">
           {facts.map((fact, index) => (
             <span key={index} className="session-fact">
@@ -1121,28 +1132,11 @@ export function ExerciseLogger({
               </div>
             )}
 
+            {/* More opens the rest in place, as it does on the workout; Why is the tag's. */}
             {exercise.coachNote && editable && (
-              <aside
-                aria-label="From the coach"
-                className="mt-2 rounded-control bg-surface px-3.5 py-3"
-              >
-                <p className="flex items-center gap-1.5 type-caption text-ink">
-                  <Glyph name="coach" className="glyph-16" />
-                  Coach
-                </p>
-                <p className="mt-1 line-clamp-2 type-body">{exercise.coachNote}</p>
-                {why && exercise.coachNote.length > 76 && (
-                  <button
-                    type="button"
-                    aria-haspopup="dialog"
-                    aria-label="More from the coach"
-                    className="-my-2.5 -ml-1.5 min-h-11 min-w-11 px-1.5 font-bold"
-                    onClick={() => setSheet({ kind: "why" })}
-                  >
-                    More
-                  </button>
-                )}
-              </aside>
+              <CoachNoteMore size="body" className="mt-2">
+                {exercise.coachNote}
+              </CoachNoteMore>
             )}
 
             {skipped && (
@@ -1175,7 +1169,7 @@ export function ExerciseLogger({
                       <Button
                         variant="text"
                         size="sm"
-                        className="-ml-2.5"
+                        className="-ml-[10px]"
                         onClick={() => sets.restore(row)}
                       >
                         Discard this local draft

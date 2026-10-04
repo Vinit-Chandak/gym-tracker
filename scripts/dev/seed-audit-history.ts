@@ -181,6 +181,10 @@ async function strength(
       supersetGroup: index % 3 === 0 && slot > 0 ? "Core and assistance" : null,
     });
     const kg = Math.round((person.username === "priya" ? 20 : 30) + month * 0.6 + slot * 2.5);
+    const load = person.preferredUnit === "lb" ? Math.round((kg * 2.20462) / 5) * 5 : kg;
+    // The first set is 60% of the work, rounded to a load plates make (5 lb, 2.5 kg): the
+    // logger offers it again as next session's warm-up, so it has to be one a bar can hold.
+    const plate = person.preferredUnit === "lb" ? 5 : 2.5;
     const isTimed = slug === "plank";
     const isCarry = slug === "farmers-carry";
     await tx.insert(s.setLogs).values(
@@ -190,10 +194,7 @@ async function strength(
         workoutExerciseId,
         setIndex: set + 1,
         setType: set === 0 && !isTimed && !isCarry ? ("warmup" as const) : ("working" as const),
-        weight: isTimed
-          ? 0
-          : (person.preferredUnit === "lb" ? Math.round((kg * 2.20462) / 5) * 5 : kg) *
-            (set === 0 ? 0.6 : 1),
+        weight: isTimed ? 0 : set === 0 ? Math.round((load * 0.6) / plate) * plate : load,
         unit: person.preferredUnit,
         reps: isTimed || isCarry ? null : 8 + (index % 3),
         rir: isTimed || isCarry || partial ? null : 2,

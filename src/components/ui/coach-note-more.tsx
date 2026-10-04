@@ -8,15 +8,19 @@ import { Glyph } from "./glyphs";
 
 /**
  * The coach's note at two lines with More, which opens the rest in place (DESIGN.md, Coach
- * note): the same quiet block as `CoachNote`, for a screen where the note stands over a list
- * (the workout). More shows only when the words are really cut, and Less folds them again.
+ * note): the same quiet block as `CoachNote`, wherever the note stands over a list or a log
+ * (the workout, the exercise). More shows only when the words are really cut, and Less folds
+ * them again. More means this everywhere: the reasons behind a suggestion are its tag's Why.
  */
 export function CoachNoteMore({
   who = "Coach",
+  size = "meta",
   className,
   children,
 }: {
   who?: string;
+  /** The words at Meta (15) over a list, or Body over an exercise's log. */
+  size?: "meta" | "body";
   className?: string;
   children: ReactNode;
 }) {
@@ -49,7 +53,8 @@ export function CoachNoteMore({
         ref={words}
         id={id}
         className={cn(
-          "mt-1 type-meta leading-[1.45] [overflow-wrap:anywhere] text-ink tabular-nums",
+          "mt-1 leading-[1.45] [overflow-wrap:anywhere] text-ink tabular-nums",
+          size === "body" ? "type-body" : "type-meta",
           !open && "line-clamp-2",
         )}
       >
@@ -60,7 +65,11 @@ export function CoachNoteMore({
           type="button"
           aria-expanded={open}
           aria-controls={id}
-          className="-my-2.5 -ml-1.5 min-h-11 min-w-11 px-1.5 type-meta font-bold"
+          aria-label={`${open ? "Less" : "More"} from ${who === "Coach" ? "the coach" : who}`}
+          className={cn(
+            "-my-2.5 -ml-1.5 min-h-11 min-w-11 px-1.5 font-bold",
+            size === "body" ? "type-body" : "type-meta",
+          )}
           onClick={() => setOpen((value) => !value)}
         >
           {open ? "Less" : "More"}

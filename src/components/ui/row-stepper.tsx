@@ -60,6 +60,7 @@ export function RowStepper({
   format = String,
   sanitize,
   placeholder = "–",
+  start,
   less,
   more,
   error,
@@ -84,6 +85,11 @@ export function RowStepper({
   /** Keeps typing to what the figure can hold; numbers by default. */
   sanitize?: (raw: string) => string;
   placeholder?: string;
+  /**
+   * Where − and + go from a blank: the last answer given (last night's hours), so a usual one is
+   * a tap away. + lands on it and − one step under it; the blank itself still records nothing.
+   */
+  start?: number | null;
   /** What − and + do, said aloud: "Half an hour less". */
   less: string;
   more: string;
@@ -97,8 +103,13 @@ export function RowStepper({
     onChange?.(next);
   };
   const current = parse(value);
-  const down = steppedValue(current, step, -1, { min, max });
-  const up = steppedValue(current, step, 1, { min, max });
+  const anchored = current === null && start != null && start >= min && start <= max;
+  const down = anchored
+    ? start - step >= min
+      ? Math.round((start - step) * 100) / 100
+      : null
+    : steppedValue(current, step, -1, { min, max });
+  const up = anchored ? start : steppedValue(current, step, 1, { min, max });
   const clean =
     sanitize ??
     ((raw: string) =>

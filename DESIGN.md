@@ -729,8 +729,9 @@ and every control answers a press.
   said once in the prescription and drawn once in the print. Where it stands is said only when it
   is news: a check when done, Resume on the one under way, Skipped when dropped. A row that opens
   (the workout's) ends in a chevron. The coach's note for an exercise is said whole on that
-  exercise's own screen; on a list (Today's card, the workout) the row ends in the speech glyph
-  instead of a note cut short, except a dropped exercise, whose note is why it was dropped.
+  exercise's own screen; on the workout's list, whose rows open it, the row ends in the speech
+  glyph instead of a note cut short, except a dropped exercise, whose note is why it was
+  dropped. Today's card, whose rows do not open, says the coach's summary and no glyph.
 - **The warm-up** is a row of the workout with its own Mark done at its end (Finish's outline
   pill, 36 pt in a 44-pt target; done, surface with its check, and a tap undoes it). The coach's
   warm-up is its lines, each whole on a line of its own; a protocol's is its drill count, which
@@ -770,7 +771,7 @@ and every control answers a press.
   discard your open session to start this one.").
 - The plan is folded until asked for: the head is a button with `aria-expanded`, and the plan,
   folded, is inert. Unfolded, the workout shows the coach's summary whole and its exercises (each
-  with its prescription and, where the coach wrote one, the speech glyph); a run, ride or swim
+  with its prescription); a run, ride or swim
   shows its steps, its targets, how to do it, the coach's word for it, and Skip or move. It
   unfolds in 220 ms ease-out, height and words together; with reduced motion it appears.
 - The card's next step is its own, the card's full width under its facts: Start workout (primary,

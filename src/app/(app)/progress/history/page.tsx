@@ -38,9 +38,9 @@ function readings(values: [string, number | null, string?][]) {
  * ten. One word over two scales is what the five-step change was undoing.
  */
 function runEffort(effort: Effort) {
-  if (effort.status === "reported") return `Effort ${effort.value}`;
+  if (effort.status === "reported") return `Effort ${effort.value} of 5`;
   if (effort.value === null) return "";
-  return `Effort ${effort.value} (unconfirmed)`;
+  return `Effort ${effort.value} of 5 (unconfirmed)`;
 }
 /**
  * History, one of Progress's sections (ADR 0034): every workout, run, ride, swim and recovery

@@ -8,7 +8,7 @@ import { GLYPH_LABELS, Glyph, type GlyphName } from "@/components/ui/glyphs";
 import { cn } from "@/lib/utils";
 
 import type { CycleCell, PlanRowModel } from "./today-model";
-import { daysBehind, groupRows } from "./today-model";
+import { groupRows } from "./today-model";
 
 /**
  * The cycle as squares (DESIGN.md: the programme's position is seven squares, not a sentence):
@@ -32,14 +32,16 @@ export function CycleMark({
   const gap = 4;
   const width = cells.length * sq + (cells.length - 1) * gap;
   return (
+    // Never wider than the line: at 200% text the words fold, and the squares stand under them,
+    // rather than pushing the page sideways.
     <Link
       href={href}
       aria-label={label}
-      className="-mr-0.5 ml-auto flex min-h-[var(--ov-target-header)] shrink-0 items-center gap-2 px-0.5"
+      className="ml-auto flex min-h-[var(--ov-target-header)] max-w-full min-w-0 flex-wrap items-center justify-end gap-x-2 gap-y-0.5"
     >
       {behind > 0 && (
-        <span className="type-meta-small whitespace-nowrap text-ink-2 tabular-nums">
-          {daysBehind(behind)}
+        <span className="min-w-0 text-right type-meta-small text-ink-2">
+          <span className="figures">{behind}</span> {behind === 1 ? "day" : "days"} behind
         </span>
       )}
       <svg
@@ -47,7 +49,7 @@ export function CycleMark({
         width={width}
         height={sq + 2}
         viewBox={`0 0 ${width} ${sq + 2}`}
-        className="block text-ink"
+        className="block shrink-0 text-ink"
       >
         {cells.map((cell, index) => {
           const x = index * (sq + gap);
@@ -165,10 +167,11 @@ export function PlanRow({
   /** Short screens tighten the rows. */
   small?: boolean;
   /**
-   * `glyph` where the coach's note is said elsewhere (Today's card: the exercise's own screen
-   * has it whole): the speech glyph at the row's end says there is one, nothing is cut.
+   * `none` where the coach's note is said elsewhere (Today's card says the coach's summary; the
+   * exercise's own screen has its note whole): nothing is cut, and nothing points at a note
+   * that cannot be opened from here.
    */
-  notes?: "full" | "glyph";
+  notes?: "full" | "none";
 }) {
   return (
     <li className={cn("plan-row", last && "plan-row-last", small && "plan-row-small")}>
@@ -195,12 +198,6 @@ export function PlanRow({
       </span>
       {row.dropped ? (
         <span className="shrink-0 type-meta-small font-semibold text-ink-2">Skipped</span>
-      ) : row.note && notes === "glyph" ? (
-        <Glyph
-          name="coach"
-          label="The coach wrote a note for this exercise"
-          className="glyph-18 shrink-0 text-ink-2"
-        />
       ) : (
         trailing
       )}
@@ -219,7 +216,7 @@ export function PlanRows({
   small?: boolean;
   /** Whether the list ends with these rows (its last row takes no rule). */
   isLast?: boolean;
-  notes?: "full" | "glyph";
+  notes?: "full" | "none";
 }) {
   const groups = groupRows(rows);
   return groups.map((group, index) => {

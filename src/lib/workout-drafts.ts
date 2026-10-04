@@ -167,6 +167,28 @@ export function draftMatchesSet(
   );
 }
 
+/** The workout exercises of a session holding set drafts on this device, each once. */
+export function sessionDraftExercises(
+  storage: Storage,
+  userId: string,
+  sessionId: string,
+): string[] {
+  const prefix = `overload:draft:v1:${userId}:${sessionId}:`;
+  const ids: string[] = [];
+  try {
+    for (let i = 0; i < storage.length; i++) {
+      const key = storage.key(i);
+      if (!key?.startsWith(prefix)) continue;
+      const value: unknown = JSON.parse(storage.getItem(key) ?? "[]");
+      const id = key.slice(prefix.length).split(":")[0];
+      if (Array.isArray(value) && value.length > 0 && id && !ids.includes(id)) ids.push(id);
+    }
+  } catch {
+    return ids;
+  }
+  return ids;
+}
+
 export function countSessionDrafts(storage: Storage, userId: string, sessionId: string): number {
   let count = 0;
   try {

@@ -4,6 +4,7 @@ import {
   draftMatchesSet,
   readDrafts,
   removeDraft,
+  sessionDraftExercises,
   writeDraft,
   type Draft,
   type DraftContext,
@@ -39,6 +40,25 @@ const storage = () => {
   };
 };
 describe("unsaved set drafts", () => {
+  it("names each exercise holding drafts once, and only this session's", () => {
+    const data = new Map<string, string>();
+    const full = {
+      get length() {
+        return data.size;
+      },
+      key: (index: number) => [...data.keys()][index] ?? null,
+      getItem: (key: string) => data.get(key) ?? null,
+      setItem: (key: string, value: string) => void data.set(key, value),
+      removeItem: (key: string) => void data.delete(key),
+      clear: () => data.clear(),
+    } as Storage;
+    writeDraft(full, context, draft);
+    writeDraft(full, context, { ...draft, setIndex: 2 });
+    writeDraft(full, { ...context, workoutExerciseId: "x", equipmentId: null }, draft);
+    writeDraft(full, { ...context, sessionId: "other" }, draft);
+    expect(sessionDraftExercises(full, "a", "s")).toEqual(["w", "x"]);
+  });
+
   it("restores exact input and isolates account, session and machine", () => {
     const s = storage();
     expect(writeDraft(s, context, draft)).toBe(true);
