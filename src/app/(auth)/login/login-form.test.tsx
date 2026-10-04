@@ -51,9 +51,10 @@ it("shows the password on request, and keeps what was typed", () => {
   const password = container.querySelector("input[name=password]") as HTMLInputElement;
   fireEvent.change(password, { target: { value: "secret" } });
   expect(password.type).toBe("password");
-  fireEvent.click(screen.getByRole("button", { name: "Show" }));
+  fireEvent.click(screen.getByRole("button", { name: "Show password" }));
   expect(password.type).toBe("text");
   expect(password.value).toBe("secret");
+  expect(screen.getByRole("button", { name: "Hide password" })).toBeTruthy();
 });
 
 it("sends what was typed and leaves it in the fields", () => {

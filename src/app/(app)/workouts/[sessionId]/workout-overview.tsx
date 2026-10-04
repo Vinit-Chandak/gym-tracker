@@ -30,6 +30,7 @@ import { setWarmupCompletedAction } from "@/server/actions/sessions";
 
 import {
   equipmentGlyph,
+  equipmentLabel,
   equipmentLine,
   isWarmup,
   plannedSets,
@@ -444,7 +445,7 @@ export function WorkoutOverview({
                 <span className="meta-fact">
                   <Glyph
                     name={glyph}
-                    label={equipmentLine(exercise, session.gym.kind)}
+                    label={equipmentLabel(exercise, session.gym.kind)}
                     className="glyph-16"
                   />
                   <span>{rowLine(exercise, unitLabel, readOnly)}</span>

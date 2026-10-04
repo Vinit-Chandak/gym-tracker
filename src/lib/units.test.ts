@@ -6,6 +6,7 @@ import {
   formatHeight,
   fromKilograms,
   heightUnitFor,
+  loadStepIn,
   toCentimetres,
   toFeetAndInches,
   toKilograms,
@@ -64,5 +65,18 @@ describe("age", () => {
 
   it("has no answer for a birth date in the future", () => {
     expect(ageOn("2030-01-01", "2026-09-10")).toBeNull();
+  });
+});
+
+describe("load steps", () => {
+  it("steps a kilogram default by the plate jump nearest it in pounds", () => {
+    expect(loadStepIn(2.5, "lb")).toBe(5);
+    expect(loadStepIn(1.25, "lb")).toBe(2.5);
+    expect(loadStepIn(5, "lb")).toBe(10);
+    expect(loadStepIn(0.5, "lb")).toBe(1);
+  });
+
+  it("keeps a kilogram step as it is", () => {
+    expect(loadStepIn(2.5, "kg")).toBe(2.5);
   });
 });

@@ -1,4 +1,4 @@
-import type { GlyphName } from "@/components/ui/glyphs";
+import { GLYPH_LABELS, type GlyphName } from "@/components/ui/glyphs";
 import { emWidth, onRamp } from "@/components/ui/fit";
 import type { PrescriptionType, SetType } from "@/domain/types";
 import { MEASURE_UNIT_SUFFIX, rangeLabel, restLabel } from "@/lib/labels";
@@ -88,6 +88,17 @@ export function equipmentLine(exercise: ExerciseVM, gymKind: string): string {
     return exercise.exercise.modality === "bodyweight" ? "Bodyweight" : "Free weights";
   }
   return "Machine not chosen";
+}
+
+/**
+ * What a row's equipment glyph says aloud: the machine, unless the exercise's name already says
+ * it ("45° leg press" on the 45° leg press), and then only what kind it is, so a screen reader
+ * does not read the name twice.
+ */
+export function equipmentLabel(exercise: ExerciseVM, gymKind: string): string {
+  return exercise.equipment && equipmentFact(exercise) === null
+    ? GLYPH_LABELS[equipmentGlyph(exercise)]
+    : equipmentLine(exercise, gymKind);
 }
 
 /**

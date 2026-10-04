@@ -295,7 +295,12 @@ export function TodayView({
           </State>
         }
         actions={
-          <LinkButton href={`/workouts/${inProgress.id}`} size="lg" className="w-full">
+          <LinkButton
+            href={`/workouts/${inProgress.id}`}
+            size="lg"
+            className="w-full"
+            aria-label={`Resume session: ${inProgress.dayName ?? UNPLANNED_SESSION}`}
+          >
             <Glyph name="play" className="glyph-20" />
             Resume
           </LinkButton>

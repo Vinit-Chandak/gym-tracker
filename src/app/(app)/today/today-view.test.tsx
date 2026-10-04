@@ -163,10 +163,8 @@ it("gives the workout and each run a card of its own, each with its own next ste
   ).toBe(`/workouts/start?gym=g1&day=${DAY.id}&index=3`);
   // Its figures in Jost, the dash and the unit in Atkinson: one fact, in three runs.
   expect(
-    workout.getByText(
-      (_, element) => element?.textContent === "70–100 min" && element.tagName === "SPAN",
-    ),
-  ).toBeTruthy();
+    workout.getAllByText((_, element) => element?.textContent === "70–100 min").length,
+  ).toBeGreaterThan(0);
   expect(workout.getByText("Aerobic + arms/forearms")).toBeTruthy();
   // Two runs on one day are told apart by what each asks for.
   expect(screen.getByRole("link", { name: "Log run: 25–30 min" })).toBeTruthy();

@@ -4,6 +4,7 @@ import {
   entryHeading,
   entrySize,
   equipmentFact,
+  equipmentLabel,
   equipmentGlyph,
   figureColumn,
   headingText,
@@ -137,6 +138,19 @@ describe("what the header says", () => {
     expect(on("Cable triceps pushdown", "Cable station", "cable")).toBe("on Cable station");
     expect(on("Hammer curl", "Dumbbells", "dumbbell")).toBe("with Dumbbells");
     expect(equipmentFact(exercise())).toBeNull();
+  });
+
+  it("says the machine aloud only where the name does not already", () => {
+    const row = (name: string, equipment: string, modality: ExerciseVM["exercise"]["modality"]) =>
+      equipmentLabel(
+        exercise({
+          exercise: { ...exercise().exercise, name, modality },
+          equipment: { name: equipment } as ExerciseVM["equipment"],
+        }),
+        "gym",
+      );
+    expect(row("45° leg press", "45° leg press", "machine")).toBe("Machine");
+    expect(row("Cable triceps pushdown", "Cable station", "cable")).toBe("Cable station");
   });
 
   it("draws the equipment as its glyph", () => {

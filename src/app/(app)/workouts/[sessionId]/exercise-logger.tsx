@@ -590,7 +590,10 @@ export function ExerciseLogger({
               }, ${formatDay(exercise.basis.performedAt, session.timeZone)}${
                 // The sets it read, so the reason can be checked against what was done.
                 exercise.basis.sets.length > 0
-                  ? `: ${formatSets(exercise.basis.sets.map((set) => setInUnit(set, unit)))}`
+                  ? `: ${formatSets(
+                      exercise.basis.sets.map((set) => setInUnit(set, unit)),
+                      (load) => LOAD_UNIT_LABELS[load],
+                    )}`
                   : ""
               }.`
             : null,

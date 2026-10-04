@@ -251,12 +251,13 @@ export function Entry({
       {slot}
       <div className="entry-head">
         <div className="entry-title">
-          <h3 className="type-heading tabular-nums">
+          {/* Under the exercise's name, the logger's h1: the set is the next level. */}
+          <h2 className="type-heading tabular-nums">
             <Swap id={swapId}>
               {heading.kind === "warmup" ? "Warm-up" : "Set"} {heading.n}
               {heading.of !== null && <span className="text-ink-2"> of {heading.of}</span>}
             </Swap>
-          </h3>
+          </h2>
           {tag && !isWarmup(row.setType) && (
             <button
               type="button"

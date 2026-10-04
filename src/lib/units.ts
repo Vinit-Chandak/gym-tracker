@@ -33,6 +33,23 @@ export function convertLoad(value: number, from: LoadUnit, to: LoadUnit): number
   return round(to === "lb" ? value * LB_PER_KG : value / LB_PER_KG, 2);
 }
 
+/** The jumps plates make in pounds: a pair of the smallest plates, then the common ones. */
+const POUND_STEPS = [1, 1.25, 2.5, 5, 10, 20, 25, 45] as const;
+
+/**
+ * A load step given in kilograms (the library's defaults and programme increments are) as the
+ * step it is in `unit`. In pounds that is the plate jump nearest it, not the arithmetic: 2.5 kg
+ * steps by 5 lb, never 5.51, because nobody can load 145.51 lb (DESIGN.md: load steps by the
+ * machine's real increment).
+ */
+export function loadStepIn(kilograms: number, unit: LoadUnit): number {
+  if (unit !== "lb") return convertLoad(kilograms, "kg", unit);
+  const pounds = kilograms * LB_PER_KG;
+  return POUND_STEPS.reduce((best, step) =>
+    Math.abs(step - pounds) < Math.abs(best - pounds) ? step : best,
+  );
+}
+
 /** Converts a display copy, retaining nonconvertible machine readings in their original unit. */
 export function setInUnit<T extends { weight: number | null; unit: LoadUnit }>(
   set: T,
