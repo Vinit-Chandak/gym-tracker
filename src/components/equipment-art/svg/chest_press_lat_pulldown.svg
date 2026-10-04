@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 90" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="32" y="57" width="14" height="22" rx="1"/>
+  <path d="M32 61.4L46 61.4M32 65.8L46 65.8M32 70.2L46 70.2M32 74.6L46 74.6"/>
+  <line x1="35" y1="6" x2="35" y2="57"/>
+  <line x1="43" y1="6" x2="43" y2="57"/>
+  <line x1="35" y1="79" x2="35" y2="83"/>
+  <line x1="43" y1="79" x2="43" y2="83"/>
+  <line x1="30" y1="6" x2="48" y2="6"/>
+  <line x1="30" y1="83" x2="90" y2="83"/>
+  <rect x="62" y="60" width="18" height="6" rx="2.5" fill="currentColor" fill-opacity="0.14"/>
+  <path d="M64.7 55.2L62.2 32.2A2.5 2.5 0 0 0 59.5 29.9L58.5 30.1A2.5 2.5 0 0 0 56.3 32.8L58.8 55.8A2.5 2.5 0 0 0 61.5 58.1L62.5 57.9A2.5 2.5 0 0 0 64.7 55.2Z" fill="currentColor" fill-opacity="0.14"/>
+  <line x1="71" y1="83" x2="71" y2="66"/>
+  <line x1="43" y1="44" x2="57.6" y2="44"/>
+  <line x1="46" y1="6" x2="86" y2="6"/>
+  <circle cx="84" cy="9.5" r="2"/>
+  <circle cx="84" cy="9.5" r="0.9" fill="currentColor" stroke="none"/>
+  <line x1="83.7" y1="11.5" x2="79" y2="40.5"/>
+  <rect x="77.5" y="40.5" width="3" height="9" rx="1.5"/>
+  <circle cx="69" cy="10" r="3"/>
+  <circle cx="69" cy="10" r="1" fill="currentColor" stroke="none"/>
+  <line x1="66" y1="10" x2="66" y2="20.5"/>
+  <path d="M56.5 24L59.5 20.5L72.5 20.5L75.5 24"/>
+</svg>
