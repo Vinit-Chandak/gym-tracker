@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 90" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="29" y="57" width="14" height="22" rx="1"/>
+  <path d="M29 61.4L43 61.4M29 65.8L43 65.8M29 70.2L43 70.2M29 74.6L43 74.6"/>
+  <line x1="32" y1="14" x2="32" y2="57"/>
+  <line x1="40" y1="14" x2="40" y2="57"/>
+  <line x1="32" y1="79" x2="32" y2="83"/>
+  <line x1="40" y1="79" x2="40" y2="83"/>
+  <line x1="27" y1="14" x2="45" y2="14"/>
+  <line x1="27" y1="83" x2="93" y2="83"/>
+  <rect x="59" y="60" width="18" height="6" rx="2.5" fill="currentColor" fill-opacity="0.14"/>
+  <path d="M61.8 55.3L60.7 41.3A2.5 2.5 0 0 0 58.1 39L57.1 39A2.5 2.5 0 0 0 54.7 41.7L55.8 55.7A2.5 2.5 0 0 0 58.5 58L59.5 58A2.5 2.5 0 0 0 61.8 55.3Z" fill="currentColor" fill-opacity="0.14"/>
+  <line x1="68" y1="83" x2="68" y2="66"/>
+  <line x1="40" y1="33" x2="64" y2="33"/>
+  <circle cx="67" cy="33" r="3"/>
+  <circle cx="67" cy="33" r="1" fill="currentColor" stroke="none"/>
+  <line x1="66.2" y1="30.1" x2="60.7" y2="9.8"/>
+  <path d="M66.5 21.7L65.1 16.4A2.5 2.5 0 0 0 62 14.6L62 14.6A2.5 2.5 0 0 0 60.3 17.7L61.7 23A2.5 2.5 0 0 0 64.8 24.8L64.8 24.8A2.5 2.5 0 0 0 66.5 21.7Z" fill="currentColor" fill-opacity="0.14"/>
+  <path d="M62.4 6.3L57.5 7.6A1.5 1.5 0 0 0 56.5 9.4L56.5 9.4A1.5 1.5 0 0 0 58.3 10.5L63.2 9.2A1.5 1.5 0 0 0 64.2 7.3L64.2 7.3A1.5 1.5 0 0 0 62.4 6.3Z"/>
+  <path d="M70.3 9.2A24 24 0 0 1 90.8 30.5M93 26.9L90.8 30.5L87.9 27.5"/>
+</svg>

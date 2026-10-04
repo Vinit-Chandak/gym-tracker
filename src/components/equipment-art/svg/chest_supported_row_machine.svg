@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 90" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="75" y="57" width="14" height="22" rx="1"/>
+  <path d="M75 61.4L89 61.4M75 65.8L89 65.8M75 70.2L89 70.2M75 74.6L89 74.6"/>
+  <line x1="78" y1="30" x2="78" y2="57"/>
+  <line x1="86" y1="30" x2="86" y2="57"/>
+  <line x1="78" y1="79" x2="78" y2="83"/>
+  <line x1="86" y1="79" x2="86" y2="83"/>
+  <line x1="73" y1="30" x2="91" y2="30"/>
+  <line x1="29" y1="83" x2="91" y2="83"/>
+  <rect x="31" y="60" width="16" height="6" rx="2.5" fill="currentColor" fill-opacity="0.14"/>
+  <line x1="39" y1="83" x2="39" y2="66"/>
+  <rect x="49" y="38" width="6" height="18" rx="2.5" fill="currentColor" fill-opacity="0.14"/>
+  <line x1="52" y1="83" x2="52" y2="56"/>
+  <line x1="69" y1="83" x2="69" y2="76.5"/>
+  <circle cx="69" cy="74" r="2.5"/>
+  <circle cx="69" cy="74" r="1" fill="currentColor" stroke="none"/>
+  <line x1="68.5" y1="71.5" x2="63" y2="50.5"/>
+  <rect x="61.5" y="41.5" width="3" height="9" rx="1.5"/>
+</svg>
