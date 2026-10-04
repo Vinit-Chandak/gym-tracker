@@ -601,52 +601,214 @@ li:last-child > .sheet-row {
   justify-content: space-between;
   gap: 0 8px;
 }
-/* The day's print, as tall as the screen can give it. */
+/* The day's print: a band over the cards, the whole day at a glance. */
 .today-print {
-  height: 214px;
+  height: 112px;
   margin-top: 2px;
 }
-.today-print[data-coach="true"] {
-  height: 160px;
-}
 @media (height >= 900px) {
-  .today-print:not([data-coach="true"]) {
-    height: 250px;
+  .today-print {
+    height: 132px;
   }
 }
 @media (height < 800px) {
   .today-print {
-    height: 132px;
-  }
-  .today-print[data-coach="true"] {
-    height: 104px;
+    height: 92px;
   }
 }
 @media (height < 600px) {
-  .today-print:not([data-coach="true"]) {
-    height: 96px;
+  .today-print {
+    height: 76px;
   }
 }
-.today-day {
-  margin-top: 12px;
+/* "Today" and "Up next" over their cards, once today's day is done. */
+.today-caption {
+  margin-top: 18px;
+  margin-bottom: -2px;
 }
-@media (height < 600px) {
-  .today-day {
-    margin-top: 8px;
+.today-caption + .today-print {
+  margin-top: 8px;
+}
+
+/* ---------- one card per activity (DESIGN.md, Today) ---------- */
+.today-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+}
+.activity-card {
+  min-width: 0;
+  padding: 6px 16px 16px;
+  border: 1px solid var(--ov-hair);
+  border-radius: var(--ov-radius-card);
+  background: var(--ov-ground);
+}
+@media (width < 360px) {
+  .activity-card {
+    padding-inline: 14px;
   }
 }
-.today-day > .meta-line {
-  margin-top: 2px;
+/* The head: the sport's mark, the name and what it asks for; the fold's chevron at the end. */
+.activity-card-head {
+  margin: 0;
 }
-.today-endurance {
-  min-height: 56px;
-  padding: 6px 0;
+.activity-card-toggle {
+  display: flex;
+  width: calc(100% + 12px);
+  min-height: var(--ov-target);
+  align-items: center;
+  gap: 10px;
+  margin-right: -12px;
+  padding: 4px 0;
+  text-align: left;
 }
-@media (height < 800px) {
-  .today-endurance {
-    min-height: 50px;
-    padding: 4px 0;
-  }
+button.activity-card-toggle {
+  -webkit-tap-highlight-color: transparent;
+}
+.activity-card-mark {
+  display: grid;
+  width: var(--mark-column, 22px);
+  flex-shrink: 0;
+  place-items: center;
+}
+.activity-card-title {
+  min-width: 0;
+  font-family: var(--ov-font-display);
+  font-size: var(--ov-type-card-title);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: var(--ov-title-tracking);
+  overflow-wrap: anywhere;
+}
+.activity-card-aside {
+  min-width: 0;
+  margin-left: -2px;
+}
+.activity-card-chevron {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  place-items: center;
+  margin-left: auto;
+  color: var(--ov-ink-2);
+  transition: rotate var(--ov-duration-expand) var(--ov-ease-out);
+}
+.activity-card[data-open="true"] .activity-card-chevron {
+  rotate: 180deg;
+}
+/* The facts and the state line up under the name, at the mark's column. */
+.activity-card-facts,
+.activity-card-status,
+.activity-card-details-inner {
+  padding-left: calc(var(--mark-column, 22px) + 10px);
+}
+.activity-card-facts {
+  margin-top: -2px;
+}
+/* The gym, a choice among the facts, keeps its glyph on the facts' column. */
+.activity-card-facts > .gym-choice {
+  margin-left: 0;
+}
+.activity-card-status {
+  margin-top: 8px;
+}
+.activity-card-status:empty {
+  display: none;
+}
+.activity-card-state {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-meta);
+  font-weight: 600;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+}
+.activity-card-state > svg {
+  flex-shrink: 0;
+  margin-top: calc((1lh - 8px - 0.625rem) / 2);
+}
+/* The plan, folded: its height and its words unfold together. Folded it is inert. */
+.activity-card-details {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--ov-duration-expand) var(--ov-ease-out);
+}
+.activity-card[data-open="true"] .activity-card-details {
+  grid-template-rows: 1fr;
+}
+.activity-card-details-inner {
+  min-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity var(--ov-duration-expand) var(--ov-ease-out);
+}
+.activity-card[data-open="true"] .activity-card-details-inner {
+  opacity: 1;
+}
+.activity-card-plan {
+  padding-top: 4px;
+}
+/* A passage of the plan: the coach's words, the exercises, a run's steps, under a rule. */
+.activity-card-passage {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--ov-hair);
+}
+.activity-card-passage .plan-row:first-child {
+  padding-top: 0;
+}
+/* The card's own next step, the full width of the card; More beside it. */
+.activity-card-actions {
+  margin-top: 14px;
+}
+.activity-card-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px;
+}
+.activity-card-actions-row > :first-child {
+  flex: 1 1 12rem;
+}
+.activity-card-actions-row > .pinned-more {
+  margin-left: auto;
+}
+.activity-card-footer {
+  margin-top: 6px;
+}
+/* A link inside a card, as tall as a target: See what you logged, Skip or move. */
+.activity-card-link {
+  display: inline-flex;
+  min-height: var(--ov-target);
+  align-items: center;
+  gap: 4px;
+  font-size: var(--ov-type-meta);
+  font-weight: 700;
+}
+.activity-card-plan > .activity-card-link {
+  margin-top: 6px;
+}
+/* A quieter way out, led by its glyph, at the card's left edge: Discard empty session. */
+.quiet-action {
+  display: inline-flex;
+  min-height: var(--ov-target);
+  align-items: center;
+  gap: 8px;
+  margin-left: -2px;
+  color: var(--ov-ink);
+  font-size: var(--ov-type-meta);
+  font-weight: 700;
+  text-align: left;
+}
+.quiet-action > svg {
+  flex-shrink: 0;
+}
+.quiet-action:disabled {
+  color: var(--ov-ink-2);
 }
 
 /* ---------- the workout ---------- */
@@ -693,6 +855,48 @@ li:last-child > .sheet-row {
 .workout-warmup .plan-row-name,
 .workout-warmup .type-meta-small {
   line-height: 1.4;
+}
+/* The warm-up's words open it; its own Mark done stands at the row's end. */
+.workout-warmup-open {
+  display: flex;
+  min-width: 0;
+  min-height: var(--ov-target);
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  text-align: left;
+}
+/* Mark done: Finish's outline pill, 36 pt in a 44-pt target; done, it is surface with its check. */
+.warmup-done {
+  display: flex;
+  min-height: var(--ov-target);
+  flex-shrink: 0;
+  align-items: center;
+  align-self: center;
+}
+.warmup-done > span {
+  display: inline-flex;
+  min-height: calc(36px + var(--ov-grow));
+  align-items: center;
+  gap: 5px;
+  padding: 0 14px;
+  border: 1.5px solid var(--ov-control);
+  border-radius: var(--ov-radius-control);
+  font-size: var(--ov-type-meta);
+  font-weight: 700;
+  white-space: nowrap;
+  transition: scale var(--ov-duration-press) var(--ov-ease-out);
+}
+.warmup-done:active > span {
+  scale: var(--ov-press-scale);
+}
+.warmup-done[data-done="true"] > span {
+  padding-left: 10px;
+  border-color: transparent;
+  background: var(--ov-surface);
+}
+.warmup-done:disabled > span {
+  color: var(--ov-ink-2);
 }
 /* Resume: the one ink button on the list, on the row under way. */
 .workout-resume {

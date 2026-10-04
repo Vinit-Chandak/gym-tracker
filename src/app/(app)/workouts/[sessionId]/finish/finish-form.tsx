@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { DiscardSessionButton } from "@/components/discard-session-button";
 import { useSessionDrafts } from "@/components/use-session-drafts";
 
 import { FormError, SubmitButton } from "@/components/ui/form";
@@ -19,6 +20,8 @@ type Props = {
   unit: BodyLoadUnit;
   userId: string;
   sessionId: string;
+  /** No set is logged: finishing would only record nothing, so discarding is offered first. */
+  nothingLogged?: boolean;
 };
 
 export function FinishForm({
@@ -28,6 +31,7 @@ export function FinishForm({
   unit,
   userId,
   sessionId,
+  nothingLogged = false,
 }: Props) {
   const drafts = useSessionDrafts(userId, sessionId);
   const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
@@ -71,9 +75,28 @@ export function FinishForm({
             finishing.
           </p>
         )}
-        <SubmitButton pendingLabel="Finishing…" disabled={drafts > 0}>
-          Finish session
-        </SubmitButton>
+        {nothingLogged ? (
+          <>
+            {/* An empty session is better thrown away than kept as a record of nothing; one
+                with every exercise skipped can still be finished, and keeps its reasons. */}
+            <p className="type-meta">
+              <span className="font-bold">Nothing logged.</span> Discard this session instead?
+            </p>
+            <DiscardSessionButton
+              sessionId={sessionId}
+              variant="primary"
+              label="Discard session"
+              disabled={drafts > 0}
+            />
+            <SubmitButton variant="text" pendingLabel="Finishing…" disabled={drafts > 0}>
+              Finish anyway
+            </SubmitButton>
+          </>
+        ) : (
+          <SubmitButton pendingLabel="Finishing…" disabled={drafts > 0}>
+            Finish session
+          </SubmitButton>
+        )}
       </PinnedActions>
     </form>
   );

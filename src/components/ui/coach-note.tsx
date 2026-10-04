@@ -23,6 +23,7 @@ export function CoachNote({
   more,
   action,
   small = false,
+  flat = false,
   className,
   children,
 }: {
@@ -41,13 +42,18 @@ export function CoachNote({
   action?: ReactNode;
   /** The words at Meta size (15), where the note sits among rows (Today, the workout). */
   small?: boolean;
+  /**
+   * Inside a card the note is a passage of the card, not a box of its own: a card in a card
+   * is the one nesting the system refuses (DESIGN.md, Today).
+   */
+  flat?: boolean;
   className?: string;
   children?: ReactNode;
 }) {
   return (
     <aside
       aria-label={who === "Coach" ? "From the coach" : who}
-      className={cn("rounded-control bg-surface px-3.5 py-3", className)}
+      className={cn(!flat && "rounded-control bg-surface px-3.5 py-3", className)}
     >
       <p className="flex flex-wrap items-center gap-1.5 type-caption leading-[1.4] text-ink">
         <Glyph

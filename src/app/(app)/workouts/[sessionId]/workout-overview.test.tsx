@@ -217,7 +217,14 @@ it("says where a row stands only when that is news", () => {
   expect(screen.getByRole("button", { name: /Face pull/ }).textContent).toContain(
     "15 kg · 1 × 15 @ 2 RIR",
   );
-  expect(screen.getByText(/Added\. Light, for the shoulders\./)).toBeTruthy();
+  // The coach's note for an exercise is its own screen's to say whole (DESIGN.md, The session):
+  // the row says there is one, and that the coach added it, without cutting it short.
+  const pull = screen.getByRole("button", { name: /Face pull/ });
+  expect(pull.textContent).toContain("Added by the coach");
+  expect(pull.textContent).not.toContain("Light, for the shoulders.");
+  expect(
+    within(pull).getByRole("img", { name: "The coach wrote a note for this exercise" }),
+  ).toBeTruthy();
 
   fireEvent.click(bench);
   expect(open).toHaveBeenCalledWith("barbell-bench-press");
@@ -242,4 +249,37 @@ it("opens the warm-up and marks it done once the server answers", async () => {
   answer({ ok: true });
   await sheet.findByRole("button", { name: "Done", hidden: true });
   expect(actions.warmup).toHaveBeenCalledWith(SESSION.id, true);
+});
+
+it("marks the warm-up done from its row, and undoes it there", async () => {
+  actions.warmup.mockResolvedValue({ ok: true });
+  show();
+  fireEvent.click(screen.getByRole("button", { name: "Mark warm-up done" }));
+  const done = await screen.findByRole("button", { name: "Warm-up done. Mark not done" });
+  expect(done.getAttribute("aria-pressed")).toBe("true");
+  await screen.findByText("Done");
+  expect(actions.warmup).toHaveBeenLastCalledWith(SESSION.id, true);
+  fireEvent.click(done);
+  await screen.findByRole("button", { name: "Mark warm-up done" });
+  expect(actions.warmup).toHaveBeenLastCalledWith(SESSION.id, false);
+});
+
+it("writes the coach's warm-up out whole on its row, with no sheet to repeat it", () => {
+  show({
+    session: {
+      ...SESSION,
+      coachPlan: {
+        summary: null,
+        warmup: [
+          "Before the bench: an empty bar for 10, then 40 kg × 5.",
+          "Band pull-aparts, 2 × 15, between the warm-up sets.",
+        ],
+        generatedAt: "2026-09-29T04:00:00.000Z",
+      },
+    },
+  });
+  expect(screen.getByText("Before the bench: an empty bar for 10, then 40 kg × 5.")).toBeTruthy();
+  expect(screen.getByText("Band pull-aparts, 2 × 15, between the warm-up sets.")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: /Before the bench/ })).toBeNull();
+  expect(screen.getByRole("button", { name: "Mark warm-up done" })).toBeTruthy();
 });

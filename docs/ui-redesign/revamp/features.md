@@ -74,7 +74,9 @@ anything scheduled), where they will train, and one tap to start or resume it.
   name, how many drills, and each drill with its dose.
 - **Other sports:** one card per run, ride or swim owed today: the sport, its target
   ("30 minutes", "5 km", "6 × 400 m"), "Part of Easy Run + Arms" when the programme placed it,
-  a scheduled time if set, and Skipped or Coach. Logged ones collapse into "Completed · N".
+  a scheduled time if set, and Skipped or Coach. Logged ones stay on the day as cards inked
+  done, after what is still owed, each with "See what you logged" (since 4 October 2026: one
+  collapsible card per activity, each with its own next step; see `DESIGN.md`, Activity cards).
 - **Days with no lifting**, no programme, or a finished programme each have their own message
   and offer only real next steps.
 - **Once the day is done:** "Done. Nothing left to do here today." (or "Rest day done."), and

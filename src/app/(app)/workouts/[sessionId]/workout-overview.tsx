@@ -17,6 +17,7 @@ import { RestPill } from "@/components/shell/rest-timer";
 import Link from "@/components/ui/app-link";
 import { Button, LinkButton } from "@/components/ui/button";
 import { CoachNote } from "@/components/ui/coach-note";
+import { CoachNoteMore } from "@/components/ui/coach-note-more";
 import { FitTitle } from "@/components/ui/fit-title";
 import { GLYPH_LABELS, Glyph } from "@/components/ui/glyphs";
 import { Sheet } from "@/components/ui/sheet";
@@ -92,6 +93,33 @@ function workoutParts(session: SessionVM, warmupDone: boolean): PrintPart[] {
   return parts;
 }
 
+/**
+ * Marking the warm-up done, or not done again: one save the row and the sheet share, so either
+ * can tick it and both show it. The tick lands when the server has it, as a set does.
+ */
+function useWarmupDone(sessionId: string, done: boolean, onDone: (done: boolean) => void) {
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+  const toggle = () =>
+    startTransition(async () => {
+      const outcome = await attempted(
+        () => setWarmupCompletedAction(sessionId, !done),
+        "Connection lost. Try again when connected.",
+      );
+      if (!outcome.ok) {
+        setError(outcome.message);
+        return;
+      }
+      if (!outcome.value.ok) {
+        setError(outcome.value.error);
+        return;
+      }
+      onDone(!done);
+      setError(null);
+    });
+  return { toggle, pending, error };
+}
+
 /** The warm-up, opened: its drills (or the coach's lines) and Mark done. */
 function WarmupSheet({
   open,
@@ -110,26 +138,7 @@ function WarmupSheet({
   // programme day rather than being listed twice here.
   const coachLines = session.coachPlan?.warmup ?? [];
   const drills = session.warmup?.drills ?? [];
-  const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
-
-  const toggleDone = () =>
-    startTransition(async () => {
-      const outcome = await attempted(
-        () => setWarmupCompletedAction(session.id, !done),
-        "Connection lost. Try again when connected.",
-      );
-      if (!outcome.ok) {
-        setError(outcome.message);
-        return;
-      }
-      if (!outcome.value.ok) {
-        setError(outcome.value.error);
-        return;
-      }
-      onDone(!done);
-      setError(null);
-    });
+  const { toggle: toggleDone, pending, error } = useWarmupDone(session.id, done, onDone);
 
   return (
     <Sheet
@@ -195,6 +204,98 @@ function WarmupSheet({
         </div>
       )}
     </Sheet>
+  );
+}
+
+/**
+ * The warm-up as a row of the workout, with its own Mark done at the end, so ticking it off is
+ * one tap where it is read (DESIGN.md, The session). The coach's warm-up is its lines, each on
+ * a line of its own and whole, since nothing else says them; a protocol's is its drill count,
+ * which opens the drills. Done, the name goes to ink 2 and the button says Done with its check;
+ * a tap undoes it.
+ */
+function WarmupRow({
+  session,
+  name,
+  blades,
+  done,
+  onDone,
+  onOpen,
+  last,
+}: {
+  session: SessionVM;
+  name: string;
+  blades: number;
+  done: boolean;
+  onDone: (done: boolean) => void;
+  onOpen: () => void;
+  last: boolean;
+}) {
+  const { toggle, pending, error } = useWarmupDone(session.id, done, onDone);
+  const lines = session.coachPlan?.warmup ?? [];
+  const title = <span className={cn("plan-row-name", done && "text-ink-2")}>{name}</span>;
+  return (
+    <li className={cn("plan-row workout-row workout-warmup", last && "plan-row-last")}>
+      <span className="flex min-w-0 flex-1 flex-col">
+        {lines.length > 0 ? (
+          <span className="workout-warmup-open">
+            {title}
+            {lines.map((line, index) => (
+              <span
+                key={index}
+                className="type-meta-small [overflow-wrap:anywhere] text-ink-2 tabular-nums"
+              >
+                {line}
+              </span>
+            ))}
+          </span>
+        ) : (
+          <button
+            type="button"
+            aria-haspopup="dialog"
+            onClick={onOpen}
+            className="workout-warmup-open"
+          >
+            {title}
+            <span className="flex items-center gap-0.5 type-meta-small text-ink-2 tabular-nums">
+              {blades} {blades === 1 ? "drill" : "drills"}
+              <Glyph name="chevronRight" className="glyph-16" />
+            </span>
+          </button>
+        )}
+        {error && (
+          <span
+            role="alert"
+            className="mt-1 flex items-start gap-1.5 type-meta-small font-semibold"
+          >
+            <Glyph name="warn" className="mt-0.5 glyph-16" />
+            {error}
+          </span>
+        )}
+      </span>
+      <button
+        type="button"
+        aria-pressed={done}
+        aria-label={done ? "Warm-up done. Mark not done" : "Mark warm-up done"}
+        disabled={pending}
+        onClick={toggle}
+        className="warmup-done"
+        data-done={done}
+      >
+        <span>
+          {pending ? (
+            "Saving…"
+          ) : done ? (
+            <>
+              <Glyph name="check" className="glyph-18" />
+              Done
+            </>
+          ) : (
+            "Mark done"
+          )}
+        </span>
+      </button>
+    </li>
   );
 }
 
@@ -325,16 +426,22 @@ export function WorkoutOverview({
                 </span>
               </span>
             )}
-            {exercise.coachNote && (
+            {coachAdded && <span className="plan-row-note text-ink-2">Added by the coach</span>}
+            {/* Dropped, the coach's note is why, and nothing else on the screen says it. */}
+            {exercise.coachNote && skipped && (
               <span className="plan-row-note">
                 <Glyph name="coach" label="Coach:" className="mt-0.5 glyph-15" />
-                <span className="line-clamp-2 min-w-0">
-                  {coachAdded ? "Added. " : ""}
-                  {exercise.coachNote}
-                </span>
+                <span className="min-w-0">{exercise.coachNote}</span>
               </span>
             )}
           </span>
+          {exercise.coachNote && !skipped && (
+            <Glyph
+              name="coach"
+              label="The coach wrote a note for this exercise"
+              className="glyph-18 shrink-0 text-ink-2"
+            />
+          )}
           {open ? (
             <>
               <span className="sr-only">
@@ -349,7 +456,9 @@ export function WorkoutOverview({
             <Glyph name="check" label="Done" className="glyph-20 shrink-0" />
           ) : skipped ? (
             <span className="shrink-0 type-meta-small font-semibold text-ink-2">Skipped</span>
-          ) : null}
+          ) : (
+            <Glyph name="chevronRight" className="glyph-18 shrink-0 text-ink-2" />
+          )}
         </button>
       </li>
     );
@@ -447,9 +556,7 @@ export function WorkoutOverview({
         </CoachNote>
       )}
       {session.coachPlan?.summary && (
-        <CoachNote small clamp className="mt-3">
-          {session.coachPlan.summary}
-        </CoachNote>
+        <CoachNoteMore className="mt-3">{session.coachPlan.summary}</CoachNoteMore>
       )}
       {!readOnly && hasDrafts && (
         <p role="status" className="mt-3 flex items-start gap-2 type-meta font-semibold">
@@ -463,29 +570,15 @@ export function WorkoutOverview({
       ) : (
         <ul aria-label={heading} className="mt-2">
           {!readOnly && hasWarmup && (
-            <li>
-              <button
-                type="button"
-                aria-haspopup="dialog"
-                onClick={() => setSheet("warmup")}
-                className={cn(
-                  "plan-row workout-row workout-warmup w-full text-left",
-                  session.exercises.length === 0 && "plan-row-last",
-                )}
-              >
-                <span className="flex min-w-0 flex-1 flex-col">
-                  <span className={cn("plan-row-name", warmupDone && "text-ink-2")}>
-                    {warmupName}
-                  </span>
-                  <span className="type-meta-small [overflow-wrap:anywhere] text-ink-2 tabular-nums">
-                    {session.coachPlan?.warmup.length
-                      ? session.coachPlan.warmup.join(" · ")
-                      : `${blades} ${blades === 1 ? "drill" : "drills"}`}
-                  </span>
-                </span>
-                {warmupDone && <Glyph name="check" label="Done" className="glyph-20 shrink-0" />}
-              </button>
-            </li>
+            <WarmupRow
+              session={session}
+              name={warmupName}
+              blades={blades}
+              done={warmupDone}
+              onDone={setWarmupDone}
+              onOpen={() => setSheet("warmup")}
+              last={session.exercises.length === 0}
+            />
           )}
           {groups.map((group, index) => {
             const lastGroup = index === groups.length - 1;

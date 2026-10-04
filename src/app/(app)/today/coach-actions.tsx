@@ -29,6 +29,7 @@ export function CoachPending({
   startedAtLabel,
   gymName,
   workflow = false,
+  flat = false,
 }: {
   /** When the request was made, for the polling deadline. */
   startedAt: string;
@@ -36,6 +37,8 @@ export function CoachPending({
   startedAtLabel: string;
   gymName: string;
   workflow?: boolean;
+  /** Inside a card: a passage of it, not a box of its own. */
+  flat?: boolean;
 }) {
   const router = useRouter();
   useEffect(() => {
@@ -73,7 +76,7 @@ export function CoachPending({
     };
   }, [router, startedAt, workflow]);
   return (
-    <CoachNote tone="planning" role="status" small>
+    <CoachNote tone="planning" role="status" small flat={flat}>
       Coach is planning for {gymName}, since {startedAtLabel}. This screen updates itself.
     </CoachNote>
   );
@@ -89,12 +92,15 @@ export function CoachWaiting({
   jobId,
   attempted,
   hasPlan,
+  flat = false,
 }: {
   jobId: string;
   /** The coach tried and could not finish, rather than never reaching it. */
   attempted: boolean;
   /** An earlier plan for this session is on screen. */
   hasPlan: boolean;
+  /** Inside a card: a passage of it, not a box of its own. */
+  flat?: boolean;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -110,9 +116,15 @@ export function CoachWaiting({
       tone={attempted ? "failed" : "note"}
       role="status"
       small
+      flat={flat}
       action={
         <>
-          <Button variant="tonal" className="flex w-full bg-ground" disabled={busy} onClick={start}>
+          <Button
+            variant="tonal"
+            className={flat ? "flex w-full" : "flex w-full bg-ground"}
+            disabled={busy}
+            onClick={start}
+          >
             {busy ? "Starting…" : "Ask the coach to plan it now"}
           </Button>
           {error && (

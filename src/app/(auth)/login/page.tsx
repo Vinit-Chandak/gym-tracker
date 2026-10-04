@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "@/components/ui/app-link";
 import { connection } from "next/server";
 
-import { Card } from "@/components/ui/card";
+import { Glyph } from "@/components/ui/glyphs";
 import { isSupabaseConfigured } from "@/lib/env";
 
 import { AUTH_LINK } from "../auth-link";
@@ -21,21 +21,25 @@ export default async function LoginPage(props: PageProps<"/login">) {
 
   return (
     <>
-      <Card>
-        <h2 className="text-lg font-medium">Sign in</h2>
+      <section aria-labelledby="sign-in" className="space-y-4">
+        <h2 id="sign-in" className="type-sheet-title">
+          Sign in
+        </h2>
         {deleted === "1" && (
-          <p role="status" className="text-sm text-success">
+          <p role="status" className="flex items-start gap-2 type-meta font-semibold">
+            <Glyph name="check" className="mt-px glyph-18" />
             Your account and all of its training data have been deleted.
           </p>
         )}
         {error === "link" && (
-          <p role="alert" className="text-sm text-danger">
+          <p role="alert" className="flex items-start gap-2 type-meta font-semibold">
+            <Glyph name="warn" className="mt-px glyph-18" />
             That link has expired or has already been used. Sign in, or ask for a new one.
           </p>
         )}
         <LoginForm next={nextPath} />
-      </Card>
-      <p className="text-center text-sm text-ink-muted">
+      </section>
+      <p className="border-t border-hair pt-4 type-meta text-ink-2">
         New here?{" "}
         <Link href="/signup" className={AUTH_LINK}>
           Create an account

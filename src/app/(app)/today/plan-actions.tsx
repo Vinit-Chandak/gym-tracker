@@ -11,7 +11,6 @@ import type { SlotPart } from "@/domain/types";
 import { attempted, keepsOutcomeOnDisconnect } from "@/lib/offline-submit";
 import {
   completeRestSlotAction,
-  discardSessionAction,
   skipSlotAction,
   startAdHocSessionAction,
   startPlannedSessionAction,
@@ -366,30 +365,6 @@ export function CompleteRestButton({
         }
       >
         {pending ? "Saving…" : label}
-      </Button>
-      {error && <ActionError>{error}</ActionError>}
-    </div>
-  );
-}
-
-export function DiscardSessionButton({ sessionId }: { sessionId: string }) {
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-  return (
-    <div className="space-y-2">
-      <Button
-        variant="ghost"
-        size="sm"
-        className="w-full"
-        disabled={pending}
-        onClick={() =>
-          startTransition(async () => {
-            const result = await discardSessionAction(sessionId);
-            if (result && !result.ok) setError(result.error);
-          })
-        }
-      >
-        {pending ? "Discarding…" : "Discard empty session"}
       </Button>
       {error && <ActionError>{error}</ActionError>}
     </div>

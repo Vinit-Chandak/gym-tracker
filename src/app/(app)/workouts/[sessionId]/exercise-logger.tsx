@@ -470,7 +470,11 @@ export function ExerciseLogger({
           bodyEl.scrollTop
         : 0;
       const spill = docked > available;
-      const tight = !spill && hasLog && frameEl !== null && available - docked - above < oneLine;
+      // Tight: the log cannot show its latest line between the tabs and the entry; or, before
+      // the first set, what stands over the log (the coach's note, a machine to choose) does
+      // not fit above the entry at all, which left the dock covering it on a 320 × 568 phone.
+      const tight =
+        !spill && frameEl !== null && available - docked - above < (hasLog ? oneLine : -1);
       setRoom((current) =>
         current.spill === spill && current.tight === tight ? current : { spill, tight },
       );
@@ -489,8 +493,9 @@ export function ExerciseLogger({
   // (board Log-200), and each set that lands is brought into view as it lands.
   useEffect(() => {
     const element = body.current;
-    if (room.tight && !folded && element) element.scrollTop = element.scrollHeight;
-  }, [room.tight, folded]);
+    // Before the first set there is no latest line to keep in view: the screen opens on the name.
+    if (room.tight && !folded && hasLog && element) element.scrollTop = element.scrollHeight;
+  }, [room.tight, folded, hasLog]);
 
   // A tab that opens shows its tabs, scrolled back to them where the title, tabs and log scroll
   // together; the Log comes back at its latest set, above the entry, as it stands after a set
@@ -1328,15 +1333,7 @@ export function ExerciseLogger({
         </div>
       )}
 
-      <WhySheet
-        open={sheet?.kind === "why"}
-        why={why}
-        onClose={() => setSheet(null)}
-        onHistory={() => {
-          setSheet(null);
-          setTab("history");
-        }}
-      />
+      <WhySheet open={sheet?.kind === "why"} why={why} onClose={() => setSheet(null)} />
       <EffortSheet
         open={sheet?.kind === "effort"}
         title={effort === "rir" ? "What RIR means" : "What RPE means"}

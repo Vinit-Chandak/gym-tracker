@@ -22,6 +22,7 @@
   --ov-type-title: calc(9px + 1.6875rem); /* 36, k 0.75 */
   --ov-type-display: calc(8.5px + 1.59375rem); /* 34, k 0.75 */
   --ov-type-sheet-title: calc(7px + 1.3125rem); /* 28, k 0.75 */
+  --ov-type-card-title: calc(6px + 1.125rem); /* 24, k 0.75 */
   --ov-type-figure-xl: calc(28px + 1.75rem); /* 56, k 0.5 */
   --ov-type-entry: calc(21px + 1.3125rem); /* 42, k 0.5 */
   --ov-type-log: calc(24px + 0.5rem); /* 32, k 0.25 */
@@ -86,6 +87,8 @@
   --ov-duration-scrim: 200ms;
   /* Sheets rise on a spring: a 0.4-s response with 0.08 bounce, drawn as its curve. */
   --ov-duration-sheet-rise: 420ms;
+  /* A card's plan unfolds in place: its height and its words, together. */
+  --ov-duration-expand: 220ms;
   --ov-ease-spring: linear(
     0,
     0.0535,
@@ -365,6 +368,7 @@
     --ov-duration-swap-in: var(--ov-duration-fade);
     --ov-duration-sheet: 0ms;
     --ov-duration-sheet-rise: 0ms;
+    --ov-duration-expand: 0ms;
     --ov-press-scale: 1;
   }
 }

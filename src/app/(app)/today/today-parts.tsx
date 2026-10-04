@@ -101,22 +101,22 @@ export function CycleMark({
   );
 }
 
-/** The day's print on its paper, the height its screen gives it. */
+/**
+ * The day's print on its paper: a band over the day's cards (DESIGN.md, Today), the whole day
+ * at a glance, as tall as its screen gives a band.
+ */
 export function TodayPrint({
   parts,
   label,
-  coach = false,
   className,
 }: {
   parts: readonly PrintPart[];
   label: string;
-  /** A coach's note stands under the title, so the print gives it some height. */
-  coach?: boolean;
   className?: string;
 }) {
   if (parts.length === 0) return null;
   return (
-    <figure className={cn("today-print m-0", className)} data-coach={coach}>
+    <figure className={cn("today-print m-0", className)}>
       <Art kind="print" parts={parts} label={label} className="size-full" />
     </figure>
   );
@@ -157,12 +157,18 @@ export function PlanRow({
   trailing,
   last = false,
   small = false,
+  notes = "full",
 }: {
   row: PlanRowModel;
   trailing?: ReactNode;
   last?: boolean;
   /** Short screens tighten the rows. */
   small?: boolean;
+  /**
+   * `glyph` where the coach's note is said elsewhere (Today's card: the exercise's own screen
+   * has it whole): the speech glyph at the row's end says there is one, nothing is cut.
+   */
+  notes?: "full" | "glyph";
 }) {
   return (
     <li className={cn("plan-row", last && "plan-row-last", small && "plan-row-small")}>
@@ -180,7 +186,7 @@ export function PlanRow({
             </Fact>
           </MetaLine>
         )}
-        {row.note && (
+        {row.note && notes === "full" && (
           <span className="plan-row-note">
             <Glyph name="coach" label="Coach:" className="mt-0.5 glyph-15" />
             <span className="line-clamp-2 min-w-0">{row.note}</span>
@@ -189,6 +195,12 @@ export function PlanRow({
       </span>
       {row.dropped ? (
         <span className="shrink-0 type-meta-small font-semibold text-ink-2">Skipped</span>
+      ) : row.note && notes === "glyph" ? (
+        <Glyph
+          name="coach"
+          label="The coach wrote a note for this exercise"
+          className="glyph-18 shrink-0 text-ink-2"
+        />
       ) : (
         trailing
       )}
@@ -201,18 +213,20 @@ export function PlanRows({
   rows,
   small,
   isLast,
+  notes,
 }: {
   rows: readonly PlanRowModel[];
   small?: boolean;
   /** Whether the list ends with these rows (its last row takes no rule). */
   isLast?: boolean;
+  notes?: "full" | "glyph";
 }) {
   const groups = groupRows(rows);
   return groups.map((group, index) => {
     const lastGroup = isLast !== false && index === groups.length - 1;
     if (group.length === 1) {
       const row = group[0]!;
-      return <PlanRow key={row.key} row={row} small={small} last={lastGroup} />;
+      return <PlanRow key={row.key} row={row} small={small} last={lastGroup} notes={notes} />;
     }
     return (
       <li key={group[0]!.key} className="superset-group">
@@ -223,6 +237,7 @@ export function PlanRows({
               row={row}
               small={small}
               last={lastGroup && at === group.length - 1}
+              notes={notes}
             />
           ))}
         </ul>

@@ -22,7 +22,7 @@ import {
  * absence to be papered over.
  */
 
-const PHASE_LABELS = {
+export const PHASE_LABELS = {
   warmup: "Warm-up",
   work: "Work",
   recovery: "Recovery",
@@ -52,7 +52,7 @@ function range(low: number, high: number, format: (value: number) => string): st
 }
 
 /** "8 × 50 m · freestyle": one written step, said the way it was written. */
-function stepLine(step: ReturnType<typeof expandSteps>[number]): string {
+export function stepLine(step: ReturnType<typeof expandSteps>[number]): string {
   const target =
     step.target.kind === "duration"
       ? range(step.target.ms[0], step.target.ms[1], minutes)
@@ -64,7 +64,7 @@ function stepLine(step: ReturnType<typeof expandSteps>[number]): string {
 }
 
 /** The whole-session targets, which are stated beside the steps rather than derived from them. */
-function sessionLine(prescription: EndurancePrescription): string | null {
+export function sessionLine(prescription: EndurancePrescription): string | null {
   const { durationMs, distanceMetres, effort } = prescription.sessionTargets;
   const parts = [
     distanceMetres ? range(distanceMetres[0], distanceMetres[1], metres) : null,

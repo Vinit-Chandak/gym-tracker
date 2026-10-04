@@ -89,6 +89,12 @@ typography:
     fontWeight: 700
     lineHeight: 1.05
     letterSpacing: "-0.012em"
+  card-title:
+    fontFamily: "'Jost', system-ui, sans-serif"
+    fontSize: "24px"
+    fontWeight: 700
+    lineHeight: 1.1
+    letterSpacing: "-0.012em"
   figure-xl:
     fontFamily: "'Jost', system-ui, sans-serif"
     fontSize: "56px"
@@ -325,6 +331,12 @@ components:
     textColor: "{colors.ink}"
     typography: "{typography.sheet-title}"
     rounded: "{rounded.sheet}"
+  activity-card:
+    backgroundColor: "{colors.ground}"
+    textColor: "{colors.ink}"
+    typography: "{typography.card-title}"
+    rounded: "{rounded.card}"
+    padding: "6px 16px 16px"
 ---
 
 # Design System: Overload
@@ -355,6 +367,11 @@ sheets follow the finger.
 **Status.** Refined on the Claude Design canvas "Overload revamp: Form v2, refined" (2 October 2026) and built in the app (3 October 2026): every board's screen, and the screens no board draws restyled in the same tokens. The boards, generated tokens, screenshots and the generator they come
 from are in [`docs/ui-redesign/revamp/form-v2/`](docs/ui-redesign/revamp/form-v2/README.md).
 This file is normative: change the generator's tokens and this frontmatter together.
+
+**Amended 4 October 2026, from the owner's notes on the built app.** Today is one card per
+activity, each collapsible, with its own next step; the print is a band over the cards; the
+coach's note opens in place; the warm-up is ticked off on its row; Finish with nothing logged
+offers Discard first; the sign-in screens carry the mark. The rules below say where.
 
 **Key Characteristics:**
 
@@ -493,7 +510,15 @@ under 360 pt wide.
 - **One left edge:** every name starts at the gutter. A row carries no mark beside its name
   unless the mark names a sport in a list that mixes them (History, a day, Friends); such a list
   gives its marks a 20-pt column and its names one edge 12 pt after it. No list is indented,
-  boxed or carded; rows are separated by `hair` rules.
+  boxed or carded; rows are separated by `hair` rules. Today's activity cards are the one
+  deliberate exception (owner, 4 October 2026): a card per activity of the day, never a card in a
+  card, and the rows inside a card are ruled like any list.
+- **Today:** the date and the cycle's squares; the day's print as a band (112 pt; 132 at 900 pt
+  and taller, 92 under 800, 76 under 600); then one card per activity, 12 apart: an open session
+  that is not the day's first, then the workout (or the rest day), then each run, ride and swim
+  still owed, then what is already logged, inked done. Nothing is pinned over the tab bar: each
+  card carries its own next step. Once the day's programme day is done, "Today" holds the
+  finished day and anything else dated today, and "Up next" holds the next day's print and cards.
 - **Tab bar:** 64 pt: a hairline and 2, then 44-pt targets, then 17, so the targets end 4 clear
   of the home indicator (11 where there is none). On iOS and Android the system bar is used.
 - **The session:** starting a workout opens a full-screen layer over the tabs, from the check-in
@@ -514,11 +539,13 @@ under 360 pt wide.
   side by side, Save); the header stays, and the title, tabs and log scroll between. The screen
   opens on the exercise's name; each set that lands is brought into view above the entry, so the
   log is kept at its end while logging. A screen too short for a line of the log (320 × 568 with a
-  message) scrolls the same way, kept at its end.
+  message) scrolls the same way, kept at its end; before the first set, a screen too short for
+  what stands over the log (the coach's note) scrolls too, from the name, so the entry never
+  covers it.
 - **Typing:** tapping a figure types it, on the decimal pad; above the pad stay the figures, on
   one baseline, and Save, with the keyboard's Previous, Next and Done.
-- **Pinned actions:** 8 pt above the safe area, in ground down to the screen's foot, or 12 above
-  the tab bar; the content stops above them and fades under them, and what the keyboard focuses
+- **Pinned actions:** (not on Today, whose cards carry their own) 8 pt above the safe area, in
+  ground down to the screen's foot, or 12 above the tab bar; the content stops above them and fades under them, and what the keyboard focuses
   is scrolled clear of them. Where large text puts the tab bar at the end of the page, they ride
   the screen's foot and come to rest above the bar.
 - **Prints:** one module grid: a module is a square; an exercise a column of its sets; 0.14 of a
@@ -593,7 +620,9 @@ destination icons are drawn from the first forms: outlined, filled where you are
 treadmill, indoor bike, pool, open water, home) are glyphs, each with its name for screen
 readers. The mark is an ultramarine slab and a vermilion disc on an ink line (the name's mark,
 kept from the first alphabet; it is not a print); the app icon is
-the mark on paper (light) or ink (dark), with corners of 22.5% of its size.
+the mark on paper (light) or ink (dark), with corners of 22.5% of its size. The sign-in screens
+stand the mark beside the name in Jost (Title), the tagline under it in ink 2, and the form on the
+ground at the gutter, never in a box; their links are ink and underlined.
 
 ### Named Rules
 
@@ -694,7 +723,14 @@ and every control answers a press.
 - One exercise row everywhere: the name, and under it the equipment's glyph and the
   prescription (Today, a programme day, the workout, Finish). No mark beside it: its sets are
   said once in the prescription and drawn once in the print. Where it stands is said only when it
-  is news: a check when done, Resume on the one under way, Skipped when dropped.
+  is news: a check when done, Resume on the one under way, Skipped when dropped. A row that opens
+  (the workout's) ends in a chevron. The coach's note for an exercise is said whole on that
+  exercise's own screen; on a list (Today's card, the workout) the row ends in the speech glyph
+  instead of a note cut short, except a dropped exercise, whose note is why it was dropped.
+- **The warm-up** is a row of the workout with its own Mark done at its end (Finish's outline
+  pill, 36 pt in a 44-pt target; done, surface with its check, and a tap undoes it). The coach's
+  warm-up is its lines, each whole on a line of its own; a protocol's is its drill count, which
+  opens the drills in a sheet.
 - A mark (the sport's form, in its state) leads a row only where a list mixes sports and the
   words do not name it (History, a day, Friends). A setting or a menu option is led by its glyph.
 - A superset is a 2-px ink bracket in the left gutter, 8 pt from the edge, joining the pair.
@@ -710,8 +746,37 @@ and every control answers a press.
 
 - One quiet block: surface, 14-px corners, 12 × 14 padding; the speech glyph and "Coach" (or the
   app's own advice under its name, such as Recovery check), an optional heading, then body text.
-  Two lines at most, More opens the rest. At most one per screen; never on a print, never in
-  colour. The coach planning is the same block, its glyph a dial that waits.
+  Two lines at most, More opens the rest in place, and Less folds it again; More shows only when
+  the words are really cut. At most one per screen, or per card on Today; never on a print, never
+  in colour. The coach planning is the same block, its glyph a dial that waits.
+- Inside a card the note is a passage of the card, not a box: no surface, the caption and the
+  words under a `hair` rule, whole. A card in a card is never drawn.
+
+### Activity cards (Today)
+
+- One card per activity of the day, every one in the same anatomy, so a run reads like a
+  workout: ground with a 1-px `hair` edge and `card` corners (16), 6 × 16 × 16 padding (14 at the
+  sides under 360 pt). The head: the sport's mark (22 pt, in its state: thinned to do, full done,
+  dashed skipped) in a 22-pt column, the name 10 pt after it in Card title (Jost 700, 24), a run's
+  figure beside its name ("30 min"), and the fold's chevron at the end, in a 44-pt target.
+- Under the name, on its edge: the facts that decide the day, each led by its glyph (the gym, a
+  choice while nothing is open; the time; what it aims at; "Planned by the coach" or "Prepared by
+  the coach"; a run's pace note and its time of day); then what is happening now, in ink 2 (In
+  progress · Started 17:23 · 0 sets, Workout logged., Skipped, the coach planning, "Finish or
+  discard your open session to start this one.").
+- The plan is folded until asked for: the head is a button with `aria-expanded`, and the plan,
+  folded, is inert. Unfolded, the workout shows the coach's summary whole and its exercises (each
+  with its prescription and, where the coach wrote one, the speech glyph); a run, ride or swim
+  shows its steps, its targets, how to do it, the coach's word for it, and Skip or move. It
+  unfolds in 220 ms ease-out, height and words together; with reduced motion it appears.
+- The card's next step is its own, the card's full width at its foot: Start workout (primary, with
+  More beside it), Resume (primary), Log run, Log ride or Log swim (tonal, named with what it asks
+  for, so two runs never share a name), See what you logged. Under it, the quieter way out that
+  belongs to this card alone: Discard empty session, led by its glyph at the card's left edge,
+  only while nothing is logged.
+- One unfinished workout at a time: while one is open, no card offers to start, skip or re-plan
+  another, the gym is the session's fact rather than a choice, and an open session that is not
+  the day's stands first, with its own Resume and Discard.
 
 ### Inputs and choices
 
@@ -743,12 +808,15 @@ and every control answers a press.
 
 - Rise from the bottom over the scrim, 24-px top corners, a grabber, a title and Close; no
   shadow. A spring with a 0.4-s response and 0.08 bounce; the scrim fades in 200 ms; with
-  reduced motion a sheet fades.
+  reduced motion a sheet fades. The panel rises inside a dialog that clips and is never a scroll
+  container (`overflow: clip`): opening focuses the panel while it still stands a height below,
+  and a scrollable dialog was scrolled to it, so the sheet jumped up, vanished and dropped in.
+- Why explains the suggestion and stops: History is the tab behind it, never linked again.
 
 ### Prints (signature)
 
 - Drawn from the account's records and nothing else, on print paper with square corners.
-- **The day:** Today's hero and every record's header: thinned parts inking as they are done,
+- **The day:** Today's band over its cards and every record's header: thinned parts inking as they are done,
   centred on the paper. A page of prints (Training's week) shares one module, the smallest any of
   them needs, so they compare at a glance. A plan's print (Today, a programme day, the workout
   under way) draws the
@@ -792,5 +860,6 @@ and every control answers a press.
 - **Don't** write a set to the log before the server has it, pre-fill RIR, or show a suggested
   value in ink.
 - **Don't** truncate a figure, shrink a target under 44 pt, or drop a fact to make a layout fit.
-- **Don't** indent a list, box rows into cards, or add a second shadow.
+- **Don't** indent a list, box rows into cards (Today's activity cards are the one card, never
+  nested), or add a second shadow.
 - **Don't** let the art be the brightest thing on a dark screen.
