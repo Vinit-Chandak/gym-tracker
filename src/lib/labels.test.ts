@@ -17,6 +17,9 @@ describe("labels", () => {
     expect(restLabel(150, 210)).toBe("2.5–3.5 min");
     expect(restLabel(90, 90)).toBe("90 s");
     expect(restLabel(60, 90)).toBe("60–90 s");
+    // A coach's rest off the half-minute keeps its seconds rather than rounding to "3.3 min".
+    expect(restLabel(200, 200)).toBe("3 min 20 s");
+    expect(restLabel(200, 240)).toBe("200–240 s");
     expect(restLabel(null, null)).toBe("—");
   });
 });

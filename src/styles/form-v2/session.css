@@ -129,11 +129,16 @@ html:has(.session-layer) body {
   line-height: 1.4;
   font-variant-numeric: tabular-nums lining-nums;
 }
+/* A fact moves to the next line whole; only one wider than the line (a long prescription at
+   200% text on a small phone) wraps inside, beside its glyph, rather than being cut off. */
 .session-fact {
   display: inline-flex;
+  max-width: 100%;
   align-items: center;
   gap: 5px;
-  white-space: nowrap;
+}
+.session-fact > svg {
+  flex-shrink: 0;
 }
 
 .session-tabs {
@@ -1060,12 +1065,15 @@ html:has(.session-page) .pinned-actions {
   align-items: center;
   gap: 4px 12px;
 }
+/* Beside the picture down to 320 pt, where the docked entry leaves the least room above it. */
 .machine-ask > .type-heading {
   min-width: 0;
-  flex: 1 1 10rem;
+  flex: 1 1 8rem;
 }
-.machine-ask-art {
-  width: 6rem;
+/* Both classes: a drawing's own rule (rows.css, loaded after this file) makes it full width.
+   In pixels, so large text grows the question and the answers, not the picture beside them. */
+.equipment-art.machine-ask-art {
+  width: 96px;
   flex-shrink: 0;
 }
 .machine-ask-row {
