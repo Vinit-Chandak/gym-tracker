@@ -70,6 +70,7 @@ export default async function WelcomePage() {
         dateOfBirth={profile.dateOfBirth}
         sex={profile.sex}
         trainingGoal={profile.trainingGoal}
+        trainingExperience={profile.trainingExperience}
       />
     </OnboardingFrame>
   );

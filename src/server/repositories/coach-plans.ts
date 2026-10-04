@@ -562,6 +562,7 @@ export async function planningContext(
         dateOfBirth: profiles.dateOfBirth,
         sex: profiles.sex,
         trainingGoal: profiles.trainingGoal,
+        trainingExperience: profiles.trainingExperience,
       })
       .from(profiles)
       .where(eq(profiles.id, userId))
@@ -882,6 +883,8 @@ export async function planningContext(
       age: profile.dateOfBirth === null ? null : ageOn(profile.dateOfBirth, today),
       sex: profile.sex,
       goal: profile.trainingGoal,
+      // "Which sounds like you?", answered at setup: "new", "experienced", or null.
+      experience: profile.trainingExperience,
       today,
     },
     memo,

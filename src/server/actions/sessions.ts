@@ -18,7 +18,7 @@ import { fromKilograms, toKilograms } from "@/lib/units";
 import { requireUser } from "@/server/auth";
 import { exerciseHistory, type ComparableSet } from "@/server/queries/comparable";
 import { ensureProfile } from "@/server/queries/profile";
-import { profileChanged } from "@/server/queries/request-profile";
+import { getRequestProfile, profileChanged } from "@/server/queries/request-profile";
 import { recordBodyWeight } from "@/server/repositories/body-weight";
 import { addGymFallback } from "@/server/repositories/fallbacks";
 import { voidPlanForSlot } from "@/server/repositories/coach-plans";
@@ -55,6 +55,14 @@ import {
   substituteExercise,
   type SessionSet,
 } from "@/server/repositories/sessions";
+import {
+  archiveWorkoutMachine,
+  chooseEquipmentVariant,
+  confirmEquipmentHere,
+  markEquipmentNotHere,
+  NothingToArchiveError,
+  UnknownEquipmentTypeError,
+} from "@/server/repositories/workout-confirmation";
 import {
   submitWorkoutOnce,
   WorkoutSubmissionConflictError,
@@ -105,6 +113,8 @@ function describe(error: unknown): string {
   if (error instanceof ExerciseHasSetsError) return error.message;
   if (error instanceof SetConflictError) return error.message;
   if (error instanceof WorkoutSubmissionConflictError) return error.message;
+  if (error instanceof UnknownEquipmentTypeError || error instanceof NothingToArchiveError)
+    return error.message;
   if (error instanceof SessionNotFoundError) return "That session no longer exists.";
   return "Something went wrong. Please try again.";
 }
@@ -383,6 +393,102 @@ export async function applyFallbackAction(
         equipmentInstanceId,
         reason,
       }),
+    );
+    refreshSession();
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: describe(error) };
+  }
+}
+
+/* ---------- settling a machine in the workout (plan: gradual confirmation during workouts) ---------- */
+
+const ids = z.array(z.uuid());
+
+/** The account's weight unit, which a machine registered here is logged in. */
+async function weightUnit(user: { id: string; email: string | null }) {
+  const profile = await getRequestProfile(user.id, user.email);
+  return profile.preferredUnit === "lb" ? ("lb" as const) : ("kg" as const);
+}
+
+/**
+ * "Yes, it's here" for a gym basic, "Available" for any other machine: registered at once and
+ * put on the exercise, and the athlete stays in the workout.
+ */
+export async function confirmEquipmentHereAction(
+  workoutExerciseId: string,
+  equipmentTypeId: string,
+): Promise<ActionResult> {
+  const user = await requireUser();
+  if (!ids.safeParse([workoutExerciseId, equipmentTypeId]).success)
+    return { ok: false, error: "Reload the workout and try again." };
+  try {
+    const unit = await weightUnit(user);
+    await withUser(getDb(), user.id, (tx) =>
+      confirmEquipmentHere(tx, user.id, workoutExerciseId, equipmentTypeId, unit),
+    );
+    refreshSession();
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: describe(error) };
+  }
+}
+
+/** "Not here" answers either way: recorded, or a registered machine that says otherwise. */
+export type NotHereResult =
+  ActionResult | { ok: false; error: null; machines: { id: string; name: string }[] };
+
+export async function equipmentNotHereAction(
+  workoutExerciseId: string,
+  equipmentTypeId: string,
+): Promise<NotHereResult> {
+  const user = await requireUser();
+  if (!ids.safeParse([workoutExerciseId, equipmentTypeId]).success)
+    return { ok: false, error: "Reload the workout and try again." };
+  try {
+    const outcome = await withUser(getDb(), user.id, (tx) =>
+      markEquipmentNotHere(tx, user.id, workoutExerciseId, equipmentTypeId),
+    );
+    if (!outcome.recorded) return { ok: false, error: null, machines: outcome.machines };
+    refreshSession();
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: describe(error) };
+  }
+}
+
+/** "A different one": the family's variant that is here goes on the exercise. */
+export async function chooseEquipmentVariantAction(
+  workoutExerciseId: string,
+  assumedTypeId: string,
+  variantTypeId: string,
+): Promise<ActionResult> {
+  const user = await requireUser();
+  if (!ids.safeParse([workoutExerciseId, assumedTypeId, variantTypeId]).success)
+    return { ok: false, error: "Reload the workout and try again." };
+  try {
+    const unit = await weightUnit(user);
+    await withUser(getDb(), user.id, (tx) =>
+      chooseEquipmentVariant(tx, user.id, workoutExerciseId, assumedTypeId, variantTypeId, unit),
+    );
+    refreshSession();
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: describe(error) };
+  }
+}
+
+/** "It has gone": the machine is archived, its history kept, and the exercise asks again. */
+export async function archiveWorkoutMachineAction(
+  workoutExerciseId: string,
+  equipmentInstanceId: string,
+): Promise<ActionResult> {
+  const user = await requireUser();
+  if (!ids.safeParse([workoutExerciseId, equipmentInstanceId]).success)
+    return { ok: false, error: "Reload the workout and try again." };
+  try {
+    await withUser(getDb(), user.id, (tx) =>
+      archiveWorkoutMachine(tx, user.id, workoutExerciseId, equipmentInstanceId),
     );
     refreshSession();
     return { ok: true };

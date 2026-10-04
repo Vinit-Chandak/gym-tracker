@@ -1,0 +1,246 @@
+// @vitest-environment jsdom
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import type { ComponentProps } from "react";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+
+import type { ExerciseDecision } from "@/server/repositories/availability";
+
+import { LoggerActionsProvider, type LoggerActions } from "./logger-actions";
+import { MachineDecision, MachineGoneSheet, withArticle } from "./machine-decision";
+import type { ExerciseVM, SessionVM } from "./view-model";
+
+vi.mock("@/components/ui/app-link", () => ({
+  default: (props: ComponentProps<"a">) => <a {...props} />,
+}));
+vi.mock("next/navigation", () => ({ unstable_rethrow: () => {} }));
+
+beforeEach(() => {
+  HTMLDialogElement.prototype.showModal = function () {
+    this.setAttribute("open", "");
+  };
+  HTMLDialogElement.prototype.close = function () {
+    this.removeAttribute("open");
+  };
+});
+afterEach(cleanup);
+
+const SESSION = {
+  id: "session",
+  gym: { id: "gym", name: "Anytime Fitness", kind: "gym" },
+} as SessionVM;
+const exerciseRef = {
+  id: "leg-press",
+  slug: "leg-press-45",
+  modality: "machine",
+  loadPortability: "equipment_specific",
+  requiresEquipment: true,
+} as const;
+
+function decision(patch: Partial<ExerciseDecision>): ExerciseDecision {
+  return {
+    resolution: {
+      status: "unknown",
+      exercise: exerciseRef,
+      missingEquipmentTypeIds: ["hack"],
+    },
+    resolvedExerciseName: "Hack squat",
+    fallbackOptions: [],
+    missingTypes: [{ id: "hack", name: "Hack squat" }],
+    ask: null,
+    machines: [],
+    ...patch,
+  } as ExerciseDecision;
+}
+
+function exercise(d: ExerciseDecision, equipment: ExerciseVM["equipment"] = null): ExerciseVM {
+  return {
+    id: "slot",
+    exercise: { id: "leg-press", name: "45° leg press" },
+    equipment,
+    decision: d,
+  } as ExerciseVM;
+}
+
+function actions(patch: Partial<LoggerActions> = {}): LoggerActions {
+  return {
+    logSet: vi.fn(),
+    deleteSet: vi.fn(),
+    setCompleted: vi.fn(),
+    skip: vi.fn(),
+    applyFallback: vi.fn(),
+    readHistory: vi.fn(),
+    confirmHere: vi.fn(async () => ({ ok: true as const })),
+    notHere: vi.fn(async () => ({ ok: true as const })),
+    chooseVariant: vi.fn(async () => ({ ok: true as const })),
+    archiveMachine: vi.fn(async () => ({ ok: true as const })),
+    ...patch,
+  } as LoggerActions;
+}
+
+function show(d: ExerciseDecision, given = actions()) {
+  const onFallback = vi.fn();
+  const onMessage = vi.fn();
+  render(
+    <LoggerActionsProvider value={given}>
+      <MachineDecision
+        exercise={exercise(d)}
+        session={SESSION}
+        blocked={false}
+        busy={false}
+        onFallback={onFallback}
+        onMessage={onMessage}
+      />
+    </LoggerActionsProvider>,
+  );
+  return { actions: given, onFallback, onMessage };
+}
+
+const BASIC = decision({
+  resolution: {
+    status: "direct",
+    exercise: exerciseRef,
+    equipmentInstance: null,
+    basis: "assumed",
+    primaryTypeId: "lp45",
+    assumedTypeIds: ["lp45"],
+  } as unknown as ExerciseDecision["resolution"],
+  missingTypes: [],
+  ask: {
+    kind: "confirm_basic",
+    typeId: "lp45",
+    slug: "leg_press_45",
+    name: "45° leg press",
+    art: "/equipment-art/leg_press_45.svg?v=1",
+    family: {
+      name: "Leg press",
+      variants: [
+        { typeId: "lph", slug: "leg_press_horizontal", name: "Horizontal leg press", art: null },
+      ],
+    },
+  },
+});
+
+it("settles a gym basic with one tap, registering it on Yes, it's here", async () => {
+  const { actions: given } = show(BASIC);
+  expect(screen.getByText("Is there a 45° leg press here?")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Yes, it’s here" }));
+  await waitFor(() => expect(given.confirmHere).toHaveBeenCalledWith("slot", "lp45"));
+  expect(screen.queryByRole("button", { name: "Not sure" })).toBeNull();
+});
+
+it("offers the family's other variants behind A different one", async () => {
+  const { actions: given } = show(BASIC);
+  fireEvent.click(screen.getByRole("button", { name: "A different one" }));
+  const sheet = within(screen.getByRole("dialog", { name: "Which leg press is it?" }));
+  fireEvent.click(sheet.getByRole("button", { name: "Horizontal leg press" }));
+  await waitFor(() => expect(given.chooseVariant).toHaveBeenCalledWith("slot", "lp45", "lph"));
+});
+
+const UNKNOWN = decision({
+  ask: {
+    kind: "unknown",
+    typeId: "hack",
+    slug: "hack_squat",
+    name: "Hack squat",
+    art: null,
+    family: null,
+  },
+  fallbackOptions: [
+    {
+      fallbackId: "f",
+      exerciseId: "goblet",
+      exerciseName: "Goblet squat",
+      equipmentInstanceId: null,
+      equipmentInstanceName: null,
+      available: true,
+    },
+  ],
+});
+
+it("asks about any other machine: Available registers it, Not sure changes nothing", async () => {
+  const { actions: given, onFallback } = show(UNKNOWN);
+  expect(screen.getByText("Is there a hack squat here?")).toBeTruthy();
+  // The options that were always here stay under the question.
+  fireEvent.click(screen.getByRole("button", { name: "Use Goblet squat" }));
+  expect(onFallback).toHaveBeenCalledWith("goblet", null, "Goblet squat");
+  expect(screen.getByRole("link", { name: "Add a fallback" })).toBeTruthy();
+  expect(screen.getByRole("link", { name: "Register with details" })).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Not sure" }));
+  expect(screen.getByText("Not sure about a hack squat")).toBeTruthy();
+  expect(given.confirmHere).not.toHaveBeenCalled();
+  expect(given.notHere).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Answer after all" }));
+  fireEvent.click(screen.getByRole("button", { name: "Available" }));
+  await waitFor(() => expect(given.confirmHere).toHaveBeenCalledWith("slot", "hack"));
+});
+
+it("asks whether a registered machine has gone when Not here meets one", async () => {
+  const given = actions({
+    notHere: vi.fn(async () => ({
+      ok: false as const,
+      error: null,
+      machines: [{ id: "m1", name: "Garage hack squat" }],
+    })),
+  });
+  show(UNKNOWN, given);
+  fireEvent.click(screen.getByRole("button", { name: "Not here" }));
+  expect(
+    await screen.findByText(/Garage hack squat is registered here. Has it gone\?/),
+  ).toBeTruthy();
+  expect(screen.getByRole("link", { name: "Out of use today" }).getAttribute("href")).toBe(
+    "/workouts/session/exercises/slot/substitute?remember=0",
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Archive Garage hack squat" }));
+  await waitFor(() => expect(given.archiveMachine).toHaveBeenCalledWith("slot", "m1"));
+});
+
+it("offers Not here beside Use for a registered machine", () => {
+  show(
+    decision({
+      resolution: {
+        status: "direct",
+        exercise: exerciseRef,
+        equipmentInstance: {
+          id: "m2",
+          name: "Leg press 2",
+          equipmentTypeId: "lp45",
+          isActive: true,
+        },
+        basis: "confirmed",
+      } as unknown as ExerciseDecision["resolution"],
+      missingTypes: [],
+    }),
+  );
+  expect(screen.getByRole("button", { name: "Use Leg press 2" })).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Not here" }));
+  expect(screen.getByText(/Leg press 2 is registered here. Has it gone\?/)).toBeTruthy();
+});
+
+it("lets an exercise on a machine say it is gone, or only out of use today", async () => {
+  const given = actions();
+  render(
+    <LoggerActionsProvider value={given}>
+      <MachineGoneSheet
+        open
+        exercise={exercise(decision({}), {
+          id: "m3",
+          name: "Cable station",
+        } as ExerciseVM["equipment"])}
+        session={SESSION}
+        onClose={() => {}}
+        onMessage={() => {}}
+      />
+    </LoggerActionsProvider>,
+  );
+  const sheet = within(screen.getByRole("dialog", { name: "Cable station not here?" }));
+  fireEvent.click(sheet.getByRole("button", { name: "It’s gone: archive it" }));
+  await waitFor(() => expect(given.archiveMachine).toHaveBeenCalledWith("slot", "m3"));
+  expect(sheet.getByRole("link", { name: "Out of use today" })).toBeTruthy();
+});
+
+it("says a name the way a sentence does", () => {
+  expect(withArticle("Hack squat")).toBe("a hack squat");
+  expect(withArticle("Ab crunch machine")).toBe("an ab crunch machine");
+  expect(withArticle("45° leg press")).toBe("a 45° leg press");
+  expect(withArticle("EZ curl bar")).toBe("an EZ curl bar");
+});

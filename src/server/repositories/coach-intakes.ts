@@ -179,6 +179,13 @@ export async function confirmIntake(db: DbOrTx, userId: string, intakeId: string
     .update(coachIntakes)
     .set({ confirmedAt: now, answers })
     .where(eq(coachIntakes.id, intake.id));
+  // The route chosen here is the answer to "Which sounds like you?": the profile keeps it, so
+  // whatever reads the profile next (the machines step, the coach) agrees with the setup.
+  if (answers.track)
+    await db
+      .update(profiles)
+      .set({ trainingExperience: answers.track === "guided" ? "new" : "experienced" })
+      .where(eq(profiles.id, userId));
   await db
     .update(coachJobs)
     .set({ status: "superseded", completedAt: now, error: "Your confirmed answers changed." })

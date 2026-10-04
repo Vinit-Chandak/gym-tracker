@@ -17,7 +17,7 @@ import { flushSync } from "react-dom";
 
 import { RestPill } from "@/components/shell/rest-timer";
 import Link from "@/components/ui/app-link";
-import { Button, LinkButton } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { rampSize, titleSize } from "@/components/ui/fit";
 import { Glyph } from "@/components/ui/glyphs";
 import { Tabs } from "@/components/ui/tabs";
@@ -66,6 +66,7 @@ import {
   type MoreOption,
   type WhyContent,
 } from "./logger-sheets";
+import { MachineDecision, MachineGoneSheet } from "./machine-decision";
 import { NextLoad, nextLoadQuestion } from "./next-load";
 import { useSetRows, type Ghost, type RowState } from "./use-set-rows";
 import type { ExerciseVM, SessionVM, SetVM } from "./view-model";
@@ -114,7 +115,8 @@ type Sheet =
   | { kind: "options" }
   | { kind: "edit"; setIndex: number }
   | { kind: "more" }
-  | { kind: "skip" };
+  | { kind: "skip" }
+  | { kind: "gone" };
 
 /** The three fields a set is written in: load, what it counts, and effort. */
 function fieldsFor(
@@ -591,10 +593,6 @@ export function ExerciseLogger({
 
   // ---------- completing, skipping, a fallback ----------
   const needsDecision = exercise.decision !== null && !skipped && !readOnly;
-  const availableMachine =
-    exercise.decision?.resolution.status === "direct"
-      ? exercise.decision.resolution.equipmentInstance
-      : null;
   // Once this exercise's working sets are in, a stack whose next stop nobody knows asks for
   // it under the sets (ADR 0028); nothing is asked mid-exercise or of plates.
   const loggedWorking = sets.loggedSets.filter((set) => WORKING_SET_TYPES.has(set.setType));
@@ -945,6 +943,14 @@ export function ExerciseLogger({
       label: "Choose a fallback",
       href: `/workouts/${session.id}/exercises/${exercise.id}/substitute` as Route,
     });
+  // A registered machine that is missing or broken today: has it gone, or is it out of use?
+  if (exercise.equipment && !readOnly && !completed && !skipped && sets.loggedSets.length === 0)
+    more.push({
+      glyph: "warn",
+      label: `${exercise.equipment.name} not here`,
+      onSelect: () => setSheet({ kind: "gone" }),
+      disabled: pending || sets.dirty,
+    });
   if (!readOnly && skipped)
     more.push({ glyph: "undo", label: "Unskip", onSelect: () => setCompletedState(false) });
   if (!readOnly && !completed && !skipped && sets.loggedSets.length === 0)
@@ -1039,72 +1045,14 @@ export function ExerciseLogger({
             {/* Equipment problems come before the sets: without a machine there is nothing
                   meaningful to log, so the decision is the first thing offered. */}
             {needsDecision && exercise.decision && (
-              <div className="mt-2 space-y-2 rounded-control bg-surface px-3.5 py-3">
-                <p className="type-heading">
-                  {availableMachine
-                    ? "Choose the registered machine for this exercise"
-                    : exercise.decision.resolution.status === "unavailable"
-                      ? "Not available at this gym"
-                      : `Needs ${exercise.decision.missingTypes.map((t) => t.name.toLowerCase()).join(" or ") || "a machine"} — not registered at ${session.gym.name}`}
-                </p>
-                {availableMachine && (
-                  <Button
-                    variant="primary"
-                    className="w-full"
-                    disabled={pending || sets.dirty}
-                    onClick={() =>
-                      applyFallback(
-                        exercise.exercise.id,
-                        availableMachine.id,
-                        exercise.exercise.name,
-                      )
-                    }
-                  >
-                    Use {availableMachine.name}
-                  </Button>
-                )}
-                {exercise.decision.fallbackOptions.map((option) => (
-                  <Button
-                    key={option.fallbackId}
-                    variant="tonal"
-                    className="w-full bg-ground"
-                    disabled={!option.available || pending || sets.dirty}
-                    onClick={() =>
-                      applyFallback(
-                        option.exerciseId,
-                        option.equipmentInstanceId,
-                        option.exerciseName,
-                      )
-                    }
-                  >
-                    {option.available ? "Use" : "Not possible here:"} {option.exerciseName}
-                    {option.equipmentInstanceName ? ` on ${option.equipmentInstanceName}` : ""}
-                  </Button>
-                ))}
-                <div className="flex flex-wrap gap-2">
-                  {sets.dirty ? (
-                    <Button disabled variant="text" size="sm">
-                      Save or remove drafts first
-                    </Button>
-                  ) : (
-                    <LinkButton
-                      href={`/workouts/${session.id}/exercises/${exercise.id}/substitute`}
-                      variant="text"
-                      size="sm"
-                    >
-                      Add a fallback
-                    </LinkButton>
-                  )}
-                  {/* Carries the workout along, so registering it lands back here. */}
-                  <LinkButton
-                    href={`/gyms/${session.gym.id}/equipment/new?session=${session.id}&exercise=${exercise.id}`}
-                    variant="text"
-                    size="sm"
-                  >
-                    Register machine
-                  </LinkButton>
-                </div>
-              </div>
+              <MachineDecision
+                exercise={exercise}
+                session={session}
+                blocked={sets.dirty}
+                busy={pending}
+                onFallback={applyFallback}
+                onMessage={setMessage}
+              />
             )}
 
             {exercise.coachNote && editable && (
@@ -1373,6 +1321,13 @@ export function ExerciseLogger({
         pending={pending}
         onSkip={skip}
         onClose={() => setSheet(null)}
+      />
+      <MachineGoneSheet
+        open={sheet?.kind === "gone"}
+        exercise={exercise}
+        session={session}
+        onClose={() => setSheet(null)}
+        onMessage={setMessage}
       />
     </div>
   );

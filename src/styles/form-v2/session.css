@@ -1041,3 +1041,38 @@ html:has(.session-page) .pinned-actions {
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 4.25rem), 1fr));
   gap: 8px;
 }
+
+/* ---------- the Log tab's decision block (plan: gradual confirmation during workouts) ---------- */
+/* One quiet block on surface: the machine's drawing beside the question, the answer that keeps
+   the workout going first and full width, the others beside each other, folding at large text. */
+.machine-decision {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 12px 14px;
+  border-radius: var(--ov-radius-control);
+  background: var(--ov-surface);
+}
+.machine-ask {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+}
+.machine-ask > .type-heading {
+  min-width: 0;
+  flex: 1 1 10rem;
+}
+.machine-ask-art {
+  width: 6rem;
+  flex-shrink: 0;
+}
+.machine-ask-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.machine-ask-row > * {
+  flex: 1 1 9rem;
+}

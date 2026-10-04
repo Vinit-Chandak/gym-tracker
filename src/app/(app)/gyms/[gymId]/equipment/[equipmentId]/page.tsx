@@ -12,10 +12,11 @@ import { withUser } from "@/db/with-user";
 import { setEquipmentActiveAction, updateEquipmentAction } from "@/server/actions/equipment";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
-import { getEquipment, listEquipmentTypes } from "@/server/repositories/equipment";
+import { getEquipment, listEquipmentTypes, machineTypeIds } from "@/server/repositories/equipment";
 import { requireUuid } from "@/server/validation/params";
 
 import { EquipmentForm } from "../../../equipment-form";
+import { AlsoUsedFor } from "./also-used-for";
 
 export const metadata: Metadata = { title: "Machine" };
 
@@ -31,22 +32,24 @@ export default async function EquipmentPage(
     getDb(),
     user.id,
     async (tx) => {
-      const [equipment, types] = await Promise.all([
+      const [equipment, types, typeIds] = await Promise.all([
         getEquipment(tx, user.id, equipmentId),
         listEquipmentTypes(tx),
+        machineTypeIds(tx, user.id, equipmentId),
       ]);
       if (!equipment || equipment.gymId !== gymId) return null;
       const profile = requestProfile;
       return {
         equipment,
         types,
+        typeIds,
         preferredUnit: profile.preferredUnit === "lb" ? ("lb" as const) : ("kg" as const),
       };
     },
     { readOnly: true },
   );
   if (!data) notFound();
-  const { equipment, types, preferredUnit } = data;
+  const { equipment, types, typeIds, preferredUnit } = data;
 
   return (
     <>
@@ -83,6 +86,15 @@ export default async function EquipmentPage(
           }}
           submitLabel="Save changes"
         />
+        {equipment.isActive && (
+          <AlsoUsedFor
+            gymId={gymId}
+            equipmentId={equipment.id}
+            ownTypeId={equipment.equipmentTypeId}
+            typeIds={typeIds}
+            types={types}
+          />
+        )}
         {equipment.isActive && (
           <Card>
             <div className="flex items-center justify-between gap-3">

@@ -17,7 +17,7 @@ has touched a hosted database, and nothing has been merged or deployed.
 | 1    | Catalogue report, requirement model, basics, machine types, ADRs, atomic seed, tables   | done        |
 | 2    | Resolver and every consumer, absence reconciliation, the coach's backup rule            | done        |
 | 3    | Add several exercises (receipts) and pinned actions on Add machine                      | done        |
-| 4    | Experience question, machine steps, combinations, workout confirmation                  | not started |
+| 4    | Experience question, machine steps, combinations, workout confirmation                  | done        |
 | 5    | Illustrations, guides, Technique, the coach's numbers in the header and list            | not started |
 | 6    | Acceptance tests, screens, fresh review, draft PR                                       | not started |
 
@@ -153,6 +153,65 @@ has touched a hosted database, and nothing has been merged or deployed.
   comes with the machines step (step 4).
 - Not verified: the owner's scrolling report on the deployed build on a physical phone, and the
   keyboard behaviour on iPhone and Android.
+
+## Step 4: what landed
+
+- **"Which sounds like you?"** on the first onboarding step ("I'm new to this", "I already
+  train"), required and saved as `profiles.training_experience`. The coach's setup starts from it
+  (the route is prefilled; Back still offers both), confirming the setup writes the chosen route
+  back to the profile, and both coach contexts carry `athlete.experience`; the coach skill says not
+  to ask again.
+- **The machines step** (`welcome/equipment`), built from one pure function
+  (`src/lib/machines-step.ts`) that the page, its preview and its tests share:
+  - at a gym, the basics as one ruled line, "Usually here (18)" naming a few, whose Review opens
+    them as picture tiles; unticking one records it as not here;
+  - for somebody new, the preset's extras (12 today) as picture tiles with name and purpose,
+    unticked; a family asks "Which chest press?" with its variants as pictures, and "Not sure"
+    registers nothing; combinations ("Assisted dip and chin") are their own tiles;
+  - for somebody who already trains, every other type and the combinations, grouped and searchable
+    by name, local name or purpose, with ⓘ for the picture and the words that tell it apart; a
+    shared name ("Roman chair") shows both candidates side by side;
+  - at home, the starter set for beginners and the full list (free weights included) for everyone
+    else; outdoors, the four-item calisthenics set for everyone; Browse all everywhere;
+  - no Select all; a search never selects anything; the selection lives in a pinned "N chosen ·
+    Review" row; revisiting shows what the place has, offers archived machines back as Restore,
+    and says what is marked not here.
+- **Saving the step** (`confirmStarterEquipment`, one transaction): equipment is identified by gym
+  and type, never by name; an archived machine is restored; a combination is one machine with every
+  type; confirmed types lose their absences; basics marked not here are recorded and the rest
+  cleared; presence wins over a stale absence; resubmitting creates nothing.
+- **In the workout** (`machine-decision.tsx`, `workout-confirmation.ts`): the Log tab's decision
+  block now asks with the machine's picture. A gym basic nobody has confirmed: "Yes, it's here"
+  (registered, named after its type, and put on the exercise before the first set), "Not here"
+  (recorded; the fallbacks follow) and, for a family, "A different one" (the variant is registered,
+  the assumed one marked not here, and the exercise moves to the same movement on it: a 45° leg
+  press becomes the horizontal leg press). Any other unknown machine: "Available" (registered at
+  once, the athlete stays), "Not here" and "Not sure" (no change; the picture and the options
+  stay). "Not here" against a registered machine asks whether it has gone (archive it, history
+  kept) or is out of use today (Substitute with Remember unticked); an exercise on a machine has
+  "{Machine} not here" in More for the same. Several machines of one kind are each offered by name.
+  Use a fallback, Add a fallback and Register with details remain.
+- **"Also used for"** on a machine's page: its other types, each removable, and a picker to add
+  one; adding clears that type's absence; the machine's own type cannot be removed there.
+- **Drawings**: the pilot set is served as masks from a gated route (drafts only where drafts are
+  shown); `DESIGN.md` records the illustration treatment and the tile and multi-select patterns;
+  the Form v2 Machines and Welcome boards are regenerated without Select all.
+- Tests: the step builder (including a 500-item catalogue), the step's component and repository
+  tests, the decision block and its database flow, the experience question, the coach's prefill
+  and copy back.
+
+### Calls made in step 4
+
+- The experience question is required on the first step, so the machines step and the coach can
+  branch on it; an account that never answered (existing accounts) is treated as experienced by
+  the machines step and asked by the coach as before.
+- In the basics' Review, a ticked tile means "here" (the tick semantics the step already uses), so
+  "a tap records one as not here" is an untick.
+- "A different one" marks the assumed variant as not here: saying the one here is different is
+  saying the assumed one is not. The exercise moves to the matching movement on the new variant
+  only while nothing is logged.
+- "Register machine" in the decision block reads "Register with details", since "Yes, it's here"
+  and "Available" now register too.
 
 ## Next
 

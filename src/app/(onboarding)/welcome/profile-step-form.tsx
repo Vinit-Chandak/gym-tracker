@@ -8,6 +8,7 @@ import { Field, Input } from "@/components/ui/input";
 import { PinnedActions } from "@/components/ui/pinned-actions";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { UsernameField } from "@/components/username-field";
+import type { TrainingExperience } from "@/domain/types";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
 import { saveOnboardingProfileAction } from "@/server/actions/profile";
 import { INITIAL_FORM_STATE } from "@/server/validation/form";
@@ -17,8 +18,20 @@ const UNITS = [
   { value: "lb", label: "lb" },
 ];
 
-/** Board Welcome: the name, the username, then the units and the time zone side by side. */
-export function ProfileStepForm(values: ProfileFieldValues) {
+/** The coach's two routes, asked here once and kept on the profile. */
+const EXPERIENCE: { value: TrainingExperience; label: string }[] = [
+  { value: "new", label: "I'm new to this" },
+  { value: "experienced", label: "I already train" },
+];
+
+/**
+ * Board Welcome: the name, the username, which sounds like you, then the units and the time zone
+ * side by side. The answer decides what the machines step suggests, and the coach starts from it.
+ */
+export function ProfileStepForm({
+  trainingExperience,
+  ...values
+}: ProfileFieldValues & { trainingExperience: TrainingExperience | null }) {
   const [state, formAction] = useActionState(
     keepsFormOnDisconnect(saveOnboardingProfileAction),
     INITIAL_FORM_STATE,
@@ -47,6 +60,20 @@ export function ProfileStepForm(values: ProfileFieldValues) {
         error={state.fieldErrors?.username}
         hint="What friends will find you by. You can change it later from your profile."
       />
+      <Field group label="Which sounds like you?" error={state.fieldErrors?.trainingExperience}>
+        <SegmentedControl
+          name="trainingExperience"
+          aria-label="Which sounds like you?"
+          options={EXPERIENCE}
+          defaultValue={
+            (state.values?.trainingExperience as TrainingExperience | undefined) ??
+            trainingExperience ??
+            undefined
+          }
+          aria-invalid={state.fieldErrors?.trainingExperience ? true : undefined}
+          columns={2}
+        />
+      </Field>
       <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,9rem),1fr))] items-end gap-3">
         <Field group label="Weight units">
           <SegmentedControl

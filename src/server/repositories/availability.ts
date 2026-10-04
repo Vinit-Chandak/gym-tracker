@@ -28,6 +28,8 @@ import {
   type Resolution,
 } from "@/domain/equipment-resolution";
 import type { ExerciseModality, GymKind, LoadPortability, MuscleGroup } from "@/domain/types";
+import { EQUIPMENT_FAMILIES } from "@/db/seed/data/equipment-types";
+import { drawingUrl, drawingVisible } from "@/server/queries/equipment-art";
 import { equipmentTypeNames } from "@/server/queries/reference";
 
 import {
@@ -570,12 +572,70 @@ export type FallbackOption = {
   available: boolean;
 };
 
+/**
+ * What a workout asks about a machine (plan: gradual confirmation during workouts): a gym basic
+ * nobody has confirmed, settled with one tap ("Yes, it's here", "Not here", or, for a family, "A
+ * different one"), or any other machine nobody has answered for ("Available", "Not here", "Not
+ * sure"). The drawing is there only where it may be shown.
+ */
+export type EquipmentAsk = {
+  kind: "confirm_basic" | "unknown";
+  typeId: string;
+  slug: string;
+  name: string;
+  art: string | null;
+  /** For a basic in a family, the family's name and its other variants. */
+  family: {
+    name: string;
+    variants: { typeId: string; slug: string; name: string; art: string | null }[];
+  } | null;
+};
+
 export type ExerciseDecision = {
   resolution: Resolution;
   resolvedExerciseName: string;
   fallbackOptions: FallbackOption[];
   missingTypes: NamedType[];
+  ask: EquipmentAsk | null;
+  /**
+   * Every registered machine here that can do the exercise, the resolved one first: when there
+   * are several of one type, each keeps its own name, id and history, and the workout asks which.
+   */
+  machines: { id: string; name: string }[];
 };
+
+/** The ask a resolution leaves, if any: the basic to confirm, or the first unknown type. */
+function askFor(resolution: Resolution, refs: ReferenceSets): EquipmentAsk | null {
+  const basic =
+    resolution.status === "direct" &&
+    resolution.basis === "assumed" &&
+    resolution.equipmentInstance === null &&
+    resolution.primaryTypeId !== null
+      ? resolution.primaryTypeId
+      : null;
+  const typeId =
+    basic ?? (resolution.status === "unknown" ? resolution.missingEquipmentTypeIds[0] : null);
+  const type = typeId ? refs.typeById.get(typeId) : undefined;
+  if (!typeId || !type) return null;
+  const familyDef = basic && type.family ? EQUIPMENT_FAMILIES[type.family] : undefined;
+  const variants = (familyDef?.members ?? []).flatMap((slug) => {
+    if (slug === type.slug) return [];
+    const entry = [...refs.typeById.entries()].find(([, other]) => other.slug === slug);
+    return entry ? [{ typeId: entry[0], slug, name: entry[1].name, art: drawingFor(slug) }] : [];
+  });
+  return {
+    kind: basic ? "confirm_basic" : "unknown",
+    typeId,
+    slug: type.slug,
+    name: type.name,
+    art: drawingFor(type.slug),
+    family: familyDef && variants.length > 0 ? { name: familyDef.name, variants } : null,
+  };
+}
+
+function drawingFor(slug: string): string | null {
+  return drawingVisible(slug) ? drawingUrl(slug) : null;
+}
 
 type DecisionContext = {
   gym: KnownGym;
@@ -642,6 +702,24 @@ function decide(
             name: ctx.names.get(id) ?? "Unknown",
           }))
         : [],
+    ask: askFor(resolution, ctx.refs),
+    machines: (() => {
+      const fits = compatibleMachines(
+        exercise,
+        inventory,
+        inputs.requirements,
+        ctx.options,
+        inputs.modalityTypeIds,
+      ).map((machine) => ({ id: machine.id, name: machine.name }));
+      const chosen =
+        resolution.status === "direct" && resolution.equipmentInstance
+          ? resolution.equipmentInstance.id
+          : null;
+      return [
+        ...fits.filter((machine) => machine.id === chosen),
+        ...fits.filter((machine) => machine.id !== chosen),
+      ];
+    })(),
   };
 }
 

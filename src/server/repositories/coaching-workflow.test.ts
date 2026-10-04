@@ -1872,3 +1872,34 @@ it("will not requeue a job belonging to someone else", async () => {
   expect(await as(b, (tx) => requeueCoachJob(tx, b.user.id, job.id))).toBeNull();
   expect((await as(a, (tx) => getCoachJob(tx, a.user.id, job.id)))?.status).toBe("failed");
 });
+
+it("keeps the route chosen in the coach's setup as the profile's answer to Which sounds like you", async () => {
+  const user = await t.createAuthUser(`${crypto.randomUUID()}@example.test`);
+  await withUser(t.db, user.id, async (tx) => {
+    await tx
+      .insert(gyms)
+      .values({ userId: user.id, name: "My gym", slug: "my-gym", kind: "gym", isDefault: true });
+    const intake = await saveIntake(
+      tx,
+      user.id,
+      coachIntakeSchema.parse({
+        goal: "Get started with lifting",
+        sessionsPerWeek: 2,
+        minutesPerSession: 45,
+        trainingLocation: "gym",
+        heightCm: 170,
+        weightKg: 70,
+        ageYears: 28,
+        track: "guided",
+        prompt: "New to the gym.",
+      }),
+      null,
+    );
+    await confirmIntake(tx, user.id, intake.id);
+  });
+  const [row] = await t.db
+    .select({ experience: profiles.trainingExperience })
+    .from(profiles)
+    .where(eq(profiles.id, user.id));
+  expect(row?.experience).toBe("new");
+});

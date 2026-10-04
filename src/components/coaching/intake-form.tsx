@@ -69,6 +69,9 @@ function withProfileDetails(saved: CoachIntake | null, profile?: CoachIntake): C
     weightKg: answers.weightKg ?? profile.weightKg,
     heightCm: answers.heightCm ?? profile.heightCm,
     trainingLocation: answers.trainingLocation ?? profile.trainingLocation,
+    // "Which sounds like you?" was asked when the account was set up; the route starts there,
+    // and Back from its first step still offers both.
+    track: answers.track ?? profile.track,
   };
 }
 

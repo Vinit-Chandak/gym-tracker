@@ -1,6 +1,12 @@
 import { z } from "zod";
 
-import { BODY_LOAD_UNITS, SEXES, TRAINING_GOALS, type BodyLoadUnit } from "@/domain/types";
+import {
+  BODY_LOAD_UNITS,
+  SEXES,
+  TRAINING_EXPERIENCES,
+  TRAINING_GOALS,
+  type BodyLoadUnit,
+} from "@/domain/types";
 import { fromKilograms, heightUnitFor, toCentimetres, toKilograms } from "@/lib/units";
 
 import { usernameSchema } from "./username";
@@ -172,10 +178,17 @@ export const profileInputSchema = z
 
 export type ProfileInput = z.output<typeof profileInputSchema>;
 
-/** Account setup is independent of optional coaching measurements and goals. */
+/**
+ * Account setup is independent of optional coaching measurements and goals. "Which sounds like
+ * you?" is asked here, once (plan: onboarding flow): the machines step and the coach's setup both
+ * start from the answer instead of asking again.
+ */
 export const basicProfileInputSchema = z.object({
   displayName: z.preprocess(asString, z.string().trim().max(80)),
   username: usernameSchema,
   timeZone: timeZoneSchema,
   preferredUnit: z.enum(BODY_LOAD_UNITS),
+  trainingExperience: z.enum(TRAINING_EXPERIENCES, {
+    error: "Choose the one that sounds like you.",
+  }),
 });

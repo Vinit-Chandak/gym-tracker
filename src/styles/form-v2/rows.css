@@ -1493,3 +1493,42 @@ li:last-child > .picker-row {
     forced-color-adjust: none;
   }
 }
+
+/* "Also used for" on a machine's page: each other use a ruled row with Remove at its end, and
+   one row to add another, the platform's own picker and Add. */
+.also-row {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--ov-hair);
+  font-size: var(--ov-type-body);
+  font-weight: 600;
+}
+.also-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.also-select {
+  min-width: 0;
+  min-height: var(--ov-target);
+  flex: 1 1 12rem;
+  padding: 0 12px;
+  border: 1.5px solid var(--ov-control);
+  border-radius: var(--ov-radius-control);
+  background: var(--ov-ground);
+  color: var(--ov-ink);
+  font-size: var(--ov-type-input);
+}
+.also-submit {
+  min-height: var(--ov-target);
+  flex: 0 0 auto;
+  padding: 0 18px;
+  border-radius: var(--ov-radius-control);
+  background: var(--ov-surface);
+  font-size: var(--ov-type-meta);
+  font-weight: 700;
+}

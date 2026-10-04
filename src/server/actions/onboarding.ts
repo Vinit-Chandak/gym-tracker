@@ -1,17 +1,19 @@
 "use server";
 
-import { inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { getDb } from "@/db/client";
-import { equipmentInstances, equipmentTypes } from "@/db/schema";
 import { withUser } from "@/db/with-user";
 import { requireUser } from "@/server/auth";
 import { ensureProfile } from "@/server/queries/profile";
-import { clearAbsences } from "@/server/repositories/equipment";
-import { createGym, listGyms } from "@/server/repositories/gyms";
+import { GymNotFoundError } from "@/server/repositories/equipment";
+import { createGym } from "@/server/repositories/gyms";
+import {
+  confirmStarterEquipment,
+  StarterChoiceError,
+} from "@/server/repositories/starter-equipment";
 import { parseForm, type FormState } from "@/server/validation/form";
 import { gymInputSchema } from "@/server/validation/gyms";
 
@@ -32,67 +34,52 @@ export async function createFirstGymAction(
 
 const equipmentStepSchema = z.object({
   gymId: z.uuid(),
-  equipmentTypeIds: z.array(z.uuid()).max(200),
+  typeIds: z.array(z.uuid()).max(300),
+  combinationIds: z.array(z.uuid()).max(50),
+  notHereTypeIds: z.array(z.uuid()).max(100),
 });
 
 /**
- * Onboarding step 3: register one machine per ticked equipment type, named after the type.
- * These are starting points — stack increments, manufacturers and better names are edited
- * per machine afterwards, and anything missed is added from the gym screen.
+ * Onboarding step 3, the machines step (plan: onboarding flow): what was confirmed, recorded in
+ * one transaction. Each confirmed type or combination becomes one machine named after it, unless
+ * the place already has it (an archived one is restored); the gym basics marked not here are
+ * recorded as absent. Submitting again creates nothing more. Anything missed is confirmed as it
+ * becomes relevant, in a workout, or added from the gym's page.
  */
 export async function addStarterEquipmentAction(
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
   const user = await requireUser();
+  const strings = (name: string) =>
+    formData.getAll(name).filter((value): value is string => typeof value === "string");
   const parsed = equipmentStepSchema.safeParse({
     gymId: formData.get("gymId"),
-    equipmentTypeIds: formData.getAll("equipmentTypeIds").filter((v) => typeof v === "string"),
+    typeIds: strings("typeId"),
+    combinationIds: strings("combinationId"),
+    notHereTypeIds: strings("notHereTypeId"),
   });
   if (!parsed.success) return { formError: "Something in the form is not valid." };
-  const { gymId, equipmentTypeIds } = parsed.data;
+  const { gymId, ...choices } = parsed.data;
 
-  if (equipmentTypeIds.length > 0) {
+  try {
     await withUser(getDb(), user.id, async (tx) => {
-      const gyms = await listGyms(tx, user.id);
-      if (!gyms.some((gym) => gym.id === gymId)) return;
       const profile = await ensureProfile(tx, user);
-      const types = await tx
-        .select({
-          id: equipmentTypes.id,
-          name: equipmentTypes.name,
-          defaultResistanceMode: equipmentTypes.defaultResistanceMode,
-          defaultUnit: equipmentTypes.defaultUnit,
-        })
-        .from(equipmentTypes)
-        .where(inArray(equipmentTypes.id, equipmentTypeIds));
-      if (types.length === 0) return;
-      await tx
-        .insert(equipmentInstances)
-        .values(
-          types.map((type) => ({
-            userId: user.id,
-            gymId,
-            equipmentTypeId: type.id,
-            name: type.name,
-            resistanceMode: type.defaultResistanceMode,
-            // The catalogue states weights in kilograms; a machine is logged in the unit
-            // the owner reads. Cardio and other unitless kinds keep their own default.
-            unit: type.defaultUnit === "kg" ? profile.preferredUnit : type.defaultUnit,
-          })),
-        )
-        // Going back a step and submitting again must not duplicate a machine.
-        .onConflictDoNothing({ target: [equipmentInstances.gymId, equipmentInstances.name] });
-      // What was just confirmed is here, so it is no longer recorded as missing (ADR 0041).
-      await clearAbsences(
+      return confirmStarterEquipment(
         tx,
         user.id,
         gymId,
-        types.map((type) => type.id),
+        profile.preferredUnit === "lb" ? "lb" : "kg",
+        choices,
       );
     });
-    revalidatePath("/gyms");
-    revalidatePath(`/gyms/${gymId}`);
+  } catch (error) {
+    if (error instanceof StarterChoiceError || error instanceof GymNotFoundError)
+      return { formError: error.message };
+    throw error;
   }
+  revalidatePath("/gyms");
+  revalidatePath(`/gyms/${gymId}`);
+  revalidatePath("/today");
   redirect("/welcome/programme");
 }

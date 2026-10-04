@@ -22,6 +22,11 @@ type Props = {
   submitLabel: string;
   /** Renders a "remember as fallback" checkbox for substitutions. */
   remember?: boolean;
+  /**
+   * Whether that box starts ticked: not when the machine is only out of use today, which says
+   * nothing about the gym (plan: gradual confirmation during workouts).
+   */
+  rememberByDefault?: boolean;
   exerciseFieldName?: string;
   /** Name the chosen exercise under the search and count each group (a long list). */
   long?: boolean;
@@ -40,6 +45,7 @@ export function PickExerciseForm({
   machinesByExercise,
   submitLabel,
   remember = false,
+  rememberByDefault = true,
   exerciseFieldName = "exerciseId",
   long = false,
 }: Props) {
@@ -99,7 +105,12 @@ export function PickExerciseForm({
 
         {remember && (
           <label className="check-row">
-            <input type="checkbox" name="remember" defaultChecked className="check-row-box" />
+            <input
+              type="checkbox"
+              name="remember"
+              defaultChecked={rememberByDefault}
+              className="check-row-box"
+            />
             Remember this as the fallback at this gym
           </label>
         )}

@@ -18,9 +18,11 @@ import {
 } from "@/server/repositories/workout-equipment";
 import {
   createEquipment,
+  DisplayTypeError,
   EquipmentNameTakenError,
   GymNotFoundError,
   setEquipmentActive,
+  setMachineAlsoUsedFor,
   updateEquipment,
 } from "@/server/repositories/equipment";
 import { confirmMachineLoad } from "@/server/repositories/load-ladders";
@@ -117,6 +119,33 @@ export async function setEquipmentActiveAction(
 ): Promise<void> {
   const user = await requireUser();
   await withUser(getDb(), user.id, (tx) => setEquipmentActive(tx, user.id, equipmentId, isActive));
+  revalidateGym(gymId);
+  revalidatePath(`/gyms/${gymId}/equipment/${equipmentId}`);
+}
+
+/**
+ * "Also used for" (ADR 0041): the machine does the work of another type too, or no longer does.
+ * Its history is untouched, since history is keyed on the machine, never on a type; adding a type
+ * clears that type's absence at the gym.
+ */
+export async function setMachineAlsoUsedForAction(
+  gymId: string,
+  equipmentId: string,
+  on: boolean,
+  formData: FormData,
+): Promise<void> {
+  const user = await requireUser();
+  const typeId = z.uuid().safeParse(formData.get("equipmentTypeId"));
+  if (!typeId.success) return;
+  try {
+    await withUser(getDb(), user.id, (tx) =>
+      setMachineAlsoUsedFor(tx, user.id, equipmentId, typeId.data, on),
+    );
+  } catch (error) {
+    // The machine's own type is changed from Edit, never here.
+    if (error instanceof DisplayTypeError) return;
+    throw error;
+  }
   revalidateGym(gymId);
   revalidatePath(`/gyms/${gymId}/equipment/${equipmentId}`);
 }

@@ -1,11 +1,23 @@
+import { drawingUrls } from "@/server/queries/equipment-art";
+
 import { LoggingPreview, type Scenario } from "./logging-preview";
 
-const SCENARIOS: readonly Scenario[] = ["log", "warmups", "pounds", "superset", "first", "done"];
+const SCENARIOS: readonly Scenario[] = [
+  "log",
+  "warmups",
+  "pounds",
+  "superset",
+  "first",
+  "done",
+  "basic",
+  "unknown",
+];
 
 /**
  * Logging, as the design's boards draw it (docs/ui-redesign/revamp/form-v2), against made-up
  * answers rather than a database: `?scenario=` picks the exercise and how far it has gone,
- * `?fail=1` makes every save fail as a dropped connection does, `?rest=0` starts with no rest
+ * `?fail=1` makes every save fail as a dropped connection does, `?scenario=basic` and
+ * `?scenario=unknown` show a machine to settle before the first set, `?rest=0` starts with no rest
  * running. The figures are the boards' own, from the repository's tests and audit scripts.
  */
 export default async function LoggingPreviewPage(props: PageProps<"/preview/logging">) {
@@ -13,6 +25,16 @@ export default async function LoggingPreviewPage(props: PageProps<"/preview/logg
   const asked = typeof params.scenario === "string" ? params.scenario : "log";
   const scenario = (SCENARIOS as readonly string[]).includes(asked) ? (asked as Scenario) : "log";
   return (
-    <LoggingPreview scenario={scenario} fail={params.fail === "1"} rest={params.rest !== "0"} />
+    <LoggingPreview
+      scenario={scenario}
+      fail={params.fail === "1"}
+      rest={params.rest !== "0"}
+      art={drawingUrls([
+        "leg_press_45",
+        "leg_press_horizontal",
+        "leg_press_vertical",
+        "hack_squat",
+      ])}
+    />
   );
 }

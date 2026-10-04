@@ -200,3 +200,16 @@ it("removes a retained report and its request reference before continuing", asyn
     1,
   );
 });
+
+it("starts from the answer given at setup, and still offers both routes from Back", async () => {
+  render(
+    <CoachIntakeForm
+      {...props}
+      initial={null}
+      prefill={coachIntakeSchema.parse({ track: "guided" })}
+    />,
+  );
+  expect(screen.queryByText("Which sounds like you?")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  expect(await screen.findByText("Which sounds like you?")).toBeTruthy();
+});

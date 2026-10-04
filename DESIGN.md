@@ -799,7 +799,13 @@ and every control answers a press.
   than its longest word, and the tray folds onto a second row before a word would break.
   **Switch:** 51 × 31: off, surface 2 inside a 1.5-px control edge, the knob ringed in control;
   ink when on; in a 44-pt target. **Glyph choice:** two or three tiles, a glyph over a word, the chosen one ink (Outdoor,
-  Treadmill). **Ticks:** tiles that turn ink when ticked (machines).
+  Treadmill). **Ticks:** tiles that turn ink when ticked (machines); a picture tile stacks its
+  drawing, its box and name, and its purpose, with ⓘ in its corner beside the label, two to a row
+  down to 320 pt and one at 200% text. **A set taken as given** (the gym basics): one ruled row
+  that counts it and names a few, with Review opening it as tiles to untick. **Several from a
+  list** (Add exercise, the full equipment list): rows whose box is a ring at the end, filled ink
+  when chosen, holding the choice's place where order matters (Add exercise); what is chosen adds
+  up in a pinned row ("3 selected · Review") over the action.
 
 ### Navigation
 

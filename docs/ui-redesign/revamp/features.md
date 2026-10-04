@@ -199,7 +199,12 @@ than adding, and keep the RIR honest").
   60 kg × 5, 62.5 kg × 4 · 8 Sep"), a warning after two sessions in decline, and why today's
   suggestion is what it is.
 - **When the machine is not settled:** use it, use a fallback, add a fallback (remembered for
-  this gym), or register the machine.
+  this gym), or register the machine with its details. Asked with the machine's picture (owner
+  decision, 4 October 2026): a gym basic nobody has confirmed takes one tap ("Yes, it's here",
+  "Not here", and "A different one" for a family's variants); any other machine nobody has
+  answered for takes "Available" (registered at once, staying in the workout), "Not here" or "Not
+  sure". "Not here" against a registered machine asks whether it has gone (archive it, history
+  kept) or is out of use today (a substitute, not remembered).
 
 ### Finishing and the record
 
