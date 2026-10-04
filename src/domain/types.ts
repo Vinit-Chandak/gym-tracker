@@ -43,6 +43,14 @@ export const TRAINING_GOALS = [
 ] as const;
 export type TrainingGoal = (typeof TRAINING_GOALS)[number];
 
+/**
+ * The answer to "Which sounds like you?", asked once on the first step of setup: "I'm new to
+ * this" or "I already train". It decides whether the machines step suggests a few pictures or
+ * lists everything, and the coach starts from it instead of asking again.
+ */
+export const TRAINING_EXPERIENCES = ["new", "experienced"] as const;
+export type TrainingExperience = (typeof TRAINING_EXPERIENCES)[number];
+
 export const EXERCISE_CATEGORIES = ["strength", "hypertrophy", "cardio", "mobility"] as const;
 export type ExerciseCategory = (typeof EXERCISE_CATEGORIES)[number];
 

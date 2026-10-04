@@ -41,10 +41,53 @@ export type ExerciseSeed = {
   defaultLoadIncrement?: number | null;
   formNotes?: string;
   formUrl?: string;
+  /**
+   * How a set of it is logged, when that needs saying ("Load is per dumbbell."). Shown under
+   * How to log in Technique, with or without a guide. Kept apart from `formNotes`, which say how
+   * to move.
+   */
+  logNote?: string;
   isActive?: boolean;
-  /** Equipment type slugs in preference order. */
-  equipment: string[];
+  /**
+   * What it can be done on, in preference order (plan: S3). A slug on its own is one way to do
+   * it; a list is a group of types used together, its first type the primary: the load-bearing
+   * equipment a workout records and keys history on. `["smith_machine", "flat_bench"]` needs both.
+   * The `bodyweight` type alone means the floor: no equipment at all.
+   */
+  equipment: EquipmentAlternative[];
+  /** Why the list changed when the requirement model replaced the flat list (catalogue report). */
+  correction?: MappingCorrection;
+  /** A catalogue addition awaiting the owner: seeded only where drafts are (see `reference.ts`). */
+  review?: "draft";
 };
+
+/** One way to do an exercise: one type, or several used together with the primary first. */
+export type EquipmentAlternative = string | readonly string[];
+
+/**
+ * The classes of mapping fault the plan found (Mappings), plus the two kinds of repair the
+ * model made possible. Each corrected exercise keeps the list it had in `was`.
+ */
+export const MAPPING_CLASSES = {
+  together: "Implements needed together were listed as alternatives",
+  other_exercise: "Another exercise's equipment, with different load semantics, was listed",
+  combination: "A combination machine was assumed",
+  attachment: "An implement or attachment was listed as an alternative",
+  essentials: "Essentials the gym assumption hid were missing",
+  optional: "An optional support or added load could stand in for the main equipment",
+  no_equipment: "The floor was listed as equipment",
+  variants: "Interchangeable variants of the same machine family were missing",
+} as const;
+export type MappingClass = keyof typeof MAPPING_CLASSES;
+
+export type MappingCorrection = { kinds: MappingClass[]; was: string[] };
+
+/** The groups an exercise's `equipment` list describes, each with its primary type first. */
+export function requirementGroups(exercise: Pick<ExerciseSeed, "equipment">): string[][] {
+  return exercise.equipment.map((alternative) =>
+    typeof alternative === "string" ? [alternative] : [...alternative],
+  );
+}
 
 const ACE = "https://www.acefitness.org/resources/everyone/exercise-library";
 
@@ -72,7 +115,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRestSeconds: 210,
     defaultLoadIncrement: 2.5,
     formUrl: `${ACE}/135/back-squat/`,
-    equipment: ["barbell"],
+    equipment: [["barbell", "power_rack"]],
+    correction: { kinds: ["essentials"], was: ["barbell"] },
   },
   {
     slug: "barbell-bench-press",
@@ -89,7 +133,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRestSeconds: 210,
     defaultLoadIncrement: 2.5,
     formUrl: "https://www.nasm.org/resource-center/exercise-library/barbell-bench-press",
-    equipment: ["barbell"],
+    equipment: [["barbell", "flat_bench", "power_rack"]],
+    correction: { kinds: ["essentials"], was: ["barbell"] },
   },
   {
     slug: "incline-barbell-bench",
@@ -105,7 +150,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 2,
     defaultRestSeconds: 180,
     defaultLoadIncrement: 2.5,
-    equipment: ["barbell"],
+    equipment: [["barbell", "adjustable_bench", "power_rack"]],
+    correction: { kinds: ["essentials"], was: ["barbell"] },
   },
   {
     slug: "conventional-deadlift",
@@ -137,7 +183,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 2,
     defaultRestSeconds: 150,
     defaultLoadIncrement: 2.5,
-    equipment: ["barbell"],
+    equipment: [["barbell", "flat_bench", "power_rack"]],
+    correction: { kinds: ["essentials"], was: ["barbell"] },
   },
   {
     slug: "pull-up",
@@ -153,7 +200,7 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 150,
     defaultLoadIncrement: 2.5,
-    formNotes: "Log added load only (belt, vest, weighted gloves). 0 = bodyweight.",
+    logNote: "Log added load only (belt, vest, weighted gloves). 0 = bodyweight.",
     formUrl: `${ACE}/191/pull-ups/`,
     equipment: ["pull_up_bar"],
   },
@@ -172,7 +219,7 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 2,
     defaultRestSeconds: 150,
     defaultLoadIncrement: 2.5,
-    formNotes: "Load is per dumbbell.",
+    logNote: "Load is per dumbbell.",
     equipment: ["dumbbells"],
   },
   {
@@ -207,8 +254,10 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 120,
     defaultLoadIncrement: 2.5,
-    formNotes: "Load is per dumbbell; 15–30° bench.",
-    equipment: ["dumbbells"],
+    formNotes: "Set the bench to 15–30°.",
+    logNote: "Load is per dumbbell.",
+    equipment: [["dumbbells", "adjustable_bench"]],
+    correction: { kinds: ["essentials"], was: ["dumbbells"] },
   },
   {
     slug: "seated-db-shoulder-press",
@@ -225,7 +274,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRestSeconds: 120,
     defaultLoadIncrement: 2.5,
     formUrl: `${ACE}/45/seated-overhead-press/`,
-    equipment: ["dumbbells"],
+    equipment: [["dumbbells", "adjustable_bench"]],
+    correction: { kinds: ["essentials"], was: ["dumbbells"] },
   },
   {
     slug: "db-lateral-raise",
@@ -270,7 +320,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 80,
     defaultLoadIncrement: 2.5,
-    equipment: ["dumbbells"],
+    equipment: [["dumbbells", "adjustable_bench"]],
+    correction: { kinds: ["essentials"], was: ["dumbbells"] },
   },
   {
     slug: "reverse-curl",
@@ -331,8 +382,15 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1,
     defaultRestSeconds: 90,
     defaultLoadIncrement: 2.5,
-    formNotes: "Load depends on the bar or machine used; compare per setup.",
-    equipment: ["preacher_bench", "preacher_curl_machine"],
+    logNote: "Log the bar or dumbbell load. History is kept per bench.",
+    equipment: [
+      ["preacher_bench", "ez_bar"],
+      ["preacher_bench", "dumbbells"],
+    ],
+    correction: {
+      kinds: ["together", "other_exercise"],
+      was: ["preacher_bench", "preacher_curl_machine"],
+    },
   },
   // --- Machines and cables (equipment-specific: compare only on the same machine) ------------
   {
@@ -395,7 +453,7 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 90,
     defaultLoadIncrement: 2.5,
-    formNotes: "Smith bars differ in counterbalance; compare per machine.",
+    logNote: "Smith bars differ in counterbalance, so history is kept per machine.",
     equipment: ["smith_machine"],
   },
   {
@@ -502,7 +560,7 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 120,
     defaultLoadIncrement: null,
-    formNotes: "Log the assistance weight selected on the stack.",
+    logNote: "Log the assistance weight selected on the stack.",
     equipment: ["assisted_pullup"],
   },
   {
@@ -566,7 +624,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1,
     defaultRestSeconds: 75,
     defaultLoadIncrement: null,
-    equipment: ["cable_station"],
+    equipment: ["cable_station", "functional_trainer", "cable_crossover"],
+    correction: { kinds: ["variants"], was: ["cable_station"] },
   },
   {
     slug: "reverse-pec-deck",
@@ -613,7 +672,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 2,
     defaultRestSeconds: 75,
     defaultLoadIncrement: null,
-    equipment: ["cable_station"],
+    equipment: ["cable_station", "functional_trainer", "cable_crossover"],
+    correction: { kinds: ["variants"], was: ["cable_station"] },
   },
   {
     slug: "cable-curl",
@@ -628,7 +688,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1,
     defaultRestSeconds: 90,
     defaultLoadIncrement: null,
-    equipment: ["cable_station"],
+    equipment: ["cable_station", "functional_trainer", "cable_crossover"],
+    correction: { kinds: ["variants"], was: ["cable_station"] },
   },
   {
     slug: "bench-supported-cable-curl",
@@ -643,7 +704,12 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1,
     defaultRestSeconds: 90,
     defaultLoadIncrement: null,
-    equipment: ["cable_station"],
+    equipment: [
+      ["cable_station", "adjustable_bench"],
+      ["functional_trainer", "adjustable_bench"],
+      ["cable_crossover", "adjustable_bench"],
+    ],
+    correction: { kinds: ["essentials", "variants"], was: ["cable_station"] },
   },
   {
     slug: "overhead-cable-triceps-extension",
@@ -658,7 +724,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1,
     defaultRestSeconds: 75,
     defaultLoadIncrement: null,
-    equipment: ["cable_station"],
+    equipment: ["cable_station", "functional_trainer", "cable_crossover"],
+    correction: { kinds: ["variants"], was: ["cable_station"] },
   },
   {
     slug: "single-arm-overhead-cable-triceps-extension",
@@ -673,7 +740,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1,
     defaultRestSeconds: 80,
     defaultLoadIncrement: null,
-    equipment: ["cable_station"],
+    equipment: ["cable_station", "functional_trainer", "cable_crossover"],
+    correction: { kinds: ["variants"], was: ["cable_station"] },
   },
   {
     slug: "cable-triceps-pushdown",
@@ -688,7 +756,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1,
     defaultRestSeconds: 90,
     defaultLoadIncrement: null,
-    equipment: ["cable_station"],
+    equipment: ["cable_station", "functional_trainer", "cable_crossover"],
+    correction: { kinds: ["variants"], was: ["cable_station"] },
   },
   {
     slug: "single-arm-cable-pushdown",
@@ -703,7 +772,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1,
     defaultRestSeconds: 75,
     defaultLoadIncrement: null,
-    equipment: ["cable_station"],
+    equipment: ["cable_station", "functional_trainer", "cable_crossover"],
+    correction: { kinds: ["variants"], was: ["cable_station"] },
   },
   {
     slug: "cable-crunch",
@@ -718,7 +788,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 90,
     defaultLoadIncrement: null,
-    equipment: ["cable_station"],
+    equipment: ["cable_station", "functional_trainer", "cable_crossover"],
+    correction: { kinds: ["variants"], was: ["cable_station"] },
   },
   // --- Core / mobility ------------------------------------------------------------------------
   {
@@ -736,7 +807,7 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultDurationMax: 45,
     defaultRestSeconds: 60,
     defaultLoadIncrement: null,
-    formNotes: "Timed per side; add time before load.",
+    logNote: "Timed per side; add time before load.",
     formUrl: `${ACE}/101/side-plank-with-straight-leg/`,
     equipment: ["bodyweight"],
   },
@@ -755,7 +826,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 2.5,
     defaultRestSeconds: 180,
     defaultLoadIncrement: 2.5,
-    equipment: ["barbell", "power_rack"],
+    equipment: [["barbell", "power_rack"]],
+    correction: { kinds: ["together"], was: ["barbell", "power_rack"] },
   },
   {
     slug: "overhead-press",
@@ -772,7 +844,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRestSeconds: 180,
     defaultLoadIncrement: 1.25,
     formUrl: `${ACE}/9/shoulder-press/`,
-    equipment: ["barbell", "power_rack"],
+    equipment: [["barbell", "power_rack"]],
+    correction: { kinds: ["together"], was: ["barbell", "power_rack"] },
   },
   {
     slug: "barbell-row",
@@ -836,7 +909,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 2,
     defaultRestSeconds: 180,
     defaultLoadIncrement: 2.5,
-    equipment: ["trap_bar", "barbell"],
+    equipment: ["trap_bar"],
+    correction: { kinds: ["other_exercise"], was: ["trap_bar", "barbell"] },
   },
   {
     slug: "barbell-hip-thrust",
@@ -853,7 +927,11 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRestSeconds: 150,
     defaultLoadIncrement: 5,
     formNotes: "Shoulders on a bench, chin tucked, ribs down at the top.",
-    equipment: ["barbell", "flat_bench", "hip_thrust_machine"],
+    equipment: [["barbell", "flat_bench"]],
+    correction: {
+      kinds: ["together", "other_exercise"],
+      was: ["barbell", "flat_bench", "hip_thrust_machine"],
+    },
   },
   {
     slug: "good-morning",
@@ -869,7 +947,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 2.5,
     defaultRestSeconds: 120,
     defaultLoadIncrement: 2.5,
-    equipment: ["barbell", "power_rack"],
+    equipment: [["barbell", "power_rack"]],
+    correction: { kinds: ["together"], was: ["barbell", "power_rack"] },
   },
   {
     slug: "barbell-shrug",
@@ -885,7 +964,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 90,
     defaultLoadIncrement: 2.5,
-    equipment: ["barbell", "trap_bar", "dumbbells"],
+    equipment: ["barbell"],
+    correction: { kinds: ["other_exercise"], was: ["barbell", "trap_bar", "dumbbells"] },
   },
   {
     slug: "barbell-curl",
@@ -901,7 +981,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 90,
     defaultLoadIncrement: 1.25,
-    equipment: ["ez_bar", "barbell"],
+    equipment: ["barbell"],
+    correction: { kinds: ["other_exercise"], was: ["ez_bar", "barbell"] },
   },
   {
     slug: "skull-crusher",
@@ -916,7 +997,11 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 90,
     defaultLoadIncrement: 1.25,
-    equipment: ["ez_bar", "barbell", "dumbbells"],
+    equipment: [
+      ["ez_bar", "flat_bench"],
+      ["barbell", "flat_bench"],
+    ],
+    correction: { kinds: ["together", "other_exercise"], was: ["ez_bar", "barbell", "dumbbells"] },
   },
   {
     slug: "landmine-press",
@@ -932,7 +1017,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 120,
     defaultLoadIncrement: 2.5,
-    equipment: ["landmine", "barbell"],
+    equipment: [["landmine", "barbell"]],
+    correction: { kinds: ["together"], was: ["landmine", "barbell"] },
   },
   // --- Smith machine ----------------------------------------------------------------------------
   {
@@ -965,7 +1051,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 150,
     defaultLoadIncrement: 2.5,
-    equipment: ["smith_machine"],
+    equipment: [["smith_machine", "flat_bench"]],
+    correction: { kinds: ["essentials"], was: ["smith_machine"] },
   },
   {
     slug: "smith-machine-row",
@@ -998,8 +1085,9 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 120,
     defaultLoadIncrement: 2.5,
-    formNotes: "Load is per dumbbell.",
-    equipment: ["dumbbells", "flat_bench"],
+    logNote: "Load is per dumbbell.",
+    equipment: [["dumbbells", "flat_bench"]],
+    correction: { kinds: ["together"], was: ["dumbbells", "flat_bench"] },
   },
   {
     slug: "db-fly",
@@ -1015,8 +1103,13 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 90,
     defaultLoadIncrement: 2,
-    formNotes: "Load is per dumbbell. Soft elbows, stop at chest level.",
-    equipment: ["dumbbells", "adjustable_bench", "flat_bench"],
+    formNotes: "Soft elbows, stop at chest level.",
+    logNote: "Load is per dumbbell.",
+    equipment: [
+      ["dumbbells", "flat_bench"],
+      ["dumbbells", "adjustable_bench"],
+    ],
+    correction: { kinds: ["together"], was: ["dumbbells", "adjustable_bench", "flat_bench"] },
   },
   {
     slug: "db-pullover",
@@ -1032,7 +1125,11 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 90,
     defaultLoadIncrement: 2.5,
-    equipment: ["dumbbells", "flat_bench", "pullover_machine"],
+    equipment: [["dumbbells", "flat_bench"]],
+    correction: {
+      kinds: ["together", "other_exercise"],
+      was: ["dumbbells", "flat_bench", "pullover_machine"],
+    },
   },
   {
     slug: "single-arm-db-row",
@@ -1048,8 +1145,9 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 90,
     defaultLoadIncrement: 2.5,
-    formNotes: "Per side. Load is the single dumbbell.",
-    equipment: ["dumbbells", "flat_bench"],
+    logNote: "Per side. Load is the single dumbbell.",
+    equipment: [["dumbbells", "flat_bench"]],
+    correction: { kinds: ["together"], was: ["dumbbells", "flat_bench"] },
   },
   {
     slug: "db-rear-delt-fly",
@@ -1065,7 +1163,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1,
     defaultRestSeconds: 60,
     defaultLoadIncrement: 1,
-    equipment: ["dumbbells", "adjustable_bench"],
+    equipment: ["dumbbells"],
+    correction: { kinds: ["optional"], was: ["dumbbells", "adjustable_bench"] },
   },
   {
     slug: "db-front-raise",
@@ -1080,7 +1179,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1,
     defaultRestSeconds: 60,
     defaultLoadIncrement: 1,
-    equipment: ["dumbbells", "cable_station"],
+    equipment: ["dumbbells"],
+    correction: { kinds: ["other_exercise"], was: ["dumbbells", "cable_station"] },
   },
   {
     slug: "arnold-press",
@@ -1096,7 +1196,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 120,
     defaultLoadIncrement: 2,
-    equipment: ["dumbbells", "adjustable_bench"],
+    equipment: ["dumbbells"],
+    correction: { kinds: ["optional"], was: ["dumbbells", "adjustable_bench"] },
   },
   {
     slug: "db-shrug",
@@ -1127,7 +1228,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 90,
     defaultLoadIncrement: 2,
-    equipment: ["dumbbells", "ez_bar"],
+    equipment: ["dumbbells"],
+    correction: { kinds: ["other_exercise"], was: ["dumbbells", "ez_bar"] },
   },
   {
     slug: "goblet-squat",
@@ -1159,8 +1261,10 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 120,
     defaultLoadIncrement: 2.5,
-    formNotes: "Per side. Rear foot on a bench; load is per dumbbell.",
-    equipment: ["dumbbells", "flat_bench"],
+    formNotes: "Rear foot on a bench.",
+    logNote: "Per side. Load is per dumbbell.",
+    equipment: [["dumbbells", "flat_bench"]],
+    correction: { kinds: ["together"], was: ["dumbbells", "flat_bench"] },
   },
   {
     slug: "walking-lunge",
@@ -1176,7 +1280,7 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 2,
     defaultRestSeconds: 120,
     defaultLoadIncrement: 2.5,
-    formNotes: "Reps count both legs unless the programme says per side.",
+    logNote: "Reps count both legs unless the programme says per side.",
     equipment: ["dumbbells", "barbell"],
   },
   {
@@ -1193,8 +1297,9 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 2,
     defaultRestSeconds: 90,
     defaultLoadIncrement: 2.5,
-    formNotes: "Per side. Box height changes the movement, so history is kept per setup.",
-    equipment: ["plyo_box", "dumbbells", "flat_bench"],
+    logNote: "Per side. Box height changes the movement, so history is kept per setup.",
+    equipment: ["plyo_box", "flat_bench"],
+    correction: { kinds: ["optional"], was: ["plyo_box", "dumbbells", "flat_bench"] },
   },
   {
     slug: "db-calf-raise",
@@ -1209,7 +1314,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1,
     defaultRestSeconds: 60,
     defaultLoadIncrement: 2.5,
-    equipment: ["dumbbells", "plyo_box"],
+    equipment: ["dumbbells"],
+    correction: { kinds: ["optional"], was: ["dumbbells", "plyo_box"] },
   },
   {
     slug: "farmers-carry",
@@ -1227,7 +1333,7 @@ export const EXERCISES: readonly ExerciseSeed[] = [
       "Reps in reserve, read as ground: 2 RIR is a carry you could have taken a good way further at the same posture. Put it down before the grip or the ribs go, not after.",
     defaultRestSeconds: 90,
     defaultLoadIncrement: 2.5,
-    formNotes: "Logged as time or distance. Load is per hand.",
+    logNote: "Logged as time or distance. Load is per hand.",
     equipment: ["dumbbells", "kettlebells", "trap_bar"],
   },
   {
@@ -1262,7 +1368,7 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 90,
     defaultLoadIncrement: 2.5,
-    formNotes: "Log added load only (plate or vest). 0 = bodyweight.",
+    logNote: "Log added load only (plate or vest). 0 = bodyweight.",
     formUrl: `${ACE}/41/push-up/`,
     equipment: ["bodyweight"],
   },
@@ -1280,7 +1386,7 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 150,
     defaultLoadIncrement: 2.5,
-    formNotes: "Log added load only. 0 = bodyweight.",
+    logNote: "Log added load only. 0 = bodyweight.",
     equipment: ["pull_up_bar", "gymnastic_rings"],
   },
   {
@@ -1297,8 +1403,12 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 150,
     defaultLoadIncrement: 2.5,
-    formNotes: "Log added load only. 0 = bodyweight.",
-    equipment: ["dip_station", "dip_machine", "gymnastic_rings"],
+    logNote: "Log added load only. 0 = bodyweight.",
+    equipment: ["dip_station", "gymnastic_rings"],
+    correction: {
+      kinds: ["other_exercise"],
+      was: ["dip_station", "dip_machine", "gymnastic_rings"],
+    },
   },
   {
     slug: "inverted-row",
@@ -1314,8 +1424,17 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 90,
     defaultLoadIncrement: 2.5,
-    formNotes: "Bar height changes the difficulty, so history is kept per setup.",
-    equipment: ["smith_machine", "power_rack", "suspension_trainer", "gymnastic_rings"],
+    logNote: "Bar height changes the difficulty, so history is kept per setup.",
+    equipment: [
+      "smith_machine",
+      ["power_rack", "barbell"],
+      "suspension_trainer",
+      "gymnastic_rings",
+    ],
+    correction: {
+      kinds: ["together"],
+      was: ["smith_machine", "power_rack", "suspension_trainer", "gymnastic_rings"],
+    },
   },
   {
     slug: "bodyweight-squat",
@@ -1348,7 +1467,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 60,
     defaultLoadIncrement: 2.5,
-    equipment: ["bodyweight", "weight_plates"],
+    equipment: ["bodyweight"],
+    correction: { kinds: ["optional"], was: ["bodyweight", "weight_plates"] },
   },
   {
     slug: "nordic-hamstring-curl",
@@ -1400,7 +1520,7 @@ export const EXERCISES: readonly ExerciseSeed[] = [
       "Reps in reserve, read as time: 2 RIR is a hold you could have kept for a few more seconds with the ribs still down. Break position and the set is over, whatever the clock says.",
     defaultRestSeconds: 60,
     defaultLoadIncrement: null,
-    formNotes: "Timed. Add time before load.",
+    logNote: "Timed. Add time before load.",
     equipment: ["bodyweight"],
   },
   {
@@ -1416,7 +1536,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRepMax: 12,
     defaultRestSeconds: 45,
     defaultLoadIncrement: null,
-    formNotes: "Per side. Ribs stay down throughout.",
+    formNotes: "Ribs stay down throughout.",
+    logNote: "Per side.",
     equipment: ["bodyweight"],
   },
   {
@@ -1433,7 +1554,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 60,
     defaultLoadIncrement: 2.5,
-    equipment: ["pull_up_bar", "captains_chair"],
+    equipment: ["pull_up_bar"],
+    correction: { kinds: ["other_exercise"], was: ["pull_up_bar", "captains_chair"] },
   },
   {
     slug: "lying-leg-raise",
@@ -1466,7 +1588,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 45,
     defaultLoadIncrement: 2.5,
-    equipment: ["bodyweight", "ab_crunch_machine"],
+    equipment: ["bodyweight"],
+    correction: { kinds: ["other_exercise"], was: ["bodyweight", "ab_crunch_machine"] },
   },
   {
     slug: "bicycle-crunch",
@@ -1498,7 +1621,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 45,
     defaultLoadIncrement: 2.5,
-    equipment: ["bodyweight", "medicine_ball", "weight_plates"],
+    equipment: ["bodyweight"],
+    correction: { kinds: ["optional"], was: ["bodyweight", "medicine_ball", "weight_plates"] },
   },
   {
     slug: "ab-wheel-rollout",
@@ -1594,7 +1718,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1,
     defaultRestSeconds: 60,
     defaultLoadIncrement: null,
-    equipment: ["rear_delt_machine", "pec_deck"],
+    equipment: ["rear_delt_machine"],
+    correction: { kinds: ["other_exercise"], was: ["rear_delt_machine", "pec_deck"] },
   },
   {
     slug: "t-bar-row",
@@ -1610,7 +1735,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 120,
     defaultLoadIncrement: 2.5,
-    equipment: ["t_bar_row", "landmine"],
+    equipment: ["t_bar_row"],
+    correction: { kinds: ["other_exercise"], was: ["t_bar_row", "landmine"] },
   },
   {
     slug: "machine-pullover",
@@ -1672,7 +1798,7 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 90,
     defaultLoadIncrement: null,
-    formNotes: "Per side.",
+    logNote: "Per side.",
     equipment: ["leg_curl_standing"],
   },
   {
@@ -1704,8 +1830,9 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1,
     defaultRestSeconds: 60,
     defaultLoadIncrement: null,
-    formNotes: "Per side.",
-    equipment: ["glute_kickback_machine", "cable_station"],
+    logNote: "Per side.",
+    equipment: ["glute_kickback_machine"],
+    correction: { kinds: ["other_exercise"], was: ["glute_kickback_machine", "cable_station"] },
   },
   {
     slug: "seated-calf-raise",
@@ -1750,7 +1877,7 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 60,
     defaultLoadIncrement: null,
-    formNotes: "Per side.",
+    logNote: "Per side.",
     equipment: ["torso_rotation_machine"],
   },
   {
@@ -1766,7 +1893,11 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 60,
     defaultLoadIncrement: null,
-    equipment: ["biceps_curl_machine", "preacher_curl_machine"],
+    equipment: ["biceps_curl_machine"],
+    correction: {
+      kinds: ["other_exercise"],
+      was: ["biceps_curl_machine", "preacher_curl_machine"],
+    },
   },
   {
     slug: "triceps-extension-machine",
@@ -1797,8 +1928,9 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 120,
     defaultLoadIncrement: null,
-    formNotes: "Log the assistance setting; less assistance is more load.",
-    equipment: ["dip_machine", "assisted_pullup"],
+    logNote: "Log the assistance setting; less assistance is more load.",
+    equipment: ["dip_machine"],
+    correction: { kinds: ["combination"], was: ["dip_machine", "assisted_pullup"] },
   },
   // --- Cables --------------------------------------------------------------------------------------
   {
@@ -1831,7 +1963,11 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 60,
     defaultLoadIncrement: null,
-    equipment: ["cable_station", "lat_pulldown", "functional_trainer"],
+    equipment: ["cable_station", "lat_pulldown", "functional_trainer", "cable_crossover"],
+    correction: {
+      kinds: ["variants"],
+      was: ["cable_station", "lat_pulldown", "functional_trainer"],
+    },
   },
   {
     slug: "single-arm-cable-row",
@@ -1847,7 +1983,7 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 90,
     defaultLoadIncrement: null,
-    formNotes: "Per side.",
+    logNote: "Per side.",
     equipment: ["seated_row_cable", "cable_station", "functional_trainer"],
   },
   {
@@ -1864,7 +2000,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 60,
     defaultLoadIncrement: null,
-    equipment: ["cable_station", "functional_trainer"],
+    equipment: ["cable_station", "functional_trainer", "cable_crossover"],
+    correction: { kinds: ["variants"], was: ["cable_station", "functional_trainer"] },
   },
   {
     slug: "cable-woodchop",
@@ -1880,7 +2017,7 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 60,
     defaultLoadIncrement: null,
-    formNotes: "Per side.",
+    logNote: "Per side.",
     equipment: ["cable_station", "functional_trainer", "cable_crossover"],
   },
   {
@@ -1896,7 +2033,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 60,
     defaultLoadIncrement: null,
-    equipment: ["cable_station", "functional_trainer"],
+    equipment: ["cable_station", "functional_trainer", "cable_crossover"],
+    correction: { kinds: ["variants"], was: ["cable_station", "functional_trainer"] },
   },
   {
     slug: "cable-upright-row",
@@ -1913,7 +2051,11 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRestSeconds: 60,
     defaultLoadIncrement: null,
     formNotes: "Stop at chest height; pain-free range only.",
-    equipment: ["cable_station", "functional_trainer", "ez_bar"],
+    equipment: ["cable_station", "functional_trainer", "cable_crossover"],
+    correction: {
+      kinds: ["attachment", "variants"],
+      was: ["cable_station", "functional_trainer", "ez_bar"],
+    },
   },
   // --- Cardio ---------------------------------------------------------------------------------------
   {
@@ -1930,7 +2072,7 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultDurationMax: 1200,
     defaultRestSeconds: 0,
     defaultLoadIncrement: null,
-    formNotes: "Full runs belong in the Runs tab; this is for cardio inside a lifting session.",
+    logNote: "Full runs are logged as runs; this is for cardio inside a lifting session.",
     equipment: ["treadmill"],
   },
   {
@@ -2049,7 +2191,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 2,
     defaultRestSeconds: 150,
     defaultLoadIncrement: 2.5,
-    equipment: ["barbell", "decline_bench"],
+    equipment: [["barbell", "decline_bench"]],
+    correction: { kinds: ["together"], was: ["barbell", "decline_bench"] },
   },
   {
     slug: "decline-db-press",
@@ -2065,7 +2208,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 120,
     defaultLoadIncrement: 2,
-    equipment: ["dumbbells", "decline_bench"],
+    equipment: [["dumbbells", "decline_bench"]],
+    correction: { kinds: ["together"], was: ["dumbbells", "decline_bench"] },
   },
   {
     slug: "db-floor-press",
@@ -2082,7 +2226,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRestSeconds: 120,
     defaultLoadIncrement: 2,
     formNotes: "The floor caps the range, which is what makes it kind to a sore shoulder.",
-    equipment: ["dumbbells", "bodyweight"],
+    equipment: ["dumbbells"],
+    correction: { kinds: ["no_equipment"], was: ["dumbbells", "bodyweight"] },
   },
   {
     slug: "incline-db-fly",
@@ -2098,7 +2243,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 90,
     defaultLoadIncrement: 2,
-    equipment: ["dumbbells", "adjustable_bench"],
+    equipment: [["dumbbells", "adjustable_bench"]],
+    correction: { kinds: ["together"], was: ["dumbbells", "adjustable_bench"] },
   },
   {
     slug: "low-to-high-cable-fly",
@@ -2145,7 +2291,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 2,
     defaultRestSeconds: 150,
     defaultLoadIncrement: 2.5,
-    equipment: ["smith_machine", "adjustable_bench"],
+    equipment: [["smith_machine", "adjustable_bench"]],
+    correction: { kinds: ["together"], was: ["smith_machine", "adjustable_bench"] },
   },
   {
     slug: "iso-lateral-chest-press",
@@ -2162,7 +2309,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRestSeconds: 120,
     defaultLoadIncrement: null,
     formNotes: "One arm at a time is the point: the weak side cannot hide behind the strong one.",
-    equipment: ["iso_lateral_press", "chest_press_machine"],
+    equipment: ["iso_lateral_press"],
+    correction: { kinds: ["other_exercise"], was: ["iso_lateral_press", "chest_press_machine"] },
   },
   {
     slug: "weighted-push-up",
@@ -2178,7 +2326,7 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 120,
     defaultLoadIncrement: 2.5,
-    formNotes: "Log added load only (vest or plate). 0 = bodyweight.",
+    logNote: "Log added load only (vest or plate). 0 = bodyweight.",
     equipment: ["weight_vest", "weight_plates", "bodyweight"],
   },
   {
@@ -2295,7 +2443,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRestSeconds: 120,
     defaultLoadIncrement: 2.5,
     formNotes: "Chest on the bench takes the lower back out of it entirely.",
-    equipment: ["barbell", "adjustable_bench"],
+    equipment: [["barbell", "adjustable_bench"]],
+    correction: { kinds: ["together"], was: ["barbell", "adjustable_bench"] },
   },
   {
     slug: "chest-supported-db-row",
@@ -2311,7 +2460,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 120,
     defaultLoadIncrement: 2,
-    equipment: ["dumbbells", "adjustable_bench"],
+    equipment: [["dumbbells", "adjustable_bench"]],
+    correction: { kinds: ["together"], was: ["dumbbells", "adjustable_bench"] },
   },
   {
     slug: "landmine-row",
@@ -2327,7 +2477,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 120,
     defaultLoadIncrement: 2.5,
-    equipment: ["landmine", "barbell"],
+    equipment: [["landmine", "barbell"]],
+    correction: { kinds: ["together"], was: ["landmine", "barbell"] },
   },
   {
     slug: "meadows-row",
@@ -2343,7 +2494,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 120,
     defaultLoadIncrement: 2.5,
-    equipment: ["landmine", "barbell"],
+    equipment: [["landmine", "barbell"]],
+    correction: { kinds: ["together"], was: ["landmine", "barbell"] },
   },
   {
     slug: "iso-lateral-row",
@@ -2359,7 +2511,11 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 120,
     defaultLoadIncrement: null,
-    equipment: ["iso_lateral_row", "chest_supported_row_machine"],
+    equipment: ["iso_lateral_row"],
+    correction: {
+      kinds: ["other_exercise"],
+      was: ["iso_lateral_row", "chest_supported_row_machine"],
+    },
   },
   {
     slug: "rack-pull",
@@ -2377,7 +2533,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
       "Reps in reserve on a loaded spinal movement: keep two or more in hand. A set taken to failure here is a set where the back rounds, not one where the legs give out.",
     defaultRestSeconds: 210,
     defaultLoadIncrement: 5,
-    equipment: ["barbell", "power_rack"],
+    equipment: [["barbell", "power_rack"]],
+    correction: { kinds: ["together"], was: ["barbell", "power_rack"] },
   },
   {
     slug: "snatch-grip-deadlift",
@@ -2459,7 +2616,7 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 150,
     defaultLoadIncrement: 2.5,
-    formNotes: "Log added load only (belt or vest). 0 = bodyweight.",
+    logNote: "Log added load only (belt or vest). 0 = bodyweight.",
     equipment: ["pull_up_bar", "gymnastic_rings"],
   },
   {
@@ -2476,7 +2633,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 2,
     defaultRestSeconds: 180,
     defaultLoadIncrement: 2.5,
-    equipment: ["barbell", "adjustable_bench", "power_rack"],
+    equipment: [["barbell", "adjustable_bench", "power_rack"]],
+    correction: { kinds: ["together"], was: ["barbell", "adjustable_bench", "power_rack"] },
   },
   {
     slug: "push-press",
@@ -2492,7 +2650,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 2.5,
     defaultRestSeconds: 210,
     defaultLoadIncrement: 2.5,
-    equipment: ["barbell", "power_rack"],
+    equipment: [["barbell", "power_rack"]],
+    correction: { kinds: ["together"], was: ["barbell", "power_rack"] },
   },
   {
     slug: "smith-shoulder-press",
@@ -2508,7 +2667,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 120,
     defaultLoadIncrement: 2.5,
-    equipment: ["smith_machine", "adjustable_bench"],
+    equipment: [["smith_machine", "adjustable_bench"]],
+    correction: { kinds: ["together"], was: ["smith_machine", "adjustable_bench"] },
   },
   {
     slug: "cable-lateral-raise-single",
@@ -2538,7 +2698,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1,
     defaultRestSeconds: 60,
     defaultLoadIncrement: 1,
-    equipment: ["dumbbells", "power_rack"],
+    equipment: ["dumbbells"],
+    correction: { kinds: ["optional"], was: ["dumbbells", "power_rack"] },
   },
   {
     slug: "db-upright-row",
@@ -2587,7 +2748,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 60,
     defaultLoadIncrement: 1.25,
-    equipment: ["weight_plates", "dumbbells"],
+    equipment: ["weight_plates"],
+    correction: { kinds: ["other_exercise"], was: ["weight_plates", "dumbbells"] },
   },
   {
     slug: "cable-front-raise",
@@ -2602,7 +2764,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 60,
     defaultLoadIncrement: null,
-    equipment: ["cable_station", "functional_trainer"],
+    equipment: ["cable_station", "functional_trainer", "cable_crossover"],
+    correction: { kinds: ["variants"], was: ["cable_station", "functional_trainer"] },
   },
   {
     slug: "cable-y-raise",
@@ -2634,7 +2797,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1,
     defaultRestSeconds: 60,
     defaultLoadIncrement: 1,
-    equipment: ["dumbbells", "adjustable_bench"],
+    equipment: [["dumbbells", "adjustable_bench"]],
+    correction: { kinds: ["together"], was: ["dumbbells", "adjustable_bench"] },
   },
   {
     slug: "cable-rear-delt-fly",
@@ -2666,7 +2830,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 90,
     defaultLoadIncrement: null,
-    equipment: ["shrug_machine", "smith_machine"],
+    equipment: ["shrug_machine"],
+    correction: { kinds: ["other_exercise"], was: ["shrug_machine", "smith_machine"] },
   },
   {
     slug: "cable-shrug",
@@ -2682,7 +2847,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 75,
     defaultLoadIncrement: null,
-    equipment: ["cable_station", "functional_trainer"],
+    equipment: ["cable_station", "functional_trainer", "cable_crossover"],
+    correction: { kinds: ["variants"], was: ["cable_station", "functional_trainer"] },
   },
   {
     slug: "db-triceps-kickback",
@@ -2697,7 +2863,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1,
     defaultRestSeconds: 60,
     defaultLoadIncrement: 1,
-    equipment: ["dumbbells", "adjustable_bench"],
+    equipment: ["dumbbells"],
+    correction: { kinds: ["optional"], was: ["dumbbells", "adjustable_bench"] },
   },
   {
     slug: "cable-triceps-kickback",
@@ -2712,7 +2879,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1,
     defaultRestSeconds: 60,
     defaultLoadIncrement: null,
-    equipment: ["cable_station", "functional_trainer"],
+    equipment: ["cable_station", "functional_trainer", "cable_crossover"],
+    correction: { kinds: ["variants"], was: ["cable_station", "functional_trainer"] },
   },
   {
     slug: "jm-press",
@@ -2730,7 +2898,11 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultLoadIncrement: 2.5,
     formNotes:
       "Half close-grip press, half skull-crusher. Keep the elbows travelling, not flaring.",
-    equipment: ["barbell", "ez_bar", "flat_bench"],
+    equipment: [
+      ["barbell", "flat_bench"],
+      ["ez_bar", "flat_bench"],
+    ],
+    correction: { kinds: ["together"], was: ["barbell", "ez_bar", "flat_bench"] },
   },
   {
     slug: "tate-press",
@@ -2745,7 +2917,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 90,
     defaultLoadIncrement: 2,
-    equipment: ["dumbbells", "flat_bench"],
+    equipment: [["dumbbells", "flat_bench"]],
+    correction: { kinds: ["together"], was: ["dumbbells", "flat_bench"] },
   },
   {
     slug: "db-skull-crusher",
@@ -2760,7 +2933,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 90,
     defaultLoadIncrement: 2,
-    equipment: ["dumbbells", "flat_bench"],
+    equipment: [["dumbbells", "flat_bench"]],
+    correction: { kinds: ["together"], was: ["dumbbells", "flat_bench"] },
   },
   {
     slug: "ez-bar-overhead-extension",
@@ -2775,7 +2949,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 90,
     defaultLoadIncrement: 2.5,
-    equipment: ["ez_bar", "barbell", "adjustable_bench"],
+    equipment: ["ez_bar", "barbell"],
+    correction: { kinds: ["optional"], was: ["ez_bar", "barbell", "adjustable_bench"] },
   },
   {
     slug: "bench-dip",
@@ -2791,7 +2966,7 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 90,
     defaultLoadIncrement: 2.5,
-    formNotes: "Log added load only (a plate on the lap). 0 = bodyweight.",
+    logNote: "Log added load only (a plate on the lap). 0 = bodyweight.",
     equipment: ["flat_bench", "plyo_box"],
   },
   {
@@ -2825,7 +3000,11 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 90,
     defaultLoadIncrement: null,
-    equipment: ["triceps_dip_machine", "triceps_extension_machine"],
+    equipment: ["triceps_dip_machine"],
+    correction: {
+      kinds: ["other_exercise"],
+      was: ["triceps_dip_machine", "triceps_extension_machine"],
+    },
   },
   {
     slug: "rope-triceps-pushdown",
@@ -2856,7 +3035,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 60,
     defaultLoadIncrement: null,
-    equipment: ["cable_station", "functional_trainer"],
+    equipment: ["cable_station", "functional_trainer", "cable_crossover"],
+    correction: { kinds: ["variants"], was: ["cable_station", "functional_trainer"] },
   },
   {
     slug: "reverse-grip-pushdown",
@@ -2871,7 +3051,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1,
     defaultRestSeconds: 60,
     defaultLoadIncrement: null,
-    equipment: ["cable_station", "functional_trainer"],
+    equipment: ["cable_station", "functional_trainer", "cable_crossover"],
+    correction: { kinds: ["variants"], was: ["cable_station", "functional_trainer"] },
   },
   {
     slug: "smith-close-grip-bench",
@@ -2887,7 +3068,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 120,
     defaultLoadIncrement: 2.5,
-    equipment: ["smith_machine", "flat_bench"],
+    equipment: [["smith_machine", "flat_bench"]],
+    correction: { kinds: ["together"], was: ["smith_machine", "flat_bench"] },
   },
   {
     slug: "ring-triceps-extension",
@@ -2918,7 +3100,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 75,
     defaultLoadIncrement: 1,
-    equipment: ["dumbbells", "adjustable_bench"],
+    equipment: ["dumbbells"],
+    correction: { kinds: ["optional"], was: ["dumbbells", "adjustable_bench"] },
   },
   {
     slug: "ez-bar-curl",
@@ -2934,7 +3117,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 90,
     defaultLoadIncrement: 2.5,
-    equipment: ["ez_bar", "barbell"],
+    equipment: ["ez_bar"],
+    correction: { kinds: ["other_exercise"], was: ["ez_bar", "barbell"] },
   },
   {
     slug: "spider-curl",
@@ -2949,7 +3133,11 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1,
     defaultRestSeconds: 75,
     defaultLoadIncrement: 1,
-    equipment: ["dumbbells", "ez_bar", "adjustable_bench"],
+    equipment: [
+      ["dumbbells", "adjustable_bench"],
+      ["ez_bar", "adjustable_bench"],
+    ],
+    correction: { kinds: ["together"], was: ["dumbbells", "ez_bar", "adjustable_bench"] },
   },
   {
     slug: "concentration-curl",
@@ -2964,7 +3152,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1,
     defaultRestSeconds: 60,
     defaultLoadIncrement: 1,
-    equipment: ["dumbbells", "flat_bench"],
+    equipment: [["dumbbells", "flat_bench"]],
+    correction: { kinds: ["together"], was: ["dumbbells", "flat_bench"] },
   },
   {
     slug: "machine-preacher-curl",
@@ -2980,7 +3169,11 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 75,
     defaultLoadIncrement: null,
-    equipment: ["preacher_curl_machine", "biceps_curl_machine"],
+    equipment: ["preacher_curl_machine"],
+    correction: {
+      kinds: ["other_exercise"],
+      was: ["preacher_curl_machine", "biceps_curl_machine"],
+    },
   },
   {
     slug: "cable-hammer-curl",
@@ -2995,7 +3188,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 75,
     defaultLoadIncrement: null,
-    equipment: ["cable_station", "functional_trainer"],
+    equipment: ["cable_station", "functional_trainer", "cable_crossover"],
+    correction: { kinds: ["variants"], was: ["cable_station", "functional_trainer"] },
   },
   {
     slug: "incline-cable-curl",
@@ -3010,7 +3204,15 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1,
     defaultRestSeconds: 75,
     defaultLoadIncrement: null,
-    equipment: ["cable_station", "functional_trainer", "adjustable_bench"],
+    equipment: [
+      ["cable_station", "adjustable_bench"],
+      ["functional_trainer", "adjustable_bench"],
+      ["cable_crossover", "adjustable_bench"],
+    ],
+    correction: {
+      kinds: ["together", "variants"],
+      was: ["cable_station", "functional_trainer", "adjustable_bench"],
+    },
   },
   {
     slug: "drag-curl",
@@ -3058,7 +3260,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1,
     defaultRestSeconds: 60,
     defaultLoadIncrement: 1,
-    equipment: ["dumbbells", "flat_bench"],
+    equipment: [["dumbbells", "flat_bench"]],
+    correction: { kinds: ["together"], was: ["dumbbells", "flat_bench"] },
   },
   {
     slug: "db-reverse-wrist-curl",
@@ -3073,7 +3276,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1,
     defaultRestSeconds: 60,
     defaultLoadIncrement: 0.5,
-    equipment: ["dumbbells", "flat_bench"],
+    equipment: [["dumbbells", "flat_bench"]],
+    correction: { kinds: ["together"], was: ["dumbbells", "flat_bench"] },
   },
   {
     slug: "behind-back-wrist-curl",
@@ -3103,7 +3307,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1,
     defaultRestSeconds: 60,
     defaultLoadIncrement: null,
-    equipment: ["cable_station", "functional_trainer"],
+    equipment: ["cable_station", "functional_trainer", "cable_crossover"],
+    correction: { kinds: ["variants"], was: ["cable_station", "functional_trainer"] },
   },
   {
     slug: "wrist-roller",
@@ -3121,9 +3326,10 @@ export const EXERCISES: readonly ExerciseSeed[] = [
       "Reps in reserve, read as time: 2 RIR is a hold you could have kept for a few more seconds in the same position. Losing the position ends the set, whatever the clock says.",
     defaultRestSeconds: 90,
     defaultLoadIncrement: 1.25,
-    formNotes:
-      "Up and down is one pass. Logged as time under tension, because a pass is not a rep.",
-    equipment: ["wrist_roller", "weight_plates"],
+    formNotes: "Up and down is one pass.",
+    logNote: "Logged as time under tension, because a pass is not a rep.",
+    equipment: [["wrist_roller", "weight_plates"]],
+    correction: { kinds: ["together"], was: ["wrist_roller", "weight_plates"] },
   },
   {
     slug: "plate-pinch-hold",
@@ -3160,7 +3366,7 @@ export const EXERCISES: readonly ExerciseSeed[] = [
       "Reps in reserve, read as time: 2 RIR is a hold you could have kept for a few more seconds in the same position. Losing the position ends the set, whatever the clock says.",
     defaultRestSeconds: 90,
     defaultLoadIncrement: 2.5,
-    formNotes: "Log added load only (belt or vest). 0 = bodyweight.",
+    logNote: "Log added load only (belt or vest). 0 = bodyweight.",
     equipment: ["pull_up_bar", "gymnastic_rings"],
   },
   {
@@ -3180,7 +3386,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
       "Reps in reserve, read as time: 2 RIR is a hold you could have kept for a few more seconds in the same position. Losing the position ends the set, whatever the clock says.",
     defaultRestSeconds: 90,
     defaultLoadIncrement: 2.5,
-    formNotes: "Standing still, not walking. Load is per hand.",
+    formNotes: "Standing still, not walking.",
+    logNote: "Load is per hand.",
     equipment: ["farmers_handles", "dumbbells", "trap_bar"],
   },
   {
@@ -3197,7 +3404,7 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 150,
     defaultLoadIncrement: 2.5,
-    formNotes: "Log added load only. 0 = bodyweight.",
+    logNote: "Log added load only. 0 = bodyweight.",
     equipment: ["pull_up_bar"],
   },
   {
@@ -3268,7 +3475,11 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 2.5,
     defaultRestSeconds: 210,
     defaultLoadIncrement: 2.5,
-    equipment: ["barbell", "power_rack", "plyo_box"],
+    equipment: [
+      ["barbell", "power_rack", "plyo_box"],
+      ["barbell", "power_rack", "flat_bench"],
+    ],
+    correction: { kinds: ["together"], was: ["barbell", "power_rack", "plyo_box"] },
   },
   {
     slug: "safety-bar-squat",
@@ -3285,7 +3496,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRestSeconds: 210,
     defaultLoadIncrement: 2.5,
     formNotes: "Kinder to the shoulders than a straight bar, and harder on the upper back.",
-    equipment: ["safety_squat_bar", "power_rack"],
+    equipment: [["safety_squat_bar", "power_rack"]],
+    correction: { kinds: ["together"], was: ["safety_squat_bar", "power_rack"] },
   },
   {
     slug: "smith-front-squat",
@@ -3317,7 +3529,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 150,
     defaultLoadIncrement: null,
-    equipment: ["pendulum_squat", "hack_squat"],
+    equipment: ["pendulum_squat"],
+    correction: { kinds: ["other_exercise"], was: ["pendulum_squat", "hack_squat"] },
   },
   {
     slug: "vertical-leg-press",
@@ -3333,7 +3546,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 150,
     defaultLoadIncrement: null,
-    equipment: ["leg_press_vertical", "leg_press_45"],
+    equipment: ["leg_press_vertical"],
+    correction: { kinds: ["other_exercise"], was: ["leg_press_vertical", "leg_press_45"] },
   },
   {
     slug: "single-leg-press",
@@ -3413,7 +3627,11 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 120,
     defaultLoadIncrement: 2,
-    equipment: ["dumbbells", "kettlebells", "weight_plates"],
+    equipment: [
+      ["dumbbells", "weight_plates"],
+      ["kettlebells", "weight_plates"],
+    ],
+    correction: { kinds: ["together"], was: ["dumbbells", "kettlebells", "weight_plates"] },
   },
   {
     slug: "single-leg-extension",
@@ -3476,7 +3694,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 90,
     defaultLoadIncrement: 2.5,
-    equipment: ["flat_bench", "dumbbells"],
+    equipment: ["flat_bench"],
+    correction: { kinds: ["optional"], was: ["flat_bench", "dumbbells"] },
   },
   {
     slug: "frog-pump",
@@ -3492,7 +3711,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1,
     defaultRestSeconds: 60,
     defaultLoadIncrement: 2.5,
-    equipment: ["bodyweight", "dumbbells"],
+    equipment: ["bodyweight"],
+    correction: { kinds: ["optional"], was: ["bodyweight", "dumbbells"] },
   },
   {
     slug: "reverse-hyperextension",
@@ -3540,7 +3760,11 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 60,
     defaultLoadIncrement: null,
-    equipment: ["cable_station", "functional_trainer", "glute_kickback_machine"],
+    equipment: ["cable_station", "functional_trainer", "cable_crossover"],
+    correction: {
+      kinds: ["other_exercise", "variants"],
+      was: ["cable_station", "functional_trainer", "glute_kickback_machine"],
+    },
   },
   {
     slug: "banded-lateral-walk",
@@ -3671,7 +3895,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 60,
     defaultLoadIncrement: null,
-    equipment: ["cable_station", "functional_trainer"],
+    equipment: ["cable_station", "functional_trainer", "cable_crossover"],
+    correction: { kinds: ["variants"], was: ["cable_station", "functional_trainer"] },
   },
   {
     slug: "toes-to-bar",
@@ -3777,7 +4002,11 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 2,
     defaultRestSeconds: 60,
     defaultLoadIncrement: null,
-    equipment: ["cable_station", "functional_trainer", "resistance_bands"],
+    equipment: ["cable_station", "functional_trainer", "cable_crossover", "resistance_bands"],
+    correction: {
+      kinds: ["variants"],
+      was: ["cable_station", "functional_trainer", "resistance_bands"],
+    },
   },
   {
     slug: "db-side-bend",
@@ -3809,7 +4038,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 2,
     defaultRestSeconds: 75,
     defaultLoadIncrement: null,
-    equipment: ["stability_ball", "ab_wheel"],
+    equipment: ["stability_ball"],
+    correction: { kinds: ["other_exercise"], was: ["stability_ball", "ab_wheel"] },
   },
   {
     slug: "sled-push",
@@ -3980,7 +4210,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 90,
     defaultLoadIncrement: null,
-    equipment: ["cable_station", "functional_trainer"],
+    equipment: ["cable_station", "functional_trainer", "cable_crossover"],
+    correction: { kinds: ["variants"], was: ["cable_station", "functional_trainer"] },
   },
   {
     slug: "trap-bar-shrug",
@@ -3996,7 +4227,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 90,
     defaultLoadIncrement: 2.5,
-    equipment: ["trap_bar", "dumbbells"],
+    equipment: ["trap_bar"],
+    correction: { kinds: ["other_exercise"], was: ["trap_bar", "dumbbells"] },
   },
   {
     slug: "renegade-row",
@@ -4059,7 +4291,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 2,
     defaultRestSeconds: 90,
     defaultLoadIncrement: 2.5,
-    equipment: ["landmine", "barbell"],
+    equipment: [["landmine", "barbell"]],
+    correction: { kinds: ["together"], was: ["landmine", "barbell"] },
   },
   {
     slug: "cross-body-hammer-curl",
@@ -4089,7 +4322,11 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1,
     defaultRestSeconds: 60,
     defaultLoadIncrement: null,
-    equipment: ["cable_station", "functional_trainer", "ez_bar"],
+    equipment: ["cable_station", "functional_trainer", "cable_crossover"],
+    correction: {
+      kinds: ["attachment", "variants"],
+      was: ["cable_station", "functional_trainer", "ez_bar"],
+    },
   },
   {
     slug: "cossack-squat",
@@ -4122,7 +4359,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 120,
     defaultLoadIncrement: 2.5,
-    equipment: ["smith_machine", "flat_bench"],
+    equipment: [["smith_machine", "flat_bench"]],
+    correction: { kinds: ["together"], was: ["smith_machine", "flat_bench"] },
   },
   {
     slug: "step-down",
@@ -4138,7 +4376,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 2,
     defaultRestSeconds: 90,
     defaultLoadIncrement: 2,
-    equipment: ["plyo_box", "dumbbells"],
+    equipment: ["plyo_box"],
+    correction: { kinds: ["optional"], was: ["plyo_box", "dumbbells"] },
   },
   {
     slug: "front-foot-elevated-split-squat",
@@ -4154,7 +4393,11 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 120,
     defaultLoadIncrement: 2,
-    equipment: ["dumbbells", "weight_plates", "plyo_box"],
+    equipment: [
+      ["dumbbells", "weight_plates"],
+      ["dumbbells", "plyo_box"],
+    ],
+    correction: { kinds: ["together"], was: ["dumbbells", "weight_plates", "plyo_box"] },
   },
   {
     slug: "cable-hip-abduction",
@@ -4169,7 +4412,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 60,
     defaultLoadIncrement: null,
-    equipment: ["cable_station", "functional_trainer"],
+    equipment: ["cable_station", "functional_trainer", "cable_crossover"],
+    correction: { kinds: ["variants"], was: ["cable_station", "functional_trainer"] },
   },
   {
     slug: "reverse-crunch",
@@ -4202,7 +4446,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 2,
     defaultRestSeconds: 75,
     defaultLoadIncrement: 2.5,
-    equipment: ["landmine", "barbell"],
+    equipment: [["landmine", "barbell"]],
+    correction: { kinds: ["together"], was: ["landmine", "barbell"] },
   },
   {
     slug: "cable-side-bend",
@@ -4218,7 +4463,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 60,
     defaultLoadIncrement: null,
-    equipment: ["cable_station", "functional_trainer"],
+    equipment: ["cable_station", "functional_trainer", "cable_crossover"],
+    correction: { kinds: ["variants"], was: ["cable_station", "functional_trainer"] },
   },
   {
     slug: "bird-dog",
@@ -4455,7 +4701,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultLoadIncrement: null,
     formNotes:
       "Face away from a low pulley with the arm behind the torso. The stretched position is the point, so keep the shoulder back and let the cable pull the arm behind you.",
-    equipment: ["cable_station", "functional_trainer"],
+    equipment: ["cable_station", "functional_trainer", "cable_crossover"],
+    correction: { kinds: ["variants"], was: ["cable_station", "functional_trainer"] },
   },
   {
     slug: "db-curl",
@@ -4523,9 +4770,13 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultRir: 1.5,
     defaultRestSeconds: 120,
     defaultLoadIncrement: 2.5,
-    formNotes:
-      "Lean the torso forward and let the elbows travel a little wide. Log added load only. 0 = bodyweight.",
-    equipment: ["dip_station", "dip_machine", "gymnastic_rings"],
+    formNotes: "Lean the torso forward and let the elbows travel a little wide.",
+    logNote: "Log added load only. 0 = bodyweight.",
+    equipment: ["dip_station", "gymnastic_rings"],
+    correction: {
+      kinds: ["other_exercise"],
+      was: ["dip_station", "dip_machine", "gymnastic_rings"],
+    },
   },
   {
     slug: "machine-chest-dip",
@@ -4560,7 +4811,8 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultLoadIncrement: null,
     formNotes:
       "A fixed V-bar overhead keeps both arms on one path, so the load is easier to add to than with a rope. Elbows tucked and still.",
-    equipment: ["cable_station", "functional_trainer"],
+    equipment: ["cable_station", "functional_trainer", "cable_crossover"],
+    correction: { kinds: ["variants"], was: ["cable_station", "functional_trainer"] },
   },
   {
     slug: "cable-serratus-punch",
@@ -4578,6 +4830,10 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     defaultLoadIncrement: null,
     formNotes:
       "The arm starts straight at chest height and stays straight: the range is the shoulder blade travelling forward around the ribs, not the elbow. Serratus work rather than a press, filed under chest because the library has no serratus group.",
-    equipment: ["cable_station", "functional_trainer", "resistance_bands"],
+    equipment: ["cable_station", "functional_trainer", "cable_crossover", "resistance_bands"],
+    correction: {
+      kinds: ["variants"],
+      was: ["cable_station", "functional_trainer", "resistance_bands"],
+    },
   },
 ];

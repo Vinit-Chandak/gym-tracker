@@ -7,6 +7,10 @@ export type EquipmentTypeSeed = {
   defaultResistanceMode: ResistanceMode;
   defaultUnit: LoadUnit;
   sortOrder: number;
+  /** Variants of one kind of machine share a family (see `EQUIPMENT_FAMILIES`). */
+  family?: string;
+  /** A catalogue addition awaiting the owner: seeded only where drafts are (see `reference.ts`). */
+  review?: "draft";
 };
 
 const type = (
@@ -26,20 +30,20 @@ const type = (
  *
  * Nothing here belongs to a user or a gym. Users register the machines their own gyms have.
  */
-export const EQUIPMENT_TYPES: readonly EquipmentTypeSeed[] = [
+const CATALOGUE: readonly EquipmentTypeSeed[] = [
   // --- Free weights ------------------------------------------------------------------------
-  type("barbell", "Barbell", "free_weight", "free_weight", 10),
-  type("ez_bar", "EZ curl bar", "free_weight", "free_weight", 11),
-  type("dumbbells", "Dumbbells", "free_weight", "free_weight", 12),
-  type("kettlebells", "Kettlebells", "free_weight", "free_weight", 13),
-  type("trap_bar", "Trap / hex bar", "free_weight", "free_weight", 14),
-  type("weight_plates", "Weight plates", "free_weight", "free_weight", 15),
-  type("medicine_ball", "Medicine ball", "free_weight", "free_weight", 16),
-  type("resistance_bands", "Resistance bands", "free_weight", "free_weight", 17, "none"),
-  type("landmine", "Landmine", "free_weight", "free_weight", 18),
-  type("safety_squat_bar", "Safety squat bar", "free_weight", "free_weight", 19),
-  type("swiss_bar", "Swiss / football bar", "free_weight", "free_weight", 20, "kg"),
-  type("farmers_handles", "Farmer's walk handles", "free_weight", "free_weight", 21),
+  type("barbell", "Barbell", "free_weight", "free_weight", 8),
+  type("ez_bar", "EZ curl bar", "free_weight", "free_weight", 9),
+  type("dumbbells", "Dumbbells", "free_weight", "free_weight", 10),
+  type("kettlebells", "Kettlebells", "free_weight", "free_weight", 11),
+  type("trap_bar", "Trap / hex bar", "free_weight", "free_weight", 12),
+  type("weight_plates", "Weight plates", "free_weight", "free_weight", 13),
+  type("medicine_ball", "Medicine ball", "free_weight", "free_weight", 14),
+  type("resistance_bands", "Resistance bands", "free_weight", "free_weight", 15, "none"),
+  type("landmine", "Landmine", "free_weight", "free_weight", 16),
+  type("safety_squat_bar", "Safety squat bar", "free_weight", "free_weight", 17),
+  type("swiss_bar", "Swiss / football bar", "free_weight", "free_weight", 18, "kg"),
+  type("farmers_handles", "Farmer's walk handles", "free_weight", "free_weight", 19),
 
   // --- Bodyweight --------------------------------------------------------------------------
   type("pull_up_bar", "Pull-up bar", "bodyweight", "bodyweight", 20),
@@ -47,7 +51,7 @@ export const EQUIPMENT_TYPES: readonly EquipmentTypeSeed[] = [
   type("dip_station", "Dip station", "bodyweight", "bodyweight", 22),
   type("gymnastic_rings", "Gymnastic rings", "bodyweight", "bodyweight", 23, "none"),
   type("suspension_trainer", "Suspension trainer", "bodyweight", "bodyweight", 24, "none"),
-  type("captains_chair", "Captain's chair / roman chair", "bodyweight", "bodyweight", 25),
+  type("captains_chair", "Captain's chair", "bodyweight", "bodyweight", 25),
   type("plyo_box", "Plyo box", "bodyweight", "bodyweight", 26, "none"),
   type("parallettes", "Parallettes", "bodyweight", "bodyweight", 27, "none"),
   type("stability_ball", "Stability ball", "bodyweight", "bodyweight", 28, "none"),
@@ -138,3 +142,42 @@ export const EQUIPMENT_TYPES: readonly EquipmentTypeSeed[] = [
   type("stair_climber", "Stair climber", "cardio", "cardio", 116, "none"),
   type("ski_erg", "Ski erg", "cardio", "cardio", 117, "none"),
 ];
+
+/**
+ * Kinds of machine whose variants are materially different (plan: onboarding flow, item 4): a
+ * beginner says which one their gym has, and a workout offers "A different one". The first
+ * member is the one a gym is assumed to have where the family is a basic.
+ */
+export const EQUIPMENT_FAMILIES: Readonly<Record<string, { name: string; members: string[] }>> = {
+  leg_press: {
+    name: "Leg press",
+    members: ["leg_press_45", "leg_press_horizontal", "leg_press_vertical"],
+  },
+  leg_curl: {
+    name: "Leg curl",
+    members: ["leg_curl_seated", "leg_curl_lying", "leg_curl_standing"],
+  },
+  chest_press: {
+    name: "Chest press",
+    members: ["chest_press_machine", "iso_lateral_press", "incline_press_machine"],
+  },
+  cable: {
+    name: "Cable machine",
+    members: ["cable_station", "cable_crossover", "functional_trainer"],
+  },
+  calf_raise: {
+    name: "Calf raise machine",
+    members: ["calf_raise_machine", "seated_calf_raise"],
+  },
+};
+
+const familyOf = new Map(
+  Object.entries(EQUIPMENT_FAMILIES).flatMap(([family, { members }]) =>
+    members.map((slug) => [slug, family] as const),
+  ),
+);
+
+export const EQUIPMENT_TYPES: readonly EquipmentTypeSeed[] = CATALOGUE.map((entry) => {
+  const family = familyOf.get(entry.slug);
+  return family ? { ...entry, family } : entry;
+});

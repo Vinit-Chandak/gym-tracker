@@ -50,3 +50,33 @@ not "unavailable".
   fallbacks with their reason.
 - Custom (user-created) exercises are visible in the library if added later, but no screen
   creates them yet.
+
+## Amendment, 4 October 2026: unknown everywhere, and basics instead of modalities
+
+Decided by the owner with the onboarding, equipment and technique plan
+([plan](../planning/ONBOARDING_EQUIPMENT_TECHNIQUE_PLAN.md), owner decisions S2 and S3;
+[ADR 0041](0041-gym-basics-the-coach-backup-rule-and-machines-with-several-types.md)). It
+replaces decision 1's last sentence and the modality rule behind `direct`; decisions 2 to 6
+stand.
+
+1. **Home and outdoors report unknown too.** Equipment nobody has answered for is unknown at
+   every kind of location, and asked about when an exercise needs it. "Virtual locations never
+   report unknown" is withdrawn: a home gym the athlete has not described is not one known to
+   be empty. `unavailable` now means only that every way of doing the exercise needs equipment
+   known to be absent.
+2. **Assumed equipment comes from reference data, per kind of location.** The modality rule
+   (any barbell, dumbbell, bodyweight or mobility exercise is `direct` at a gym) is replaced by
+   `assumed_equipment_types`: at a gym, the gym basics; at home and outdoors, nothing. A
+   specialty bar is no longer assumed because its exercise is a barbell exercise.
+3. **Explicit absence overrides an assumption.** Marking barbells absent at a gym now makes
+   barbell work unavailable there; before, the modality rule answered `direct` before the
+   absence list was read.
+4. **What an exercise needs is ordered alternatives of types used together**, each with one
+   primary type ([ADR 0041](0041-gym-basics-the-coach-backup-rule-and-machines-with-several-types.md)),
+   not a flat ranked list where any one type would do. A Smith hip thrust needs a Smith machine
+   and a bench, and a bench alone no longer makes it available.
+5. **The statuses stay four, with what lies behind a `direct` said.** A `direct` or
+   `fallback` resolution carries its basis: `confirmed` (every type it needs is on a registered
+   machine), `assumed` (some of it is a basic nobody has confirmed) or `free` (it needs nothing).
+   The coach and the programme screens read confirmed, assumed, unknown and absent as four
+   different things.

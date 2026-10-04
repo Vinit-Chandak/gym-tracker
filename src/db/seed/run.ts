@@ -4,6 +4,7 @@ import postgres from "postgres";
 
 import { getMigrationDatabaseUrl } from "../../lib/env";
 import * as schema from "../schema";
+import { isLoopbackDatabase } from "../../lib/drafts";
 import { seedReferenceData } from "./reference";
 
 /**
@@ -21,11 +22,17 @@ async function main(): Promise<void> {
   });
   const db = drizzle(client, { schema });
 
+  // Catalogue additions awaiting the owner go only into a database on this machine: the same
+  // `.env.local` that points `next build` at the hosted project must never carry a draft there.
+  const drafts = isLoopbackDatabase(url);
   try {
-    const reference = await seedReferenceData(db);
+    const reference = await seedReferenceData(db, { drafts });
     console.log(
-      `Reference data: ${reference.equipmentTypes} equipment types, ${reference.exercises} exercises, ` +
-        `${reference.equipmentOptions} equipment options, ${reference.warmupProtocols} warm-up protocols.`,
+      `Reference data${drafts ? " (drafts included)" : ""}: ${reference.equipmentTypes} equipment types, ` +
+        `${reference.exercises} exercises, ${reference.requirements} requirements, ` +
+        `${reference.equipmentOptions} equipment options, ${reference.combinations} combinations, ` +
+        `${reference.presets} presets, ${reference.guides} guides, ${reference.media} demonstrations, ` +
+        `${reference.warmupProtocols} warm-up protocols.`,
     );
   } finally {
     await client.end();

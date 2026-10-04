@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   boolean,
   check,
+  date,
   index,
   integer,
   jsonb,
@@ -9,6 +10,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -76,10 +78,122 @@ export const exercises = pgTable(
     }),
     formNotes: text("form_notes"),
     formUrl: text("form_url"),
+    /**
+     * How a set of it is logged, when that needs saying: "Load is per dumbbell.", "Log added
+     * load only." Technique shows it under How to log, guide or no guide.
+     */
+    logNote: text("log_note"),
+    /** Other names people use for it ("RDL", "OHP"). Search reads them; nothing shows them. */
+    aliases: text("aliases")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
     isActive: boolean("is_active").notNull().default(true),
     ...timestamps,
   },
   (t) => [index("exercises_user_idx").on(t.userId), ...sharedOrOwnerPolicies("exercises")],
+).enableRLS();
+
+/**
+ * What an exercise needs, as ordered alternatives (plan: S3). Each alternative is a group of
+ * types used together, numbered by `alternative`; exactly one type in a group is its primary,
+ * the load-bearing equipment a workout records and keys history on. A Smith hip thrust is one
+ * group (Smith machine, primary; flat bench); a dip is two (a dip station; gymnastic rings).
+ *
+ * Shared rows are rebuilt by the seed, so nothing may point at their ids. The flat
+ * `exercise_equipment_options` stay beside them for the user's own instance-level choices (a
+ * preferred machine, a custom exercise's machine) and as each alternative's primary type.
+ */
+export const exerciseEquipmentRequirements = pgTable(
+  "exercise_equipment_requirements",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").references(() => profiles.id, { onDelete: "cascade" }),
+    exerciseId: uuid("exercise_id")
+      .notNull()
+      .references(() => exercises.id, { onDelete: "cascade" }),
+    /** 1-based, in preference order. */
+    alternative: integer("alternative").notNull(),
+    equipmentTypeId: uuid("equipment_type_id")
+      .notNull()
+      .references(() => equipmentTypes.id, { onDelete: "restrict" }),
+    isPrimary: boolean("is_primary").notNull().default(false),
+  },
+  (t) => [
+    uniqueIndex("exercise_equipment_requirements_uq").on(
+      t.exerciseId,
+      t.alternative,
+      t.equipmentTypeId,
+    ),
+    uniqueIndex("exercise_equipment_requirements_primary_uq")
+      .on(t.exerciseId, t.alternative)
+      .where(sql`is_primary`),
+    check("exercise_equipment_requirements_alternative_chk", sql`alternative >= 1`),
+    ...sharedOrOwnerPolicies("exercise_equipment_requirements"),
+  ],
+).enableRLS();
+
+/**
+ * How to perform one exercise variant, written for Overload (plan: Technique and media). A
+ * draft is shown only where drafts are switched on; the reviewer and date say who published it.
+ * One row per exercise; `version` rises when reviewed text changes.
+ */
+export type GuideSourceRef = { title: string; publisher: string; url: string };
+
+export const exerciseGuides = pgTable(
+  "exercise_guides",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    exerciseId: uuid("exercise_id")
+      .notNull()
+      .unique()
+      .references(() => exercises.id, { onDelete: "cascade" }),
+    version: integer("version").notNull().default(1),
+    status: text("status").notNull().default("draft"),
+    setup: text("setup").notNull(),
+    steps: jsonb("steps").$type<string[]>().notNull(),
+    cues: jsonb("cues").$type<string[]>().notNull(),
+    mistakes: jsonb("mistakes").$type<string[]>().notNull(),
+    sources: jsonb("sources").$type<GuideSourceRef[]>().notNull(),
+    draftedBy: text("drafted_by"),
+    reviewer: text("reviewer"),
+    reviewedOn: date("reviewed_on"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  () => [
+    check("exercise_guides_status_chk", sql`status in ('draft', 'published')`),
+    readAllPolicy("exercise_guides"),
+  ],
+).enableRLS();
+
+/**
+ * A demonstration of an exercise elsewhere: for now a YouTube video, opened on YouTube rather
+ * than embedded. A candidate awaits the owner; only an approved one is offered in production.
+ */
+export const exerciseMedia = pgTable(
+  "exercise_media",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    exerciseId: uuid("exercise_id")
+      .notNull()
+      .references(() => exercises.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull(),
+    videoId: text("video_id").notNull(),
+    startSeconds: integer("start_seconds"),
+    title: text("title").notNull(),
+    channel: text("channel").notNull(),
+    url: text("url").notNull(),
+    usageBasis: text("usage_basis").notNull(),
+    checkedOn: date("checked_on").notNull(),
+    status: text("status").notNull().default("candidate"),
+    position: integer("position").notNull().default(1),
+  },
+  (t) => [
+    uniqueIndex("exercise_media_exercise_video_uq").on(t.exerciseId, t.provider, t.videoId),
+    check("exercise_media_provider_chk", sql`provider in ('youtube')`),
+    check("exercise_media_status_chk", sql`status in ('candidate', 'approved')`),
+    readAllPolicy("exercise_media"),
+  ],
 ).enableRLS();
 
 /**
