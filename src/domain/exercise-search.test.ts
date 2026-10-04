@@ -30,3 +30,13 @@ it("matches the start of a longer word, not a fragment of two letters", () => {
   expect(searchScore(searchWords("lat pull"), exercise("Lat pulldown", ["lats"]))).toBe(4);
   expect(searchScore(searchWords("la"), exercise("Lat pulldown", ["lats"]))).toBe(0);
 });
+
+it("finds an exercise by another name it goes by, as the athlete may well say it", () => {
+  const rdl = {
+    ...exercise("Barbell Romanian deadlift", ["hamstrings"], "hinge"),
+    aliases: ["RDL"],
+  };
+  const squat = exercise("High-bar barbell squat", ["quads"], "squat");
+  expect(searchScore(searchWords("RDLs"), rdl)).toBe(2);
+  expect(searchScore(searchWords("RDLs"), squat)).toBe(0);
+});

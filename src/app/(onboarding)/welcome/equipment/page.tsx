@@ -42,8 +42,9 @@ export default async function WelcomeEquipmentPage(props: PageProps<"/welcome/eq
         <span className="flex items-center gap-0.5">
           Tick the machines it has.
           <InfoTip label="About machines">
-            Barbells, dumbbells and bodyweight are assumed everywhere, so only machines and cable
-            stations need ticking. This can be changed any time.
+            {gym.kind === "gym"
+              ? "A gym's basics count as here until you say otherwise, and each machine is confirmed the first time you use it. This can be changed any time."
+              : "Nothing is assumed here: tick what this place has, and anything else is asked about when an exercise needs it. This can be changed any time."}
           </InfoTip>
         </span>
       }

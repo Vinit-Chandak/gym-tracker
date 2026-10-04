@@ -57,16 +57,17 @@ export function restText(exercise: ExerciseVM): string | null {
   return restLabel(p.restMinSeconds, p.restMaxSeconds);
 }
 
-/** The machine, or what stands in for one. The gym itself is session context, not row chrome. */
-export function equipmentLine(exercise: ExerciseVM, gymKind: string): string {
+/**
+ * The machine, or what stands in for one. The gym itself is session context, not row chrome.
+ * Whether the gym has what the exercise needs is the resolver's to say (ADR 0041), shown as the
+ * decision block; this line only says what the exercise is done with.
+ */
+export function equipmentLine(exercise: ExerciseVM): string {
   if (exercise.equipment) return exercise.equipment.name;
   if (!exercise.exercise.requiresEquipment) return "No equipment";
-  if (
-    gymKind === "gym" &&
-    ["barbell", "dumbbell", "bodyweight", "mobility"].includes(exercise.exercise.modality)
-  ) {
-    return exercise.exercise.modality === "bodyweight" ? "Bodyweight" : "Free weights";
-  }
+  if (exercise.decision) return "Machine not chosen";
+  if (exercise.exercise.modality === "bodyweight") return "Bodyweight";
+  if (["barbell", "dumbbell"].includes(exercise.exercise.modality)) return "Free weights";
   return "Machine not chosen";
 }
 

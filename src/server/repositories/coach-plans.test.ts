@@ -119,8 +119,9 @@ describe("planning context", () => {
     expect(squat.atThisGym.status).toBe("direct");
     const legPress = ctx.exercises.find((e) => e.planned.slug === "leg-press-45")!;
     expect(legPress.atThisGym.machine?.name).toBe("45° leg press");
+    // A gym basic nobody has confirmed: available to plan, and said to be assumed (ADR 0041).
     const extension = ctx.exercises.find((e) => e.planned.slug === "leg-extension")!;
-    expect(extension.atThisGym.status).toBe("unknown");
+    expect(extension.atThisGym).toMatchObject({ status: "direct", equipment: "assumed" });
     expect(
       ctx.library.find((e) => e.slug === "leg-press-horizontal")?.atThisGym?.machine?.name,
     ).toBe("Horizontal leg press");
@@ -1031,7 +1032,8 @@ describe("a day that runs", () => {
       trigger: "nightly" as const,
       plan: {
         summary: "Only half of the day.",
-        exercises: [{ exerciseSlug: context.exercises[0]!.planned.slug, sets: [] }],
+        // An addition on free weights: what this test is about is the run, not the equipment.
+        exercises: [{ exerciseSlug: "hammer-curl", sets: [] }],
       },
     };
     await expect(

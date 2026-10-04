@@ -529,7 +529,7 @@ export function ExerciseLogger({
   const plannedName = exercise.planned?.plannedExerciseName;
   const substituted = plannedName !== undefined && plannedName !== exercise.exercise.name;
   const glyph = equipmentGlyph(exercise);
-  const equipment = equipmentLine(exercise, session.gym.kind);
+  const equipment = equipmentLine(exercise);
   const range = tab === "log" ? perSetLabel(exercise) : prescriptionLabel(exercise);
   const rest = restText(exercise);
   const facts: ReactNode[] = [

@@ -386,15 +386,19 @@ describe("decisions, substitutions and ad hoc sessions", () => {
     const detail = await withUser(t.db, user.id, (tx) =>
       getSessionDetail(tx, user.id, started.sessionId),
     );
+    // A 45° leg press is a basic: assumed, so it is asked about once, with no machine yet.
     const legPress = exerciseRow(detail as SessionDetail, "leg-press-45");
     expect(legPress.equipment).toBeNull();
-    expect(legPress.decision?.resolution.status).toBe("unknown");
+    expect(legPress.decision?.resolution).toMatchObject({ status: "direct", basis: "assumed" });
+    // A Smith machine is not: unknown, with the programme's fallbacks offered, not applied.
     const calf = exerciseRow(detail as SessionDetail, "smith-machine-calf-raise");
+    expect(calf.decision?.resolution.status).toBe("unknown");
     expect(calf.decision?.fallbackOptions.map((f) => f.exerciseName)).toEqual([
       "Leg-press calf press",
       "Leg-press calf press",
     ]);
-    expect(calf.decision?.fallbackOptions.every((f) => !f.available)).toBe(true);
+    // On the assumed 45° leg press it can be done now; on a horizontal one nobody has answered.
+    expect(calf.decision?.fallbackOptions.map((f) => f.available)).toEqual([true, false]);
 
     const [splitSquat] = await t.db
       .select({ id: exercises.id })

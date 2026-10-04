@@ -43,7 +43,11 @@ import {
   exerciseAvailability,
   type ExerciseGymAvailability,
 } from "@/server/repositories/availability";
-import { getExercise, type ExerciseProgramUsage } from "@/server/repositories/exercises";
+import {
+  getExercise,
+  type ExerciseEquipmentWay,
+  type ExerciseProgramUsage,
+} from "@/server/repositories/exercises";
 import { readExerciseLife } from "@/server/repositories/exercise-life";
 import { readExerciseBests } from "@/server/repositories/shared-stats";
 import { readWorkouts, TRAINING_RECORD_LIMIT } from "@/server/repositories/training-data";
@@ -54,6 +58,18 @@ import { ExerciseLife } from "./exercise-life";
 import { ExerciseTrend } from "./exercise-trend";
 
 export const metadata: Metadata = { title: "Exercise" };
+
+/** "Smith machine with a flat bench"; the floor alone reads as needing nothing. */
+function equipmentWayLabel(way: ExerciseEquipmentWay): string {
+  const [primary, ...rest] = way.types;
+  if (!primary) return "";
+  if (primary.typeName === "Bodyweight / floor") return "No equipment";
+  if (rest.length === 0) return primary.typeName;
+  const others = rest.map((type) => type.typeName.toLowerCase());
+  const joined =
+    others.length === 1 ? others[0] : `${others.slice(0, -1).join(", ")} and ${others.at(-1)}`;
+  return `${primary.typeName} with ${joined}`;
+}
 
 function prescription(usage: ExerciseProgramUsage): string {
   const range =
@@ -71,13 +87,17 @@ function availabilityDetail(entry: ExerciseGymAvailability): string {
   const r: Resolution = entry.resolution;
   switch (r.status) {
     case "direct":
-      return r.equipmentInstance ? `On ${r.equipmentInstance.name}` : "Free weights or bodyweight";
+      return r.equipmentInstance
+        ? `On ${r.equipmentInstance.name}`
+        : r.basis === "free"
+          ? "No equipment needed"
+          : "Usually here, as a gym's basics are: it is asked about the first time it is used.";
     case "fallback":
       return `Do ${entry.resolvedExerciseName}${r.equipmentInstance ? ` on ${r.equipmentInstance.name}` : ""} instead`;
     case "unknown":
-      return `Needs: ${entry.missingTypes.map((t) => t.name).join(" or ")}. Add the machine to this gym, or mark it as not available.`;
+      return `Needs: ${entry.missingTypes.map((t) => t.name).join(" or ")}. Nobody has said whether it is here: add the machine, or mark it as not available.`;
     case "unavailable":
-      return "This gym is marked as not having the equipment, and no fallback fits.";
+      return "This place is marked as not having the equipment, and no fallback fits.";
   }
 }
 
@@ -286,12 +306,21 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
 
         <Card>
           <h2 className="text-base font-medium">Equipment</h2>
-          {exercise.requiresEquipment ? (
-            <ol className="list-inside list-decimal space-y-1 text-sm">
-              {exercise.equipmentOptions.map((option) => (
-                <li key={option.equipmentTypeId}>{option.typeName}</li>
-              ))}
-            </ol>
+          {exercise.requiresEquipment && exercise.equipmentWays.length > 0 ? (
+            <>
+              {/* Each way names what is used together, so a Smith machine and a bench read as
+                  one setup, never as a choice between them (ADR 0041). */}
+              {exercise.equipmentWays.length > 1 && (
+                <p className="text-sm text-ink-muted">Any one of these:</p>
+              )}
+              <ul className="space-y-1 text-sm">
+                {exercise.equipmentWays.map((way) => (
+                  <li key={way.alternative}>{equipmentWayLabel(way)}</li>
+                ))}
+              </ul>
+            </>
+          ) : exercise.requiresEquipment ? (
+            <p className="text-sm text-ink-muted">The equipment you choose for it.</p>
           ) : (
             <p className="text-sm text-ink-muted">No equipment needed.</p>
           )}

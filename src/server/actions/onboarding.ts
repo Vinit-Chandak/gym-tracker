@@ -10,6 +10,7 @@ import { equipmentInstances, equipmentTypes } from "@/db/schema";
 import { withUser } from "@/db/with-user";
 import { requireUser } from "@/server/auth";
 import { ensureProfile } from "@/server/queries/profile";
+import { clearAbsences } from "@/server/repositories/equipment";
 import { createGym, listGyms } from "@/server/repositories/gyms";
 import { parseForm, type FormState } from "@/server/validation/form";
 import { gymInputSchema } from "@/server/validation/gyms";
@@ -82,6 +83,13 @@ export async function addStarterEquipmentAction(
         )
         // Going back a step and submitting again must not duplicate a machine.
         .onConflictDoNothing({ target: [equipmentInstances.gymId, equipmentInstances.name] });
+      // What was just confirmed is here, so it is no longer recorded as missing (ADR 0041).
+      await clearAbsences(
+        tx,
+        user.id,
+        gymId,
+        types.map((type) => type.id),
+      );
     });
     revalidatePath("/gyms");
     revalidatePath(`/gyms/${gymId}`);

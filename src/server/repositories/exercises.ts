@@ -10,7 +10,11 @@ import {
   programs,
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
-import { sharedExercises } from "@/server/queries/reference";
+import {
+  sharedEquipmentTypes,
+  sharedExercises,
+  sharedRequirements,
+} from "@/server/queries/reference";
 import { machinesByExerciseAtGym } from "./equipment";
 
 type ExerciseRow = typeof exercises.$inferSelect;
@@ -38,6 +42,7 @@ export type ExerciseListItem = Pick<
   | "defaultRir"
   | "defaultRestSeconds"
   | "rirNote"
+  | "aliases"
 > & { isCustom: boolean };
 
 function toListItem(row: ExerciseRow): ExerciseListItem {
@@ -63,6 +68,7 @@ function toListItem(row: ExerciseRow): ExerciseListItem {
     defaultRir: row.defaultRir,
     defaultRestSeconds: row.defaultRestSeconds,
     rirNote: row.rirNote,
+    aliases: row.aliases,
     isCustom: row.userId !== null,
   };
 }
@@ -92,6 +98,15 @@ export type ExerciseEquipmentOption = {
   preferenceRank: number;
 };
 
+/**
+ * One way to do an exercise (ADR 0041): the types used together, the primary first. A Smith hip
+ * thrust is one way, a Smith machine with a flat bench; a dip is two, a dip station or rings.
+ */
+export type ExerciseEquipmentWay = {
+  alternative: number;
+  types: { equipmentTypeId: string; typeName: string; isPrimary: boolean }[];
+};
+
 export type ExerciseProgramUsage = {
   programExerciseId: string;
   dayIndex: number;
@@ -117,6 +132,8 @@ export type ExerciseProgramUsage = {
 export type ExerciseDetail = ExerciseRow & {
   isCustom: boolean;
   equipmentOptions: ExerciseEquipmentOption[];
+  /** What it needs, as alternatives of types used together. */
+  equipmentWays: ExerciseEquipmentWay[];
   programUsage: ExerciseProgramUsage[];
 };
 
@@ -180,7 +197,31 @@ export async function getExercise(
   ]);
   if (!row) return null;
 
-  return { ...row, isCustom: row.userId !== null, equipmentOptions, programUsage };
+  const [requirements, types] = await Promise.all([
+    sharedRequirements(db),
+    sharedEquipmentTypes(db),
+  ]);
+  const name = new Map(types.map((type) => [type.id, type.name]));
+  const ways = new Map<number, ExerciseEquipmentWay>();
+  for (const requirement of requirements.filter((r) => r.exerciseId === exerciseId)) {
+    const way = ways.get(requirement.alternative) ?? {
+      alternative: requirement.alternative,
+      types: [],
+    };
+    way.types.push({
+      equipmentTypeId: requirement.equipmentTypeId,
+      typeName: name.get(requirement.equipmentTypeId) ?? "Equipment",
+      isPrimary: requirement.isPrimary,
+    });
+    ways.set(requirement.alternative, way);
+  }
+  const equipmentWays = [...ways.values()]
+    .sort((a, b) => a.alternative - b.alternative)
+    .map((way) => ({
+      ...way,
+      types: [...way.types].sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary)),
+    }));
+  return { ...row, isCustom: row.userId !== null, equipmentOptions, equipmentWays, programUsage };
 }
 
 export type PreferredMachine = { equipmentInstanceId: string; gymId: string; instanceName: string };

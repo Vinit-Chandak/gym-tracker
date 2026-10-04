@@ -36,6 +36,7 @@ export default async function GymPage(props: PageProps<"/gyms/[gymId]">) {
           name: item.name,
           isActive: item.isActive,
           equipmentTypeId: item.typeId,
+          typeIds: item.typeIds,
         })),
         absentEquipmentTypeIds: new Set(absent.map((item) => item.equipmentTypeId)),
       });

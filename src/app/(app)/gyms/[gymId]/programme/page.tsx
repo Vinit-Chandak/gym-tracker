@@ -26,7 +26,10 @@ function detail(row: PlannedExerciseAvailability): string {
   const r = row.resolution;
   switch (r.status) {
     case "direct":
-      return r.equipmentInstance ? `On ${r.equipmentInstance.name}` : "Free weights or bodyweight";
+      if (r.equipmentInstance) return `On ${r.equipmentInstance.name}`;
+      return r.basis === "free"
+        ? "No equipment needed"
+        : `Usually here (${row.assumedTypes.map((t) => t.name.toLowerCase()).join(", ")}): confirmed the first time it is used.`;
     case "fallback":
       return `Do ${row.resolvedExerciseName}${r.equipmentInstance ? ` on ${r.equipmentInstance.name}` : ""} instead`;
     case "unknown":
@@ -86,9 +89,11 @@ export default async function GymProgrammePage(props: PageProps<"/gyms/[gymId]/p
             </div>
             <p className="text-sm text-ink-muted">{detail(row)}</p>
 
-            {row.resolution.status === "unknown" && (
+            {/* What nobody has answered for, and a basic taken for granted, can both be said
+                to be missing here (ADR 0041). */}
+            {(row.missingTypes.length > 0 || row.assumedTypes.length > 0) && (
               <div className="grid gap-2">
-                {row.missingTypes.map((type) => (
+                {[...row.missingTypes, ...row.assumedTypes].map((type) => (
                   <form
                     key={type.id}
                     className="min-w-0"
@@ -119,7 +124,7 @@ export default async function GymProgrammePage(props: PageProps<"/gyms/[gymId]/p
               </div>
             ))}
 
-            {gym.kind === "gym" && row.resolution.status !== "direct" && (
+            {(row.resolution.status !== "direct" || row.resolution.basis === "assumed") && (
               <LinkButton
                 href={`/gyms/${gym.id}/programme/${row.exercise.id}/fallback`}
                 variant="secondary"

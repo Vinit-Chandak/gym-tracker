@@ -61,7 +61,7 @@ function rowLine(exercise: ExerciseVM, unitLabel: string, readOnly: boolean): st
     );
     if (line) return line;
   }
-  return prescriptionLabel(exercise) ?? equipmentLine(exercise, "gym");
+  return prescriptionLabel(exercise) ?? equipmentLine(exercise);
 }
 
 /** The workout's plan as a print: the warm-up's fan, then a column of sets for each exercise. */

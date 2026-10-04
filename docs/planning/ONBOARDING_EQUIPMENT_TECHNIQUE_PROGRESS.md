@@ -15,7 +15,7 @@ has touched a hosted database, and nothing has been merged or deployed.
 | Step | Scope                                                                                   | State       |
 | ---- | --------------------------------------------------------------------------------------- | ----------- |
 | 1    | Catalogue report, requirement model, basics, machine types, ADRs, atomic seed, tables   | done        |
-| 2    | Resolver and every consumer, absence reconciliation, the coach's backup rule            | not started |
+| 2    | Resolver and every consumer, absence reconciliation, the coach's backup rule            | done        |
 | 3    | Add several exercises (receipts) and pinned actions on Add machine                      | not started |
 | 4    | Experience question, machine steps, combinations, workout confirmation                  | not started |
 | 5    | Illustrations, guides, Technique, the coach's numbers in the header and list            | not started |
@@ -64,6 +64,51 @@ has touched a hosted database, and nothing has been merged or deployed.
 - `seedReferenceData` runs in one transaction with the drafts gate; `scripts/catalogue-report.ts`
   writes `docs/planning/catalogue-report.md` (reproducible; deployed catalogue unverified).
 - ADR 0004 amended; ADR 0041 records basics, the backup rule and machines with several types.
+
+## Step 2: what landed
+
+- **Resolver** (`src/domain/equipment-resolution.ts`): requirement groups, gym basics and machines
+  with several types. Statuses stay `direct | fallback | unknown | unavailable`; a resolution now
+  carries its `basis` (`confirmed`, `assumed` or `free`) and the assumed type ids, and
+  `equipmentState` maps it to what the coach reads (`confirmed | assumed | unknown | absent |
+  none`). Order: the preferred machine, then the planned exercise on confirmed equipment, then a
+  gym-specific fallback the athlete added, then the planned exercise on assumed basics, then (only
+  when the planned one is marked absent) the first available programme fallback, then unknown, then
+  unavailable. `compatibleMachines` offers a machine only when one of its types is the primary of a
+  group the gym can complete, so a bench is never a Smith hip thrust's machine and the assisted dip
+  machine is no longer a plain dip's.
+- **One context for every consumer** (`src/server/repositories/equipment-context.ts`): requirement
+  groups, assumed types, combination types and each machine's types, read once from the reference
+  cache. Gym availability, exercise availability, workout start and swaps
+  (`sessions.ts`, `manual-training.ts`), the machine pickers (`machinesByExerciseAtGym`), the
+  library and lookups the coach reads (`libraryAtGym`, `lookupExercises`), plan validation
+  (`storePlan`, `validateBlueprintForAthlete`), the programme page, the gym page and the exercise
+  page all resolve through it. The exercise page lists each way to do an exercise as types used
+  together, and the library search matches aliases.
+- **Absence reconciliation** (`absent-equipment.ts`, `equipment.ts`): registering a machine,
+  restoring one or adding a type through Also used for clears that type's absence; marking a type
+  missing while an active machine has it asks instead of recording (`AbsenceOutcome`).
+- **Machines with several types**: `createEquipment(..., alsoTypeIds)` and
+  `setMachineAlsoUsedFor`, which refuses to drop the machine's own type (`DisplayTypeError`).
+- **The coach's backup rule** (ADR 0041) in `storePlan` and `backupRuleProblems` /
+  `validateBlueprintForAthlete`: basics need no backup; an unconfirmed machine needs a slot backup
+  available now; equipment marked not here is refused. `lookupExercises` and the library give the
+  coach each exercise's equipment state, and `.claude/skills/coach/SKILL.md` states the rule.
+- Tests: the resolver's unit tests rewritten for groups and basis, and
+  `src/server/repositories/equipment-rules.test.ts` covers reconciliation, machine types,
+  compatibility, the coach's states and the backup rule end to end on PGlite.
+
+### Calls made in step 2
+
+- Programme fallbacks no longer apply on their own for a machine nobody has confirmed: the workout
+  asks (step 4) instead of silently swapping. They still apply when the planned equipment is marked
+  not here. A fallback the athlete added for this gym wins over an assumed basic, because it is
+  something they said about this gym.
+- A daily plan may keep the programme's own exercise in its slot even when its machine is unknown;
+  the backup rule applies to new choices, not to the programme it is carrying.
+- Custom free-weight exercises resolve by their modality (no user requirement rows are written).
+- Home and outdoor locations assume nothing: an unanswered machine there is unknown (owner
+  decision S2).
 
 ## Next
 

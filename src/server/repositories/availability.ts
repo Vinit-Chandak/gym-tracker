@@ -14,16 +14,28 @@ import {
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import {
+  compatibleMachines,
+  equipmentState,
+  evaluateFallback,
+  inventoryAt,
   resolveExerciseAtGym,
   type AvailabilityStatus,
   type EquipmentInstanceRef,
   type EquipmentOptionRef,
+  type EquipmentState,
   type ExerciseRef,
   type FallbackRef,
   type Resolution,
 } from "@/domain/equipment-resolution";
 import type { ExerciseModality, GymKind, LoadPortability, MuscleGroup } from "@/domain/types";
 import { equipmentTypeNames } from "@/server/queries/reference";
+
+import {
+  instanceTypeIds,
+  referenceInputs,
+  referenceSets,
+  type ReferenceSets,
+} from "./equipment-context";
 
 import type { GymRow } from "./gyms";
 
@@ -57,10 +69,14 @@ export type PlannedExerciseAvailability = {
   days: string[];
   programExerciseIds: string[];
   resolution: Resolution;
+  /** Confirmed, assumed (a basic nobody has confirmed), unknown, absent, or none needed. */
+  equipment: EquipmentState;
   /** Human-readable name of the exercise the resolution landed on (self or fallback). */
   resolvedExerciseName: string;
   /** For "unknown": equipment types that would make it available. */
   missingTypes: NamedType[];
+  /** For an assumed basic: the types taken for granted, which can be marked not here. */
+  assumedTypes: NamedType[];
   /** Gym-specific fallbacks the user added (removable). */
   gymFallbacks: GymFallbackSummary[];
 };
@@ -180,6 +196,7 @@ async function gymEquipmentRefs(db: DbOrTx, gym: GymScope): Promise<EquipmentIns
       equipmentTypeId: equipmentInstances.equipmentTypeId,
       name: equipmentInstances.name,
       isActive: equipmentInstances.isActive,
+      typeIds: instanceTypeIds,
     })
     .from(equipmentInstances)
     .where(
@@ -304,8 +321,8 @@ export async function gymAvailability(
   known?: GymAvailabilityInputs,
 ): Promise<GymAvailability | null> {
   const slotIds = activeSlotIds(db, userId);
-  const [[gym], program, planned, fallbacks, options, equipment, absent, names] = await Promise.all(
-    [
+  const [[gym], program, planned, fallbacks, options, equipment, absent, names, refs] =
+    await Promise.all([
       known
         ? Promise.resolve([known.gym])
         : db
@@ -346,8 +363,8 @@ export async function gymAvailability(
       known ? Promise.resolve(known.equipment) : gymEquipmentRefs(db, gymId),
       known ? Promise.resolve(known.absentEquipmentTypeIds) : absentTypeIds(db, gymId),
       equipmentTypeNames(db),
-    ],
-  );
+      referenceSets(db),
+    ]);
   if (!gym) return null;
   if (!program) return { gym, program: null, rows: [], summary: emptySummary() };
 
@@ -384,6 +401,7 @@ export async function gymAvailability(
       fallbacks: slotFallbacks.map(toFallbackRef),
       gymEquipment: equipment,
       absentEquipmentTypeIds: absent,
+      ...referenceInputs(refs, gym.kind),
     });
     summary[resolution.status] += 1;
     const resolvedExerciseName =
@@ -397,6 +415,7 @@ export async function gymAvailability(
       days: group.days,
       programExerciseIds: group.slots,
       resolution,
+      equipment: equipmentState(resolution),
       resolvedExerciseName,
       missingTypes:
         resolution.status === "unknown"
@@ -404,6 +423,10 @@ export async function gymAvailability(
               id,
               name: names.get(id) ?? "Unknown",
             }))
+          : [],
+      assumedTypes:
+        resolution.status === "direct" || resolution.status === "fallback"
+          ? resolution.assumedTypeIds.map((id) => ({ id, name: names.get(id) ?? "Unknown" }))
           : [],
       gymFallbacks: slotFallbacks
         .filter((f) => f.gymId === gym.id)
@@ -427,6 +450,7 @@ export async function gymAvailability(
 export type ExerciseGymAvailability = {
   gym: { id: string; name: string; kind: GymKind };
   resolution: Resolution;
+  equipment: EquipmentState;
   resolvedExerciseName: string;
   missingTypes: NamedType[];
   /** Active machines at the gym, for the "preferred machine" picker. */
@@ -443,7 +467,7 @@ export async function exerciseAvailability(
 ): Promise<ExerciseGymAvailability[]> {
   const slotIds = activeSlotIds(db, userId, exerciseId);
   const gymIds = activeRealGymIds(db, userId);
-  const [[exercise], gymRows, names, allFallbacks, options, allEquipment, allAbsent] =
+  const [[exercise], gymRows, names, allFallbacks, options, allEquipment, allAbsent, refs] =
     await Promise.all([
       knownExercise
         ? Promise.resolve([
@@ -474,6 +498,7 @@ export async function exerciseAvailability(
       optionRefs(db, [[exerciseId], fallbackExerciseIds(db, slotIds, gymIds)]),
       gymEquipmentRefs(db, gymIds),
       absentTypes(db, gymIds),
+      referenceSets(db),
     ]);
   if (!exercise || gymRows.length === 0) return [];
 
@@ -484,6 +509,7 @@ export async function exerciseAvailability(
     const absent = new Set(
       allAbsent.filter((e) => e.gymId === gym.id).map((e) => e.equipmentTypeId),
     );
+    const inputs = referenceInputs(refs, gym.kind);
     const resolution = resolveExerciseAtGym({
       exercise,
       gym: { id: gym.id, kind: gym.kind },
@@ -492,20 +518,19 @@ export async function exerciseAvailability(
       fallbacks: fallbacks.map(toFallbackRef),
       gymEquipment: equipment,
       absentEquipmentTypeIds: absent,
+      ...inputs,
     });
-    const machines = equipment
-      .filter(
-        (item) =>
-          item.isActive &&
-          options.some(
-            (option) =>
-              option.exerciseId === exercise.id &&
-              (option.equipmentInstanceId === item.id ||
-                option.equipmentTypeId === item.equipmentTypeId),
-          ),
-      )
-      .map((item) => ({ id: item.id, name: item.name }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+    const machines = compatibleMachines(
+      exercise,
+      inventoryAt(gym.id, equipment, {
+        absent,
+        assumed: inputs.assumedEquipmentTypeIds,
+        free: inputs.freeEquipmentTypeIds,
+      }),
+      inputs.requirements,
+      options,
+      inputs.modalityTypeIds,
+    ).map((item) => ({ id: item.id, name: item.name }));
     const preferred = options.find(
       (option) =>
         option.exerciseId === exercise.id &&
@@ -515,6 +540,7 @@ export async function exerciseAvailability(
     results.push({
       gym,
       resolution,
+      equipment: equipmentState(resolution),
       resolvedExerciseName:
         resolution.status === "fallback"
           ? (fallbacks.find((f) => f.exercise.id === resolution.exercise.id)?.exercise.name ??
@@ -557,6 +583,7 @@ type DecisionContext = {
   equipment: EquipmentInstanceRef[];
   absent: Set<string>;
   names: Map<string, string>;
+  refs: ReferenceSets;
 };
 
 function decide(
@@ -565,6 +592,7 @@ function decide(
   fallbacks: FallbackRow[],
   preferredEquipmentInstanceId: string | null,
 ): ExerciseDecision {
+  const inputs = referenceInputs(ctx.refs, ctx.gym.kind);
   const resolution = resolveExerciseAtGym({
     exercise,
     gym: { id: ctx.gym.id, kind: ctx.gym.kind },
@@ -573,38 +601,30 @@ function decide(
     fallbacks: fallbacks.map(toFallbackRef),
     gymEquipment: ctx.equipment,
     absentEquipmentTypeIds: ctx.absent,
+    ...inputs,
+  });
+  const inventory = inventoryAt(ctx.gym.id, ctx.equipment, {
+    absent: ctx.absent,
+    assumed: inputs.assumedEquipmentTypeIds,
+    free: inputs.freeEquipmentTypeIds,
   });
   const fallbackOptions: FallbackOption[] = fallbacks.map((f) => {
-    let instance: EquipmentInstanceRef | undefined;
-    let available = false;
-    if (f.fallbackEquipmentInstanceId) {
-      instance = ctx.equipment.find((i) => i.id === f.fallbackEquipmentInstanceId && i.isActive);
-      available = instance !== undefined;
-    } else if (f.fallbackEquipmentTypeId) {
-      instance = ctx.equipment
-        .filter((i) => i.isActive && i.equipmentTypeId === f.fallbackEquipmentTypeId)
-        .sort((a, b) => a.name.localeCompare(b.name))[0];
-      available = instance !== undefined;
-    } else {
-      const alone = resolveExerciseAtGym({
-        exercise: f.exercise,
-        gym: { id: ctx.gym.id, kind: ctx.gym.kind },
-        preferredEquipmentInstanceId: null,
-        options: ctx.options,
-        fallbacks: [],
-        gymEquipment: ctx.equipment,
-        absentEquipmentTypeIds: ctx.absent,
-      });
-      available = alone.status === "direct";
-      instance = alone.status === "direct" ? (alone.equipmentInstance ?? undefined) : undefined;
-    }
+    // The same rule the resolver uses, so "Use" is offered exactly when it would work.
+    const result = evaluateFallback(
+      toFallbackRef(f),
+      inventory,
+      inputs.requirements,
+      ctx.options,
+      inputs.modalityTypeIds,
+    );
+    const instance = result.state === "available" ? result.equipmentInstance : null;
     return {
       fallbackId: f.id,
       exerciseId: f.exercise.id,
       exerciseName: f.exercise.name,
       equipmentInstanceId: instance?.id ?? null,
       equipmentInstanceName: instance?.name ?? null,
-      available,
+      available: result.state === "available",
     };
   });
   return {
@@ -636,7 +656,7 @@ async function decisionContext(
   exerciseSources: readonly Ids[],
   known?: KnownGym,
 ): Promise<DecisionContext | null> {
-  const [gym, options, equipment, absent, names] = await Promise.all([
+  const [gym, options, equipment, absent, names, refs] = await Promise.all([
     known
       ? Promise.resolve(known)
       : db
@@ -649,9 +669,10 @@ async function decisionContext(
     gymEquipmentRefs(db, gymId),
     absentTypeIds(db, gymId),
     equipmentTypeNames(db),
+    referenceSets(db),
   ]);
   if (!gym) return null;
-  return { gym, options, equipment, absent, names } satisfies DecisionContext;
+  return { gym, options, equipment, absent, names, refs } satisfies DecisionContext;
 }
 
 export type PlannedDayResolution = {
@@ -751,14 +772,36 @@ export async function decideExerciseAtGym(
   return decide(ctx, exercise, fallbacks, null);
 }
 
-/** Reuse one gym context for every unresolved slot in a workout. */
+/**
+ * Whether a workout exercise with no machine attached still has something to settle (ADR 0041):
+ * anything unknown, absent or met by a fallback; a registered machine the exercise's history
+ * belongs on; and a basic machine nobody has confirmed, asked once on first use. Free weights,
+ * benches and bars, and anything needing no equipment, are never asked about.
+ */
+export function needsDecision(
+  resolution: Resolution,
+  loadPortability: LoadPortability,
+  categoryById: ReadonlyMap<string, string>,
+): boolean {
+  if (resolution.status !== "direct") return true;
+  if (resolution.basis === "free") return false;
+  if (loadPortability === "global") return false;
+  if (resolution.basis === "confirmed") return resolution.equipmentInstance !== null;
+  const category = resolution.primaryTypeId ? categoryById.get(resolution.primaryTypeId) : null;
+  return category === "machine" || category === "cable";
+}
+
+/**
+ * Reuse one gym context for every workout exercise without a machine, and return a decision only
+ * for those that still have something to settle.
+ */
 export async function decideExercisesAtGym(
   db: DbOrTx,
   userId: string,
   gymId: string,
   slots: {
     id: string;
-    exercise: ExerciseRef & { name: string };
+    exercise: ExerciseRef & { name: string; loadPortability: LoadPortability };
     programExerciseId: string | null;
   }[],
   gym?: KnownGym,
@@ -779,15 +822,16 @@ export async function decideExercisesAtGym(
     ),
   ]);
   if (!ctx) return new Map();
-  return new Map(
-    slots.map((slot) => [
-      slot.id,
-      decide(
-        ctx,
-        slot.exercise,
-        fallbacks.filter((f) => f.programExerciseId === slot.programExerciseId),
-        null,
-      ),
-    ]),
-  );
+  const decisions = new Map<string, ExerciseDecision>();
+  for (const slot of slots) {
+    const decision = decide(
+      ctx,
+      slot.exercise,
+      fallbacks.filter((f) => f.programExerciseId === slot.programExerciseId),
+      null,
+    );
+    if (needsDecision(decision.resolution, slot.exercise.loadPortability, ctx.refs.categoryById))
+      decisions.set(slot.id, decision);
+  }
+  return decisions;
 }

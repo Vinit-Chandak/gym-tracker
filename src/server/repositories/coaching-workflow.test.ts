@@ -428,7 +428,7 @@ it.each(["bodyweight-squat", "goblet-squat"])(
   },
 );
 
-it("honors a default home alongside gyms and exposes unavailable slots for substitution", async () => {
+it("honors a default home alongside gyms and exposes unanswered slots for the workout to settle", async () => {
   const a = await athlete("home");
   await as(a, (tx) =>
     tx.insert(gyms).values({ userId: a.user.id, name: "Another gym", slug: "another-gym" }),
@@ -448,7 +448,8 @@ it("honors a default home alongside gyms and exposes unavailable slots for subst
   if (ctx.reason !== null) throw new Error("Missing home planning context");
   expect(ctx.gym.id).toBe(a.gym.id);
   expect(ctx.exercises[0]!.slotId).toBeTruthy();
-  expect(ctx.exercises[0]!.atThisGym.status).toBe("unavailable");
+  // Nothing is assumed at home, and what nobody has answered for there is unknown (S2).
+  expect(ctx.exercises[0]!.atThisGym.status).toBe("unknown");
   await as(a, (tx) => tx.update(gyms).set({ isActive: false }).where(eq(gyms.id, a.gym.id)));
   expect(await as(a, (tx) => planningContext(tx, a.user.id, { gymId: a.gym.id }))).toEqual({
     reason: "no_gym",

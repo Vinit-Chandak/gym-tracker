@@ -1,11 +1,21 @@
-import { and, asc, desc, eq, isNull, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
 
 import { isUniqueViolation } from "@/db/errors";
-import { equipmentInstances, equipmentTypes, exerciseEquipmentOptions, gyms } from "@/db/schema";
+import {
+  equipmentInstances,
+  equipmentInstanceTypes,
+  equipmentTypes,
+  exerciseEquipmentOptions,
+  exercises,
+  gymAbsentEquipmentTypes,
+  gyms,
+} from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
-import { sharedEquipmentTypes } from "@/server/queries/reference";
+import { compatibleMachines, inventoryAt } from "@/domain/equipment-resolution";
+import { sharedEquipmentTypes, sharedExercises } from "@/server/queries/reference";
 import type { EquipmentInput } from "@/server/validation/gyms";
 
+import { instanceTypeIds, referenceInputs, referenceSets } from "./equipment-context";
 import { getGym } from "./gyms";
 
 export type EquipmentTypeOption = {
@@ -41,6 +51,8 @@ export type EquipmentListItem = {
   typeId: string;
   typeName: string;
   typeCategory: typeof equipmentTypes.$inferSelect.category;
+  /** Every type the machine is, its display type included. */
+  typeIds: string[];
 };
 
 /** Equipment at one gym: active first, then by name. */
@@ -62,6 +74,7 @@ export async function listEquipmentForGym(
       typeId: equipmentTypes.id,
       typeName: equipmentTypes.name,
       typeCategory: equipmentTypes.category,
+      typeIds: instanceTypeIds,
     })
     .from(equipmentInstances)
     .innerJoin(equipmentTypes, eq(equipmentTypes.id, equipmentInstances.equipmentTypeId))
@@ -72,43 +85,85 @@ export async function listEquipmentForGym(
 /**
  * Which of a gym's active machines each exercise can actually be done on.
  *
- * One statement for the whole catalogue rather than a lookup per exercise: the pickers use
- * it to decide whether a machine question is worth asking at all. An exercise with exactly
- * one option does not need a picker, and one with none should not be offered a list of
- * machines it cannot use.
+ * One read of the gym's machines for the whole catalogue rather than a lookup per exercise:
+ * the pickers use it to decide whether a machine question is worth asking at all. An exercise
+ * with exactly one option does not need a picker, and one with none should not be offered a
+ * list of machines it cannot use. A machine is offered for the primary type of an alternative
+ * nothing absent rules out (ADR 0041), so a bench that only supports a Smith hip thrust is
+ * never its machine, and a combination machine counts for each of its types.
  */
 export async function machinesByExerciseAtGym(
   db: DbOrTx,
   userId: string,
   gymId: string,
 ): Promise<Record<string, string[]>> {
-  const rows = await db
-    .selectDistinct({
-      exerciseId: exerciseEquipmentOptions.exerciseId,
-      equipmentInstanceId: equipmentInstances.id,
-    })
-    .from(exerciseEquipmentOptions)
-    .innerJoin(
-      equipmentInstances,
-      or(
-        eq(exerciseEquipmentOptions.equipmentInstanceId, equipmentInstances.id),
-        eq(exerciseEquipmentOptions.equipmentTypeId, equipmentInstances.equipmentTypeId),
+  const [[gym], machines, absentRows, ownOptions, ownExercises, shared, refs] = await Promise.all([
+    db
+      .select({ kind: gyms.kind })
+      .from(gyms)
+      .where(and(eq(gyms.id, gymId), eq(gyms.userId, userId)))
+      .limit(1),
+    db
+      .select({
+        id: equipmentInstances.id,
+        gymId: equipmentInstances.gymId,
+        equipmentTypeId: equipmentInstances.equipmentTypeId,
+        name: equipmentInstances.name,
+        isActive: equipmentInstances.isActive,
+        typeIds: instanceTypeIds,
+      })
+      .from(equipmentInstances)
+      .where(
+        and(
+          eq(equipmentInstances.gymId, gymId),
+          eq(equipmentInstances.userId, userId),
+          eq(equipmentInstances.isActive, true),
+        ),
       ),
-    )
-    .where(
-      and(
-        eq(equipmentInstances.gymId, gymId),
-        eq(equipmentInstances.userId, userId),
-        eq(equipmentInstances.isActive, true),
-        // Shared catalogue options plus this account's own; never another account's.
-        or(isNull(exerciseEquipmentOptions.userId), eq(exerciseEquipmentOptions.userId, userId)),
+    db
+      .select({ equipmentTypeId: gymAbsentEquipmentTypes.equipmentTypeId })
+      .from(gymAbsentEquipmentTypes)
+      .where(
+        and(eq(gymAbsentEquipmentTypes.gymId, gymId), eq(gymAbsentEquipmentTypes.userId, userId)),
       ),
-    );
+    // This account's own instance-level rows: preferred machines and custom exercises' machines.
+    db
+      .select({
+        exerciseId: exerciseEquipmentOptions.exerciseId,
+        equipmentTypeId: exerciseEquipmentOptions.equipmentTypeId,
+        equipmentInstanceId: exerciseEquipmentOptions.equipmentInstanceId,
+        preferenceRank: exerciseEquipmentOptions.preferenceRank,
+      })
+      .from(exerciseEquipmentOptions)
+      .where(eq(exerciseEquipmentOptions.userId, userId)),
+    db
+      .select({
+        id: exercises.id,
+        modality: exercises.modality,
+        requiresEquipment: exercises.requiresEquipment,
+      })
+      .from(exercises)
+      .where(eq(exercises.userId, userId)),
+    sharedExercises(db),
+    referenceSets(db),
+  ]);
+  if (!gym || machines.length === 0) return {};
+  const inputs = referenceInputs(refs, gym.kind);
+  const inventory = inventoryAt(gymId, machines, {
+    absent: new Set(absentRows.map((row) => row.equipmentTypeId)),
+    assumed: inputs.assumedEquipmentTypeIds,
+    free: inputs.freeEquipmentTypeIds,
+  });
   const byExercise: Record<string, string[]> = {};
-  for (const row of rows) {
-    const list = byExercise[row.exerciseId];
-    if (list) list.push(row.equipmentInstanceId);
-    else byExercise[row.exerciseId] = [row.equipmentInstanceId];
+  for (const exercise of [...shared, ...ownExercises]) {
+    const compatible = compatibleMachines(
+      exercise,
+      inventory,
+      inputs.requirements,
+      ownOptions,
+      inputs.modalityTypeIds,
+    );
+    if (compatible.length > 0) byExercise[exercise.id] = compatible.map((machine) => machine.id);
   }
   return byExercise;
 }
@@ -191,11 +246,51 @@ function toColumns(input: EquipmentInput) {
   };
 }
 
+/**
+ * A machine is here, so none of its types is absent any more (ADR 0041). Registering, restoring
+ * or extending a machine calls this in the same transaction, so presence and absence never
+ * disagree for long enough to be read.
+ */
+export async function clearAbsences(
+  db: DbOrTx,
+  userId: string,
+  gymId: string,
+  equipmentTypeIds: readonly string[],
+): Promise<void> {
+  if (equipmentTypeIds.length === 0) return;
+  await db
+    .delete(gymAbsentEquipmentTypes)
+    .where(
+      and(
+        eq(gymAbsentEquipmentTypes.userId, userId),
+        eq(gymAbsentEquipmentTypes.gymId, gymId),
+        inArray(gymAbsentEquipmentTypes.equipmentTypeId, [...equipmentTypeIds]),
+      ),
+    );
+}
+
+/** Every type a machine is, its display type first. */
+export async function machineTypeIds(
+  db: DbOrTx,
+  userId: string,
+  equipmentId: string,
+): Promise<string[]> {
+  const [machine] = await db
+    .select({ typeId: equipmentInstances.equipmentTypeId, typeIds: instanceTypeIds })
+    .from(equipmentInstances)
+    .where(and(eq(equipmentInstances.id, equipmentId), eq(equipmentInstances.userId, userId)))
+    .limit(1);
+  if (!machine) return [];
+  return [machine.typeId, ...machine.typeIds.filter((id) => id !== machine.typeId)];
+}
+
 export async function createEquipment(
   db: DbOrTx,
   userId: string,
   gymId: string,
   input: EquipmentInput,
+  /** More types the machine is, beyond its display type: a combination machine's other halves. */
+  alsoTypeIds: readonly string[] = [],
 ): Promise<typeof equipmentInstances.$inferSelect> {
   const gym = await getGym(db, userId, gymId);
   if (!gym) throw new GymNotFoundError();
@@ -206,11 +301,74 @@ export async function createEquipment(
       .values({ userId, gymId, ...toColumns(input) })
       .returning();
     if (!row) throw new Error("Equipment insert returned no row");
+    // The display type's row is the trigger's; the others are written here.
+    const extra = alsoTypeIds.filter((id) => id !== row.equipmentTypeId);
+    if (extra.length > 0)
+      await db
+        .insert(equipmentInstanceTypes)
+        .values(
+          extra.map((equipmentTypeId) => ({
+            equipmentInstanceId: row.id,
+            equipmentTypeId,
+            userId,
+          })),
+        )
+        .onConflictDoNothing();
+    await clearAbsences(db, userId, gymId, [row.equipmentTypeId, ...extra]);
     return row;
   } catch (error) {
     if (isUniqueViolation(error)) throw new EquipmentNameTakenError(input.name);
     throw error;
   }
+}
+
+export class DisplayTypeError extends Error {
+  constructor() {
+    super("A machine always keeps the type it was registered as. Change it from Edit instead.");
+    this.name = "DisplayTypeError";
+  }
+}
+
+/**
+ * "Also used for": the machine does the work of another type too (a lat pulldown with a low
+ * row). Its history is untouched, since history is keyed on the machine, never on a type.
+ */
+export async function setMachineAlsoUsedFor(
+  db: DbOrTx,
+  userId: string,
+  equipmentId: string,
+  equipmentTypeId: string,
+  on: boolean,
+): Promise<boolean> {
+  const [machine] = await db
+    .select({
+      gymId: equipmentInstances.gymId,
+      typeId: equipmentInstances.equipmentTypeId,
+      isActive: equipmentInstances.isActive,
+    })
+    .from(equipmentInstances)
+    .where(and(eq(equipmentInstances.id, equipmentId), eq(equipmentInstances.userId, userId)))
+    .limit(1);
+  if (!machine) return false;
+  if (equipmentTypeId === machine.typeId) throw new DisplayTypeError();
+  if (on) {
+    await db
+      .insert(equipmentInstanceTypes)
+      .values({ equipmentInstanceId: equipmentId, equipmentTypeId, userId })
+      .onConflictDoNothing();
+    if (machine.isActive) await clearAbsences(db, userId, machine.gymId, [equipmentTypeId]);
+  } else {
+    await db
+      .delete(equipmentInstanceTypes)
+      .where(
+        and(
+          eq(equipmentInstanceTypes.equipmentInstanceId, equipmentId),
+          eq(equipmentInstanceTypes.equipmentTypeId, equipmentTypeId),
+          eq(equipmentInstanceTypes.userId, userId),
+        ),
+      );
+  }
+  return true;
 }
 
 export async function updateEquipment(
@@ -228,6 +386,7 @@ export async function updateEquipment(
       .set(toColumns(input))
       .where(and(eq(equipmentInstances.id, equipmentId), eq(equipmentInstances.userId, userId)))
       .returning();
+    if (row?.isActive) await clearAbsences(db, userId, row.gymId, [row.equipmentTypeId]);
     return row ?? null;
   } catch (error) {
     if (isUniqueViolation(error)) throw new EquipmentNameTakenError(input.name);
@@ -235,7 +394,10 @@ export async function updateEquipment(
   }
 }
 
-/** Archives or restores a machine. Set logs that reference it are never touched. */
+/**
+ * Archives or restores a machine. Set logs that reference it are never touched. A restored
+ * machine is here again, so its types stop being absent.
+ */
 export async function setEquipmentActive(
   db: DbOrTx,
   userId: string,
@@ -246,6 +408,8 @@ export async function setEquipmentActive(
     .update(equipmentInstances)
     .set({ isActive })
     .where(and(eq(equipmentInstances.id, equipmentId), eq(equipmentInstances.userId, userId)))
-    .returning({ id: equipmentInstances.id });
+    .returning({ id: equipmentInstances.id, gymId: equipmentInstances.gymId });
+  if (row && isActive)
+    await clearAbsences(db, userId, row.gymId, await machineTypeIds(db, userId, equipmentId));
   return row !== undefined;
 }

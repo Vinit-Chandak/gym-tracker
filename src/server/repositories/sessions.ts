@@ -413,8 +413,6 @@ export type SessionDetail = {
   exercises: SessionExercise[];
 };
 
-const UBIQUITOUS = new Set(["barbell", "dumbbell", "bodyweight", "mobility"]);
-
 /** Small read for check-in and pickers; never loads progression or previous workouts. */
 export async function getSessionRecord(db: DbOrTx, userId: string, sessionId: string) {
   const [row] = await db
@@ -551,14 +549,11 @@ export async function getSessionDetail(
   );
   const planAdditions = (coachPlan?.exercises ?? []).filter((e) => e.slotId === null);
 
+  // What the gym is assumed to have is the resolver's to say (ADR 0041): every exercise that
+  // needs equipment and has no machine is asked about, and only those with something to settle
+  // come back with a decision.
   const unresolved = includeGuidance
-    ? rows.filter(
-        (row) =>
-          row.exercise.requiresEquipment &&
-          !row.equipment &&
-          !row.we.skippedAt &&
-          !(session.gym.kind === "gym" && UBIQUITOUS.has(row.exercise.modality)),
-      )
+    ? rows.filter((row) => row.exercise.requiresEquipment && !row.equipment && !row.we.skippedAt)
     : [];
   // History and machine decisions depend on the slots but not on each other.
   const [histories, decisions, coachingChanges, ladders] = await Promise.all([
