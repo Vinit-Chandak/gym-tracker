@@ -5,8 +5,8 @@
   <rect x="60" y="2" width="10" height="81" rx="3"/>
   <circle cx="65" cy="9" r="2.6"/>
   <circle cx="65" cy="9" r="1" fill="currentColor" stroke="none"/>
-  <line x1="60" y1="15" x2="50.5" y2="35"/>
-  <line x1="60" y1="15" x2="56.5" y2="41"/>
-  <rect x="48.5" y="35" width="3" height="9" rx="1.5"/>
-  <rect x="54.7" y="41" width="3" height="9" rx="1.5"/>
+  <line x1="60" y1="11.5" x2="54" y2="18"/>
+  <rect x="52.5" y="18" width="3" height="9" rx="1.5"/>
+  <line x1="60" y1="11.5" x2="45" y2="35"/>
+  <rect x="43.5" y="35" width="3" height="9" rx="1.5"/>
 </svg>

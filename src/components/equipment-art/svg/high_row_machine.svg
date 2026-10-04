@@ -6,7 +6,8 @@
   <circle cx="48.5" cy="50" r="1" fill="currentColor" stroke="none"/>
   <line x1="48.5" y1="53.5" x2="48.5" y2="83"/>
   <line x1="80.5" y1="83" x2="80.5" y2="24.5"/>
-  <path d="M52.5 12L80.5 22L88.5 36"/>
+  <line x1="52.5" y1="12" x2="78.1" y2="21.2"/>
+  <line x1="81.7" y1="24.2" x2="88.5" y2="36"/>
   <circle cx="80.5" cy="22" r="2.5"/>
   <circle cx="80.5" cy="22" r="1" fill="currentColor" stroke="none"/>
   <rect x="51" y="12" width="3" height="9" rx="1.5"/>
