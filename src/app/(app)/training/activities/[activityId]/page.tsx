@@ -129,13 +129,7 @@ export default async function ActivityPage(props: PageProps<"/training/activitie
           <figure className="activity-print">
             <Art
               kind="print"
-              parts={[
-                {
-                  kind: PRINT[sport],
-                  minutes: activity.durationMs === null ? undefined : activity.durationMs / 60_000,
-                  state: "done",
-                },
-              ]}
+              parts={[{ kind: PRINT[sport], state: "done" }]}
               label={`The ${NOUN[sport]}, in full ink`}
               className="size-full"
             />

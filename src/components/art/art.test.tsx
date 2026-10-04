@@ -25,20 +25,18 @@ it("names a print by what it shows, and paints it with the palette's tokens", ()
   const { container } = render(
     <Art
       kind="print"
-      label="Today’s print: the run’s track, then four arm exercises"
-      parts={[
-        { kind: "run", minutes: 30 },
-        { kind: "strength", columns: [{ sets: 3, done: 1 }] },
-      ]}
+      label="Today’s print: the runner, then four arm exercises"
+      parts={[{ kind: "run" }, { kind: "strength", columns: [{ sets: 3, done: 1 }] }]}
     />,
   );
-  expect(screen.getByRole("img", { name: /the run’s track/ })).toBeTruthy();
-  const fills = [...container.querySelectorAll("rect, path")].map(
-    (node) => (node as SVGElement).style.fill,
-  );
-  expect(fills).toContain("var(--ov-print-strength)");
-  expect(fills).toContain("var(--ov-print-strength-todo)");
-  expect(fills).toContain("var(--ov-print-run-todo)");
+  expect(screen.getByRole("img", { name: /the runner/ })).toBeTruthy();
+  const paints = [...container.querySelectorAll("rect, path, circle")].flatMap((node) => [
+    (node as SVGElement).style.fill,
+    (node as SVGElement).style.stroke,
+  ]);
+  expect(paints).toContain("var(--ov-print-strength)");
+  expect(paints).toContain("var(--ov-print-strength-todo)");
+  expect(paints).toContain("var(--ov-print-run-todo)");
   // no colour is written into the drawing itself: the paper and its ink come from CSS
   expect(container.innerHTML).not.toMatch(/#[0-9a-f]{6}/i);
 });
@@ -51,12 +49,21 @@ it("keeps an unnamed mark out of the accessibility tree, and names it when asked
 });
 
 it("cuts a mark on the ground out of the ground, and a print's out of the paper", () => {
-  const { container, rerender } = render(<Art kind="mark" sport="run" />);
+  const { container, rerender } = render(<Art kind="mark" sport="run" state="skipped" />);
   const strokes = () =>
     [...container.querySelectorAll("path")].map((node) => (node as SVGElement).style.stroke);
   expect(strokes()).toContain("var(--ov-ground)");
-  rerender(<Art kind="mark" sport="run" surface="paper" />);
+  rerender(<Art kind="mark" sport="run" state="skipped" surface="paper" />);
   expect(strokes()).toContain("var(--ov-paper)");
+});
+
+it("keeps a calendar icon out of the accessibility tree: the count beside it names it", () => {
+  const { container } = render(<Art kind="icon" sport="strength" />);
+  const svg = container.querySelector("svg");
+  expect(svg?.getAttribute("aria-hidden")).toBe("true");
+  expect(svg?.getAttribute("width")).toBe("16");
+  // the dumbbell: its bar, and its four plates with round corners
+  expect(container.querySelectorAll("rect[rx]")).toHaveLength(4);
 });
 
 it("fills the bowl meal by meal and heaps it only past the target", () => {
@@ -98,7 +105,43 @@ it("draws a month: past days named and opened, today ringed, days to come blank"
   expect(within(month).getAllByRole("img")).toHaveLength(28);
 });
 
+it("gives each day a tile: paler with nothing in it, an outline still to come", () => {
+  const { container } = render(
+    <Art
+      kind="month"
+      month="2026-09"
+      today={29}
+      days={{ 25: [{ sport: "run", said: "run 5 km" }] }}
+    />,
+  );
+  const tile = (name: RegExp) => screen.getByRole("img", { name });
+  expect(tile(/^Fri 25 Sept/).className).not.toContain("month-day-rest");
+  expect(tile(/^Thu 24 Sept/).className).toContain("month-day-rest");
+  expect(tile(/today/).className).toContain("month-day-today");
+  expect(container.querySelectorAll(".month-day-future")).toHaveLength(1);
+});
+
 it("adds each date in its corner on the calendar page", () => {
   const { container } = render(<Art kind="month" month="2026-08" days={{}} dates today={null} />);
   expect(container.textContent).toContain("31");
+});
+
+it("ends this month at this week, and draws a month gone by whole", () => {
+  // Sun 4 October 2026 ends the month's first week.
+  const month = (today: number | null) =>
+    render(
+      <Art
+        kind="month"
+        month="2026-10"
+        today={today}
+        days={{ 4: [{ sport: "strength", said: "lifting 60 min" }] }}
+        dates
+      />,
+    );
+  month(4);
+  expect(screen.getAllByRole("img")).toHaveLength(4);
+  expect(screen.queryByText("5")).toBeNull();
+  cleanup();
+  month(null);
+  expect(screen.getAllByRole("img")).toHaveLength(31);
 });

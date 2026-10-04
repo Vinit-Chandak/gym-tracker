@@ -60,12 +60,3 @@ export function enduranceNote(prescription: EndurancePrescription | null): strin
     null
   );
 }
-
-/** A session's time, for the length of its run's track: the most it asks for. */
-export function enduranceMinutes(prescription: EndurancePrescription | null): number | undefined {
-  if (!prescription) return undefined;
-  const asked = prescription.sessionTargets.durationMs?.[1];
-  if (asked) return minutes(asked);
-  const total = prescriptionTotals(prescription).durationMs;
-  return total ? minutes(total) : undefined;
-}

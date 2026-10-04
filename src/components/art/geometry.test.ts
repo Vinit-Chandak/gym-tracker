@@ -3,20 +3,23 @@ import { describe, expect, it } from "vitest";
 import {
   bowlFigure,
   bowlPrint,
-  dayMarks,
+  calendarIcon,
+  dayIcons,
   dayPrint,
+  f1,
   familyOf,
   form,
   GAPS,
   heapHeight,
   levelFor,
   monthCells,
-  trackModules,
   type PrintPart,
   type Shape,
 } from "./geometry";
 
 type Rect = Extract<Shape, { kind: "rect" }>;
+type Path = Extract<Shape, { kind: "path" }>;
+type Circle = Extract<Shape, { kind: "circle" }>;
 
 /** The list's item at `i`, which the test expects to be there. */
 function at<T>(list: readonly T[], i: number): T {
@@ -50,9 +53,9 @@ function points(d: string): { xs: number[]; ys: number[] } {
   return { xs, ys };
 }
 
-/** The composition the Today board draws: a 30-minute run, then four arm exercises. */
+/** The composition the Today board draws: a run, then four arm exercises. */
 const TODAY: PrintPart[] = [
-  { kind: "run", minutes: 30 },
+  { kind: "run" },
   {
     kind: "strength",
     columns: [
@@ -72,12 +75,14 @@ describe("the grammar", () => {
     expect(familyOf("swim")).toBe("swim");
   });
 
-  it("grows a run's track a module for every 20 minutes, from 1.8 to 5 modules", () => {
-    expect(trackModules(20)).toBe(2);
-    expect(trackModules(30)).toBe(2.5);
-    expect(trackModules(60)).toBe(4);
-    expect(trackModules(5)).toBe(1.8);
-    expect(trackModules(300)).toBe(5);
+  it("draws a run as a runner, one drawing scaled to its box", () => {
+    const small = form("run", 0, 0, 24, 24);
+    expect(small.map((s) => s.kind)).toEqual(["path", "circle"]);
+    const large = form("run", 0, 0, 48, 48);
+    const line = (shapes: Shape[]) => at(shapes, 0) as Path;
+    const head = (shapes: Shape[]) => at(shapes, 1) as Circle;
+    expect(line(large).strokeWidth).toBeCloseTo(2 * line(small).strokeWidth!, 1);
+    expect(head(large).r).toBeCloseTo(2 * head(small).r, 1);
   });
 });
 
@@ -115,12 +120,32 @@ describe("a form's state", () => {
     ]);
   });
 
+  it("thins a runner to do inside an edge of its pigment, and leaves paper inside when skipped", () => {
+    const todo = form("run", 0, 0, 24, 24, { state: "todo" }) as Path[];
+    expect(todo.slice(0, 2)).toMatchObject([
+      { stroke: "run", strokeWidth: 3.9 },
+      { stroke: "run-todo", strokeWidth: 2.1 },
+    ]);
+    const skipped = form("run", 0, 0, 24, 24, { state: "skipped" });
+    expect(skipped.slice(0, 2)).toMatchObject([
+      { stroke: "run", dash: [1.4, 1.1] },
+      { stroke: "cut" },
+    ]);
+  });
+
   it("makes a sport's cut out of whatever the form stands on", () => {
-    const walk = form("walk", 0, 0, 40, 22);
-    const run = form("run", 0, 0, 40, 22);
-    expect(walk.length).toBe(run.length + 1);
-    expect(walk.at(-1)).toMatchObject({ stroke: "cut" });
+    const spin = form("spin", 0, 0, 40, 40);
+    const ride = form("ride", 0, 0, 40, 40);
+    expect(spin.length).toBe(ride.length + 1);
+    expect(spin.at(-1)).toMatchObject({ stroke: "cut" });
     expect(form("racket", 0, 0, 30, 30).at(-1)).toMatchObject({ kind: "circle", fill: "cut" });
+  });
+
+  it("prints walking and hiking as the runner until they are drawn", () => {
+    expect(form("walk", 0, 0, 24, 24)).toEqual(form("run", 0, 0, 24, 24));
+    expect(form("hike", 0, 0, 24, 24, { state: "todo" })).toEqual(
+      form("run", 0, 0, 24, 24, { state: "todo" }),
+    );
   });
 
   it("stands on the bottom of its box", () => {
@@ -128,6 +153,13 @@ describe("a form's state", () => {
     expect(block.y + block.height).toBeCloseTo(50, 1);
     const ring = at(form("ride", 10, 20, 30, 30) as Extract<Shape, { kind: "circle" }>[], 0);
     expect(ring.cy + 15).toBeCloseTo(50, 1);
+    // the runner's front foot, at its widest line, ends on the bottom edge
+    for (const state of ["todo", "done", "skipped"] as const) {
+      const line = at(form("run", 10, 20, 30, 30, { state }), 0) as Path;
+      expect(Math.max(...points(line.d).ys) + line.strokeWidth! / 2).toBeLessThanOrEqual(50.1);
+    }
+    const widest = at(form("run", 10, 20, 30, 30, { state: "todo" }), 0) as Path;
+    expect(Math.max(...points(widest.d).ys) + widest.strokeWidth! / 2).toBeCloseTo(50, 0);
   });
 });
 
@@ -192,20 +224,29 @@ describe("the day's print", () => {
     expect(narrow.module).toBeLessThan(dayPrint({ width: 362, height: 214, parts: TODAY }).module);
   });
 
-  it("makes a run's track a module tall and as long as its time", () => {
+  it("stands a runner two modules tall, however tall the columns beside it", () => {
     const u = 20;
-    const day = dayPrint({
+    const side = (2 + GAPS.set) * u;
+    const alone = dayPrint({
       width: 400,
       height: 120,
       module: u,
-      parts: [{ kind: "run", minutes: 40, state: "done" }],
+      parts: [{ kind: "run", state: "done" }],
     });
-    const track = day.shapes[0] as Extract<Shape, { kind: "path" }>;
-    const { xs, ys } = points(track.d);
-    // A stadium: its straight edges span the length less its two round ends, its height is u.
-    expect(Math.max(...ys) - Math.min(...ys)).toBeCloseTo(u, 1);
-    expect(Math.max(...xs) - Math.min(...xs) + u).toBeCloseTo(trackModules(40) * u, 1);
-    expect(day.right - day.left).toBeCloseTo(trackModules(40) * u, 6);
+    expect(alone.right - alone.left).toBeCloseTo(side, 6);
+    expect(alone.baseline - alone.top).toBeCloseTo(side, 6);
+    const beside = dayPrint({
+      width: 600,
+      height: 200,
+      module: u,
+      parts: [
+        { kind: "run", state: "done" },
+        { kind: "strength", columns: [{ sets: 5, done: 5 }] },
+      ],
+    });
+    expect(beside.right - beside.left).toBeCloseTo(side + u + u, 6);
+    const head = at(beside.shapes, 1) as Circle;
+    expect(head.cy - head.r).toBeGreaterThan(beside.baseline - side);
   });
 
   it("stands each part a whole module apart, in the rows' order, without overlapping", () => {
@@ -215,13 +256,13 @@ describe("the day's print", () => {
       height: 160,
       module: u,
       parts: [
-        { kind: "run", minutes: 30, state: "done" },
+        { kind: "run", state: "done" },
         { kind: "strength", columns: [{ sets: 3, done: 3 }] },
       ],
     });
     const blocks = rects(day.shapes).filter((r) => r.fill === "strength");
-    const trackEnd = day.left + trackModules(30) * u;
-    expect(Math.min(...blocks.map((b) => b.x)) - trackEnd).toBeCloseTo(u, 0);
+    const runnerEnd = day.left + (2 + GAPS.set) * u;
+    expect(Math.min(...blocks.map((b) => b.x)) - runnerEnd).toBeCloseTo(u, 0);
   });
 
   it("greys a column's warm-ups at its foot, and dashes a skipped exercise", () => {
@@ -328,19 +369,64 @@ describe("the month", () => {
     expect(cells.filter((c) => c !== null)).toEqual(Array.from({ length: 30 }, (_, i) => i + 1));
   });
 
-  it("stands one mark at 40% of the cell, two side by side, and says +N past four", () => {
-    const one = dayMarks(["strength"], 48, 50);
-    expect(at(rects(one), 0).width).toBeCloseTo(20, 0);
-    const two = rects(dayMarks(["strength", "strength"], 48, 50));
-    expect(at(two, 0).y).toBe(at(two, 1).y);
-    expect(at(two, 0).x).toBeLessThan(at(two, 1).x);
-    const five = dayMarks(["run", "swim", "strength", "ride", "strength"], 48, 50);
+  it("draws each sport's icon in its own pigment, and tells them apart by shape", () => {
+    const sports = ["strength", "run", "ride", "swim"] as const;
+    for (const sport of sports)
+      for (const shape of calendarIcon(sport, 0, 0, 24)) {
+        if ("fill" in shape && shape.fill !== "none") expect(shape.fill).toBe(sport);
+        if ("stroke" in shape && shape.stroke) expect(shape.stroke).toBe(sport);
+      }
+    const outline = (sport: (typeof sports)[number]) =>
+      calendarIcon(sport, 0, 0, 24)
+        .map((shape) => shape.kind)
+        .join(" ");
+    expect(new Set(sports.map(outline)).size).toBe(sports.length);
+    // the runner is the run's own form, wherever it is drawn
+    expect(calendarIcon("run", 0, 0, 24)).toEqual(form("run", 0, 0, 24, 24));
+  });
+
+  it("stands one icon in the middle, two side by side, three or four in two rows of two", () => {
+    // Each dumbbell's bar runs through its middle, so it gives where the icon stands.
+    const middles = (shapes: Shape[]) =>
+      shapes
+        .filter((s): s is Path => s.kind === "path")
+        .map((bar) => {
+          const { xs, ys } = points(bar.d);
+          return [f1((at(xs, 0) + at(xs, 1)) / 2), at(ys, 0)];
+        });
+    const lifts = (n: number) =>
+      dayIcons(
+        Array.from({ length: n }, () => "strength" as const),
+        17.5,
+        17.5,
+      );
+    expect(middles(lifts(1))).toEqual([[17.5, 17.5]]);
+    // 16 pt icons, 3 apart
+    expect(middles(lifts(2))).toEqual([
+      [8, 17.5],
+      [27, 17.5],
+    ]);
+    expect(middles(lifts(3))).toEqual([
+      [8, 8],
+      [27, 8],
+      [17.5, 27],
+    ]);
+    expect(middles(lifts(4))).toEqual([
+      [8, 8],
+      [27, 8],
+      [8, 27],
+      [27, 27],
+    ]);
+  });
+
+  it("says +N past four, in the fourth icon's place", () => {
+    const five = dayIcons(["run", "swim", "strength", "ride", "strength"], 17.5, 17.5);
     expect(five.filter((s) => s.kind === "text")).toEqual([
-      expect.objectContaining({ text: "+2" }),
+      { kind: "text", x: 27, y: 31, text: "+2" },
     ]);
   });
 
   it("draws nothing for a day with nothing in it", () => {
-    expect(dayMarks([], 48, 50)).toEqual([]);
+    expect(dayIcons([], 17.5, 17.5)).toEqual([]);
   });
 });

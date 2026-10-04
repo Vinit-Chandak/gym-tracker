@@ -1,5 +1,5 @@
 import type { Route } from "next";
-import { useId } from "react";
+import { useId, type CSSProperties } from "react";
 
 import Link from "@/components/ui/app-link";
 import { formatIsoWeekdayDay } from "@/lib/format";
@@ -8,8 +8,10 @@ import { cn } from "@/lib/utils";
 import { DayPrint, Grain } from "./day-print";
 import {
   bowlPrint,
-  dayMarks,
+  calendarIcon,
+  dayIcons,
   form,
+  ICON,
   monthCells,
   type BowlMeal,
   type FormState,
@@ -62,15 +64,26 @@ export type ArtProps =
       rimWidth?: number;
     }
   | {
-      /** A month on paper: the weekdays across the top, a dot for an empty day, a mark each. */
+      /** A sport's icon on the calendar, and beside a count, the month's key to it. */
+      kind: "icon";
+      sport: Sport;
+      size?: number;
+      className?: string;
+    }
+  | {
+      /** A month: the weekdays across the top, a tile of paper for each day, an icon each. */
       kind: "month";
       /** "2026-09". */
       month: string;
       days: Readonly<Record<number, readonly CalendarEntry[]>>;
-      /** Today's day of this month, ringed; the days after it are blank and are not links. */
+      /**
+       * Today's day of this month, ringed. The month ends at its week: the days after it in
+       * that week are outlines and are not links, and the weeks still to come get no rows.
+       */
       today?: number | null;
-      /** The calendar page's dates, small, in each cell's corner. */
+      /** The calendar page's dates, small, in each tile's corner. */
       dates?: boolean;
+      /** Each tile's height: a day is a link, so never under a target. */
       cellHeight?: number;
       /** Where each past day opens, when it can. */
       links?: Readonly<Record<number, Route>>;
@@ -81,8 +94,8 @@ export type ArtProps =
 /**
  * The art: every print Form v2 draws, from the account's records and nothing else.
  *
- * One component for the grammar's four uses: a day's print (Today, a programme day, a
- * workout, a record), a sport's mark beside a name, Food's bowl and the calendar's month.
+ * One component for the grammar's uses: a day's print (Today, a programme day, a workout, a
+ * record), a sport's mark beside a name, Food's bowl, and the calendar's month and its icons.
  * The geometry is in `geometry.ts`; this draws it with the palette's tokens, so the same
  * print is pulled on light or dark paper by CSS alone.
  */
@@ -102,6 +115,8 @@ export function Art(props: ArtProps) {
       );
     case "mark":
       return <Mark {...props} />;
+    case "icon":
+      return <Icon {...props} />;
     case "bowl":
       return <Bowl {...props} />;
     case "month":
@@ -136,6 +151,21 @@ function Mark({
         surface={surface}
         id={id}
       />
+    </svg>
+  );
+}
+
+function Icon({ sport, size = ICON.size, className }: Extract<ArtProps, { kind: "icon" }>) {
+  const id = svgId(useId());
+  return (
+    <svg
+      aria-hidden
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      className={cn("block shrink-0 overflow-visible", className)}
+    >
+      <Shapes shapes={calendarIcon(sport, 0, 0, 24)} surface="ground" id={id} />
     </svg>
   );
 }
@@ -208,14 +238,15 @@ const MONTH_NAMES = [
   "November",
   "December",
 ] as const;
-/** Each day's marks are drawn in a box this wide, centred in its cell. */
-const MARK_BOX = 48;
+/** A day's icons stand in a square this wide: four of them, in two rows of two. */
+const ICON_BOX = 2 * ICON.size + ICON.gap;
 
 /**
- * The month, in the first calendar's style: pulled on paper like a print, the weekdays across
- * the top, a dot for a day with nothing in it, each activity its sport's mark, so a month reads
- * as a pattern before it is read as dates. Today is ringed; days to come are blank and are not
- * links; every past day is named with what it holds.
+ * The month: each day a tile of paper, its date in the corner on the calendar page and an icon
+ * for each activity in the middle, so a month reads as a pattern before it is read as dates. A
+ * day with nothing in it is a paler sheet; today is ringed in ink, and the rest of its week
+ * are outlines, not links; every past day is named with what it holds. Every tile is the same
+ * size, so no week grows with what it holds and no icon shrinks.
  */
 function Month({
   month,
@@ -230,102 +261,78 @@ function Month({
   const id = svgId(useId());
   const year = Number(month.slice(0, 4));
   const monthNumber = Number(month.slice(5, 7));
-  const cells = monthCells(year, monthNumber - 1);
-  const top = dates ? 12 : 0;
-  const markHeight = cellHeight - top;
-  // A date is a Jost figure: it grows by half with the reader's text (13 at 100%, 19.5 at
-  // 200%), and its cell grows by as much, so the marks keep their room under it.
-  const dateGrow = dates ? "max(0px, calc(0.40625rem - 6.5px))" : "0px";
+  const all = monthCells(year, monthNumber - 1);
+  // This month ends at today's week: the weeks still to come get no empty rows.
+  const weeks = today === null ? Infinity : Math.floor((all.indexOf(1) + today - 1) / 7) + 1;
+  const cells = all.slice(0, weeks * 7);
   return (
     <div
       role="group"
       aria-label={label ?? `${MONTH_NAMES[monthNumber - 1]} ${year}`}
-      className={cn("month-paper bg-paper px-1.5 pt-1.5 pb-2", className)}
+      className={cn("month", dates && "month-dated", className)}
+      style={{ "--month-day": `${cellHeight}px` } as CSSProperties}
     >
-      <div aria-hidden className="grid h-6 grid-cols-7 items-center">
+      <div aria-hidden className="month-weekdays">
         {WEEKDAYS.map((letter, i) => (
-          <span key={i} className="text-center type-print-label text-print-label">
-            {letter}
-          </span>
+          <span key={i}>{letter}</span>
         ))}
       </div>
-      <div className="grid grid-cols-7">
+      <div className="month-days">
         {cells.map((day, i) => {
           if (day === null) return <span key={i} aria-hidden />;
           const entries = days[day] ?? [];
-          const future = today !== null && day > today;
           const isToday = day === today;
-          const box = "relative flex min-w-0 items-center justify-center";
-          const style = {
-            height: `calc(${cellHeight}px + ${dateGrow})`,
-            paddingTop: `calc(${top}px + ${dateGrow})`,
-          };
           const date = dates && (
-            <span
-              aria-hidden
-              className={cn(
-                "absolute top-[7px] left-2 figures text-[length:calc(6.5px+0.40625rem)] leading-none",
-                isToday ? "font-bold text-print-ink" : "font-medium text-print-label",
-              )}
-            >
+            <span aria-hidden className="month-date">
               {day}
             </span>
           );
-          if (future)
+          if (today !== null && day > today)
             return (
-              <span key={i} aria-hidden className={box} style={style}>
+              <span key={i} aria-hidden className="month-day month-day-future">
                 {date}
               </span>
             );
           const iso = `${month}-${String(day).padStart(2, "0")}`;
           const said = entries.length ? entries.map((e) => e.said).join(", ") : "nothing logged";
           const name = `${formatIsoWeekdayDay(iso)}${isToday ? ", today" : ""}: ${said}`;
+          const tile = cn(
+            "month-day",
+            entries.length === 0 && "month-day-rest",
+            isToday && "month-day-today",
+          );
           const inner = (
             <>
-              {isToday && (
-                <span
-                  aria-hidden
-                  className="absolute inset-[3px] rounded-row border-[1.5px] border-print-ink"
-                />
-              )}
               {date}
-              <svg
-                aria-hidden
-                // A day's marks stay in their cell: on the narrowest phones the box shrinks
-                // with the cell, and the marks with it.
-                width="100%"
-                height={markHeight}
-                viewBox={`0 0 ${MARK_BOX} ${markHeight}`}
-                className="block max-w-12 overflow-visible"
-              >
-                {entries.length ? (
-                  <Shapes
-                    shapes={dayMarks(
-                      entries.map((e) => e.sport),
-                      MARK_BOX,
-                      markHeight,
-                    )}
-                    surface="paper"
-                    id={`${id}-${day}`}
-                  />
-                ) : (
-                  <circle
-                    cx={MARK_BOX / 2}
-                    cy={markHeight / 2}
-                    r={2}
-                    style={{ fill: "var(--ov-print-dot)" }}
-                  />
-                )}
-              </svg>
+              {entries.length > 0 && (
+                <span aria-hidden className="month-icons">
+                  <svg
+                    width={ICON_BOX}
+                    height={ICON_BOX}
+                    viewBox={`0 0 ${ICON_BOX} ${ICON_BOX}`}
+                    className="block overflow-visible"
+                  >
+                    <Shapes
+                      shapes={dayIcons(
+                        entries.map((e) => e.sport),
+                        ICON_BOX / 2,
+                        ICON_BOX / 2,
+                      )}
+                      surface="paper"
+                      id={`${id}-${day}`}
+                    />
+                  </svg>
+                </span>
+              )}
             </>
           );
           const href = links[day];
           return href ? (
-            <Link key={i} href={href} aria-label={name} className={box} style={style}>
+            <Link key={i} href={href} aria-label={name} className={tile}>
               {inner}
             </Link>
           ) : (
-            <span key={i} role="img" aria-label={name} className={box} style={style}>
+            <span key={i} role="img" aria-label={name} className={tile}>
               {inner}
             </span>
           );
