@@ -78,14 +78,14 @@ describe("a day's print", () => {
   it("draws what was done in the day's order, two workouts as one block", () => {
     // Fri 25 Sept (Day board): a run, a swim, then the lift.
     const parts = dayParts([
-      { sport: "running", minutes: 33 },
-      { sport: "swimming", minutes: 30 },
+      { sport: "running" },
+      { sport: "swimming" },
       { sport: "strength", columns: [{ sets: 3, done: 3, warm: 1 }] },
       { sport: "strength", columns: [{ sets: 2, done: 2 }] },
     ]);
     expect(parts).toEqual([
-      { kind: "run", state: "done", minutes: 33 },
-      { kind: "swim", state: "done", minutes: 30 },
+      { kind: "run", state: "done" },
+      { kind: "swim", state: "done" },
       {
         kind: "strength",
         columns: [

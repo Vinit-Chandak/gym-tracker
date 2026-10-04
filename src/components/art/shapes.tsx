@@ -73,6 +73,7 @@ export function Shapes({
             y={shape.y}
             width={Math.max(0, shape.width)}
             height={Math.max(0, shape.height)}
+            rx={shape.rx}
             style={paintStyle(shape, surface)}
             {...strokeProps(shape)}
           />
