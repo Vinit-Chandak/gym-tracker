@@ -212,3 +212,16 @@ html:has(.onboarding) .pinned-actions {
   outline-offset: 2px;
   border-radius: 6px;
 }
+
+/* ---------- signing in (the auth screens' head) ---------- */
+/* The name as the system draws it: the mark beside "Overload" in Jost, at the gutter. */
+.auth-name {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--ov-font-display);
+  font-size: var(--ov-type-title);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: var(--ov-title-tracking);
+}

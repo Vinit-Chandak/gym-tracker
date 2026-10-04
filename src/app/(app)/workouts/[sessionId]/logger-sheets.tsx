@@ -54,17 +54,18 @@ export function SuggestionTag({
   );
 }
 
-/** Why (DESIGN.md, The log): a short sheet over logging, from the suggestion's tag. */
+/**
+ * Why (DESIGN.md, The log): a short sheet over logging, from the suggestion's tag. It ends with
+ * what the suggestion is based on; History is the tab behind it, so it is not linked again here.
+ */
 export function WhySheet({
   open,
   why,
   onClose,
-  onHistory,
 }: {
   open: boolean;
   why: WhyContent | null;
   onClose: () => void;
-  onHistory: () => void;
 }) {
   return (
     <Sheet
@@ -120,14 +121,6 @@ export function WhySheet({
             </p>
           )}
           {why.basis && <p className="mt-1.5 type-meta-small text-ink-2">{why.basis}</p>}
-          <button
-            type="button"
-            onClick={onHistory}
-            className="mt-2 flex min-h-[calc(52px+var(--ov-grow))] w-full items-center justify-between border-t border-hair text-left font-bold"
-          >
-            History
-            <Glyph name="chevronRight" className="glyph-20" />
-          </button>
         </div>
       )}
     </Sheet>

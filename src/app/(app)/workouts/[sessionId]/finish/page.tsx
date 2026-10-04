@@ -116,6 +116,7 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
         <FinishForm
           userId={user.id}
           sessionId={sessionId}
+          nothingLogged={totalSets === 0}
           action={finishSessionAction.bind(null, sessionId)}
           unit={unit}
           initialBodyWeight={

@@ -863,8 +863,14 @@ dialog.sheet {
   padding: 0;
   background: transparent;
   color: var(--ov-ink);
-  overflow: hidden;
-  overscroll-behavior: contain;
+  /*
+   * Clip, never hide: `hidden` makes the dialog a scroll container, and opening it focuses
+   * something inside the panel while the panel still stands a full height below. The browser
+   * then scrolls the dialog to show it, so Chromium's sheet barely moved, and Safari, slow to
+   * give that scroll back, carried the panel up past its place, clipped it, then dropped it in.
+   * A clipped box cannot be scrolled, so the panel rises the whole way and only that.
+   */
+  overflow: clip;
 }
 /*
  * The native modal makes the page inert, but does not lock its scroll position. Lock the

@@ -105,7 +105,10 @@ export async function signInAction(
     if (error.code === "email_not_confirmed") {
       return { error: "Confirm your email address first — check your inbox for the link." };
     }
-    return { error: "That email and password combination did not work." };
+    return {
+      error:
+        "That email and password combination did not work. Check both, or reset your password below.",
+    };
   }
 
   redirect(safeNextPath(parsed.data.next));

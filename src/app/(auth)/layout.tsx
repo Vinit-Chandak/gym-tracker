@@ -1,20 +1,25 @@
-import { Dumbbell } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { AppMark } from "@/components/shell/app-mark";
 import { APP_NAME, APP_TAGLINE } from "@/lib/app";
 
+/**
+ * Signing in, signing up and resetting a password (DESIGN.md, Shapes): the name as the system
+ * draws it, its mark beside it in Jost, and the tagline under it in ink 2. Then the page, on the
+ * ground at the gutter, like every other screen of the app.
+ */
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center px-4 py-8 pt-safe pb-safe">
-      <div className="w-full max-w-sm space-y-6">
-        <header className="flex flex-col items-center gap-2 text-center">
-          <span className="flex size-14 items-center justify-center rounded-card bg-surface text-accent">
-            <Dumbbell className="size-8" aria-hidden />
-          </span>
-          <h1 className="text-xl font-medium">{APP_NAME}</h1>
-          <p className="text-sm text-balance text-ink-muted">{APP_TAGLINE}</p>
+    <div className="auth flex min-h-dvh flex-col px-[var(--ov-gutter)] pt-safe pb-safe">
+      <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center py-8">
+        <header className="auth-head">
+          <h1 className="auth-name">
+            <AppMark size={46} />
+            {APP_NAME}
+          </h1>
+          <p className="mt-2 type-meta text-balance text-ink-2">{APP_TAGLINE}</p>
         </header>
-        {children}
+        <div className="mt-8 space-y-6">{children}</div>
       </div>
     </div>
   );

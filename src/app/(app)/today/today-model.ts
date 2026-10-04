@@ -149,12 +149,15 @@ export function todayParts({
   rows,
   standalone,
   restDrills,
+  lifted = false,
 }: {
   programme: readonly ScheduledOccurrence[];
   rows: readonly PlanRowModel[];
   standalone: readonly ScheduledOccurrence[];
   /** A rest day's mobility: its drills as the fan's blades. */
   restDrills?: number;
+  /** The day's workout is logged: its columns print full. */
+  lifted?: boolean;
 }): PrintPart[] {
   const endurance = (occurrence: ScheduledOccurrence): PrintPart | null =>
     occurrence.sport === "strength"
@@ -175,7 +178,7 @@ export function todayParts({
     const next = rows[index + 1];
     columns.push({
       sets: row.sets,
-      done: 0,
+      done: lifted && !row.dropped ? row.sets : 0,
       skipped: row.dropped,
       pair:
         row.supersetGroup !== null &&
@@ -189,4 +192,27 @@ export function todayParts({
     ...(columns.length > 0 ? [{ kind: "strength" as const, columns }] : []),
     ...standalone.map(endurance),
   ].filter((part): part is PrintPart => part !== null);
+}
+
+const PART_NAMES = { run: "a run", ride: "a ride", swim: "a swim", walk: "a walk" } as const;
+
+/**
+ * What the day's print draws, said in its order for a screen reader: "Easy Run + Arms: a run to
+ * do, then 4 exercises as columns of their sets, to do". Each part says where it stands, so the
+ * label never claims nothing is done once something is.
+ */
+export function printLabel(dayName: string, parts: readonly PrintPart[]): string {
+  const said = parts.map((part) => {
+    if (part.kind === "strength") {
+      const done = part.columns.every((column) => column.skipped || column.done >= column.sets);
+      return `${part.columns.length} ${part.columns.length === 1 ? "exercise" : "exercises"} as columns of their sets, ${done ? "done" : "to do"}`;
+    }
+    const name =
+      part.kind === "mobility"
+        ? "the mobility"
+        : (PART_NAMES[part.kind as keyof typeof PART_NAMES] ?? "a session");
+    const state = part.state === "done" ? "done" : part.state === "skipped" ? "skipped" : "to do";
+    return `${name} ${state}`;
+  });
+  return `${dayName}: ${said.join(", then ")}.`;
 }
