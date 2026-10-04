@@ -130,8 +130,9 @@ export function Sheet({
             measured header changes height as compact mode toggles and can oscillate. */}
         <div ref={heading} className="flow-root shrink-0">
           <div className="mx-auto mb-2 h-[5px] w-9 rounded-full bg-surface-2" aria-hidden />
-          {/* The lead (Why's tag), the title and Close on one line; where the text is too large
-              for the title to keep its words whole beside the tag, the tag stands over it. */}
+          {/* The lead (Why's tag), the title and Close on one line where there is room; on a
+              phone, or with text too large for the title beside the tag, the tag stands over
+              it. */}
           <div className="sheet-head mb-1">
             {lead && <div className="sheet-head-lead">{lead}</div>}
             <h2 className="sheet-head-title type-sheet-title">{title}</h2>

@@ -939,9 +939,10 @@ dialog.sheet[open]::backdrop {
   min-width: 0;
   overflow-wrap: break-word;
 }
-/* Text too large for the title to keep its words whole beside a lead (200% on a phone): the
-   lead and Close share the first line and the title takes the whole width under them. */
-@container sheet (width < 20rem) {
+/* A phone's sheet, or text too large for the title to keep its words whole beside a lead
+   (200%): the lead and Close share the first line and the title takes the whole width under
+   them, so "Why this suggestion" keeps one line rather than wrapping beside its tag. */
+@container sheet (width < 30rem) {
   .sheet-head:has(> .sheet-head-lead) {
     grid-template-columns: minmax(0, 1fr) auto;
   }

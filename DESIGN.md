@@ -800,7 +800,7 @@ and every control answers a press.
 - **Headers:** a destination has its title and at most one action; a nested screen has a back
   link that names where it goes; a session screen has its back or minimise, the rest pill, and
   at most Finish and More. Today's head is the date and the cycle as seven squares, wordless while
-  the programme is on track; behind is news, so "25 behind" stands beside the squares.
+  the programme is on track; behind is news, so "25 days behind" stands beside the squares.
 - **Tabs:** panels of one screen (Log, Technique, History) are a tablist over a tab panel: words
   on a hairline, where you are ink and underlined.
 - **Sections:** pages of their own are chosen by one button naming the current one, which opens a

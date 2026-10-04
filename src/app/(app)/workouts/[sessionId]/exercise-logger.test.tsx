@@ -777,9 +777,13 @@ it("keeps an exercise open when the set it was waiting on does not save", async 
   await screen.findByRole("button", { name: "Retry saving set 1" });
   expect(actions.complete).not.toHaveBeenCalled();
   expect(screen.queryByText("Done")).toBeNull();
-  // The failed set holds changes nobody has saved, so it has to be dealt with first.
+  // The failed set holds changes nobody has saved, so it has to be dealt with first, and
+  // Complete says so.
   press("Complete, skip, superset, substitute");
-  expect((screen.getByRole("button", { name: "Complete" }) as HTMLButtonElement).disabled).toBe(
-    true,
+  const complete = screen.getByRole("button", { name: "Complete" }) as HTMLButtonElement;
+  expect(complete.disabled).toBe(true);
+  expect(complete.getAttribute("aria-describedby")).toBeTruthy();
+  expect(document.getElementById(complete.getAttribute("aria-describedby")!)?.textContent).toBe(
+    "Save the unsaved set first.",
   );
 });

@@ -30,8 +30,9 @@ export const metadata: Metadata = { title: "Today" };
  */
 export const unstable_dynamicStaleTime = 60;
 
-export default async function TodayPage() {
+export default async function TodayPage(props: PageProps<"/today">) {
   const user = await requireUser();
+  const { discarded } = await props.searchParams;
   const requestProfile = await getRequestProfile(user.id, user.email);
   const seen = await seenSetChanges();
   // The active session comes from the shared per-request read the resume strip also uses,
@@ -131,6 +132,7 @@ export default async function TodayPage() {
         unit={LOAD_UNIT_LABELS[profile.preferredUnit]}
         programmeOccurrences={programme}
         standaloneOccurrences={standalone}
+        discarded={discarded === "1"}
       />
     </FreshAfterSets>
   );

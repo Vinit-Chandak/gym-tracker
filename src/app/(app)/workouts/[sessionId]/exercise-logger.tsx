@@ -39,6 +39,7 @@ import { useLoggerActions } from "./logger-actions";
 import {
   entryHeading,
   entrySize,
+  equipmentFact,
   equipmentGlyph,
   equipmentLine,
   gutterFor,
@@ -549,8 +550,11 @@ export function ExerciseLogger({
       </>,
     );
   // A machine of this gym, or the lack of one, is said in words: the glyph says only its kind.
-  if (range !== null && (exercise.equipment || equipment === "Machine not chosen"))
-    facts.push(<span>{exercise.equipment ? `on ${equipment}` : equipment}</span>);
+  // A machine the exercise's name already says is not said again.
+  const onEquipment = equipmentFact(exercise);
+  if (range !== null && onEquipment) facts.push(<span>{onEquipment}</span>);
+  else if (range !== null && !exercise.equipment && equipment === "Machine not chosen")
+    facts.push(<span>{equipment}</span>);
   if (substituted) facts.push(<span>instead of {plannedName}</span>);
 
   // ---------- the suggestion, its tag and Why ----------
@@ -926,15 +930,22 @@ export function ExerciseLogger({
         onSelect: () => setCompletedState(false),
         disabled: pending,
       });
-    else
+    else {
+      // A set still saving does not hold it up: the press waits for the save. A row with
+      // unsaved changes does, as it would otherwise be left behind. Held, it says why.
+      const nothing = sets.loggedSets.length === 0 && !sets.saving;
       more.push({
         glyph: "check",
         label: "Complete",
         onSelect: () => setCompletedState(true),
-        // A set still saving does not hold it up: the press waits for the save. A row with
-        // unsaved changes does, as it would otherwise be left behind.
-        disabled: pending || (sets.loggedSets.length === 0 && !sets.saving) || sets.editing,
+        disabled: pending || nothing || sets.editing,
+        note: nothing
+          ? "Log a set first."
+          : sets.editing
+            ? "Save the unsaved set first."
+            : undefined,
       });
+    }
   }
   if (!readOnly && onEditSuperset)
     more.push({
@@ -1124,6 +1135,7 @@ export function ExerciseLogger({
                   <button
                     type="button"
                     aria-haspopup="dialog"
+                    aria-label="More from the coach"
                     className="-my-2.5 -ml-1.5 min-h-11 min-w-11 px-1.5 font-bold"
                     onClick={() => setSheet({ kind: "why" })}
                   >

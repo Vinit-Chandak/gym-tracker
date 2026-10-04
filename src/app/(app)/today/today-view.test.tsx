@@ -215,3 +215,10 @@ it("puts another open session first, and says why the day cannot start", () => {
   expect(screen.queryByRole("button", { name: /Gym: .*Change/ })).toBeNull();
   expect(within(card("Easy Run + Arms")).getByText("Anytime Fitness")).toBeTruthy();
 });
+
+it("says once that an empty session was discarded, and drops it from the address", async () => {
+  window.history.replaceState(null, "", "/today?discarded=1");
+  show({ discarded: true });
+  expect(await screen.findByText("Empty session discarded.")).toBeTruthy();
+  expect(window.location.search).toBe("");
+});

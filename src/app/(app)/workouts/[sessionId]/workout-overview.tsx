@@ -485,13 +485,11 @@ export function WorkoutOverview({
 
   const content: ReactNode = (
     <>
+      {/* One heading, the name on the screen; the meta line under it says who planned it. */}
       {layer && (
-        <>
-          <h1 className="sr-only">{heading}</h1>
-          <FitTitle sizes={{ base: 34, narrow: 30 }} room={30} className="mt-0.5">
-            {title}
-          </FitTitle>
-        </>
+        <FitTitle as="h1" sizes={{ base: 34, narrow: 30 }} room={30} className="mt-0.5">
+          {title}
+        </FitTitle>
       )}
       <p className="meta-line mt-1">
         {/* A finished workout's header already names the gym. */}

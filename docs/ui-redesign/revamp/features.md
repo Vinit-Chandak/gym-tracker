@@ -59,7 +59,7 @@ anything scheduled), where they will train, and one tap to start or resume it.
   - where it sits in the programme ("Cycle 1 of 8 · Day 1"), its name ("Lower A"), its focus
     and time ("Squat + quads · 70–90 min");
   - a note with the day's effort guidance and notes;
-  - a status: "22 behind" or "On track" while pending (behind = days since the programme
+  - a status: "22 days behind" or "On track" while pending (behind = days since the programme
     started minus days completed or skipped), otherwise Done or Skipped; "Coach" when the
     coach planned it;
   - **the plan**, one tap away: "6 exercises · 16 sets", then each exercise with its

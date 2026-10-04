@@ -1388,3 +1388,17 @@ li:last-child > .picker-row {
   font-size: var(--ov-type-button);
   font-weight: 700;
 }
+
+/* Said once under Today's head after a discard: a check and the words, in ink. */
+.today-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: var(--ov-type-meta);
+  font-weight: 600;
+  line-height: 1.4;
+}
+/* Empty until it speaks, and still there, so the words are heard when they arrive. */
+.today-note:not(:empty) {
+  margin: 2px 0 8px;
+}

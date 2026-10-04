@@ -601,7 +601,8 @@ export async function discardSessionAction(sessionId: string): Promise<ActionRes
     return { ok: false, error: describe(error) };
   }
   revalidateSession(sessionId);
-  redirect("/today");
+  // Today says once that it is gone (DiscardedNote).
+  redirect("/today?discarded=1");
 }
 
 export async function setRestTimerEnabledAction(enabled: boolean): Promise<void> {

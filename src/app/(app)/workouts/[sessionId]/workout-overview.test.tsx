@@ -185,6 +185,8 @@ afterEach(cleanup);
 it("is the session's layer: Minimise to Today, Finish and More", () => {
   show();
   expect(screen.getByRole("heading", { level: 1, name: "Upper A" })).toBeTruthy();
+  // One heading for the one name: no second, hidden one beside it.
+  expect(screen.getAllByRole("heading", { name: /Upper A/ })).toHaveLength(1);
   expect(screen.getByRole("link", { name: "Minimise the workout" }).getAttribute("href")).toBe(
     "/today",
   );

@@ -18,6 +18,7 @@ import type { SessionSummary } from "@/server/repositories/sessions";
 import type { TodayPlan } from "@/server/repositories/schedule";
 
 import { CoachPending, CoachWaiting, type CoachGym } from "./coach-actions";
+import { DiscardedNote } from "./discarded-note";
 import { GymChoice, type SwitcherGym } from "./gym-switcher";
 import {
   CompleteRestButton,
@@ -50,6 +51,8 @@ export type TodayViewProps = {
   programmeOccurrences?: readonly ScheduledOccurrence[];
   /** What the athlete put on the calendar for today, which is dated today by definition. */
   standaloneOccurrences?: readonly ScheduledOccurrence[];
+  /** An empty session was just discarded, which Today says once. */
+  discarded?: boolean;
 };
 
 /**
@@ -183,6 +186,7 @@ export function TodayView({
   unit = "kg",
   programmeOccurrences = [],
   standaloneOccurrences = [],
+  discarded = false,
 }: TodayViewProps) {
   const defaultGym =
     gyms.find((gym) => (coach?.selectedGymId ? gym.id === coach.selectedGymId : gym.isDefault)) ??
@@ -534,6 +538,7 @@ export function TodayView({
             <CycleMark cells={cycleCells(plan)} label={cycleLabel(plan)} behind={plan.behind} />
           )}
         </header>
+        {discarded && <DiscardedNote />}
 
         {/* The day's print stands over the day it draws: at the top, or under Up next once
             today's day is done and the next one is on offer. */}
@@ -543,12 +548,18 @@ export function TodayView({
 
         {gyms.length === 0 ? (
           <Empty title="Add a gym to start training">
+            <p className="mt-2 type-body text-ink-2">
+              Its equipment decides which exercises your plan can use, and how far a load steps up.
+            </p>
             <LinkButton href="/gyms/new" size="lg" className="mt-4 w-full">
               Add your first gym
             </LinkButton>
           </Empty>
         ) : !plan ? (
           <Empty title="No programme">
+            <p className="mt-2 type-body text-ink-2">
+              A programme sets each day&apos;s workout. Without one, start an unplanned session.
+            </p>
             <div className="mt-4 flex flex-col gap-2">
               <LinkButton href="/profile/programme" size="lg" className="w-full">
                 Choose a programme

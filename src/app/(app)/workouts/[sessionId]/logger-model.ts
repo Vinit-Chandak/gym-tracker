@@ -57,6 +57,26 @@ export function restText(exercise: ExerciseVM): string | null {
   return restLabel(p.restMinSeconds, p.restMaxSeconds);
 }
 
+/**
+ * What this gym's machine adds to the meta line: "on Cable station", "with Dumbbells". Nothing
+ * where the exercise's name already says it ("High-bar barbell squat" on Barbell, "Smith machine
+ * calf raise" on Smith machine), so the line never repeats the title.
+ */
+export function equipmentFact(exercise: ExerciseVM): string | null {
+  const equipment = exercise.equipment?.name;
+  if (!equipment) return null;
+  const words = (text: string) =>
+    text
+      .toLowerCase()
+      .split(/[^\p{L}\p{N}°]+/u)
+      .filter(Boolean)
+      .map((word) => word.replace(/s$/, ""));
+  const named = new Set(words(exercise.exercise.name));
+  if (words(equipment).every((word) => named.has(word))) return null;
+  const free = ["barbell", "dumbbell"].includes(exercise.exercise.modality);
+  return `${free ? "with" : "on"} ${equipment}`;
+}
+
 /** The machine, or what stands in for one. The gym itself is session context, not row chrome. */
 export function equipmentLine(exercise: ExerciseVM, gymKind: string): string {
   if (exercise.equipment) return exercise.equipment.name;

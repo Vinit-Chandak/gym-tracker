@@ -8,13 +8,13 @@ import { GLYPH_LABELS, Glyph, type GlyphName } from "@/components/ui/glyphs";
 import { cn } from "@/lib/utils";
 
 import type { CycleCell, PlanRowModel } from "./today-model";
-import { groupRows } from "./today-model";
+import { daysBehind, groupRows } from "./today-model";
 
 /**
  * The cycle as squares (DESIGN.md: the programme's position is seven squares, not a sentence):
  * the days done in ink, today ringed, a skipped day dashed, the rest a hairline. They stay
- * wordless while the programme is on track. Behind is news, so it is said beside them, as the
- * app always has ("25 behind"; the feature inventory's Today status); their name says it too.
+ * wordless while the programme is on track. Behind is news, so it is said beside them in days
+ * ("25 days behind"; the feature inventory's Today status); their name says it too.
  */
 export function CycleMark({
   cells,
@@ -39,7 +39,7 @@ export function CycleMark({
     >
       {behind > 0 && (
         <span className="type-meta-small whitespace-nowrap text-ink-2 tabular-nums">
-          {behind} behind
+          {daysBehind(behind)}
         </span>
       )}
       <svg

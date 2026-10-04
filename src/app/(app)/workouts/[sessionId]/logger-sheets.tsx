@@ -1,7 +1,7 @@
 "use client";
 
 import type { Route } from "next";
-import { useState, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 
 import Link from "@/components/ui/app-link";
 import { Button } from "@/components/ui/button";
@@ -475,6 +475,8 @@ export type MoreOption = {
   href?: Route;
   onSelect?: () => void;
   disabled?: boolean;
+  /** Why it is held, under its name while it is: "Log a set first." */
+  note?: string;
   /** Stands apart from the rest, under a rule: it drops the exercise. */
   apart?: boolean;
 };
@@ -488,19 +490,30 @@ export function MoreSheet({
   options: readonly MoreOption[];
   onClose: () => void;
 }) {
+  const id = useId();
   const row = (option: MoreOption) => {
+    // A held option is named by its label and described by why it is held.
+    const noteId = option.disabled && option.note ? `${id}-${option.label}` : undefined;
     const inner = (
       <>
         <span className="grid w-5 shrink-0 place-items-center">
           <Glyph name={option.glyph} className="glyph-22" />
         </span>
-        <span
-          className={cn(
-            "min-w-0 flex-1 text-[length:var(--ov-type-button)] [overflow-wrap:anywhere]",
-            option.apart ? "font-bold" : "font-semibold",
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span
+            className={cn(
+              "text-[length:var(--ov-type-button)] [overflow-wrap:anywhere]",
+              option.apart ? "font-bold" : "font-semibold",
+            )}
+          >
+            {option.label}
+          </span>
+          {/* Out of the name, and read as the option's description instead. */}
+          {noteId && (
+            <span id={noteId} aria-hidden className="type-meta-small font-semibold text-ink-2">
+              {option.note}
+            </span>
           )}
-        >
-          {option.label}
         </span>
         <Glyph name="chevronRight" className="glyph-20 text-ink-2" />
       </>
@@ -516,6 +529,7 @@ export function MoreSheet({
         type="button"
         className={className}
         disabled={option.disabled}
+        aria-describedby={noteId}
         onClick={() => {
           onClose();
           option.onSelect?.();
