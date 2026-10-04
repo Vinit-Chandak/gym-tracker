@@ -4,22 +4,33 @@ import type { ComponentProps, ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
-export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+/**
+ * Form v2's buttons (DESIGN.md, Buttons): ink, tonal, waiting, outline, text and destructive,
+ * all with 14-px corners. `secondary` and `ghost` are the names the screens already use for
+ * tonal and text.
+ */
+export type ButtonVariant =
+  "primary" | "secondary" | "tonal" | "waiting" | "outline" | "ghost" | "text" | "danger";
 export type ButtonSize = "sm" | "md" | "lg";
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
-  primary: "bg-accent text-on-accent active:bg-accent-strong",
-  secondary: "bg-surface text-ink border border-line-strong hover:bg-surface-raised",
-  ghost: "bg-transparent text-ink-muted hover:text-ink active:bg-surface-raised",
-  // Border rather than a tinted fill: at 3:1 the outline carries the meaning on its own.
-  danger: "bg-transparent text-danger border border-danger active:bg-surface-raised",
+  // Disabled, a primary button waits: surface with ink 2, never a faded ink.
+  primary: "bg-ink text-on-ink disabled:bg-surface disabled:text-ink-2",
+  secondary: "bg-surface text-ink active:bg-surface-2 disabled:text-ink-2",
+  tonal: "bg-surface text-ink active:bg-surface-2 disabled:text-ink-2",
+  waiting: "bg-surface text-ink-2",
+  outline: "border-[1.5px] border-control bg-transparent text-ink disabled:text-ink-2",
+  ghost: "bg-transparent px-2.5 text-ink disabled:text-control",
+  text: "bg-transparent px-2.5 text-ink disabled:text-control",
+  // Destructive: a 2-px ink outline, grey until it can be confirmed.
+  danger: "border-2 border-ink bg-transparent text-ink disabled:border-control disabled:text-ink-2",
 };
 
-// Every size clears the 44px minimum target; only the padding and label size change.
+// Every size clears the 44-pt target (48 dp on Android); a primary action stands 56 tall.
 const SIZE_CLASSES: Record<ButtonSize, string> = {
-  sm: "min-h-11 px-3 py-2 text-sm",
-  md: "min-h-11 px-4 py-2 text-base",
-  lg: "min-h-12 px-4 py-3 text-base",
+  sm: "min-h-[var(--ov-button-short)] px-[14px] py-[8px] text-[length:var(--ov-type-meta)]",
+  md: "min-h-[var(--ov-button-short)] px-[16px] py-[8px] text-[length:var(--ov-type-meta)]",
+  lg: "min-h-[var(--ov-button)] px-[20px] py-[10px] text-[length:var(--ov-type-button)]",
 };
 
 export function buttonClassName(
@@ -28,7 +39,7 @@ export function buttonClassName(
   className?: string,
 ): string {
   return cn(
-    "inline-flex max-w-full items-center justify-center gap-2 rounded-control text-center leading-snug font-medium [overflow-wrap:anywhere] transition-colors duration-[var(--ov-duration-feedback)] ease-[var(--ov-ease-standard)] select-none disabled:pointer-events-none disabled:opacity-45",
+    "inline-flex max-w-full items-center justify-center gap-2 rounded-control text-center leading-snug font-bold [overflow-wrap:anywhere] select-none disabled:pointer-events-none",
     VARIANT_CLASSES[variant],
     SIZE_CLASSES[size],
     className,
@@ -57,15 +68,18 @@ export function LinkButton<T extends string>({
   size = "md",
   className,
   children,
+  "aria-label": label,
 }: {
   href: Route<T>;
   variant?: ButtonVariant;
   size?: ButtonSize;
   className?: string;
   children: ReactNode;
+  /** Adds to what the link says when the screen has several of it (keep its words in it). */
+  "aria-label"?: string;
 }) {
   return (
-    <Link href={href} className={buttonClassName(variant, size, className)}>
+    <Link href={href} aria-label={label} className={buttonClassName(variant, size, className)}>
       {children}
     </Link>
   );

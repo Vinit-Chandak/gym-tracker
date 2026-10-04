@@ -5,6 +5,7 @@ import { Proposals } from "./proposals";
 import { RequestReview, type ReviewAvailability } from "./request-review";
 import { RequestList, type RequestView } from "@/components/coaching/request-list";
 import { Card } from "@/components/ui/card";
+import type { GlyphName } from "@/components/ui/glyphs";
 import { Disclosure } from "@/components/ui/disclosure";
 import { LinkRow, List } from "@/components/ui/link-row";
 import { Section } from "@/components/ui/section";
@@ -22,6 +23,22 @@ import { athleteReviewStatus } from "@/server/repositories/coaching-jobs";
 import { listOpenProposals } from "@/server/repositories/program-revisions";
 import { readProgramBlueprint } from "@/server/repositories/programs";
 import { getSchedule } from "@/server/repositories/schedule";
+
+/** A change's glyph, when all of it is one kind of change; otherwise the edit pencil. */
+function leadOf(summary: ReturnType<typeof summariseProgramDiff> | null): GlyphName {
+  const kinds = new Set(summary?.days.flatMap((day) => day.operations.map((op) => op.kind)) ?? []);
+  if (kinds.size !== 1) return "edit";
+  const [kind] = kinds;
+  return kind === "added"
+    ? "plus"
+    : kind === "replaced"
+      ? "swap"
+      : kind === "moved_in" || kind === "moved_out"
+        ? "arrowRight"
+        : kind === "removed"
+          ? "minus"
+          : "edit";
+}
 
 /** How long a change the coach applied on its own stays in view on this tab. */
 const RECENT_DAYS = 7;
@@ -98,9 +115,14 @@ export async function loadProgrammeChanges(db: DbOrTx, userId: string, timeZone:
     ]);
   const openDrafts = new Set(drafts.map((draft) => draft.id));
   const asks = new Map<string, string[]>();
+  // What each ask came to, in the coach's short words: "Add squat practice".
+  const answers = new Map<string, string[]>();
   for (const request of open)
-    if (request.state === "proposed" && request.draftId && openDrafts.has(request.draftId))
+    if (request.state === "proposed" && request.draftId && openDrafts.has(request.draftId)) {
       asks.set(request.draftId, [...(asks.get(request.draftId) ?? []), request.quote]);
+      if (request.summary)
+        answers.set(request.draftId, [...(answers.get(request.draftId) ?? []), request.summary]);
+    }
 
   const currentCycle = schedule ? progress(schedule.state).currentCycle : 1;
   // The title only needs a derived summary without a stored headline. Several such drafts
@@ -135,6 +157,10 @@ export async function loadProgrammeChanges(db: DbOrTx, userId: string, timeZone:
           (draft.source === "manual" ? "Your edit" : "Open to see what changes"),
         fromCoach: draft.source !== "manual",
         asks: asks.get(draft.id) ?? [],
+        answers: answers.get(draft.id) ?? [],
+        rationale: draft.rationale || null,
+        // A change that only adds is led by +, one that only swaps by ⇄ (board AI coach).
+        lead: leadOf(summarised),
       };
     }),
   );

@@ -4,16 +4,11 @@ import { useRef, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import type { SegmentOption } from "./segmented-control";
 
-/** Narrowest a tab can be and still hold a word like "Recovery" at 14px, plus its padding. */
-const MIN_TAB = "4.75rem";
-
 /**
- * Tabs that wrap into equal-width rows rather than scrolling.
- *
- * A horizontal scroller hides destinations behind a gesture with no affordance, and at
- * 320px with five tabs there is always something off-screen. `auto-fit` packs in as many
- * as fit at their minimum and puts the rest on the next row, in the same order every time,
- * so nothing is clipped and no label has to shrink.
+ * Panels of one screen (DESIGN.md, Navigation): words on a hairline, where you are ink and
+ * underlined. The tabs share the row equally and wrap rather than scroll: a scroller hides
+ * destinations behind a gesture, while a tab that cannot fit its word whole takes the next
+ * row, in the same order every time, so nothing is clipped and no label has to shrink.
  *
  * `action` is a control that belongs to the whole panel rather than to one tab — the
  * filters, in practice. It sits at the trailing edge of the same rule the tabs sit on and
@@ -36,13 +31,8 @@ export function Tabs<V extends string>({
 }) {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
   return (
-    <div className="flex min-w-0 items-end gap-1 border-b border-line">
-      <div
-        role="tablist"
-        aria-label={label}
-        className="grid min-w-0 flex-1"
-        style={{ gridTemplateColumns: `repeat(auto-fit, minmax(${MIN_TAB}, 1fr))` }}
-      >
+    <div className="tabs flex min-w-0 items-end gap-1 border-b border-hair">
+      <div role="tablist" aria-label={label} className="flex min-w-0 flex-1 flex-wrap">
         {options.map((option, index) => (
           <button
             key={option.value}
@@ -73,13 +63,17 @@ export function Tabs<V extends string>({
               refs.current[next]?.focus();
             }}
             className={cn(
-              "min-h-11 min-w-0 border-b-2 px-2 py-2 text-sm font-medium transition-colors duration-[var(--ov-duration-feedback)] focus-visible:-outline-offset-4",
-              value === option.value
-                ? "border-accent text-accent"
-                : "border-transparent text-ink-muted hover:text-ink",
+              "tab relative grid min-h-[var(--ov-target-header)] min-w-max flex-[1_1_0] place-items-center px-1 text-[length:var(--ov-type-meta)] whitespace-nowrap focus-visible:-outline-offset-4",
+              value === option.value ? "font-bold text-ink" : "font-semibold text-ink-2",
             )}
           >
-            <span className="block hyphens-auto">{option.label}</span>
+            {option.label}
+            {value === option.value && (
+              <span
+                aria-hidden
+                className="tab-indicator absolute inset-x-2.5 -bottom-px h-[2.5px] rounded-indicator bg-ink"
+              />
+            )}
           </button>
         ))}
       </div>

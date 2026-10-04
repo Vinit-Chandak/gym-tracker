@@ -1,33 +1,45 @@
 import type { Metadata } from "next";
-import { ProgrammeOptions } from "@/components/coaching/programme-options";
-import { SavedProgrammeWork } from "@/components/coaching/saved-work";
 
+import type { StrengthColumn } from "@/components/art/geometry";
+import { JustTrackButton, ProgrammeOptions } from "@/components/coaching/programme-options";
+import { SavedProgrammeWork } from "@/components/coaching/saved-work";
 import { ProgramTemplatePicker } from "@/components/program-template-picker";
-import { PageContent } from "@/components/shell/page-content";
-import { Card } from "@/components/ui/card";
 import { PROGRAM_TEMPLATES } from "@/db/seed/data/templates";
+import type { ProgramBlueprint } from "@/domain/program-blueprint";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { requireProfiledUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 
+import { OnboardingFrame } from "../onboarding-frame";
 import { FinishSetupLink } from "../skip-link";
-import { Steps } from "../steps";
 
 export const metadata: Metadata = { title: "Choose a programme" };
 
+/** A template's first lifting day as its print's columns, a superset's two standing closer. */
+function firstDay(blueprint: ProgramBlueprint): StrengthColumn[] {
+  const exercises = blueprint.days.find((day) => day.includesLifting)?.exercises ?? [];
+  return exercises.map((exercise, index) => ({
+    sets: exercise.sets,
+    done: 0,
+    pair:
+      exercise.supersetGroup !== undefined &&
+      exercises[index + 1]?.supersetGroup === exercise.supersetGroup,
+  }));
+}
+
+/**
+ * The last step (board Plan): the suggested programme, chosen, with its start date; the two
+ * ways to make one instead; Start training, or just track workouts, at the foot.
+ */
 export default async function WelcomeProgrammePage() {
   const user = await requireProfiledUser();
   // The cached read: it writes only for a missing profile, where this used to lock every visit.
   const profile = await getRequestProfile(user.id, user.email, user.displayName);
 
   return (
-    <PageContent>
-      <Steps current="programme" />
-      <h1 className="text-xl font-medium">Choose a programme</h1>
+    <OnboardingFrame step="programme" back="/welcome/equipment" title="Choose a programme">
       <SavedProgrammeWork onboarding />
-      <ProgrammeOptions onboarding />
-      <Card>
-        <h2 className="text-lg font-medium">Or start with a suggested template</h2>
+      <div className="mt-3.5">
         <ProgramTemplatePicker
           templates={PROGRAM_TEMPLATES.map((template) => ({
             slug: template.slug,
@@ -35,13 +47,23 @@ export default async function WelcomeProgrammePage() {
             summary: template.summary,
             highlights: template.highlights,
             weeks: template.blueprint.weeks,
+            firstDay: firstDay(template.blueprint),
           }))}
           today={todayInTimeZone(profile.timeZone)}
           submitLabel="Start training"
           finishOnboarding
+          pinned
+          extra={<JustTrackButton />}
         />
-      </Card>
-      <FinishSetupLink label="I'll train without a programme" />
-    </PageContent>
+      </div>
+      <div className="mt-1.5">
+        <ProgrammeOptions onboarding />
+      </div>
+      {/* Ends setup with no programme and nothing else decided; Just track my workouts, at the
+          foot, also says the athlete means to log as they go. */}
+      <div className="mt-2">
+        <FinishSetupLink label="I'll train without a programme" />
+      </div>
+    </OnboardingFrame>
   );
 }

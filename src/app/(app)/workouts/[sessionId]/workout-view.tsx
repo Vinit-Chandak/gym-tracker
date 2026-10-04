@@ -1,13 +1,16 @@
 "use client";
 
+import type { Route } from "next";
 import { useSearchParams } from "next/navigation";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { useSetChanges } from "@/components/set-changes";
+import { PageContent } from "@/components/shell/page-content";
 import { startRestTimer } from "@/components/shell/rest-timer";
 import { useSessionDrafts } from "@/components/use-session-drafts";
 
 import { ExerciseLogger } from "./exercise-logger";
+import { FinishedWorkout } from "./finished-workout";
 import { SessionDetails } from "./session-details";
 import { SupersetSheet } from "./superset-sheet";
 import { WorkoutOverview } from "./workout-overview";
@@ -32,11 +35,34 @@ export function WorkoutView({
   session: rendered,
   seenSetChanges,
   userId,
+  header,
+  intro,
+  title,
+  backHref,
+  justFinished = false,
+  records,
+  routine,
 }: {
   session: SessionVM;
   /** How many of this browser's set changes the render already held. */
   seenSetChanges: number;
   userId: string;
+  /**
+   * The finished workout's header. An open workout is the session's layer, with its own, as is
+   * an exercise in focus.
+   */
+  header?: ReactNode;
+  /** What stands above the list once the workout is finished: its records, Save as routine. */
+  intro?: ReactNode;
+  /** The day's name, or "Ad hoc session". */
+  title?: string;
+  /** Where minimising the open workout goes, or Back from a finished one. */
+  backHref?: Route;
+  /** A finished workout seen straight after Finish session (board Summary). */
+  justFinished?: boolean;
+  /** A finished workout's records and Save or repeat, which its page places. */
+  records?: ReactNode;
+  routine?: ReactNode;
 }) {
   const changes = useSetChanges();
   const session = useMemo(
@@ -58,7 +84,8 @@ export function WorkoutView({
   const onDirtyChange = useCallback((dirty: boolean) => setFocusedDirty(dirty), []);
 
   const openExercise = (id: string) => {
-    listScroll.current = window.scrollY;
+    // An open workout's list scrolls in its layer and keeps its own place there.
+    if (readOnly) listScroll.current = window.scrollY;
     const params = new URLSearchParams(searchParams.toString());
     params.set(EXERCISE_PARAM, id);
     window.history.pushState(null, "", `?${params.toString()}`);
@@ -71,39 +98,71 @@ export function WorkoutView({
     const query = params.toString();
     window.history.pushState(null, "", query ? `?${query}` : window.location.pathname);
     // The list comes back where it was left, so a long workout does not restart at the top.
-    window.scrollTo({ top: listScroll.current });
+    if (readOnly) window.scrollTo({ top: listScroll.current });
   };
 
   // A draft anywhere in the session blocks finishing, whether or not its exercise is open:
   // the count comes from storage, so an exercise that is not mounted still counts.
   const hasDrafts = draftCount > 0 || focusedDirty;
 
-  return (
-    <>
-      {selected ? (
-        <ExerciseLogger
-          // Remount when the slot's identity changes, so drafts stay scoped to it.
-          key={`${selected.id}:${selected.exercise.id}:${selected.equipment?.id ?? "none"}`}
-          exercise={selected}
+  // A finished workout's list is its record (boards Summary, Past workout).
+  if (readOnly && !selected)
+    return (
+      <>
+        <FinishedWorkout
           session={session}
-          userId={userId}
-          readOnly={readOnly}
-          onBack={backToList}
-          onDirtyChange={onDirtyChange}
-          onLogged={(seconds) => {
-            if (session.restTimerEnabled) startRestTimer(session.id, seconds);
-          }}
-        />
-      ) : (
-        <WorkoutOverview
-          session={session}
-          readOnly={readOnly}
-          hasDrafts={hasDrafts}
+          title={title ?? "Ad hoc session"}
+          justFinished={justFinished}
+          backHref={backHref ?? "/today"}
+          records={records}
+          routine={routine}
           onOpenExercise={openExercise}
           onOpenDetails={() => setDetailsOpen(true)}
-          onEditSuperset={(group) => setSupersetFor({ group })}
         />
-      )}
+        <SessionDetails
+          open={detailsOpen}
+          onClose={() => setDetailsOpen(false)}
+          session={session}
+          readOnly={readOnly}
+        />
+      </>
+    );
+
+  return (
+    <>
+      {!selected && readOnly && header}
+      <PageContent>
+        {!selected && intro}
+        {selected ? (
+          <ExerciseLogger
+            // Remount when the slot's identity changes, so drafts stay scoped to it.
+            key={`${selected.id}:${selected.exercise.id}:${selected.equipment?.id ?? "none"}`}
+            exercise={selected}
+            session={session}
+            userId={userId}
+            readOnly={readOnly}
+            onBack={backToList}
+            onDirtyChange={onDirtyChange}
+            onLogged={(seconds) => {
+              if (session.restTimerEnabled) startRestTimer(session.id, seconds);
+            }}
+            onEditSuperset={readOnly ? undefined : (group) => setSupersetFor({ group })}
+          />
+        ) : (
+          <WorkoutOverview
+            session={session}
+            readOnly={readOnly}
+            hasDrafts={hasDrafts}
+            onOpenExercise={openExercise}
+            onOpenDetails={() => setDetailsOpen(true)}
+            onEditSuperset={(group) => setSupersetFor({ group })}
+            title={title}
+            backHref={backHref}
+            layer={!readOnly}
+            listScrollRef={listScroll}
+          />
+        )}
+      </PageContent>
 
       <SessionDetails
         open={detailsOpen}

@@ -3,10 +3,9 @@
 import { useActionState, useState } from "react";
 
 import { ExercisePicker } from "@/components/exercise-picker";
-import { Card } from "@/components/ui/card";
 import { FormError, SubmitButton } from "@/components/ui/form";
-import { Field } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { PinnedActions } from "@/components/ui/pinned-actions";
+import { SelectRow } from "@/components/ui/select-row";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
 import type { ExerciseListItem } from "@/server/repositories/exercises";
 import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
@@ -31,12 +30,10 @@ export function FallbackForm({
     compatibleMachines[exerciseId]?.includes(machine.id),
   );
 
+  // Board Add fallback: the search over every other exercise, the chosen one named under it;
+  // the machine and Save fallback pinned at the foot.
   return (
-    <form
-      action={formAction}
-      onReset={(event) => event.preventDefault()}
-      className="space-y-[var(--section-gap)]"
-    >
+    <form action={formAction} onReset={(event) => event.preventDefault()}>
       <ExercisePicker
         name="fallbackExerciseId"
         exercises={exercises}
@@ -46,25 +43,23 @@ export function FallbackForm({
           setMachineId("");
         }}
         error={state.fieldErrors?.fallbackExerciseId}
+        long
       />
-      <Card>
-        <Field label="Machine" error={state.fieldErrors?.fallbackEquipmentInstanceId}>
-          <Select
-            name="fallbackEquipmentInstanceId"
-            value={machineId}
-            onChange={(event) => setMachineId(event.target.value)}
-          >
-            <option value="">Any</option>
-            {availableMachines.map((machine) => (
-              <option key={machine.id} value={machine.id}>
-                {machine.name}
-              </option>
-            ))}
-          </Select>
-        </Field>
+      <PinnedActions stack>
+        <SelectRow
+          label="Machine"
+          name="fallbackEquipmentInstanceId"
+          value={machineId}
+          onChange={setMachineId}
+          error={state.fieldErrors?.fallbackEquipmentInstanceId}
+          options={[
+            { value: "", label: "Any" },
+            ...availableMachines.map((machine) => ({ value: machine.id, label: machine.name })),
+          ]}
+        />
         <FormError message={state.formError} />
         <SubmitButton disabled={!exerciseId}>Save fallback</SubmitButton>
-      </Card>
+      </PinnedActions>
     </form>
   );
 }

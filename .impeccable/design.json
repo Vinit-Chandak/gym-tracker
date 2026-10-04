@@ -1,0 +1,1378 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-03T09:25:54Z",
+  "title": "Design System: Overload",
+  "extensions": {
+    "colorMeta": {
+      "ground": {
+        "role": "neutral",
+        "displayName": "Ground",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#242424",
+          "#404040",
+          "#606060",
+          "#808080",
+          "#a4a4a4",
+          "#c7c7c7",
+          "#eeeeee"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Surface",
+        "canonical": "#f4f4f5",
+        "tonalRamp": [
+          "#0c0b0b",
+          "#252424",
+          "#403f40",
+          "#616060",
+          "#818080",
+          "#a5a4a4",
+          "#c8c7c7",
+          "#efeeee"
+        ]
+      },
+      "surface-2": {
+        "role": "neutral",
+        "displayName": "Surface 2",
+        "canonical": "#e9e9ec",
+        "tonalRamp": [
+          "#0b0b0d",
+          "#242426",
+          "#3f3f42",
+          "#606063",
+          "#808082",
+          "#a4a4a7",
+          "#c7c7ca",
+          "#eeeef1"
+        ]
+      },
+      "ink": {
+        "role": "primary",
+        "displayName": "Press Ink",
+        "canonical": "#16171b",
+        "tonalRamp": [
+          "#0a0b0f",
+          "#232428",
+          "#3e3f44",
+          "#5f6065",
+          "#7f8085",
+          "#a3a4aa",
+          "#c5c7cd",
+          "#edeef4"
+        ]
+      },
+      "ink-2": {
+        "role": "neutral",
+        "displayName": "Ink 2",
+        "canonical": "#5b5d64",
+        "tonalRamp": [
+          "#090b10",
+          "#22242a",
+          "#3e3f46",
+          "#5e6067",
+          "#7e8087",
+          "#a2a4ac",
+          "#c5c7cf",
+          "#eceef6"
+        ]
+      },
+      "control": {
+        "role": "neutral",
+        "displayName": "Control",
+        "canonical": "#85878e",
+        "tonalRamp": [
+          "#0a0b10",
+          "#222429",
+          "#3e3f46",
+          "#5e6067",
+          "#7e8087",
+          "#a2a4ab",
+          "#c5c7ce",
+          "#eceef6"
+        ]
+      },
+      "hair": {
+        "role": "neutral",
+        "displayName": "Hair",
+        "canonical": "#e6e6e9",
+        "tonalRamp": [
+          "#0b0b0d",
+          "#242426",
+          "#3f3f42",
+          "#606063",
+          "#808082",
+          "#a4a4a7",
+          "#c7c7ca",
+          "#eeeef1"
+        ]
+      },
+      "on-ink": {
+        "role": "neutral",
+        "displayName": "On-ink",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#242424",
+          "#404040",
+          "#606060",
+          "#808080",
+          "#a4a4a4",
+          "#c7c7c7",
+          "#eeeeee"
+        ]
+      },
+      "on-ink-2": {
+        "role": "neutral",
+        "displayName": "On-ink 2",
+        "canonical": "#b4b6bd",
+        "tonalRamp": [
+          "#0a0b10",
+          "#222429",
+          "#3e3f45",
+          "#5e6066",
+          "#7e8086",
+          "#a2a4ab",
+          "#c5c7ce",
+          "#eceef5"
+        ]
+      },
+      "scrim": {
+        "role": "neutral",
+        "displayName": "Scrim",
+        "canonical": "rgba(22, 23, 27, 0.42)",
+        "tonalRamp": [
+          "#0a0b0f",
+          "#232428",
+          "#3e3f44",
+          "#5f6065",
+          "#7f8085",
+          "#a3a4aa",
+          "#c5c7cd",
+          "#edeef4"
+        ]
+      },
+      "ground-dark": {
+        "role": "neutral",
+        "displayName": "Ground (dark)",
+        "canonical": "#111214",
+        "tonalRamp": [
+          "#0a0b0d",
+          "#232426",
+          "#3e4042",
+          "#5f6063",
+          "#7f8083",
+          "#a3a4a7",
+          "#c6c7ca",
+          "#edeef1"
+        ]
+      },
+      "surface-dark": {
+        "role": "neutral",
+        "displayName": "Surface (dark)",
+        "canonical": "#1b1c20",
+        "tonalRamp": [
+          "#0a0b0f",
+          "#232428",
+          "#3e3f44",
+          "#5f6065",
+          "#7f8085",
+          "#a3a4aa",
+          "#c6c7cc",
+          "#edeef4"
+        ]
+      },
+      "surface-2-dark": {
+        "role": "neutral",
+        "displayName": "Surface 2 (dark)",
+        "canonical": "#26272c",
+        "tonalRamp": [
+          "#0a0b0f",
+          "#232429",
+          "#3e3f45",
+          "#5f6066",
+          "#7f8086",
+          "#a3a4ab",
+          "#c5c7cd",
+          "#edeef5"
+        ]
+      },
+      "ink-dark": {
+        "role": "primary",
+        "displayName": "Press Ink (dark)",
+        "canonical": "#edeef0",
+        "tonalRamp": [
+          "#0c0b0b",
+          "#252324",
+          "#413f40",
+          "#626060",
+          "#827f80",
+          "#a6a4a4",
+          "#c9c6c7",
+          "#f0eeee"
+        ]
+      },
+      "ink-2-dark": {
+        "role": "neutral",
+        "displayName": "Ink 2 (dark)",
+        "canonical": "#a3a6ae",
+        "tonalRamp": [
+          "#090b10",
+          "#22242a",
+          "#3d4046",
+          "#5e6067",
+          "#7d8088",
+          "#a1a4ac",
+          "#c4c7cf",
+          "#ebeef7"
+        ]
+      },
+      "control-dark": {
+        "role": "neutral",
+        "displayName": "Control (dark)",
+        "canonical": "#73767e",
+        "tonalRamp": [
+          "#090b11",
+          "#21242a",
+          "#3d4047",
+          "#5d6068",
+          "#7d8088",
+          "#a1a4ad",
+          "#c4c7d0",
+          "#ebeef7"
+        ]
+      },
+      "hair-dark": {
+        "role": "neutral",
+        "displayName": "Hair (dark)",
+        "canonical": "#26272c",
+        "tonalRamp": [
+          "#0a0b0f",
+          "#232429",
+          "#3e3f45",
+          "#5f6066",
+          "#7f8086",
+          "#a3a4ab",
+          "#c5c7cd",
+          "#edeef5"
+        ]
+      },
+      "on-ink-dark": {
+        "role": "neutral",
+        "displayName": "On-ink (dark)",
+        "canonical": "#111214",
+        "tonalRamp": [
+          "#0a0b0d",
+          "#232426",
+          "#3e4042",
+          "#5f6063",
+          "#7f8083",
+          "#a3a4a7",
+          "#c6c7ca",
+          "#edeef1"
+        ]
+      },
+      "on-ink-2-dark": {
+        "role": "neutral",
+        "displayName": "On-ink 2 (dark)",
+        "canonical": "#4c4f57",
+        "tonalRamp": [
+          "#090b11",
+          "#21242b",
+          "#3d4047",
+          "#5d6069",
+          "#7d8089",
+          "#a1a4ae",
+          "#c4c7d1",
+          "#ebeef8"
+        ]
+      },
+      "scrim-dark": {
+        "role": "neutral",
+        "displayName": "Scrim (dark)",
+        "canonical": "rgba(0, 0, 0, 0.6)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#242424",
+          "#404040",
+          "#606060",
+          "#808080",
+          "#a4a4a4",
+          "#c7c7c7",
+          "#eeeeee"
+        ]
+      },
+      "ultra": {
+        "role": "secondary",
+        "displayName": "Ultramarine",
+        "canonical": "#2b40c8",
+        "tonalRamp": [
+          "#030036",
+          "#0d0076",
+          "#1b21ac",
+          "#334cd5",
+          "#4e70fb",
+          "#7f9fff",
+          "#b1c6ff",
+          "#e8eeff"
+        ]
+      },
+      "on-ultra": {
+        "role": "secondary",
+        "displayName": "On-ultramarine",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#242424",
+          "#404040",
+          "#606060",
+          "#808080",
+          "#a4a4a4",
+          "#c7c7c7",
+          "#eeeeee"
+        ]
+      },
+      "on-ultra-2": {
+        "role": "secondary",
+        "displayName": "On-ultramarine 2",
+        "canonical": "#dde1fb",
+        "tonalRamp": [
+          "#08091a",
+          "#202235",
+          "#3b3e53",
+          "#5c5f75",
+          "#7b7e96",
+          "#9fa3bb",
+          "#c2c6df",
+          "#eaedff"
+        ]
+      },
+      "ultra-t": {
+        "role": "secondary",
+        "displayName": "Thinned Ultramarine",
+        "canonical": "#9aaaf0",
+        "tonalRamp": [
+          "#060035",
+          "#171b54",
+          "#303975",
+          "#4f5b9a",
+          "#6d7bbd",
+          "#90a0e5",
+          "#b6c4ff",
+          "#e9eeff"
+        ]
+      },
+      "ultra-t-dark": {
+        "role": "secondary",
+        "displayName": "Thinned Ultramarine (dark)",
+        "canonical": "#27317a",
+        "tonalRamp": [
+          "#050035",
+          "#14165e",
+          "#2b3680",
+          "#4959a6",
+          "#677aca",
+          "#8a9ff2",
+          "#b4c4ff",
+          "#e9eeff"
+        ]
+      },
+      "mark-warm-up": {
+        "role": "neutral",
+        "displayName": "Warm-up Mark",
+        "canonical": "#c9c4b8",
+        "tonalRamp": [
+          "#0d0b06",
+          "#29261f",
+          "#48453c",
+          "#6a665c",
+          "#8d897e",
+          "#b2aea3",
+          "#d5d1c6",
+          "#f2eee4"
+        ]
+      },
+      "mark-warm-up-dark": {
+        "role": "neutral",
+        "displayName": "Warm-up Mark, dark",
+        "canonical": "#4a463e",
+        "tonalRamp": [
+          "#0d0b07",
+          "#292620",
+          "#48453e",
+          "#6a665e",
+          "#8d8980",
+          "#b2ada5",
+          "#d5d0c8",
+          "#f2eee6"
+        ]
+      },
+      "print-paper": {
+        "role": "neutral",
+        "displayName": "Print Paper",
+        "canonical": "#f2eee5",
+        "tonalRamp": [
+          "#0d0b06",
+          "#27241d",
+          "#433f38",
+          "#636058",
+          "#838078",
+          "#a8a49c",
+          "#cbc7be",
+          "#f2eee5"
+        ]
+      },
+      "print-ink": {
+        "role": "neutral",
+        "displayName": "Print Ink",
+        "canonical": "#16171b",
+        "tonalRamp": [
+          "#0a0b0f",
+          "#232428",
+          "#3e3f44",
+          "#5f6065",
+          "#7f8085",
+          "#a3a4aa",
+          "#c5c7cd",
+          "#edeef4"
+        ]
+      },
+      "print-label": {
+        "role": "neutral",
+        "displayName": "Print Label",
+        "canonical": "#615c50",
+        "tonalRamp": [
+          "#0f0b03",
+          "#282419",
+          "#443f34",
+          "#656054",
+          "#858073",
+          "#aaa497",
+          "#cdc7b9",
+          "#f4eee0"
+        ]
+      },
+      "print-dot": {
+        "role": "neutral",
+        "displayName": "Print Dot",
+        "canonical": "#8d8980",
+        "tonalRamp": [
+          "#0f0b03",
+          "#28231a",
+          "#443f34",
+          "#656054",
+          "#858074",
+          "#aaa497",
+          "#cdc7ba",
+          "#f4eee0"
+        ]
+      },
+      "print-warm-up": {
+        "role": "neutral",
+        "displayName": "Print Warm-up",
+        "canonical": "#d8d2c4",
+        "tonalRamp": [
+          "#0e0b05",
+          "#2a261e",
+          "#49453a",
+          "#6b665a",
+          "#8e897c",
+          "#b3ada1",
+          "#d6d1c5",
+          "#f3eee3"
+        ]
+      },
+      "print-paper-dark": {
+        "role": "neutral",
+        "displayName": "Print Paper (dark)",
+        "canonical": "#23211d",
+        "tonalRamp": [
+          "#0d0b08",
+          "#262420",
+          "#423f3b",
+          "#62605b",
+          "#82807b",
+          "#a7a49f",
+          "#cac7c2",
+          "#f1eee9"
+        ]
+      },
+      "print-ink-dark": {
+        "role": "neutral",
+        "displayName": "Print Ink (dark)",
+        "canonical": "#ece7dc",
+        "tonalRamp": [
+          "#0e0b05",
+          "#27241b",
+          "#433f36",
+          "#646057",
+          "#848076",
+          "#a9a49a",
+          "#ccc7bc",
+          "#f3eee3"
+        ]
+      },
+      "print-label-dark": {
+        "role": "neutral",
+        "displayName": "Print Label (dark)",
+        "canonical": "#b4ad9f",
+        "tonalRamp": [
+          "#0f0a03",
+          "#292318",
+          "#453f33",
+          "#666053",
+          "#867f72",
+          "#aba496",
+          "#cec7b8",
+          "#f5eedf"
+        ]
+      },
+      "print-dot-dark": {
+        "role": "neutral",
+        "displayName": "Print Dot (dark)",
+        "canonical": "#716b5f",
+        "tonalRamp": [
+          "#0e0b05",
+          "#27241c",
+          "#433f37",
+          "#646057",
+          "#848077",
+          "#a9a49b",
+          "#ccc7bd",
+          "#f3eee4"
+        ]
+      },
+      "print-warm-up-dark": {
+        "role": "neutral",
+        "displayName": "Print Warm-up, dark",
+        "canonical": "#4a463e",
+        "tonalRamp": [
+          "#0d0b07",
+          "#292620",
+          "#48453e",
+          "#6a665e",
+          "#8d8980",
+          "#b2ada5",
+          "#d5d0c8",
+          "#f2eee6"
+        ]
+      },
+      "print-strength": {
+        "role": "tertiary",
+        "displayName": "Ultramarine, load",
+        "canonical": "#2b40c8",
+        "tonalRamp": [
+          "#030036",
+          "#0d0076",
+          "#1b21ac",
+          "#334cd5",
+          "#4e70fb",
+          "#7f9fff",
+          "#b1c6ff",
+          "#e8eeff"
+        ]
+      },
+      "print-run": {
+        "role": "tertiary",
+        "displayName": "Vermilion, on foot",
+        "canonical": "#e5432a",
+        "tonalRamp": [
+          "#210000",
+          "#4a0200",
+          "#7a0c00",
+          "#b31900",
+          "#df3d24",
+          "#ff735b",
+          "#ffb1a1",
+          "#ffe9e4"
+        ]
+      },
+      "print-ride": {
+        "role": "tertiary",
+        "displayName": "Violet, on wheels",
+        "canonical": "#6b48c0",
+        "tonalRamp": [
+          "#0f002d",
+          "#2b0063",
+          "#481a93",
+          "#6743bb",
+          "#8666e0",
+          "#a88fff",
+          "#c8bdff",
+          "#eeecff"
+        ]
+      },
+      "print-swim": {
+        "role": "tertiary",
+        "displayName": "Viridian, in water",
+        "canonical": "#1d7a62",
+        "tonalRamp": [
+          "#001009",
+          "#002c21",
+          "#004c3b",
+          "#0d7159",
+          "#3b9279",
+          "#63b89d",
+          "#86dbbf",
+          "#bdffe8"
+        ]
+      },
+      "print-mobility": {
+        "role": "tertiary",
+        "displayName": "Rose, practice",
+        "canonical": "#c8487a",
+        "tonalRamp": [
+          "#1f000a",
+          "#490022",
+          "#78003d",
+          "#a6265d",
+          "#cb4b7d",
+          "#f671a1",
+          "#ffabc5",
+          "#ffe7ee"
+        ]
+      },
+      "print-food": {
+        "role": "tertiary",
+        "displayName": "Cadmium, food",
+        "canonical": "#f2b12a",
+        "tonalRamp": [
+          "#130900",
+          "#322000",
+          "#553a00",
+          "#7e5900",
+          "#a77600",
+          "#d59800",
+          "#fcba38",
+          "#ffeccd"
+        ]
+      },
+      "print-play": {
+        "role": "tertiary",
+        "displayName": "Umber, play",
+        "canonical": "#8a5a2b",
+        "tonalRamp": [
+          "#170600",
+          "#381c00",
+          "#5f3400",
+          "#845425",
+          "#a67445",
+          "#cd9869",
+          "#f1bb8b",
+          "#ffead9"
+        ]
+      },
+      "print-strength-todo": {
+        "role": "tertiary",
+        "displayName": "Thinned Ultramarine, load (to do)",
+        "canonical": "#9aaaf0",
+        "tonalRamp": [
+          "#060035",
+          "#171b54",
+          "#303975",
+          "#4f5b9a",
+          "#6d7bbd",
+          "#90a0e5",
+          "#b6c4ff",
+          "#e9eeff"
+        ]
+      },
+      "print-run-todo": {
+        "role": "tertiary",
+        "displayName": "Thinned Vermilion, on foot (to do)",
+        "canonical": "#f6a08a",
+        "tonalRamp": [
+          "#200000",
+          "#470900",
+          "#6d2412",
+          "#934734",
+          "#b76753",
+          "#df8b76",
+          "#ffb19d",
+          "#ffe9e3"
+        ]
+      },
+      "print-ride-todo": {
+        "role": "tertiary",
+        "displayName": "Thinned Violet, on wheels (to do)",
+        "canonical": "#bfb1ff",
+        "tonalRamp": [
+          "#0f002d",
+          "#281253",
+          "#423174",
+          "#625399",
+          "#8273bc",
+          "#a698e4",
+          "#c8bdff",
+          "#eeecff"
+        ]
+      },
+      "print-swim-todo": {
+        "role": "tertiary",
+        "displayName": "Thinned Viridian, in water (to do)",
+        "canonical": "#7cd1b6",
+        "tonalRamp": [
+          "#001009",
+          "#002c21",
+          "#004c3b",
+          "#0d715a",
+          "#3b9279",
+          "#63b89d",
+          "#86dbc0",
+          "#bdffe8"
+        ]
+      },
+      "print-mobility-todo": {
+        "role": "tertiary",
+        "displayName": "Thinned Rose, practice (to do)",
+        "canonical": "#f89fbb",
+        "tonalRamp": [
+          "#1f000a",
+          "#490022",
+          "#6b203e",
+          "#91425e",
+          "#b5627e",
+          "#dd86a2",
+          "#ffabc5",
+          "#ffe7ee"
+        ]
+      },
+      "print-food-todo": {
+        "role": "tertiary",
+        "displayName": "Thinned Cadmium, food (to do)",
+        "canonical": "#e3b667",
+        "tonalRamp": [
+          "#130900",
+          "#322000",
+          "#553a00",
+          "#7e5900",
+          "#a27824",
+          "#c99d4d",
+          "#edc070",
+          "#ffeccc"
+        ]
+      },
+      "print-play-todo": {
+        "role": "tertiary",
+        "displayName": "Thinned Umber, play (to do)",
+        "canonical": "#d9b48c",
+        "tonalRamp": [
+          "#160700",
+          "#361e00",
+          "#573811",
+          "#7a5933",
+          "#9b7953",
+          "#c19d76",
+          "#e5c097",
+          "#ffebd5"
+        ]
+      },
+      "print-ochre": {
+        "role": "tertiary",
+        "displayName": "Ochre",
+        "canonical": "#c98712",
+        "tonalRamp": [
+          "#150800",
+          "#341f00",
+          "#593800",
+          "#835500",
+          "#ad7200",
+          "#d8952b",
+          "#fdb855",
+          "#ffebd2"
+        ]
+      },
+      "print-straw": {
+        "role": "tertiary",
+        "displayName": "Straw",
+        "canonical": "#f7d47e",
+        "tonalRamp": [
+          "#120a00",
+          "#2f2200",
+          "#513d00",
+          "#785c00",
+          "#9c7b1e",
+          "#c2a04a",
+          "#e6c36d",
+          "#ffedc2"
+        ]
+      },
+      "on-food": {
+        "role": "tertiary",
+        "displayName": "On-cadmium",
+        "canonical": "#16171b",
+        "tonalRamp": [
+          "#0a0b0f",
+          "#232428",
+          "#3e3f44",
+          "#5f6065",
+          "#7f8085",
+          "#a3a4aa",
+          "#c5c7cd",
+          "#edeef4"
+        ]
+      },
+      "print-strength-dark": {
+        "role": "tertiary",
+        "displayName": "Ultramarine, load (dark)",
+        "canonical": "#8796f5",
+        "tonalRamp": [
+          "#070034",
+          "#180f65",
+          "#2f3287",
+          "#4c55ae",
+          "#6a76d2",
+          "#8c9cfb",
+          "#b7c3ff",
+          "#eaeeff"
+        ]
+      },
+      "print-run-dark": {
+        "role": "tertiary",
+        "displayName": "Vermilion, on foot (dark)",
+        "canonical": "#f2704f",
+        "tonalRamp": [
+          "#200000",
+          "#470a00",
+          "#751900",
+          "#aa2d04",
+          "#d05231",
+          "#fb7857",
+          "#ffb19d",
+          "#ffe9e3"
+        ]
+      },
+      "print-ride-dark": {
+        "role": "tertiary",
+        "displayName": "Violet, on wheels (dark)",
+        "canonical": "#a08cf0",
+        "tonalRamp": [
+          "#0f002d",
+          "#2a0162",
+          "#442984",
+          "#634daa",
+          "#826dce",
+          "#a692f7",
+          "#c7bdff",
+          "#eeecff"
+        ]
+      },
+      "print-swim-dark": {
+        "role": "tertiary",
+        "displayName": "Viridian, in water (dark)",
+        "canonical": "#45b593",
+        "tonalRamp": [
+          "#001009",
+          "#002c20",
+          "#004c39",
+          "#007257",
+          "#189675",
+          "#4cbb99",
+          "#73dfbb",
+          "#beffe7"
+        ]
+      },
+      "print-mobility-dark": {
+        "role": "tertiary",
+        "displayName": "Rose, practice (dark)",
+        "canonical": "#e07aa3",
+        "tonalRamp": [
+          "#1f000c",
+          "#480026",
+          "#711342",
+          "#983963",
+          "#bd5a83",
+          "#e57fa8",
+          "#ffaaca",
+          "#ffe7ef"
+        ]
+      },
+      "print-food-dark": {
+        "role": "tertiary",
+        "displayName": "Cadmium, food (dark)",
+        "canonical": "#f2b12a",
+        "tonalRamp": [
+          "#130900",
+          "#322000",
+          "#553a00",
+          "#7e5900",
+          "#a77600",
+          "#d59800",
+          "#fcba38",
+          "#ffeccd"
+        ]
+      },
+      "print-play-dark": {
+        "role": "tertiary",
+        "displayName": "Umber, play (dark)",
+        "canonical": "#c4925e",
+        "tonalRamp": [
+          "#160700",
+          "#371d00",
+          "#5d3500",
+          "#83551f",
+          "#a57541",
+          "#cc9965",
+          "#f0bc87",
+          "#ffebd7"
+        ]
+      },
+      "print-strength-todo-dark": {
+        "role": "tertiary",
+        "displayName": "Thinned Ultramarine, load (to do) (dark)",
+        "canonical": "#555c89",
+        "tonalRamp": [
+          "#060429",
+          "#1c1f46",
+          "#363b66",
+          "#565d8a",
+          "#757dac",
+          "#98a1d3",
+          "#bac4f7",
+          "#eaedff"
+        ]
+      },
+      "print-run-todo-dark": {
+        "role": "tertiary",
+        "displayName": "Thinned Vermilion, on foot (to do) (dark)",
+        "canonical": "#8b4936",
+        "tonalRamp": [
+          "#1f0000",
+          "#460c00",
+          "#682a18",
+          "#8e4b38",
+          "#b16b57",
+          "#d98f7a",
+          "#feb29c",
+          "#ffe9e3"
+        ]
+      },
+      "print-ride-todo-dark": {
+        "role": "tertiary",
+        "displayName": "Thinned Violet, on wheels (to do) (dark)",
+        "canonical": "#625787",
+        "tonalRamp": [
+          "#0f0127",
+          "#271a45",
+          "#423764",
+          "#635888",
+          "#8277aa",
+          "#a79cd0",
+          "#c9bef5",
+          "#efecff"
+        ]
+      },
+      "print-swim-todo-dark": {
+        "role": "tertiary",
+        "displayName": "Thinned Viridian, in water (to do) (dark)",
+        "canonical": "#346b58",
+        "tonalRamp": [
+          "#001009",
+          "#002c1f",
+          "#0f4b39",
+          "#366d5a",
+          "#568d79",
+          "#7ab29d",
+          "#9dd6c0",
+          "#c3fee7"
+        ]
+      },
+      "print-mobility-todo-dark": {
+        "role": "tertiary",
+        "displayName": "Thinned Rose, practice (to do) (dark)",
+        "canonical": "#824e60",
+        "tonalRamp": [
+          "#1f000b",
+          "#3e1124",
+          "#5e2e40",
+          "#824e60",
+          "#a56e80",
+          "#cb92a4",
+          "#f0b4c7",
+          "#ffe7ee"
+        ]
+      },
+      "print-food-todo-dark": {
+        "role": "tertiary",
+        "displayName": "Thinned Cadmium, food (to do) (dark)",
+        "canonical": "#8b6924",
+        "tonalRamp": [
+          "#130900",
+          "#312100",
+          "#543b00",
+          "#7b5a0f",
+          "#9d7a37",
+          "#c39f5c",
+          "#e7c27e",
+          "#ffeccb"
+        ]
+      },
+      "print-play-todo-dark": {
+        "role": "tertiary",
+        "displayName": "Thinned Umber, play (to do) (dark)",
+        "canonical": "#745a3e",
+        "tonalRamp": [
+          "#160700",
+          "#351e02",
+          "#523a1f",
+          "#755b3f",
+          "#967b5e",
+          "#bc9f81",
+          "#dfc1a3",
+          "#ffebd6"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "title": {
+        "displayName": "Title",
+        "purpose": "A destination's name; 32 px under 360 pt."
+      },
+      "display": {
+        "displayName": "Display",
+        "purpose": "A nested screen's or an exercise's name; steps down 4, then to 26, then wraps."
+      },
+      "sheet-title": {
+        "displayName": "Sheet Title",
+        "purpose": "A sheet's name: Why, Finish, Appearance."
+      },
+      "figure-xl": {
+        "displayName": "Figure XL",
+        "purpose": "The screen's one figure, 56 px, on the ground above its print: the kcal eaten, the latest body weight."
+      },
+      "entry": {
+        "displayName": "Entry",
+        "purpose": "Load, reps and RIR in the docked entry, and a portion's amount; steps down the ramp to fit, never below 28."
+      },
+      "log": {
+        "displayName": "Log",
+        "purpose": "A set done, in the log, 32 px; its load, reps and RIR stand in the entry's columns."
+      },
+      "figure-l": {
+        "displayName": "Figure L",
+        "purpose": "A stat, a set in History, and the figure of a row's stepper, 26 px."
+      },
+      "figure": {
+        "displayName": "Figure",
+        "purpose": "The warm-ups' line, list figures, totals and paces, 20 px."
+      },
+      "figure-s": {
+        "displayName": "Figure S",
+        "purpose": "The rest pill and the session strip, 17 px."
+      },
+      "heading": {
+        "displayName": "Heading",
+        "purpose": "Set headings, a row's name, the coach's question."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Coach text and everything read; two lines inline, then More."
+      },
+      "meta": {
+        "displayName": "Meta",
+        "purpose": "A meta line, ink 2, each fact led by its glyph."
+      },
+      "meta-small": {
+        "displayName": "Meta Small",
+        "purpose": "A row's second line, ink 2."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "A section's name, ink 2."
+      },
+      "button": {
+        "displayName": "Button",
+        "purpose": "Every button label."
+      },
+      "tab": {
+        "displayName": "Tab",
+        "purpose": "Tab bar labels; 12 px under 360 pt, 700 where you are."
+      },
+      "print-label": {
+        "displayName": "Print Label",
+        "purpose": "The few labels a chart prints; never under 12 px."
+      }
+    },
+    "shadows": [
+      {
+        "name": "floating",
+        "value": "0 10px 28px rgba(22, 23, 27, 0.2)",
+        "purpose": "The session strip, in light only; the system's one shadow."
+      }
+    ],
+    "motion": [
+      {
+        "name": "press",
+        "value": "120ms cubic-bezier(0.23, 1, 0.32, 1)",
+        "purpose": "Scale 0.97 on touch-down; none with reduced motion."
+      },
+      {
+        "name": "saving",
+        "value": "until the server answers",
+        "purpose": "The mark turns and Save reads Saving…; nothing inks early."
+      },
+      {
+        "name": "ink",
+        "value": "420ms cubic-bezier(0.65, 0, 0.35, 1)",
+        "purpose": "Pigment rolls up a set's mark on the server's answer; a success haptic on the same frame."
+      },
+      {
+        "name": "swap-out",
+        "value": "80ms ease-out",
+        "purpose": "A label or a figure leaves before its replacement arrives."
+      },
+      {
+        "name": "swap-in",
+        "value": "120ms ease-out",
+        "purpose": "The replacement arrives: the next set takes the outline."
+      },
+      {
+        "name": "sheet",
+        "value": "spring, response 0.4s, bounce 0.08",
+        "purpose": "Sheets rise from the bottom edge and follow the finger."
+      },
+      {
+        "name": "scrim",
+        "value": "200ms",
+        "purpose": "The scrim fades in under a sheet."
+      },
+      {
+        "name": "rest",
+        "value": "linear",
+        "purpose": "The rest dial empties clockwise from twelve; at zero the pill reads Go for 60 s."
+      },
+      {
+        "name": "reduced",
+        "value": "cuts and 150ms fades",
+        "purpose": "With reduced motion nothing moves; states change in place."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "narrow",
+        "value": "360px",
+        "purpose": "Under 360 pt wide: 16 pt gutters, 32 px titles, 12 px tab labels; + stands over each figure and − under it, so the log's columns hold."
+      },
+      {
+        "name": "android",
+        "value": "360px",
+        "purpose": "360 × 800 dp: 48-dp buttons, + over each figure and − under it; the three columns hold."
+      },
+      {
+        "name": "tiny-height",
+        "value": "600px",
+        "purpose": "Under 600 pt tall: Today's print is 96 pt."
+      },
+      {
+        "name": "short-height",
+        "value": "800px",
+        "purpose": "Under 800 pt tall: the print shortens and the day's note folds."
+      },
+      {
+        "name": "tall-height",
+        "value": "860px",
+        "purpose": "860 pt and over: the room goes to the print and the entry."
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Ink, on-ink text; the one main action (Start workout, Save set 3).",
+      "html": "<button class=\"ds-btn-primary\">Start workout</button>",
+      "css": ".ds-btn-primary { display:inline-flex; align-items:center; justify-content:center; height:56px; padding:0 20px; border:0; border-radius:14px; background:#16171b; color:#ffffff; font:700 17px/1 'Atkinson Hyperlegible Next', system-ui, sans-serif; cursor:pointer; transition:transform 120ms cubic-bezier(0.23,1,0.32,1); } .ds-btn-primary:active { transform:scale(0.97); } .ds-btn-primary:focus-visible { outline:3px solid #16171b; outline-offset:2px; box-shadow:0 0 0 2px #ffffff; }"
+    },
+    {
+      "name": "Tonal Button",
+      "kind": "button",
+      "refersTo": "button-tonal",
+      "description": "Surface, ink text: a secondary action (Log it).",
+      "html": "<button class=\"ds-btn-tonal\">Log it</button>",
+      "css": ".ds-btn-tonal { display:inline-flex; align-items:center; justify-content:center; height:44px; padding:0 16px; border:0; border-radius:14px; background:#f4f4f5; color:#16171b; font:700 15px/1 'Atkinson Hyperlegible Next', system-ui, sans-serif; cursor:pointer; transition:transform 120ms cubic-bezier(0.23,1,0.32,1); } .ds-btn-tonal:active { transform:scale(0.97); } .ds-btn-tonal:focus-visible { outline:3px solid #16171b; outline-offset:2px; }"
+    },
+    {
+      "name": "Waiting Button",
+      "kind": "button",
+      "refersTo": "button-waiting",
+      "description": "A button waiting on something: Save while RIR is empty (the app's sentence for a missing RIR describes it, and shows under it after a tap), Saving….",
+      "html": "<button class=\"ds-btn-waiting\" aria-disabled=\"true\" aria-describedby=\"rir-need\">Save</button><span id=\"rir-need\" hidden>Enter RIR: estimate how many more good reps you could do.</span>",
+      "css": ".ds-btn-waiting { display:inline-flex; align-items:center; justify-content:center; height:56px; padding:0 20px; border:0; border-radius:14px; background:#f4f4f5; color:#5b5d64; font:700 17px/1 'Atkinson Hyperlegible Next', system-ui, sans-serif; }"
+    },
+    {
+      "name": "Destructive Button",
+      "kind": "button",
+      "refersTo": "button-tonal",
+      "description": "A 2-px ink outline with its glyph leading; grey until confirmed; never in the primary place.",
+      "html": "<button class=\"ds-btn-danger\" aria-disabled=\"true\">Delete everything</button>",
+      "css": ".ds-btn-danger { display:inline-flex; align-items:center; justify-content:center; gap:8px; height:56px; padding:0 20px; border:2px solid #85878e; border-radius:14px; background:transparent; color:#5b5d64; font:700 17px/1 'Atkinson Hyperlegible Next', system-ui, sans-serif; } .ds-btn-danger:not([aria-disabled]) { border-color:#16171b; color:#16171b; }"
+    },
+    {
+      "name": "Stepper",
+      "kind": "input",
+      "refersTo": "stepper-figure",
+      "description": "A figure (itself a button: a tap types it, an empty RIR's dash takes the target), its unit and hint, two 44-pt round buttons side by side, or + over and − under it below 375 pt; suggested in ink 2 with a dotted underline until touched.",
+      "html": "<div class=\"ds-step\"><button class=\"ds-step-fig\" aria-label=\"62.5 kilograms, suggested. Type a load\">62.5</button><span class=\"ds-step-unit\">kg</span><span class=\"ds-step-btns\"><button aria-label=\"Less load\">−</button><button aria-label=\"More load\">+</button></span></div>",
+      "css": ".ds-step { display:inline-flex; flex-direction:column; align-items:center; gap:6px; } .ds-step-fig { border:0; background:none; padding:0; min-height:44px; font:600 42px/1.1 'Jost', system-ui, sans-serif; font-variant-numeric:tabular-nums lining-nums; color:#5b5d64; text-decoration:underline dotted 2px; text-underline-offset:6px; } .ds-step-unit { font:600 13px 'Atkinson Hyperlegible Next', system-ui, sans-serif; color:#5b5d64; } .ds-step-btns { display:flex; gap:8px; } .ds-step-btns button { width:44px; height:44px; border-radius:22px; border:0; background:#f4f4f5; color:#16171b; font:500 22px/1 'Atkinson Hyperlegible Next', system-ui, sans-serif; cursor:pointer; } .ds-step-btns button:focus-visible { outline:3px solid #16171b; outline-offset:2px; }"
+    },
+    {
+      "name": "Log",
+      "kind": "custom",
+      "refersTo": "log-line",
+      "description": "The sets so far and nothing else: the warm-ups done on one line in ink 2, then a line per set done, 44 pt at least: its number in an 18-pt column, its figures over the entry's. No boxes, no rows for anything to come; the list stands on the entry.",
+      "html": "<ol class=\"ds-log\"><li class=\"warm\"><span>W</span><b>25 × 8</b><b>35 × 5</b><b>45 × 3</b></li><li class=\"set\"><span>1</span><b>60</b><i>×</i><b>4</b><i>@</i><b>2</b></li><li class=\"set\"><span>2</span><b>60</b><i>×</i><b>4</b><i>@</i><b>2</b></li></ol>",
+      "css": ".ds-log { list-style:none; margin:0; padding:0; width:340px; } .ds-log li { display:flex; align-items:baseline; font:700 15px 'Atkinson Hyperlegible Next', system-ui, sans-serif; color:#5b5d64; } .ds-log li.warm { gap:18px; min-height:44px; } .ds-log li.warm b { font:600 20px/1 'Jost', system-ui, sans-serif; font-variant-numeric:tabular-nums; color:#5b5d64; } .ds-log li.set { display:grid; grid-template-columns:18px 1fr 18px 1fr 18px 1fr; min-height:58px; } .ds-log li.set b { font:600 32px/1 'Jost', system-ui, sans-serif; font-variant-numeric:tabular-nums; color:#16171b; text-align:center; } .ds-log li.set i { font:600 17px 'Atkinson Hyperlegible Next', system-ui, sans-serif; font-style:normal; color:#5b5d64; text-align:center; }"
+    },
+    {
+      "name": "Rest Pill",
+      "kind": "custom",
+      "refersTo": "rest-pill",
+      "description": "Rest in the session's header: a dial that empties from twelve, and the time.",
+      "html": "<button class=\"ds-rest\" aria-label=\"Rest, 2 minutes 14 seconds left\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 18 18\" aria-hidden=\"true\"><circle cx=\"9\" cy=\"9\" r=\"8\" fill=\"none\" stroke=\"#16171b\" stroke-width=\"1.6\"/><path d=\"M9 9V2.8A6.2 6.2 0 1 1 3.1 10.9Z\" fill=\"#16171b\"/></svg><span>2:14</span></button>",
+      "css": ".ds-rest { display:inline-flex; align-items:center; gap:7px; height:36px; padding:0 12px 0 9px; border:0; border-radius:18px; background:#f4f4f5; color:#16171b; font:600 17px/1 'Jost', system-ui, sans-serif; font-variant-numeric:tabular-nums; cursor:pointer; } .ds-rest:focus-visible { outline:3px solid #16171b; outline-offset:2px; }"
+    },
+    {
+      "name": "Coach Note",
+      "kind": "card",
+      "refersTo": "coach-note",
+      "description": "Words the coach writes, or the app's own advice under its name: attributed, quiet, two lines then More.",
+      "html": "<aside class=\"ds-note\"><p class=\"ds-note-who\">Recovery check</p><p class=\"ds-note-head\">Sleep 5 h</p><p>Hold loads today rather than adding, and keep the RIR honest.</p></aside>",
+      "css": ".ds-note { max-width:362px; padding:12px 14px; border-radius:14px; background:#f4f4f5; color:#16171b; font:500 15px/1.45 'Atkinson Hyperlegible Next', system-ui, sans-serif; } .ds-note p { margin:0; } .ds-note-who { font-weight:700; font-size:13px; } .ds-note-head { font-weight:700; font-size:17px; margin-top:6px !important; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Label above, 52 pt, a control border, 16-px text.",
+      "html": "<label class=\"ds-field\"><span>Name</span><input value=\"Anytime Fitness\"></label>",
+      "css": ".ds-field { display:flex; flex-direction:column; gap:6px; width:320px; font:700 14px 'Atkinson Hyperlegible Next', system-ui, sans-serif; color:#16171b; } .ds-field input { height:52px; padding:0 16px; border:1.5px solid #85878e; border-radius:14px; background:#ffffff; color:#16171b; font:500 16px 'Atkinson Hyperlegible Next', system-ui, sans-serif; } .ds-field input:focus-visible { outline:3px solid #16171b; outline-offset:2px; }"
+    },
+    {
+      "name": "Tab Bar",
+      "kind": "nav",
+      "refersTo": "tab-bar",
+      "description": "Five destinations, 64 pt: icons from the first forms, filled and 700 where you are.",
+      "html": "<nav class=\"ds-tabs\"><a aria-current=\"page\"><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><circle cx=\"16\" cy=\"11\" r=\"5\" fill=\"currentColor\"/><rect x=\"3.5\" y=\"9\" width=\"7\" height=\"7\" rx=\"0.6\" fill=\"currentColor\"/><path d=\"M3 19.5h18\"/></svg>Today</a><a><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><rect x=\"3\" y=\"8.5\" width=\"5\" height=\"7\" rx=\"0.6\"/><rect x=\"9.5\" y=\"8.5\" width=\"5\" height=\"7\" rx=\"0.6\"/><rect x=\"16\" y=\"8.5\" width=\"5\" height=\"7\" rx=\"0.6\"/></svg>Training</a><a><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M3.5 9.5h17a8.5 8.5 0 0 1-17 0z\"/></svg>Food</a></nav>",
+      "css": ".ds-tabs { display:grid; grid-template-columns:repeat(3, 1fr); height:64px; padding:4px 6px 12px; box-sizing:border-box; border-top:1px solid #e6e6e9; background:#ffffff; } .ds-tabs a { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; height:48px; color:#5b5d64; font:600 13px/1 'Atkinson Hyperlegible Next', system-ui, sans-serif; text-decoration:none; } .ds-tabs a[aria-current] { color:#16171b; font-weight:700; }"
+    },
+    {
+      "name": "Session Strip",
+      "kind": "custom",
+      "refersTo": "session-strip",
+      "description": "A minimised session on every screen: its mark, name, rest and Resume; the one shadow.",
+      "html": "<aside class=\"ds-strip\"><i></i><b>Upper A</b><span>2:14</span><a>Resume</a></aside>",
+      "css": ".ds-strip { display:flex; align-items:center; gap:10px; width:362px; height:52px; padding:0 4px 0 14px; box-sizing:border-box; border-radius:16px; background:#16171b; color:#ffffff; box-shadow:0 10px 28px rgba(22,23,27,0.2); font:700 16px 'Atkinson Hyperlegible Next', system-ui, sans-serif; } .ds-strip i { width:14px; height:14px; background:#2b40c8; } .ds-strip b { flex:1; } .ds-strip span { font:600 18px/1 'Jost', system-ui, sans-serif; font-variant-numeric:tabular-nums; } .ds-strip a { display:flex; align-items:center; height:44px; padding:0 14px; border-radius:12px; background:#ffffff; color:#16171b; font-size:15px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The art is your training",
+    "overview": "Overload is a black-and-white instrument that stays out of the way between sets: ink on white, light ink on near-black in dark, two typefaces, flat surfaces and hairlines. The only colour is the art. Prints are generative, Bauhaus-like compositions drawn from what the athlete has logged and nothing else, so the art is the record and the reward at once. A day's print says what is owed and fills with ink as it is done; a month's print holds every activity of every day.\n\nThe prints have a grammar, and it grows with the app. How the body moves gives the form and its pigment: a block for load, a track for on foot, a wheel for on wheels, a wave for in water, a fan for practice, a bowl for food and a triangle, reserved, for play. Every form stands on one module grid and one baseline, with nothing drawn under it, and the composition sits in the middle of its paper. State is thinned (to do), full (done) or dashed (skipped); context (structure, size) means the same on every form; a new sport is its family's form with one cut. A print carries no words: the rows under it name its parts in the same order.\n\nThe interface says as little as it can. State is shown by ink rather than words, nothing is said twice on one screen, and every name starts at one left edge. Motion is ink, not decoration: a press answers a touch, a set lands in the log when the server has it, words swap in place, sheets follow the finger.",
+    "keyCharacteristics": [
+      "A black-and-white interface; colour only ever means a family of sport, as a print or a mark.",
+      "Prints drawn from real records, on one module grid, with one grammar for every sport.",
+      "Minimal words: no repeated information, no state said in words where ink says it.",
+      "One left edge: every name starts at the gutter; a mark leads a row only where it names a sport.",
+      "Jost for titles and figures, Atkinson Hyperlegible Next for everything read.",
+      "Flat: hairlines and tonal surfaces, one shadow, sheets over a scrim.",
+      "Laid out from the device: figures fit rather than truncate, text wraps rather than runs off, layouts fold rather than drop."
+    ],
+    "rules": [
+      {
+        "name": "The Black-and-White Rule",
+        "body": "The interface is ink on ground. Colour appears only in prints and in sport marks (and the app's mark), and each pigment means one family of sport. A pigment never marks status, an error, a link, emphasis, a selection or a chart: warnings, failures, selected text and every Progress chart are ink. The calendar is not a chart: it is pulled on paper, and its marks are the sports' own.",
+        "section": "colors"
+      },
+      {
+        "name": "The Thinned, Full, Dashed Rule",
+        "body": "Thinned pigment with an edge of the full pigment is to do; full pigment is done; a dashed edge is skipped. A warm-up is grey. Dashed means skipped and nothing else.",
+        "section": "colors"
+      },
+      {
+        "name": "The Quiet Dark Rule",
+        "body": "In dark, prints are pulled on near-black paper with lighter pigments and light ink, so the art is never the brightest thing on the screen. Dark swaps every token that has a `-dark` value to it.",
+        "section": "colors"
+      },
+      {
+        "name": "The Two Voices Rule",
+        "body": "Jost for titles and figures only; Atkinson Hyperlegible Next for every word read. A number inside a sentence stays in Atkinson; a range inside a Jost figure takes Atkinson's en dash, because Jost's is as long as an em dash.",
+        "section": "typography"
+      },
+      {
+        "name": "The Figures Never Truncate Rule",
+        "body": "A figure keeps one line and steps down until it fits: never an ellipsis, never a wrap. It steps down the ramp (42, 36, 34, 32, 28, 26, 20), never to a size in between, so a narrow screen shows the same few sizes as a wide one. Jost 600's tabular digits are 0.614 em, its point and comma 0.32 em.",
+        "section": "typography"
+      },
+      {
+        "name": "The Text Never Runs Off Rule",
+        "body": "Every text column may shrink (`min-width: 0`) and wraps (`overflow-wrap: anywhere`); a row grows rather than clipping. A button at large text sizes grows and wraps.",
+        "section": "typography"
+      },
+      {
+        "name": "The Floors Rule",
+        "body": "Nothing typed or entered is under 16 px; no label is under 12 px.",
+        "section": "typography"
+      },
+      {
+        "name": "The Docked Entry Rule",
+        "body": "On logging, the steppers and Save are on the first screen at every size, and nothing a thumb needs is under the tab bar, because there is none.",
+        "section": "layout"
+      },
+      {
+        "name": "The One Left Edge Rule",
+        "body": "Names at one edge on every list of every screen; marks, where a list has them, in one column.",
+        "section": "layout"
+      },
+      {
+        "name": "The Fold, Never Drop Rule",
+        "body": "When room runs out, a layout folds (steppers stack, a note folds behind a tap); it never drops the equipment, the target or the suggestion, and never shrinks a target under 44 pt.",
+        "section": "layout"
+      },
+      {
+        "name": "The One Shadow Rule",
+        "body": "One shadow in the whole system. Anything else that needs to stand out does it with ink, tone or a scrim.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Square Print Rule",
+        "body": "Prints have square corners; only the interface is rounded.",
+        "section": "shapes"
+      },
+      {
+        "name": "The One Baseline Rule",
+        "body": "Every form in a print stands on one baseline, on one module grid, with nothing drawn under it; tops and rows line up, shapes never overlap, and the composition sits in the middle of its paper.",
+        "section": "shapes"
+      },
+      {
+        "name": "The One Cut Rule",
+        "body": "A sport is its family's form with one cut: the paper shows through (walk: the track's lane opened at its end; hike: a peak cut out; spin: the wheel cut in four; row: the waves cut by two oars; yoga: an arc cut in; climbing: steps cut in; racket sports: a ball punched out). Never an addition, never under the form; it must read at 12 px beside its name.",
+        "section": "shapes"
+      },
+      {
+        "name": "The No Words on a Print Rule",
+        "body": "A print carries no words; the rows under it name its parts in the same order.",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "Do take every figure from the repository's seed, preview, test and audit data, and every interface string from the app's own screens; where a design needs a string the app does not have yet, say so. A print draws only what was logged.",
+      "Do start every name at one edge, and lead a row with a mark only where it names a sport in a list that mixes them.",
+      "Do let ink say state: a mark's fill, an outline, a dashed edge; keep words for what ink cannot say.",
+      "Do give a new sport its family's form with one cut, and check it reads at 12 px.",
+      "Do lay a new screen out at 320, 375, 402 and 440 pt and Android's 360 dp, in light and dark, and at 200% text, before calling it done.",
+      "Do swap a word or a figure in place: out in 80 ms, then in over 120 ms, never both at once."
+    ],
+    "donts": [
+      "Don't use a pigment for anything but a family of sport: not for errors, warnings, links, emphasis, selection or Progress charts.",
+      "Don't say the same thing twice on a screen, or put words on a print; don't draw a box or a mark beside a name to say what its words already say.",
+      "Don't draw a line under a print, or set its composition against one edge of the paper.",
+      "Don't draw a dashed edge for anything but skipped.",
+      "Don't write a set to the log before the server has it, pre-fill RIR, or show a suggested value in ink.",
+      "Don't truncate a figure, shrink a target under 44 pt, or drop a fact to make a layout fit.",
+      "Don't indent a list, box rows into cards, or add a second shadow.",
+      "Don't let the art be the brightest thing on a dark screen."
+    ]
+  }
+}

@@ -6,15 +6,13 @@ import { useEffect, useRef, useState, useTransition } from "react";
 
 import { AmountSheet } from "@/components/food/amount-sheet";
 import { Button } from "@/components/ui/button";
-import { Plus, Search } from "@/components/ui/icons";
+import { Glyph } from "@/components/ui/glyphs";
 import { Field, Input } from "@/components/ui/input";
-import { PRESSABLE_ROW_CLASS } from "@/components/ui/link-row";
 import { SwipeRow } from "@/components/ui/swipe-row";
 import { addUp, NUTRITION_LIMITS, scaleFood, type Food } from "@/domain/nutrition";
 import { formatKcal, formatMacros, formatPortion } from "@/lib/format";
 import { previousAppPage } from "@/lib/navigation-history";
 import { attempted, OFFLINE_SUBMIT_MESSAGE } from "@/lib/offline-submit";
-import { cn } from "@/lib/utils";
 import { deleteSavedMealAction, saveLibraryMealAction } from "@/server/actions/nutrition";
 import type { FoodRecord, SavedMealRecord } from "@/server/repositories/nutrition";
 
@@ -152,98 +150,96 @@ export function MealBuilder({
         />
       </Field>
 
-      <section aria-label="What this meal holds" className="box panel-padding">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+      {/* What the meal comes to, and Save beside it, as a meal of the day shows it. */}
+      <section aria-label="What this meal holds">
+        <div className="meal-total">
           <div className="min-w-0">
-            <p className="text-2xl font-medium tabular-nums">
-              {formatKcal(total.kcal)}
-              <span className="text-sm font-normal text-ink-muted"> kcal</span>
+            <p className="whitespace-nowrap">
+              <span className="type-figure-l">{formatKcal(total.kcal)}</span>{" "}
+              <span className="food-preview-unit">kcal</span>
             </p>
-            {macros && <p className="text-sm text-ink-muted tabular-nums">{macros}</p>}
+            {macros && <p className="type-meta-small text-ink-2 tabular-nums">{macros}</p>}
           </div>
           <Button size="sm" disabled={busy} onClick={save} className="shrink-0">
             {saving ? "Saving…" : "Save meal"}
           </Button>
         </div>
+        {items.length > 0 && (
+          <ul className="meal-entries" aria-label="In this meal">
+            {items.map((item) => (
+              <li key={item.key}>
+                <SwipeRow
+                  action="Remove"
+                  actionLabel={`Remove ${item.food.name}`}
+                  onAction={() => setItems((current) => current.filter((row) => row !== item))}
+                >
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => open({ kind: "item", item })}
+                    className="food-row"
+                  >
+                    <span className="food-row-text">
+                      <span className="food-row-name">{item.food.name}</span>{" "}
+                      <span className="food-row-meta">
+                        {formatPortion(item.amount, item.food.unit)}
+                      </span>
+                    </span>{" "}
+                    <span className="food-row-kcal">
+                      <span className="type-figure">
+                        {formatKcal(scaleFood(item.food, item.amount).kcal)}
+                      </span>{" "}
+                      <span className="food-row-unit">kcal</span>
+                    </span>
+                  </button>
+                </SwipeRow>
+              </li>
+            ))}
+          </ul>
+        )}
+        {errors.items && (
+          <p role="alert" className="mt-2 type-meta-small font-semibold">
+            {errors.items}
+          </p>
+        )}
       </section>
 
-      {items.length > 0 && (
-        <ul className="box-rows" aria-label="In this meal">
-          {items.map((item) => (
-            <li key={item.key}>
-              <SwipeRow
-                action="Remove"
-                actionLabel={`Remove ${item.food.name}`}
-                onAction={() => setItems((current) => current.filter((row) => row !== item))}
-              >
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => open({ kind: "item", item })}
-                  className={cn(PRESSABLE_ROW_CLASS, "flex-wrap")}
-                >
-                  <span className="min-w-0 flex-[1_1_10rem]">
-                    <span className="block font-medium [overflow-wrap:anywhere]">
-                      {item.food.name}
-                    </span>{" "}
-                    <span className="block text-sm text-ink-muted tabular-nums">
-                      {formatPortion(item.amount, item.food.unit)}
-                    </span>
-                  </span>{" "}
-                  <span className="ml-auto max-w-full tabular-nums">
-                    {formatKcal(scaleFood(item.food, item.amount).kcal)} kcal
-                  </span>
-                </button>
-              </SwipeRow>
-            </li>
-          ))}
-        </ul>
-      )}
-      {errors.items && (
-        <p role="alert" className="px-1 text-sm text-danger">
-          {errors.items}
-        </p>
-      )}
-
       {foods.length > 0 ? (
-        <div className="space-y-3">
-          <div className="relative">
-            <Search
-              className="absolute top-1/2 left-3 -translate-y-1/2 text-ink-subtle"
-              aria-hidden
-            />
-            <Input
+        <div>
+          <div className="food-search">
+            <Glyph name="search" className="glyph-20" />
+            <input
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Add a food"
               aria-label="Search your foods to add"
-              className="pl-9"
+              className="food-search-input"
               autoCapitalize="none"
               autoCorrect="off"
               enterKeyHint="search"
             />
           </div>
           {choices.length > 0 && (
-            <ul className="box-rows" aria-label="Your foods">
+            <ul className="food-list mt-1.5" aria-label="Your foods">
               {choices.map((food) => (
                 <li key={food.id}>
                   <button
                     type="button"
                     disabled={busy || full}
                     onClick={() => open({ kind: "add", food })}
-                    className={PRESSABLE_ROW_CLASS}
+                    className="food-row"
                   >
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-medium [overflow-wrap:anywhere]">
-                        {food.name}
-                      </span>{" "}
-                      <span className="block text-sm text-ink-muted tabular-nums">
+                    <span className="food-row-text">
+                      <span className="food-row-name">{food.name}</span>{" "}
+                      <span className="food-row-meta">
                         {formatPortion(food.portionAmount, food.unit)} · {formatKcal(food.kcal)}{" "}
                         kcal
                       </span>
                     </span>
-                    <Plus className="shrink-0 text-accent" aria-hidden />
+                    <span aria-hidden className="meal-add">
+                      <Glyph name="plus" className="glyph-18" />
+                    </span>
                   </button>
                 </li>
               ))}
@@ -251,11 +247,11 @@ export function MealBuilder({
           )}
         </div>
       ) : (
-        <p className="px-1 text-sm text-ink-muted">No foods yet. Make one in My foods first.</p>
+        <p className="type-meta-small text-ink-2">No foods yet. Make one in My foods first.</p>
       )}
 
       {formError && (
-        <p role="alert" className="px-1 text-sm text-danger">
+        <p role="alert" className="type-meta-small font-semibold">
           {formError}
         </p>
       )}

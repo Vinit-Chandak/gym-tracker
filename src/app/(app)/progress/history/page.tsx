@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
-import { PageContent } from "@/components/shell/page-content";
-import { PageHeader } from "@/components/shell/page-header";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import type { Effort } from "@/domain/activity";
 import { formatDuration, formatPace } from "@/domain/pace";
-import { formatDateRange, formatDateTime, formatRunKm } from "@/lib/format";
+import { todayInTimeZone } from "@/domain/program-calendar";
+import { formatRunKm, formatTime } from "@/lib/format";
 import { originQuery } from "@/lib/nav";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
@@ -77,13 +76,17 @@ export default async function HistoryPage(props: PageProps<"/progress/history">)
     },
     { readOnly: true },
   );
+  // Each entry under its own local day, at its local time, as the list is read.
+  const dayOf = (at: Date) => todayInTimeZone(profile.timeZone, at);
+  const timeOf = (at: Date) => formatTime(at, profile.timeZone);
   const items: HistoryItem[] = [
     ...data.training.workouts.map((w) => ({
       id: w.id,
       kind: "workout" as const,
       date: w.startedAt.toISOString(),
+      day: dayOf(w.startedAt),
       title: w.dayName ?? "Ad hoc session",
-      subtitle: `${formatDateTime(w.startedAt, profile.timeZone)} · ${w.gymName}`,
+      subtitle: `${timeOf(w.startedAt)} · ${w.gymName}`,
       // Opened from here, the entry keeps Progress selected rather than the tab it lives under,
       // and goes back to History.
       href: `/workouts/${w.id}${originQuery("history")}` as const,
@@ -101,8 +104,9 @@ export default async function HistoryPage(props: PageProps<"/progress/history">)
       id: r.id,
       kind: "run" as const,
       date: r.startedAt.toISOString(),
+      day: dayOf(r.startedAt),
       title: `${r.environment === "treadmill" ? "Treadmill" : "Outdoor"} · ${formatRunKm(r.distanceMeters)} km`,
-      subtitle: formatDateTime(r.startedAt, profile.timeZone),
+      subtitle: timeOf(r.startedAt),
       href: `/training/activities/${r.id}${originQuery("history")}` as const,
       meta: `${formatDuration(r.durationSeconds)} · ${formatPace(r.averagePaceSecondsPerKm)}/km`,
       gymId: r.gymId,
@@ -113,13 +117,14 @@ export default async function HistoryPage(props: PageProps<"/progress/history">)
       id: activity.id,
       kind: activity.sport as "cycling" | "swimming",
       date: activity.startedAt.toISOString(),
+      day: activity.occurredOn,
       title:
         activity.distanceMetres === null
           ? activity.sport === "cycling"
             ? "Ride"
             : "Swim"
           : `${activity.sport === "cycling" ? "Ride" : "Swim"} · ${formatRunKm(activity.distanceMetres)} km`,
-      subtitle: formatDateTime(activity.startedAt, profile.timeZone),
+      subtitle: timeOf(activity.startedAt),
       href: `/training/activities/${activity.id}${originQuery("history")}` as const,
       // An unrecorded duration says so rather than reading as zero minutes.
       meta:
@@ -134,7 +139,8 @@ export default async function HistoryPage(props: PageProps<"/progress/history">)
       id: r.id,
       kind: "recovery" as const,
       date: r.date,
-      title: `Recovery · ${r.date}`,
+      day: r.date,
+      title: "Recovery",
       subtitle: readings([
         ["Sleep", r.sleepHours, "h"],
         ["Energy", r.energy],
@@ -148,22 +154,15 @@ export default async function HistoryPage(props: PageProps<"/progress/history">)
     })),
   ].sort((a, b) => b.date.localeCompare(a.date));
   return (
-    <>
-      {/* The tab's name, as on every other section of it; the picker below says which. */}
-      <PageHeader title="Progress" meta={formatDateRange(range.from, range.to)} />
-      <PageContent>
-        {rangeError && (
-          <p role="alert" className="text-sm text-danger">
-            {rangeError}
-          </p>
-        )}
-        <HistoryView
-          range={range}
-          items={items}
-          gyms={data.gyms.map((g) => ({ id: g.id, name: g.name }))}
-          truncated={data.training.truncated || data.endurance.nextCursor !== null}
-        />
-      </PageContent>
-    </>
+    // Progress's own opening, as on every other section of it; the picker says which.
+    <div className="progress page-width pt-safe">
+      <HistoryView
+        error={rangeError}
+        range={range}
+        items={items}
+        gyms={data.gyms.map((g) => ({ id: g.id, name: g.name }))}
+        truncated={data.training.truncated || data.endurance.nextCursor !== null}
+      />
+    </div>
   );
 }

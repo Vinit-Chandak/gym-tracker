@@ -11,9 +11,10 @@ import type {
 } from "@/server/repositories/shared-stats";
 
 /**
- * The records a finished workout set (plan §3.13): one line per record, "Barbell bench press
- * · Est. 1RM 88 kg (was 85 kg)", in the reader's unit. On the workout's page, so it is there
- * whenever the workout is reopened and not only in the moment.
+ * The records a finished workout set (plan §3.13; boards Summary, Past workout): a list in ink,
+ * the exercise, the metric and what it was, the new figure trailing, in the reader's unit. On
+ * the workout's page, so it is there whenever the workout is reopened and not only in the
+ * moment.
  */
 export function SessionRecordsCard({
   records,
@@ -24,33 +25,38 @@ export function SessionRecordsCard({
 }) {
   if (records.length === 0) return null;
   return (
-    <Card>
-      <h2 className="text-base font-medium">
+    <section aria-labelledby="session-records">
+      <h2 id="session-records" className="caption-head mt-4.5">
         {records.length === 1 ? "1 record" : `${records.length} records`}
       </h2>
-      <ul className="divide-y divide-line text-sm">
-        {records.map((record) => (
-          <li
-            key={`${record.exerciseId}:${record.metric}`}
-            className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 py-2"
-          >
-            <Link
-              href={`/exercises/${record.exerciseId}`}
-              className="min-w-0 font-medium [overflow-wrap:anywhere] underline-offset-2 hover:underline"
-            >
-              {record.exercise.name}
-            </Link>
-            <span className="text-ink-muted tabular-nums">
-              {metricLabel(record.metric, record.exercise)}{" "}
-              <span className="text-ink">
-                {formatSharedMetric(record.metric, record.value, unit)}
+      <ul>
+        {records.map((record) => {
+          const [figure, ...rest] = formatSharedMetric(record.metric, record.value, unit).split(
+            " ",
+          );
+          return (
+            <li key={`${record.exerciseId}:${record.metric}`} className="figure-row">
+              <span className="figure-row-text">
+                <Link
+                  href={`/exercises/${record.exerciseId}`}
+                  className="record-row-name underline-offset-4 hover:underline"
+                >
+                  {record.exercise.name}
+                </Link>{" "}
+                <span className="figure-row-meta">
+                  {metricLabel(record.metric, record.exercise)} · was{" "}
+                  {formatSharedMetric(record.metric, record.previous, unit)}
+                </span>
               </span>{" "}
-              (was {formatSharedMetric(record.metric, record.previous, unit)})
-            </span>
-          </li>
-        ))}
+              <span className="figure-row-value">
+                <span className="type-figure">{figure}</span>
+                {rest.length > 0 && <span className="figure-row-unit"> {rest.join(" ")}</span>}
+              </span>
+            </li>
+          );
+        })}
       </ul>
-    </Card>
+    </section>
   );
 }
 

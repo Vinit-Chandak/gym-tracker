@@ -13,7 +13,6 @@ import {
 import { originQuery, type NavOrigin } from "@/lib/nav";
 import { formValues, type FormState } from "@/server/validation/form";
 import type { SaveActivityState } from "@/server/actions/activities";
-import { Button } from "@/components/ui/button";
 import { RunningForm } from "./running-form";
 import { CyclingForm } from "./cycling-form";
 import { SwimmingForm } from "./swimming-form";
@@ -158,34 +157,42 @@ function StoredEditor(props: Props) {
     target: props.target,
     submitLabel: props.submitLabel,
   };
+  // Said after the last field, so nothing moves down when the first thing typed keeps a draft.
+  const draftNotice = notice ? (
+    <div className="draft-notice">
+      <p role="status" className="type-meta text-ink-2">
+        {notice}
+      </p>
+      <button
+        type="button"
+        className="text-action"
+        onClick={() => {
+          try {
+            clearDraft(localStorage, props.userId, current.current.draftId);
+          } catch {
+            return;
+          }
+          const next = fresh();
+          current.current = next;
+          setInitialDraft(next);
+          setNotice("");
+        }}
+      >
+        Discard unsaved changes
+      </button>
+    </div>
+  ) : null;
   return (
-    <div className="space-y-3" onChange={changed}>
-      {notice && (
-        <div className="space-y-1">
-          <p role="status" className="text-sm text-ink-muted">
-            {notice}
-          </p>
-          <Button
-            variant="ghost"
-            onClick={() => {
-              try {
-                clearDraft(localStorage, props.userId, current.current.draftId);
-              } catch {
-                return;
-              }
-              const next = fresh();
-              current.current = next;
-              setInitialDraft(next);
-              setNotice("");
-            }}
-          >
-            Discard unsaved changes
-          </Button>
-        </div>
+    <div onChange={changed}>
+      {props.sport === "running" && (
+        <RunningForm key={initialDraft.draftId} {...shared} notice={draftNotice} />
       )}
-      {props.sport === "running" && <RunningForm key={initialDraft.draftId} {...shared} />}
-      {props.sport === "cycling" && <CyclingForm key={initialDraft.draftId} {...shared} />}
-      {props.sport === "swimming" && <SwimmingForm key={initialDraft.draftId} {...shared} />}
+      {props.sport === "cycling" && (
+        <CyclingForm key={initialDraft.draftId} {...shared} notice={draftNotice} />
+      )}
+      {props.sport === "swimming" && (
+        <SwimmingForm key={initialDraft.draftId} {...shared} notice={draftNotice} />
+      )}
     </div>
   );
 }

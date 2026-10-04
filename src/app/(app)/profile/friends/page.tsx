@@ -1,12 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
-import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
-import { Badge } from "@/components/ui/badge";
-import { Scales, Trophy, UserPlus, Users } from "@/components/ui/icons";
-import { List } from "@/components/ui/link-row";
-import { Section } from "@/components/ui/section";
 import { ShortcutGrid, ShortcutTile } from "@/components/ui/shortcut-tile";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
@@ -22,7 +17,7 @@ import { PEOPLE_TABS } from "./people-tabs";
 export const metadata: Metadata = { title: "Friends" };
 
 /**
- * Friends (ADR 0027): four one-line tiles — Leaderboard, Compare, Find people and People —
+ * Friends (ADR 0027; board Friends): four tiles — Leaderboard, Compare, Find people and People —
  * then recent activity, the last twenty shared sessions of the people you follow. What grows
  * with the number of people, the lists and the requests, lives behind the People tile, so
  * the activity stays on the first screen however many people there are.
@@ -58,45 +53,48 @@ export default async function FriendsPage(props: PageProps<"/profile/friends">) 
   return (
     <>
       <PageHeader title="Friends" backHref="/profile" />
-      <PageContent>
-        <ShortcutGrid label="Friends">
-          <li>
-            <ShortcutTile href="/profile/friends/leaderboard" icon={Trophy} label="Leaderboard" />
-          </li>
-          <li>
-            <ShortcutTile href="/profile/friends/compare" icon={Scales} label="Compare" />
-          </li>
-          <li>
-            <ShortcutTile href="/profile/friends/find" icon={UserPlus} label="Find people" />
-          </li>
-          <li>
-            <ShortcutTile
-              href="/profile/friends/people"
-              icon={Users}
-              label="People"
-              badge={
-                requests > 0 && (
-                  <Badge tone="accent">
-                    {requests} {requests === 1 ? "request" : "requests"}
-                  </Badge>
-                )
-              }
-            />
-          </li>
-        </ShortcutGrid>
+      <div className="page-width pb-8">
+        <div className="mt-3.5">
+          <ShortcutGrid label="Friends">
+            <li>
+              <ShortcutTile
+                href="/profile/friends/leaderboard"
+                glyph="trophy"
+                label="Leaderboard"
+              />
+            </li>
+            <li>
+              <ShortcutTile href="/profile/friends/compare" glyph="scales" label="Compare" />
+            </li>
+            <li>
+              <ShortcutTile href="/profile/friends/find" glyph="personPlus" label="Find people" />
+            </li>
+            <li>
+              <ShortcutTile
+                href="/profile/friends/people"
+                glyph="people"
+                label="People"
+                badge={requests > 0 && `${requests} ${requests === 1 ? "request" : "requests"}`}
+              />
+            </li>
+          </ShortcutGrid>
+        </div>
 
         {activity.length > 0 && (
-          <Section title="Recent activity">
-            <List>
+          <section aria-labelledby="friends-activity">
+            <h2 id="friends-activity" className="caption-head mt-4.5">
+              Recent activity
+            </h2>
+            <ul>
               {activity.map((row) => (
-                <li key={row.id}>
+                <li key={row.id} className="activity-row-item">
                   <ActivityRow row={row} unit={unit} today={today} />
                 </li>
               ))}
-            </List>
-          </Section>
+            </ul>
+          </section>
         )}
-      </PageContent>
+      </div>
     </>
   );
 }

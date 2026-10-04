@@ -4,12 +4,13 @@ import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 
-import { Badge } from "@/components/ui/badge";
-import { Button, LinkButton } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import Link from "@/components/ui/app-link";
+import { Button } from "@/components/ui/button";
 import { SpeechTextarea } from "@/components/ui/dictation";
-import { Disclosure } from "@/components/ui/disclosure";
+import { Glyph } from "@/components/ui/glyphs";
 import { Field, Input } from "@/components/ui/input";
+import { NavRow } from "@/components/ui/nav-row";
+import { PinnedActions } from "@/components/ui/pinned-actions";
 import { PLAN_LIMITS } from "@/domain/plan-limits";
 import type { ChangeSummary } from "@/domain/program-change-summary";
 import {
@@ -96,7 +97,7 @@ export function ChangeDetail(props: ChangeDetailProps) {
     );
   const why = coach && unasked && (props.rationale || props.uncertainties.length > 0);
   const tags: Record<string, ReactNode> = {};
-  for (const [id, quote] of attributed) tags[id] = <Badge tone="accent">“{quote}”</Badge>;
+  for (const [id, quote] of attributed) tags[id] = <span className="ask-tag">“{quote}”</span>;
 
   const run = async (work: () => Promise<{ ok: boolean; error?: string }>, done?: () => void) => {
     setBusy(true);
@@ -109,156 +110,164 @@ export function ChangeDetail(props: ChangeDetailProps) {
   const back = () => router.push(`${props.base}?view=changes` as Route);
 
   return (
-    <div className="space-y-4">
-      <Card>
-        {/* The page header is the h1; the change's own line is the next level down. */}
-        <h2 className="min-w-0 text-lg font-medium [overflow-wrap:anywhere]">
-          {props.headline || (coach ? "The coach's changes" : "Your changes")}
-        </h2>
-        {props.outcome && <p className="text-sm text-ink-muted">{props.outcome}</p>}
-        {why && (
-          <Disclosure summary="Why" variant="footer">
-            <div className="space-y-3">
-              {props.rationale && (
-                <p className="text-sm [overflow-wrap:anywhere] whitespace-pre-wrap">
-                  {props.rationale}
-                </p>
-              )}
-              {props.uncertainties.length > 0 && (
-                <ul className="list-disc space-y-1 pl-5 text-sm text-ink-muted">
-                  {props.uncertainties.map((line, index) => (
-                    <li key={index} className="[overflow-wrap:anywhere]">
-                      {line}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </Disclosure>
-        )}
-      </Card>
+    <div>
+      {/* The page names itself for screen readers; the change's own line is what is read. */}
+      <h2 className="change-headline">
+        {props.headline || (coach ? "The coach's changes" : "Your changes")}
+      </h2>
+      {props.outcome && <p className="mt-1 type-meta text-ink-2">{props.outcome}</p>}
+      {why && (
+        <details open className="change-why">
+          <summary className="change-why-summary">
+            <Glyph name="info" className="glyph-18" />
+            Why
+          </summary>
+          {props.rationale && (
+            <p className="type-meta leading-[1.45] [overflow-wrap:anywhere] whitespace-pre-wrap">
+              {props.rationale}
+            </p>
+          )}
+          {props.uncertainties.length > 0 && (
+            <ul className="mt-1.5 space-y-1 type-meta-small text-ink-2">
+              {props.uncertainties.map((line, index) => (
+                <li key={index} className="[overflow-wrap:anywhere]">
+                  {line}
+                </li>
+              ))}
+            </ul>
+          )}
+        </details>
+      )}
 
-      <ProgramDiffView summary={props.summary} names={props.names} reasons={tags} />
+      <div className="mt-1">
+        <ProgramDiffView summary={props.summary} names={props.names} reasons={tags} />
+      </div>
 
       {/* Whatever is or is not printed above, an open change can always be answered: one that
           only rewrites the description, or only weeks already behind, still has to be
           approvable and dismissable, or it would sit on the Changes tab for good. */}
+      {open && !props.canContinue && (
+        <div className="mt-3.5 space-y-3">
+          <p className="type-meta-small text-ink-2">
+            This changes the programme&apos;s structure, so it starts a new block.
+          </p>
+          <Field label="Start date">
+            <Input
+              type="date"
+              value={startDate}
+              onChange={(event) => setStartDate(event.target.value)}
+            />
+          </Field>
+        </div>
+      )}
       {open && (
-        <Card>
-          {!props.canContinue && (
+        <PinnedActions stack>
+          {coach && revising ? (
             <>
-              <p className="text-sm text-ink-muted">
-                This changes the programme&apos;s structure, so it starts a new block.
-              </p>
-              <Field label="Start date">
-                <Input
-                  type="date"
-                  value={startDate}
-                  onChange={(event) => setStartDate(event.target.value)}
-                />
-              </Field>
+              <SpeechTextarea
+                label="what you would like changed"
+                rows={3}
+                maxLength={PLAN_LIMITS.memo}
+                placeholder="Keep the curls, but leave my Friday alone."
+                value={revisionNotes}
+                onChange={setRevisionNotes}
+              />
+              <Button
+                size="lg"
+                className="flex w-full"
+                disabled={busy || revisionNotes.trim().length === 0}
+                onClick={() =>
+                  run(
+                    () =>
+                      coachingAction(() =>
+                        requestChangeRevisionsAction(props.draftId, revisionNotes, noteId),
+                      ),
+                    back,
+                  )
+                }
+              >
+                {busy ? "Sending…" : "Send"}
+              </Button>
             </>
-          )}
-          <Button
-            disabled={busy || !startDate}
-            className="flex w-full"
-            onClick={() =>
-              run(
-                () =>
-                  coachingAction(() =>
-                    approveProgramChangeAction({
-                      id: props.draftId,
-                      revision: props.revision,
-                      startDate,
-                    }),
-                  ),
-                back,
-              )
-            }
-          >
-            {busy ? "Saving…" : coach ? "Approve" : "Use these changes"}
-          </Button>
-          {coach &&
-            (revising ? (
-              <div className="space-y-2">
-                <SpeechTextarea
-                  label="what you would like changed"
-                  rows={4}
-                  maxLength={PLAN_LIMITS.memo}
-                  placeholder="Keep the curls, but leave my Friday alone."
-                  value={revisionNotes}
-                  onChange={setRevisionNotes}
-                />
+          ) : (
+            <>
+              <div className="flex gap-2">
                 <Button
-                  variant="secondary"
-                  className="flex w-full"
-                  disabled={busy || revisionNotes.trim().length === 0}
+                  size="lg"
+                  disabled={busy || !startDate}
+                  className="min-w-0 flex-1"
                   onClick={() =>
                     run(
                       () =>
                         coachingAction(() =>
-                          requestChangeRevisionsAction(props.draftId, revisionNotes, noteId),
+                          approveProgramChangeAction({
+                            id: props.draftId,
+                            revision: props.revision,
+                            startDate,
+                          }),
                         ),
                       back,
                     )
                   }
                 >
-                  {busy ? "Sending…" : "Send"}
+                  {busy ? "Saving…" : coach ? "Approve" : "Use these changes"}
+                </Button>
+                <Button
+                  size="lg"
+                  variant="tonal"
+                  disabled={busy}
+                  onClick={() =>
+                    run(
+                      () =>
+                        coachingAction(() =>
+                          coach
+                            ? declineProgramChangeAction(props.draftId)
+                            : rejectProgramDraftAction(props.draftId),
+                        ),
+                      back,
+                    )
+                  }
+                >
+                  {coach ? "Decline" : "Discard"}
                 </Button>
               </div>
-            ) : (
-              <Button variant="secondary" className="flex w-full" onClick={() => setRevising(true)}>
-                Ask for changes
-              </Button>
-            ))}
-          {!coach && (
-            <LinkButton
-              href={`${props.base}/manual?draft=${props.draftId}` as Route}
-              variant="secondary"
-              className="flex w-full"
-            >
-              Edit
-            </LinkButton>
+              {coach ? (
+                <button type="button" className="text-action" onClick={() => setRevising(true)}>
+                  Ask for changes
+                </button>
+              ) : (
+                <Link
+                  href={`${props.base}/manual?draft=${props.draftId}` as Route}
+                  className="text-action"
+                >
+                  Edit
+                </Link>
+              )}
+            </>
           )}
-          <Button
-            variant="ghost"
-            className="flex w-full"
-            disabled={busy}
-            onClick={() =>
-              run(
-                () =>
-                  coachingAction(() =>
-                    coach
-                      ? declineProgramChangeAction(props.draftId)
-                      : rejectProgramDraftAction(props.draftId),
-                  ),
-                back,
-              )
-            }
-          >
-            {coach ? "Decline" : "Discard"}
-          </Button>
           {error && (
-            <p role="alert" className="text-sm text-danger">
+            <p role="alert" className="type-meta-small font-semibold">
               {error}
             </p>
           )}
-        </Card>
+        </PinnedActions>
       )}
 
       {/* The whole programme as it would be — after the difference, not before it. */}
       {props.base === "/profile/programme" && (
-        <LinkButton
-          href={`${props.base}/drafts/${props.draftId}/programme` as Route}
-          variant="ghost"
-          className="flex w-full"
-        >
-          {open
-            ? "See the full programme with these changes"
-            : props.status === "activated"
-              ? "See the full programme it made"
-              : "See the full programme it proposed"}
-        </LinkButton>
+        <ul className="mt-3">
+          <NavRow
+            href={`${props.base}/drafts/${props.draftId}/programme` as Route}
+            glyph="table"
+            label={
+              open
+                ? "See the full programme with these changes"
+                : props.status === "activated"
+                  ? "See the full programme it made"
+                  : "See the full programme it proposed"
+            }
+          />
+        </ul>
       )}
     </div>
   );

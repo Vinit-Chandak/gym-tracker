@@ -6,7 +6,7 @@ import { CANVAS_DARK } from "@/lib/appearance";
 /**
  * The installed launch and splash colours are read from this file by the platform before
  * the app runs, so they cannot follow the appearance preference: a manifest holds one
- * colour. Form's dark canvas is the deliberate fallback. A light-mode user therefore sees
+ * colour. Form v2's dark ground is the deliberate fallback. A light-mode user therefore sees
  * a dark splash hand over to the light interface; the app itself is correct from its
  * first paint, and only the OS-drawn splash is fixed.
  */

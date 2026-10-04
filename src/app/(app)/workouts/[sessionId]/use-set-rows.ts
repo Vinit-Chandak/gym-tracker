@@ -18,8 +18,8 @@ import {
   type DraftValueField,
 } from "@/lib/workout-drafts";
 import { attempted } from "@/lib/offline-submit";
-import { deleteSetAction, logSetAction } from "@/server/actions/sessions";
 
+import { useLoggerActions } from "./logger-actions";
 import type { ExerciseVM, SetVM } from "./view-model";
 
 const MAX_SETS = 50;
@@ -214,7 +214,11 @@ type Options = {
   /** What one set of this exercise counts: reps, seconds held, or metres covered. */
   measure: PrescriptionType;
   unit: LoadUnit;
+  /** A new set is on the server: rest starts again from here, never before. */
   onLogged: (restSeconds: number) => void;
+  /** The server has a set this screen sent: a new one, or a change to one it had. */
+  /** The server has the set: its row, whether it was a new set, and the set as saved. */
+  onSaved?: (setIndex: number, added: boolean, saved: { set: SetVM; autoWarmup: boolean }) => void;
 };
 
 /**
@@ -223,7 +227,16 @@ type Options = {
  * Each row keeps its own numbers. Nothing here writes across rows, so four sets that happen
  * to hold the same load are four records that happen to agree, not one shared value.
  */
-export function useSetRows({ exercise, userId, sessionId, measure, unit, onLogged }: Options) {
+export function useSetRows({
+  exercise,
+  userId,
+  sessionId,
+  measure,
+  unit,
+  onLogged,
+  onSaved,
+}: Options) {
+  const actions = useLoggerActions();
   const [rows, setRows] = useState<RowState[]>(() => initialRows(exercise));
   const [pending, startTransition] = useTransition();
   const [storageError, setStorageError] = useState(false);
@@ -448,16 +461,12 @@ export function useSetRows({ exercise, userId, sessionId, measure, unit, onLogge
     };
     remember(submitted);
     update(row.setIndex, submitted);
-    if (!row.logged) onLogged(exercise.coachRestSeconds ?? exercise.planned?.restMinSeconds ?? 90);
-    setRows((current) =>
-      row.setIndex === Math.max(...current.map((r) => r.setIndex)) && row.setIndex < MAX_SETS
-        ? [...current, emptyRow(row.setIndex + 1)]
-        : current,
-    );
+    // Nothing moves on before the server has the set (DESIGN.md, The log): the next row, and
+    // rest starting again, wait for its answer.
     startTransition(async () => {
       const result = await track(
         safeAction(() =>
-          logSetAction({
+          actions.logSet({
             effortInputVersion: EFFORT_INPUT_VERSION,
             unit: submitted.unit,
             workoutExerciseId: exercise.id,
@@ -506,6 +515,9 @@ export function useSetRows({ exercise, userId, sessionId, measure, unit, onLogge
         setIndex: row.setIndex,
         set: result.set,
       });
+      if (!row.logged)
+        onLogged(exercise.coachRestSeconds ?? exercise.planned?.restMinSeconds ?? 90);
+      onSaved?.(row.setIndex, !row.logged, { set: setInUnit(result.set, unit), autoWarmup });
     });
   };
 
@@ -523,7 +535,7 @@ export function useSetRows({ exercise, userId, sessionId, measure, unit, onLogge
     update(row.setIndex, { saving: true });
     startTransition(async () => {
       const result = await track(
-        safeAction(() => deleteSetAction(exercise.id, row.setIndex, expectedCompletedAt)),
+        safeAction(() => actions.deleteSet(exercise.id, row.setIndex, expectedCompletedAt)),
       );
       if (!result.ok) {
         update(row.setIndex, { saving: false, error: result.error });

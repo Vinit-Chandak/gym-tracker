@@ -87,7 +87,7 @@ const props = (overrides: Partial<ChangeDetailProps> = {}): ChangeDetailProps =>
 it("is the one line, the difference, and three answers — nothing said twice", () => {
   render(<ChangeDetail {...props()} />);
   expect(screen.getByRole("heading", { name: "One extra set on the curl." })).toBeTruthy();
-  expect(screen.getByText("Sets:")).toBeTruthy();
+  expect(screen.getByText("Sets")).toBeTruthy();
   expect(screen.getByRole("button", { name: "Approve" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Ask for changes" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Decline" })).toBeTruthy();

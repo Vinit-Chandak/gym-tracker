@@ -154,15 +154,18 @@ it("logs a food from My foods at the amount eaten, a tap or a few digits away", 
   editor();
   fireEvent.click(myFoods().getByRole("button", { name: /^Oats 100 g/ }));
   expect(inSheet().getByRole("heading", { name: "Oats" })).toBeTruthy();
-  expect(sheet().textContent).toContain("Per 100 g389 kcal · Carbs 66 g · Fat 7 g · Protein 17 g");
+  expect(sheet().textContent).toContain(
+    "Per 100 g · 389 kcal · Carbs 66 g · Fat 7 g · Protein 17 g",
+  );
   expect(inSheet().getByLabelText("Amount eaten")).toHaveProperty("value", "100");
 
-  fireEvent.click(inSheet().getByRole("button", { name: "200 g" }));
+  // − and + step by half a portion.
+  fireEvent.click(inSheet().getByRole("button", { name: "More Oats" }));
+  fireEvent.click(inSheet().getByRole("button", { name: "More Oats" }));
   expect(inSheet().getByLabelText("Amount eaten")).toHaveProperty("value", "200");
-  expect(inSheet().getByRole("button", { name: "200 g" }).getAttribute("aria-pressed")).toBe(
-    "true",
-  );
   expect(sheet().textContent).toContain("778 kcal");
+  fireEvent.click(inSheet().getByRole("button", { name: "Less Oats" }));
+  expect(inSheet().getByLabelText("Amount eaten")).toHaveProperty("value", "150");
   type("Amount eaten", "60");
   expect(sheet().textContent).toContain("233.4 kcal");
   expect(sheet().textContent).toContain("Carbs 40 g · Fat 4 g · Protein 10 g");
@@ -183,13 +186,14 @@ it("keeps the sheet and its amount when the connection drops, and retries as the
   vi.mocked(logFoodAction).mockRejectedValueOnce(new TypeError("Failed to fetch"));
   editor();
   fireEvent.click(myFoods().getByRole("button", { name: /^Whey 1 scoop/ }));
-  fireEvent.click(inSheet().getByRole("button", { name: "1.5 scoops" }));
+  fireEvent.click(inSheet().getByRole("button", { name: "More Whey" }));
   fireEvent.click(inSheet().getByRole("button", { name: "Add to Breakfast" }));
   expect((await inSheet().findByRole("alert")).textContent).toBe(OFFLINE_SUBMIT_MESSAGE);
   expect(sheet().open).toBe(true);
   expect(inSheet().getByLabelText("Amount eaten")).toHaveProperty("value", "1.5");
 
-  fireEvent.click(inSheet().getByRole("button", { name: "Add to Breakfast" }));
+  // The failure is said inside the save's transition; Add comes back once it ends.
+  fireEvent.click(await inSheet().findByRole("button", { name: "Add to Breakfast" }));
   await waitFor(() => expect(sheet().open).toBe(false));
   const [first, second] = vi.mocked(logFoodAction).mock.calls.map(([draft]) => draft);
   expect(second).toEqual(first);

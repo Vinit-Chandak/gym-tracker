@@ -97,6 +97,21 @@ export function formatIsoMonth(month: string, currentYear?: string): string {
   return month.slice(0, 4) === currentYear ? on.month : `${on.month} ${on.year}`;
 }
 
+/** "8 Jul", "28 Sept": a day on a chart's axis, where the year is the range's. */
+export function formatIsoShortDay(isoDate: string): string {
+  const on = isoParts(isoDate, { day: "numeric", month: "short" });
+  return on ? `${on.day} ${on.month}` : isoDate;
+}
+
+/** "Feb 2022": a month on a chart's axis that spans years. */
+export function formatIsoShortMonth(isoDate: string): string {
+  const on = isoParts(isoDate.length === 7 ? `${isoDate}-01` : isoDate, {
+    month: "short",
+    year: "numeric",
+  });
+  return on ? `${on.month} ${on.year}` : isoDate;
+}
+
 /** "Saturday 26 September": a day named in full, as a calendar's day is read out. */
 export function formatIsoLongDay(isoDate: string): string {
   const on = isoParts(isoDate, { weekday: "long", day: "numeric", month: "long" });

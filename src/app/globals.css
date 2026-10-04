@@ -1,18 +1,78 @@
 @import "tailwindcss" source(none);
-/* Foundation first: it declares the semantic --ov-* names form.css fills in. */
-@import "../styles/form/foundation.css";
-@import "../styles/form/form.css";
+/* The palettes first: foundation.css picks the light or dark set from them. */
+@import "../styles/form-v2/palette.css";
+@import "../styles/form-v2/foundation.css";
+@import "../styles/form-v2/session.css";
+@import "../styles/form-v2/rows.css";
+@import "../styles/form-v2/progress.css";
+@import "../styles/form-v2/food.css";
+@import "../styles/form-v2/training.css";
+@import "../styles/form-v2/people.css";
+@import "../styles/form-v2/onboarding.css";
 @source "../";
 
 /*
- * Form design tokens, exposed under the Tailwind names the app already uses.
+ * Form v2's tokens (DESIGN.md), exposed as Tailwind names.
  *
- * `inline` matters: it makes `bg-canvas` compile to `var(--ov-canvas)` rather than to a
- * frozen copy of whatever `--ov-canvas` happened to be at build time. The light/dark
+ * `inline` matters: it makes `bg-ground` compile to `var(--ov-ground)` rather than to a
+ * frozen copy of whatever `--ov-ground` happened to be at build time. The light/dark
  * choice then happens where the utility is used, so one component tree serves both modes.
  * Runtime values stay in the imported files; never nest a @theme block under a mode.
  */
 @theme inline {
+  /* The interface: ink on ground. */
+  --color-ground: var(--ov-ground);
+  --color-surface-2: var(--ov-surface-2);
+  --color-ink-2: var(--ov-ink-2);
+  --color-control: var(--ov-control);
+  --color-hair: var(--ov-hair);
+  --color-on-ink: var(--ov-on-ink);
+  --color-on-ink-2: var(--ov-on-ink-2);
+  --color-scrim: var(--ov-scrim);
+  --color-ultra: var(--ov-ultra);
+  --color-on-ultra: var(--ov-on-ultra);
+  --color-ultra-t: var(--ov-ultra-t);
+  --color-mark-warm-up: var(--ov-mark-warm-up);
+
+  /* The art: paper, its ink, and the pigments, full (done) and thinned (to do). */
+  --color-paper: var(--ov-paper);
+  --color-print-ink: var(--ov-print-ink);
+  --color-print-label: var(--ov-print-label);
+  --color-print-dot: var(--ov-print-dot);
+  --color-print-warm-up: var(--ov-print-warm-up);
+  --color-print-strength: var(--ov-print-strength);
+  --color-print-run: var(--ov-print-run);
+  --color-print-ride: var(--ov-print-ride);
+  --color-print-swim: var(--ov-print-swim);
+  --color-print-mobility: var(--ov-print-mobility);
+  --color-print-food: var(--ov-print-food);
+  --color-print-play: var(--ov-print-play);
+  --color-print-strength-todo: var(--ov-print-strength-todo);
+  --color-print-run-todo: var(--ov-print-run-todo);
+  --color-print-ride-todo: var(--ov-print-ride-todo);
+  --color-print-swim-todo: var(--ov-print-swim-todo);
+  --color-print-mobility-todo: var(--ov-print-mobility-todo);
+  --color-print-food-todo: var(--ov-print-food-todo);
+  --color-print-play-todo: var(--ov-print-play-todo);
+  --color-print-ochre: var(--ov-print-ochre);
+  --color-print-straw: var(--ov-print-straw);
+  --color-on-food: var(--ov-on-food);
+
+  --font-display: var(--ov-font-display);
+  --font-text: var(--ov-font-text);
+
+  --radius-print: var(--ov-radius-print);
+  --radius-indicator: var(--ov-radius-indicator);
+  --radius-checkbox: var(--ov-radius-checkbox);
+  --radius-tag: var(--ov-radius-tag);
+  --radius-row: var(--ov-radius-row);
+  --radius-segment: var(--ov-radius-segment);
+  --radius-key: var(--ov-radius-key);
+  --radius-rest-pill: var(--ov-radius-rest-pill);
+
+  --shadow-floating: var(--ov-shadow-floating);
+
+  /* Form's names, which the screens without a Form v2 board still use (foundation.css). */
   --color-canvas: var(--ov-canvas);
   --color-surface: var(--ov-surface);
   --color-surface-raised: var(--ov-surface-raised);
@@ -63,12 +123,178 @@
   --radius-sheet: var(--ov-radius-sheet);
 
   --text-xs: var(--ov-text-label);
+  --text-xs--line-height: 1.3;
   --text-sm: var(--ov-text-small);
+  --text-sm--line-height: 1.35;
   --text-base: var(--ov-text-body);
+  --text-base--line-height: 1.45;
   --text-lg: var(--ov-text-section);
-  --text-lg--line-height: var(--ov-leading-heading);
+  --text-lg--line-height: 1.3;
   --text-xl: var(--ov-text-title);
   --text-xl--line-height: var(--ov-leading-heading);
+  --text-2xl: var(--ov-type-display);
+  --text-2xl--line-height: var(--ov-leading-heading);
+}
+
+/*
+ * The type ramp's roles (DESIGN.md, Typography). Jost carries titles and figures, tabular and
+ * lining; Atkinson Hyperlegible Next carries every word read. A role sets the whole voice, so a
+ * screen names the role rather than a size, a weight and a family.
+ */
+@utility type-title {
+  font-family: var(--ov-font-display);
+  font-size: var(--ov-type-title);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: var(--ov-title-tracking);
+}
+@utility type-display {
+  font-family: var(--ov-font-display);
+  font-size: var(--ov-type-display);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: var(--ov-title-tracking);
+}
+@utility type-sheet-title {
+  font-family: var(--ov-font-display);
+  font-size: var(--ov-type-sheet-title);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: var(--ov-title-tracking);
+}
+@utility type-figure-xl {
+  font-family: var(--ov-font-display);
+  font-size: var(--ov-type-figure-xl);
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+@utility type-entry {
+  font-family: var(--ov-font-display);
+  font-size: var(--ov-type-entry);
+  font-weight: 600;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+@utility type-log {
+  font-family: var(--ov-font-display);
+  font-size: var(--ov-type-log);
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+@utility type-figure-l {
+  font-family: var(--ov-font-display);
+  font-size: var(--ov-type-figure-l);
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+@utility type-figure {
+  font-family: var(--ov-font-display);
+  font-size: var(--ov-type-figure);
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+@utility type-figure-s {
+  font-family: var(--ov-font-display);
+  font-size: var(--ov-type-figure-s);
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+@utility type-heading {
+  font-family: var(--ov-font-text);
+  font-size: var(--ov-type-heading);
+  font-weight: 700;
+  line-height: 1.3;
+}
+@utility type-body {
+  font-family: var(--ov-font-text);
+  font-size: var(--ov-type-body);
+  font-weight: 500;
+  line-height: 1.45;
+}
+@utility type-meta {
+  font-family: var(--ov-font-text);
+  font-size: var(--ov-type-meta);
+  font-weight: 500;
+  line-height: 1.4;
+}
+@utility type-meta-small {
+  font-family: var(--ov-font-text);
+  font-size: var(--ov-type-meta-small);
+  font-weight: 500;
+  line-height: 1.35;
+}
+@utility type-caption {
+  font-family: var(--ov-font-text);
+  font-size: var(--ov-type-caption);
+  font-weight: 700;
+  line-height: 1.3;
+}
+@utility type-button {
+  font-family: var(--ov-font-text);
+  font-size: var(--ov-type-button);
+  font-weight: 700;
+  line-height: 1;
+}
+@utility type-tab {
+  font-family: var(--ov-font-text);
+  font-size: var(--ov-type-tab);
+  font-weight: 600;
+  line-height: 1;
+}
+@utility type-print-label {
+  font-family: var(--ov-font-text);
+  font-size: var(--ov-type-print-label);
+  font-weight: 700;
+  line-height: 1;
+}
+/*
+ * Glyphs grow with the reader's text by half, as figures do: 20 pt at 100%, 30 at 200%.
+ */
+@utility glyph-14 {
+  width: calc(7px + 0.4375rem);
+  height: calc(7px + 0.4375rem);
+}
+@utility glyph-15 {
+  width: calc(7.5px + 0.46875rem);
+  height: calc(7.5px + 0.46875rem);
+}
+@utility glyph-16 {
+  width: calc(8px + 0.5rem);
+  height: calc(8px + 0.5rem);
+}
+@utility glyph-18 {
+  width: calc(9px + 0.5625rem);
+  height: calc(9px + 0.5625rem);
+}
+@utility glyph-20 {
+  width: calc(10px + 0.625rem);
+  height: calc(10px + 0.625rem);
+}
+@utility glyph-22 {
+  width: calc(11px + 0.6875rem);
+  height: calc(11px + 0.6875rem);
+}
+@utility glyph-24 {
+  width: calc(12px + 0.75rem);
+  height: calc(12px + 0.75rem);
+}
+@utility glyph-26 {
+  width: calc(13px + 0.8125rem);
+  height: calc(13px + 0.8125rem);
+}
+@utility glyph-30 {
+  width: calc(15px + 0.9375rem);
+  height: calc(15px + 0.9375rem);
+}
+/* A figure inside words keeps Jost's tabular lining digits without the role's size. */
+@utility figures {
+  font-family: var(--ov-font-display);
+  font-variant-numeric: tabular-nums lining-nums;
 }
 
 /*
@@ -76,17 +302,14 @@
  * spacing comes from tokens rather than a margin chosen per screen.
  */
 :root {
-  /* The row of tabs, and the whole island: the glass is exactly as tall as its tabs. */
-  --nav-height: var(--ov-nav-height);
-  /* Side gutters stay independent of the smaller gap below the island. */
-  --nav-inset: var(--ov-space-5);
-  /*
-   * Bring the island 12px closer to the bottom on inset displays, with a 4px minimum gap.
-   * The same gap also positions the resume strip and reserves space in the page below.
-   */
-  --nav-gap: max(var(--ov-space-1), calc(env(safe-area-inset-bottom, 0px) - var(--ov-space-4)));
-  /* Everything the navigation takes off the bottom of the viewport, island and gap. */
-  --nav-reserve: calc(var(--nav-height) + var(--nav-gap));
+  /* Under the targets: 17 pt above the home indicator's edge, or 11 where there is none. */
+  --nav-foot: max(11px, calc(env(safe-area-inset-bottom, 0px) - 17px));
+  /* The tab bar: a hairline and 2, the targets, the foot. */
+  --nav-height: calc(3px + var(--ov-target) + var(--nav-foot));
+  --nav-inset: 0px;
+  --nav-gap: 0px;
+  /* Everything the navigation takes off the bottom of the viewport. */
+  --nav-reserve: var(--nav-height);
   --header-height: calc(var(--ov-control-height) + var(--ov-space-6));
   --page-gutter: var(--ov-page-gutter);
   --panel-padding: var(--ov-panel-padding);
@@ -104,9 +327,10 @@
   body {
     background: var(--ov-canvas);
     color: var(--ov-ink);
-    font-family: var(--ov-font-body);
-    font-size: var(--ov-text-body);
-    line-height: var(--ov-leading-body);
+    font-family: var(--ov-font-text);
+    font-size: var(--ov-type-body);
+    font-weight: 500;
+    line-height: 1.45;
     /* Stop the rubber-band bounce in standalone (installed) mode. */
     overscroll-behavior-y: none;
     -webkit-tap-highlight-color: transparent;
@@ -114,13 +338,24 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
-  h1,
+  /* A page's name is a title in Jost; every other heading is a word read, in Atkinson. */
+  h1 {
+    font-family: var(--ov-font-display);
+    font-weight: 700;
+    letter-spacing: var(--ov-title-tracking);
+    line-height: var(--ov-leading-heading);
+  }
+
   h2,
   h3 {
-    font-family: var(--ov-font-heading);
-    font-weight: var(--ov-weight-heading);
-    letter-spacing: var(--ov-heading-tracking);
-    line-height: var(--ov-leading-heading);
+    font-weight: 700;
+    line-height: 1.3;
+  }
+
+  /* Selected text is ink, in both modes: a pigment never marks a selection. */
+  ::selection {
+    background: var(--ov-ink);
+    color: var(--ov-on-ink);
   }
 
   a,
@@ -130,9 +365,23 @@
     touch-action: manipulation;
   }
 
+  /*
+   * Every control answers a press: it scales to 0.97 in 120 ms (none with reduced motion).
+   * The individual `scale` property, so a control's own transform is left alone, and
+   * zero-specificity selectors, so a component that wants something else simply says so.
+   */
+  :where(a, button, summary, [role="button"], [role="tab"]) {
+    transition: scale var(--ov-duration-press) var(--ov-ease-out);
+  }
+  :where(a, button, summary, [role="button"], [role="tab"]):where(:active):where(:not(:disabled)) {
+    scale: var(--ov-press-scale);
+  }
+
+  /* Focus: a 3-px ink outline at a 2-px offset, ringed in ground so it shows on ink. */
   :focus-visible {
-    outline: 2px solid var(--ov-focus);
-    outline-offset: 3px;
+    outline: 3px solid var(--ov-focus);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 2px var(--ov-ground);
   }
 
   input,
@@ -337,6 +586,14 @@
 html:has(.app-content) {
   scroll-padding-bottom: calc(var(--nav-reserve) + var(--session-chrome-height, 0px) + 1rem);
 }
+/* Pinned actions take the foot of the screen too, with their 24-pt fade: what the keyboard
+   focuses is scrolled clear of them rather than behind them (WCAG 2.4.11). */
+html:has(.pinned-actions) {
+  scroll-padding-bottom: calc(
+    var(--nav-reserve) + var(--session-chrome-height, 0px) + var(--pinned-actions-height, 0px) +
+      24px
+  );
+}
 
 /*
  * An island, not a bar: the navigation floats clear of all four edges and the page runs
@@ -344,37 +601,29 @@ html:has(.app-content) {
  * is more page below without being able to read it through the labels — so the fallback
  * for a browser without a backdrop filter is an opaque island, never a see-through one.
  */
+/*
+ * The tab bar (DESIGN.md, Layout): ground under a hairline, five 44-pt targets (48 dp on
+ * Android), then 17 pt, so the targets end 4 clear of the home indicator, or 11 where there is
+ * none: 64 pt in all.
+ */
 .primary-nav {
   position: fixed;
-  inset: auto max(var(--nav-inset), env(safe-area-inset-right)) var(--nav-gap)
-    max(var(--nav-inset), env(safe-area-inset-left));
+  inset: auto 0 0 0;
   z-index: var(--ov-z-nav);
-  /* Border-box, so the island measures exactly the height the page reserved for it. */
   height: var(--nav-height);
-  border: 1px solid var(--ov-line);
-  border-radius: var(--ov-radius-island);
-  background: var(--ov-nav-island);
-  box-shadow: var(--ov-nav-shadow);
-  /* A wider blur than the tint alone would need: the island is half see-through, and the
-     blur is what keeps a label readable over whatever scrolls beneath it. */
-  -webkit-backdrop-filter: blur(1.5rem) saturate(180%);
-  backdrop-filter: blur(1.5rem) saturate(180%);
-}
-
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .primary-nav {
-    background: var(--ov-canvas);
-  }
+  padding: 2px max(6px, env(safe-area-inset-right)) var(--nav-foot)
+    max(6px, env(safe-area-inset-left));
+  border-top: 1px solid var(--ov-hair);
+  background: var(--ov-ground);
 }
 
 /*
- * One frame for every piece of mobile chrome: the island and the resume strip share a
- * containing block, so the two can never disagree about where the bottom of the screen is,
- * and the gap below them is stated once.
+ * One frame for every piece of mobile chrome: the tab bar and the session strip share a
+ * containing block, so the two can never disagree about where the bottom of the screen is.
  *
  * The frame is pinned to all four edges rather than given `height: 100dvh`. A length has to
  * be computed, and on iOS `dvh` is resolved against the wrong viewport until the first
- * scroll settles it — which is exactly the cold-launch offset that put the island below the
+ * scroll settles it — which is exactly the cold-launch offset that put the bar below the
  * bottom of the screen and then snapped it back into place the moment the page moved. An
  * `inset: 0` fixed element is sized by the browser itself, against the same viewport it
  * anchors a bottom-fixed element to, so there is no length left to be stale at first paint.
@@ -400,52 +649,43 @@ html:has(.app-content) {
 }
 
 .nav-items {
-  display: flex;
-  height: 100%;
-  /* Keeps a pressed tab's highlight clear of the island's own edge. */
-  padding: 0.25rem;
+  display: grid;
+  height: var(--ov-target);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 /* The tap target: the whole cell, so nothing between two tabs is dead space. */
 .nav-link {
-  display: block;
-  height: 100%;
-  /* Inside the island's own rounding, so a pressed tab never squares off its corner. */
-  border-radius: calc(var(--ov-radius-island) - 0.25rem);
-  user-select: none;
-}
-
-/*
- * The tab itself, and the thing that gets filled when it is selected: one pill around the
- * icon *and* its label. Highlighting the icon alone reads as a stray box floating over a
- * caption that belongs to it.
- */
-.nav-tab {
   display: flex;
   height: 100%;
-  width: 100%;
   min-width: 0;
-  padding-inline: 0.125rem;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  flex-direction: column;
-  gap: 0.125rem;
-  border-radius: inherit;
-  font-size: clamp(0.625rem, 2.7vw, 0.75rem);
-  font-weight: 500;
-  transition:
-    background-color var(--ov-duration-feedback) var(--ov-ease-standard),
-    color var(--ov-duration-feedback) var(--ov-ease-standard);
+  gap: 3px;
+  color: var(--ov-ink-2);
+  user-select: none;
 }
-
-.nav-tab-active {
-  background: var(--ov-accent-soft);
-  color: var(--ov-accent);
+.nav-link[aria-current] {
+  color: var(--ov-ink);
 }
-
-/* Pressing an unselected tab tints it; pressing the selected one leaves its fill alone. */
-.nav-link:active .nav-tab:not(.nav-tab-active) {
-  background: var(--ov-surface-raised);
+/* The glyphs and labels keep their size at large text, as the system's tab bars do; the
+   targets grow. */
+.nav-glyph {
+  width: 24px;
+  height: 24px;
+}
+.nav-label {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: min(var(--ov-type-tab), 15px);
+  font-weight: 600;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nav-link[aria-current] .nav-label {
+  font-weight: 700;
 }
 
 .navigation-progress {
@@ -498,37 +738,36 @@ html:has(.app-content) {
     margin-left: 12rem;
     padding-bottom: calc(2rem + var(--session-chrome-height, 0px));
   }
-  /* A full-height rail rather than an island: there is no thumb to keep clear of here. */
+  /* A full-height rail rather than a bar: there is no thumb to keep clear of here. */
   .primary-nav {
     inset: 0 auto 0 0;
     width: 12rem;
     height: auto;
-    border: 0;
-    border-right: 1px solid var(--ov-line);
-    border-radius: 0;
-    background: var(--ov-canvas);
-    box-shadow: none;
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
+    padding: 0;
+    border-top: 0;
+    border-right: 1px solid var(--ov-hair);
   }
   .nav-items {
-    flex-direction: column;
+    display: flex;
     height: auto;
+    flex-direction: column;
     gap: 0.375rem;
     padding: 1rem 0.75rem;
   }
   .nav-link {
-    height: auto;
-    border-radius: var(--ov-radius-control);
-  }
-  .nav-tab {
     height: auto;
     min-height: 3rem;
     flex-direction: row;
     justify-content: flex-start;
     gap: 0.75rem;
     padding: 0.5rem 0.75rem;
-    font-size: var(--ov-text-small);
+    border-radius: var(--ov-radius-control);
+  }
+  .nav-link[aria-current] {
+    background: var(--ov-surface);
+  }
+  .nav-label {
+    font-size: var(--ov-type-meta);
   }
   .navigation-progress {
     left: 12rem;
@@ -550,16 +789,30 @@ html:has(.app-content) {
   html {
     scroll-padding-top: 1rem;
   }
-  .page-header {
-    position: static;
-  }
   .viewport-chrome:not(.viewport-chrome-session) {
     position: static;
   }
   .viewport-chrome > .primary-nav {
     position: relative;
     inset: auto;
-    margin: 0 var(--page-gutter) max(0.5rem, env(safe-area-inset-bottom));
+  }
+  /* With the tab bar at the end of the page, pinned actions ride the foot of the screen while
+     the page scrolls and come to rest above the bar at the end, never under it. Their fade at
+     rest lies over room of its own, not the last field. */
+  .pinned-actions {
+    position: sticky;
+    bottom: var(--session-chrome-height, 0px);
+    margin-top: 24px;
+  }
+  /* In the page's flow, inside its gutters, they reach back out to them: the ground runs edge to
+     edge and the actions keep the page's one left edge. */
+  .page-width .pinned-actions {
+    margin-right: calc(-1 * max(var(--page-gutter), env(safe-area-inset-right)));
+    margin-left: calc(-1 * max(var(--page-gutter), env(safe-area-inset-left)));
+  }
+  .app-content:has(.pinned-actions),
+  .onboarding {
+    padding-bottom: calc(var(--session-chrome-height, 0px) + 1rem);
   }
 }
 
@@ -594,75 +847,11 @@ html:has(.app-content) {
 }
 
 /*
- * Set grid. One row per set: identity/options, load, reps (or seconds), RIR, save.
- * The header row uses the same class so the labels sit over their own columns.
- *
- * Three tiers, chosen by container queries in `rem` rather than viewport breakpoints. A
- * `rem` query compares the available width against the width the text actually needs, so
- * it reacts to an enlarged root font, which is the case that breaks this layout — the
- * viewport is unchanged while every number gets twice as wide.
- *
- * The thresholds are the tiers' own minimums, not guesses:
- *   17rem     = 2.75 (identity) + 4 + 3.25 + 2.75 (fields) + 2.75 (save) + 4 × 0.375 (gaps)
- *   13.625rem = the same without the save cell, which has moved to its own line
- * At normal text a 320px phone leaves 18.5rem of container, so the one-line grid holds
- * everywhere; at 200% the same phone leaves 9.25rem and lands in the labelled tier. No
- * value is ever clipped or shrunk to keep a row on one line.
+ * Sheets (DESIGN.md, Sheets): a native <dialog> rising from the bottom over the scrim, ground
+ * with 24-px top corners, a grabber, the title and Close; no shadow. The panel rises on a spring
+ * (a 0.4-s response, 0.08 bounce) while the scrim fades in over 200 ms; with reduced motion the
+ * sheet fades.
  */
-.set-grid {
-  container-type: inline-size;
-}
-
-.set-row {
-  display: grid;
-  grid-template-columns: var(--ov-set-columns);
-  gap: var(--ov-space-2);
-  align-items: center;
-}
-
-/* The cell is a pass-through so its input stays a direct grid item in every tier. */
-.set-cell {
-  display: contents;
-}
-
-.set-cell-label {
-  display: none;
-}
-
-/* Tier 2: the numbers keep their row; saving takes the next one. */
-@container (max-width: 17rem) {
-  .set-row {
-    grid-template-columns: var(--ov-target-min) 1fr 1fr 1fr;
-  }
-  .set-row > .set-save {
-    grid-column: 1 / -1;
-  }
-}
-
-/*
- * Tier 3: one value per line, each beside its own label. Three numeric fields cannot share
- * a 320px row at 200% text — a four-digit load alone wants most of it — so the row grows
- * downwards instead, and the column header gives way to per-field labels.
- */
-@container (max-width: 13.625rem) {
-  .set-row {
-    grid-template-columns: minmax(0, auto) minmax(0, 1fr);
-  }
-  .set-row > .set-identity,
-  .set-row > .set-save {
-    grid-column: 1 / -1;
-  }
-  .set-cell-label {
-    display: block;
-    font-size: var(--ov-text-small);
-    color: var(--ov-ink-muted);
-  }
-  .set-header {
-    display: none;
-  }
-}
-
-/* Bottom sheet on top of the native <dialog>. */
 dialog.sheet {
   position: fixed;
   inset: auto 0 var(--sheet-bottom, 0px) 0;
@@ -693,15 +882,21 @@ html:has(dialog.sheet[open]) body {
  * the fallback for the ones where it still inherits from nothing.
  */
 dialog.sheet::backdrop {
-  background: var(--ov-backdrop, rgb(0 0 0 / 0.64));
+  background: var(--ov-scrim, rgb(0 0 0 / 0.4));
+}
+dialog.sheet[open]::backdrop {
+  animation: scrim-in var(--ov-duration-scrim) ease-out;
 }
 
 .sheet-panel {
+  container: sheet / inline-size;
   display: flex;
   flex-direction: column;
   max-height: var(--sheet-height, 90dvh);
-  padding-left: max(var(--panel-padding), env(safe-area-inset-left));
-  padding-right: max(var(--panel-padding), env(safe-area-inset-right));
+  padding: 8px max(var(--ov-gutter), env(safe-area-inset-right))
+    calc(env(safe-area-inset-bottom) + 16px) max(var(--ov-gutter), env(safe-area-inset-left));
+  border-radius: var(--ov-radius-sheet) var(--ov-radius-sheet) 0 0;
+  background: var(--ov-ground);
 }
 
 .sheet-panel[data-compact="true"] {
@@ -710,22 +905,65 @@ dialog.sheet::backdrop {
   overscroll-behavior: contain;
 }
 
+/* A sheet's head: the lead, the title and Close on one line. The title wraps between words,
+   never inside one (DESIGN.md, Text Never Runs Off). */
+.sheet-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 10px;
+}
+.sheet-head:has(> .sheet-head-lead) {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+.sheet-head-title {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+/* Text too large for the title to keep its words whole beside a lead (200% on a phone): the
+   lead and Close share the first line and the title takes the whole width under them. */
+@container sheet (width < 20rem) {
+  .sheet-head:has(> .sheet-head-lead) {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .sheet-head:has(> .sheet-head-lead) > .sheet-head-lead {
+    grid-area: 1 / 1;
+    justify-self: start;
+  }
+  .sheet-head:has(> .sheet-head-lead) > .sheet-head-close {
+    grid-area: 1 / 2;
+  }
+  .sheet-head:has(> .sheet-head-lead) > .sheet-head-title {
+    grid-area: 2 / 1 / 3 / 3;
+  }
+}
+
 .sheet-panel[data-compact="true"] > .sheet-body {
   overflow: visible;
 }
 
-/*
- * A short rise that explains where the sheet came from. A keyframe rather than a
- * transition because <dialog> goes from display:none to open in one step; reduced motion
- * zeroes --ov-duration-sheet, so the panel simply appears.
- */
+/* A keyframe rather than a transition: <dialog> goes from display:none to open in one step. */
 dialog.sheet[open] .sheet-panel {
-  animation: sheet-in var(--ov-duration-sheet) var(--ov-ease-standard);
+  animation: sheet-rise var(--ov-duration-sheet-rise) var(--ov-ease-spring);
 }
 
-@keyframes sheet-in {
+@keyframes sheet-rise {
   from {
-    transform: translateY(0.75rem);
-    opacity: 0.6;
+    translate: 0 100%;
+  }
+}
+@keyframes scrim-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes sheet-fade {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  dialog.sheet[open] .sheet-panel {
+    animation: sheet-fade var(--ov-duration-fade) ease-out;
   }
 }

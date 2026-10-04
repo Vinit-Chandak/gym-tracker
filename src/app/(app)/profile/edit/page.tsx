@@ -1,10 +1,7 @@
 import type { Metadata } from "next";
 
-import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
-import { Card } from "@/components/ui/card";
-import { List, Row } from "@/components/ui/link-row";
-import { formatHeight } from "@/lib/units";
+import { Glyph } from "@/components/ui/glyphs";
 import { requireUser } from "@/server/auth";
 import { listSentence, missingProfileDetails } from "@/server/queries/profile";
 import { getRequestProfile } from "@/server/queries/request-profile";
@@ -23,27 +20,24 @@ export default async function EditProfilePage() {
   return (
     <>
       <PageHeader title="Edit profile" backHref="/profile" />
-      <PageContent>
-        {/* The email is the account's identity and cannot be edited here, so it is a row
+      <div className="page-width pb-8">
+        {/* The email is the account's identity and cannot be edited here, so it is a fact
             rather than a field. */}
-        <List>
-          <li>
-            <Row title="Email" subtitle={email} />
-          </li>
-          {profile.heightCm !== null && (
-            <li>
-              <Row title="Height" subtitle={formatHeight(profile.heightCm, unit)} />
-            </li>
-          )}
-        </List>
+        <dl className="profile-email">
+          <dt className="font-bold">Email</dt>
+          <dd className="min-w-0 text-right [overflow-wrap:anywhere] text-ink-2">{email}</dd>
+        </dl>
         {/* Accounts that predate a question are not sent back through setup; this is where
             they answer it, so the screen says which questions are still open. */}
         {missing.length > 0 && (
-          <p role="status" className="text-sm text-warning">
-            Still to add: {listSentence(missing)}. Saving needs all of them.
+          <p role="status" className="profile-still-to-add">
+            <Glyph name="warn" className="mt-px glyph-18 shrink-0" />
+            <span className="min-w-0">
+              Still to add: {listSentence(missing)}. Saving needs all of them.
+            </span>
           </p>
         )}
-        <Card>
+        <div className="mt-3.5">
           <ProfileForm
             values={{
               displayName: profile.displayName ?? "",
@@ -57,8 +51,8 @@ export default async function EditProfilePage() {
               trainingGoal: profile.trainingGoal,
             }}
           />
-        </Card>
-      </PageContent>
+        </div>
+      </div>
     </>
   );
 }

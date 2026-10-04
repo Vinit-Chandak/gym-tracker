@@ -16,6 +16,8 @@ type SheetProps = {
    */
   footer?: ReactNode;
   dismissible?: boolean;
+  /** Stands before the title on its line: the tag a sheet explains (Why: Hold). */
+  lead?: ReactNode;
 };
 
 /**
@@ -23,7 +25,15 @@ type SheetProps = {
  * the control that opened it all come for free. Use it for a short decision that fits; a
  * long catalogue or a form belongs in a full-height view with one scroll region.
  */
-export function Sheet({ open, onClose, title, children, footer, dismissible = true }: SheetProps) {
+export function Sheet({
+  open,
+  onClose,
+  title,
+  children,
+  footer,
+  dismissible = true,
+  lead,
+}: SheetProps) {
   const ref = useRef<HTMLDialogElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const heading = useRef<HTMLDivElement>(null);
@@ -115,23 +125,22 @@ export function Sheet({ open, onClose, title, children, footer, dismissible = tr
         if (dismissible && event.target === ref.current) onClose();
       }}
     >
-      <div
-        ref={panel}
-        tabIndex={-1}
-        className="sheet-panel rounded-t-sheet bg-surface panel-padding pb-[max(var(--panel-padding),env(safe-area-inset-bottom))] focus:outline-none"
-      >
+      <div ref={panel} tabIndex={-1} className="sheet-panel focus:outline-none">
         {/* Contain child margins in both flex and compact block layouts. Otherwise the
             measured header changes height as compact mode toggles and can oscillate. */}
         <div ref={heading} className="flow-root shrink-0">
-          <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-line-strong" aria-hidden />
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <h2 className="min-w-0 text-lg font-medium [overflow-wrap:anywhere]">{title}</h2>
+          <div className="mx-auto mb-2 h-[5px] w-9 rounded-full bg-surface-2" aria-hidden />
+          {/* The lead (Why's tag), the title and Close on one line; where the text is too large
+              for the title to keep its words whole beside the tag, the tag stands over it. */}
+          <div className="sheet-head mb-1">
+            {lead && <div className="sheet-head-lead">{lead}</div>}
+            <h2 className="sheet-head-title type-sheet-title">{title}</h2>
             <button
               type="button"
               aria-label="Close sheet"
               disabled={!dismissible}
               onClick={onClose}
-              className="flex size-11 shrink-0 items-center justify-center rounded-control text-ink-muted disabled:opacity-45"
+              className="sheet-head-close -mr-2.5 grid size-[var(--ov-target-header)] shrink-0 place-items-center text-ink disabled:text-control"
             >
               <Close aria-hidden />
             </button>
@@ -143,7 +152,7 @@ export function Sheet({ open, onClose, title, children, footer, dismissible = tr
         {footer && (
           <div
             ref={bottom}
-            className="sheet-footer -mx-[var(--panel-padding)] mt-3 shrink-0 border-t border-line px-[var(--panel-padding)] pt-3"
+            className="sheet-footer -mx-[var(--ov-gutter)] mt-3 shrink-0 border-t border-hair px-[var(--ov-gutter)] pt-3"
           >
             {footer}
           </div>

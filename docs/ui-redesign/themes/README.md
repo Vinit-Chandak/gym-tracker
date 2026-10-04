@@ -1,5 +1,7 @@
 # Form theme tokens
 
+> **Replaced by Form v2.** The palette and type below were retired on 3 October 2026. The tokens now live in `src/styles/form-v2/` and are specified by [`DESIGN.md`](../../../DESIGN.md); Form's semantic names (`--ov-canvas`, `--ov-accent` and the rest) still resolve, now to Form v2's values, for the screens that have no Form v2 board. This page records Form as it was.
+
 These files are now part of the application. There is one design, Form, with light and dark palettes; no Fieldnotes asset or runtime style picker is included.
 
 ## Files and activation

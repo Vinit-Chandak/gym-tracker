@@ -1,29 +1,19 @@
 import type { Route } from "next";
+import { Fragment } from "react";
 
+import { STRATA } from "@/components/art/geometry";
+import { paintToken } from "@/components/art/shapes";
 import { FoodCalendarButton, FoodWeekStrip } from "@/components/food/food-days";
-import { FoodSummary } from "@/components/food/food-summary";
-import { PageContent } from "@/components/shell/page-content";
+import { FoodSummary, mealTotals } from "@/components/food/food-summary";
 import { PageHeader } from "@/components/shell/page-header";
 import Link from "@/components/ui/app-link";
 import { buttonClassName } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { ChevronRight, Plus } from "@/components/ui/icons";
-import { LinkRow, List, PRESSABLE_ROW_CLASS } from "@/components/ui/link-row";
-import { Section } from "@/components/ui/section";
+import { Glyph } from "@/components/ui/glyphs";
 import { stripRange, type FoodDayTotal } from "@/domain/food-days";
-import {
-  addUp,
-  eaten,
-  macroTargets,
-  MEALS,
-  mealSlug,
-  splitFor,
-  type Meal,
-} from "@/domain/nutrition";
+import { macroTargets, MEALS, mealSlug, splitFor, type Meal } from "@/domain/nutrition";
 import type { TrainingGoal } from "@/domain/types";
 import { formatKcal, formatSplit } from "@/lib/format";
 import { MEAL_LABELS, TRAINING_GOAL_LABELS } from "@/lib/labels";
-import { cn } from "@/lib/utils";
 import type { EntryRecord, FoodDay, LibraryCount } from "@/server/repositories/nutrition";
 
 import { FoodDayRollover } from "./day-rollover";
@@ -59,50 +49,116 @@ const APP_LINKS: FoodLinks = {
   targets: "/food/targets",
 };
 
-/** "2 foods · 1 meal": what My foods holds, or nothing while it holds nothing. */
+/**
+ * "2 foods · 1 meal": what My foods holds, or nothing while it holds nothing. Each count keeps
+ * its noun on its line.
+ */
 function libraryMeta({ foods, meals }: LibraryCount): string | undefined {
   const parts = [
-    foods > 0 ? `${foods} ${foods === 1 ? "food" : "foods"}` : null,
-    meals > 0 ? `${meals} ${meals === 1 ? "meal" : "meals"}` : null,
+    foods > 0 ? `${foods}\u00a0${foods === 1 ? "food" : "foods"}` : null,
+    meals > 0 ? `${meals}\u00a0${meals === 1 ? "meal" : "meals"}` : null,
   ].filter((part) => part !== null);
   return parts.length > 0 ? parts.join(" · ") : undefined;
 }
 
-/** One meal's row: its name, what went into it, and what that came to. */
-function MealRow({ meal, entries, href }: { meal: Meal; entries: EntryRecord[]; href: Route }) {
-  const foods = [...new Set(entries.map((entry) => entry.name))].join(", ");
-  return (
-    <Link href={href} prefetch="intent" className={cn(PRESSABLE_ROW_CLASS, "flex-wrap")}>
-      {/* The spaces are for the link's name, which a screen reader reads as one string. */}
-      <span className="min-w-0 flex-[1_1_10rem]">
-        <span className="block font-medium">{MEAL_LABELS[meal]}</span>{" "}
-        {foods ? (
-          <span className="line-clamp-2 text-sm [overflow-wrap:anywhere] text-ink-muted">
-            {foods}
-          </span>
-        ) : (
-          <span className="sr-only">nothing yet</span>
-        )}
-      </span>{" "}
-      {entries.length > 0 ? (
-        <span className="ml-auto flex max-w-full min-w-0 items-center gap-3">
-          <span className="min-w-0 tabular-nums">
-            {formatKcal(addUp(entries.map(eaten)).kcal)} kcal
-          </span>
-          <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />
+/**
+ * One meal's row (board Food): its layer of the bowl as its mark, then its name, what went into
+ * it and what that came to. A meal with nothing in it yet is its name and a plus.
+ */
+function MealRow({
+  meal,
+  entries,
+  kcal,
+  layer,
+  href,
+}: {
+  meal: Meal;
+  entries: EntryRecord[];
+  kcal: number;
+  /** Its place among the meals in the bowl, which gives it its layer's pigment. */
+  layer: number;
+  href: Route;
+}) {
+  const name = MEAL_LABELS[meal];
+  if (entries.length === 0)
+    return (
+      <Link
+        href={href}
+        prefetch="intent"
+        aria-label={`${name}: nothing yet. Add`}
+        className="meal-row meal-row-empty"
+      >
+        <span className="mark-cell">
+          <span aria-hidden className="meal-swatch" />
         </span>
-      ) : (
-        <Plus className="ml-auto shrink-0 text-accent" aria-hidden />
-      )}
+        <span className="meal-row-name">{name}</span>
+        <span aria-hidden className="meal-add">
+          <Glyph name="plus" className="glyph-18" />
+        </span>
+      </Link>
+    );
+  const foods = [...new Set(entries.map((entry) => entry.name))].join(" · ");
+  return (
+    <Link href={href} prefetch="intent" className="meal-row">
+      <span className="mark-cell">
+        <span
+          aria-hidden
+          className="meal-swatch"
+          style={{ background: paintToken(STRATA[layer % STRATA.length]!, "paper") }}
+        />
+      </span>
+      {/* The spaces are for the link's name, which a screen reader reads as one string. */}
+      <span className="meal-row-text">
+        <span className="meal-row-name">{name}</span>{" "}
+        <span className="meal-row-foods">{foods}</span>
+      </span>{" "}
+      <span className="type-figure whitespace-nowrap">
+        {formatKcal(kcal)}
+        <span className="sr-only"> kcal</span>
+      </span>
+    </Link>
+  );
+}
+
+/** A page of the account's, at the foot of the screen: its glyph, its name, what it holds. */
+function FoodTile({
+  href,
+  glyph,
+  title,
+  lines,
+}: {
+  href: Route;
+  glyph: "target" | "book";
+  title: string;
+  lines: readonly (string | undefined)[];
+}) {
+  return (
+    <Link href={href} prefetch="intent" className="food-tile">
+      <Glyph name={glyph} className="glyph-20" />
+      {/* The spaces are for the link's name, which a screen reader reads as one string. */}
+      <span className="flex min-w-0 flex-col">
+        <span className="font-bold">{title}</span>
+        {lines.map(
+          (line) =>
+            line && (
+              <Fragment key={line}>
+                {" "}
+                <span className="food-tile-line">{line}</span>
+              </Fragment>
+            ),
+        )}
+      </span>
     </Link>
   );
 }
 
 /**
- * The Food screen (ADRs 0032 to 0037): the days under the header, then the day on screen against
- * its targets, then its seven meals in the order they are eaten, each opening a page to add to it,
- * then My foods and the targets, each a screen of its own. Until there is a target, asking for one
- * is what the screen opens with. A day before today reads and changes exactly as today does.
+ * The Food screen (ADRs 0032 to 0037; boards Food, Food-Over): the days under the header, then
+ * the day on screen as the kcal eaten over its bowl and its macronutrients, then its seven meals
+ * in the order they are eaten, each led by its layer of the bowl and opening a page to add to
+ * it, then the targets and My foods, each a screen of its own. Until there is a target, asking
+ * for one stands where the bowl would be. A day before today reads and changes exactly as today
+ * does.
  */
 export function FoodView({
   timeZone,
@@ -120,7 +176,9 @@ export function FoodView({
   const daysProps = { today, date, days, targetKcal: target?.kcal ?? null, base: links.base };
   const byMeal = new Map<Meal, EntryRecord[]>(MEALS.map((meal) => [meal, []]));
   for (const entry of day.entries) byMeal.get(entry.meal)?.push(entry);
-  // Targets that cannot do what they are meant to say so on their row, where they are opened.
+  // The meals in the bowl, each with its place in it, which gives its row its layer.
+  const inBowl = mealTotals(day.entries);
+  // Targets that cannot do what they are meant to say so on their tile, where they are opened.
   const attention = !target
     ? undefined
     : target.overBudget
@@ -136,17 +194,14 @@ export function FoodView({
         title="Food"
         action={<FoodCalendarButton from={stripRange(today, date).from} {...daysProps} />}
       />
-      <PageContent>
+      <div className="food page-width">
         <FoodWeekStrip {...daysProps} />
-        {target ? (
-          <Card>
-            <FoodSummary eaten={day.eaten} target={target} entries={day.entries} />
-          </Card>
-        ) : (
-          <Card className="flex flex-wrap items-center justify-between gap-3 space-y-0">
+        <FoodSummary eaten={day.eaten} target={target} entries={day.entries} />
+        {!target && (
+          <div className="food-no-target">
             <div className="min-w-0">
-              <h2 className="font-medium">No daily target yet</h2>
-              <p className="text-sm text-ink-muted tabular-nums">
+              <h2 className="type-heading">No daily target yet</h2>
+              <p className="type-meta-small text-ink-2 tabular-nums">
                 {goal ? `${TRAINING_GOAL_LABELS[goal]} · ` : ""}
                 {formatSplit(splitFor(goal))}
               </p>
@@ -158,43 +213,41 @@ export function FoodView({
             >
               Set target
             </Link>
-          </Card>
+          </div>
         )}
 
-        <Section title="Meals">
-          <ul className="box-rows" aria-label="Meals">
-            {MEALS.map((meal) => (
+        <ul className="food-meals" aria-label="Meals">
+          {MEALS.map((meal) => {
+            const layer = inBowl.findIndex((total) => total.meal === meal);
+            return (
               <li key={meal}>
                 <MealRow
                   meal={meal}
                   entries={byMeal.get(meal) ?? []}
+                  kcal={inBowl[layer]?.kcal ?? 0}
+                  layer={Math.max(0, layer)}
                   href={onDate(links.meal(meal))}
                 />
               </li>
-            ))}
-          </ul>
-        </Section>
+            );
+          })}
+        </ul>
 
-        <List>
-          <li>
-            <LinkRow
-              href={links.myFoods}
-              title="My foods"
-              meta={libraryMeta(day.library)}
-              prefetch="intent"
-            />
-          </li>
-          <li>
-            <LinkRow
-              href={links.targets}
-              title="Targets"
-              subtitle={attention}
-              meta={target ? `${formatKcal(target.kcal)} kcal` : "Not set"}
-              prefetch="intent"
-            />
-          </li>
-        </List>
-      </PageContent>
+        <div className="food-tiles">
+          <FoodTile
+            href={links.targets}
+            glyph="target"
+            title="Targets"
+            lines={[target ? `${formatKcal(target.kcal)} kcal` : "Not set", attention]}
+          />
+          <FoodTile
+            href={links.myFoods}
+            glyph="book"
+            title="My foods"
+            lines={[libraryMeta(day.library)]}
+          />
+        </div>
+      </div>
     </>
   );
 }

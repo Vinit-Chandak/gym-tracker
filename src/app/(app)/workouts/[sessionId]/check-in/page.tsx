@@ -1,13 +1,12 @@
-import type { Metadata } from "next";
+import type { Metadata, Route } from "next";
 import { notFound, redirect } from "next/navigation";
 
-import { PageContent } from "@/components/shell/page-content";
-import { PageHeader } from "@/components/shell/page-header";
-import { LinkButton } from "@/components/ui/button";
+import { SessionPage } from "@/components/shell/session-page";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { saveCheckInAction } from "@/server/actions/sessions";
 import { requireUser } from "@/server/auth";
+import { sessionPageHeader } from "@/server/queries/session-page";
 import { getSessionRecord } from "@/server/repositories/sessions";
 import { requireUuid } from "@/server/validation/params";
 
@@ -17,38 +16,40 @@ export const metadata: Metadata = { title: "Check-in" };
 
 const str = (value: number | null): string => (value === null ? "" : String(value));
 
+/** Before the workout (board Check-in): how the night went and how you feel, all optional. */
 export default async function CheckInPage(props: PageProps<"/workouts/[sessionId]/check-in">) {
   const { sessionId } = await props.params;
   requireUuid(sessionId);
   const user = await requireUser();
-  const session = await withUser(
-    getDb(),
-    user.id,
-    (tx) => getSessionRecord(tx, user.id, sessionId),
-    { readOnly: true },
-  );
+  const [session, header] = await Promise.all([
+    withUser(getDb(), user.id, (tx) => getSessionRecord(tx, user.id, sessionId), {
+      readOnly: true,
+    }),
+    sessionPageHeader(user, sessionId),
+  ]);
   if (!session) notFound();
   if (session.completedAt) redirect(`/workouts/${sessionId}`);
+  const workout = `/workouts/${sessionId}` as Route;
 
   return (
-    <>
-      {/* The session already exists by the time this screen appears, so back goes to it
-          rather than to Today, which would leave the workout behind. */}
-      <PageHeader title="How are you today?" meta="Optional" backHref={`/workouts/${sessionId}`} />
-      <PageContent>
-        <CheckInForm
-          action={saveCheckInAction.bind(null, sessionId)}
-          initial={{
-            sleepHours: str(session.sleepHours),
-            sleepQuality: str(session.sleepQuality),
-            fatigue: str(session.fatigue),
-            soreness: str(session.soreness),
-          }}
-        />
-        <LinkButton href={`/workouts/${sessionId}`} variant="ghost" className="w-full">
-          Skip check-in
-        </LinkButton>
-      </PageContent>
-    </>
+    // The session already exists by the time this screen appears, so back goes to it rather
+    // than to Today, which would leave the workout behind.
+    <SessionPage
+      title="How are you today?"
+      meta="Optional"
+      back={{ href: workout, label: header.name }}
+      rest={header.restTimerEnabled ? sessionId : null}
+    >
+      <CheckInForm
+        action={saveCheckInAction.bind(null, sessionId)}
+        initial={{
+          sleepHours: str(session.sleepHours),
+          sleepQuality: str(session.sleepQuality),
+          fatigue: str(session.fatigue),
+          soreness: str(session.soreness),
+        }}
+        skipHref={workout}
+      />
+    </SessionPage>
   );
 }

@@ -27,6 +27,8 @@ type FieldProps = {
    */
   labelHidden?: boolean;
   info?: ReactNode;
+  /** A word at the end of the label's line: "Optional" (board Welcome). */
+  aside?: ReactNode;
   htmlFor?: string;
 };
 
@@ -37,6 +39,7 @@ export function Field({
   error,
   hint,
   info,
+  aside,
   htmlFor,
   group,
   labelHidden,
@@ -62,7 +65,9 @@ export function Field({
     <div className="min-w-0 space-y-1.5" data-field-error={error ? "true" : undefined}>
       <div
         className={
-          labelHidden ? "sr-only" : "flex items-center gap-1 text-sm font-medium text-ink-muted"
+          labelHidden
+            ? "sr-only"
+            : "flex items-center gap-1 text-[length:var(--ov-type-meta-small)] font-bold text-ink"
         }
       >
         {group ? (
@@ -73,6 +78,11 @@ export function Field({
           </label>
         )}
         {info && <InfoTip label={`About ${label.toLowerCase()}`}>{info}</InfoTip>}
+        {aside && (
+          <span className="ml-auto shrink-0 text-[length:var(--ov-type-meta-small)] font-medium text-ink-2">
+            {aside}
+          </span>
+        )}
       </div>
       {controls.map((child) => {
         if (child !== control || !isValidElement<ControlProps>(child)) return child;
@@ -91,7 +101,11 @@ export function Field({
         <span
           id={feedbackId}
           role={error ? "alert" : undefined}
-          className={error ? "block text-sm text-danger" : "block text-xs text-ink-subtle"}
+          className={
+            error
+              ? "flex items-start gap-1.5 text-[length:var(--ov-type-meta-small)] font-semibold text-ink"
+              : "block text-[length:var(--ov-type-caption)] font-medium text-ink-2"
+          }
         >
           {error || hint}
         </span>

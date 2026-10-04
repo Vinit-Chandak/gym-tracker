@@ -546,7 +546,8 @@ export async function finishSessionAction(
     revalidatePath("/profile/edit");
   }
   revalidateSession(sessionId);
-  redirect(`/workouts/${sessionId}`);
+  // The summary, once: the finished workout says what the session came to (board Summary).
+  redirect(`/workouts/${sessionId}?finished=1`);
 }
 
 const supersetSchema = z.object({

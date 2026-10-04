@@ -3,15 +3,15 @@ import type { ReactNode } from "react";
 
 import Link from "@/components/ui/app-link";
 import { Avatar } from "@/components/ui/avatar";
-import { Card } from "@/components/ui/card";
 
 export type PersonCounts = { followers: number; following: number };
 
 /**
- * The header card: what a friend sees of a person (ADR 0026), and the same card on your own
- * Profile tab. Avatar, name, handle, the two counts, then whatever the screen puts under it:
- * Edit profile on your tab, the follow button on someone else's page. On your own tab the
- * counts open the matching list on the People page; on anyone else's they are plain.
+ * Who a person is, at the head of their page (ADR 0026; board Profile): the avatar, the name,
+ * and under it the handle and the two counts on one line; at the end, the one thing to do about
+ * it (Edit profile on your tab); under it, whatever else the screen needs (the follow button on
+ * someone else's page). On your own tab the counts open the matching list on the People page;
+ * on anyone else's they are plain.
  *
  * Given an `href`, the avatar and the name lead there: on your tab, to the page a follower
  * sees. The counts stay links of their own beside it, never inside it.
@@ -21,7 +21,7 @@ export function PersonCard<T extends string>({
   counts,
   countsLinkToFriends = false,
   href,
-  warning,
+  action,
   children,
 }: {
   person: { username: string; displayName: string | null };
@@ -29,26 +29,30 @@ export function PersonCard<T extends string>({
   countsLinkToFriends?: boolean;
   /** Where the avatar and the name lead, on a screen that is not already there. */
   href?: Route<T>;
-  /** One line under the handle, in the warning colour: a detail still missing. */
-  warning?: string;
+  /** A round button at the end of the line: Edit profile. */
+  action?: ReactNode;
   children?: ReactNode;
 }) {
   const followers = `${counts.followers} ${counts.followers === 1 ? "follower" : "followers"}`;
   const following = `${counts.following} following`;
   const avatar = (
-    <Avatar username={person.username} displayName={person.displayName} size="header" />
+    <Avatar
+      username={person.username}
+      displayName={person.displayName}
+      size="header"
+      className="person-card-avatar"
+    />
   );
+  // The name on a line of its own; the handle starts the next, the counts follow it there.
   const identity = (
     <>
-      <p className="text-lg font-medium [overflow-wrap:anywhere]">
-        {person.displayName || person.username}
-      </p>
-      <p className="text-sm [overflow-wrap:anywhere] text-ink-muted">@{person.username}</p>
+      <span className="person-card-name">{person.displayName || person.username}</span>
+      {`@${person.username}`}
     </>
   );
   return (
-    <Card>
-      <div className="flex items-center gap-4">
+    <div className="person-card">
+      <div className="person-card-head">
         {href ? (
           // The same destination as the name, for a thumb. A keyboard or a screen reader
           // reaches it by the name, so this copy stays out of their way.
@@ -58,44 +62,26 @@ export function PersonCard<T extends string>({
         ) : (
           avatar
         )}
-        <div className="min-w-0 flex-1">
-          {href ? (
-            <Link
-              href={href}
-              className="-mx-1.5 block rounded-control px-1.5 transition-colors duration-[var(--ov-duration-feedback)] active:bg-surface-raised"
-            >
-              {identity}
-            </Link>
-          ) : (
-            identity
-          )}
-          <p className="mt-1 flex flex-wrap gap-x-3 text-sm text-ink-muted">
+        <p className="person-card-text">
+          {href ? <Link href={href}>{identity}</Link> : identity}
+          <span className="tabular-nums">
+            {" · "}
             {countsLinkToFriends ? (
-              <>
-                <Link
-                  href="/profile/friends/people?people=followers"
-                  className="underline-offset-2 hover:underline"
-                >
-                  {followers}
-                </Link>
-                <Link
-                  href="/profile/friends/people?people=following"
-                  className="underline-offset-2 hover:underline"
-                >
-                  {following}
-                </Link>
-              </>
+              <Link href="/profile/friends/people?people=followers">{followers}</Link>
             ) : (
-              <>
-                <span>{followers}</span>
-                <span>{following}</span>
-              </>
+              followers
             )}
-          </p>
-          {warning && <p className="mt-1 text-sm text-warning">{warning}</p>}
-        </div>
+            {" · "}
+            {countsLinkToFriends ? (
+              <Link href="/profile/friends/people?people=following">{following}</Link>
+            ) : (
+              following
+            )}
+          </span>
+        </p>
+        {action}
       </div>
       {children}
-    </Card>
+    </div>
   );
 }

@@ -28,7 +28,7 @@ import {
   type Suggestion,
   withDerivedRunEvents,
 } from "@/domain/schedule";
-import type { PrescriptionType, SlotPart } from "@/domain/types";
+import type { ExerciseModality, PrescriptionType, SlotPart } from "@/domain/types";
 import { sharedWarmupProtocols } from "@/server/queries/reference";
 
 export type ActiveProgram = {
@@ -372,6 +372,8 @@ export type PlannedExercisePreview = {
   programExerciseId: string;
   exerciseId: string;
   name: string;
+  /** What the movement is done with, for the equipment's glyph; null when it is not known. */
+  modality: ExerciseModality | null;
   sets: number;
   prescriptionType: PrescriptionType;
   repMin: number | null;
@@ -391,6 +393,7 @@ function plannedExerciseSelection() {
     programExerciseId: programExercises.id,
     exerciseId: exercises.id,
     name: exercises.name,
+    modality: exercises.modality,
     sets: programExercises.sets,
     prescriptionType: programExercises.prescriptionType,
     repMin: programExercises.repMin,

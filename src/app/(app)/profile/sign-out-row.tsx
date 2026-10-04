@@ -1,10 +1,8 @@
 "use client";
 
-import { LogOut } from "@/components/ui/icons";
 import { useFormStatus } from "react-dom";
 
-import { PRESSABLE_ROW_CLASS, RowIcon } from "@/components/ui/link-row";
-import { cn } from "@/lib/utils";
+import { Glyph } from "@/components/ui/glyphs";
 import { signOutAction } from "@/server/actions/auth";
 
 function SubmitRow() {
@@ -14,19 +12,23 @@ function SubmitRow() {
       type="submit"
       disabled={pending}
       aria-busy={pending}
-      className={cn(PRESSABLE_ROW_CLASS, "disabled:opacity-60")}
+      className="nav-row w-full text-left disabled:opacity-60"
     >
-      <RowIcon icon={LogOut} />
-      <span className="min-w-0 flex-1 font-medium">{pending ? "Signing out…" : "Sign out"}</span>
+      <span className="mark-cell">
+        <Glyph name="exit" className="glyph-20" />
+      </span>
+      <span className="nav-row-label">{pending ? "Signing out…" : "Sign out"}</span>
     </button>
   );
 }
 
-/** Signing out is a row like its neighbours; the whole row is the submit button. */
+/** Signing out is a row like its neighbours, without a chevron: the whole row submits. */
 export function SignOutRow() {
   return (
-    <form action={signOutAction}>
-      <SubmitRow />
-    </form>
+    <li className="nav-row-item">
+      <form action={signOutAction}>
+        <SubmitRow />
+      </form>
+    </li>
   );
 }

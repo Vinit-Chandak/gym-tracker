@@ -205,7 +205,9 @@ export function ProfileFields({
       )}
 
       <div className="space-y-1.5">
-        <span className="block text-sm font-medium text-ink-muted">Units</span>
+        <span className="block text-[length:var(--ov-type-meta-small)] font-bold text-ink">
+          Units
+        </span>
         <SegmentedControl
           name="preferredUnit"
           aria-label="Units"
@@ -214,69 +216,81 @@ export function ProfileFields({
           onChange={(next) => changeUnit(next as BodyLoadUnit)}
           columns={2}
         />
-        <span className="block text-xs text-ink-subtle">
+        <span className="block text-[length:var(--ov-type-caption)] font-medium text-ink-2">
           {imperial ? "Height in feet and inches." : "Height in centimetres."}
         </span>
         {errors?.preferredUnit && (
-          <span role="alert" className="block text-sm text-danger">
+          <span role="alert" className="block type-meta-small font-semibold">
             {errors.preferredUnit}
           </span>
         )}
       </div>
 
-      <Field label={`Body weight (${unit})`} error={errors?.bodyWeight}>
-        <Input
-          type="text"
-          name="bodyWeight"
-          inputMode="decimal"
-          value={weight}
-          onChange={(event) => setWeight(event.target.value)}
-          placeholder={unit === "kg" ? "74.5" : "164.2"}
-          required
-        />
-      </Field>
-
-      {imperial ? (
-        <div className="space-y-1.5">
-          <span className="block text-sm font-medium text-ink-muted">Height</span>
-          <div className="grid grid-cols-2 gap-2">
-            <Field label="Feet" error={errors?.heightFeet}>
-              <Input
-                type="text"
-                name="heightFeet"
-                inputMode="numeric"
-                value={feet}
-                onChange={(event) => setFeet(event.target.value)}
-                placeholder="5"
-                required
-              />
-            </Field>
-            {/* Inches may be left blank: a height of exactly five feet is five feet. */}
-            <Field label="Inches" error={errors?.heightInches}>
-              <Input
-                type="text"
-                name="heightInches"
-                inputMode="numeric"
-                value={inches}
-                onChange={(event) => setInches(event.target.value)}
-                placeholder="10"
-              />
-            </Field>
-          </div>
-        </div>
-      ) : (
-        <Field label="Height (cm)" error={errors?.heightCm}>
+      {/* Metric, the two figures share a row (board Edit profile); feet and inches need one
+          of their own. */}
+      <div
+        className={
+          imperial
+            ? "space-y-4"
+            : "grid grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] items-start gap-3"
+        }
+      >
+        <Field label={`Body weight (${unit})`} error={errors?.bodyWeight}>
           <Input
             type="text"
-            name="heightCm"
+            name="bodyWeight"
             inputMode="decimal"
-            value={heightCm}
-            onChange={(event) => setHeightCm(event.target.value)}
-            placeholder="178"
+            value={weight}
+            onChange={(event) => setWeight(event.target.value)}
+            placeholder={unit === "kg" ? "74.5" : "164.2"}
             required
           />
         </Field>
-      )}
+
+        {imperial ? (
+          <div className="space-y-1.5">
+            <span className="block text-[length:var(--ov-type-meta-small)] font-bold text-ink">
+              Height
+            </span>
+            <div className="grid grid-cols-2 gap-2">
+              <Field label="Feet" error={errors?.heightFeet}>
+                <Input
+                  type="text"
+                  name="heightFeet"
+                  inputMode="numeric"
+                  value={feet}
+                  onChange={(event) => setFeet(event.target.value)}
+                  placeholder="5"
+                  required
+                />
+              </Field>
+              {/* Inches may be left blank: a height of exactly five feet is five feet. */}
+              <Field label="Inches" error={errors?.heightInches}>
+                <Input
+                  type="text"
+                  name="heightInches"
+                  inputMode="numeric"
+                  value={inches}
+                  onChange={(event) => setInches(event.target.value)}
+                  placeholder="10"
+                />
+              </Field>
+            </div>
+          </div>
+        ) : (
+          <Field label="Height (cm)" error={errors?.heightCm}>
+            <Input
+              type="text"
+              name="heightCm"
+              inputMode="decimal"
+              value={heightCm}
+              onChange={(event) => setHeightCm(event.target.value)}
+              placeholder="178"
+              required
+            />
+          </Field>
+        )}
+      </div>
 
       <Field
         label="Date of birth"
@@ -294,7 +308,9 @@ export function ProfileFields({
       </Field>
 
       <div className="space-y-1.5">
-        <span className="block text-sm font-medium text-ink-muted">Sex</span>
+        <span className="block text-[length:var(--ov-type-meta-small)] font-bold text-ink">
+          Sex
+        </span>
         <SegmentedControl
           name="sex"
           aria-label="Sex"
@@ -304,7 +320,7 @@ export function ProfileFields({
           columns={2}
         />
         {errors?.sex && (
-          <span role="alert" className="block text-sm text-danger">
+          <span role="alert" className="block type-meta-small font-semibold">
             {errors.sex}
           </span>
         )}

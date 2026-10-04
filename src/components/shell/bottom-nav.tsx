@@ -1,55 +1,49 @@
 "use client";
 
-import { LoaderCircle, type AppIcon } from "@/components/ui/icons";
 import { useLinkStatus } from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
 import Link from "@/components/ui/app-link";
 import { Wordmark } from "@/components/shell/wordmark";
+import { Glyph, type Destination } from "@/components/ui/glyphs";
 import { isNavItemActive, NAV_ITEMS, ORIGIN_PARAM, parseOrigin, type NavOrigin } from "@/lib/nav";
-import { cn } from "@/lib/utils";
 
 /**
- * One tab's contents, and the pill that says it is selected.
- *
- * The fill goes around the icon *and* its label, never the icon alone: the caption names
- * the icon above it, so highlighting one without the other reads as a stray box. It has to
- * live in here rather than on the `<Link>` because `useLinkStatus` only reports from inside
- * the link it belongs to, and a tab being navigated to is filled in the same way.
+ * One tab (DESIGN.md, Navigation): the destination's glyph over its label, ink and filled where
+ * you are. It lives inside the link because `useLinkStatus` only reports from inside the link it
+ * belongs to: a tab being navigated to is drawn as chosen at once, its glyph the dial that waits.
  */
 function NavContent({
   label,
-  icon: Icon,
+  glyph,
   active,
 }: {
   label: string;
-  icon: AppIcon;
+  glyph: Destination;
   active: boolean;
 }) {
   const { pending } = useLinkStatus();
   return (
-    <span className={cn("nav-tab", (active || pending) && "nav-tab-active")}>
-      <span className="flex h-8 w-11 shrink-0 items-center justify-center lg:size-8">
-        {pending ? (
-          <LoaderCircle scale="navigation" className="motion-safe:animate-spin" aria-hidden />
-        ) : (
-          <Icon scale="navigation" aria-hidden />
-        )}
-      </span>
-      <span className="max-w-full truncate">{label}</span>
+    <>
+      {pending ? (
+        <Glyph name="wait" className="nav-glyph motion-safe:animate-spin" />
+      ) : (
+        <Glyph name={glyph} filled={active} className="nav-glyph" />
+      )}
+      <span className="nav-label">{label}</span>
       {pending && <span className="sr-only">Loading {label}…</span>}
-    </span>
+    </>
   );
 }
 
 function NavItems({ pathname, origin }: { pathname: string; origin: NavOrigin | null }) {
   return (
     <ul className="nav-items">
-      {NAV_ITEMS.map(({ href, label, icon }) => {
+      {NAV_ITEMS.map(({ href, label, glyph }) => {
         const active = isNavItemActive(pathname, href, origin);
         return (
-          <li key={href} className="min-w-0 flex-1 lg:flex-none">
+          <li key={href} className="min-w-0">
             {/*
               Full prefetch: each tab's data is on the phone before it is tapped, so switching
               tabs shows the screen at once instead of the loading screen, which React holds for
@@ -63,9 +57,9 @@ function NavItems({ pathname, origin }: { pathname: string; origin: NavOrigin | 
               href={href}
               prefetch
               aria-current={active ? "page" : undefined}
-              className={cn("nav-link", active ? "text-accent" : "text-ink-muted hover:text-ink")}
+              className="nav-link"
             >
-              <NavContent label={label} icon={icon} active={active} />
+              <NavContent label={label} glyph={glyph} active={active} />
             </Link>
           </li>
         );
@@ -88,10 +82,10 @@ export function BottomNav({ pathname: standingIn }: { pathname?: string } = {}) 
     <div className="viewport-chrome">
       <nav aria-label="Primary" className="primary-nav">
         <div className="hidden px-6 pt-7 pb-3 lg:block">
-          <p className="text-lg font-medium">
+          <p className="type-heading">
             <Wordmark />
           </p>
-          <p className="mt-0.5 text-xs text-ink-muted">Your training, in focus.</p>
+          <p className="mt-0.5 type-meta-small text-ink-2">Your training, in focus.</p>
         </div>
         {/* A request always has its search parameters, so the app never shows the fallback:
             only a prerendered screen, which has none to read, stands on its path alone. */}

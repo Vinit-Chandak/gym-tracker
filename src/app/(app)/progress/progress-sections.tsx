@@ -7,34 +7,35 @@ import type { ReactNode } from "react";
 import { SectionSelect } from "@/components/ui/section-select";
 
 /**
- * Progress's sections, as the picker lists them: Body, which the tab opens on, then History,
- * everything done, day by day (ADR 0034), then a section per subject, and the totals last.
+ * Progress's sections, as the picker lists them (DESIGN.md, Navigation; ADR 0034): Overview,
+ * the month on paper, which the tab opens on, then History, everything done, day by day, then a
+ * section per subject.
  */
 export const PROGRESS_SECTIONS = [
-  { value: "body", label: "Body" },
+  { value: "overview", label: "Overview" },
   { value: "history", label: "History" },
   { value: "strength", label: "Strength" },
   { value: "running", label: "Running" },
   { value: "recovery", label: "Recovery" },
-  { value: "overview", label: "Overview" },
+  { value: "body", label: "Body" },
 ] as const;
 export type ProgressSection = (typeof PROGRESS_SECTIONS)[number]["value"];
 /** The sections the Progress page draws itself, from what it has already read. */
 export type ProgressPageSection = Exclude<ProgressSection, "history">;
 
 /**
- * The section a `?view=` names, or Body. History is a page of its own, so a view naming it
+ * The section a `?view=` names, or Overview. History is a page of its own, so a view naming it
  * is only ever a link made by hand.
  */
 export function pageSection(view: string | null): ProgressPageSection {
   const named = PROGRESS_SECTIONS.find((section) => section.value === view)?.value;
-  return named && named !== "history" ? named : "body";
+  return named && named !== "history" ? named : "overview";
 }
 
 /** Where a section lives: History has a page, the rest are `?view=` of the Progress page. */
 function sectionHref(section: ProgressSection, search: string): Route {
   const params = new URLSearchParams(search);
-  if (section === "body" || section === "history") params.delete("view");
+  if (section === "overview" || section === "history") params.delete("view");
   else params.set("view", section);
   const query = params.toString();
   const path = section === "history" ? "/progress/history" : "/progress";
@@ -42,7 +43,9 @@ function sectionHref(section: ProgressSection, search: string): Route {
 }
 
 /**
- * The one picker for Progress's sections, on the Progress page and on History's.
+ * Progress's opening, on the Progress page and on History's (boards Progress, Progress-History):
+ * the title with the filters' funnel at its end, then the one picker for the sections, the range
+ * the section is drawn over beside it.
  *
  * History reads what the charts do not, a list of every record, so it is a page of its own
  * rather than a view: the Progress page does not pay for it until it is chosen. Moving between
@@ -53,13 +56,16 @@ function sectionHref(section: ProgressSection, search: string): Route {
 export function ProgressSections({
   value,
   onChange,
-  action,
+  filters,
+  range,
 }: {
   value: ProgressSection;
   /** Switches the Progress page's own sections in place. */
   onChange?: (section: ProgressPageSection) => void;
-  /** The filters beside the picker. */
-  action: ReactNode;
+  /** The filter sheet, at the end of the title. */
+  filters: ReactNode;
+  /** The range the section is drawn over; none where it shows something else (the month). */
+  range?: string | null;
 }) {
   const search = useSearchParams().toString();
   const options = PROGRESS_SECTIONS.map((section) =>
@@ -75,14 +81,24 @@ export function ProgressSections({
         },
   );
   return (
-    <SectionSelect
-      label="Progress section"
-      options={options}
-      value={value}
-      onChange={(section) => {
-        if (section !== "history") onChange?.(section);
-      }}
-      action={action}
-    />
+    <header className="progress-head">
+      <div className="page-header-top">
+        <h1 className="type-title">Progress</h1>
+        {filters && <div className="page-header-action">{filters}</div>}
+      </div>
+      <SectionSelect
+        label="Progress section"
+        options={options}
+        value={value}
+        onChange={(section) => {
+          if (section !== "history") onChange?.(section);
+        }}
+        action={
+          range ? (
+            <span className="type-meta-small font-semibold text-ink-2 tabular-nums">{range}</span>
+          ) : undefined
+        }
+      />
+    </header>
   );
 }

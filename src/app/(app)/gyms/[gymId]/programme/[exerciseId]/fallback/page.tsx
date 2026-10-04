@@ -1,8 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Route } from "next";
 import { notFound } from "next/navigation";
 
-import { PageContent } from "@/components/shell/page-content";
-import { PageHeader } from "@/components/shell/page-header";
+import { SessionPage } from "@/components/shell/session-page";
 import { InfoTip } from "@/components/ui/info-tip";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
@@ -50,26 +49,29 @@ export default async function GymFallbackPage(
   );
   if (!data) notFound();
 
+  // Board Add fallback: a focused page with no tab bar, as the session's own pages are.
   return (
-    <>
-      <PageHeader title="Add fallback" backHref={`/gyms/${data.gym.id}/programme`} />
-      <PageContent>
-        <p className="flex items-center gap-1 px-1 text-sm text-ink-muted">
-          <span>
-            Instead of <span className="font-medium text-ink">{data.exercise.name}</span> at{" "}
+    <SessionPage
+      title="Add fallback"
+      meta={
+        <span className="flex min-w-0 items-center gap-1">
+          <span className="min-w-0">
+            Instead of <span className="font-bold text-ink">{data.exercise.name}</span> at{" "}
             {data.gym.name}
           </span>
           <InfoTip label="About fallbacks">
             Used whenever this gym cannot do the exercise, on every day that plans it.
           </InfoTip>
-        </p>
-        <FallbackForm
-          action={addGymFallbackAction.bind(null, data.gym.id, data.exercise.id)}
-          exercises={data.exercises}
-          machines={data.machines}
-          compatibleMachines={data.compatibleMachines}
-        />
-      </PageContent>
-    </>
+        </span>
+      }
+      back={{ href: `/gyms/${data.gym.id}/programme` as Route }}
+    >
+      <FallbackForm
+        action={addGymFallbackAction.bind(null, data.gym.id, data.exercise.id)}
+        exercises={data.exercises}
+        machines={data.machines}
+        compatibleMachines={data.compatibleMachines}
+      />
+    </SessionPage>
   );
 }

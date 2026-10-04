@@ -239,6 +239,17 @@ export const RUN_MODE_LABELS: Record<RunMode, string> = {
 };
 
 /** ISO weekday (1 = Monday) to its name. Index 0 is unused, so the day number indexes it. */
+/** A swim's stroke, as the swim form names it. */
+export const SWIM_STROKE_LABELS: Record<import("@/domain/activity").SwimStroke, string> = {
+  freestyle: "Freestyle",
+  backstroke: "Backstroke",
+  breaststroke: "Breaststroke",
+  butterfly: "Butterfly",
+  mixed: "Mixed",
+  drill: "Drill",
+  unspecified: "Not stated",
+};
+
 export const WEEKDAY_NAMES: readonly string[] = [
   "",
   "Monday",

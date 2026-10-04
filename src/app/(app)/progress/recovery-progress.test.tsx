@@ -39,14 +39,14 @@ it("opens a recorded measure when only fatigue was answered, and allows an expli
   const readings = [reading({ fatigue: 4 })];
   const view = render(<RecoveryProgress readings={readings} selected={null} onSelect={onSelect} />);
   expect((screen.getByRole("radio", { name: "Fatigue" }) as HTMLInputElement).checked).toBe(true);
-  expect(screen.getByRole("img", { name: /Fatigue, 1 observations/ })).toBeTruthy();
+  expect(screen.getByRole("img", { name: /Fatigue, 1 reading/ })).toBeTruthy();
   fireEvent.click(screen.getByRole("radio", { name: "Sleep" }));
   expect(onSelect).toHaveBeenCalledWith("sleepHours");
   view.rerender(<RecoveryProgress readings={readings} selected="sleepHours" onSelect={onSelect} />);
   expect(screen.getByText(/Sleep was not recorded/)).toBeTruthy();
   expect(screen.queryByRole("img")).toBeNull();
   view.rerender(<RecoveryProgress readings={readings} selected="fatigue" onSelect={onSelect} />);
-  expect(screen.getByRole("img", { name: /Fatigue, 1 observations/ })).toBeTruthy();
+  expect(screen.getByRole("img", { name: /Fatigue, 1 reading/ })).toBeTruthy();
 });
 
 it("no longer offers energy, and a link that still names it opens a measure that was recorded", () => {
@@ -78,16 +78,19 @@ it("shows real latest values and averages without treating missing responses as 
       onSelect={() => {}}
     />,
   );
-  const summary = screen.getByLabelText("Fatigue summary");
-  expect(summary.textContent).toContain("Latest5 / 5");
-  expect(summary.textContent).toContain("Range average3.5 / 5");
+  // The latest on its tile, the average under the chart, and only the answers given counted.
+  expect(screen.getByRole("radio", { name: "Fatigue" }).parentElement!.textContent).toContain(
+    "5 / 5",
+  );
+  expect(screen.getByText("Range average").parentElement!.textContent).toContain("3.5 / 5");
   expect(screen.getByText("2 readings")).toBeTruthy();
-  const table = screen.getByRole("table");
+  fireEvent.click(screen.getByRole("button", { name: /View values/ }));
+  const values = screen.getByRole("button", { name: /View values/ }).nextElementSibling!;
   expect(
-    within(table)
-      .getAllByRole("cell")
-      .map((cell) => cell.textContent),
-  ).toEqual(["5", "—", "2"]);
+    within(values as HTMLElement)
+      .getAllByRole("listitem")
+      .map((row) => row.lastElementChild!.textContent),
+  ).toEqual(["5 / 5", "2 / 5"]);
   expect(screen.getAllByRole("link")[0]!.getAttribute("href")).toBe("/workouts/last");
 });
 
@@ -99,11 +102,13 @@ it("keeps zero hours and decimal sleep answers exact", () => {
       onSelect={() => {}}
     />,
   );
+  fireEvent.click(screen.getByRole("button", { name: /View values/ }));
+  const list = screen.getByRole("button", { name: /View values/ }).nextElementSibling!;
   expect(
-    within(screen.getByRole("table"))
-      .getAllByRole("cell")
-      .map((cell) => cell.textContent),
-  ).toEqual(["0", "7.25"]);
+    within(list as HTMLElement)
+      .getAllByRole("listitem")
+      .map((row) => row.lastElementChild!.textContent),
+  ).toEqual(["0 h", "7.25 h"]);
 });
 
 it("explains an empty range without inventing scores", () => {

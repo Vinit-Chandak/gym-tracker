@@ -1,0 +1,89 @@
+/*
+ * Form v2's two palettes and the prints' pigments, as DESIGN.md's frontmatter gives them.
+ * Private inputs to foundation.css, which picks the light or dark set: components read the
+ * semantic --ov-* names, never these.
+ */
+:where([data-overload-design="form-v2"]) {
+  /* The interface: ink on ground, with two surfaces, a hairline and the control grey. */
+  --ov-light-ground: #ffffff;
+  --ov-light-surface: #f4f4f5;
+  --ov-light-surface-2: #e9e9ec;
+  --ov-light-ink: #16171b;
+  --ov-light-ink-2: #5b5d64;
+  --ov-light-control: #85878e;
+  --ov-light-hair: #e6e6e9;
+  --ov-light-on-ink: #ffffff;
+  --ov-light-on-ink-2: #b4b6bd;
+  --ov-light-scrim: rgb(22 23 27 / 0.42);
+  /* Lifting's thinned pigment on the ground, for a set still to do in a mark. */
+  --ov-light-ultra-t: #9aaaf0;
+  /* A warm-up set: done, but not in the volume. */
+  --ov-light-mark-warm-up: #c9c4b8;
+  /* The session strip floats in light only. */
+  --ov-light-shadow-floating: 0 10px 28px rgb(22 23 27 / 0.2);
+
+  /* The prints: warm paper, its ink and labels, and seven pigments, each full and thinned. */
+  --ov-light-paper: #f2eee5;
+  --ov-light-print-ink: #16171b;
+  --ov-light-print-label: #615c50;
+  --ov-light-print-dot: #8d8980;
+  --ov-light-print-warm-up: #d8d2c4;
+  --ov-light-print-strength: #2b40c8;
+  --ov-light-print-run: #e5432a;
+  --ov-light-print-ride: #6b48c0;
+  --ov-light-print-swim: #1d7a62;
+  --ov-light-print-mobility: #c8487a;
+  --ov-light-print-food: #f2b12a;
+  --ov-light-print-play: #8a5a2b;
+  --ov-light-print-strength-todo: #9aaaf0;
+  --ov-light-print-run-todo: #f6a08a;
+  --ov-light-print-ride-todo: #bfb1ff;
+  --ov-light-print-swim-todo: #7cd1b6;
+  --ov-light-print-mobility-todo: #f89fbb;
+  --ov-light-print-food-todo: #e3b667;
+  --ov-light-print-play-todo: #d9b48c;
+  /* The paper's grain: multiply at 6% in light (dark grain off). */
+  --ov-light-grain-blend: multiply;
+  --ov-light-grain-multiply: 0.06;
+  --ov-light-grain-screen: 0;
+
+  --ov-dark-ground: #111214;
+  --ov-dark-surface: #1b1c20;
+  --ov-dark-surface-2: #26272c;
+  --ov-dark-ink: #edeef0;
+  --ov-dark-ink-2: #a3a6ae;
+  --ov-dark-control: #73767e;
+  --ov-dark-hair: #26272c;
+  --ov-dark-on-ink: #111214;
+  --ov-dark-on-ink-2: #4c4f57;
+  --ov-dark-scrim: rgb(0 0 0 / 0.6);
+  --ov-dark-ultra-t: #27317a;
+  --ov-dark-mark-warm-up: #4a463e;
+  /* In dark the strip sits flat: one shadow in the system, and only in light. */
+  --ov-dark-shadow-floating: none;
+
+  /* The same prints pulled on near-black paper, so the art is never the brightest thing. */
+  --ov-dark-paper: #23211d;
+  --ov-dark-print-ink: #ece7dc;
+  --ov-dark-print-label: #b4ad9f;
+  --ov-dark-print-dot: #716b5f;
+  --ov-dark-print-warm-up: #4a463e;
+  --ov-dark-print-strength: #8796f5;
+  --ov-dark-print-run: #f2704f;
+  --ov-dark-print-ride: #a08cf0;
+  --ov-dark-print-swim: #45b593;
+  --ov-dark-print-mobility: #e07aa3;
+  --ov-dark-print-food: #f2b12a;
+  --ov-dark-print-play: #c4925e;
+  --ov-dark-print-strength-todo: #555c89;
+  --ov-dark-print-run-todo: #8b4936;
+  --ov-dark-print-ride-todo: #625787;
+  --ov-dark-print-swim-todo: #346b58;
+  --ov-dark-print-mobility-todo: #824e60;
+  --ov-dark-print-food-todo: #8b6924;
+  --ov-dark-print-play-todo: #745a3e;
+  /* The grain screens at 4.5% in dark (light grain off). */
+  --ov-dark-grain-blend: screen;
+  --ov-dark-grain-multiply: 0;
+  --ov-dark-grain-screen: 0.045;
+}

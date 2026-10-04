@@ -7,7 +7,7 @@ import { formatBodyWeight } from "@/lib/units";
 
 import type { SessionVM } from "./view-model";
 
-const CHECK_IN_LABELS: [keyof SessionVM, string][] = [
+export const CHECK_IN_LABELS: [keyof SessionVM, string][] = [
   ["sleepHours", "Sleep (h)"],
   ["sleepQuality", "Sleep quality"],
   ["energy", "Energy"],

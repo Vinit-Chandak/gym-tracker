@@ -2,16 +2,12 @@
 
 import { useOptimistic, useRef, useState, useTransition } from "react";
 
-import { Button } from "@/components/ui/button";
-import { Plus, QuickAdd, Search, Star } from "@/components/ui/icons";
-import { Input } from "@/components/ui/input";
-import { PRESSABLE_ROW_CLASS } from "@/components/ui/link-row";
+import { Glyph } from "@/components/ui/glyphs";
 import { SwipeRow } from "@/components/ui/swipe-row";
 import { addUp, eaten, sameFoods, type Meal } from "@/domain/nutrition";
 import { formatKcal, formatMacros, formatPortion } from "@/lib/format";
 import { MEAL_LABELS } from "@/lib/labels";
 import { attempted } from "@/lib/offline-submit";
-import { cn } from "@/lib/utils";
 import { deleteEntryAction, deleteSavedMealAction } from "@/server/actions/nutrition";
 import type {
   EntryRecord,
@@ -21,7 +17,7 @@ import type {
 } from "@/server/repositories/nutrition";
 
 import { FoodSheet } from "@/components/food/food-sheet";
-import { PortionSheet } from "./portion-sheet";
+import { PortionSheet, type FoodDayBowl } from "./portion-sheet";
 import { SavedMealSheet, SaveMealSheet } from "./saved-meal-sheets";
 
 /** The sheet that is open, and what it was opened for. */
@@ -37,11 +33,31 @@ function scrollBehaviour(): ScrollBehavior {
   return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
 }
 
+/** What a row comes to, in Jost, its unit beside it (board Dinner: "338.5 kcal"). */
+function Kcal({ kcal }: { kcal: number }) {
+  return (
+    <span className="food-row-kcal">
+      <span className="type-figure">{formatKcal(kcal)}</span>{" "}
+      <span className="food-row-unit">kcal</span>
+    </span>
+  );
+}
+
+/** A food goes in with a plus: its row is the control, so the plus is only drawn. */
+function AddMark() {
+  return (
+    <span aria-hidden className="meal-add">
+      <Glyph name="plus" className="glyph-18" />
+    </span>
+  );
+}
+
 /**
- * One meal of the day (ADRs 0033, 0035): what is in it and what that comes to, the star that
- * saves it, and everything in My foods that can go into it, searched as it is typed. A food opens
- * a sheet for how much of it; a saved meal, for adding all of it. Tapping a food already in the
- * meal changes its amount, and swiping it aside takes it out, which its sheet can do too.
+ * One meal of the day (ADRs 0033, 0035; board Dinner): what is in it and what that comes to, the
+ * star that saves it, and everything in My foods that can go into it, searched as it is typed,
+ * every name at the gutter. A food opens a sheet for how much of it; a saved meal, for adding
+ * all of it. Tapping a food already in the meal changes its amount, and swiping it aside takes
+ * it out, which its sheet can do too.
  *
  * The page adds from My foods and does not manage it: foods are made, corrected and removed on
  * My foods' own screen. Only a search that finds nothing offers a new food, made and added here
@@ -52,11 +68,14 @@ export function MealEditor({
   date,
   meal,
   screen,
+  day,
 }: {
   /** The day the page is showing, today or one before it, which a sheet opened on it logs to. */
   date: string;
   meal: Meal;
   screen: MealScreen;
+  /** The day's meals and target, which a portion is shown going into. */
+  day?: FoodDayBowl;
 }) {
   const label = MEAL_LABELS[meal];
   const place = { eatenOn: date, meal, mealLabel: label };
@@ -144,35 +163,36 @@ export function MealEditor({
   return (
     <>
       {entries.length > 0 && (
-        <div ref={top} className="scroll-mt-20 space-y-3">
-          <section aria-label={`${label} total`} className="box panel-padding">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-2xl font-medium tabular-nums">
-                  {formatKcal(total.kcal)}
-                  <span className="text-sm font-normal text-ink-muted"> kcal</span>
+        <div ref={top} className="scroll-mt-20">
+          <section aria-label={`${label} total`} className="meal-total mt-3">
+            <div className="min-w-0">
+              <p className="whitespace-nowrap">
+                <span className="type-figure-l">{formatKcal(total.kcal)}</span>{" "}
+                <span className="food-preview-unit">kcal</span>
+              </p>
+              <p className="type-meta-small text-ink-2 tabular-nums">{formatMacros(total)}</p>
+              {starred && (
+                <p className="mt-0.5 type-caption font-medium [overflow-wrap:anywhere] text-ink-2">
+                  Saved as {starred.name}
                 </p>
-                <p className="text-sm text-ink-muted tabular-nums">{formatMacros(total)}</p>
-                {starred && (
-                  <p className="mt-1 text-xs [overflow-wrap:anywhere] text-ink-muted">
-                    Saved as {starred.name}
-                  </p>
-                )}
-              </div>
-              <Button
-                variant="secondary"
-                size="sm"
-                aria-pressed={starred !== null}
-                disabled={pending}
-                onClick={() => (starred ? unstar(starred) : open({ kind: "star" }))}
-                className="shrink-0 aria-pressed:border-accent aria-pressed:bg-accent-soft"
-              >
-                <Star className={starred ? "text-accent" : "text-ink-subtle"} aria-hidden />
-                Star
-              </Button>
+              )}
             </div>
+            <button
+              type="button"
+              aria-pressed={starred !== null}
+              disabled={pending}
+              onClick={() => (starred ? unstar(starred) : open({ kind: "star" }))}
+              className="star-button"
+            >
+              <Glyph
+                name="star"
+                className="glyph-18"
+                style={starred ? { fill: "currentColor" } : undefined}
+              />
+              Star
+            </button>
           </section>
-          <ul className="box-rows" aria-label={`In ${label.toLowerCase()}`}>
+          <ul className="meal-entries" aria-label={`In ${label.toLowerCase()}`}>
             {entries.map((entry) => (
               <li key={entry.id}>
                 <SwipeRow
@@ -183,21 +203,17 @@ export function MealEditor({
                   <button
                     type="button"
                     onClick={() => open({ kind: "entry", entry })}
-                    className={cn(PRESSABLE_ROW_CLASS, "flex-wrap")}
+                    className="food-row"
                   >
                     {/* The spaces are for the button's name, which a screen reader reads as one
                         string; beside flex items they take no room on the screen. */}
-                    <span className="min-w-0 flex-[1_1_10rem]">
-                      <span className="block font-medium [overflow-wrap:anywhere]">
-                        {entry.name}
-                      </span>{" "}
-                      <span className="block text-sm text-ink-muted tabular-nums">
+                    <span className="food-row-text">
+                      <span className="food-row-name">{entry.name}</span>{" "}
+                      <span className="food-row-meta">
                         {formatPortion(entry.amount, entry.unit)}
                       </span>
                     </span>{" "}
-                    <span className="ml-auto max-w-full tabular-nums">
-                      {formatKcal(eaten(entry).kcal)} kcal
-                    </span>
+                    <Kcal kcal={eaten(entry).kcal} />
                   </button>
                 </SwipeRow>
               </li>
@@ -206,103 +222,92 @@ export function MealEditor({
         </div>
       )}
       {error && (
-        <p role="alert" className="px-1 text-sm text-danger">
+        <p role="alert" className="mt-3 type-meta-small font-semibold">
           {error}
         </p>
       )}
 
-      <div className="space-y-3">
-        <div className="relative">
-          <Search
-            className="absolute top-1/2 left-3 -translate-y-1/2 text-ink-subtle"
-            aria-hidden
-          />
-          <Input
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search your foods"
-            aria-label="Search your foods and saved meals"
-            className="pl-9"
-            autoCapitalize="none"
-            autoCorrect="off"
-            enterKeyHint="search"
-          />
-        </div>
+      <div className="food-search mt-3">
+        <Glyph name="search" className="glyph-20" />
+        <input
+          type="search"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search your foods"
+          aria-label="Search your foods and saved meals"
+          className="food-search-input"
+          autoCapitalize="none"
+          autoCorrect="off"
+          enterKeyHint="search"
+        />
+      </div>
 
-        <ul className="box-rows" aria-label="Your foods and meals">
+      <ul className="food-list mt-1.5" aria-label="Your foods and meals">
+        <li>
+          <button
+            type="button"
+            onClick={() => open({ kind: "quick", name: query.trim() })}
+            className="food-row"
+          >
+            <span className="food-row-text">
+              <span className="food-row-name">
+                {query.trim() ? `Quick add “${query.trim()}”` : "Quick add"}
+                <Glyph name="bolt" className="food-row-glyph glyph-16" />
+              </span>{" "}
+              <span className="food-row-meta">Calories and macros, just this once</span>
+            </span>
+          </button>
+        </li>
+        {savedMeals.map((saved) => (
+          <li key={saved.id}>
+            <button
+              type="button"
+              onClick={() => open({ kind: "saved", saved })}
+              className="food-row"
+            >
+              <span className="food-row-text">
+                <span className="food-row-name">
+                  {saved.name}
+                  <Glyph name="star" label="Saved meal" className="food-row-glyph glyph-16" />
+                </span>{" "}
+                <span className="food-row-meta">
+                  {saved.items.map((item) => item.name).join(", ")}
+                </span>
+              </span>{" "}
+              <Kcal kcal={addUp(saved.items.map(eaten)).kcal} />
+            </button>
+          </li>
+        ))}
+        {foods.map((food) => (
+          <li key={food.id}>
+            <button type="button" onClick={() => open({ kind: "log", food })} className="food-row">
+              <span className="food-row-text">
+                <span className="food-row-name">{food.name}</span>{" "}
+                <span className="food-row-meta">
+                  {formatPortion(food.portionAmount, food.unit)} · {formatKcal(food.kcal)} kcal
+                </span>
+              </span>
+              <AddMark />
+            </button>
+          </li>
+        ))}
+        {nothingFound && (
           <li>
             <button
               type="button"
-              onClick={() => open({ kind: "quick", name: query.trim() })}
-              className={PRESSABLE_ROW_CLASS}
+              onClick={() => open({ kind: "create", name: query.trim() })}
+              className="food-row"
             >
-              <QuickAdd className="shrink-0 text-accent" aria-hidden />
-              <span className="min-w-0 flex-1">
-                <span className="block font-medium [overflow-wrap:anywhere] text-accent">
-                  {query.trim() ? `Quick add “${query.trim()}”` : "Quick add"}
-                </span>{" "}
-                <span className="block text-sm text-ink-muted">
-                  Calories and macros, just this once
-                </span>
-              </span>
-            </button>
-          </li>
-          {savedMeals.map((saved) => (
-            <li key={saved.id}>
-              <button
-                type="button"
-                onClick={() => open({ kind: "saved", saved })}
-                className={cn(PRESSABLE_ROW_CLASS, "flex-wrap")}
-              >
-                <span className="flex min-w-0 flex-[1_1_10rem] flex-wrap items-center gap-3">
-                  <Star className="shrink-0 text-accent" aria-hidden />
-                  <span className="min-w-0 flex-[1_1_8rem]">
-                    <span className="block font-medium [overflow-wrap:anywhere]">{saved.name}</span>{" "}
-                    <span className="block text-sm [overflow-wrap:anywhere] text-ink-muted">
-                      {saved.items.map((item) => item.name).join(", ")}
-                    </span>
-                  </span>
-                </span>{" "}
-                <span className="ml-auto max-w-full text-sm tabular-nums">
-                  {formatKcal(addUp(saved.items.map(eaten)).kcal)} kcal
-                </span>
-              </button>
-            </li>
-          ))}
-          {foods.map((food) => (
-            <li key={food.id}>
-              <button
-                type="button"
-                onClick={() => open({ kind: "log", food })}
-                className={PRESSABLE_ROW_CLASS}
-              >
-                <span className="min-w-0 flex-1">
-                  <span className="block font-medium [overflow-wrap:anywhere]">{food.name}</span>{" "}
-                  <span className="block text-sm text-ink-muted tabular-nums">
-                    {formatPortion(food.portionAmount, food.unit)} · {formatKcal(food.kcal)} kcal
-                  </span>
-                </span>
-                <Plus className="shrink-0 text-accent" aria-hidden />
-              </button>
-            </li>
-          ))}
-          {nothingFound && (
-            <li>
-              <button
-                type="button"
-                onClick={() => open({ kind: "create", name: query.trim() })}
-                className={cn(PRESSABLE_ROW_CLASS, "font-medium text-accent")}
-              >
-                <Plus className="shrink-0" aria-hidden />
-                <span className="min-w-0 [overflow-wrap:anywhere]">
+              <span className="food-row-text">
+                <span className="food-row-name">
                   {query.trim() ? `New food “${query.trim()}”` : "New food"}
                 </span>
-              </button>
-            </li>
-          )}
-        </ul>
-      </div>
+              </span>
+              <AddMark />
+            </button>
+          </li>
+        )}
+      </ul>
 
       <p aria-live="polite" className="sr-only">
         {said}
@@ -316,6 +321,8 @@ export function MealEditor({
           food={view.food}
           amount={view.food.portionAmount}
           target={{ kind: "log", foodId: view.food.id, ...place }}
+          day={day}
+          meal={meal}
           onDone={done}
         />
       )}
@@ -327,6 +334,8 @@ export function MealEditor({
           food={view.entry}
           amount={view.entry.amount}
           target={{ kind: "entry", entryId: view.entry.id }}
+          day={day}
+          meal={meal}
           onDone={done}
         />
       )}

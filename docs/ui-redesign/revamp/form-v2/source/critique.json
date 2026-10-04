@@ -1,0 +1,122 @@
+{
+  "method": "Three fresh-eyes reviews, each blind to the last: G read the canvas before round 1’s fixes, J the canvas after your second notes, and K the canvas after J’s fixes. Each scores Nielsen’s ten heuristics from 0 to 4 (40 in all), checks cognitive load and your notes one by one, and measures every board in a browser; a string or figure traced to the app’s code is not counted against the design. The Impeccable detector also ran on canvas/.",
+  "scores": [
+    [
+      "G · before round 1’s fixes",
+      "26/40",
+      "All 74 boards. Two P0s (print geometry; pounds read as kilograms) and six P1s."
+    ],
+    [
+      "J · after your second notes",
+      "28/40",
+      "No P0. Four P1s: the 200% log, the set number against five-character loads, the indoors bar, this read-me."
+    ],
+    [
+      "K · after J’s fixes",
+      "32/40",
+      "No P0. Of J’s 23 issues, 19 fixed and 4 partly; Match and Control at 4. Its one P1, the read-me cut by its frame, was a stale copy; renders now fail on it."
+    ],
+    [
+      "L · the changed boards only",
+      "33/40",
+      "A scoped review of the 31 boards changed after K, so not comparable with the whole-canvas scores. No P0; its P1 (the entry riding up the screen) and its P2s were then fixed."
+    ],
+    [
+      "Detector",
+      "60",
+      "From 108 last round. 18 warnings: 15 where a selected tab’s bar sits on its hairline, 2 from the Moment’s stacked layers, 1 spacing (Programme-Day); 42 advisories, for board headings and drawings off the type and radius scales."
+    ]
+  ],
+  "why": [
+    "Consistency (2 of 4 in G and J): the same thing said two ways. Prints aligned three ways; “@” meant RIR and RPE; the log’s columns stopped matching the entry at 360 and 320; a bar under the art meant indoors; six lists started their names away from the edge.",
+    "Recognition (2 of 4): codes you had to remember. The indoors bar had no key; tapping the dash for the target, or a figure to type, was not shown or named.",
+    "Match with the real world (2 of 4 in G): “63 × 9 @ 2 × 2”, “≤ 297 g”, and prescriptions without the app’s own “RIR”.",
+    "Help (2 of 4 in G): nothing taught the alphabet, and RIR was never explained on screen.",
+    "At 200% text, RIR fell below the first screen."
+  ],
+  "gNow": [
+    ["Print geometry: one baseline; a skipped swim dashed", "Fixed"],
+    ["Pounds read aloud as kilograms", "Fixed"],
+    ["Calendar marks nearer the next week; days not tappable", "Fixed"],
+    ["“@” meant RIR and RPE", "Fixed"],
+    ["Records as colour tiles; the kettlebell read as a padlock", "Fixed"],
+    ["Prints aligned three ways", "Fixed"],
+    ["No key on the Overview calendar or on Welcome", "Fixed"],
+    ["Rest running before any set (Workout-Coach)", "Fixed"],
+    ["“63 × 9 @ 2 × 2” and “≤ 297 g”", "Fixed now"],
+    ["Dinner’s indent; the Food tab icon’s size", "Fixed now"],
+    [
+      "Slashed beside plain zeros",
+      "Partly: calendar dates are Jost; words keep Atkinson’s slashed zero"
+    ],
+    ["Links between boards", "Partly: the session’s flow is linked; other buttons stay “#”"],
+    [
+      "Run asks distance first, ride duration first",
+      "App: a ride’s distance is optional (cycling-form.tsx); Ride now says so"
+    ],
+    [
+      "Check-in’s scales; Start while the coach plans; nothing logged offline",
+      "App decisions, drawn as the app does them"
+    ],
+    ["“Best set”, W 37.8 kg, 1,152.5 kcal, 7 sets with warm-ups", "The app’s own figures"]
+  ],
+  "fixed": [
+    "Logging at 200%: the whole entry stays docked above the home indicator, with the log scrolling above it; the dash is a button; RIR over its target.",
+    "The set number has its own 18-pt column in the log and the entry, so “102.5” never touches it; the log’s figures step down the type ramp to fit.",
+    "No line under any art: the indoors bar is gone from every form and calendar mark; a row’s glyph says treadmill or outdoors.",
+    "The log’s place: J wanted no gap between the log and the entry, and your question about the room above the sets settled it: the log fills down from the tabs towards the entry, which stays docked at the foot with Save.",
+    "Only warm-ups done are drawn; the entry says “Warm-up 2 of 3”. Choosing RIR no longer makes the suggested load look confirmed.",
+    "At 360 and 320, + stands over each figure and − under it, so the log’s columns hold; every log line is 44 pt or more.",
+    "Every figure is a named button (“62.5 kilograms, suggested. Type a load”); ⓘ beside RIR gives the app’s own explanation; a tap on the waiting Save shows the app’s sentence for a missing RIR.",
+    "The app’s notation: “3 × 8–12 @ 1–2 RIR”, “63 kg × 9, 63 kg × 9”, “86 / 297 g”.",
+    "Names at the edge on Dinner, search results, a gym’s machines, Privacy and the coach’s change, which is ruled sections now, not cards; “was” and “becomes” are read aloud.",
+    "3:1 for the empty-day dot and a warm-up block’s edge; meal marks edged in ink; today’s ring clear of its date.",
+    "The Moment: the dial refills at 3:00 and its name follows; words fade out in 80 ms and in in 120.",
+    "One way each: the coach note while planning, the gym as a pin, chart scales on the left, Portion’s print square, round steppers at 200%, Filters a funnel, the indoor bike redrawn, “instead of” and “Planned by the coach” in words.",
+    "Continuity: the rest timer is on in Profile; Progress has no stray strip; only 25 Sept opens the Day; Today → Check-in → Workout → Log and Finish → Summary are linked."
+  ],
+  "kept": [
+    "The seven cycle squares stay wordless, as your note asked; their name is read aloud.",
+    "A superset shows no rest before its first set, as every session does.",
+    "After a save the entry goes back to the suggestion, as the app does.",
+    "Edit profile’s Save stays live; the app checks on submit."
+  ],
+  "sources": [
+    "Today and its run: the preview Today (src/app/(preview)/preview/page.tsx), Fri 11 Sept 2026, Easy Run + Arms.",
+    "The programme: src/db/seed/data/program.ts (8-Week Strength + Aesthetics Hybrid) and its warm-ups (warmups.ts).",
+    "The session, from Workout to Summary: Upper A in src/server/repositories/sessions.test.ts. Its third cycle (60 × 4 @ 2) and the Hold it earns; the warm-up ramp from src/domain/warmup-ramp.ts.",
+    "Progress, the calendar, History, Running, Body and Recovery: the audit database for vinit on 29 Sept 2026, as scripts/dev/audit.mjs seeds it.",
+    "Gyms, machines and the profile: the same audit account (93 equipment types at Anytime Fitness, height from the coach intake, no date of birth or goal yet).",
+    "Food: the food preview (Fri 25 Sept 2026) and its over state.",
+    "The coach: scripts/dev/seed-audit.ts (vinit’s question, notes and memo) and the coaching preview’s proposed change.",
+    "Friends: scripts/dev/seed-people.ts. The first run: the onboarding pages and equipment-types.ts.",
+    "Search results: src/lib/exercise-search.ts, run over the 276 seeded exercises."
+  ],
+  "kFixed": [
+    "A save that fails is drawn where it happens (Log-Failed): the entries stay in ink, nothing is added to the log, rest does not start, and the app’s sentence stands over Save.",
+    "The RIR ⓘ’s target no longer touches the figure above it or the buttons below.",
+    "At 200% the reps show their target (3–5) under them, as RIR shows its own.",
+    "Typing keeps column-wide 44-pt figures and the entry’s rule, with the log 8 pt above it.",
+    "The Moment starts from the log at rest, as Log shows it.",
+    "Logging no longer says anything twice: the header gives the range a set aims at (3–5 reps); how many sets and the RIR target are the entry’s.",
+    "Training draws the whole week on one module, so the days compare at a glance.",
+    "The coach’s change opens on its reason, the coach’s own words.",
+    "Platforms and DESIGN.md match the boards: the 200% layout, the ramp’s figure sizes, Figure XL, a track’s length in modules.",
+    "Smaller: Send note waits for a note; steps not started meet 3:1; body weight and height take the decimal pad; meal figures say kcal; the row under way says how far it is; a past workout lists its sets as the app does."
+  ],
+  "kOpen": [
+    "200% is drawn for logging only; Workout, Food, Training and Progress at 200% are still to draw.",
+    "The pounds and superset boards show suggested figures without a suggestion tag: the repository gives no kind for those two exercises.",
+    "Still to draw: the end of an exercise after its last set; a 320 × 568 first screen of the log; a log long enough to pass under the tabs; the offline save.",
+    "Smaller: the picker’s choice drawn two ways; Sports’ unchosen marks thinned; no key for Food’s week strip; “latest” on Recovery’s tiles; the bodyweight and cable glyphs; Appearance’s radios inside a list; most buttons still link to “#”."
+  ],
+  "lFixed": [
+    "The entry docks at the foot again, whole, and the log fills down from the tabs towards it: no room above the sets, and nothing a thumb needs moves when a set lands.",
+    "Every message about Save stands in one slot over it (the missing RIR, a failed save, a superset’s “Then Wrist curl”), so Save never moves; a missing RIR also inks the dash.",
+    "The RIR ⓘ is a full 44-pt target again (48 dp on Android), 4 pt clear of the figure and the buttons, with the three columns’ buttons on one line.",
+    "A failed save reads Retry, as the app’s does.",
+    "At 200% the first screen names the exercise and its range; the board has its main landmark.",
+    "The Moment turns to the next set on the beat the line lands, so the saved set is not shown twice.",
+    "Technique and History give the whole prescription; Training’s next day is said once; AI coach’s More sits on the gutter; Platforms describes the steppers as the boards draw them."
+  ]
+}

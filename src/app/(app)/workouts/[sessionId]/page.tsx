@@ -3,7 +3,6 @@ import { SaveWorkoutRoutine } from "@/components/coaching/routines";
 import { notFound } from "next/navigation";
 
 import { SessionRecordsCard } from "@/components/records-card";
-import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
@@ -23,7 +22,10 @@ export const metadata: Metadata = { title: "Session" };
 export default async function SessionPage(props: PageProps<"/workouts/[sessionId]">) {
   const { sessionId } = await props.params;
   requireUuid(sessionId);
-  const origin = parseOrigin((await props.searchParams)[ORIGIN_PARAM]);
+  const searchParams = await props.searchParams;
+  const origin = parseOrigin(searchParams[ORIGIN_PARAM]);
+  // Finish session lands here saying so: the summary, once (board Summary).
+  const justFinished = searchParams.finished === "1";
   const user = await requireUser();
   const requestProfile = await getRequestProfile(user.id, user.email);
   // The sets saved after this render are added by the browser, which knows which ones it holds.
@@ -60,32 +62,28 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
   const { session: data, records } = found;
 
   const title = data.day?.name ?? "Ad hoc session";
+  const backHref = (data.completedAt && origin ? originPath(origin) : "/today") as Route;
   // Remount the client view whenever the server-side shape of the session changes.
   const viewKey = data.exercises
     .map((e) => `${e.id}:${e.exercise.id}:${e.equipment?.id ?? ""}:${e.skippedAt ?? ""}`)
     .join("|");
 
   return (
-    <>
-      {/* The gym is said once, here. The logger below never repeats it. The cycle is left to
-          Today and the programme, where it places the day; beside a gym's name it only crowded
-          the title. Back goes to Today, which is where a workout is started and finished, unless
-          the session was opened from somewhere else that said so. */}
-      <PageHeader
-        title={title}
-        meta={data.gym.name}
-        backHref={(data.completedAt && origin ? originPath(origin) : "/today") as Route}
-      />
-      <PageContent>
-        {data.completedAt && <SessionRecordsCard records={records} unit={data.preferredUnit} />}
-        {data.completedAt && <SaveWorkoutRoutine sessionId={sessionId} name={title} />}
-        <WorkoutView
-          key={`${viewKey}:${data.completedAt ?? "open"}:${data.preferredUnit}`}
-          session={data}
-          seenSetChanges={seen}
-          userId={user.id}
-        />
-      </PageContent>
-    </>
+    // An open workout is the session's layer over the tabs (DESIGN.md, The session): its title,
+    // the gym and the day's time once, and Minimise back to Today, which is where a workout is
+    // started and finished. A finished one is a page with a header, whose Back goes wherever it
+    // was opened from when that said so. An exercise in focus is a layer of its own.
+    <WorkoutView
+      key={`${viewKey}:${data.completedAt ?? "open"}:${data.preferredUnit}`}
+      session={data}
+      seenSetChanges={seen}
+      userId={user.id}
+      title={title}
+      backHref={backHref}
+      header={<PageHeader title={title} meta={data.gym.name} backHref={backHref} />}
+      justFinished={justFinished}
+      records={<SessionRecordsCard records={records} unit={data.preferredUnit} />}
+      routine={data.completedAt ? <SaveWorkoutRoutine sessionId={sessionId} name={title} /> : null}
+    />
   );
 }

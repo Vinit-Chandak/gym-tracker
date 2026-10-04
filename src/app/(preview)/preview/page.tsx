@@ -50,6 +50,7 @@ const EXERCISES: TodayPlan["suggestedExercises"] = [
     programExerciseId: "e1",
     exerciseId: "x1",
     name: "Barbell curl",
+    modality: "barbell",
     sets: 3,
     prescriptionType: "reps",
     repMin: 8,
@@ -67,6 +68,7 @@ const EXERCISES: TodayPlan["suggestedExercises"] = [
     programExerciseId: "e2",
     exerciseId: "x2",
     name: "Rope triceps pushdown",
+    modality: "cable",
     sets: 3,
     prescriptionType: "reps",
     repMin: 12,
@@ -85,6 +87,7 @@ const EXERCISES: TodayPlan["suggestedExercises"] = [
     programExerciseId: "e3",
     exerciseId: "x3",
     name: "Farmer's carry",
+    modality: "dumbbell",
     sets: 3,
     prescriptionType: "distance",
     repMin: null,
@@ -102,6 +105,7 @@ const EXERCISES: TodayPlan["suggestedExercises"] = [
     programExerciseId: "e4",
     exerciseId: "x4",
     name: "Wrist curl",
+    modality: "dumbbell",
     sets: 2,
     prescriptionType: "reps",
     repMin: 12,
@@ -135,7 +139,12 @@ function plan(overrides: Partial<TodayPlan> = {}): TodayPlan {
     nextTrainingDay: null,
     sessionStatus: "completed",
     finishedToday: null,
-    cycleDays: [],
+    // The board's week: two days done, this one offered, four to come.
+    cycleDays: Array.from({ length: 7 }, (_, index) => ({
+      day: { ...DAY, id: `day-${index + 1}`, dayIndex: index + 1 },
+      cycleIndex: 1,
+      status: index < 2 ? ("completed" as const) : ("pending" as const),
+    })),
     ...overrides,
   };
 }
@@ -208,6 +217,20 @@ export default async function TodayPreviewPage(props: PageProps<"/preview">) {
         inProgress={state === "training" ? OPEN_SESSION : null}
         restProtocol={null}
         programmeOccurrences={[RUN_OCCURRENCE]}
+        // Today-Coach: the coach planning this session since nine.
+        coach={
+          state === "coach"
+            ? {
+                enabled: true,
+                plan: null,
+                matchesGym: false,
+                pending: { gymId: "g1", requestedAt: new Date("2026-09-11T03:30:00.000Z") },
+                failure: null,
+                requestsLeft: 2,
+                selectedGymId: "g1",
+              }
+            : null
+        }
       />
     </PreviewShell>
   );

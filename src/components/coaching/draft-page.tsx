@@ -2,6 +2,7 @@ import { eq, isNull, or } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 import { PageContent } from "@/components/shell/page-content";
+import { BackLink } from "@/components/shell/back-link";
 import { PageHeader } from "@/components/shell/page-header";
 import { getDb } from "@/db/client";
 import { equipmentInstances, exercises } from "@/db/schema";
@@ -125,10 +126,16 @@ export async function ProgrammeDraftPage({
         </PageContent>
       </>
     );
+  // Board Programme change: the way back, then the change's own line as the title.
   return (
     <>
-      <PageHeader title="Programme change" backHref={`${base}?view=changes`} />
-      <PageContent>
+      <header className="page-header page-width pt-safe">
+        <div className="page-header-bar">
+          <BackLink fallback={`${base}?view=changes`} />
+        </div>
+        <h1 className="sr-only">Programme change</h1>
+      </header>
+      <div className="page-width pb-8">
         <ChangeDetail
           draftId={data.draft.id}
           revision={data.draft.revision}
@@ -154,7 +161,7 @@ export async function ProgrammeDraftPage({
           today={today}
           base={base}
         />
-      </PageContent>
+      </div>
     </>
   );
 }

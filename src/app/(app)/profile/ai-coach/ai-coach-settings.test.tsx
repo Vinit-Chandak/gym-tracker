@@ -34,7 +34,6 @@ it("shows read-only memory and a separate empty message box without discarding p
         },
       ]}
       overview="preference: Prefers dumbbells."
-      overviewUpdatedAt={null}
       attempts={[]}
     />,
   );
@@ -62,7 +61,6 @@ it("lists what the coach knows as facts, one a line", () => {
       noteId={crypto.randomUUID()}
       notes={[]}
       overview={"preference: Strength comes first.\ntrend: Easy runs finish short."}
-      overviewUpdatedAt={null}
       attempts={[]}
     />,
   );

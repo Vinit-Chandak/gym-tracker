@@ -38,9 +38,9 @@ function amountProblem(food: Food, value: string): string | null {
 }
 
 /**
- * How much of a food goes into a meal being built in My foods (ADR 0035). The same field and
- * quick amounts as logging a food, but nothing is saved from here: the meal keeps the amount
- * until Save meal, so the sheet only checks it and hands it back.
+ * How much of a food goes into a meal being built in My foods (ADR 0035). The same amount and
+ * steps as logging a food, but nothing is saved from here: the meal keeps the amount until Save
+ * meal, so the sheet only checks it and hands it back.
  */
 export function AmountSheet({
   open,
@@ -101,10 +101,9 @@ export function AmountSheet({
           onClose();
         }}
       >
-        <p className="text-sm text-ink-muted tabular-nums">
-          Per {formatPortion(food.portionAmount, food.unit)}
-          <br />
-          {formatKcal(food.kcal)} kcal{macros && ` · ${macros}`}
+        <p className="type-meta-small text-ink-2 tabular-nums">
+          Per {formatPortion(food.portionAmount, food.unit)} · {formatKcal(food.kcal)} kcal
+          {macros && ` · ${macros}`}
         </p>
         <AmountField
           label="Amount"
@@ -115,6 +114,7 @@ export function AmountSheet({
           }}
           unit={food.unit}
           portionAmount={food.portionAmount}
+          name={food.name}
           error={error}
         />
         {onRemove && (

@@ -1,74 +1,68 @@
 import type { Icon as PhosphorIcon, IconProps } from "@phosphor-icons/react/lib";
-import { ArrowRightIcon } from "@phosphor-icons/react/dist/ssr/ArrowRight";
-import { ArrowsDownUpIcon } from "@phosphor-icons/react/dist/ssr/ArrowsDownUp";
 import { ArrowSquareOutIcon } from "@phosphor-icons/react/dist/ssr/ArrowSquareOut";
-import { BarbellIcon } from "@phosphor-icons/react/dist/ssr/Barbell";
-import { BookOpenIcon } from "@phosphor-icons/react/dist/ssr/BookOpen";
-import { BowlFoodIcon } from "@phosphor-icons/react/dist/ssr/BowlFood";
-import { BrainIcon } from "@phosphor-icons/react/dist/ssr/Brain";
-import { CalendarDotsIcon } from "@phosphor-icons/react/dist/ssr/CalendarDots";
-import { ChartBarIcon } from "@phosphor-icons/react/dist/ssr/ChartBar";
-import { CaretDownIcon } from "@phosphor-icons/react/dist/ssr/CaretDown";
-import { CaretLeftIcon } from "@phosphor-icons/react/dist/ssr/CaretLeft";
-import { CaretRightIcon } from "@phosphor-icons/react/dist/ssr/CaretRight";
-import { CheckIcon } from "@phosphor-icons/react/dist/ssr/Check";
-import { CheckCircleIcon } from "@phosphor-icons/react/dist/ssr/CheckCircle";
-import { CircleHalfIcon } from "@phosphor-icons/react/dist/ssr/CircleHalf";
-import { CircleNotchIcon } from "@phosphor-icons/react/dist/ssr/CircleNotch";
-import { ClipboardTextIcon } from "@phosphor-icons/react/dist/ssr/ClipboardText";
 import { DownloadSimpleIcon } from "@phosphor-icons/react/dist/ssr/DownloadSimple";
 import { EnvelopeOpenIcon } from "@phosphor-icons/react/dist/ssr/EnvelopeOpen";
 import { GearSixIcon } from "@phosphor-icons/react/dist/ssr/GearSix";
-import { InfoIcon } from "@phosphor-icons/react/dist/ssr/Info";
-import { KeyIcon } from "@phosphor-icons/react/dist/ssr/Key";
-import { LightningIcon } from "@phosphor-icons/react/dist/ssr/Lightning";
-import { LinkIcon } from "@phosphor-icons/react/dist/ssr/Link";
-import { LockSimpleIcon } from "@phosphor-icons/react/dist/ssr/LockSimple";
-import { MagnifyingGlassIcon } from "@phosphor-icons/react/dist/ssr/MagnifyingGlass";
-import { MapPinIcon } from "@phosphor-icons/react/dist/ssr/MapPin";
 import { MicrophoneIcon } from "@phosphor-icons/react/dist/ssr/Microphone";
 import { MicrophoneSlashIcon } from "@phosphor-icons/react/dist/ssr/MicrophoneSlash";
-import { MinusIcon } from "@phosphor-icons/react/dist/ssr/Minus";
 import { PaperclipIcon } from "@phosphor-icons/react/dist/ssr/Paperclip";
-import { PlusIcon } from "@phosphor-icons/react/dist/ssr/Plus";
-import { ScalesIcon } from "@phosphor-icons/react/dist/ssr/Scales";
-import { SignOutIcon } from "@phosphor-icons/react/dist/ssr/SignOut";
-import { SlidersHorizontalIcon } from "@phosphor-icons/react/dist/ssr/SlidersHorizontal";
-import { SneakerMoveIcon } from "@phosphor-icons/react/dist/ssr/SneakerMove";
-import { StarIcon } from "@phosphor-icons/react/dist/ssr/Star";
-import { TimerIcon } from "@phosphor-icons/react/dist/ssr/Timer";
-import { TrashIcon } from "@phosphor-icons/react/dist/ssr/Trash";
-import { TrophyIcon } from "@phosphor-icons/react/dist/ssr/Trophy";
-import { UserIcon } from "@phosphor-icons/react/dist/ssr/User";
-import { UserPlusIcon } from "@phosphor-icons/react/dist/ssr/UserPlus";
-import { UsersIcon } from "@phosphor-icons/react/dist/ssr/Users";
-import { XIcon } from "@phosphor-icons/react/dist/ssr/X";
-import type { ComponentType } from "react";
+import type { ComponentType, CSSProperties } from "react";
 
 import { cn } from "@/lib/utils";
 
+import { Glyph, type GlyphName } from "./glyphs";
+
 type IconScale = "control" | "navigation" | "row" | "feature";
-export type AppIconProps = Omit<IconProps, "size" | "weight" | "strokeWidth"> & {
+export type AppIconProps = {
   /** Glyph dimensions only; the surrounding control owns its hit target. */
   scale?: IconScale;
+  className?: string;
+  style?: CSSProperties;
+  "aria-hidden"?: boolean | "true" | "false";
+  "aria-label"?: string;
+  alt?: string;
 };
 export type AppIcon = ComponentType<AppIconProps>;
 
 /**
- * One chosen family, using context-free imports in both server and client components.
- * Import individual modules so development never has to compile the entire icon catalog.
- * Phosphor draws filled paths; Lucide's strokeWidth would distort these silhouettes.
+ * Form v2's glyphs (DESIGN.md, Shapes: a 24-unit grid, a 2.0 stroke, round caps, ink only)
+ * under the names the screens already use, so every call site takes the new set at once. The
+ * glyph is decoration unless it is named.
  */
-function duotone(Icon: PhosphorIcon): AppIcon {
-  return function DuotoneIcon({ scale = "control", className, ...props }: AppIconProps) {
+function glyph(name: GlyphName): AppIcon {
+  return function GlyphIcon({
+    scale = "control",
+    className,
+    alt,
+    "aria-label": label,
+    "aria-hidden": _hidden,
+    ...props
+  }: AppIconProps) {
+    return (
+      <Glyph
+        name={name}
+        label={label ?? alt}
+        className={cn("app-icon", className)}
+        data-icon-scale={scale}
+        {...props}
+      />
+    );
+  };
+}
+
+/**
+ * The few icons the boards never drew (a microphone, a paperclip, a download, mail, a link out
+ * of the app, a gear) keep Phosphor, in its regular weight, which is the nearest to a 2.0
+ * stroke: decided with the owner on 3 October 2026.
+ */
+function phosphor(Icon: PhosphorIcon): AppIcon {
+  return function PhosphorGlyph({ scale = "control", className, ...props }: AppIconProps) {
     return (
       <Icon
-        aria-hidden={
-          props.alt || props["aria-label"] || props["aria-labelledby"] ? undefined : true
-        }
+        aria-hidden={props.alt || props["aria-label"] ? undefined : true}
         focusable="false"
-        {...props}
-        weight="duotone"
+        {...(props as IconProps)}
+        weight="regular"
         className={cn("app-icon", className)}
         data-icon-scale={scale}
       />
@@ -76,67 +70,54 @@ function duotone(Icon: PhosphorIcon): AppIcon {
   };
 }
 
-// Keep functional names stable for the shared row, form and navigation components.
-export const AiCoach = /* @__PURE__ */ duotone(BrainIcon);
-export const ArrowRight = /* @__PURE__ */ duotone(ArrowRightIcon);
-export const ArrowsDownUp = /* @__PURE__ */ duotone(ArrowsDownUpIcon);
-/**
- * Progress. Bars, after a rising arrow and then a line chart in a frame.
- *
- * At the size the navigation draws it, a hairline is the whole problem: the arrow alone
- * floated in the top of its box, and the framed line spent most of its ink on axes that read
- * as a box rather than as a chart, leaving the tab visibly lighter than the glyphs beside it.
- * Bars are filled shapes, so they survive 26px, and the direction is in the silhouette
- * instead of in an arrowhead three pixels wide.
- */
-export const BarChart = /* @__PURE__ */ duotone(ChartBarIcon);
-export const BookOpen = /* @__PURE__ */ duotone(BookOpenIcon);
-export const CalendarDays = /* @__PURE__ */ duotone(CalendarDotsIcon);
-export const Check = /* @__PURE__ */ duotone(CheckIcon);
-export const CheckCircle2 = /* @__PURE__ */ duotone(CheckCircleIcon);
-export const ChevronDown = /* @__PURE__ */ duotone(CaretDownIcon);
-export const ChevronLeft = /* @__PURE__ */ duotone(CaretLeftIcon);
-export const ChevronRight = /* @__PURE__ */ duotone(CaretRightIcon);
-export const ClipboardList = /* @__PURE__ */ duotone(ClipboardTextIcon);
+// Functional names stay stable for the shared row, form and navigation components.
+export const AiCoach = /* @__PURE__ */ glyph("coach");
+export const ArrowRight = /* @__PURE__ */ glyph("arrowRight");
+export const ArrowsDownUp = /* @__PURE__ */ glyph("swap");
+export const BarChart = /* @__PURE__ */ glyph("progress");
+export const BookOpen = /* @__PURE__ */ glyph("book");
+export const CalendarDays = /* @__PURE__ */ glyph("calendar");
+export const Check = /* @__PURE__ */ glyph("check");
+export const CheckCircle2 = /* @__PURE__ */ glyph("check");
+export const ChevronDown = /* @__PURE__ */ glyph("chevronDown");
+export const ChevronLeft = /* @__PURE__ */ glyph("chevronLeft");
+export const ChevronRight = /* @__PURE__ */ glyph("chevronRight");
+export const ClipboardList = /* @__PURE__ */ glyph("note");
 /** Removing one thing from a group of them, where a bin would say more than is meant. */
-export const Close = /* @__PURE__ */ duotone(XIcon);
-export const Download = /* @__PURE__ */ duotone(DownloadSimpleIcon);
-export const Dumbbell = /* @__PURE__ */ duotone(BarbellIcon);
-export const ExternalLink = /* @__PURE__ */ duotone(ArrowSquareOutIcon);
-/**
- * Food: a filled bowl. A fork and knife says food as plainly, but it is drawn in hairlines that
- * fade beside the barbell and the shoe at the navigation's size; the bowl is a filled shape, like
- * the bars two tabs along, and says nothing about which meal it is.
- */
-export const Food = /* @__PURE__ */ duotone(BowlFoodIcon);
-export const Footprints = /* @__PURE__ */ duotone(SneakerMoveIcon);
-export const Info = /* @__PURE__ */ duotone(InfoIcon);
-export const KeyRound = /* @__PURE__ */ duotone(KeyIcon);
-export const Link2 = /* @__PURE__ */ duotone(LinkIcon);
-export const LoaderCircle = /* @__PURE__ */ duotone(CircleNotchIcon);
-export const Lock = /* @__PURE__ */ duotone(LockSimpleIcon);
-export const LogOut = /* @__PURE__ */ duotone(SignOutIcon);
-export const MailCheck = /* @__PURE__ */ duotone(EnvelopeOpenIcon);
-export const MapPin = /* @__PURE__ */ duotone(MapPinIcon);
-export const Mic = /* @__PURE__ */ duotone(MicrophoneIcon);
-export const MicOff = /* @__PURE__ */ duotone(MicrophoneSlashIcon);
-export const Minus = /* @__PURE__ */ duotone(MinusIcon);
-export const Paperclip = /* @__PURE__ */ duotone(PaperclipIcon);
-export const Plus = /* @__PURE__ */ duotone(PlusIcon);
+export const Close = /* @__PURE__ */ glyph("close");
+export const Download = /* @__PURE__ */ phosphor(DownloadSimpleIcon);
+export const Dumbbell = /* @__PURE__ */ glyph("dumbbell");
+export const ExternalLink = /* @__PURE__ */ phosphor(ArrowSquareOutIcon);
+export const Food = /* @__PURE__ */ glyph("food");
+export const Footprints = /* @__PURE__ */ glyph("training");
+export const Info = /* @__PURE__ */ glyph("info");
+export const KeyRound = /* @__PURE__ */ glyph("key");
+export const Link2 = /* @__PURE__ */ glyph("link");
+/** Waiting on the server: the dial that waits, turning. */
+export const LoaderCircle = /* @__PURE__ */ glyph("wait");
+export const Lock = /* @__PURE__ */ glyph("lock");
+export const LogOut = /* @__PURE__ */ glyph("exit");
+export const MailCheck = /* @__PURE__ */ phosphor(EnvelopeOpenIcon);
+export const MapPin = /* @__PURE__ */ glyph("pin");
+export const Mic = /* @__PURE__ */ phosphor(MicrophoneIcon);
+export const MicOff = /* @__PURE__ */ phosphor(MicrophoneSlashIcon);
+export const Minus = /* @__PURE__ */ glyph("minus");
+export const Paperclip = /* @__PURE__ */ phosphor(PaperclipIcon);
+export const Plus = /* @__PURE__ */ glyph("plus");
 /** Quick add: a food logged from its figures alone, just this once. */
-export const QuickAdd = /* @__PURE__ */ duotone(LightningIcon);
+export const QuickAdd = /* @__PURE__ */ glyph("bolt");
 /** Compare: two pans weighed against each other. */
-export const Scales = /* @__PURE__ */ duotone(ScalesIcon);
-export const Search = /* @__PURE__ */ duotone(MagnifyingGlassIcon);
-export const Settings = /* @__PURE__ */ duotone(GearSixIcon);
-export const SlidersHorizontal = /* @__PURE__ */ duotone(SlidersHorizontalIcon);
+export const Scales = /* @__PURE__ */ glyph("scales");
+export const Search = /* @__PURE__ */ glyph("search");
+export const Settings = /* @__PURE__ */ phosphor(GearSixIcon);
+export const SlidersHorizontal = /* @__PURE__ */ glyph("sliders");
 /** A starred meal: one kept for adding again in one tap. */
-export const Star = /* @__PURE__ */ duotone(StarIcon);
-export const SunMoon = /* @__PURE__ */ duotone(CircleHalfIcon);
-export const Timer = /* @__PURE__ */ duotone(TimerIcon);
-export const Trash = /* @__PURE__ */ duotone(TrashIcon);
+export const Star = /* @__PURE__ */ glyph("star");
+export const SunMoon = /* @__PURE__ */ glyph("contrast");
+export const Timer = /* @__PURE__ */ glyph("timer");
+export const Trash = /* @__PURE__ */ glyph("trash");
 /** Leaderboard: the cup, which needs no explaining. */
-export const Trophy = /* @__PURE__ */ duotone(TrophyIcon);
-export const User = /* @__PURE__ */ duotone(UserIcon);
-export const UserPlus = /* @__PURE__ */ duotone(UserPlusIcon);
-export const Users = /* @__PURE__ */ duotone(UsersIcon);
+export const Trophy = /* @__PURE__ */ glyph("trophy");
+export const User = /* @__PURE__ */ glyph("profile");
+export const UserPlus = /* @__PURE__ */ glyph("personPlus");
+export const Users = /* @__PURE__ */ glyph("people");

@@ -1,82 +1,47 @@
-import { Badge } from "@/components/ui/badge";
+import { Art } from "@/components/art/art";
 import {
-  goalBand,
-  goalStatus,
+  addUp,
+  eaten as eatenFrom,
+  MEALS,
   type FoodTotals,
-  type GoalStatus,
   type MacroTargets,
+  type Meal,
 } from "@/domain/nutrition";
 import { formatKcal } from "@/lib/format";
-import { cn } from "@/lib/utils";
+import { MEAL_LABELS } from "@/lib/labels";
 
 import { MacroBars, type EatenEntry } from "./macro-bars";
 
-const GOAL_FILL: Record<GoalStatus, string> = {
-  under: "bg-accent",
-  met: "bg-success",
-  over: "bg-warning",
-};
+export type MealTotal = { meal: Meal; kcal: number };
 
-/** How far past the target the bar runs, so the band's top end is never the bar's own end. */
-const BAR_REACH = 1.25;
-
-/**
- * The day's energy against its target, with the goal band drawn onto the track: a wash where the
- * goal is met and a tick at each end, over the fill, so the band stays readable once the day's
- * total has reached it. Past the reach of the bar the scale grows with the total instead.
- */
-export function GoalBar({ eaten, target }: { eaten: number; target: number }) {
-  const band = goalBand(target);
-  const status = goalStatus(eaten, target);
-  const scale = Math.max(target * BAR_REACH, eaten);
-  const share = (value: number) => `${(Math.min(Math.max(value, 0), scale) / scale) * 100}%`;
-  return (
-    <div
-      role="img"
-      aria-label={`${formatKcal(eaten)} of ${formatKcal(target)} kcal. The goal is met from ${formatKcal(band.low)} to ${formatKcal(band.high)} kcal.`}
-      className="relative h-2.5 rounded-full bg-surface-raised"
-    >
-      <div
-        className="absolute inset-y-0 bg-success/25"
-        style={{ left: share(band.low), width: share(band.high - band.low) }}
-      />
-      {eaten > 0 && (
-        <div
-          className={cn("absolute inset-y-0 left-0 rounded-full", GOAL_FILL[status])}
-          style={{ width: share(eaten) }}
-        />
-      )}
-      {[band.low, band.high].map((end) => (
-        <span
-          key={end}
-          className="absolute -inset-y-1 w-0.5 -translate-x-1/2 rounded-full bg-ink-muted"
-          style={{ left: share(end) }}
-        />
-      ))}
-    </div>
-  );
+/** Each meal with food in it, in the order they are eaten, and what it came to. */
+export function mealTotals(entries: readonly EatenEntry[]): MealTotal[] {
+  return MEALS.flatMap((meal) => {
+    const inMeal = entries.filter((entry) => entry.meal === meal);
+    return inMeal.length > 0 ? [{ meal, kcal: addUp(inMeal.map(eatenFrom)).kcal }] : [];
+  });
 }
 
 /**
- * Where the day stands, beside its total: what is left while under the band, that the goal is met
- * once inside it, and by how much past it. A day still being eaten is not a day that missed its
- * goal, so under the band reads as what is left and nothing more.
+ * The bowl said aloud (board Food): its meals in the order they fill it, then the day against
+ * its target, "heaped over its rim" once the day is past it.
  */
-function Standing({ status, left }: { status: GoalStatus; left: number }) {
-  if (status === "met") return <Badge tone="success">Goal met</Badge>;
-  if (status === "over") return <Badge tone="warning">{formatKcal(-left)} over</Badge>;
-  return (
-    <p className="shrink-0 text-sm text-ink-muted tabular-nums">
-      <span className="font-medium text-ink">{formatKcal(left)}</span> left
-    </p>
-  );
+export function bowlLabel(meals: readonly MealTotal[], eaten: number, target: number): string {
+  const bowl = eaten > target ? "The bowl heaped over its rim" : "The bowl";
+  const filled =
+    meals.length > 0
+      ? `, filled by ${meals.map((meal) => `${MEAL_LABELS[meal.meal]} ${formatKcal(meal.kcal)} kcal`).join(", ")}`
+      : ", empty";
+  return `${bowl}${filled}: ${formatKcal(eaten)} of ${formatKcal(target)} kcal.`;
 }
 
 /**
- * What the day has come to against its targets, at the top of the Food screen (ADR 0036): the
- * energy against the goal band with where that leaves the day beside it, then a row for each
- * macronutrient, each opening what the day's foods gave it. The band's ends are drawn on the bar
- * and not written out, so the card holds only the numbers that move during the day.
+ * The day at the top of the Food screen (ADR 0036; board Food): its one figure, the kcal
+ * eaten, written against its target as the macronutrients are ("1,152.5 / 2,300 kcal"), then
+ * the bowl, the target filled meal by meal and heaped past it, then the macronutrients. How far
+ * the day is from its target is the bowl's to show, not a second figure; the target itself stays
+ * on the first screen (the feature inventory's eaten-against-the-target). Without a target there
+ * is no bowl to fill, so the figure stands alone.
  */
 export function FoodSummary({
   eaten,
@@ -84,25 +49,37 @@ export function FoodSummary({
   entries,
 }: {
   eaten: FoodTotals;
-  target: MacroTargets;
+  target: MacroTargets | null;
   entries: readonly EatenEntry[];
 }) {
+  const meals = mealTotals(entries);
   return (
-    <div className="space-y-4">
-      <div className="space-y-3">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-          <p className="min-w-0 text-xl font-medium tabular-nums">
-            {formatKcal(eaten.kcal)}
-            <span className="text-sm font-normal text-ink-muted">
-              {" "}
-              / {formatKcal(target.kcal)} kcal
+    <>
+      <p className="food-eaten">
+        <span className="type-figure-xl whitespace-nowrap">{formatKcal(eaten.kcal)}</span>{" "}
+        <span className="food-eaten-unit">
+          {target && (
+            <span aria-hidden className="food-eaten-of">
+              / {formatKcal(target.kcal)}{" "}
             </span>
-          </p>{" "}
-          <Standing status={goalStatus(eaten.kcal, target.kcal)} left={target.kcal - eaten.kcal} />
-        </div>
-        <GoalBar eaten={eaten.kcal} target={target.kcal} />
-      </div>
-      <MacroBars eaten={eaten} target={target} entries={entries} />
-    </div>
+          )}
+          kcal
+          <span className="sr-only"> eaten{target ? ` of ${formatKcal(target.kcal)}` : ""}</span>
+        </span>
+      </p>
+      {target && (
+        <>
+          <figure className="mt-2">
+            <Art
+              kind="bowl"
+              meals={meals}
+              target={target.kcal}
+              label={bowlLabel(meals, eaten.kcal, target.kcal)}
+            />
+          </figure>
+          <MacroBars eaten={eaten} target={target} entries={entries} />
+        </>
+      )}
+    </>
   );
 }

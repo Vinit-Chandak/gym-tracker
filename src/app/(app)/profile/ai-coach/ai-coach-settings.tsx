@@ -1,15 +1,12 @@
 "use client";
 
-import { AiCoach } from "@/components/ui/icons";
 import { useActionState, useOptimistic, useState, useTransition, type ReactNode } from "react";
+import { useFormStatus } from "react-dom";
 
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
-import { FormError, SubmitButton } from "@/components/ui/form";
+import { FormError } from "@/components/ui/form";
+import { Glyph } from "@/components/ui/glyphs";
 import { InfoTip } from "@/components/ui/info-tip";
-import { Field, Textarea } from "@/components/ui/input";
-import { List, Row } from "@/components/ui/link-row";
-import { Section } from "@/components/ui/section";
+import { PinnedActions } from "@/components/ui/pinned-actions";
 import { Switch } from "@/components/ui/switch";
 import { PLAN_LIMITS } from "@/domain/plan-limits";
 import { attempted, keepsFormOnDisconnect } from "@/lib/offline-submit";
@@ -29,7 +26,7 @@ type Props = {
   workflow?: boolean;
   enabled: boolean;
   /**
-   * One line under the switch, for the two things worth saying: that the coach cannot run on
+   * One line under the title, for the two things worth saying: that the coach cannot run on
    * this server, or what it last did on the older single-plan path. A working coach says
    * nothing — the switch already reads "on", and when it plans is not the athlete's business.
    */
@@ -38,16 +35,18 @@ type Props = {
   /** `outcome` is what the coach did with the note, or null while it is still waiting. */
   notes: { id: string; text: string; when: string; outcome: string | null }[];
   overview: string;
-  overviewUpdatedAt: string | null;
   /** What the coach has tried lately, so a night it could not plan is not simply silence. */
   attempts: CoachAttempt[];
-  /** Coaching links, and anything the coach has concluded lately. */
+  /** What waits on the athlete: a question to answer, a change to decide on. */
+  waiting?: ReactNode;
+  /** Anything the coach could not do lately. */
   children?: ReactNode;
 };
 
 /**
- * The coach, on one screen: the switch, what it has been doing, what it knows about you,
- * and the place to tell it things. Boxes of rows and labelled boxes, as every Settings page.
+ * The coach, on one screen (board AI coach): its name and its switch; what waits on you, a
+ * question to answer and a change to decide on; what it knows about you; what you have told
+ * it and what became of each; and, pinned at the foot, the place to tell it more.
  */
 export function AiCoachSettings({
   workflow = false,
@@ -56,8 +55,8 @@ export function AiCoachSettings({
   noteId,
   notes,
   overview,
-  overviewUpdatedAt,
   attempts,
+  waiting,
   children,
 }: Props) {
   const [pending, startTransition] = useTransition();
@@ -85,143 +84,159 @@ export function AiCoachSettings({
       // own, so the error is marked as one to arrive with the switch going back.
       if (!outcome.ok) startTransition(() => setError(outcome.message));
     });
+  const known = overview ? memoLines(overview) : [];
 
   return (
     <>
-      <List>
-        <li>
-          <div>
-            <Row
-              icon={AiCoach}
-              title={
-                <>
-                  AI coach
-                  <InfoTip label="About the AI coach">
-                    {workflow ? (
-                      <>
-                        The coach writes your programme, prepares each session before you train, and
-                        reviews the programme every week. A change to your split or schedule waits
-                        for your approval; starting a workout fixes its prescription. It plans from
-                        your training data and the reports you attach.
-                      </>
-                    ) : (
-                      <>
-                        The coach reads your last sessions, check-ins and runs and writes a plan for
-                        your next session at your default gym: exercises, machines, sets, reps, RIR,
-                        loads and a warm-up. Today shows it, and starting the session uses it. You
-                        can ask for a fresh plan at another gym from Today&apos;s More options.
-                      </>
-                    )}
-                  </InfoTip>
-                </>
-              }
-              subtitle={shown && status ? status : undefined}
-            >
-              <Switch label="AI coach" checked={shown} onChange={change} disabled={pending} />
-            </Row>
-            {error && (
-              <p role="alert" className="px-4 pb-3 text-sm text-danger">
-                {error}
-              </p>
+      <div className="coach-title">
+        <h1 className="flex min-w-0 items-center gap-1 type-display">
+          AI coach
+          <InfoTip label="About the AI coach">
+            {workflow ? (
+              <>
+                The coach writes your programme, prepares each session before you train, and reviews
+                the programme every week. A change to your split or schedule waits for your
+                approval; starting a workout fixes its prescription. It plans from your training
+                data and the reports you attach.
+              </>
+            ) : (
+              <>
+                The coach reads your last sessions, check-ins and runs and writes a plan for your
+                next session at your default gym: exercises, machines, sets, reps, RIR, loads and a
+                warm-up. Today shows it, and starting the session uses it. You can ask for a fresh
+                plan at another gym from Today&apos;s More options.
+              </>
             )}
-          </div>
-        </li>
-      </List>
+          </InfoTip>
+        </h1>
+        <Switch label="AI coach" checked={shown} onChange={change} disabled={pending} />
+      </div>
+      {shown && status && <p className="type-meta text-ink-2">{status}</p>}
+      {error && (
+        <p role="alert" className="type-meta-small font-semibold">
+          {error}
+        </p>
+      )}
 
+      {waiting}
       {children}
 
-      <Section
-        title="What the coach knows"
-        info="What the coach keeps from your notes and training. To add or correct something, tell the coach below."
-      >
-        <Card>
-          {overview ? (
-            <ul className="list-disc space-y-1.5 pl-5 text-sm">
-              {memoLines(overview).map((line, index) => (
-                <li key={index} className="[overflow-wrap:anywhere]">
-                  {line}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-ink-muted">Nothing yet.</p>
-          )}
-          {overviewUpdatedAt && (
-            <p className="text-xs text-ink-muted tabular-nums">Updated {overviewUpdatedAt}</p>
-          )}
-        </Card>
-      </Section>
+      <section aria-labelledby="coach-knows">
+        <h2 id="coach-knows" className="caption-head mt-4.5 flex items-center gap-1">
+          What the coach knows
+          <InfoTip label="About what the coach knows">
+            What the coach keeps from your notes and training. To add or correct something, tell the
+            coach below.
+          </InfoTip>
+        </h2>
+        {/* One fact a line in the list it is, read as the paragraph it makes. */}
+        {known.length > 0 ? (
+          <ul className="coach-knows">
+            {known.map((line, index) => (
+              <li key={index}>{line}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-1 type-meta text-ink-2">Nothing yet.</p>
+        )}
+      </section>
 
-      <Section
-        title="Tell the coach"
-        info="Read at the next daily coach run. Anything you ask the programme to do gets its answer under Programme → Changes."
-      >
-        <Card>
-          <form key={noteId} action={formAction} className="space-y-4">
-            <input type="hidden" name="noteId" value={state.values?.noteId ?? noteId} />
-            <Field label="Notes for the coach">
-              <Textarea
-                name="userNotes"
-                defaultValue={state.values?.userNotes ?? ""}
-                required
-                maxLength={PLAN_LIMITS.memo}
-                placeholder="Left knee is a bit sore on deep squats. Bench matters most to me."
-              />
-            </Field>
-            <FormError message={state.formError} />
-            <SubmitButton variant="secondary" pendingLabel="Saving…">
-              Send note
-            </SubmitButton>
-            <p className="text-sm text-ink-muted" role="status">
-              {saved ? "Saved." : ""}
-            </p>
-          </form>
-        </Card>
-        {notes.length > 0 && (
-          <List>
+      {notes.length > 0 && (
+        <section aria-labelledby="coach-told">
+          <h2 id="coach-told" className="caption-head mt-4.5 flex items-center gap-1">
+            Tell the coach
+            <InfoTip label="About telling the coach">
+              Read at the next daily coach run. Anything you ask the programme to do gets its answer
+              under Programme → Changes.
+            </InfoTip>
+          </h2>
+          <ul>
             {notes.map((note) => (
-              <li key={note.id} className="space-y-1 p-4">
-                <p className="text-sm [overflow-wrap:anywhere] whitespace-pre-line">{note.text}</p>
-                <p className="text-xs text-ink-muted">
-                  {note.when} · {note.outcome ?? "Not read yet"}
+              <li key={note.id} className="coach-note">
+                <p className="coach-note-text">{note.text}</p>
+                <p className="type-caption font-medium text-ink-2">
+                  {note.outcome ?? "Not read yet"}
                 </p>
               </li>
             ))}
-          </List>
-        )}
-      </Section>
+          </ul>
+        </section>
+      )}
 
       {attempts.length > 0 && (
-        <Section
-          title="Recent runs"
-          info="Every time the coach tried to plan for you, overnight or because you asked. A failure says what went wrong."
-        >
-          <List>
+        <section aria-labelledby="coach-runs">
+          <h2 id="coach-runs" className="caption-head mt-4.5 flex items-center gap-1">
+            Recent runs
+            <InfoTip label="About recent runs">
+              Every time the coach tried to plan for you, overnight or because you asked. A failure
+              says what went wrong.
+            </InfoTip>
+          </h2>
+          <ul>
             {attempts.map((attempt) => (
-              <li key={attempt.id}>
-                <Row
-                  title={
-                    <>
-                      {attempt.trigger}
-                      {attempt.status === "failed" && <Badge tone="warning">Failed</Badge>}
-                    </>
-                  }
-                  subtitle={
-                    attempt.status === "failed" && attempt.error
-                      ? attempt.error
-                      : [attempt.gymName, attempt.when].filter(Boolean).join(" · ") || undefined
-                  }
-                >
-                  <span className="shrink-0 text-xs text-ink-muted tabular-nums">
+              <li key={attempt.id} className="coach-note">
+                <p className="flex items-baseline justify-between gap-3">
+                  <span className="coach-note-text">
+                    {attempt.trigger}
+                    {attempt.status === "failed" && " · Failed"}
+                  </span>
+                  <span className="shrink-0 type-caption text-ink-2 tabular-nums">
                     {attempt.when.split(",")[0]}
                   </span>
-                </Row>
+                </p>
+                <p className="type-caption font-medium [overflow-wrap:anywhere] text-ink-2">
+                  {attempt.status === "failed" && attempt.error
+                    ? attempt.error
+                    : [attempt.gymName, attempt.when].filter(Boolean).join(" · ")}
+                </p>
               </li>
             ))}
-          </List>
-        </Section>
+          </ul>
+        </section>
       )}
+
+      {/* Telling the coach is always at hand: pinned over the tabs, the note's words and Send. */}
+      <PinnedActions stack>
+        <form key={noteId} action={formAction}>
+          <input type="hidden" name="noteId" value={state.values?.noteId ?? noteId} />
+          <div className="coach-compose" data-field-error={state.formError ? "true" : undefined}>
+            <label htmlFor="coach-note" className="sr-only">
+              Notes for the coach
+            </label>
+            <textarea
+              id="coach-note"
+              name="userNotes"
+              rows={1}
+              defaultValue={state.values?.userNotes ?? ""}
+              required
+              maxLength={PLAN_LIMITS.memo}
+              placeholder="Notes for the coach"
+              className="coach-compose-input"
+            />
+            <SendNote />
+          </div>
+          <FormError message={state.formError} />
+          <p className="sr-only" role="status">
+            {saved ? "Saved." : ""}
+          </p>
+        </form>
+      </PinnedActions>
     </>
+  );
+}
+
+/** Send, as a glyph: waiting grey while a note is on its way. */
+function SendNote() {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      aria-label={pending ? "Saving…" : "Send note"}
+      disabled={pending}
+      className="coach-compose-send"
+    >
+      <Glyph name="send" className="glyph-20" />
+    </button>
   );
 }
 

@@ -1,16 +1,14 @@
 "use client";
 
-import { ChevronRight } from "@/components/ui/icons";
 import Link from "@/components/ui/app-link";
-import { useActionState, useState, useTransition } from "react";
+import { useActionState, useState, useTransition, type ReactNode } from "react";
 
 import { Button, type ButtonVariant } from "@/components/ui/button";
+import { Glyph, type GlyphName } from "@/components/ui/glyphs";
 import { Field, Input } from "@/components/ui/input";
-import { PRESSABLE_ROW_CLASS } from "@/components/ui/link-row";
 import { Sheet } from "@/components/ui/sheet";
 import type { SlotPart } from "@/domain/types";
 import { attempted, keepsOutcomeOnDisconnect } from "@/lib/offline-submit";
-import { cn } from "@/lib/utils";
 import {
   completeRestSlotAction,
   discardSessionAction,
@@ -42,11 +40,17 @@ function useStartSession() {
 }
 
 function StartError({ error }: { error: string | null }) {
-  return error ? (
-    <p role="alert" className="text-sm text-danger">
-      {error}
+  return error ? <ActionError>{error}</ActionError> : null;
+}
+
+/** What went wrong, in ink, led by the warning glyph: never red, never a pigment. */
+function ActionError({ children }: { children: ReactNode }) {
+  return (
+    <p role="alert" className="flex items-start gap-2 type-meta font-semibold">
+      <Glyph name="warn" className="mt-px glyph-18" />
+      <span className="min-w-0 [overflow-wrap:anywhere]">{children}</span>
     </p>
-  ) : null;
+  );
 }
 
 /** What More options needs to offer the coach: where it can plan, and whether it may today. */
@@ -68,12 +72,17 @@ export function StartPlannedButton({
   variant = "primary",
   dayName,
   fromCycleIndex,
+  glyph,
+  className,
 }: {
   gymId: string | null;
   programDayId: string;
   dayIndex: number;
   label: string;
   variant?: ButtonVariant;
+  /** Leads the label: the play glyph on the day's own Start workout. */
+  glyph?: GlyphName;
+  className?: string;
   /** The cycle the athlete is looking at, when they chose the day from a list of one cycle. */
   fromCycleIndex?: number;
   /**
@@ -90,13 +99,14 @@ export function StartPlannedButton({
         size="lg"
         variant={variant}
         aria-label={dayName ? `${label}: ${dayName}` : undefined}
-        className="w-full"
+        className={className ?? "w-full"}
         disabled={gymId === null || pending}
         onClick={() => {
           if (!gymId) return;
           start(() => startPlannedSessionAction(gymId, programDayId, dayIndex, fromCycleIndex));
         }}
       >
+        {glyph && !pending && <Glyph name={glyph} className="glyph-20" />}
         {pending ? "Starting…" : label}
       </Button>
       <StartError error={error} />
@@ -168,10 +178,34 @@ export function MoreOptions({
     if (state.ok) close();
   }
 
+  const row = (glyph: GlyphName, label: ReactNode, sub?: ReactNode) => (
+    <>
+      <span className="grid w-5 shrink-0 place-items-center">
+        <Glyph name={glyph} className="glyph-22" />
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="text-[length:var(--ov-type-button)] font-semibold [overflow-wrap:anywhere]">
+          {label}
+        </span>
+        {sub}
+      </span>
+      <Glyph name="chevronRight" className="glyph-20 text-ink-2" />
+    </>
+  );
+  const ROW =
+    "flex min-h-[calc(56px+var(--ov-grow))] w-full items-center gap-3 text-left disabled:text-ink-2";
+
   return (
     <>
-      <Button variant="ghost" className="w-full" onClick={() => setOpen(true)}>
-        More options
+      <Button
+        variant="tonal"
+        size="lg"
+        aria-label="More options: another day, ad hoc, the coach, skip"
+        aria-haspopup="dialog"
+        className="pinned-more w-[var(--ov-button)] shrink-0 px-0"
+        onClick={() => setOpen(true)}
+      >
+        <Glyph name="more" className="glyph-24" />
       </Button>
       <Sheet
         open={open}
@@ -193,31 +227,27 @@ export function MoreOptions({
             workflow={coach.workflow}
           />
         ) : asking === "skip" && skip ? (
-          <form action={formAction} className="space-y-4">
+          <form action={formAction} className="mt-2 space-y-4">
             <Field label="Reason" hint="Optional">
               <Input name="reason" maxLength={200} placeholder="Travelling, unwell, …" />
             </Field>
-            {!state.ok && (
-              <p role="alert" className="text-sm text-danger">
-                {state.error}
-              </p>
-            )}
+            {!state.ok && <ActionError>{state.error}</ActionError>}
             <Button type="submit" variant="danger" size="lg" className="w-full" disabled={skipping}>
+              <Glyph name="skip" className="glyph-18" />
               {skipping ? "Skipping…" : "Skip session"}
             </Button>
-            <Button variant="ghost" className="w-full" onClick={() => setAsking(null)}>
+            <Button variant="text" className="w-full" onClick={() => setAsking(null)}>
               Back
             </Button>
           </form>
         ) : (
-          <ul className="min-w-0 ruled-list">
-            <li>
-              <Link href="/today/choose" className={PRESSABLE_ROW_CLASS} onClick={close}>
-                <span className="min-w-0 flex-1 font-medium">Train another day</span>
-                <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />
+          <ul className="mt-1 min-w-0">
+            <li className="border-b border-hair">
+              <Link href="/today/choose" className={ROW} onClick={close}>
+                {row("calendar", "Train another day")}
               </Link>
             </li>
-            <li>
+            <li className={coachRow ? "border-b border-hair" : undefined}>
               <button
                 type="button"
                 disabled={gymId === null || pending}
@@ -225,11 +255,9 @@ export function MoreOptions({
                   if (!gymId) return;
                   start(() => startAdHocSessionAction(gymId));
                 }}
-                className={cn(PRESSABLE_ROW_CLASS, "disabled:opacity-45")}
+                className={ROW}
               >
-                <span className="min-w-0 flex-1 font-medium">
-                  {pending ? "Starting…" : "Start an ad hoc session"}
-                </span>
+                {row("plus", pending ? "Starting…" : "Start an ad hoc session")}
               </button>
             </li>
             {coachRow && (
@@ -238,28 +266,25 @@ export function MoreOptions({
                   type="button"
                   onClick={() => setAsking("coach")}
                   disabled={coach.requestsLeft <= 0 || coach.gyms.length === 0}
-                  className={cn(PRESSABLE_ROW_CLASS, "disabled:opacity-45")}
+                  className={ROW}
                 >
-                  <span className="min-w-0 flex-1">
-                    <span className="block font-medium">{coachLabel}</span>
-                    {coach.requestsLeft <= 0 && (
-                      <span className="block text-sm text-ink-muted">
+                  {row(
+                    "coach",
+                    coachLabel,
+                    coach.requestsLeft <= 0 && (
+                      <span className="type-meta-small text-ink-2">
                         No requests left today; the coach plans overnight.
                       </span>
-                    )}
-                  </span>
-                  <ChevronRight className="shrink-0 text-ink-subtle" aria-hidden />
+                    ),
+                  )}
                 </button>
               </li>
             )}
+            {/* Skipping drops the day, so it stands apart from the rest, under a rule. */}
             {skip && (
-              <li>
-                <button
-                  type="button"
-                  onClick={() => setAsking("skip")}
-                  className={PRESSABLE_ROW_CLASS}
-                >
-                  <span className="min-w-0 flex-1 font-medium text-danger">Skip this session</span>
+              <li className="mt-3.5 border-t border-hair pt-1.5">
+                <button type="button" onClick={() => setAsking("skip")} className={ROW}>
+                  {row("skip", <span className="font-bold">Skip this session</span>)}
                 </button>
               </li>
             )}
@@ -308,11 +333,7 @@ export function SkipPartButton({
           <Field label="Reason" hint="Optional">
             <Input name="reason" maxLength={200} placeholder="Travelling, unwell, …" />
           </Field>
-          {!state.ok && (
-            <p role="alert" className="text-sm text-danger">
-              {state.error}
-            </p>
-          )}
+          {!state.ok && <ActionError>{state.error}</ActionError>}
           <Button type="submit" variant="danger" size="lg" className="w-full" disabled={skipping}>
             {skipping ? "Skipping…" : label}
           </Button>
@@ -346,11 +367,7 @@ export function CompleteRestButton({
       >
         {pending ? "Saving…" : label}
       </Button>
-      {error && (
-        <p role="alert" className="text-sm text-danger">
-          {error}
-        </p>
-      )}
+      {error && <ActionError>{error}</ActionError>}
     </div>
   );
 }
@@ -374,11 +391,7 @@ export function DiscardSessionButton({ sessionId }: { sessionId: string }) {
       >
         {pending ? "Discarding…" : "Discard empty session"}
       </Button>
-      {error && (
-        <p role="alert" className="text-sm text-danger">
-          {error}
-        </p>
-      )}
+      {error && <ActionError>{error}</ActionError>}
     </div>
   );
 }

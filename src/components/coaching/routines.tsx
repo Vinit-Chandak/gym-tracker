@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { Button, LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Glyph } from "@/components/ui/glyphs";
 import { Field, Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import type { SavedRoutineDay } from "@/domain/saved-routine";
@@ -95,13 +96,20 @@ export function SaveWorkoutRoutine({ sessionId, name }: { sessionId: string; nam
     [busy, setBusy] = useState(false),
     [error, setError] = useState<string | null>(null);
   return (
-    <details className="box panel-padding">
-      <summary className="min-h-11 cursor-pointer py-2">Save or repeat this workout</summary>
-      <div className="space-y-3">
+    // Board Summary: a row that opens, led by its glyph, the routine's name and Save under it.
+    <details className="disclosure">
+      <summary className="disclosure-summary">
+        <span className="mark-cell">
+          <Glyph name="repeat" className="glyph-20" />
+        </span>
+        <span className="min-w-0 flex-1 font-bold">Save or repeat this workout</span>
+        <Glyph name="chevronDown" className="disclosure-chevron glyph-18" />
+      </summary>
+      <div className="space-y-3 pb-4">
         <Field label="Routine name">
           <Input value={title} maxLength={120} onChange={(e) => setTitle(e.target.value)} />
         </Field>
-        <p className="text-sm text-ink-muted">
+        <p className="type-meta-small text-ink-2">
           Save the exercises and known targets. No completed sets are copied into a new workout.
         </p>
         <Button
@@ -117,7 +125,7 @@ export function SaveWorkoutRoutine({ sessionId, name }: { sessionId: string; nam
           Save routine and choose a gym
         </Button>
         {error && (
-          <p role="alert" className="text-sm text-danger">
+          <p role="alert" className="type-meta-small font-semibold">
             {error}
           </p>
         )}

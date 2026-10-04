@@ -1,0 +1,146 @@
+// People, places and the account: Friends, Gyms and a gym, Privacy, Delete account, and the coach's
+// proposed change. Copy and values from src/app/(app)/profile (friends, privacy, delete-account),
+// src/app/(app)/gyms, src/components/coaching/change-detail.tsx and program-diff-view.tsx, with the
+// preview's change (src/app/(preview)/preview/coaching/page.tsx), seed-people.ts and the audit
+// account's gyms (scripts/dev/seed-audit-multisport.ts).
+import { s } from "./lib.mjs";
+import * as K from "./kit.mjs";
+import { feed, gymList, machines, machineCount, programmeFit, change as CH, me } from "./data.mjs";
+import { sect, setRow, avatar } from "./more.mjs";
+
+const { txt, title, icon, tn } = K;
+const pageTitle = (t, text, size = 34) =>
+  `<h2 style="${title(size)}; margin-top: 2px">${text}</h2>`;
+
+// ---------- FRIENDS: four ways in, then what the people you follow did ----------
+export function friendsScreen(t, dv = K.D) {
+  const tile = (ic, label, badge = "") =>
+    `<a href="#" style="${s({ position: "relative", display: "flex", "flex-direction": "column", "justify-content": "space-between", height: 84, padding: "12px 12px 10px", "border-radius": 14, background: t.surface, "min-width": 0 })}"><span style="display:grid;justify-items:start">${icon(ic, 24)}</span><span class="nb" style="${txt(15, 700)}">${label}</span>${badge ? `<span style="${s({ position: "absolute", top: 10, right: 10, padding: "3px 9px", "border-radius": 10, background: t.ink, color: t.onInk })}; ${txt(13, 700)}">${badge}</span>` : ""}</a>`;
+  const rowFor = (r, last) => {
+    const lead = K.stateMark(t, r.sport, 16);
+    return `<li><a href="#" style="${s({ display: "flex", "align-items": "center", gap: 12, "min-height": 64, padding: "8px 0", "border-bottom": last ? 0 : `1px solid ${t.hair}` })}">${avatar(t, r.initial, 40)}<span style="${s({ display: "flex", "flex-direction": "column", flex: "1 1 auto", "min-width": 0, gap: 2 })}"><span style="${s({ display: "flex", "justify-content": "space-between", gap: 8, "align-items": "baseline" })}"><span class="wrap" style="${txt(16, 700)}">${r.who}</span><span class="nb" style="${txt(13, 600, { color: t.ink2 })}">${r.day}</span></span><span style="${s({ display: "flex", "align-items": "center", gap: 8 })}"><span style="${s({ display: "grid", width: 16, "justify-items": "center", "flex-shrink": 0 })}">${lead}</span><span class="wrap" style="${txt(14, 500, { color: t.ink2 })}; ${tn}">${r.text}</span></span></span></a></li>`;
+  };
+  const inner = `${K.nestedHeader(t, "Profile")}
+${pageTitle(t, "Friends")}
+<div style="${s({ display: "grid", "grid-template-columns": "repeat(2, minmax(0,1fr))", gap: 8, "margin-top": 14 })}">${tile("trophy", "Leaderboard")}${tile("scales", "Compare")}${tile("personPlus", "Find people")}${tile("people", "People", `${me.requests} request`)}</div>
+${sect(t, "Recent activity", feed.map((r, i) => rowFor(r, i === feed.length - 1)).join(""))}`;
+  return K.root(
+    t,
+    `${K.screenMain(t, inner, { dv })}${K.navbar(t, "profile", { dv, nested: true })}`,
+    { label: "Friends", dv },
+  );
+}
+
+// ---------- GYMS: each place as its kind of glyph, the default marked ----------
+// a gym is a place, so its pin, as on Today; outdoors and home keep their own glyphs
+const KIND = { gym: ["pin", "Gym"], outdoor: ["outdoor", "Outdoor"], home: ["indoor", "Home"] };
+// "Add …" ends its list, on the list's edge
+const addRow = (t, label) =>
+  `<li><button type="button" style="${s({ display: "flex", "align-items": "center", gap: 12, width: "100%", "min-height": 52, color: t.ink })}; ${txt(16, 700)}">${K.markCell(`<span style="display:grid">${icon("plus", 20)}</span>`)}${label}</button></li>`;
+export function gymsScreen(t, dv = K.D) {
+  const rowFor = (g, last) =>
+    `<li><a href="#" style="${s({ display: "flex", "align-items": "center", gap: 12, "min-height": 60, padding: "8px 0", "border-bottom": last ? 0 : `1px solid ${t.hair}` })}">${K.markCell(`<span role="img" aria-label="${KIND[g.kind][1]}" style="display:grid">${icon(KIND[g.kind][0], 22)}</span>`)}<span style="${s({ display: "flex", "flex-direction": "column", flex: "1 1 auto", "min-width": 0 })}"><span class="wrap" style="${txt(16, 700)}">${g.name}</span><span class="wrap" style="${txt(14, 500, { color: t.ink2 })}; ${tn}">${g.meta}</span></span>${g.def ? `<span class="nb" style="${s({ padding: "3px 9px", "border-radius": 8, border: `1.5px solid ${t.ink}` })}; ${txt(13, 700)}">Default</span>` : ""}${K.chev(t)}</a></li>`;
+  const inner = `${K.nestedHeader(t, "Profile")}
+${pageTitle(t, "Gyms")}
+<ul style="margin-top:10px">${gymList.map((g) => rowFor(g, false)).join("")}${addRow(t, "Add gym")}</ul>`;
+  return K.root(
+    t,
+    `${K.screenMain(t, inner, { dv })}${K.navbar(t, "profile", { dv, nested: true })}`,
+    { label: "Gyms", dv },
+  );
+}
+// A gym: how the programme fits it, then its machines in the app's order (93 at the default gym,
+// so the list scrolls on; Add machine heads it): each name at the gutter, its kind of equipment
+// leading the second line, as on the workout's rows.
+export function gymScreen(t, dv = K.D) {
+  const rowFor = (m) =>
+    `<li><a href="#" style="${s({ display: "flex", "align-items": "center", gap: 12, "min-height": 56, padding: "7px 0", "border-bottom": `1px solid ${t.hair}` })}"><span style="${s({ display: "flex", "flex-direction": "column", flex: "1 1 auto", "min-width": 0 })}"><span class="wrap" style="${txt(16, 700)}">${m.name}</span><span class="wrap" style="${s({ display: "flex", "align-items": "center", gap: 6 })}; ${txt(14, 500, { color: t.ink2 })}"><span style="display:grid">${icon(m.glyph, 16)}</span>${m.load}</span></span>${m.step ? `<span style="${txt(15, 700)}; ${tn}">${m.step}</span>` : ""}${K.chev(t)}</a></li>`;
+  const fit = `<a href="#" style="${s({ display: "flex", "align-items": "center", gap: 12, "min-height": 60, padding: "8px 0", "border-bottom": `1px solid ${t.hair}`, "margin-top": 10 })}">${K.markCell(`<span style="display:grid">${icon("table", 21)}</span>`)}<span style="${s({ display: "flex", "flex-direction": "column", flex: "1 1 auto", "min-width": 0 })}"><span style="${txt(16, 700)}">Programme fit</span><span style="${txt(14, 500, { color: t.ink2 })}; ${tn}">${programmeFit}</span></span>${K.chev(t)}</a>`;
+  const inner = `${K.nestedHeader(t, "Gyms", `<button type="button" style="${K.BTN(t, "text", { h: 44 })}; margin-right: 6px; font-size: 16px">Edit</button>`)}
+${pageTitle(t, "Anytime Fitness")}
+${K.metaLine(t, [`${icon("pin", 16)}<span>Gym</span>`, `${icon("check", 16)}<span>Default gym</span>`], { mt: 4 })}
+${fit}
+<div style="${s({ display: "flex", "align-items": "center", "justify-content": "space-between", "margin-top": 14 })}">${K.caption(t, `${machineCount} machines`, { mt: 0 })}<button type="button" style="${s({ display: "flex", "align-items": "center", gap: 6, height: 44 })}; ${txt(15, 700)}">${icon("plus", 18)}Add machine</button></div>
+<ul>${machines.map(rowFor).join("")}</ul>`;
+  return K.root(
+    t,
+    `${K.screenMain(t, inner, { dv })}${K.navbar(t, "profile", { dv, nested: true })}`,
+    { label: "Anytime Fitness", dv },
+  );
+}
+
+// ---------- PRIVACY: what followers see, a switch at a time ----------
+export function privacyScreen(t, dv = K.D) {
+  const sw = (label, subText, on, { lead = "", last = false } = {}) =>
+    `<li style="${s({ display: "flex", "align-items": "center", gap: 12, "min-height": 64, padding: "10px 0", "border-bottom": last ? 0 : `1px solid ${t.hair}` })}">${lead ? K.markCell(lead) : ""}<span style="${s({ display: "flex", "flex-direction": "column", flex: "1 1 auto", "min-width": 0 })}"><span class="wrap" style="${txt(16, 700)}">${label}</span>${subText ? `<span class="wrap" style="${txt(14, 500, { color: t.ink2, "line-height": 1.35 })}">${subText}</span>` : ""}</span>${K.toggle(t, on, label)}</li>`;
+  const inner = `${K.nestedHeader(t, "Profile")}
+${pageTitle(t, "Privacy")}
+<ul style="margin-top:8px">
+${sw("Approve follow requests", "Off means anyone in the app can follow you without asking.", true)}
+${sw("Share training with followers", "Off means followers see your profile card only: no stats, no records, not on their leaderboards.", true)}
+${sw("Share body weight for relative strength", "On means followers who also share theirs see “per kg of body weight” rows and rankings.", true)}
+${sw("Let people find me by email", "Off means the exact-email lookup does not return you; username search still does.", true, { last: true })}
+</ul>
+<ul style="margin-top:14px">${sw("Share cycling with followers", "", true)}${sw("Share swimming with followers", "", true, { last: true })}</ul>
+<p style="${txt(14, 500, { color: t.ink2, "line-height": 1.35 })}; margin-top: 2px">Both share the date, duration and known distance. Share training with followers must also be on.</p>
+${sect(t, "", `${setRow(t, "people", "What a follower can see")}${setRow(t, "lock", "What nobody can see", { last: true })}`, { mt: 12 })}`;
+  return K.root(
+    t,
+    `${K.screenMain(t, inner, { dv })}${K.navbar(t, "profile", { dv, nested: true })}`,
+    { label: "Privacy", dv },
+  );
+}
+
+// ---------- DELETE ACCOUNT: one sentence, a word to type, one button ----------
+export function deleteAccountScreen(t, dv = K.D) {
+  const G = K.gut(dv);
+  const inner = `${K.nestedHeader(t, "Profile")}
+${pageTitle(t, "Delete account")}
+<p style="${txt(17, 500, { "line-height": 1.45 })}; margin-top: 12px">Permanently removes your gyms, machines, programmes, sessions, sets, activities and tokens. Nothing is exported first.</p>
+<div style="margin-top:20px">${K.field(t, "Type DELETE to confirm", { value: "" })}</div>`;
+  const foot = `<div style="${s({ position: "absolute", left: G, right: G, bottom: K.navH(dv) + 12 })}"><button type="button" aria-disabled="true" style="${K.BTN(t, "dangerWait")}; width: 100%">${icon("trash", 20)}Delete everything</button></div>`;
+  return K.root(
+    t,
+    `${K.screenMain(t, inner, { dv, bottom: K.navH(dv) + 12 + 56 + 8 })}${foot}${K.navbar(t, "profile", { dv, nested: true })}`,
+    { label: "Delete account", dv },
+  );
+}
+
+// ---------- THE COACH'S CHANGE: the programme diff, line by line, then one answer ----------
+// Each operation is led by a glyph (added +, replaced ⇄, moved →, changed ✎) and its word; a field
+// that changes reads "old → new" with the new value in ink.
+const OP = {
+  Added: "plus",
+  Replaced: "swap",
+  "Moved to another day": "arrowRight",
+  "Moved here": "arrowRight",
+  Changed: "edit",
+};
+export function programmeChangeScreen(t, dv = K.D) {
+  const G = K.gut(dv);
+  // the old value struck and the new one in ink; both are said, "was" and "becomes"
+  const arrow = `<span aria-hidden="true" style="${s({ display: "inline-grid", color: t.ink2, "vertical-align": "-3px", margin: "0 4px" })}">${icon("arrowRight", 15)}</span><span class="sr">, becomes </span>`;
+  const field = ([k, a, b]) =>
+    `<p style="${txt(15, 500, { color: t.ink2 })}; ${tn}">${k} <span class="sr">was </span><span style="text-decoration:line-through">${a}</span>${arrow}<span style="${s({ color: t.ink, "font-weight": 700 })}">${b}</span></p>`;
+  // each change at the gutter: what kind of change, led by its glyph, then what it changes
+  const op = (o, last) => {
+    const lead = OP[o.op] ? icon(OP[o.op], 14) : K.stateMark(t, "run", 14);
+    const name = o.to ? `${o.name}${arrow}${o.to}` : o.name || "";
+    return `<li style="${s({ padding: "10px 0", "border-bottom": last ? 0 : `1px solid ${t.hair}` })}"><span style="${s({ display: "flex", "flex-direction": "column", gap: 2, "min-width": 0 })}"><span style="${s({ display: "flex", "align-items": "center", gap: 6 })}; ${txt(12, 700, { color: t.ink2, "letter-spacing": "0.02em" })}"><span aria-hidden="true" style="display:grid">${lead}</span>${o.op}</span>${name ? `<span class="wrap" style="${txt(16, 700)}">${name}</span>` : ""}${(o.lines || []).map(field).join("")}${o.rx ? `<p style="${txt(15, 500, { color: t.ink2 })}; ${tn}">${o.rx}</p>` : ""}${o.note ? `<p style="${txt(14, 500, { color: t.ink2 })}">${o.note}</p>` : ""}${o.tag ? `<p style="margin-top:4px"><span style="${s({ display: "inline-block", padding: "3px 9px", "border-radius": 8, background: t.surface })}; ${txt(13, 600)}">“${CH.ask}”</span></p>` : ""}</span></li>`;
+  };
+  // each day a section under a rule, at the gutter, not a card
+  const day = (d) =>
+    `<section style="${s({ "margin-top": 14, "padding-top": 6, "border-top": `1.5px solid ${t.ink}` })}"><h3 style="${s({ display: "flex", "justify-content": "space-between", "align-items": "baseline", height: 40 })}"><span style="${txt(17, 700)}">${d.name}</span><span style="${txt(14, 600, { color: t.ink2 })}">${d.when}</span></h3>${(d.fields || []).map((f) => `<div style="padding-bottom:6px">${field(f)}</div>`).join("")}<ul style="border-top:1px solid ${t.hair}">${d.ops.map((o, i) => op(o, i === d.ops.length - 1)).join("")}</ul></section>`;
+  const inner = `${K.nestedHeader(t, "Profile")}
+<h2 style="${title(26, { lh: 1.15 })}; margin-top: 2px">${CH.headline}</h2>
+<details open style="margin-top:10px"><summary style="${s({ display: "flex", "align-items": "center", gap: 6, height: 44, "list-style": "none", cursor: "pointer" })}; ${txt(15, 700)}">${icon("info", 18)}Why</summary><p style="${txt(15, 500, { "line-height": 1.45 })}; margin: 0 0 10px">${CH.why}</p></details>
+<section style="${s({ "margin-top": 4, padding: "6px 0", "border-top": `1.5px solid ${t.ink}` })}"><h3 style="${s({ display: "flex", "align-items": "center", height: 40 })}; ${txt(17, 700)}">Programme</h3>${CH.programme.map(field).join("")}</section>
+${CH.days.map(day).join("")}
+<p style="${txt(14, 500, { color: t.ink2 })}; margin-top: 14px">This changes the programme's structure, so it starts a new block.</p>`;
+  const foot = `<div style="${s({ position: "absolute", left: G, right: G, bottom: K.navH(dv) + 10, display: "flex", "flex-direction": "column", gap: 4, background: t.ground })}"><div style="${s({ display: "flex", gap: 8 })}"><button type="button" style="${K.BTN(t, "primary")}; flex: 1 1 auto">Approve</button><button type="button" style="${K.BTN(t, "tonal")}">Decline</button></div><button type="button" style="${s({ height: 44 })}; ${txt(15, 700)}">Ask for changes</button></div>`;
+  return K.root(
+    t,
+    `${K.screenMain(t, inner, { dv, bottom: K.navH(dv) + 10 + 56 + 44 + 8 })}${foot}${K.navbar(t, "profile", { dv, nested: true })}`,
+    { label: "Programme change", dv },
+  );
+}

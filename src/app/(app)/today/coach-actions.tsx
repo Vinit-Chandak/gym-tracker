@@ -1,10 +1,11 @@
 "use client";
 
-import { Check } from "@/components/ui/icons";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
+import { CoachNote } from "@/components/ui/coach-note";
+import { Glyph } from "@/components/ui/glyphs";
 import { Field, Input } from "@/components/ui/input";
 import { REQUEST_TIMEOUT_MINUTES } from "@/domain/coach-request";
 import { cn } from "@/lib/utils";
@@ -72,9 +73,9 @@ export function CoachPending({
     };
   }, [router, startedAt, workflow]);
   return (
-    <p role="status" className="text-sm text-ink-muted">
+    <CoachNote tone="planning" role="status" small>
       Coach is planning for {gymName}, since {startedAtLabel}. This screen updates itself.
-    </p>
+    </CoachNote>
   );
 }
 
@@ -105,25 +106,32 @@ export function CoachWaiting({
     setBusy(false);
   };
   return (
-    <div className="space-y-2">
-      <p role="status" className="text-sm text-ink-muted">
-        {attempted
-          ? "The coach could not finish planning this session."
-          : "The coach has not planned this session yet."}{" "}
-        {hasPlan
-          ? "Its earlier plan stands until it does."
-          : "Your programme's own targets apply until it does."}{" "}
-        It tries again at its next nightly run.
-      </p>
-      <Button variant="secondary" className="flex w-full" disabled={busy} onClick={start}>
-        {busy ? "Starting…" : "Ask the coach to plan it now"}
-      </Button>
-      {error && (
-        <p role="alert" className="text-sm text-danger">
-          {error}
-        </p>
-      )}
-    </div>
+    <CoachNote
+      tone={attempted ? "failed" : "note"}
+      role="status"
+      small
+      action={
+        <>
+          <Button variant="tonal" className="flex w-full bg-ground" disabled={busy} onClick={start}>
+            {busy ? "Starting…" : "Ask the coach to plan it now"}
+          </Button>
+          {error && (
+            <p role="alert" className="mt-2 flex items-start gap-2 type-meta font-semibold">
+              <Glyph name="warn" className="mt-px glyph-18" />
+              {error}
+            </p>
+          )}
+        </>
+      }
+    >
+      {attempted
+        ? "The coach could not finish planning this session."
+        : "The coach has not planned this session yet."}{" "}
+      {hasPlan
+        ? "Its earlier plan stands until it does."
+        : "Your programme's own targets apply until it does."}{" "}
+      It tries again at its next nightly run.
+    </CoachNote>
   );
 }
 
@@ -170,7 +178,7 @@ export function CoachRequestPanel({
   return (
     <div className="space-y-4">
       {workflow && (
-        <p className="text-sm text-ink-muted">
+        <p className="type-meta text-ink-2">
           Daily preparation is automatic. Use this to prepare your next session again — at a
           different gym, or at this one after something has changed.
         </p>
@@ -185,14 +193,12 @@ export function CoachRequestPanel({
                 onClick={() => setGymId(gym.id)}
                 aria-pressed={chosen}
                 className={cn(
-                  "flex min-h-14 w-full items-center justify-between gap-3 rounded-control border px-4 text-left text-base font-medium",
-                  chosen
-                    ? "border-accent bg-accent-soft text-ink"
-                    : "border-transparent bg-surface-raised text-ink active:bg-accent-soft",
+                  "flex min-h-[calc(52px+var(--ov-grow))] w-full items-center justify-between gap-3 rounded-control px-4 text-left font-bold",
+                  chosen ? "bg-ink text-on-ink" : "bg-surface text-ink active:bg-surface-2",
                 )}
               >
                 <span className="min-w-0 truncate">{gym.name}</span>
-                {chosen && <Check className="shrink-0 text-accent" aria-hidden />}
+                {chosen && <Glyph name="check" className="glyph-20" />}
               </button>
             </li>
           );
@@ -207,20 +213,21 @@ export function CoachRequestPanel({
         />
       </Field>
       {error && (
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="flex items-start gap-2 type-meta font-semibold">
+          <Glyph name="warn" className="mt-px glyph-18" />
           {error}
         </p>
       )}
       <Button size="lg" className="w-full" disabled={pending || !gymId} onClick={submit}>
         {pending ? "Asking…" : workflow ? "Prepare for this gym" : "Ask the coach"}
       </Button>
-      <p className="text-xs text-ink-subtle">
+      <p className="type-meta-small text-ink-2">
         {requestsLeft} {requestsLeft === 1 ? "request" : "requests"} left today.
         {workflow
           ? " Shared with programme creation; resets at midnight in your time zone. You can leave while the coach prepares it."
           : " The plan arrives in a few minutes."}
       </p>
-      <Button variant="ghost" className="w-full" onClick={onBack}>
+      <Button variant="text" className="w-full" onClick={onBack}>
         Back
       </Button>
     </div>

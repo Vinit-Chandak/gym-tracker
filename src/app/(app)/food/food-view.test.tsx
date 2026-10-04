@@ -75,18 +75,20 @@ function view(
 it("lists the day's seven meals in the order they are eaten, each opening its own page", () => {
   view([]);
   const meals = within(screen.getByRole("list", { name: "Meals" })).getAllByRole("link");
-  expect(meals.map((link) => [text(link), link.getAttribute("href")])).toEqual([
-    ["Breakfast nothing yet", "/food/breakfast"],
-    ["Morning snack nothing yet", "/food/morning-snack"],
-    ["Lunch nothing yet", "/food/lunch"],
-    ["Afternoon snack nothing yet", "/food/afternoon-snack"],
-    ["Evening snack nothing yet", "/food/evening-snack"],
-    ["Dinner nothing yet", "/food/dinner"],
-    ["Late-night snack nothing yet", "/food/late-night-snack"],
-  ]);
+  expect(meals.map((link) => [link.getAttribute("aria-label"), link.getAttribute("href")])).toEqual(
+    [
+      ["Breakfast: nothing yet. Add", "/food/breakfast"],
+      ["Morning snack: nothing yet. Add", "/food/morning-snack"],
+      ["Lunch: nothing yet. Add", "/food/lunch"],
+      ["Afternoon snack: nothing yet. Add", "/food/afternoon-snack"],
+      ["Evening snack: nothing yet. Add", "/food/evening-snack"],
+      ["Dinner: nothing yet. Add", "/food/dinner"],
+      ["Late-night snack: nothing yet. Add", "/food/late-night-snack"],
+    ],
+  );
 });
 
-it("shows what went into each meal and what it came to, and the day's total above", () => {
+it("shows what went into each meal and what it came to, and the day's kcal eaten above", () => {
   view([
     entry("breakfast", "Milk", 155),
     entry("breakfast", "Morning dry fruits", 150),
@@ -95,9 +97,34 @@ it("shows what went into each meal and what it came to, and the day's total abov
   ]);
   const breakfast = screen.getByRole("link", { name: /^Breakfast/ });
   // Milk twice is still one name in the list, and both count.
-  expect(text(breakfast)).toBe("Breakfast Milk, Morning dry fruits 357 kcal");
+  expect(text(breakfast)).toBe("Breakfast Milk · Morning dry fruits 357 kcal");
   expect(text(screen.getByRole("link", { name: /^Dinner/ }))).toBe("Dinner Home food 400 kcal");
-  expect(document.body.textContent).toContain("757 / 2,300 kcal");
+  // The day's one figure, written against its target as the macronutrients are.
+  expect(text(document.querySelector(".food-eaten")!)).toBe("757 / 2,300 kcal eaten of 2,300");
+  expect(
+    screen.getByRole("img", {
+      name: "The bowl, filled by Breakfast 357 kcal, Dinner 400 kcal: 757 of 2,300 kcal.",
+    }),
+  ).toBeTruthy();
+});
+
+it("leads each meal with its layer of the bowl, in the order the bowl fills", () => {
+  view([
+    entry("dinner", "Home food", 400),
+    entry("breakfast", "Milk", 155),
+    entry("lunch", "Rice", 300),
+    entry("late_night_snack", "Milk", 100),
+  ]);
+  const swatch = (name: RegExp) =>
+    screen.getByRole("link", { name }).querySelector<HTMLElement>(".meal-swatch")!.style.background;
+  // Ochre, cadmium, straw, then ochre again; a meal with nothing in it has none.
+  expect([/^Breakfast/, /^Lunch/, /^Dinner/, /^Late-night/, /^Morning/].map(swatch)).toEqual([
+    "var(--ov-print-ochre)",
+    "var(--ov-print-food)",
+    "var(--ov-print-straw)",
+    "var(--ov-print-ochre)",
+    "",
+  ]);
 });
 
 it("asks for a target until there is one, naming the goal's split, meals still below it", () => {
@@ -112,26 +139,27 @@ it("asks for a target until there is one, naming the goal's split, meals still b
   expect(screen.getByRole("link", { name: "Targets Not set" })).toBeTruthy();
 });
 
-it("ends with My foods and then the targets, each a screen of its own", () => {
+it("ends with the targets and then My foods, each a screen of its own", () => {
   view([], { library: { foods: 2, meals: 1 } });
   const links = screen.getAllByRole("link");
   expect(links.slice(-2)).toEqual([
-    screen.getByRole("link", { name: "My foods 2 foods · 1 meal" }),
     screen.getByRole("link", { name: "Targets 2,300 kcal" }),
+    // A count keeps its noun on its line.
+    screen.getByRole("link", { name: "My foods 2\u00a0foods · 1\u00a0meal" }),
   ]);
   expect(links.slice(-2).map((link) => link.getAttribute("href"))).toEqual([
-    "/food/my-foods",
     "/food/targets",
+    "/food/my-foods",
   ]);
   cleanup();
   view([]);
   expect(screen.getByRole("link", { name: "My foods" })).toBeTruthy();
 });
 
-it("says on the targets' row what stops them doing what they are for", () => {
+it("says on the targets' tile what stops them doing what they are for", () => {
   view([], { bodyWeightKg: null });
   expect(
-    screen.getByRole("link", { name: "Targets Add your body weight for protein 2,300 kcal" }),
+    screen.getByRole("link", { name: "Targets 2,300 kcal Add your body weight for protein" }),
   ).toBeTruthy();
 });
 

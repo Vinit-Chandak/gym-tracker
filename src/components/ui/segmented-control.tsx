@@ -33,12 +33,13 @@ type SegmentedControlProps<V extends string> = {
 const MIN_PILL = "4.75rem";
 
 /**
- * Radio group rendered as large pills. Works without JavaScript because it is a real
- * radio input; the label is the tap target.
+ * A segmented choice (DESIGN.md, Components): two to four words on a surface, the chosen one in
+ * ink. A radio group, so it works without JavaScript; the label is the tap target.
  *
- * Preferred columns share a row until each would be narrower than a touch target. Flex
- * wrapping responds to the available space and enlarged text, including inside an auto-sized
- * unit selector. Unspecified columns use the label-sized minimum instead.
+ * Words are never broken: a segment is never narrower than its longest word or a touch target.
+ * With columns, the segments share one row, the space beyond their words split evenly, and the
+ * tray folds onto a second row only when the words cannot all fit (Fold, Never Drop), as at 200%
+ * text. Unspecified columns use the label-sized minimum instead.
  */
 export function SegmentedControl<V extends string>({
   name,
@@ -59,18 +60,14 @@ export function SegmentedControl<V extends string>({
       role="radiogroup"
       aria-label={ariaLabel}
       {...accessibility}
-      className="flex min-w-0 flex-wrap gap-1 rounded-control bg-surface-raised p-1"
+      className="flex min-w-0 flex-wrap gap-[2px] rounded-control bg-surface p-[3px]"
     >
       {options.map((option) => (
         <label
           key={option.value}
           className="relative flex-1"
-          style={{
-            flexBasis: columns
-              ? `calc((100% - ${(columns - 1) * 0.25}rem) / ${columns})`
-              : MIN_PILL,
-            minWidth: `min(100%, ${columns ? "var(--ov-target-min)" : MIN_PILL})`,
-          }}
+          // The automatic minimum is the segment's content: its longest word, or a target.
+          style={{ flexBasis: columns ? 0 : MIN_PILL, maxWidth: "100%" }}
         >
           <input
             type="radio"
@@ -92,14 +89,12 @@ export function SegmentedControl<V extends string>({
           />
           <span
             className={cn(
-              "flex min-h-11 items-center justify-center rounded-control border border-transparent px-1 py-1 text-sm leading-tight font-medium text-ink-muted transition-colors duration-[var(--ov-duration-feedback)] select-none",
-              "peer-checked:border-line-strong peer-checked:bg-accent-soft peer-checked:text-ink",
-              "peer-focus-visible:ring-2 peer-focus-visible:ring-focus",
+              "flex min-h-[var(--ov-target)] min-w-[var(--ov-target)] items-center justify-center rounded-[11px] px-1.5 py-1 text-[length:var(--ov-type-meta)] leading-tight font-bold text-ink transition-colors duration-[var(--ov-duration-feedback)] select-none",
+              "peer-checked:bg-ink peer-checked:text-on-ink",
+              "peer-focus-visible:outline-3 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink",
             )}
           >
-            <span className="min-w-0 text-center [overflow-wrap:anywhere] hyphens-auto">
-              {option.label}
-            </span>
+            <span className="text-center [overflow-wrap:break-word]">{option.label}</span>
           </span>
         </label>
       ))}

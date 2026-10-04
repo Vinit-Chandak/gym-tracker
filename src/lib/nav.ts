@@ -1,10 +1,11 @@
 import type { Route } from "next";
-import { BarChart, Dumbbell, Food, Footprints, User, type AppIcon } from "@/components/ui/icons";
+import type { Destination } from "@/components/ui/glyphs";
 
 export type NavItem = {
   href: Route;
   label: string;
-  icon: AppIcon;
+  /** The destination's glyph, drawn from the first forms; filled where you are. */
+  glyph: Destination;
 };
 
 /**
@@ -26,11 +27,11 @@ export type NavItem = {
  * what Progress is for. History is one of Progress's sections now, and the island stays at five.
  */
 export const NAV_ITEMS: readonly NavItem[] = [
-  { href: "/today", label: "Today", icon: Dumbbell },
-  { href: "/training", label: "Training", icon: Footprints },
-  { href: "/food", label: "Food", icon: Food },
-  { href: "/progress", label: "Progress", icon: BarChart },
-  { href: "/profile", label: "Profile", icon: User },
+  { href: "/today", label: "Today", glyph: "today" },
+  { href: "/training", label: "Training", glyph: "training" },
+  { href: "/food", label: "Food", glyph: "food" },
+  { href: "/progress", label: "Progress", glyph: "progress" },
+  { href: "/profile", label: "Profile", glyph: "profile" },
 ];
 
 /** Sections reached from Profile, which keep Profile selected while you are in them. */
@@ -94,6 +95,8 @@ const PAGE_LABELS: Record<string, string> = {
   // History is a section of Progress with a page of its own, so what it opens goes back to it
   // by its own name.
   "/progress/history": "History",
+  // The calendar is Progress's too: a day opened from it goes back to it by name.
+  "/progress/calendar": "Calendar",
   // My foods is a screen of Food's (ADR 0035): a meal kept in it goes back to it by name.
   "/food/my-foods": "My foods",
 };

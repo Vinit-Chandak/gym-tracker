@@ -1,11 +1,9 @@
-import type { Metadata } from "next";
+import type { Metadata, Route } from "next";
 import { notFound, redirect } from "next/navigation";
 
 import { FreshAfterSets } from "@/components/fresh-after-sets";
-import { PageContent } from "@/components/shell/page-content";
-import { PageHeader } from "@/components/shell/page-header";
-import { List } from "@/components/ui/link-row";
-import { Section } from "@/components/ui/section";
+import { SessionPage } from "@/components/shell/session-page";
+import { Glyph } from "@/components/ui/glyphs";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { formatSets } from "@/domain/sets";
@@ -47,31 +45,36 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
   const untouched = session.exercises.filter((e) => e.sets.length === 0 && !e.skippedAt);
   const totalSets = done.reduce((sum, exercise) => sum + exercise.sets.length, 0);
 
+  const title = session.day?.name ?? "Ad hoc session";
+
+  // Board Finish: what the session recorded and what it did not, then the notes and the day's
+  // body weight. A page that ends the session closes back to it rather than going back.
   return (
     <FreshAfterSets seen={seen} loading={<Loading />}>
-      <PageHeader
-        title="Finish session"
-        meta={`${session.day?.name ?? "Ad hoc session"} · ${session.gym.name}`}
-        backHref={`/workouts/${sessionId}`}
-      />
-      <PageContent>
-        <Section
-          title="Recorded"
-          action={
-            <span className="text-xs text-ink-muted tabular-nums">
+      <SessionPage
+        title={title}
+        meta={
+          <span className="meta-fact">
+            <Glyph name="pin" label="Gym" className="glyph-16" />
+            {session.gym.name}
+          </span>
+        }
+        close={{ href: `/workouts/${sessionId}` as Route, label: "Back to the workout" }}
+        rest={profile.restTimerEnabled ? sessionId : null}
+      >
+        <section aria-labelledby="finish-recorded">
+          <h2 id="finish-recorded" className="caption-head mt-3 flex justify-between gap-3">
+            <span>Recorded</span>
+            <span className="tabular-nums">
               {totalSets} {totalSets === 1 ? "set" : "sets"}
             </span>
-          }
-        >
+          </h2>
           {done.length > 0 ? (
-            <List className="text-sm">
+            <ul>
               {done.map((exercise) => (
-                <li
-                  key={exercise.id}
-                  className="flex min-h-12 flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 py-2"
-                >
-                  <span className="min-w-0 [overflow-wrap:anywhere]">{exercise.exercise.name}</span>
-                  <span className="min-w-0 text-right [overflow-wrap:anywhere] text-ink-muted tabular-nums">
+                <li key={exercise.id} className="record-row">
+                  <span className="record-row-name">{exercise.exercise.name}</span>{" "}
+                  <span className="record-row-sets">
                     {formatSets(
                       exercise.sets.map((set) => setInUnit(set, exercise.equipment?.unit ?? unit)),
                       (loadUnit) => LOAD_UNIT_LABELS[loadUnit],
@@ -79,38 +82,35 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
                   </span>
                 </li>
               ))}
-            </List>
+            </ul>
           ) : (
-            <p className="text-sm text-ink-muted">No sets logged yet.</p>
+            <p className="record-row type-meta text-ink-2">No sets logged yet.</p>
           )}
-        </Section>
+        </section>
 
         {/* Not done is a fact about the session, not an error. It is recorded as it stands. */}
         {(untouched.length > 0 || skipped.length > 0) && (
-          <Section title="Not done">
-            <List className="text-sm">
-              {untouched.map((exercise) => (
-                <li
-                  key={exercise.id}
-                  className="flex min-h-12 items-center justify-between gap-3 px-4 py-2"
-                >
-                  <span className="min-w-0 [overflow-wrap:anywhere]">{exercise.exercise.name}</span>
-                  <span className="shrink-0 text-ink-muted">Nothing logged</span>
-                </li>
-              ))}
-              {skipped.map((exercise) => (
-                <li
-                  key={exercise.id}
-                  className="flex min-h-12 items-center justify-between gap-3 px-4 py-2"
-                >
-                  <span className="min-w-0 [overflow-wrap:anywhere]">{exercise.exercise.name}</span>
-                  <span className="min-w-0 text-right [overflow-wrap:anywhere] text-ink-muted">
-                    Skipped{exercise.notes ? `: ${exercise.notes}` : ""}
-                  </span>
-                </li>
-              ))}
-            </List>
-          </Section>
+          <section aria-labelledby="finish-not-done">
+            <h2 id="finish-not-done" className="caption-head mt-3">
+              Not done
+            </h2>
+            <div className="not-done">
+              {untouched.length > 0 && (
+                <p>{untouched.map((exercise) => exercise.exercise.name).join(", ")}</p>
+              )}
+              {skipped.length > 0 && (
+                <p>
+                  Skipped:{" "}
+                  {skipped
+                    .map(
+                      (exercise) =>
+                        `${exercise.exercise.name}${exercise.notes ? ` (${exercise.notes})` : ""}`,
+                    )
+                    .join(", ")}
+                </p>
+              )}
+            </div>
+          </section>
         )}
 
         <FinishForm
@@ -126,7 +126,7 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
             profile.bodyWeightKg === null ? "" : String(fromKilograms(profile.bodyWeightKg, unit))
           }
         />
-      </PageContent>
+      </SessionPage>
     </FreshAfterSets>
   );
 }
