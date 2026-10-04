@@ -10,13 +10,13 @@ import { sessionPageHeader } from "@/server/queries/session-page";
 import { getSessionRecord } from "@/server/repositories/sessions";
 import { requireUuid } from "@/server/validation/params";
 
-import { CheckInForm } from "./check-in-form";
+import { CheckInForm } from "../../check-in-form";
 
 export const metadata: Metadata = { title: "Check-in" };
 
 const str = (value: number | null): string => (value === null ? "" : String(value));
 
-/** Before the workout (board Check-in): how the night went and how you feel, all optional. */
+/** An open session's check-in (board Check-in), added or changed from its details. */
 export default async function CheckInPage(props: PageProps<"/workouts/[sessionId]/check-in">) {
   const { sessionId } = await props.params;
   requireUuid(sessionId);
@@ -32,8 +32,8 @@ export default async function CheckInPage(props: PageProps<"/workouts/[sessionId
   const workout = `/workouts/${sessionId}` as Route;
 
   return (
-    // The session already exists by the time this screen appears, so back goes to it rather
-    // than to Today, which would leave the workout behind.
+    // Reached from the open session's details, to add or change its check-in, so back goes to
+    // the workout. Before a workout the check-in is /workouts/start, which has no session yet.
     <SessionPage
       title="How are you today?"
       meta="Optional"
@@ -48,7 +48,7 @@ export default async function CheckInPage(props: PageProps<"/workouts/[sessionId
           fatigue: str(session.fatigue),
           soreness: str(session.soreness),
         }}
-        skipHref={workout}
+        mode="edit"
       />
     </SessionPage>
   );

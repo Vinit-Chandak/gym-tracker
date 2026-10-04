@@ -10,12 +10,14 @@ import { SET_LIMITS } from "@/domain/sets";
 
 import { getDb } from "@/db/client";
 import { profiles } from "@/db/schema";
+import type { Tx } from "@/db/types";
 import { withUser } from "@/db/with-user";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { isRestSlot, partStatus, pendingParts } from "@/domain/schedule";
 import { BODY_LOAD_UNITS, LOAD_UNITS, SET_TYPES, type SlotPart } from "@/domain/types";
+import { SKIP_CHECK_IN } from "@/lib/check-in";
 import { fromKilograms, toKilograms } from "@/lib/units";
-import { requireUser } from "@/server/auth";
+import { requireUser, type SessionUser } from "@/server/auth";
 import { exerciseHistory, type ComparableSet } from "@/server/queries/comparable";
 import { ensureProfile } from "@/server/queries/profile";
 import { profileChanged } from "@/server/queries/request-profile";
@@ -103,68 +105,122 @@ function describe(error: unknown): string {
   return "Something went wrong. Please try again.";
 }
 
-/** Starts the planned day at a gym and goes to the recovery check-in. */
-export async function startPlannedSessionAction(
-  gymId: string,
-  programDayId: string,
-  dayIndex: number,
-  /**
-   * The cycle the athlete was looking at when they chose this day. "Train another day" lists one
-   * cycle, so a day it shows as skipped is the one they mean: that occurrence is reopened rather
-   * than passed over for the next cycle's, which the list never mentioned.
-   */
-  fromCycleIndex?: number,
-): Promise<void> {
-  const user = await requireUser();
-  const sessionId = await withUser(getDb(), user.id, async (tx) => {
-    // Three independent reads; an open session simply wins.
-    const [open, profile, schedule] = await Promise.all([
-      getInProgressSession(tx, user.id),
-      ensureProfile(tx, user),
-      getSchedule(tx, user.id),
-    ]);
-    if (open) return open.id;
-    const today = todayInTimeZone(profile.timeZone);
-    // An older tab can still name a day from the programme that was just replaced. Return
-    // to the current plan before advancing any rest days or creating a mismatched workout.
-    const day = schedule?.days.find((day) => day.id === programDayId && day.dayIndex === dayIndex);
-    if (!schedule || !day?.includesLifting) return null;
-    const shown =
-      fromCycleIndex !== undefined &&
-      partStatus(schedule.state, { cycleIndex: fromCycleIndex, dayIndex }, "session") === "skipped"
-        ? fromCycleIndex
-        : null;
-    // A run still owed on a combined day must not make its completed lift pending again.
-    const cycleIndex = shown ?? pendingCycleForDay(schedule.state, dayIndex, "session");
-    if (cycleIndex === null) return null;
-    if (shown !== null) {
-      await reopenSkippedSession(tx, user.id, schedule.program.id, { cycleIndex, dayIndex });
+/**
+ * What Start asked for, carried through the check-in: a programme day at a gym, or a gym alone
+ * for an unplanned session. `fromCycleIndex` is the cycle the athlete was looking at when they
+ * chose the day: "Train another day" lists one cycle, so a day it shows as skipped is the one
+ * they mean, and that occurrence is reopened rather than passed over for the next cycle's,
+ * which the list never mentioned.
+ */
+export type StartRequest =
+  | {
+      kind: "planned";
+      gymId: string;
+      programDayId: string;
+      dayIndex: number;
+      fromCycleIndex?: number;
     }
-    // Passing rest days and starting the session write different rows; both land or neither.
-    const [, { sessionId }] = await Promise.all([
-      completeRestSlotsBefore(tx, user.id, schedule, { cycleIndex, dayIndex }, today),
-      startPlannedSession(tx, user.id, { gymId, programDayId, cycleIndex }),
-    ]);
-    return sessionId;
-  });
-  if (!sessionId) {
+  | { kind: "unplanned"; gymId: string };
+
+// Bound to the form by the page that read it from the address, so it is checked like any input.
+const startRequestSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("planned"),
+    gymId: z.uuid(),
+    programDayId: z.uuid(),
+    dayIndex: z.number().int().min(1),
+    fromCycleIndex: z.number().int().min(1).optional(),
+  }),
+  z.object({ kind: z.literal("unplanned"), gymId: z.uuid() }),
+]);
+
+type Started = { sessionId: string; created: boolean } | null;
+
+/** The planned day at a gym, as a session; the open session instead, if there is one. */
+async function startPlanned(
+  tx: Tx,
+  user: SessionUser,
+  start: Extract<StartRequest, { kind: "planned" }>,
+): Promise<Started> {
+  const { gymId, programDayId, dayIndex, fromCycleIndex } = start;
+  // Three independent reads; an open session simply wins.
+  const [open, profile, schedule] = await Promise.all([
+    getInProgressSession(tx, user.id),
+    ensureProfile(tx, user),
+    getSchedule(tx, user.id),
+  ]);
+  if (open) return { sessionId: open.id, created: false };
+  const today = todayInTimeZone(profile.timeZone);
+  // An older tab can still name a day from the programme that was just replaced. Return
+  // to the current plan before advancing any rest days or creating a mismatched workout.
+  const day = schedule?.days.find((day) => day.id === programDayId && day.dayIndex === dayIndex);
+  if (!schedule || !day?.includesLifting) return null;
+  const shown =
+    fromCycleIndex !== undefined &&
+    partStatus(schedule.state, { cycleIndex: fromCycleIndex, dayIndex }, "session") === "skipped"
+      ? fromCycleIndex
+      : null;
+  // A run still owed on a combined day must not make its completed lift pending again.
+  const cycleIndex = shown ?? pendingCycleForDay(schedule.state, dayIndex, "session");
+  if (cycleIndex === null) return null;
+  if (shown !== null) {
+    await reopenSkippedSession(tx, user.id, schedule.program.id, { cycleIndex, dayIndex });
+  }
+  // Passing rest days and starting the session write different rows; both land or neither.
+  const [, { sessionId }] = await Promise.all([
+    completeRestSlotsBefore(tx, user.id, schedule, { cycleIndex, dayIndex }, today),
+    startPlannedSession(tx, user.id, { gymId, programDayId, cycleIndex }),
+  ]);
+  return { sessionId, created: true };
+}
+
+/**
+ * Starts the session the check-in was for (DESIGN.md, The session): Save and start with what
+ * was answered, Skip check-in with nothing. Nothing exists before this, so backing out of the
+ * check-in leaves no session behind to discard. The session, the rest days it passes and the
+ * answers land together or not at all. An open session still wins, and keeps its own answers.
+ */
+export async function startSessionAction(
+  request: StartRequest,
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const user = await requireUser();
+  const start = startRequestSchema.safeParse(request);
+  if (!start.success) redirect("/today");
+  let checkIn: z.output<typeof checkInSchema> | null = null;
+  if (formData.get("intent") !== SKIP_CHECK_IN) {
+    const parsed = parseForm(checkInSchema, formData);
+    if (!parsed.success) return parsed.state;
+    checkIn = parsed.data;
+  }
+  let started: Started;
+  try {
+    started = await withUser(getDb(), user.id, async (tx): Promise<Started> => {
+      const result =
+        start.data.kind === "planned"
+          ? await startPlanned(tx, user, start.data)
+          : await startUnplanned(tx, user.id, start.data.gymId);
+      if (result?.created && checkIn) await saveCheckIn(tx, user.id, result.sessionId, checkIn);
+      return result;
+    });
+  } catch (error) {
+    return { formError: describe(error), values: formValues(formData) };
+  }
+  if (!started) {
     revalidateSession();
     redirect("/today");
   }
-  revalidateSession(sessionId);
-  redirect(`/workouts/${sessionId}/check-in`);
+  revalidateSession(started.sessionId);
+  redirect(`/workouts/${started.sessionId}`);
 }
 
-export async function startAdHocSessionAction(gymId: string): Promise<void> {
-  const user = await requireUser();
-  const sessionId = await withUser(getDb(), user.id, async (tx) => {
-    const open = await getInProgressSession(tx, user.id);
-    if (open) return open.id;
-    const { sessionId } = await startAdHocSession(tx, user.id, { gymId });
-    return sessionId;
-  });
-  revalidateSession(sessionId);
-  redirect(`/workouts/${sessionId}/check-in`);
+/** A session at a gym with no programme day; the open session instead, if there is one. */
+async function startUnplanned(tx: Tx, userId: string, gymId: string): Promise<Started> {
+  const open = await getInProgressSession(tx, userId);
+  if (open) return { sessionId: open.id, created: false };
+  const { sessionId } = await startAdHocSession(tx, userId, { gymId });
+  return { sessionId, created: true };
 }
 
 const skipSlotSchema = z.object({

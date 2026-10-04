@@ -22,7 +22,7 @@ import { FitTitle } from "@/components/ui/fit-title";
 import { GLYPH_LABELS, Glyph } from "@/components/ui/glyphs";
 import { Sheet } from "@/components/ui/sheet";
 import { formatSet } from "@/domain/sets";
-import { LOAD_UNIT_LABELS } from "@/lib/labels";
+import { LOAD_UNIT_LABELS, UNPLANNED_SESSION } from "@/lib/labels";
 import { attempted } from "@/lib/offline-submit";
 import { cn } from "@/lib/utils";
 import { setWarmupCompletedAction } from "@/server/actions/sessions";
@@ -34,7 +34,6 @@ import {
   plannedSets,
   prescriptionLabel,
 } from "./logger-model";
-import { MoreSheet, type MoreOption } from "./logger-sheets";
 import type { ExerciseVM, SessionVM } from "./view-model";
 
 /** Sets of the work done so far, warm-ups aside. */
@@ -306,7 +305,7 @@ type OverviewProps = {
   onOpenExercise: (workoutExerciseId: string) => void;
   onOpenDetails: () => void;
   onEditSuperset: (group: string | null) => void;
-  /** The day's name, or "Ad hoc session". */
+  /** The day's name, or UNPLANNED_SESSION. */
   title?: string;
   /** Where minimising goes: Today, or wherever the session was opened from. */
   backHref?: Route;
@@ -329,7 +328,7 @@ export function WorkoutOverview({
   onOpenExercise,
   onOpenDetails,
   onEditSuperset,
-  title = session.day?.name ?? "Ad hoc session",
+  title = session.day?.name ?? UNPLANNED_SESSION,
   backHref = "/today",
   layer = false,
   listScrollRef,
@@ -367,7 +366,7 @@ export function WorkoutOverview({
     if (bodyRef.current && listScrollRef) bodyRef.current.scrollTop = listScrollRef.current;
   }, [listScrollRef]);
   const [warmupDone, setWarmupDone] = useState(session.warmupCompleted);
-  const [sheet, setSheet] = useState<"more" | "warmup" | null>(null);
+  const [sheet, setSheet] = useState<"warmup" | null>(null);
   const unitLabel = LOAD_UNIT_LABELS[session.preferredUnit];
   const coachPlanned = session.coachPlan !== null;
   const heading = coachPlanned ? `${title}, planned by the coach` : title;
@@ -463,25 +462,6 @@ export function WorkoutOverview({
       </li>
     );
   };
-
-  const more: MoreOption[] = [
-    { glyph: "note", label: "Session details", onSelect: onOpenDetails },
-    ...(!readOnly
-      ? ([
-          {
-            glyph: "plus",
-            label: "Add exercise",
-            href: `/workouts/${session.id}/add-exercise` as Route,
-          },
-          {
-            glyph: "link",
-            label: "Superset",
-            onSelect: () => onEditSuperset(null),
-            disabled: session.exercises.length < 2,
-          },
-        ] satisfies MoreOption[])
-      : []),
-  ];
 
   const content: ReactNode = (
     <>
@@ -626,7 +606,6 @@ export function WorkoutOverview({
         onDone={setWarmupDone}
         onClose={() => setSheet(null)}
       />
-      <MoreSheet open={sheet === "more"} options={more} onClose={() => setSheet(null)} />
     </>
   );
 
@@ -655,11 +634,12 @@ export function WorkoutOverview({
             </Link>
           )}
         </span>
+        {/* Add exercise and Superset stand under the list, so More is the session's details. */}
         <button
           type="button"
           aria-haspopup="dialog"
-          aria-label="Session details, add exercise, superset"
-          onClick={() => setSheet("more")}
+          aria-label="Session details"
+          onClick={onOpenDetails}
           className="session-icon-button -mr-2.5"
         >
           <Glyph name="more" className="glyph-24" />

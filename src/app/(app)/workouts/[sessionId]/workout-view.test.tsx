@@ -128,8 +128,8 @@ function enterFirstSet() {
   fireEvent.click(screen.getByRole("button", { name: "Save" }));
 }
 const LINE = "Set 1: 60 kilograms, 5 reps, 2 reps in reserve. Edit";
-/** Back to the workout: the logger's back link names it (an ad hoc session here). */
-const BACK = "Ad hoc session";
+/** Back to the workout: the logger's back link names it (an unplanned session here). */
+const BACK = "Unplanned session";
 
 async function saveFirstSet() {
   enterFirstSet();

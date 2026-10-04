@@ -27,7 +27,7 @@ import { REGRESSION_WARNING_STREAK, WORKING_SET_TYPES } from "@/domain/progressi
 import { SET_LIMITS } from "@/domain/sets";
 import type { LoadUnit, PrescriptionType, SetType } from "@/domain/types";
 import { formatDay } from "@/lib/format";
-import { LOAD_UNIT_LABELS, SUGGESTION_KIND_LABELS } from "@/lib/labels";
+import { LOAD_UNIT_LABELS, SUGGESTION_KIND_LABELS, UNPLANNED_SESSION } from "@/lib/labels";
 import { attempted } from "@/lib/offline-submit";
 import { PLATFORM_ATTRIBUTE } from "@/lib/platform";
 import type { DraftValueField } from "@/lib/workout-drafts";
@@ -529,7 +529,7 @@ export function ExerciseLogger({
   }, [completing, completed]);
 
   // ---------- what the header and the meta line say ----------
-  const dayName = session.day?.name ?? "Ad hoc session";
+  const dayName = session.day?.name ?? UNPLANNED_SESSION;
   const plannedName = exercise.planned?.plannedExerciseName;
   const substituted = plannedName !== undefined && plannedName !== exercise.exercise.name;
   const glyph = equipmentGlyph(exercise);

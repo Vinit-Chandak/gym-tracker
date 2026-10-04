@@ -12,6 +12,7 @@ import { todayInTimeZone } from "@/domain/program-calendar";
 import { writtenSummaryForSport } from "@/domain/sport-scope";
 import type { WarmupDrill } from "@/domain/types";
 import { formatDateTime, formatIsoWeekdayDay, formatTime } from "@/lib/format";
+import { UNPLANNED_SESSION } from "@/lib/labels";
 import type { TodayCoachState } from "@/server/repositories/coach-plans";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
 import type { SessionSummary } from "@/server/repositories/sessions";
@@ -272,7 +273,7 @@ export function TodayView({
     <li>
       <ActivityCard
         mark={<Art kind="mark" sport="strength" size={22} state="todo" />}
-        title={inProgress.dayName ?? "Ad hoc session"}
+        title={inProgress.dayName ?? UNPLANNED_SESSION}
         facts={
           <Fact glyph="pin" label="Gym">
             {inProgress.gymName}

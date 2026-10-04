@@ -1,5 +1,6 @@
 import { getActiveSession } from "./active-session";
 import { getRequestProfile } from "./request-profile";
+import { UNPLANNED_SESSION } from "@/lib/labels";
 
 /**
  * What a page of the session's own shows in its header (boards Check-in, Add exercise): the
@@ -15,7 +16,7 @@ export async function sessionPageHeader(
     getActiveSession(user.id),
   ]);
   return {
-    name: (active?.id === sessionId ? active.dayName : null) ?? "Ad hoc session",
+    name: (active?.id === sessionId ? active.dayName : null) ?? UNPLANNED_SESSION,
     restTimerEnabled: profile.restTimerEnabled,
   };
 }

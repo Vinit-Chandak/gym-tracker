@@ -522,7 +522,9 @@ under 360 pt wide.
 - **Tab bar:** 64 pt: a hairline and 2, then 44-pt targets, then 17, so the targets end 4 clear
   of the home indicator (11 where there is none). On iOS and Android the system bar is used.
 - **The session:** starting a workout opens a full-screen layer over the tabs, from the check-in
-  to the summary. Minimised, it is the session strip on every screen.
+  to the summary. Minimised, it is the session strip on every screen. The check-in comes before
+  the session: Save and start, or Skip check-in, is what creates it, so going back from the
+  check-in leaves nothing to discard.
 - **Logging:** the title, meta line and tabs stay; on the Log tab the meta line gives the range
   a set aims at (3–5 reps), since how many sets and the RIR target are the entry's (Technique and
   History, with no entry, give the whole prescription). The log starts under the tabs and fills

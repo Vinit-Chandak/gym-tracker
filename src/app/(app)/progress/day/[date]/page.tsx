@@ -12,7 +12,7 @@ import type { ActivitySport } from "@/domain/activity";
 import { formatDuration, formatPace } from "@/domain/pace";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { formatIsoDate, formatIsoWeekdayDay, formatRunKm, formatTime } from "@/lib/format";
-import { SWIM_STROKE_LABELS } from "@/lib/labels";
+import { SWIM_STROKE_LABELS, UNPLANNED_SESSION } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { readActivityDays } from "@/server/repositories/activity-analytics";
@@ -108,7 +108,7 @@ export default async function DayPage(props: PageProps<"/progress/day/[date]">) 
         key: workout.id,
         sport: "strength",
         at: workout.startedAt,
-        title: workout.day?.name ?? "Ad hoc session",
+        title: workout.day?.name ?? UNPLANNED_SESSION,
         meta: [
           workout.gym.name,
           minutes === null ? null : `${minutes} min`,

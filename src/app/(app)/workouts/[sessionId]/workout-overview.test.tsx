@@ -193,9 +193,10 @@ it("is the session's layer: Minimise to Today, Finish and More", () => {
   expect(screen.getByRole("link", { name: "Finish" }).getAttribute("href")).toBe(
     `/workouts/${SESSION.id}/finish`,
   );
-  expect(
-    screen.getByRole("button", { name: "Session details, add exercise, superset" }),
-  ).toBeTruthy();
+  // Add exercise and Superset stand under the list, so More is the session's details alone.
+  expect(screen.getByRole("button", { name: "Session details" })).toBeTruthy();
+  expect(screen.getAllByRole("link", { name: "Add exercise" })).toHaveLength(1);
+  expect(screen.getAllByRole("button", { name: "Superset" })).toHaveLength(1);
   expect(screen.getByText("70–90 min")).toBeTruthy();
 });
 

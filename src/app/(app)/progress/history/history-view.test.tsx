@@ -71,7 +71,7 @@ it("lists each entry under its day, its mark naming the sport", () => {
           kind: "workout",
           date: "2026-09-28T13:30:00.000Z",
           day: "2026-09-28",
-          title: "Ad hoc session",
+          title: "Unplanned session",
           subtitle: "19:00 · Anytime Fitness",
           meta: "13 sets",
           gymId: null,
@@ -94,7 +94,7 @@ it("lists each entry under its day, its mark naming the sport", () => {
   );
   expect(screen.getByRole("heading", { name: "Mon 28 Sept" })).toBeTruthy();
   expect(screen.getByRole("heading", { name: "Sun 27 Sept" })).toBeTruthy();
-  const lift = screen.getByRole("link", { name: /Ad hoc session/ });
+  const lift = screen.getByRole("link", { name: /Unplanned session/ });
   expect(lift.textContent).toContain("13 sets");
   expect(lift.textContent).toContain("19:00 · Anytime Fitness");
   expect(screen.getByRole("img", { name: "Workout" })).toBeTruthy();

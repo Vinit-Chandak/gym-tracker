@@ -1,13 +1,13 @@
 "use client";
 
-import type { Route } from "next";
 import { useActionState } from "react";
+import { useFormStatus } from "react-dom";
 
-import Link from "@/components/ui/app-link";
 import { FormError, SubmitButton } from "@/components/ui/form";
 import { PinnedActions } from "@/components/ui/pinned-actions";
 import { RowStepper } from "@/components/ui/row-stepper";
 import { ScaleField } from "@/components/ui/scale-field";
+import { SKIP_CHECK_IN } from "@/lib/check-in";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
 import { INITIAL_FORM_STATE, type FormState } from "@/server/validation/form";
 
@@ -19,9 +19,30 @@ type Props = {
     fatigue: string;
     soreness: string;
   };
-  /** The workout, which Skip check-in goes straight to. */
-  skipHref: Route;
+  /**
+   * Before a workout, the form is what starts it: Save and start, or Skip check-in, each of
+   * which creates the session, so leaving the screen leaves nothing behind. In an open session
+   * it edits the check-in already given, and the header's back is the way out unchanged.
+   */
+  mode: "start" | "edit";
 };
+
+/** Skip check-in: a second submit, so the session starts the same way, answering nothing. */
+function SkipButton() {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      name="intent"
+      value={SKIP_CHECK_IN}
+      formNoValidate
+      disabled={pending}
+      className="text-action"
+    >
+      Skip check-in
+    </button>
+  );
+}
 
 /**
  * Pre-session recovery questionnaire (board Check-in). Every reading is optional, and left blank
@@ -32,7 +53,7 @@ type Props = {
  * beside 1 fresh to 5 wrecked — and the two answers contradicted each other as often as
  * not. How you feel is now two scales that read the same way: 1 is fine, 5 is the worst.
  */
-export function CheckInForm({ action, initial, skipHref }: Props) {
+export function CheckInForm({ action, initial, mode }: Props) {
   const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
   const value = (key: keyof Props["initial"]) => state.values?.[key] ?? initial[key];
 
@@ -83,10 +104,14 @@ export function CheckInForm({ action, initial, skipHref }: Props) {
 
       <PinnedActions stack>
         <FormError message={state.formError} />
-        <SubmitButton pendingLabel="Saving…">Save and start</SubmitButton>
-        <Link href={skipHref} className="text-action">
-          Skip check-in
-        </Link>
+        {mode === "start" ? (
+          <>
+            <SubmitButton pendingLabel="Starting…">Save and start</SubmitButton>
+            <SkipButton />
+          </>
+        ) : (
+          <SubmitButton pendingLabel="Saving…">Save check-in</SubmitButton>
+        )}
       </PinnedActions>
     </form>
   );

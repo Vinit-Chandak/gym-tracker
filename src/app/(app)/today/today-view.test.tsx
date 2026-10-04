@@ -18,8 +18,6 @@ vi.mock("next/navigation", () => ({
   unstable_rethrow: () => {},
 }));
 vi.mock("@/server/actions/sessions", () => ({
-  startPlannedSessionAction: vi.fn(),
-  startAdHocSessionAction: vi.fn(),
   skipSlotAction: vi.fn(),
   completeRestSlotAction: vi.fn(),
   discardSessionAction: vi.fn(),
@@ -159,7 +157,10 @@ it("gives the workout and each run a card of its own, each with its own next ste
   show({ standaloneOccurrences: [run("run-2", [40, 40])] });
   expect(screen.getAllByRole("article")).toHaveLength(3);
   const workout = within(card("Easy Run + Arms"));
-  expect(workout.getByRole("button", { name: "Start workout: Easy Run + Arms" })).toBeTruthy();
+  // Start goes on to the check-in, which is what creates the session.
+  expect(
+    workout.getByRole("link", { name: "Start workout: Easy Run + Arms" }).getAttribute("href"),
+  ).toBe(`/workouts/start?gym=g1&day=${DAY.id}&index=3`);
   expect(workout.getByText("70–100 min")).toBeTruthy();
   expect(workout.getByText("Aerobic + arms/forearms")).toBeTruthy();
   // Two runs on one day are told apart by what each asks for.
@@ -189,6 +190,7 @@ it("keeps Resume and Discard in the day's card while its session is open, and no
   expect(workout.getByRole("button", { name: "Discard empty session" })).toBeTruthy();
   expect(card("Easy Run + Arms").textContent).toContain("In progress · Started 12:35 · 0 sets");
   // One unfinished workout at a time: nothing to start, skip or re-plan, and the gym is fixed.
+  expect(screen.queryByRole("link", { name: /Start workout/ })).toBeNull();
   expect(screen.queryByRole("button", { name: /Start workout/ })).toBeNull();
   expect(screen.queryByRole("button", { name: /More options/ })).toBeNull();
   expect(screen.queryByRole("button", { name: /Gym: .*Change/ })).toBeNull();
@@ -203,13 +205,14 @@ it("never offers Discard once a set is in", () => {
 it("puts another open session first, and says why the day cannot start", () => {
   show({ inProgress: session({ programDayId: null, dayName: null }) });
   const [first] = screen.getAllByRole("article");
-  expect(within(first!).getByRole("heading").textContent).toBe("Ad hoc session");
+  expect(within(first!).getByRole("heading").textContent).toBe("Unplanned session");
   expect(within(first!).getByRole("button", { name: "Discard empty session" })).toBeTruthy();
   expect(
     within(card("Easy Run + Arms")).getByText(
       "Finish or discard your open session to start this one.",
     ),
   ).toBeTruthy();
+  expect(screen.queryByRole("link", { name: /Start workout/ })).toBeNull();
   expect(screen.queryByRole("button", { name: /Start workout/ })).toBeNull();
   // Nothing on the day's card can start, so its gym is a fact, not a choice.
   expect(screen.queryByRole("button", { name: /Gym: .*Change/ })).toBeNull();

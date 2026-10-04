@@ -8,6 +8,7 @@ import { useSetChanges } from "@/components/set-changes";
 import { PageContent } from "@/components/shell/page-content";
 import { startRestTimer } from "@/components/shell/rest-timer";
 import { useSessionDrafts } from "@/components/use-session-drafts";
+import { UNPLANNED_SESSION } from "@/lib/labels";
 
 import { ExerciseLogger } from "./exercise-logger";
 import { FinishedWorkout } from "./finished-workout";
@@ -54,7 +55,7 @@ export function WorkoutView({
   header?: ReactNode;
   /** What stands above the list once the workout is finished: its records, Save as routine. */
   intro?: ReactNode;
-  /** The day's name, or "Ad hoc session". */
+  /** The day's name, or UNPLANNED_SESSION. */
   title?: string;
   /** Where minimising the open workout goes, or Back from a finished one. */
   backHref?: Route;
@@ -111,7 +112,7 @@ export function WorkoutView({
       <>
         <FinishedWorkout
           session={session}
-          title={title ?? "Ad hoc session"}
+          title={title ?? UNPLANNED_SESSION}
           justFinished={justFinished}
           backHref={backHref ?? "/today"}
           records={records}

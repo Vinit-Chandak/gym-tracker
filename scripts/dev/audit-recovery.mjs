@@ -142,13 +142,15 @@ async function start(username) {
     await sql`select w.id from workout_sessions w join profiles p on p.id=w.user_id where p.username=${username} and w.completed_at is null`;
   if (open) return open.id;
   await go("/today");
-  const adHoc = page.getByRole("button", { name: "Ad hoc session", exact: true });
-  if (await adHoc.isVisible()) await adHoc.click();
-  else {
-    await page.getByRole("button", { name: "More options", exact: true }).click();
-    await page.getByRole("button", { name: "Start an ad hoc session", exact: true }).click();
+  // Start goes to the check-in, which creates the session: skipped here, and answered after.
+  const unplanned = page.getByRole("link", { name: "Start an unplanned session", exact: true });
+  if (!(await unplanned.isVisible())) {
+    await page.getByRole("button", { name: /^More options/ }).click();
   }
-  await page.waitForURL(/\/workouts\/[^/]+\/check-in$/);
+  await page.getByRole("link", { name: "Start an unplanned session", exact: true }).first().click();
+  await page.waitForURL(/\/workouts\/start\?/);
+  await page.getByRole("button", { name: "Skip check-in", exact: true }).click();
+  await page.waitForURL(/\/workouts\/[0-9a-f-]+$/);
   return path().split("/")[2];
 }
 async function submit(id, values) {
@@ -157,7 +159,7 @@ async function submit(id, values) {
     if (field === "sleepHours") await page.locator('[name="sleepHours"]').fill(String(value));
     else await choose(field, value);
   }
-  await page.getByRole("button", { name: "Save and start", exact: true }).click();
+  await page.getByRole("button", { name: "Save check-in", exact: true }).click();
   await page.waitForURL(`**/workouts/${id}`);
 }
 async function recovery() {
@@ -383,13 +385,13 @@ try {
   await check("Invalid hours cannot erase a previously saved fatigue reading", async () => {
     await go(`/workouts/${partialId}/check-in`);
     await page.locator('[name="sleepHours"]').fill("25");
-    await page.getByRole("button", { name: "Save and start", exact: true }).click();
+    await page.getByRole("button", { name: "Save check-in", exact: true }).click();
     await expect(page.getByText("Enter a value from 0 to 24.")).toBeVisible();
     expect(
       (await sql`select sleep_hours, fatigue from workout_sessions where id=${partialId}`)[0],
     ).toEqual({ sleep_hours: null, fatigue: 4 });
     await page.locator('[name="sleepHours"]').fill("");
-    await page.getByRole("button", { name: "Save and start", exact: true }).click();
+    await page.getByRole("button", { name: "Save check-in", exact: true }).click();
     await page.waitForURL(`**/workouts/${partialId}`);
     await finish(partialId);
   });
