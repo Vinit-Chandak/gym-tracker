@@ -187,7 +187,7 @@ it("keeps Resume and Discard in the day's card while its session is open, and no
   const workout = within(card("Easy Run + Arms"));
   expect(workout.getByRole("link", { name: "Resume session: Easy Run + Arms" })).toBeTruthy();
   expect(workout.getByRole("button", { name: "Discard empty session" })).toBeTruthy();
-  expect(workout.getByText(/In progress · Started 12:35 · 0 sets/)).toBeTruthy();
+  expect(card("Easy Run + Arms").textContent).toContain("In progress · Started 12:35 · 0 sets");
   // One unfinished workout at a time: nothing to start, skip or re-plan, and the gym is fixed.
   expect(screen.queryByRole("button", { name: /Start workout/ })).toBeNull();
   expect(screen.queryByRole("button", { name: /More options/ })).toBeNull();
@@ -197,7 +197,7 @@ it("keeps Resume and Discard in the day's card while its session is open, and no
 it("never offers Discard once a set is in", () => {
   show({ inProgress: session({ setCount: 2 }) });
   expect(screen.queryByRole("button", { name: "Discard empty session" })).toBeNull();
-  expect(within(card("Easy Run + Arms")).getByText(/2 sets/)).toBeTruthy();
+  expect(card("Easy Run + Arms").textContent).toContain("2 sets");
 });
 
 it("puts another open session first, and says why the day cannot start", () => {
@@ -211,4 +211,7 @@ it("puts another open session first, and says why the day cannot start", () => {
     ),
   ).toBeTruthy();
   expect(screen.queryByRole("button", { name: /Start workout/ })).toBeNull();
+  // Nothing on the day's card can start, so its gym is a fact, not a choice.
+  expect(screen.queryByRole("button", { name: /Gym: .*Change/ })).toBeNull();
+  expect(within(card("Easy Run + Arms")).getByText("Anytime Fitness")).toBeTruthy();
 });

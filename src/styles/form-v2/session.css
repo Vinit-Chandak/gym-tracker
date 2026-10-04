@@ -877,6 +877,18 @@ button.log-line {
   overflow-y: auto;
   overscroll-behavior: contain;
 }
+/* What runs on under the entry fades into the ground at the scroll's edge, so it reads as more to
+   scroll to, not as cut; scrolled to the end, the fade stands after the last line, over nothing. */
+.session-layer[data-tight="true"] .session-body::after {
+  position: sticky;
+  bottom: 0;
+  display: block;
+  height: 20px;
+  margin: 0 calc(var(--ov-gutter) * -1);
+  background: linear-gradient(to bottom, transparent, var(--ov-ground));
+  content: "";
+  pointer-events: none;
+}
 .session-layer[data-tight="true"] .session-panel[data-tab="log"] {
   display: block;
 }

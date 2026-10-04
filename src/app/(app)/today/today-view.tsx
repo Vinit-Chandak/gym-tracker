@@ -153,6 +153,25 @@ function started(session: SessionSummary, today: string, timeZone: string): stri
 
 const sets = (count: number) => `${count} ${count === 1 ? "set" : "sets"}`;
 
+/** "In progress · Started 17:23 · 0 sets", each part kept whole when the line wraps. */
+function Progress({
+  session,
+  today,
+  timeZone,
+}: {
+  session: SessionSummary;
+  today: string;
+  timeZone: string;
+}) {
+  return (
+    <>
+      <span className="whitespace-nowrap">In progress</span> ·{" "}
+      <span className="whitespace-nowrap">{started(session, today, timeZone)}</span> ·{" "}
+      <span className="whitespace-nowrap">{sets(session.setCount)}</span>
+    </>
+  );
+}
+
 export function TodayView({
   today,
   timeZone,
@@ -257,7 +276,7 @@ export function TodayView({
         }
         status={
           <State>
-            In progress · {started(inProgress, today, timeZone)} · {sets(inProgress.setCount)}
+            <Progress session={inProgress} today={today} timeZone={timeZone} />
           </State>
         }
         actions={
@@ -298,6 +317,13 @@ export function TodayView({
               <Fact glyph="pin" label="Gym">
                 {inProgress.gymName}
               </Fact>
+            ) : sessionOpen ? (
+              // Another session is open: nothing here can start, so the gym is not a choice.
+              defaultGym && (
+                <Fact glyph="pin" label="Gym">
+                  {defaultGym.name}
+                </Fact>
+              )
             ) : (
               gyms.length > 0 &&
               sessionStatus === "pending" && (
@@ -316,7 +342,7 @@ export function TodayView({
         status={
           openHere && inProgress ? (
             <State>
-              In progress · {started(inProgress, today, timeZone)} · {sets(inProgress.setCount)}
+              <Progress session={inProgress} today={today} timeZone={timeZone} />
             </State>
           ) : sessionStatus === "completed" ? (
             <State glyph="check">Workout logged.</State>

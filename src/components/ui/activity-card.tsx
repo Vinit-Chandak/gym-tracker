@@ -10,12 +10,13 @@ import { Glyph } from "./glyphs";
  * One activity of the day as a card of its own (DESIGN.md, Today): the workout, a run, a ride,
  * a swim, the rest day's mobility or a session already under way. Every card has the same
  * anatomy, so a run reads like a workout: the sport's mark and the name, the facts that decide
- * the day (where, how long, what it aims at), what is happening now, the plan behind a tap,
- * then the card's own next step, and under it the quieter way out (Discard empty session).
+ * the day (where, how long, what it aims at), what is happening now, the card's own next step
+ * and under it the quieter way out (Discard empty session), then the plan behind a tap.
  *
- * The plan is folded until asked for. Folded, it is inert, so it is neither read out nor
- * reachable by Tab; the head's button says whether it is open. Unfolding animates the plan's
- * height (220 ms, ease-out), and with reduced motion it simply appears.
+ * The plan is folded until asked for, and unfolds under the card's button, so opening it never
+ * moves the next step away. Folded, it is inert, so it is neither read out nor reachable by
+ * Tab; the head's button says whether it is open. Unfolding animates the plan's height (220 ms,
+ * ease-out), and with reduced motion it simply appears.
  */
 export function ActivityCard({
   mark,
@@ -92,13 +93,13 @@ export function ActivityCard({
       </h2>
       {facts && <div className="meta-line activity-card-facts">{facts}</div>}
       {status && <div className="activity-card-status">{status}</div>}
+      {actions && <div className="activity-card-actions">{actions}</div>}
+      {footer && <div className="activity-card-footer">{footer}</div>}
       {details && (
         <div id={detailsId} className="activity-card-details" inert={!open}>
           <div className="activity-card-details-inner">{details}</div>
         </div>
       )}
-      {actions && <div className="activity-card-actions">{actions}</div>}
-      {footer && <div className="activity-card-footer">{footer}</div>}
     </article>
   );
 }

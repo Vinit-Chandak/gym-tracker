@@ -541,7 +541,7 @@ under 360 pt wide.
   log is kept at its end while logging. A screen too short for a line of the log (320 × 568 with a
   message) scrolls the same way, kept at its end; before the first set, a screen too short for
   what stands over the log (the coach's note) scrolls too, from the name, so the entry never
-  covers it.
+  covers it, and what runs on under the entry fades into the ground at the scroll's edge.
 - **Typing:** tapping a figure types it, on the decimal pad; above the pad stay the figures, on
   one baseline, and Save, with the keyboard's Previous, Next and Done.
 - **Pinned actions:** (not on Today, whose cards carry their own) 8 pt above the safe area, in
@@ -769,14 +769,15 @@ and every control answers a press.
   with its prescription and, where the coach wrote one, the speech glyph); a run, ride or swim
   shows its steps, its targets, how to do it, the coach's word for it, and Skip or move. It
   unfolds in 220 ms ease-out, height and words together; with reduced motion it appears.
-- The card's next step is its own, the card's full width at its foot: Start workout (primary, with
-  More beside it), Resume (primary), Log run, Log ride or Log swim (tonal, named with what it asks
-  for, so two runs never share a name), See what you logged. Under it, the quieter way out that
-  belongs to this card alone: Discard empty session, led by its glyph at the card's left edge,
-  only while nothing is logged.
+- The card's next step is its own, the card's full width under its facts: Start workout (primary,
+  with More beside it), Resume (primary), Log run, Log ride or Log swim (tonal, named with what it
+  asks for, so two runs never share a name), See what you logged. Under it, the quieter way out
+  that belongs to this card alone: Discard empty session, led by its glyph at the card's left
+  edge, only while nothing is logged. The plan unfolds under them, so opening it never moves the
+  next step away.
 - One unfinished workout at a time: while one is open, no card offers to start, skip or re-plan
-  another, the gym is the session's fact rather than a choice, and an open session that is not
-  the day's stands first, with its own Resume and Discard.
+  another, every card's gym is a fact rather than a choice, and an open session that is not the
+  day's stands first, with its own Resume and Discard.
 
 ### Inputs and choices
 

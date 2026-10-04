@@ -750,7 +750,7 @@ button.activity-card-toggle {
   opacity: 1;
 }
 .activity-card-plan {
-  padding-top: 4px;
+  padding-top: 2px;
 }
 /* A passage of the plan: the coach's words, the exercises, a run's steps, under a rule. */
 .activity-card-passage {
@@ -780,6 +780,10 @@ button.activity-card-toggle {
 .activity-card-footer {
   margin-top: 6px;
 }
+.activity-card-actions + .activity-card-details,
+.activity-card-footer + .activity-card-details {
+  margin-top: 4px;
+}
 /* A link inside a card, as tall as a target: See what you logged, Skip or move. */
 .activity-card-link {
   display: inline-flex;
@@ -796,16 +800,19 @@ button.activity-card-toggle {
 .quiet-action {
   display: inline-flex;
   min-height: var(--ov-target);
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   margin-left: -2px;
+  padding-block: calc((var(--ov-target) - 1lh) / 2);
   color: var(--ov-ink);
   font-size: var(--ov-type-meta);
   font-weight: 700;
-  text-align: left;
+  line-height: 1.4;
+  text-align: start;
 }
 .quiet-action > svg {
   flex-shrink: 0;
+  margin-top: calc((1lh - 8px - 0.625rem) / 2);
 }
 .quiet-action:disabled {
   color: var(--ov-ink-2);
@@ -876,8 +883,10 @@ button.activity-card-toggle {
 }
 .warmup-done > span {
   display: inline-flex;
+  min-width: 7.25em;
   min-height: calc(36px + var(--ov-grow));
   align-items: center;
+  justify-content: center;
   gap: 5px;
   padding: 0 14px;
   border: 1.5px solid var(--ov-control);
@@ -891,7 +900,6 @@ button.activity-card-toggle {
   scale: var(--ov-press-scale);
 }
 .warmup-done[data-done="true"] > span {
-  padding-left: 10px;
   border-color: transparent;
   background: var(--ov-surface);
 }
