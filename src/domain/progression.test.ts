@@ -362,6 +362,35 @@ describe("timed work", () => {
   });
 });
 
+describe("timed work at the top", () => {
+  it("holds rather than adding time when the last session already reached the top", () => {
+    const top = [
+      set(1, null, null, null, { durationSeconds: 45, rpe: 7 }),
+      set(2, null, null, null, { durationSeconds: 45, rpe: 7 }),
+    ];
+    const below = [
+      set(1, null, null, null, { durationSeconds: 40, rpe: 7 }),
+      set(2, null, null, null, { durationSeconds: 40, rpe: 7 }),
+    ];
+    const s = suggestNext(plank, top, "exercise", [
+      {
+        workoutExerciseId: "exercise-4",
+        workoutSessionId: "session-4",
+        performedAt: new Date("2026-09-04T12:00:00Z"),
+        sets: top,
+      },
+      {
+        workoutExerciseId: "exercise-1",
+        workoutSessionId: "session-1",
+        performedAt: new Date("2026-09-01T12:00:00Z"),
+        sets: below,
+      },
+    ]);
+    expect(s).toMatchObject({ kind: "hold", reason: expect.stringMatching(/top of the range/) });
+    expect(s.sets.map((x) => x.durationSeconds)).toEqual([45, 45]);
+  });
+});
+
 describe("history edge cases", () => {
   it("has nothing to prefill without comparable history", () => {
     expect(suggestNext(accessory, null, "none").kind).toBe("start");

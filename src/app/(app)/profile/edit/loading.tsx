@@ -1,5 +1,5 @@
 import { LoadingPage } from "@/components/shell/loading-page";
 
 export default function Loading() {
-  return <LoadingPage title="Edit profile" />;
+  return <LoadingPage title="Edit profile" what="your profile" />;
 }

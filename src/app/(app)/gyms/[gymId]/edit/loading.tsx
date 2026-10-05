@@ -1,5 +1,5 @@
 import { LoadingPage } from "@/components/shell/loading-page";
 
 export default function Loading() {
-  return <LoadingPage title="Edit gym" />;
+  return <LoadingPage title="Edit gym" what="the gym" />;
 }

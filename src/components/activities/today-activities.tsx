@@ -4,6 +4,7 @@ import { ActivityCard } from "@/components/ui/activity-card";
 import { LinkButton } from "@/components/ui/button";
 import { CoachNote } from "@/components/ui/coach-note";
 import { FigureText } from "@/components/ui/figure-text";
+import { Figures } from "@/components/ui/figures";
 import { Glyph, type GlyphName } from "@/components/ui/glyphs";
 import type { ActivitySport } from "@/domain/activity";
 import { describePrescription, expandSteps } from "@/domain/activity-prescription";
@@ -178,8 +179,13 @@ export function EnduranceCard({
         (note || time || partOf || (occurrence.preparedByCoach && !skipped)) && (
           <>
             {note && <Fact glyph="pace">{note}</Fact>}
-            {time && <Fact glyph="rest">{time}</Fact>}
-            {partOf && <Fact glyph="calendar">Part of {partOf}</Fact>}
+            {/* A time of day, on the calendar: the dial is a duration's (70–90 min, 3–4 min). */}
+            {time && (
+              <Fact glyph="calendar">
+                <Figures>{time}</Figures>
+              </Fact>
+            )}
+            {partOf && <Fact glyph="training">Part of {partOf}</Fact>}
             {occurrence.preparedByCoach && !skipped && (
               <Fact glyph="coach">Prepared by the coach</Fact>
             )}

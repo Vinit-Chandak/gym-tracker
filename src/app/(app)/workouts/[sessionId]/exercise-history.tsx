@@ -105,10 +105,10 @@ export function ExerciseHistory({
 
   return (
     <div>
-      <h3 className="mt-3 type-caption text-ink-2 tabular-nums">
+      <h2 className="mt-3 type-caption text-ink-2 tabular-nums">
         All sessions · {state.entries.length}
         {state.more ? "+" : ""}
-      </h3>
+      </h2>
       {state.entries.map((entry, index) => {
         const sets = shown(entry.sets);
         const warmups = sets.filter((set) => isWarmup(set.setType));
@@ -120,7 +120,7 @@ export function ExerciseHistory({
             aria-labelledby={headingId}
             className={index === 0 ? "mt-2" : "mt-3.5"}
           >
-            <h4
+            <h3
               id={headingId}
               className="flex min-h-8 flex-wrap items-baseline gap-x-2 text-[length:var(--ov-type-meta)] font-bold"
             >
@@ -131,7 +131,7 @@ export function ExerciseHistory({
                 {entry.gymName}
                 {entry.equipmentName ? ` · ${entry.equipmentName}` : ""}
               </span>
-            </h4>
+            </h3>
             <ol className="log py-0" style={logStyle(size)}>
               {warmups.length > 0 && (
                 <li className="log-warm">

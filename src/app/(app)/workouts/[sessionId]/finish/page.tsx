@@ -3,13 +3,14 @@ import { notFound, redirect } from "next/navigation";
 
 import { FreshAfterSets } from "@/components/fresh-after-sets";
 import { SessionPage } from "@/components/shell/session-page";
+import { Figures } from "@/components/ui/figures";
 import { Glyph } from "@/components/ui/glyphs";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { formatSets } from "@/domain/sets";
 import { finishSessionAction } from "@/server/actions/sessions";
 import { fromKilograms, setInUnit } from "@/lib/units";
-import { LOAD_UNIT_LABELS } from "@/lib/labels";
+import { LOAD_UNIT_LABELS, UNPLANNED_SESSION } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { seenSetChanges } from "@/server/queries/set-changes";
@@ -45,7 +46,7 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
   const untouched = session.exercises.filter((e) => e.sets.length === 0 && !e.skippedAt);
   const totalSets = done.reduce((sum, exercise) => sum + exercise.sets.length, 0);
 
-  const title = session.day?.name ?? "Ad hoc session";
+  const title = session.day?.name ?? UNPLANNED_SESSION;
 
   // Board Finish: what the session recorded and what it did not, then the notes and the day's
   // body weight. A page that ends the session closes back to it rather than going back.
@@ -65,9 +66,7 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
         <section aria-labelledby="finish-recorded">
           <h2 id="finish-recorded" className="caption-head mt-3 flex justify-between gap-3">
             <span>Recorded</span>
-            <span className="tabular-nums">
-              {totalSets} {totalSets === 1 ? "set" : "sets"}
-            </span>
+            <Figures>{`${totalSets} ${totalSets === 1 ? "set" : "sets"}`}</Figures>
           </h2>
           {done.length > 0 ? (
             <ul>

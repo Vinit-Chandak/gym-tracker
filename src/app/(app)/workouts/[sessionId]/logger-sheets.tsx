@@ -1,7 +1,7 @@
 "use client";
 
 import type { Route } from "next";
-import { useState, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 
 import Link from "@/components/ui/app-link";
 import { Button } from "@/components/ui/button";
@@ -209,7 +209,7 @@ export function SetOptionsSheet({
                 onClose();
               }}
             >
-              Remove this row
+              Remove this set
             </Button>
           </div>
         </div>
@@ -291,6 +291,8 @@ function SetEditor({
   onClose: () => void;
 }) {
   const [draft, setDraft] = useState<Draft>(() => draftOf(row));
+  // A logged set cannot be brought back once deleted, so Delete asks once, in place.
+  const [deleting, setDeleting] = useState(false);
   const original = draftOf(row);
   const changed =
     draft.setType !== original.setType ||
@@ -449,18 +451,36 @@ function SetEditor({
             Discard this local draft
           </Button>
         )}
-        <Button
-          variant="danger"
-          size="lg"
-          disabled={row.saving}
-          onClick={() => {
-            onDelete(row);
-            onClose();
-          }}
-        >
-          <Glyph name="trash" className="glyph-18" />
-          Delete this set
-        </Button>
+        {deleting ? (
+          <div role="group" aria-label="Delete this set?" className="grid gap-2">
+            <p className="type-meta font-semibold">Delete this set? It cannot be brought back.</p>
+            <Button
+              variant="danger"
+              size="lg"
+              disabled={row.saving}
+              onClick={() => {
+                onDelete(row);
+                onClose();
+              }}
+            >
+              <Glyph name="trash" className="glyph-18" />
+              Delete it
+            </Button>
+            <Button variant="text" size="lg" onClick={() => setDeleting(false)}>
+              Keep it
+            </Button>
+          </div>
+        ) : (
+          <Button
+            variant="danger"
+            size="lg"
+            disabled={row.saving}
+            onClick={() => setDeleting(true)}
+          >
+            <Glyph name="trash" className="glyph-18" />
+            Delete this set
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -475,6 +495,10 @@ export type MoreOption = {
   href?: Route;
   onSelect?: () => void;
   disabled?: boolean;
+  /** Why it is held, under its name while it is: "Log a set first." */
+  note?: string;
+  /** Opens a sheet of its own (Superset, Skip): a chevron, as a destination has. */
+  opens?: boolean;
   /** Stands apart from the rest, under a rule: it drops the exercise. */
   apart?: boolean;
 };
@@ -488,21 +512,35 @@ export function MoreSheet({
   options: readonly MoreOption[];
   onClose: () => void;
 }) {
+  const id = useId();
   const row = (option: MoreOption) => {
+    // A held option is named by its label and described by why it is held.
+    const noteId = option.disabled && option.note ? `${id}-${option.label}` : undefined;
     const inner = (
       <>
         <span className="grid w-5 shrink-0 place-items-center">
           <Glyph name={option.glyph} className="glyph-22" />
         </span>
-        <span
-          className={cn(
-            "min-w-0 flex-1 text-[length:var(--ov-type-button)] [overflow-wrap:anywhere]",
-            option.apart ? "font-bold" : "font-semibold",
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span
+            className={cn(
+              "text-[length:var(--ov-type-button)] [overflow-wrap:anywhere]",
+              option.apart ? "font-bold" : "font-semibold",
+            )}
+          >
+            {option.label}
+          </span>
+          {/* Out of the name, and read as the option's description instead. */}
+          {noteId && (
+            <span id={noteId} aria-hidden className="type-meta-small font-semibold text-ink-2">
+              {option.note}
+            </span>
           )}
-        >
-          {option.label}
         </span>
-        <Glyph name="chevronRight" className="glyph-20 text-ink-2" />
+        {/* A chevron goes somewhere; something done here (Complete, Reopen) has none. */}
+        {(option.href || option.opens) && (
+          <Glyph name="chevronRight" className="glyph-20 text-ink-2" />
+        )}
       </>
     );
     const className =
@@ -516,6 +554,7 @@ export function MoreSheet({
         type="button"
         className={className}
         disabled={option.disabled}
+        aria-describedby={noteId}
         onClick={() => {
           onClose();
           option.onSelect?.();
@@ -570,13 +609,15 @@ export function SkipSheet({
     <Sheet open={open} onClose={onClose} title={`Skip ${name}?`}>
       {open && (
         <div className="mt-2 space-y-3">
-          <Input
-            value={reason}
-            onChange={(event) => setReason(event.target.value)}
-            placeholder="Reason (optional)"
-            maxLength={200}
-            aria-label="Skip reason"
-          />
+          {/* The same field as Today's skip: a label and Optional, never a placeholder alone. */}
+          <Field label="Reason" hint="Optional">
+            <Input
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              placeholder="Machine taken, sore, …"
+              maxLength={200}
+            />
+          </Field>
           <Button
             variant="danger"
             size="lg"

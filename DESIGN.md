@@ -5,6 +5,8 @@ colors:
   ground: "#ffffff"
   surface: "#f4f4f5"
   surface-2: "#e9e9ec"
+  surface-control: "#f4f4f5"
+  surface-control-pressed: "#e9e9ec"
   ink: "#16171b"
   ink-2: "#5b5d64"
   control: "#85878e"
@@ -15,6 +17,8 @@ colors:
   ground-dark: "#111214"
   surface-dark: "#1b1c20"
   surface-2-dark: "#26272c"
+  surface-control-dark: "#2b2c32"
+  surface-control-pressed-dark: "#35363c"
   ink-dark: "#edeef0"
   ink-2-dark: "#a3a6ae"
   control-dark: "#73767e"
@@ -206,7 +210,7 @@ components:
     padding: "0 20px"
     height: "56px"
   button-tonal:
-    backgroundColor: "{colors.surface}"
+    backgroundColor: "{colors.surface-control}"
     textColor: "{colors.ink}"
     typography: "{typography.button}"
     rounded: "{rounded.control}"
@@ -231,7 +235,7 @@ components:
     padding: "0 10px"
     height: "44px"
   round-button:
-    backgroundColor: "{colors.surface}"
+    backgroundColor: "{colors.surface-control}"
     textColor: "{colors.ink}"
     rounded: "{rounded.full}"
     size: "44px"
@@ -420,9 +424,11 @@ same pigment.
 
 ### Neutral
 
-- **Ground** (`ground`): the page. **Surface** (`surface`): round buttons, tonal buttons, tiles,
-  the rest pill, coach notes. **Surface 2** (`surface-2`): pressed, the
-  switch's off track (inside a `control` edge, so the switch is seen on the ground).
+- **Ground** (`ground`): the page. **Surface** (`surface`): tiles, trays, the rest pill, coach
+  notes, a waiting button. **Control surface** (`surface-control`): round and tonal buttons; the
+  surface itself in light, lifted in dark (`#2b2c32`, pressed `#35363c`) so that on the near-black
+  ground a button still reads as a shape (owner, 5 October 2026). **Surface 2** (`surface-2`):
+  pressed, the switch's off track (inside a `control` edge, so the switch is seen on the ground).
 - **Ink 2** (`ink-2`): secondary text, suggested values, captions, unchosen tabs.
 - **Control** (`control`): borders of fields and outline buttons, an RIR not yet chosen.
 - **Hair** (`hair`): row rules and the tab bar's top edge.
@@ -489,7 +495,10 @@ the coach included. Both are under the SIL Open Font License, so the native apps
 
 **The Two Voices Rule.** Jost for titles and figures only; Atkinson Hyperlegible Next for every
 word read. A number inside a sentence stays in Atkinson; a range inside a Jost figure takes
-Atkinson's en dash, because Jost's is as long as an em dash.
+Atkinson's en dash, because Jost's is as long as an em dash. A figure that stands as a fact (a
+meta line's time, duration, load or range, a status line's count, a row's value) keeps the
+line's size but takes Jost's tabular digits, whose zero is plain where Atkinson's is slashed and
+reads as a machine's; its words and dashes stay in Atkinson (owner, 5 October 2026).
 
 **The Figures Never Truncate Rule.** A figure keeps one line and steps down until it fits: never
 an ellipsis, never a wrap. It steps down the ramp (42, 36, 34, 32, 28, 26, 20), never to a size
@@ -524,7 +533,11 @@ under 360 pt wide.
 - **Tab bar:** 64 pt: a hairline and 2, then 44-pt targets, then 17, so the targets end 4 clear
   of the home indicator (11 where there is none). On iOS and Android the system bar is used.
 - **The session:** starting a workout opens a full-screen layer over the tabs, from the check-in
-  to the summary. Minimised, it is the session strip on every screen.
+  to the summary. Minimised, it is the session strip on every screen. The check-in comes before
+  the session: Save and start, or Skip check-in, is what creates it, so going back from the
+  check-in leaves nothing to discard. Its 1–5 scales put their good end on the same side: sleep
+  quality, whose 5 is great, is drawn from 5 down, so "great" stands where fatigue's "fresh" and
+  soreness's "none" do; only the drawing turns, never the number stored (owner, 5 October 2026).
 - **Logging:** the title, meta line and tabs stay; on the Log tab the meta line gives the range
   a set aims at (3–5 reps), since how many sets and the RIR target are the entry's (Technique and
   History, with no entry, give the whole prescription). Every figure has one source: the coach's
@@ -547,7 +560,9 @@ under 360 pt wide.
   what stands over the log (the coach's note) scrolls too, from the name, so the entry never
   covers it, and what runs on under the entry fades into the ground at the scroll's edge.
 - **Typing:** tapping a figure types it, on the decimal pad; above the pad stay the figures, on
-  one baseline, and Save, with the keyboard's Previous, Next and Done.
+  one baseline, and Save, with the keyboard's Previous, Next and Done. The figure typed stands
+  over its solid rule with no caret, selected in ink until the first key, which replaces it (a
+  delete clears it); the same holds wherever a figure is typed (a stepper's, a food's amount).
 - **Pinned actions:** (not on Today, whose cards carry their own) 8 pt above the safe area, in
   ground down to the screen's foot, or 12 above the tab bar; the content stops above them and fades under them, and what the keyboard focuses
   is scrolled clear of them. Where large text puts the tab bar at the end of the page, they ride
@@ -664,11 +679,11 @@ and every control answers a press.
 
 - **Shape:** `control` (14 px); 56 pt tall, 44 where space is short; a 36-pt pill (Finish, the
   rest pill, a suggestion's tag) keeps a 44-pt target around it.
-- **Primary:** ink with on-ink text (Start workout, Save). **Tonal:** surface (Log it).
+- **Primary:** ink with on-ink text (Start workout, Save). **Tonal:** the control surface (Log it).
   **Waiting:** surface with ink 2, for a button waiting on something (Save while RIR is empty,
   Saving…, Send answer with no answer, Try again offline). **Outline:** a 1.5-px control border
   (Finish). **Text:** ink, no fill (Skip check-in). **Round:** 44 pt (48 dp on Android),
-  surface, a glyph (− and +).
+  the control surface, a glyph (− and +).
 - **Destructive:** a 2-px ink outline, its glyph leading (Delete everything); grey until it is
   confirmed, never in the primary place. An option that discards a day (Skip this session) stands
   apart from the others, under a rule, led by the skip glyph.
@@ -700,8 +715,14 @@ and every control answers a press.
 - **The message slot:** every message about Save stands in one place, at the head of the entry
   under its rule. The entry is docked from its foot, so a message that comes or goes moves only
   the rule above it, never a stepper or Save under the thumb: the missing RIR, a failed save, the
-  plan's last set in ("4 of 4 sets done.", with Complete beside it), and where a superset goes
-  next ("Then Wrist curl").
+  plan's last set in ("4 of 4 sets done.", with Complete beside it, while a set past the plan is
+  under way), and where a superset goes next ("Then Wrist curl").
+- **Moving on** (owner, 5 October 2026): once the plan's sets are in, the hand is led to what
+  comes next. The dock says "4 of 4 sets done." and its button is Complete with the exercise's
+  name, Log another set the tonal one under it; another set brings the entry back, and Complete
+  returns once it lands. A set already under way in the entry (typed, saving, failed or just
+  Saved) is never hidden for it. Done or Skipped, the dock's button is Back to the day ("Back to
+  Lower A"); Reopen and Unskip are in More, where a change of mind goes.
 
 ### Steppers
 
@@ -742,8 +763,9 @@ and every control answers a press.
   said once in the prescription and drawn once in the print. Where it stands is said only when it
   is news: a check when done, Resume on the one under way, Skipped when dropped. A row that opens
   (the workout's) ends in a chevron. The coach's note for an exercise is said whole on that
-  exercise's own screen; on a list (Today's card, the workout) the row ends in the speech glyph
-  instead of a note cut short, except a dropped exercise, whose note is why it was dropped.
+  exercise's own screen; on the workout's list, whose rows open it, the row ends in the speech
+  glyph instead of a note cut short, except a dropped exercise, whose note is why it was
+  dropped. Today's card, whose rows do not open, says the coach's summary and no glyph.
 - **The warm-up** is a row of the workout with its own Mark done at its end (Finish's outline
   pill, 36 pt in a 44-pt target; done, surface with its check, and a tap undoes it). The coach's
   warm-up is its lines, each whole on a line of its own; a protocol's is its drill count, which
@@ -783,7 +805,7 @@ and every control answers a press.
   discard your open session to start this one.").
 - The plan is folded until asked for: the head is a button with `aria-expanded`, and the plan,
   folded, is inert. Unfolded, the workout shows the coach's summary whole and its exercises (each
-  with its prescription and, where the coach wrote one, the speech glyph); a run, ride or swim
+  with its prescription); a run, ride or swim
   shows its steps, its targets, how to do it, the coach's word for it, and Skip or move. It
   unfolds in 220 ms ease-out, height and words together; with reduced motion it appears.
 - The card's next step is its own, the card's full width under its facts: Start workout (primary,
@@ -821,7 +843,9 @@ and every control answers a press.
 - **Headers:** a destination has its title and at most one action; a nested screen has a back
   link that names where it goes; a session screen has its back or minimise, the rest pill, and
   at most Finish and More. Today's head is the date and the cycle as seven squares, wordless while
-  the programme is on track; behind is news, so "25 behind" stands beside the squares.
+  the programme is on track; behind is news, so "25 days behind" stands beside the squares. The
+  squares are 9 pt and grow with the reader's text by half, as glyphs do (13.5 at 200%): days done
+  in ink, today ringed, a skipped day dashed, the rest a hairline.
 - **Tabs:** panels of one screen (Log, Technique, History) are a tablist over a tab panel: words
   on a hairline, where you are ink and underlined.
 - **Sections:** pages of their own are chosen by one button naming the current one, which opens a

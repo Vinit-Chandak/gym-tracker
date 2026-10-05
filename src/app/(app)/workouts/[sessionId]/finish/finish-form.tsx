@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState, type FormEvent } from "react";
 import { DiscardSessionButton } from "@/components/discard-session-button";
 import { useSessionDrafts } from "@/components/use-session-drafts";
 
@@ -35,8 +35,18 @@ export function FinishForm({
 }: Props) {
   const drafts = useSessionDrafts(userId, sessionId);
   const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
+  // Whether anything was typed above: with nothing logged, it decides which way out leads.
+  const [typed, setTyped] = useState(
+    () =>
+      (state.values?.notes ?? "") !== "" || (state.values?.bodyWeight ?? initialBodyWeight) !== "",
+  );
+  const notice = (event: FormEvent<HTMLFormElement>) => {
+    const form = event.currentTarget;
+    const filled = (field: string) => String(new FormData(form).get(field) ?? "").trim() !== "";
+    setTyped(filled("notes") || filled("bodyWeight"));
+  };
   return (
-    <form action={formAction} className="mt-3.5 space-y-3.5">
+    <form action={formAction} onInput={notice} className="mt-3.5 space-y-3.5">
       {/* Say that the coach reads this. It always could, and people wrote requests here
           expecting an answer; a field that looks like a diary should not be one. */}
       <Field label="Notes" hint="Your coach reads these" error={state.fieldErrors?.notes}>
@@ -51,18 +61,21 @@ export function FinishForm({
       </Field>
       <Field
         label={`Body weight (${unit})`}
-        hint="Optional — recorded as today's reading"
+        hint={
+          lastBodyWeight
+            ? `Optional. Last reading ${lastBodyWeight} ${unit}; what you type is today's.`
+            : "Optional. What you type is today's reading."
+        }
         error={state.fieldErrors?.bodyWeight}
       >
         <input type="hidden" name="unit" value={unit} />
-        {/* The last reading, greyed out, rather than a made-up example: someone who weighs
-            in daily is typing the day's small change against it. Left blank, nothing is
-            recorded — the placeholder is never submitted. */}
+        {/* The last reading is said beside the field, never shown in it: a grey figure in a
+            field is a suggestion that will be recorded (the logger's), and this one never was.
+            Left blank, nothing is recorded. */}
         <Input
           name="bodyWeight"
           inputMode="decimal"
           defaultValue={state.values?.bodyWeight ?? initialBodyWeight}
-          placeholder={lastBodyWeight || undefined}
         />
       </Field>
 
@@ -75,7 +88,7 @@ export function FinishForm({
             finishing.
           </p>
         )}
-        {nothingLogged ? (
+        {nothingLogged && !typed ? (
           <>
             {/* An empty session is better thrown away than kept as a record of nothing; one
                 with every exercise skipped can still be finished, and keeps its reasons. */}
@@ -91,6 +104,23 @@ export function FinishForm({
             <SubmitButton variant="text" pendingLabel="Finishing…" disabled={drafts > 0}>
               Finish anyway
             </SubmitButton>
+          </>
+        ) : nothingLogged ? (
+          <>
+            {/* Something was typed: finishing keeps it, so finishing leads, and the way that
+                drops it says so. */}
+            <p className="type-meta">
+              <span className="font-bold">Nothing logged.</span> Finish to keep what you typed;
+              discarding drops it with the session.
+            </p>
+            <SubmitButton pendingLabel="Finishing…" disabled={drafts > 0}>
+              Finish and keep it
+            </SubmitButton>
+            <DiscardSessionButton
+              sessionId={sessionId}
+              label="Discard session and what I typed"
+              disabled={drafts > 0}
+            />
           </>
         ) : (
           <SubmitButton pendingLabel="Finishing…" disabled={drafts > 0}>

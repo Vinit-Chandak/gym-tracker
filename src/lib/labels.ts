@@ -314,3 +314,6 @@ export const FOOD_UNIT_PLURALS: Partial<Record<FoodUnit, string>> = {
   scoop: "scoops",
   serving: "servings",
 };
+
+/** A workout that is not a programme day: its name wherever a day's name would stand. */
+export const UNPLANNED_SESSION = "Unplanned session";

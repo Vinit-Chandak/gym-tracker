@@ -132,6 +132,8 @@
   --ov-ground: var(--ov-light-ground);
   --ov-surface: var(--ov-light-surface);
   --ov-surface-2: var(--ov-light-surface-2);
+  --ov-surface-control: var(--ov-light-surface-control);
+  --ov-surface-control-pressed: var(--ov-light-surface-control-pressed);
   --ov-ink: var(--ov-light-ink);
   --ov-ink-2: var(--ov-light-ink-2);
   --ov-control: var(--ov-light-control);
@@ -281,6 +283,8 @@
     --ov-ground: var(--ov-dark-ground);
     --ov-surface: var(--ov-dark-surface);
     --ov-surface-2: var(--ov-dark-surface-2);
+    --ov-surface-control: var(--ov-dark-surface-control);
+    --ov-surface-control-pressed: var(--ov-dark-surface-control-pressed);
     --ov-ink: var(--ov-dark-ink);
     --ov-ink-2: var(--ov-dark-ink-2);
     --ov-control: var(--ov-dark-control);
@@ -323,6 +327,8 @@
   --ov-ground: var(--ov-dark-ground);
   --ov-surface: var(--ov-dark-surface);
   --ov-surface-2: var(--ov-dark-surface-2);
+  --ov-surface-control: var(--ov-dark-surface-control);
+  --ov-surface-control-pressed: var(--ov-dark-surface-control-pressed);
   --ov-ink: var(--ov-dark-ink);
   --ov-ink-2: var(--ov-dark-ink-2);
   --ov-control: var(--ov-dark-control);
@@ -379,6 +385,8 @@
     --ov-ground: Canvas;
     --ov-surface: Canvas;
     --ov-surface-2: Canvas;
+    --ov-surface-control: ButtonFace;
+    --ov-surface-control-pressed: ButtonFace;
     --ov-ink: CanvasText;
     --ov-ink-2: CanvasText;
     --ov-control: ButtonText;

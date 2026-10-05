@@ -271,3 +271,19 @@ describe("what the workout screen asks for next (ADR 0040)", () => {
     });
   });
 });
+
+describe("pounds", () => {
+  it("steps a pound lifter by the plate jump, never by 2.5 kg converted", () => {
+    const inPounds = (daysAgo: number) => {
+      const performance = session(daysAgo, 140, 5, 2);
+      return {
+        ...performance,
+        sets: performance.sets.map((set) => ({ ...set, unit: "lb" as const })),
+      };
+    };
+    const outcome = rule({ preferredUnit: "lb", history: [inPounds(2), inPounds(5)] });
+    expect(outcome.weightStep).toBe(5);
+    expect(outcome.suggestion?.kind).toBe("increase");
+    expect(weights(outcome)).toEqual([145, 145, 145]);
+  });
+});

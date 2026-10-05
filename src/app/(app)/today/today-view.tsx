@@ -7,17 +7,20 @@ import { ActivityCard } from "@/components/ui/activity-card";
 import { LinkButton } from "@/components/ui/button";
 import { CoachNote } from "@/components/ui/coach-note";
 import { FitTitle } from "@/components/ui/fit-title";
+import { Figures } from "@/components/ui/figures";
 import { Glyph } from "@/components/ui/glyphs";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { writtenSummaryForSport } from "@/domain/sport-scope";
 import type { WarmupDrill } from "@/domain/types";
 import { formatDateTime, formatIsoWeekdayDay, formatTime } from "@/lib/format";
+import { UNPLANNED_SESSION } from "@/lib/labels";
 import type { TodayCoachState } from "@/server/repositories/coach-plans";
 import type { ScheduledOccurrence } from "@/server/repositories/occurrences";
 import type { SessionSummary } from "@/server/repositories/sessions";
 import type { TodayPlan } from "@/server/repositories/schedule";
 
 import { CoachPending, CoachWaiting, type CoachGym } from "./coach-actions";
+import { DiscardedNote } from "./discarded-note";
 import { GymChoice, type SwitcherGym } from "./gym-switcher";
 import {
   CompleteRestButton,
@@ -50,6 +53,8 @@ export type TodayViewProps = {
   programmeOccurrences?: readonly ScheduledOccurrence[];
   /** What the athlete put on the calendar for today, which is dated today by definition. */
   standaloneOccurrences?: readonly ScheduledOccurrence[];
+  /** An empty session was just discarded, which Today says once. */
+  discarded?: boolean;
 };
 
 /**
@@ -142,16 +147,13 @@ function Empty({ title, children }: { title: string; children?: ReactNode }) {
 }
 
 /** "Started 17:23", or with its day when the session was left open from another one. */
-function started(session: SessionSummary, today: string, timeZone: string): string {
+/** "17:23", or with its day when the session was left open from another one. */
+function startedAt(session: SessionSummary, today: string, timeZone: string): string {
   const startedOn = todayInTimeZone(timeZone, new Date(session.startedAt));
-  return `Started ${
-    startedOn === today
-      ? formatTime(session.startedAt, timeZone)
-      : formatDateTime(session.startedAt, timeZone)
-  }`;
+  return startedOn === today
+    ? formatTime(session.startedAt, timeZone)
+    : formatDateTime(session.startedAt, timeZone);
 }
-
-const sets = (count: number) => `${count} ${count === 1 ? "set" : "sets"}`;
 
 /** "In progress · Started 17:23 · 0 sets", each part kept whole when the line wraps. */
 function Progress({
@@ -165,9 +167,16 @@ function Progress({
 }) {
   return (
     <>
+      {/* The figures in Jost, whose zero is plain (DESIGN.md, Typography): "0 sets", not "Ø". */}
       <span className="whitespace-nowrap">In progress</span> ·{" "}
-      <span className="whitespace-nowrap">{started(session, today, timeZone)}</span> ·{" "}
-      <span className="whitespace-nowrap">{sets(session.setCount)}</span>
+      <span className="whitespace-nowrap">
+        Started <Figures>{startedAt(session, today, timeZone)}</Figures>
+      </span>{" "}
+      ·{" "}
+      <span className="whitespace-nowrap">
+        <span className="figures">{session.setCount}</span>{" "}
+        {session.setCount === 1 ? "set" : "sets"}
+      </span>
     </>
   );
 }
@@ -183,6 +192,7 @@ export function TodayView({
   unit = "kg",
   programmeOccurrences = [],
   standaloneOccurrences = [],
+  discarded = false,
 }: TodayViewProps) {
   const defaultGym =
     gyms.find((gym) => (coach?.selectedGymId ? gym.id === coach.selectedGymId : gym.isDefault)) ??
@@ -193,7 +203,12 @@ export function TodayView({
   const coachPlan = coach?.plan && coach.matchesGym && !coach.pending ? coach.plan : null;
   const coachGyms: CoachGym[] = gyms
     .filter((gym) => coach?.workflow || gym.kind === "gym")
-    .map((gym) => ({ id: gym.id, name: gym.name, isDefault: gym.id === defaultGym?.id }));
+    .map((gym) => ({
+      id: gym.id,
+      name: gym.name,
+      kind: gym.kind,
+      isDefault: gym.id === defaultGym?.id,
+    }));
 
   const sessionStatus = plan?.sessionStatus ?? "pending";
   const restDay = day !== null && !day.includesLifting && !day.includesRun;
@@ -268,7 +283,7 @@ export function TodayView({
     <li>
       <ActivityCard
         mark={<Art kind="mark" sport="strength" size={22} state="todo" />}
-        title={inProgress.dayName ?? "Ad hoc session"}
+        title={inProgress.dayName ?? UNPLANNED_SESSION}
         facts={
           <Fact glyph="pin" label="Gym">
             {inProgress.gymName}
@@ -280,7 +295,12 @@ export function TodayView({
           </State>
         }
         actions={
-          <LinkButton href={`/workouts/${inProgress.id}`} size="lg" className="w-full">
+          <LinkButton
+            href={`/workouts/${inProgress.id}`}
+            size="lg"
+            className="w-full"
+            aria-label={`Resume session: ${inProgress.dayName ?? UNPLANNED_SESSION}`}
+          >
             <Glyph name="play" className="glyph-20" />
             Resume
           </LinkButton>
@@ -334,7 +354,11 @@ export function TodayView({
                 />
               )
             )}
-            {day.timeNote && <Fact glyph="rest">{day.timeNote}</Fact>}
+            {day.timeNote && (
+              <Fact glyph="rest">
+                <Figures>{day.timeNote}</Figures>
+              </Fact>
+            )}
             {day.focus && <Fact glyph="target">{day.focus}</Fact>}
             {coachPlan && <Fact glyph="coach">Planned by the coach</Fact>}
           </>
@@ -373,7 +397,7 @@ export function TodayView({
                 </CoachNote>
               )}
               <ul aria-label={`${day.name}: the exercises`} className="activity-card-passage">
-                <PlanRows rows={rows} notes="glyph" isLast />
+                <PlanRows rows={rows} notes="none" isLast />
               </ul>
             </div>
           ) : undefined
@@ -433,7 +457,11 @@ export function TodayView({
         facts={
           (day.timeNote || day.focus) && (
             <>
-              {day.timeNote && <Fact glyph="rest">{day.timeNote}</Fact>}
+              {day.timeNote && (
+                <Fact glyph="rest">
+                  <Figures>{day.timeNote}</Figures>
+                </Fact>
+              )}
               {day.focus && <Fact glyph="target">{day.focus}</Fact>}
             </>
           )
@@ -534,6 +562,7 @@ export function TodayView({
             <CycleMark cells={cycleCells(plan)} label={cycleLabel(plan)} behind={plan.behind} />
           )}
         </header>
+        {discarded && <DiscardedNote />}
 
         {/* The day's print stands over the day it draws: at the top, or under Up next once
             today's day is done and the next one is on offer. */}
@@ -543,12 +572,18 @@ export function TodayView({
 
         {gyms.length === 0 ? (
           <Empty title="Add a gym to start training">
+            <p className="mt-2 type-body text-ink-2">
+              Its equipment decides which exercises your plan can use, and how far a load steps up.
+            </p>
             <LinkButton href="/gyms/new" size="lg" className="mt-4 w-full">
               Add your first gym
             </LinkButton>
           </Empty>
         ) : !plan ? (
           <Empty title="No programme">
+            <p className="mt-2 type-body text-ink-2">
+              A programme sets each day&apos;s workout. Without one, start an unplanned session.
+            </p>
             <div className="mt-4 flex flex-col gap-2">
               <LinkButton href="/profile/programme" size="lg" className="w-full">
                 Choose a programme

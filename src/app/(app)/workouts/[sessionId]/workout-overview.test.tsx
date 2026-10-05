@@ -4,7 +4,12 @@ import type { ComponentProps } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import type { ExerciseVM, SessionVM, SetVM } from "./view-model";
-import { WorkoutOverview } from "./workout-overview";
+import { draftsWarning, WorkoutOverview } from "./workout-overview";
+
+/** The innermost element whose whole text is `text`: a fact's figures stand in spans of their own. */
+const whole = (text: string) => (_: string, element: Element | null) =>
+  element?.textContent === text &&
+  ![...element.children].some((child) => child.textContent === text);
 
 const actions = vi.hoisted(() => ({ warmup: vi.fn() }));
 vi.mock("@/components/ui/app-link", () => ({
@@ -171,7 +176,6 @@ function show(patch: Partial<ComponentProps<typeof WorkoutOverview>> = {}) {
     <WorkoutOverview
       session={SESSION}
       readOnly={false}
-      hasDrafts={false}
       onOpenExercise={open}
       onOpenDetails={() => {}}
       onEditSuperset={() => {}}
@@ -197,22 +201,39 @@ afterEach(cleanup);
 it("is the session's layer: Minimise to Today, Finish and More", () => {
   show();
   expect(screen.getByRole("heading", { level: 1, name: "Upper A" })).toBeTruthy();
+  // One heading for the one name: no second, hidden one beside it.
+  expect(screen.getAllByRole("heading", { name: /Upper A/ })).toHaveLength(1);
   expect(screen.getByRole("link", { name: "Minimise the workout" }).getAttribute("href")).toBe(
     "/today",
   );
   expect(screen.getByRole("link", { name: "Finish" }).getAttribute("href")).toBe(
     `/workouts/${SESSION.id}/finish`,
   );
-  expect(
-    screen.getByRole("button", { name: "Session details, add exercise, superset" }),
-  ).toBeTruthy();
-  expect(screen.getByText("70–90 min")).toBeTruthy();
+  // Add exercise and Superset stand under the list, so More is the session's details alone.
+  expect(screen.getByRole("button", { name: "Session details" })).toBeTruthy();
+  expect(screen.getAllByRole("link", { name: "Add exercise" })).toHaveLength(1);
+  expect(screen.getAllByRole("button", { name: "Superset" })).toHaveLength(1);
+  expect(screen.getByText(whole("70–90 min"))).toBeTruthy();
 });
 
-it("holds Finish back while a set draft is unsaved", () => {
-  show({ hasDrafts: true });
+it("holds Finish back while a set draft is unsaved, and says where", () => {
+  show({ drafts: { count: 1, names: ["Barbell bench press"] } });
   expect(screen.queryByRole("link", { name: "Finish" })).toBeNull();
-  expect(screen.getByText(/Unsaved set drafts on this device/)).toBeTruthy();
+  const finish = screen.getByRole("button", { name: "Finish" });
+  expect(finish.getAttribute("aria-disabled")).toBe("true");
+  const why = document.getElementById(finish.getAttribute("aria-describedby")!);
+  expect(why?.textContent).toBe(
+    "A set in Barbell bench press is not saved yet. Save or remove it before finishing.",
+  );
+});
+
+it("names every exercise holding drafts, and none it cannot find", () => {
+  expect(draftsWarning({ count: 3, names: ["Barbell bench press", "Plank"] })).toBe(
+    "Sets in Barbell bench press and Plank are not saved yet. Save or remove them before finishing.",
+  );
+  expect(draftsWarning({ count: 2, names: [] })).toBe(
+    "Sets on this device are not saved yet. Save or remove them before finishing.",
+  );
 });
 
 it("says where a row stands only when that is news", () => {

@@ -74,3 +74,18 @@ it("does not count the same page, or one of its own sub-pages, as somewhere to g
   window.history.pushState({}, "", "/workouts/abc/add-exercise");
   expect(previousPageFrom("/workouts/abc/add-exercise")).toBe("/workouts/abc");
 });
+
+it("tells subscribers of Next's own entries after the commit, and the app's at once", async () => {
+  window.history.replaceState(null, "", "/today");
+  stop = trackNavigationHistory();
+  const heard: string[] = [];
+  const listener = () => heard.push(window.location.pathname);
+  window.addEventListener("overload-navigation-history", listener);
+  window.history.pushState({}, "", "/workouts/abc");
+  expect(heard).toEqual(["/workouts/abc"]);
+  window.history.pushState({ __NA: true }, "", "/workouts/abc/finish");
+  expect(heard).toEqual(["/workouts/abc"]);
+  await Promise.resolve();
+  expect(heard).toEqual(["/workouts/abc", "/workouts/abc/finish"]);
+  window.removeEventListener("overload-navigation-history", listener);
+});

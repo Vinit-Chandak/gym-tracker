@@ -1,11 +1,17 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
+import type { ComponentProps } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 
-import { StartPlannedButton } from "./plan-actions";
-import { startPlannedSessionAction } from "@/server/actions/sessions";
+import { StartAdHocButton, StartPlannedButton } from "./plan-actions";
 
-vi.mock("@/server/actions/sessions", () => ({ startPlannedSessionAction: vi.fn() }));
+vi.mock("@/components/ui/app-link", () => ({
+  default: (props: ComponentProps<"a">) => <a {...props} />,
+}));
+vi.mock("@/server/actions/sessions", () => ({
+  completeRestSlotAction: vi.fn(),
+  skipSlotAction: vi.fn(),
+}));
 vi.mock("next/navigation", () => ({ unstable_rethrow: () => {} }));
 
 afterEach(cleanup);
@@ -22,27 +28,39 @@ it("names the day without dropping the words the button shows", () => {
   );
   // Someone reading the screen says "Start workout"; a name of "Start Lower A" answers to
   // neither that nor the day, so the visible words have to be part of it.
-  const button = screen.getByRole("button", { name: "Start workout: Lower A" });
-  expect(button.textContent).toBe("Start workout");
+  const start = screen.getByRole("link", { name: "Start workout: Lower A" });
+  expect(start.textContent).toBe("Start workout");
 });
 
-it("leaves the button's own label alone when there is no day to name", () => {
+it("goes on to the check-in, which is what starts the session", () => {
   render(
-    <StartPlannedButton gymId="gym-1" programDayId="day-1" dayIndex={1} label="Start workout" />,
+    <StartPlannedButton
+      gymId="gym-1"
+      programDayId="day-1"
+      dayIndex={3}
+      fromCycleIndex={2}
+      label="Start workout"
+    />,
   );
-  expect(screen.getByRole("button", { name: "Start workout" })).toBeTruthy();
+  // Nothing is created by the tap: backing out of the check-in leaves no session behind.
+  expect(screen.getByRole("link", { name: "Start workout" }).getAttribute("href")).toBe(
+    "/workouts/start?gym=gym-1&day=day-1&index=3&cycle=2",
+  );
 });
 
-it("keeps the start button usable after a lost connection and permits a retry", async () => {
-  const start = vi.mocked(startPlannedSessionAction);
-  start.mockRejectedValueOnce(new TypeError("Failed to fetch"));
-  start.mockResolvedValueOnce(undefined as never);
+it("starts an unplanned session the same way, at the gym alone", () => {
+  render(<StartAdHocButton gymId="gym-1" />);
+  expect(
+    screen.getByRole("link", { name: "Start an unplanned session" }).getAttribute("href"),
+  ).toBe("/workouts/start?gym=gym-1");
+});
+
+it("holds Start until there is a gym to train at", () => {
   render(
-    <StartPlannedButton gymId="gym-1" programDayId="day-1" dayIndex={1} label="Start workout" />,
+    <StartPlannedButton gymId={null} programDayId="day-1" dayIndex={1} label="Start workout" />,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Start workout" }));
-  expect((await screen.findByRole("alert")).textContent).toMatch(/check your connection/i);
-  fireEvent.click(await screen.findByRole("button", { name: "Start workout" }));
-  await waitFor(() => expect(start).toHaveBeenCalledTimes(2));
-  await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+  expect(
+    (screen.getByRole("button", { name: "Start workout" }) as HTMLButtonElement).disabled,
+  ).toBe(true);
+  expect(screen.queryByRole("link")).toBeNull();
 });

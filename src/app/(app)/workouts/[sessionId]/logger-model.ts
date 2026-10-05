@@ -1,4 +1,4 @@
-import type { GlyphName } from "@/components/ui/glyphs";
+import { GLYPH_LABELS, type GlyphName } from "@/components/ui/glyphs";
 import { emWidth, onRamp } from "@/components/ui/fit";
 import type { PrescriptionType, SetType } from "@/domain/types";
 import { targetsLine } from "@/components/planned-exercises";
@@ -175,6 +175,26 @@ export function restSecondsOf(exercise: ExerciseVM): number | null {
 }
 
 /**
+ * What this gym's machine adds to the meta line: "on Cable station", "with Dumbbells". Nothing
+ * where the exercise's name already says it ("High-bar barbell squat" on Barbell, "Smith machine
+ * calf raise" on Smith machine), so the line never repeats the title.
+ */
+export function equipmentFact(exercise: ExerciseVM): string | null {
+  const equipment = exercise.equipment?.name;
+  if (!equipment) return null;
+  const words = (text: string) =>
+    text
+      .toLowerCase()
+      .split(/[^\p{L}\p{N}°]+/u)
+      .filter(Boolean)
+      .map((word) => word.replace(/s$/, ""));
+  const named = new Set(words(exercise.exercise.name));
+  if (words(equipment).every((word) => named.has(word))) return null;
+  const free = ["barbell", "dumbbell"].includes(exercise.exercise.modality);
+  return `${free ? "with" : "on"} ${equipment}`;
+}
+
+/**
  * The machine, or what stands in for one. The gym itself is session context, not row chrome.
  * Whether the gym has what the exercise needs is the resolver's to say (ADR 0041), shown as the
  * decision block; this line only says what the exercise is done with.
@@ -186,6 +206,17 @@ export function equipmentLine(exercise: ExerciseVM): string {
   if (exercise.exercise.modality === "bodyweight") return "Bodyweight";
   if (["barbell", "dumbbell"].includes(exercise.exercise.modality)) return "Free weights";
   return "Machine not chosen";
+}
+
+/**
+ * What a row's equipment glyph says aloud: the machine, unless the exercise's name already says
+ * it ("45° leg press" on the 45° leg press), and then only what kind it is, so a screen reader
+ * does not read the name twice.
+ */
+export function equipmentLabel(exercise: ExerciseVM): string {
+  return exercise.equipment && equipmentFact(exercise) === null
+    ? GLYPH_LABELS[equipmentGlyph(exercise)]
+    : equipmentLine(exercise);
 }
 
 /**

@@ -3,6 +3,7 @@
 import type { Route } from "next";
 import {
   useEffect,
+  useId,
   useLayoutEffect,
   useRef,
   useState,
@@ -18,24 +19,44 @@ import Link from "@/components/ui/app-link";
 import { Button, LinkButton } from "@/components/ui/button";
 import { CoachNote } from "@/components/ui/coach-note";
 import { CoachNoteMore } from "@/components/ui/coach-note-more";
+import { Figures } from "@/components/ui/figures";
 import { FitTitle } from "@/components/ui/fit-title";
-import { GLYPH_LABELS, Glyph } from "@/components/ui/glyphs";
+import { Glyph } from "@/components/ui/glyphs";
 import { Sheet } from "@/components/ui/sheet";
 import { formatSet } from "@/domain/sets";
-import { LOAD_UNIT_LABELS } from "@/lib/labels";
+import { LOAD_UNIT_LABELS, UNPLANNED_SESSION } from "@/lib/labels";
 import { attempted } from "@/lib/offline-submit";
 import { cn } from "@/lib/utils";
 import { setWarmupCompletedAction } from "@/server/actions/sessions";
 
 import {
   equipmentGlyph,
+  equipmentLabel,
   equipmentLine,
   isWarmup,
   plannedSets,
   prescriptionLabel,
 } from "./logger-model";
-import { MoreSheet, type MoreOption } from "./logger-sheets";
 import type { ExerciseVM, SessionVM } from "./view-model";
+
+/** Set drafts held on this device: how many, and the names of the exercises they are in. */
+export type Drafts = { count: number; names: readonly string[] };
+
+const NO_DRAFTS: Drafts = { count: 0, names: [] };
+
+const LIST = new Intl.ListFormat("en-GB", { type: "conjunction" });
+
+/**
+ * Why Finish waits, and where: "A set in Barbell bench press is not saved yet." A draft whose
+ * exercise has left the session still holds Finish back, so it is said without a name.
+ */
+export function draftsWarning({ count, names }: Drafts): string {
+  const one = count === 1;
+  const where = names.length > 0 ? `in ${LIST.format(names)}` : "on this device";
+  return one
+    ? `A set ${where} is not saved yet. Save or remove it before finishing.`
+    : `Sets ${where} are not saved yet. Save or remove them before finishing.`;
+}
 
 /** Sets of the work done so far, warm-ups aside. */
 const workDone = (exercise: ExerciseVM) => exercise.sets.filter((set) => !isWarmup(set.setType));
@@ -235,7 +256,7 @@ function WarmupRow({
   const title = <span className={cn("plan-row-name", done && "text-ink-2")}>{name}</span>;
   return (
     <li className={cn("plan-row workout-row workout-warmup", last && "plan-row-last")}>
-      <span className="flex min-w-0 flex-1 flex-col">
+      <span className="workout-warmup-text flex min-w-0 flex-col">
         {lines.length > 0 ? (
           <span className="workout-warmup-open">
             {title}
@@ -301,11 +322,12 @@ function WarmupRow({
 type OverviewProps = {
   session: SessionVM;
   readOnly: boolean;
-  hasDrafts: boolean;
+  /** Set drafts on this device, which hold Finish back until they are saved or removed. */
+  drafts?: Drafts;
   onOpenExercise: (workoutExerciseId: string) => void;
   onOpenDetails: () => void;
   onEditSuperset: (group: string | null) => void;
-  /** The day's name, or "Ad hoc session". */
+  /** The day's name, or UNPLANNED_SESSION. */
   title?: string;
   /** Where minimising goes: Today, or wherever the session was opened from. */
   backHref?: Route;
@@ -334,11 +356,11 @@ export function addedLine(names: readonly string[]): string {
 export function WorkoutOverview({
   session,
   readOnly,
-  hasDrafts,
+  drafts = NO_DRAFTS,
   onOpenExercise,
   onOpenDetails,
   onEditSuperset,
-  title = session.day?.name ?? "Ad hoc session",
+  title = session.day?.name ?? UNPLANNED_SESSION,
   backHref = "/today",
   layer = false,
   listScrollRef,
@@ -346,6 +368,8 @@ export function WorkoutOverview({
 }: OverviewProps) {
   const bodyRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLElement>(null);
+  const hasDrafts = drafts.count > 0;
+  const draftsId = useId();
   const actionsRef = useRef<HTMLSpanElement>(null);
   // Folded, never dropped: when the reader's text is so large that Minimise, the rest pill,
   // Finish and More cannot share a line, the pill and Finish stand on a line of their own.
@@ -401,7 +425,7 @@ export function WorkoutOverview({
     };
   }, [firstAdded, addedWords]);
   const [warmupDone, setWarmupDone] = useState(session.warmupCompleted);
-  const [sheet, setSheet] = useState<"more" | "warmup" | null>(null);
+  const [sheet, setSheet] = useState<"warmup" | null>(null);
   const coachPlanned = session.coachPlan !== null;
   const heading = coachPlanned ? `${title}, planned by the coach` : title;
   const blades = session.coachPlan?.warmup.length || session.warmup?.drills.length || 0;
@@ -454,8 +478,8 @@ export function WorkoutOverview({
             {!skipped && (
               <span className="meta-line plan-row-meta">
                 <span className="meta-fact">
-                  <Glyph name={glyph} label={GLYPH_LABELS[glyph]} className="glyph-16" />
-                  <span>{rowLine(exercise, session, readOnly)}</span>
+                  <Glyph name={glyph} label={equipmentLabel(exercise)} className="glyph-16" />
+                  <Figures>{rowLine(exercise, session, readOnly)}</Figures>
                   {instead && <span>instead of {instead}</span>}
                 </span>
               </span>
@@ -498,34 +522,13 @@ export function WorkoutOverview({
     );
   };
 
-  const more: MoreOption[] = [
-    { glyph: "note", label: "Session details", onSelect: onOpenDetails },
-    ...(!readOnly
-      ? ([
-          {
-            glyph: "plus",
-            label: "Add exercise",
-            href: `/workouts/${session.id}/add-exercise` as Route,
-          },
-          {
-            glyph: "link",
-            label: "Superset",
-            onSelect: () => onEditSuperset(null),
-            disabled: session.exercises.length < 2,
-          },
-        ] satisfies MoreOption[])
-      : []),
-  ];
-
   const content: ReactNode = (
     <>
+      {/* One heading, the name on the screen; the meta line under it says who planned it. */}
       {layer && (
-        <>
-          <h1 className="sr-only">{heading}</h1>
-          <FitTitle sizes={{ base: 34, narrow: 30 }} room={30} className="mt-0.5">
-            {title}
-          </FitTitle>
-        </>
+        <FitTitle as="h1" sizes={{ base: 34, narrow: 30 }} room={30} className="mt-0.5">
+          {title}
+        </FitTitle>
       )}
       <p className="meta-line mt-1">
         {/* A finished workout's header already names the gym. */}
@@ -538,7 +541,7 @@ export function WorkoutOverview({
         {session.day?.timeNote && (
           <span className="meta-fact">
             <Glyph name="rest" className="glyph-16" />
-            {session.day.timeNote}
+            <Figures>{session.day.timeNote}</Figures>
           </span>
         )}
         {coachPlanned && (
@@ -593,9 +596,13 @@ export function WorkoutOverview({
         <CoachNoteMore className="mt-3">{session.coachPlan.summary}</CoachNoteMore>
       )}
       {!readOnly && hasDrafts && (
-        <p role="status" className="mt-3 flex items-start gap-2 type-meta font-semibold">
+        <p
+          id={draftsId}
+          role="status"
+          className="mt-3 flex items-start gap-2 type-meta font-semibold"
+        >
           <Glyph name="warn" className="mt-px glyph-18" />
-          Unsaved set drafts on this device. Save or remove them before finishing.
+          <span className="min-w-0 [overflow-wrap:anywhere]">{draftsWarning(drafts)}</span>
         </p>
       )}
 
@@ -667,7 +674,6 @@ export function WorkoutOverview({
         onDone={setWarmupDone}
         onClose={() => setSheet(null)}
       />
-      <MoreSheet open={sheet === "more"} options={more} onClose={() => setSheet(null)} />
     </>
   );
 
@@ -679,7 +685,7 @@ export function WorkoutOverview({
         <Link
           href={backHref}
           aria-label="Minimise the workout"
-          className="session-icon-button -ml-2.5"
+          className="session-icon-button -ml-[10px]"
         >
           <Glyph name="chevronDown" className="glyph-24" />
         </Link>
@@ -687,23 +693,39 @@ export function WorkoutOverview({
         <span ref={actionsRef} className="workout-head-actions">
           {session.restTimerEnabled && <RestPill sessionId={session.id} />}
           {hasDrafts ? (
-            <span aria-disabled="true" className="finish-pill">
+            // Held, it says why: the sentence it points at, which a tap brings into view.
+            <button
+              type="button"
+              aria-disabled="true"
+              aria-describedby={draftsId}
+              onClick={() =>
+                document.getElementById(draftsId)?.scrollIntoView({
+                  block: "center",
+                  behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+                    ? "auto"
+                    : "smooth",
+                })
+              }
+              className="finish-pill"
+            >
               <span className="text-ink-2">Finish</span>
-            </span>
+            </button>
           ) : (
             <Link href={`/workouts/${session.id}/finish`} className="finish-pill">
               <span>Finish</span>
             </Link>
           )}
         </span>
+        {/* Add exercise and Superset stand under the list, so this is the session's details:
+            the notes glyph, not More's dots, which in the logger mean a sheet of options. */}
         <button
           type="button"
           aria-haspopup="dialog"
-          aria-label="Session details, add exercise, superset"
-          onClick={() => setSheet("more")}
-          className="session-icon-button -mr-2.5"
+          aria-label="Session details"
+          onClick={onOpenDetails}
+          className="session-icon-button -mr-[10px]"
         >
-          <Glyph name="more" className="glyph-24" />
+          <Glyph name="note" className="glyph-24" />
         </button>
       </header>
       <div

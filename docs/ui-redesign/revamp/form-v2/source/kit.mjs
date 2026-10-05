@@ -26,6 +26,9 @@ export const TOKENS = {
     ground: "#ffffff",
     surface: "#f4f4f5",
     surface2: "#e9e9ec",
+    // Tonal and round buttons: the surface in light, lifted in dark (owner, 5 October 2026).
+    surfaceControl: "#f4f4f5",
+    surfaceControlPressed: "#e9e9ec",
     ink: "#16171b",
     ink2: "#5b5d64",
     control: "#85878e",
@@ -64,6 +67,8 @@ export const TOKENS = {
     ground: "#111214",
     surface: "#1b1c20",
     surface2: "#26272c",
+    surfaceControl: "#2b2c32",
+    surfaceControlPressed: "#35363c",
     ink: "#edeef0",
     ink2: "#a3a6ae",
     control: "#73767e",
@@ -260,7 +265,7 @@ export function BTN(t, kind, { h = 56, w = null } = {}) {
   };
   const k = {
     primary: { background: t.ink, color: t.onInk },
-    tonal: { background: t.surface, color: t.ink },
+    tonal: { background: t.surfaceControl, color: t.ink },
     waiting: { background: t.surface, color: t.ink2 },
     outline: { background: "transparent", color: t.ink, border: `1.5px solid ${t.control}` },
     text: { background: "transparent", color: t.ink, padding: "0 10px" },
@@ -270,12 +275,12 @@ export function BTN(t, kind, { h = 56, w = null } = {}) {
   }[kind];
   return s({ ...base, ...k, ...(w ? { width: w, padding: 0 } : {}) });
 }
-// A round control: steppers and small actions. 44 pt, surface, ink glyph.
+// A round control: steppers and small actions. 44 pt, the control surface, ink glyph.
 export const roundBtn = (
   t,
   ic,
   aria,
-  { size = 44, fill = t.surface, col = t.ink, glyph = 20 } = {},
+  { size = 44, fill = t.surfaceControl, col = t.ink, glyph = 20 } = {},
 ) =>
   `<button type="button" aria-label="${esc(aria)}" style="${s({ width: size, height: size, "border-radius": 9999, background: fill, color: col, display: "grid", "place-items": "center", "flex-shrink": 0 })}">${icon(ic, glyph)}</button>`;
 

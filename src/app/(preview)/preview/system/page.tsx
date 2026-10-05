@@ -84,7 +84,8 @@ const TYPE: { role: string; spec: string; className: string; sample: string }[] 
 
 const INTERFACE = [
   ["Ground", "bg-ground", "The page"],
-  ["Surface", "bg-surface", "Steppers, tonal buttons, tiles, notes"],
+  ["Surface", "bg-surface", "Tiles, trays, notes, a waiting button"],
+  ["Control surface", "bg-surface-control", "Steppers and tonal buttons; lifted in dark"],
   ["Surface 2", "bg-surface-2", "Pressed, the switch's off track"],
   ["Ink", "bg-ink", "Text, figures, the main button, whatever is chosen"],
   ["Ink 2", "bg-ink-2", "Secondary text, suggested values, captions"],

@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "@/components/ui/app-link";
+import { Figures } from "@/components/ui/figures";
+import { Glyph } from "@/components/ui/glyphs";
 import { Sheet } from "@/components/ui/sheet";
 import { formatDateTime } from "@/lib/format";
 import { formatBodyWeight } from "@/lib/units";
@@ -15,11 +17,14 @@ export const CHECK_IN_LABELS: [keyof SessionVM, string][] = [
   ["soreness", "Soreness"],
 ];
 
+/** One fact: its name in ink 2 at the gutter, what it is in ink at the end, on a hair rule. */
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between gap-3 py-1">
-      <dt className="text-ink-muted">{label}</dt>
-      <dd className="text-right [overflow-wrap:anywhere] tabular-nums">{value}</dd>
+    <div className="flex min-h-11 items-center justify-between gap-3 border-b border-hair py-1.5">
+      <dt className="text-ink-2">{label}</dt>
+      <dd className="text-right font-semibold [overflow-wrap:anywhere] tabular-nums">
+        <Figures>{value}</Figures>
+      </dd>
     </div>
   );
 }
@@ -51,12 +56,22 @@ export function SessionDetails({
 
   return (
     <Sheet open={open} onClose={onClose} title="Session details">
-      <dl className="text-sm">
+      <dl className="type-meta">
         <Row label="Gym" value={session.gym.name} />
         <Row label="Started" value={formatDateTime(session.startedAt, session.timeZone)} />
         {durationMinutes !== null && <Row label="Duration" value={`${durationMinutes} min`} />}
         {session.day && <Row label="Programme day" value={session.day.name} />}
-        {session.cycleIndex !== null && <Row label="Cycle" value={String(session.cycleIndex)} />}
+        {/* "Cycle 1 of 8", as everywhere else the cycle is said. */}
+        {session.cycleIndex !== null && (
+          <Row
+            label="Cycle"
+            value={
+              session.cycles
+                ? `${session.cycleIndex} of ${session.cycles}`
+                : String(session.cycleIndex)
+            }
+          />
+        )}
         {session.bodyWeightKg !== null && (
           <Row
             label="Body weight"
@@ -66,32 +81,34 @@ export function SessionDetails({
       </dl>
 
       {session.notes && (
-        <div className="mt-4">
-          <h3 className="text-sm font-medium">Notes</h3>
-          <p className="mt-1 text-sm whitespace-pre-line text-ink-muted">{session.notes}</p>
-        </div>
+        <section className="mt-4">
+          <h3 className="caption-head">Notes</h3>
+          <p className="mt-1 type-meta whitespace-pre-line">{session.notes}</p>
+        </section>
       )}
 
-      <div className="mt-4">
-        <h3 className="text-sm font-medium">Check-in</h3>
+      <section className="mt-4">
+        <h3 className="caption-head">Check-in</h3>
         {readings.length === 0 ? (
-          <p className="mt-1 text-sm text-ink-muted">Nothing recorded before this session.</p>
+          <p className="mt-1 type-meta text-ink-2">Nothing recorded before this session.</p>
         ) : (
-          <dl className="mt-1 text-sm">
+          <dl className="mt-1 type-meta">
             {readings.map(([label, value]) => (
               <Row key={label} label={label} value={String(value)} />
             ))}
           </dl>
         )}
+        {/* A way to another screen: a row that ends in its chevron, not words that look read. */}
         {!readOnly && (
           <Link
             href={`/workouts/${session.id}/check-in`}
-            className="flex min-h-11 items-center text-sm font-medium text-accent"
+            className="flex min-h-[calc(52px+var(--ov-grow))] items-center justify-between gap-3 font-bold"
           >
             {readings.length === 0 ? "Add a check-in" : "Edit the check-in"}
+            <Glyph name="chevronRight" className="glyph-20 shrink-0 text-ink-2" />
           </Link>
         )}
-      </div>
+      </section>
     </Sheet>
   );
 }

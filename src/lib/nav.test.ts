@@ -12,6 +12,8 @@ import {
 it.each([
   ["/today", "/today"],
   ["/workouts/session/check-in", "/today"],
+  // The check-in before a workout, which has no session yet, is Today's too.
+  ["/workouts/start", "/today"],
   ["/training/activities/abc", "/training"],
   // Gyms left the tab bar; its screens keep Profile selected, the way it is reached.
   ["/gyms", "/profile"],

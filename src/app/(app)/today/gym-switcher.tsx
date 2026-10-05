@@ -3,13 +3,15 @@
 import { useState, useTransition } from "react";
 
 import Link from "@/components/ui/app-link";
+import { Button } from "@/components/ui/button";
 import { Glyph } from "@/components/ui/glyphs";
 import { Sheet } from "@/components/ui/sheet";
 import type { GymKind } from "@/domain/types";
-import { GYM_KIND_LABELS } from "@/lib/labels";
 import { attempted } from "@/lib/offline-submit";
 import { requestCoachPlanAction } from "@/server/actions/coach";
 import { setDefaultGymAction } from "@/server/actions/gyms";
+
+import { GymRows } from "./gym-rows";
 
 export type SwitcherGym = { id: string; name: string; kind: GymKind; isDefault: boolean };
 
@@ -31,24 +33,45 @@ export function GymChoice({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const current = gyms.find((gym) => (selectedGymId ? gym.id === selectedGymId : gym.isDefault));
+  // With the coach preparing sessions, a changed gym is a request (one of the day's few), so a
+  // tap only picks it and Prepare sends it: a mis-tap costs nothing.
+  const [picked, setPicked] = useState<string | null>(null);
+  const chosenId = picked ?? current?.id ?? null;
   const name = current ? current.name : "No default gym";
+  const pickedGym = gyms.find((gym) => gym.id === picked && gym.id !== current?.id) ?? null;
+
+  function close(): void {
+    setOpen(false);
+    setPicked(null);
+    setError(null);
+  }
 
   function choose(gymId: string): void {
+    if (workflow) {
+      setPicked(gymId);
+      return;
+    }
     startTransition(async () => {
       setError(null);
-      const outcome = await attempted(async () => {
-        if (workflow) {
-          if (gymId !== current?.id) {
-            return requestCoachPlanAction(gymId, "");
-          }
-        } else await setDefaultGymAction(gymId);
-        return { ok: true as const };
-      }, "Could not change gym. Check your connection and try again.");
+      const outcome = await attempted(
+        () => setDefaultGymAction(gymId).then(() => ({ ok: true as const })),
+        "Could not change gym. Check your connection and try again.",
+      );
+      if (!outcome.ok) setError(outcome.message);
+      else close();
+    });
+  }
+
+  function prepare(gymId: string): void {
+    startTransition(async () => {
+      setError(null);
+      const outcome = await attempted(
+        () => requestCoachPlanAction(gymId, ""),
+        "Could not change gym. Check your connection and try again.",
+      );
       if (!outcome.ok) setError(outcome.message);
       else if (!outcome.value.ok) setError(outcome.value.error);
-      else {
-        setOpen(false);
-      }
+      else close();
     });
   }
 
@@ -56,7 +79,7 @@ export function GymChoice({
     return (
       <span className="meta-fact">
         <Glyph name="pin" label="Gym" className="glyph-16" />
-        <span className="truncate">{name}</span>
+        <span className="[overflow-wrap:anywhere]">{name}</span>
       </span>
     );
 
@@ -70,11 +93,11 @@ export function GymChoice({
         className="gym-choice"
       >
         <Glyph name="pin" className="glyph-16" />
-        <span className="truncate">{name}</span>
-        <Glyph name="chevronDown" className="glyph-14" />
+        <span className="gym-choice-name">{name}</span>
+        <Glyph name="chevronDown" className="glyph-16" />
       </button>
 
-      <Sheet open={open} onClose={() => setOpen(false)} title="Choose gym">
+      <Sheet open={open} onClose={close} title="Choose gym">
         {workflow && (
           <p className="mt-1 type-meta text-ink-2">
             Choose the gym for your next session. A changed gym asks the coach to prepare for its
@@ -83,7 +106,7 @@ export function GymChoice({
         )}
         {pending && (
           <p role="status" className="mt-2 type-meta text-ink-2">
-            Changing gym…
+            {workflow ? "Asking the coach…" : "Changing gym…"}
           </p>
         )}
         {error && (
@@ -92,29 +115,17 @@ export function GymChoice({
             {error}
           </p>
         )}
-        <ul className="mt-1">
-          {gyms.map((gym, index) => (
-            <li key={gym.id} className={index < gyms.length - 1 ? "border-b border-hair" : ""}>
-              <button
-                type="button"
-                onClick={() => choose(gym.id)}
-                disabled={pending}
-                aria-pressed={gym.id === current?.id}
-                className="flex min-h-[calc(56px+var(--ov-grow))] w-full items-center gap-3 text-left disabled:text-ink-2"
-              >
-                <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate text-[length:var(--ov-type-button)] font-semibold">
-                    {gym.name}
-                  </span>
-                  <span className="type-meta-small text-ink-2">{GYM_KIND_LABELS[gym.kind]}</span>
-                </span>
-                {gym.id === current?.id && (
-                  <Glyph name="check" label="Chosen" className="glyph-20" />
-                )}
-              </button>
-            </li>
-          ))}
-        </ul>
+        <GymRows gyms={gyms} chosenId={chosenId} onChoose={choose} disabled={pending} />
+        {pickedGym && (
+          <Button
+            size="lg"
+            className="mt-3 w-full"
+            disabled={pending}
+            onClick={() => prepare(pickedGym.id)}
+          >
+            {pending ? "Asking…" : `Prepare for ${pickedGym.name}`}
+          </Button>
+        )}
         <Link
           href="/gyms"
           className="mt-2 flex min-h-[calc(52px+var(--ov-grow))] items-center justify-between border-t border-hair font-bold"

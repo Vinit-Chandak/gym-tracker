@@ -528,28 +528,36 @@ export function suggestNext(
         "The upper target was met twice.",
         "Review a feasible load or exercise variation before increasing beyond this range.",
       );
+    const longer = copy(previous).map((set) =>
+      !WORKING_SET_TYPES.has(set.setType)
+        ? set
+        : {
+            ...set,
+            rir: null,
+            rpe: null,
+            [field]:
+              set[field] === null
+                ? null
+                : Math.min(
+                    max ?? Infinity,
+                    set[field]! + Math.min(5, Math.max(1, Math.floor(set[field]! * 0.1))),
+                  ),
+          },
+    );
+    // Already at the top of the range, a longer set is the same set: that is a hold, not Add
+    // time over the very figures it was judged from.
+    if (longer.every((set, index) => set[field] === previous[index]?.[field]))
+      return hold(
+        "Every set already reaches the top of the range.",
+        "Review a feasible load or exercise variation before increasing beyond this range.",
+      );
     return base(
       prescription.prescriptionType === "duration" ? "extend" : "lengthen",
       basis,
       "Two comparable sessions met the target with suitable effort.",
       null,
       inc,
-      copy(previous).map((set) =>
-        !WORKING_SET_TYPES.has(set.setType)
-          ? set
-          : {
-              ...set,
-              rir: null,
-              rpe: null,
-              [field]:
-                set[field] === null
-                  ? null
-                  : Math.min(
-                      max ?? Infinity,
-                      set[field]! + Math.min(5, Math.max(1, Math.floor(set[field]! * 0.1))),
-                    ),
-            },
-      ),
+      longer,
     );
   }
   const decided = byCapacity(
