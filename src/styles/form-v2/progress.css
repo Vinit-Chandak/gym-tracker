@@ -1,7 +1,7 @@
 /*
  * Progress (DESIGN.md, Layout and Prints; boards Progress, Calendar, Day, Progress-History,
- * Running, Recovery, Body, Exercise): the month on paper, its totals as its legend, charts in
- * ink on the ground, and lists whose marks share one column.
+ * Running, Recovery, Body, Exercise): the month as a tile of paper for each day, its totals as
+ * its key, charts in ink on the ground, and lists whose marks share one column.
  */
 
 /* ---------- the opening: the title and its funnel, then the section and its range ---------- */
@@ -124,6 +124,96 @@
   border-bottom: 1px solid var(--ov-hair);
 }
 
+/* ---------- the month: a tile of paper for each day, an icon for each activity ---------- */
+.month {
+  --month-gap: 3px;
+  --month-grow: 0px;
+}
+/* A date is a Jost figure: it grows by half with the reader's text (12 at 100%, 18 at 200%),
+   and its tile grows by as much, so the icons keep their room under it. */
+.month-dated {
+  --month-grow: max(0px, calc(0.375rem - 6px));
+}
+.month-weekdays,
+.month-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--month-gap);
+}
+.month-weekdays {
+  height: 24px;
+  align-items: center;
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-print-label);
+  font-weight: 700;
+  text-align: center;
+}
+.month-day {
+  position: relative;
+  display: block;
+  height: calc(var(--month-day) + var(--month-grow));
+  background: var(--ov-paper);
+  color: var(--ov-print-label);
+}
+/* A day with nothing in it is a paler sheet: half the paper, half the ground. */
+.month-day-rest {
+  background: color-mix(in srgb, var(--ov-paper), var(--ov-ground));
+}
+/* A day to come keeps its place as an outline on the ground, its date faint. */
+.month-day-future {
+  border: 1px solid var(--ov-hair);
+  background: none;
+  color: var(--ov-control);
+}
+.month-day-today::after {
+  position: absolute;
+  inset: 0;
+  border: 2px solid var(--ov-print-ink);
+  content: "";
+  pointer-events: none;
+}
+.month-date {
+  position: absolute;
+  top: 5px;
+  left: 6px;
+  font-family: var(--ov-font-display);
+  font-size: calc(6px + 0.375rem);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-weight: 500;
+  line-height: 1;
+}
+.month-day-future > .month-date {
+  top: 4px;
+  left: 5px;
+}
+.month-day-today > .month-date {
+  color: var(--ov-print-ink);
+  font-weight: 700;
+}
+/* The icons, centred in the tile, or on the calendar page in the room under its date. */
+.month-icons {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.month-dated .month-icons {
+  top: calc(15px + var(--month-grow));
+}
+/* Every past day of the month is a link: under 375 pt, and with Android's 48-dp targets, the
+   month runs to the screen's edges so each of its seven days keeps a full target
+   ((320 − 6 × 2) / 7 = 44 pt; (360 − 6 × 2) / 7 = 49.7 dp). */
+@media (width < 375px) {
+  .month {
+    --month-gap: 2px;
+    margin-inline: calc(-1 * var(--ov-gutter));
+  }
+}
+:where([data-overload-platform="android"]) .month {
+  margin-inline: calc(-1 * var(--ov-gutter));
+}
+
 /* ---------- the calendar: the months under a header that stays ---------- */
 .calendar-head {
   position: sticky;
@@ -132,44 +222,43 @@
   padding-bottom: 4px;
   background: var(--ov-ground);
 }
-.calendar-legend {
+/* Each month's name, and how many of each sport it holds, each led by its icon. */
+.calendar-month {
   display: flex;
+  min-height: 28px;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 14px;
-  margin-top: 6px;
-  color: var(--ov-ink-2);
-  font-size: var(--ov-type-caption);
-  font-weight: 600;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding: 22px 0 8px;
 }
-.calendar-legend > span {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-.calendar-month {
-  padding: 14px 0 6px;
+.calendar-month > h2 {
   font-size: var(--ov-type-heading);
   font-weight: 700;
 }
-/* Every past day of the month is a link: under 375 pt, and with Android's 48-dp targets, the
-   month's paper runs to the screen's edges so each of its seven days keeps a full target
-   ((320 − 12) / 7 = 44 pt; (360 − 12) / 7 = 49.7 dp). */
-@media (width < 375px) {
-  .month-paper {
-    margin-inline: calc(-1 * var(--ov-gutter));
-  }
+.calendar-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  color: var(--ov-ink-2);
+  font-family: var(--ov-font-display);
+  font-size: calc(7.5px + 0.46875rem); /* 15, k 0.5 */
+  font-variant-numeric: tabular-nums lining-nums;
+  font-weight: 600;
 }
-:where([data-overload-platform="android"]) .month-paper {
-  margin-inline: calc(-1 * var(--ov-gutter));
+.calendar-counts > li {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
 }
 /* The months below the screen are laid out as they scroll into view: the calendar opens on its
-   last month without first building every month before it. The paper is what is skipped, and it
-   clips at its own box, so where it runs to the screen's edges it is cut there and nowhere
+   last month without first building every month before it. The month is what is skipped, and
+   it clips at its own box, so where it runs to the screen's edges it is cut there and nowhere
    nearer. */
-.calendar-section > .month-paper {
+.calendar-section > .month {
   content-visibility: auto;
-  contain-intrinsic-size: auto 318px;
+  contain-intrinsic-size: auto 326px;
 }
 
 /* ---------- Running: the runs ---------- */

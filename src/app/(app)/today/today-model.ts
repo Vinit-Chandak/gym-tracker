@@ -1,6 +1,5 @@
 import type { PrintPart, StrengthColumn } from "@/components/art/geometry";
 import { modalityGlyph, type GlyphName } from "@/components/ui/glyphs";
-import { enduranceMinutes } from "@/components/activities/endurance-line";
 import type { ActivitySport } from "@/domain/activity";
 import type { StoredPlanExercise } from "@/domain/session-plan";
 import { prescription, targetsLine, volumeRange } from "@/components/planned-exercises";
@@ -169,7 +168,6 @@ export function todayParts({
       ? null
       : {
           kind: PRINT_SPORT[occurrence.sport],
-          minutes: enduranceMinutes(occurrence.prescription),
           state:
             occurrence.disposition === "skipped"
               ? "skipped"

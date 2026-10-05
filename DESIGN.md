@@ -353,10 +353,11 @@ Overload is a black-and-white instrument that stays out of the way between sets:
 light ink on near-black in dark, two typefaces, flat surfaces and hairlines. The only colour is
 the art. Prints are generative, Bauhaus-like compositions drawn from what the athlete has logged
 and nothing else, so the art is the record and the reward at once. A day's print says what is
-owed and fills with ink as it is done; a month's print holds every activity of every day.
+owed and fills with ink as it is done; the month holds every activity of every day, a tile of
+paper for each day and an icon for each activity.
 
 The prints have a grammar, and it grows with the app. How the body moves gives the form and its
-pigment: a block for load, a track for on foot, a wheel for on wheels, a wave for in water, a
+pigment: a block for load, a runner for on foot, a wheel for on wheels, a wave for in water, a
 fan for practice, a bowl for food and a triangle, reserved, for play. Every form stands on one
 module grid and one baseline, with nothing drawn under it, and the composition sits in the middle
 of its paper. State is thinned (to do), full (done) or dashed (skipped); context (structure,
@@ -434,8 +435,9 @@ same pigment.
 - **Warm-up** (`mark-warm-up` on the ground; `print-warm-up` on paper): a warm-up set, done but
   not in the volume.
 - **Print Paper** (`print-paper`; `print-paper-dark`), **Print Ink**, **Print Label** and
-  **Print Dot**: the paper of every print and of the calendar, the calendar's weekday letters
-  and dates, and (Print Dot, 3:1 on the paper) its empty-day dot and the edge of a warm-up block. The paper has a grain: multiply at 6% in light, screen at 4.5% in dark.
+  **Print Dot**: the paper of every print and of the calendar's days, the calendar's dates and
+  today's ring, and (Print Dot, 3:1 on the paper) the edge of a warm-up block. A day with nothing
+  in it is a paler sheet, the paper mixed half and half with the ground. The paper has a grain: multiply at 6% in light, screen at 4.5% in dark.
 - **Scrim** (`scrim`; `scrim-dark`): under every sheet.
 
 ### Named Rules
@@ -443,8 +445,8 @@ same pigment.
 **The Black-and-White Rule.** The interface is ink on ground. Colour appears only in prints and
 in sport marks (and the app's mark), and each pigment means one family of sport. A pigment never
 marks status, an error, a link, emphasis, a selection or a chart: warnings, failures, selected
-text and every Progress chart are ink. The calendar is not a chart: it is pulled on paper, and its
-marks are the sports' own.
+text and every Progress chart are ink. The calendar is not a chart: its days are paper, and its
+icons are in the sports' own pigments.
 
 **The Thinned, Full, Dashed Rule.** Thinned pigment with an edge of the full pigment is to do;
 full pigment is done; a dashed edge is skipped. A warm-up is grey. Dashed means skipped and
@@ -567,19 +569,24 @@ under 360 pt wide.
   module between sets, 0.34 between exercises, 0.14 between a superset's two columns, a whole
   module between parts, which stand in the order of the rows under them on one baseline. No line
   is drawn under them, and the whole composition is centred on its paper, across and down. Every
-  other form is a whole number of modules tall, gaps included; a wheel, a fan and a bowl are as
-  wide as they are tall; a run's track is a module tall and a module longer for every 20
-  minutes.
-- **The month:** the first calendar's style: pulled on paper like a print, the weekdays across
-  the top, a dot for a day with nothing in it, each activity its sport's mark. A day's marks
-  stand together in its cell: one at 40% of its height, two side by side, three or four in two
-  rows; past four, `+N`. Nothing is drawn under a mark. Today is ringed; days to come are
-  blank and are not links; every past day is a link named with what it holds. The overview
-  shows the pattern alone; the calendar page adds each date, small, in Jost, in its cell's corner
-  and inside today's ring; a date grows with the reader's text as a figure does (by half) and its
-  cell grows with it, so marks never sit under a date. Every day is a full target: under 375 pt,
-  and on Android, the month's paper runs to the screen's edges. The
-  totals under the overview name each sport, so they are its legend.
+  other form is a whole number of modules tall, gaps included; a runner, a wheel, a fan and a
+  bowl are as wide as they are tall; a runner is two modules tall, the same every day: a print
+  does not measure a run.
+- **The month:** the weekdays across the top (Print Label, 12, 700, ink 2), then a tile of paper
+  for each day, 3 pt apart, every tile the same size so no week grows with what it holds. A day
+  with nothing in it is a paler sheet; a day to come is an outline in `hair` on the ground, its
+  date in `control`, and is not a link; today is ringed in print ink, a 2-pt line just inside its
+  edge. Each activity is its sport's icon, 16 pt, in the order it was done, the icons standing
+  together in the middle of the tile: one, two side by side, three or four in two rows of two;
+  past four, three and `+N`. Every past day is a link named with what it holds. This month ends at
+  this week: the weeks to come get no empty rows. The overview shows the pattern alone, its tiles
+  as tall as the phone gives them; the calendar page adds each date, in Jost 12, in the tile's top
+  left corner and inside today's ring, its icons centred in the room under the date, on tiles of
+  58 pt; a date grows with the reader's text as a figure does (by half) and its tile grows with
+  it, so icons never sit under a date. Each month on the calendar page says how many of each sport
+  it holds beside its name, each count led by its icon, and the totals under the overview do the
+  same, so they are its key. Every day is a full target: under 375 pt, and on Android, the month
+  runs to the screen's edges (its tiles 2 pt apart under 375).
 - **Heights:** short screens (under 800 pt) shorten the print and fold the day's note; tall
   screens (860 pt and over) give the room to the print and the entry.
 
@@ -618,18 +625,23 @@ cards 16, the rest pill 18, sheets 24 (top corners), round buttons and avatars f
 (segments 11 in a 14 tray with a 3 inset). Prints are cut square.
 
 The print forms are geometric primitives standing on one baseline: the block (a square module; a
-column of them is an exercise), the track (a running track seen from above: a stadium with its
-lane cut in, a module tall and a module longer for every 20 minutes), the wheel (a ring as thick
-as a tyre),
+column of them is an exercise), the runner (one figure on the glyph's 24-unit grid, leaning in,
+the knee up, the arms swinging, its head a disc; the same drawing at every size, two modules
+tall in a print; to do, a line of the thinned pigment inside an edge of the full one; skipped,
+that edge dashed with the paper inside), the wheel (a ring as thick as a tyre),
 the wave (two crests), the fan (a quarter disc cut into drills), the bowl (a half disc whose area
 is the day's target) and the triangle. Context reads the same on every form: segments are its
-structure (sets, intervals, laps, drills); size is time or distance in modules (a run's track
-grows a module for every 20 minutes). Where it
+structure (sets, intervals, laps, drills); size is time or distance in modules. The runner is
+the exception: one fixed drawing, with no segments and no size. Where it
 happened (indoors or out, a treadmill, a pool) is not drawn, since nothing stands under a form:
 the row under the print says it with a glyph. Past the target, food heaps above the bowl's
 rim as one symmetric lens; at twice the target it closes the circle.
 
-Icons sit on a 24-unit grid with a 2.0 stroke and round caps and joins, ink only. The five
+Icons sit on a 24-unit grid with a 2.0 stroke and round caps and joins, ink only. The
+calendar's icons are the exception, and are used on the month and its counts alone: a dumbbell
+for lifting, the runner, a cyclist and a swimmer, each in its sport's pigment and drawn bolder
+(2.3 to 2.9), told apart by their shape so the month never asks a reader to tell pigments apart.
+Everywhere else a sport is its mark, the form itself. The five
 destination icons are drawn from the first forms: outlined, filled where you are. Equipment
 (free weights as a dumbbell, machine, cable, Smith machine, bodyweight) and where (outdoors,
 treadmill, indoor bike, pool, open water, home) are glyphs, each with its name for screen
@@ -648,10 +660,10 @@ nothing drawn under it; tops and rows line up, shapes never overlap, and the com
 the middle of its paper.
 
 **The One Cut Rule.** A sport is its family's form with one cut: the paper shows through
-(walk: the track's lane opened at its end; hike: a peak cut out; spin: the wheel cut in four;
-row: the waves cut by two oars; yoga: an arc cut in; climbing: steps cut in; racket sports: a
-ball punched out). Never an addition, never under the form; it must read at 12 px beside its
-name.
+(spin: the wheel cut in four; row: the waves cut by two oars; yoga: an arc cut in; climbing:
+steps cut in; racket sports: a ball punched out). Never an addition, never under the form; it
+must read at 12 px beside its name. On foot is a figure, the runner, which no cut reads on at
+12 px: walking and hiking print as the runner until each is drawn.
 
 **The No Words on a Print Rule.** A print carries no words; the rows under it name its parts in
 the same order.
@@ -847,8 +859,8 @@ and every control answers a press.
   under way) draws the
   work planned; a record's (the summary, a past workout, a day) draws what was done, its warm-up
   sets in grey at the foot of their columns.
-- **The month:** the calendar, pulled on paper in the first calendar's style: marks and dots,
-  the weekdays across the top (see Layout).
+- **The month:** the calendar, a tile of paper for each day and an icon for each activity, the
+  weekdays across the top (see Layout).
 - **Progress charts** are not prints: distance, the heaviest set, body weight and sleep are drawn
   in ink on the ground, the latest reading in ink and the rest in `control`, scale labels in the
   left margin on every chart.

@@ -592,7 +592,7 @@ function Overview({
         />
       </section>
 
-      {/* The month's totals, each led by its mark: the calendar's legend and its count at once. */}
+      {/* The month's totals, each led by its icon: the calendar's key and its count at once. */}
       <section aria-labelledby="progress-month-totals" className="month-totals">
         <h2 id="progress-month-totals" className="sr-only">
           Sessions in {name}
@@ -602,7 +602,7 @@ function Overview({
             {tallies.map((entry) => (
               <li key={entry.sport}>
                 <span className="flex items-center gap-1.5">
-                  <Art kind="mark" sport={ART_SPORT[entry.sport]} size={14} />
+                  <Art kind="icon" sport={ART_SPORT[entry.sport]} />
                   <span className="type-figure-l">{entry.count}</span>
                 </span>
                 <span className="month-total-name">
