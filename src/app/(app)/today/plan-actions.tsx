@@ -1,46 +1,24 @@
 "use client";
 
+import type { Route } from "next";
 import Link from "@/components/ui/app-link";
 import { useActionState, useState, useTransition, type ReactNode } from "react";
 
-import { Button, type ButtonVariant } from "@/components/ui/button";
+import { Button, LinkButton, type ButtonVariant } from "@/components/ui/button";
 import { Glyph, type GlyphName } from "@/components/ui/glyphs";
 import { Field, Input } from "@/components/ui/input";
 import { Sheet } from "@/components/ui/sheet";
 import type { SlotPart } from "@/domain/types";
-import { attempted, keepsOutcomeOnDisconnect } from "@/lib/offline-submit";
+import { keepsOutcomeOnDisconnect } from "@/lib/offline-submit";
 import {
   completeRestSlotAction,
   skipSlotAction,
-  startAdHocSessionAction,
-  startPlannedSessionAction,
   type ActionResult,
 } from "@/server/actions/sessions";
 
 import { CoachRequestPanel, type CoachGym } from "./coach-actions";
 
 const INITIAL: ActionResult = { ok: true };
-
-/** Keep Today and its open menu usable when the start request loses its connection. */
-function useStartSession() {
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-  const start = (action: () => Promise<unknown>) => {
-    setError(null);
-    startTransition(async () => {
-      const result = await attempted(
-        action,
-        "Could not start the session. Check your connection and try again.",
-      );
-      if (!result.ok) setError(result.message);
-    });
-  };
-  return { pending, error, start };
-}
-
-function StartError({ error }: { error: string | null }) {
-  return error ? <ActionError>{error}</ActionError> : null;
-}
 
 /** What went wrong, in ink, led by the warning glyph: never red, never a pigment. */
 function ActionError({ children }: { children: ReactNode }) {
@@ -62,7 +40,27 @@ export type CoachOptions = {
   workflow?: boolean;
 };
 
-/** Primary Start button for a planned day at the default gym. */
+/**
+ * Where Start goes: the check-in, which is what creates the session (DESIGN.md, The session),
+ * so a Start that goes no further leaves nothing behind. A programme day carries its day, its
+ * place in the cycle and, from Train another day, the cycle it was chosen from.
+ */
+export function startHref(start: {
+  gymId: string;
+  programDayId?: string;
+  dayIndex?: number;
+  fromCycleIndex?: number;
+}): Route {
+  const params = new URLSearchParams({ gym: start.gymId });
+  if (start.programDayId !== undefined && start.dayIndex !== undefined) {
+    params.set("day", start.programDayId);
+    params.set("index", String(start.dayIndex));
+    if (start.fromCycleIndex !== undefined) params.set("cycle", String(start.fromCycleIndex));
+  }
+  return `/workouts/start?${params}` as Route;
+}
+
+/** Primary Start for a planned day at the chosen gym: on to its check-in. */
 export function StartPlannedButton({
   gymId,
   programDayId,
@@ -91,45 +89,52 @@ export function StartPlannedButton({
    */
   dayName?: string;
 }) {
-  const { pending, error, start } = useStartSession();
-  return (
+  const name = dayName ? `${label}: ${dayName}` : undefined;
+  const words = (
     <>
+      {glyph && <Glyph name={glyph} className="glyph-20" />}
+      {label}
+    </>
+  );
+  // Without a gym there is nowhere to train: the button stands, held, until one is chosen.
+  if (gymId === null)
+    return (
       <Button
         size="lg"
         variant={variant}
-        aria-label={dayName ? `${label}: ${dayName}` : undefined}
+        aria-label={name}
         className={className ?? "w-full"}
-        disabled={gymId === null || pending}
-        onClick={() => {
-          if (!gymId) return;
-          start(() => startPlannedSessionAction(gymId, programDayId, dayIndex, fromCycleIndex));
-        }}
+        disabled
       >
-        {glyph && !pending && <Glyph name={glyph} className="glyph-20" />}
-        {pending ? "Starting…" : label}
+        {words}
       </Button>
-      <StartError error={error} />
-    </>
+    );
+  return (
+    <LinkButton
+      href={startHref({ gymId, programDayId, dayIndex, fromCycleIndex })}
+      size="lg"
+      variant={variant}
+      aria-label={name}
+      className={className ?? "w-full"}
+    >
+      {words}
+    </LinkButton>
   );
 }
 
+/** An unplanned session at the chosen gym: on to its check-in. */
 export function StartAdHocButton({ gymId }: { gymId: string | null }) {
-  const { pending, error, start } = useStartSession();
-  return (
-    <>
-      <Button
-        variant="secondary"
-        className="w-full"
-        disabled={gymId === null || pending}
-        onClick={() => {
-          if (!gymId) return;
-          start(() => startAdHocSessionAction(gymId));
-        }}
-      >
-        {pending ? "Starting…" : "Ad hoc session"}
+  const label = "Start an unplanned session";
+  if (gymId === null)
+    return (
+      <Button variant="secondary" className="w-full" disabled>
+        {label}
       </Button>
-      <StartError error={error} />
-    </>
+    );
+  return (
+    <LinkButton href={startHref({ gymId })} variant="secondary" className="w-full">
+      {label}
+    </LinkButton>
   );
 }
 
@@ -152,7 +157,6 @@ export function MoreOptions({
 }) {
   const [open, setOpen] = useState(false);
   const [asking, setAsking] = useState<"skip" | "coach" | null>(null);
-  const { pending, error: startError, start } = useStartSession();
   // The workout half only: a day that also runs keeps its run, which is skipped on its own.
   const [state, formAction, skipping] = useActionState(
     keepsOutcomeOnDisconnect(skipSlotAction.bind(null, skip?.dayIndex ?? 0, "session")),
@@ -199,7 +203,7 @@ export function MoreOptions({
       <Button
         variant="tonal"
         size="lg"
-        aria-label="More options: another day, ad hoc, the coach, skip"
+        aria-label="More options: another day, unplanned, the coach, skip"
         aria-haspopup="dialog"
         className="pinned-more w-[var(--ov-button)] shrink-0 px-0"
         onClick={() => setOpen(true)}
@@ -213,7 +217,7 @@ export function MoreOptions({
           asking === "skip" && skip
             ? `Skip ${skip.dayName}?`
             : asking === "coach"
-              ? "Plan with the coach"
+              ? coachLabel
               : "More options"
         }
       >
@@ -247,17 +251,15 @@ export function MoreOptions({
               </Link>
             </li>
             <li className={coachRow ? "border-b border-hair" : undefined}>
-              <button
-                type="button"
-                disabled={gymId === null || pending}
-                onClick={() => {
-                  if (!gymId) return;
-                  start(() => startAdHocSessionAction(gymId));
-                }}
-                className={ROW}
-              >
-                {row("plus", pending ? "Starting…" : "Start an ad hoc session")}
-              </button>
+              {gymId === null ? (
+                <button type="button" disabled className={ROW}>
+                  {row("plus", "Start an unplanned session")}
+                </button>
+              ) : (
+                <Link href={startHref({ gymId })} className={ROW} onClick={close}>
+                  {row("plus", "Start an unplanned session")}
+                </Link>
+              )}
             </li>
             {coachRow && (
               <li>
@@ -289,7 +291,6 @@ export function MoreOptions({
             )}
           </ul>
         )}
-        <StartError error={startError} />
       </Sheet>
     </>
   );

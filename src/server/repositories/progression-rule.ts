@@ -11,7 +11,7 @@ import { bodyLoad } from "@/domain/body-load";
 import { weightStepFor } from "@/domain/sets";
 import type { LoadPortability, LoadUnit, PrescriptionType } from "@/domain/types";
 import type { ComparablePerformance } from "@/server/queries/comparable";
-import { canConvertLoad, convertLoad, setInUnit } from "@/lib/units";
+import { canConvertLoad, convertLoad, loadStepIn, setInUnit } from "@/lib/units";
 
 import type { programExercises } from "@/db/schema";
 import { summarizeExerciseEvidence, TRAINING_POLICY } from "@/domain/training-evidence";
@@ -92,7 +92,8 @@ export function applyRule(input: RuleInput): RuleOutcome {
     equipmentLoadIncrement: input.equipment?.loadIncrement ?? null,
     exerciseDefaultIncrement: input.exercise.defaultLoadIncrement,
   });
-  const weightStep = input.equipment ? defaultStep : convertLoad(defaultStep, "kg", unit);
+  // Without a machine the step is the library's, in kilograms: in pounds it is the plate jump.
+  const weightStep = input.equipment ? defaultStep : loadStepIn(defaultStep, unit);
   const normalize = (performance: ComparablePerformance): ComparablePerformance | null =>
     performance.sets.some((set) => set.weight !== null && !canConvertLoad(set.unit, unit))
       ? null
@@ -134,7 +135,7 @@ export function applyRule(input: RuleInput): RuleOutcome {
     const rule = input.planned?.progressionRule;
     const increment =
       (rule && "loadIncrement" in rule ? rule.loadIncrement : null) ?? input.planned?.loadIncrement;
-    if (increment != null) prescription.loadIncrement = convertLoad(increment, "kg", unit);
+    if (increment != null) prescription.loadIncrement = loadStepIn(increment, unit);
   }
   const ladder = input.equipment ? (input.ladder ?? null) : null;
   // On a split squat or a pull-up the curve runs through the body as well as what is added to

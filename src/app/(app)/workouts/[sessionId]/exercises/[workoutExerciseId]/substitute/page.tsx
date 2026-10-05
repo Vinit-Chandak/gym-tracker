@@ -14,7 +14,7 @@ import { requireUuid } from "@/server/validation/params";
 
 import { PickExerciseForm } from "../../../add-exercise/add-exercise-form";
 
-export const metadata: Metadata = { title: "Choose a fallback" };
+export const metadata: Metadata = { title: "Swap the exercise" };
 
 export default async function SubstitutePage(
   props: PageProps<"/workouts/[sessionId]/exercises/[workoutExerciseId]/substitute">,
@@ -55,7 +55,7 @@ export default async function SubstitutePage(
     // No board: Add fallback's page, the session's own. Returning lands back on the exercise,
     // which is where the request came from.
     <SessionPage
-      title="Choose a fallback"
+      title="Swap the exercise"
       meta={
         <span className="min-w-0">
           Instead of <span className="font-bold text-ink">{data.slot.exercise.name}</span> at{" "}

@@ -354,7 +354,6 @@ export function WorkoutPreview({ scenario }: { scenario: Scenario }) {
     <WorkoutOverview
       session={session}
       readOnly={false}
-      hasDrafts={false}
       onOpenExercise={() => {}}
       onOpenDetails={() => {}}
       onEditSuperset={() => {}}

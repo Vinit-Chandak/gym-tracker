@@ -50,16 +50,23 @@ export function trackNavigationHistory() {
   const history = window.history;
   const push = history.pushState;
   const replace = history.replaceState;
-  const notify = () => window.dispatchEvent(new Event(CHANGE));
+  const dispatch = () => window.dispatchEvent(new Event(CHANGE));
+  // Next writes its own entries (marked `__NA`) from an insertion effect, where React lets
+  // nothing schedule an update; a subscriber re-reading there is an error. Those are told a
+  // microtask later, once the commit is over. The app's own calls are told at once.
+  const notify = (data: unknown) =>
+    data !== null && typeof data === "object" && "__NA" in data
+      ? queueMicrotask(dispatch)
+      : dispatch();
   const path = () => window.location.pathname + window.location.search + window.location.hash;
   const pushState: History["pushState"] = function (data, unused, url) {
     const from = path();
     push.call(history, { ...data, [KEY]: appPath(from) ? from : null }, unused, url);
-    notify();
+    notify(data);
   };
   const replaceState: History["replaceState"] = function (data, unused, url) {
     replace.call(history, { ...data, [KEY]: previousAppPage() }, unused, url);
-    notify();
+    notify(data);
   };
   history.pushState = pushState;
   history.replaceState = replaceState;

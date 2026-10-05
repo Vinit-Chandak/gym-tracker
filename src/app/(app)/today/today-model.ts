@@ -29,6 +29,11 @@ export function cycleCells(plan: TodayPlan): CycleCell[] {
     );
 }
 
+/** How far the programme is behind the calendar: "25 days behind", "1 day behind". */
+export function daysBehind(days: number): string {
+  return `${days} ${days === 1 ? "day" : "days"} behind`;
+}
+
 /** What the squares say aloud, and where they go. */
 export function cycleLabel(plan: TodayPlan): string {
   const cycle = plan.suggestion?.slot.cycleIndex;
@@ -36,7 +41,7 @@ export function cycleLabel(plan: TodayPlan): string {
   const parts = [
     cycle ? `Cycle ${cycle} of ${plan.program.weeks}` : null,
     day ? `day ${day} of ${plan.cycleDays.length}` : null,
-    plan.behind > 0 ? `${plan.behind} behind` : null,
+    plan.behind > 0 ? daysBehind(plan.behind) : null,
   ].filter(Boolean);
   return `${parts.join(", ")}. Open the programme`;
 }

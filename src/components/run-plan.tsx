@@ -24,7 +24,7 @@ export function runSummary(run: RunTargets): string {
     rangeLabel(run.durationMinMinutes, run.durationMaxMinutes, " min"),
     run.rpeMin === null || run.rpeMin === undefined
       ? null
-      : `Effort ${rangeLabel(run.rpeMin, run.rpeMax ?? run.rpeMin)}`,
+      : `Effort ${rangeLabel(run.rpeMin, run.rpeMax ?? run.rpeMin)} of 10`,
   ];
   return parts.filter(Boolean).join(" · ");
 }

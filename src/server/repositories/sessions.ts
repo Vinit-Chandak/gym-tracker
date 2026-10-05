@@ -10,6 +10,7 @@ import {
   profiles,
   programDays,
   programExercises,
+  programs,
   setLogs,
   workoutExercises,
   workoutSessions,
@@ -393,6 +394,8 @@ export type SessionDetail = {
     timeNote: string | null;
   } | null;
   cycleIndex: number | null;
+  /** How many cycles the session's programme runs, for "Cycle 1 of 8"; null when it has none. */
+  cycles?: number | null;
   startedAt: Date;
   completedAt: Date | null;
   bodyWeightKg: number | null;
@@ -450,10 +453,12 @@ export async function getSessionDetail(
         timeNote: programDays.timeNote,
         warmupProtocolId: programDays.warmupProtocolId,
       },
+      cycles: programs.weeks,
     })
     .from(workoutSessions)
     .innerJoin(gyms, eq(gyms.id, workoutSessions.gymId))
     .leftJoin(programDays, eq(programDays.id, workoutSessions.programDayId))
+    .leftJoin(programs, eq(programs.id, workoutSessions.programId))
     .where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.userId, userId)))
     .limit(1);
   if (!session) return null;
@@ -759,6 +764,8 @@ export async function getSessionDetail(
         }
       : null,
     cycleIndex: session.session.cycleIndex,
+    // A programme without a length runs 8 cycles, as Today's squares count them (schedule.ts).
+    cycles: session.session.programId ? (session.cycles ?? 8) : null,
     startedAt: session.session.startedAt,
     completedAt: session.session.completedAt,
     bodyWeightKg: session.session.bodyWeightKg,

@@ -4,6 +4,10 @@ The check-in is the short, optional questionnaire that appears after you tap **S
 session and before the exercise list. Everything on it can be skipped with one tap, and it can
 be reopened from the session while the session is still open.
 
+Nothing is created until the check-in is answered: **Save and start** or **Skip check-in**
+starts the session, with what was answered or with nothing, and going back from the check-in
+leaves no empty session behind (4 October 2026; before, Start created the session first).
+
 ## What it asks
 
 | Question                 | Scale                    | Why it is there                                    |

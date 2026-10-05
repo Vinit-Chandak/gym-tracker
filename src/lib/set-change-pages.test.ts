@@ -29,6 +29,7 @@ const SHOWS_NO_SETS: Record<string, string> = {
   "src/app/(app)/exercises/[exerciseId]/page.tsx": "finished workouts only (`completedOnly`)",
   "src/app/(app)/progress/day/[date]/page.tsx": "finished workouts only (`completedOnly`)",
   "src/components/shell/session-status.tsx": "the open workout's name",
+  "src/app/(app)/workouts/start/page.tsx": "nothing of it: an open workout is gone to instead",
 };
 
 const callers = ["src/app", "src/components"]

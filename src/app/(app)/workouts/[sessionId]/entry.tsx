@@ -2,6 +2,7 @@
 
 import { useId, type CSSProperties, type ReactNode } from "react";
 
+import { FigureInput } from "@/components/ui/figure-input";
 import { emWidth, onRamp, rampSize } from "@/components/ui/fit";
 import { Glyph } from "@/components/ui/glyphs";
 import { Swap } from "@/components/ui/swap";
@@ -161,23 +162,17 @@ export function Entry({
       <div key={key} role="group" aria-label={field.unit} className="stepper" data-field={key}>
         {typed ? (
           <span className="stepper-figure">
-            <input
+            <FigureInput
               id={inputId(base, field.field)}
-              type="text"
               maxLength={24}
               inputMode={field.inputMode}
               enterKeyHint="done"
-              autoComplete="off"
               aria-label={field.inputLabel}
               value={state === "empty" ? "" : value}
               placeholder="–"
               disabled={row.saving}
-              className={cn("figure-input", state === "suggested" && "figure-suggested")}
+              className={cn(state === "suggested" && "figure-suggested")}
               style={{ width: `${Math.max(0.9, emWidth(value || "0")) + 0.08}em` }}
-              onFocus={(event) => {
-                const input = event.currentTarget;
-                requestAnimationFrame(() => input.select());
-              }}
               onChange={(event) =>
                 onEdit(
                   {
@@ -256,12 +251,13 @@ export function Entry({
       {slot}
       <div className="entry-head">
         <div className="entry-title">
-          <h3 className="type-heading tabular-nums">
+          {/* Under the exercise's name, the logger's h1: the set is the next level. */}
+          <h2 className="type-heading tabular-nums">
             <Swap id={swapId}>
               {heading.kind === "warmup" ? "Warm-up" : "Set"} {heading.n}
               {heading.of !== null && <span className="text-ink-2"> of {heading.of}</span>}
             </Swap>
-          </h3>
+          </h2>
           {tag && !isWarmup(row.setType) && (
             <button
               type="button"

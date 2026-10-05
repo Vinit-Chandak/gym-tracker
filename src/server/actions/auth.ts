@@ -11,7 +11,8 @@ import { getSiteUrl } from "@/lib/site-url";
 import { safeAppPath } from "@/lib/safe-app-path";
 import { usernameSchema } from "@/server/validation/username";
 
-export type SignInState = { error?: string };
+/** A sentence for the form, and the field it is about when it is about one. */
+export type SignInState = { error?: string; field?: "email" | "password" };
 export type SignUpState = { error?: string; checkEmail?: string };
 export type PasswordResetState = { error?: string; sent?: boolean };
 export type PasswordChangeState = { error?: string; done?: boolean };
@@ -89,7 +90,14 @@ export async function signInAction(
     password: formData.get("password"),
     next: formData.get("next") ?? undefined,
   });
-  if (!parsed.success) return { error: "Enter your email and password." };
+  if (!parsed.success) {
+    // Each field's own sentence, under that field: what is missing, or what is wrong with it.
+    const email = String(formData.get("email") ?? "").trim();
+    if (email === "") return { error: "Enter your email.", field: "email" };
+    if (!z.email().safeParse(email).success)
+      return { error: "Enter a valid email address, such as name@example.com.", field: "email" };
+    return { error: "Enter your password.", field: "password" };
+  }
 
   const supabase = await createSupabaseServerClient();
   const { value, error: transport } = await attempt(

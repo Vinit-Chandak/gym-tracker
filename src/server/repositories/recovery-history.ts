@@ -1,4 +1,4 @@
-import { and, eq, gte, isNotNull, lt, lte, or } from "drizzle-orm";
+import { and, desc, eq, gte, isNotNull, lt, lte, or } from "drizzle-orm";
 import { dailyRecovery, workoutSessions } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import type { RecoveryReading } from "@/domain/recovery";
@@ -76,4 +76,19 @@ export async function readRecoveryHistory(
       a.recordedAt.localeCompare(b.recordedAt) ||
       a.id.localeCompare(b.id),
   );
+}
+
+/**
+ * The hours slept at the last check-in that gave them: where the check-in's hours start from
+ * when − or + is pressed on a blank, so a usual night is one tap away (board Check-in). Only a
+ * starting point: nothing is recorded until the athlete gives it.
+ */
+export async function lastSleepHours(db: DbOrTx, userId: string): Promise<number | null> {
+  const [row] = await db
+    .select({ sleepHours: workoutSessions.sleepHours })
+    .from(workoutSessions)
+    .where(and(eq(workoutSessions.userId, userId), isNotNull(workoutSessions.sleepHours)))
+    .orderBy(desc(workoutSessions.startedAt))
+    .limit(1);
+  return row?.sleepHours ?? null;
 }

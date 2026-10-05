@@ -19,15 +19,18 @@ import { RestPill } from "@/components/shell/rest-timer";
 import Link from "@/components/ui/app-link";
 import { Button, LinkButton } from "@/components/ui/button";
 import { rampSize, titleSize } from "@/components/ui/fit";
+import { CoachNoteMore } from "@/components/ui/coach-note-more";
+import { Figures } from "@/components/ui/figures";
 import { Glyph } from "@/components/ui/glyphs";
 import { Tabs } from "@/components/ui/tabs";
 import { useMeasure } from "@/components/ui/use-width";
 import { effortError, effortMetric, RIR_HELP, RPE_HELP } from "@/domain/effort";
 import { REGRESSION_WARNING_STREAK, WORKING_SET_TYPES } from "@/domain/progression";
-import { SET_LIMITS } from "@/domain/sets";
+import { formatSets, SET_LIMITS } from "@/domain/sets";
 import type { LoadUnit, PrescriptionType, SetType } from "@/domain/types";
 import { formatDay } from "@/lib/format";
-import { LOAD_UNIT_LABELS, SUGGESTION_KIND_LABELS } from "@/lib/labels";
+import { LOAD_UNIT_LABELS, SUGGESTION_KIND_LABELS, UNPLANNED_SESSION } from "@/lib/labels";
+import { setInUnit } from "@/lib/units";
 import { attempted } from "@/lib/offline-submit";
 import { PLATFORM_ATTRIBUTE } from "@/lib/platform";
 import type { DraftValueField } from "@/lib/workout-drafts";
@@ -39,6 +42,7 @@ import { useLoggerActions } from "./logger-actions";
 import {
   entryHeading,
   entrySize,
+  equipmentFact,
   equipmentGlyph,
   equipmentLine,
   gutterFor,
@@ -131,7 +135,8 @@ function fieldsFor(
   const suggested = (state: string) => (state === "suggested" ? ", suggested" : "");
   const load: EntryField = {
     field: "weight",
-    unit: `${bodyweight ? "+" : ""}${label}`,
+    // On a bodyweight exercise the load is what is added: "kg added", not "0 +kg".
+    unit: bodyweight ? `${label} added` : label,
     hint: null,
     foldHint: null,
     inputLabel: said ? `Load in ${said}` : "Load",
@@ -225,8 +230,9 @@ function fieldsFor(
             max: SET_LIMITS.rir,
             min: 0,
             step: 1,
-            less: "One rep less in reserve",
-            more: "One rep more in reserve",
+            // Not "One rep more", which the reps say: a voice or a reader tells them apart.
+            less: "One less in reserve",
+            more: "One more in reserve",
             name: (value, state) =>
               state !== "empty"
                 ? `${rirName(value)}. Type RIR`
@@ -307,6 +313,8 @@ export function ExerciseLogger({
   // Pressed while a set is still on its way: the exercise completes once that set has landed.
   const [completing, showCompleting] = useOptimistic(false);
   const [skipped, setSkipped] = useState(exercise.skippedAt !== null);
+  // Past the plan, another set is asked for: until it lands, the entry stands where Complete was.
+  const [another, setAnother] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   // The moment a set is written: the sets that landed while this screen was open rise into
@@ -351,6 +359,7 @@ export function ExerciseLogger({
     onLogged,
     onSaved: (setIndex, added, saved) => {
       setLastSaved(setIndex);
+      setAnother(false);
       setAnnounced(announcement(sets.rows, setIndex, added, saved));
       if (added) {
         setLanded((current) => new Set(current).add(setIndex));
@@ -380,7 +389,8 @@ export function ExerciseLogger({
   }, [flash]);
 
   // While a figure is typed, the layer is the visual viewport, so the entry and Save stand
-  // above the keyboard.
+  // above the keyboard. The installed app on iOS can settle the viewport after its last event
+  // says so, so it is read again as the keyboard finishes coming up.
   useEffect(() => {
     const element = layer.current;
     const viewport = window.visualViewport;
@@ -390,9 +400,11 @@ export function ExerciseLogger({
       element.style.setProperty("--session-height", `${viewport.height}px`);
     };
     sync();
+    const timers = [120, 400, 900].map((delay) => window.setTimeout(sync, delay));
     viewport.addEventListener("resize", sync);
     viewport.addEventListener("scroll", sync);
     return () => {
+      timers.forEach(clearTimeout);
       viewport.removeEventListener("resize", sync);
       viewport.removeEventListener("scroll", sync);
       element.style.removeProperty("--session-top");
@@ -525,7 +537,7 @@ export function ExerciseLogger({
   }, [completing, completed]);
 
   // ---------- what the header and the meta line say ----------
-  const dayName = session.day?.name ?? "Ad hoc session";
+  const dayName = session.day?.name ?? UNPLANNED_SESSION;
   const plannedName = exercise.planned?.plannedExerciseName;
   const substituted = plannedName !== undefined && plannedName !== exercise.exercise.name;
   const glyph = equipmentGlyph(exercise);
@@ -535,19 +547,23 @@ export function ExerciseLogger({
   const facts: ReactNode[] = [
     <>
       <Glyph name={glyph} label={equipment} className="glyph-16" />
-      <span>{range ?? equipment}</span>
+      {/* Its figures in Jost, whose zero is plain, as every meta line's are. */}
+      <Figures>{range ?? equipment}</Figures>
     </>,
   ];
   if (rest)
     facts.push(
       <>
         <Glyph name="rest" className="glyph-16" />
-        <span>{rest}</span>
+        <Figures>{rest}</Figures>
       </>,
     );
   // A machine of this gym, or the lack of one, is said in words: the glyph says only its kind.
-  if (range !== null && (exercise.equipment || equipment === "Machine not chosen"))
-    facts.push(<span>{exercise.equipment ? `on ${equipment}` : equipment}</span>);
+  // A machine the exercise's name already says is not said again.
+  const onEquipment = equipmentFact(exercise);
+  if (range !== null && onEquipment) facts.push(<span>{onEquipment}</span>);
+  else if (range !== null && !exercise.equipment && equipment === "Machine not chosen")
+    facts.push(<span>{equipment}</span>);
   if (substituted) facts.push(<span>instead of {plannedName}</span>);
 
   // ---------- the suggestion, its tag and Why ----------
@@ -576,7 +592,15 @@ export function ExerciseLogger({
                 suggestion.basis === "other_equipment"
                   ? `${exercise.basis.equipmentName ?? "another machine"} at ${exercise.basis.gymName}`
                   : "this exercise"
-              }, ${formatDay(exercise.basis.performedAt, session.timeZone)}.`
+              }, ${formatDay(exercise.basis.performedAt, session.timeZone)}${
+                // The sets it read, so the reason can be checked against what was done.
+                exercise.basis.sets.length > 0
+                  ? `: ${formatSets(
+                      exercise.basis.sets.map((set) => setInUnit(set, unit)),
+                      (load) => LOAD_UNIT_LABELS[load],
+                    )}`
+                  : ""
+              }.`
             : null,
         }
       : null;
@@ -713,6 +737,19 @@ export function ExerciseLogger({
   const planDone = editable && planned !== null && planned > 0 && workDone >= planned;
   const planDoneText =
     planned === null ? "" : `${planned} of ${planned} ${planned === 1 ? "set" : "sets"} done.`;
+  // Then the hand leads to what comes next (DESIGN.md, The session): Complete is the dock's
+  // button and another set the tonal one, unless a set is already under way in the entry (typed,
+  // saving, failed, or just Saved), which is never hidden.
+  const offerComplete =
+    planDone &&
+    !another &&
+    !completing &&
+    entryRow !== null &&
+    !entryRow.dirty &&
+    !entryRow.saving &&
+    !entryRow.error &&
+    typing === null &&
+    flash === null;
 
   // Saving…, Saved and the set that lands are said as well as drawn (WCAG 4.1.3), on one status
   // line that stays on the page: "Saving set 3" while the server answers, then "Set 3 saved: 60
@@ -923,26 +960,34 @@ export function ExerciseLogger({
         onSelect: () => setCompletedState(false),
         disabled: pending,
       });
-    else
+    else {
+      // A set still saving does not hold it up: the press waits for the save. A row with
+      // unsaved changes does, as it would otherwise be left behind. Held, it says why.
+      const nothing = sets.loggedSets.length === 0 && !sets.saving;
       more.push({
         glyph: "check",
         label: "Complete",
         onSelect: () => setCompletedState(true),
-        // A set still saving does not hold it up: the press waits for the save. A row with
-        // unsaved changes does, as it would otherwise be left behind.
-        disabled: pending || (sets.loggedSets.length === 0 && !sets.saving) || sets.editing,
+        disabled: pending || nothing || sets.editing,
+        note: nothing
+          ? "Log a set first."
+          : sets.editing
+            ? "Save the unsaved set first."
+            : undefined,
       });
+    }
   }
   if (!readOnly && onEditSuperset)
     more.push({
       glyph: "link",
       label: "Superset",
       onSelect: () => onEditSuperset(exercise.supersetGroup),
+      opens: true,
     });
   if (!readOnly && !completed && !skipped && sets.loggedSets.length === 0 && !sets.dirty)
     more.push({
       glyph: "swap",
-      label: "Choose a fallback",
+      label: "Swap the exercise",
       href: `/workouts/${session.id}/exercises/${exercise.id}/substitute` as Route,
     });
   if (!readOnly && skipped)
@@ -953,6 +998,7 @@ export function ExerciseLogger({
       label: "Skip exercise",
       onSelect: () => setSheet({ kind: "skip" }),
       disabled: pending || sets.dirty,
+      opens: true,
       apart: true,
     });
 
@@ -980,7 +1026,6 @@ export function ExerciseLogger({
       style={layerStyle}
     >
       <span ref={probe} aria-hidden className="session-probe" />
-      <h1 className="sr-only">{exercise.exercise.name}</h1>
       <p role="status" className="sr-only">
         {spoken}
       </p>
@@ -996,7 +1041,7 @@ export function ExerciseLogger({
             type="button"
             aria-haspopup="dialog"
             aria-label="Complete, skip, superset, substitute"
-            className="session-icon-button -mr-2.5"
+            className="session-icon-button -mr-[10px]"
             onClick={() => setSheet({ kind: "more" })}
           >
             <Glyph name="more" className="glyph-24" />
@@ -1005,7 +1050,8 @@ export function ExerciseLogger({
       </header>
 
       <div ref={body} className="session-body" data-scroll={tab !== "log"}>
-        <h2 className="session-title">{exercise.exercise.name}</h2>
+        {/* One heading, the name on the screen (not a hidden one beside it). */}
+        <h1 className="session-title">{exercise.exercise.name}</h1>
         <p className="session-meta">
           {facts.map((fact, index) => (
             <span key={index} className="session-fact">
@@ -1107,27 +1153,11 @@ export function ExerciseLogger({
               </div>
             )}
 
+            {/* More opens the rest in place, as it does on the workout; Why is the tag's. */}
             {exercise.coachNote && editable && (
-              <aside
-                aria-label="From the coach"
-                className="mt-2 rounded-control bg-surface px-3.5 py-3"
-              >
-                <p className="flex items-center gap-1.5 type-caption text-ink">
-                  <Glyph name="coach" className="glyph-16" />
-                  Coach
-                </p>
-                <p className="mt-1 line-clamp-2 type-body">{exercise.coachNote}</p>
-                {why && exercise.coachNote.length > 76 && (
-                  <button
-                    type="button"
-                    aria-haspopup="dialog"
-                    className="-my-2.5 -ml-1.5 min-h-11 min-w-11 px-1.5 font-bold"
-                    onClick={() => setSheet({ kind: "why" })}
-                  >
-                    More
-                  </button>
-                )}
-              </aside>
+              <CoachNoteMore size="body" className="mt-2">
+                {exercise.coachNote}
+              </CoachNoteMore>
             )}
 
             {skipped && (
@@ -1160,7 +1190,7 @@ export function ExerciseLogger({
                       <Button
                         variant="text"
                         size="sm"
-                        className="-ml-2.5"
+                        className="-ml-[10px]"
                         onClick={() => sets.restore(row)}
                       >
                         Discard this local draft
@@ -1260,7 +1290,45 @@ export function ExerciseLogger({
 
       {!readOnly && (
         <div ref={dock} hidden={tab !== "log"} className="entry-dock">
-          {entryRow && heading ? (
+          {offerComplete ? (
+            <section aria-label={exercise.exercise.name} className="entry">
+              {message && slotMessage("warn", message, "alert")}
+              <div className="entry-head">
+                <p className="flex items-center gap-2 type-heading">
+                  <Glyph name="check" className="glyph-20" />
+                  {planDoneText}
+                </p>
+              </div>
+              <div className="entry-save flex flex-col gap-2">
+                <Button
+                  size="lg"
+                  className="w-full"
+                  disabled={pending}
+                  onClick={() => {
+                    focusDone.current = true;
+                    setCompletedState(true);
+                  }}
+                >
+                  Complete {exercise.exercise.name}
+                </Button>
+                <Button
+                  variant="tonal"
+                  size="lg"
+                  className="w-full"
+                  onClick={() => {
+                    setAnother(true);
+                    // The entry is up on the next frame; the load is where a set starts.
+                    requestAnimationFrame(() =>
+                      dock.current?.querySelector<HTMLElement>(".stepper-figure")?.focus(),
+                    );
+                  }}
+                >
+                  <Glyph name="plus" className="glyph-18" />
+                  Log another set
+                </Button>
+              </div>
+            </section>
+          ) : entryRow && heading ? (
             <Entry
               row={entryRow}
               heading={heading}
@@ -1301,14 +1369,10 @@ export function ExerciseLogger({
                     Completing…
                   </Button>
                 ) : (
-                  <Button
-                    variant="tonal"
-                    size="lg"
-                    className="w-full"
-                    onClick={() => setCompletedState(false)}
-                    disabled={pending}
-                  >
-                    {completed ? "Reopen" : "Unskip"}
+                  // Finished with, the exercise hands back to the list; Reopen and Unskip are
+                  // in More, where a change of mind goes.
+                  <Button size="lg" className="w-full" onClick={onBack}>
+                    Back to {dayName}
                   </Button>
                 )}
               </div>

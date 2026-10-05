@@ -17,8 +17,11 @@ export function LoadingPage({
   /** Reserves a box holding one text field, for a page that is a search. */
   field = false,
   rows = 5,
+  what,
 }: {
   title?: string;
+  /** What is loading, where the title is not a thing ("Choose a day" loads "the days"). */
+  what?: string;
   controls?: boolean;
   tiles?: boolean;
   segmented?: boolean;
@@ -30,7 +33,7 @@ export function LoadingPage({
       <PageHeader title={title} />
       <PageContent>
         <div role="status" aria-live="polite" className="space-y-4">
-          <LoadingMessage title={title} />
+          <LoadingMessage title={title} what={what} />
           {controls && (
             <div aria-hidden="true" className="flex gap-2 motion-safe:animate-pulse">
               <div className="h-11 flex-1 rounded-control bg-surface-raised" />

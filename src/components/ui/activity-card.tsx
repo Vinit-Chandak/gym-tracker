@@ -56,13 +56,17 @@ export function ActivityCard({
   const id = useId();
   const titleId = `${id}-title`;
   const detailsId = `${id}-details`;
+  // The name and its figure wrap as a pair: where both do not fit on a line (320 pt, 200%
+  // text), the figure goes under the name rather than squeezing it into pieces ("Rid/e").
   const head = (
     <>
       <span className="activity-card-mark">{mark}</span>
-      <span id={titleId} className={cn("activity-card-title", muted && "text-ink-2")}>
-        {title}
+      <span className="activity-card-name">
+        <span id={titleId} className={cn("activity-card-title", muted && "text-ink-2")}>
+          {title}
+        </span>
+        {aside && <span className="activity-card-aside">{aside}</span>}
       </span>
-      {aside && <span className="activity-card-aside">{aside}</span>}
     </>
   );
 

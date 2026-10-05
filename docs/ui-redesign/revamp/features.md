@@ -52,14 +52,14 @@ anything scheduled), where they will train, and one tap to start or resume it.
 - **The date** and the app's name.
 - **Where:** the gym the next session will use, with Change. Without any gym, a prompt to add
   one replaces it.
-- **An unfinished session** that is not today's offered day (an ad hoc session, or a day
+- **An unfinished session** that is not today's offered day (an unplanned session, or a day
   started early): its name, gym, start time and number of sets, with Resume. Only one Resume
   ever appears on Today.
 - **The offered lifting day:**
   - where it sits in the programme ("Cycle 1 of 8 · Day 1"), its name ("Lower A"), its focus
     and time ("Squat + quads · 70–90 min");
   - a note with the day's effort guidance and notes;
-  - a status: "22 behind" or "On track" while pending (behind = days since the programme
+  - a status: "22 days behind" or "On track" while pending (behind = days since the programme
     started minus days completed or skipped), otherwise Done or Skipped; "Coach" when the
     coach planned it;
   - **the plan**, one tap away: "6 exercises · 16 sets", then each exercise with its
@@ -91,11 +91,11 @@ anything scheduled), where they will train, and one tap to start or resume it.
 - **Change gym** (a sheet of gyms with their kind: gym, outdoor or home; Manage gyms).
 - **Log it** for a run, ride or swim, carrying its target; **see what you logged**.
 - **On a rest day:** Mark rest day done, or start the next training day instead.
-- **Ad hoc session**, when there is no programme day to offer.
+- **Unplanned session**, when there is no programme day to offer.
 - **Choose a programme** or **plan the next block**, when there is none or it has ended.
 - **More options**, one control for everything that is not the offered day: train another
   day (a list of the programme's days, each with Start, Start next cycle or Start skipped
-  workout), start an ad hoc session, ask the coach to plan, re-plan or prepare this session
+  workout), start an unplanned session, ask the coach to plan, re-plan or prepare this session
   (with a gym choice, an optional note, and "3 requests a day"), and skip this session (with
   an optional reason; skipping the workout never skips a run on the same day).
 
@@ -114,7 +114,7 @@ requests; offline; loading; error.
   the other.
 - Everything that is not the offered day sits behind one More options control, and stays
   reachable.
-- Ad hoc sessions carry no programme, cycle or day.
+- Unplanned sessions carry no programme, cycle or day.
 
 ### Sample content
 
@@ -143,7 +143,7 @@ then close it as a permanent record.
 **The flow:** Start workout on Today → a short check-in (Save and start, or Skip) → the
 workout's exercise list → open an exercise and log its sets → Complete it and move to any
 other → Finish session (notes and body weight) → the finished record, with any records set.
-An ad hoc session starts empty; a programme day arrives with its exercises, fallbacks,
+An unplanned session starts empty; a programme day arrives with its exercises, fallbacks,
 supersets and any coach plan already applied.
 
 ### The check-in
@@ -154,7 +154,7 @@ than adding, and keep the RIR honest").
 
 ### The workout
 
-- **Header:** the day's name or "Ad hoc session", and the gym, said once for the whole session.
+- **Header:** the day's name or "Unplanned session", and the gym, said once for the whole session.
 - The recovery check and the coach's summary, when present.
 - **Warm-up**, when the day has one: the number of drills or the coach's lines, each drill
   with its dose, and Mark done.
@@ -211,7 +211,7 @@ than adding, and keep the RIR honest").
 
 ### States to design
 
-Ad hoc and programme sessions; an empty session; supersets; timed and distance exercises;
+Unplanned and programme sessions; an empty session; supersets; timed and distance exercises;
 machine, free-weight and bodyweight exercises; an unsettled machine; a suggestion of each
 kind; no history; a saving, saved and failed set; offline, with drafts kept on the device and
 restored on return; drafts left on a completed exercise; a set changed on another device; a

@@ -196,7 +196,7 @@ export function DraftPreview({
                 ? ` · ${current.openingPlan.run.distanceKm} km`
                 : ""}
               {current.openingPlan.run.rpe !== null
-                ? ` · Effort ${current.openingPlan.run.rpe}`
+                ? ` · Effort ${current.openingPlan.run.rpe} of 10`
                 : ""}
               . {current.openingPlan.run.paceNote} {current.openingPlan.run.stopRule}
             </p>

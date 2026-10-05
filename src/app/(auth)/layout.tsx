@@ -11,7 +11,9 @@ import { APP_NAME, APP_TAGLINE } from "@/lib/app";
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <div className="auth flex min-h-dvh flex-col px-[var(--ov-gutter)] pt-safe pb-safe">
-      <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center py-8">
+      {/* Anchored under the top rather than centred, so a sentence that appears under the
+          fields (an error) pushes nothing that is already there. */}
+      <div className="mx-auto flex w-full max-w-sm flex-1 flex-col pt-[max(2rem,10dvh)] pb-8">
         <header className="auth-head">
           <h1 className="auth-name">
             <AppMark size={46} />

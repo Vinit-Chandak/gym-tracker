@@ -139,3 +139,19 @@ it("validates password confirmation and requires a current sign-in before changi
   auth.updateUser.mockResolvedValue({ error: null });
   expect(await updatePasswordAction({}, data)).toEqual({ done: true });
 });
+
+it("says which field a sign-in is missing or has wrong, under that field", async () => {
+  expect(await signInAction({}, form({ email: "", password: "x" }))).toEqual({
+    error: "Enter your email.",
+    field: "email",
+  });
+  expect(await signInAction({}, form({ email: "vinit", password: "x" }))).toEqual({
+    error: "Enter a valid email address, such as name@example.com.",
+    field: "email",
+  });
+  expect(await signInAction({}, form({ email: "vinit@example.test", password: "" }))).toEqual({
+    error: "Enter your password.",
+    field: "password",
+  });
+  expect(auth.signInWithPassword).not.toHaveBeenCalled();
+});

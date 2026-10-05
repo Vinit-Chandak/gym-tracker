@@ -8,13 +8,15 @@ import { CoachNote } from "@/components/ui/coach-note";
 import { Glyph } from "@/components/ui/glyphs";
 import { Field, Input } from "@/components/ui/input";
 import { REQUEST_TIMEOUT_MINUTES } from "@/domain/coach-request";
-import { cn } from "@/lib/utils";
+import type { GymKind } from "@/domain/types";
 import { requestCoachPlanAction } from "@/server/actions/coach";
 import { startWaitingCoachJobAction } from "@/server/actions/coaching-workflow";
 import { coachingAction } from "@/components/coaching/client-action";
 import { attempted } from "@/lib/offline-submit";
 
-export type CoachGym = { id: string; name: string; isDefault: boolean };
+import { GymRows } from "./gym-rows";
+
+export type CoachGym = { id: string; name: string; isDefault: boolean; kind?: GymKind };
 
 /** How often Today re-reads while the coach is planning, and for how long. */
 const POLL_MS = 15_000;
@@ -195,27 +197,7 @@ export function CoachRequestPanel({
           different gym, or at this one after something has changed.
         </p>
       )}
-      <ul className="space-y-2" aria-label="Gym">
-        {gyms.map((gym) => {
-          const chosen = gym.id === gymId;
-          return (
-            <li key={gym.id}>
-              <button
-                type="button"
-                onClick={() => setGymId(gym.id)}
-                aria-pressed={chosen}
-                className={cn(
-                  "flex min-h-[calc(52px+var(--ov-grow))] w-full items-center justify-between gap-3 rounded-control px-4 text-left font-bold",
-                  chosen ? "bg-ink text-on-ink" : "bg-surface text-ink active:bg-surface-2",
-                )}
-              >
-                <span className="min-w-0 truncate">{gym.name}</span>
-                {chosen && <Glyph name="check" className="glyph-20" />}
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+      <GymRows gyms={gyms} chosenId={gymId || null} onChoose={setGymId} disabled={pending} />
       <Field label="Anything the coach should know" hint="Optional">
         <Input
           value={reason}

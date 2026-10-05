@@ -86,7 +86,7 @@ describe("the cycle's squares", () => {
 
   it("are read aloud with where the cycle stands, behind included", () => {
     const week = { ...plan(["completed", "completed", "pending"], 3), behind: 25 } as TodayPlan;
-    expect(cycleLabel(week)).toBe("Cycle 1 of 8, day 3 of 3, 25 behind. Open the programme");
+    expect(cycleLabel(week)).toBe("Cycle 1 of 8, day 3 of 3, 25 days behind. Open the programme");
   });
 });
 

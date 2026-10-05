@@ -238,20 +238,23 @@ try {
       await expect(page.getByRole("link", { name: /Lower A/ })).toBeVisible();
     },
   );
-  await check("an offline start reports a retryable error without replacing Today", async () => {
-    await go("/today");
-    await page.getByRole("button", { name: "More options", exact: true }).click();
-    await page.waitForLoadState("networkidle");
-    await context.setOffline(true);
-    await page.getByRole("button", { name: "Start an ad hoc session", exact: true }).click();
-    await expect(
-      page.getByRole("alert").filter({ hasText: /Could not start the session/ }),
-    ).toBeVisible();
-    await context.setOffline(false);
-    await page.getByRole("button", { name: "Start an ad hoc session", exact: true }).click();
-    await page.getByRole("button", { name: "Save and start", exact: true }).waitFor();
-  });
-  await page.getByRole("link", { name: "Skip check-in", exact: true }).click();
+  await check(
+    "an offline start keeps the check-in and starts nothing until it is sent",
+    async () => {
+      await go("/today");
+      await page.getByRole("button", { name: /^More options/ }).click();
+      await page.getByRole("link", { name: "Start an unplanned session", exact: true }).click();
+      await page.getByRole("button", { name: "Save and start", exact: true }).waitFor();
+      await page.waitForLoadState("networkidle");
+      await context.setOffline(true);
+      await page.getByRole("button", { name: "Skip check-in", exact: true }).click();
+      await expect(page.getByRole("alert")).toBeVisible();
+      await expect(page).toHaveURL(/\/workouts\/start\?/);
+      await context.setOffline(false);
+    },
+  );
+  await page.getByRole("button", { name: "Skip check-in", exact: true }).click();
+  await page.waitForURL(/\/workouts\/[0-9a-f-]+$/);
   const additionalSessionId = new URL(page.url()).pathname.split("/")[2];
   for (const exercise of [
     { name: "Plank", label: "seconds", value: 45, load: 0, column: "Seconds" },

@@ -16,8 +16,9 @@ export type ButtonSize = "sm" | "md" | "lg";
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   // Disabled, a primary button waits: surface with ink 2, never a faded ink.
   primary: "bg-ink text-on-ink disabled:bg-surface disabled:text-ink-2",
-  secondary: "bg-surface text-ink active:bg-surface-2 disabled:text-ink-2",
-  tonal: "bg-surface text-ink active:bg-surface-2 disabled:text-ink-2",
+  // Tonal stands on the control surface: the surface in light, lifted in dark (DESIGN.md).
+  secondary: "bg-surface-control text-ink active:bg-surface-control-pressed disabled:text-ink-2",
+  tonal: "bg-surface-control text-ink active:bg-surface-control-pressed disabled:text-ink-2",
   waiting: "bg-surface text-ink-2",
   outline: "border-[1.5px] border-control bg-transparent text-ink disabled:text-ink-2",
   ghost: "bg-transparent px-2.5 text-ink disabled:text-control",

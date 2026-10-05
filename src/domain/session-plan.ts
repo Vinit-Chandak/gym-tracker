@@ -179,7 +179,7 @@ export function runPlanLine(run: PlanRun): string {
   const parts = [
     run.durationMinutes === null ? null : `${run.durationMinutes} min`,
     run.distanceKm === null ? null : `${run.distanceKm} km`,
-    run.rpe === null ? null : `Effort ${run.rpe}`,
+    run.rpe === null ? null : `Effort ${run.rpe} of 10`,
   ].filter(Boolean);
   return parts.length > 0 ? parts.join(" · ") : "Easy run";
 }

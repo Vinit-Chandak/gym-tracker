@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/shell/page-header";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import { ORIGIN_PARAM, originPath, parseOrigin } from "@/lib/nav";
+import { UNPLANNED_SESSION } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { seenSetChanges } from "@/server/queries/set-changes";
@@ -61,7 +62,7 @@ export default async function SessionPage(props: PageProps<"/workouts/[sessionId
   if (!found) notFound();
   const { session: data, records } = found;
 
-  const title = data.day?.name ?? "Ad hoc session";
+  const title = data.day?.name ?? UNPLANNED_SESSION;
   const backHref = (data.completedAt && origin ? originPath(origin) : "/today") as Route;
   // Remount the client view whenever the server-side shape of the session changes.
   const viewKey = data.exercises

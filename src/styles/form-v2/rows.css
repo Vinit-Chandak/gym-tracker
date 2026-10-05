@@ -568,16 +568,34 @@ li:last-child > .sheet-row {
 }
 
 /* The gym, as a choice in the meta line: a pin, the name, a chevron. */
+/* The gym, the one fact that is a choice: in a pill (the control rule, ink), so it reads as
+   something to tap, 36 pt tall in a 44-pt target that stays on its own line, and its glyph still
+   on the facts' column (the pill's padding and rule hang to the left of it). */
 .gym-choice {
+  position: relative;
   display: inline-flex;
   min-width: 0;
-  min-height: var(--ov-target);
+  max-width: calc(100% + 9.5px);
+  min-height: 36px;
   align-items: center;
   gap: 4px;
-  margin: -6px 0 -6px -2px;
-  color: var(--ov-ink-2);
+  margin: 4px 0 4px -9.5px;
+  padding: 0 8px;
+  border: 1.5px solid var(--ov-control);
+  border-radius: var(--ov-radius-control);
+  color: var(--ov-ink);
   font-size: var(--ov-type-meta);
   font-weight: 600;
+  text-align: left;
+}
+.gym-choice::before {
+  position: absolute;
+  inset: -5.5px -1.5px;
+  content: "";
+}
+.gym-choice-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 /* A screen's title at its measured size (fit-title.tsx). */
@@ -672,6 +690,16 @@ button.activity-card-toggle {
   flex-shrink: 0;
   place-items: center;
 }
+/* The name and its figure, wrapping as a pair: the figure drops under the name before the name
+   is broken, and a word is broken only when it is wider than the line on its own. */
+.activity-card-name {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 8px;
+}
 .activity-card-title {
   min-width: 0;
   font-family: var(--ov-font-display);
@@ -679,11 +707,10 @@ button.activity-card-toggle {
   font-weight: 700;
   line-height: 1.1;
   letter-spacing: var(--ov-title-tracking);
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .activity-card-aside {
   min-width: 0;
-  margin-left: -2px;
 }
 .activity-card-chevron {
   display: grid;
@@ -709,7 +736,7 @@ button.activity-card-toggle {
 }
 /* The gym, a choice among the facts, keeps its glyph on the facts' column. */
 .activity-card-facts > .gym-choice {
-  margin-left: 0;
+  margin-left: -9.5px;
 }
 .activity-card-status {
   margin-top: 8px;
@@ -777,8 +804,10 @@ button.activity-card-toggle {
 .activity-card-actions-row > .pinned-more {
   margin-left: auto;
 }
+/* The quieter way out stands well clear of the card's step, so a thumb meant for Resume does
+   not land on Discard. */
 .activity-card-footer {
-  margin-top: 6px;
+  margin-top: 16px;
 }
 .activity-card-actions + .activity-card-details,
 .activity-card-footer + .activity-card-details {
@@ -856,8 +885,15 @@ button.activity-card-toggle {
 .workout-row .plan-row-note {
   line-height: 1.4;
 }
+/* Where the words and Mark done cannot share a line (200% text), Mark done goes under the words
+   rather than squeezing them into a column of single words. */
 .workout-warmup {
   min-height: 56px;
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+.workout-warmup-text {
+  flex: 1 1 9rem;
 }
 .workout-warmup .plan-row-name,
 .workout-warmup .type-meta-small {
@@ -1038,7 +1074,10 @@ button.activity-card-toggle {
   font-weight: 700;
   line-height: 1.4;
 }
+/* Five figures hold one row: a figure needs a 44-pt target, not the growing target a word
+   does, so 320 pt at 200% text still has 1 to 5 on one line under their ends. */
 .scale [role="radiogroup"] > label > span {
+  min-width: 44px;
   min-height: max(var(--ov-target), calc(46px + var(--ov-grow)));
   font-family: var(--ov-font-display);
   font-size: var(--ov-type-figure);
@@ -1387,4 +1426,18 @@ li:last-child > .picker-row {
   padding: 0 10px;
   font-size: var(--ov-type-button);
   font-weight: 700;
+}
+
+/* Said once under Today's head after a discard: a check and the words, in ink. */
+.today-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: var(--ov-type-meta);
+  font-weight: 600;
+  line-height: 1.4;
+}
+/* Empty until it speaks, and still there, so the words are heard when they arrive. */
+.today-note:not(:empty) {
+  margin: 2px 0 8px;
 }

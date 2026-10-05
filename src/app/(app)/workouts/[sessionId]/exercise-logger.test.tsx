@@ -293,7 +293,7 @@ it("removes the set being entered from its options without leaving a draft behin
   press("One rep more");
   expect(localStorage.getItem(draftKey(context))).toContain('"reps":"1"');
   press("Set options: add a set, type, remove");
-  press("Remove this row");
+  press("Remove this set");
   await waitFor(() => expect(localStorage.getItem(draftKey(context))).toBeNull());
   expect(screen.getByRole("button", { name: "Reps not set. Type reps" })).toBeTruthy();
 });
@@ -303,6 +303,9 @@ it("deletes only the version of a logged set that the athlete is looking at", as
   renderLogger({ exercise: { sets: [saved] } });
   press("Set 1: 60 kilograms, 5 reps, 2 reps in reserve. Edit");
   press("Delete this set");
+  // It asks once, in place: a logged set cannot be brought back.
+  expect(actions.remove).not.toHaveBeenCalled();
+  press("Delete it");
   await waitFor(() => expect(actions.remove).toHaveBeenCalledWith("slot", 1, saved.completedAt));
   await screen.findByText("This set changed on another device.");
   // The set stays as the server has it.
@@ -469,7 +472,7 @@ it("takes the target when the empty RIR's dash is tapped, and steps either side 
   renderLogger({ exercise: { planned: benchSlot } });
   press("RIR not set, target 2. Use the target");
   expect(screen.getByRole("button", { name: "2 reps in reserve. Type RIR" })).toBeTruthy();
-  press("One rep less in reserve");
+  press("One less in reserve");
   expect(screen.getByRole("button", { name: "1 rep in reserve. Type RIR" })).toBeTruthy();
 });
 
@@ -720,7 +723,23 @@ it("shows an exercise done the moment Complete is pressed, before the server ans
   expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
   await act(async () => reply.answer({ ok: true }));
   expect(screen.getByText("Done")).toBeTruthy();
+  // Done, the dock hands back to the list; a change of mind is in More.
+  expect(screen.getByRole("button", { name: "Back to Unplanned session" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Reopen" })).toBeNull();
+  press("Complete, skip, superset, substitute");
   expect(screen.getByRole("button", { name: "Reopen" })).toBeTruthy();
+});
+
+it("makes Complete the dock's button once the planned sets are in, another set a tap away", async () => {
+  const sets = [1, 2, 3].map((setIndex) => ({ ...saved, id: `set-${setIndex}`, setIndex }));
+  renderLogger({ exercise: { planned: benchSlot, sets } });
+  expect(screen.getByRole("button", { name: "Complete Bench press" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Log another set" }));
+  // The entry stands where Complete was, for the set past the plan; Complete stays in its slot.
+  expect(entry("Set 4")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Save" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Complete Bench press" })).toBeTruthy();
 });
 
 it("offers Complete once the planned sets are in, and keeps focus with the exercise as it completes", async () => {
@@ -777,9 +796,13 @@ it("keeps an exercise open when the set it was waiting on does not save", async 
   await screen.findByRole("button", { name: "Retry saving set 1" });
   expect(actions.complete).not.toHaveBeenCalled();
   expect(screen.queryByText("Done")).toBeNull();
-  // The failed set holds changes nobody has saved, so it has to be dealt with first.
+  // The failed set holds changes nobody has saved, so it has to be dealt with first, and
+  // Complete says so.
   press("Complete, skip, superset, substitute");
-  expect((screen.getByRole("button", { name: "Complete" }) as HTMLButtonElement).disabled).toBe(
-    true,
+  const complete = screen.getByRole("button", { name: "Complete" }) as HTMLButtonElement;
+  expect(complete.disabled).toBe(true);
+  expect(complete.getAttribute("aria-describedby")).toBeTruthy();
+  expect(document.getElementById(complete.getAttribute("aria-describedby")!)?.textContent).toBe(
+    "Save the unsaved set first.",
   );
 });

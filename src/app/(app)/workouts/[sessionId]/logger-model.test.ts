@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   entryHeading,
   entrySize,
+  equipmentFact,
+  equipmentLabel,
   equipmentGlyph,
   figureColumn,
   headingText,
@@ -119,6 +121,36 @@ describe("what the header says", () => {
     expect(perSetLabel(adHoc)).toBeNull();
     expect(prescriptionLabel(adHoc)).toBeNull();
     expect(restText(adHoc)).toBeNull();
+  });
+
+  it("names this gym's machine only where the exercise's name does not already", () => {
+    const on = (name: string, equipment: string, modality: ExerciseVM["exercise"]["modality"]) =>
+      equipmentFact(
+        exercise({
+          exercise: { ...exercise().exercise, name, modality },
+          equipment: { name: equipment } as ExerciseVM["equipment"],
+        }),
+      );
+    expect(on("High-bar barbell squat", "Barbell", "barbell")).toBeNull();
+    expect(on("Smith machine calf raise", "Smith machine", "smith_machine")).toBeNull();
+    expect(on("45° leg press", "45° leg press", "machine")).toBeNull();
+    expect(on("Dumbbell curl", "Dumbbells", "dumbbell")).toBeNull();
+    expect(on("Cable triceps pushdown", "Cable station", "cable")).toBe("on Cable station");
+    expect(on("Hammer curl", "Dumbbells", "dumbbell")).toBe("with Dumbbells");
+    expect(equipmentFact(exercise())).toBeNull();
+  });
+
+  it("says the machine aloud only where the name does not already", () => {
+    const row = (name: string, equipment: string, modality: ExerciseVM["exercise"]["modality"]) =>
+      equipmentLabel(
+        exercise({
+          exercise: { ...exercise().exercise, name, modality },
+          equipment: { name: equipment } as ExerciseVM["equipment"],
+        }),
+        "gym",
+      );
+    expect(row("45° leg press", "45° leg press", "machine")).toBe("Machine");
+    expect(row("Cable triceps pushdown", "Cable station", "cable")).toBe("Cable station");
   });
 
   it("draws the equipment as its glyph", () => {

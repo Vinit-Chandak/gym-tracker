@@ -6,6 +6,7 @@ import { formatDuration, formatPace } from "@/domain/pace";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { formatRunKm, formatTime } from "@/lib/format";
 import { originQuery } from "@/lib/nav";
+import { UNPLANNED_SESSION } from "@/lib/labels";
 import { requireUser } from "@/server/auth";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { listGyms } from "@/server/repositories/gyms";
@@ -37,9 +38,9 @@ function readings(values: [string, number | null, string?][]) {
  * ten. One word over two scales is what the five-step change was undoing.
  */
 function runEffort(effort: Effort) {
-  if (effort.status === "reported") return `Effort ${effort.value}`;
+  if (effort.status === "reported") return `Effort ${effort.value} of 5`;
   if (effort.value === null) return "";
-  return `Effort ${effort.value} (unconfirmed)`;
+  return `Effort ${effort.value} of 5 (unconfirmed)`;
 }
 /**
  * History, one of Progress's sections (ADR 0034): every workout, run, ride, swim and recovery
@@ -85,7 +86,7 @@ export default async function HistoryPage(props: PageProps<"/progress/history">)
       kind: "workout" as const,
       date: w.startedAt.toISOString(),
       day: dayOf(w.startedAt),
-      title: w.dayName ?? "Ad hoc session",
+      title: w.dayName ?? UNPLANNED_SESSION,
       subtitle: `${timeOf(w.startedAt)} · ${w.gymName}`,
       // Opened from here, the entry keeps Progress selected rather than the tab it lives under,
       // and goes back to History.

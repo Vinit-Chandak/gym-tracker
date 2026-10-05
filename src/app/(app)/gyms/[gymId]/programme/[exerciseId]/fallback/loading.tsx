@@ -1,5 +1,5 @@
 import { LoadingPage } from "@/components/shell/loading-page";
 
 export default function Loading() {
-  return <LoadingPage title="Add fallback" />;
+  return <LoadingPage title="Add fallback" what="the exercises" />;
 }

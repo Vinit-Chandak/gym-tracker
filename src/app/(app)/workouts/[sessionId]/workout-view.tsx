@@ -7,7 +7,8 @@ import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 import { useSetChanges } from "@/components/set-changes";
 import { PageContent } from "@/components/shell/page-content";
 import { startRestTimer } from "@/components/shell/rest-timer";
-import { useSessionDrafts } from "@/components/use-session-drafts";
+import { useSessionDraftExercises, useSessionDrafts } from "@/components/use-session-drafts";
+import { UNPLANNED_SESSION } from "@/lib/labels";
 
 import { ExerciseLogger } from "./exercise-logger";
 import { FinishedWorkout } from "./finished-workout";
@@ -54,7 +55,7 @@ export function WorkoutView({
   header?: ReactNode;
   /** What stands above the list once the workout is finished: its records, Save as routine. */
   intro?: ReactNode;
-  /** The day's name, or "Ad hoc session". */
+  /** The day's name, or UNPLANNED_SESSION. */
   title?: string;
   /** Where minimising the open workout goes, or Back from a finished one. */
   backHref?: Route;
@@ -73,6 +74,7 @@ export function WorkoutView({
   const readOnly = session.completedAt !== null;
 
   const draftCount = useSessionDrafts(userId, session.id);
+  const draftIds = useSessionDraftExercises(userId, session.id);
   const [focusedDirty, setFocusedDirty] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [supersetFor, setSupersetFor] = useState<{ group: string | null } | null>(null);
@@ -104,6 +106,12 @@ export function WorkoutView({
   // A draft anywhere in the session blocks finishing, whether or not its exercise is open:
   // the count comes from storage, so an exercise that is not mounted still counts.
   const hasDrafts = draftCount > 0 || focusedDirty;
+  const drafts = {
+    count: Math.max(draftCount, hasDrafts ? 1 : 0),
+    names: session.exercises
+      .filter((exercise) => draftIds.includes(exercise.id))
+      .map((exercise) => exercise.exercise.name),
+  };
 
   // A finished workout's list is its record (boards Summary, Past workout).
   if (readOnly && !selected)
@@ -111,7 +119,7 @@ export function WorkoutView({
       <>
         <FinishedWorkout
           session={session}
-          title={title ?? "Ad hoc session"}
+          title={title ?? UNPLANNED_SESSION}
           justFinished={justFinished}
           backHref={backHref ?? "/today"}
           records={records}
@@ -152,7 +160,7 @@ export function WorkoutView({
           <WorkoutOverview
             session={session}
             readOnly={readOnly}
-            hasDrafts={hasDrafts}
+            drafts={drafts}
             onOpenExercise={openExercise}
             onOpenDetails={() => setDetailsOpen(true)}
             onEditSuperset={(group) => setSupersetFor({ group })}
