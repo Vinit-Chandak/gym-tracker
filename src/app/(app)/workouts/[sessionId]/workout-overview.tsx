@@ -385,15 +385,20 @@ export function WorkoutOverview({
   const [announced, setAnnounced] = useState("");
   useEffect(() => {
     if (!firstAdded) return;
-    // A tick after mounting, so the status line is in place before its words arrive and a
-    // screen reader hears them.
+    // A tick after mounting, so the status line is in place before its words arrive; and the
+    // words a moment after the focus lands, so the focused row's own name does not talk over
+    // them and a screen reader hears both.
+    let words: ReturnType<typeof setTimeout> | undefined;
     const timer = setTimeout(() => {
-      setAnnounced(addedWords);
       bodyRef.current
         ?.querySelector<HTMLElement>(`[data-workout-exercise="${firstAdded}"]`)
         ?.focus();
+      words = setTimeout(() => setAnnounced(addedWords), 400);
     }, 0);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(words);
+    };
   }, [firstAdded, addedWords]);
   const [warmupDone, setWarmupDone] = useState(session.warmupCompleted);
   const [sheet, setSheet] = useState<"more" | "warmup" | null>(null);

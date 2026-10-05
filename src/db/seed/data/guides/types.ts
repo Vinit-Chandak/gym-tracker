@@ -6,9 +6,10 @@
  * the mistakes people make. How to log a set (per dumbbell, added load only) is not part of the
  * movement and lives on the exercise as its `logNote`.
  *
- * Every guide starts as a draft. A draft is shown only in development and in environments that
- * opt in (`OVERLOAD_SHOW_DRAFTS=1`); it is published when the owner has reviewed it, and the
- * reviewer and the date are recorded here (plan: owner decisions, content and delivery).
+ * Every guide starts as a draft. A draft is seeded only into a local database or a test, and
+ * shown only in development and where `OVERLOAD_SHOW_DRAFTS=1`; it is published when the owner
+ * has reviewed it, and the reviewer and the date are recorded here (plan: owner decisions,
+ * content and delivery).
  */
 export type GuideStatus = "draft" | "published";
 

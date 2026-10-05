@@ -205,8 +205,10 @@ export async function startPlannedSession(
   const values: (typeof workoutExercises.$inferInsert)[] = [];
   for (const item of resolved) {
     const r = item.decision.resolution;
-    const substituted = r.status === "fallback";
     const entry = plan?.exercises.find((e) => e.slotId === item.programExerciseId) ?? null;
+    // Targets the coach wrote for the slot's own exercise keep that exercise: they say nothing
+    // about a fallback's, and the workout still offers the fallback if it cannot be done.
+    const substituted = r.status === "fallback" && !(entry?.action === "keep" && entry.sets.length);
     const base = {
       userId,
       workoutSessionId: session.id,
@@ -239,12 +241,12 @@ export async function startPlannedSession(
     values.push({
       ...base,
       exerciseId: substituted ? r.exercise.id : item.exercise.id,
-      // A machine the plan names wins; otherwise the gym's own resolution.
-      equipmentInstanceId:
-        entry?.equipmentInstanceId ??
-        (r.status === "direct" || r.status === "fallback"
-          ? (r.equipmentInstance?.id ?? null)
-          : null),
+      // A fallback takes its own machine. Otherwise a machine the plan names wins, then the
+      // gym's own resolution; a machine named for one exercise never goes onto another.
+      equipmentInstanceId: substituted
+        ? (r.equipmentInstance?.id ?? null)
+        : (entry?.equipmentInstanceId ??
+          (r.status === "direct" ? (r.equipmentInstance?.id ?? null) : null)),
       substitutionReason: substituted
         ? `Fallback at ${gym.name}: ${item.exercise.name} → ${item.decision.resolvedExerciseName}`
         : null,
@@ -685,10 +687,15 @@ export async function getSessionDetail(
       row.equipment?.unit ??
       options.preferredUnit ??
       (profile?.preferredUnit === "lb" ? "lb" : "kg");
-    // The coach's targets replace the rule's prefill; the rule's basis and history stay
-    // visible, so the athlete can still see what the numbers were judged against.
+    // The coach's targets replace the rule's prefill while the row does the exercise they were
+    // written for (a swap in the workout takes the rule's own numbers for the new exercise); the
+    // rule's basis and history stay visible, so the athlete can still see what the numbers were
+    // judged against.
     const targets: ProgressionSuggestion | null =
-      entry && entry.action !== "drop" && entry.sets.length > 0
+      entry &&
+      entry.action !== "drop" &&
+      entry.sets.length > 0 &&
+      entry.exerciseId === row.exercise.id
         ? {
             kind: "coach",
             basis: rule.basis,

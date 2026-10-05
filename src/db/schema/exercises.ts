@@ -15,7 +15,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import type { MuscleGroup, WarmupDrill } from "../../domain/types";
-import { readAllPolicy, sharedOrOwnerPolicies, timestamps } from "./common";
+import { readAllPolicy, sharedOrOwnerPolicies, sharedReadPolicy, timestamps } from "./common";
 import {
   exerciseCategoryEnum,
   exerciseModalityEnum,
@@ -129,7 +129,7 @@ export const exerciseEquipmentRequirements = pgTable(
       .on(t.exerciseId, t.alternative)
       .where(sql`is_primary`),
     check("exercise_equipment_requirements_alternative_chk", sql`alternative >= 1`),
-    ...sharedOrOwnerPolicies("exercise_equipment_requirements"),
+    sharedReadPolicy("exercise_equipment_requirements"),
   ],
 ).enableRLS();
 

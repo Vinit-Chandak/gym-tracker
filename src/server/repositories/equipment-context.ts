@@ -33,8 +33,11 @@ export type ReferenceSets = {
   modalityTypeIds: ModalityTypeIds;
   /** Each type's category: machines and cables are confirmed on first use, free weights never. */
   categoryById: Map<string, EquipmentCategory>;
-  /** Each type's slug, name and family, for what a workout asks about. */
-  typeById: Map<string, { slug: string; name: string; family: string | null }>;
+  /** Each type's slug, name, family and the words that tell it apart, for what a workout asks. */
+  typeById: Map<
+    string,
+    { slug: string; name: string; family: string | null; identification: string | null }
+  >;
 };
 
 export async function referenceSets(db: DbOrTx): Promise<ReferenceSets> {
@@ -54,7 +57,15 @@ export async function referenceSets(db: DbOrTx): Promise<ReferenceSets> {
     modalityTypeIds: { barbell: bySlug("barbell"), dumbbell: bySlug("dumbbells") },
     categoryById: new Map(types.map((type) => [type.id, type.category])),
     typeById: new Map(
-      types.map((type) => [type.id, { slug: type.slug, name: type.name, family: type.family }]),
+      types.map((type) => [
+        type.id,
+        {
+          slug: type.slug,
+          name: type.name,
+          family: type.family,
+          identification: type.identification,
+        },
+      ]),
     ),
   };
 }

@@ -98,9 +98,12 @@ it("says plainly when there is no guide, and keeps what is written about the exe
   expect(screen.getByText("Guide not available yet.")).toBeTruthy();
   expect(terms()).toEqual(["Notes", "How to log", "Programme cue"]);
   expect(screen.getByText("Set the bench to 15–30°.")).toBeTruthy();
-  expect(screen.getByRole("link", { name: "Read a form guide" }).getAttribute("href")).toBe(
-    "https://www.acefitness.org/example",
-  );
+  // Leaving the app is said as well as shown. (jsdom drops the space before the hidden words.)
+  expect(
+    screen
+      .getByRole("link", { name: /^Read a form guide ?\(opens in your browser\)$/ })
+      .getAttribute("href"),
+  ).toBe("https://www.acefitness.org/example");
   expect(screen.queryByRole("link", { name: /Watch demonstration/ })).toBeNull();
 });
 
@@ -151,10 +154,12 @@ it("lists where the guide was checked, in the library", () => {
       ]}
     />,
   );
-  expect(screen.getByText(/Checked against/).textContent).toBe("Checked against NASM and ACE.");
-  expect(screen.getByRole("link", { name: "NASM" }).getAttribute("href")).toBe(
-    "https://www.nasm.org/bench",
+  expect(screen.getByText(/Checked against/).textContent).toBe(
+    "Checked against NASM (opens in your browser) and ACE (opens in your browser).",
   );
+  expect(
+    screen.getByRole("link", { name: /^NASM ?\(opens in your browser\)$/ }).getAttribute("href"),
+  ).toBe("https://www.nasm.org/bench");
 });
 
 it("builds what the screens show from the stored guide, as drafts allow", () => {

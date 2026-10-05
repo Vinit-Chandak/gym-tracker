@@ -35,7 +35,8 @@ async function guidanceOf(key: string, includeGuidance = true) {
 beforeAll(async () => {
   t = await createTestDatabase();
   resetReferenceCache();
-  await seedReferenceData(t.db);
+  // As a local database is seeded: guides awaiting review are only there.
+  await seedReferenceData(t.db, { drafts: true });
   resetReferenceCache();
   user = await t.createAuthUser("guidance@example.com");
   await as((tx) => ensureProfile(tx, user));

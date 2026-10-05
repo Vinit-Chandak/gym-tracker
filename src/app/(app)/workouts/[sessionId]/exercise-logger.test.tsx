@@ -912,3 +912,54 @@ it("says honestly when an exercise has no guide yet, keeping how to log it", () 
   expect(screen.getByText("Load is per dumbbell.")).toBeTruthy();
   expect(screen.getByRole("link", { name: "Open in the exercise library" })).toBeTruthy();
 });
+
+const asking = (kind: "confirm_basic" | "unknown"): ExerciseVM["decision"] => ({
+  resolution: {
+    status: "unknown",
+    exercise: {
+      id: "bench",
+      slug: "bench",
+      modality: "machine",
+      loadPortability: "equipment_specific",
+      requiresEquipment: true,
+    },
+    missingEquipmentTypeIds: ["hack"],
+  } as NonNullable<ExerciseVM["decision"]>["resolution"],
+  resolvedExerciseName: "Hack squat",
+  fallbackOptions: [],
+  missingTypes: [{ id: "hack", name: "Hack squat" }],
+  ask: { kind, typeId: "hack", slug: "hack_squat", name: "Hack squat", art: null, family: null },
+  machines: [],
+});
+
+it("holds Save while the machine question is open, and points at the question", () => {
+  renderLogger({ exercise: { decision: asking("confirm_basic") } });
+  const save = screen.getByRole("button", { name: "Save" });
+  expect(save.getAttribute("aria-disabled")).toBe("true");
+  expect(save.getAttribute("aria-describedby")).toBeTruthy();
+  fireEvent.click(save);
+  expect(actions.log).not.toHaveBeenCalled();
+  expect(screen.getByRole("alert").textContent).toContain("Answer the machine question first.");
+  expect(document.activeElement?.textContent).toBe("Is there a hack squat here?");
+});
+
+it("still takes the answer once a set is typed, so Save is never stuck behind it", () => {
+  renderLogger({ exercise: { decision: asking("confirm_basic") } });
+  // Typed first, as people do: Save waits for the answer, so the answer cannot wait for Save.
+  fill({ Reps: "5", RIR: "2" });
+  press("Save");
+  expect(actions.log).not.toHaveBeenCalled();
+  for (const name of ["Yes, it’s here", "Not here"])
+    expect(screen.getByRole("button", { name }).hasAttribute("disabled")).toBe(false);
+});
+
+it("lets Not sure release Save for a machine nobody has answered for", () => {
+  renderLogger({ exercise: { decision: asking("unknown") } });
+  fireEvent.click(screen.getByRole("button", { name: "Save" }));
+  expect(screen.getByRole("alert").textContent).toContain("or tap Not sure");
+  fireEvent.click(screen.getByRole("button", { name: "Not sure" }));
+  expect(screen.queryByText(/machine question/)).toBeNull();
+  // Save now asks only for what any set needs: the effort.
+  fireEvent.click(screen.getByRole("button", { name: "Save" }));
+  expect(screen.getByRole("alert").textContent).not.toContain("machine question");
+});

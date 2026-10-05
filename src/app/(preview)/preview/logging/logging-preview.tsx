@@ -398,12 +398,15 @@ function machineToSettle(scenario: "basic" | "unknown", art: PreviewArt): Exerci
                   slug: "leg_press_horizontal",
                   name: "Horizontal leg press",
                   art: art.leg_press_horizontal ?? null,
+                  identification:
+                    "You sit upright and push a footplate straight ahead, level with the seat.",
                 },
                 {
                   typeId: "leg_press_vertical",
                   slug: "leg_press_vertical",
                   name: "Vertical leg press",
                   art: art.leg_press_vertical ?? null,
+                  identification: "You lie on your back and push a footplate straight up.",
                 },
               ],
             },

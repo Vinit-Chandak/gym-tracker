@@ -97,13 +97,16 @@ export function ExerciseGuide({
               {demo.channel}, on YouTube
             </span>
           </span>
+          <span className="sr-only"> (opens YouTube)</span>
           <Glyph name="play" className="glyph-20" />
         </a>
       ))}
       {!guide && formUrl && (
         <a href={formUrl} target="_blank" rel="noopener noreferrer" className="guide-link">
           <span className="min-w-0 flex-1">Read a form guide</span>
-          <Glyph name="chevronRight" className="glyph-20" />
+          <span className="sr-only"> (opens in your browser)</span>
+          {/* Leaving the app: an arrow, not the chevron that goes deeper in it. */}
+          <Glyph name="arrowRight" className="glyph-20" />
         </a>
       )}
       {libraryHref && (
@@ -120,6 +123,7 @@ export function ExerciseGuide({
               {index > 0 && (index === sources.length - 1 ? " and " : ", ")}
               <a href={source.url} target="_blank" rel="noopener noreferrer" className="underline">
                 {source.publisher}
+                <span className="sr-only"> (opens in your browser)</span>
               </a>
             </span>
           ))}

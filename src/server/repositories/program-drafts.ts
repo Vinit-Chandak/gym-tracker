@@ -318,6 +318,10 @@ export async function validateOpeningPlan(
       );
     if (entry.equipmentInstanceId && !fitting.get(exercise.id)?.includes(entry.equipmentInstanceId))
       throw new CoachingError("An opening-session machine is incompatible with its exercise.", 422);
+    // Machine work on a registered machine names it, so its history is the right one: the rule
+    // the plan's store applies when the athlete approves, checked while the coach can still answer.
+    if (!entry.equipmentInstanceId && exercise.machine && exercise.loadPortability !== "global")
+      throw new CoachingError("Choose a registered machine for opening-session machine work.", 422);
     if (
       (!slot && entry.sets.length === 0) ||
       (entry.action === "substitute" && entry.sets.length === 0)

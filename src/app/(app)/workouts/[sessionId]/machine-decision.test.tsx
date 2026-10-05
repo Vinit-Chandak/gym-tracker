@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import type { ComponentProps } from "react";
+import { useState, type ComponentProps } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import type { ExerciseDecision } from "@/server/repositories/availability";
@@ -77,22 +77,30 @@ function actions(patch: Partial<LoggerActions> = {}): LoggerActions {
   } as LoggerActions;
 }
 
+/** The block as the logger holds it: "Not sure" lives with the logger, so its Save can wait. */
+function Held(props: Omit<ComponentProps<typeof MachineDecision>, "unsure" | "onUnsure">) {
+  const [unsure, setUnsure] = useState(false);
+  return <MachineDecision {...props} unsure={unsure} onUnsure={setUnsure} />;
+}
+
 function show(d: ExerciseDecision, given = actions()) {
   const onFallback = vi.fn();
   const onMessage = vi.fn();
+  const onAnnounce = vi.fn();
   render(
     <LoggerActionsProvider value={given}>
-      <MachineDecision
+      <Held
         exercise={exercise(d)}
         session={SESSION}
         blocked={false}
         busy={false}
         onFallback={onFallback}
         onMessage={onMessage}
+        onAnnounce={onAnnounce}
       />
     </LoggerActionsProvider>,
   );
-  return { actions: given, onFallback, onMessage };
+  return { actions: given, onFallback, onMessage, onAnnounce };
 }
 
 const BASIC = decision({
@@ -114,17 +122,25 @@ const BASIC = decision({
     family: {
       name: "Leg press",
       variants: [
-        { typeId: "lph", slug: "leg_press_horizontal", name: "Horizontal leg press", art: null },
+        {
+          typeId: "lph",
+          slug: "leg_press_horizontal",
+          name: "Horizontal leg press",
+          art: null,
+          identification: "You sit upright and push the footplate straight ahead.",
+        },
       ],
     },
   },
 });
 
 it("settles a gym basic with one tap, registering it on Yes, it's here", async () => {
-  const { actions: given } = show(BASIC);
-  expect(screen.getByText("Is there a 45° leg press here?")).toBeTruthy();
-  fireEvent.click(screen.getByRole("button", { name: "Yes, it’s here" }));
+  const { actions: given, onAnnounce } = show(BASIC);
+  // The question labels its answers, as one group.
+  const answers = screen.getByRole("group", { name: "Is there a 45° leg press here?" });
+  fireEvent.click(within(answers).getByRole("button", { name: "Yes, it’s here" }));
   await waitFor(() => expect(given.confirmHere).toHaveBeenCalledWith("slot", "lp45"));
+  expect(onAnnounce).toHaveBeenCalledWith("45° leg press registered here.");
   expect(screen.queryByRole("button", { name: "Not sure" })).toBeNull();
 });
 
@@ -132,7 +148,10 @@ it("offers the family's other variants behind A different one", async () => {
   const { actions: given } = show(BASIC);
   fireEvent.click(screen.getByRole("button", { name: "A different one" }));
   const sheet = within(screen.getByRole("dialog", { name: "Which leg press is it?" }));
-  fireEvent.click(sheet.getByRole("button", { name: "Horizontal leg press" }));
+  // Each variant says how to tell it apart, in words as well as its picture.
+  const variant = sheet.getByRole("button", { name: /Horizontal leg press/ });
+  expect(variant.textContent).toContain("You sit upright and push the footplate straight ahead.");
+  fireEvent.click(variant);
   await waitFor(() => expect(given.chooseVariant).toHaveBeenCalledWith("slot", "lp45", "lph"));
 });
 
@@ -159,14 +178,19 @@ const UNKNOWN = decision({
 
 it("asks about any other machine: Available registers it, Not sure changes nothing", async () => {
   const { actions: given, onFallback } = show(UNKNOWN);
-  expect(screen.getByText("Is there a hack squat here?")).toBeTruthy();
+  expect(screen.getByText("Is a hack squat available here?")).toBeTruthy();
   // The options that were always here stay under the question.
   fireEvent.click(screen.getByRole("button", { name: "Use Goblet squat" }));
   expect(onFallback).toHaveBeenCalledWith("goblet", null, "Goblet squat");
   expect(screen.getByRole("link", { name: "Add a fallback" })).toBeTruthy();
   expect(screen.getByRole("link", { name: "Register with details" })).toBeTruthy();
+  screen.getByRole("button", { name: "Not sure" }).focus();
   fireEvent.click(screen.getByRole("button", { name: "Not sure" }));
   expect(screen.getByText("Not sure about a hack squat")).toBeTruthy();
+  // The button pressed is gone: the new heading takes the focus.
+  await waitFor(() =>
+    expect(document.activeElement?.textContent).toBe("Not sure about a hack squat"),
+  );
   expect(given.confirmHere).not.toHaveBeenCalled();
   expect(given.notHere).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Answer after all" }));
@@ -243,4 +267,11 @@ it("says a name the way a sentence does", () => {
   expect(withArticle("Ab crunch machine")).toBe("an ab crunch machine");
   expect(withArticle("45° leg press")).toBe("a 45° leg press");
   expect(withArticle("EZ curl bar")).toBe("an EZ curl bar");
+});
+
+it("says what Not here recorded", async () => {
+  const { actions: given, onAnnounce } = show(UNKNOWN);
+  fireEvent.click(screen.getByRole("button", { name: "Not here" }));
+  await waitFor(() => expect(given.notHere).toHaveBeenCalledWith("slot", "hack"));
+  expect(onAnnounce).toHaveBeenCalledWith("Recorded: no hack squat here.");
 });

@@ -225,16 +225,28 @@ describe("any other machine nobody has answered for", () => {
       .from(workoutExercises)
       .where(eq(workoutExercises.id, workoutExerciseId));
     expect(slotRow?.machine).toBeNull();
-    // Available again restores the archived machine rather than making a second one.
-    await as((tx) => confirmEquipmentHere(tx, user.id, workoutExerciseId, type.hack_squat!, "kg"));
+    // One here now is another machine: the one that went stays archived with its history, and
+    // the new one starts its own.
+    const { equipmentInstanceId: another } = await as((tx) =>
+      confirmEquipmentHere(tx, user.id, workoutExerciseId, type.hack_squat!, "kg"),
+    );
+    expect(another).not.toBe(equipmentInstanceId);
     const machines = await t.db
-      .select({ id: equipmentInstances.id, isActive: equipmentInstances.isActive })
+      .select({
+        id: equipmentInstances.id,
+        name: equipmentInstances.name,
+        isActive: equipmentInstances.isActive,
+      })
       .from(equipmentInstances)
       .where(and(eq(equipmentInstances.gymId, gymId)));
-    expect(machines).toEqual([{ id: equipmentInstanceId, isActive: true }]);
-    expect((await decisionOf(sessionId, workoutExerciseId)).equipment?.id).toBe(
-      equipmentInstanceId,
+    expect(machines).toEqual(
+      expect.arrayContaining([
+        { id: equipmentInstanceId, name: "Hack squat", isActive: false },
+        { id: another, name: "Hack squat 2", isActive: true },
+      ]),
     );
+    expect(machines).toHaveLength(2);
+    expect((await decisionOf(sessionId, workoutExerciseId)).equipment?.id).toBe(another);
   });
 
   it("changes nothing once the session is finished", async () => {

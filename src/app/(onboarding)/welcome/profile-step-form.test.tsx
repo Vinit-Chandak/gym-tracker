@@ -30,7 +30,7 @@ it("asks Which sounds like you once, on the first step, with nothing chosen for 
   const options = screen.getAllByRole("radio").filter((radio) => group.contains(radio));
   expect(options.map((radio) => radio.getAttribute("value"))).toEqual(["new", "experienced"]);
   expect(options.every((radio) => !(radio as HTMLInputElement).checked)).toBe(true);
-  expect(screen.getByLabelText("I'm new to this")).toBeTruthy();
+  expect(screen.getByLabelText("I’m new to this")).toBeTruthy();
   expect(screen.getByLabelText("I already train")).toBeTruthy();
 });
 

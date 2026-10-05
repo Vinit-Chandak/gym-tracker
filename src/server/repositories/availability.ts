@@ -587,7 +587,14 @@ export type EquipmentAsk = {
   /** For a basic in a family, the family's name and its other variants. */
   family: {
     name: string;
-    variants: { typeId: string; slug: string; name: string; art: string | null }[];
+    variants: {
+      typeId: string;
+      slug: string;
+      name: string;
+      art: string | null;
+      /** How to tell it apart, in words: a picture alone is not enough (DESIGN.md). */
+      identification: string | null;
+    }[];
   } | null;
 };
 
@@ -621,7 +628,17 @@ function askFor(resolution: Resolution, refs: ReferenceSets): EquipmentAsk | nul
   const variants = (familyDef?.members ?? []).flatMap((slug) => {
     if (slug === type.slug) return [];
     const entry = [...refs.typeById.entries()].find(([, other]) => other.slug === slug);
-    return entry ? [{ typeId: entry[0], slug, name: entry[1].name, art: drawingFor(slug) }] : [];
+    return entry
+      ? [
+          {
+            typeId: entry[0],
+            slug,
+            name: entry[1].name,
+            art: drawingFor(slug),
+            identification: entry[1].identification,
+          },
+        ]
+      : [];
   });
   return {
     kind: basic ? "confirm_basic" : "unknown",

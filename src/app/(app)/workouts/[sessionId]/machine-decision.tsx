@@ -1,7 +1,7 @@
 "use client";
 
 import type { Route } from "next";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 
 import { EquipmentArt } from "@/components/equipment-art/equipment-art";
 import { Button, LinkButton } from "@/components/ui/button";
@@ -13,11 +13,20 @@ import type { ExerciseVM, SessionVM } from "./view-model";
 
 const OFFLINE = "Connection lost. Try again when connected.";
 
+/** A name as a sentence says it: "hack squat", "EZ curl bar". */
+function said(name: string): string {
+  return /^[A-Z][a-z]/.test(name) ? name.charAt(0).toLowerCase() + name.slice(1) : name;
+}
+
 /** "a hack squat", "an ab crunch machine": the name as a sentence says it. */
 export function withArticle(name: string): string {
-  const said = /^[A-Z][a-z]/.test(name) ? name.charAt(0).toLowerCase() + name.slice(1) : name;
-  return `${/^[aeiou]/i.test(said) ? "an" : "a"} ${said}`;
+  const words = said(name);
+  return `${/^[aeiou]/i.test(words) ? "an" : "a"} ${words}`;
 }
+
+/** The id of an exercise's machine question, which a waiting Save points at. */
+export const machineQuestionId = (workoutExerciseId: string) =>
+  `machine-question-${workoutExerciseId}`;
 
 type Props = {
   exercise: ExerciseVM;
@@ -29,6 +38,14 @@ type Props = {
   onMessage: (message: string | null) => void;
   /** The logger is already saving something. */
   busy: boolean;
+  /**
+   * "Not sure" was answered: the question steps aside and nothing is recorded. The logger keeps
+   * it, so its Save stops waiting for an answer.
+   */
+  unsure: boolean;
+  onUnsure: (unsure: boolean) => void;
+  /** Says what an answer did, on the logger's status line (WCAG 4.1.3). */
+  onAnnounce: (text: string) => void;
 };
 
 /**
@@ -45,7 +62,9 @@ type Props = {
  *   history kept) or is only out of use today (a substitute for this session).
  *
  * The options that were always here stay: a fallback, adding one remembered for this gym, and
- * registering the machine with its full details.
+ * registering the machine with its full details. The question and its answers are one labelled
+ * group; when an answer changes what is asked, the new question takes the focus, and what an
+ * answer did is said aloud.
  */
 export function MachineDecision({
   exercise,
@@ -54,34 +73,62 @@ export function MachineDecision({
   onFallback,
   onMessage,
   busy,
+  unsure,
+  onUnsure,
+  onAnnounce,
 }: Props) {
   const actions = useLoggerActions();
   const [pending, startTransition] = useTransition();
-  const [unsure, setUnsure] = useState(false);
   const [gone, setGone] = useState<{ id: string; name: string }[] | null>(null);
   const [variants, setVariants] = useState(false);
+  const block = useRef<HTMLDivElement>(null);
   const decision = exercise.decision;
+  const ask = decision?.ask ?? null;
+  const branch = gone ? "gone" : ask && !unsure ? "ask" : "other";
+  const shown = useRef(branch);
+
+  // The button pressed goes with its branch: the new question takes the focus, so a keyboard or
+  // a screen reader carries on from it. Focus anywhere else is left alone.
+  useEffect(() => {
+    if (shown.current === branch) return;
+    shown.current = branch;
+    const active = document.activeElement;
+    if (active && active !== document.body && !block.current?.contains(active)) return;
+    block.current?.querySelector<HTMLElement>("[data-question]")?.focus();
+  }, [branch]);
+
   if (!decision) return null;
-  const ask = decision.ask;
   const resolution = decision.resolution;
   const registered =
     resolution.status === "direct" && resolution.equipmentInstance
       ? resolution.equipmentInstance
       : null;
   const disabled = pending || busy || blocked;
+  // The answers never wait on a set typed but not saved: Save waits on the answer, and what is
+  // typed is for the machine in front of the athlete, which is what the answer is about.
+  const answering = pending || busy;
+  const questionId = machineQuestionId(exercise.id);
+  // The type being asked about, which Register with details opens on.
+  const askedType = ask?.typeId ?? decision.missingTypes[0]?.id ?? null;
   const substitute = (remember: boolean) =>
     `/workouts/${session.id}/exercises/${exercise.id}/substitute${remember ? "" : "?remember=0"}` as Route;
 
-  const run = (work: () => Promise<{ ok: boolean; error?: string | null }>, done?: () => void) =>
+  const run = (
+    work: () => Promise<{ ok: boolean; error?: string | null }>,
+    done?: () => void,
+    spoken?: string,
+  ) =>
     startTransition(async () => {
       const outcome = await attempted(work, OFFLINE);
       if (!outcome.ok) return onMessage(outcome.message);
       if (!outcome.value.ok && outcome.value.error) return onMessage(outcome.value.error);
       onMessage(null);
+      if (spoken) onAnnounce(spoken);
       done?.();
     });
-  const here = (typeId: string) => run(() => actions.confirmHere(exercise.id, typeId));
-  const notHere = (typeId: string) =>
+  const here = (typeId: string, name: string) =>
+    run(() => actions.confirmHere(exercise.id, typeId), undefined, `${name} registered here.`);
+  const notHere = (typeId: string, name: string) =>
     startTransition(async () => {
       const outcome = await attempted(() => actions.notHere(exercise.id, typeId), OFFLINE);
       if (!outcome.ok) return onMessage(outcome.message);
@@ -90,42 +137,47 @@ export function MachineDecision({
         setGone(value.machines);
         return onMessage(null);
       }
-      onMessage(value.ok ? null : value.error);
+      if (!value.ok) return onMessage(value.error);
+      onMessage(null);
+      onAnnounce(`Recorded: no ${said(name)} here.`);
     });
-  const archive = (machineId: string) =>
+  const archive = (machine: { id: string; name: string }) =>
     run(
-      () => actions.archiveMachine(exercise.id, machineId),
+      () => actions.archiveMachine(exercise.id, machine.id),
       () => setGone(null),
+      `${machine.name} archived. Its sets stay in your history.`,
     );
 
   // "Has it gone?": a registered machine says the type is here.
   if (gone) {
     const names = gone.map((machine) => machine.name).join(" and ");
     return (
-      <div className="machine-decision" aria-busy={pending}>
-        <p className="type-heading">
+      <div ref={block} className="machine-decision" aria-busy={pending}>
+        <p id={questionId} data-question tabIndex={-1} className="type-heading outline-none">
           {names} {gone.length === 1 ? "is" : "are"} registered here. Has{" "}
           {gone.length === 1 ? "it" : "one"} gone?
         </p>
-        {gone.map((machine) => (
-          <Button
-            key={machine.id}
-            variant="danger"
-            className="w-full"
-            disabled={disabled}
-            onClick={() => archive(machine.id)}
-          >
-            Archive {machine.name}
-          </Button>
-        ))}
-        <p className="type-meta-small text-ink-2">Archived, its sets stay in your history.</p>
-        <div className="flex flex-wrap gap-2">
-          <LinkButton href={substitute(false)} variant="tonal" size="sm">
-            Out of use today
-          </LinkButton>
-          <Button variant="text" size="sm" onClick={() => setGone(null)}>
-            It&rsquo;s here after all
-          </Button>
+        <div role="group" aria-labelledby={questionId} className="machine-ask-answers">
+          {gone.map((machine) => (
+            <Button
+              key={machine.id}
+              variant="danger"
+              className="w-full"
+              disabled={disabled}
+              onClick={() => archive(machine)}
+            >
+              Archive {machine.name}
+            </Button>
+          ))}
+          <p className="type-meta-small text-ink-2">Archived, its sets stay in your history.</p>
+          <div className="flex flex-wrap gap-2">
+            <LinkButton href={substitute(false)} variant="tonal" size="sm">
+              Out of use today
+            </LinkButton>
+            <Button variant="text" size="sm" onClick={() => setGone(null)}>
+              It&rsquo;s here after all
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -147,7 +199,8 @@ export function MachineDecision({
           {option.equipmentInstanceName ? ` on ${option.equipmentInstanceName}` : ""}
         </Button>
       ))}
-      <div className="flex flex-wrap gap-2">
+      {/* Text buttons keep their words on the block's edge, as elsewhere. */}
+      <div className="-ml-2.5 flex flex-wrap gap-2">
         {blocked ? (
           <Button disabled variant="text" size="sm">
             Save or remove drafts first
@@ -159,7 +212,7 @@ export function MachineDecision({
         )}
         {/* Carries the workout along, so registering it lands back here. */}
         <LinkButton
-          href={`/gyms/${session.gym.id}/equipment/new?session=${session.id}&exercise=${exercise.id}`}
+          href={`/gyms/${session.gym.id}/equipment/new?session=${session.id}&exercise=${exercise.id}${askedType ? `&type=${askedType}` : ""}`}
           variant="text"
           size="sm"
         >
@@ -173,48 +226,54 @@ export function MachineDecision({
   if (ask && !unsure) {
     const basic = ask.kind === "confirm_basic";
     return (
-      <div className="machine-decision" aria-busy={pending}>
+      <div ref={block} className="machine-decision" aria-busy={pending}>
         <div className="machine-ask">
           {ask.art && <EquipmentArt src={ask.art} className="machine-ask-art" />}
-          <p className="type-heading">Is there {withArticle(ask.name)} here?</p>
+          <p id={questionId} data-question tabIndex={-1} className="type-heading outline-none">
+            {basic
+              ? `Is there ${withArticle(ask.name)} here?`
+              : `Is ${withArticle(ask.name)} available here?`}
+          </p>
         </div>
-        <Button
-          variant="primary"
-          className="w-full"
-          disabled={disabled}
-          onClick={() => here(ask.typeId)}
-        >
-          {basic ? "Yes, it’s here" : "Available"}
-        </Button>
-        <div className="machine-ask-row">
+        <div role="group" aria-labelledby={questionId} className="machine-ask-answers">
           <Button
-            variant="tonal"
-            className="bg-ground"
-            disabled={disabled}
-            onClick={() => notHere(ask.typeId)}
+            variant="primary"
+            className="w-full"
+            disabled={answering}
+            onClick={() => here(ask.typeId, ask.name)}
           >
-            Not here
+            {basic ? "Yes, it’s here" : "Available"}
           </Button>
-          {basic && ask.family ? (
+          <div className="machine-ask-row">
             <Button
               variant="tonal"
               className="bg-ground"
-              aria-haspopup="dialog"
-              disabled={disabled}
-              onClick={() => setVariants(true)}
+              disabled={answering}
+              onClick={() => notHere(ask.typeId, ask.name)}
             >
-              A different one
+              Not here
             </Button>
-          ) : !basic ? (
-            <Button
-              variant="tonal"
-              className="bg-ground"
-              disabled={disabled}
-              onClick={() => setUnsure(true)}
-            >
-              Not sure
-            </Button>
-          ) : null}
+            {basic && ask.family ? (
+              <Button
+                variant="tonal"
+                className="bg-ground"
+                aria-haspopup="dialog"
+                disabled={answering}
+                onClick={() => setVariants(true)}
+              >
+                A different one
+              </Button>
+            ) : !basic ? (
+              <Button
+                variant="tonal"
+                className="bg-ground"
+                disabled={answering}
+                onClick={() => onUnsure(true)}
+              >
+                Not sure
+              </Button>
+            ) : null}
+          </div>
         </div>
         {!basic && options}
         {ask.family && (
@@ -228,10 +287,14 @@ export function MachineDecision({
                 <li key={variant.typeId} className="equipment-tile-cell">
                   <button
                     type="button"
-                    disabled={disabled}
+                    disabled={answering}
                     onClick={() => {
                       setVariants(false);
-                      run(() => actions.chooseVariant(exercise.id, ask.typeId, variant.typeId));
+                      run(
+                        () => actions.chooseVariant(exercise.id, ask.typeId, variant.typeId),
+                        undefined,
+                        `${variant.name} registered here.`,
+                      );
                     }}
                     className="equipment-tile w-full text-left"
                   >
@@ -241,6 +304,10 @@ export function MachineDecision({
                     <span className="equipment-tile-name">
                       <span className="min-w-0 [overflow-wrap:anywhere]">{variant.name}</span>
                     </span>
+                    {/* The words that tell it apart: a picture alone is not enough. */}
+                    {variant.identification && (
+                      <span className="equipment-tile-purpose">{variant.identification}</span>
+                    )}
                   </button>
                 </li>
               ))}
@@ -253,9 +320,9 @@ export function MachineDecision({
 
   // Not sure, a registered machine to use, a fallback in place, or nothing that can be done here.
   return (
-    <div className="machine-decision" aria-busy={pending}>
+    <div ref={block} className="machine-decision" aria-busy={pending}>
       {unsure && ask?.art && <EquipmentArt src={ask.art} className="machine-ask-art" />}
-      <p className="type-heading">
+      <p id={questionId} data-question tabIndex={-1} className="type-heading outline-none">
         {registered
           ? "Choose the registered machine for this exercise"
           : unsure && ask
@@ -265,7 +332,7 @@ export function MachineDecision({
               : `Needs ${decision.missingTypes.map((t) => t.name.toLowerCase()).join(" or ") || "a machine"}, not registered at ${session.gym.name}`}
       </p>
       {registered && (
-        <>
+        <div role="group" aria-labelledby={questionId} className="machine-ask-answers">
           {/* Several of one kind keep their own names and histories: each is offered. */}
           {(decision.machines.length > 0 ? decision.machines : [registered]).map(
             (machine, index) => (
@@ -295,10 +362,10 @@ export function MachineDecision({
           >
             Not here
           </Button>
-        </>
+        </div>
       )}
       {unsure && ask && (
-        <Button variant="text" size="sm" className="-ml-2.5" onClick={() => setUnsure(false)}>
+        <Button variant="text" size="sm" className="-ml-2.5" onClick={() => onUnsure(false)}>
           Answer after all
         </Button>
       )}

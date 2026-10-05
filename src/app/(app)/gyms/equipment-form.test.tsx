@@ -68,3 +68,38 @@ it("pins its action, and keeps the type and unit chosen through a failed save", 
   ).toBe("cable");
   expect((screen.getByRole("radio", { name: "Stack #" }) as HTMLInputElement).checked).toBe(true);
 });
+
+it("opens on the type a workout asked about, prefilled as choosing it would", () => {
+  const { container } = render(
+    <EquipmentForm
+      action={vi.fn(async () => ({}))}
+      types={[
+        {
+          id: "cable",
+          slug: "cable-station",
+          name: "Cable station",
+          category: "cable",
+          defaultResistanceMode: "selectorized",
+          defaultUnit: "kg",
+        },
+        {
+          id: "hack",
+          slug: "hack_squat",
+          name: "Hack squat",
+          category: "machine",
+          defaultResistanceMode: "plate_loaded",
+          defaultUnit: "kg",
+        },
+      ]}
+      startTypeId="hack"
+      preferredUnit="lb"
+      submitLabel="Add machine"
+    />,
+  );
+  const data = new FormData(container.querySelector("form")!);
+  expect(data.get("equipmentTypeId")).toBe("hack");
+  expect(data.get("name")).toBe("Hack squat");
+  expect(data.get("resistanceMode")).toBe("plate_loaded");
+  // The catalogue's kilograms become the account's unit, as choosing the type does.
+  expect(data.get("unit")).toBe("lb");
+});

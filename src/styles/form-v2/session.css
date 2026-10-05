@@ -1076,6 +1076,12 @@ html:has(.session-page) .pinned-actions {
   width: 96px;
   flex-shrink: 0;
 }
+/* The answers, one group labelled by the question. */
+.machine-ask-answers {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 .machine-ask-row {
   display: flex;
   flex-wrap: wrap;

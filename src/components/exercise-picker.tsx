@@ -5,6 +5,7 @@ import { useId, useMemo, useRef, useState } from "react";
 import { GLYPH_LABELS, Glyph, modalityGlyph } from "@/components/ui/glyphs";
 import { exerciseSections } from "@/lib/exercise-search";
 import { MUSCLE_LABELS } from "@/lib/labels";
+import { holdEnter } from "@/lib/search-keys";
 import type { ExerciseListItem } from "@/server/repositories/exercises";
 
 type SingleChoice = {
@@ -72,12 +73,15 @@ export function ExercisePicker(props: ExercisePickerProps) {
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search name, muscle or equipment"
+          placeholder="Search name, muscle or equipment…"
           aria-label="Search exercises"
           className="search-box-input"
           autoCapitalize="none"
+          autoComplete="off"
           autoCorrect="off"
+          spellCheck={false}
           enterKeyHint="search"
+          onKeyDown={holdEnter}
         />
         {query && (
           <button
@@ -104,6 +108,11 @@ export function ExercisePicker(props: ExercisePickerProps) {
         </p>
       )}
 
+      {/* What a search found, said as well as shown. */}
+      <p role="status" className="sr-only">
+        {query.trim() ? searchSaid(groups, query) : ""}
+      </p>
+
       {/* An empty catalogue and a query that matches nothing are different problems. */}
       {exercises.length === 0 ? (
         <p className="mt-3 type-meta text-ink-2">No exercises in the library.</p>
@@ -112,12 +121,13 @@ export function ExercisePicker(props: ExercisePickerProps) {
       ) : (
         groups.map((group) => (
           <section key={group.key} aria-labelledby={`${id}-${group.key}`}>
-            <h3 id={`${id}-${group.key}`} className="caption-head mt-3.5">
+            {/* The page's title is its h1, and nothing stands between: the groups are h2. */}
+            <h2 id={`${id}-${group.key}`} className="caption-head mt-3.5">
               {group.title}
               {long && group.key !== "name" && (
                 <span className="tabular-nums"> · {group.items.length}</span>
               )}
-            </h3>
+            </h2>
             <ul>
               {group.items.map((exercise) => {
                 const glyph = modalityGlyph(exercise.modality);
@@ -158,6 +168,10 @@ export function ExercisePicker(props: ExercisePickerProps) {
                           </span>
                         </span>
                         {note && <span className="picker-row-note">{note}</span>}
+                        {/* The order of picks is the order they are added in: heard as well. */}
+                        {several && chosen && (
+                          <span className="sr-only">, {ordinal(place)} to add</span>
+                        )}
                       </span>
                       {several ? (
                         <span aria-hidden className="picker-tick" data-on={chosen || undefined}>
@@ -180,4 +194,19 @@ export function ExercisePicker(props: ExercisePickerProps) {
       )}
     </div>
   );
+}
+
+/** "1st", "2nd", "3rd", "11th", "22nd". */
+function ordinal(n: number): string {
+  const teen = n % 100 >= 11 && n % 100 <= 13;
+  const suffix = teen ? "th" : ({ 1: "st", 2: "nd", 3: "rd" } as Record<number, string>)[n % 10];
+  return `${n}${suffix ?? "th"}`;
+}
+
+/** "12 matches", or that nothing matches. */
+function searchSaid(groups: readonly { items: readonly { id: string }[] }[], query: string) {
+  const found = new Set(groups.flatMap((group) => group.items.map((item) => item.id))).size;
+  return found === 0
+    ? `Nothing matches “${query.trim()}”`
+    : `${found} ${found === 1 ? "match" : "matches"}`;
 }

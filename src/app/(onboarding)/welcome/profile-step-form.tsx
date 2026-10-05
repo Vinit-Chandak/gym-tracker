@@ -20,7 +20,7 @@ const UNITS = [
 
 /** The coach's two routes, asked here once and kept on the profile. */
 const EXPERIENCE: { value: TrainingExperience; label: string }[] = [
-  { value: "new", label: "I'm new to this" },
+  { value: "new", label: "I’m new to this" },
   { value: "experienced", label: "I already train" },
 ];
 

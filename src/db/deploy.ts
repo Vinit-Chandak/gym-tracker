@@ -80,8 +80,8 @@ async function main(): Promise<void> {
     await runMigrations(client);
     console.log("  migrations applied");
     const db = drizzle(client, { schema });
-    // Never the drafts: catalogue additions the owner has not approved stay out of this
-    // database until their manifest entry says they are approved.
+    // Never the drafts: catalogue additions, guides and demonstrations the owner has not
+    // approved stay out of this database until their manifest entry says they are approved.
     const reference = await seedReferenceData(db, { drafts: false });
     console.log(
       `  shared library seeded: ${reference.equipmentTypes} equipment types, ` +

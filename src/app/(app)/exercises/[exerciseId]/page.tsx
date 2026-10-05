@@ -300,11 +300,12 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
 
         {/* The same guide the workout's Technique shows (plan: exercise technique and media),
             with where it was checked. */}
-        <Section title="How to do it">
-          <div className="px-1">
-            <ExerciseGuide guidance={guidance} sources={sources} />
-          </div>
-        </Section>
+        <section aria-labelledby="guide-title">
+          <h2 id="guide-title" className="caption-head">
+            How to do it
+          </h2>
+          <ExerciseGuide guidance={guidance} sources={sources} />
+        </section>
 
         <Card>
           <h2 className="text-base font-medium">Equipment</h2>

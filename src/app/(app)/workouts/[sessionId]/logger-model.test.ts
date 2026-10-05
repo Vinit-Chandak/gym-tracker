@@ -267,6 +267,12 @@ describe("today's targets: every number from one source (plan: today's targets)"
     });
     expect(perSetLabel(adHoc)).toBe("8–12 reps");
     expect(prescriptionLabel(adHoc, "kg")).toBe("8–12 reps @ 2 RIR");
+    // Half a rep in reserve is not a target anyone can hold: it reads as the two either side.
+    const half = {
+      ...adHoc,
+      exercise: { ...adHoc.exercise, defaults: { ...adHoc.exercise.defaults, rir: 1.5 } },
+    };
+    expect(prescriptionLabel(half, "kg")).toBe("8–12 reps @ 1–2 RIR");
     expect(restText(adHoc)).toBe("90 s");
     expect(restSecondsOf(adHoc)).toBe(90);
     expect(countTargetLabel(adHoc, 1)).toBe("8–12");

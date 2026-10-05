@@ -367,8 +367,10 @@ button.equipment-tile:focus-visible {
 .equipment-tile-cell:has(input:checked) .equipment-tile-info {
   color: var(--ov-on-ink-2);
 }
+/* The ring follows the ⓘ: ink 2 on a plain tile, on-ink on a ticked one, the system's text in
+   forced colours, so it shows on either. */
 .equipment-tile-info:focus-visible {
-  outline: 3px solid var(--ov-ink);
+  outline: 3px solid currentColor;
   outline-offset: -4px;
 }
 /* The full list: a row per type, the tick at its end and ⓘ beside it. */

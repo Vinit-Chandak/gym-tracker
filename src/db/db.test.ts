@@ -296,6 +296,50 @@ describe("row level security", () => {
       /row-level security/i,
     );
   });
+
+  it("leaves requirement groups to the seed: a signed-in client cannot add one", async () => {
+    const exerciseId = await exerciseIdBySlug("barbell-bench-press");
+    const [barbell] = await t.db
+      .select({ id: equipmentTypes.id })
+      .from(equipmentTypes)
+      .where(eq(equipmentTypes.slug, "barbell"));
+    // Beside the shared rows it would hold a key the next seed writes, and stop the deploy.
+    await expectDbFailure(
+      withUser(t.db, bob.id, (tx) =>
+        tx.insert(exerciseEquipmentRequirements).values({
+          userId: bob.id,
+          exerciseId,
+          alternative: 2,
+          equipmentTypeId: barbell!.id,
+          isPrimary: true,
+        }),
+      ),
+      /row-level security/i,
+    );
+  });
+
+  it("keeps a machine's types with its owner, even for someone holding the machine's id", async () => {
+    const [machine] = await withUser(t.db, alice.id, (tx) =>
+      tx
+        .select({ id: equipmentInstances.id })
+        .from(equipmentInstances)
+        .where(eq(equipmentInstances.name, "Smith machine")),
+    );
+    const [dumbbells] = await t.db
+      .select({ id: equipmentTypes.id })
+      .from(equipmentTypes)
+      .where(eq(equipmentTypes.slug, "dumbbells"));
+    await expectDbFailure(
+      withUser(t.db, bob.id, (tx) =>
+        tx.insert(equipmentInstanceTypes).values({
+          equipmentInstanceId: machine!.id,
+          equipmentTypeId: dumbbells!.id,
+          userId: bob.id,
+        }),
+      ),
+      /equipment_instance_types_owner_fk/,
+    );
+  });
 });
 
 describe("history integrity", () => {

@@ -29,13 +29,16 @@ export function AlsoUsedFor({
   const addable = types.filter((type) => !typeIds.includes(type.id) && type.slug !== "bodyweight");
   return (
     <section aria-labelledby="also-used-for" className="mt-[var(--section-gap)]">
-      <h2 id="also-used-for" className="caption-head flex items-center gap-1">
-        Also used for
+      {/* The tip sits beside the heading, not in it, so the heading's name is its words. */}
+      <div className="flex items-center gap-1">
+        <h2 id="also-used-for" className="caption-head">
+          Also used for
+        </h2>
         <InfoTip label="About Also used for">
           A machine that does the work of another kind too, such as a lat pulldown with a low row.
           Exercises for that kind can then use it; its sets stay its own.
         </InfoTip>
-      </h2>
+      </div>
       {extra.length > 0 ? (
         <ul className="mt-1">
           {extra.map((type) => (

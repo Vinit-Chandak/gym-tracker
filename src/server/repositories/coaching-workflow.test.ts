@@ -475,6 +475,66 @@ it("rejects stale generation and opening sessions that omit a slot before saving
   ).toMatchObject({ accepted: false });
   expect((await as(a, (tx) => tx.select().from(coachJobs)))[0]?.status).toBe("superseded");
 });
+it("refuses an opening plan that leaves a registered machine unnamed, before saving a draft", async () => {
+  const a = await athlete();
+  const [type] = await t.db
+    .select()
+    .from(equipmentTypes)
+    .where(eq(equipmentTypes.slug, "leg_curl_seated"));
+  const [machine] = await as(a, (tx) =>
+    tx
+      .insert(equipmentInstances)
+      .values({
+        userId: a.user.id,
+        gymId: a.gym.id,
+        equipmentTypeId: type!.id,
+        name: "Seated leg curl",
+        resistanceMode: "selectorized",
+        unit: "kg",
+        loadIncrement: 5,
+      })
+      .returning(),
+  );
+  const curls = structuredClone(blueprint);
+  curls.days[0]!.exercises[0]!.exerciseSlug = "seated-leg-curl";
+  curls.days[0]!.exercises[0]!.fallbacks = [];
+  const opening = result(a).openingPlan;
+  const keep = {
+    ...opening.exercises[0]!,
+    exerciseSlug: "seated-leg-curl",
+    sets: [{ reps: 10, weight: null, rir: 3 }],
+  };
+  const { job } = await request(a);
+  const claim = await as(a, (tx) => claimCoachJob(tx, a.user.id, job.id));
+  // Approving the plan would insist on the machine its history belongs to, so the job does.
+  await expect(
+    as(a, (tx) =>
+      acceptCoachJobResult(tx, a.user.id, job.id, claim!.attemptId!, {
+        ...result(a),
+        blueprint: curls,
+        openingPlan: { ...opening, exercises: [keep] },
+      }),
+    ),
+  ).rejects.toThrow(/registered machine/);
+  expect(await as(a, (tx) => tx.select().from(programDrafts))).toHaveLength(0);
+  const accepted = await as(a, (tx) =>
+    acceptCoachJobResult(tx, a.user.id, job.id, claim!.attemptId!, {
+      ...result(a),
+      blueprint: curls,
+      openingPlan: { ...opening, exercises: [{ ...keep, equipmentInstanceId: machine!.id }] },
+    }),
+  );
+  const draft = await as(a, (tx) => getProgramDraft(tx, a.user.id, accepted.draftId!));
+  await expect(
+    as(a, (tx) =>
+      activateProgramDraft(tx, a.user.id, draft!.id, {
+        expectedRevision: draft!.revision,
+        startDate: "2026-09-14",
+        transition: "new_block",
+      }),
+    ),
+  ).resolves.toMatchObject({ alreadyActivated: false });
+});
 it("reconciles an expired attempt and refuses its old token after reclaim", async () => {
   const a = await athlete();
   const { job } = await request(a);
@@ -806,6 +866,31 @@ it("keeps saved-routine targets frozen and never copies completed set logs", asy
   expect(
     await as(a, (tx) => tx.select().from(programs).where(eq(programs.status, "active"))),
   ).toEqual([]);
+});
+it("says a routine's exercise has left the library, rather than blaming the gym", async () => {
+  const a = await athlete();
+  await as(a, (tx) => setTrainingMode(tx, a.user.id, "manual"));
+  const own = await as(a, (tx) =>
+    createCustomExercise(tx, a.user.id, {
+      name: "Band pull-apart",
+      category: "hypertrophy",
+      modality: "bodyweight",
+      measurement: "reps",
+      primaryMuscles: ["upper_back"],
+      equipmentInstanceId: null,
+      notes: "",
+    }),
+  );
+  const day = structuredClone(blueprint.days[0]!);
+  day.exercises[0]!.exerciseSlug = own.slug;
+  day.exercises[0]!.fallbacks = [];
+  const routine = await as(a, (tx) => saveRoutine(tx, a.user.id, "Pull-aparts", day));
+  await as(a, (tx) =>
+    tx.update(exercises).set({ isActive: false }).where(eq(exercises.id, own.id)),
+  );
+  await expect(
+    as(a, (tx) => startSavedRoutine(tx, a.user.id, routine.id, a.gym.id)),
+  ).rejects.toThrow("An exercise in this routine is no longer in the library.");
 });
 it("cascades new coaching data when Auth is deleted and allows a fresh identity for the email", async () => {
   const a = await athlete();

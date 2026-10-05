@@ -365,10 +365,14 @@ function availability(evaluation: { state: "available" } & Available): Available
 /**
  * Decide what a planned exercise becomes at a specific location:
  * - `direct`: the planned exercise, on its preferred or a compatible registered machine, on a
- *   basic the location is assumed to have, or with no equipment at all;
- * - `fallback`: an alternative that can be done. A fallback the user set for this gym is their
- *   standing answer and wins over a basic nobody has confirmed; the programme's own fallbacks
- *   apply on their own only once the planned equipment is known to be absent;
+ *   basic the location is assumed to have, or with no equipment at all. Fallbacks never replace
+ *   an exercise that can be done: an assumed basic is here until someone says it is not, and a
+ *   machine basic is confirmed in the workout, whose "Not here" then offers the fallbacks;
+ * - `fallback`: an alternative that can be done, when the planned exercise cannot. A fallback the
+ *   user set for this gym answers for equipment nobody has confirmed; the programme's own
+ *   fallbacks apply on their own only once the planned equipment is known to be absent. A
+ *   fallback naming the exercise being resolved, and no machine, is that exercise, not a
+ *   replacement for it;
  * - `unknown`: the planned exercise needs something nobody has answered for; a workout asks;
  * - `unavailable`: every way of doing it needs equipment known to be absent.
  */
@@ -400,11 +404,13 @@ export function resolveExerciseAtGym(input: ResolutionInput): Resolution {
     input.options,
     input.modalityTypeIds,
   );
-  if (available(planned) && planned.basis !== "assumed")
-    return { status: "direct", exercise, ...availability(planned) };
+  if (available(planned)) return { status: "direct", exercise, ...availability(planned) };
 
   const fallbacks = input.fallbacks
     .filter((f) => f.gymId === null || f.gymId === gym.id)
+    // A workout row already doing its slot's fallback is resolved against that slot's
+    // fallbacks: the fallback is the row's own exercise there, and never a way out of itself.
+    .filter((f) => f.fallbackExercise.id !== exercise.id || f.fallbackEquipmentInstanceId)
     .sort((a, b) => {
       if (a.gymId !== b.gymId) return a.gymId === gym.id ? -1 : 1;
       return a.rank - b.rank;
@@ -428,8 +434,6 @@ export function resolveExerciseAtGym(input: ResolutionInput): Resolution {
       fallback: own.fallback,
       ...availability(own.result),
     };
-
-  if (available(planned)) return { status: "direct", exercise, ...availability(planned) };
 
   if (planned.state === "absent") {
     const usable = fallbacks.find((f) => available(f.result));

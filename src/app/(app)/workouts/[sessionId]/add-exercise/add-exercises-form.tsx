@@ -3,6 +3,7 @@
 import { Fragment, useActionState, useState } from "react";
 
 import { ExercisePicker } from "@/components/exercise-picker";
+import { Button } from "@/components/ui/button";
 import { FormError, SubmitButton, useKeptForm } from "@/components/ui/form";
 import { Glyph } from "@/components/ui/glyphs";
 import { PinnedActions } from "@/components/ui/pinned-actions";
@@ -78,6 +79,10 @@ export function AddExercisesForm({
   const [asked, setAsked] = useState<ReadonlySet<string>>(() => new Set());
   const [review, setReview] = useState<Review>(null);
   const [notice, setNotice] = useState("");
+  // A tap past the limit, said where it is seen until the selection changes.
+  const [limitHit, setLimitHit] = useState(false);
+  // Add pressed with nothing picked: it waits, and says for what.
+  const [emptyAdd, setEmptyAdd] = useState(false);
 
   const byId = new Map(exercises.map((exercise) => [exercise.id, exercise]));
   const already = new Set(inWorkout);
@@ -118,21 +123,41 @@ export function AddExercisesForm({
     if (selected.includes(id)) {
       setSelected((current) => current.filter((value) => value !== id));
       setNotice(`${count - 1} selected`);
+      setLimitHit(false);
       return;
     }
     if (count >= MAX_SELECTED) {
+      // Said where it is seen as well as heard: a tap that does nothing needs a reason.
       setNotice(`${MAX_SELECTED} is the most you can add at once.`);
+      setLimitHit(true);
       return;
     }
     setSelected((current) => [...current, id]);
     setNotice(`${count + 1} selected`);
+    setEmptyAdd(false);
   };
 
   const remove = (id: string) => {
+    // The focus moves to the next row's Remove (or the one before), or to the search when the
+    // list empties and the sheet closes, where the next pick is made, rather than dropping to
+    // the top.
+    const index = shown.indexOf(id);
+    const then = shown[index + 1] ?? shown[index - 1] ?? null;
     const left = selected.filter((value) => value !== id);
     setSelected(left);
     setNotice(`${left.length} selected`);
+    setLimitHit(false);
     if (left.length === 0) setReview(null);
+    requestAnimationFrame(() => {
+      const root = form.current;
+      const target =
+        left.length > 0 && then
+          ? [...(root?.querySelectorAll<HTMLElement>("[data-remove]") ?? [])].find(
+              (button) => button.dataset.remove === then,
+            )
+          : root?.querySelector<HTMLElement>("input[type=search]");
+      target?.focus();
+    });
   };
 
   const shown =
@@ -186,7 +211,6 @@ export function AddExercisesForm({
           <button
             type="button"
             aria-haspopup="dialog"
-            aria-label={`Review ${count} selected ${word}`}
             onClick={() => setReview({ mode: "all" })}
             className="pinned-summary"
           >
@@ -202,20 +226,42 @@ export function AddExercisesForm({
             </span>
           </button>
         )}
+        {limitHit && (
+          <p className="pinned-fact text-ink-2">{MAX_SELECTED} is the most you can add at once.</p>
+        )}
+        {emptyAdd && count === 0 && (
+          <p className="pinned-fact text-ink-2">Choose an exercise to add.</p>
+        )}
         {review === null && <FormError message={state.formError} />}
-        <SubmitButton
-          disabled={count === 0}
-          pendingLabel="Adding…"
-          onClick={(event) => {
-            const questions = selected.filter(openQuestion);
-            if (questions.length === 0) return;
-            event.preventDefault();
-            setAsked((current) => new Set([...current, ...questions]));
-            setReview({ mode: "questions", ids: questions });
-          }}
-        >
-          {addLabel}
-        </SubmitButton>
+        {count === 0 ? (
+          // Waiting, not disabled (DESIGN.md, Buttons): it stays reachable and says what it needs.
+          <Button
+            type="button"
+            variant="waiting"
+            size="lg"
+            className="w-full"
+            aria-disabled
+            onClick={() => {
+              setEmptyAdd(true);
+              setNotice("Choose an exercise to add.");
+            }}
+          >
+            {addLabel}
+          </Button>
+        ) : (
+          <SubmitButton
+            pendingLabel="Adding…"
+            onClick={(event) => {
+              const questions = selected.filter(openQuestion);
+              if (questions.length === 0) return;
+              event.preventDefault();
+              setAsked((current) => new Set([...current, ...questions]));
+              setReview({ mode: "questions", ids: questions });
+            }}
+          >
+            {addLabel}
+          </SubmitButton>
+        )}
       </PinnedActions>
 
       <Sheet
@@ -243,6 +289,10 @@ export function AddExercisesForm({
             {NOT_CHOSEN} to choose in the workout.
           </p>
         )}
+        {/* A modal sheet hides the page's own status line: counts are said in here too. */}
+        <p role="status" className="sr-only">
+          {review !== null ? notice : ""}
+        </p>
         <ul className="review-list">
           {shown.map((id) => {
             const exercise = byId.get(id);
@@ -258,6 +308,7 @@ export function AddExercisesForm({
                   <button
                     type="button"
                     aria-label={`Remove ${exercise.name}`}
+                    data-remove={id}
                     onClick={() => remove(id)}
                     className="review-remove"
                   >
@@ -267,6 +318,7 @@ export function AddExercisesForm({
                 {place.kind === "choose" ? (
                   <SelectRow
                     label="Machine"
+                    labelHint={`for ${exercise.name}`}
                     value={machineFor(exercise)}
                     onChange={(value) => setChoices((current) => ({ ...current, [id]: value }))}
                     options={[

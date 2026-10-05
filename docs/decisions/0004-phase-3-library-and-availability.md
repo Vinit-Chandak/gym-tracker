@@ -80,3 +80,10 @@ stand.
    machine), `assumed` (some of it is a basic nobody has confirmed) or `free` (it needs nothing).
    The coach and the programme screens read confirmed, assumed, unknown and absent as four
    different things.
+6. **A fallback replaces only what cannot be done.** An exercise available at the location,
+   on a basic nobody has confirmed included, resolves `direct` before any fallback is read, as
+   barbell work did before. A fallback the athlete remembered for the gym answers for equipment
+   that is unknown or marked absent; the programme's own fallbacks apply once it is marked
+   absent. Substitute remembers by default, so many accounts hold fallbacks for lifts that were
+   always available; read first, they would quietly swap those lifts (found in review). A
+   machine basic is confirmed in the workout, whose "Not here" offers the fallbacks.

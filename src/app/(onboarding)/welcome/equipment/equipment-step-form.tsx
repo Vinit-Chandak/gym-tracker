@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useActionState, useMemo, useRef, useState } from "react";
+import { Fragment, useActionState, useId, useMemo, useRef, useState } from "react";
 
 import { EquipmentArt } from "@/components/equipment-art/equipment-art";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { Swap } from "@/components/ui/swap";
 import { sameNameCandidates, searchEquipment } from "@/lib/equipment-search";
 import { EQUIPMENT_CATEGORY_LABELS } from "@/lib/labels";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
+import { holdEnter } from "@/lib/search-keys";
 import { cn } from "@/lib/utils";
 import { addStarterEquipmentAction } from "@/server/actions/onboarding";
 import type { MachinesStep, StarterItem, StarterVariant } from "@/lib/machines-step";
@@ -27,7 +28,8 @@ type Props = {
 
 type OpenSheet =
   | { kind: "basics" }
-  | { kind: "about"; item: StarterItem }
+  /** `back`: the sheet it was opened from, which closing it returns to. */
+  | { kind: "about"; item: StarterItem; back?: "basics" }
   | { kind: "variant"; item: StarterItem }
   | { kind: "selection" }
   | null;
@@ -119,7 +121,7 @@ export function EquipmentStepForm({ step, art }: Props) {
     item.kind === "family" ? familyPick(item) !== undefined : chosen.has(item.key);
 
   const say = (next: ReadonlySet<string>) =>
-    setNotice(`${next.size} ${next.size === 1 ? "item" : "items"} chosen`);
+    setNotice(`${next.size} ${next.size === 1 ? "item" : "items"} selected`);
   const toggle = (item: StarterItem) => {
     if (isHere(item)) return;
     if (item.kind === "family") {
@@ -202,7 +204,6 @@ export function EquipmentStepForm({ step, art }: Props) {
         <button
           type="button"
           aria-haspopup="dialog"
-          aria-label={`Review the ${hereCount} usually here`}
           onClick={() => setSheet({ kind: "basics" })}
           className="basics-line"
         >
@@ -259,7 +260,7 @@ export function EquipmentStepForm({ step, art }: Props) {
 
       {browsing && (
         <div ref={fullList} className={cn(beginner && "mt-4")}>
-          {beginner && <h2 className="caption-head">All equipment</h2>}
+          <h2 className={beginner ? "caption-head" : "sr-only"}>All equipment</h2>
           <FullList
             items={step.catalogue}
             art={art}
@@ -281,7 +282,6 @@ export function EquipmentStepForm({ step, art }: Props) {
           <button
             type="button"
             aria-haspopup="dialog"
-            aria-label={`Review the ${count} chosen`}
             onClick={() => setSheet({ kind: "selection" })}
             className="pinned-summary"
           >
@@ -289,7 +289,7 @@ export function EquipmentStepForm({ step, art }: Props) {
               <Swap id={String(count)} className="tabular-nums">
                 {count}
               </Swap>{" "}
-              chosen
+              selected
             </span>
             <span className="pinned-summary-action">
               Review
@@ -301,7 +301,8 @@ export function EquipmentStepForm({ step, art }: Props) {
         <SubmitButton pendingLabel="Saving…">
           {count === 0 ? "Continue" : `Add ${count} and continue`}
         </SubmitButton>
-        <SkipLink href="/welcome/programme" />
+        {/* With nothing chosen or marked, Continue already skips: Skip is said once. */}
+        {(count > 0 || notHere.size > 0) && <SkipLink href="/welcome/programme" />}
       </PinnedActions>
 
       <Sheet
@@ -328,7 +329,7 @@ export function EquipmentStepForm({ step, art }: Props) {
                 note={registered ? "Registered" : null}
                 compact
                 onToggle={() => item.typeIds.forEach((id) => markHere(id, notHere.has(id)))}
-                onAbout={() => setSheet({ kind: "about", item })}
+                onAbout={() => setSheet({ kind: "about", item, back: "basics" })}
               />
             );
           })}
@@ -351,19 +352,25 @@ export function EquipmentStepForm({ step, art }: Props) {
           basic={sheet.item.typeIds.every((id) => basicIds.has(id))}
           here={isHere(sheet.item)}
           chosen={isChosen(sheet.item)}
+          markedNotHere={sheet.item.typeIds.every((id) => notHere.has(id))}
           onToggle={() => {
             const item = sheet.item;
             setSheet(null);
             toggle(item);
           }}
-          onClose={() => setSheet(null)}
+          onMarkHere={(here) => {
+            sheet.item.typeIds.forEach((id) => markHere(id, here));
+            setSheet(sheet.back ? { kind: sheet.back } : null);
+          }}
+          // Opened from the basics' Review, it goes back there.
+          onClose={() => setSheet(sheet.back ? { kind: sheet.back } : null)}
         />
       )}
 
       <Sheet
         open={sheet?.kind === "selection"}
         onClose={() => setSheet(null)}
-        title="Chosen"
+        title="Selected"
         footer={
           <div className="space-y-2">
             {sheet?.kind === "selection" && <FormError message={state.formError} />}
@@ -373,6 +380,10 @@ export function EquipmentStepForm({ step, art }: Props) {
           </div>
         }
       >
+        {/* A modal sheet hides the page's own status line: counts are said in here too. */}
+        <p role="status" className="sr-only">
+          {sheet?.kind === "selection" ? notice : ""}
+        </p>
         <ul className="review-list">
           {[...chosen].map((key) => {
             const [kind, id] = key.split(":");
@@ -390,12 +401,30 @@ export function EquipmentStepForm({ step, art }: Props) {
                   <button
                     type="button"
                     aria-label={`Remove ${name}`}
+                    data-remove={key}
                     onClick={() => {
+                      // The focus moves to the next row's Remove (or the one before), or to
+                      // Continue when the list empties and the sheet closes.
+                      const keys = [...chosen];
+                      const index = keys.indexOf(key);
+                      const then = keys[index + 1] ?? keys[index - 1] ?? null;
                       const next = new Set(chosen);
                       next.delete(key);
                       setChosen(next);
                       say(next);
                       if (next.size === 0) setSheet(null);
+                      requestAnimationFrame(() => {
+                        const root = form.current;
+                        const target =
+                          next.size > 0 && then
+                            ? [
+                                ...(root?.querySelectorAll<HTMLElement>("[data-remove]") ?? []),
+                              ].find((button) => button.dataset.remove === then)
+                            : root?.querySelector<HTMLElement>(
+                                ".pinned-actions button[type=submit]",
+                              );
+                        target?.focus();
+                      });
                     }}
                     className="review-remove"
                   >
@@ -439,6 +468,9 @@ function StarterTile({
   onToggle: () => void;
   onAbout: () => void;
 }) {
+  const hintId = useId();
+  // An unpicked family asks which one before it is ticked: said before the box is pressed.
+  const opensChoice = item.kind === "family" && !checked && !disabled;
   return (
     <li className="equipment-tile-cell">
       <label className="equipment-tile" data-disabled={disabled || undefined}>
@@ -447,18 +479,26 @@ function StarterTile({
           checked={checked}
           disabled={disabled}
           onChange={onToggle}
+          aria-describedby={opensChoice ? hintId : undefined}
           className="peer sr-only"
         />
         {art ? <EquipmentArt src={art} className="equipment-tile-art" /> : null}
         <span className="equipment-tile-name">
+          {/* Drawn only when ticked: forced colours would show a hidden tick in every box. */}
           <span aria-hidden className="tick-box">
-            <Glyph name="check" className="glyph-15" />
+            {checked && <Glyph name="check" className="glyph-15" />}
           </span>
           <span className="min-w-0 [overflow-wrap:anywhere]">{item.name}</span>
         </span>
         {!compact && item.purpose && <span className="equipment-tile-purpose">{item.purpose}</span>}
         {note && <span className="equipment-tile-note">{note}</span>}
       </label>
+      {/* Outside the label, so the tile's name stays its own words. */}
+      {opensChoice && (
+        <span id={hintId} className="sr-only">
+          Opens a choice of types
+        </span>
+      )}
       <button
         type="button"
         aria-haspopup="dialog"
@@ -525,12 +565,15 @@ function FullList({
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Find equipment by any name"
+          placeholder="Find equipment by any name…"
           aria-label="Find equipment"
           className="search-box-input"
           autoCapitalize="none"
+          autoComplete="off"
           autoCorrect="off"
+          spellCheck={false}
           enterKeyHint="search"
+          onKeyDown={holdEnter}
         />
         {query && (
           <button
@@ -543,6 +586,15 @@ function FullList({
           </button>
         )}
       </div>
+
+      {/* What a search found, said as well as shown. */}
+      <p role="status" className="sr-only">
+        {query.trim()
+          ? results.length > 0
+            ? `${results.length} ${results.length === 1 ? "match" : "matches"}`
+            : `Nothing is called “${query.trim()}”`
+          : ""}
+      </p>
 
       {candidates.length > 1 && (
         <section aria-labelledby="same-name-title" className="mt-3">
@@ -646,9 +698,7 @@ function VariantSheet({
         </Button>
       }
     >
-      <p className="type-meta text-ink-2">
-        Not sure? Leave it: a workout asks when an exercise needs one.
-      </p>
+      <p className="type-meta text-ink-2">A workout asks when an exercise needs one.</p>
       <ul className="equipment-grid">
         {(item.variants ?? []).map((variant) => (
           <VariantTile
@@ -699,7 +749,9 @@ function AboutSheet({
   basic,
   here,
   chosen,
+  markedNotHere,
   onToggle,
+  onMarkHere,
   onClose,
 }: {
   item: StarterItem;
@@ -707,7 +759,11 @@ function AboutSheet({
   basic: boolean;
   here: boolean;
   chosen: boolean;
+  /** A basic the person has marked as not here. */
+  markedNotHere: boolean;
   onToggle: () => void;
+  /** For a basic: here after all, or not here. */
+  onMarkHere: (here: boolean) => void;
   onClose: () => void;
 }) {
   const picture = art[item.slug];
@@ -717,7 +773,17 @@ function AboutSheet({
       onClose={onClose}
       title={item.name}
       footer={
-        basic || here ? undefined : (
+        here ? undefined : basic ? (
+          // A basic counts as here: the one thing to say about it is that it is not.
+          <Button
+            size="lg"
+            variant="tonal"
+            className="w-full"
+            onClick={() => onMarkHere(markedNotHere)}
+          >
+            {markedNotHere ? "It’s here after all" : "Not here"}
+          </Button>
+        ) : (
           <Button
             size="lg"
             variant={chosen ? "tonal" : "primary"}
@@ -752,7 +818,7 @@ function AboutSheet({
           </section>
         ))}
       {item.aliases.length > 0 && (
-        <p className="mt-3 type-meta text-ink-2">Also called {listed(item.aliases)}.</p>
+        <p className="mt-3 type-meta text-ink-2">Also called {listed(item.aliases.map(lower))}.</p>
       )}
       {here && <p className="mt-3 type-meta font-semibold">Already registered here.</p>}
     </Sheet>

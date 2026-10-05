@@ -73,8 +73,10 @@ export class UnknownEquipmentTypeError extends Error {
 }
 
 /**
- * The machine of a type at a gym: an active one if there is one, else an archived one brought
- * back (its history kept), else a new one named after the type with the catalogue's defaults.
+ * The machine of a type at a gym: an active one if there is one, else a new one named after the
+ * type with the catalogue's defaults. An archived machine is never brought back here: archived is
+ * how the athlete says a machine has gone, so one found here now is another machine, with its
+ * own history from its first set. The gym's own screen restores an archived machine.
  */
 async function machineOfType(
   db: DbOrTx,
@@ -82,7 +84,7 @@ async function machineOfType(
   gymId: string,
   equipmentTypeId: string,
   preferredUnit: BodyLoadUnit,
-): Promise<{ id: string; created: boolean; restored: boolean }> {
+): Promise<{ id: string; created: boolean }> {
   const type = (await sharedEquipmentTypes(db)).find((row) => row.id === equipmentTypeId);
   if (!type) throw new UnknownEquipmentTypeError();
   const machines = await db
@@ -95,14 +97,11 @@ async function machineOfType(
     .from(equipmentInstances)
     .where(and(eq(equipmentInstances.gymId, gymId), eq(equipmentInstances.userId, userId)))
     .orderBy(asc(equipmentInstances.name));
-  const withType = machines.filter((machine) => machine.typeIds.includes(equipmentTypeId));
-  const active = withType.find((machine) => machine.isActive);
-  if (active) return { id: active.id, created: false, restored: false };
-  const archived = withType[0];
-  if (archived) {
-    await setEquipmentActive(db, userId, archived.id, true);
-    return { id: archived.id, created: false, restored: true };
-  }
+  const active = machines.find(
+    (machine) => machine.isActive && machine.typeIds.includes(equipmentTypeId),
+  );
+  if (active) return { id: active.id, created: false };
+  // Names stay unique at a gym, archived machines' included.
   const taken = new Set(machines.map((machine) => machine.name.toLowerCase()));
   const created = await createEquipment(
     db,
@@ -110,7 +109,7 @@ async function machineOfType(
     gymId,
     defaultMachineInput(type, preferredUnit, freeMachineName(taken, type.name)),
   );
-  return { id: created.id, created: true, restored: false };
+  return { id: created.id, created: true };
 }
 
 /** Puts the machine on the exercise when it can do it and nothing is logged yet. */
@@ -127,12 +126,12 @@ async function attach(db: DbOrTx, userId: string, slot: Slot, machineId: string)
   return true;
 }
 
-export type HereOutcome = { equipmentInstanceId: string; attached: boolean; restored: boolean };
+export type HereOutcome = { equipmentInstanceId: string; attached: boolean };
 
 /**
  * "Yes, it's here" for a gym basic, and "Available" for any other machine: registered at once,
- * named after its type with the onboarding defaults (or an archived one restored), its absence
- * cleared in the same transaction, and put on the exercise before the first set.
+ * named after its type with the onboarding defaults, its absence cleared in the same
+ * transaction, and put on the exercise before the first set.
  */
 export async function confirmEquipmentHere(
   db: DbOrTx,
@@ -144,7 +143,7 @@ export async function confirmEquipmentHere(
   const slot = await openSlot(db, userId, workoutExerciseId);
   const machine = await machineOfType(db, userId, slot.gymId, equipmentTypeId, preferredUnit);
   const attached = await attach(db, userId, slot, machine.id);
-  return { equipmentInstanceId: machine.id, attached, restored: machine.restored };
+  return { equipmentInstanceId: machine.id, attached };
 }
 
 /**

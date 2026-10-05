@@ -54,6 +54,9 @@ export default async function NewEquipmentPage(props: PageProps<"/gyms/[gymId]/e
         <EquipmentForm
           action={createEquipmentAction.bind(null, data.gym.id, returnTo)}
           types={data.types}
+          // The type the workout asked about, when it sent the person here; anything else is
+          // simply not preselected.
+          startTypeId={single(search.type)}
           preferredUnit={data.preferredUnit}
           submitLabel="Add machine"
         />

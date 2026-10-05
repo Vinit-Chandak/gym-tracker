@@ -165,7 +165,7 @@ describe("equipment resolution", () => {
     }
   });
 
-  it("takes a fallback the athlete set for this gym before an unconfirmed basic", () => {
+  it("keeps a basic over a fallback the athlete set for this gym, which answers for the rest", () => {
     const gymSpecific = {
       gymId: "gym-c",
       fallbackExercise: sidePlank,
@@ -173,22 +173,79 @@ describe("equipment resolution", () => {
       fallbackEquipmentInstanceId: null,
       rank: 9,
     };
-    const result = resolveExerciseAtGym({
+    // A basic is here until someone says otherwise, so a swap remembered once does not replace
+    // a lift that can be done: the workout confirms a machine basic, and its Not here offers
+    // the fallbacks.
+    const basic = resolveExerciseAtGym({
       ...atGym,
       exercise: latPulldown,
       gym: gymC,
       fallbacks: [gymSpecific],
     });
-    expect(result).toMatchObject({ status: "fallback", exercise: { id: "side-plank" } });
-    // A registered lat pulldown would win over it.
-    const registered = resolveExerciseAtGym({
+    expect(basic).toMatchObject({
+      status: "direct",
+      basis: "assumed",
+      exercise: { id: "lat-pulldown" },
+    });
+    const bench = resolveExerciseAtGym({
+      ...atGym,
+      exercise: barbellBench,
+      gym: gymC,
+      fallbacks: [gymSpecific],
+    });
+    expect(bench).toMatchObject({ status: "direct", exercise: { id: "barbell-bench-press" } });
+    // Marked absent, the athlete's own answer comes first.
+    const absent = resolveExerciseAtGym({
       ...atGym,
       exercise: latPulldown,
       gym: gymC,
       fallbacks: [gymSpecific],
-      gymEquipment: [machine("c-lat", "gym-c", "lat_pulldown", "Lat pulldown")],
+      absentEquipmentTypeIds: new Set(["lat_pulldown", "cable_station"]),
     });
-    expect(registered).toMatchObject({ status: "direct", basis: "confirmed" });
+    expect(absent).toMatchObject({ status: "fallback", exercise: { id: "side-plank" } });
+    // For a machine nobody has answered for, it is the answer, without asking.
+    const unknown = resolveExerciseAtGym({
+      ...atGym,
+      exercise: smithCalfRaise,
+      gym: gymC,
+      fallbacks: [gymSpecific],
+    });
+    expect(unknown).toMatchObject({ status: "fallback", exercise: { id: "side-plank" } });
+  });
+
+  it("never resolves a slot's fallback as a fallback to itself", () => {
+    // A workout row started on its slot's fallback is resolved against that slot's fallbacks.
+    const own = {
+      gymId: "gym-c",
+      fallbackExercise: legPressCalfPress,
+      fallbackEquipmentTypeId: null,
+      fallbackEquipmentInstanceId: null,
+      rank: 1,
+    };
+    // It is done as itself, so a machine basic is still asked about once.
+    const row = resolveExerciseAtGym({
+      ...atGym,
+      exercise: legPressCalfPress,
+      gym: gymC,
+      fallbacks: [own, ...fallbacks],
+    });
+    expect(row).toMatchObject({
+      status: "direct",
+      basis: "assumed",
+      primaryTypeId: "leg_press_45",
+      equipmentInstance: null,
+    });
+    // Nothing answered for it: unknown, never "use itself".
+    const unknown = resolveExerciseAtGym({
+      ...atGym,
+      exercise: smithCalfRaise,
+      gym: gymC,
+      fallbacks: [{ ...own, fallbackExercise: smithCalfRaise }],
+    });
+    expect(unknown).toMatchObject({
+      status: "unknown",
+      exercise: { id: "smith-machine-calf-raise" },
+    });
   });
 
   it("honours a preferred machine at this gym over the alphabetical first match", () => {

@@ -135,7 +135,14 @@ export function prescriptionLabel(exercise: ExerciseVM, unitLabel = ""): string 
   if (range === null) return null;
   const rir = exercise.exercise.defaults.rir;
   const reps = measureOf(exercise) === "reps";
-  return `${range}${reps ? " reps" : ""}${reps && rir !== null ? ` @ ${rir} RIR` : ""}`;
+  // A library default between two whole reps (1.5) reads as the two it sits between: "1–2".
+  const rirWords =
+    rir === null
+      ? null
+      : Number.isInteger(rir)
+        ? `${rir}`
+        : rangeLabel(Math.floor(rir), Math.ceil(rir));
+  return `${range}${reps ? " reps" : ""}${reps && rirWords !== null ? ` @ ${rirWords} RIR` : ""}`;
 }
 
 /**

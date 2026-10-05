@@ -213,7 +213,17 @@ than adding, and keep the RIR honest").
   "Not here", and "A different one" for a family's variants); any other machine nobody has
   answered for takes "Available" (registered at once, staying in the workout), "Not here" or "Not
   sure". "Not here" against a registered machine asks whether it has gone (archive it, history
-  kept) or is out of use today (a substitute, not remembered).
+  kept) or is out of use today (a substitute, not remembered); one found there after that is a
+  new machine with its own history. While the question is open and nothing is logged, Save
+  waits and points at it, since the machine goes on the exercise only before the first set
+  ("Not sure" lets it be); a set typed first does not hold the answers back. "Register with
+  details" opens Add machine on the type being asked about.
+- **Fallbacks:** a fallback replaces the planned exercise only when that cannot be done: one
+  remembered for this gym when its equipment is unknown or marked not here, the programme's once
+  it is marked not here. A gym basic is here until someone says otherwise, so a swap remembered
+  once never replaces a lift that can be done; a machine basic is confirmed in the workout, and
+  its "Not here" offers the fallbacks. Targets the coach wrote keep the exercise they were
+  written for, and stay with it if the exercise is swapped.
 
 ### Finishing and the record
 

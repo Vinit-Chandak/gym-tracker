@@ -1,5 +1,13 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  cleanup,
+  createEvent,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { listItem } from "@/components/exercise-picker.test-data";
@@ -70,6 +78,11 @@ function renderForm(
 }
 
 const tick = (name: RegExp) => fireEvent.click(screen.getByRole("checkbox", { name }));
+/** The selection's own status line; the search has one of its own. */
+const selection = () =>
+  screen
+    .getAllByRole("status")
+    .find((status) => /selected|most you can add/.test(status.textContent ?? ""));
 const search = (query: string) =>
   fireEvent.change(screen.getByRole("searchbox", { name: "Search exercises" }), {
     target: { value: query },
@@ -85,16 +98,21 @@ const sent = (action: ReturnType<typeof vi.fn>, call = 0) => {
 
 it("adds what was chosen across searches straight away, in that order, naming the machines", async () => {
   const action = renderForm();
-  expect(screen.getByRole("button", { name: "Add to session" }).hasAttribute("disabled")).toBe(
-    true,
-  );
+  // With nothing picked, Add waits and says what for, rather than going dead.
+  const waiting = screen.getByRole("button", { name: "Add to session" });
+  expect(waiting.getAttribute("aria-disabled")).toBe("true");
+  fireEvent.click(waiting);
+  expect(action).not.toHaveBeenCalled();
+  expect(
+    screen.getByText("Choose an exercise to add.", { selector: "p:not([role])" }),
+  ).toBeTruthy();
   search("push");
   tick(/Push-up/);
   search("chest");
   tick(/Machine chest press/);
   search("");
   tick(/Leg curl/);
-  expect(screen.getByRole("status").textContent).toBe("3 selected");
+  expect(selection()?.textContent).toBe("3 selected");
   fireEvent.click(screen.getByRole("button", { name: "Add 3 exercises" }));
   await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
   expect(screen.queryByRole("dialog")).toBeNull();
@@ -113,7 +131,7 @@ it("asks only the machine question there is, then adds from the review", async (
   const dialog = await screen.findByRole("dialog", { name: "Which machine?" });
   expect(action).not.toHaveBeenCalled();
   expect(within(dialog).queryByText("Machine chest press")).toBeNull();
-  const machine = within(dialog).getByRole("combobox", { name: "Machine" });
+  const machine = within(dialog).getByRole("combobox", { name: /^Machine for/ });
   expect((machine as HTMLSelectElement).selectedOptions[0]?.textContent).toBe("Machine not chosen");
   fireEvent.change(machine, { target: { value: "m-flat" } });
   fireEvent.click(within(dialog).getByRole("button", { name: "Add 2 exercises" }));
@@ -135,17 +153,38 @@ it("opens the selection to review and remove, saying what is already in the work
   renderForm();
   tick(/Push-up/);
   tick(/Lat pulldown/);
-  fireEvent.click(screen.getByRole("button", { name: "Review 2 selected exercises" }));
+  fireEvent.click(screen.getByRole("button", { name: /^2 selected/ }));
   const dialog = await screen.findByRole("dialog", { name: "Selected exercises" });
   expect(within(dialog).getByText("Already in this workout")).toBeTruthy();
   expect(within(dialog).getByText("Machine not chosen")).toBeTruthy();
   expect(within(dialog).getByText("No machine needed")).toBeTruthy();
   fireEvent.click(within(dialog).getByRole("button", { name: "Remove Push-up" }));
   expect(within(dialog).queryByText("Push-up")).toBeNull();
-  expect(screen.getByRole("status").textContent).toBe("1 selected");
+  expect(selection()?.textContent).toBe("1 selected");
+  // The focus stays in the list, on the next Remove, rather than dropping to the page's top.
+  await waitFor(() =>
+    expect(document.activeElement?.getAttribute("aria-label")).toBe("Remove Lat pulldown"),
+  );
   fireEvent.click(within(dialog).getByRole("button", { name: "Remove Lat pulldown" }));
   expect(screen.queryByRole("dialog")).toBeNull();
   expect(screen.getByRole("button", { name: "Add to session" })).toBeTruthy();
+  await waitFor(() =>
+    expect(document.activeElement?.getAttribute("aria-label")).toBe("Search exercises"),
+  );
+});
+
+it("treats Enter in the search box as the end of typing, not as Add", () => {
+  const action = renderForm();
+  tick(/Push-up/);
+  tick(/Lat pulldown/);
+  search("curl");
+  // A phone's Search key is pressed to put the keyboard away, with the curl still to pick.
+  const box = screen.getByRole("searchbox", { name: "Search exercises" });
+  const enter = createEvent.keyDown(box, { key: "Enter" });
+  fireEvent(box, enter);
+  expect(enter.defaultPrevented).toBe(true);
+  expect(action).not.toHaveBeenCalled();
+  expect(selection()?.textContent).toBe("2 selected");
 });
 
 it("keeps the selection and its key through a lost connection, so a retry adds once", async () => {
@@ -171,7 +210,11 @@ it("holds at twenty, saying why", () => {
   const many = Array.from({ length: 21 }, (_, n) => listItem(`e${n}`, name(n + 1)));
   renderForm(undefined, { exercises: many, inWorkout: [] });
   for (let n = 1; n <= 21; n += 1) tick(new RegExp(`^${name(n)}`));
-  expect(screen.getByRole("status").textContent).toBe("20 is the most you can add at once.");
+  expect(selection()?.textContent).toBe("20 is the most you can add at once.");
+  // Seen as well as heard: a tap that does nothing says why where it was made.
+  expect(
+    screen.getByText("20 is the most you can add at once.", { selector: "p:not([role])" }),
+  ).toBeTruthy();
   expect((screen.getByRole("checkbox", { name: /^Move 21/ }) as HTMLInputElement).checked).toBe(
     false,
   );

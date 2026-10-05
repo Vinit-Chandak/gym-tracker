@@ -41,6 +41,8 @@ type EquipmentFormProps = {
   action: (previous: FormState, formData: FormData) => Promise<FormState>;
   types: EquipmentTypeOption[];
   initial?: EquipmentFormValues;
+  /** A new machine's type when the caller knows it (a workout's "Register with details"). */
+  startTypeId?: string;
   submitLabel: string;
   /** The account's unit, used wherever the catalogue would otherwise say kilograms. */
   preferredUnit: BodyLoadUnit;
@@ -66,6 +68,7 @@ export function EquipmentForm({
   action,
   types,
   initial,
+  startTypeId,
   submitLabel,
   preferredUnit,
 }: EquipmentFormProps) {
@@ -73,14 +76,20 @@ export function EquipmentForm({
   const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
   const value = (key: keyof EquipmentFormValues): string =>
     state.values?.[key] ?? initial?.[key] ?? "";
+  // Prefilled as choosing it would, so the person checks rather than hunts through the list.
+  const start = initial ? undefined : types.find((type) => type.id === startTypeId);
 
   // Type, name, load mode and unit are controlled so choosing a type can prefill the rest.
-  const [typeId, setTypeId] = useState(() => value("equipmentTypeId"));
-  const [name, setName] = useState(() => value("name"));
+  const [typeId, setTypeId] = useState(() => value("equipmentTypeId") || (start?.id ?? ""));
+  const [name, setName] = useState(() => value("name") || (start?.name ?? ""));
   const [mode, setMode] = useState<ResistanceMode>(
-    () => asMode(value("resistanceMode")) ?? "selectorized",
+    () => asMode(value("resistanceMode")) ?? start?.defaultResistanceMode ?? "selectorized",
   );
-  const [unit, setUnit] = useState<LoadUnit>(() => asUnit(value("unit")) ?? preferredUnit);
+  const [unit, setUnit] = useState<LoadUnit>(
+    () =>
+      asUnit(value("unit")) ??
+      (start && start.defaultUnit !== "kg" ? start.defaultUnit : preferredUnit),
+  );
   const stack = mode === "selectorized";
   const touched = useRef({
     name: Boolean(initial),

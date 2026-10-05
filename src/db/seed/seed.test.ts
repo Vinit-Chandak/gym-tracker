@@ -14,6 +14,8 @@ import {
   equipmentTypes,
   exerciseEquipmentOptions,
   exerciseEquipmentRequirements,
+  exerciseGuides,
+  exerciseMedia,
   exercises,
   warmupProtocols,
 } from "../schema";
@@ -850,6 +852,28 @@ describe("drafts in a database", () => {
 
     await seedReferenceData(t.db, { drafts: false });
     expect(await snapshot()).toEqual(first);
+  });
+
+  it("keeps guides and videos awaiting review out of production's data", async () => {
+    const statuses = async () => ({
+      guides: (await t.db.select({ status: exerciseGuides.status }).from(exerciseGuides))
+        .map((row) => row.status)
+        .sort(),
+      media: (await t.db.select({ status: exerciseMedia.status }).from(exerciseMedia))
+        .map((row) => row.status)
+        .sort(),
+    });
+    await seedReferenceData(t.db, { drafts: false });
+    const production = await statuses();
+    expect(production.guides.filter((status) => status !== "published")).toEqual([]);
+    expect(production.media.filter((status) => status !== "approved")).toEqual([]);
+    // A local database has them for review, and a production seed takes them out again.
+    await seedReferenceData(t.db, { drafts: true });
+    const local = await statuses();
+    expect(local.guides).toContain("draft");
+    expect(local.media).toContain("candidate");
+    await seedReferenceData(t.db, { drafts: false });
+    expect(await statuses()).toEqual(production);
   });
 
   it("adds every draft where drafts are asked for, moving no id, twice the same", async () => {

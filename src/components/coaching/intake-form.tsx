@@ -461,7 +461,7 @@ function TrackChooser({
         [
           {
             track: "guided",
-            title: "I'm new to this",
+            title: "I’m new to this",
             points: [
               "A few short questions, on one screen",
               "Say the rest in your own words, typed or spoken",

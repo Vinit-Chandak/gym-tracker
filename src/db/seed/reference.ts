@@ -150,8 +150,14 @@ export function referenceManifests(options: ReferenceSeedOptions = {}) {
         .filter((slug) => typeSlugs.has(slug))
         .map((slug) => ({ gymKind: gymKind as keyof typeof ASSUMED_EQUIPMENT, slug })),
     ),
-    guides: GUIDES.filter((guide) => exerciseSlugs.has(guide.exercise)),
-    media: MEDIA.filter((item) => exerciseSlugs.has(item.exercise)),
+    // Guides and videos awaiting the owner stay out of production's data altogether, as the
+    // catalogue's drafts do: the app hides them too, but signed-in clients can read the tables.
+    guides: GUIDES.filter(
+      (guide) => exerciseSlugs.has(guide.exercise) && (drafts || guide.status === "published"),
+    ),
+    media: MEDIA.filter(
+      (item) => exerciseSlugs.has(item.exercise) && (drafts || item.status === "approved"),
+    ),
   };
 }
 

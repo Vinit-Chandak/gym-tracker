@@ -330,6 +330,13 @@
       "when": 1791148729396,
       "tag": "0046_workout_submission_receipts",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1791162347196,
+      "tag": "0047_owned_machine_types_and_shared_requirements",
+      "breakpoints": true
     }
   ]
 }

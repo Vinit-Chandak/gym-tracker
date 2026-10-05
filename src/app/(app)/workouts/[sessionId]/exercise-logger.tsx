@@ -19,7 +19,7 @@ import { ExerciseGuide } from "@/components/exercise-guide";
 import { RestPill } from "@/components/shell/rest-timer";
 import { Button } from "@/components/ui/button";
 import { rampSize, titleSize } from "@/components/ui/fit";
-import { Glyph } from "@/components/ui/glyphs";
+import { GLYPH_LABELS, Glyph } from "@/components/ui/glyphs";
 import { Tabs } from "@/components/ui/tabs";
 import { useMeasure } from "@/components/ui/use-width";
 import { effortError, effortMetric, RIR_HELP, RPE_HELP } from "@/domain/effort";
@@ -67,7 +67,7 @@ import {
   type MoreOption,
   type WhyContent,
 } from "./logger-sheets";
-import { MachineDecision, MachineGoneSheet } from "./machine-decision";
+import { MachineDecision, MachineGoneSheet, machineQuestionId } from "./machine-decision";
 import { NextLoad, nextLoadQuestion } from "./next-load";
 import { useSetRows, type Ghost, type RowState } from "./use-set-rows";
 import type { ExerciseVM, SessionVM, SetVM } from "./view-model";
@@ -311,6 +311,8 @@ export function ExerciseLogger({
   const [completing, showCompleting] = useOptimistic(false);
   const [skipped, setSkipped] = useState(exercise.skippedAt !== null);
   const [message, setMessage] = useState<string | null>(null);
+  // "Not sure" about the exercise's machine: the question steps aside and Save stops waiting.
+  const [machineUnsure, setMachineUnsure] = useState(false);
   const [pending, startTransition] = useTransition();
   // The moment a set is written: the sets that landed while this screen was open rise into
   // place, and Save reads Saved for a beat.
@@ -330,6 +332,7 @@ export function ExerciseLogger({
   const frame = useRef<HTMLDivElement>(null);
   const dock = useRef<HTMLDivElement>(null);
   const doneHead = useRef<HTMLParagraphElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
   // Complete pressed in the message slot: focus follows the exercise to its Done line.
   const focusDone = useRef(false);
   const shownTab = useRef(tab);
@@ -537,7 +540,8 @@ export function ExerciseLogger({
   const rest = restText(exercise);
   const facts: ReactNode[] = [
     <>
-      <Glyph name={glyph} label={equipment} className="glyph-16" />
+      {/* The glyph says the kind; the machine itself is said once, in words. */}
+      <Glyph name={glyph} label={GLYPH_LABELS[glyph]} className="glyph-16" />
       <span>{range ?? equipment}</span>
     </>,
   ];
@@ -594,6 +598,32 @@ export function ExerciseLogger({
 
   // ---------- completing, skipping, a fallback ----------
   const needsDecision = exercise.decision !== null && !skipped && !readOnly;
+  // A machine question still open before the first set: Save waits and points at it, since
+  // the machine goes on the exercise only before anything is logged ("Not sure" lets it be).
+  const askingMachine =
+    needsDecision &&
+    exercise.decision?.ask != null &&
+    !machineUnsure &&
+    sets.loggedSets.length === 0;
+  const machineFirst =
+    exercise.decision?.ask?.kind === "unknown"
+      ? "Answer the machine question first, or tap Not sure."
+      : "Answer the machine question first.";
+  const pointAtMachine = () => {
+    setMessage(machineFirst);
+    document.getElementById(machineQuestionId(exercise.id))?.focus();
+  };
+  // Once the question is answered it leaves with the button pressed: the exercise's name takes
+  // the focus, so a keyboard or a screen reader is not dropped at the top of the page.
+  const deciding = useRef(needsDecision);
+  useEffect(() => {
+    const was = deciding.current;
+    deciding.current = needsDecision;
+    if (!was || needsDecision) return;
+    const active = document.activeElement;
+    if (active && active !== document.body) return;
+    titleRef.current?.focus({ preventScroll: true });
+  }, [needsDecision]);
   // Once this exercise's working sets are in, a stack whose next stop nobody knows asks for
   // it under the sets (ADR 0028); nothing is asked mid-exercise or of plates.
   const loggedWorking = sets.loggedSets.filter((set) => WORKING_SET_TYPES.has(set.setType));
@@ -847,12 +877,15 @@ export function ExerciseLogger({
       )}
     </p>
   ) : null;
-  const quietHint =
-    waitingForEffort && !entryRow?.error ? (
-      <span id={hintId} className="sr-only">
-        {effort === "rir" ? RIR_NEEDED : RPE_NEEDED}
-      </span>
-    ) : null;
+  const quietHint = askingMachine ? (
+    <span id={hintId} className="sr-only">
+      {machineFirst}
+    </span>
+  ) : waitingForEffort && !entryRow?.error ? (
+    <span id={hintId} className="sr-only">
+      {effort === "rir" ? RIR_NEEDED : RPE_NEEDED}
+    </span>
+  ) : null;
 
   const saveButton = (() => {
     if (!entryRow) return null;
@@ -873,6 +906,19 @@ export function ExerciseLogger({
         <Button variant="waiting" size="lg" className="w-full text-ink" aria-disabled>
           <Glyph name="check" className="glyph-20" />
           Saved
+        </Button>
+      );
+    if (askingMachine)
+      return (
+        <Button
+          variant="waiting"
+          size="lg"
+          className="w-full"
+          aria-disabled
+          aria-describedby={hintId}
+          onClick={pointAtMachine}
+        >
+          Save
         </Button>
       );
     if (waitingForEffort)
@@ -1013,7 +1059,9 @@ export function ExerciseLogger({
       </header>
 
       <div ref={body} className="session-body" data-scroll={tab !== "log"}>
-        <h2 className="session-title">{exercise.exercise.name}</h2>
+        <h2 ref={titleRef} tabIndex={-1} className="session-title outline-none">
+          {exercise.exercise.name}
+        </h2>
         <p className="session-meta">
           {facts.map((fact, index) => (
             <span key={index} className="session-fact">
@@ -1054,6 +1102,13 @@ export function ExerciseLogger({
                 busy={pending}
                 onFallback={applyFallback}
                 onMessage={setMessage}
+                unsure={machineUnsure}
+                onUnsure={(value) => {
+                  setMachineUnsure(value);
+                  // "Not sure" answers what a waiting Save asked for.
+                  if (value) setMessage(null);
+                }}
+                onAnnounce={setAnnounced}
               />
             )}
 

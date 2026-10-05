@@ -235,6 +235,19 @@ li:last-child > .sheet-row {
   content: "";
   pointer-events: none;
 }
+/* While a workout is minimised, the ground runs on under the session strip to the tab bar, so
+   the strip sits on it and nothing of the page shows around it. Outside the box, so the height
+   the content makes room for is still the actions' own. */
+.pinned-actions::after {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: 0;
+  height: var(--session-chrome-height, 0px);
+  background: var(--ov-ground);
+  content: "";
+  pointer-events: none;
+}
 .pinned-actions-row {
   display: flex;
   max-width: var(--ov-content-max);
@@ -1085,7 +1098,9 @@ button.activity-card-toggle {
   color: var(--ov-ink);
   font-size: var(--ov-type-input);
   font-weight: 600;
+  /* The box's ink edge shows the focus: the global ring's ground halo would cut into it. */
   outline: none;
+  box-shadow: none;
   appearance: none;
 }
 .search-box-input::placeholder {
@@ -1162,7 +1177,8 @@ li:last-child > .picker-row {
 
 /* Choosing several (Add exercise): an empty ring at the row's end; chosen, an ink disc holding
    its place in the order. The disc fills in 120 ms and its figure fades in as a swap does; with
-   reduced motion both are immediate. In forced colours the ring and the disc keep their edge. */
+   reduced motion the disc fills at once and the figure still fades, as any swap does. In forced
+   colours the ring and the disc keep their edge. */
 .picker-tick {
   display: grid;
   width: calc(26px + var(--ov-grow) * 0.5);

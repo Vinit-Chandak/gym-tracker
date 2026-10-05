@@ -29,10 +29,13 @@ has touched a hosted database, and nothing has been merged or deployed.
     unless `drafts` is true. The production deploy (`src/db/deploy.ts`) always passes `false`; the
     local seeder passes `true` only for a loopback database; tests pass `true`. A draft never
     reaches the production database, so no read path needs a filter.
-  - Guides, demonstration links and illustrations carry a status in their own data. They reach
-    every database but are shown only where drafts are on: `next dev`, or
-    `OVERLOAD_SHOW_DRAFTS=1` (for a preview the owner reviews on a phone). Approving one is a
-    one-line change to its manifest entry (status, reviewer, date) and a deploy.
+  - Guides, demonstration links and illustrations carry a status in their own data, and are
+    shown only where drafts are on: `next dev`, or `OVERLOAD_SHOW_DRAFTS=1` (a production build
+    run against a local database). Draft guides and candidate links are also seeded only where
+    catalogue drafts are (after the code review: signed-in clients can read those tables
+    directly, so the app's filter alone left them readable in production). Drawings live in the
+    code and are refused by their route. Approving one is a one-line change to its manifest
+    entry (status, reviewer, date) and a deploy.
 - **How to log** lives on the exercise (`exercises.log_note`), not in the guide: it is existing,
   already-shipped data that must show whether or not a reviewed guide exists. A guide's renderer
   shows it under "How to log".
@@ -298,6 +301,72 @@ has touched a hosted database, and nothing has been merged or deployed.
   overflow, console errors, destinations) on the 29 routes this work touches (gyms, exercises,
   workouts, onboarding), on Pixel 7 and at 320 px, against the production build: clean. WebKit
   was not run (the container's WebKit does not match the installed Playwright).
+
+## Fresh-context review (step 6)
+
+Three reviews of the branch at b4dec2d, each from a fresh context: a code review (the
+`/code-review` skill, each claim then reproduced with throwaway PGlite tests), an impeccable
+critique of the captured screens, and an accessibility audit (WCAG 2.2, web-design-guidelines and
+the motion rules, run in Chromium against the app). What they found, and what became of it:
+
+- **Code review, fixed** (each with a test that fails on the old code):
+  - A fallback remembered at a gym replaced lifts that `main` always kept: barbell, dumbbell and
+    bodyweight work, and machine basics, since an assumed basic no longer resolved `direct` before
+    fallbacks were read; and the coach's targets for the planned lift then landed on the
+    substitute. `main`'s Substitute ticks "Remember" by default, so many accounts have such
+    fallbacks. Now an exercise that can be done resolves `direct` (a basic is here until someone
+    says otherwise); a gym's own fallback answers only for equipment that is unknown or marked
+    not here, the programme's only once it is marked not here. A machine basic is confirmed in the
+    workout, and its Not here offers the fallbacks (recorded as point 6 of ADR 0004's amendment).
+    `startPlannedSession` keeps a slot the coach
+    kept with targets, never carries a machine named for one exercise onto another, and the
+    coach's targets apply only while the row does the exercise they were written for.
+  - A row already doing its slot's fallback resolved as a fallback to itself, so its decision
+    block never cleared (and a machine basic reached that way was never asked about). The resolver
+    now skips a fallback naming the exercise being resolved and no machine.
+  - The opening plan's job check had lost `main`'s rule that machine work on a registered machine
+    names it, while approving the plan still insisted (`storePlan` with `strict`): the job now
+    refuses it, while the coach can still answer.
+  - Migration 0045 let a signed-in client add requirement rows beside the shared ones, under the
+    same unique keys, which the next seed would collide with and stop the deploy; and a machine's
+    type rows checked only their own owner. Migration 0047 (additive) leaves the table to the
+    seed and ties type rows to the machine's owner with a composite foreign key.
+  - "Yes, it's here" after "It's gone: archive it" brought the gone machine back: the workout
+    now never restores an archived machine (the gym screen does); one found there is a new machine
+    with its own history.
+  - Enter in a search box inside a form (a phone's Search key) submitted what had been picked so
+    far: it now ends the typing, and puts the keyboard away on a touch screen.
+  - Minor: a routine whose exercise left the library said its equipment was marked not here; it
+    now says the exercise is gone. Draft guides and candidate links were readable through the
+    Data API in production, though the app hid them: they are now seeded only where catalogue
+    drafts are (a local database, tests), so production holds none.
+- **Found while fixing**: the Save gate added for the critique's first finding (below) made the
+  machine question's answers wait on a typed set while Save waited on the answer, a dead end. The
+  answers now never wait on unsaved sets.
+- **Critique and accessibility audit, fixed**: the machine question is one labelled group whose
+  new question takes the focus, with what an answer did said aloud; Save waits on an open machine
+  question before the first set and points at it; sheets that unmount return focus; Remove in a
+  review sheet keeps the focus in the list (or on the search or Continue when it empties); counts
+  are said inside open sheets; ticks are drawn only in ticked tiles (forced colours); Skip shows
+  only when there is something to discard; a basic's About goes back to the basics' Review and
+  can mark it not here; "chosen" became "selected"; aliases are lower case; variant tiles say how
+  to tell them apart; "Is a hack squat available here?"; text buttons sit on the block's edge;
+  search boxes say their result counts, end their placeholders in an ellipsis and switch off
+  autocomplete and spell-check; numbered picks say their order; the 20-item limit is shown as
+  well as said; external links say they leave the app; the library's guide has a caption head;
+  the "Added …" announcement follows the focus move; the header's glyph names its kind; the
+  "Also used for" tip sits beside its heading; Add waits, saying why, with nothing picked;
+  "Register with details" opens on the type asked about; the pinned actions' ground runs under the
+  session strip; a library default of 1.5 RIR reads "1–2 RIR"; headings no longer jump from h1 to
+  h3 (the picker's groups, the experienced list); curly apostrophes.
+- **Left for the owner**: the basics' Review sheet is a wall of ink tiles (a DESIGN.md amendment);
+  rest notation mixes "2.5 min" with "3 min 20 s" (off the half-minute) and seconds for such
+  ranges; the pinned stack takes about half of a 320-pt screen at 200% text; the drawings' own
+  issues (in the PR). **Deferred**: the More button's name lists four of its five options
+  (predates the branch; renaming it touches every logger test); "Also used for" Remove still drops
+  the focus and has no undo (a server-action form; re-adding is one select away); disabled
+  "Not possible here" options can't be reached with Tab (as on `main`); the full lists render
+  unvirtualised (about 100 types, 289 exercises).
 
 ## Next
 

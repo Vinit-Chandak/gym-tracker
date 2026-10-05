@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   boolean,
   check,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -207,6 +208,8 @@ export const equipmentInstances = pgTable(
   (t) => [
     uniqueIndex("equipment_instances_gym_name_uq").on(t.gymId, t.name),
     index("equipment_instances_user_gym_idx").on(t.userId, t.gymId),
+    // What a machine's own rows point at, owner included (`equipment_instance_types`).
+    uniqueIndex("equipment_instances_user_id_uq").on(t.userId, t.id),
     ownerPolicy("equipment_instances"),
   ],
 ).enableRLS();
@@ -234,6 +237,13 @@ export const equipmentInstanceTypes = pgTable(
   (t) => [
     primaryKey({ columns: [t.equipmentInstanceId, t.equipmentTypeId] }),
     index("equipment_instance_types_user_idx").on(t.userId),
+    // A machine's types belong to the machine's owner: nobody can hold a type row on someone
+    // else's machine, which would take the key that machine's own row needs.
+    foreignKey({
+      name: "equipment_instance_types_owner_fk",
+      columns: [t.userId, t.equipmentInstanceId],
+      foreignColumns: [equipmentInstances.userId, equipmentInstances.id],
+    }).onDelete("cascade"),
     ownerPolicy("equipment_instance_types"),
   ],
 ).enableRLS();

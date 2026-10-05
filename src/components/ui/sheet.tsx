@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
 
 import { Close } from "./icons";
 
@@ -38,6 +38,19 @@ export function Sheet({
   const panel = useRef<HTMLDivElement>(null);
   const heading = useRef<HTMLDivElement>(null);
   const bottom = useRef<HTMLDivElement>(null);
+  // False once the sheet is leaving the page, so its own close is not reported as the person's.
+  const live = useRef(true);
+
+  // A sheet taken off the page while open (rendered only while open) closes first: the browser
+  // then returns the focus to the control that opened it, as it does for a sheet that stays.
+  useLayoutEffect(() => {
+    live.current = true;
+    const dialog = ref.current;
+    return () => {
+      live.current = false;
+      if (dialog?.open) dialog.close();
+    };
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -114,7 +127,7 @@ export function Sheet({
       onClose={() => {
         // A controlled close also emits the native event. Only notify the caller when
         // the browser closed an open dialog, not a second time after its own close action.
-        if (open) onClose();
+        if (open && live.current) onClose();
       }}
       onCancel={(event) => {
         event.preventDefault();

@@ -719,7 +719,10 @@ and every control answers a press.
   takes the target ("RIR not set, target 2. Use the target"), − and + go one either side of it.
   Save waits, grey, until it is set; tapped, the app's sentence for a missing RIR ("Enter RIR:
   estimate how many more good reps you could do.") shows in the message slot, and the dash inks
-  to say what is missing. Timed and distance sets take RPE, 1 to 10, the same way.
+  to say what is missing. Timed and distance sets take RPE, 1 to 10, the same way. Save waits
+  the same way while a machine question is open before the first set: tapped, "Answer the
+  machine question first" shows and the question takes the focus. The question's answers
+  never wait on Save.
 - **In a row:** a label (and its hint) left; −, the value in a fixed 120-pt column, + right, so
   the buttons line up row under row (hours slept, a run's distance and duration).
 
