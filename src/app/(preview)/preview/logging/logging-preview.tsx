@@ -12,7 +12,11 @@ import { startRestTimer } from "@/components/shell/rest-timer";
 import type { TargetSet } from "@/domain/progression";
 import type { SetType } from "@/domain/types";
 
-export type Scenario = "log" | "warmups" | "pounds" | "superset" | "first" | "done";
+export type Scenario =
+  "log" | "warmups" | "pounds" | "superset" | "first" | "done" | "basic" | "unknown";
+
+/** The drawings the machine questions show, from the server: slug to address. */
+export type PreviewArt = Record<string, string>;
 
 const SESSION_ID = "00000000-0000-4000-8000-00000000c0de";
 const STARTED = "2026-09-29T07:30:00.000Z";
@@ -62,6 +66,8 @@ const base = {
   decision: null,
   coachNote: null,
   coachRestSeconds: null,
+  coachPerSide: null,
+  guidance: null,
   supersetGroup: null,
   equipment: null,
 } satisfies Partial<ExerciseVM>;
@@ -125,6 +131,16 @@ function bench(scenario: Scenario): ExerciseVM {
       requiresEquipment: true,
       defaultPrescriptionType: "reps",
       rirNote: null,
+      defaults: {
+        repMin: null,
+        repMax: null,
+        durationMinSeconds: null,
+        durationMaxSeconds: null,
+        distanceMinMeters: null,
+        distanceMaxMeters: null,
+        rir: null,
+        restSeconds: null,
+      },
     },
     planned: slot({
       plannedExerciseName: "Barbell bench press",
@@ -168,6 +184,16 @@ function squat(): ExerciseVM {
       requiresEquipment: true,
       defaultPrescriptionType: "reps",
       rirNote: null,
+      defaults: {
+        repMin: null,
+        repMax: null,
+        durationMinSeconds: null,
+        durationMaxSeconds: null,
+        distanceMinMeters: null,
+        distanceMaxMeters: null,
+        rir: null,
+        restSeconds: null,
+      },
     },
     planned: slot({
       plannedExerciseName: "High-bar barbell squat",
@@ -205,6 +231,16 @@ function carry(): ExerciseVM[] {
         requiresEquipment: true,
         defaultPrescriptionType: "distance",
         rirNote: null,
+        defaults: {
+          repMin: null,
+          repMax: null,
+          durationMinSeconds: null,
+          durationMaxSeconds: null,
+          distanceMinMeters: null,
+          distanceMaxMeters: null,
+          rir: null,
+          restSeconds: null,
+        },
       },
       planned: slot({
         plannedExerciseName: "Farmer’s carry",
@@ -256,6 +292,16 @@ function carry(): ExerciseVM[] {
         requiresEquipment: true,
         defaultPrescriptionType: "reps",
         rirNote: null,
+        defaults: {
+          repMin: null,
+          repMax: null,
+          durationMinSeconds: null,
+          durationMaxSeconds: null,
+          distanceMinMeters: null,
+          distanceMaxMeters: null,
+          rir: null,
+          restSeconds: null,
+        },
       },
       planned: slot({
         plannedExerciseName: "Wrist curl",
@@ -275,9 +321,121 @@ function carry(): ExerciseVM[] {
   ];
 }
 
-function sessionFor(scenario: Scenario): { session: SessionVM; exercise: ExerciseVM } {
+/**
+ * A machine to settle before the first set (plan: gradual confirmation during workouts): the
+ * 45° leg press, a gym basic nobody has confirmed, or a hack squat nobody has answered for, with
+ * the goblet squat as its programme fallback.
+ */
+function machineToSettle(scenario: "basic" | "unknown", art: PreviewArt): ExerciseVM {
+  const basic = scenario === "basic";
+  const ref = {
+    id: basic ? "leg-press-45" : "hack-squat",
+    name: basic ? "45° leg press" : "Hack squat",
+    slug: basic ? "leg-press-45" : "hack-squat",
+    modality: "machine" as const,
+    loadPortability: "equipment_specific" as const,
+    requiresEquipment: true,
+    defaultPrescriptionType: "reps" as const,
+    rirNote: null,
+    defaults: {
+      repMin: null,
+      repMax: null,
+      durationMinSeconds: null,
+      durationMaxSeconds: null,
+      distanceMinMeters: null,
+      distanceMaxMeters: null,
+      rir: null,
+      restSeconds: null,
+    },
+  };
+  return {
+    ...base,
+    id: ref.slug,
+    orderIndex: 1,
+    exercise: ref,
+    planned: slot({ plannedExerciseName: ref.name, repMin: 8, repMax: 12, rirMin: 2, rirMax: 2 }),
+    weightStep: 5,
+    sets: [],
+    basis: null,
+    suggestion: null,
+    decision: {
+      resolution: basic
+        ? ({
+            status: "direct",
+            exercise: ref,
+            equipmentInstance: null,
+            basis: "assumed",
+            primaryTypeId: "leg_press_45",
+            assumedTypeIds: ["leg_press_45"],
+          } as unknown as NonNullable<ExerciseVM["decision"]>["resolution"])
+        : { status: "unknown", exercise: ref, missingEquipmentTypeIds: ["hack_squat"] },
+      resolvedExerciseName: ref.name,
+      fallbackOptions: basic
+        ? []
+        : [
+            {
+              fallbackId: "goblet",
+              exerciseId: "goblet-squat",
+              exerciseName: "Goblet squat",
+              equipmentInstanceId: null,
+              equipmentInstanceName: null,
+              available: true,
+            },
+          ],
+      missingTypes: basic ? [] : [{ id: "hack_squat", name: "Hack squat" }],
+      machines: [],
+      ask: basic
+        ? {
+            kind: "confirm_basic",
+            typeId: "leg_press_45",
+            slug: "leg_press_45",
+            name: "45° leg press",
+            art: art.leg_press_45 ?? null,
+            family: {
+              name: "Leg press",
+              variants: [
+                {
+                  typeId: "leg_press_horizontal",
+                  slug: "leg_press_horizontal",
+                  name: "Horizontal leg press",
+                  art: art.leg_press_horizontal ?? null,
+                  identification:
+                    "You sit upright and push a footplate straight ahead, level with the seat.",
+                },
+                {
+                  typeId: "leg_press_vertical",
+                  slug: "leg_press_vertical",
+                  name: "Vertical leg press",
+                  art: art.leg_press_vertical ?? null,
+                  identification: "You lie on your back and push a footplate straight up.",
+                },
+              ],
+            },
+          }
+        : {
+            kind: "unknown",
+            typeId: "hack_squat",
+            slug: "hack_squat",
+            name: "Hack squat",
+            art: art.hack_squat ?? null,
+            family: null,
+          },
+    },
+  };
+}
+
+function sessionFor(
+  scenario: Scenario,
+  art: PreviewArt,
+): { session: SessionVM; exercise: ExerciseVM } {
   const exercises =
-    scenario === "pounds" ? [squat()] : scenario === "superset" ? carry() : [bench(scenario)];
+    scenario === "basic" || scenario === "unknown"
+      ? [machineToSettle(scenario, art)]
+      : scenario === "pounds"
+        ? [squat()]
+        : scenario === "superset"
+          ? carry()
+          : [bench(scenario)];
   const day =
     scenario === "pounds" ? "Lower A" : scenario === "superset" ? "Easy Run + Arms" : "Upper A";
   const session: SessionVM = {
@@ -347,6 +505,10 @@ function fakeActions(fail: boolean): LoggerActions {
     setCompleted: async () => wait({ ok: true as const }, 300),
     skip: async () => wait({ ok: true as const }, 300),
     applyFallback: async () => wait({ ok: true as const }, 300),
+    confirmHere: async () => wait({ ok: true as const }, 500),
+    notHere: async () => wait({ ok: true as const }, 500),
+    chooseVariant: async () => wait({ ok: true as const }, 500),
+    archiveMachine: async () => wait({ ok: true as const }, 500),
     readHistory: async () => ({
       more: false,
       entries: [
@@ -398,12 +560,14 @@ export function LoggingPreview({
   scenario,
   fail,
   rest,
+  art = {},
 }: {
   scenario: Scenario;
   fail: boolean;
   rest: boolean;
+  art?: PreviewArt;
 }) {
-  const { session, exercise } = useMemo(() => sessionFor(scenario), [scenario]);
+  const { session, exercise } = useMemo(() => sessionFor(scenario, art), [scenario, art]);
   const actions = useMemo(() => fakeActions(fail), [fail]);
   const [ready, setReady] = useState(false);
 

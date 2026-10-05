@@ -2,10 +2,13 @@
 // first run. Every figure and line is the repository's: src/app/(app)/training, profile, the
 // onboarding under src/app/(onboarding)/welcome, the coach's audit seed (scripts/dev/seed-audit.ts),
 // seed-people.ts for the person, and src/db/seed/data for the programme and its template.
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
 import { s, esc } from "./lib.mjs";
 import * as K from "./kit.mjs";
 import { dayPrint } from "./art.mjs";
-import { cycle, today as T, me, machineCatalogue as MC } from "./data.mjs";
+import { cycle, today as T, me } from "./data.mjs";
 
 const { txt, title, icon, tn } = K;
 export const sect = (t, label, rows, { mt = 18 } = {}) =>
@@ -240,6 +243,7 @@ ${key}
 ${stepTitle(t, dv, "Welcome to Overload")}
 ${sub(t, "A few short steps. Everything here can be changed later, from your profile.")}
 <div style="${s({ display: "flex", "flex-direction": "column", gap: 14, "margin-top": 16 })}">${K.field(t, "What should we call you?", { value: me.name, optional: true })}${K.field(t, "Username", { value: me.handle, help: "Available." })}
+${labelled(t, "Which sounds like you?", seg(t, ["I'm new to this", "I already train"], -1, "Which sounds like you?", { h: 46 }))}
 <div style="${s({ display: "grid", "grid-template-columns": "minmax(0,0.9fr) minmax(0,1.1fr)", gap: 12, "align-items": "end" })}">${labelled(t, "Weight units", seg(t, ["kg", "lb"], 0, "Weight units", { h: 46 }))}${K.field(t, "Time zone", { value: "Asia/Kolkata" })}</div></div>`;
   return onboardFrame(t, dv, 0, inner, go(t, "Continue"), { label: "Welcome, step 1 of 5" });
 }
@@ -273,19 +277,61 @@ ${labelled(
     label: "Add your gym, step 3 of 5",
   });
 }
-// Machines: the catalogue as ticks, grouped; the count says what will be added.
+// Machines (plan: onboarding, equipment and technique): for somebody new at a gym, the basics as
+// one line that counts them and opens them as pictures, then a handful of illustrated extras to
+// tick, each with its purpose; Browse all for everything else. No Select all. The pictures are
+// the pilot's own line drawings (src/components/equipment-art/svg), inlined so they take the ink.
+const DRAWINGS = path.resolve(
+  path.dirname(new URL(import.meta.url).pathname),
+  "../../../../../src/components/equipment-art/svg",
+);
+const drawing = (slug) => {
+  try {
+    return readFileSync(path.join(DRAWINGS, `${slug}.svg`), "utf8")
+      .replace("<svg ", '<svg aria-hidden="true" style="display:block;width:100%;height:auto" ')
+      .replace(/\n\s*/g, "");
+  } catch {
+    return "";
+  }
+};
+const EXTRAS = [
+  {
+    slug: "chest_press_machine",
+    name: "Chest press",
+    purpose: "Pushes forward from a seat",
+    on: true,
+  },
+  {
+    slug: "shoulder_press_machine",
+    name: "Shoulder press machine",
+    purpose: "Presses overhead from a seat",
+  },
+  {
+    slug: "smith_machine",
+    name: "Smith machine",
+    purpose: "A bar on rails, for squats and presses",
+    on: true,
+  },
+  {
+    slug: "assisted_dip_chin",
+    name: "Assisted dip and chin",
+    purpose: "Takes some of your weight off for pull-ups and dips",
+  },
+  { slug: "hip_abduction", name: "Hip abduction", purpose: "Pushes the knees apart, seated" },
+  { slug: "hip_adduction", name: "Hip adduction", purpose: "Squeezes the knees together, seated" },
+];
 export function machinesStepScreen(t, dv = K.D) {
-  const tick = (name) => {
-    const on = MC.ticked.includes(name);
-    return `<li><label style="${s({ display: "flex", "align-items": "center", gap: 10, "min-height": 52, height: "100%", padding: "6px 10px 6px 12px", "border-radius": 12, background: on ? t.ink : t.surface, color: on ? t.onInk : t.ink })}"><input type="checkbox" ${on ? "checked" : ""} class="sr"><span aria-hidden="true" style="${s({ width: 22, height: 22, "border-radius": 6, border: on ? 0 : `1.5px solid ${t.control}`, background: on ? t.onInk : "transparent", color: t.ink, display: "grid", "place-items": "center", "flex-shrink": 0 })}">${on ? icon("check", 15) : ""}</span><span class="wrap" style="${txt(15, 600, { "line-height": 1.25 })}">${name}</span></label></li>`;
-  };
+  const ticked = EXTRAS.filter((x) => x.on).length;
+  const tile = ({ slug, name, purpose, on = false }) =>
+    `<li style="position:relative"><label style="${s({ display: "flex", "flex-direction": "column", gap: 4, height: "100%", padding: "10px 12px 12px", "border-radius": 14, background: on ? t.ink : t.surface, color: on ? t.onInk : t.ink })}"><input type="checkbox" ${on ? "checked" : ""} class="sr">${drawing(slug) ? `<span style="display:block;width:calc(100% - 28px)">${drawing(slug)}</span>` : ""}<span style="${s({ display: "flex", "align-items": "flex-start", gap: 8, "padding-right": drawing(slug) ? 0 : 30 })}"><span aria-hidden="true" style="${s({ width: 22, height: 22, "border-radius": 6, border: on ? 0 : `1.5px solid ${t.control}`, background: on ? t.onInk : "transparent", color: t.ink, display: "grid", "place-items": "center", "flex-shrink": 0 })}">${on ? icon("check", 15) : ""}</span><span class="wrap" style="${txt(15, 700, { "line-height": 1.3 })}">${name}</span></span><span class="wrap" style="${txt(14, 500, { color: on ? t.onInk2 : t.ink2, "line-height": 1.35 })}">${purpose}</span></label><button type="button" aria-label="About ${name}" style="${s({ position: "absolute", top: 0, right: 0, width: 44, height: 44, display: "grid", "place-items": "center", color: on ? t.onInk2 : t.ink2 })}">${icon("info", 20)}</button></li>`;
   const inner = `${stepTitle(t, dv, "What does Anytime Fitness have?")}
-<p style="${s({ display: "flex", "align-items": "center", gap: 2, "margin-top": 2 })}; ${txt(16, 500, { color: t.ink2 })}">Tick the machines it has.<button type="button" aria-label="About machines" aria-haspopup="dialog" style="${s({ width: 44, height: 44, display: "grid", "place-items": "center", color: t.ink2 })}">${icon("info", 18)}</button></p>
-<label style="${s({ display: "flex", "align-items": "center", gap: 10, height: 48, padding: "0 14px", "border-radius": 14, border: `1.5px solid ${t.control}`, "margin-top": 2 })}"><span style="display:grid;color:${t.ink2}">${icon("search", 20)}</span><span class="sr">Find a machine</span><span aria-hidden="true" style="${txt(16, 500, { color: t.ink2 })}">Find a machine</span></label>
-<div style="${s({ display: "flex", "align-items": "center", gap: 4, "margin-top": 8 })}"><button type="button" style="${K.BTN(t, "tonal", { h: 44 })}; padding: 0 12px; font-size: 14px">Select all machines</button><button type="button" style="${K.BTN(t, "text", { h: 44 })}; font-size: 14px">Clear all</button><span style="flex:1 1 auto"></span><span role="status" style="${txt(14, 700)}; ${tn}">${MC.ticked.length} selected</span></div>
-${K.caption(t, "Machines", { mt: 12 })}
-<ul style="${s({ display: "grid", "grid-template-columns": "repeat(2, minmax(0,1fr))", gap: 6, "margin-top": 4 })}">${MC.Machines.map(tick).join("")}</ul>`;
-  return onboardFrame(t, dv, 3, inner, `${go(t, "Add and continue")}${skip(t)}`, {
+<p style="${s({ display: "flex", "align-items": "center", gap: 2, "margin-top": 2 })}; ${txt(16, 500, { color: t.ink2 })}">Tick what you recognise.<button type="button" aria-label="About equipment here" aria-haspopup="dialog" style="${s({ width: 44, height: 44, display: "grid", "place-items": "center", color: t.ink2 })}">${icon("info", 18)}</button></p>
+<button type="button" aria-haspopup="dialog" aria-label="Review the 18 usually here" style="${s({ display: "flex", width: "100%", "min-height": 64, "align-items": "center", gap: 12, "margin-top": 6, padding: "10px 0", "border-top": `1px solid ${t.hair}`, "border-bottom": `1px solid ${t.hair}`, "text-align": "left" })}"><span style="${s({ display: "flex", "flex-direction": "column", gap: 2, flex: "1 1 auto", "min-width": 0 })}"><span style="${txt(16, 700)}">Usually here (<span style="${tn}">18</span>)</span><span class="wrap" style="${txt(14, 500, { color: t.ink2, "line-height": 1.35 })}">Barbell, EZ curl bar, dumbbells, weight plates and 14 more</span></span><span style="${s({ display: "flex", "align-items": "center", gap: 2 })}; ${txt(15, 700)}">Review${icon("chevronRight", 18)}</span></button>
+${K.caption(t, "What else is here?", { mt: 16 })}
+<ul style="${s({ display: "grid", "grid-template-columns": "repeat(2, minmax(0,1fr))", gap: 8, "margin-top": 8 })}">${EXTRAS.map(tile).join("")}</ul>
+<button type="button" style="${K.BTN(t, "text", { h: 44 })}; margin-left: -10px; margin-top: 4px">Browse all equipment</button>`;
+  const foot = `<button type="button" aria-haspopup="dialog" aria-label="Review the ${ticked} chosen" style="${s({ display: "flex", width: "100%", "min-height": 44, "align-items": "center", "justify-content": "space-between", gap: 12, background: t.ground })}; ${txt(15, 600)}"><span><span style="${tn}">${ticked}</span> chosen</span><span style="${s({ display: "flex", "align-items": "center", gap: 2 })}; ${txt(15, 700)}">Review${icon("chevronRight", 18)}</span></button>${go(t, `Add ${ticked} and continue`)}${skip(t)}`;
+  return onboardFrame(t, dv, 3, inner, foot, {
     label: "Machines at your gym, step 4 of 5",
   });
 }

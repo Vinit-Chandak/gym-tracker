@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { EXERCISE_ALIASES } from "@/db/seed/data/exercise-aliases";
 import { EXERCISES } from "@/db/seed/data/exercises";
 
 import { exerciseSections, matchesExerciseQuery, searchExercises } from "./exercise-search";
@@ -15,12 +16,24 @@ const latPulldown = {
 } as const;
 
 /** The library as it is seeded, alphabetical as the picker receives it. */
-const library = EXERCISES.map((e) => ({ ...e, secondaryMuscles: e.secondaryMuscles ?? [] })).sort(
-  (a, b) => a.name.localeCompare(b.name),
-);
+const library = EXERCISES.map((e) => ({
+  ...e,
+  secondaryMuscles: e.secondaryMuscles ?? [],
+  aliases: EXERCISE_ALIASES[e.slug] ?? [],
+})).sort((a, b) => a.name.localeCompare(b.name));
 const names = (items: readonly { name: string }[]) => items.map((item) => item.name);
 
 describe("exercise search", () => {
+  it("finds an exercise by another name it goes by", () => {
+    // Aliases answer as names do (plan: discovery and recognition), local names included.
+    expect(names(searchExercises(library, "RDL")?.byName ?? [])).toContain(
+      "Barbell Romanian deadlift",
+    );
+    expect(searchExercises(library, "press-up")?.byName[0]?.name).toBe("Push-up");
+    // The library's own name still leads when it is what was typed.
+    expect(searchExercises(library, "Push-up")?.byName[0]?.name).toBe("Push-up");
+  });
+
   it("matches on name, muscles, modality and movement pattern", () => {
     expect(matchesExerciseQuery(latPulldown, "pull")).toBe(true);
     expect(matchesExerciseQuery(latPulldown, "biceps")).toBe(true);
@@ -65,7 +78,10 @@ describe("exercise search", () => {
 
   it("lists exercises for a muscle after the names that mention it, primary movers first", () => {
     const results = searchExercises(library, "biceps");
-    expect(results?.byName.every((e) => /bicep/i.test(e.name))).toBe(true);
+    // A name match is the name or one of the names it goes by.
+    expect(results?.byName.every((e) => [e.name, ...e.aliases].some((n) => /bicep/i.test(n)))).toBe(
+      true,
+    );
     const other = results?.byOther ?? [];
     const firstSecondary = other.findIndex((e) => !e.primaryMuscles.includes("biceps"));
     expect(firstSecondary).toBeGreaterThan(0);

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   draftKey,
   draftMatchesSet,
+  moveDrafts,
   readDrafts,
   removeDraft,
   sessionDraftExercises,
@@ -124,5 +125,31 @@ describe("unsaved set drafts", () => {
         draft,
       ),
     ).toBe(false);
+  });
+});
+
+describe("drafts carried with the exercise", () => {
+  it("moves unsaved rows to where a machine answer put the exercise, then drops the old key", () => {
+    const store = storage();
+    const before = { ...context, equipmentId: null };
+    const after = { ...context, equipmentId: "new-machine" };
+    writeDraft(store, before, draft);
+    writeDraft(store, after, { ...draft, setIndex: 2, reps: "8" });
+    expect(moveDrafts(store, before, after)).toBe(true);
+    expect(store.getItem(draftKey(before))).toBeNull();
+    const moved = readDrafts(store, after);
+    expect(moved.map((row) => [row.setIndex, row.reps, row.carried ?? false])).toEqual([
+      [2, "8", false],
+      [1, "5", true],
+    ]);
+  });
+
+  it("does nothing where there is nothing to carry, or nowhere new to carry it", () => {
+    const store = storage();
+    writeDraft(store, context, draft);
+    expect(moveDrafts(store, context, context)).toBe(true);
+    expect(readDrafts(store, context)).toHaveLength(1);
+    expect(moveDrafts(store, { ...context, workoutExerciseId: "x" }, context)).toBe(true);
+    expect(readDrafts(store, context)).toHaveLength(1);
   });
 });

@@ -27,6 +27,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Third-party agent skills ship their own scripts; they are not app code.
     ".claude/skills/**",
+    // Claude Code's agent worktrees: whole checkouts of this repository, linted where they live.
+    ".claude/worktrees/**",
   ]),
 ]);
 

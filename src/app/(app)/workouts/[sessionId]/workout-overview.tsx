@@ -2,6 +2,7 @@
 
 import type { Route } from "next";
 import {
+  useEffect,
   useId,
   useLayoutEffect,
   useRef,
@@ -13,7 +14,6 @@ import {
 
 import { Art } from "@/components/art/art";
 import type { PrintPart, StrengthColumn } from "@/components/art/geometry";
-import { targetsLine } from "@/components/planned-exercises";
 import { RestPill } from "@/components/shell/rest-timer";
 import Link from "@/components/ui/app-link";
 import { Button, LinkButton } from "@/components/ui/button";
@@ -68,21 +68,20 @@ const underWay = (exercise: ExerciseVM) =>
 /**
  * What a row says under the name (DESIGN.md, Rows and marks): for the exercise under way, the
  * sets so far ("60 kg × 4, 60 kg × 4"); otherwise its prescription, the coach's when the coach
- * wrote it ("60 kg · 3 × 5 @ 2, 2, 1 RIR").
+ * wrote it ("60 kg · 3 × 5 @ 2, 2, 1 RIR"), else the programme's, else the exercise's defaults.
  */
-function rowLine(exercise: ExerciseVM, unitLabel: string, readOnly: boolean): string {
+function rowLine(exercise: ExerciseVM, session: SessionVM, readOnly: boolean): string {
   const done = workDone(exercise);
   if ((readOnly || underWay(exercise)) && done.length > 0)
     return done.map((set) => formatSet(set, LOAD_UNIT_LABELS[set.unit])).join(", ");
-  if (exercise.suggestion?.kind === "coach") {
-    const line = targetsLine(
-      exercise.suggestion.sets,
-      unitLabel,
-      exercise.planned?.perSide ?? false,
-    );
-    if (line) return line;
-  }
-  return prescriptionLabel(exercise) ?? equipmentLine(exercise, "gym");
+  const unitLabel = LOAD_UNIT_LABELS[exercise.equipment?.unit ?? session.preferredUnit];
+  const line = prescriptionLabel(exercise, unitLabel);
+  const machine = equipmentLine(exercise);
+  if (!line) return machine;
+  // A machine still to settle is news on the row, as it is under the exercise's name.
+  return machine === "Machine not chosen" && !exercise.completedAt && !exercise.skippedAt
+    ? `${line} · ${machine}`
+    : line;
 }
 
 /** The workout's plan as a print: the warm-up's fan, then a column of sets for each exercise. */
@@ -336,7 +335,17 @@ type OverviewProps = {
   layer?: boolean;
   /** Where the layer's list was scrolled to, kept while an exercise is open. */
   listScrollRef?: RefObject<number>;
+  /** How many exercises Add exercise just put at the end of the list, to say so once. */
+  added?: number;
 };
+
+/** What Add exercise just added, in words: every name for a few, the first ones for many. */
+export function addedLine(names: readonly string[]): string {
+  if (names.length === 0) return "";
+  if (names.length === 1) return `Added ${names[0]}.`;
+  if (names.length <= 4) return `Added ${names.slice(0, -1).join(", ")} and ${names.at(-1)}.`;
+  return `Added ${names.length} exercises: ${names.slice(0, 3).join(", ")} and ${names.length - 3} more.`;
+}
 
 /**
  * The workout (DESIGN.md, The session; boards Workout, Workout-Superset, Workout-Coach): the
@@ -355,6 +364,7 @@ export function WorkoutOverview({
   backHref = "/today",
   layer = false,
   listScrollRef,
+  added = 0,
 }: OverviewProps) {
   const bodyRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLElement>(null);
@@ -390,9 +400,32 @@ export function WorkoutOverview({
   useLayoutEffect(() => {
     if (bodyRef.current && listScrollRef) bodyRef.current.scrollTop = listScrollRef.current;
   }, [listScrollRef]);
+  // What was just added stands at the end of the list: the status line under it names them as
+  // the list arrives, and focus goes to the first of them, so the next Tab, or the next swipe of
+  // a screen reader, is on what was added.
+  const justAdded = added > 0 && !readOnly ? session.exercises.slice(-added) : [];
+  const firstAdded = justAdded[0]?.id ?? null;
+  const addedWords = addedLine(justAdded.map((exercise) => exercise.exercise.name));
+  const [announced, setAnnounced] = useState("");
+  useEffect(() => {
+    if (!firstAdded) return;
+    // A tick after mounting, so the status line is in place before its words arrive; and the
+    // words a moment after the focus lands, so the focused row's own name does not talk over
+    // them and a screen reader hears both.
+    let words: ReturnType<typeof setTimeout> | undefined;
+    const timer = setTimeout(() => {
+      bodyRef.current
+        ?.querySelector<HTMLElement>(`[data-workout-exercise="${firstAdded}"]`)
+        ?.focus();
+      words = setTimeout(() => setAnnounced(addedWords), 400);
+    }, 0);
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(words);
+    };
+  }, [firstAdded, addedWords]);
   const [warmupDone, setWarmupDone] = useState(session.warmupCompleted);
   const [sheet, setSheet] = useState<"warmup" | null>(null);
-  const unitLabel = LOAD_UNIT_LABELS[session.preferredUnit];
   const coachPlanned = session.coachPlan !== null;
   const heading = coachPlanned ? `${title}, planned by the coach` : title;
   const blades = session.coachPlan?.warmup.length || session.warmup?.drills.length || 0;
@@ -429,6 +462,7 @@ export function WorkoutOverview({
       <li key={exercise.id}>
         <button
           type="button"
+          data-workout-exercise={exercise.id}
           onClick={() => onOpenExercise(exercise.id)}
           className={cn("plan-row workout-row w-full text-left", last && "plan-row-last")}
         >
@@ -444,12 +478,8 @@ export function WorkoutOverview({
             {!skipped && (
               <span className="meta-line plan-row-meta">
                 <span className="meta-fact">
-                  <Glyph
-                    name={glyph}
-                    label={equipmentLabel(exercise, session.gym.kind)}
-                    className="glyph-16"
-                  />
-                  <Figures>{rowLine(exercise, unitLabel, readOnly)}</Figures>
+                  <Glyph name={glyph} label={equipmentLabel(exercise)} className="glyph-16" />
+                  <Figures>{rowLine(exercise, session, readOnly)}</Figures>
                   {instead && <span>instead of {instead}</span>}
                 </span>
               </span>
@@ -606,6 +636,11 @@ export function WorkoutOverview({
         </ul>
       )}
 
+      {!readOnly && (
+        <p role="status" className={cn("type-meta font-semibold", announced && "mt-2")}>
+          {announced}
+        </p>
+      )}
       {!readOnly && (
         <div className="mt-2.5 flex flex-wrap gap-2">
           <LinkButton href={`/workouts/${session.id}/add-exercise`} variant="tonal" size="sm">

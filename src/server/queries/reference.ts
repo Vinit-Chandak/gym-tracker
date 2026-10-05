@@ -1,8 +1,20 @@
 import { asc, isNull } from "drizzle-orm";
 
-import { equipmentTypes, exercises, warmupProtocols } from "@/db/schema";
+import {
+  assumedEquipmentTypes,
+  equipmentCombinations,
+  equipmentCombinationTypes,
+  equipmentPresets,
+  equipmentTypes,
+  exerciseEquipmentRequirements,
+  exerciseGuides,
+  exerciseMedia,
+  exercises,
+  warmupProtocols,
+} from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
-import type { WarmupDrill } from "@/domain/types";
+import type { RequirementRef } from "@/domain/equipment-resolution";
+import type { GymKind, WarmupDrill } from "@/domain/types";
 
 /**
  * The shared library, read once per server instance and reused.
@@ -72,9 +84,116 @@ export async function equipmentTypeNames(db: DbOrTx): Promise<Map<string, string
   return new Map((await sharedEquipmentTypes(db)).map((row) => [row.id, row.name]));
 }
 
+/**
+ * Every shared exercise's requirement groups (ADR 0041): a few hundred narrow rows, read once.
+ * A user's own groups (a custom free-weight exercise) are read with their account's data.
+ */
+export const sharedRequirements = remembered<RequirementRef[]>((db) =>
+  db
+    .select({
+      exerciseId: exerciseEquipmentRequirements.exerciseId,
+      alternative: exerciseEquipmentRequirements.alternative,
+      equipmentTypeId: exerciseEquipmentRequirements.equipmentTypeId,
+      isPrimary: exerciseEquipmentRequirements.isPrimary,
+    })
+    .from(exerciseEquipmentRequirements)
+    .where(isNull(exerciseEquipmentRequirements.userId)),
+);
+
+const sharedAssumedRows = remembered<{ gymKind: GymKind; equipmentTypeId: string }[]>((db) =>
+  db.select().from(assumedEquipmentTypes),
+);
+
+/** What a kind of location is taken to have: the gym basics at a gym, nothing elsewhere. */
+export async function assumedTypeIds(db: DbOrTx, kind: GymKind): Promise<Set<string>> {
+  return new Set(
+    (await sharedAssumedRows(db))
+      .filter((row) => row.gymKind === kind)
+      .map((row) => row.equipmentTypeId),
+  );
+}
+
+/** Types that stand for no equipment at all: the floor. */
+export async function freeTypeIds(db: DbOrTx): Promise<Set<string>> {
+  return new Set(
+    (await sharedEquipmentTypes(db)).filter((t) => t.slug === "bodyweight").map((t) => t.id),
+  );
+}
+
+export type CombinationRow = typeof equipmentCombinations.$inferSelect & {
+  /** Member types, the display type first. */
+  typeIds: string[];
+};
+
+/** The combination machines, each with its types in order. */
+export const sharedCombinations = remembered<CombinationRow[]>(async (db) => {
+  const [rows, members] = await Promise.all([
+    db.select().from(equipmentCombinations).orderBy(asc(equipmentCombinations.sortOrder)),
+    db.select().from(equipmentCombinationTypes).orderBy(asc(equipmentCombinationTypes.position)),
+  ]);
+  return rows.map((row) => ({
+    ...row,
+    typeIds: members.filter((m) => m.combinationId === row.id).map((m) => m.equipmentTypeId),
+  }));
+});
+
+export type PresetRow = typeof equipmentPresets.$inferSelect;
+
+export const sharedPresets = remembered<PresetRow[]>((db) => db.select().from(equipmentPresets));
+
+export type GuideRow = typeof exerciseGuides.$inferSelect;
+export type MediaRow = typeof exerciseMedia.$inferSelect;
+
+/** Every guide, drafts included; whoever shows one decides whether drafts may be seen. */
+export const sharedGuides = remembered<GuideRow[]>((db) => db.select().from(exerciseGuides));
+
+export const sharedMedia = remembered<MediaRow[]>((db) =>
+  db.select().from(exerciseMedia).orderBy(asc(exerciseMedia.position)),
+);
+
+/** Guides and demonstrations for several exercises in one read of the cache, as drafts allow. */
+export async function guidanceByExercise(
+  db: DbOrTx,
+  exerciseIds: readonly string[],
+  drafts: boolean,
+): Promise<Map<string, { guide: GuideRow | null; media: MediaRow[] }>> {
+  const wanted = new Set(exerciseIds);
+  const found = new Map<string, { guide: GuideRow | null; media: MediaRow[] }>();
+  if (wanted.size === 0) return found;
+  const [guides, media] = await Promise.all([sharedGuides(db), sharedMedia(db)]);
+  for (const id of wanted) found.set(id, { guide: null, media: [] });
+  for (const guide of guides)
+    if (wanted.has(guide.exerciseId) && (drafts || guide.status === "published"))
+      found.get(guide.exerciseId)!.guide = guide;
+  for (const item of media)
+    if (wanted.has(item.exerciseId) && (drafts || item.status === "approved"))
+      found.get(item.exerciseId)!.media.push(item);
+  return found;
+}
+
+/** One guide and its demonstrations, as drafts allow: null and [] where there is none to show. */
+export async function guidanceFor(
+  db: DbOrTx,
+  exerciseId: string,
+  drafts: boolean,
+): Promise<{ guide: GuideRow | null; media: MediaRow[] }> {
+  return (await guidanceByExercise(db, [exerciseId], drafts)).get(exerciseId)!;
+}
+
+/** An equipment type by slug, from the cached catalogue. */
+export async function equipmentTypeBySlug(db: DbOrTx, slug: string) {
+  return (await sharedEquipmentTypes(db)).find((t) => t.slug === slug) ?? null;
+}
+
 /** Forgets everything read so far. Tests that reseed the library call this. */
 export function resetReferenceCache(): void {
   sharedEquipmentTypes.reset();
   sharedWarmupProtocols.reset();
   sharedExercises.reset();
+  sharedRequirements.reset();
+  sharedAssumedRows.reset();
+  sharedCombinations.reset();
+  sharedPresets.reset();
+  sharedGuides.reset();
+  sharedMedia.reset();
 }

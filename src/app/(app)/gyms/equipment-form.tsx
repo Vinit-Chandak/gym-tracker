@@ -4,8 +4,9 @@ import { useActionState, useRef, useState } from "react";
 
 import { Card } from "@/components/ui/card";
 import { Disclosure } from "@/components/ui/disclosure";
-import { FormError, SubmitButton } from "@/components/ui/form";
+import { FormError, SubmitButton, useKeptForm } from "@/components/ui/form";
 import { Field, Input, Textarea } from "@/components/ui/input";
+import { PinnedActions } from "@/components/ui/pinned-actions";
 import { Section } from "@/components/ui/section";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select } from "@/components/ui/select";
@@ -40,6 +41,8 @@ type EquipmentFormProps = {
   action: (previous: FormState, formData: FormData) => Promise<FormState>;
   types: EquipmentTypeOption[];
   initial?: EquipmentFormValues;
+  /** A new machine's type when the caller knows it (a workout's "Register with details"). */
+  startTypeId?: string;
   submitLabel: string;
   /** The account's unit, used wherever the catalogue would otherwise say kilograms. */
   preferredUnit: BodyLoadUnit;
@@ -65,20 +68,28 @@ export function EquipmentForm({
   action,
   types,
   initial,
+  startTypeId,
   submitLabel,
   preferredUnit,
 }: EquipmentFormProps) {
+  const form = useKeptForm();
   const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
   const value = (key: keyof EquipmentFormValues): string =>
     state.values?.[key] ?? initial?.[key] ?? "";
+  // Prefilled as choosing it would, so the person checks rather than hunts through the list.
+  const start = initial ? undefined : types.find((type) => type.id === startTypeId);
 
   // Type, name, load mode and unit are controlled so choosing a type can prefill the rest.
-  const [typeId, setTypeId] = useState(() => value("equipmentTypeId"));
-  const [name, setName] = useState(() => value("name"));
+  const [typeId, setTypeId] = useState(() => value("equipmentTypeId") || (start?.id ?? ""));
+  const [name, setName] = useState(() => value("name") || (start?.name ?? ""));
   const [mode, setMode] = useState<ResistanceMode>(
-    () => asMode(value("resistanceMode")) ?? "selectorized",
+    () => asMode(value("resistanceMode")) ?? start?.defaultResistanceMode ?? "selectorized",
   );
-  const [unit, setUnit] = useState<LoadUnit>(() => asUnit(value("unit")) ?? preferredUnit);
+  const [unit, setUnit] = useState<LoadUnit>(
+    () =>
+      asUnit(value("unit")) ??
+      (start && start.defaultUnit !== "kg" ? start.defaultUnit : preferredUnit),
+  );
   const stack = mode === "selectorized";
   const touched = useRef({
     name: Boolean(initial),
@@ -110,11 +121,7 @@ export function EquipmentForm({
   const hasDetail = detailKeys.some((key) => value(key).trim() !== "");
 
   return (
-    <form
-      action={formAction}
-      onReset={(event) => event.preventDefault()}
-      className="space-y-[var(--section-gap)]"
-    >
+    <form ref={form} action={formAction} className="space-y-[var(--section-gap)]">
       <Section title="What it is">
         <Card>
           <Field label="Equipment type" error={state.fieldErrors?.equipmentTypeId}>
@@ -248,10 +255,12 @@ export function EquipmentForm({
         </div>
       </Disclosure>
 
-      <div className="space-y-2">
+      {/* Pinned, as every form's action is (plan: persistent actions): Add machine and Save
+          changes stay in reach while the type, the loads and the details are filled in. */}
+      <PinnedActions stack>
         <FormError message={state.formError} />
         <SubmitButton>{submitLabel}</SubmitButton>
-      </div>
+      </PinnedActions>
     </form>
   );
 }

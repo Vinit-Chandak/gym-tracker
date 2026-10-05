@@ -61,9 +61,18 @@ it("leaves nothing but the shared catalogues without an owner", async () => {
     order by 1
   `);
   expect(rows.rows.map((row) => row.table_name)).toEqual([
+    // What a kind of location is assumed to have (ADR 0041): shared reference data.
+    "assumed_equipment_types",
     // The deploy script's ledger of one-off backfills: names and dates, nothing anyone owns.
     "data_backfills",
+    // Combination machines and the machines step's presets: shared catalogue rows.
+    "equipment_combination_types",
+    "equipment_combinations",
+    "equipment_presets",
     "equipment_types",
+    // How to do each exercise and where it is demonstrated: shared, reviewed content.
+    "exercise_guides",
+    "exercise_media",
     // Owned twice over: both sides cascade from profiles, which the first test checks.
     "follows",
     "profiles",

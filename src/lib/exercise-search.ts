@@ -12,6 +12,8 @@ import {
 export type SearchableExercise = {
   name: string;
   slug: string;
+  /** Other names for it ("RDL", "Skull crusher"), matched as the name is. */
+  aliases?: readonly string[];
   category: ExerciseCategory;
   modality: ExerciseModality;
   movementPattern: string;
@@ -103,22 +105,42 @@ function compactMatch(
  * 4. Every word is in the name, the equipment, the movement or a primary muscle.
  * 5. Some word is only in a secondary muscle.
  *
- * Name matches (0–3) are what was asked for; the rest are exercises that work what was asked
- * about, which is what a search for "biceps" or "machine lats" wants.
+ * Name matches (0–3) are what was asked for, an alias counting half a step behind the name;
+ * the rest are exercises that work what was asked about, which is what a search for "biceps" or
+ * "machine lats" wants.
  */
-export function exerciseSearchRank(exercise: SearchableExercise, query: string): number | null {
-  const asked = askedWords(query);
-  if (asked.length === 0) return 4;
-
-  const nameWords = searchWords(exercise.name);
-  const name = searchWords(`${exercise.name} ${exercise.slug}`);
+/** How well a name (or an alias) answers the query: 0 to 3 as below, null when it does not. */
+function nameRank(
+  asked: readonly AskedWord[],
+  nameWords: readonly string[],
+  words: readonly string[],
+) {
   const compact = compactMatch(asked, nameWords);
   if (compact) {
     if (compact.whole) return 0;
     if (compact.atStart && !compact.partial) return 1;
     return compact.atStart || !compact.partial ? 2 : 3;
   }
-  if (asked.every((word) => name.some((known) => wordMatches(word, known, true)))) return 3;
+  if (asked.every((word) => words.some((known) => wordMatches(word, known, true)))) return 3;
+  return null;
+}
+
+export function exerciseSearchRank(exercise: SearchableExercise, query: string): number | null {
+  const asked = askedWords(query);
+  if (asked.length === 0) return 4;
+
+  const name = searchWords(`${exercise.name} ${exercise.slug}`);
+  // The library's own name first; an alias answers as well as a name does, a shade behind it,
+  // so "RDL" finds the Romanian deadlifts and "Romanian deadlift" still leads with them.
+  const ranks = [
+    nameRank(asked, searchWords(exercise.name), name),
+    ...(exercise.aliases ?? []).map((alias) => {
+      const words = searchWords(alias);
+      const rank = nameRank(asked, words, words);
+      return rank === null ? null : rank + 0.5;
+    }),
+  ].filter((rank): rank is number => rank !== null);
+  if (ranks.length > 0) return Math.min(...ranks);
 
   const primary = searchWords(
     [
@@ -168,8 +190,8 @@ export function searchExercises<T extends SearchableExercise>(
     .filter((entry): entry is { exercise: T; rank: number } => entry.rank !== null)
     .sort((a, b) => a.rank - b.rank);
   return {
-    byName: ranked.filter((entry) => entry.rank <= 3).map((entry) => entry.exercise),
-    byOther: ranked.filter((entry) => entry.rank > 3).map((entry) => entry.exercise),
+    byName: ranked.filter((entry) => entry.rank < 4).map((entry) => entry.exercise),
+    byOther: ranked.filter((entry) => entry.rank >= 4).map((entry) => entry.exercise),
   };
 }
 

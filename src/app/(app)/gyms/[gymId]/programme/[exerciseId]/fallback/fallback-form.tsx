@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 
 import { ExercisePicker } from "@/components/exercise-picker";
-import { FormError, SubmitButton } from "@/components/ui/form";
+import { FormError, SubmitButton, useKeptForm } from "@/components/ui/form";
 import { PinnedActions } from "@/components/ui/pinned-actions";
 import { SelectRow } from "@/components/ui/select-row";
 import { keepsFormOnDisconnect } from "@/lib/offline-submit";
@@ -23,6 +23,7 @@ export function FallbackForm({
   machines,
   compatibleMachines,
 }: FallbackFormProps) {
+  const form = useKeptForm();
   const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
   const [exerciseId, setExerciseId] = useState(state.values?.fallbackExerciseId ?? "");
   const [machineId, setMachineId] = useState("");
@@ -33,7 +34,7 @@ export function FallbackForm({
   // Board Add fallback: the search over every other exercise, the chosen one named under it;
   // the machine and Save fallback pinned at the foot.
   return (
-    <form action={formAction} onReset={(event) => event.preventDefault()}>
+    <form ref={form} action={formAction}>
       <ExercisePicker
         name="fallbackExerciseId"
         exercises={exercises}

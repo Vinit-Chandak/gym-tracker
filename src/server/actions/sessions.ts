@@ -20,7 +20,7 @@ import { fromKilograms, toKilograms } from "@/lib/units";
 import { requireUser, type SessionUser } from "@/server/auth";
 import { exerciseHistory, type ComparableSet } from "@/server/queries/comparable";
 import { ensureProfile } from "@/server/queries/profile";
-import { profileChanged } from "@/server/queries/request-profile";
+import { getRequestProfile, profileChanged } from "@/server/queries/request-profile";
 import { recordBodyWeight } from "@/server/repositories/body-weight";
 import { addGymFallback } from "@/server/repositories/fallbacks";
 import { voidPlanForSlot } from "@/server/repositories/coach-plans";
@@ -32,7 +32,7 @@ import {
   reopenSkippedSession,
 } from "@/server/repositories/schedule";
 import {
-  addExerciseToSession,
+  addExercisesToSession,
   deleteSet,
   discardSession,
   ExerciseHasSetsError,
@@ -47,6 +47,7 @@ import {
   SessionHasSetsError,
   SessionNotFoundError,
   setExerciseCompleted,
+  MAX_EXERCISES_PER_ADD,
   SupersetGroupError,
   WorkoutSelectionError,
   setWarmupCompleted,
@@ -56,6 +57,18 @@ import {
   substituteExercise,
   type SessionSet,
 } from "@/server/repositories/sessions";
+import {
+  archiveWorkoutMachine,
+  chooseEquipmentVariant,
+  confirmEquipmentHere,
+  markEquipmentNotHere,
+  NothingToArchiveError,
+  UnknownEquipmentTypeError,
+} from "@/server/repositories/workout-confirmation";
+import {
+  submitWorkoutOnce,
+  WorkoutSubmissionConflictError,
+} from "@/server/repositories/workout-receipts";
 import { formValues, parseForm, type FormState } from "@/server/validation/form";
 import { eq } from "drizzle-orm";
 
@@ -101,6 +114,9 @@ function describe(error: unknown): string {
   if (error instanceof WorkoutSelectionError) return error.message;
   if (error instanceof ExerciseHasSetsError) return error.message;
   if (error instanceof SetConflictError) return error.message;
+  if (error instanceof WorkoutSubmissionConflictError) return error.message;
+  if (error instanceof UnknownEquipmentTypeError || error instanceof NothingToArchiveError)
+    return error.message;
   if (error instanceof SessionNotFoundError) return "That session no longer exists.";
   return "Something went wrong. Please try again.";
 }
@@ -441,6 +457,124 @@ export async function applyFallbackAction(
   }
 }
 
+/* ---------- settling a machine in the workout (plan: gradual confirmation during workouts) ---------- */
+
+const ids = z.array(z.uuid());
+
+/** The account's weight unit, which a machine registered here is logged in. */
+async function weightUnit(user: { id: string; email: string | null }) {
+  const profile = await getRequestProfile(user.id, user.email);
+  return profile.preferredUnit === "lb" ? ("lb" as const) : ("kg" as const);
+}
+
+/**
+ * "Yes, it's here" for a gym basic, "Available" for any other machine: registered at once and
+ * put on the exercise, and the athlete stays in the workout.
+ */
+/**
+ * An answer to a machine question, and where it put the exercise when it moved it (a machine
+ * attached, or a family's variant): the screen carries a set typed but not saved there with it.
+ */
+export type MachineAnswerResult =
+  | { ok: true; movedTo?: { exerciseId: string; equipmentInstanceId: string } | null }
+  | { ok: false; error: string };
+
+export async function confirmEquipmentHereAction(
+  workoutExerciseId: string,
+  equipmentTypeId: string,
+): Promise<MachineAnswerResult> {
+  const user = await requireUser();
+  if (!ids.safeParse([workoutExerciseId, equipmentTypeId]).success)
+    return { ok: false, error: "Reload the workout and try again." };
+  try {
+    const unit = await weightUnit(user);
+    const outcome = await withUser(getDb(), user.id, (tx) =>
+      confirmEquipmentHere(tx, user.id, workoutExerciseId, equipmentTypeId, unit),
+    );
+    refreshSession();
+    return {
+      ok: true,
+      movedTo: outcome.attached
+        ? { exerciseId: outcome.exerciseId, equipmentInstanceId: outcome.equipmentInstanceId }
+        : null,
+    };
+  } catch (error) {
+    return { ok: false, error: describe(error) };
+  }
+}
+
+/** "Not here" answers either way: recorded, or a registered machine that says otherwise. */
+export type NotHereResult =
+  ActionResult | { ok: false; error: null; machines: { id: string; name: string }[] };
+
+export async function equipmentNotHereAction(
+  workoutExerciseId: string,
+  equipmentTypeId: string,
+): Promise<NotHereResult> {
+  const user = await requireUser();
+  if (!ids.safeParse([workoutExerciseId, equipmentTypeId]).success)
+    return { ok: false, error: "Reload the workout and try again." };
+  try {
+    const outcome = await withUser(getDb(), user.id, (tx) =>
+      markEquipmentNotHere(tx, user.id, workoutExerciseId, equipmentTypeId),
+    );
+    if (!outcome.recorded) return { ok: false, error: null, machines: outcome.machines };
+    refreshSession();
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: describe(error) };
+  }
+}
+
+/** "A different one": the family's variant that is here goes on the exercise. */
+export async function chooseEquipmentVariantAction(
+  workoutExerciseId: string,
+  assumedTypeId: string,
+  variantTypeId: string,
+): Promise<MachineAnswerResult> {
+  const user = await requireUser();
+  if (!ids.safeParse([workoutExerciseId, assumedTypeId, variantTypeId]).success)
+    return { ok: false, error: "Reload the workout and try again." };
+  try {
+    const unit = await weightUnit(user);
+    const outcome = await withUser(getDb(), user.id, (tx) =>
+      chooseEquipmentVariant(tx, user.id, workoutExerciseId, assumedTypeId, variantTypeId, unit),
+    );
+    refreshSession();
+    return {
+      ok: true,
+      movedTo:
+        outcome.kind === "registered"
+          ? null
+          : { exerciseId: outcome.exerciseId, equipmentInstanceId: outcome.equipmentInstanceId },
+    };
+  } catch (error) {
+    return { ok: false, error: describe(error) };
+  }
+}
+
+/**
+ * "It has gone": the machine is archived, its history kept, and the kind the exercise is done on
+ * is recorded as not here when nothing else here has it, so the fallbacks are offered.
+ */
+export async function archiveWorkoutMachineAction(
+  workoutExerciseId: string,
+  equipmentInstanceId: string,
+): Promise<ActionResult> {
+  const user = await requireUser();
+  if (!ids.safeParse([workoutExerciseId, equipmentInstanceId]).success)
+    return { ok: false, error: "Reload the workout and try again." };
+  try {
+    await withUser(getDb(), user.id, (tx) =>
+      archiveWorkoutMachine(tx, user.id, workoutExerciseId, equipmentInstanceId),
+    );
+    refreshSession();
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: describe(error) };
+  }
+}
+
 const substituteSchema = z.object({
   exerciseId: z.uuid({ error: "Choose an exercise." }),
   equipmentInstanceId: z.preprocess(
@@ -491,31 +625,70 @@ export async function substituteExerciseAction(
   redirect(`/workouts/${sessionId}`);
 }
 
-const addExerciseSchema = z.object({
-  exerciseId: z.uuid({ error: "Choose an exercise." }),
-  equipmentInstanceId: z.preprocess(
-    (value) => (typeof value === "string" && value.length > 0 ? value : null),
-    z.uuid().nullable(),
-  ),
-});
+/**
+ * What Add exercise sends: the exercises in the order they were chosen, each with its machine
+ * ("" for none), as two lists of the same length, and the form's submission key. `parseForm`
+ * keeps only the last value of a repeated name, so the lists are read with `getAll`.
+ */
+const addExercisesSchema = z
+  .object({
+    submissionKey: z.uuid({ error: "Reload the page and try again." }),
+    exerciseIds: z
+      .array(z.uuid({ error: "Choose an available exercise and try again." }))
+      .min(1, "Choose an exercise.")
+      .max(MAX_EXERCISES_PER_ADD, `Add at most ${MAX_EXERCISES_PER_ADD} exercises at a time.`),
+    machineIds: z.array(
+      z.union([z.literal("").transform(() => null), z.uuid({ error: "Choose a machine again." })]),
+    ),
+  })
+  .refine((form) => form.machineIds.length === form.exerciseIds.length, {
+    message: "Something in the form is not valid.",
+    path: ["machineIds"],
+  })
+  .refine((form) => new Set(form.exerciseIds).size === form.exerciseIds.length, {
+    message: "Choose each exercise once.",
+    path: ["exerciseIds"],
+  });
 
-export async function addExerciseAction(
+/**
+ * Adds the chosen exercises to the session in one go (plan: "Add several exercises in one
+ * submission"), then lands on the workout saying what was added. Retry-safe: the submission key
+ * is minted once per form, and a retry after a lost reply finds its receipt, adds nothing again
+ * and still lands on the workout; the same key with another selection is refused. The form keeps
+ * its selection in its own state, so nothing here echoes values back.
+ */
+export async function addExercisesAction(
   sessionId: string,
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
   const user = await requireUser();
-  const parsed = parseForm(addExerciseSchema, formData);
-  if (!parsed.success) return parsed.state;
+  const parsed = addExercisesSchema.safeParse({
+    submissionKey: formData.get("submissionKey"),
+    exerciseIds: formData.getAll("exerciseId"),
+    machineIds: formData.getAll("equipmentInstanceId"),
+  });
+  if (!parsed.success) return { formError: parsed.error.issues[0]?.message };
+  const { submissionKey, exerciseIds, machineIds } = parsed.data;
+  const items = exerciseIds.map((exerciseId, index) => ({
+    exerciseId,
+    equipmentInstanceId: machineIds[index] ?? null,
+  }));
   try {
     await withUser(getDb(), user.id, (tx) =>
-      addExerciseToSession(tx, user.id, sessionId, parsed.data),
+      submitWorkoutOnce(
+        tx,
+        user.id,
+        submissionKey,
+        { kind: "add-exercises", sessionId, items },
+        () => addExercisesToSession(tx, user.id, sessionId, items),
+      ),
     );
   } catch (error) {
-    return { formError: describe(error), values: formValues(formData) };
+    return { formError: describe(error) };
   }
   revalidateSession(sessionId);
-  redirect(`/workouts/${sessionId}`);
+  redirect(`/workouts/${sessionId}?added=${items.length}`);
 }
 
 /**

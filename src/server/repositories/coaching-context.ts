@@ -361,8 +361,9 @@ export async function coachJobContext(
           : ageOn(profile.dateOfBirth, todayInTimeZone(profile.timeZone, now)),
       sex: profile.sex,
       goal: profile.trainingGoal,
+      experience: profile.trainingExperience,
       dataMeaning:
-        "Current profile readings. Confirmed intake is the saved programme brief, including its original measurements; use current non-null profile measurements for age, weight and height. Do not invent missing values or silently change the programme goal when the profile goal differs.",
+        'Current profile readings. Confirmed intake is the saved programme brief, including its original measurements; use current non-null profile measurements for age, weight and height. Do not invent missing values or silently change the programme goal when the profile goal differs. experience is the athlete\'s own answer to "Which sounds like you?": "new" (I\'m new to this) or "experienced" (I already train), null when never asked; do not ask it again.',
     },
     confirmedIntake: intake
       ? {

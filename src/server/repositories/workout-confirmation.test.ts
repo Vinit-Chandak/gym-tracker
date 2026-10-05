@@ -1,0 +1,368 @@
+import { and, eq } from "drizzle-orm";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
+import {
+  equipmentInstances,
+  equipmentTypes,
+  exercises,
+  gymAbsentEquipmentTypes,
+  gyms,
+  workoutExercises,
+} from "@/db/schema";
+import { seedReferenceData } from "@/db/seed/reference";
+import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
+import { withUser } from "@/db/with-user";
+import { ensureProfile } from "@/server/queries/profile";
+import { resetReferenceCache } from "@/server/queries/reference";
+
+import { createEquipment, setMachineAlsoUsedFor } from "./equipment";
+import {
+  addExerciseToSession,
+  finishSession,
+  getSessionDetail,
+  SessionFinishedError,
+  startAdHocSession,
+  substituteExercise,
+} from "./sessions";
+import {
+  archiveWorkoutMachine,
+  chooseEquipmentVariant,
+  confirmEquipmentHere,
+  markEquipmentNotHere,
+} from "./workout-confirmation";
+
+/*
+ * Settling machines in the workout (plan: gradual confirmation during workouts), end to end:
+ * what the decision asks, and what each answer does to the gym's record and to the exercise.
+ */
+
+let t: TestDatabase;
+let user: { id: string; email: string };
+const type: Record<string, string> = {};
+const exercise: Record<string, string> = {};
+
+const as = <T>(fn: (tx: Parameters<Parameters<typeof withUser>[2]>[0]) => Promise<T>) =>
+  withUser(t.db, user.id, fn);
+
+/** A fresh gym, an ad hoc session there, and the exercise added without a machine. */
+async function slotAt(kind: "gym" | "home", exerciseSlug: string) {
+  return as(async (tx) => {
+    const [gym] = await tx
+      .insert(gyms)
+      .values({
+        userId: user.id,
+        name: `Gym ${crypto.randomUUID().slice(0, 6)}`,
+        slug: `gym-${crypto.randomUUID().slice(0, 8)}`,
+        kind,
+      })
+      .returning({ id: gyms.id });
+    const { sessionId } = await startAdHocSession(tx, user.id, { gymId: gym!.id });
+    const { workoutExerciseId } = await addExerciseToSession(tx, user.id, sessionId, {
+      exerciseId: exercise[exerciseSlug]!,
+      equipmentInstanceId: null,
+    });
+    return { gymId: gym!.id, sessionId, workoutExerciseId };
+  });
+}
+
+async function decisionOf(sessionId: string, workoutExerciseId: string) {
+  const detail = await as((tx) => getSessionDetail(tx, user.id, sessionId));
+  return detail!.exercises.find((e) => e.id === workoutExerciseId)!;
+}
+
+beforeAll(async () => {
+  t = await createTestDatabase();
+  resetReferenceCache();
+  await seedReferenceData(t.db);
+  resetReferenceCache();
+  user = await t.createAuthUser("confirm@example.com");
+  await as((tx) => ensureProfile(tx, user));
+  for (const row of await t.db.select().from(equipmentTypes)) type[row.slug] = row.id;
+  for (const row of await t.db.select({ id: exercises.id, slug: exercises.slug }).from(exercises))
+    exercise[row.slug] = row.id;
+});
+
+afterAll(async () => {
+  await t.close();
+});
+
+describe("a gym basic nobody has confirmed", () => {
+  it("asks with one tap, offering the family's other variants", async () => {
+    const { sessionId, workoutExerciseId } = await slotAt("gym", "leg-press-45");
+    const slot = await decisionOf(sessionId, workoutExerciseId);
+    expect(slot.decision?.ask).toMatchObject({
+      kind: "confirm_basic",
+      typeId: type.leg_press_45,
+      name: "45° leg press",
+      family: {
+        name: "Leg press",
+        variants: [
+          expect.objectContaining({ slug: "leg_press_horizontal" }),
+          expect.objectContaining({ slug: "leg_press_vertical" }),
+        ],
+      },
+    });
+  });
+
+  it("registers it on Yes, it's here, and puts it on the exercise before the first set", async () => {
+    const { gymId, sessionId, workoutExerciseId } = await slotAt("gym", "leg-press-45");
+    const outcome = await as((tx) =>
+      confirmEquipmentHere(tx, user.id, workoutExerciseId, type.leg_press_45!, "kg"),
+    );
+    expect(outcome.attached).toBe(true);
+    const [machine] = await t.db
+      .select()
+      .from(equipmentInstances)
+      .where(eq(equipmentInstances.gymId, gymId));
+    expect(machine).toMatchObject({ name: "45° leg press", equipmentTypeId: type.leg_press_45 });
+    const slot = await decisionOf(sessionId, workoutExerciseId);
+    expect(slot.equipment?.id).toBe(machine!.id);
+    expect(slot.decision).toBeNull();
+  });
+
+  it("records it as not here on Not here, and the question goes", async () => {
+    const { gymId, sessionId, workoutExerciseId } = await slotAt("gym", "leg-press-45");
+    expect(
+      await as((tx) => markEquipmentNotHere(tx, user.id, workoutExerciseId, type.leg_press_45!)),
+    ).toEqual({ recorded: true });
+    const absent = await t.db
+      .select()
+      .from(gymAbsentEquipmentTypes)
+      .where(eq(gymAbsentEquipmentTypes.gymId, gymId));
+    expect(absent.map((row) => row.equipmentTypeId)).toEqual([type.leg_press_45]);
+    const slot = await decisionOf(sessionId, workoutExerciseId);
+    expect(slot.decision?.resolution.status).toBe("unavailable");
+    expect(slot.decision?.ask).toBeNull();
+  });
+
+  it("takes A different one to the variant here, as the same movement on it", async () => {
+    const { gymId, sessionId, workoutExerciseId } = await slotAt("gym", "leg-press-45");
+    const outcome = await as((tx) =>
+      chooseEquipmentVariant(
+        tx,
+        user.id,
+        workoutExerciseId,
+        type.leg_press_45!,
+        type.leg_press_horizontal!,
+        "kg",
+      ),
+    );
+    expect(outcome.kind).toBe("switched");
+    const slot = await decisionOf(sessionId, workoutExerciseId);
+    expect(slot.exercise.slug).toBe("leg-press-horizontal");
+    expect(slot.equipment?.name).toBe("Horizontal leg press");
+    const absent = await t.db
+      .select({ typeId: gymAbsentEquipmentTypes.equipmentTypeId })
+      .from(gymAbsentEquipmentTypes)
+      .where(eq(gymAbsentEquipmentTypes.gymId, gymId));
+    expect(absent).toEqual([{ typeId: type.leg_press_45 }]);
+  });
+
+  it("asks nothing of free weights", async () => {
+    const { sessionId, workoutExerciseId } = await slotAt("gym", "goblet-squat");
+    expect((await decisionOf(sessionId, workoutExerciseId)).decision).toBeNull();
+  });
+});
+
+describe("any other machine nobody has answered for", () => {
+  it("asks Available, Not here or Not sure, and registers it at once on Available", async () => {
+    const { gymId, sessionId, workoutExerciseId } = await slotAt("gym", "hack-squat");
+    expect((await decisionOf(sessionId, workoutExerciseId)).decision?.ask).toMatchObject({
+      kind: "unknown",
+      typeId: type.hack_squat,
+      family: null,
+    });
+    await as((tx) => confirmEquipmentHere(tx, user.id, workoutExerciseId, type.hack_squat!, "kg"));
+    const slot = await decisionOf(sessionId, workoutExerciseId);
+    expect(slot.equipment?.name).toBe("Hack squat");
+    const machines = await t.db
+      .select()
+      .from(equipmentInstances)
+      .where(eq(equipmentInstances.gymId, gymId));
+    expect(machines).toHaveLength(1);
+  });
+
+  it("asks about a registered machine rather than recording an absence over it", async () => {
+    const { gymId, workoutExerciseId } = await slotAt("home", "hack-squat");
+    const machine = await as((tx) =>
+      createEquipment(tx, user.id, gymId, {
+        name: "Garage hack squat",
+        equipmentTypeId: type.hack_squat!,
+        manufacturer: null,
+        model: null,
+        resistanceMode: "plate_loaded",
+        unit: "kg",
+        loadIncrement: null,
+        availableLoads: [],
+        loadConvention: "unknown",
+        pulleyRatio: null,
+        angleDegrees: null,
+        notes: null,
+      }),
+    );
+    expect(
+      await as((tx) => markEquipmentNotHere(tx, user.id, workoutExerciseId, type.hack_squat!)),
+    ).toEqual({ recorded: false, machines: [{ id: machine.id, name: "Garage hack squat" }] });
+    // It has gone: archived with its history, the exercise asks again.
+    await as((tx) => archiveWorkoutMachine(tx, user.id, workoutExerciseId, machine.id));
+    const [row] = await t.db
+      .select({ isActive: equipmentInstances.isActive })
+      .from(equipmentInstances)
+      .where(eq(equipmentInstances.id, machine.id));
+    expect(row?.isActive).toBe(false);
+    expect(
+      await as((tx) => markEquipmentNotHere(tx, user.id, workoutExerciseId, type.hack_squat!)),
+    ).toEqual({ recorded: true });
+  });
+
+  it("archives the machine an exercise is on, and records that kind as not here", async () => {
+    const { gymId, sessionId, workoutExerciseId } = await slotAt("gym", "hack-squat");
+    const { equipmentInstanceId } = await as((tx) =>
+      confirmEquipmentHere(tx, user.id, workoutExerciseId, type.hack_squat!, "kg"),
+    );
+    await as((tx) => archiveWorkoutMachine(tx, user.id, workoutExerciseId, equipmentInstanceId));
+    const [slotRow] = await t.db
+      .select({ machine: workoutExercises.equipmentInstanceId })
+      .from(workoutExercises)
+      .where(eq(workoutExercises.id, workoutExerciseId));
+    expect(slotRow?.machine).toBeNull();
+    // Gone answers what Not here asked: no other hack squat here, so none is recorded, and the
+    // workout says what can be done instead rather than asking again.
+    const absences = await t.db
+      .select({ typeId: gymAbsentEquipmentTypes.equipmentTypeId })
+      .from(gymAbsentEquipmentTypes)
+      .where(eq(gymAbsentEquipmentTypes.gymId, gymId));
+    expect(absences.map((row) => row.typeId)).toEqual([type.hack_squat]);
+    expect((await decisionOf(sessionId, workoutExerciseId)).decision?.ask).toBeNull();
+    // One found here later is another machine: the one that went stays archived with its
+    // history, the new one starts its own, and the absence goes.
+    const { equipmentInstanceId: another } = await as((tx) =>
+      confirmEquipmentHere(tx, user.id, workoutExerciseId, type.hack_squat!, "kg"),
+    );
+    expect(another).not.toBe(equipmentInstanceId);
+    const machines = await t.db
+      .select({
+        id: equipmentInstances.id,
+        name: equipmentInstances.name,
+        isActive: equipmentInstances.isActive,
+      })
+      .from(equipmentInstances)
+      .where(and(eq(equipmentInstances.gymId, gymId)));
+    expect(machines).toEqual(
+      expect.arrayContaining([
+        { id: equipmentInstanceId, name: "Hack squat", isActive: false },
+        { id: another, name: "Hack squat 2", isActive: true },
+      ]),
+    );
+    expect(machines).toHaveLength(2);
+    expect((await decisionOf(sessionId, workoutExerciseId)).equipment?.id).toBe(another);
+    expect(
+      await t.db
+        .select()
+        .from(gymAbsentEquipmentTypes)
+        .where(eq(gymAbsentEquipmentTypes.gymId, gymId)),
+    ).toEqual([]);
+  });
+
+  it("takes a gone machine off every other exercise of the workout with nothing logged on it", async () => {
+    // A lat pulldown with a low row: one machine, two exercises on it, nothing logged yet.
+    const { gymId, sessionId, workoutExerciseId: pulldown } = await slotAt("gym", "lat-pulldown");
+    const combo = await as((tx) =>
+      createEquipment(tx, user.id, gymId, {
+        name: "Pulldown and row",
+        equipmentTypeId: type.lat_pulldown!,
+        manufacturer: null,
+        model: null,
+        resistanceMode: "selectorized",
+        unit: "kg",
+        loadIncrement: null,
+        availableLoads: [],
+        loadConvention: "unknown",
+        pulleyRatio: null,
+        angleDegrees: null,
+        notes: null,
+      }),
+    );
+    await as((tx) => setMachineAlsoUsedFor(tx, user.id, combo.id, type.seated_row_cable!, true));
+    const row = await as(async (tx) => {
+      await substituteExercise(tx, user.id, {
+        workoutExerciseId: pulldown,
+        exerciseId: exercise["lat-pulldown"]!,
+        equipmentInstanceId: combo.id,
+        reason: null,
+      });
+      const added = await addExerciseToSession(tx, user.id, sessionId, {
+        exerciseId: exercise["seated-cable-row"]!,
+        equipmentInstanceId: combo.id,
+      });
+      return added.workoutExerciseId;
+    });
+    await as((tx) => archiveWorkoutMachine(tx, user.id, pulldown, combo.id));
+    const machines = await t.db
+      .select({ id: workoutExercises.id, machine: workoutExercises.equipmentInstanceId })
+      .from(workoutExercises)
+      .where(eq(workoutExercises.workoutSessionId, sessionId));
+    expect(machines).toEqual(
+      expect.arrayContaining([
+        { id: pulldown, machine: null },
+        { id: row, machine: null },
+      ]),
+    );
+    // Only the kind the pulldown is done on is recorded as gone; the row asks for itself.
+    const absent = await t.db
+      .select({ typeId: gymAbsentEquipmentTypes.equipmentTypeId })
+      .from(gymAbsentEquipmentTypes)
+      .where(eq(gymAbsentEquipmentTypes.gymId, gymId));
+    expect(absent.map((entry) => entry.typeId)).toEqual([type.lat_pulldown]);
+    expect((await decisionOf(sessionId, row)).decision).not.toBeNull();
+  });
+
+  it("changes nothing once the session is finished", async () => {
+    const { sessionId, workoutExerciseId } = await slotAt("gym", "hack-squat");
+    await as((tx) => finishSession(tx, user.id, sessionId, { notes: null, bodyWeightKg: null }));
+    await expect(
+      as((tx) => confirmEquipmentHere(tx, user.id, workoutExerciseId, type.hack_squat!, "kg")),
+    ).rejects.toBeInstanceOf(SessionFinishedError);
+  });
+});
+
+describe("an exercise already on a machine", () => {
+  it("still asks about what the machine is used with, and Available settles it in place", async () => {
+    // At home nothing is assumed: a Smith machine registered there, and nobody has said whether
+    // there is a bench for the Smith hip thrust.
+    const { gymId, sessionId, workoutExerciseId } = await slotAt("home", "smith-hip-thrust");
+    const smith = await as((tx) =>
+      createEquipment(tx, user.id, gymId, {
+        name: "Garage Smith",
+        equipmentTypeId: type.smith_machine!,
+        manufacturer: null,
+        model: null,
+        resistanceMode: "plate_loaded",
+        unit: "kg",
+        loadIncrement: null,
+        availableLoads: [],
+        loadConvention: "unknown",
+        pulleyRatio: null,
+        angleDegrees: null,
+        notes: null,
+      }),
+    );
+    await as((tx) =>
+      substituteExercise(tx, user.id, {
+        workoutExerciseId,
+        exerciseId: exercise["smith-hip-thrust"]!,
+        equipmentInstanceId: smith.id,
+        reason: null,
+      }),
+    );
+    const asked = await decisionOf(sessionId, workoutExerciseId);
+    expect(asked.equipment?.id).toBe(smith.id);
+    expect(asked.decision?.resolution.status).toBe("unknown");
+    expect(asked.decision?.ask).toMatchObject({ kind: "unknown", slug: "flat_bench" });
+    // Available registers the bench; the exercise stays on the Smith machine, settled.
+    await as((tx) => confirmEquipmentHere(tx, user.id, workoutExerciseId, type.flat_bench!, "kg"));
+    const settled = await decisionOf(sessionId, workoutExerciseId);
+    expect(settled.equipment?.id).toBe(smith.id);
+    expect(settled.decision).toBeNull();
+  });
+});

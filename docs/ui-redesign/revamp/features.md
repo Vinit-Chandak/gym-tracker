@@ -188,18 +188,48 @@ than adding, and keep the RIR honest").
 - **Set options** for a row: its type, steppers for load (in the machine's real increments),
   reps (1), seconds (5), metres (5) and effort (1), and remove the row or delete the set.
 - **Saving a set** confirms it, adds an empty row for the next, and starts the rest timer: the
-  coach's rest, else the plan's, else 90 s. A light first set saved without effort before any
+  coach's rest, else the plan's, else the exercise's own default, else 90 s. A light first set saved without effort before any
   working set becomes a warm-up, with Undo.
 - **Also:** edit a saved set (Update), add a set (up to 50), Complete the exercise (Reopen
   afterwards), Skip it with an optional reason before any set is logged, and on a machine
   whose next weight is unknown, record it ("Next up from 45 kg").
-- **Technique:** the cue, target load, progression and substitution for the movement, and a
-  link to the exercise library.
+- **Technique** (owner decision, 4 October 2026): the exercise's guide, the same as the
+  library's (Setup, Steps, Cues, Common mistakes), then How to log, then "Programme cue" when the
+  slot has one, then "Watch demonstration" (opens YouTube) and "Open in the exercise library". No
+  guide yet says "Guide not available yet." and keeps what is written about the exercise; a
+  custom exercise shows its own notes. The programme's target-load and progression notes and the
+  substitution reason are no longer shown in the workout: the line under the name says "instead
+  of …", the coach's note explains a coach's swap, and the notes stay in the programme.
+- **Today's targets:** when the coach planned the session, the line under the name, the
+  workout list and the rest are the coach's, like the entry, the RIR target, the set count and
+  the timer; without a coach plan they are the programme's; an exercise added on the spot shows
+  its own defaults.
 - **History:** the previous comparable session on this machine ("Previous on this machine:
   60 kg × 5, 62.5 kg × 4 · 8 Sep"), a warning after two sessions in decline, and why today's
   suggestion is what it is.
 - **When the machine is not settled:** use it, use a fallback, add a fallback (remembered for
-  this gym), or register the machine.
+  this gym), or register the machine with its details. Asked with the machine's picture (owner
+  decision, 4 October 2026): a gym basic nobody has confirmed takes one tap ("Yes, it's here",
+  "Not here", and "A different one" for a family's variants); any other machine nobody has
+  answered for takes "Available" (registered at once, staying in the workout), "Not here" or "Not
+  sure". "Not here" against a registered machine asks whether it has gone (archive it, history
+  kept) or is out of use today (a substitute, not remembered); gone, that kind is recorded as not
+  here when nothing else there has it, so the fallbacks follow, and the machine leaves the
+  workout's other exercises with nothing logged on it; one found there later is a new machine
+  with its own history. While the question is open and nothing is logged, Save waits and points
+  at it, since the machine goes on the exercise only before the first set ("Not sure" lets it
+  be); a set typed first does not hold the answers back, and goes with the exercise onto the
+  machine the answer chose. "Register with details" opens Add machine on the type being asked
+  about. An exercise already on a machine is asked, before its first set, about what that machine
+  is used with when nobody has said (a bench for a Smith hip thrust at home); Save does not wait
+  on that.
+- **Fallbacks:** a fallback replaces the planned exercise only when that cannot be done: one
+  remembered for this gym when its equipment is unknown or marked not here, the programme's once
+  it is marked not here. A gym basic is here until someone says otherwise, so a swap remembered
+  once never replaces a lift that can be done; a machine basic is confirmed in the workout, and
+  its "Not here" offers the fallbacks. Targets, rest, notes and per side the coach wrote keep
+  the exercise they were written for, and stay with it if the exercise is swapped. A machine
+  chosen for an exercise still needs the rest of what that exercise uses with it.
 
 ### Finishing and the record
 

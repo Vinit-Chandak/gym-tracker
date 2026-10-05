@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 90" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <line x1="33" y1="83" x2="87" y2="83"/>
+  <line x1="41" y1="83" x2="41" y2="17.2"/>
+  <rect x="42.5" y="19.7" width="5.5" height="30" rx="2.5" fill="currentColor" fill-opacity="0.14"/>
+  <line x1="41" y1="28.8" x2="72" y2="28.8"/>
+  <rect x="48.5" y="23.8" width="21" height="5" rx="2.5" fill="currentColor" fill-opacity="0.14"/>
+  <rect x="70.5" y="19.8" width="3" height="9" rx="1.5"/>
+  <line x1="41" y1="67.2" x2="52" y2="67.2"/>
+  <line x1="41" y1="58" x2="65" y2="83"/>
+</svg>

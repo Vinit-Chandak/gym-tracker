@@ -193,11 +193,24 @@ export const bench = {
     basis: "Based on this exercise, cycle 2.",
   },
   restNow: { time: "2:14", frac: 0.74, aria: "Rest, 2 minutes 14 seconds left" },
+  // The exercise's guide (plan: Technique, the same as the library's), then the programme's cue;
+  // the programme's load and progression notes stay in the programme.
   technique: [
-    ["Cue", "Stable upper back; controlled touch"],
-    ["Target load", "Pick the load by RIR, not by a number"],
-    ["Progression", "+2.5 kg after 4×5"],
+    ["Setup", "Eyes under the racked bar, feet flat, shoulder blades pulled together and down."],
+    [
+      "Steps",
+      [
+        "Lift the bar off the hooks over your shoulders.",
+        "Breathe in and brace.",
+        "Lower it to the lower chest, elbows partly in.",
+        "Press up and slightly back.",
+      ],
+    ],
+    ["Cues", ["Wrists over elbows.", "Push the floor away."]],
+    ["Common mistakes", ["Flaring the elbows straight out.", "Bouncing the bar off the chest."]],
+    ["Programme cue", "Stable upper back; controlled touch"],
   ],
+  demonstration: "Coach channel, on YouTube",
   // Upper A's earlier cycles at Anytime Fitness (sessions.test.ts): every set, in the app's notation
   history: [
     {

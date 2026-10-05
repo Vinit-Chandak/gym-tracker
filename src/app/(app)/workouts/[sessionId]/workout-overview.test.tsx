@@ -46,6 +46,16 @@ function exercise(name: string, patch: Partial<ExerciseVM> = {}): ExerciseVM {
       requiresEquipment: true,
       defaultPrescriptionType: "reps",
       rirNote: null,
+      defaults: {
+        repMin: null,
+        repMax: null,
+        durationMinSeconds: null,
+        durationMaxSeconds: null,
+        distanceMinMeters: null,
+        distanceMaxMeters: null,
+        rir: null,
+        restSeconds: null,
+      },
     },
     equipment: null,
     planned: {
@@ -82,6 +92,8 @@ function exercise(name: string, patch: Partial<ExerciseVM> = {}): ExerciseVM {
     decision: null,
     coachNote: null,
     coachRestSeconds: null,
+    coachPerSide: null,
+    guidance: null,
     ...patch,
   };
 }
@@ -303,4 +315,97 @@ it("writes the coach's warm-up out whole on its row, with no sheet to repeat it"
   expect(screen.getByText("Band pull-aparts, 2 × 15, between the warm-up sets.")).toBeTruthy();
   expect(screen.queryByRole("button", { name: /Before the bench/ })).toBeNull();
   expect(screen.getByRole("button", { name: "Mark warm-up done" })).toBeTruthy();
+});
+
+it("says what Add exercise just added, and takes focus to the first of them", async () => {
+  show({ added: 2 });
+  // The status line is in place before its words arrive, so a screen reader hears them.
+  const line = await screen.findByText("Added Cable crunch and Face pull.");
+  expect(line.getAttribute("role")).toBe("status");
+  expect(document.activeElement).toBe(screen.getByRole("button", { name: /Cable crunch/ }));
+});
+
+it("names a few additions in full and many by count", async () => {
+  const { addedLine } = await import("./workout-overview");
+  expect(addedLine([])).toBe("");
+  expect(addedLine(["Leg press"])).toBe("Added Leg press.");
+  expect(addedLine(["A", "B", "C", "D"])).toBe("Added A, B, C and D.");
+  expect(addedLine(["A", "B", "C", "D", "E", "F"])).toBe("Added 6 exercises: A, B, C and 3 more.");
+});
+
+it("takes each row's numbers from one source: the coach's, the programme's or the defaults", () => {
+  const coached: ExerciseVM["suggestion"] = {
+    kind: "coach",
+    basis: "exercise",
+    reason: "Coach plan for today",
+    advice: null,
+    loadIncrement: 5,
+    sets: [1, 2, 3].map((setIndex) => ({
+      setIndex,
+      setType: "working" as const,
+      weight: 100,
+      reps: 5,
+      rir: 2,
+      durationSeconds: null,
+      distanceMeters: null,
+    })),
+  };
+  show({
+    session: {
+      ...SESSION,
+      coachPlan: { summary: null, warmup: [], generatedAt: "2026-09-29T06:00:00.000Z" },
+      exercises: [
+        // Planned by the coach on a machine that counts in pounds: the coach's sets, its unit.
+        exercise("Leg press", {
+          equipment: { id: "lp", name: "Leg press 2", unit: "lb", ladder: null },
+          suggestion: coached,
+          coachRestSeconds: 150,
+        }),
+        // The coach left this one's sets to the programme.
+        exercise("Seated leg curl"),
+        // Added on the spot: the exercise's own defaults.
+        exercise("Cable lateral raise", {
+          planned: null,
+          exercise: {
+            ...exercise("Cable lateral raise").exercise,
+            defaults: {
+              repMin: 12,
+              repMax: 20,
+              durationMinSeconds: null,
+              durationMaxSeconds: null,
+              distanceMinMeters: null,
+              distanceMaxMeters: null,
+              rir: 2,
+              restSeconds: 60,
+            },
+          },
+        }),
+      ],
+    },
+  });
+  expect(screen.getByRole("button", { name: /Leg press/ }).textContent).toContain(
+    "100 lb · 3 × 5 @ 2 RIR",
+  );
+  expect(screen.getByRole("button", { name: /Seated leg curl/ }).textContent).toContain(
+    "4 × 3–5 @ 2 RIR",
+  );
+  expect(screen.getByRole("button", { name: /Cable lateral raise/ }).textContent).toContain(
+    "12–20 reps @ 2 RIR",
+  );
+});
+
+it("says on the row when an exercise's machine is still to settle", () => {
+  show({
+    session: {
+      ...SESSION,
+      exercises: [
+        exercise("Hack squat", {
+          exercise: { ...exercise("Hack squat").exercise, modality: "machine" },
+        }),
+      ],
+    },
+  });
+  expect(screen.getByRole("button", { name: /Hack squat/ }).textContent).toContain(
+    "4 × 3–5 @ 2 RIR · Machine not chosen",
+  );
 });

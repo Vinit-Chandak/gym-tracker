@@ -1,7 +1,7 @@
 "use client";
 
 import { useFormStatus } from "react-dom";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -62,4 +62,25 @@ export function SubmitButton({
       {pending ? pendingLabel : children}
     </Button>
   );
+}
+
+/**
+ * Keeps what a form shows when its action settles. React resets a form after its action, while
+ * it commits, with its own event handling switched off, so an `onReset` handler never hears it:
+ * controlled choices (a select, a checkbox, a radio) are put back to their defaults on the
+ * screen and in what the next submit sends, while the component's state still holds what was
+ * chosen. A listener on the element itself does hear the reset, and cancelling it keeps every
+ * field as it stands, which is what a form that failed to save wants: the athlete's choices, to
+ * correct or retry. Attach the returned ref to the `<form>`.
+ */
+export function useKeptForm(): RefObject<HTMLFormElement | null> {
+  const ref = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    const form = ref.current;
+    if (!form) return;
+    const keep = (event: Event) => event.preventDefault();
+    form.addEventListener("reset", keep);
+    return () => form.removeEventListener("reset", keep);
+  }, []);
+  return ref;
 }

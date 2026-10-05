@@ -28,9 +28,11 @@ import {
 import type { LoadLadder } from "@/domain/load-steps";
 import type { LoadUnit, SetType, WarmupDrill } from "@/domain/types";
 import { sessionHistories, type ComparablePerformance } from "@/server/queries/comparable";
-import { getWarmupProtocol } from "@/server/queries/reference";
+import { guidanceByExercise, getWarmupProtocol } from "@/server/queries/reference";
 
 import type { TrainingRecord } from "@/domain/records";
+import { showsDrafts } from "@/lib/drafts";
+import { guidanceOf, type ExerciseGuidance } from "@/lib/guidance";
 
 import { closeStrengthParent, discardStrengthParent, openStrengthParent } from "./activities";
 import { decideExercisesAtGym, resolvePlannedDay, type ExerciseDecision } from "./availability";
@@ -204,8 +206,10 @@ export async function startPlannedSession(
   const values: (typeof workoutExercises.$inferInsert)[] = [];
   for (const item of resolved) {
     const r = item.decision.resolution;
-    const substituted = r.status === "fallback";
     const entry = plan?.exercises.find((e) => e.slotId === item.programExerciseId) ?? null;
+    // Targets the coach wrote for the slot's own exercise keep that exercise: they say nothing
+    // about a fallback's, and the workout still offers the fallback if it cannot be done.
+    const substituted = r.status === "fallback" && !(entry?.action === "keep" && entry.sets.length);
     const base = {
       userId,
       workoutSessionId: session.id,
@@ -238,12 +242,12 @@ export async function startPlannedSession(
     values.push({
       ...base,
       exerciseId: substituted ? r.exercise.id : item.exercise.id,
-      // A machine the plan names wins; otherwise the gym's own resolution.
-      equipmentInstanceId:
-        entry?.equipmentInstanceId ??
-        (r.status === "direct" || r.status === "fallback"
-          ? (r.equipmentInstance?.id ?? null)
-          : null),
+      // A fallback takes its own machine. Otherwise a machine the plan names wins, then the
+      // gym's own resolution; a machine named for one exercise never goes onto another.
+      equipmentInstanceId: substituted
+        ? (r.equipmentInstance?.id ?? null)
+        : (entry?.equipmentInstanceId ??
+          (r.status === "direct" ? (r.equipmentInstance?.id ?? null) : null)),
       substitutionReason: substituted
         ? `Fallback at ${gym.name}: ${item.exercise.name} → ${item.decision.resolvedExerciseName}`
         : null,
@@ -331,6 +335,11 @@ export type SessionExercise = {
     defaultPrescriptionType: typeof exercises.$inferSelect.defaultPrescriptionType;
     /** What RIR means for this movement, in its own words; null falls back to the general one. */
     rirNote: string | null;
+    /**
+     * What the library says the movement is normally done in, for an exercise nothing planned:
+     * its range in its own measure, RIR and rest (plan: today's targets, ad hoc exercises).
+     */
+    defaults: ExerciseDefaultsVM;
   };
   equipment: {
     id: string;
@@ -380,6 +389,25 @@ export type SessionExercise = {
   coachNote: string | null;
   /** Rest the coach asked for, in place of the programme's target. */
   coachRestSeconds: number | null;
+  /** Each set on both sides, as the coach said for this session; null keeps the programme's. */
+  coachPerSide: boolean | null;
+  /**
+   * How to do it (plan: exercise technique and media): the guide, how to log, the exercise's own
+   * notes and demonstrations, as drafts allow. Null when the read leaves guidance out.
+   */
+  guidance: ExerciseGuidance | null;
+};
+
+/** An exercise's own defaults, as the workout reads them. */
+export type ExerciseDefaultsVM = {
+  repMin: number | null;
+  repMax: number | null;
+  durationMinSeconds: number | null;
+  durationMaxSeconds: number | null;
+  distanceMinMeters: number | null;
+  distanceMaxMeters: number | null;
+  rir: number | null;
+  restSeconds: number | null;
 };
 
 export type SessionDetail = {
@@ -416,8 +444,6 @@ export type SessionDetail = {
   exercises: SessionExercise[];
 };
 
-const UBIQUITOUS = new Set(["barbell", "dumbbell", "bodyweight", "mobility"]);
-
 /** Small read for check-in and pickers; never loads progression or previous workouts. */
 export async function getSessionRecord(db: DbOrTx, userId: string, sessionId: string) {
   const [row] = await db
@@ -426,6 +452,22 @@ export async function getSessionRecord(db: DbOrTx, userId: string, sessionId: st
     .where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.userId, userId)))
     .limit(1);
   return row ?? null;
+}
+
+/** The exercises a session already holds, in its order: Add exercise says which are in it. */
+export async function sessionExerciseIds(
+  db: DbOrTx,
+  userId: string,
+  sessionId: string,
+): Promise<string[]> {
+  const rows = await db
+    .select({ exerciseId: workoutExercises.exerciseId })
+    .from(workoutExercises)
+    .where(
+      and(eq(workoutExercises.workoutSessionId, sessionId), eq(workoutExercises.userId, userId)),
+    )
+    .orderBy(asc(workoutExercises.orderIndex));
+  return rows.map((row) => row.exerciseId);
 }
 
 export async function getSessionDetail(
@@ -496,7 +538,12 @@ export async function getSessionDetail(
           defaultDistanceMinMeters: exercises.defaultDistanceMinMeters,
           defaultDistanceMaxMeters: exercises.defaultDistanceMaxMeters,
           defaultRir: exercises.defaultRir,
+          defaultRestSeconds: exercises.defaultRestSeconds,
           rirNote: exercises.rirNote,
+          userId: exercises.userId,
+          formNotes: exercises.formNotes,
+          formUrl: exercises.formUrl,
+          logNote: exercises.logNote,
         },
         equipment: {
           id: equipmentInstances.id,
@@ -556,17 +603,21 @@ export async function getSessionDetail(
   );
   const planAdditions = (coachPlan?.exercises ?? []).filter((e) => e.slotId === null);
 
+  // What the gym is assumed to have is the resolver's to say (ADR 0041): every exercise that
+  // needs equipment and has no machine is asked about, and so is one on a machine before its
+  // first set, for the rest of what that machine is used with; only those with something to
+  // settle come back with a decision.
+  const logged = new Set(setRows.map((set) => set.workoutExerciseId));
   const unresolved = includeGuidance
     ? rows.filter(
         (row) =>
           row.exercise.requiresEquipment &&
-          !row.equipment &&
           !row.we.skippedAt &&
-          !(session.gym.kind === "gym" && UBIQUITOUS.has(row.exercise.modality)),
+          (!row.equipment?.id || !logged.has(row.we.id)),
       )
     : [];
   // History and machine decisions depend on the slots but not on each other.
-  const [histories, decisions, coachingChanges, ladders] = await Promise.all([
+  const [histories, decisions, coachingChanges, ladders, guidance] = await Promise.all([
     includeGuidance
       ? sessionHistories(
           db,
@@ -588,6 +639,7 @@ export async function getSessionDetail(
         id: row.we.id,
         exercise: row.exercise,
         programExerciseId: row.we.plannedProgramExerciseId,
+        equipmentInstanceId: row.equipment?.id ?? null,
       })),
       session.gym,
     ),
@@ -599,6 +651,15 @@ export async function getSessionDetail(
       userId,
       rows.flatMap((row) => (row.equipment?.id ? [row.equipment.id] : [])),
     ),
+    // Every exercise's guide comes with the page from the cached library (plan: the guide data
+    // path, chosen by measurement), so Technique reads even if the connection drops mid-session.
+    includeGuidance
+      ? guidanceByExercise(
+          db,
+          rows.map((row) => row.exercise.id),
+          showsDrafts(),
+        )
+      : Promise.resolve(new Map<string, { guide: null; media: [] }>()),
   ]);
   // The day's warm-up ends in a ramp on its first lift (ADR 0038). Written into the rule's
   // targets for that lift as warm-ups, the logger offers them as warm-up rows, so the ramp is
@@ -641,17 +702,20 @@ export async function getSessionDetail(
       row.equipment?.unit ??
       options.preferredUnit ??
       (profile?.preferredUnit === "lb" ? "lb" : "kg");
-    // The coach's targets replace the rule's prefill; the rule's basis and history stay
-    // visible, so the athlete can still see what the numbers were judged against.
+    // What the coach wrote applies while the row does the exercise it was written for: a swap in
+    // the workout takes the new exercise's own numbers, rest and notes, not the coach's.
+    const own = entry && entry.exerciseId === row.exercise.id ? entry : null;
+    // The coach's targets replace the rule's prefill; the rule's basis and history stay visible,
+    // so the athlete can still see what the numbers were judged against.
     const targets: ProgressionSuggestion | null =
-      entry && entry.action !== "drop" && entry.sets.length > 0
+      own && own.action !== "drop" && own.sets.length > 0
         ? {
             kind: "coach",
             basis: rule.basis,
-            reason: entry.note || "Coach plan for today",
+            reason: own.note || "Coach plan for today",
             advice: null,
             loadIncrement: weightStep,
-            sets: planTargets(entry, unit),
+            sets: planTargets(own, unit),
           }
         : rule.suggestion;
     const ladder = row.equipment?.id ? ladders.get(row.equipment.id) : undefined;
@@ -697,6 +761,16 @@ export async function getSessionDetail(
         requiresEquipment: row.exercise.requiresEquipment,
         defaultPrescriptionType: row.exercise.defaultPrescriptionType,
         rirNote: row.exercise.rirNote,
+        defaults: {
+          repMin: row.exercise.defaultRepMin,
+          repMax: row.exercise.defaultRepMax,
+          durationMinSeconds: row.exercise.defaultDurationMinSeconds,
+          durationMaxSeconds: row.exercise.defaultDurationMaxSeconds,
+          distanceMinMeters: row.exercise.defaultDistanceMinMeters,
+          distanceMaxMeters: row.exercise.defaultDistanceMaxMeters,
+          rir: row.exercise.defaultRir,
+          restSeconds: row.exercise.defaultRestSeconds,
+        },
       },
       equipment: row.equipment?.id
         ? {
@@ -744,8 +818,16 @@ export async function getSessionDetail(
       suggestion,
       regressionStreak: rule.regressionStreak,
       decision,
-      coachNote: entry?.note || null,
-      coachRestSeconds: entry?.restSeconds ?? null,
+      coachNote: own?.note || null,
+      coachRestSeconds: own?.restSeconds ?? null,
+      coachPerSide: own?.perSide ?? null,
+      guidance: includeGuidance
+        ? guidanceOf(
+            row.exercise,
+            guidance.get(row.exercise.id)?.guide ?? null,
+            guidance.get(row.exercise.id)?.media ?? [],
+          )
+        : null,
     });
   }
 
@@ -816,30 +898,40 @@ export class WorkoutSelectionError extends Error {
 /**
  * Picker choices can become stale, and action arguments can be changed outside the picker.
  * Foreign keys only prove an ID exists; they do not enforce its visibility under RLS or that
- * a machine belongs to this gym and supports this movement.
+ * a machine belongs to this gym and supports this movement. Every choice of a batch is checked
+ * before anything is written: the exercises in one read, the machines against one compatibility
+ * read of the gym, so one bad item refuses the whole batch.
  */
 async function requireWorkoutSelection(
   db: DbOrTx,
   userId: string,
   gymId: string,
-  input: { exerciseId: string; equipmentInstanceId: string | null },
+  input: WorkoutSelection | readonly WorkoutSelection[],
 ): Promise<void> {
-  const [exercise] = await db
+  const items: readonly WorkoutSelection[] = Array.isArray(input) ? input : [input];
+  const ids = [...new Set(items.map((item) => item.exerciseId))];
+  const found = await db
     .select({ id: exercises.id })
     .from(exercises)
     .where(
       and(
-        eq(exercises.id, input.exerciseId),
+        inArray(exercises.id, ids),
         eq(exercises.isActive, true),
         or(isNull(exercises.userId), eq(exercises.userId, userId)),
       ),
-    )
-    .limit(1);
-  if (!exercise) throw new WorkoutSelectionError("Choose an available exercise and try again.");
-  if (input.equipmentInstanceId) {
+    );
+  if (found.length !== ids.length)
+    throw new WorkoutSelectionError("Choose an available exercise and try again.");
+  if (items.some((item) => item.equipmentInstanceId)) {
     const compatible = await machinesByExerciseAtGym(db, userId, gymId);
-    if (!compatible[input.exerciseId]?.includes(input.equipmentInstanceId)) {
-      throw new WorkoutSelectionError("Choose an available machine for this exercise at this gym.");
+    for (const item of items) {
+      if (
+        item.equipmentInstanceId &&
+        !compatible[item.exerciseId]?.includes(item.equipmentInstanceId)
+      )
+        throw new WorkoutSelectionError(
+          "Choose an available machine for this exercise at this gym.",
+        );
     }
   }
 }
@@ -1271,30 +1363,64 @@ export async function removeSupersetGroup(
     );
 }
 
-export async function addExerciseToSession(
+/** An exercise to add to a session, and the machine it will be done on, if any. */
+export type WorkoutSelection = { exerciseId: string; equipmentInstanceId: string | null };
+
+/** The most exercises one submission adds: a whole session's worth, not a catalogue. */
+export const MAX_EXERCISES_PER_ADD = 20;
+
+/**
+ * Adds exercises to an open session, after everything it already holds, in the order given
+ * (plan: "Add several exercises in one submission"). The whole batch is checked first, then
+ * written in one statement with contiguous places; nothing is reordered, and the session's row
+ * lock keeps a concurrent addition from taking the same places. A single exercise is a batch of
+ * one. The same exercise twice in one batch is refused; one already in the workout is not, since
+ * doing it again is a choice people make.
+ */
+export async function addExercisesToSession(
   db: DbOrTx,
   userId: string,
   sessionId: string,
-  input: { exerciseId: string; equipmentInstanceId: string | null },
-): Promise<{ workoutExerciseId: string }> {
+  items: readonly WorkoutSelection[],
+): Promise<{ workoutExerciseIds: string[] }> {
+  if (items.length === 0) throw new WorkoutSelectionError("Choose an exercise.");
+  if (items.length > MAX_EXERCISES_PER_ADD)
+    throw new WorkoutSelectionError(`Add at most ${MAX_EXERCISES_PER_ADD} exercises at a time.`);
+  if (new Set(items.map((item) => item.exerciseId)).size !== items.length)
+    throw new WorkoutSelectionError("Choose each exercise once.");
   const session = await requireOpenSession(db, userId, sessionId);
-  await requireWorkoutSelection(db, userId, session.gymId, input);
+  await requireWorkoutSelection(db, userId, session.gymId, items);
   const [last] = await db
     .select({ maxOrder: max(workoutExercises.orderIndex) })
     .from(workoutExercises)
     .where(eq(workoutExercises.workoutSessionId, sessionId));
-  const [row] = await db
+  const first = (last?.maxOrder ?? 0) + 1;
+  const rows = await db
     .insert(workoutExercises)
-    .values({
-      userId,
-      workoutSessionId: sessionId,
-      exerciseId: input.exerciseId,
-      equipmentInstanceId: input.equipmentInstanceId,
-      orderIndex: (last?.maxOrder ?? 0) + 1,
-    })
-    .returning({ id: workoutExercises.id });
-  if (!row) throw new Error("Workout exercise insert returned no row");
-  return { workoutExerciseId: row.id };
+    .values(
+      items.map((item, index) => ({
+        userId,
+        workoutSessionId: sessionId,
+        exerciseId: item.exerciseId,
+        equipmentInstanceId: item.equipmentInstanceId,
+        orderIndex: first + index,
+      })),
+    )
+    .returning({ id: workoutExercises.id, orderIndex: workoutExercises.orderIndex });
+  if (rows.length !== items.length) throw new Error("Workout exercise insert returned no row");
+  return {
+    workoutExerciseIds: [...rows].sort((a, b) => a.orderIndex - b.orderIndex).map((row) => row.id),
+  };
+}
+
+export async function addExerciseToSession(
+  db: DbOrTx,
+  userId: string,
+  sessionId: string,
+  input: WorkoutSelection,
+): Promise<{ workoutExerciseId: string }> {
+  const { workoutExerciseIds } = await addExercisesToSession(db, userId, sessionId, [input]);
+  return { workoutExerciseId: workoutExerciseIds[0]! };
 }
 
 export type FinishInput = { notes: string | null; bodyWeightKg: number | null };

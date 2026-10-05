@@ -20,6 +20,8 @@ export default async function SubstitutePage(
   props: PageProps<"/workouts/[sessionId]/exercises/[workoutExerciseId]/substitute">,
 ) {
   const { sessionId, workoutExerciseId } = await props.params;
+  // "Out of use today" comes here with Remember unticked: today's machine says nothing lasting.
+  const { remember: rememberParam } = await props.searchParams;
   requireUuid(sessionId);
   requireUuid(workoutExerciseId);
   const user = await requireUser();
@@ -81,6 +83,7 @@ export default async function SubstitutePage(
         machinesByExercise={data.machinesByExercise}
         submitLabel="Use this instead"
         remember={plannedExerciseId !== null}
+        rememberByDefault={rememberParam !== "0"}
         long
       />
     </SessionPage>

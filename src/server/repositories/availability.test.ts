@@ -84,6 +84,7 @@ describe("planned-exercise availability", () => {
             name: item.name,
             isActive: item.isActive,
             equipmentTypeId: item.typeId,
+            typeIds: item.typeIds,
           })),
           absentEquipmentTypeIds: new Set(absent.map((item) => item.equipmentTypeId)),
         }),
@@ -125,9 +126,14 @@ describe("planned-exercise availability", () => {
       equipmentInstance: { name: "Cable station" },
     });
 
+    // A leg extension is a gym basic: assumed here until someone says otherwise (ADR 0041).
     const legExtension = row(result.rows, "leg-extension");
-    expect(legExtension.resolution.status).toBe("unknown");
-    expect(legExtension.missingTypes.map((m) => m.name)).toEqual(["Leg extension"]);
+    expect(legExtension.resolution).toMatchObject({ status: "direct", basis: "assumed" });
+    expect(legExtension.equipment).toBe("assumed");
+    // A hip abduction machine is not, so nobody has said whether it is here.
+    const abduction = row(result.rows, "hip-abduction");
+    expect(abduction.resolution.status).toBe("unknown");
+    expect(abduction.missingTypes.map((m) => m.name)).toEqual(["Hip abduction machine"]);
 
     expect(result.summary.direct).toBeGreaterThan(10);
     expect(result.summary.unknown).toBeGreaterThan(0);
@@ -139,23 +145,30 @@ describe("planned-exercise availability", () => {
     ).toBe(result.rows.length);
   });
 
-  it("reports unknown at an empty gym and unavailable outdoors", async () => {
+  it("reports unknown at an empty gym and outdoors, never unavailable unasked", async () => {
     const samsung = await withUser(t.db, user.id, (tx) => gymAvailability(tx, user.id, samsungId));
     if (!samsung) throw new Error("no result");
-    expect(row(samsung.rows, "barbell-bench-press").resolution.status).toBe("direct");
+    expect(row(samsung.rows, "barbell-bench-press").resolution).toMatchObject({
+      status: "direct",
+      basis: "assumed",
+    });
+    // The Smith machine is asked about; the programme's own fallback waits for an answer.
     expect(row(samsung.rows, "smith-machine-calf-raise").resolution.status).toBe("unknown");
     expect(row(samsung.rows, "smith-machine-calf-raise").missingTypes.map((m) => m.name)).toEqual([
       "Smith machine",
-      "45° leg press",
       "Horizontal leg press",
     ]);
     expect(samsung.summary.unavailable).toBe(0);
 
+    // Outdoors assumes nothing, and nothing unanswered is unavailable (ADR 0004, amended).
     const outdoor = await withUser(t.db, user.id, (tx) => gymAvailability(tx, user.id, outdoorId));
     if (!outdoor) throw new Error("no result");
-    expect(row(outdoor.rows, "leg-extension").resolution.status).toBe("unavailable");
-    expect(row(outdoor.rows, "side-plank").resolution.status).toBe("direct");
-    expect(outdoor.summary.unknown).toBe(0);
+    expect(row(outdoor.rows, "leg-extension").resolution.status).toBe("unknown");
+    expect(row(outdoor.rows, "side-plank").resolution).toMatchObject({
+      status: "direct",
+      basis: "free",
+    });
+    expect(outdoor.summary.unavailable).toBe(0);
   });
 
   it("turns unknown into unavailable once the gym is marked as lacking the equipment", async () => {
@@ -185,9 +198,12 @@ describe("planned-exercise availability", () => {
     expect(r.resolvedExerciseName).toBe("Split squat (supported)");
     expect(r.gymFallbacks).toHaveLength(1);
 
-    // The fallback is scoped to Samsung Gym only.
+    // The fallback is scoped to Samsung Gym only: Anytime Fitness keeps its assumed basic.
     const anytime = await withUser(t.db, user.id, (tx) => gymAvailability(tx, user.id, anytimeId));
-    expect(row(anytime?.rows ?? [], "leg-extension").resolution.status).toBe("unknown");
+    expect(row(anytime?.rows ?? [], "leg-extension").resolution).toMatchObject({
+      status: "direct",
+      basis: "assumed",
+    });
 
     const listed = await withUser(t.db, user.id, (tx) => listGymFallbacks(tx, user.id, samsungId));
     expect(listed).toHaveLength(1);

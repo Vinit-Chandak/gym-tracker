@@ -428,7 +428,7 @@ it.each(["bodyweight-squat", "goblet-squat"])(
   },
 );
 
-it("honors a default home alongside gyms and exposes unavailable slots for substitution", async () => {
+it("honors a default home alongside gyms and exposes unanswered slots for the workout to settle", async () => {
   const a = await athlete("home");
   await as(a, (tx) =>
     tx.insert(gyms).values({ userId: a.user.id, name: "Another gym", slug: "another-gym" }),
@@ -448,7 +448,8 @@ it("honors a default home alongside gyms and exposes unavailable slots for subst
   if (ctx.reason !== null) throw new Error("Missing home planning context");
   expect(ctx.gym.id).toBe(a.gym.id);
   expect(ctx.exercises[0]!.slotId).toBeTruthy();
-  expect(ctx.exercises[0]!.atThisGym.status).toBe("unavailable");
+  // Nothing is assumed at home, and what nobody has answered for there is unknown (S2).
+  expect(ctx.exercises[0]!.atThisGym.status).toBe("unknown");
   await as(a, (tx) => tx.update(gyms).set({ isActive: false }).where(eq(gyms.id, a.gym.id)));
   expect(await as(a, (tx) => planningContext(tx, a.user.id, { gymId: a.gym.id }))).toEqual({
     reason: "no_gym",
@@ -473,6 +474,66 @@ it("rejects stale generation and opening sessions that omit a slot before saving
     await as(a, (tx) => acceptCoachJobResult(tx, a.user.id, job.id, claim!.attemptId!, result(a))),
   ).toMatchObject({ accepted: false });
   expect((await as(a, (tx) => tx.select().from(coachJobs)))[0]?.status).toBe("superseded");
+});
+it("refuses an opening plan that leaves a registered machine unnamed, before saving a draft", async () => {
+  const a = await athlete();
+  const [type] = await t.db
+    .select()
+    .from(equipmentTypes)
+    .where(eq(equipmentTypes.slug, "leg_curl_seated"));
+  const [machine] = await as(a, (tx) =>
+    tx
+      .insert(equipmentInstances)
+      .values({
+        userId: a.user.id,
+        gymId: a.gym.id,
+        equipmentTypeId: type!.id,
+        name: "Seated leg curl",
+        resistanceMode: "selectorized",
+        unit: "kg",
+        loadIncrement: 5,
+      })
+      .returning(),
+  );
+  const curls = structuredClone(blueprint);
+  curls.days[0]!.exercises[0]!.exerciseSlug = "seated-leg-curl";
+  curls.days[0]!.exercises[0]!.fallbacks = [];
+  const opening = result(a).openingPlan;
+  const keep = {
+    ...opening.exercises[0]!,
+    exerciseSlug: "seated-leg-curl",
+    sets: [{ reps: 10, weight: null, rir: 3 }],
+  };
+  const { job } = await request(a);
+  const claim = await as(a, (tx) => claimCoachJob(tx, a.user.id, job.id));
+  // Approving the plan would insist on the machine its history belongs to, so the job does.
+  await expect(
+    as(a, (tx) =>
+      acceptCoachJobResult(tx, a.user.id, job.id, claim!.attemptId!, {
+        ...result(a),
+        blueprint: curls,
+        openingPlan: { ...opening, exercises: [keep] },
+      }),
+    ),
+  ).rejects.toThrow(/registered machine/);
+  expect(await as(a, (tx) => tx.select().from(programDrafts))).toHaveLength(0);
+  const accepted = await as(a, (tx) =>
+    acceptCoachJobResult(tx, a.user.id, job.id, claim!.attemptId!, {
+      ...result(a),
+      blueprint: curls,
+      openingPlan: { ...opening, exercises: [{ ...keep, equipmentInstanceId: machine!.id }] },
+    }),
+  );
+  const draft = await as(a, (tx) => getProgramDraft(tx, a.user.id, accepted.draftId!));
+  await expect(
+    as(a, (tx) =>
+      activateProgramDraft(tx, a.user.id, draft!.id, {
+        expectedRevision: draft!.revision,
+        startDate: "2026-09-14",
+        transition: "new_block",
+      }),
+    ),
+  ).resolves.toMatchObject({ alreadyActivated: false });
 });
 it("reconciles an expired attempt and refuses its old token after reclaim", async () => {
   const a = await athlete();
@@ -805,6 +866,31 @@ it("keeps saved-routine targets frozen and never copies completed set logs", asy
   expect(
     await as(a, (tx) => tx.select().from(programs).where(eq(programs.status, "active"))),
   ).toEqual([]);
+});
+it("says a routine's exercise has left the library, rather than blaming the gym", async () => {
+  const a = await athlete();
+  await as(a, (tx) => setTrainingMode(tx, a.user.id, "manual"));
+  const own = await as(a, (tx) =>
+    createCustomExercise(tx, a.user.id, {
+      name: "Band pull-apart",
+      category: "hypertrophy",
+      modality: "bodyweight",
+      measurement: "reps",
+      primaryMuscles: ["upper_back"],
+      equipmentInstanceId: null,
+      notes: "",
+    }),
+  );
+  const day = structuredClone(blueprint.days[0]!);
+  day.exercises[0]!.exerciseSlug = own.slug;
+  day.exercises[0]!.fallbacks = [];
+  const routine = await as(a, (tx) => saveRoutine(tx, a.user.id, "Pull-aparts", day));
+  await as(a, (tx) =>
+    tx.update(exercises).set({ isActive: false }).where(eq(exercises.id, own.id)),
+  );
+  await expect(
+    as(a, (tx) => startSavedRoutine(tx, a.user.id, routine.id, a.gym.id)),
+  ).rejects.toThrow("An exercise in this routine is no longer in the library.");
 });
 it("cascades new coaching data when Auth is deleted and allows a fresh identity for the email", async () => {
   const a = await athlete();
@@ -1870,4 +1956,35 @@ it("will not requeue a job belonging to someone else", async () => {
   await exhaust(a, job.id);
   expect(await as(b, (tx) => requeueCoachJob(tx, b.user.id, job.id))).toBeNull();
   expect((await as(a, (tx) => getCoachJob(tx, a.user.id, job.id)))?.status).toBe("failed");
+});
+
+it("keeps the route chosen in the coach's setup as the profile's answer to Which sounds like you", async () => {
+  const user = await t.createAuthUser(`${crypto.randomUUID()}@example.test`);
+  await withUser(t.db, user.id, async (tx) => {
+    await tx
+      .insert(gyms)
+      .values({ userId: user.id, name: "My gym", slug: "my-gym", kind: "gym", isDefault: true });
+    const intake = await saveIntake(
+      tx,
+      user.id,
+      coachIntakeSchema.parse({
+        goal: "Get started with lifting",
+        sessionsPerWeek: 2,
+        minutesPerSession: 45,
+        trainingLocation: "gym",
+        heightCm: 170,
+        weightKg: 70,
+        ageYears: 28,
+        track: "guided",
+        prompt: "New to the gym.",
+      }),
+      null,
+    );
+    await confirmIntake(tx, user.id, intake.id);
+  });
+  const [row] = await t.db
+    .select({ experience: profiles.trainingExperience })
+    .from(profiles)
+    .where(eq(profiles.id, user.id));
+  expect(row?.experience).toBe("new");
 });

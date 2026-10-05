@@ -92,6 +92,14 @@ export async function ProgrammeCreationPage({ onboarding = false }: { onboarding
                 : null,
               // An account whose only location is outdoors is neither answer; it asks.
               trainingLocation: usual?.kind === "home" || usual?.kind === "gym" ? usual.kind : null,
+              // Answered at setup, so the coach does not ask again; an account that never
+              // answered is asked here, as before.
+              track:
+                profile.trainingExperience === "new"
+                  ? "guided"
+                  : profile.trainingExperience === "experienced"
+                    ? "detailed"
+                    : null,
             })}
             base={base}
             preferredUnit={profile.preferredUnit === "lb" ? "lb" : "kg"}

@@ -15,7 +15,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { ownerPolicy, timestamps } from "./common";
-import { loadUnitEnum, sexEnum, trainingGoalEnum } from "./enums";
+import { loadUnitEnum, sexEnum, trainingExperienceEnum, trainingGoalEnum } from "./enums";
 
 /**
  * One row per Supabase Auth user. `id` equals `auth.users.id`; the FK and the trigger that
@@ -50,6 +50,12 @@ export const profiles = pgTable(
     /** Null is an answer in its own right — "prefer not to say". */
     sex: sexEnum("sex"),
     trainingGoal: trainingGoalEnum("training_goal"),
+    /**
+     * "Which sounds like you?": new to training, or already training. Asked on the first step
+     * of setup and read by the machines step and the coach, so nobody is asked twice. Null for
+     * accounts that never answered; the coach asks them, as it always did.
+     */
+    trainingExperience: trainingExperienceEnum("training_experience"),
     /** Optional rest timer between sets; off unless the user switches it on. */
     restTimerEnabled: boolean("rest_timer_enabled").notNull().default(false),
     /** Lets the house coach plan this account's sessions. Off unless the user switches it on. */

@@ -97,7 +97,8 @@ export function GymDetails({ data }: { data: GymDetailData }) {
         .map((status) => `${summary[status]} ${AVAILABILITY_LABELS[status].toLowerCase()}`)
         .join(" · ")
     : "No active programme";
-  const registeredTypeIds = new Set(activeEquipment.map((item) => item.typeId));
+  // A combination machine is each of its types, so none of them is offered as missing.
+  const registeredTypeIds = new Set(activeEquipment.flatMap((item) => item.typeIds));
   const absentTypeIds = new Set(absent.map((item) => item.equipmentTypeId));
   const absentCandidates = EQUIPMENT_CATEGORIES.map((category) => ({
     category,
@@ -167,8 +168,9 @@ export function GymDetails({ data }: { data: GymDetailData }) {
             <h2 id="gym-machines" className="caption-head mb-0 flex items-center gap-1">
               {equipmentCountLabel(activeEquipment.length)}
               <InfoTip label="About machines">
-                Barbells, dumbbells and bodyweight count as available at every gym; only machines
-                and cable stations need registering.
+                {gym.kind === "gym"
+                  ? "A gym's basics (free weights, benches, racks and the common machines) count as here until you say otherwise. Register anything else it has, and each machine is confirmed the first time you use it."
+                  : "Nothing is assumed here: register what this place has, and anything else is asked about when an exercise needs it."}
               </InfoTip>
             </h2>
             {gym.isActive && (
@@ -200,12 +202,14 @@ export function GymDetails({ data }: { data: GymDetailData }) {
           )}
         </section>
 
-        {gym.kind === "gym" && (
+        {/* Known absence matters everywhere now: unanswered equipment is unknown at home and
+            outdoors too, and saying it is not here stops the question (ADR 0004, amended). */}
+        {(gym.kind === "gym" || absent.length > 0 || absentCandidates.length > 0) && (
           <section aria-labelledby="gym-unavailable">
             <h2 id="gym-unavailable" className="caption-head mt-4.5 flex items-center gap-1">
               Unavailable equipment
               <InfoTip label="About unavailable equipment">
-                Mark what this gym lacks so the programme suggests alternatives instead of asking.
+                Mark what this place lacks so the programme suggests alternatives instead of asking.
               </InfoTip>
             </h2>
             {absent.length === 0 && absentCandidates.length === 0 && (

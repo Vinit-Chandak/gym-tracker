@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 90" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <line x1="38" y1="83" x2="38" y2="5"/>
+  <line x1="82" y1="83" x2="82" y2="5"/>
+  <path d="M25 11L31 5L89 5L95 11"/>
+  <line x1="31" y1="83" x2="45" y2="83"/>
+  <line x1="75" y1="83" x2="89" y2="83"/>
+  <line x1="38" y1="15" x2="46" y2="5"/>
+  <line x1="82" y1="15" x2="74" y2="5"/>
+</svg>

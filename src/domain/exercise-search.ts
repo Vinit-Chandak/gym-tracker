@@ -39,6 +39,8 @@ function wordsMatch(asked: string, known: string): boolean {
 export type Searchable = {
   name: string;
   slug: string;
+  /** Other names for it, matched as the name is: the athlete may well use one of them. */
+  aliases?: readonly string[];
   movementPattern: string;
   primaryMuscles: readonly string[];
   modality: string;
@@ -50,7 +52,7 @@ export type Searchable = {
  * match at all.
  */
 export function searchScore(query: readonly string[], exercise: Searchable): number {
-  const name = searchWords(`${exercise.name} ${exercise.slug}`);
+  const name = searchWords([exercise.name, exercise.slug, ...(exercise.aliases ?? [])].join(" "));
   const rest = searchWords(
     [exercise.movementPattern, exercise.modality, ...exercise.primaryMuscles].join(" "),
   );

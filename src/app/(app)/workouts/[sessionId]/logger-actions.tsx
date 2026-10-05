@@ -4,7 +4,11 @@ import { createContext, useContext } from "react";
 
 import {
   applyFallbackAction,
+  archiveWorkoutMachineAction,
+  chooseEquipmentVariantAction,
+  confirmEquipmentHereAction,
   deleteSetAction,
+  equipmentNotHereAction,
   logSetAction,
   readExerciseHistoryAction,
   setExerciseCompletedAction,
@@ -23,6 +27,11 @@ export type LoggerActions = {
   skip: typeof skipExerciseAction;
   applyFallback: typeof applyFallbackAction;
   readHistory: typeof readExerciseHistoryAction;
+  /** "Yes, it's here" and "Available": the machine is registered and put on the exercise. */
+  confirmHere: typeof confirmEquipmentHereAction;
+  notHere: typeof equipmentNotHereAction;
+  chooseVariant: typeof chooseEquipmentVariantAction;
+  archiveMachine: typeof archiveWorkoutMachineAction;
 };
 
 const SERVER: LoggerActions = {
@@ -32,6 +41,10 @@ const SERVER: LoggerActions = {
   skip: (...args) => skipExerciseAction(...args),
   applyFallback: (...args) => applyFallbackAction(...args),
   readHistory: (...args) => readExerciseHistoryAction(...args),
+  confirmHere: (...args) => confirmEquipmentHereAction(...args),
+  notHere: (...args) => equipmentNotHereAction(...args),
+  chooseVariant: (...args) => chooseEquipmentVariantAction(...args),
+  archiveMachine: (...args) => archiveWorkoutMachineAction(...args),
 };
 
 const Context = createContext<LoggerActions>(SERVER);

@@ -10,6 +10,7 @@ import { canConvertLoad, convertLoad, setInUnit } from "@/lib/units";
 import {
   draftMatchesSet,
   DRAFT_VALUE_FIELDS,
+  moveDrafts,
   readDrafts,
   removeDraft,
   touchedFields,
@@ -20,6 +21,7 @@ import {
 import { attempted } from "@/lib/offline-submit";
 
 import { useLoggerActions } from "./logger-actions";
+import { restSecondsOf } from "./logger-model";
 import type { ExerciseVM, SetVM } from "./view-model";
 
 const MAX_SETS = 50;
@@ -249,6 +251,21 @@ export function useSetRows({
   }));
   // Saves and deletions still on their way to the server, each settling to whether it landed.
   const inFlight = useRef(new Set<Promise<boolean>>());
+  // Drafts carried here by a machine answer, which can land after this screen has mounted, are
+  // picked up when they arrive. Every keystroke writes a draft too, so only a carried one counts.
+  const [draftsSeen, setDraftsSeen] = useState(0);
+  useEffect(() => {
+    const arrived = () => {
+      try {
+        if (readDrafts(localStorage, draftContext).some((draft) => draft.carried))
+          setDraftsSeen((n) => n + 1);
+      } catch {
+        // Unreadable storage is reported by the restore below.
+      }
+    };
+    window.addEventListener("overload:drafts", arrived);
+    return () => window.removeEventListener("overload:drafts", arrived);
+  }, [draftContext]);
 
   /** Keeps a request among those `settled` waits for until it answers, however it answers. */
   const track = <T extends { ok: boolean }>(request: Promise<T>): Promise<T> => {
@@ -301,26 +318,35 @@ export function useSetRows({
                 ? String(convertLoad(Number(draft.weight.replace(",", ".")), from, unit))
                 : draft.weight;
           const changedElsewhere = (row.logged?.completedAt ?? null) !== draft.baseCompletedAt;
+          const { carried, ...fields } = draft;
           byIndex.set(draft.setIndex, {
             ...row,
-            ...draft,
+            ...fields,
             rpe: draft.rpe ?? "",
             effortVersion: draft.effortVersion,
             weight,
             unit: convertible ? unit : from,
             touched: touchedFields(draft),
             dirty: true,
+            // A row carried here by a machine answer is the one being typed, not one recovered.
             error: changedElsewhere
               ? "Saved set changed elsewhere. Review your draft before updating it."
-              : "Unsaved draft restored. Review and retry saving.",
+              : carried
+                ? null
+                : "Unsaved draft restored. Review and retry saving.",
           });
         }
         return [...byIndex.values()].sort((a, b) => a.setIndex - b.setIndex);
       });
+      // Carried once: a later visit reads it as any other draft kept on this device.
+      for (const draft of restored.filter((d) => d.carried)) {
+        const { carried: _carried, ...rest } = draft;
+        writeDraft(localStorage, draftContext, rest);
+      }
     } catch {
       setStorageError(true);
     }
-  }, [draftContext, exercise.sets, unit]);
+  }, [draftContext, exercise.sets, unit, draftsSeen]);
 
   const update = (index: number, patch: Partial<RowState>) =>
     setRows((current) =>
@@ -515,8 +541,7 @@ export function useSetRows({
         setIndex: row.setIndex,
         set: result.set,
       });
-      if (!row.logged)
-        onLogged(exercise.coachRestSeconds ?? exercise.planned?.restMinSeconds ?? 90);
+      if (!row.logged) onLogged(restSecondsOf(exercise) ?? 90);
       onSaved?.(row.setIndex, !row.logged, { set: setInUnit(result.set, unit), autoWarmup });
     });
   };
@@ -589,5 +614,21 @@ export function useSetRows({
     addRow,
     ensureOpenRow,
     canAddRow: Math.max(0, ...rows.map((r) => r.setIndex)) < MAX_SETS,
+    /**
+     * A machine answer moved the exercise (a machine attached, a family's variant): what is
+     * typed and not saved goes with it, to be picked up there as the rows they were.
+     */
+    carryDraftsTo: (to: { exerciseId: string; equipmentInstanceId: string } | null | undefined) => {
+      if (!to) return;
+      try {
+        moveDrafts(localStorage, draftContext, {
+          ...draftContext,
+          exerciseId: to.exerciseId,
+          equipmentId: to.equipmentInstanceId,
+        });
+      } catch {
+        setStorageError(true);
+      }
+    },
   };
 }

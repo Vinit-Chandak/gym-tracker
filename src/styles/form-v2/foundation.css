@@ -402,3 +402,22 @@
     --ov-volume-4: Highlight;
   }
 }
+
+/* An ink surface keeps the system colours the tokens above give it. Left to the browser, its
+   text gets a Canvas backplate while the text itself is HighlightText: white on white in a light
+   theme, black on black in a dark one. Drawings on it follow the text (rows.css). */
+@media (forced-colors: active) {
+  .bg-ink,
+  .tick-tile:has(input:checked),
+  .equipment-tile:has(input:checked),
+  .sport-tile[aria-checked="true"],
+  .picker-chosen,
+  .picker-tick[data-on],
+  .filter-count,
+  .nav-row-badge,
+  .session-strip,
+  .workout-resume,
+  .peer:checked + .where-choice-tile {
+    forced-color-adjust: none;
+  }
+}

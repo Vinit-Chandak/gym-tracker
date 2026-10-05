@@ -16,6 +16,7 @@ import {
   plannedOccurrences,
   profiles,
   programDays,
+  programExerciseFallbacks,
   programExercises,
   programRuns,
   sessionPlans,
@@ -32,7 +33,15 @@ import {
   type PlanWarning,
   type ReviewExercise,
 } from "@/domain/coach-review";
-import { resolveExerciseAtGym } from "@/domain/equipment-resolution";
+import {
+  compatibleMachines,
+  equipmentState,
+  inventoryAt,
+  isAvailableNow,
+  resolveExerciseAtGym,
+  type EquipmentState,
+  type Resolution,
+} from "@/domain/equipment-resolution";
 import type { ProgramPatch } from "@/domain/program-patch";
 import type { ProgramDiff } from "@/domain/program-diff";
 import { addDays, todayInTimeZone } from "@/domain/program-calendar";
@@ -46,6 +55,7 @@ import {
   type SlotRef,
 } from "@/domain/schedule";
 import { assertNoOpenWorkout } from "./coaching-state";
+import { instanceTypeIds, referenceInputs, referenceSets } from "./equipment-context";
 import { readCoachMemory } from "./coach-memory";
 import { summaryForSport, warningsForSport } from "@/domain/sport-scope";
 import { coachNotes } from "@/db/schema";
@@ -79,7 +89,7 @@ import { sessionHistories, type ComparablePerformance } from "@/server/queries/c
 import { getWarmupProtocol, sharedExercises } from "@/server/queries/reference";
 import { parseDateRange } from "@/server/validation/date-range";
 
-import { resolvePlannedDay } from "./availability";
+import { backupsAvailableAt, resolvePlannedDay } from "./availability";
 import { getGym, listGyms } from "./gyms";
 import { getRunTarget, getSchedule, type Schedule, type ScheduleDay } from "./schedule";
 import { loadLadders } from "./load-ladders";
@@ -552,6 +562,7 @@ export async function planningContext(
         dateOfBirth: profiles.dateOfBirth,
         sex: profiles.sex,
         trainingGoal: profiles.trainingGoal,
+        trainingExperience: profiles.trainingExperience,
       })
       .from(profiles)
       .where(eq(profiles.id, userId))
@@ -773,6 +784,8 @@ export async function planningContext(
         : null,
       atThisGym: {
         status: r.status,
+        /** Confirmed, assumed (a gym basic), unknown, absent or none (ADR 0041). */
+        equipment: equipmentState(r),
         exerciseSlug: resolvedExercise?.slug ?? null,
         exerciseName: item.decision.resolvedExerciseName,
         machine: machine
@@ -870,6 +883,8 @@ export async function planningContext(
       age: profile.dateOfBirth === null ? null : ageOn(profile.dateOfBirth, today),
       sex: profile.sex,
       goal: profile.trainingGoal,
+      // "Which sounds like you?", answered at setup: "new", "experienced", or null.
+      experience: profile.trainingExperience,
       today,
     },
     memo,
@@ -1021,7 +1036,7 @@ export async function planningContext(
         meters: [e.defaultDistanceMinMeters, e.defaultDistanceMaxMeters],
         rir: e.defaultRir,
       },
-      atThisGym: e.available ? { machine: e.machine } : null,
+      atThisGym: e.available ? { equipment: e.equipment, machine: e.machine } : null,
     })),
     limits: PLAN_LIMITS,
   };
@@ -1035,7 +1050,10 @@ export type LibraryEntry = {
   name: string;
   /** One the athlete created, rather than the shared library's. */
   own: boolean;
+  /** Other names for it, which the coach's lookup matches as it matches the name. */
+  aliases: string[];
   modality: (typeof exercises.$inferSelect)["modality"];
+  requiresEquipment: boolean;
   category: (typeof exercises.$inferSelect)["category"];
   movementPattern: string;
   primaryMuscles: (typeof exercises.$inferSelect)["primaryMuscles"];
@@ -1048,7 +1066,13 @@ export type LibraryEntry = {
   defaultDistanceMinMeters: number | null;
   defaultDistanceMaxMeters: number | null;
   defaultRir: number | null;
+  /**
+   * Whether it can be done here now, a basic nobody has confirmed included (ADR 0041): what the
+   * coach may plan without a backup.
+   */
   available: boolean;
+  /** Confirmed, assumed (a gym basic), unknown, absent, or none needed. */
+  equipment: EquipmentState;
   machine: { id: string; name: string } | null;
 };
 
@@ -1058,7 +1082,7 @@ export async function libraryAtGym(
   userId: string,
   gymId: string,
 ): Promise<LibraryEntry[]> {
-  const [shared, own, gym, equipment, absentRows] = await Promise.all([
+  const [shared, own, gym, equipment, absentRows, ownOptions, refs] = await Promise.all([
     sharedExercises(db),
     db.select().from(exercises).where(eq(exercises.userId, userId)),
     db.select({ kind: gyms.kind }).from(gyms).where(eq(gyms.id, gymId)).limit(1),
@@ -1069,6 +1093,7 @@ export async function libraryAtGym(
         equipmentTypeId: equipmentInstances.equipmentTypeId,
         name: equipmentInstances.name,
         isActive: equipmentInstances.isActive,
+        typeIds: instanceTypeIds,
       })
       .from(equipmentInstances)
       .where(eq(equipmentInstances.gymId, gymId)),
@@ -1076,46 +1101,33 @@ export async function libraryAtGym(
       .select({ equipmentTypeId: gymAbsentEquipmentTypes.equipmentTypeId })
       .from(gymAbsentEquipmentTypes)
       .where(eq(gymAbsentEquipmentTypes.gymId, gymId)),
+    // The athlete's own machine-level rows; shared equipment is read as requirement groups.
+    db
+      .select({
+        exerciseId: exerciseEquipmentOptions.exerciseId,
+        equipmentTypeId: exerciseEquipmentOptions.equipmentTypeId,
+        equipmentInstanceId: exerciseEquipmentOptions.equipmentInstanceId,
+        preferenceRank: exerciseEquipmentOptions.preferenceRank,
+      })
+      .from(exerciseEquipmentOptions)
+      .where(eq(exerciseEquipmentOptions.userId, userId)),
+    referenceSets(db),
   ]);
   const rows = [...shared, ...own].filter((e) => e.isActive);
-  const options = rows.length
-    ? await db
-        .select({
-          exerciseId: exerciseEquipmentOptions.exerciseId,
-          equipmentTypeId: exerciseEquipmentOptions.equipmentTypeId,
-          equipmentInstanceId: exerciseEquipmentOptions.equipmentInstanceId,
-          preferenceRank: exerciseEquipmentOptions.preferenceRank,
-        })
-        .from(exerciseEquipmentOptions)
-        .where(
-          and(
-            inArray(
-              exerciseEquipmentOptions.exerciseId,
-              rows.map((e) => e.id),
-            ),
-            or(
-              isNull(exerciseEquipmentOptions.equipmentInstanceId),
-              inArray(
-                exerciseEquipmentOptions.equipmentInstanceId,
-                equipment.map((i) => i.id),
-              ),
-            ),
-          ),
-        )
-    : [];
   const kind = gym[0]?.kind ?? "gym";
   const absent = new Set(absentRows.map((a) => a.equipmentTypeId));
+  const inputs = referenceInputs(refs, kind);
   return rows.map((e) => {
     const resolution = resolveExerciseAtGym({
       exercise: { id: e.id, modality: e.modality, requiresEquipment: e.requiresEquipment },
       gym: { id: gymId, kind },
       preferredEquipmentInstanceId: null,
-      options,
+      options: ownOptions,
       fallbacks: [],
       gymEquipment: equipment,
       absentEquipmentTypeIds: absent,
+      ...inputs,
     });
-    const available = resolution.status === "direct";
     const machine =
       resolution.status === "direct" && resolution.equipmentInstance
         ? { id: resolution.equipmentInstance.id, name: resolution.equipmentInstance.name }
@@ -1125,7 +1137,9 @@ export async function libraryAtGym(
       slug: e.slug,
       name: e.name,
       own: e.userId !== null,
+      aliases: e.aliases,
       modality: e.modality,
+      requiresEquipment: e.requiresEquipment,
       category: e.category,
       movementPattern: e.movementPattern,
       primaryMuscles: e.primaryMuscles,
@@ -1138,10 +1152,115 @@ export async function libraryAtGym(
       defaultDistanceMinMeters: e.defaultDistanceMinMeters,
       defaultDistanceMaxMeters: e.defaultDistanceMaxMeters,
       defaultRir: e.defaultRir,
-      available,
+      available: isAvailableNow(resolution),
+      equipment: equipmentState(resolution),
       machine,
     };
   });
+}
+
+/**
+ * Whether a machine at a gym can carry an exercise, by the same rule the pickers use: it has the
+ * primary type of an alternative nothing absent rules out, or the athlete tied it to the exercise.
+ */
+export async function machineFitsExercise(
+  db: DbOrTx,
+  userId: string,
+  gymId: string,
+  exercise: ExerciseAtGymRef,
+  machineId: string,
+): Promise<boolean> {
+  const fits = await machinesFittingExercises(db, userId, gymId, [exercise]);
+  return fits.get(exercise.id)?.includes(machineId) ?? false;
+}
+
+/** For each exercise, the machines at a gym that can carry it (see `machineFitsExercise`). */
+export async function machinesFittingExercises(
+  db: DbOrTx,
+  userId: string,
+  gymId: string,
+  list: readonly ExerciseAtGymRef[],
+): Promise<Map<string, string[]>> {
+  const found = await exerciseEquipmentAtGym(db, userId, gymId, list);
+  return new Map([...found].map(([id, value]) => [id, value.fits]));
+}
+
+type ExerciseAtGymRef = {
+  id: string;
+  modality: (typeof exercises.$inferSelect)["modality"];
+  requiresEquipment: boolean;
+};
+
+/**
+ * For each exercise, how it resolves at a gym on its own (no fallbacks) and which machines there
+ * can carry it, from one read of the gym. What the coach's plans are checked against.
+ */
+export async function exerciseEquipmentAtGym(
+  db: DbOrTx,
+  userId: string,
+  gymId: string,
+  list: readonly ExerciseAtGymRef[],
+): Promise<Map<string, { fits: string[]; resolution: Resolution }>> {
+  const [[gym], machines, absentRows, ownOptions, refs] = await Promise.all([
+    db.select({ kind: gyms.kind }).from(gyms).where(eq(gyms.id, gymId)).limit(1),
+    db
+      .select({
+        id: equipmentInstances.id,
+        gymId: equipmentInstances.gymId,
+        equipmentTypeId: equipmentInstances.equipmentTypeId,
+        name: equipmentInstances.name,
+        isActive: equipmentInstances.isActive,
+        typeIds: instanceTypeIds,
+      })
+      .from(equipmentInstances)
+      .where(and(eq(equipmentInstances.gymId, gymId), eq(equipmentInstances.userId, userId))),
+    db
+      .select({ equipmentTypeId: gymAbsentEquipmentTypes.equipmentTypeId })
+      .from(gymAbsentEquipmentTypes)
+      .where(eq(gymAbsentEquipmentTypes.gymId, gymId)),
+    db
+      .select({
+        exerciseId: exerciseEquipmentOptions.exerciseId,
+        equipmentTypeId: exerciseEquipmentOptions.equipmentTypeId,
+        equipmentInstanceId: exerciseEquipmentOptions.equipmentInstanceId,
+        preferenceRank: exerciseEquipmentOptions.preferenceRank,
+      })
+      .from(exerciseEquipmentOptions)
+      .where(eq(exerciseEquipmentOptions.userId, userId)),
+    referenceSets(db),
+  ]);
+  const kind = gym?.kind ?? "gym";
+  const inputs = referenceInputs(refs, kind);
+  const absent = new Set(absentRows.map((row) => row.equipmentTypeId));
+  const inventory = inventoryAt(gymId, machines, {
+    absent,
+    assumed: inputs.assumedEquipmentTypeIds,
+    free: inputs.freeEquipmentTypeIds,
+  });
+  return new Map(
+    list.map((exercise) => [
+      exercise.id,
+      {
+        fits: compatibleMachines(
+          exercise,
+          inventory,
+          inputs.requirements,
+          ownOptions,
+          inputs.modalityTypeIds,
+        ).map((machine) => machine.id),
+        resolution: resolveExerciseAtGym({
+          exercise,
+          gym: { id: gymId, kind },
+          preferredEquipmentInstanceId: null,
+          options: ownOptions,
+          fallbacks: [],
+          gymEquipment: machines,
+          absentEquipmentTypeIds: absent,
+          ...inputs,
+        }),
+      },
+    ]),
+  );
 }
 
 export type StorePlanInput = {
@@ -1308,17 +1427,40 @@ export async function storePlan(
       : Promise.resolve([]),
   ]);
   const slotById = new Map(daySlots.map((slot) => [slot.id, slot]));
-  const equipmentOptions = visible.length
+  // What each named exercise is at this gym, and what can stand in for each slot (ADR 0041):
+  // a machine nobody has confirmed is planned only with a backup available now, judged as the
+  // workout would use it, on the type or the machine the fallback names.
+  const slotFallbacks = daySlots.length
     ? await db
-        .select()
-        .from(exerciseEquipmentOptions)
+        .select({
+          programExerciseId: programExerciseFallbacks.programExerciseId,
+          equipmentTypeId: programExerciseFallbacks.fallbackEquipmentTypeId,
+          equipmentInstanceId: programExerciseFallbacks.fallbackEquipmentInstanceId,
+          exercise: {
+            id: exercises.id,
+            modality: exercises.modality,
+            requiresEquipment: exercises.requiresEquipment,
+          },
+        })
+        .from(programExerciseFallbacks)
+        .innerJoin(exercises, eq(exercises.id, programExerciseFallbacks.fallbackExerciseId))
         .where(
-          inArray(
-            exerciseEquipmentOptions.exerciseId,
-            visible.map((e) => e.id),
+          and(
+            inArray(
+              programExerciseFallbacks.programExerciseId,
+              daySlots.map((slot) => slot.id),
+            ),
+            or(isNull(programExerciseFallbacks.gymId), eq(programExerciseFallbacks.gymId, gym.id)),
           ),
         )
     : [];
+  const [atGym, backups] = await Promise.all([
+    exerciseEquipmentAtGym(db, userId, gym.id, visible),
+    backupsAvailableAt(db, userId, gym.id, slotFallbacks),
+  ]);
+  const backedUp = (slotId: string | null) =>
+    slotId !== null &&
+    slotFallbacks.some((f, index) => f.programExerciseId === slotId && backups[index]);
   const issues: { path: string; message: string }[] = [];
   if (plan.run?.programRunId && programRun.length === 0)
     issues.push({
@@ -1357,30 +1499,31 @@ export async function storePlan(
     if (entry.action === "drop" && entry.sets.length)
       issue("A dropped slot cannot prescribe sets.");
     if (entry.action !== "drop" && exercise) {
-      const options = equipmentOptions.filter((o) => o.exerciseId === exercise.id);
-      if (
-        machine &&
-        !options.some(
-          (o) =>
-            o.equipmentInstanceId === machine.id || o.equipmentTypeId === machine.equipmentTypeId,
-        )
-      )
+      const found = atGym.get(exercise.id);
+      if (machine && !found?.fits.includes(machine.id))
         issue("That machine is not compatible with this exercise.");
-      if (!machine) {
-        const resolution = resolveExerciseAtGym({
-          exercise,
-          gym,
-          preferredEquipmentInstanceId: null,
-          options,
-          fallbacks: [],
-          gymEquipment: input.strict
-            ? []
-            : machines.map((m) => ({ ...m, gymId: gym.id, isActive: true })),
-        });
-        if (
-          resolution.status !== "direct" &&
+      if (!machine && found) {
+        const { resolution } = found;
+        // The backup rule (ADR 0041), for every exercise planned, a slot's own kept one
+        // included: confirmed equipment and basics stand alone; a machine nobody has confirmed
+        // needs a backup in its slot that is available now; anything absent is never planned. A
+        // slot kept without targets may still fall to its backup when it starts.
+        const keepsOwn = entry.action === "keep" && slot?.exerciseId === exercise.id;
+        if (resolution.status === "unavailable") {
+          if (!(keepsOwn && entry.sets.length === 0 && backedUp(entry.slotId)))
+            issue(`That exercise needs equipment marked as not at ${gym.name}.`);
+        } else if (resolution.status === "unknown") {
+          if (!backedUp(entry.slotId))
+            issue(
+              `That exercise needs equipment nobody has confirmed at ${gym.name}, and its slot has no backup available now. Choose a gym basic or a confirmed machine.`,
+            );
+        } else if (
+          resolution.status === "direct" &&
+          resolution.equipmentInstance &&
+          exercise.loadPortability !== "global" &&
           (input.strict || entry.action !== "keep" || entry.sets.length > 0)
         )
+          // Machine work on a registered machine names it, so its history is the right one.
           issue("Choose a compatible registered machine for this exercise.");
       }
       const measure =

@@ -8,6 +8,8 @@ coverage
 package-lock.json
 # Written by drizzle-kit, wholesale, every time a migration is generated.
 src/db/migrations
+# Written by scripts/equipment-art.ts, wholesale, from the drawings' vector sources.
+src/components/equipment-art/drawings.generated.ts
 public/icons
 *.png
 *.ico
@@ -16,6 +18,8 @@ docs/planning
 # Third-party agent skills and subagents, kept byte-for-byte as published (each skill's UPSTREAM.md
 # names its source). Overload's own skills stay formatted.
 .claude/skills/*
+# Claude Code's agent worktrees, each a whole checkout of this repository.
+.claude/worktrees
 !.claude/skills/coach
 !.claude/skills/overload-ui
 .claude/agents/impeccable-*.md

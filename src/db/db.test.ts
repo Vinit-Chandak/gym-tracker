@@ -4,9 +4,14 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { previousComparablePerformance } from "@/server/queries/comparable";
 
 import {
+  assumedEquipmentTypes,
   equipmentInstances,
+  equipmentInstanceTypes,
   equipmentTypes,
+  exerciseEquipmentOptions,
+  exerciseEquipmentRequirements,
   exercises,
+  gymAbsentEquipmentTypes,
   gyms,
   profiles,
   programDays,
@@ -130,11 +135,123 @@ describe("migrations and seeds", () => {
     });
   });
 
-  it("re-seeding shared reference data changes nothing", async () => {
-    const before = await t.db.select({ id: exercises.id }).from(exercises);
+  it("re-seeding shared reference data changes nothing anyone relies on", async () => {
+    // A machine, a preferred machine, an absence and a logged set, all of the user's own.
+    const gymId = await gymIdBySlug(alice.id, "anytime-fitness");
+    const benchId = await exerciseIdBySlug("barbell-bench-press");
+    const pecDeckFly = await exerciseIdBySlug("pec-deck-fly");
+    await withUser(t.db, alice.id, async (tx) => {
+      const [pecDeck] = await tx
+        .select({ id: equipmentInstances.id })
+        .from(equipmentInstances)
+        .where(eq(equipmentInstances.name, "Pec deck"));
+      await tx.insert(exerciseEquipmentOptions).values({
+        userId: alice.id,
+        exerciseId: pecDeckFly,
+        equipmentInstanceId: pecDeck!.id,
+        preferenceRank: 0,
+      });
+      const [session] = await tx
+        .insert(workoutSessions)
+        .values({ userId: alice.id, gymId })
+        .returning({ id: workoutSessions.id });
+      const [slot] = await tx
+        .insert(workoutExercises)
+        .values({
+          userId: alice.id,
+          workoutSessionId: session!.id,
+          exerciseId: benchId,
+          orderIndex: 1,
+        })
+        .returning({ id: workoutExercises.id });
+      await tx.insert(setLogs).values({
+        userId: alice.id,
+        workoutExerciseId: slot!.id,
+        setIndex: 1,
+        setType: "working",
+        weight: 60,
+        unit: "kg",
+        reps: 5,
+        rir: 2,
+      });
+    });
+    const snapshot = async () => ({
+      exercises: await t.db
+        .select({ id: exercises.id, slug: exercises.slug })
+        .from(exercises)
+        .orderBy(asc(exercises.slug)),
+      types: await t.db
+        .select({ id: equipmentTypes.id, slug: equipmentTypes.slug })
+        .from(equipmentTypes)
+        .orderBy(asc(equipmentTypes.slug)),
+      ownOptions: await t.db
+        .select()
+        .from(exerciseEquipmentOptions)
+        .where(sql`${exerciseEquipmentOptions.userId} is not null`),
+      machineTypes: await t.db
+        .select()
+        .from(equipmentInstanceTypes)
+        .orderBy(asc(equipmentInstanceTypes.equipmentInstanceId)),
+      absences: await t.db.select().from(gymAbsentEquipmentTypes),
+      sessions: await t.db.select().from(workoutSessions).orderBy(asc(workoutSessions.id)),
+      slots: await t.db.select().from(workoutExercises).orderBy(asc(workoutExercises.id)),
+      sets: await t.db.select().from(setLogs).orderBy(asc(setLogs.id)),
+      requirements: await t.db
+        .select({
+          exerciseId: exerciseEquipmentRequirements.exerciseId,
+          alternative: exerciseEquipmentRequirements.alternative,
+          equipmentTypeId: exerciseEquipmentRequirements.equipmentTypeId,
+          isPrimary: exerciseEquipmentRequirements.isPrimary,
+        })
+        .from(exerciseEquipmentRequirements)
+        .orderBy(
+          asc(exerciseEquipmentRequirements.exerciseId),
+          asc(exerciseEquipmentRequirements.alternative),
+          asc(exerciseEquipmentRequirements.equipmentTypeId),
+        ),
+      assumed: await t.db
+        .select()
+        .from(assumedEquipmentTypes)
+        .orderBy(asc(assumedEquipmentTypes.equipmentTypeId)),
+    });
+    const before = await snapshot();
+    expect(before.ownOptions).toHaveLength(1);
+    expect(before.sets).toHaveLength(1);
     await seedReferenceData(t.db);
-    const after = await t.db.select({ id: exercises.id }).from(exercises);
-    expect(after).toHaveLength(before.length);
+    expect(await snapshot()).toEqual(before);
+  });
+
+  it("gives every existing machine its own type", async () => {
+    const machines = await t.db
+      .select({ id: equipmentInstances.id, typeId: equipmentInstances.equipmentTypeId })
+      .from(equipmentInstances);
+    const types = await t.db.select().from(equipmentInstanceTypes);
+    expect(machines.length).toBeGreaterThan(0);
+    for (const machine of machines)
+      expect(
+        types.some(
+          (row) => row.equipmentInstanceId === machine.id && row.equipmentTypeId === machine.typeId,
+        ),
+      ).toBe(true);
+  });
+
+  it("rebuilds the shared options atomically: a seed that fails leaves the old rows", async () => {
+    const shared = () =>
+      t.db
+        .select({ id: exerciseEquipmentOptions.id })
+        .from(exerciseEquipmentOptions)
+        .where(sql`${exerciseEquipmentOptions.userId} is null`)
+        .orderBy(asc(exerciseEquipmentOptions.id));
+    const before = await shared();
+    expect(before.length).toBeGreaterThan(0);
+    await expect(
+      seedReferenceData(t.db, {
+        beforeCommit: async () => {
+          throw new Error("the deploy died here");
+        },
+      }),
+    ).rejects.toThrow("the deploy died here");
+    expect(await shared()).toEqual(before);
   });
 });
 
@@ -177,6 +294,50 @@ describe("row level security", () => {
         tx.insert(gyms).values({ userId: alice.id, name: "Intruder", slug: "intruder" }),
       ),
       /row-level security/i,
+    );
+  });
+
+  it("leaves requirement groups to the seed: a signed-in client cannot add one", async () => {
+    const exerciseId = await exerciseIdBySlug("barbell-bench-press");
+    const [barbell] = await t.db
+      .select({ id: equipmentTypes.id })
+      .from(equipmentTypes)
+      .where(eq(equipmentTypes.slug, "barbell"));
+    // Beside the shared rows it would hold a key the next seed writes, and stop the deploy.
+    await expectDbFailure(
+      withUser(t.db, bob.id, (tx) =>
+        tx.insert(exerciseEquipmentRequirements).values({
+          userId: bob.id,
+          exerciseId,
+          alternative: 2,
+          equipmentTypeId: barbell!.id,
+          isPrimary: true,
+        }),
+      ),
+      /row-level security/i,
+    );
+  });
+
+  it("keeps a machine's types with its owner, even for someone holding the machine's id", async () => {
+    const [machine] = await withUser(t.db, alice.id, (tx) =>
+      tx
+        .select({ id: equipmentInstances.id })
+        .from(equipmentInstances)
+        .where(eq(equipmentInstances.name, "Smith machine")),
+    );
+    const [dumbbells] = await t.db
+      .select({ id: equipmentTypes.id })
+      .from(equipmentTypes)
+      .where(eq(equipmentTypes.slug, "dumbbells"));
+    await expectDbFailure(
+      withUser(t.db, bob.id, (tx) =>
+        tx.insert(equipmentInstanceTypes).values({
+          equipmentInstanceId: machine!.id,
+          equipmentTypeId: dumbbells!.id,
+          userId: bob.id,
+        }),
+      ),
+      /equipment_instance_types_owner_fk/,
     );
   });
 });

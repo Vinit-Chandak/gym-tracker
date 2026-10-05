@@ -540,7 +540,9 @@ under 360 pt wide.
   soreness's "none" do; only the drawing turns, never the number stored (owner, 5 October 2026).
 - **Logging:** the title, meta line and tabs stay; on the Log tab the meta line gives the range
   a set aims at (3–5 reps), since how many sets and the RIR target are the entry's (Technique and
-  History, with no entry, give the whole prescription). The log starts under the tabs and fills
+  History, with no entry, give the whole prescription). Every figure has one source: the coach's
+  plan when the coach planned the session (5 reps, its rest), else the programme's, else the
+  exercise's own defaults. The log starts under the tabs and fills
   down towards the entry, which is docked at the foot, whole (the one message slot, the set, three
   steppers, Save), so nothing a thumb needs moves when a set lands and no room opens above
   the sets; the room still to fill sits between the latest set and the entry. When the log needs
@@ -738,7 +740,10 @@ and every control answers a press.
   takes the target ("RIR not set, target 2. Use the target"), − and + go one either side of it.
   Save waits, grey, until it is set; tapped, the app's sentence for a missing RIR ("Enter RIR:
   estimate how many more good reps you could do.") shows in the message slot, and the dash inks
-  to say what is missing. Timed and distance sets take RPE, 1 to 10, the same way.
+  to say what is missing. Timed and distance sets take RPE, 1 to 10, the same way. Save waits
+  the same way while a machine question is open before the first set: tapped, "Answer the
+  machine question first" shows and the question takes the focus. The question's answers
+  never wait on Save.
 - **In a row:** a label (and its hint) left; −, the value in a fixed 120-pt column, + right, so
   the buttons line up row under row (hours slept, a run's distance and duration).
 
@@ -821,7 +826,13 @@ and every control answers a press.
   than its longest word, and the tray folds onto a second row before a word would break.
   **Switch:** 51 × 31: off, surface 2 inside a 1.5-px control edge, the knob ringed in control;
   ink when on; in a 44-pt target. **Glyph choice:** two or three tiles, a glyph over a word, the chosen one ink (Outdoor,
-  Treadmill). **Ticks:** tiles that turn ink when ticked (machines).
+  Treadmill). **Ticks:** tiles that turn ink when ticked (machines); a picture tile stacks its
+  drawing, its box and name, and its purpose, with ⓘ in its corner beside the label, two to a row
+  down to 320 pt and one at 200% text. **A set taken as given** (the gym basics): one ruled row
+  that counts it and names a few, with Review opening it as tiles to untick. **Several from a
+  list** (Add exercise, the full equipment list): rows whose box is a ring at the end, filled ink
+  when chosen, holding the choice's place where order matters (Add exercise); what is chosen adds
+  up in a pinned row ("3 selected · Review") over the action.
 
 ### Navigation
 
@@ -849,6 +860,41 @@ and every control answers a press.
   container (`overflow: clip`): opening focuses the panel while it still stands a height below,
   and a scrollable dialog was scrolled to it, so the sheet jumped up, vanished and dropped in.
 - Why explains the suggestion and stops: History is the tab behind it, never linked again.
+
+### Illustrations (equipment)
+
+- Line drawings of equipment, so a beginner can recognise a machine by its picture (plan:
+  onboarding, equipment and technique). One colour, `currentColor`, laid over the ink with a
+  mask: a drawing swaps in dark, inverts in a chosen tile and keeps the system's text colour in
+  forced colours. The glyphs' grammar: a 2.0 stroke on a 120 × 90 frame, round caps and joins;
+  one tonal level (0.14) for upholstery and nothing else; no colour, no gradient, no dash (a
+  dashed edge means skipped), no words. A plain side elevation, every machine facing right, at
+  one shared scale on one implied floor; free weights at their own close-up scale.
+- Where: starter tiles, the basics' Review, the identification sheet and the workout's
+  confirmation. Never beside a name in an ordinary row: names keep the one left edge, and rows
+  keep the equipment glyph at the head of their second line.
+- Beside its name a drawing is decorative (hidden from screen readers); the identification
+  sheet says the distinguishing features in words. A tile's details control sits beside its
+  label, never inside it. A drawing the owner has not approved is shown only where drafts are;
+  elsewhere a tile shows its name and purpose, never a placeholder.
+- Never the brightest thing on a dark screen, and never a sport's pigment: ink only says what a
+  machine is, never whether it is available.
+
+### Guides (Technique and the library)
+
+- One renderer for the workout's Technique tab and the exercise's library page (plan:
+  onboarding, equipment and technique): caption over text under hairlines, as the Technique
+  board draws it. Setup, Steps (numbered), Cues and Common mistakes, then How to log, then
+  "Programme cue" in the workout. Text at body size with 1.45 leading; captions in ink 2.
+- No guide says "Guide not available yet." in ink 2 and keeps everything else written about the
+  exercise; nothing is invented to fill the space. A custom exercise's notes stand as "Your
+  notes".
+- A demonstration is a row that opens YouTube: "Watch demonstration", the channel under it. No
+  thumbnail, no embedded player: a video's colour would be the only colour on the screen. An
+  in-app player waits for testing on real phones and the owner's approval, and would mount only
+  when asked for, never in a list.
+- A draft guide or a candidate video, shown only where drafts are, carries an outline tag,
+  "Draft for review". The library says where the guide was checked, by publisher.
 
 ### Prints (signature)
 

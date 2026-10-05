@@ -59,7 +59,7 @@ export type ExerciseQuery = {
   pattern?: string;
   /** The location to check availability at; none gives the library without availability. */
   gymId: string | null;
-  /** Only exercises that can be done at `gymId` as things stand. */
+  /** Only exercises that can be done at `gymId` now: confirmed, an assumed basic, or needing nothing. */
   availableOnly?: boolean;
   limit: number;
   offset: number;
@@ -89,7 +89,14 @@ function lookupRow(entry: LibraryEntry, gymChecked: boolean, emphasis: BandEmpha
      * reason stated in the rationale.
      */
     band: { role: band.role, reps: band.reps, rir: band.rir, source: band.source },
-    /** Null when no location was checked; otherwise whether it can be done there, and on what. */
+    /**
+     * Null when no location was checked. Otherwise what stands behind it there (ADR 0041):
+     * `confirmed` (on a registered machine), `assumed` (a gym basic nobody has confirmed, plannable
+     * without a backup), `unknown` (plannable only with a backup available now), `absent` (never
+     * plannable there) or `none` (needs no equipment).
+     */
+    equipment: gymChecked ? entry.equipment : null,
+    /** Whether it can be done there now, basics included; null when no location was checked. */
     available: gymChecked ? entry.available : null,
     machine: gymChecked ? entry.machine : null,
   };
@@ -108,7 +115,9 @@ async function unlocatedLibrary(db: DbOrTx, userId: string): Promise<LibraryEntr
       slug: e.slug,
       name: e.name,
       own: e.userId !== null,
+      aliases: e.aliases,
       modality: e.modality,
+      requiresEquipment: e.requiresEquipment,
       category: e.category,
       movementPattern: e.movementPattern,
       primaryMuscles: e.primaryMuscles,
@@ -122,6 +131,7 @@ async function unlocatedLibrary(db: DbOrTx, userId: string): Promise<LibraryEntr
       defaultDistanceMaxMeters: e.defaultDistanceMaxMeters,
       defaultRir: e.defaultRir,
       available: false,
+      equipment: "unknown" as const,
       machine: null,
     }));
 }
@@ -160,7 +170,7 @@ export async function lookupExercises(db: DbOrTx, userId: string, query: Exercis
     hasMore: query.offset + page.length < matching.length,
     items: page.map((item) => lookupRow(item.entry, gym !== null, emphasis)),
     meaning:
-      "The shared library and the athlete's own exercises. A query matches the athlete's own words forgivingly and ranks the closest names first; nothing matching means the library has no such exercise, not that the list failed. Use the slug in a plan.",
+      "The shared library and the athlete's own exercises. A query matches the athlete's own words forgivingly, aliases included, and ranks the closest names first; nothing matching means the library has no such exercise, not that the list failed. Use the slug in a plan. With a location, `equipment` says confirmed, assumed (a gym basic: plan it without a backup), unknown (plan it only with a backup available now), absent (never plan it there) or none.",
   };
 }
 

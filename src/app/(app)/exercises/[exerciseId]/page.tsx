@@ -1,14 +1,14 @@
 import { SubmitButton } from "@/components/ui/form";
-import { ExternalLink } from "@/components/ui/icons";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { AvailabilityBadge } from "@/components/availability-badge";
+import { ExerciseGuide } from "@/components/exercise-guide";
 import { FriendsBoardCard } from "@/components/friends-board-card";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
-import { buttonClassName, LinkButton } from "@/components/ui/button";
+import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { InfoTip } from "@/components/ui/info-tip";
 import { Section } from "@/components/ui/section";
@@ -20,7 +20,9 @@ import type { Resolution } from "@/domain/equipment-resolution";
 import { performanceSeries } from "@/domain/analytics";
 import { topWithYou } from "@/domain/leaderboard";
 import { isComparable, primaryMetric } from "@/domain/shared-stats";
+import { showsDrafts } from "@/lib/drafts";
 import { formatKilograms } from "@/lib/format";
+import { guidanceOf } from "@/lib/guidance";
 import { setInUnit } from "@/lib/units";
 import {
   EXERCISE_CATEGORY_LABELS,
@@ -37,13 +39,18 @@ import {
 import { setPreferredMachineAction } from "@/server/actions/availability";
 import { requireUser } from "@/server/auth";
 import { loadCircle, rankExercise } from "@/server/queries/leaderboard";
+import { guidanceFor } from "@/server/queries/reference";
 import { getRequestProfile } from "@/server/queries/request-profile";
 import { recentPerformances } from "@/server/queries/comparable";
 import {
   exerciseAvailability,
   type ExerciseGymAvailability,
 } from "@/server/repositories/availability";
-import { getExercise, type ExerciseProgramUsage } from "@/server/repositories/exercises";
+import {
+  getExercise,
+  type ExerciseEquipmentWay,
+  type ExerciseProgramUsage,
+} from "@/server/repositories/exercises";
 import { readExerciseLife } from "@/server/repositories/exercise-life";
 import { readExerciseBests } from "@/server/repositories/shared-stats";
 import { readWorkouts, TRAINING_RECORD_LIMIT } from "@/server/repositories/training-data";
@@ -54,6 +61,18 @@ import { ExerciseLife } from "./exercise-life";
 import { ExerciseTrend } from "./exercise-trend";
 
 export const metadata: Metadata = { title: "Exercise" };
+
+/** "Smith machine with a flat bench"; the floor alone reads as needing nothing. */
+function equipmentWayLabel(way: ExerciseEquipmentWay): string {
+  const [primary, ...rest] = way.types;
+  if (!primary) return "";
+  if (primary.typeName === "Bodyweight / floor") return "No equipment";
+  if (rest.length === 0) return primary.typeName;
+  const others = rest.map((type) => type.typeName.toLowerCase());
+  const joined =
+    others.length === 1 ? others[0] : `${others.slice(0, -1).join(", ")} and ${others.at(-1)}`;
+  return `${primary.typeName} with ${joined}`;
+}
 
 function prescription(usage: ExerciseProgramUsage): string {
   const range =
@@ -71,13 +90,17 @@ function availabilityDetail(entry: ExerciseGymAvailability): string {
   const r: Resolution = entry.resolution;
   switch (r.status) {
     case "direct":
-      return r.equipmentInstance ? `On ${r.equipmentInstance.name}` : "Free weights or bodyweight";
+      return r.equipmentInstance
+        ? `On ${r.equipmentInstance.name}`
+        : r.basis === "free"
+          ? "No equipment needed"
+          : "Usually here, as a gym's basics are: it is asked about the first time it is used.";
     case "fallback":
       return `Do ${entry.resolvedExerciseName}${r.equipmentInstance ? ` on ${r.equipmentInstance.name}` : ""} instead`;
     case "unknown":
-      return `Needs: ${entry.missingTypes.map((t) => t.name).join(" or ")}. Add the machine to this gym, or mark it as not available.`;
+      return `Needs: ${entry.missingTypes.map((t) => t.name).join(" or ")}. Nobody has said whether it is here: add the machine, or mark it as not available.`;
     case "unavailable":
-      return "This gym is marked as not having the equipment, and no fallback fits.";
+      return "This place is marked as not having the equipment, and no fallback fits.";
   }
 }
 
@@ -115,7 +138,7 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
           ? null
           : (latest.find((performance) => performance.equipmentInstanceId)?.equipmentInstanceId ??
             null);
-      const [availability, charted, bests, profile, life] = await Promise.all([
+      const [availability, charted, bests, profile, life, written] = await Promise.all([
         exerciseAvailability(tx, user.id, exerciseId, exercise),
         // Only the sessions this movement was actually in, so the trend costs a page about
         // one exercise a read about one exercise.
@@ -132,6 +155,8 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
           : new Map(),
         requestProfile,
         readExerciseLife(tx, user.id, exerciseId, requestProfile.timeZone, machine),
+        // The guide and its demonstrations, from the cached library; drafts only where shown.
+        guidanceFor(tx, exerciseId, showsDrafts()),
       ]);
       const performances = latest;
       // The Friends' leaderboard (plan §3.12) once there is someone to rank against and
@@ -140,6 +165,8 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
         circle.length > 1 ? rankExercise(circle, bests, new Map(), primaryMetric(exercise)) : [];
       return {
         exercise,
+        guidance: guidanceOf(exercise, written.guide, written.media),
+        sources: written.guide?.sources ?? [],
         availability,
         performances,
         bests: bests.get(user.id) ?? [],
@@ -159,6 +186,8 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
   if (!data) notFound();
   const {
     exercise,
+    guidance,
+    sources,
     availability,
     performances,
     bests,
@@ -267,31 +296,34 @@ export default async function ExercisePage(props: PageProps<"/exercises/[exercis
               }
             />
           </StatTileRow>
-
-          {exercise.formNotes && (
-            <p className="text-sm whitespace-pre-line">{exercise.formNotes}</p>
-          )}
-          {exercise.formUrl && (
-            <a
-              href={exercise.formUrl}
-              target="_blank"
-              rel="noreferrer"
-              className={buttonClassName("secondary", "md", "w-full")}
-            >
-              Form guide
-              <ExternalLink aria-hidden />
-            </a>
-          )}
         </Card>
+
+        {/* The same guide the workout's Technique shows (plan: exercise technique and media),
+            with where it was checked. */}
+        <section aria-labelledby="guide-title">
+          <h2 id="guide-title" className="caption-head">
+            How to do it
+          </h2>
+          <ExerciseGuide guidance={guidance} sources={sources} />
+        </section>
 
         <Card>
           <h2 className="text-base font-medium">Equipment</h2>
-          {exercise.requiresEquipment ? (
-            <ol className="list-inside list-decimal space-y-1 text-sm">
-              {exercise.equipmentOptions.map((option) => (
-                <li key={option.equipmentTypeId}>{option.typeName}</li>
-              ))}
-            </ol>
+          {exercise.requiresEquipment && exercise.equipmentWays.length > 0 ? (
+            <>
+              {/* Each way names what is used together, so a Smith machine and a bench read as
+                  one setup, never as a choice between them (ADR 0041). */}
+              {exercise.equipmentWays.length > 1 && (
+                <p className="text-sm text-ink-muted">Any one of these:</p>
+              )}
+              <ul className="space-y-1 text-sm">
+                {exercise.equipmentWays.map((way) => (
+                  <li key={way.alternative}>{equipmentWayLabel(way)}</li>
+                ))}
+              </ul>
+            </>
+          ) : exercise.requiresEquipment ? (
+            <p className="text-sm text-ink-muted">The equipment you choose for it.</p>
           ) : (
             <p className="text-sm text-ink-muted">No equipment needed.</p>
           )}

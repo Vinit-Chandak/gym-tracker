@@ -1,6 +1,7 @@
 import { GLYPH_LABELS, type GlyphName } from "@/components/ui/glyphs";
 import { emWidth, onRamp } from "@/components/ui/fit";
 import type { PrescriptionType, SetType } from "@/domain/types";
+import { targetsLine } from "@/components/planned-exercises";
 import { MEASURE_UNIT_SUFFIX, rangeLabel, restLabel } from "@/lib/labels";
 
 import type { RowState } from "./use-set-rows";
@@ -15,46 +16,162 @@ export function measureOf(exercise: ExerciseVM): PrescriptionType {
   return exercise.planned?.prescriptionType ?? exercise.exercise.defaultPrescriptionType;
 }
 
-/** The plan's range in the exercise's own measure: "8–12", "20–45 s", "20–30 m". */
+/**
+ * The range a set aims at in the exercise's own measure: "8–12", "20–45 s", "20–30 m". The
+ * programme slot's, or for an exercise nothing planned, the library's defaults (plan: today's
+ * targets, ad hoc exercises keep their defaults).
+ */
 export function volumeRange(exercise: ExerciseVM): string | null {
   const p = exercise.planned;
-  if (!p) return null;
-  const suffix = MEASURE_UNIT_SUFFIX[p.prescriptionType];
-  switch (p.prescriptionType) {
+  const d = exercise.exercise.defaults;
+  const measure = measureOf(exercise);
+  const suffix = MEASURE_UNIT_SUFFIX[measure];
+  const range = (min: number | null, max: number | null) =>
+    min === null && max === null ? null : rangeLabel(min, max, suffix);
+  switch (measure) {
     case "duration":
-      return rangeLabel(p.durationMinSeconds, p.durationMaxSeconds, suffix);
+      return p
+        ? rangeLabel(p.durationMinSeconds, p.durationMaxSeconds, suffix)
+        : range(d.durationMinSeconds, d.durationMaxSeconds);
     case "distance":
-      return rangeLabel(p.distanceMinMeters, p.distanceMaxMeters, suffix);
+      return p
+        ? rangeLabel(p.distanceMinMeters, p.distanceMaxMeters, suffix)
+        : range(d.distanceMinMeters, d.distanceMaxMeters);
     default:
-      return rangeLabel(p.repMin, p.repMax);
+      return p ? rangeLabel(p.repMin, p.repMax) : range(d.repMin, d.repMax);
   }
 }
 
+type TargetSet = NonNullable<ExerciseVM["suggestion"]>["sets"][number];
+
 /**
- * The range a set aims at, for the Log tab's meta line: "3–5 reps", "20–40 m". How many sets
- * and the RIR target are the entry's, so they are not said twice (DESIGN.md, Layout).
+ * The sets the coach wrote for today, warm-ups aside, when the session started from the coach's
+ * plan (plan: today's targets): every number the workout shows for the exercise is then the
+ * coach's. Null when the coach left the exercise's sets to the programme.
+ */
+function coachWork(exercise: ExerciseVM): TargetSet[] | null {
+  if (exercise.suggestion?.kind !== "coach") return null;
+  const sets = exercise.suggestion.sets;
+  const working = sets.filter((set) => !isWarmup(set.setType));
+  const shown = working.length > 0 ? working : sets;
+  return shown.length > 0 ? shown : null;
+}
+
+/** What a coach's set counts: metres for a carry, seconds for a hold, else reps. */
+function coachMeasure(set: TargetSet): PrescriptionType {
+  if (set.reps === null && set.distanceMeters !== null) return "distance";
+  if (set.reps === null && set.durationSeconds !== null) return "duration";
+  return "reps";
+}
+
+function coachCount(set: TargetSet, measure: PrescriptionType): number | null {
+  return measure === "distance"
+    ? set.distanceMeters
+    : measure === "duration"
+      ? set.durationSeconds
+      : set.reps;
+}
+
+/** "5", "5/5/3", "30 s", "20 m": what the coach's sets ask for. */
+function coachVolume(sets: TargetSet[]): { text: string; measure: PrescriptionType } | null {
+  const measure = coachMeasure(sets[0]!);
+  const counts = sets.map((set) => coachCount(set, measure));
+  if (counts.every((count) => count === null)) return null;
+  const suffix = MEASURE_UNIT_SUFFIX[measure];
+  const text = counts.every((count) => count === counts[0])
+    ? `${counts[0]}${suffix}`
+    : `${counts.map((count) => count ?? "—").join("/")}${suffix}`;
+  return { text, measure };
+}
+
+/**
+ * What one set aims at, for the entry's hint: the coach's figure for that set, else the range
+ * ("5", "8–12", "30 s").
+ */
+export function countTargetLabel(exercise: ExerciseVM, setIndex: number | null): string | null {
+  const coach = coachWork(exercise);
+  if (coach) {
+    // The coach's own figure for that set, a warm-up's included; past them, the first working set.
+    const own = exercise.suggestion?.sets.find((set) => set.setIndex === setIndex) ?? coach[0]!;
+    const measure = coachMeasure(own);
+    const count = coachCount(own, measure);
+    if (count !== null) return `${count}${MEASURE_UNIT_SUFFIX[measure]}`;
+  }
+  return volumeRange(exercise);
+}
+
+/** Whether today's sets are per side: the coach's word for this session, else the programme's. */
+export function perSideToday(exercise: ExerciseVM): boolean {
+  return exercise.coachPerSide ?? exercise.planned?.perSide ?? false;
+}
+
+/**
+ * The range a set aims at, for the Log tab's meta line: "3–5 reps", "20–40 m", or the coach's
+ * "5 reps" when the coach wrote today's sets. How many sets and the RIR target are the entry's,
+ * so they are not said twice (DESIGN.md, Layout).
  */
 export function perSetLabel(exercise: ExerciseVM): string | null {
-  const p = exercise.planned;
+  const side = perSideToday(exercise) ? " per side" : "";
+  const coach = coachWork(exercise);
+  const volume = coach ? coachVolume(coach) : null;
+  if (volume) return `${volume.text}${volume.measure === "reps" ? " reps" : ""}${side}`;
   const range = volumeRange(exercise);
-  if (!p || range === null) return null;
-  return `${range}${p.prescriptionType === "reps" ? " reps" : ""}${p.perSide ? " per side" : ""}`;
+  if (range === null) return null;
+  return `${range}${measureOf(exercise) === "reps" ? " reps" : ""}${side}`;
 }
 
-/** The whole prescription, where there is no entry to say the rest: "4 × 3–5 @ 2 RIR". */
-export function prescriptionLabel(exercise: ExerciseVM): string | null {
+/**
+ * The whole prescription, where there is no entry to say the rest: the coach's when the coach
+ * wrote today's sets ("70 kg · 3 × 5 @ 2 RIR"), else the programme's ("4 × 3–5 @ 2 RIR"), else
+ * the exercise's own defaults ("8–12 reps @ 2 RIR").
+ */
+export function prescriptionLabel(exercise: ExerciseVM, unitLabel = ""): string | null {
+  const coach = coachWork(exercise);
+  if (coach) {
+    const line = targetsLine(coach, unitLabel, perSideToday(exercise));
+    if (line) return line;
+  }
   const p = exercise.planned;
-  if (!p) return null;
-  return `${p.sets} × ${volumeRange(exercise)}${p.perSide ? " per side" : ""}${
-    p.prescriptionType === "reps" ? ` @ ${rangeLabel(p.rirMin, p.rirMax)} RIR` : ""
-  }`;
+  if (p)
+    return `${p.sets} × ${volumeRange(exercise)}${perSideToday(exercise) ? " per side" : ""}${
+      p.prescriptionType === "reps" ? ` @ ${rangeLabel(p.rirMin, p.rirMax)} RIR` : ""
+    }`;
+  const range = volumeRange(exercise);
+  if (range === null) return null;
+  const rir = exercise.exercise.defaults.rir;
+  const reps = measureOf(exercise) === "reps";
+  // A library default between two whole reps (1.5) reads as the two it sits between: "1–2".
+  const rirWords =
+    rir === null
+      ? null
+      : Number.isInteger(rir)
+        ? `${rir}`
+        : rangeLabel(Math.floor(rir), Math.ceil(rir));
+  return `${range}${reps ? " reps" : ""}${reps && rirWords !== null ? ` @ ${rirWords} RIR` : ""}`;
 }
 
-/** "3–4 min", or null when the plan says nothing about rest. */
+/**
+ * "3–4 min": the rest the coach asked for, else the programme's, else the exercise's own
+ * default; null when nothing says. The rest timer counts the same figure.
+ */
 export function restText(exercise: ExerciseVM): string | null {
+  const seconds = restSecondsOf(exercise);
+  if (exercise.coachRestSeconds !== null || !exercise.planned) {
+    return seconds === null ? null : restLabel(seconds, seconds);
+  }
   const p = exercise.planned;
-  if (!p || (p.restMinSeconds === null && p.restMaxSeconds === null)) return null;
+  if (p.restMinSeconds === null && p.restMaxSeconds === null) return null;
   return restLabel(p.restMinSeconds, p.restMaxSeconds);
+}
+
+/** The rest the timer starts after a set: the coach's, else the programme's, else the default. */
+export function restSecondsOf(exercise: ExerciseVM): number | null {
+  return (
+    exercise.coachRestSeconds ??
+    (exercise.planned
+      ? (exercise.planned.restMinSeconds ?? exercise.planned.restMaxSeconds)
+      : exercise.exercise.defaults.restSeconds)
+  );
 }
 
 /**
@@ -77,16 +194,17 @@ export function equipmentFact(exercise: ExerciseVM): string | null {
   return `${free ? "with" : "on"} ${equipment}`;
 }
 
-/** The machine, or what stands in for one. The gym itself is session context, not row chrome. */
-export function equipmentLine(exercise: ExerciseVM, gymKind: string): string {
+/**
+ * The machine, or what stands in for one. The gym itself is session context, not row chrome.
+ * Whether the gym has what the exercise needs is the resolver's to say (ADR 0041), shown as the
+ * decision block; this line only says what the exercise is done with.
+ */
+export function equipmentLine(exercise: ExerciseVM): string {
   if (exercise.equipment) return exercise.equipment.name;
   if (!exercise.exercise.requiresEquipment) return "No equipment";
-  if (
-    gymKind === "gym" &&
-    ["barbell", "dumbbell", "bodyweight", "mobility"].includes(exercise.exercise.modality)
-  ) {
-    return exercise.exercise.modality === "bodyweight" ? "Bodyweight" : "Free weights";
-  }
+  if (exercise.decision) return "Machine not chosen";
+  if (exercise.exercise.modality === "bodyweight") return "Bodyweight";
+  if (["barbell", "dumbbell"].includes(exercise.exercise.modality)) return "Free weights";
   return "Machine not chosen";
 }
 
@@ -95,10 +213,10 @@ export function equipmentLine(exercise: ExerciseVM, gymKind: string): string {
  * it ("45° leg press" on the 45° leg press), and then only what kind it is, so a screen reader
  * does not read the name twice.
  */
-export function equipmentLabel(exercise: ExerciseVM, gymKind: string): string {
+export function equipmentLabel(exercise: ExerciseVM): string {
   return exercise.equipment && equipmentFact(exercise) === null
     ? GLYPH_LABELS[equipmentGlyph(exercise)]
-    : equipmentLine(exercise, gymKind);
+    : equipmentLine(exercise);
 }
 
 /**

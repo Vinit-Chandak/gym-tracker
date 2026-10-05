@@ -111,9 +111,17 @@ export async function startSavedRoutine(db: DbOrTx, userId: string, id: string, 
     entry,
     exercise: candidates.find((e) => e.slug === entry.exerciseSlug),
   }));
-  if (chosen.some((e) => !e.exercise?.available))
+  // An exercise taken out of the library since cannot start; edit the routine instead.
+  if (chosen.some((e) => !e.exercise))
     throw new CoachingError(
-      "An exercise is not available at this gym. Update its equipment or choose another gym before starting.",
+      "An exercise in this routine is no longer in the library. Edit the routine before starting.",
+      422,
+    );
+  // Nothing absent may start (ADR 0041). An exercise whose equipment nobody has answered for
+  // starts with its machine not chosen, and the workout asks.
+  if (chosen.some((e) => e.exercise?.equipment === "absent"))
+    throw new CoachingError(
+      "An exercise needs equipment marked as not at this gym. Update its equipment or choose another gym before starting.",
       422,
     );
   const session = await startAdHocSession(db, userId, { gymId });

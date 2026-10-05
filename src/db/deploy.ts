@@ -80,11 +80,14 @@ async function main(): Promise<void> {
     await runMigrations(client);
     console.log("  migrations applied");
     const db = drizzle(client, { schema });
-    const reference = await seedReferenceData(db);
+    // Never the drafts: catalogue additions, guides and demonstrations the owner has not
+    // approved stay out of this database until their manifest entry says they are approved.
+    const reference = await seedReferenceData(db, { drafts: false });
     console.log(
       `  shared library seeded: ${reference.equipmentTypes} equipment types, ` +
-        `${reference.exercises} exercises, ${reference.equipmentOptions} equipment options, ` +
-        `${reference.warmupProtocols} warm-up protocols`,
+        `${reference.exercises} exercises, ${reference.requirements} requirements, ` +
+        `${reference.equipmentOptions} equipment options, ${reference.combinations} combinations, ` +
+        `${reference.guides} guides, ${reference.warmupProtocols} warm-up protocols`,
     );
     if (await hasBackfillRun(db, SHARED_STATS_BACKFILL)) {
       console.log("  shared stats backfill already ran; skipped");

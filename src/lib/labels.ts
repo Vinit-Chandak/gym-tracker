@@ -182,11 +182,14 @@ export function restLabel(minSeconds: number | null, maxSeconds: number | null):
   const lo = minSeconds ?? maxSeconds ?? 0;
   const hi = maxSeconds ?? minSeconds ?? 0;
   // Two minutes and over reads in minutes, halves included, so a single exercise's rest
-  // target matches how the programme states it: 210 s is "3.5 min", not "210 s".
-  const inMinutes = (s: number) => String(Math.round((s / 60) * 10) / 10);
-  if (lo >= 120 && hi >= 120) {
+  // target matches how the programme states it: 210 s is "3.5 min", not "210 s". A rest the
+  // coach set off the half-minute says its seconds rather than rounding: 200 s is "3 min 20 s".
+  const inMinutes = (s: number) => String(s / 60);
+  const halves = (s: number) => s % 30 === 0;
+  if (lo >= 120 && hi >= 120 && halves(lo) && halves(hi)) {
     return lo === hi ? `${inMinutes(lo)} min` : `${inMinutes(lo)}–${inMinutes(hi)} min`;
   }
+  if (lo === hi && lo >= 120) return `${Math.floor(lo / 60)} min ${lo % 60} s`;
   return lo === hi ? `${lo} s` : `${lo}–${hi} s`;
 }
 

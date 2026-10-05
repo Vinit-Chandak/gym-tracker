@@ -27,7 +27,14 @@ export type DraftFields = {
    */
   touched?: DraftValueField[];
 };
-export type Draft = DraftFields & { baseCompletedAt: string | null };
+export type Draft = DraftFields & {
+  baseCompletedAt: string | null;
+  /**
+   * Moved here with the exercise when a machine question put it on a machine (or a family's
+   * variant): restored as the row it was, live, without the warning a recovered draft carries.
+   */
+  carried?: true;
+};
 export type DraftContext = {
   userId: string;
   sessionId: string;
@@ -120,6 +127,31 @@ export function removeDraft(
     const remaining = readDrafts(storage, ctx).filter((d) => d.setIndex !== setIndex);
     if (remaining.length) storage.setItem(draftKey(ctx), JSON.stringify(remaining));
     else storage.removeItem(draftKey(ctx));
+    notify();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Moves an exercise's unsaved rows to where a machine question put it: same workout row, the
+ * machine attached (and, for a family's variant, the exercise it became). Written there before
+ * the old key goes, each marked as carried; a row already there for the same set is replaced.
+ */
+export function moveDrafts(storage: StorageLike, from: DraftContext, to: DraftContext): boolean {
+  if (draftKey(from) === draftKey(to)) return true;
+  try {
+    const moving = readDrafts(storage, from);
+    if (moving.length === 0) return true;
+    const kept = readDrafts(storage, to).filter(
+      (draft) => !moving.some((row) => row.setIndex === draft.setIndex),
+    );
+    storage.setItem(
+      draftKey(to),
+      JSON.stringify([...kept, ...moving.map((row) => ({ ...row, carried: true as const }))]),
+    );
+    storage.removeItem(draftKey(from));
     notify();
     return true;
   } catch {

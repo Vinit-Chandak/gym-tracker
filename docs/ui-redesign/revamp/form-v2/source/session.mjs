@@ -491,13 +491,19 @@ export function logScreen(
   });
 }
 export function techniqueScreen(t, dv = K.D, { S = bench } = {}) {
+  const value = (k, v) =>
+    Array.isArray(v)
+      ? `<${k === "Steps" ? "ol" : "ul"} style="${s({ display: "flex", "flex-direction": "column", gap: 6, "padding-left": "1.25em", "list-style": k === "Steps" ? "decimal" : "disc" })}">${v.map((item) => `<li>${item}</li>`).join("")}</${k === "Steps" ? "ol" : "ul"}>`
+      : v;
   const rows = S.technique
     .map(
       ([k, v]) =>
-        `<div style="${s({ padding: "12px 0", "border-bottom": `1px solid ${t.hair}` })}"><dt style="${txt(13, 700, { color: t.ink2 })}">${k}</dt><dd style="${txt(17, 500, { "line-height": 1.4 })}; margin-top: 2px; ${tn}">${v}</dd></div>`,
+        `<div style="${s({ padding: "12px 0", "border-bottom": `1px solid ${t.hair}` })}"><dt style="${txt(13, 700, { color: t.ink2 })}">${k}</dt><dd style="${txt(16, 500, { "line-height": 1.45 })}; margin-top: 2px">${value(k, v)}</dd></div>`,
     )
     .join("");
-  const inner = `${logHeader(t, S, dv, 1)}${panel(1, `<dl style="margin-top:4px">${rows}</dl><a href="#" style="${s({ display: "flex", "align-items": "center", "justify-content": "space-between", height: 52 })}; ${txt(16, 700)}">Open in the exercise library${icon("chevronRight", 20)}</a>`)}`;
+  const link = (label, sub, glyph, last) =>
+    `<a href="#" style="${s({ display: "flex", "align-items": "center", gap: 12, "min-height": 52, "border-bottom": last ? "0" : `1px solid ${t.hair}` })}; ${txt(16, 700)}"><span style="flex:1 1 auto">${label}${sub ? `<span style="display:block; ${txt(13, 500, { color: t.ink2 })}">${sub}</span>` : ""}</span>${icon(glyph, 20)}</a>`;
+  const inner = `${logHeader(t, S, dv, 1)}${panel(1, `<dl style="margin-top:4px">${rows}</dl>${S.demonstration ? link("Watch demonstration", S.demonstration, "play", false) : ""}${link("Open in the exercise library", null, "chevronRight", true)}`)}`;
   return K.root(t, sessionMain(t, inner, dv), { label: S.exercise, dv });
 }
 // History: every session of this exercise, newest first, each set as it was logged, in the same

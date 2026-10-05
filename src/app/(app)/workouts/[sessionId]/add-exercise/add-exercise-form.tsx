@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 
 import { ExercisePicker } from "@/components/exercise-picker";
-import { FormError, SubmitButton } from "@/components/ui/form";
+import { FormError, SubmitButton, useKeptForm } from "@/components/ui/form";
 import { Glyph } from "@/components/ui/glyphs";
 import { PinnedActions } from "@/components/ui/pinned-actions";
 import { SelectRow } from "@/components/ui/select-row";
@@ -22,15 +22,21 @@ type Props = {
   submitLabel: string;
   /** Renders a "remember as fallback" checkbox for substitutions. */
   remember?: boolean;
+  /**
+   * Whether that box starts ticked: not when the machine is only out of use today, which says
+   * nothing about the gym (plan: gradual confirmation during workouts).
+   */
+  rememberByDefault?: boolean;
   exerciseFieldName?: string;
   /** Name the chosen exercise under the search and count each group (a long list). */
   long?: boolean;
 };
 
 /**
- * Choosing an exercise for the session (board Add exercise): the search and its results, then,
- * pinned at the foot, where it will be done and the button that adds it. The machine question
- * answers itself where it can: one machine is named, none is said, and only two or more ask.
+ * Choosing one exercise for a slot (Choose a fallback): the search and its results, then, pinned
+ * at the foot, where it will be done and the button that uses it. The machine question answers
+ * itself where it can: one machine is named, none is said, and only two or more ask. Adding to
+ * the workout chooses several at once instead (`AddExercisesForm`).
  */
 export function PickExerciseForm({
   action,
@@ -39,9 +45,11 @@ export function PickExerciseForm({
   machinesByExercise,
   submitLabel,
   remember = false,
+  rememberByDefault = true,
   exerciseFieldName = "exerciseId",
   long = false,
 }: Props) {
+  const form = useKeptForm();
   const [state, formAction] = useActionState(keepsFormOnDisconnect(action), INITIAL_FORM_STATE);
   const [exerciseId, setExerciseId] = useState(state.values?.[exerciseFieldName] ?? "");
 
@@ -50,7 +58,7 @@ export function PickExerciseForm({
   const chosen = exercises.find((e) => e.id === exerciseId);
 
   return (
-    <form action={formAction}>
+    <form ref={form} action={formAction}>
       <ExercisePicker
         name={exerciseFieldName}
         exercises={exercises}
@@ -73,7 +81,12 @@ export function PickExerciseForm({
               defaultValue={state.values?.equipmentInstanceId ?? ""}
               error={state.fieldErrors?.equipmentInstanceId}
               options={[
-                { value: "", label: "Not on a machine" },
+                // An exercise that needs a machine is never "not on a machine": the workout
+                // asks which, as it does for one added without a machine.
+                {
+                  value: "",
+                  label: chosen.requiresEquipment ? "Machine not chosen" : "Not on a machine",
+                },
                 ...applicable.map((machine) => ({ value: machine.id, label: machine.name })),
               ]}
             />
@@ -92,7 +105,12 @@ export function PickExerciseForm({
 
         {remember && (
           <label className="check-row">
-            <input type="checkbox" name="remember" defaultChecked className="check-row-box" />
+            <input
+              type="checkbox"
+              name="remember"
+              defaultChecked={rememberByDefault}
+              className="check-row-box"
+            />
             Remember this as the fallback at this gym
           </label>
         )}

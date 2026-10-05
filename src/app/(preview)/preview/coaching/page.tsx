@@ -6,6 +6,8 @@ import { ChangeDetail } from "@/components/coaching/change-detail";
 import { DraftPreview } from "@/components/coaching/draft-preview";
 import { ProgrammeOptions } from "@/components/coaching/programme-options";
 import { EquipmentStepForm } from "@/app/(onboarding)/welcome/equipment/equipment-step-form";
+import { previewMachinesStep } from "@/app/(onboarding)/welcome/equipment/preview-step";
+import { drawingUrls } from "@/server/queries/equipment-art";
 import { coachIntakeSchema } from "@/domain/coaching-workflow";
 import { STRENGTH_AESTHETICS_HYBRID_8WK } from "@/db/seed/data/program";
 import { EXERCISES } from "@/db/seed/data/exercises";
@@ -226,9 +228,21 @@ const CURL_OPERATION_IDS = CHANGE_DIFF.days
 export default async function CoachingPreview({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string; step?: string; track?: string }>;
+  searchParams: Promise<{
+    view?: string;
+    step?: string;
+    track?: string;
+    kind?: string;
+    experience?: string;
+  }>;
 }) {
-  const { view = "options", step = "0", track = "detailed" } = await searchParams;
+  const {
+    view = "options",
+    step = "0",
+    track = "detailed",
+    kind = "gym",
+    experience = "new",
+  } = await searchParams;
   return (
     <PreviewShell tab="/profile">
       <PageHeader title="Coaching preview" />
@@ -367,12 +381,13 @@ export default async function CoachingPreview({
           />
         )}
         {view === "equipment" && (
+          // ?kind=gym|home|outdoor and ?experience=new|experienced choose which step to show.
           <EquipmentStepForm
-            gymId={ID}
-            types={EQUIPMENT_TYPES.map((type, index) => ({
-              ...type,
-              id: `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`,
-            }))}
+            step={previewMachinesStep(
+              kind === "home" || kind === "outdoor" ? kind : "gym",
+              experience === "experienced" ? "experienced" : "new",
+            )}
+            art={drawingUrls(EQUIPMENT_TYPES.map((type) => type.slug))}
           />
         )}
       </PageContent>

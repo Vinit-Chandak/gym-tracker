@@ -10,11 +10,11 @@ import {
   programs,
   warmupProtocols,
 } from "@/db/schema";
+import { DRAFT_EXERCISE_SLUGS } from "@/db/seed/data/exercises";
 import type { DbOrTx } from "@/db/types";
 import { programEndDate } from "@/domain/program-calendar";
 import {
   BLUEPRINT_VERSION,
-  blueprintExerciseSlugs,
   prescriptionTypeOf,
   programBlueprintSchema,
   type ProgramBlueprint,
@@ -48,6 +48,15 @@ type ReferenceIds = {
 };
 
 /**
+ * Whether a fallback waits for the owner: one naming a catalogue addition still under review is
+ * left out where drafts are not seeded, as production's catalogue leaves the exercise out, and its
+ * slot keeps the published fallbacks beside it. Anything else a database lacks is a mistake.
+ */
+function awaitsOwner(slug: string, exerciseIdBySlug: Map<string, string>): boolean {
+  return DRAFT_EXERCISE_SLUGS.has(slug) && !exerciseIdBySlug.has(slug);
+}
+
+/**
  * Ids of everything the blueprint names, from the in-memory library. A slug the memory does not
  * know is re-read from the database once before it counts as missing, so a library seeded after
  * this instance started still works.
@@ -71,18 +80,20 @@ async function referenceIds(
     };
   };
   const ids = await read();
-  const complete =
-    blueprintExerciseSlugs(blueprint).every((slug) => ids.exerciseIdBySlug.has(slug)) &&
-    blueprint.days.every(
-      (day) =>
-        (day.warmupSlug === "" || ids.warmupIdBySlug.has(day.warmupSlug)) &&
-        day.exercises.every((exercise) =>
+  const complete = blueprint.days.every(
+    (day) =>
+      (day.warmupSlug === "" || ids.warmupIdBySlug.has(day.warmupSlug)) &&
+      day.exercises.every(
+        (exercise) =>
+          ids.exerciseIdBySlug.has(exercise.exerciseSlug) &&
           (exercise.fallbacks ?? []).every(
             (fallback) =>
-              !fallback.equipmentTypeSlug || ids.typeIdBySlug.has(fallback.equipmentTypeSlug),
+              (ids.exerciseIdBySlug.has(fallback.exerciseSlug) ||
+                awaitsOwner(fallback.exerciseSlug, ids.exerciseIdBySlug)) &&
+              (!fallback.equipmentTypeSlug || ids.typeIdBySlug.has(fallback.equipmentTypeSlug)),
           ),
-        ),
-    );
+      ),
+  );
   if (complete) return ids;
   resetReferenceCache();
   return read();
@@ -117,7 +128,8 @@ export type CreatedProgram = { id: string; familyId: string; version: number };
  *
  * Every slug is resolved before the first row is written, and each table gets one insert for
  * the whole plan: a missing slug fails before anything exists, and adopting a programme costs a
- * handful of statements rather than one per exercise.
+ * handful of statements rather than one per exercise. The one exception is a fallback still
+ * awaiting the owner, which is left out where drafts are not seeded (see `awaitsOwner`).
  */
 export async function createProgramFromBlueprint(
   db: DbOrTx,
@@ -154,13 +166,15 @@ export async function createProgramFromBlueprint(
       exercise,
       orderIndex: index + 1,
       exerciseId: requireId(exerciseIdBySlug, exercise.exerciseSlug, "exercise"),
-      fallbacks: (exercise.fallbacks ?? []).map((fallback) => ({
-        fallback,
-        fallbackExerciseId: requireId(exerciseIdBySlug, fallback.exerciseSlug, "exercise"),
-        fallbackEquipmentTypeId: fallback.equipmentTypeSlug
-          ? requireId(typeIdBySlug, fallback.equipmentTypeSlug, "equipment type")
-          : null,
-      })),
+      fallbacks: (exercise.fallbacks ?? [])
+        .filter((fallback) => !awaitsOwner(fallback.exerciseSlug, exerciseIdBySlug))
+        .map((fallback) => ({
+          fallback,
+          fallbackExerciseId: requireId(exerciseIdBySlug, fallback.exerciseSlug, "exercise"),
+          fallbackEquipmentTypeId: fallback.equipmentTypeSlug
+            ? requireId(typeIdBySlug, fallback.equipmentTypeSlug, "equipment type")
+            : null,
+        })),
     })),
   }));
 

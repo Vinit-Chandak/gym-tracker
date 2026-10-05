@@ -11,6 +11,7 @@ import { Glyph } from "./glyphs";
  */
 export function SelectRow({
   label,
+  labelHint,
   name,
   options,
   defaultValue,
@@ -19,7 +20,10 @@ export function SelectRow({
   error,
 }: {
   label: string;
-  name: string;
+  /** Words a screen reader hears after the label, where several rows share it ("for Squat"). */
+  labelHint?: string;
+  /** Left out when the choice is held by the caller and submitted another way. */
+  name?: string;
   options: readonly { value: string; label: string }[];
   defaultValue?: string;
   /** Controlled value; pair with `onChange`. */
@@ -45,6 +49,7 @@ export function SelectRow({
           id={id}
           name={name}
           value={value}
+          aria-label={labelHint ? `${label} ${labelHint}` : undefined}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? `${id}-error` : undefined}
           onChange={(event) => {

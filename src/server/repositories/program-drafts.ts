@@ -5,8 +5,6 @@ import {
   coachJobs,
   coachNotes,
   coachPreferences,
-  equipmentInstances,
-  exerciseEquipmentOptions,
   exercises,
   programDays,
   programDrafts,
@@ -30,13 +28,16 @@ import { diffOperationSignatures, diffPrograms } from "@/domain/program-diff";
 import { openingPlanSchema, type OpeningPlan } from "@/domain/coaching-workflow";
 import { reviewWeekdayFor } from "@/domain/coach-cadence";
 import { todayInTimeZone } from "@/domain/program-calendar";
-import { sharedWarmupProtocols } from "@/server/queries/reference";
+import { sharedEquipmentTypes, sharedWarmupProtocols } from "@/server/queries/reference";
+import { backupsAvailableAt } from "./availability";
 import {
   carryPlansToRevision,
   diffCarryChanges,
   libraryAtGym,
+  machinesFittingExercises,
   nextTrainingSlot,
   storePlan,
+  type LibraryEntry,
 } from "./coach-plans";
 import { materialiseOccurrences, occurrencesFromBlueprint } from "./program-occurrences";
 import { markRequestsApplied, settleClosedDraftRequests } from "./coach-program-requests";
@@ -182,17 +183,105 @@ export async function validateBlueprintForAthlete(
       throw new CoachingError("This programme includes an exercise you asked to avoid.", 422);
   }
   if (gymId) {
-    const candidates = await libraryAtGym(db, userId, gymId);
-    const unavailable = blueprint.days
-      .flatMap((d) => d.exercises)
-      .filter((e) => !candidates.some((c) => c.slug === e.exerciseSlug && c.available));
-    if (unavailable.length)
+    const problems = await backupRuleProblems(db, userId, blueprint, gymId);
+    if (problems.absent.length)
       throw new CoachingError(
-        "Some exercises are not available at the selected location. Edit the programme or update its equipment first.",
+        `Some exercises need equipment marked as not at the selected location: ${problems.absent.join(", ")}. Choose other exercises or update its equipment first.`,
+        422,
+      );
+    if (problems.unbacked.length)
+      throw new CoachingError(
+        `Some exercises need equipment nobody has confirmed at the selected location, with no backup that can be done there now: ${problems.unbacked.join(", ")}. Give each a fallback that is available now (a gym basic, free weights or a confirmed machine at a gym; bodyweight or confirmed equipment at home), or choose another exercise.`,
         422,
       );
   }
   return blueprint;
+}
+
+type BlueprintFallback = NonNullable<
+  ProgramBlueprint["days"][number]["exercises"][number]["fallbacks"]
+>[number];
+
+/**
+ * Which of a programme's fallbacks can be done at a location now, as the workout would use them:
+ * the exercise, on the type a fallback names when it names one, with the rest of that alternative
+ * there too (`backupsAvailableAt`, the rule the workout's "Use" follows).
+ */
+async function blueprintBackups(
+  db: DbOrTx,
+  userId: string,
+  gymId: string,
+  fallbacks: readonly BlueprintFallback[],
+  library: readonly LibraryEntry[],
+): Promise<(fallback: BlueprintFallback) => boolean> {
+  const key = (fallback: BlueprintFallback) =>
+    `${fallback.exerciseSlug}|${fallback.equipmentTypeSlug ?? ""}`;
+  const types = await sharedEquipmentTypes(db);
+  const checkable = [...new Map(fallbacks.map((fallback) => [key(fallback), fallback])).values()]
+    .map((fallback) => ({
+      fallback,
+      exercise: library.find((candidate) => candidate.slug === fallback.exerciseSlug),
+      typeId: fallback.equipmentTypeSlug
+        ? types.find((type) => type.slug === fallback.equipmentTypeSlug)?.id
+        : null,
+    }))
+    // A fallback on an exercise or a type the catalogue does not have is no backup.
+    .filter((entry) => entry.exercise !== undefined && entry.typeId !== undefined);
+  const available = await backupsAvailableAt(
+    db,
+    userId,
+    gymId,
+    checkable.map((entry) => ({
+      exercise: {
+        id: entry.exercise!.id,
+        modality: entry.exercise!.modality,
+        requiresEquipment: entry.exercise!.requiresEquipment,
+      },
+      equipmentTypeId: entry.typeId ?? null,
+      equipmentInstanceId: null,
+    })),
+  );
+  const usable = new Set(
+    checkable.filter((_, index) => available[index]).map((entry) => key(entry.fallback)),
+  );
+  return (fallback) => usable.has(key(fallback));
+}
+
+/**
+ * The coach's backup rule (ADR 0041) for a whole programme at its location: gym basics and
+ * anything confirmed are fine on their own; a machine nobody has confirmed needs a fallback in its
+ * slot that can be done there now, as the workout would use it; equipment marked absent is never
+ * planned. A fallback's own equipment may be anything available now, which at home means
+ * confirmed or none.
+ */
+export async function backupRuleProblems(
+  db: DbOrTx,
+  userId: string,
+  blueprint: Pick<ProgramBlueprint, "days">,
+  gymId: string,
+): Promise<{ absent: string[]; unbacked: string[] }> {
+  const library = await libraryAtGym(db, userId, gymId);
+  const slots = blueprint.days.flatMap((day) => day.exercises);
+  const backupAvailable = await blueprintBackups(
+    db,
+    userId,
+    gymId,
+    slots.flatMap((slot) => slot.fallbacks ?? []),
+    library,
+  );
+  const entry = (slug: string) => library.find((candidate) => candidate.slug === slug);
+  const absent = new Set<string>();
+  const unbacked = new Set<string>();
+  for (const slot of slots) {
+    const planned = entry(slot.exerciseSlug);
+    if (!planned || planned.equipment === "absent") {
+      absent.add(planned?.name ?? slot.exerciseSlug);
+      continue;
+    }
+    if (planned.available) continue;
+    if (!(slot.fallbacks ?? []).some(backupAvailable)) unbacked.add(planned.name);
+  }
+  return { absent: [...absent], unbacked: [...unbacked] };
 }
 
 /** Check draft-local positions and machine/measurement semantics before a draft is accepted. */
@@ -238,20 +327,23 @@ export async function validateOpeningPlan(
     return;
   }
   const openingGymId = opening.gymId;
-  const [library, machines, options] = await Promise.all([
-    libraryAtGym(db, userId, openingGymId),
-    db
-      .select()
-      .from(equipmentInstances)
-      .where(
-        and(
-          eq(equipmentInstances.userId, userId),
-          eq(equipmentInstances.gymId, openingGymId),
-          eq(equipmentInstances.isActive, true),
-        ),
-      ),
-    db.select().from(exerciseEquipmentOptions),
-  ]);
+  const library = await libraryAtGym(db, userId, openingGymId);
+  const backupAvailable = await blueprintBackups(
+    db,
+    userId,
+    openingGymId,
+    first.exercises.flatMap((slot) => slot.fallbacks ?? []),
+    library,
+  );
+  const named = opening.exercises.filter((entry) => entry.equipmentInstanceId);
+  const fitting = named.length
+    ? await machinesFittingExercises(
+        db,
+        userId,
+        openingGymId,
+        library.filter((e) => named.some((entry) => entry.exerciseSlug === e.slug)),
+      )
+    : new Map<string, string[]>();
   const used = new Set<number>();
   for (const entry of opening.exercises) {
     const slot = entry.orderIndex === null ? null : first.exercises[entry.orderIndex - 1];
@@ -277,23 +369,20 @@ export async function validateOpeningPlan(
       continue;
     }
     const exercise = library.find((e) => e.slug === entry.exerciseSlug);
-    if (!exercise?.available)
+    if (!exercise || exercise.equipment === "absent")
       throw new CoachingError("The opening session includes an unavailable exercise.", 422);
-    if (entry.equipmentInstanceId) {
-      const machine = machines.find((m) => m.id === entry.equipmentInstanceId);
-      if (
-        !machine ||
-        !options.some(
-          (o) =>
-            o.exerciseId === exercise.id &&
-            (o.equipmentInstanceId === machine.id || o.equipmentTypeId === machine.equipmentTypeId),
-        )
-      )
-        throw new CoachingError(
-          "An opening-session machine is incompatible with its exercise.",
-          422,
-        );
-    } else if (["machine", "cable", "smith_machine", "cardio"].includes(exercise.modality))
+    // A machine nobody has confirmed may open the programme only with a backup that is available
+    // now; the first workout settles which it is (ADR 0041).
+    if (!exercise.available && !(slot?.fallbacks ?? []).some(backupAvailable))
+      throw new CoachingError(
+        "The opening session includes an exercise on unconfirmed equipment with no backup available now.",
+        422,
+      );
+    if (entry.equipmentInstanceId && !fitting.get(exercise.id)?.includes(entry.equipmentInstanceId))
+      throw new CoachingError("An opening-session machine is incompatible with its exercise.", 422);
+    // Machine work on a registered machine names it, so its history is the right one: the rule
+    // the plan's store applies when the athlete approves, checked while the coach can still answer.
+    if (!entry.equipmentInstanceId && exercise.machine && exercise.loadPortability !== "global")
       throw new CoachingError("Choose a registered machine for opening-session machine work.", 422);
     if (
       (!slot && entry.sets.length === 0) ||

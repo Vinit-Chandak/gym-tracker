@@ -15,13 +15,13 @@ import {
 } from "react";
 import { flushSync } from "react-dom";
 
+import { ExerciseGuide } from "@/components/exercise-guide";
 import { RestPill } from "@/components/shell/rest-timer";
-import Link from "@/components/ui/app-link";
-import { Button, LinkButton } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { rampSize, titleSize } from "@/components/ui/fit";
 import { CoachNoteMore } from "@/components/ui/coach-note-more";
 import { Figures } from "@/components/ui/figures";
-import { Glyph } from "@/components/ui/glyphs";
+import { GLYPH_LABELS, Glyph } from "@/components/ui/glyphs";
 import { Tabs } from "@/components/ui/tabs";
 import { useMeasure } from "@/components/ui/use-width";
 import { effortError, effortMetric, RIR_HELP, RPE_HELP } from "@/domain/effort";
@@ -29,6 +29,7 @@ import { REGRESSION_WARNING_STREAK, WORKING_SET_TYPES } from "@/domain/progressi
 import { formatSets, SET_LIMITS } from "@/domain/sets";
 import type { LoadUnit, PrescriptionType, SetType } from "@/domain/types";
 import { formatDay } from "@/lib/format";
+import { NO_GUIDANCE } from "@/lib/guidance";
 import { LOAD_UNIT_LABELS, SUGGESTION_KIND_LABELS, UNPLANNED_SESSION } from "@/lib/labels";
 import { setInUnit } from "@/lib/units";
 import { attempted } from "@/lib/offline-submit";
@@ -40,6 +41,7 @@ import { ExerciseHistory } from "./exercise-history";
 import { Log, setSaid, unitName, warmSaid } from "./log";
 import { useLoggerActions } from "./logger-actions";
 import {
+  countTargetLabel,
   entryHeading,
   entrySize,
   equipmentFact,
@@ -58,7 +60,6 @@ import {
   rirTargetLabel,
   setNumber,
   supersetNext,
-  volumeRange,
 } from "./logger-model";
 import {
   EffortSheet,
@@ -70,6 +71,7 @@ import {
   type MoreOption,
   type WhyContent,
 } from "./logger-sheets";
+import { MachineDecision, MachineGoneSheet, machineQuestionId } from "./machine-decision";
 import { NextLoad, nextLoadQuestion } from "./next-load";
 import { useSetRows, type Ghost, type RowState } from "./use-set-rows";
 import type { ExerciseVM, SessionVM, SetVM } from "./view-model";
@@ -118,7 +120,8 @@ type Sheet =
   | { kind: "options" }
   | { kind: "edit"; setIndex: number }
   | { kind: "more" }
-  | { kind: "skip" };
+  | { kind: "skip" }
+  | { kind: "gone" };
 
 /** The three fields a set is written in: load, what it counts, and effort. */
 function fieldsFor(
@@ -153,14 +156,14 @@ function fieldsFor(
     target: null,
     info: null,
   };
-  const range = volumeRange(exercise);
+  const target = countTargetLabel(exercise, row?.setIndex ?? null);
   const count: EntryField =
     measure === "duration"
       ? {
           field: "duration",
           unit: "s",
           hint: null,
-          foldHint: range ? `target ${range}` : null,
+          foldHint: target ? `target ${target}` : null,
           inputLabel: "Seconds",
           inputMode: "numeric",
           max: SET_LIMITS.durationSeconds,
@@ -180,7 +183,7 @@ function fieldsFor(
             field: "distance",
             unit: "m",
             hint: null,
-            foldHint: range ? `target ${range}` : null,
+            foldHint: target ? `target ${target}` : null,
             inputLabel: "Metres",
             inputMode: "decimal",
             max: SET_LIMITS.distanceMeters,
@@ -199,7 +202,7 @@ function fieldsFor(
             field: "reps",
             unit: "reps",
             hint: null,
-            foldHint: range ? `target ${range}` : null,
+            foldHint: target ? `target ${target}` : null,
             inputLabel: "Reps",
             inputMode: "numeric",
             max: SET_LIMITS.reps,
@@ -316,6 +319,8 @@ export function ExerciseLogger({
   // Past the plan, another set is asked for: until it lands, the entry stands where Complete was.
   const [another, setAnother] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  // "Not sure" about the exercise's machine: the question steps aside and Save stops waiting.
+  const [machineUnsure, setMachineUnsure] = useState(false);
   const [pending, startTransition] = useTransition();
   // The moment a set is written: the sets that landed while this screen was open rise into
   // place, and Save reads Saved for a beat.
@@ -335,6 +340,7 @@ export function ExerciseLogger({
   const frame = useRef<HTMLDivElement>(null);
   const dock = useRef<HTMLDivElement>(null);
   const doneHead = useRef<HTMLParagraphElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
   // Complete pressed in the message slot: focus follows the exercise to its Done line.
   const focusDone = useRef(false);
   const shownTab = useRef(tab);
@@ -541,12 +547,13 @@ export function ExerciseLogger({
   const plannedName = exercise.planned?.plannedExerciseName;
   const substituted = plannedName !== undefined && plannedName !== exercise.exercise.name;
   const glyph = equipmentGlyph(exercise);
-  const equipment = equipmentLine(exercise, session.gym.kind);
-  const range = tab === "log" ? perSetLabel(exercise) : prescriptionLabel(exercise);
+  const equipment = equipmentLine(exercise);
+  const range = tab === "log" ? perSetLabel(exercise) : prescriptionLabel(exercise, unitLabel);
   const rest = restText(exercise);
   const facts: ReactNode[] = [
     <>
-      <Glyph name={glyph} label={equipment} className="glyph-16" />
+      {/* The glyph says the kind; the machine itself is said once, in words. */}
+      <Glyph name={glyph} label={GLYPH_LABELS[glyph]} className="glyph-16" />
       {/* Its figures in Jost, whose zero is plain, as every meta line's are. */}
       <Figures>{range ?? equipment}</Figures>
     </>,
@@ -615,10 +622,34 @@ export function ExerciseLogger({
 
   // ---------- completing, skipping, a fallback ----------
   const needsDecision = exercise.decision !== null && !skipped && !readOnly;
-  const availableMachine =
-    exercise.decision?.resolution.status === "direct"
-      ? exercise.decision.resolution.equipmentInstance
-      : null;
+  // A machine question still open before the first set: Save waits and points at it, since
+  // the machine goes on the exercise only before anything is logged ("Not sure" lets it be). A
+  // question about what an attached machine is used with (a bench) changes nothing recorded.
+  const askingMachine =
+    needsDecision &&
+    exercise.decision?.ask != null &&
+    !exercise.equipment &&
+    !machineUnsure &&
+    sets.loggedSets.length === 0;
+  const machineFirst =
+    exercise.decision?.ask?.kind === "unknown"
+      ? "Answer the machine question first, or tap Not sure."
+      : "Answer the machine question first.";
+  const pointAtMachine = () => {
+    setMessage(machineFirst);
+    document.getElementById(machineQuestionId(exercise.id))?.focus();
+  };
+  // Once the question is answered it leaves with the button pressed: the exercise's name takes
+  // the focus, so a keyboard or a screen reader is not dropped at the top of the page.
+  const deciding = useRef(needsDecision);
+  useEffect(() => {
+    const was = deciding.current;
+    deciding.current = needsDecision;
+    if (!was || needsDecision) return;
+    const active = document.activeElement;
+    if (active && active !== document.body) return;
+    titleRef.current?.focus({ preventScroll: true });
+  }, [needsDecision]);
   // Once this exercise's working sets are in, a stack whose next stop nobody knows asks for
   // it under the sets (ADR 0028); nothing is asked mid-exercise or of plates.
   const loggedWorking = sets.loggedSets.filter((set) => WORKING_SET_TYPES.has(set.setType));
@@ -809,6 +840,9 @@ export function ExerciseLogger({
             row.setIndex === lastSaved && row.autoWarmup && row.setType === "warmup" && !row.dirty,
         ) ?? null);
   const partner = supersetNext(session, exercise);
+  const partnerLine = partner
+    ? prescriptionLabel(partner, LOAD_UNIT_LABELS[partner.equipment?.unit ?? session.preferredUnit])
+    : null;
 
   // The one message slot, at the head of the entry: every message about Save stands here, and
   // the entry grows upwards from Save, so neither Save nor a stepper moves when one comes or
@@ -872,24 +906,25 @@ export function ExerciseLogger({
     <p
       className="entry-slot entry-slot-next"
       aria-label={`Superset: after each set, ${partner.exercise.name}${
-        prescriptionLabel(partner) ? `, ${prescriptionLabel(partner)}` : ""
+        partnerLine ? `, ${partnerLine}` : ""
       }`}
     >
       <Glyph name="link" className="glyph-18 text-ink-2" />
       <span className="font-bold">Then {partner.exercise.name}</span>
-      {prescriptionLabel(partner) && (
-        <span className="type-meta-small text-ink-2 tabular-nums">
-          {prescriptionLabel(partner)}
-        </span>
+      {partnerLine && (
+        <span className="type-meta-small text-ink-2 tabular-nums">{partnerLine}</span>
       )}
     </p>
   ) : null;
-  const quietHint =
-    waitingForEffort && !entryRow?.error ? (
-      <span id={hintId} className="sr-only">
-        {effort === "rir" ? RIR_NEEDED : RPE_NEEDED}
-      </span>
-    ) : null;
+  const quietHint = askingMachine ? (
+    <span id={hintId} className="sr-only">
+      {machineFirst}
+    </span>
+  ) : waitingForEffort && !entryRow?.error ? (
+    <span id={hintId} className="sr-only">
+      {effort === "rir" ? RIR_NEEDED : RPE_NEEDED}
+    </span>
+  ) : null;
 
   const saveButton = (() => {
     if (!entryRow) return null;
@@ -910,6 +945,19 @@ export function ExerciseLogger({
         <Button variant="waiting" size="lg" className="w-full text-ink" aria-disabled>
           <Glyph name="check" className="glyph-20" />
           Saved
+        </Button>
+      );
+    if (askingMachine)
+      return (
+        <Button
+          variant="waiting"
+          size="lg"
+          className="w-full"
+          aria-disabled
+          aria-describedby={hintId}
+          onClick={pointAtMachine}
+        >
+          Save
         </Button>
       );
     if (waitingForEffort)
@@ -990,6 +1038,14 @@ export function ExerciseLogger({
       label: "Swap the exercise",
       href: `/workouts/${session.id}/exercises/${exercise.id}/substitute` as Route,
     });
+  // A registered machine that is missing or broken today: has it gone, or is it out of use?
+  if (exercise.equipment && !readOnly && !completed && !skipped && sets.loggedSets.length === 0)
+    more.push({
+      glyph: "warn",
+      label: `${exercise.equipment.name} not here`,
+      onSelect: () => setSheet({ kind: "gone" }),
+      disabled: pending || sets.dirty,
+    });
   if (!readOnly && skipped)
     more.push({ glyph: "undo", label: "Unskip", onSelect: () => setCompletedState(false) });
   if (!readOnly && !completed && !skipped && sets.loggedSets.length === 0)
@@ -1051,7 +1107,9 @@ export function ExerciseLogger({
 
       <div ref={body} className="session-body" data-scroll={tab !== "log"}>
         {/* One heading, the name on the screen (not a hidden one beside it). */}
-        <h1 className="session-title">{exercise.exercise.name}</h1>
+        <h1 ref={titleRef} tabIndex={-1} className="session-title outline-none">
+          {exercise.exercise.name}
+        </h1>
         <p className="session-meta">
           {facts.map((fact, index) => (
             <span key={index} className="session-fact">
@@ -1085,72 +1143,22 @@ export function ExerciseLogger({
             {/* Equipment problems come before the sets: without a machine there is nothing
                   meaningful to log, so the decision is the first thing offered. */}
             {needsDecision && exercise.decision && (
-              <div className="mt-2 space-y-2 rounded-control bg-surface px-3.5 py-3">
-                <p className="type-heading">
-                  {availableMachine
-                    ? "Choose the registered machine for this exercise"
-                    : exercise.decision.resolution.status === "unavailable"
-                      ? "Not available at this gym"
-                      : `Needs ${exercise.decision.missingTypes.map((t) => t.name.toLowerCase()).join(" or ") || "a machine"} — not registered at ${session.gym.name}`}
-                </p>
-                {availableMachine && (
-                  <Button
-                    variant="primary"
-                    className="w-full"
-                    disabled={pending || sets.dirty}
-                    onClick={() =>
-                      applyFallback(
-                        exercise.exercise.id,
-                        availableMachine.id,
-                        exercise.exercise.name,
-                      )
-                    }
-                  >
-                    Use {availableMachine.name}
-                  </Button>
-                )}
-                {exercise.decision.fallbackOptions.map((option) => (
-                  <Button
-                    key={option.fallbackId}
-                    variant="tonal"
-                    className="w-full bg-ground"
-                    disabled={!option.available || pending || sets.dirty}
-                    onClick={() =>
-                      applyFallback(
-                        option.exerciseId,
-                        option.equipmentInstanceId,
-                        option.exerciseName,
-                      )
-                    }
-                  >
-                    {option.available ? "Use" : "Not possible here:"} {option.exerciseName}
-                    {option.equipmentInstanceName ? ` on ${option.equipmentInstanceName}` : ""}
-                  </Button>
-                ))}
-                <div className="flex flex-wrap gap-2">
-                  {sets.dirty ? (
-                    <Button disabled variant="text" size="sm">
-                      Save or remove drafts first
-                    </Button>
-                  ) : (
-                    <LinkButton
-                      href={`/workouts/${session.id}/exercises/${exercise.id}/substitute`}
-                      variant="text"
-                      size="sm"
-                    >
-                      Add a fallback
-                    </LinkButton>
-                  )}
-                  {/* Carries the workout along, so registering it lands back here. */}
-                  <LinkButton
-                    href={`/gyms/${session.gym.id}/equipment/new?session=${session.id}&exercise=${exercise.id}`}
-                    variant="text"
-                    size="sm"
-                  >
-                    Register machine
-                  </LinkButton>
-                </div>
-              </div>
+              <MachineDecision
+                exercise={exercise}
+                session={session}
+                blocked={sets.dirty}
+                busy={pending}
+                onFallback={applyFallback}
+                onMessage={setMessage}
+                unsure={machineUnsure}
+                onUnsure={(value) => {
+                  setMachineUnsure(value);
+                  // "Not sure" answers what a waiting Save asked for.
+                  if (value) setMessage(null);
+                }}
+                onAnnounce={setAnnounced}
+                onMoved={sets.carryDraftsTo}
+              />
             )}
 
             {/* More opens the rest in place, as it does on the workout; Why is the tag's. */}
@@ -1233,35 +1241,15 @@ export function ExerciseLogger({
 
           {tab === "technique" && (
             <div className="pb-6">
-              <dl className="mt-1">
-                {[
-                  ["Cue", exercise.planned?.keyCue],
-                  ["Target load", exercise.planned?.targetLoadNote],
-                  ["Progression", exercise.planned?.progressionNotes],
-                  ["Substitution", exercise.substitutionReason],
-                ]
-                  .filter((entry): entry is [string, string] => Boolean(entry[1]))
-                  .map(([term, value]) => (
-                    <div key={term} className="border-b border-hair py-3">
-                      <dt className="type-caption text-ink-2">{term}</dt>
-                      <dd className="mt-0.5 text-[length:calc(1px+1rem)] leading-[1.4] font-medium tabular-nums">
-                        {value}
-                      </dd>
-                    </div>
-                  ))}
-              </dl>
-              {!exercise.planned?.keyCue &&
-                !exercise.planned?.targetLoadNote &&
-                !exercise.planned?.progressionNotes && (
-                  <p className="py-3 type-body text-ink-2">No cues in the programme.</p>
-                )}
-              <Link
-                href={`/exercises/${exercise.exercise.id}`}
-                className="flex min-h-[calc(52px+var(--ov-grow))] items-center justify-between font-bold"
-              >
-                Open in the exercise library
-                <Glyph name="chevronRight" className="glyph-20" />
-              </Link>
+              {/* The exercise's guide, the same as the library's, then the programme's cue
+                  (plan: Technique). The programme's load and progression notes and the
+                  substitution reason are not repeated here: the line under the name says
+                  "instead of", and the notes stay in the programme. */}
+              <ExerciseGuide
+                guidance={exercise.guidance ?? NO_GUIDANCE}
+                programmeCue={exercise.planned?.keyCue ?? null}
+                libraryHref={`/exercises/${exercise.exercise.id}` as Route}
+              />
             </div>
           )}
 
@@ -1437,6 +1425,13 @@ export function ExerciseLogger({
         pending={pending}
         onSkip={skip}
         onClose={() => setSheet(null)}
+      />
+      <MachineGoneSheet
+        open={sheet?.kind === "gone"}
+        exercise={exercise}
+        session={session}
+        onClose={() => setSheet(null)}
+        onMessage={setMessage}
       />
     </div>
   );

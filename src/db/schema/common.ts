@@ -33,6 +33,19 @@ export function readAllPolicy(table: string) {
   });
 }
 
+/**
+ * Shared reference rows that only the seed writes: read by everyone signed in, with any owned row
+ * private to its owner, and no write path for a client. A row a client could add would sit
+ * beside the shared ones under the same unique keys, where the next seed would collide with it.
+ */
+export function sharedReadPolicy(table: string, column = "user_id") {
+  return pgPolicy(`${table}_select`, {
+    for: "select",
+    to: authenticatedRole,
+    using: sql`${sql.raw(column)} is null or ${sql.raw(column)} = ${AUTH_UID}`,
+  });
+}
+
 /** Rows with a null owner are shared reference data; owned rows are private to their owner. */
 export function sharedOrOwnerPolicies(table: string, column = "user_id") {
   const owner = sql`${sql.raw(column)} = ${AUTH_UID}`;
