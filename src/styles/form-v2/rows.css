@@ -1487,9 +1487,10 @@ li:last-child > .picker-row {
   -webkit-mask: var(--equipment-art) center / contain no-repeat;
   mask: var(--equipment-art) center / contain no-repeat;
 }
+/* In forced colours a drawing is the system's text colour where it stands: CanvasText on a plain
+   tile, HighlightText on a chosen one (foundation.css keeps those surfaces' own colours). */
 @media (forced-colors: active) {
   .equipment-art {
-    background-color: CanvasText;
     forced-color-adjust: none;
   }
 }
