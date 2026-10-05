@@ -21,8 +21,8 @@ production deploy leaves out until they are approved.
 | Gym basics (assumed at a gym) | 18 | – |
 | Starter presets | 3 | – |
 | Aliases | 542 | 109 |
-| Guides | 58 | 58 |
-| Demonstration links | 59 | 59 |
+| Guides | 61 | 61 |
+| Demonstration links | 65 | 65 |
 | Drawings | 111 | 111 |
 
 ## Deployed catalogue
@@ -496,15 +496,15 @@ None.
 | State | Exercises |
 | --- | --- |
 | Published guide | 0 |
-| Draft guide awaiting review | 58 |
-| No guide yet (honest gap) | 218 |
+| Draft guide awaiting review | 61 |
+| No guide yet (honest gap) | 216 |
 | A How to log note | 35 |
 | A legacy form cue (shown until a guide is published) | 31 |
 | A legacy form link | 8 |
-| At least one demonstration link | 58 |
+| At least one demonstration link | 61 |
 | Draft exercises awaiting approval (not counted above) | 13 |
 
-Template exercises and fallbacks without a guide: `incline-bench-preacher-curl`, `ez-bar-curl`, `cable-hip-abduction`.
+Template exercises and fallbacks without a guide: none.
 
 Guides without a demonstration link: none.
 

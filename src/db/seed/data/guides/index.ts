@@ -9,8 +9,9 @@ import type { GuideSeed, MediaSeed } from "./types";
  * fallbacks, what the gym basics and starter extras make available, and the movements beginner
  * programmes use.
  *
- * - Batches A and B: the template's 34 exercises, fallbacks included, and machines people meet
- *   first (chest press, shoulder press, Smith squat, assisted pull-up).
+ * - Batches A and B: the template's 37 exercises, fallbacks included (the last three added with
+ *   the owner's backups of 5 October 2026), and machines people meet first (chest press, shoulder
+ *   press, Smith squat, assisted pull-up).
  * - Batch C: the starter extras' machines (hack squat, hip thrust, ab crunch, adductor, standing
  *   calf raise, chest-supported row, assisted dip) and the movements beginner programmes use
  *   (goblet squat, push-up, plank, dead bug, glute bridge, rows, presses, hinges, chin-up).

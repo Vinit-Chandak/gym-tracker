@@ -436,6 +436,12 @@ database lacks still fails the write. Programmes already adopted keep the fallba
 written with. A seed test holds every template slot the basics cannot do to a published fallback
 they can.
 
+The three new fallbacks have draft guides and two candidate videos each, like the rest. ExRx
+refused automated reads, so these guides are checked against Physitrack, StrengthLog, Catalyst
+Athletics, the Prehab Guys, NASM and Oxygen instead; ExRx's "Dumbbell Standing Preacher Curl (on
+incline bench)" looks like an exact match worth a look in a browser. The videos were confirmed
+through YouTube's oEmbed (title and channel); none has been watched.
+
 ## Next
 
 The draft PR waits on the owner: the drafts listed there (drawings, guides and links, catalogue

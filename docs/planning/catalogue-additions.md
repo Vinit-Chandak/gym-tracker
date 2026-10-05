@@ -126,6 +126,7 @@ Muscles use only `MUSCLE_GROUPS`. Equipment uses the manifest's notation: each e
 | 2 | `lever-squat` | Lever squat | V-squat; Super squat; Power squat | machine | squat | quads, glutes | equipment_specific | `lever_squat_machine` | Comes with the new type | [J21][IM11] |
 | 2 | `machine-high-row` | Machine high row | High row; Iso-lateral high row | machine | horizontal_pull | upper_back, lats | equipment_specific | `high_row_machine` | Comes with the new type. The pull goes down and back from overhead | [M10][J20] |
 | 3 | `medicine-ball-slam` | Medicine ball slam | Ball slam; Overhead slam | cardio | conditioning | lats, abs | global | `medicine_ball` | Gives `medicine_ball`, which no exercise uses today, a primary exercise | [X5] |
+| Owner | `incline-bench-preacher-curl` | Incline bench preacher curl | Dumbbell preacher curl; Bench preacher curl | dumbbell | elbow_flexion | biceps | global | `[dumbbells, adjustable_bench]` | The owner's backup for the template's preacher curl (5 October 2026): the same curl with the upper arm over the top of an incline bench, where there is no preacher bench. `preacher-curl` already covers dumbbells on a preacher bench | [X11][X12] |
 
 ### 2.4 Mapping changes the new types need
 
@@ -228,7 +229,7 @@ Chains: [C1] Gold's Gym India · [C2] Cult gyms · [C3] Precor and Anytime Fitne
 Manufacturers: [M1] Precor Vitality line · [M2] Vitality Seated Row (retailer) · [M3] Life Fitness Optima sell sheet · [M4] Life Fitness Insignia Assist Dip Chin · [M5] Matrix Aura Dip/Chin Assist (retailer) · [M6] Hammer Strength Olympic Flat Bench · [M7] Olympic Incline Bench · [M8] Olympic Military Bench · [M9] Iso-Lateral Decline Chest Press · [M10] Iso-Lateral High Row.
 Jerai Fitness: [J1] Club Line Plus · [J2] Falcon · [J3] Load-On · [J4] Benches and racks · [J5] Vertical Row · [J6] Seated Row · [J7] Long Pull Row · [J8] Lat Pull Down With Rowing Combo · [J9] Leg Curl / Extension Combo · [J10] Seated Leg Curl / Extension Combo · [J11] Multi Press · [J12] Assisted Dip Chin · [J13] Adductor/Abductor combo · [J14] Vertical Knee Up AB Dip Chin · [J15] Leg Press Hack Squat Combo · [J16] Olympic Flat Bench · [J17] Olympic Incline Bench · [J18] Flat & Incline Combo Bench · [J19] Isolateral Decline Press · [J20] Isolateral High Row · [J21] Power Squat · [J22] Smith Squat Rack Combo · [J23] 4-station multi-gym · [J24] Multi Functional Station · [J25] T-bar pivot · [J26] Incline T-bar row · [J27] Home gyms for Indian apartments · [J28] Home page.
 IndiaMart: [IM1] lat pull down low row · [IM2] assisted dip chin · [IM3] leg extension leg curl combo · [IM4] abductor adductor · [IM5] bicep tricep · [IM6] seated row machine · [IM7] Olympic flat bench · [IM8] utility bench · [IM9] decline chest press · [IM10] vertical knee raise · [IM11] V squat · [IM12] multi hip · [IM13] Roman chair · [IM14] multi press · [IM15] butterfly · [IM16] back machines · [IM17] weight rods · [IM18] abdominal · [IM19] glute · [IM20] multi gym · [IM21] Smith machine · [IM22] leg curl extension (Indian Fitness) · [IM23] preacher curl bench · [IM24] elliptical cross trainer · [IM25] hack squat · [IM26] chest press · [IM27] leg press.
-Exercises: [X1] ACE, perfecting the push-up · [X2] ACE, chest training (incline push-up) · [X3] ACE Mountain Climbers · [X4] ACE Squat Jump · [X5] ACE Overhead Slams · [X6] Bodybuilding.com plié squat · [X7] Healthline sumo squat · [X8] Hindu push-up · [X9] Hindu squat · [X10] Man's World India (2025).
+Exercises: [X1] ACE, perfecting the push-up · [X2] ACE, chest training (incline push-up) · [X3] ACE Mountain Climbers · [X4] ACE Squat Jump · [X5] ACE Overhead Slams · [X6] Bodybuilding.com plié squat · [X7] Healthline sumo squat · [X8] Hindu push-up · [X9] Hindu squat · [X10] Man's World India (2025) · [X11] Oxygen, incline-bench preacher curl (accessed 5 October 2026) · [X12] StrengthLog, dumbbell preacher curl (accessed 5 October 2026).
 Other: [O1] Kibi Sports, Body-Solid VKR · [O2] Kibi Sports curling rod · [O3] Reach Orbitrek · [O4] Fitpass (no equipment list).
 
 [C1]: https://promotion.goldsgym.in/?p=1842
@@ -312,6 +313,8 @@ Other: [O1] Kibi Sports, Body-Solid VKR · [O2] Kibi Sports curling rod · [O3] 
 [X8]: https://en.wikipedia.org/wiki/Hindu_push-up
 [X9]: https://en.wikipedia.org/wiki/Hindu_squat
 [X10]: https://www.mansworldindia.com/grooming-special/ancient-indian-fitness-techniques-that-still-pack-a-punch
+[X11]: https://www.oxygenmag.com/video/incline-bench-preacher-curl/
+[X12]: https://www.strengthlog.com/dumbbell-preacher-curl/
 [O1]: https://shop.kibisports.com/products/gvkr82b-vertical-knee-raise-pull-up
 [O2]: https://shop.kibisports.com/products/weight-lifting-curling-rod
 [O3]: https://www.paisawapas.com/p-reach-orbitrek-exercise-cycle-and-cross-trainer-multi-color-13199975
