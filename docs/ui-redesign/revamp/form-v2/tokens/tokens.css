@@ -7,6 +7,8 @@
   --form-ground: #ffffff;
   --form-surface: #f4f4f5;
   --form-surface-2: #e9e9ec;
+  --form-surface-control: #f4f4f5;
+  --form-surface-control-pressed: #e9e9ec;
   --form-ink: #16171b;
   --form-ink-2: #5b5d64;
   --form-control: #85878e;
@@ -71,6 +73,8 @@
     --form-ground: #111214;
     --form-surface: #1b1c20;
     --form-surface-2: #26272c;
+    --form-surface-control: #2b2c32;
+    --form-surface-control-pressed: #35363c;
     --form-ink: #edeef0;
     --form-ink-2: #a3a6ae;
     --form-control: #73767e;
@@ -105,6 +109,8 @@
   --form-ground: #111214;
   --form-surface: #1b1c20;
   --form-surface-2: #26272c;
+  --form-surface-control: #2b2c32;
+  --form-surface-control-pressed: #35363c;
   --form-ink: #edeef0;
   --form-ink-2: #a3a6ae;
   --form-control: #73767e;

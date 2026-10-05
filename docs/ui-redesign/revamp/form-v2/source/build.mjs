@@ -483,6 +483,8 @@ const COLOUR_KEYS = [
   "ground",
   "surface",
   "surface2",
+  "surfaceControl",
+  "surfaceControlPressed",
   "ink",
   "ink2",
   "control",

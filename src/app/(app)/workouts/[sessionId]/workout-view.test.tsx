@@ -8,6 +8,11 @@ import { setChangesMade } from "@/components/set-changes";
 import type { ExerciseVM, SessionVM, SetVM } from "./view-model";
 import { WorkoutView } from "./workout-view";
 
+/** The innermost element whose whole text is `text`: a fact's figures stand in spans of their own. */
+const whole = (text: string) => (_: string, element: Element | null) =>
+  element?.textContent === text &&
+  ![...element.children].some((child) => child.textContent === text);
+
 const actions = vi.hoisted(() => ({ log: vi.fn(), remove: vi.fn() }));
 // The exercise in focus is a search parameter moved with the History API; the hook reads it
 // back from the address, as Next's does once it has seen the change.
@@ -152,7 +157,7 @@ it("shows a saved set in the list, in the reopened exercise and on Back, without
 
   fireEvent.click(screen.getByRole("button", { name: BACK }));
   page.rerender(view());
-  expect(screen.getByText("60 kg × 5")).toBeTruthy();
+  expect(screen.getByText(whole("60 kg × 5"))).toBeTruthy();
   expect(screen.getByText("Resume")).toBeTruthy();
 
   fireEvent.click(screen.getByRole("button", { name: /Bench press/ }));
@@ -183,7 +188,7 @@ it("takes a render that already holds the set as it is", async () => {
   render(
     <WorkoutView session={workout(id, [saved])} seenSetChanges={setChangesMade()} userId="user" />,
   );
-  expect(screen.getByText("60 kg × 5")).toBeTruthy();
+  expect(screen.getByText(whole("60 kg × 5"))).toBeTruthy();
 });
 
 it("drops a deleted set from the list", async () => {
@@ -201,7 +206,7 @@ it("drops a deleted set from the list", async () => {
 
   fireEvent.click(screen.getByRole("button", { name: BACK }));
   page.rerender(<WorkoutView session={rendered} seenSetChanges={seen} userId="user" />);
-  expect(screen.queryByText("60 kg × 5")).toBeNull();
+  expect(screen.queryByText(whole("60 kg × 5"))).toBeNull();
   expect(screen.queryByText("Resume")).toBeNull();
 });
 
@@ -218,5 +223,5 @@ it("brings the list up to date when a save lands after the exercise was left", a
   page.rerender(<WorkoutView session={rendered} seenSetChanges={seen} userId="user" />);
   expect(screen.queryByText("Resume")).toBeNull();
   await act(async () => land({ ok: true, set: saved }));
-  expect(screen.getByText("60 kg × 5")).toBeTruthy();
+  expect(screen.getByText(whole("60 kg × 5"))).toBeTruthy();
 });

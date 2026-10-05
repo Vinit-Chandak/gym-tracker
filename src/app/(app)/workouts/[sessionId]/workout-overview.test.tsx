@@ -6,6 +6,11 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { ExerciseVM, SessionVM, SetVM } from "./view-model";
 import { draftsWarning, WorkoutOverview } from "./workout-overview";
 
+/** The innermost element whose whole text is `text`: a fact's figures stand in spans of their own. */
+const whole = (text: string) => (_: string, element: Element | null) =>
+  element?.textContent === text &&
+  ![...element.children].some((child) => child.textContent === text);
+
 const actions = vi.hoisted(() => ({ warmup: vi.fn() }));
 vi.mock("@/components/ui/app-link", () => ({
   default: (props: ComponentProps<"a">) => <a {...props} />,
@@ -196,7 +201,7 @@ it("is the session's layer: Minimise to Today, Finish and More", () => {
   expect(screen.getByRole("button", { name: "Session details" })).toBeTruthy();
   expect(screen.getAllByRole("link", { name: "Add exercise" })).toHaveLength(1);
   expect(screen.getAllByRole("button", { name: "Superset" })).toHaveLength(1);
-  expect(screen.getByText("70–90 min")).toBeTruthy();
+  expect(screen.getByText(whole("70–90 min"))).toBeTruthy();
 });
 
 it("holds Finish back while a set draft is unsaved, and says where", () => {

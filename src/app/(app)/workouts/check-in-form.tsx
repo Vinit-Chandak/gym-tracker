@@ -82,6 +82,8 @@ export function CheckInForm({ action, initial, mode, lastSleepHours = null }: Pr
           label="Quality"
           name="sleepQuality"
           ends={["poor", "great"]}
+          // Great first, where fatigue's fresh and soreness's none stand: the good ends line up.
+          descending
           defaultValue={value("sleepQuality")}
           error={state.fieldErrors?.sleepQuality}
         />

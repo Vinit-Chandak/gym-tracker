@@ -19,6 +19,7 @@ import Link from "@/components/ui/app-link";
 import { Button, LinkButton } from "@/components/ui/button";
 import { CoachNote } from "@/components/ui/coach-note";
 import { CoachNoteMore } from "@/components/ui/coach-note-more";
+import { Figures } from "@/components/ui/figures";
 import { FitTitle } from "@/components/ui/fit-title";
 import { Glyph } from "@/components/ui/glyphs";
 import { Sheet } from "@/components/ui/sheet";
@@ -448,7 +449,7 @@ export function WorkoutOverview({
                     label={equipmentLabel(exercise, session.gym.kind)}
                     className="glyph-16"
                   />
-                  <span>{rowLine(exercise, unitLabel, readOnly)}</span>
+                  <Figures>{rowLine(exercise, unitLabel, readOnly)}</Figures>
                   {instead && <span>instead of {instead}</span>}
                 </span>
               </span>
@@ -510,7 +511,7 @@ export function WorkoutOverview({
         {session.day?.timeNote && (
           <span className="meta-fact">
             <Glyph name="rest" className="glyph-16" />
-            {session.day.timeNote}
+            <Figures>{session.day.timeNote}</Figures>
           </span>
         )}
         {coachPlanned && (

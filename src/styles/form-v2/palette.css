@@ -8,6 +8,9 @@
   --ov-light-ground: #ffffff;
   --ov-light-surface: #f4f4f5;
   --ov-light-surface-2: #e9e9ec;
+  /* Tonal and round buttons: the surface itself in light. */
+  --ov-light-surface-control: #f4f4f5;
+  --ov-light-surface-control-pressed: #e9e9ec;
   --ov-light-ink: #16171b;
   --ov-light-ink-2: #5b5d64;
   --ov-light-control: #85878e;
@@ -50,6 +53,10 @@
   --ov-dark-ground: #111214;
   --ov-dark-surface: #1b1c20;
   --ov-dark-surface-2: #26272c;
+  /* Tonal and round buttons, lifted off the ground so they read as shapes (owner, 5 October
+     2026); notes, tiles and trays stay on the surface. */
+  --ov-dark-surface-control: #2b2c32;
+  --ov-dark-surface-control-pressed: #35363c;
   --ov-dark-ink: #edeef0;
   --ov-dark-ink-2: #a3a6ae;
   --ov-dark-control: #73767e;

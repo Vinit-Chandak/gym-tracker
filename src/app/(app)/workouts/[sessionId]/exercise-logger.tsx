@@ -20,6 +20,7 @@ import Link from "@/components/ui/app-link";
 import { Button, LinkButton } from "@/components/ui/button";
 import { rampSize, titleSize } from "@/components/ui/fit";
 import { CoachNoteMore } from "@/components/ui/coach-note-more";
+import { Figures } from "@/components/ui/figures";
 import { Glyph } from "@/components/ui/glyphs";
 import { Tabs } from "@/components/ui/tabs";
 import { useMeasure } from "@/components/ui/use-width";
@@ -312,6 +313,8 @@ export function ExerciseLogger({
   // Pressed while a set is still on its way: the exercise completes once that set has landed.
   const [completing, showCompleting] = useOptimistic(false);
   const [skipped, setSkipped] = useState(exercise.skippedAt !== null);
+  // Past the plan, another set is asked for: until it lands, the entry stands where Complete was.
+  const [another, setAnother] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   // The moment a set is written: the sets that landed while this screen was open rise into
@@ -356,6 +359,7 @@ export function ExerciseLogger({
     onLogged,
     onSaved: (setIndex, added, saved) => {
       setLastSaved(setIndex);
+      setAnother(false);
       setAnnounced(announcement(sets.rows, setIndex, added, saved));
       if (added) {
         setLanded((current) => new Set(current).add(setIndex));
@@ -543,14 +547,15 @@ export function ExerciseLogger({
   const facts: ReactNode[] = [
     <>
       <Glyph name={glyph} label={equipment} className="glyph-16" />
-      <span>{range ?? equipment}</span>
+      {/* Its figures in Jost, whose zero is plain, as every meta line's are. */}
+      <Figures>{range ?? equipment}</Figures>
     </>,
   ];
   if (rest)
     facts.push(
       <>
         <Glyph name="rest" className="glyph-16" />
-        <span>{rest}</span>
+        <Figures>{rest}</Figures>
       </>,
     );
   // A machine of this gym, or the lack of one, is said in words: the glyph says only its kind.
@@ -732,6 +737,19 @@ export function ExerciseLogger({
   const planDone = editable && planned !== null && planned > 0 && workDone >= planned;
   const planDoneText =
     planned === null ? "" : `${planned} of ${planned} ${planned === 1 ? "set" : "sets"} done.`;
+  // Then the hand leads to what comes next (DESIGN.md, The session): Complete is the dock's
+  // button and another set the tonal one, unless a set is already under way in the entry (typed,
+  // saving, failed, or just Saved), which is never hidden.
+  const offerComplete =
+    planDone &&
+    !another &&
+    !completing &&
+    entryRow !== null &&
+    !entryRow.dirty &&
+    !entryRow.saving &&
+    !entryRow.error &&
+    typing === null &&
+    flash === null;
 
   // Saving…, Saved and the set that lands are said as well as drawn (WCAG 4.1.3), on one status
   // line that stays on the page: "Saving set 3" while the server answers, then "Set 3 saved: 60
@@ -1272,7 +1290,45 @@ export function ExerciseLogger({
 
       {!readOnly && (
         <div ref={dock} hidden={tab !== "log"} className="entry-dock">
-          {entryRow && heading ? (
+          {offerComplete ? (
+            <section aria-label={exercise.exercise.name} className="entry">
+              {message && slotMessage("warn", message, "alert")}
+              <div className="entry-head">
+                <p className="flex items-center gap-2 type-heading">
+                  <Glyph name="check" className="glyph-20" />
+                  {planDoneText}
+                </p>
+              </div>
+              <div className="entry-save flex flex-col gap-2">
+                <Button
+                  size="lg"
+                  className="w-full"
+                  disabled={pending}
+                  onClick={() => {
+                    focusDone.current = true;
+                    setCompletedState(true);
+                  }}
+                >
+                  Complete {exercise.exercise.name}
+                </Button>
+                <Button
+                  variant="tonal"
+                  size="lg"
+                  className="w-full"
+                  onClick={() => {
+                    setAnother(true);
+                    // The entry is up on the next frame; the load is where a set starts.
+                    requestAnimationFrame(() =>
+                      dock.current?.querySelector<HTMLElement>(".stepper-figure")?.focus(),
+                    );
+                  }}
+                >
+                  <Glyph name="plus" className="glyph-18" />
+                  Log another set
+                </Button>
+              </div>
+            </section>
+          ) : entryRow && heading ? (
             <Entry
               row={entryRow}
               heading={heading}
@@ -1313,14 +1369,10 @@ export function ExerciseLogger({
                     Completing…
                   </Button>
                 ) : (
-                  <Button
-                    variant="tonal"
-                    size="lg"
-                    className="w-full"
-                    onClick={() => setCompletedState(false)}
-                    disabled={pending}
-                  >
-                    {completed ? "Reopen" : "Unskip"}
+                  // Finished with, the exercise hands back to the list; Reopen and Unskip are
+                  // in More, where a change of mind goes.
+                  <Button size="lg" className="w-full" onClick={onBack}>
+                    Back to {dayName}
                   </Button>
                 )}
               </div>

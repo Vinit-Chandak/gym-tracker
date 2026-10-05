@@ -16,6 +16,9 @@ import { groupRows } from "./today-model";
  * wordless while the programme is on track. Behind is news, so it is said beside them in days
  * ("25 days behind"; the feature inventory's Today status); their name says it too.
  */
+/** A length that grows by half of the reader's text size: half fixed, half in rem. */
+const grown = (px: number) => `calc(${px / 2}px + ${px / 32}rem)`;
+
 export function CycleMark({
   cells,
   label,
@@ -49,6 +52,9 @@ export function CycleMark({
         width={width}
         height={sq + 2}
         viewBox={`0 0 ${width} ${sq + 2}`}
+        // They grow with the reader's text by half, as glyphs and figures do: 9-pt squares at
+        // 100%, 13.5 at 200%, so the cycle is still read at arm's length.
+        style={{ width: grown(width), height: grown(sq + 2) }}
         className="block shrink-0 text-ink"
       >
         {cells.map((cell, index) => {

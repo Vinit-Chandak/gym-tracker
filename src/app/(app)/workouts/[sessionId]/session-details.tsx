@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "@/components/ui/app-link";
+import { Figures } from "@/components/ui/figures";
 import { Glyph } from "@/components/ui/glyphs";
 import { Sheet } from "@/components/ui/sheet";
 import { formatDateTime } from "@/lib/format";
@@ -21,7 +22,9 @@ function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex min-h-11 items-center justify-between gap-3 border-b border-hair py-1.5">
       <dt className="text-ink-2">{label}</dt>
-      <dd className="text-right font-semibold [overflow-wrap:anywhere] tabular-nums">{value}</dd>
+      <dd className="text-right font-semibold [overflow-wrap:anywhere] tabular-nums">
+        <Figures>{value}</Figures>
+      </dd>
     </div>
   );
 }

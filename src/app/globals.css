@@ -23,6 +23,8 @@
   /* The interface: ink on ground. */
   --color-ground: var(--ov-ground);
   --color-surface-2: var(--ov-surface-2);
+  --color-surface-control: var(--ov-surface-control);
+  --color-surface-control-pressed: var(--ov-surface-control-pressed);
   --color-ink-2: var(--ov-ink-2);
   --color-control: var(--ov-control);
   --color-hair: var(--ov-hair);

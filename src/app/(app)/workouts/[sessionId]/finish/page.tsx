@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { FreshAfterSets } from "@/components/fresh-after-sets";
 import { SessionPage } from "@/components/shell/session-page";
+import { Figures } from "@/components/ui/figures";
 import { Glyph } from "@/components/ui/glyphs";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
@@ -65,9 +66,7 @@ export default async function FinishPage(props: PageProps<"/workouts/[sessionId]
         <section aria-labelledby="finish-recorded">
           <h2 id="finish-recorded" className="caption-head mt-3 flex justify-between gap-3">
             <span>Recorded</span>
-            <span className="tabular-nums">
-              {totalSets} {totalSets === 1 ? "set" : "sets"}
-            </span>
+            <Figures>{`${totalSets} ${totalSets === 1 ? "set" : "sets"}`}</Figures>
           </h2>
           {done.length > 0 ? (
             <ul>

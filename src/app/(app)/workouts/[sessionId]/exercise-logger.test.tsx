@@ -723,7 +723,23 @@ it("shows an exercise done the moment Complete is pressed, before the server ans
   expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
   await act(async () => reply.answer({ ok: true }));
   expect(screen.getByText("Done")).toBeTruthy();
+  // Done, the dock hands back to the list; a change of mind is in More.
+  expect(screen.getByRole("button", { name: "Back to Unplanned session" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Reopen" })).toBeNull();
+  press("Complete, skip, superset, substitute");
   expect(screen.getByRole("button", { name: "Reopen" })).toBeTruthy();
+});
+
+it("makes Complete the dock's button once the planned sets are in, another set a tap away", async () => {
+  const sets = [1, 2, 3].map((setIndex) => ({ ...saved, id: `set-${setIndex}`, setIndex }));
+  renderLogger({ exercise: { planned: benchSlot, sets } });
+  expect(screen.getByRole("button", { name: "Complete Bench press" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Log another set" }));
+  // The entry stands where Complete was, for the set past the plan; Complete stays in its slot.
+  expect(entry("Set 4")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Save" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Complete Bench press" })).toBeTruthy();
 });
 
 it("offers Complete once the planned sets are in, and keeps focus with the exercise as it completes", async () => {

@@ -474,11 +474,11 @@ button.log-line {
   flex-shrink: 0;
   place-items: center;
   border-radius: var(--ov-radius-full);
-  background: var(--ov-surface);
+  background: var(--ov-surface-control);
   color: var(--ov-ink);
 }
 .round-button:active {
-  background: var(--ov-surface-2);
+  background: var(--ov-surface-control-pressed);
 }
 
 /* ⓘ beside RIR: a full target, centred on its line, kept clear of the figure and the buttons. */
