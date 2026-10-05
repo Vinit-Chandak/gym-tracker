@@ -19,7 +19,7 @@ has touched a hosted database, and nothing has been merged or deployed.
 | 3    | Add several exercises (receipts) and pinned actions on Add machine                      | done        |
 | 4    | Experience question, machine steps, combinations, workout confirmation                  | done        |
 | 5    | Illustrations, guides, Technique, the coach's numbers in the header and list            | done        |
-| 6    | Acceptance tests, screens, fresh review, draft PR                                       | in progress |
+| 6    | Acceptance tests, screens, fresh review, draft PR                                       | done        |
 
 ## Calls made where the plan left room
 
@@ -342,7 +342,11 @@ the motion rules, run in Chromium against the app). What they found, and what be
     drafts are (a local database, tests), so production holds none.
 - **Found while fixing**: the Save gate added for the critique's first finding (below) made the
   machine question's answers wait on a typed set while Save waited on the answer, a dead end. The
-  answers now never wait on unsaved sets.
+  answers now never wait on unsaved sets. And re-capturing the changed screens showed the sheet
+  fix for unmounting (below) closing every sheet that mounts open under React's development
+  double mount: the browser fires the close event later, as a task, after the sheet is back.
+  The sheet now ignores the event of a close it made itself (a test runs it under StrictMode
+  with the event delivered late; production never double mounts).
 - **Critique and accessibility audit, fixed**: the machine question is one labelled group whose
   new question takes the focus, with what an answer did said aloud; Save waits on an open machine
   question before the first set and points at it; sheets that unmount return focus; Remove in a
@@ -370,4 +374,6 @@ the motion rules, run in Chromium against the app). What they found, and what be
 
 ## Next
 
-See the status table; each step ends with `npm run check`, a commit and a push.
+The draft PR waits on the owner: the drafts listed there (drawings, guides and links, catalogue
+additions) to approve one by one in their manifests, and the pilot with two or three beginners
+before the rest of the drawings are approved. Nothing is merged or deployed from here.

@@ -38,17 +38,18 @@ export function Sheet({
   const panel = useRef<HTMLDivElement>(null);
   const heading = useRef<HTMLDivElement>(null);
   const bottom = useRef<HTMLDivElement>(null);
-  // False once the sheet is leaving the page, so its own close is not reported as the person's.
-  const live = useRef(true);
+  // Set while a close the sheet made itself is on its way: its event, fired later as a task, is
+  // not the person's. React's development double mount leaves and comes back before it arrives.
+  const leaving = useRef(false);
 
   // A sheet taken off the page while open (rendered only while open) closes first: the browser
   // then returns the focus to the control that opened it, as it does for a sheet that stays.
   useLayoutEffect(() => {
-    live.current = true;
     const dialog = ref.current;
     return () => {
-      live.current = false;
-      if (dialog?.open) dialog.close();
+      if (!dialog?.open) return;
+      leaving.current = true;
+      dialog.close();
     };
   }, []);
 
@@ -125,9 +126,13 @@ export function Sheet({
       className="sheet"
       aria-label={title}
       onClose={() => {
+        if (leaving.current) {
+          leaving.current = false;
+          return;
+        }
         // A controlled close also emits the native event. Only notify the caller when
         // the browser closed an open dialog, not a second time after its own close action.
-        if (open && live.current) onClose();
+        if (open) onClose();
       }}
       onCancel={(event) => {
         event.preventDefault();

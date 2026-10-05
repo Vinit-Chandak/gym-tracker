@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { useState } from "react";
+import { StrictMode, useState } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { ConfirmSheet } from "../confirm-sheet";
@@ -113,4 +113,40 @@ it("names the filter button even when its visible label is hidden on narrow phon
   expect(button.getAttribute("aria-label")).toBe("Filters");
   fireEvent.click(button);
   expect(screen.getByRole("dialog", { name: "History filters" })).toBeTruthy();
+});
+
+it("stays open when it mounts open under React's development double mount", async () => {
+  // As browsers do, the close event comes later, as a task: after the sheet has come back.
+  Object.defineProperty(HTMLDialogElement.prototype, "close", {
+    configurable: true,
+    value: function (this: HTMLDialogElement) {
+      this.removeAttribute("open");
+      setTimeout(() => this.dispatchEvent(new Event("close")), 0);
+    },
+  });
+  const onClose = vi.fn();
+  render(
+    <StrictMode>
+      <Sheet open title="Which chest press is it?" onClose={onClose}>
+        <button>Selectorised</button>
+      </Sheet>
+    </StrictMode>,
+  );
+  await act(() => new Promise((resolve) => setTimeout(resolve, 10)));
+  expect(onClose).not.toHaveBeenCalled();
+  expect(screen.getByRole("dialog", { hidden: true }).hasAttribute("open")).toBe(true);
+});
+
+it("closes itself on leaving the page, so focus goes back, without saying the person closed it", () => {
+  const onClose = vi.fn();
+  const { unmount } = render(
+    <Sheet open title="About Smith machine" onClose={onClose}>
+      <p>Squats and presses with the bar on a guided path</p>
+    </Sheet>,
+  );
+  const dialog = screen.getByRole("dialog", { hidden: true });
+  const close = vi.spyOn(dialog as HTMLDialogElement, "close");
+  unmount();
+  expect(close).toHaveBeenCalledTimes(1);
+  expect(onClose).not.toHaveBeenCalled();
 });
