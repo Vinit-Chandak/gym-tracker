@@ -125,4 +125,18 @@ export const EQUIPMENT_ART: Readonly<Record<string, ArtEntry>> = {
   spin_bike: { status: "draft" },
   stair_climber: { status: "draft" },
   treadmill: { status: "draft" },
+  // The draft catalogue's benches, machines and combinations, awaiting the owner with them.
+  ab_crunch_back_extension: { status: "draft" },
+  biceps_triceps_machine: { status: "draft" },
+  chest_press_lat_pulldown: { status: "draft" },
+  flat_bench_press_station: { status: "draft" },
+  hip_abduction_adduction: { status: "draft" },
+  incline_bench_press_station: { status: "draft" },
+  knee_raise_dip_pull_up_tower: { status: "draft" },
+  leg_extension_lying_curl: { status: "draft" },
+  leg_press_hack_squat: { status: "draft" },
+  lever_squat_machine: { status: "draft" },
+  military_press_bench: { status: "draft" },
+  multi_hip_machine: { status: "draft" },
+  multi_press: { status: "draft" },
 };
