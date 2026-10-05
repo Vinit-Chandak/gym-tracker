@@ -1,0 +1,189 @@
+{
+  "v": 3,
+  "createdOnFiles": {
+    "v": 1,
+    "at": "2026-10-05T18:30:48Z"
+  },
+  "title": "Progress revamp",
+  "launch": {
+    "view": "canvas"
+  },
+  "pages": [],
+  "boards": {
+    "Main.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 2388,
+      "title": "Read me: Progress, revamped"
+    },
+    "Body.dc.html": {
+      "x": 0,
+      "y": 2888,
+      "w": 402,
+      "h": 1290,
+      "title": "1 · Body (Progress opens here)",
+      "is_interactive": true
+    },
+    "Overview.dc.html": {
+      "x": 482,
+      "y": 2888,
+      "w": 402,
+      "h": 960,
+      "title": "2 · Overview: Month",
+      "is_interactive": true
+    },
+    "Strength.dc.html": {
+      "x": 964,
+      "y": 2888,
+      "w": 402,
+      "h": 2710,
+      "title": "3 · Strength: every lift",
+      "is_interactive": true
+    },
+    "Running.dc.html": {
+      "x": 1446,
+      "y": 2888,
+      "w": 402,
+      "h": 1735,
+      "title": "4 · Running",
+      "is_interactive": true
+    },
+    "Recovery.dc.html": {
+      "x": 1928,
+      "y": 2888,
+      "w": 402,
+      "h": 874,
+      "title": "5 · Recovery",
+      "is_interactive": true
+    },
+    "History.dc.html": {
+      "x": 2410,
+      "y": 2888,
+      "w": 402,
+      "h": 874,
+      "title": "6 · History (kept)",
+      "is_interactive": true
+    },
+    "Picker.dc.html": {
+      "x": 0,
+      "y": 6098,
+      "w": 402,
+      "h": 874,
+      "title": "Choosing a section",
+      "is_interactive": true
+    },
+    "Body-Log.dc.html": {
+      "x": 482,
+      "y": 6098,
+      "w": 402,
+      "h": 874,
+      "title": "Body: log today's weight",
+      "is_interactive": true
+    },
+    "Strength-Lift.dc.html": {
+      "x": 964,
+      "y": 6098,
+      "w": 402,
+      "h": 1344,
+      "title": "Strength: one lift",
+      "is_interactive": true
+    },
+    "Body-Muscles.dc.html": {
+      "x": 1446,
+      "y": 6098,
+      "w": 402,
+      "h": 1834,
+      "title": "Body: tap a muscle",
+      "is_interactive": true
+    },
+    "Body-Months.dc.html": {
+      "x": 0,
+      "y": 10164,
+      "w": 402,
+      "h": 874,
+      "title": "Body: months of readings, ranges appear",
+      "is_interactive": true
+    },
+    "Overview-Week.dc.html": {
+      "x": 0,
+      "y": 8432,
+      "w": 402,
+      "h": 874,
+      "title": "Overview: Week",
+      "is_interactive": true
+    },
+    "Overview-Programme.dc.html": {
+      "x": 482,
+      "y": 8432,
+      "w": 402,
+      "h": 1175,
+      "title": "Overview: Programme",
+      "is_interactive": true
+    },
+    "Body-Dark.dc.html": {
+      "x": 482,
+      "y": 10164,
+      "w": 402,
+      "h": 874,
+      "title": "Body, dark"
+    },
+    "Overview-Table.dc.html": {
+      "x": 964,
+      "y": 8432,
+      "w": 402,
+      "h": 1232,
+      "title": "Alternative: all three totals at once",
+      "is_interactive": true
+    }
+  },
+  "order": [
+    "Main.dc.html",
+    "Body.dc.html",
+    "Overview.dc.html",
+    "Strength.dc.html",
+    "Running.dc.html",
+    "Recovery.dc.html",
+    "History.dc.html",
+    "Picker.dc.html",
+    "Body-Log.dc.html",
+    "Strength-Lift.dc.html",
+    "Body-Muscles.dc.html",
+    "Overview-Week.dc.html",
+    "Overview-Programme.dc.html",
+    "Overview-Table.dc.html",
+    "Body-Months.dc.html",
+    "Body-Dark.dc.html"
+  ],
+  "notes": {
+    "rowSections": {
+      "x": 0,
+      "y": 2568,
+      "text": "The six sections, in their new order",
+      "kind": "title1",
+      "maxW": 2812
+    },
+    "rowFlows": {
+      "x": 0,
+      "y": 5778,
+      "text": "The next step on each screen",
+      "kind": "title1",
+      "maxW": 1848
+    },
+    "rowOverview": {
+      "x": 0,
+      "y": 8112,
+      "text": "Overview: Week and Programme, or all three in one table",
+      "kind": "title1",
+      "maxW": 1366
+    },
+    "rowBody": {
+      "x": 0,
+      "y": 9844,
+      "text": "Body once months of readings exist, and in dark",
+      "kind": "title1",
+      "maxW": 884
+    }
+  },
+  "designSystems": []
+}

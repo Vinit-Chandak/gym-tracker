@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>Body: log today's weight</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@400..800&amp;family=Atkinson+Hyperlegible+Next:wght@200..800&amp;display=swap">
+<style>
+body{margin:0;background:#ffffff}
+:root{--ground:#ffffff;--surface:#f4f4f5;--surface-2:#e9e9ec;--ink:#16171b;--ink-2:#5b5d64;--control:#85878e;--hair:#e6e6e9;--on-ink:#ffffff;--scrim:rgba(22,23,27,.42)}
+*{box-sizing:border-box}
+h1,h2,h3,p,ul,ol,li,dl,dt,dd,figure{margin:0;padding:0;font:inherit}
+li{list-style:none}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.j{font-family:'Jost',system-ui,sans-serif;font-variant-numeric:tabular-nums lining-nums}
+</style>
+</helmet>
+<div style="position:relative;width:402px;height:874px;overflow:hidden;background:var(--ground);color:var(--ink);font-family:'Atkinson Hyperlegible Next',system-ui,sans-serif;font-size:16px;line-height:1.4;-webkit-font-smoothing:antialiased">
+<h1 class="sr">Log today's body weight</h1>
+<div aria-hidden="true" style="padding:62px 20px 0">
+  <div style="display:flex;align-items:center;min-height:52px;padding-top:4px"><span style="font-family:'Jost',system-ui,sans-serif;font-size:36px;font-weight:700;line-height:1;letter-spacing:-0.012em">Progress</span></div>
+  <div style="margin-top:4px"><span style="display:inline-flex;align-items:center;gap:6px;height:44px;padding:0 12px 0 14px;border-radius:14px;background:var(--surface);font-size:16px;font-weight:700">Body<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 9.5L12 16l6.5-6.5"/></svg></span></div>
+  <p style="margin-top:18px;font-size:13px;font-weight:700;color:var(--ink-2)">Body weight</p>
+  <p style="margin-top:4px"><span class="j" style="font-size:56px;font-weight:600;line-height:1">77.1</span> <span style="font-size:16px;font-weight:600;color:var(--ink-2)">kg</span> <span style="font-size:15px;font-weight:600;color:var(--ink-2)"><span class="j">−0.5</span> since Thu <span class="j">17</span> Sept</span></p>
+  <div style="display:flex;align-items:center;justify-content:center;gap:8px;height:56px;margin-top:16px;border-radius:14px;background:var(--surface);font-size:17px;font-weight:700">Log today's weight</div>
+  <svg width="362" height="170" viewBox="0 0 362 170" style="display:block;margin-top:56px;overflow:visible"><line x1="40" x2="348" y1="135.3" y2="135.3" stroke="#e6e6e9"/><line x1="40" x2="348" y1="44.8" y2="44.8" stroke="#e6e6e9"/><path d="M40 26.7L91.3 62.9L142.7 44.8L194 99.1L245.3 81L296.7 135.3L348 117.2" fill="none" stroke="#16171b" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="348" cy="117.2" r="5.5" fill="#16171b"/></svg>
+</div>
+<div aria-hidden="true" style="position:absolute;inset:0;background:var(--scrim);z-index:10"></div>
+<div role="dialog" aria-modal="true" aria-labelledby="sheet-title" style="position:absolute;left:0;right:0;bottom:0;z-index:11;padding:8px 20px 50px;border-radius:24px 24px 0 0;background:var(--ground)">
+  <span aria-hidden="true" style="display:block;width:36px;height:5px;margin:0 auto 8px;border-radius:9999px;background:var(--surface-2)"></span>
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:52px">
+    <h2 id="sheet-title" style="font-family:'Jost',system-ui,sans-serif;font-size:28px;font-weight:700;line-height:1.05;letter-spacing:-0.012em">Body weight</h2>
+    <a href="Body.dc.html" aria-label="Close" style="display:grid;place-items:center;width:44px;height:44px;margin-right:-4px;border-radius:9999px;background:var(--surface)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg></a>
+  </div>
+  <button type="button" aria-haspopup="dialog" style="display:flex;width:100%;align-items:center;gap:12px;min-height:56px;margin-top:4px;border-top:1px solid var(--hair);border-bottom:1px solid var(--hair);text-align:left">
+    <span style="flex:1;font-size:16px;font-weight:700">Day</span>
+    <span style="font-size:16px;font-weight:600">Today, Thu <span class="j">24</span> Sept</span>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5b5d64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 5.5L16 12l-6.5 6.5"/></svg>
+  </button>
+  <div style="display:flex;align-items:center;gap:8px;min-height:84px;padding:8px 0;border-bottom:1px solid var(--hair)">
+    <span style="display:flex;flex:1;min-width:0;flex-direction:column"><span style="font-size:16px;font-weight:700">Weight</span><span style="font-size:14px;color:var(--ink-2)">Yesterday <span class="j">77.1</span> kg</span></span>
+    <button type="button" aria-label="Less, 0.1 kilograms" style="display:grid;place-items:center;width:44px;height:44px;border-radius:9999px;background:var(--surface)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/></svg></button>
+    <button type="button" aria-label="77.1 kilograms, suggested. Type a weight" style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:120px;min-height:56px"><span class="j" style="font-size:26px;font-weight:600;line-height:1.1;color:var(--ink-2);border-bottom:2px dotted var(--control)">77.1</span><span style="margin-top:3px;font-size:13px;font-weight:600;color:var(--ink-2)">kg</span></button>
+    <button type="button" aria-label="More, 0.1 kilograms" style="display:grid;place-items:center;width:44px;height:44px;border-radius:9999px;background:var(--surface)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+  </div>
+  <a href="Body.dc.html" style="display:flex;align-items:center;justify-content:center;height:56px;margin-top:20px;border-radius:14px;background:var(--ink);color:var(--on-ink);font-size:17px;font-weight:700">Save</a>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":402,"height":874}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

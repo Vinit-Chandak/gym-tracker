@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>Read me: Progress, revamped</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@400..800&amp;family=Atkinson+Hyperlegible+Next:wght@200..800&amp;display=swap">
+<style>
+body{margin:0;background:#ffffff}
+*{box-sizing:border-box}
+h1,h2,h3,p,ul,ol,li,dl,dt,dd{margin:0;padding:0;font:inherit}
+li{list-style:none}
+a{color:#16171b}a:hover{color:#5b5d64}
+.j{font-family:'Jost',system-ui,sans-serif;font-variant-numeric:tabular-nums lining-nums}
+</style>
+</helmet>
+<div style="width:1280px;height:2388px;box-sizing:border-box;padding:72px 80px;background:#ffffff;color:#16171b;font-family:'Atkinson Hyperlegible Next',system-ui,sans-serif;font-size:17px;line-height:1.5">
+  <header style="display:flex;align-items:flex-end;justify-content:space-between;gap:40px;padding-bottom:28px;border-bottom:2px solid #16171b">
+    <div>
+      <h1 style="font-family:'Jost',system-ui,sans-serif;font-size:64px;font-weight:700;line-height:1;letter-spacing:-0.02em">Progress, revamped</h1>
+      <p style="margin-top:14px;font-size:20px;color:#5b5d64;max-width:780px">Mockups to review before anything is built. Six sections, a new order, one total instead of three, one range control where the data is, and the next step on every screen.</p>
+    </div>
+    <dl style="display:grid;grid-template-columns:auto auto;gap:4px 16px;font-size:15px;color:#5b5d64;white-space:nowrap">
+      <dt>Branch</dt><dd style="color:#16171b;font-weight:700">claude/progress-revamp-mockups</dd>
+      <dt>Drawn on</dt><dd style="color:#16171b;font-weight:700">Thu 24 Sept 2026, day 43 of 56</dd>
+      <dt>Phone</dt><dd style="color:#16171b;font-weight:700"><span class="j">402 × 874</span>, light and dark</dd>
+    </dl>
+  </header>
+
+  <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:72px;margin-top:40px">
+    <section aria-labelledby="asked">
+      <h2 id="asked" style="font-family:'Jost',system-ui,sans-serif;font-size:30px;font-weight:700;letter-spacing:-0.012em">What you asked, answered</h2>
+      <dl style="margin-top:14px">
+        <div style="display:grid;grid-template-columns:170px minmax(0,1fr);gap:18px;padding:14px 0;border-top:1px solid #e6e6e9">
+          <dt style="font-weight:700">Body first</dt>
+          <dd>Body leads the picker and Progress opens on it. The order is Body, Overview, Strength, Running, Recovery, History: you, then the record, then each subject, then the archive.</dd>
+        </div>
+        <div style="display:grid;grid-template-columns:170px minmax(0,1fr);gap:18px;padding:14px 0;border-top:1px solid #e6e6e9">
+          <dt style="font-weight:700">One total, not three</dt>
+          <dd>Overview's calendar and its totals are now one thing. Week, Month or Programme chooses the span; each week's sessions stand at the end of its row, and under the calendar every sport says what was done of what was planned, with its time and distance. Training totals, the month's strip and the weekly charts are gone, because this says all of it once.</dd>
+        </div>
+        <div style="display:grid;grid-template-columns:170px minmax(0,1fr);gap:18px;padding:14px 0;border-top:1px solid #e6e6e9">
+          <dt style="font-weight:700">Reps and RIR</dt>
+          <dd>Agreed: neither is charted any more. Heavier load and fewer reps is progress, so a reps line alone misreads it, and RIR is the effort the programme asks for, not a result. Each lift gets one strength line chosen by what it is, Volume beside it, and every set of every session keeps its load, reps and RIR.</dd>
+        </div>
+        <div style="display:grid;grid-template-columns:170px minmax(0,1fr);gap:18px;padding:14px 0;border-top:1px solid #e6e6e9">
+          <dt style="font-weight:700">Filters</dt>
+          <dd>The funnel and the dates in the header go; only History keeps a filter sheet. Each section has one range row, right above what it changes. It names the dates actually drawn and offers only the ranges your data fills. Seven days of weight get no buttons at all, just “17 – 23 Sept · all 7 readings”.</dd>
+        </div>
+        <div style="display:grid;grid-template-columns:170px minmax(0,1fr);gap:18px;padding:14px 0;border-top:1px solid #e6e6e9;border-bottom:1px solid #e6e6e9">
+          <dt style="font-weight:700">The next step</dt>
+          <dd>Body: Log today's weight. Overview: today and the days still to come are drawn as planned. Strength: every lift opens its sessions. Running: the next planned run leads the list. Recovery: Check in for today. History: open any entry.</dd>
+        </div>
+      </dl>
+
+      <h2 style="margin-top:44px;font-family:'Jost',system-ui,sans-serif;font-size:30px;font-weight:700;letter-spacing:-0.012em">Section by section</h2>
+      <ul style="margin-top:14px">
+        <li style="padding:14px 0;border-top:1px solid #e6e6e9">
+          <p><b>Body.</b> Weight: the latest figure, its change, the line and its values. Muscles this week: the map, and each muscle's sets done of planned; a tap shows that muscle's weeks.</p>
+          <p style="margin-top:4px;color:#5b5d64">Moved in: Strength's “Sets by muscle”, now one tap on the map. Gone: the header's dates.</p>
+        </li>
+        <li style="padding:14px 0;border-top:1px solid #e6e6e9">
+          <p><b>Overview.</b> One calendar for the chosen span, days ahead drawn as planned, each week's count at its row's end, then done of planned per sport.</p>
+          <p style="margin-top:4px;color:#5b5d64">Gone: Training totals (now Programme), the month's totals strip (now the rows), Weekly sessions (now each row's count), the range caption.</p>
+        </li>
+        <li style="padding:14px 0;border-top:1px solid #e6e6e9">
+          <p><b>Strength.</b> Every lift in the range with its trend, latest figure and change, grouped by programme day with today's session first; a lift opens its line and every session's sets.</p>
+          <p style="margin-top:4px;color:#5b5d64">Gone: the exercise select and the five-way switch (Load, Reps, Volume, RIR, e1RM become one strength line and Volume). Moved out: Sets by muscle, to Body.</p>
+        </li>
+        <li style="padding:14px 0;border-top:1px solid #e6e6e9">
+          <p><b>Running.</b> Distance or Pace, one headline, the weeks, then every run, the planned and skipped ones included.</p>
+          <p style="margin-top:4px;color:#5b5d64">Gone: Duration as its own chart (each run keeps its time), and Overview's runs-per-week chart.</p>
+        </li>
+        <li style="padding:14px 0;border-top:1px solid #e6e6e9">
+          <p><b>Recovery.</b> Four averages that choose the chart, the chosen measure's readings, every reading behind View values.</p>
+          <p style="margin-top:4px;color:#5b5d64">Gone: the second count, the Range average block (each tile is the average) and Recent check-ins (the same rows as View values).</p>
+        </li>
+        <li style="padding:14px 0;border-top:1px solid #e6e6e9;border-bottom:1px solid #e6e6e9">
+          <p><b>History.</b> As it is, which you were happy with. The only section that keeps the funnel, because it filters by activity, gym, exercise and machine.</p>
+        </li>
+      </ul>
+    </section>
+
+    <section aria-labelledby="decided">
+      <h2 id="decided" style="font-family:'Jost',system-ui,sans-serif;font-size:30px;font-weight:700;letter-spacing:-0.012em">Decided with you</h2>
+      <ul style="margin-top:14px">
+        <li style="padding:14px 0;border-top:1px solid #e6e6e9">The long span is the current programme, counted from its first day. With no programme running it is the last 12 weeks.</li>
+        <li style="padding:14px 0;border-top:1px solid #e6e6e9;border-bottom:1px solid #e6e6e9">Totals compare done with planned. Days still to come are thinned icons on the calendar and a skipped part is dashed, so the next session is always in sight.</li>
+      </ul>
+
+      <h2 style="margin-top:44px;font-family:'Jost',system-ui,sans-serif;font-size:30px;font-weight:700;letter-spacing:-0.012em">Rules the boards follow</h2>
+      <ul style="margin-top:14px">
+        <li style="padding:14px 0;border-top:1px solid #e6e6e9"><b>A range is offered</b> only when your data goes back further than it and it still holds two readings; All stands beside it. Here everything is under three months old, so 3M and 1Y would draw what All draws and are not offered. The longest range offered of 3 months or less is chosen first. The dates beside it say what is drawn; a tap on them sets exact dates.</li>
+        <li style="padding:14px 0;border-top:1px solid #e6e6e9"><b>One strength line per lift.</b> Est. 1RM for barbell and dumbbell lifts prescribed at 10 reps or fewer (the app's own Epley rule). Heaviest set for machines, cables and higher-rep work, each machine its own line. Most reps for bodyweight; a weighted session is its own line. Longest hold for timed work.</li>
+        <li style="padding:14px 0;border-top:1px solid #e6e6e9"><b>Planned</b> counts tasks, as the programme does: a day that lifts and runs plans one of each. Rides and swims outside the programme count as done and are never planned.</li>
+        <li style="padding:14px 0;border-top:1px solid #e6e6e9;border-bottom:1px solid #e6e6e9"><b>Every chart is ink</b> and keeps its table of values. Pigment stays in the calendar's icons and the sports' marks.</li>
+      </ul>
+
+      <h2 style="margin-top:44px;font-family:'Jost',system-ui,sans-serif;font-size:30px;font-weight:700;letter-spacing:-0.012em">Open questions</h2>
+      <ol style="margin-top:14px">
+        <li style="display:grid;grid-template-columns:32px minmax(0,1fr);padding:14px 0;border-top:1px solid #e6e6e9"><span class="j" style="font-weight:600">1</span><span>Check in for today needs a check-in that is not tied to a workout. Build it, or send the button to Today?</span></li>
+        <li style="display:grid;grid-template-columns:32px minmax(0,1fr);padding:14px 0;border-top:1px solid #e6e6e9"><span class="j" style="font-weight:600">2</span><span>Strength lists lifts by programme day, today's first. Would you rather sort them by last trained, or by biggest change?</span></li>
+        <li style="display:grid;grid-template-columns:32px minmax(0,1fr);padding:14px 0;border-top:1px solid #e6e6e9"><span class="j" style="font-weight:600">3</span><span>Does Week earn its place in the switch, when this week's row already says “3 of 8”?</span></li>
+        <li style="display:grid;grid-template-columns:32px minmax(0,1fr);padding:14px 0;border-top:1px solid #e6e6e9"><span class="j" style="font-weight:600">4</span><span>Once there are weeks of weigh-ins, add a 7-day average line to body weight?</span></li>
+        <li style="display:grid;grid-template-columns:32px minmax(0,1fr);padding:14px 0;border-top:1px solid #e6e6e9;border-bottom:1px solid #e6e6e9"><span class="j" style="font-weight:600">5</span><span>Overview: the Week, Month, Programme switch, or all three side by side in one table (third row of boards)? The table needs no tap, but it holds three times the numbers, and its week column repeats this week’s “3 of 8” by sport.</span></li>
+      </ol>
+
+      <h2 style="margin-top:44px;font-family:'Jost',system-ui,sans-serif;font-size:30px;font-weight:700;letter-spacing:-0.012em">Reading the canvas</h2>
+      <ul style="margin-top:14px;color:#16171b">
+        <li style="padding:14px 0;border-top:1px solid #e6e6e9">The first row is each section as one whole scroll. The dashes in the margins mark where the phone's first screen ends.</li>
+        <li style="padding:14px 0;border-top:1px solid #e6e6e9">Press Play on a board to click through: the section button opens the picker, a lift opens its page, Log today's weight opens its sheet, the period switch moves between Week, Month and Programme.</li>
+        <li style="padding:14px 0;border-top:1px solid #e6e6e9;border-bottom:1px solid #e6e6e9;color:#5b5d64">The programme and its prescriptions are the seeded 8-Week Strength + Aesthetics Hybrid. Runs, weights and check-ins come from the audit account. Which days were done is illustrative, worked out with the app's own rules: one programme day a day, Epley's estimate, and its muscle counting.</li>
+      </ul>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":2388}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

@@ -26,3 +26,5 @@ docs/planning
 # Written by docs/ui-redesign/revamp/form-v2/source/build.mjs, wholesale, on every build.
 docs/ui-redesign/revamp/form-v2/canvas
 docs/ui-redesign/revamp/form-v2/tokens
+# The Progress revamp boards, kept byte-for-byte as they stand on the Claude Design canvas.
+docs/ui-redesign/revamp/progress/canvas

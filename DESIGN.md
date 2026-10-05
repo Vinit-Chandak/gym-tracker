@@ -851,6 +851,8 @@ and every control answers a press.
 - **Sections:** pages of their own are chosen by one button naming the current one, which opens a
   sheet of them; the range the section shows sits beside it (Progress: Overview, History,
   Strength, Running, Recovery, Body). Six choices never crowd a screen and none is clipped.
+  Progress is to open on Body, first in its sheet (owner, 5 October 2026); the revamp that does
+  it is drawn in [`docs/ui-redesign/revamp/progress/`](docs/ui-redesign/revamp/progress/README.md).
 
 ### Sheets
 
