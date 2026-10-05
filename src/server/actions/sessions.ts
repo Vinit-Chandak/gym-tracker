@@ -415,20 +415,33 @@ async function weightUnit(user: { id: string; email: string | null }) {
  * "Yes, it's here" for a gym basic, "Available" for any other machine: registered at once and
  * put on the exercise, and the athlete stays in the workout.
  */
+/**
+ * An answer to a machine question, and where it put the exercise when it moved it (a machine
+ * attached, or a family's variant): the screen carries a set typed but not saved there with it.
+ */
+export type MachineAnswerResult =
+  | { ok: true; movedTo?: { exerciseId: string; equipmentInstanceId: string } | null }
+  | { ok: false; error: string };
+
 export async function confirmEquipmentHereAction(
   workoutExerciseId: string,
   equipmentTypeId: string,
-): Promise<ActionResult> {
+): Promise<MachineAnswerResult> {
   const user = await requireUser();
   if (!ids.safeParse([workoutExerciseId, equipmentTypeId]).success)
     return { ok: false, error: "Reload the workout and try again." };
   try {
     const unit = await weightUnit(user);
-    await withUser(getDb(), user.id, (tx) =>
+    const outcome = await withUser(getDb(), user.id, (tx) =>
       confirmEquipmentHere(tx, user.id, workoutExerciseId, equipmentTypeId, unit),
     );
     refreshSession();
-    return { ok: true };
+    return {
+      ok: true,
+      movedTo: outcome.attached
+        ? { exerciseId: outcome.exerciseId, equipmentInstanceId: outcome.equipmentInstanceId }
+        : null,
+    };
   } catch (error) {
     return { ok: false, error: describe(error) };
   }
@@ -462,23 +475,32 @@ export async function chooseEquipmentVariantAction(
   workoutExerciseId: string,
   assumedTypeId: string,
   variantTypeId: string,
-): Promise<ActionResult> {
+): Promise<MachineAnswerResult> {
   const user = await requireUser();
   if (!ids.safeParse([workoutExerciseId, assumedTypeId, variantTypeId]).success)
     return { ok: false, error: "Reload the workout and try again." };
   try {
     const unit = await weightUnit(user);
-    await withUser(getDb(), user.id, (tx) =>
+    const outcome = await withUser(getDb(), user.id, (tx) =>
       chooseEquipmentVariant(tx, user.id, workoutExerciseId, assumedTypeId, variantTypeId, unit),
     );
     refreshSession();
-    return { ok: true };
+    return {
+      ok: true,
+      movedTo:
+        outcome.kind === "registered"
+          ? null
+          : { exerciseId: outcome.exerciseId, equipmentInstanceId: outcome.equipmentInstanceId },
+    };
   } catch (error) {
     return { ok: false, error: describe(error) };
   }
 }
 
-/** "It has gone": the machine is archived, its history kept, and the exercise asks again. */
+/**
+ * "It has gone": the machine is archived, its history kept, and the kind the exercise is done on
+ * is recorded as not here when nothing else here has it, so the fallbacks are offered.
+ */
 export async function archiveWorkoutMachineAction(
   workoutExerciseId: string,
   equipmentInstanceId: string,

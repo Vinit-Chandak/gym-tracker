@@ -2,6 +2,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
+  exercises,
   programDays,
   programExerciseFallbacks,
   programExercises,
@@ -13,6 +14,7 @@ import { seedReferenceData } from "@/db/seed/reference";
 import { createTestDatabase, type TestDatabase } from "@/db/test/pglite";
 import { withUser } from "@/db/with-user";
 import { parseProgramBlueprint, type ProgramBlueprint } from "@/domain/program-blueprint";
+import { resetReferenceCache } from "@/server/queries/reference";
 
 import {
   createProgramFromBlueprint,
@@ -126,6 +128,45 @@ describe("materialising a blueprint", () => {
       runs: [],
     });
     await expect(adopt(unknownExercise, "2027-06-07")).rejects.toThrow(MissingReferenceDataError);
+  });
+
+  it("leaves out a fallback still awaiting the owner where drafts are not seeded, and keeps the rest", async () => {
+    /** The preacher curl slot's fallbacks in a programme, by exercise slug and rank. */
+    const preacherBackups = async (programId: string) => {
+      const slugById = new Map(
+        (await t.db.select({ id: exercises.id, slug: exercises.slug }).from(exercises)).map(
+          (row) => [row.id, row.slug],
+        ),
+      );
+      const rows = await t.db
+        .select({
+          planned: programExercises.exerciseId,
+          backup: programExerciseFallbacks.fallbackExerciseId,
+          rank: programExerciseFallbacks.rank,
+        })
+        .from(programExerciseFallbacks)
+        .innerJoin(
+          programExercises,
+          eq(programExercises.id, programExerciseFallbacks.programExerciseId),
+        )
+        .innerJoin(programDays, eq(programDays.id, programExercises.programDayId))
+        .where(eq(programDays.programId, programId));
+      return rows
+        .filter((row) => slugById.get(row.planned) === "preacher-curl")
+        .sort((a, b) => a.rank - b.rank)
+        .map((row) => [slugById.get(row.backup), row.rank]);
+    };
+    // Production's catalogue: the incline bench preacher curl is still a draft, so it is not here.
+    const published = await adopt(STRENGTH_AESTHETICS_HYBRID_8WK, "2027-07-05");
+    expect(await preacherBackups(published.id)).toEqual([["ez-bar-curl", 2]]);
+    // A local database seeds the drafts, and the template's first choice comes with them.
+    await seedReferenceData(t.db, { drafts: true });
+    resetReferenceCache();
+    const withDrafts = await adopt(STRENGTH_AESTHETICS_HYBRID_8WK, "2027-07-05");
+    expect(await preacherBackups(withDrafts.id)).toEqual([
+      ["incline-bench-preacher-curl", 1],
+      ["ez-bar-curl", 2],
+    ]);
   });
 });
 

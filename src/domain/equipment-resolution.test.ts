@@ -333,6 +333,119 @@ describe("equipment resolution", () => {
     });
   });
 
+  it("holds a chosen machine to the rest of what its exercise needs", () => {
+    const smith = machine("h-smith", "home", "smith_machine", "Smith");
+    const preferred = { ...base, exercise: smithHipThrust, fallbacks: [], gymEquipment: [smith] };
+    // At home nothing is assumed: the Smith machine is chosen, and the bench is asked about.
+    expect(
+      resolveExerciseAtGym({ ...preferred, gym: home, preferredEquipmentInstanceId: "h-smith" }),
+    ).toMatchObject({ status: "unknown", missingEquipmentTypeIds: ["flat_bench"] });
+    // A bench marked absent rules the Smith hip thrust out, preferred machine or not.
+    expect(
+      resolveExerciseAtGym({
+        ...preferred,
+        gym: home,
+        preferredEquipmentInstanceId: "h-smith",
+        absentEquipmentTypeIds: new Set(["flat_bench"]),
+      }),
+    ).toMatchObject({ status: "unavailable", absentEquipmentTypeIds: ["flat_bench"] });
+    // So does a machine the athlete tied to the exercise.
+    expect(
+      resolveExerciseAtGym({
+        ...preferred,
+        gym: home,
+        options: [
+          {
+            exerciseId: "smith-hip-thrust",
+            equipmentTypeId: null,
+            equipmentInstanceId: "h-smith",
+            preferenceRank: 0,
+          },
+        ],
+        absentEquipmentTypeIds: new Set(["flat_bench"]),
+      }),
+    ).toMatchObject({ status: "unavailable" });
+    // At a gym the bench is a basic: the preferred machine is used, the bench taken as read.
+    const gymSmith = machine("c-smith", "gym-c", "smith_machine", "Smith");
+    expect(
+      resolveExerciseAtGym({
+        ...atGym,
+        exercise: smithHipThrust,
+        gym: gymC,
+        fallbacks: [],
+        gymEquipment: [gymSmith],
+        preferredEquipmentInstanceId: "c-smith",
+      }),
+    ).toMatchObject({
+      status: "direct",
+      basis: "assumed",
+      equipmentInstance: { id: "c-smith" },
+      assumedTypeIds: ["flat_bench"],
+    });
+  });
+
+  it("holds a fallback's named machine to the rest of what its exercise needs", () => {
+    const bar = machine("c-bar", "gym-c", "barbell", "Olympic bar");
+    const named = {
+      gymId: "gym-c",
+      fallbackExercise: barbellBench,
+      fallbackEquipmentTypeId: null,
+      fallbackEquipmentInstanceId: "c-bar",
+      rank: 1,
+    };
+    const resolve = (absent: string[]) =>
+      resolveExerciseAtGym({
+        ...atGym,
+        exercise: smithCalfRaise,
+        gym: gymC,
+        fallbacks: [named],
+        gymEquipment: [bar],
+        absentEquipmentTypeIds: new Set(["smith_machine", ...absent]),
+      });
+    expect(resolve([])).toMatchObject({
+      status: "fallback",
+      exercise: { id: "barbell-bench-press" },
+      equipmentInstance: { id: "c-bar" },
+    });
+    // With the rack marked absent, the named bar is no way to do it.
+    expect(resolve(["power_rack"])).toMatchObject({ status: "unavailable" });
+    // A fallback limited to a type is held to the rest of its exercise's group the same way.
+    const byType = resolveExerciseAtGym({
+      ...atGym,
+      exercise: smithCalfRaise,
+      gym: gymC,
+      fallbacks: [
+        { ...named, fallbackEquipmentInstanceId: null, fallbackEquipmentTypeId: "barbell" },
+      ],
+      gymEquipment: [bar],
+      absentEquipmentTypeIds: new Set(["smith_machine", "flat_bench"]),
+    });
+    expect(byType).toMatchObject({ status: "unavailable" });
+  });
+
+  it("takes a tie to a machine on trust when the exercise has no alternatives to check it by", () => {
+    const own = exercise("own-press");
+    const result = resolveExerciseAtGym({
+      ...atGym,
+      exercise: own,
+      gym: gymA,
+      fallbacks: [],
+      options: [
+        {
+          exerciseId: "own-press",
+          equipmentTypeId: null,
+          equipmentInstanceId: "a-pec-deck-1",
+          preferenceRank: 0,
+        },
+      ],
+    });
+    expect(result).toMatchObject({
+      status: "direct",
+      basis: "confirmed",
+      equipmentInstance: { id: "a-pec-deck-1" },
+    });
+  });
+
   it("no longer resolves a plain dip on the assisted dip machine", () => {
     const assistedOnly = [machine("h-assist", "home", "dip_machine", "Assisted dip")];
     expect(

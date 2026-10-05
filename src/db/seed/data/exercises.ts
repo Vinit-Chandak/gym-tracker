@@ -5096,4 +5096,30 @@ export const EXERCISES: readonly ExerciseSeed[] = [
     equipment: ["medicine_ball"],
     review: "draft",
   },
+  // The owner's choice of backup for the template's preacher curl (5 October 2026): the same curl
+  // over the top of an incline bench, for gyms without a preacher bench. "Preacher curl" already
+  // covers dumbbells on a preacher bench, so this one is named for the bench it uses.
+  {
+    slug: "incline-bench-preacher-curl",
+    name: "Incline bench preacher curl",
+    category: "hypertrophy",
+    modality: "dumbbell",
+    movementPattern: "elbow_flexion",
+    primaryMuscles: ["biceps"],
+    secondaryMuscles: ["forearms"],
+    loadPortability: "global",
+    defaultRepMin: 8,
+    defaultRepMax: 12,
+    defaultRir: 1,
+    defaultRestSeconds: 90,
+    defaultLoadIncrement: 1,
+    logNote: "Per side. Load is the single dumbbell.",
+    equipment: [["dumbbells", "adjustable_bench"]],
+    review: "draft",
+  },
 ];
+
+/** The catalogue additions still awaiting the owner, by slug: seeded only where drafts are. */
+export const DRAFT_EXERCISE_SLUGS: ReadonlySet<string> = new Set(
+  EXERCISES.flatMap((exercise) => (exercise.review === "draft" ? [exercise.slug] : [])),
+);

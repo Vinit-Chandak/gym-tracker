@@ -234,6 +234,69 @@ function groupState(group: readonly string[], inventory: Inventory): GroupState 
 }
 
 /**
+ * An exercise led by one particular type: its alternatives whose primary type that is, with the
+ * rest of each group still needed. A Smith machine is no help to a Smith hip thrust once the bench
+ * is marked absent. Null when the type leads none of the exercise's alternatives.
+ */
+function ledBy(
+  exercise: ExerciseRef,
+  types: readonly string[],
+  inventory: Inventory,
+  requirements: readonly RequirementRef[] | undefined,
+  options: readonly EquipmentOptionRef[],
+  modalityTypeIds: ModalityTypeIds,
+): GroupState | null {
+  const led = groupsFor(exercise, requirements, options, modalityTypeIds).filter(
+    (group) => group[0] !== undefined && types.includes(group[0]),
+  );
+  if (led.length === 0) return null;
+  const states = led.map((group) => groupState(group, inventory));
+  const usable = states.find((state) => state.state === "confirmed" || state.state === "assumed");
+  if (usable) return usable;
+  const unknown = states.filter((state) => state.state === "unknown");
+  if (unknown.length > 0)
+    return { state: "unknown", missing: [...new Set(unknown.flatMap((state) => state.missing))] };
+  return {
+    state: "absent",
+    absent: [...new Set(states.flatMap((state) => (state.state === "absent" ? state.absent : [])))],
+  };
+}
+
+/**
+ * An exercise on one particular machine (one the athlete chose, tied to it or named in a
+ * fallback): the alternative that machine leads, with the rest of its group still needed. A
+ * machine that leads none of the exercise's alternatives, an athlete's own tie or an exercise
+ * with no groups, is taken on trust.
+ */
+function onMachine(
+  exercise: ExerciseRef,
+  machine: EquipmentInstanceRef,
+  inventory: Inventory,
+  requirements: readonly RequirementRef[] | undefined,
+  options: readonly EquipmentOptionRef[],
+  modalityTypeIds: ModalityTypeIds,
+): Evaluation {
+  const led = ledBy(exercise, typesOf(machine), inventory, requirements, options, modalityTypeIds);
+  if (led === null || led.state === "free")
+    return {
+      state: "available",
+      equipmentInstance: machine,
+      basis: "confirmed",
+      primaryTypeId: machine.equipmentTypeId,
+      assumedTypeIds: [],
+    };
+  if (led.state === "unknown") return { state: "unknown", missing: led.missing };
+  if (led.state === "absent") return { state: "absent", absent: led.absent };
+  return {
+    state: "available",
+    equipmentInstance: machine,
+    basis: led.state,
+    primaryTypeId: led.primary,
+    assumedTypeIds: led.assumed,
+  };
+}
+
+/**
  * How one exercise stands at a location: on a machine of the user's own choosing first, then
  * the first alternative every type of which is registered, then (needing nothing at all) none,
  * then the first alternative the location takes for granted. Otherwise unknown, listing what
@@ -246,19 +309,15 @@ export function evaluateExercise(
   options: readonly EquipmentOptionRef[],
   modalityTypeIds: ModalityTypeIds = {},
 ): Evaluation {
-  // A machine the user tied to this exercise (a custom exercise's, a preferred one).
+  // A machine the user tied to this exercise (a custom exercise's, a preferred one), when the
+  // rest of the alternative it leads is here too; otherwise the alternatives decide below.
   for (const option of options
     .filter((o) => o.exerciseId === exercise.id && o.equipmentInstanceId)
     .sort((a, b) => a.preferenceRank - b.preferenceRank)) {
     const exact = inventory.active.find((i) => i.id === option.equipmentInstanceId);
-    if (exact)
-      return {
-        state: "available",
-        equipmentInstance: exact,
-        basis: "confirmed",
-        primaryTypeId: exact.equipmentTypeId,
-        assumedTypeIds: [],
-      };
+    if (!exact) continue;
+    const tied = onMachine(exercise, exact, inventory, requirements, options, modalityTypeIds);
+    if (tied.state === "available") return tied;
   }
 
   const states = groupsFor(exercise, requirements, options, modalityTypeIds).map((group) => ({
@@ -317,24 +376,34 @@ export function evaluateFallback(
 ): Evaluation {
   if (fallback.fallbackEquipmentInstanceId) {
     const exact = inventory.active.find((i) => i.id === fallback.fallbackEquipmentInstanceId);
-    return exact
-      ? {
-          state: "available",
-          equipmentInstance: exact,
-          basis: "confirmed",
-          primaryTypeId: exact.equipmentTypeId,
-          assumedTypeIds: [],
-        }
-      : // A named machine that is archived or gone is no help, and asking about it is not either.
-        { state: "absent", absent: [] };
+    // A named machine that is archived or gone is no help, and asking about it is not either.
+    if (!exact) return { state: "absent", absent: [] };
+    // Named, it still needs the rest of what its exercise uses with it (a barbell, a rack).
+    return onMachine(
+      fallback.fallbackExercise,
+      exact,
+      inventory,
+      requirements,
+      options,
+      modalityTypeIds,
+    );
   }
   if (fallback.fallbackEquipmentTypeId) {
-    const result = groupState([fallback.fallbackEquipmentTypeId], inventory);
+    const typeId = fallback.fallbackEquipmentTypeId;
+    const result =
+      ledBy(
+        fallback.fallbackExercise,
+        [typeId],
+        inventory,
+        requirements,
+        options,
+        modalityTypeIds,
+      ) ?? groupState([typeId], inventory);
     if (result.state === "unknown") return { state: "unknown", missing: result.missing };
     if (result.state === "absent") return { state: "absent", absent: result.absent };
     return {
       state: "available",
-      equipmentInstance: machinesWithType(inventory, fallback.fallbackEquipmentTypeId)[0] ?? null,
+      equipmentInstance: machinesWithType(inventory, typeId)[0] ?? null,
       basis: result.state,
       primaryTypeId: result.primary,
       assumedTypeIds: result.assumed,
@@ -386,15 +455,20 @@ export function resolveExerciseAtGym(input: ResolutionInput): Resolution {
 
   if (input.preferredEquipmentInstanceId) {
     const preferred = inventory.active.find((i) => i.id === input.preferredEquipmentInstanceId);
-    if (preferred)
-      return {
-        status: "direct",
-        exercise,
-        equipmentInstance: preferred,
-        basis: "confirmed",
-        primaryTypeId: preferred.equipmentTypeId,
-        assumedTypeIds: [],
-      };
+    // The preferred machine, when the rest of the alternative it leads is here too; otherwise
+    // what can be done is decided below, as if nothing were preferred.
+    const onPreferred = preferred
+      ? onMachine(
+          exercise,
+          preferred,
+          inventory,
+          input.requirements,
+          input.options,
+          input.modalityTypeIds ?? {},
+        )
+      : null;
+    if (onPreferred && available(onPreferred))
+      return { status: "direct", exercise, ...availability(onPreferred) };
   }
 
   const planned = evaluateExercise(

@@ -69,6 +69,7 @@ const exercise: ExerciseVM = {
   decision: null,
   coachNote: null,
   coachRestSeconds: null,
+  coachPerSide: null,
   guidance: null,
 };
 

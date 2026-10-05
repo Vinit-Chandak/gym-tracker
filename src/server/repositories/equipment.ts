@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, ne, notExists, sql } from "drizzle-orm";
 
 import { isUniqueViolation } from "@/db/errors";
 import {
@@ -9,6 +9,9 @@ import {
   exercises,
   gymAbsentEquipmentTypes,
   gyms,
+  setLogs,
+  workoutExercises,
+  workoutSessions,
 } from "@/db/schema";
 import type { DbOrTx } from "@/db/types";
 import { compatibleMachines, inventoryAt } from "@/domain/equipment-resolution";
@@ -396,7 +399,9 @@ export async function updateEquipment(
 
 /**
  * Archives or restores a machine. Set logs that reference it are never touched. A restored
- * machine is here again, so its types stop being absent.
+ * machine is here again, so its types stop being absent. An archived one leaves an open
+ * workout's exercises that have nothing logged on it, for the workout to settle again; those
+ * with sets keep it, as their history does.
  */
 export async function setEquipmentActive(
   db: DbOrTx,
@@ -411,5 +416,28 @@ export async function setEquipmentActive(
     .returning({ id: equipmentInstances.id, gymId: equipmentInstances.gymId });
   if (row && isActive)
     await clearAbsences(db, userId, row.gymId, await machineTypeIds(db, userId, equipmentId));
+  if (row && !isActive)
+    await db
+      .update(workoutExercises)
+      .set({ equipmentInstanceId: null })
+      .where(
+        and(
+          eq(workoutExercises.userId, userId),
+          eq(workoutExercises.equipmentInstanceId, equipmentId),
+          inArray(
+            workoutExercises.workoutSessionId,
+            db
+              .select({ id: workoutSessions.id })
+              .from(workoutSessions)
+              .where(and(eq(workoutSessions.userId, userId), isNull(workoutSessions.completedAt))),
+          ),
+          notExists(
+            db
+              .select({ id: setLogs.id })
+              .from(setLogs)
+              .where(eq(setLogs.workoutExerciseId, workoutExercises.id)),
+          ),
+        ),
+      );
   return row !== undefined;
 }

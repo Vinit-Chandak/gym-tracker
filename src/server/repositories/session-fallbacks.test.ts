@@ -17,8 +17,10 @@ import { resetReferenceCache } from "@/server/queries/reference";
 
 import { markEquipmentAbsent, unmarkEquipmentAbsent } from "./absent-equipment";
 import { storePlan } from "./coach-plans";
+import { createEquipment, setEquipmentActive } from "./equipment";
 import { addGymFallback } from "./fallbacks";
 import { listGyms } from "./gyms";
+import { defaultMachineInput } from "./starter-equipment";
 import {
   discardSession,
   getSessionDetail,
@@ -153,6 +155,9 @@ it("keeps the exercise the coach wrote targets for, and the targets stay with it
             slotId: slot.id,
             action: "keep",
             exerciseSlug: "leg-press-horizontal",
+            note: "Feet high on the platform.",
+            restSeconds: 240,
+            perSide: true,
             sets: [
               { reps: 10, weight: 100, rir: 2 },
               { reps: 10, weight: 100, rir: 2 },
@@ -170,6 +175,11 @@ it("keeps the exercise the coach wrote targets for, and the targets stay with it
     [100, 10],
     [100, 10],
   ]);
+  expect(row).toMatchObject({
+    coachNote: "Feet high on the platform.",
+    coachRestSeconds: 240,
+    coachPerSide: true,
+  });
   // The workout still offers the athlete's swap for the machine nobody has answered for.
   expect(row.decision?.resolution.status).toBe("fallback");
   expect(row.decision?.fallbackOptions.map((o) => o.exerciseName)).toContain("45° leg press");
@@ -185,6 +195,91 @@ it("keeps the exercise the coach wrote targets for, and the targets stay with it
   const swapped = await detail();
   expect(swapped.exercise.slug).toBe("leg-press-45");
   expect(swapped.suggestion?.kind).not.toBe("coach");
+  // Nor its rest, its note or its per-side: they were the other machine's.
+  expect(swapped).toMatchObject({ coachNote: null, coachRestSeconds: null, coachPerSide: null });
   expect(swapped.decision?.ask?.kind).toBe("confirm_basic");
   await as((tx) => discardSession(tx, user.id, sessionId));
+});
+
+/** The coach keeping a slot as it stands, with targets or without. */
+async function keep(slug: string, sets: { reps: number; weight: number; rir: number }[] = []) {
+  const slot = await slotOf(slug);
+  return as((tx) =>
+    storePlan(tx, user.id, {
+      slot: { cycleIndex: 1, dayIndex: slot.dayIndex },
+      gymId: samsung,
+      trigger: "nightly",
+      plan: {
+        summary: "As planned.",
+        exercises: [{ slotId: slot.id, action: "keep", exerciseSlug: slug, sets }],
+      },
+    }),
+  );
+}
+
+/** The template backs hip abduction up with a cable; says there is no cable station here. */
+async function withoutCables(fn: () => Promise<void>) {
+  const [cable] = await t.db
+    .select({ id: equipmentTypes.id })
+    .from(equipmentTypes)
+    .where(eq(equipmentTypes.slug, "cable_station"));
+  await as((tx) => markEquipmentAbsent(tx, user.id, samsung, cable!.id));
+  try {
+    await fn();
+  } finally {
+    await as((tx) => unmarkEquipmentAbsent(tx, user.id, samsung, cable!.id));
+  }
+}
+
+it("holds a kept slot to the backup rule: an unconfirmed machine needs a backup available now", async () => {
+  // Nobody has confirmed a hip abduction machine at Samsung Gym. Its backup, cable hip abduction,
+  // needs a cable machine: the gym's cable station is a basic, so it is available now.
+  await expect(keep("hip-abduction", [{ reps: 12, weight: 40, rir: 2 }])).resolves.toBeTruthy();
+  // Once the athlete has said there is no cable station, nothing backs the machine up.
+  await withoutCables(async () => {
+    await expect(keep("hip-abduction", [{ reps: 12, weight: 40, rir: 2 }])).rejects.toThrow(
+      /nobody has confirmed/,
+    );
+    await expect(keep("hip-abduction")).rejects.toThrow(/nobody has confirmed/);
+  });
+});
+
+it("counts a backup only as the workout would use it, on the machine it names", async () => {
+  const [type] = await t.db
+    .select()
+    .from(equipmentTypes)
+    .where(eq(equipmentTypes.slug, "leg_press_horizontal"));
+  // Two horizontal leg presses: the one the fallback names has gone; the other is still here.
+  const [gone, other] = await as((tx) =>
+    Promise.all([
+      createEquipment(
+        tx,
+        user.id,
+        samsung,
+        defaultMachineInput(type!, "kg", "Old horizontal press"),
+      ),
+      createEquipment(
+        tx,
+        user.id,
+        samsung,
+        defaultMachineInput(type!, "kg", "New horizontal press"),
+      ),
+    ]),
+  );
+  await as((tx) =>
+    addGymFallback(tx, user.id, {
+      gymId: samsung,
+      exerciseId: ex["hip-abduction"]!,
+      fallbackExerciseId: ex["leg-press-horizontal"]!,
+      fallbackEquipmentInstanceId: gone!.id,
+    }),
+  );
+  // With no cable station, the fallback naming a machine is the only backup left.
+  await withoutCables(async () => {
+    // While the named machine is here, it is the backup.
+    await expect(keep("hip-abduction")).resolves.toBeTruthy();
+    await as((tx) => setEquipmentActive(tx, user.id, gone!.id, false));
+    await expect(keep("hip-abduction")).rejects.toThrow(/nobody has confirmed/);
+  });
+  expect(other).toBeTruthy();
 });

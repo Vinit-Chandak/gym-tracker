@@ -27,10 +27,12 @@ found three rules it could not work around (S1–S3); the owner settled them on 
 2. **The coach's backup rule (S1).** The coach plans gym basics without a backup. Any other
    machine nobody has confirmed may be planned only when its slot has a backup available now: a
    basic, free weights or confirmed equipment at a gym; bodyweight or confirmed equipment at
-   home. Equipment marked absent is never planned. The programme validator, the opening-plan
-   validator and the coach's instructions enforce it, and the coach's lookups say confirmed,
-   assumed, unknown or absent instead of true or false. A saved routine starts when nothing in
-   it is absent; anything unknown is settled in the workout.
+   home. Equipment marked absent is never planned. This holds for every exercise a plan names,
+   a programme slot it keeps included, and a backup counts only as the workout would use it, on
+   the type or the machine it names. The programme validator, the opening-plan validator, the
+   session-plan validator and the coach's instructions enforce it, and the coach's lookups say
+   confirmed, assumed, unknown or absent instead of true or false. A saved routine starts when
+   nothing in it is absent; anything unknown is settled in the workout.
 3. **First use of a basic.** The first time an exercise that keeps machine history uses a
    basic machine nobody has confirmed, the workout asks once, with its picture: "Yes, it's
    here" registers the machine before the first set, "Not here" records the absence and offers
@@ -41,9 +43,12 @@ found three rules it could not work around (S1–S3); the owner settled them on 
    exercise, ordered alternatives; each is a group of types that must all be present, with one
    primary type, the load-bearing equipment a workout records and keys history on. A group is
    satisfied when each of its types is on an active machine at the location, or is assumed
-   there and not marked absent; an explicit absence of any of its types rules it out. The flat
-   `exercise_equipment_options` stay for the user's own instance-level rows (a preferred
-   machine, a custom exercise's machine) and hold each alternative's primary type.
+   there and not marked absent; an explicit absence of any of its types rules it out. A machine
+   chosen for an exercise (preferred, tied to it, named in a fallback, or already on it in a
+   workout) leads its alternative, whose other types must still be there: the workout asks about
+   what nobody has answered for. The flat `exercise_equipment_options` stay for the user's own
+   instance-level rows (a preferred machine, a custom exercise's machine) and hold each
+   alternative's primary type.
 5. **A machine can have several types.** `equipment_instance_types` lists every type a machine
    is; a trigger keeps its display type (`equipment_instances.equipment_type_id`) there. A
    required type is satisfied by any active machine at the location that has it, so a lat
@@ -55,7 +60,9 @@ found three rules it could not work around (S1–S3); the owner settled them on 
 6. **Presence and absence are reconciled per type.** Registering or restoring a machine
    deletes its types' absence rows in the same transaction. Marking a type absent while an
    active machine has it asks whether the machine has gone (archive it, keeping its history)
-   or is out of use today. Gyms registered in full under the old "Select all" stay as they are.
+   or is out of use today. Gone records that kind as not here when no other machine there has
+   it, and an archived machine leaves the open workout's exercises that have nothing logged on
+   it. Gyms registered in full under the old "Select all" stay as they are.
 7. **The answer to "Which sounds like you?" lives on the profile** (`training_experience`):
    asked on the first step of setup, it decides the machines step's suggestions, and the
    coach's intake starts from it instead of asking again.
@@ -65,6 +72,10 @@ found three rules it could not work around (S1–S3); the owner settled them on 
 - A new account at a gym can be given a full programme on day one; its machines are confirmed
   one tap at a time as each is first used, and only confirmed or restored machines become
   inventory.
+- The built-in programme backs every slot the basics cannot do with a fallback they can (owner,
+  5 October 2026): the preacher curl, the horizontal leg press and hip abduction gained theirs,
+  so the coach can keep them with targets at a gym nobody has answered for. A fallback naming an
+  exercise still awaiting approval is left out of a programme wherever drafts are not seeded.
 - The seed rebuilds requirement groups, options, assumptions, combinations' members and
   demonstrations in one transaction, so no request sees an exercise with no equipment.
 - A gym whose athlete marks the barbell absent now really has no barbell work, which the modality

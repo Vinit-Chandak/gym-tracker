@@ -11,19 +11,19 @@ production deploy leaves out until they are approved.
 | Record | Count | Of which drafts |
 | --- | --- | --- |
 | Equipment types | 101 | 8 |
-| Exercises | 288 | 12 |
+| Exercises | 289 | 13 |
 | Inactive exercises | 0 | – |
-| Requirement alternatives | 480 | 25 |
-| Exercises with types used together | 52 | 0 |
+| Requirement alternatives | 481 | 26 |
+| Exercises with types used together | 53 | 1 |
 | Corrected mappings | 120 | – |
 | Combination machines | 11 | 8 |
 | Families | 5 | – |
 | Gym basics (assumed at a gym) | 18 | – |
 | Starter presets | 3 | – |
-| Aliases | 540 | 107 |
+| Aliases | 542 | 109 |
 | Guides | 58 | 58 |
 | Demonstration links | 59 | 59 |
-| Drawings | 67 | 67 |
+| Drawings | 111 | 111 |
 
 ## Deployed catalogue
 
@@ -67,7 +67,7 @@ way to do an exercise and every alias that depends on them. Approving one is tak
 | `ab_crunch_back_extension` | Ab crunch and back extension | `ab_crunch_machine`, `back_extension_machine` | Ab and back machine; Low back abdominal |
 | `chest_press_lat_pulldown` | Chest press and lat pulldown | `chest_press_machine`, `lat_pulldown` | Seated chest press and lat pull down |
 
-### Exercises (12)
+### Exercises (13)
 
 | Exercise | Name | Modality | Measured in | Equipment |
 | --- | --- | --- | --- | --- |
@@ -83,6 +83,7 @@ way to do an exercise and every alias that depends on them. Approving one is tak
 | `lever-squat` | Lever squat | machine | reps | lever_squat_machine |
 | `machine-high-row` | Machine high row | machine | reps | high_row_machine |
 | `medicine-ball-slam` | Medicine ball slam | cardio | reps | medicine_ball |
+| `incline-bench-preacher-curl` | Incline bench preacher curl | dumbbell | reps | (dumbbells + adjustable_bench) |
 
 ### Ways to do a published exercise on a draft type (9)
 
@@ -501,16 +502,16 @@ None.
 | A legacy form cue (shown until a guide is published) | 31 |
 | A legacy form link | 8 |
 | At least one demonstration link | 58 |
-| Draft exercises awaiting approval (not counted above) | 12 |
+| Draft exercises awaiting approval (not counted above) | 13 |
 
-Template exercises and fallbacks without a guide: none.
+Template exercises and fallbacks without a guide: `incline-bench-preacher-curl`, `ez-bar-curl`, `cable-hip-abduction`.
 
 Guides without a demonstration link: none.
 
 ## Missing assets
 
-- Shown in the machines step (basics, presets, combinations) without a drawing: `hip_abduction`, `hip_adduction`, `calf_raise_machine`, `seated_calf_raise`, `ab_crunch_machine`, `hip_thrust_machine`, `seated_row_cable`, `leg_extension`.
-- Other types without a drawing: 21.
-- Draft types and combinations without a drawing: `high_row_machine`, `seated_row_machine`, `decline_press_machine`, `lever_squat_machine`, `multi_hip_machine`, `flat_bench_press_station`, `incline_bench_press_station`, `military_press_bench`, `leg_extension_lying_curl`, `hip_abduction_adduction`, `multi_press`, `leg_press_hack_squat`, `biceps_triceps_machine`, `knee_raise_dip_pull_up_tower`, `ab_crunch_back_extension`, `chest_press_lat_pulldown`.
+- Shown in the machines step (basics, presets, combinations) without a drawing: none.
+- Other types without a drawing: 1.
+- Draft types and combinations without a drawing: none.
 - Types without a description: none.
 

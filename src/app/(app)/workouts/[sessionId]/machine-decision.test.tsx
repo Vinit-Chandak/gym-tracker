@@ -87,6 +87,7 @@ function show(d: ExerciseDecision, given = actions()) {
   const onFallback = vi.fn();
   const onMessage = vi.fn();
   const onAnnounce = vi.fn();
+  const onMoved = vi.fn();
   render(
     <LoggerActionsProvider value={given}>
       <Held
@@ -97,10 +98,11 @@ function show(d: ExerciseDecision, given = actions()) {
         onFallback={onFallback}
         onMessage={onMessage}
         onAnnounce={onAnnounce}
+        onMoved={onMoved}
       />
     </LoggerActionsProvider>,
   );
-  return { actions: given, onFallback, onMessage, onAnnounce };
+  return { actions: given, onFallback, onMessage, onAnnounce, onMoved };
 }
 
 const BASIC = decision({
@@ -135,12 +137,19 @@ const BASIC = decision({
 });
 
 it("settles a gym basic with one tap, registering it on Yes, it's here", async () => {
-  const { actions: given, onAnnounce } = show(BASIC);
+  const movedTo = { exerciseId: "lp45-exercise", equipmentInstanceId: "m-new" };
+  const {
+    actions: given,
+    onAnnounce,
+    onMoved,
+  } = show(BASIC, actions({ confirmHere: vi.fn(async () => ({ ok: true as const, movedTo })) }));
   // The question labels its answers, as one group.
   const answers = screen.getByRole("group", { name: "Is there a 45° leg press here?" });
   fireEvent.click(within(answers).getByRole("button", { name: "Yes, it’s here" }));
   await waitFor(() => expect(given.confirmHere).toHaveBeenCalledWith("slot", "lp45"));
   expect(onAnnounce).toHaveBeenCalledWith("45° leg press registered here.");
+  // Where the machine went, so the logger carries a set typed before the answer with it.
+  expect(onMoved).toHaveBeenCalledWith(movedTo);
   expect(screen.queryByRole("button", { name: "Not sure" })).toBeNull();
 });
 

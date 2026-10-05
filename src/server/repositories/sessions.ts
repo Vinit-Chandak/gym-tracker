@@ -388,6 +388,8 @@ export type SessionExercise = {
   coachNote: string | null;
   /** Rest the coach asked for, in place of the programme's target. */
   coachRestSeconds: number | null;
+  /** Each set on both sides, as the coach said for this session; null keeps the programme's. */
+  coachPerSide: boolean | null;
   /**
    * How to do it (plan: exercise technique and media): the guide, how to log, the exercise's own
    * notes and demonstrations, as drafts allow. Null when the read leaves guidance out.
@@ -597,10 +599,17 @@ export async function getSessionDetail(
   const planAdditions = (coachPlan?.exercises ?? []).filter((e) => e.slotId === null);
 
   // What the gym is assumed to have is the resolver's to say (ADR 0041): every exercise that
-  // needs equipment and has no machine is asked about, and only those with something to settle
-  // come back with a decision.
+  // needs equipment and has no machine is asked about, and so is one on a machine before its
+  // first set, for the rest of what that machine is used with; only those with something to
+  // settle come back with a decision.
+  const logged = new Set(setRows.map((set) => set.workoutExerciseId));
   const unresolved = includeGuidance
-    ? rows.filter((row) => row.exercise.requiresEquipment && !row.equipment && !row.we.skippedAt)
+    ? rows.filter(
+        (row) =>
+          row.exercise.requiresEquipment &&
+          !row.we.skippedAt &&
+          (!row.equipment?.id || !logged.has(row.we.id)),
+      )
     : [];
   // History and machine decisions depend on the slots but not on each other.
   const [histories, decisions, coachingChanges, ladders, guidance] = await Promise.all([
@@ -625,6 +634,7 @@ export async function getSessionDetail(
         id: row.we.id,
         exercise: row.exercise,
         programExerciseId: row.we.plannedProgramExerciseId,
+        equipmentInstanceId: row.equipment?.id ?? null,
       })),
       session.gym,
     ),
@@ -687,22 +697,20 @@ export async function getSessionDetail(
       row.equipment?.unit ??
       options.preferredUnit ??
       (profile?.preferredUnit === "lb" ? "lb" : "kg");
-    // The coach's targets replace the rule's prefill while the row does the exercise they were
-    // written for (a swap in the workout takes the rule's own numbers for the new exercise); the
-    // rule's basis and history stay visible, so the athlete can still see what the numbers were
-    // judged against.
+    // What the coach wrote applies while the row does the exercise it was written for: a swap in
+    // the workout takes the new exercise's own numbers, rest and notes, not the coach's.
+    const own = entry && entry.exerciseId === row.exercise.id ? entry : null;
+    // The coach's targets replace the rule's prefill; the rule's basis and history stay visible,
+    // so the athlete can still see what the numbers were judged against.
     const targets: ProgressionSuggestion | null =
-      entry &&
-      entry.action !== "drop" &&
-      entry.sets.length > 0 &&
-      entry.exerciseId === row.exercise.id
+      own && own.action !== "drop" && own.sets.length > 0
         ? {
             kind: "coach",
             basis: rule.basis,
-            reason: entry.note || "Coach plan for today",
+            reason: own.note || "Coach plan for today",
             advice: null,
             loadIncrement: weightStep,
-            sets: planTargets(entry, unit),
+            sets: planTargets(own, unit),
           }
         : rule.suggestion;
     const ladder = row.equipment?.id ? ladders.get(row.equipment.id) : undefined;
@@ -805,8 +813,9 @@ export async function getSessionDetail(
       suggestion,
       regressionStreak: rule.regressionStreak,
       decision,
-      coachNote: entry?.note || null,
-      coachRestSeconds: entry?.restSeconds ?? null,
+      coachNote: own?.note || null,
+      coachRestSeconds: own?.restSeconds ?? null,
+      coachPerSide: own?.perSide ?? null,
       guidance: includeGuidance
         ? guidanceOf(
             row.exercise,

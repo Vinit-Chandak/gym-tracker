@@ -837,6 +837,51 @@ export async function resolvePlannedDay(
   });
 }
 
+/** A fallback as the coach's backup rule reads it: its exercise, and the type or machine it names. */
+export type BackupRef = {
+  exercise: ExerciseRef;
+  equipmentTypeId: string | null;
+  equipmentInstanceId: string | null;
+};
+
+/**
+ * Whether each fallback can be done at a gym now (ADR 0041's backup rule), by the rule the
+ * workout's "Use" follows: its exercise on the type or the machine it names, with the rest of that
+ * alternative here too. One read of the gym for all of them.
+ */
+export async function backupsAvailableAt(
+  db: DbOrTx,
+  userId: string,
+  gymId: string,
+  backups: readonly BackupRef[],
+): Promise<boolean[]> {
+  if (backups.length === 0) return [];
+  const ctx = await decisionContext(db, userId, gymId, [backups.map((b) => b.exercise.id)]);
+  if (!ctx) return backups.map(() => false);
+  const inputs = referenceInputs(ctx.refs, ctx.gym.kind);
+  const inventory = inventoryAt(ctx.gym.id, ctx.equipment, {
+    absent: ctx.absent,
+    assumed: inputs.assumedEquipmentTypeIds,
+    free: inputs.freeEquipmentTypeIds,
+  });
+  return backups.map(
+    (backup) =>
+      evaluateFallback(
+        {
+          gymId: null,
+          fallbackExercise: backup.exercise,
+          fallbackEquipmentTypeId: backup.equipmentTypeId,
+          fallbackEquipmentInstanceId: backup.equipmentInstanceId,
+          rank: 1,
+        },
+        inventory,
+        inputs.requirements,
+        ctx.options,
+        inputs.modalityTypeIds,
+      ).state === "available",
+  );
+}
+
 /** Decision for one exercise at a gym, with the fallbacks of its planned slot if any. */
 export async function decideExerciseAtGym(
   db: DbOrTx,
@@ -887,8 +932,10 @@ export function needsDecision(
 }
 
 /**
- * Reuse one gym context for every workout exercise without a machine, and return a decision only
- * for those that still have something to settle.
+ * Reuse one gym context for the workout's exercises, and return a decision only for those that
+ * still have something to settle: one without a machine by `needsDecision`, and one already on a
+ * machine when the rest of what that machine's alternative needs is not here (a Smith machine at
+ * home with nobody having said whether there is a bench).
  */
 export async function decideExercisesAtGym(
   db: DbOrTx,
@@ -898,6 +945,8 @@ export async function decideExercisesAtGym(
     id: string;
     exercise: ExerciseRef & { name: string; loadPortability: LoadPortability };
     programExerciseId: string | null;
+    /** The machine already on it, if any. */
+    equipmentInstanceId?: string | null;
   }[],
   gym?: KnownGym,
 ): Promise<Map<string, ExerciseDecision>> {
@@ -919,14 +968,21 @@ export async function decideExercisesAtGym(
   if (!ctx) return new Map();
   const decisions = new Map<string, ExerciseDecision>();
   for (const slot of slots) {
+    const attached = slot.equipmentInstanceId
+      ? ctx.equipment.find((i) => i.id === slot.equipmentInstanceId && i.isActive)
+      : undefined;
+    // An archived machine still on an exercise is left as it was.
+    if (slot.equipmentInstanceId && !attached) continue;
     const decision = decide(
       ctx,
       slot.exercise,
       fallbacks.filter((f) => f.programExerciseId === slot.programExerciseId),
-      null,
+      attached?.id ?? null,
     );
-    if (needsDecision(decision.resolution, slot.exercise.loadPortability, ctx.refs.categoryById))
-      decisions.set(slot.id, decision);
+    const open = attached
+      ? decision.resolution.status !== "direct"
+      : needsDecision(decision.resolution, slot.exercise.loadPortability, ctx.refs.categoryById);
+    if (open) decisions.set(slot.id, decision);
   }
   return decisions;
 }

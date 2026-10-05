@@ -85,6 +85,7 @@ const exercise: ExerciseVM = {
   decision: null,
   coachNote: null,
   coachRestSeconds: null,
+  coachPerSide: null,
   guidance: null,
 };
 
@@ -270,6 +271,35 @@ it("preserves decimal metres in the entry and in the set it saved", async () => 
   press(/^Set 1: 20 kilograms, 25\.5 metres, RPE 7\. Edit$/);
   fireEvent.change(field("Metres"), { target: { value: "26.5" } });
   expect(field("Metres").value).toBe("26.5");
+});
+
+it("picks up a set carried here by a machine answer as the row it was, whenever it arrives", async () => {
+  // The machine answer lands after the exercise reopened on its machine: the carried row is
+  // the one being typed, not a recovered draft, so it carries no warning.
+  renderLogger({
+    exercise: { equipment: { id: "m1", name: "Hack squat", unit: "kg", ladder: null } },
+  });
+  const there = { ...context, equipmentId: "m1" };
+  act(() => {
+    writeDraft(localStorage, there, {
+      effortVersion: 2,
+      unit: "kg",
+      setIndex: 1,
+      setType: "working",
+      weight: "60",
+      reps: "5",
+      rir: "2",
+      duration: "",
+      distance: "",
+      touched: ["weight", "reps", "rir"],
+      baseCompletedAt: null,
+      carried: true,
+    });
+  });
+  await screen.findByRole("button", { name: "60 kilograms. Type a load" });
+  expect(screen.queryByText("Unsaved draft restored. Review and retry saving.")).toBeNull();
+  // Carried once: kept as an ordinary draft of this row from here.
+  expect(localStorage.getItem(draftKey(there))).not.toContain("carried");
 });
 
 it("converts a restored draft after a preference change and submits its displayed unit", async () => {
@@ -951,6 +981,19 @@ it("still takes the answer once a set is typed, so Save is never stuck behind it
   expect(actions.log).not.toHaveBeenCalled();
   for (const name of ["Yes, it’s here", "Not here"])
     expect(screen.getByRole("button", { name }).hasAttribute("disabled")).toBe(false);
+});
+
+it("does not hold Save for a question about what an attached machine is used with", () => {
+  renderLogger({
+    exercise: {
+      equipment: { id: "smith", name: "Garage Smith", unit: "kg", ladder: null },
+      decision: asking("unknown"),
+    },
+  });
+  // The machine is already on the exercise, so the bench question changes nothing recorded:
+  // Save asks only for what any set needs.
+  fireEvent.click(screen.getByRole("button", { name: "Save" }));
+  expect(screen.getByRole("alert").textContent).not.toContain("machine question");
 });
 
 it("lets Not sure release Save for a machine nobody has answered for", () => {

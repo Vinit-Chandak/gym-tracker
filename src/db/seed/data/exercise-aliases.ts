@@ -162,6 +162,7 @@ export const EXERCISE_ALIASES: Readonly<Record<string, readonly string[]>> = {
   "lever-squat": ["V-squat", "Super squat", "Power squat"],
   "machine-high-row": ["High row", "Iso-lateral high row"],
   "medicine-ball-slam": ["Ball slam", "Overhead slam"],
+  "incline-bench-preacher-curl": ["Dumbbell preacher curl", "Bench preacher curl"],
 };
 
 /**

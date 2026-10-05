@@ -187,6 +187,20 @@ it("treats Enter in the search box as the end of typing, not as Add", () => {
   expect(selection()?.textContent).toBe("2 selected");
 });
 
+it("closes the machine question once nothing is left to ask, and goes on to Add", async () => {
+  const action = renderForm();
+  tick(/Machine chest press/);
+  tick(/Leg press/);
+  fireEvent.click(screen.getByRole("button", { name: "Add 2 exercises" }));
+  const dialog = await screen.findByRole("dialog", { name: "Which machine?" });
+  fireEvent.click(within(dialog).getByRole("button", { name: "Remove Leg press" }));
+  // No empty sheet left open: the chest press is still picked, and Add is where to go next.
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(selection()?.textContent).toBe("1 selected");
+  await waitFor(() => expect(document.activeElement?.textContent).toBe("Add 1 exercise"));
+  expect(action).not.toHaveBeenCalled();
+});
+
 it("keeps the selection and its key through a lost connection, so a retry adds once", async () => {
   const action = vi
     .fn()

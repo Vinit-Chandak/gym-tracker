@@ -81,6 +81,7 @@ const exercise = (patch: Partial<ExerciseVM> = {}): ExerciseVM => ({
   decision: null,
   coachNote: null,
   coachRestSeconds: null,
+  coachPerSide: null,
   guidance: null,
   ...patch,
 });
@@ -266,6 +267,19 @@ describe("today's targets: every number from one source (plan: today's targets)"
       },
     });
     expect(perSetLabel(adHoc)).toBe("8–12 reps");
+    // Per side is today's figure too: the coach's word for the session, else the programme's.
+    const planned = exercise();
+    const coachSides = exercise({
+      coachPerSide: true,
+      planned: { ...planned.planned!, perSide: false },
+    });
+    expect(perSetLabel(coachSides)).toBe("3–5 reps per side");
+    expect(prescriptionLabel(coachSides, "kg")).toBe("4 × 3–5 per side @ 2 RIR");
+    const coachBoth = exercise({
+      coachPerSide: false,
+      planned: { ...planned.planned!, perSide: true },
+    });
+    expect(perSetLabel(coachBoth)).toBe("3–5 reps");
     expect(prescriptionLabel(adHoc, "kg")).toBe("8–12 reps @ 2 RIR");
     // Half a rep in reserve is not a target anyone can hold: it reads as the two either side.
     const half = {

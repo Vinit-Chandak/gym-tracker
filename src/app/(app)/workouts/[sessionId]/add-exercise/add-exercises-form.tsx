@@ -138,23 +138,24 @@ export function AddExercisesForm({
   };
 
   const remove = (id: string) => {
-    // The focus moves to the next row's Remove (or the one before), or to the search when the
-    // list empties and the sheet closes, where the next pick is made, rather than dropping to
-    // the top.
+    // The focus moves to the next row's Remove (or the one before). A review left with nothing in
+    // it closes: the focus goes to Add when exercises are still picked (the machine questions
+    // are answered), else to the search, where the next pick is made.
     const index = shown.indexOf(id);
     const then = shown[index + 1] ?? shown[index - 1] ?? null;
     const left = selected.filter((value) => value !== id);
     setSelected(left);
     setNotice(`${left.length} selected`);
     setLimitHit(false);
-    if (left.length === 0) setReview(null);
+    if (then === null) setReview(null);
     requestAnimationFrame(() => {
       const root = form.current;
-      const target =
-        left.length > 0 && then
-          ? [...(root?.querySelectorAll<HTMLElement>("[data-remove]") ?? [])].find(
-              (button) => button.dataset.remove === then,
-            )
+      const target = then
+        ? [...(root?.querySelectorAll<HTMLElement>("[data-remove]") ?? [])].find(
+            (button) => button.dataset.remove === then,
+          )
+        : left.length > 0
+          ? root?.querySelector<HTMLElement>(".pinned-actions button[type=submit]")
           : root?.querySelector<HTMLElement>("input[type=search]");
       target?.focus();
     });

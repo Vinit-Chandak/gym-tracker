@@ -14,8 +14,13 @@ import type { BodyLoadUnit } from "@/domain/types";
 import { sharedEquipmentTypes } from "@/server/queries/reference";
 
 import { markEquipmentAbsent, type AbsenceOutcome } from "./absent-equipment";
-import { instanceTypeIds } from "./equipment-context";
-import { createEquipment, machinesByExerciseAtGym, setEquipmentActive } from "./equipment";
+import {
+  createEquipment,
+  machinesByExerciseAtGym,
+  machineTypeIds,
+  setEquipmentActive,
+} from "./equipment";
+import { instanceTypeIds, referenceSets } from "./equipment-context";
 import { SessionFinishedError, SessionNotFoundError, substituteExercise } from "./sessions";
 import { defaultMachineInput, freeMachineName } from "./starter-equipment";
 
@@ -126,7 +131,7 @@ async function attach(db: DbOrTx, userId: string, slot: Slot, machineId: string)
   return true;
 }
 
-export type HereOutcome = { equipmentInstanceId: string; attached: boolean };
+export type HereOutcome = { exerciseId: string; equipmentInstanceId: string; attached: boolean };
 
 /**
  * "Yes, it's here" for a gym basic, and "Available" for any other machine: registered at once,
@@ -143,7 +148,7 @@ export async function confirmEquipmentHere(
   const slot = await openSlot(db, userId, workoutExerciseId);
   const machine = await machineOfType(db, userId, slot.gymId, equipmentTypeId, preferredUnit);
   const attached = await attach(db, userId, slot, machine.id);
-  return { equipmentInstanceId: machine.id, attached };
+  return { exerciseId: slot.exerciseId, equipmentInstanceId: machine.id, attached };
 }
 
 /**
@@ -162,7 +167,7 @@ export async function markEquipmentNotHere(
 }
 
 export type VariantOutcome =
-  | { kind: "attached"; equipmentInstanceId: string }
+  | { kind: "attached"; exerciseId: string; equipmentInstanceId: string }
   /** The exercise needs the variant that is not here, so it became the one for this variant. */
   | { kind: "switched"; exerciseId: string; equipmentInstanceId: string }
   /** Registered, but nothing here does this exercise on it: the decision offers the rest. */
@@ -187,7 +192,7 @@ export async function chooseEquipmentVariant(
   if (assumedTypeId !== variantTypeId)
     await markEquipmentAbsent(db, userId, slot.gymId, assumedTypeId);
   if (await attach(db, userId, slot, machine.id))
-    return { kind: "attached", equipmentInstanceId: machine.id };
+    return { kind: "attached", exerciseId: slot.exerciseId, equipmentInstanceId: machine.id };
   if (slot.sets > 0) return { kind: "registered", equipmentInstanceId: machine.id };
 
   // The same movement on the variant: an active exercise whose way of doing it is led by it.
@@ -228,8 +233,12 @@ export class NothingToArchiveError extends Error {
 }
 
 /**
- * "It has gone": the exercise's machine is archived, keeping its history, and the exercise is
- * left without one, for the workout to settle again. Only before anything is logged on it.
+ * "It has gone": the machine is archived, keeping its history, and every exercise of the open
+ * workout still on it with nothing logged is left without one (`setEquipmentActive`). Only before
+ * anything is logged on this exercise. Gone answers what Not here asked, so the kind of machine
+ * this exercise is done on is recorded as not here when no other machine here has it: the
+ * workout offers the fallbacks rather than asking again (plan: Not here, then the fallbacks). A
+ * machine found there later is registered as a new one, which clears that absence.
  */
 export async function archiveWorkoutMachine(
   db: DbOrTx,
@@ -250,12 +259,18 @@ export async function archiveWorkoutMachine(
     )
     .limit(1);
   if (!machine || slot.sets > 0) throw new NothingToArchiveError();
+  const [types, refs] = await Promise.all([
+    machineTypeIds(db, userId, machine.id),
+    referenceSets(db),
+  ]);
   await setEquipmentActive(db, userId, machine.id, false);
-  if (slot.equipmentInstanceId === machine.id)
-    await db
-      .update(workoutExercises)
-      .set({ equipmentInstanceId: null })
-      .where(
-        and(eq(workoutExercises.id, slot.workoutExerciseId), eq(workoutExercises.userId, userId)),
-      );
+  // The types this exercise is led by that the machine was; an athlete's own exercise, which
+  // has no alternatives of its own, records nothing.
+  const led = new Set(
+    refs.requirements
+      .filter((row) => row.exerciseId === slot.exerciseId && row.isPrimary)
+      .map((row) => row.equipmentTypeId),
+  );
+  for (const typeId of types.filter((id) => led.has(id)))
+    await markEquipmentAbsent(db, userId, slot.gymId, typeId);
 }

@@ -66,6 +66,7 @@ const base = {
   decision: null,
   coachNote: null,
   coachRestSeconds: null,
+  coachPerSide: null,
   guidance: null,
   supersetGroup: null,
   equipment: null,

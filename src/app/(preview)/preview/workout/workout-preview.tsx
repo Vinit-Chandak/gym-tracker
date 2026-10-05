@@ -129,6 +129,7 @@ function exercise(slot: Slot, index: number): ExerciseVM {
     decision: null,
     coachNote: slot.coach?.note ?? null,
     coachRestSeconds: null,
+    coachPerSide: null,
     guidance: null,
   };
 }

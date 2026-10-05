@@ -599,10 +599,12 @@ export function ExerciseLogger({
   // ---------- completing, skipping, a fallback ----------
   const needsDecision = exercise.decision !== null && !skipped && !readOnly;
   // A machine question still open before the first set: Save waits and points at it, since
-  // the machine goes on the exercise only before anything is logged ("Not sure" lets it be).
+  // the machine goes on the exercise only before anything is logged ("Not sure" lets it be). A
+  // question about what an attached machine is used with (a bench) changes nothing recorded.
   const askingMachine =
     needsDecision &&
     exercise.decision?.ask != null &&
+    !exercise.equipment &&
     !machineUnsure &&
     sets.loggedSets.length === 0;
   const machineFirst =
@@ -1109,6 +1111,7 @@ export function ExerciseLogger({
                   if (value) setMessage(null);
                 }}
                 onAnnounce={setAnnounced}
+                onMoved={sets.carryDraftsTo}
               />
             )}
 

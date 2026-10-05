@@ -407,6 +407,8 @@ const AWAITING = {
     "lever-squat",
     "machine-high-row",
     "medicine-ball-slam",
+    // The owner's choice of backup for the template's preacher curl (5 October 2026).
+    "incline-bench-preacher-curl",
   ],
   /** Ways to do a published exercise on a draft type, which wait with the type. */
   alternatives: [
@@ -983,6 +985,38 @@ describe("programme templates", () => {
     const dayThree = STRENGTH_AESTHETICS_HYBRID_8WK.days[2];
     const forearms = dayThree?.exercises.filter((e) => e.supersetGroup === "forearms");
     expect(forearms?.map((e) => e.exerciseSlug)).toEqual(["wrist-curl", "reverse-wrist-curl"]);
+  });
+
+  it("backs up each machine the basics lack with one they provide (owner, 5 October 2026)", () => {
+    const slots = STRENGTH_AESTHETICS_HYBRID_8WK.days.flatMap((day) => day.exercises);
+    const backups = (slug: string) =>
+      slots.find((e) => e.exerciseSlug === slug)?.fallbacks?.map((f) => f.exerciseSlug);
+    expect(backups("preacher-curl")).toEqual(["incline-bench-preacher-curl", "ez-bar-curl"]);
+    expect(backups("leg-press-horizontal")).toEqual(["leg-press-45"]);
+    expect(backups("hip-abduction")).toEqual(["cable-hip-abduction"]);
+    // So the coach can keep any slot with targets at a gym nobody has answered for, in production
+    // too: a fallback still awaiting the owner never counts towards it.
+    const basics = new Set([...ASSUMED_EQUIPMENT.gym, "bodyweight"]);
+    const onBasics = (slug: string, primary?: string) =>
+      requirementGroups(exerciseBySlug.get(slug)!).some(
+        (group) => (!primary || group[0] === primary) && group.every((type) => basics.has(type)),
+      );
+    for (const slot of slots) {
+      if (onBasics(slot.exerciseSlug)) continue;
+      const covered = (slot.fallbacks ?? []).some(
+        (f) =>
+          exerciseBySlug.get(f.exerciseSlug)?.review !== "draft" &&
+          onBasics(f.exerciseSlug, f.equipmentTypeSlug),
+      );
+      expect(covered, slot.exerciseSlug).toBe(true);
+    }
+  });
+
+  it("plans only published exercises, so every account can adopt it", () => {
+    for (const template of PROGRAM_TEMPLATES)
+      for (const day of template.blueprint.days)
+        for (const slot of day.exercises)
+          expect(exerciseBySlug.get(slot.exerciseSlug)?.review, slot.exerciseSlug).toBeUndefined();
   });
 
   it("plans two easy runs a week for eight weeks", () => {

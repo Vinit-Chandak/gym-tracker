@@ -89,7 +89,7 @@ import { sessionHistories, type ComparablePerformance } from "@/server/queries/c
 import { getWarmupProtocol, sharedExercises } from "@/server/queries/reference";
 import { parseDateRange } from "@/server/validation/date-range";
 
-import { resolvePlannedDay } from "./availability";
+import { backupsAvailableAt, resolvePlannedDay } from "./availability";
 import { getGym, listGyms } from "./gyms";
 import { getRunTarget, getSchedule, type Schedule, type ScheduleDay } from "./schedule";
 import { loadLadders } from "./load-ladders";
@@ -1428,11 +1428,14 @@ export async function storePlan(
   ]);
   const slotById = new Map(daySlots.map((slot) => [slot.id, slot]));
   // What each named exercise is at this gym, and what can stand in for each slot (ADR 0041):
-  // a machine nobody has confirmed is planned only with a backup available now.
+  // a machine nobody has confirmed is planned only with a backup available now, judged as the
+  // workout would use it, on the type or the machine the fallback names.
   const slotFallbacks = daySlots.length
     ? await db
         .select({
           programExerciseId: programExerciseFallbacks.programExerciseId,
+          equipmentTypeId: programExerciseFallbacks.fallbackEquipmentTypeId,
+          equipmentInstanceId: programExerciseFallbacks.fallbackEquipmentInstanceId,
           exercise: {
             id: exercises.id,
             modality: exercises.modality,
@@ -1451,17 +1454,13 @@ export async function storePlan(
           ),
         )
     : [];
-  const atGym = await exerciseEquipmentAtGym(db, userId, gym.id, [
-    ...visible,
-    ...slotFallbacks.map((f) => f.exercise),
+  const [atGym, backups] = await Promise.all([
+    exerciseEquipmentAtGym(db, userId, gym.id, visible),
+    backupsAvailableAt(db, userId, gym.id, slotFallbacks),
   ]);
-  const availableNow = (exerciseId: string) => {
-    const found = atGym.get(exerciseId);
-    return found !== undefined && isAvailableNow(found.resolution);
-  };
   const backedUp = (slotId: string | null) =>
     slotId !== null &&
-    slotFallbacks.some((f) => f.programExerciseId === slotId && availableNow(f.exercise.id));
+    slotFallbacks.some((f, index) => f.programExerciseId === slotId && backups[index]);
   const issues: { path: string; message: string }[] = [];
   if (plan.run?.programRunId && programRun.length === 0)
     issues.push({
@@ -1505,16 +1504,16 @@ export async function storePlan(
         issue("That machine is not compatible with this exercise.");
       if (!machine && found) {
         const { resolution } = found;
-        // The backup rule (ADR 0041). Keeping the programme's own exercise in its own slot is
-        // not choosing new equipment: what nobody has answered for is asked in the workout. A
-        // substitution or an addition is the coach's choice, so it needs a backup available
-        // now unless its equipment is confirmed or a basic; anything absent is never planned.
+        // The backup rule (ADR 0041), for every exercise planned, a slot's own kept one
+        // included: confirmed equipment and basics stand alone; a machine nobody has confirmed
+        // needs a backup in its slot that is available now; anything absent is never planned. A
+        // slot kept without targets may still fall to its backup when it starts.
         const keepsOwn = entry.action === "keep" && slot?.exerciseId === exercise.id;
         if (resolution.status === "unavailable") {
           if (!(keepsOwn && entry.sets.length === 0 && backedUp(entry.slotId)))
             issue(`That exercise needs equipment marked as not at ${gym.name}.`);
         } else if (resolution.status === "unknown") {
-          if (!keepsOwn && !backedUp(entry.slotId))
+          if (!backedUp(entry.slotId))
             issue(
               `That exercise needs equipment nobody has confirmed at ${gym.name}, and its slot has no backup available now. Choose a gym basic or a confirmed machine.`,
             );

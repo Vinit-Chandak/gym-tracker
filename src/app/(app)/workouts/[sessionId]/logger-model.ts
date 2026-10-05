@@ -100,13 +100,18 @@ export function countTargetLabel(exercise: ExerciseVM, setIndex: number | null):
   return volumeRange(exercise);
 }
 
+/** Whether today's sets are per side: the coach's word for this session, else the programme's. */
+export function perSideToday(exercise: ExerciseVM): boolean {
+  return exercise.coachPerSide ?? exercise.planned?.perSide ?? false;
+}
+
 /**
  * The range a set aims at, for the Log tab's meta line: "3–5 reps", "20–40 m", or the coach's
  * "5 reps" when the coach wrote today's sets. How many sets and the RIR target are the entry's,
  * so they are not said twice (DESIGN.md, Layout).
  */
 export function perSetLabel(exercise: ExerciseVM): string | null {
-  const side = exercise.planned?.perSide ? " per side" : "";
+  const side = perSideToday(exercise) ? " per side" : "";
   const coach = coachWork(exercise);
   const volume = coach ? coachVolume(coach) : null;
   if (volume) return `${volume.text}${volume.measure === "reps" ? " reps" : ""}${side}`;
@@ -123,12 +128,12 @@ export function perSetLabel(exercise: ExerciseVM): string | null {
 export function prescriptionLabel(exercise: ExerciseVM, unitLabel = ""): string | null {
   const coach = coachWork(exercise);
   if (coach) {
-    const line = targetsLine(coach, unitLabel, exercise.planned?.perSide ?? false);
+    const line = targetsLine(coach, unitLabel, perSideToday(exercise));
     if (line) return line;
   }
   const p = exercise.planned;
   if (p)
-    return `${p.sets} × ${volumeRange(exercise)}${p.perSide ? " per side" : ""}${
+    return `${p.sets} × ${volumeRange(exercise)}${perSideToday(exercise) ? " per side" : ""}${
       p.prescriptionType === "reps" ? ` @ ${rangeLabel(p.rirMin, p.rirMax)} RIR` : ""
     }`;
   const range = volumeRange(exercise);

@@ -213,17 +213,23 @@ than adding, and keep the RIR honest").
   "Not here", and "A different one" for a family's variants); any other machine nobody has
   answered for takes "Available" (registered at once, staying in the workout), "Not here" or "Not
   sure". "Not here" against a registered machine asks whether it has gone (archive it, history
-  kept) or is out of use today (a substitute, not remembered); one found there after that is a
-  new machine with its own history. While the question is open and nothing is logged, Save
-  waits and points at it, since the machine goes on the exercise only before the first set
-  ("Not sure" lets it be); a set typed first does not hold the answers back. "Register with
-  details" opens Add machine on the type being asked about.
+  kept) or is out of use today (a substitute, not remembered); gone, that kind is recorded as not
+  here when nothing else there has it, so the fallbacks follow, and the machine leaves the
+  workout's other exercises with nothing logged on it; one found there later is a new machine
+  with its own history. While the question is open and nothing is logged, Save waits and points
+  at it, since the machine goes on the exercise only before the first set ("Not sure" lets it
+  be); a set typed first does not hold the answers back, and goes with the exercise onto the
+  machine the answer chose. "Register with details" opens Add machine on the type being asked
+  about. An exercise already on a machine is asked, before its first set, about what that machine
+  is used with when nobody has said (a bench for a Smith hip thrust at home); Save does not wait
+  on that.
 - **Fallbacks:** a fallback replaces the planned exercise only when that cannot be done: one
   remembered for this gym when its equipment is unknown or marked not here, the programme's once
   it is marked not here. A gym basic is here until someone says otherwise, so a swap remembered
   once never replaces a lift that can be done; a machine basic is confirmed in the workout, and
-  its "Not here" offers the fallbacks. Targets the coach wrote keep the exercise they were
-  written for, and stay with it if the exercise is swapped.
+  its "Not here" offers the fallbacks. Targets, rest, notes and per side the coach wrote keep
+  the exercise they were written for, and stay with it if the exercise is swapped. A machine
+  chosen for an exercise still needs the rest of what that exercise uses with it.
 
 ### Finishing and the record
 

@@ -105,10 +105,12 @@ has touched a hosted database, and nothing has been merged or deployed.
 
 - Programme fallbacks no longer apply on their own for a machine nobody has confirmed: the workout
   asks (step 4) instead of silently swapping. They still apply when the planned equipment is marked
-  not here. A fallback the athlete added for this gym wins over an assumed basic, because it is
-  something they said about this gym.
-- A daily plan may keep the programme's own exercise in its slot even when its machine is unknown;
-  the backup rule applies to new choices, not to the programme it is carrying.
+  not here. A fallback the athlete added for this gym answers for equipment that is unknown or
+  marked not here, and never replaces an exercise that can be done, an assumed basic included (at
+  first it won over an assumed basic; the first review reversed that, ADR 0004 point 6).
+- The backup rule applies to every exercise a plan names, a kept programme slot included (at first
+  a kept slot was exempt; the second review held that to the owner decision, which makes no
+  exception, and `main` already refused a kept slot with targets on an unregistered machine).
 - Custom free-weight exercises resolve by their modality (no user requirement rows are written).
 - Home and outdoor locations assume nothing: an unanswered machine there is unknown (owner
   decision S2).
@@ -371,6 +373,68 @@ the motion rules, run in Chromium against the app). What they found, and what be
   the focus and has no undo (a server-action form; re-adding is one select away); disabled
   "Not possible here" options can't be reached with Tab (as on `main`); the full lists render
   unvirtualised (about 100 types, 289 exercises).
+
+## Second review (step 6, after the draft PR)
+
+A fresh review by another model of `4f6a8b6...8c2b2d0`, each finding reproduced with throwaway
+tests on its side. All nine held up against the code and are fixed, each with a test here that
+fails on the old code:
+
+1. **A set typed before answering the machine question was stranded** (P1). Answering moved the
+   exercise onto a machine, which changes where its unsaved rows are kept; the typed values
+   vanished, and Finish then reported a draft nothing could reach. The answers now say where they
+   put the exercise, its unsaved rows move there before the old key goes, and the exercise picks
+   them up when they land, as the rows they were (no "restored" warning). "A different one" that
+   changes the exercise carries them too: they were typed for the machine in front of the athlete.
+2. **A chosen machine skipped the rest of its alternative.** A preferred or tied Smith machine
+   made the Smith hip thrust available with the bench marked absent, and a fallback naming a
+   barbell stayed usable with the rack absent. A chosen, tied or named machine (or a fallback's
+   type) now leads its alternative, whose other types must still be there; a machine that leads
+   none of an exercise's alternatives (an athlete's own tie, a custom exercise) is still taken on
+   trust.
+3. **An exercise already on its machine was never asked about the rest.** At home, a Smith machine
+   on the exercise and nobody having said whether there is a bench left nothing to settle. Before
+   the first set, an exercise on a machine is now resolved on that machine, and the workout asks
+   about what its alternative still needs; Save does not wait on that question, which changes
+   nothing recorded.
+4. **The coach's backup check read only the fallback's exercise.** A fallback naming an archived
+   machine, or a type marked absent, counted as a backup because its exercise was available some
+   other way. Programme drafts, opening plans and session plans now judge each backup by the rule
+   the workout's "Use" follows (`backupsAvailableAt`).
+5. **A kept slot was exempt from the backup rule.** Held to the owner decision (see step 2's calls).
+6. **Archiving in the workout left loose ends.** Another exercise of the open workout stayed on the
+   archived machine and accepted sets on it; and "It's gone" on the only machine of its kind left
+   that kind assumed, so the workout asked the same question again. Archiving now takes the
+   machine off every exercise of the open workout with nothing logged on it (from the gym screen
+   too), and "It's gone" records the kind the exercise is done on as not here when nothing else
+   there has it, so the fallbacks follow, as the plan's Not here row says. A machine found there
+   later is registered as a new one, which clears that absence.
+7. **The coach's rest and note followed the slot after a swap.** They now apply only while the
+   exercise is the one the coach wrote them for, as the targets already did.
+8. **The coach's per-side setting was ignored** (it predated this work). Today's labels now take
+   the coach's per-side for the session, else the programme's.
+9. **Removing the last machine question left an empty review open.** It closes, and the focus goes
+   to Add (or the search when nothing is picked).
+
+**The template's machines without a backup** (owner decision, 5 October 2026). With kept slots held
+to the rule, three of the template's slots needed a machine beyond a gym's basics and had no
+fallback, so the coach could not keep them with targets at a gym nobody had answered for. The owner
+chose their backups:
+
+- **Preacher curl**: the incline bench preacher curl, then the EZ-bar curl. The first is the same
+  curl over the top of an incline bench, a catalogue addition awaiting approval (also found as
+  "Dumbbell preacher curl"; "Preacher curl" already covers dumbbells on a preacher bench).
+- **Horizontal leg press**: the 45° leg press. The owner offered replacing the slot instead; a
+  fallback keeps Lower B's horizontal press where there is one.
+- **Hip abduction**: cable hip abduction. The owner's gym does abduction and adduction on one
+  machine, which is the draft combination "Hip abduction and adduction"; neither is a basic.
+
+Programmes are written with every fallback a blueprint names, so a fallback naming an exercise
+still awaiting approval is now left out wherever drafts are not seeded: production adopts the
+preacher curl with the EZ-bar curl alone until the new exercise is approved, and anything else a
+database lacks still fails the write. Programmes already adopted keep the fallbacks they were
+written with. A seed test holds every template slot the basics cannot do to a published fallback
+they can.
 
 ## Next
 

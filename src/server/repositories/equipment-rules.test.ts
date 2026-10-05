@@ -15,7 +15,7 @@ import { withUser } from "@/db/with-user";
 import { BLUEPRINT_VERSION, programBlueprintSchema } from "@/domain/program-blueprint";
 import { resetReferenceCache } from "@/server/queries/reference";
 
-import { markEquipmentAbsent } from "./absent-equipment";
+import { markEquipmentAbsent, unmarkEquipmentAbsent } from "./absent-equipment";
 import { decideExerciseAtGym } from "./availability";
 import { libraryAtGym } from "./coach-plans";
 import { lookupExercises } from "./coach-lookups";
@@ -240,20 +240,32 @@ describe("the coach's view and backup rule", () => {
       rest: [90, 120],
       ...(fallbacks ? { fallbacks } : {}),
     });
-    const library = await as((tx) => libraryAtGym(tx, user.id, freshGym));
-    expect(backupRuleProblems(day([slot("leg-extension"), slot("hack-squat")]), library)).toEqual({
+    const problems = (blueprint: ReturnType<typeof day>) =>
+      as((tx) => backupRuleProblems(tx, user.id, blueprint, freshGym));
+    expect(await problems(day([slot("leg-extension"), slot("hack-squat")]))).toEqual({
       absent: [],
       unbacked: [],
     });
-    expect(backupRuleProblems(day([slot("pendulum-squat")]), library).unbacked).toEqual([
-      "Pendulum squat",
-    ]);
+    expect((await problems(day([slot("pendulum-squat")]))).unbacked).toEqual(["Pendulum squat"]);
     expect(
-      backupRuleProblems(
-        day([slot("pendulum-squat", [{ exerciseSlug: "leg-press-45", rank: 1 }])]),
-        library,
-      ),
+      await problems(day([slot("pendulum-squat", [{ exerciseSlug: "leg-press-45", rank: 1 }])])),
     ).toEqual({ absent: [], unbacked: [] });
+    // A backup is judged as the workout would use it: on the type it names. The lat pulldown is
+    // a basic, but not on a cable station marked absent.
+    const cableStation = await idOf("type", "cable_station");
+    await as((tx) => markEquipmentAbsent(tx, user.id, freshGym, cableStation));
+    expect(
+      (
+        await problems(
+          day([
+            slot("pendulum-squat", [
+              { exerciseSlug: "lat-pulldown", equipmentTypeSlug: "cable_station", rank: 1 },
+            ]),
+          ]),
+        )
+      ).unbacked,
+    ).toEqual(["Pendulum squat"]);
+    await as((tx) => unmarkEquipmentAbsent(tx, user.id, freshGym, cableStation));
     const hipThrust = await idOf("type", "hip_thrust_machine");
     await as((tx) => markEquipmentAbsent(tx, user.id, freshGym, hipThrust));
     await expect(

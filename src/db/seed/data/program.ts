@@ -239,6 +239,18 @@ export const STRENGTH_AESTHETICS_HYBRID_8WK: ProgramBlueprint = {
           progressionNotes: "Earn 12s",
           progressionRule: double(2.5),
           keyCue: "Upper arm on pad",
+          fallbacks: [
+            {
+              exerciseSlug: "incline-bench-preacher-curl",
+              rank: 1,
+              notes: "The same curl over an incline bench when there is no preacher bench.",
+            },
+            {
+              exerciseSlug: "ez-bar-curl",
+              rank: 2,
+              notes: "A standing EZ-bar curl when there is no preacher bench.",
+            },
+          ],
         },
         {
           exerciseSlug: "cable-triceps-pushdown",
@@ -348,6 +360,13 @@ export const STRENGTH_AESTHETICS_HYBRID_8WK: ProgramBlueprint = {
           progressionNotes: "Moderate volume, not max effort",
           progressionRule: double(),
           keyCue: "No pelvis roll",
+          fallbacks: [
+            {
+              exerciseSlug: "leg-press-45",
+              rank: 1,
+              notes: "The 45° leg press when there is no horizontal one.",
+            },
+          ],
         },
         {
           exerciseSlug: "seated-leg-curl",
@@ -368,6 +387,13 @@ export const STRENGTH_AESTHETICS_HYBRID_8WK: ProgramBlueprint = {
           progressionNotes: "Reps then load",
           progressionRule: double(),
           keyCue: "Pelvis still",
+          fallbacks: [
+            {
+              exerciseSlug: "cable-hip-abduction",
+              rank: 1,
+              notes: "Cable hip abduction when there is no abduction machine.",
+            },
+          ],
         },
       ],
     },

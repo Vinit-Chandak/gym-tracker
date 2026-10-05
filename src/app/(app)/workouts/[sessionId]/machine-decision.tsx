@@ -46,6 +46,11 @@ type Props = {
   onUnsure: (unsure: boolean) => void;
   /** Says what an answer did, on the logger's status line (WCAG 4.1.3). */
   onAnnounce: (text: string) => void;
+  /**
+   * An answer moved the exercise (a machine attached, a family's variant): the logger carries
+   * what is typed and not saved there with it, since the answers never wait on Save.
+   */
+  onMoved: (to: { exerciseId: string; equipmentInstanceId: string } | null | undefined) => void;
 };
 
 /**
@@ -76,6 +81,7 @@ export function MachineDecision({
   unsure,
   onUnsure,
   onAnnounce,
+  onMoved,
 }: Props) {
   const actions = useLoggerActions();
   const [pending, startTransition] = useTransition();
@@ -113,9 +119,9 @@ export function MachineDecision({
   const substitute = (remember: boolean) =>
     `/workouts/${session.id}/exercises/${exercise.id}/substitute${remember ? "" : "?remember=0"}` as Route;
 
-  const run = (
-    work: () => Promise<{ ok: boolean; error?: string | null }>,
-    done?: () => void,
+  const run = <T extends { ok: boolean; error?: string | null }>(
+    work: () => Promise<T>,
+    done?: (value: T) => void,
     spoken?: string,
   ) =>
     startTransition(async () => {
@@ -124,10 +130,12 @@ export function MachineDecision({
       if (!outcome.value.ok && outcome.value.error) return onMessage(outcome.value.error);
       onMessage(null);
       if (spoken) onAnnounce(spoken);
-      done?.();
+      done?.(outcome.value);
     });
+  const moved = (value: Awaited<ReturnType<typeof actions.confirmHere>>) =>
+    onMoved(value.ok ? value.movedTo : null);
   const here = (typeId: string, name: string) =>
-    run(() => actions.confirmHere(exercise.id, typeId), undefined, `${name} registered here.`);
+    run(() => actions.confirmHere(exercise.id, typeId), moved, `${name} registered here.`);
   const notHere = (typeId: string, name: string) =>
     startTransition(async () => {
       const outcome = await attempted(() => actions.notHere(exercise.id, typeId), OFFLINE);
@@ -292,7 +300,7 @@ export function MachineDecision({
                       setVariants(false);
                       run(
                         () => actions.chooseVariant(exercise.id, ask.typeId, variant.typeId),
-                        undefined,
+                        moved,
                         `${variant.name} registered here.`,
                       );
                     }}
@@ -376,7 +384,7 @@ export function MachineDecision({
 
 /**
  * "{Machine} not here", from an exercise already on a registered machine, before anything is
- * logged on it: has it gone (archive it, history kept, and the exercise asks again), or is it
+ * logged on it: has it gone (archive it, history kept, its kind then recorded as not here), or is it
  * only out of use today (a substitute for this session, not remembered)?
  */
 export function MachineGoneSheet({

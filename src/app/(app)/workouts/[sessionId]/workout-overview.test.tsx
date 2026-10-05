@@ -87,6 +87,7 @@ function exercise(name: string, patch: Partial<ExerciseVM> = {}): ExerciseVM {
     decision: null,
     coachNote: null,
     coachRestSeconds: null,
+    coachPerSide: null,
     guidance: null,
     ...patch,
   };
