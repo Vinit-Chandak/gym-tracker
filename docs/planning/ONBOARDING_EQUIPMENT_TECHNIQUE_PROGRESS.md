@@ -18,8 +18,8 @@ has touched a hosted database, and nothing has been merged or deployed.
 | 2    | Resolver and every consumer, absence reconciliation, the coach's backup rule            | done        |
 | 3    | Add several exercises (receipts) and pinned actions on Add machine                      | done        |
 | 4    | Experience question, machine steps, combinations, workout confirmation                  | done        |
-| 5    | Illustrations, guides, Technique, the coach's numbers in the header and list            | in progress |
-| 6    | Acceptance tests, screens, fresh review, draft PR                                       | not started |
+| 5    | Illustrations, guides, Technique, the coach's numbers in the header and list            | done        |
+| 6    | Acceptance tests, screens, fresh review, draft PR                                       | in progress |
 
 ## Calls made where the plan left room
 
@@ -219,8 +219,10 @@ has touched a hosted database, and nothing has been merged or deployed.
   racks and small equipment) were drawn to the pilot's spec by subagents, checked by
   `drawings.test.ts`, and registered in `EQUIPMENT_ART` as drafts. The leg press's sled and
   footplate and the hack squat's carriage and footplate lost the upholstery tone, which the spec
-  keeps for pads. Set B (the remaining machines and cables, cardio, the draft types and the draft
-  combinations) is being drawn the same way; a restart lost its first attempt.
+  keeps for pads. Set B (44: the remaining machines and cables, cardio, the draft types and the
+  draft combinations) followed, drawn by four subagents in parallel. All 111 (every type but
+  bodyweight, and every combination) are drafts; the drafters' doubts are listed under
+  "Verification" below for the owner.
 - **Guides.** 58 drafted guides in three batches (`src/db/seed/data/guides/batch-{a,b,c}.ts`),
   written for Overload and checked against ACE, NASM, ExRx, clinical and journal sources, each with a
   candidate YouTube demonstration (59 links: the pec deck fly has two) confirmed to exist through
@@ -262,6 +264,40 @@ has touched a hosted database, and nothing has been merged or deployed.
   owner can tell what awaits approval.
 - The coach's per-side override is not yet carried into the workout, as before; per side still
   follows the slot.
+
+## Verification (step 6)
+
+- **The app, run locally**: Postgres on 127.0.0.1 (`overload_audit`, migrated and seeded by
+  `node scripts/dev/audit.mjs setup`), the auth stub and `next dev`. Fixture accounts for the
+  screens (`verify@local.test`: a gym with nothing confirmed and an ad hoc session; and
+  `coached@local.test`: a coach-planned Lower A) were made by a scratch script through the
+  repositories. Every new or changed screen was captured at 320, 360, 375, 402 and 440 px, light
+  and dark, 100% and 200% text, with forced colours for the drawings' screens.
+- **Found and fixed from the screens**:
+  - the workout's machine question showed its picture full width (the session sheet's 6rem lost
+    to the drawing's own rule, which loads later), pushing "Not here" under the entry: now 96 px
+    beside the question, down to 320 pt and at 200% text;
+  - a header fact wider than the line (a long prescription at 200% text on 320 pt) was cut off:
+    it now wraps beside its glyph;
+  - the coach's 200-second rest read "3.3 min": a rest off the half-minute now keeps its seconds
+    ("3 min 20 s");
+  - forced colours: ink surfaces (primary buttons, chosen tiles, picker picks, badges, the
+    session strip) lost their text to the browser's backplate, and a drawing vanished on a chosen
+    tile; those surfaces now keep their system colours and drawings follow the text colour.
+- **Production build** (`node scripts/dev/audit.mjs build`, then `start`; no migration or seed):
+  drafts stay hidden. Technique shows "Guide not available yet." with the exercise's old note and
+  How to log, no "Draft for review", the workout's question has no picture, a draft drawing's
+  URL is 404 and `/preview` is 404. No drawing is in a client chunk.
+- **Bundle and payload against `main`** (both production builds on the same local database,
+  signed in, first load, uncompressed JavaScript): the workout +10.2 KB (723.6 against
+  713.4), an open exercise +10.0 KB, Add exercise +4.5 KB, the library +0.3 KB, Add machine
+  +0.9 KB, Today unchanged. The workout's HTML, with its data, grew 13 KB (machine questions,
+  defaults and guidance; drafts hidden). `main`'s build served every route against the migrated
+  database, so the migrations hold for code that predates them.
+- **The repository's browser audit** (`scripts/dev/audit-browser.mjs`, axe, horizontal
+  overflow, console errors, destinations) on the 29 routes this work touches (gyms, exercises,
+  workouts, onboarding), on Pixel 7 and at 320 px, against the production build: clean. WebKit
+  was not run (the container's WebKit does not match the installed Playwright).
 
 ## Next
 

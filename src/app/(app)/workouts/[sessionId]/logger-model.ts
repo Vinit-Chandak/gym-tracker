@@ -91,7 +91,8 @@ function coachVolume(sets: TargetSet[]): { text: string; measure: PrescriptionTy
 export function countTargetLabel(exercise: ExerciseVM, setIndex: number | null): string | null {
   const coach = coachWork(exercise);
   if (coach) {
-    const own = coach.find((set) => set.setIndex === setIndex) ?? coach[0]!;
+    // The coach's own figure for that set, a warm-up's included; past them, the first working set.
+    const own = exercise.suggestion?.sets.find((set) => set.setIndex === setIndex) ?? coach[0]!;
     const measure = coachMeasure(own);
     const count = coachCount(own, measure);
     if (count !== null) return `${count}${MEASURE_UNIT_SUFFIX[measure]}`;

@@ -200,6 +200,8 @@ describe("today's targets: every number from one source (plan: today's targets)"
     expect(restText(coached)).toBe("2.5 min");
     expect(restSecondsOf(coached)).toBe(150);
     expect(countTargetLabel(coached, 3)).toBe("5");
+    // The coach's warm-up asks for its own reps.
+    expect(countTargetLabel(coached, 1)).toBe("8");
   });
 
   it("says each set when the coach's sets differ", () => {
