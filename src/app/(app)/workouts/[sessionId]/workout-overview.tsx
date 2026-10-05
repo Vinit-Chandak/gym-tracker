@@ -54,7 +54,13 @@ function rowLine(exercise: ExerciseVM, session: SessionVM, readOnly: boolean): s
   if ((readOnly || underWay(exercise)) && done.length > 0)
     return done.map((set) => formatSet(set, LOAD_UNIT_LABELS[set.unit])).join(", ");
   const unitLabel = LOAD_UNIT_LABELS[exercise.equipment?.unit ?? session.preferredUnit];
-  return prescriptionLabel(exercise, unitLabel) ?? equipmentLine(exercise);
+  const line = prescriptionLabel(exercise, unitLabel);
+  const machine = equipmentLine(exercise);
+  if (!line) return machine;
+  // A machine still to settle is news on the row, as it is under the exercise's name.
+  return machine === "Machine not chosen" && !exercise.completedAt && !exercise.skippedAt
+    ? `${line} · ${machine}`
+    : line;
 }
 
 /** The workout's plan as a print: the warm-up's fan, then a column of sets for each exercise. */

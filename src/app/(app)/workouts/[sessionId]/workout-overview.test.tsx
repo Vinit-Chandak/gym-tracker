@@ -371,3 +371,19 @@ it("takes each row's numbers from one source: the coach's, the programme's or th
     "12–20 reps @ 2 RIR",
   );
 });
+
+it("says on the row when an exercise's machine is still to settle", () => {
+  show({
+    session: {
+      ...SESSION,
+      exercises: [
+        exercise("Hack squat", {
+          exercise: { ...exercise("Hack squat").exercise, modality: "machine" },
+        }),
+      ],
+    },
+  });
+  expect(screen.getByRole("button", { name: /Hack squat/ }).textContent).toContain(
+    "4 × 3–5 @ 2 RIR · Machine not chosen",
+  );
+});
