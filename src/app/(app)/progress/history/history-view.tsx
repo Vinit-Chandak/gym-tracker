@@ -7,12 +7,15 @@ import type { Route } from "next";
 import { Art } from "@/components/art/art";
 import type { Sport } from "@/components/art/geometry";
 import { DateRangeFields } from "@/components/date-range-fields";
+import { RangeSpans } from "@/components/graph/graph";
+import { GraphRangeProvider } from "@/components/graph/graph-range-context";
 import Link from "@/components/ui/app-link";
 import { Button } from "@/components/ui/button";
 import { FilterSheet } from "@/components/ui/filter-sheet";
 import { Glyph } from "@/components/ui/glyphs";
 import { Field } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import type { RangePreset } from "@/domain/graph-range";
 import { formatDateRange, formatIsoWeekdayDay } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -82,6 +85,7 @@ function fromSearch(params: URLSearchParams | ReadonlyURLSearchParams): Filters 
 
 export function HistoryView({
   error = null,
+  preset = null,
   range,
   items,
   gyms,
@@ -89,6 +93,8 @@ export function HistoryView({
 }: {
   /** A range the reader asked for that could not be read. */
   error?: string | null;
+  /** The span every Progress section shares; null while dates chosen by hand hold. */
+  preset?: RangePreset | null;
   /** The dates the server read, changed from inside the filter sheet. */
   range: { from: string; to: string };
   items: HistoryItem[];
@@ -167,7 +173,7 @@ export function HistoryView({
   }, []);
 
   return (
-    <>
+    <GraphRangeProvider preset={preset}>
       {/* History is one of Progress's sections (ADR 0034), so it is chosen where they are, with
           one control at the end of the title for everything that narrows the list. */}
       <ProgressSections
@@ -249,6 +255,8 @@ export function HistoryView({
         }
       />
 
+      {/* The span the graphs share holds here too, so a section changed keeps its window. */}
+      <RangeSpans name="history" className="mt-3" />
       {error && (
         <p role="alert" className="mt-3 flex items-start gap-2 type-meta font-semibold">
           <Glyph name="warn" className="mt-px glyph-18" />
@@ -338,6 +346,6 @@ export function HistoryView({
           )}
         </div>
       )}
-    </>
+    </GraphRangeProvider>
   );
 }

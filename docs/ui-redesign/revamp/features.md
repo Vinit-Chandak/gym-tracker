@@ -281,50 +281,63 @@ completed and a skipped exercise; the finished record.
 ## Progress
 
 Code: `src/app/(app)/progress/` (`page.tsx`, `progress-view.tsx`, `progress-sections.tsx`,
-`recovery-progress.tsx`, `history/`), `src/components/strength-trend.tsx`,
-`src/components/ui/chart.tsx`, `body-map.tsx`, `filter-sheet.tsx`, `src/domain/analytics.ts`.
+`sections/`, `history/`), `src/components/graph/`, `body-map.tsx`, `filter-sheet.tsx`,
+`src/domain/graph-range.ts`, `src/domain/progress-graphs.ts`, `src/server/repositories/graphs.ts`.
 
 **Purpose:** how training is going over a chosen date range (totals, trends, recovery, body
 weight and muscle volume), and every past entry, which can be opened, corrected or deleted.
 
 ### Sections
 
-One picker offers six sections: **Overview** (where the tab opens), **History**, **Strength**,
-**Running**, **Recovery** and **Body**. The header says "Progress" with the date range
-("6 Jul – 30 Sept 2026"); a Filters control sets the range, about the last 12 weeks by
-default and up to a year.
+One picker offers seven sections: **Overview** (where the tab opens), **History**, **Strength**,
+**Running**, **Food**, **Recovery** and **Body**. The header says "Progress" with the dates the
+section is drawn over ("8 Sept – 7 Oct 2026"). Every graph is the one `Graph` (ADR 0042) and
+carries the same spans, 1m, 3m, 6m, 12m and All: a month by default, one span for every graph,
+remembered once chosen. The funnel holds custom dates, which leave no span chosen until one is.
 
-- **Overview:** training totals per sport, only for sports with sessions ("Strength 40
-  sessions · 39 days · 37 h 36 min"; "Running 15 sessions · 15 days · 6 h 10 min · 59.8 km";
-  cycling and swimming alike), noting sessions without a distance or duration; and **weekly
-  sessions**, lifting and runs per week, with this week marked "so far".
-- **Strength:** choose an exercise, then one of five measures (heaviest working set, most reps,
-  volume, average RIR, estimated 1RM), shown as the latest value, the change over the range
-  ("+x since DD/MM") and a line with one point per session. Where the exercise was done on
-  several machines, choose one ("Seated leg curl · Anytime Fitness") or "Across gyms"; loads from
-  different machines never share a line. Then **sets by muscle**: a muscle and its weekly sets
-  (a primary muscle counts 1, a secondary 0.5, warm-ups not at all).
-- **Running:** distance and duration per week, and pace per run (min/km, lower is faster),
-  outdoor and treadmill never mixed.
-- **Recovery:** how many check-ins; sleep hours, sleep quality, fatigue and soreness, each with
-  its latest value, the range average and a line; the last three check-ins.
-- **Body:** body weight over the range in the account's unit (one reading per day); and
-  **muscles this week**, with its own week arrows: front and back body figures shaded by
-  working sets (15+, 10–14, 5–9, 1–4, none), a legend and a table; tapping a muscle shows
-  "Chest · 6 sets this week".
-- **History:** "79 entries", newest first, each marked Workout, Run, Ride, Swim or Recovery.
-  A workout shows its name, date, time, gym, sets and sleep; a run "Outdoor · 5 km", "30:34 ·
-  6:07/km" and its effort; a ride or swim its distance and time; a recovery entry its
-  readings. Filters: dates, activity, gym, exercise and machine, with a count of filters set
-  and Clear filters.
+- **Overview:** this month on paper and its totals; then training totals per sport over the span,
+  only for sports with sessions ("Strength 25 sessions · 21 days · 23 h 50 min"; "Running 8
+  sessions · 7 days · 3 h 15 min · 30.8 km"; cycling and swimming alike), noting sessions
+  without a distance or duration, with the spans above them.
+- **Strength:** muscle groups or one exercise. **Muscle groups:** all groups or one of chest,
+  back, legs, shoulders, arms and core; working sets as bars, a set counted once per group (in
+  full where the group holds a primary muscle, half where it holds only secondary ones); the
+  total and the weekly figure over the weeks trained ("368 sets · 73.6 a week · 25 workouts").
+  **Exercise:** every exercise ever logged, opening on the free-weight lift done most often in
+  the span; estimated 1RM, max weight, max reps and max volume (the best single set), and max time
+  or distance for holds and carries, only those with data; a line with a point per workout (past
+  about sixty, the best of each week or month); its best in the span and the set behind it
+  ("145.7 kg · 115 kg × 8 · Fri 2 Oct"). Where the exercise was done on several machines, choose
+  one ("Seated leg curl · Anytime Fitness") or "Across gyms"; loads from different machines never
+  share a line.
+- **Running:** distance and duration as bars, with the total and the count of runs; pace as a
+  line, a point per run (past about sixty, each week's or month's pace over all its kilometres),
+  faster higher, with the average over all their kilometres, outdoor and treadmill never mixed
+  (the choice shows only when both were run).
+- **Food:** calories or protein a day as bars, today's target as a rule; the average a day over
+  the days logged ("2,000 kcal · 26 of 30 days logged · target 2,600").
+- **Recovery:** sleep, sleep quality, fatigue or soreness; sleep as bars against 6 h, the 1–5
+  answers as lines on their whole scale; the average over the days that gave the answer, a day
+  checked in twice counted once.
+- **Body:** body weight as recorded, a point per reading, in the account's unit; the latest and
+  its change ("75.2 kg · −1 since Tue 8 Sept"); and **muscles this week**, with its own week
+  arrows: front and back body figures shaded by working sets (15+, 10–14, 5–9, 1–4, none), a
+  legend and a table; tapping a muscle shows "Chest · 6 sets this week".
+- **History:** "79 entries", newest first, each marked Workout, Run, Ride, Swim or Recovery, over
+  the same span as the graphs, with the spans above it. A workout shows its name, date, time,
+  gym, sets and sleep; a run "Outdoor · 5 km", "30:34 · 6:07/km" and its effort; a ride or swim
+  its distance and time; a recovery entry its readings. Filters: dates, activity, gym, exercise
+  and machine, with a count of filters set and Clear filters.
 
 ### Actions
 
-Switch section; set the date range; choose exercise, machine, measure, muscle, running mode
-and recovery measure; step through body-map weeks; tap or drag a chart for its value, and
-open "View values" for a table; open any entry from History (a finished workout, read only,
-or an activity page with its time, distance, pace or speed, effort and notes); correct an
-activity; delete an activity (always confirmed).
+Switch section; choose a span, or custom dates behind the funnel; choose what a section draws
+(group or exercise, machine, measure, outdoor or treadmill, food or recovery measure); step
+through body-map weeks; tap or drag a graph to read a mark, and open the workout, run, day, week
+or food log behind it; step through the marks with the arrow keys; open "View values" for every
+value, each opening its record; open any entry from History (a finished workout, read only, or an
+activity page with its time, distance, pace or speed, effort and notes); correct an activity;
+delete an activity (always confirmed).
 
 ### States to design
 
@@ -335,11 +348,12 @@ error; offline.
 
 ### Must survive
 
-- All six sections stay reachable, and History stays its own page. Dates and filters live in
-  the URL, so Back and reload restore them.
+- All seven sections stay reachable, and History stays its own page. The span is remembered
+  for every graph; custom dates and filters live in the URL, so Back and reload restore them.
 - Strength's numbers are the same as the exercise page's; loads from different machines never
   share a series.
-- Missing data is never zero: gaps break lines and blanks stay blank.
+- Missing data is never zero: blanks stay blank, a gap breaks a bucketed line, and no average
+  counts a day with nothing logged.
 - Every chart keeps a table of its values, the body map keeps its table, and colour never
   carries meaning alone.
 - Explanations live in help notes one tap away, not in running text.

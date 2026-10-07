@@ -69,7 +69,8 @@ The fifth tab is **Profile**: who you are, then everything that used to be Setti
   what a follower would see.
 - **Compare**: you against a friend, head to head — both muscle splits on one radar, a bar
   pair per number for the period, and every comparable exercise you both did, each opening a
-  comparison of that movement with the day each best was set and both trends on one chart.
+  comparison of that movement with the day each best was set and both lines on one graph, over
+  the span every graph shares, each point opening the workout behind it.
 - **Leaderboard**: you and the people you follow, ranked on a period's totals or on the
   all-time bests of one movement, with "per kg of body weight" rankings once two of you share
   your weight. Equal values share a rank; whoever has nothing for a metric reads "—".
@@ -228,6 +229,10 @@ as the **Food** tab, where History used to be; History is now a section of **Pro
 [0035](docs/decisions/0035-targets-from-the-goal-and-my-foods-of-its-own.md),
 [0036](docs/decisions/0036-meals-in-eating-order-and-a-calmer-food-card.md) and
 [0037](docs/decisions/0037-any-day-on-the-food-tab.md).
+
+**Progress → Food** draws calories and protein a day over any span, against today's target, each
+average taken over the days something was logged; a bar opens its day
+([ADR 0042](docs/decisions/0042-one-graph-for-every-trend.md)).
 
 Saving needs a connection. Retrying a save after a lost reply cannot log a food twice.
 Production deployments apply database migrations before building the app.

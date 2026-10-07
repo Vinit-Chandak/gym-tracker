@@ -3,6 +3,7 @@ import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
 import type { Effort } from "@/domain/activity";
 import { formatDuration, formatPace } from "@/domain/pace";
+import { rangeOf, readWindowOf } from "@/domain/graph-range";
 import { todayInTimeZone } from "@/domain/program-calendar";
 import { formatRunKm, formatTime } from "@/lib/format";
 import { originQuery } from "@/lib/nav";
@@ -12,7 +13,8 @@ import { getRequestProfile } from "@/server/queries/request-profile";
 import { listGyms } from "@/server/repositories/gyms";
 import { listActivityPage } from "@/server/repositories/activity-analytics";
 import { readHistory } from "@/server/repositories/history";
-import { parseDateRangeOrDefault } from "@/server/validation/date-range";
+import { readRangeChoice } from "@/server/queries/graph-range";
+import { dateWindow } from "@/server/validation/date-range";
 import { HistoryView, type HistoryItem } from "./history-view";
 
 export const metadata: Metadata = { title: "History" };
@@ -50,13 +52,12 @@ export default async function HistoryPage(props: PageProps<"/progress/history">)
   const user = await requireUser(),
     params = await props.searchParams;
   const profile = await getRequestProfile(user.id, user.email);
-  const { range, error: rangeError } = parseDateRangeOrDefault(
-    {
-      from: typeof params.from === "string" ? params.from : undefined,
-      to: typeof params.to === "string" ? params.to : undefined,
-    },
-    profile.timeZone,
-  );
+  // The span every Progress section shares (ADR 0042): dates in the URL, else the one chosen
+  // last on a graph. History lists, so "All" reads back as far as its list goes.
+  const today = todayInTimeZone(profile.timeZone);
+  const { choice, error: rangeError } = await readRangeChoice(params, today);
+  const read = readWindowOf(choice, today);
+  const range = dateWindow(read.from, read.to, profile.timeZone);
   const data = await withUser(
     getDb(),
     user.id,
@@ -159,7 +160,12 @@ export default async function HistoryPage(props: PageProps<"/progress/history">)
     <div className="progress page-width pt-safe">
       <HistoryView
         error={rangeError}
-        range={range}
+        preset={choice.preset ?? null}
+        range={
+          choice.preset === "all"
+            ? rangeOf(choice, today, items.at(-1)?.day ?? null)
+            : { from: range.from, to: range.to }
+        }
         items={items}
         gyms={data.gyms.map((g) => ({ id: g.id, name: g.name }))}
         truncated={data.training.truncated || data.endurance.nextCursor !== null}

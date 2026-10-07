@@ -668,7 +668,14 @@ function harder(a: ExerciseBest["work"], b: ExerciseBest["work"]): boolean {
   return reps(a) > reps(b) || (reps(a) === reps(b) && a.sets > b.sets);
 }
 
-export type TrendPoint = { date: string; value: number };
+export type TrendPoint = {
+  date: string;
+  value: number;
+  /** The workout that set the day's value, which its owner opens. */
+  workoutSessionId: string;
+  /** Its shared session, which a follower opens it by; null where there is none. */
+  sharedId: string | null;
+};
 
 /**
  * One metric of one movement per session for each person over a period, oldest first: the
@@ -686,6 +693,8 @@ export async function readExerciseTrend(
     .select({
       userId: sharedExerciseStats.userId,
       occurredOn: sharedExerciseStats.occurredOn,
+      workoutSessionId: sharedExerciseStats.workoutSessionId,
+      sharedId: sharedSessionStats.id,
       bestE1rmKg: sharedExerciseStats.bestE1rmKg,
       topWeightKg: sharedExerciseStats.topWeightKg,
       bestSetVolumeKg: sharedExerciseStats.bestSetVolumeKg,
@@ -694,6 +703,15 @@ export async function readExerciseTrend(
       longestDistanceMeters: sharedExerciseStats.longestDistanceMeters,
     })
     .from(sharedExerciseStats)
+    // The session's own shared row, under the same policy, is what a follower opens.
+    .leftJoin(
+      sharedSessionStats,
+      and(
+        eq(sharedSessionStats.userId, sharedExerciseStats.userId),
+        eq(sharedSessionStats.sport, "workout"),
+        eq(sharedSessionStats.sourceId, sharedExerciseStats.workoutSessionId),
+      ),
+    )
     .where(
       and(
         inArray(sharedExerciseStats.userId, [...userIds]),
@@ -703,20 +721,22 @@ export async function readExerciseTrend(
       ),
     )
     .orderBy(asc(sharedExerciseStats.startedAt));
-  const result = new Map<string, Map<string, number>>();
+  const result = new Map<string, Map<string, TrendPoint>>();
   for (const row of rows) {
     const value = metricValue(row, metric);
     if (value === null) continue;
-    const days = result.get(row.userId) ?? new Map<string, number>();
-    days.set(row.occurredOn, Math.max(days.get(row.occurredOn) ?? -Infinity, value));
+    const days = result.get(row.userId) ?? new Map<string, TrendPoint>();
+    const held = days.get(row.occurredOn);
+    if (!held || value > held.value)
+      days.set(row.occurredOn, {
+        date: row.occurredOn,
+        value,
+        workoutSessionId: row.workoutSessionId,
+        sharedId: row.sharedId,
+      });
     result.set(row.userId, days);
   }
-  return new Map(
-    [...result].map(([userId, days]) => [
-      userId,
-      [...days].map(([date, value]) => ({ date, value })),
-    ]),
-  );
+  return new Map([...result].map(([userId, days]) => [userId, [...days.values()]]));
 }
 
 export type CommonExercise = {

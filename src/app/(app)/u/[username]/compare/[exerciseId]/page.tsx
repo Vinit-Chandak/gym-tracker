@@ -1,20 +1,23 @@
-import type { Metadata } from "next";
+import type { Metadata, Route } from "next";
 import { notFound, redirect } from "next/navigation";
 
 import { CompareHeader } from "@/components/compare-header";
 import { FriendsBoardCard } from "@/components/friends-board-card";
+import { GraphRangeProvider } from "@/components/graph/graph-range-context";
+import { HeadToHeadGraph } from "@/components/graph/head-to-head-graph";
+import { workoutHref } from "@/components/graph/labels";
 import { PageContent } from "@/components/shell/page-content";
 import { PageHeader } from "@/components/shell/page-header";
 import { Card } from "@/components/ui/card";
-import { Chart } from "@/components/ui/chart";
 import { CompareTable, type CompareSide } from "@/components/ui/compare-table";
-import { PeriodSelect } from "@/components/ui/period-select";
 import { Section } from "@/components/ui/section";
 import { getDb } from "@/db/client";
 import { withUser } from "@/db/with-user";
-import { alignSeries, bodyWeightRatio, strongerVerdict } from "@/domain/compare";
+import { bodyWeightRatio, strongerVerdict } from "@/domain/compare";
+import { rangeOf, readWindowOf } from "@/domain/graph-range";
 import { topWithYou } from "@/domain/leaderboard";
-import { PERIOD_LABELS } from "@/domain/period";
+import { todayInTimeZone } from "@/domain/program-calendar";
+import { earliestOf } from "@/domain/progress-graphs";
 import {
   METRIC_UNIT,
   metricLabel,
@@ -27,6 +30,7 @@ import { formatIsoDay, formatSharedMetric, formatTopWeightWork } from "@/lib/for
 import { BODY_REGION_LABELS } from "@/lib/labels";
 import { fromKilograms } from "@/lib/units";
 import { requireUser } from "@/server/auth";
+import { rememberedRange } from "@/server/queries/graph-range";
 import { hiddenTrainingLine, loadHeadToHead } from "@/server/queries/head-to-head";
 import { loadCircle, rankExercise } from "@/server/queries/leaderboard";
 import { getRequestProfile } from "@/server/queries/request-profile";
@@ -37,9 +41,10 @@ import {
   readExerciseTrend,
   type ExerciseBest,
   type SharedReading,
+  type TrendPoint,
 } from "@/server/repositories/shared-stats";
+import { dateWindow } from "@/server/validation/date-range";
 import { requireUsername, requireUuid } from "@/server/validation/params";
-import { parsePeriod, periodRange } from "@/server/validation/period";
 
 export const metadata: Metadata = { title: "Compare exercise" };
 
@@ -69,8 +74,8 @@ function side(
  * primary metric over all time, the bests side by side for each metric the movement is
  * measured by with the day each was set (and, for the top weight, how it was worked),
  * "× body weight" under the loads when you both share it, and the primary metric per session
- * over the chosen period as two lines on one chart. Only a comparable movement (§3.9) has
- * this page at all.
+ * as two lines on the shared graph, over the span every graph shares (ADR 0042). Only a
+ * comparable movement (§3.9) has this page at all.
  */
 export default async function CompareExercisePage(
   props: PageProps<"/u/[username]/compare/[exerciseId]">,
@@ -79,10 +84,12 @@ export default async function CompareExercisePage(
   const handle = requireUsername(params.username);
   const exerciseId = requireUuid(params.exerciseId);
   const user = await requireUser();
-  const period = parsePeriod((await props.searchParams).period);
   const viewer = await getRequestProfile(user.id, user.email);
   const unit = viewer.preferredUnit === "lb" ? ("lb" as const) : ("kg" as const);
-  const range = periodRange(period, viewer.timeZone);
+  // The span every graph shares, remembered from wherever it was last chosen.
+  const preset = await rememberedRange();
+  const today = todayInTimeZone(viewer.timeZone);
+  const trendDays = readWindowOf({ preset }, today);
   const found = await withUser(
     getDb(),
     user.id,
@@ -106,7 +113,13 @@ export default async function CompareExercisePage(
           exerciseId,
         ),
         readBodyWeights(tx, ids),
-        readExerciseTrend(tx, ids, exerciseId, metric, range),
+        readExerciseTrend(
+          tx,
+          ids,
+          exerciseId,
+          metric,
+          dateWindow(trendDays.from, trendDays.to, viewer.timeZone),
+        ),
       ]);
       const board = topWithYou(rankExercise(circle, bests, new Map(), metric), head.me.id, 5);
       return { ...head, exercise, metric, bests, readings, trend, board };
@@ -143,18 +156,14 @@ export default async function CompareExercisePage(
     mine?.find((b) => b.metric === metric)?.value ?? null,
     theirs?.find((b) => b.metric === metric)?.value ?? null,
   );
-  const aligned = alignSeries(trend.get(me.id) ?? [], trend.get(them.id) ?? []);
+  const mineTrend = trend.get(me.id) ?? [];
+  const theirTrend = trend.get(them.id) ?? [];
   // Loads are stored in kilograms and drawn in the reader's unit, as every number here.
-  const inUnit = (value: number | null) =>
-    value === null ? null : METRIC_UNIT[metric] === "kg" ? fromKilograms(value, unit) : value;
-  const chartUnit =
-    METRIC_UNIT[metric] === "kg"
-      ? unit
-      : METRIC_UNIT[metric] === "seconds"
-        ? "s"
-        : METRIC_UNIT[metric] === "metres"
-          ? "m"
-          : "reps";
+  const inUnit = (value: number) =>
+    METRIC_UNIT[metric] === "kg" ? fromKilograms(value, unit) : value;
+  // Your own point opens your workout; theirs, the session they shared.
+  const line = (points: readonly TrendPoint[], href: (point: TrendPoint) => Route | null) =>
+    points.map((point) => ({ date: point.date, value: inUnit(point.value), href: href(point) }));
 
   return (
     <>
@@ -180,27 +189,31 @@ export default async function CompareExercisePage(
         </Section>
 
         <Section title="Trend">
-          <PeriodSelect value={period} />
-          <Card>
-            <Chart
-              title={metricLabel(metric, exercise)}
-              unit={chartUnit}
-              bridgeGaps
-              note={`${metricLabel(metric, exercise)} per session over the last ${PERIOD_LABELS[period]}. A line runs across the other person's training days rather than breaking there.`}
-              series={[
-                {
-                  name: names[0],
-                  color: "var(--color-series-1)",
-                  points: aligned.a.map((p) => ({ ...p, value: inUnit(p.value) })),
-                },
-                {
-                  name: names[1],
-                  color: "var(--color-series-2)",
-                  points: aligned.b.map((p) => ({ ...p, value: inUnit(p.value) })),
-                },
-              ]}
+          <GraphRangeProvider preset={preset}>
+            <HeadToHeadGraph
+              data={{
+                range: rangeOf(
+                  { preset },
+                  today,
+                  earliestOf([...mineTrend, ...theirTrend].map((point) => point.date)),
+                ),
+                today,
+                metric,
+                label: metricLabel(metric, exercise),
+                unit,
+                // As the bests above name the two columns.
+                names: ["You", names[1]],
+                lines: [
+                  line(mineTrend, (point) => workoutHref(point.workoutSessionId, "shared")),
+                  line(theirTrend, (point) =>
+                    point.sharedId
+                      ? (`/u/${them.username}/activities/${point.sharedId}` as Route)
+                      : null,
+                  ),
+                ],
+              }}
             />
-          </Card>
+          </GraphRangeProvider>
         </Section>
 
         <FriendsBoardCard

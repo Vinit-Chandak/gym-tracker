@@ -47,7 +47,7 @@ it("lists Progress's sections as the design orders them, Overview first", () => 
     open("Overview")
       .getAllByRole("listitem")
       .map((item) => item.textContent),
-  ).toEqual(["Overview", "History", "Strength", "Running", "Recovery", "Body"]);
+  ).toEqual(["Overview", "History", "Strength", "Running", "Food", "Recovery", "Body"]);
 });
 
 it("is Progress's opening: the title, the funnel, the section and its range", () => {

@@ -9,13 +9,14 @@ import { SectionSelect } from "@/components/ui/section-select";
 /**
  * Progress's sections, as the picker lists them (DESIGN.md, Navigation; ADR 0034): Overview,
  * the month on paper, which the tab opens on, then History, everything done, day by day, then a
- * section per subject.
+ * section per subject, each drawn by the same graphs (ADR 0042).
  */
 export const PROGRESS_SECTIONS = [
   { value: "overview", label: "Overview" },
   { value: "history", label: "History" },
   { value: "strength", label: "Strength" },
   { value: "running", label: "Running" },
+  { value: "food", label: "Food" },
   { value: "recovery", label: "Recovery" },
   { value: "body", label: "Body" },
 ] as const;

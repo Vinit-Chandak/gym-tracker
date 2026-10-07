@@ -396,8 +396,7 @@ Ink and white for the interface; seven artist's pigments, on warm paper, for the
 ### Primary
 
 - **Press Ink** (`ink`; `ink-dark` in dark): all text, the primary button, what is chosen,
-  selected text, the focus ring, and every Progress chart (distance, the heaviest set, body
-  weight, sleep). On ink, text is **On-ink**.
+  selected text, the focus ring, and every graph (see Graphs). On ink, text is **On-ink**.
 
 ### Secondary
 
@@ -781,6 +780,54 @@ and every control answers a press.
 - **Records:** a list in ink: the exercise, the metric and what it was, the new figure trailing.
   Never a pigment tile.
 
+### Graphs
+
+One graph, drawn the same way wherever a trend is (ADR 0042): every Progress section, an
+exercise's page and a friend's compare page. Top to bottom:
+
+- **The readout:** a caption (Caption, ink 2) with the graph's ⓘ at its end, the figure (Figure
+  L, its unit in Caption, ink 2) and one line of context (Meta small, ink 2). It holds the graph's
+  one summary (the total, the average a day, the latest, the best in the span), and swaps in place
+  to the mark being read: its day, week or month, its figure and what made it, with the way into
+  its record at the end of the figure's line (Open workout, Open run, Open day, Open week; ink,
+  700, a chevron, a 44-pt target). It keeps its height either way, so the plot never moves.
+- **The plot,** 152 pt over a 24-pt row of dates: the scale's round values as `hair` lines, their
+  labels (Print label, 600, ink 2) in the left margin, two or three of them. Bars stand on a
+  `hair` baseline and start at zero; a line floats on its readings' own range, and a fixed scale
+  (a 1–5 answer) is drawn whole. A value that matters (sleep's 6 h, today's food target) is a
+  1-pt rule in ink, its label in the margin in ink, 700.
+- **Marks:** bars are totals, in `control`, the latest in ink, up to 14 pt wide, their tops
+  rounded (3 pt) and their feet square on the baseline. A line is a measurement that rises and
+  falls: 2 pt of ink, round joins, an open point on each reading (ground with an ink ring) while
+  there are forty or fewer, the latest a full ink point with a ground ring. Past about sixty
+  records a line is grouped by week or month, so it never becomes a band. A bucket with nothing
+  in it has no mark: missing is never drawn as zero, and a gap breaks a bucketed line.
+- **The dates** under the plot are the calendar's own boundaries, as many as fit evenly: each
+  Monday over a month ("14 Sept"), each month over a quarter ("Aug"), the months with the year at
+  January over a year, each New Year beyond. The axis is always the whole span, whatever the data
+  covers.
+- **The spans:** 1m, 3m, 6m, 12m and All, a segmented tray under the plot, a month by default.
+  One span holds for every graph and is remembered; dates chosen by hand are behind the funnel and
+  leave no span chosen.
+- **View values:** the chart values row (table glyph, the count, a chevron) opens every value
+  newest first, each a row that opens its record where it has one.
+- **Reading a mark:** a tap, or a drag sideways, reads the nearest mark with something in it; a
+  1-pt `control` guide stands at its column and the mark turns ink. A tap on it again, outside the
+  graph or Escape returns the summary; a finger scrolling the page reads nothing. The plot takes
+  focus; the arrow keys step through the marks and Enter opens the record.
+- **Head to head** (a friend's compare page): two lines on one graph, yours in ink and theirs in
+  `control` (series 2), both 2 pt, each running straight across the other's training days. The
+  readout reads both side by side, each figure under its name and its line's key (a 16 × 2-pt
+  stroke): each person's best in the span, or both on the day being read, where a figure with a
+  record behind it opens it (Open workout, Open session) in place of its context, so the readout
+  keeps its height. View values lists both, a column each, each value opening its own record.
+- **Choices** above a graph are the section's own (a segmented tray for what is drawn, a select
+  for which group or exercise) and only where they change something: outdoor and treadmill appear
+  only when both were run, an exercise's machines only when it was done on more than one.
+
+**The Better Is Up Rule.** On every graph, up is more or better. Pace runs downward, faster
+higher, and says so in its ⓘ.
+
 ### Coach note
 
 - One quiet block: surface, 14-px corners, 12 × 14 padding; the speech glyph and "Coach" (or the
@@ -850,7 +897,8 @@ and every control answers a press.
   on a hairline, where you are ink and underlined.
 - **Sections:** pages of their own are chosen by one button naming the current one, which opens a
   sheet of them; the range the section shows sits beside it (Progress: Overview, History,
-  Strength, Running, Recovery, Body). Six choices never crowd a screen and none is clipped.
+  Strength, Running, Food, Recovery, Body). Seven choices never crowd a screen and none is
+  clipped.
 
 ### Sheets
 
@@ -907,9 +955,7 @@ and every control answers a press.
   sets in grey at the foot of their columns.
 - **The month:** the calendar, a tile of paper for each day and an icon for each activity, the
   weekdays across the top (see Layout).
-- **Progress charts** are not prints: distance, the heaviest set, body weight and sleep are drawn
-  in ink on the ground, the latest reading in ink and the rest in `control`, scale labels in the
-  left margin on every chart.
+- **Graphs** are not prints: they are drawn in ink on the ground (see Graphs).
 - **The bowl:** Food: the day's target filled meal by meal, the bowl alone and centred on its
   paper, the day's one figure (the kcal eaten, written against its target as the macronutrients
   are: "1,152.5 / 2,300 kcal") on the ground above it; the paper keeps air above

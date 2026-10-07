@@ -4,7 +4,12 @@ import { useState } from "react";
 
 import { cn } from "@/lib/utils";
 
-export type SegmentOption<V extends string> = { value: V; label: string };
+export type SegmentOption<V extends string> = {
+  value: V;
+  label: string;
+  /** What the segment says aloud, where its label is an abbreviation ("1m": "1 month"). */
+  accessibleLabel?: string;
+};
 
 type SegmentedControlProps<V extends string> = {
   name: string;
@@ -73,6 +78,7 @@ export function SegmentedControl<V extends string>({
             type="radio"
             name={name}
             value={option.value}
+            aria-label={option.accessibleLabel}
             className="peer sr-only"
             {...(controlled
               ? { checked: value === option.value, onChange: () => onChange?.(option.value) }
