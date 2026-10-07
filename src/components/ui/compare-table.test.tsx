@@ -2,7 +2,6 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, expect, it } from "vitest";
 
-import { chartSegments } from "./chart";
 import { CompareTable, percentLabel } from "./compare-table";
 
 afterEach(cleanup);
@@ -94,19 +93,4 @@ it("labels equal and behind without colour, and lets a faster pace lead", () => 
   expect(screen.getByText("−16.7%").className).toContain("text-ink-muted");
   expect(screen.getByText("−8.3%").className).toContain("text-success");
   expect(screen.getByText("5:30 /km").className).toContain("font-semibold");
-});
-
-it("bridges a gap only when asked", () => {
-  const points = [
-    { date: "2026-09-01", value: 80 },
-    { date: "2026-09-03", value: null },
-    { date: "2026-09-08", value: 82 },
-  ];
-  expect(chartSegments(points)).toEqual([[{ i: 0, value: 80 }], [{ i: 2, value: 82 }]]);
-  expect(chartSegments(points, true)).toEqual([
-    [
-      { i: 0, value: 80 },
-      { i: 2, value: 82 },
-    ],
-  ]);
 });

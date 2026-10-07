@@ -133,3 +133,112 @@
   font-size: var(--ov-type-meta);
   font-weight: 700;
 }
+
+/* Head to head: each line's figure under its name and its line's key, the first line's first.
+   While a mark is read, a line's figure with a record behind it opens it, and says so where its
+   context stood, so the readout keeps its height. */
+.graph-readout-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.graph-side {
+  min-width: 0;
+}
+.graph-side-name {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  color: var(--ov-ink);
+  font-size: var(--ov-type-meta-small);
+  font-weight: 700;
+  line-height: 1.35;
+}
+.graph-side-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* The line's own stroke, as the plot draws it: ink, then series 2 (control; a system colour
+   of its own under forced colours, so the two lines still differ). */
+.graph-side-key {
+  width: 16px;
+  height: 2px;
+  flex-shrink: 0;
+  border-radius: 1px;
+  background: var(--ov-ink);
+}
+.graph-side-key[data-line="second"] {
+  background: var(--ov-series-2);
+}
+.graph-side-value {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  margin-top: 2px;
+}
+.graph-side-action {
+  display: inline-flex;
+  min-height: calc(var(--ov-type-meta-small) * 1.35);
+  align-items: center;
+  gap: 2px;
+  color: var(--ov-ink);
+  font-size: var(--ov-type-meta-small);
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+/* Head to head's values: a column for each line, each value opening its own record. */
+.graph-value-pair {
+  display: flex;
+  flex-shrink: 0;
+  align-self: stretch;
+  gap: 12px;
+  margin-block: -6px;
+}
+.graph-value-cell {
+  display: inline-flex;
+  min-width: 5.5rem;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  font-weight: 600;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+/* The chevron's room, where a value has nothing to open, so the figures stay in columns. */
+.graph-value-spacer {
+  width: 16px;
+  flex-shrink: 0;
+}
+/* The columns' heads: each line's key and whose it is, a long name wrapping as the bests'
+   heads do rather than cut. */
+.graph-value-head {
+  min-height: 32px;
+  color: var(--ov-ink-2);
+  font-size: var(--ov-type-caption);
+  line-height: 1.3;
+}
+.graph-value-head .graph-value-cell {
+  width: 5.5rem;
+  align-items: flex-start;
+  padding-block: 8px;
+  font-weight: 700;
+  white-space: normal;
+}
+/* The key sits in the name's text, so it stays beside the first line however the name wraps. */
+.graph-value-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+.graph-value-name .graph-side-key {
+  display: inline-block;
+  margin-right: 6px;
+  vertical-align: middle;
+}

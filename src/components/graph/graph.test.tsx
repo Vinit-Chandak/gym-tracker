@@ -185,3 +185,88 @@ it("draws bars in grey, the latest in ink, and the one being read in ink instead
   fireEvent.keyDown(screen.getByRole("group", { name: /Body weight/ }), { key: "Home" });
   expect(fills()).toEqual(["var(--ov-ink)", "var(--ov-control)"]);
 });
+
+/** A head to head: your line and Alex's on the same days, each with its own record. */
+const pair = (): Partial<GraphProps> => ({
+  name: "Best estimated 1RM, You and Alex",
+  data: [
+    { date: "2026-09-10", value: 100 },
+    { date: "2026-09-12", value: null },
+    { date: "2026-10-01", value: 105 },
+  ],
+  against: {
+    names: ["You", "Alex"],
+    data: [
+      { date: "2026-09-10", value: null },
+      { date: "2026-09-12", value: 95 },
+      { date: "2026-10-01", value: 97.5 },
+    ],
+  },
+  summary: {
+    label: "Latest",
+    figure: "105",
+    unit: "kg",
+    context: "Thu 1 Oct",
+    against: { figure: "97.5", unit: "kg", context: "Thu 1 Oct" },
+  },
+  describe: (index) => ({
+    label: ["Thu 10 Sept", "Sat 12 Sept", "Thu 1 Oct"][index]!,
+    ...(index === 1
+      ? { figure: null, context: "No session" }
+      : {
+          figure: index === 0 ? "100" : "105",
+          unit: "kg",
+          href: `/workouts/w${index}` as GraphProps["summary"]["href"],
+          action: "Open workout",
+        }),
+    against:
+      index === 0
+        ? { figure: null, context: "No session" }
+        : {
+            figure: index === 1 ? "95" : "97.5",
+            unit: "kg",
+            href: `/u/alex/activities/s${index}` as GraphProps["summary"]["href"],
+            action: "Open session",
+          },
+  }),
+});
+
+it("reads a head to head: each line's figure under its name, the second line in grey under the first", () => {
+  const { container } = draw(pair());
+  expect(readout().getByText("You")).toBeTruthy();
+  expect(readout().getByText("Alex")).toBeTruthy();
+  expect(readout().getByText("105")).toBeTruthy();
+  expect(readout().getByText("97.5")).toBeTruthy();
+  const strokes = [...container.querySelectorAll(".graph-plot svg path")].map((path) =>
+    path.getAttribute("stroke"),
+  );
+  expect(strokes).toEqual(["var(--ov-series-2)", "var(--ov-ink)"]);
+});
+
+it("reads a day only one of them trained, and opens that one's record", () => {
+  draw(pair());
+  const plot = screen.getByRole("group", { name: /Best estimated 1RM/ });
+  fireEvent.keyDown(plot, { key: "Home" });
+  fireEvent.keyDown(plot, { key: "ArrowRight" });
+  expect(screen.getByText("Sat 12 Sept")).toBeTruthy();
+  expect(screen.getByText("No session")).toBeTruthy();
+  expect(screen.queryByRole("link", { name: /Open workout/ })).toBeNull();
+  expect(screen.getByRole("link", { name: /Alex.*Open session/ }).getAttribute("href")).toBe(
+    "/u/alex/activities/s1",
+  );
+  fireEvent.keyDown(plot, { key: "Enter" });
+  expect(router.push).toHaveBeenCalledWith("/u/alex/activities/s1");
+});
+
+it("lists a head to head's values newest first, a column each, each opening its own record", () => {
+  draw(pair());
+  fireEvent.click(screen.getByRole("button", { name: /View values/ }));
+  const links = screen.getAllByRole("link");
+  expect(links.map((link) => link.getAttribute("href"))).toEqual([
+    "/workouts/w2",
+    "/u/alex/activities/s2",
+    "/u/alex/activities/s1",
+    "/workouts/w0",
+  ]);
+  expect(links[1]!.textContent).toContain("Alex");
+});

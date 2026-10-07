@@ -15,8 +15,8 @@ average that counts a day with nothing logged as zero.
 
 What there was: three generations of chart. `InkBars`, `InkLine` and `ChartValues`
 (`components/ui/ink-chart.tsx`) drew Running, Recovery, Body and the exercise page's months;
-`StrengthTrend` drew an exercise's five measures; `Chart` (`components/ui/chart.tsx`) is the
-compare page's. Each section chose its own buckets, its own axis and its own ends: Recovery
+`StrengthTrend` drew an exercise's five measures; `Chart` (`components/ui/chart.tsx`) drew the
+compare page's two lines, under the social screens' 7-day to 1-year periods. Each section chose its own buckets, its own axis and its own ends: Recovery
 stood its bars a reading apart, so three weeks without a check-in took no room at all; Overview
 and Running drew weeks and stopped at the last one trained in. Strength opened on the first
 exercise in the alphabet (an unrecorded machine with one session, on the audit account) and
@@ -25,8 +25,8 @@ behind the funnel, and every read stopped at 500 workouts or runs, so a long ran
 
 ## Decisions
 
-1. **One component.** `Graph` (`src/components/graph/graph.tsx`) is every graph on Progress and
-   on an exercise's page, with one anatomy: the readout (the graph's one summary, or the mark
+1. **One component.** `Graph` (`src/components/graph/graph.tsx`) is every graph on Progress, on
+   an exercise's page and on a friend's compare page, with one anatomy: the readout (the graph's one summary, or the mark
    being read, with the way into its record), the plot in ink on the ground with the scale's
    round values as hairlines and their labels in the left margin, the dates under it, the spans,
    and every value behind one row. Its geometry is pure (`geometry.ts`, `thin.ts`) and tested
@@ -84,11 +84,17 @@ behind the funnel, and every read stopped at 500 workouts or runs, so a long ran
     and its separate trend card.
 15. **Reads** take counts and bests per workout (`server/repositories/graphs.ts`) and the runs
     themselves, so All covers every year an account has, with no 500-record sample.
+16. **Head to head.** A friend's compare page draws one movement's primary measure as two lines
+    on the same `Graph` (`against`): yours in ink, theirs in grey (series 2, `control`, which
+    forced colours turn into a colour of its own), each running straight across the other's
+    training days. The readout reads both side by side, each figure under its name and its
+    line's key: each person's best in the span, then a day either trained (past about sixty days,
+    a week or month, both grouped alike), with your workout and their shared session to open.
+    It follows the shared spans like every other graph, not the social screens' periods, and
+    View values lists both in a column each. `Chart` and its period select there are gone.
 
 ## Not done
 
-- The compare page's head-to-head line is still `Chart`; drawing two people on one `Graph` is
-  its own change.
 - Two calls were left to the owner, with screenshots of both: the spans under the plot or over
   the readout, and pace faster-up or lower-is-faster. Subtle gridlines were tried against none
   and kept: without them the scale's labels float and a value cannot be read across.
@@ -97,5 +103,6 @@ behind the funnel, and every read stopped at 500 workouts or runs, so a long ran
 
 `npm run check`; the domain, geometry and component tests in `domain/graph-range.test.ts`,
 `domain/progress-graphs.test.ts`, `components/graph/*.test.ts(x)`, and the readers against the
-real migrations in `server/repositories/graphs.test.ts`. Every section was rendered against the
+real migrations in `server/repositories/graphs.test.ts` and `shared-stats.test.ts` (the head to
+head's links, as a follower reads them); the compare page's wiring in its own `page.test.tsx`. Every section was rendered against the
 56-month audit account at 402 and 320 pt, in light and dark, in every span, with marks tapped.

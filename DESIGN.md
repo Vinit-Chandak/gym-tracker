@@ -782,8 +782,8 @@ and every control answers a press.
 
 ### Graphs
 
-One graph, drawn the same way wherever a trend is (ADR 0042): every Progress section and an
-exercise's page. Top to bottom:
+One graph, drawn the same way wherever a trend is (ADR 0042): every Progress section, an
+exercise's page and a friend's compare page. Top to bottom:
 
 - **The readout:** a caption (Caption, ink 2) with the graph's ⓘ at its end, the figure (Figure
   L, its unit in Caption, ink 2) and one line of context (Meta small, ink 2). It holds the graph's
@@ -815,6 +815,12 @@ exercise's page. Top to bottom:
   1-pt `control` guide stands at its column and the mark turns ink. A tap on it again, outside the
   graph or Escape returns the summary; a finger scrolling the page reads nothing. The plot takes
   focus; the arrow keys step through the marks and Enter opens the record.
+- **Head to head** (a friend's compare page): two lines on one graph, yours in ink and theirs in
+  `control` (series 2), both 2 pt, each running straight across the other's training days. The
+  readout reads both side by side, each figure under its name and its line's key (a 16 × 2-pt
+  stroke): each person's best in the span, or both on the day being read, where a figure with a
+  record behind it opens it (Open workout, Open session) in place of its context, so the readout
+  keeps its height. View values lists both, a column each, each value opening its own record.
 - **Choices** above a graph are the section's own (a segmented tray for what is drawn, a select
   for which group or exercise) and only where they change something: outdoor and treadmill appear
   only when both were run, an exercise's machines only when it was done on more than one.

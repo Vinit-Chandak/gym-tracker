@@ -427,6 +427,15 @@ describe("head to head", () => {
     // Alice's two sessions fell on one day, so the better one stands for the day.
     expect(trend.get(alice)!.map((p) => p.value)).toEqual([75.8]);
     expect(trend.get(bob)!).toHaveLength(1);
+    // Each point names its workout, and the shared session a follower opens it by.
+    const [day] = trend.get(alice)!;
+    const [shared] = await as(bob)((tx) =>
+      tx
+        .select({ id: sharedSessionStats.id })
+        .from(sharedSessionStats)
+        .where(eq(sharedSessionStats.sourceId, day!.workoutSessionId)),
+    );
+    expect(day!.sharedId).toBe(shared!.id);
 
     const common = await as(bob)((tx) => readExercisesInCommon(tx, bob, alice, ALL));
     expect(common.comparable.map((e) => [e.name, e.region])).toEqual([

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { alignSeries, bodyWeightRatio, compareValues, strongerVerdict } from "./compare";
+import { bodyWeightRatio, compareValues, strongerVerdict } from "./compare";
 
 describe("compareValues", () => {
   it("says the difference from the viewer's side, relative to the friend", () => {
@@ -36,23 +36,5 @@ describe("bodyWeightRatio", () => {
     expect(bodyWeightRatio(88, 74.5)).toBe(1.18);
     expect(bodyWeightRatio(88, null)).toBeNull();
     expect(bodyWeightRatio(88, 0)).toBeNull();
-  });
-});
-
-describe("alignSeries", () => {
-  it("puts both people on one date axis with gaps where one did not train", () => {
-    const aligned = alignSeries(
-      [
-        { date: "2026-09-01", value: 80 },
-        { date: "2026-09-08", value: 82 },
-      ],
-      [
-        { date: "2026-09-03", value: 70 },
-        { date: "2026-09-08", value: 72 },
-      ],
-    );
-    expect(aligned.dates).toEqual(["2026-09-01", "2026-09-03", "2026-09-08"]);
-    expect(aligned.a.map((p) => p.value)).toEqual([80, null, 82]);
-    expect(aligned.b.map((p) => p.value)).toEqual([null, 70, 72]);
   });
 });

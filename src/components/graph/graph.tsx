@@ -42,10 +42,8 @@ import { useGraphRange } from "./graph-range-context";
 /** One mark: a bucket's value in slot order, or one record's, oldest first. */
 export type GraphDatum = { date: string; value: number | null };
 
-/** What the readout over the plot says: the graph's summary, or the mark a finger is on. */
-export type GraphReadout = {
-  /** "Total distance"; "14–20 Sept". */
-  label: string;
+/** A line's figure in the readout, and the way into the record behind it. */
+export type GraphSide = {
   /** The figure, as written; null when there is none ("No runs"). */
   figure: string | null;
   unit?: string;
@@ -55,6 +53,14 @@ export type GraphReadout = {
   href?: Route;
   /** What opening it is called: "Open workout". */
   action?: string;
+};
+
+/** What the readout over the plot says: the graph's summary, or the mark a finger is on. */
+export type GraphReadout = GraphSide & {
+  /** "Total distance"; "14–20 Sept". */
+  label: string;
+  /** Head to head (`against`): the second line's figure, read beside the first's. */
+  against?: GraphSide;
 };
 
 export type GraphProps = {
@@ -99,6 +105,13 @@ export type GraphProps = {
    * readings are and broken pieces would hide the trend.
    */
   join?: boolean;
+  /**
+   * Head to head, lines only: a second line over the same days (a value for each of `data`'s),
+   * drawn in grey (series 2, `control`) under the first, and whose each line is. The readout
+   * reads both side by side, each figure under its line's name, the second from each readout's
+   * `against`.
+   */
+  against?: { data: readonly GraphDatum[]; names: readonly [string, string] };
   className?: string;
 };
 
@@ -141,6 +154,7 @@ export function Graph({
   note,
   empty,
   join = false,
+  against,
   className,
 }: GraphProps) {
   const router = useRouter();
@@ -165,18 +179,24 @@ export function Graph({
     wasChosen: boolean;
   } | null>(null);
 
+  const bars = mark === "bar";
+  // A head to head's second line, on the same days as the first.
+  const second = bars ? null : (against?.data ?? null);
+  /** Whether either line has something at an index: a mark a finger can read. */
+  const filled = (index: number) =>
+    (data[index]?.value ?? null) !== null || (second?.[index]?.value ?? null) !== null;
+
   // A new range, measure or series replaces the marks: a choice that no longer names the same
   // mark, or names one with nothing in it now, is let go rather than moved elsewhere.
   const selected =
-    chosen && data[chosen.index]?.date === chosen.date && data[chosen.index]?.value !== null
-      ? chosen
-      : null;
+    chosen && data[chosen.index]?.date === chosen.date && filled(chosen.index) ? chosen : null;
 
-  const values = data.flatMap((datum) => (datum.value === null ? [] : [datum.value]));
+  const values = [...data, ...(second ?? [])].flatMap((datum) =>
+    datum.value === null ? [] : [datum.value],
+  );
   const hasData = values.length > 0;
 
   // ---- scale ----
-  const bars = mark === "bar";
   const barScaled = bars
     ? barScale(values, {
         integral: scale.integral,
@@ -220,15 +240,22 @@ export function Graph({
   const xs = data.map((datum, index) => markX(index, datum.date, range, frame, placement, count));
   // A finger snaps to the nearest mark with something in it: an empty slot has nothing to say
   // that the gap does not, and on a phone a tap meant for a bar often lands beside it.
-  const readable = data.map((datum, index) => (datum.value !== null ? xs[index]! : null));
+  const readable = data.map((_, index) => (filled(index) ? xs[index]! : null));
   const latest = data.findLastIndex((datum) => datum.value !== null);
   const inked = selected ? selected.index : latest;
   const layout = barLayout(count, frame);
-  const points = data.map((datum, index) =>
-    datum.value === null ? null : { x: xs[index]!, y: y(datum.value), index },
-  );
+  const pointsOf = (line: readonly GraphDatum[]) =>
+    line.map((datum, index) =>
+      datum.value === null ? null : { x: xs[index]!, y: y(datum.value), index },
+    );
+  const points = pointsOf(data);
   const known = points.filter((point) => point !== null);
   const sparse = known.length <= 40;
+  const secondPoints = second ? pointsOf(second) : [];
+  const secondKnown = secondPoints.filter((point) => point !== null);
+  const secondInked = selected
+    ? selected.index
+    : (second?.findLastIndex((datum) => datum.value !== null) ?? -1);
 
   const ticksX = axisTicks(
     range,
@@ -317,7 +344,9 @@ export function Graph({
       event.preventDefault();
       setChosen(null);
     } else if (event.key === "Enter" && selected) {
-      const href = describe(selected.index).href;
+      // Head to head: the first line's record, or the second's where only it has one.
+      const read = describe(selected.index);
+      const href = read.href ?? read.against?.href;
       if (href) router.push(href);
     }
   };
@@ -342,23 +371,40 @@ export function Graph({
             </InfoTip>
           )}
         </p>
-        <div className="graph-readout-body">
-          <p className="graph-readout-value">
-            {readout.figure === null ? (
-              <span className="type-figure-l">—</span>
-            ) : (
-              <Figure text={readout.figure} unit={readout.unit} />
+        {against && second ? (
+          <div className="graph-readout-pair">
+            <ReadoutSide
+              name={against.names[0]}
+              line="first"
+              side={readout}
+              reading={selected !== null}
+            />
+            <ReadoutSide
+              name={against.names[1]}
+              line="second"
+              side={readout.against ?? { figure: null }}
+              reading={selected !== null}
+            />
+          </div>
+        ) : (
+          <div className="graph-readout-body">
+            <p className="graph-readout-value">
+              {readout.figure === null ? (
+                <span className="type-figure-l">—</span>
+              ) : (
+                <Figure text={readout.figure} unit={readout.unit} />
+              )}
+              {/* Held even when empty, so a mark without a second line keeps the figure in place. */}
+              <span className="graph-readout-context">{readout.context || "\u00a0"}</span>
+            </p>
+            {selected && readout.href && (
+              <Link href={readout.href} className="graph-readout-open">
+                {readout.action ?? "Open"}
+                <Glyph name="chevronRight" className="glyph-18" />
+              </Link>
             )}
-            {/* Held even when empty, so a mark without a second line keeps the figure in place. */}
-            <span className="graph-readout-context">{readout.context || "\u00a0"}</span>
-          </p>
-          {selected && readout.href && (
-            <Link href={readout.href} className="graph-readout-open">
-              {readout.action ?? "Open"}
-              <Glyph name="chevronRight" className="glyph-18" />
-            </Link>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       <div
@@ -456,6 +502,38 @@ export function Graph({
                 />
               );
             })}
+          {/* A head to head's second line, in grey under the first, joined as records are. */}
+          {secondKnown.length > 1 && (
+            <path
+              d={linePath(secondKnown)}
+              fill="none"
+              stroke="var(--ov-series-2)"
+              strokeWidth={2}
+              strokeLinejoin="round"
+              strokeLinecap="round"
+            />
+          )}
+          {secondKnown.map((point) =>
+            point.index === secondInked ? null : secondKnown.length <= 40 ? (
+              <circle
+                key={point.index}
+                cx={point.x}
+                cy={point.y}
+                r={2.6}
+                style={{ fill: "var(--ov-ground)", stroke: "var(--ov-series-2)" }}
+                strokeWidth={1.6}
+              />
+            ) : null,
+          )}
+          {secondInked >= 0 && secondPoints[secondInked] && (
+            <circle
+              cx={secondPoints[secondInked]!.x}
+              cy={secondPoints[secondInked]!.y}
+              r={selected ? 6 : 5}
+              style={{ fill: "var(--ov-series-2)", stroke: "var(--ov-ground)" }}
+              strokeWidth={2}
+            />
+          )}
           {!bars && known.length > 1 && (
             <path
               d={linePath(placement === "record" || join ? known : points)}
@@ -503,7 +581,15 @@ export function Graph({
 
       <RangeSpans name={name} />
 
-      {hasData && <GraphValues data={data} describe={describe} name={name} />}
+      {hasData && (
+        <GraphValues
+          data={data}
+          filled={filled}
+          describe={describe}
+          name={name}
+          names={second ? against?.names : undefined}
+        />
+      )}
     </div>
   );
 }
@@ -531,6 +617,61 @@ function Figure({ text, unit }: { text: string; unit?: string }) {
         )}
       {unit && <span className="graph-readout-unit"> {unit}</span>}
     </span>
+  );
+}
+
+/**
+ * One line's figure in a head-to-head readout, under its name and its line's key. While a mark
+ * is read and the line has a record there, the figure is the way into it.
+ */
+function ReadoutSide({
+  name,
+  line,
+  side,
+  reading,
+}: {
+  name: string;
+  line: "first" | "second";
+  side: GraphSide;
+  reading: boolean;
+}) {
+  const href = reading ? side.href : undefined;
+  const value = (
+    <>
+      {side.figure === null ? (
+        // Set as a figure with its unit is, so the line under it stands level with the other's.
+        <span className="whitespace-nowrap">
+          <span className="type-figure-l">—</span>
+          <span className="graph-readout-unit">{"\u00a0"}</span>
+        </span>
+      ) : (
+        <Figure text={side.figure} unit={side.unit} />
+      )}
+      {href ? (
+        <span className="graph-side-action">
+          {side.action ?? "Open"}
+          <Glyph name="chevronRight" className="glyph-16" />
+        </span>
+      ) : (
+        <span className="graph-readout-context">{side.context || "\u00a0"}</span>
+      )}
+    </>
+  );
+  return (
+    <div className="graph-side">
+      <p className="graph-side-name">
+        <span className="graph-side-key" data-line={line} aria-hidden />
+        <span className="graph-side-label">{name}</span>
+      </p>
+      {href ? (
+        <Link href={href} className="graph-side-value">
+          <span className="sr-only">{name}: </span>
+          {value}
+        </Link>
+      ) : (
+        <p className="graph-side-value">{value}</p>
+      )}
+    </div>
   );
 }
 
@@ -568,18 +709,24 @@ export function RangeSpans({ name, className }: { name: string; className?: stri
  */
 function GraphValues({
   data,
+  filled,
   describe,
   name,
+  names,
 }: {
   data: readonly GraphDatum[];
+  /** Whether a mark has anything in it to list. */
+  filled: (index: number) => boolean;
   describe: (index: number) => GraphReadout;
   name: string;
+  /** Head to head: both lines' values, a column each under its name. */
+  names?: readonly [string, string];
 }) {
   const [open, setOpen] = useState(false);
   const [all, setAll] = useState(false);
   const id = useId();
   const indices = data
-    .map((datum, index) => (datum.value === null ? -1 : index))
+    .map((_, index) => (filled(index) ? index : -1))
     .filter((index) => index >= 0)
     .reverse();
   const shown = all ? indices : indices.slice(0, FIRST_VALUES);
@@ -605,8 +752,58 @@ function GraphValues({
       </button>
       {open && (
         <ul id={id} className="graph-values-list">
+          {names && (
+            <li aria-hidden className="graph-value-row graph-value-head">
+              <span />
+              <span className="graph-value-pair">
+                {names.map((person, side) => (
+                  <span key={side} className="graph-value-cell">
+                    <span className="graph-value-name">
+                      <span
+                        className="graph-side-key"
+                        data-line={side === 0 ? "first" : "second"}
+                      />
+                      {person}
+                    </span>
+                  </span>
+                ))}
+              </span>
+            </li>
+          )}
           {shown.map((index) => {
             const row = describe(index);
+            if (names)
+              return (
+                <li key={`${data[index]!.date}-${index}`} className="graph-value-row">
+                  <span className="min-w-0 text-ink-2">{row.label}</span>
+                  <span className="graph-value-pair">
+                    {[row, row.against ?? { figure: null }].map((side, i) => {
+                      const content = (
+                        <>
+                          <span className="sr-only">{names[i]}: </span>
+                          {side.figure ?? "—"}
+                          {side.figure !== null && side.unit ? ` ${side.unit}` : ""}
+                          {/* Where a value has no record, the chevron's room keeps the columns. */}
+                          {side.href ? (
+                            <Glyph name="chevronRight" className="glyph-16 text-ink-2" />
+                          ) : (
+                            <span className="graph-value-spacer" />
+                          )}
+                        </>
+                      );
+                      return side.href ? (
+                        <Link key={i} href={side.href} className="graph-value-cell">
+                          {content}
+                        </Link>
+                      ) : (
+                        <span key={i} className="graph-value-cell">
+                          {content}
+                        </span>
+                      );
+                    })}
+                  </span>
+                </li>
+              );
             const content = (
               <>
                 <span className="flex min-w-0 flex-col">

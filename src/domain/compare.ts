@@ -5,8 +5,6 @@
  */
 
 export type Side = "a" | "b";
-export type TrendPoint = { date: string; value: number };
-export type Point = { date: string; value: number | null };
 
 export type Comparison = {
   /** Who is ahead; null when equal, or when neither side has anything. */
@@ -51,20 +49,4 @@ export function strongerVerdict(
 export function bodyWeightRatio(loadKg: number, bodyWeightKg: number | null): number | null {
   if (bodyWeightKg === null || !(bodyWeightKg > 0)) return null;
   return Math.round((loadKg / bodyWeightKg) * 100) / 100;
-}
-
-/**
- * Two people's readings on one date axis: the union of their dates, oldest first, each
- * series holding null where that person has no session. `Chart` bridges those gaps.
- */
-export function alignSeries(
-  a: readonly TrendPoint[],
-  b: readonly TrendPoint[],
-): { dates: string[]; a: Point[]; b: Point[] } {
-  const dates = [...new Set([...a, ...b].map((p) => p.date))].sort();
-  const fill = (points: readonly TrendPoint[]): Point[] => {
-    const byDate = new Map(points.map((p) => [p.date, p.value]));
-    return dates.map((date) => ({ date, value: byDate.get(date) ?? null }));
-  };
-  return { dates, a: fill(a), b: fill(b) };
 }

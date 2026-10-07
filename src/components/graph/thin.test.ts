@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { addDays } from "@/domain/program-calendar";
 
-import { thinRecords } from "./thin";
+import { pairLines, thinRecords } from "./thin";
 
 const range = {
   preset: "all" as const,
@@ -57,5 +57,58 @@ describe("a line a phone can read", () => {
     // October 2026 so far: its middle inside the range, not past today.
     expect(october.date).toBe("2026-10-04");
     expect(line.groups.at(-1)!.pick).toBeNull();
+  });
+});
+
+describe("two lines on one axis", () => {
+  const month = {
+    preset: "1m" as const,
+    from: "2026-09-08",
+    to: "2026-10-07",
+    bucket: "day" as const,
+  };
+
+  it("puts both on the days either trained, null where one did not, the better of a day standing", () => {
+    const pair = pairLines(
+      [
+        { date: "2026-09-10", value: 80, id: "a1" },
+        { date: "2026-09-20", value: 82, id: "a2" },
+      ],
+      [
+        { date: "2026-09-12", value: 70, id: "b1" },
+        { date: "2026-09-20", value: 71, id: "b2" },
+        { date: "2026-09-20", value: 72, id: "b3" },
+      ],
+      month,
+    );
+    expect(pair.bucket).toBeNull();
+    expect(pair.points[0]).toEqual([
+      { date: "2026-09-10", value: 80 },
+      { date: "2026-09-12", value: null },
+      { date: "2026-09-20", value: 82 },
+    ]);
+    expect(pair.points[1].map((point) => point.value)).toEqual([null, 70, 72]);
+    expect(pair.groups[2]!.picks.map((pick) => pick?.id)).toEqual(["a2", "b3"]);
+  });
+
+  it("groups both by the same week or month past the limit, each line's best in the middle", () => {
+    const many = (value: (i: number) => number) => records(200, value).map((r, i) => ({ ...r, i }));
+    const pair = pairLines(
+      many((i) => 100 + (i % 10)),
+      many(() => 90).slice(0, 20),
+      range,
+    );
+    expect(pair.bucket).toBe("month");
+    expect(pair.points[0]).toHaveLength(pair.points[1].length);
+    expect(pair.points[0].map((point) => point.date)).toEqual(
+      pair.points[1].map((point) => point.date),
+    );
+    // January 2024: eleven records each; the first line's best of them, the second's 90.
+    expect(pair.groups[0]).toMatchObject({ start: "2024-01-01", end: "2024-01-31" });
+    expect(pair.groups[0]!.picks[0]!.value).toBe(109);
+    expect(pair.points[0][0]).toEqual({ date: "2024-01-16", value: 109 });
+    expect(pair.points[1][0]!.value).toBe(90);
+    // Past the second line's twenty records, it has nothing to say.
+    expect(pair.points[1].at(-1)!.value).toBeNull();
   });
 });

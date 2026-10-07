@@ -96,3 +96,62 @@ export function thinRecords(
   });
   return { bucket, points, groups };
 }
+
+/** One mark of a pair of lines: its days, and each line's record there, or null. */
+export type PairGroup<T> = {
+  start: string;
+  end: string;
+  /** The first line's record and the second's: the best of its group's, when grouped. */
+  picks: [T | null, T | null];
+};
+
+export type Paired<T> = {
+  /** The bucket both lines were grouped by, or null when every day is its own mark. */
+  bucket: Bucket | null;
+  /** The first line's marks and the second's, on the same days, null where a line has none. */
+  points: [GraphDatum[], GraphDatum[]];
+  groups: PairGroup<T>[];
+};
+
+/**
+ * Two lines on one axis, a head to head (ADR 0042): the days either line has a record on,
+ * oldest first, each line holding null where it has none, which the graph runs straight across.
+ * Past about sixty days, both lines are grouped by the same week or month, each line's best in
+ * it standing in the middle of its days, so the two still share their marks. A line has one
+ * record a day; given two, the better stands.
+ */
+export function pairLines<T extends { date: string; value: number }>(
+  first: readonly T[],
+  second: readonly T[],
+  range: GraphRange,
+  limit = RECORDS_PER_LINE,
+): Paired<T> {
+  const days = new Set([...first, ...second].map((record) => record.date));
+  const bucket: Bucket | null =
+    days.size <= limit ? null : daysBetween(range.from, range.to) / 7 <= limit ? "week" : "month";
+  const groups = new Map<string, PairGroup<T>>();
+  [first, second].forEach((line, side) => {
+    for (const record of line) {
+      const start = bucket ? bucketStart(record.date, bucket) : record.date;
+      const group = groups.get(start) ?? {
+        start,
+        end: bucket ? bucketEnd(start, bucket) : start,
+        picks: [null, null],
+      };
+      const held = group.picks[side];
+      if (!held || record.value > held.value) group.picks[side] = record;
+      groups.set(start, group);
+    }
+  });
+  const ordered = [...groups.values()].sort((a, b) => (a.start < b.start ? -1 : 1));
+  // A group's mark stands in the middle of the days it covers, inside the range.
+  const dateOf = (group: PairGroup<T>) => {
+    if (!bucket) return group.start;
+    const end = group.end < range.to ? group.end : range.to;
+    const start = group.start > range.from ? group.start : range.from;
+    return addDays(start, Math.floor(daysBetween(start, end) / 2));
+  };
+  const line = (side: 0 | 1) =>
+    ordered.map((group) => ({ date: dateOf(group), value: group.picks[side]?.value ?? null }));
+  return { bucket, points: [line(0), line(1)], groups: ordered };
+}

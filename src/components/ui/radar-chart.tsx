@@ -46,7 +46,7 @@ function polygon(count: number, shares: readonly number[]): string {
 
 /**
  * A radar of a few axes (plan §3.10): the shape of a training split at a glance, and for two
- * people whether the shapes match. Hand-drawn SVG on the theme's series tokens, like `Chart`.
+ * people whether the shapes match. Hand-drawn SVG on the theme's series tokens.
  * Rings and spokes are hairlines; each polygon is a filled shape — a translucent wash of its
  * series colour under a 2px edge, no markers at the corners — so two shapes read as two
  * areas and stay legible where they cross, the overlap darker than either. The values are

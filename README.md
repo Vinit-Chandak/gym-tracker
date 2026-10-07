@@ -69,7 +69,8 @@ The fifth tab is **Profile**: who you are, then everything that used to be Setti
   what a follower would see.
 - **Compare**: you against a friend, head to head — both muscle splits on one radar, a bar
   pair per number for the period, and every comparable exercise you both did, each opening a
-  comparison of that movement with the day each best was set and both trends on one chart.
+  comparison of that movement with the day each best was set and both lines on one graph, over
+  the span every graph shares, each point opening the workout behind it.
 - **Leaderboard**: you and the people you follow, ranked on a period's totals or on the
   all-time bests of one movement, with "per kg of body weight" rankings once two of you share
   your weight. Equal values share a rank; whoever has nothing for a metric reads "—".
